@@ -95,7 +95,10 @@ ssl=required
 ssl_cert = </etc/ssl/certs/server.pem
 ssl_key = </etc/ssl/certs/exmachinis.com.key
 ```
-
+A cron job needs to be created to execute incoming mails processing. First set the CRON_KEY on the .env configuration file. Then you can edit the cron table on Linux with the command "crontab -e". To make the process run once every five minutes (replace "CRON_KEY" with the key code):
+```
+*/5 * * * * wget -O /dev/null -o /dev/null  https://www.exmachinis.com/get-mail/{CRON_KEY}
+```
 
 
 
