@@ -6,6 +6,7 @@ use App\Agent;
 use App\Company;
 use App\User;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Foundation\Auth\RegistersUsers;
 
@@ -38,6 +39,7 @@ class RegisterController extends Controller
      */
     public function __construct()
     {
+
         $this->middleware('guest');
     }
 
@@ -75,16 +77,7 @@ class RegisterController extends Controller
         $company->name = $data['company_name'];
         $company->save();
         //create initial drones:
-        for ($i = 0; $i < Company::INITIAL_AGENTS; $i++) {
-            $agent = new Agent();
-            $agent->assignRandomName();
-            $agent->company_id = $company->id;
-            //to be changed
-            $agent->coord_x = 0;
-            $agent->coord_y = 0;
-            $agent->coord_z = 0;
-            $agent->save();
-        }
+       $company->generateStartingDrones();
 
         return $user;
     }
