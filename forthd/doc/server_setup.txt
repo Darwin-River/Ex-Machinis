@@ -1,0 +1,221 @@
+# Creation of a new linux group named "dev" (for development users)
+
+As root execute:
+
+> addgroup dev
+
+# Creation of new developer user named "forth" that belongs to "dev" group, has bash shell and home at /home/forth
+
+As root execute:
+
+> useradd -d /home/forth -m -g dev -s /bin/bash forth
+
+# Configuration of minor stuff like default prompt appearance, under $HOME/.profile just add the following line:
+
+# Default Prompt format
+PS1="[\u@\h] # "
+
+save the file, logout and login again
+
+
+# Installation of development libraries required (config and mysql client)
+
+> apt-get install libmysqlclient-dev libconfig-dev
+
+
+# Stuff that these libraries installed:
+
+[forth@ExMachinis]#dpkg-query -L libmysqlclient-dev
+/.
+/usr
+/usr/include
+/usr/include/mysql
+/usr/include/mysql/sslopt-vars.h
+/usr/include/mysql/typelib.h
+/usr/include/mysql/sslopt-case.h
+/usr/include/mysql/byte_order_generic_x86.h
+/usr/include/mysql/decimal.h
+/usr/include/mysql/my_byteorder.h
+/usr/include/mysql/thr_cond.h
+/usr/include/mysql/thr_mutex.h
+/usr/include/mysql/mysql_com.h
+/usr/include/mysql/my_compiler.h
+/usr/include/mysql/mysql_embed.h
+/usr/include/mysql/mysqlx_error.h
+/usr/include/mysql/my_dir.h
+/usr/include/mysql/my_global.h
+/usr/include/mysql/plugin_auth_common.h
+/usr/include/mysql/my_sys.h
+/usr/include/mysql/my_getopt.h
+/usr/include/mysql/plugin_ftparser.h
+/usr/include/mysql/mysqlx_version.h
+/usr/include/mysql/thr_rwlock.h
+/usr/include/mysql/sql_state.h
+/usr/include/mysql/my_config.h
+/usr/include/mysql/mysql
+/usr/include/mysql/mysql/service_srv_session.h
+/usr/include/mysql/mysql/plugin_audit.h.pp
+/usr/include/mysql/mysql/service_my_plugin_log.h
+/usr/include/mysql/mysql/thread_type.h
+/usr/include/mysql/mysql/plugin_auth.h
+/usr/include/mysql/mysql/service_command.h
+/usr/include/mysql/mysql/client_plugin.h.pp
+/usr/include/mysql/mysql/service_rpl_transaction_write_set.h
+/usr/include/mysql/mysql/service_rules_table.h
+/usr/include/mysql/mysql/thread_pool_priv.h
+/usr/include/mysql/mysql/client_plugin.h
+/usr/include/mysql/mysql/service_security_context.h
+/usr/include/mysql/mysql/services.h.pp
+/usr/include/mysql/mysql/plugin_auth_common.h
+/usr/include/mysql/mysql/plugin_ftparser.h
+/usr/include/mysql/mysql/group_replication_priv.h
+/usr/include/mysql/mysql/service_my_snprintf.h
+/usr/include/mysql/mysql/services.h
+/usr/include/mysql/mysql/service_thd_engine_lock.h
+/usr/include/mysql/mysql/plugin.h
+/usr/include/mysql/mysql/plugin_auth.h.pp
+/usr/include/mysql/mysql/service_thd_alloc.h
+/usr/include/mysql/mysql/com_data.h
+/usr/include/mysql/mysql/innodb_priv.h
+/usr/include/mysql/mysql/client_authentication.h
+/usr/include/mysql/mysql/service_mysql_alloc.h
+/usr/include/mysql/mysql/plugin_keyring.h.pp
+/usr/include/mysql/mysql/service_mysql_keyring.h
+/usr/include/mysql/mysql/service_rpl_transaction_ctx.h
+/usr/include/mysql/mysql/service_mysql_string.h
+/usr/include/mysql/mysql/plugin_validate_password.h
+/usr/include/mysql/mysql/service_ssl_wrapper.h
+/usr/include/mysql/mysql/get_password.h
+/usr/include/mysql/mysql/service_srv_session_info.h
+/usr/include/mysql/mysql/service_parser.h
+/usr/include/mysql/mysql/service_locking.h
+/usr/include/mysql/mysql/psi
+/usr/include/mysql/mysql/psi/mysql_mdl.h
+/usr/include/mysql/mysql/psi/mysql_file.h
+/usr/include/mysql/mysql/psi/mysql_ps.h
+/usr/include/mysql/mysql/psi/mysql_transaction.h
+/usr/include/mysql/mysql/psi/mysql_socket.h
+/usr/include/mysql/mysql/psi/mysql_stage.h
+/usr/include/mysql/mysql/psi/mysql_sp.h
+/usr/include/mysql/mysql/psi/mysql_memory.h
+/usr/include/mysql/mysql/psi/psi_memory.h
+/usr/include/mysql/mysql/psi/mysql_statement.h
+/usr/include/mysql/mysql/psi/mysql_thread.h
+/usr/include/mysql/mysql/psi/psi_base.h
+/usr/include/mysql/mysql/psi/mysql_table.h
+/usr/include/mysql/mysql/psi/mysql_idle.h
+/usr/include/mysql/mysql/psi/psi.h
+/usr/include/mysql/mysql/plugin_keyring.h
+/usr/include/mysql/mysql/plugin_trace.h
+/usr/include/mysql/mysql/service_mysql_password_policy.h
+/usr/include/mysql/mysql/plugin_ftparser.h.pp
+/usr/include/mysql/mysql/service_thread_scheduler.h
+/usr/include/mysql/mysql/mysql_lex_string.h
+/usr/include/mysql/mysql/plugin_group_replication.h
+/usr/include/mysql/mysql/service_thd_wait.h
+/usr/include/mysql/mysql/plugin_audit.h
+/usr/include/mysql/little_endian.h
+/usr/include/mysql/errmsg.h
+/usr/include/mysql/my_command.h
+/usr/include/mysql/mysql_com_server.h
+/usr/include/mysql/byte_order_generic.h
+/usr/include/mysql/my_thread.h
+/usr/include/mysql/mysql_version.h
+/usr/include/mysql/plugin.h
+/usr/include/mysql/mysqlx_ername.h
+/usr/include/mysql/my_dbug.h
+/usr/include/mysql/sql_common.h
+/usr/include/mysql/big_endian.h
+/usr/include/mysql/m_string.h
+/usr/include/mysql/mysqld_ername.h
+/usr/include/mysql/mysqld_error.h
+/usr/include/mysql/m_ctype.h
+/usr/include/mysql/plugin_validate_password.h
+/usr/include/mysql/psi
+/usr/include/mysql/psi/psi_memory.h
+/usr/include/mysql/psi/psi_base.h
+/usr/include/mysql/my_thread_local.h
+/usr/include/mysql/binary_log_types.h
+/usr/include/mysql/keycache.h
+/usr/include/mysql/my_list.h
+/usr/include/mysql/plugin_keyring.h
+/usr/include/mysql/mysql_time.h
+/usr/include/mysql/plugin_group_replication.h
+/usr/include/mysql/mysql.h
+/usr/include/mysql/my_alloc.h
+/usr/include/mysql/sslopt-longopts.h
+/usr/include/mysql/my_xml.h
+/usr/include/mysql/plugin_audit.h
+/usr/lib
+/usr/lib/x86_64-linux-gnu
+/usr/lib/x86_64-linux-gnu/pkgconfig
+/usr/lib/x86_64-linux-gnu/pkgconfig/mysqlclient.pc
+/usr/lib/x86_64-linux-gnu/libmysqlclient.a
+/usr/bin
+/usr/bin/mysql_config
+/usr/share
+/usr/share/aclocal
+/usr/share/aclocal/mysql.m4
+/usr/share/doc
+/usr/share/doc/libmysqlclient-dev
+/usr/share/doc/libmysqlclient-dev/examples
+/usr/share/doc/libmysqlclient-dev/examples/udf_example.cc.gz
+/usr/share/doc/libmysqlclient-dev/copyright
+/usr/share/man
+/usr/share/man/man1
+/usr/share/man/man1/mysql_config.1.gz
+/usr/lib/x86_64-linux-gnu/libmysqlclient.so
+/usr/share/doc/libmysqlclient-dev/changelog.Debian.gz
+/usr/share/doc/libmysqlclient-dev/NEWS.Debian.gz
+
+
+[forth@ExMachinis]#dpkg-query -L libconfig-dev
+/.
+/usr
+/usr/share
+/usr/share/doc
+/usr/share/doc/libconfig-dev
+/usr/share/doc/libconfig-dev/copyright
+/usr/share/doc/libconfig-dev/examples
+/usr/share/doc/libconfig-dev/examples/debian.Makefile
+/usr/share/doc/libconfig-dev/examples/example2.c
+/usr/share/doc/libconfig-dev/examples/example.cfg
+/usr/share/doc/libconfig-dev/examples/example1.c
+/usr/share/doc/libconfig-dev/examples/example3.c
+/usr/share/info
+/usr/share/info/libconfig.info.gz
+/usr/include
+/usr/include/libconfig.h
+/usr/lib
+/usr/lib/x86_64-linux-gnu
+/usr/lib/x86_64-linux-gnu/pkgconfig
+/usr/lib/x86_64-linux-gnu/pkgconfig/libconfig.pc
+/usr/lib/x86_64-linux-gnu/libconfig.a
+/usr/share/doc/libconfig-dev/changelog.Debian.gz
+/usr/lib/x86_64-linux-gnu/libconfig.so
+
+
+# Creation of workspace directory under new dev user "forth" and folders to work with forthd (daemon) and current libforth
+
+> cd $HOME
+
+> mkdir workspace
+
+> cd workspace
+
+> mkdir libforth
+
+> mkdir forthd
+
+# Clone of libforth libraries and its submodules
+
+> cd $HOME/workspace/libforth
+> git clone https://github.com/howerj/libforth.git
+> git submodule update --init --recursive
+
+# Compilation of the original libforth libraries (before integration)
+
+> make
+
+(this obtains the forth test application and the library itself, static library .a that we will include in our daemon)
+
