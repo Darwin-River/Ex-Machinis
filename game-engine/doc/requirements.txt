@@ -1,0 +1,11 @@
+I'll try to explain the cycle better. Hopefully I'm not being repetitive :smile: 
+
+There will potentially be hundreds of agents (i.e. player spacecraft/drones) running FORTH codes at the "same time.") 
+
+Most of these "virtual machines" will be waiting for commands (such as fly from orbit a to orbit b) to complete and won't need much attention. 
+
+However, the application will need to be running continuously in the background and cycling through each of the agents, asking whether the FORTH code needs to be cycled through an additional set of instructions. 
+
+If the agent does have code that needs to be processed, your application will upload the agents virtual machine from the DB, churn through the FORTH binary, and then return the modified VM back to the DB before moving onto the next agent. 
+
+It may also need to upload an output stream (STDOUT?) to the DB so that can later be reported back to the user. Most if not all of the fields you need to deal with will probably be located in the Agent DB table, although many of these fields don't exist yet. You'll need to add what you need.
