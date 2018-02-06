@@ -20,10 +20,10 @@ save the file, logout and login again
 
 # Installation of development libraries required (config and mysql client)
 
-> apt-get install libmysqlclient-dev libconfig-dev
+> apt-get install libmysqlclient-dev libconfig-dev gdb
 
 
-# Stuff that these libraries installed:
+# Stuff that these libraries/tools installed:
 
 [forth@ExMachinis]#dpkg-query -L libmysqlclient-dev
 /.
@@ -194,6 +194,99 @@ save the file, logout and login again
 /usr/share/doc/libconfig-dev/changelog.Debian.gz
 /usr/lib/x86_64-linux-gnu/libconfig.so
 
+root@ExMachinis:~# dpkg-query -L  gdb
+/.
+/etc
+/etc/gdb
+/etc/gdb/gdbinit
+/usr
+/usr/share
+/usr/share/doc
+/usr/share/doc/gdb
+/usr/share/doc/gdb/refcard.ps.gz
+/usr/share/doc/gdb/NEWS.Debian.gz
+/usr/share/doc/gdb/changelog.Debian.gz
+/usr/share/doc/gdb/copyright
+/usr/share/doc/gdb/contrib
+/usr/share/doc/gdb/contrib/expect-read1.sh
+/usr/share/doc/gdb/contrib/gcc-with-excheck
+/usr/share/doc/gdb/contrib/ari
+/usr/share/doc/gdb/contrib/ari/update-web-ari.sh.gz
+/usr/share/doc/gdb/contrib/ari/create-web-ari-in-src.sh
+/usr/share/doc/gdb/contrib/ari/gdb_ari.sh.gz
+/usr/share/doc/gdb/contrib/ari/gdb_find.sh
+/usr/share/doc/gdb/contrib/gdb-add-index.sh
+/usr/share/doc/gdb/contrib/cc-with-tweaks.sh.gz
+/usr/share/doc/gdb/contrib/exsummary.py.gz
+/usr/share/doc/gdb/contrib/test_pubnames_and_indexes.py.gz
+/usr/share/doc/gdb/contrib/excheck.py.gz
+/usr/share/doc/gdb/contrib/expect-read1.c
+/usr/share/doc/gdb/contrib/cleanup_check.py.gz
+/usr/share/doc/gdb/check.log.gz
+/usr/share/doc/gdb/README.gz
+/usr/share/doc/gdb/README.Debian
+/usr/share/doc/gdb/refcard.tex.gz
+/usr/share/doc/gdb/refcard.dvi.gz
+/usr/share/doc/gdb/NEWS.gz
+/usr/share/doc/gdb/README.python_switch
+/usr/share/gdb
+/usr/share/gdb/python
+/usr/share/gdb/python/gdb
+/usr/share/gdb/python/gdb/frames.py
+/usr/share/gdb/python/gdb/function
+/usr/share/gdb/python/gdb/function/__init__.py
+/usr/share/gdb/python/gdb/function/strfns.py
+/usr/share/gdb/python/gdb/function/caller_is.py
+/usr/share/gdb/python/gdb/printing.py
+/usr/share/gdb/python/gdb/__init__.py
+/usr/share/gdb/python/gdb/command
+/usr/share/gdb/python/gdb/command/unwinders.py
+/usr/share/gdb/python/gdb/command/__init__.py
+/usr/share/gdb/python/gdb/command/frame_filters.py
+/usr/share/gdb/python/gdb/command/type_printers.py
+/usr/share/gdb/python/gdb/command/xmethods.py
+/usr/share/gdb/python/gdb/command/explore.py
+/usr/share/gdb/python/gdb/command/pretty_printers.py
+/usr/share/gdb/python/gdb/command/prompt.py
+/usr/share/gdb/python/gdb/types.py
+/usr/share/gdb/python/gdb/xmethod.py
+/usr/share/gdb/python/gdb/unwinder.py
+/usr/share/gdb/python/gdb/prompt.py
+/usr/share/gdb/python/gdb/FrameDecorator.py
+/usr/share/gdb/python/gdb/FrameIterator.py
+/usr/share/gdb/python/gdb/printer
+/usr/share/gdb/python/gdb/printer/__init__.py
+/usr/share/gdb/python/gdb/printer/bound_registers.py
+/usr/share/gdb/syscalls
+/usr/share/gdb/syscalls/s390x-linux.xml
+/usr/share/gdb/syscalls/i386-linux.xml
+/usr/share/gdb/syscalls/s390-linux.xml
+/usr/share/gdb/syscalls/gdb-syscalls.dtd
+/usr/share/gdb/syscalls/ppc-linux.xml
+/usr/share/gdb/syscalls/sparc64-linux.xml
+/usr/share/gdb/syscalls/mips-o32-linux.xml
+/usr/share/gdb/syscalls/amd64-linux.xml
+/usr/share/gdb/syscalls/mips-n32-linux.xml
+/usr/share/gdb/syscalls/ppc64-linux.xml
+/usr/share/gdb/syscalls/aarch64-linux.xml
+/usr/share/gdb/syscalls/arm-linux.xml
+/usr/share/gdb/syscalls/sparc-linux.xml
+/usr/share/gdb/syscalls/mips-n64-linux.xml
+/usr/share/gdb/system-gdbinit
+/usr/share/gdb/system-gdbinit/elinos.py
+/usr/share/gdb/system-gdbinit/wrs-linux.py
+/usr/share/menu
+/usr/share/menu/gdb
+/usr/share/man
+/usr/share/man/man1
+/usr/share/man/man1/gcore.1.gz
+/usr/share/man/man1/gdb.1.gz
+/usr/bin
+/usr/bin/gdb
+/usr/bin/gdbtui
+/usr/bin/gdb-add-index
+/usr/bin/gcore
+
 
 # Creation of workspace directory under new dev user "forth" and folders to work with forthd (daemon) and current libforth
 
@@ -219,3 +312,34 @@ save the file, logout and login again
 
 (this obtains the forth test application and the library itself, static library .a that we will include in our daemon)
 
+
+
+# Creation of PLAT_HOME structure, where the game stuff (binaries, config and logs) will be placed
+
+1) Create the following struct of directories under forth user $HOME 
+
+[forth@ExMachinis] # find game-engine/
+game-engine/
+game-engine/conf
+game-engine/bin
+game-engine/tmp
+game-engine/log
+
+2) At .profile define the following environment to deal with workspace and platform and reload it:
+
+# Define PLAT_HOME path where the game stuff is placed
+export PLAT_HOME=$HOME/game-engine
+export WORKSPACE=$HOME/workspace/game-engine
+
+# Also some alias to move to the PLAT_HOME subdirectories
+alias cdpl='cd $PLAT_HOME;pwd'
+alias cdex='cd $PLAT_HOME/bin;pwd'
+alias cdcf='cd $PLAT_HOME/conf;pwd'
+alias cdlog='cd $PLAT_HOME/log;pwd'
+alias cdtmp='cd $PLAT_HOME/tmp;pwd'
+
+# Alias for workspace, to compile the daemon
+alias cdsrc='cd $WORKSPACE;pwd'
+
+# Allow memory coredump generation when engine crashes
+ulimit -c unlimited

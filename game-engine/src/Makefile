@@ -6,13 +6,13 @@
 # Compiler/linker flags
 #---------------------------------------------------------------------------
 CXX=gcc
-CFLAGS=-std=c99 -Werror -Wall -O2 -I. -I/usr/include/mysql
+CFLAGS=-std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql
 LDFLAGS=-lmysqlclient
 
 #---------------------------------------------------------------------------
 # Program sources and name
 #---------------------------------------------------------------------------
-SRCS=main.c libforth.c db.c logger.c
+SRCS=main.c libforth.c db.c trace.c engine.c config.c
 OBJS_PATH=objs
 OBJS=$(patsubst %.c,$(OBJS_PATH)/%.o,$(SRCS))
 
