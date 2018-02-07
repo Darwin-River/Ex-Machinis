@@ -11,7 +11,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
-#include <stdarg.h>
+#include <stdlib.h>
+
 
 #include "trace.h"
 
@@ -23,16 +24,21 @@
 
 /******************************* TYPES ***************************************/
 
+//-----------------------------------------------------------------------------
+//  Traces management info
+//-----------------------------------------------------------------------------
+typedef struct 
+{
+    TraceConf_t conf;
+    FILE* fp;  // log file pointer
 
+} TraceInfo_t;
 
 /******************************* PROTOTYPES **********************************/
 
 
 
 /******************************* GLOBAL VARIABLES ****************************/
-
-// instance to manage traces
-TraceHndl_t traceHndl;
 
 /******************************* LOCAL FUNCTIONS *****************************/
 
@@ -52,11 +58,13 @@ ErrorCode_t trace_check_conf(TraceConf_t* conf)
 
 /******************************* PUBLIC FUNCTIONS ****************************/
 
-ErrorCode_t trace_init(TraceConf_t* conf)
+ErrorCode_t trace_init(TraceConf_t* conf, TraceHndl_t* out_hndl)
 {
 	ErrorCode_t error = ENGINE_OK;
 
-	memset(&traceHndl, 0, sizeof(TraceHndl_t));
+	TraceInfo_t* trace_info = malloc(sizeof(TraceInfo_t));
+
+	memset(trace_info, 0, sizeof(TraceInfo_t));
 
 	error = trace_check_conf(conf);
 
@@ -64,16 +72,19 @@ ErrorCode_t trace_init(TraceConf_t* conf)
 	if(error == ENGINE_OK)
 	{
 		// Save config
-		memcpy(&traceHndl.conf, conf, sizeof(TraceConf_t));
+		memcpy(&trace_info->conf, conf, sizeof(TraceConf_t));
 
 		// Open file 
-		traceHndl.fp = fopen(traceHndl.conf.log_file_path, "a");
+		trace_info->fp = fopen(trace_info->conf.log_file_path, "a");
 
-		if(!traceHndl.fp)
+		if(!trace_info->fp)
 		{
 			error = ENGINE_LOG_FILE_ERROR;
 		}
-		// else { opened }
+		else
+		{
+			*out_hndl = trace_info;
+		}
 	}
 
 	return error;
@@ -81,40 +92,44 @@ ErrorCode_t trace_init(TraceConf_t* conf)
 
 /*******************************************************************************/
 
-void trace_stop()
+void trace_stop(TraceHndl_t hdnl)
 {
-	if(traceHndl.fp)
+	TraceInfo_t* trace_info = (TraceInfo_t*)hdnl;
+
+	if(trace_info && trace_info->fp)
 	{
-		fclose(traceHndl.fp);
-		traceHndl.fp = NULL;
+		fclose(trace_info->fp);
+		trace_info->fp = NULL;
 	}
 }
 
 /*******************************************************************************/
 
 
-void trace_write(int level, const char *trace, ... )
+void trace_write(TraceHndl_t hdnl, TraceLevel_t level, const char *trace, va_list valist)
 {
-	static va_list valist;
-	static char trace_msg[TRACE_MAXLENGTH+1];
+	TraceInfo_t* trace_info = (TraceInfo_t*)hdnl;
 
-    // res msg buffer
-	memset(trace_msg, 0x00, TRACE_MAXLENGTH+1);
+	if(trace_info && trace_info->fp && (level <= trace_info->conf.level))
+	{
+		static char trace_msg[TRACE_MAXLENGTH+1];
 
-	va_start(valist, trace);
-    vsnprintf(trace_msg, TRACE_MAXLENGTH, trace, valist);
-    va_end(valist);
+	    // res msg buffer
+		memset(trace_msg, 0x00, TRACE_MAXLENGTH+1);
 
-    time_t now;
-	struct tm* lnow;
-	char date[TRACE_DATE_MAXLENGTH+1];
+	    vsnprintf(trace_msg, TRACE_MAXLENGTH, trace, valist);
 
-	// date and time
-	now = time(NULL);
-	lnow = localtime(&now);
-	strftime(date, TRACE_DATE_MAXLENGTH, "%d/%m/%Y,%H:%M:%S", lnow);
+	    time_t now;
+		struct tm* lnow;
+		char date[TRACE_DATE_MAXLENGTH+1];
 
-	// write line
-	fprintf(traceHndl.fp, "* %s [%d] %s\n", date, level, trace_msg);
-    fflush(traceHndl.fp);
+		// date and time
+		now = time(NULL);
+		lnow = localtime(&now);
+		strftime(date, TRACE_DATE_MAXLENGTH, "%d/%m/%Y,%H:%M:%S", lnow);
+
+		// write line
+		fprintf(trace_info->fp, "* %s [%d] %s\n", date, level, trace_msg);
+	    fflush(trace_info->fp);
+	}
 }

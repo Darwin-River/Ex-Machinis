@@ -12,6 +12,7 @@
 
 #include "db.h"
 #include "trace.h"
+#include "engine.h"
 
 /******************************* DEFINES *************************************/
 
@@ -33,11 +34,11 @@
 void db_init()
 {
 	//small test MYSQSL connection
-    trace_write(1, "MySQL Client Version %lu connected", mysql_get_client_version());
+    engine_trace(TRACE_LEVEL_DEBUG, "MySQL Client Version [%lu] connected", mysql_get_client_version());
 }
 
 void db_stop()
 {
 	//small test MYSQSL connection
-    trace_write(1, "MySQL Client Version %lu disconnected", mysql_get_client_version());
+    engine_trace(TRACE_LEVEL_DEBUG, "MySQL Client Version [%lu] disconnected", mysql_get_client_version());
 }

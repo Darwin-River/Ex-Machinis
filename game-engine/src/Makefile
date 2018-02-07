@@ -7,7 +7,7 @@
 #---------------------------------------------------------------------------
 CXX=gcc
 CFLAGS=-std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql
-LDFLAGS=-lmysqlclient
+LDFLAGS=-lmysqlclient -lconfig
 
 #---------------------------------------------------------------------------
 # Program sources and name

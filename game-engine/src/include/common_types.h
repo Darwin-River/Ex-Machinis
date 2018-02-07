@@ -14,8 +14,6 @@
 
 /******************************* DEFINES *************************************/
 
-
-
 /******************************* TYPES ***************************************/
 
 //-----------------------------------------------------------------------------
@@ -33,9 +31,11 @@ typedef enum
 typedef enum
 {
 	ENGINE_OK,
+	ENGINE_PLAT_HOME_ERROR,
 	ENGINE_LOG_CONF_ERROR,
 	ENGINE_LOG_FILE_ERROR,
-    ENGINE_ERROR
+	ENGINE_CONFIG_ERROR,
+	ENGINE_INTERNAL_ERROR,
 } ErrorCode_t;
 
 

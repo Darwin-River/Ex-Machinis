@@ -13,6 +13,7 @@
 
 #include <linux/limits.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #include "common_types.h"
 
@@ -22,11 +23,23 @@
 /******************************* TYPES ***************************************/
 
 //-----------------------------------------------------------------------------
+//  Traces levels
+//-----------------------------------------------------------------------------
+typedef enum 
+{
+    TRACE_LEVEL_ALWAYS,
+    TRACE_LEVEL_LOW,
+    TRACE_LEVEL_MEDIUM,
+    TRACE_LEVEL_DEBUG
+    
+} TraceLevel_t;
+
+//-----------------------------------------------------------------------------
 //  Traces configuration object
 //-----------------------------------------------------------------------------
 typedef struct 
 {
-    int level;
+    TraceLevel_t level;
     char log_file_path[PATH_MAX+1];
     Bool_t use_stdout;
     Bool_t add_header;
@@ -34,15 +47,8 @@ typedef struct
 
 } TraceConf_t;
 
-//-----------------------------------------------------------------------------
-//  Traces handler
-//-----------------------------------------------------------------------------
-typedef struct 
-{
-    TraceConf_t conf;
-    FILE* fp;  // log file pointer
-
-} TraceHndl_t;
+// Encapsulate handler
+typedef void* TraceHndl_t;
 
 /******************************* PROTOTYPES **********************************/
 
@@ -61,36 +67,38 @@ typedef struct
 
   @brief      Traces/logs initialization
 
-  @param[in]  conf  Configuration to be used at logs
+  @param[in]  conf      Configuration to be used at logs
+  @param[out] out_hndl  Out traces handler when OK
 
-  @return     void
+  @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t trace_init(TraceConf_t* conf);
+ErrorCode_t trace_init(TraceConf_t* conf, TraceHndl_t* out_hndl);
 
 /** ****************************************************************************
 
   @brief      Traces/logs module stop
 
-  @param[in]  void
+  @param[in]  hdnl   Traces handler
 
   @return     void
 
 *******************************************************************************/
-void trace_stop();
+void trace_stop(TraceHndl_t hdnl);
 
 
 /** ****************************************************************************
 
   @brief      Write trace into file
 
-  @param[in]  level Trace level
-  @param[in]  trace Formatted msg
-  @param[in]  ...   Variable list of arguments to be printed
+  @param[in]  hdnl   Traces handler
+  @param[in]  level  Trace level
+  @param[in]  trace  Formatted msg
+  @param[in]  valist Variable list of arguments to be printed
 
   @return     void
 
 *******************************************************************************/
-void trace_write(int level, const char *trace, ... );
+void trace_write(TraceHndl_t hdnl, TraceLevel_t level, const char *trace, va_list valist);
 
 #endif // __EM_TRACE_MODULE__
