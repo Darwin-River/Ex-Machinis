@@ -256,7 +256,9 @@ ErrorCode_t engine_run()
 	{
 		engine_trace(TRACE_LEVEL_ALWAYS, "Running engine logic");
 
-		sleep(1);
+        db_get_next_command(&engine.db_connection);
+
+		sleep(atoi(engine.config.params[DB_READ_TIME]));
 	}
 
 	// deallocate resources/Stop modules

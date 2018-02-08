@@ -40,6 +40,9 @@ char conf_param_names[MAX_CONFIG_PARAM+1][MAX_CONF_PARAM_LEN] =
     "DB_USER",
     "DB_PASSWORD",
     "DB_NAME",
+
+    // LOGIC configuration
+    "DB_READ_TIME",
 };
 
 /******************************* LOCAL FUNCTIONS *****************************/

@@ -45,13 +45,24 @@ ErrorCode_t db_init(DbConnection_t* connection);
 
 /** ****************************************************************************
 
-  @brief      Closes connection with DB
+  @brief          Closes connection with DB
 
   @param[in|out]  Connection info, updated once disconnected
 
-  @return     void
+  @return         void
 
 *******************************************************************************/
 void db_stop(DbConnection_t* connection);
+
+/** ****************************************************************************
+
+  @brief          Gets the next command
+
+  @param[in|out]  Connection info, updated once disconnected
+
+  @return         void
+
+*******************************************************************************/
+ErrorCode_t db_get_next_command(DbConnection_t* connection);
 
 #endif // __EM_DB_MODULE__

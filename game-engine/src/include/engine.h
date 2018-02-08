@@ -40,6 +40,9 @@ enum
     DB_PASSWORD_ID,
     DB_NAME_ID,
 
+    // Logic configuration
+    DB_READ_TIME,
+
     // Max configured parameters
     MAX_CONFIG_PARAM
 };

@@ -9,3 +9,13 @@ However, the application will need to be running continuously in the background 
 If the agent does have code that needs to be processed, your application will upload the agents virtual machine from the DB, churn through the FORTH binary, and then return the modified VM back to the DB before moving onto the next agent. 
 
 It may also need to upload an output stream (STDOUT?) to the DB so that can later be reported back to the user. Most if not all of the fields you need to deal with will probably be located in the Agent DB table, although many of these fields don't exist yet. You'll need to add what you need.
+
+
+--------------------------
+
+For now, the game engine should pull the FORTH code from the database as soon as it finds it, execute the script in its entirety, and then delete the script before moving on to process the code for another agent. Of course the FORTH virtual machine (all the binary code that comprises a particular agent's memory) will persist in the DB even after the script which the player calls has been created, processed, and deleted.
+
+In the future, some of the commands that a player or agent calls will not be instantaneous. For example, instructing the spacecraft to fly to another planet will take hours to complete and you don't want the game engine to sit around waiting for that to happen. I think the best way to solve this problem will be to link a command completion time to every item on FORTH's return stack. That way, the game engine will not cycle back to a program running on a particular agent until it sees that the time has been reached for the top-most item on the return stack. However, this will mean tinkering with libforth itself and is probably better left until we actually get the FORTH interpreter running.
+
+--------------------------
+
