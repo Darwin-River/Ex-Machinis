@@ -19,6 +19,9 @@ Traces levels
 Abstract/isolate configuration module from engine
 
 
+Add file and line number at logs, macros to use in traces
+
+
 
 
 

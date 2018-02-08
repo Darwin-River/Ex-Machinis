@@ -33,6 +33,13 @@ char conf_param_names[MAX_CONFIG_PARAM+1][MAX_CONF_PARAM_LEN] =
 {
     // Application config
     "APP_TRACE_LEVEL",
+
+    // DB configuration
+    "DB_HOST",
+    "DB_PORT",
+    "DB_USER",
+    "DB_PASSWORD",
+    "DB_NAME",
 };
 
 /******************************* LOCAL FUNCTIONS *****************************/

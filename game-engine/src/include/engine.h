@@ -14,6 +14,7 @@
 #include <linux/limits.h>
 
 #include <libconfig.h>
+#include <mysql.h>
 
 #include "common_types.h"
 
@@ -31,6 +32,13 @@ enum
 {
     // Application configuration
     APP_TRACE_LEVEL_ID,
+
+    // Database configuration
+    DB_HOST_ID,
+    DB_PORT_ID,
+    DB_USER_ID,
+    DB_PASSWORD_ID,
+    DB_NAME_ID,
 
     // Max configured parameters
     MAX_CONFIG_PARAM
@@ -89,10 +97,9 @@ typedef struct
 
     EngineStatus_t status;
 
-    ErrorCode_t error;
+    DbConnection_t db_connection;
 
-    Bool_t stop;
-    Bool_t stopped;
+    ErrorCode_t error;
 
 } Engine_t;
 

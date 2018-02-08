@@ -124,8 +124,16 @@ ErrorCode_t engine_init_db()
 {
 	ErrorCode_t result = ENGINE_OK;
 
+    // initialize DB parameters
+    engine.db_connection.hndl = NULL;
+    engine.db_connection.host = engine.config.params[DB_HOST_ID];
+    engine.db_connection.port = atoi(engine.config.params[DB_PORT_ID]);
+    engine.db_connection.user = engine.config.params[DB_USER_ID];
+    engine.db_connection.password = engine.config.params[DB_PASSWORD_ID];
+    engine.db_connection.db_name = engine.config.params[DB_NAME_ID];
+
 	// db
-	db_init();
+	result = db_init(&engine.db_connection);
 
 	return result;
 }
@@ -142,7 +150,7 @@ ErrorCode_t engine_init_db()
 void engine_stop_all()
 {
 	// DB
-    db_stop();
+    db_stop(&engine.db_connection);
 
     // CONFIG
     config_engine_stop(&engine.conf_hndl);

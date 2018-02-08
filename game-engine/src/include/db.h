@@ -11,14 +11,13 @@
 
 /******************************* INCLUDES ************************************/
 
+#include "common_types.h"
 
 /******************************* DEFINES *************************************/
 
 
 
 /******************************* TYPES ***************************************/
-
-
 
 /******************************* PROTOTYPES **********************************/
 
@@ -33,26 +32,26 @@
 
 /******************************* PUBLIC FUNCTIONS ****************************/
 
-/** ****************************************************************************
+/** ***************************************************************************
 
-  @brief      Initializes connection with DB
+  @brief          Creates a DB connection using credentials supplied
 
-  @param[in]  void
+  @param[in|out]  Connection info, updated once connected
 
-  @return     void
+  @return         Execution result
 
-*******************************************************************************/
-void db_init();
+******************************************************************************/
+ErrorCode_t db_init(DbConnection_t* connection);
 
 /** ****************************************************************************
 
   @brief      Closes connection with DB
 
-  @param[in]  void
+  @param[in|out]  Connection info, updated once disconnected
 
   @return     void
 
 *******************************************************************************/
-void db_stop();
+void db_stop(DbConnection_t* connection);
 
 #endif // __EM_DB_MODULE__
