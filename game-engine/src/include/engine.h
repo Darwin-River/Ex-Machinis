@@ -20,6 +20,7 @@
 
 #include "trace.h"
 #include "config.h"
+#include "libforth.h"
 
 /******************************* DEFINES *************************************/
 
@@ -101,6 +102,11 @@ typedef struct
     EngineStatus_t status;
 
     DbConnection_t db_connection;
+
+
+    Command_t last_command;  // last command read from DB
+
+    forth_t* last_vm;  // last agent VM
 
     ErrorCode_t error;
 

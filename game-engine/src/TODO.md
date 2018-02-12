@@ -21,6 +21,10 @@ Abstract/isolate configuration module from engine
 
 Add file and line number at logs, macros to use in traces
 
+Make configurable the size of the code buffer when reading commands table:
+
+- Now we are using #define MAX_COMMAND_CODE_SIZE  2048
+
 
 
 

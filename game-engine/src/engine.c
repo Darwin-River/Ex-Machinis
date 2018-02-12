@@ -19,6 +19,7 @@
 #include "engine.h"
 #include "config.h"
 #include "db.h"
+#include "vm.h"
 
 /******************************* DEFINES *************************************/
 
@@ -256,7 +257,28 @@ ErrorCode_t engine_run()
 	{
 		engine_trace(TRACE_LEVEL_ALWAYS, "Running engine logic");
 
-        db_get_next_command(&engine.db_connection);
+        // start a transaction
+        db_start_transaction(&engine.db_connection);
+
+        // get next command
+        db_get_next_command(&engine.db_connection, &engine.last_command);
+
+        // Get a VM for current agent_id
+        db_get_agent_vm(&engine.db_connection, engine.last_command.agent_id);
+
+        // Execute the last code in current VM
+        vm_run_command(engine.last_vm, &engine.last_command);
+
+        // Save VM in DB
+        db_save_agent_vm(&engine.db_connection, 
+            engine.last_command.agent_id, 
+            (unsigned char*)""); // TBD here the engine bytes
+
+        // Delete command
+        db_delete_command(&engine.db_connection, &engine.last_command);
+
+        // End transaction
+        db_commit_transaction(&engine.db_connection);
 
 		sleep(atoi(engine.config.params[DB_READ_TIME]));
 	}
