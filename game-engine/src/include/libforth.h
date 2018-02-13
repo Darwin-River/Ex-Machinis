@@ -520,6 +520,15 @@ functions.
 **/
 int main_forth(int argc, char **argv); 
 
+
+/** 
+@brief Get FORTH environment core size
+
+@param  o   An initialized FORTH environment. Caller frees.
+@return int Current size or -1 when error
+**/
+size_t forth_get_core_size(forth_t *o);
+
 #ifdef __cplusplus
 }
 #endif

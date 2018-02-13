@@ -11,6 +11,7 @@
 #include "db.h"
 #include "trace.h"
 #include "engine.h"
+#include "vm.h"
 
 /******************************* DEFINES *************************************/
 
@@ -193,10 +194,10 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
 
         if(db_result == NULL)  
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to get next command");
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to get next command (no more results)");
             result = ENGINE_DB_QUERY_ERROR;
         } 
-        else 
+        else
         {
             MYSQL_ROW row = mysql_fetch_row(db_result);
             if(row) 
@@ -215,9 +216,9 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
             else 
             {
             	engine_trace(TRACE_LEVEL_ALWAYS,
-            		"ERROR: Unable to get next command");
+            		"WARNING: No more commands to process");
 
-                result = ENGINE_DB_QUERY_ERROR;
+                result = ENGINE_DB_NOT_FOUND_ERROR;
             }
         }
 
@@ -272,11 +273,12 @@ ErrorCode_t db_delete_command(DbConnection_t* connection, Command_t* command)
     @param[in|out]  Connection info, updated once disconnected
     @param[in]      Agent ID whose VM data we want to get 
                     (we use current if any or create a new one)
+    @param[in|out]  Output address where engine is stored when success
 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_agent_vm(DbConnection_t* connection, int agent_id)
+ErrorCode_t db_get_agent_vm(DbConnection_t* connection, int agent_id, VirtualMachine_t** vm)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -285,7 +287,7 @@ ErrorCode_t db_get_agent_vm(DbConnection_t* connection, int agent_id)
 
     snprintf(query_text, 
         DB_MAX_SQL_QUERY_LEN, 
-        "SELECT VM FROM agents WHERE AGENT_ID = %d", agent_id);
+        "SELECT VM FROM agents WHERE ID = %d", agent_id);
 
     // run it 
     if (mysql_query(connection->hndl, query_text)) 
@@ -295,13 +297,15 @@ ErrorCode_t db_get_agent_vm(DbConnection_t* connection, int agent_id)
     }
     else 
     {
-        // retrieve the result
+        // retrieve the result and check that is an only row with a single field
         MYSQL_RES* db_result = mysql_store_result(connection->hndl);
 
-        if(db_result == NULL)  
+        if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
+            (mysql_num_fields(db_result) != 1))
         {
             engine_trace(TRACE_LEVEL_ALWAYS, 
-                "ERROR: Unable to get VM for agent [%d]", agent_id);
+                "ERROR: Unable to get VM for agent [%d] (invalid result)",
+                agent_id);
 
             result = ENGINE_DB_QUERY_ERROR;
         } 
@@ -310,14 +314,32 @@ ErrorCode_t db_get_agent_vm(DbConnection_t* connection, int agent_id)
             MYSQL_ROW row = mysql_fetch_row(db_result);
             if(row) 
             {
-                // Check if it is NULL or not
+                // Check if agent has a VM or new one must be created
+                if(row[0] == NULL)
+                {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "WARNING: None VM defined for agent [%d], new one created",
+                        agent_id);
 
-                // When NULL create a new one and return it
+                    // Create a new VM object
+                    *vm = vm_new();
+                }
+                else
+                {
+                    size_t vm_size = mysql_fetch_lengths(db_result)[0];
+
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "VM found for agent [%d] with size [%ld] bytes", 
+                        agent_id, vm_size);
+
+                    // Convert VM bytes into VM object
+                    *vm = vm_from_bytes(row[0], vm_size);
+                }
             }
             else 
             {
                 engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "ERROR: Unable to get VM for agent [%d] (no results)", agent_id);
+                    "ERROR: Unable to get VM for agent [%d] (no row)", agent_id);
 
                 result = ENGINE_DB_QUERY_ERROR;
             }
@@ -336,21 +358,43 @@ ErrorCode_t db_get_agent_vm(DbConnection_t* connection, int agent_id)
 
     @param[in|out]  Connection info, updated once disconnected
     @param[in]      Agent ID whose VM we want to update
-    @param[in]      VM data to be updated in DB
+    @param[in]      vm  VM object
 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, unsigned char* data)
+ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMachine_t* vm)
 {
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
 
-    snprintf(query_text, 
+    // Serialize VM into bytes
+    size_t vm_size = 0;
+    char* vm_data = vm_to_bytes(vm, &vm_size);
+
+    if(!vm_data || !vm_size)
+    {
+        return ENGINE_FORTH_SERIALIZE_ERROR;
+    }
+
+    // Query must have enough room for whole VM bytes scaped
+    // Add 3 parts of the query:
+    // - Start of the statement
+    // - Binary data
+    // - End of the statement
+    char query_text[DB_MAX_SQL_QUERY_LEN + vm_size*2 + 1];
+    char* query_end = query_text;
+
+    query_end += snprintf(query_end, 
         DB_MAX_SQL_QUERY_LEN, 
-        "UPDATE agents SET VM = %s WHERE AGENT_ID = %d", (char*)data, agent_id);
+        "UPDATE agents SET VM = '");
+    
+    query_end += mysql_real_escape_string(connection->hndl, query_end, vm_data, vm_size);
+
+    query_end += snprintf(query_end, 
+        DB_MAX_SQL_QUERY_LEN, 
+        "' WHERE ID = %d", 
+        agent_id);
 
     // run it 
     if (mysql_query(connection->hndl, query_text)) 
@@ -360,25 +404,16 @@ ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, unsigned 
     }
     else 
     {
-        // retrieve the result
-        MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-
-        if(db_result == NULL)  
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "ERROR: Unable to update VM for agent [%d]", agent_id);
-
-            result = ENGINE_DB_QUERY_ERROR;
-        } 
-        else 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "Updated VM for agent [%d]", agent_id);
-        }
-
-        mysql_free_result(db_result);
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Updated VM for agent [%d]", agent_id);
     }
 
+    // Deallocate dynamic memory
+    if(vm_data)
+    {
+        free(vm_data);
+        vm_data = NULL;
+    }
 
     return result;
 }
@@ -434,6 +469,34 @@ ErrorCode_t db_commit_transaction(DbConnection_t* connection)
     else 
     {  
         engine_trace(TRACE_LEVEL_ALWAYS, "DB transaction commit");
+    }
+
+    return result;
+}
+
+/** ***************************************************************************
+
+  @brief          Rollback a transaction (group of queries associated)
+
+  @param[in|out]  DB Connection info
+
+  @return         Execution result
+
+******************************************************************************/
+ErrorCode_t db_rollback_transaction(DbConnection_t* connection)
+{
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // Execute it at mysql side and check results
+    if (mysql_query(connection->hndl, "ROLLBACK")) 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS,"ERROR: Could not rollback DB transaction");
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+    else 
+    {  
+        engine_trace(TRACE_LEVEL_ALWAYS, "DB transaction rollback");
     }
 
     return result;

@@ -13,6 +13,8 @@
 
 #include <mysql.h>
 
+#include "libforth.h"
+
 /******************************* DEFINES *************************************/
 
 #define MAX_COMMAND_CODE_SIZE  2048
@@ -41,6 +43,9 @@ typedef enum
 	ENGINE_DB_INIT_ERROR,
 	ENGINE_DB_CONNECT_ERROR,
 	ENGINE_DB_QUERY_ERROR,
+	ENGINE_DB_NOT_FOUND_ERROR,
+	ENGINE_FORTH_EVAL_ERROR,
+	ENGINE_FORTH_SERIALIZE_ERROR,
 	ENGINE_INTERNAL_ERROR,
 } ErrorCode_t;
 
@@ -70,6 +75,12 @@ typedef struct
 	char code[MAX_COMMAND_CODE_SIZE+1]; 
 
 } Command_t;
+
+
+//-----------------------------------------------------------------------------
+//  Virtual Machine structure (we wrap the forth_t here)
+//-----------------------------------------------------------------------------
+typedef forth_t VirtualMachine_t;
 
 
 #endif // __EM_COMMON_TYPES_MODULE__

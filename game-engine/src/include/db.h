@@ -76,6 +76,17 @@ ErrorCode_t db_start_transaction(DbConnection_t* connection);
 ******************************************************************************/
 ErrorCode_t db_commit_transaction(DbConnection_t* connection);
 
+/** ***************************************************************************
+
+  @brief          Rollback a transaction (group of queries associated)
+
+  @param[in|out]  DB Connection info
+
+  @return         Execution result
+
+******************************************************************************/
+ErrorCode_t db_rollback_transaction(DbConnection_t* connection);
+
 /** ****************************************************************************
 
     @brief          Gets the next command
@@ -107,11 +118,12 @@ ErrorCode_t db_delete_command(DbConnection_t* connection, Command_t* command);
     @param[in|out]  Connection info, updated once disconnected
     @param[in]      Agent ID whose VM data we want to get 
                     (we use current if any or create a new one)
+    @param[in|out]  Output address where engine is stored when success
 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_agent_vm(DbConnection_t* connection, int agent_id);
+ErrorCode_t db_get_agent_vm(DbConnection_t* connection, int agent_id, VirtualMachine_t** vm);
 
 /** ****************************************************************************
 
@@ -119,11 +131,11 @@ ErrorCode_t db_get_agent_vm(DbConnection_t* connection, int agent_id);
 
     @param[in|out]  Connection info, updated once disconnected
     @param[in]      Agent ID whose VM we want to update
-    @param[in]      VM data to be updated in DB
+    @param[in]      vm  VM object
 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, unsigned char* data);
+ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMachine_t* vm);
 
 #endif // __EM_DB_MODULE__

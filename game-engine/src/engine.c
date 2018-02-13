@@ -250,35 +250,68 @@ ErrorCode_t engine_init(int argc, char** argv)
 *******************************************************************************/
 ErrorCode_t engine_run()
 {
+  ErrorCode_t result = ENGINE_OK;
+
 	engine.status = ENGINE_RUNNING_STATUS;
 
-	// dummy loop - put logic inside this section
+    // Checks periodically for commands, executes them and stores VM status
+
 	while(engine.status == ENGINE_RUNNING_STATUS)
 	{
+        // reset VM
+        engine.last_vm = NULL;
+
 		engine_trace(TRACE_LEVEL_ALWAYS, "Running engine logic");
 
         // start a transaction
-        db_start_transaction(&engine.db_connection);
+        result = db_start_transaction(&engine.db_connection);
 
-        // get next command
-        db_get_next_command(&engine.db_connection, &engine.last_command);
+        if(result == ENGINE_OK)
+        {
+            // get next command
+            result = db_get_next_command(&engine.db_connection, &engine.last_command);
+        }
 
-        // Get a VM for current agent_id
-        db_get_agent_vm(&engine.db_connection, engine.last_command.agent_id);
+        if(result == ENGINE_OK)
+        {
+            // Get a VM for current agent_id
+            result = db_get_agent_vm(&engine.db_connection, 
+                engine.last_command.agent_id,
+                &engine.last_vm);
+        }            
 
-        // Execute the last code in current VM
-        vm_run_command(engine.last_vm, &engine.last_command);
+        if(result == ENGINE_OK)
+        {
+            // Execute the last code in current VM
+            result = vm_run_command(engine.last_vm, &engine.last_command);
+        }            
 
-        // Save VM in DB
-        db_save_agent_vm(&engine.db_connection, 
-            engine.last_command.agent_id, 
-            (unsigned char*)""); // TBD here the engine bytes
+        if(result == ENGINE_OK)
+        {
+            // Save VM in DB
+            result = db_save_agent_vm(&engine.db_connection, 
+                engine.last_command.agent_id, 
+                engine.last_vm);
+        }
 
-        // Delete command
-        db_delete_command(&engine.db_connection, &engine.last_command);
+        if(result == ENGINE_OK)
+        {
+            // Delete command
+            result = db_delete_command(&engine.db_connection, &engine.last_command);
+        }
 
-        // End transaction
-        db_commit_transaction(&engine.db_connection);
+        // commit or rollback current transaction
+        if((result == ENGINE_OK) || (result == ENGINE_DB_NOT_FOUND_ERROR))
+        {
+            result = db_commit_transaction(&engine.db_connection);
+        }
+        else
+        {
+            result = db_rollback_transaction(&engine.db_connection);
+        }
+
+        // always deallocate VM
+        if(engine.last_vm) vm_free(engine.last_vm);
 
 		sleep(atoi(engine.config.params[DB_READ_TIME]));
 	}

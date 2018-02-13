@@ -26,6 +26,13 @@ Make configurable the size of the code buffer when reading commands table:
 - Now we are using #define MAX_COMMAND_CODE_SIZE  2048
 
 
+Connect libforth traces with engine ones
+
+Document forth_get_core_size() added to original libforth
+
+Add milliseconds timestamp to logs
+
+
 
 
 

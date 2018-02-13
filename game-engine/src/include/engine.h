@@ -20,7 +20,6 @@
 
 #include "trace.h"
 #include "config.h"
-#include "libforth.h"
 
 /******************************* DEFINES *************************************/
 
@@ -106,7 +105,7 @@ typedef struct
 
     Command_t last_command;  // last command read from DB
 
-    forth_t* last_vm;  // last agent VM
+    VirtualMachine_t* last_vm;  // last agent VM
 
     ErrorCode_t error;
 

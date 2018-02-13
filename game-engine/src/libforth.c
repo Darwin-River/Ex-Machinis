@@ -2840,3 +2840,11 @@ int main_forth(int argc, char **argv)
 /**
 And that completes the program, and the documentation describing it.
 **/
+
+
+size_t forth_get_core_size(forth_t *o)
+{
+	assert(o);
+	uint64_t w = o->core_size;
+	return (w * sizeof(forth_cell_t) + sizeof(o->header));
+}
