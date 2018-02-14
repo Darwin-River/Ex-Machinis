@@ -281,6 +281,12 @@ more memory.
 #include <setjmp.h>
 #include <time.h>
 
+
+#ifndef USE_ORIGINAL_FORTH_LIB
+/* Connect to engine */
+#include "engine.h"
+#endif
+
 /**
 Traditionally Forth implementations were the only program running on the
 (micro)computer, running on processors orders of magnitude slower than
@@ -1038,6 +1044,20 @@ const char *forth_strerror(void)
 	return r;
 }
 
+#ifndef USE_ORIGINAL_FORTH_LIB
+/* Redefine libforth logger functions to use our own logging mechanism */
+int forth_logger(const char *prefix, const char *func, 
+		unsigned line, const char *fmt, ...)
+{
+	static va_list valist;
+	
+	va_start(valist, fmt);
+	engine_trace(TRACE_LEVEL_DEBUG, fmt, valist);
+	va_end(valist);
+
+	return 0;
+}
+#else
 int forth_logger(const char *prefix, const char *func, 
 		unsigned line, const char *fmt, ...)
 {
@@ -1053,6 +1073,7 @@ int forth_logger(const char *prefix, const char *func,
 	fputc('\n', stderr);
 	return r;
 }
+#endif
 
 /**
 @brief  Get a char from string input or a file
@@ -1359,6 +1380,30 @@ forth_cell_t forth_find(forth_t *o, const char *s)
 @param u    number to print
 @return number of characters written, or negative on failure 
 **/
+#ifndef USE_ORIGINAL_FORTH_LIB
+static int print_cell(forth_t *o, FILE *out, forth_cell_t u)
+{
+	int i = 0, r = 0;
+	char s[64 + 1] = {0}; 
+	unsigned base = o->m[BASE];
+	base = base ? base : 10 ;
+	if(base >= 37)
+		return -1;
+	if(base == 10)
+	{
+		char aux[64+1];
+		engine_trace_append(TRACE_LEVEL_DEBUG, "%"PRIdCell, u);
+		return sprintf(aux, "%"PRIdCell, u);
+	}
+
+	do 
+		s[i++] = conv[u % base];
+	while ((u /= base));
+	for(r = --i; i >= 0; i--)
+		engine_trace_append(TRACE_LEVEL_DEBUG, "%c", s[i]);
+	return r;
+}
+#else
 static int print_cell(forth_t *o, FILE *out, forth_cell_t u)
 {
 	int i = 0, r = 0;
@@ -1377,6 +1422,7 @@ static int print_cell(forth_t *o, FILE *out, forth_cell_t u)
 			return -1;
 	return r;
 }
+#endif
 
 /**
 **check_bounds** is used to both check that a memory access performed by
@@ -1474,9 +1520,24 @@ static const char* forth_get_fam(jmp_buf *on_error, forth_cell_t f)
 	return fams[f];
 }
 
+#ifndef USE_ORIGINAL_FORTH_LIB
 /**
 This prints out the Forth stack, which is useful for debugging. 
 **/
+static void print_stack(forth_t *o, FILE *out, forth_cell_t *S, forth_cell_t f)
+{ 
+	forth_cell_t depth = (forth_cell_t)(S - o->vstart);
+	engine_trace_append(TRACE_LEVEL_DEBUG, "%"PRIdCell": ", depth);
+	if(!depth)
+		return;
+	for(forth_cell_t j = (S - o->vstart), i = 1; i < j; i++) {
+		print_cell(o, out, *(o->S + i + 1));
+		engine_trace_append(TRACE_LEVEL_DEBUG, " ");
+	}
+	print_cell(o, out, f);
+	engine_trace_append(TRACE_LEVEL_DEBUG, " ");
+}
+#else
 static void print_stack(forth_t *o, FILE *out, forth_cell_t *S, forth_cell_t f)
 { 
 	forth_cell_t depth = (forth_cell_t)(S - o->vstart);
@@ -1490,7 +1551,24 @@ static void print_stack(forth_t *o, FILE *out, forth_cell_t *S, forth_cell_t f)
 	print_cell(o, out, f);
 	fputc(' ', out);
 }
+#endif
 
+#ifndef USE_ORIGINAL_FORTH_LIB
+/* Redefine trace function to connect with the engine */
+static void trace(forth_t *o, forth_cell_t instruction, 
+		forth_cell_t *S, forth_cell_t f)
+{
+	if(o->m[DEBUG] < FORTH_DEBUG_INSTRUCTION)
+		return;
+
+	engine_trace_header(TRACE_LEVEL_DEBUG);
+	engine_trace_append(TRACE_LEVEL_DEBUG, "\t( %s\t ", instruction_names[instruction]);
+
+	print_stack(o, stderr, S, f);
+
+	engine_trace_append(TRACE_LEVEL_DEBUG, " )\n");
+}
+#else
 /**
 This function allows for some more detailed tracing to take place, reading 
 the logs is difficult, but it can provide *some* information about what
@@ -1506,6 +1584,7 @@ static void trace(forth_t *o, forth_cell_t instruction,
 	print_stack(o, stderr, S, f);
 	fputs(" )\n", stderr);
 }
+#endif
 
 /** 
 ## API related functions and Initialization code 
@@ -2787,6 +2866,19 @@ end:
 	return 0;
 }
 
+#ifndef USE_ORIGINAL_FORTH_LIB
+size_t forth_get_core_size(forth_t *o)
+{
+	if(forth_is_invalid(o))
+		return -1;
+
+	/* valid environment - return its size */
+	uint64_t w = o->core_size;
+	return (w * sizeof(forth_cell_t) + sizeof(o->header));
+}
+#endif
+
+
 /**    
 ## An example main function called **main_forth**
 
@@ -2840,11 +2932,3 @@ int main_forth(int argc, char **argv)
 /**
 And that completes the program, and the documentation describing it.
 **/
-
-
-size_t forth_get_core_size(forth_t *o)
-{
-	assert(o);
-	uint64_t w = o->core_size;
-	return (w * sizeof(forth_cell_t) + sizeof(o->header));
-}

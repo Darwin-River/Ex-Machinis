@@ -89,6 +89,7 @@ typedef struct
     char** argv;
 
     char* plat_home;    // ENV variable
+    char* exe_name;     // basename of the executable
 
     EngineOptions_t options;
 
@@ -194,5 +195,32 @@ int engine_get_last_error();
 
 *******************************************************************************/
 void engine_trace(TraceLevel_t level, const char *trace, ... );
+
+
+/** ****************************************************************************
+
+  @brief      Initializes a log line only with date and level, this function must be 
+              called before using trace_append
+
+  @param[in]  level  Trace level
+  
+  @return     void
+
+*******************************************************************************/
+void engine_trace_header(TraceLevel_t level);
+
+
+/** ****************************************************************************
+
+  @brief      Appends more text to current log line, no new line is added
+
+  @param[in]  level Trace level
+  @param[in]  trace Trace format text
+  @param[in]  ...   Variable list of arguments
+
+  @return     void
+
+*******************************************************************************/
+void engine_trace_append(TraceLevel_t level, const char *trace, ... );
 
 #endif // __EM_ENGINE_MODULE__

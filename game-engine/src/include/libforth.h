@@ -520,14 +520,17 @@ functions.
 **/
 int main_forth(int argc, char **argv); 
 
-
+#ifndef USE_ORIGINAL_FORTH_LIB
 /** 
-@brief Get FORTH environment core size
+@brief Get FORTH environment core size in bytes
+
+Function added by Carlos Rodriguez to obtain the size when required
 
 @param  o   An initialized FORTH environment. Caller frees.
 @return int Current size or -1 when error
 **/
 size_t forth_get_core_size(forth_t *o);
+#endif
 
 #ifdef __cplusplus
 }

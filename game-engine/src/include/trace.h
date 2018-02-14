@@ -101,4 +101,31 @@ void trace_stop(TraceHndl_t hdnl);
 *******************************************************************************/
 void trace_write(TraceHndl_t hdnl, TraceLevel_t level, const char *trace, va_list valist);
 
+/** ****************************************************************************
+
+  @brief      Initializes a log line only with date and level, this function must be 
+              called before using trace_append
+
+  @param[in]  hdnl   Traces handler
+  @param[in]  level  Trace level
+  
+  @return     void
+
+*******************************************************************************/
+void trace_header(TraceHndl_t hdnl, TraceLevel_t level);
+
+/** ****************************************************************************
+
+  @brief      Appends information to current log line
+
+  @param[in]  hdnl   Traces handler
+  @param[in]  level  Trace level
+  @param[in]  trace  Formatted msg
+  @param[in]  valist Variable list of arguments to be printed
+
+  @return     void
+
+*******************************************************************************/
+void trace_append(TraceHndl_t hdnl, TraceLevel_t level, const char *trace, va_list valist);
+
 #endif // __EM_TRACE_MODULE__

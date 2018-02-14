@@ -75,7 +75,7 @@ ErrorCode_t engine_init_traces()
     	PATH_MAX, 
     	"%s/log/%s.log",
     	engine.plat_home,
-    	engine.argv[0]);
+    	engine.exe_name);
 
 
     result = trace_init(&engine.trace_conf, &engine.trace_hndl);
@@ -101,7 +101,7 @@ ErrorCode_t engine_init_config()
     	PATH_MAX, 
     	"%s/conf/%s.conf",
     	engine.plat_home,
-    	engine.argv[0]);
+    	engine.exe_name);
 
 	// load config
     result = config_engine_read(&engine.conf_hndl, 
@@ -191,6 +191,14 @@ ErrorCode_t engine_init(int argc, char** argv)
 
 	engine.error = ENGINE_OK;
 
+    // Get the basename
+    engine.exe_name = argv[0];
+    char* pos = strrchr(argv[0], '/');
+    if(pos)
+    {
+        engine.exe_name = ++pos;
+    }
+
 	// Check PLAT_HOME - mandatory
 	engine.plat_home = getenv(PLAT_HOME);
 
@@ -214,9 +222,10 @@ ErrorCode_t engine_init(int argc, char** argv)
     	engine.error = engine_init_traces();
     }
 
-    engine_trace(TRACE_LEVEL_ALWAYS, "-----------------------------------------");
-    engine_trace(TRACE_LEVEL_ALWAYS, "Engine started (PID [%d])", getpid());
-    engine_trace(TRACE_LEVEL_ALWAYS, "-----------------------------------------");
+    engine_trace(TRACE_LEVEL_ALWAYS, "-----------------------------------------------");
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+        "Engine started (NAME [%s] PID [%d])", engine.exe_name, getpid());
+    engine_trace(TRACE_LEVEL_ALWAYS, "-----------------------------------------------");
 
     // Initialize config
     if(engine.error == ENGINE_OK)
@@ -391,5 +400,41 @@ void engine_trace(TraceLevel_t level, const char *trace, ... )
 	va_start(valist, trace);
 	trace_write(engine.trace_hndl, level, trace, valist);
 	va_end(valist);
+}
+
+
+/** ****************************************************************************
+
+  @brief      Initializes a log line only with date and level, this function must be 
+              called before using trace_append
+
+  @param[in]  level  Trace level
+  
+  @return     void
+
+*******************************************************************************/
+void engine_trace_header(TraceLevel_t level)
+{
+    trace_header(engine.trace_hndl, level);
+}
+
+/** ****************************************************************************
+
+  @brief      Appends more text to current log line, no new line is added
+
+  @param[in]  level Trace level
+  @param[in]  trace Trace format text
+  @param[in]  ...   Variable list of arguments
+
+  @return     void
+
+*******************************************************************************/
+void engine_trace_append(TraceLevel_t level, const char *trace, ... )
+{
+    static va_list valist;
+    
+    va_start(valist, trace);
+    trace_append(engine.trace_hndl, level, trace, valist);
+    va_end(valist);
 }
 
