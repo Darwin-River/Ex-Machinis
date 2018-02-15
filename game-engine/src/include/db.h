@@ -138,4 +138,17 @@ ErrorCode_t db_get_agent_vm(DbConnection_t* connection, int agent_id, VirtualMac
 *******************************************************************************/
 ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMachine_t* vm);
 
+/** ****************************************************************************
+
+    @brief          Updates latest command output in DB
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Agent ID whose VM we want to update
+    @param[in]      Output msg we need to update
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_update_agent_output(DbConnection_t* connection, int agent_id, char* msg);
+
 #endif // __EM_DB_MODULE__

@@ -30,12 +30,12 @@
 
   @brief      Creates a new FORTH VM
 
-  @param[in]  None
+  @param[in]  Agent ID for this VM
 
   @return     New VM object created or NULL when failed
 
 *******************************************************************************/
-VirtualMachine_t* vm_new()
+VirtualMachine_t* vm_new(int agent_id)
 {
     VirtualMachine_t* vm = NULL;
 
@@ -44,10 +44,11 @@ VirtualMachine_t* vm_new()
     if(vm)
     {
         forth_set_debug_level((forth_t*)vm, FORTH_DEBUG_ALL);
-        forth_set_args((forth_t*)vm, 0, NULL);
+        forth_set_args((forth_t*)vm, agent_id, NULL); // we store agent ID in register ARGC
+        forth_set_output_cb((forth_t*)vm, engine_vm_output_cb);
 
-        engine_trace(TRACE_LEVEL_ALWAYS, "New VM created with size [%ld]",
-            vm_get_size(vm)); 
+        engine_trace(TRACE_LEVEL_ALWAYS, "New VM created with size [%ld] for agent [%d]",
+            vm_get_size(vm), agent_id); 
     }
 
     return vm;
@@ -97,8 +98,12 @@ VirtualMachine_t* vm_from_bytes(char* vm_bytes, size_t size)
 
         if(vm && (forth_is_invalid((forth_t*)vm) == 0))
         {
+            forth_set_output_cb((forth_t*)vm, engine_vm_output_cb);
+
             engine_trace(TRACE_LEVEL_ALWAYS, 
-                "VM created from [%ld] bytes of memory", size); 
+                "VM created from [%ld] bytes of memory for agent [%ld]", 
+                size,
+                forth_get_agent_id((forth_t*)vm)); 
         }
     }
 

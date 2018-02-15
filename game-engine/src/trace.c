@@ -191,3 +191,13 @@ void trace_append(TraceHndl_t hdnl, TraceLevel_t level, const char *trace, va_li
 	}
 }
 
+void trace_set_level(TraceHndl_t hdnl, TraceLevel_t level)
+{
+	TraceInfo_t* trace_info = (TraceInfo_t*)hdnl;
+
+	if(trace_info)
+	{
+		trace_info->conf.level = level;
+	}
+}
+

@@ -128,4 +128,17 @@ void trace_header(TraceHndl_t hdnl, TraceLevel_t level);
 *******************************************************************************/
 void trace_append(TraceHndl_t hdnl, TraceLevel_t level, const char *trace, va_list valist);
 
+
+/** ****************************************************************************
+
+  @brief      Sets new trace level at handler
+
+  @param[in]  hdnl   Traces handler
+  @param[in]  level  Trace level
+
+  @return     void
+
+*******************************************************************************/
+void trace_set_level(TraceHndl_t hdnl, TraceLevel_t level);
+
 #endif // __EM_TRACE_MODULE__

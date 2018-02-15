@@ -530,6 +530,29 @@ Function added by Carlos Rodriguez to obtain the size when required
 @return int Current size or -1 when error
 **/
 size_t forth_get_core_size(forth_t *o);
+
+/** 
+@brief Get agent ID associated to current FORTH environment
+
+Function added by Carlos Rodriguez to connect agents with VM
+
+@param  o   An initialized FORTH environment. Caller frees.
+@return uint Current agent ID  or -1 when error
+**/
+size_t forth_get_agent_id(forth_t *o);
+
+/** 
+@brief Sets callback function to be invoked when FORTH interpreter generates any output
+
+Function added by Carlos Rodriguez to connect engine with FORTH vm output
+
+@param  o   An initialized FORTH environment. Caller frees.
+@param  cb  Output callback function to be invoked
+
+
+@return void
+**/
+void forth_set_output_cb(forth_t *o, void (*cb)(int agent_id, char* msg));
 #endif
 
 #ifdef __cplusplus

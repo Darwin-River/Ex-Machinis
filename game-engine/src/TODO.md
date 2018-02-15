@@ -16,6 +16,10 @@ Make configurable the size of the code buffer when reading commands table:
 
 DB function to reset agent VM and start from scratch
 
+We can see the available words in a give VM
+
+We can create internally in the VM, an ID to identify univocally a given forth environment and set a callback to be invoked when a command fails
+
 
 
 

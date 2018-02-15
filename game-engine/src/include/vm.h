@@ -36,12 +36,12 @@
 
   @brief      Creates a new FORTH VM
 
-  @param[in]  None
+  @param[in]  Agent ID for this VM
 
   @return     New VM object created or NULL when failed
 
 *******************************************************************************/
-VirtualMachine_t* vm_new();
+VirtualMachine_t* vm_new(int agent_id);
 
 /** ****************************************************************************
 

@@ -103,7 +103,7 @@ ErrorCode_t engine_init_config()
     	engine.plat_home,
     	engine.exe_name);
 
-	// load config
+    // load config
     result = config_engine_read(&engine.conf_hndl, 
     	engine.options.conf_file_path, 
     	engine.config.params);
@@ -232,6 +232,10 @@ ErrorCode_t engine_init(int argc, char** argv)
     {
     	engine.error = engine_init_config();
     }
+
+    // update trace level using conf
+    trace_set_level(engine.trace_hndl, 
+        atoi(engine.config.params[APP_TRACE_LEVEL_ID]));
 
     // Initialize DB connection
     if(engine.error == ENGINE_OK)
@@ -436,5 +440,34 @@ void engine_trace_append(TraceLevel_t level, const char *trace, ... )
     va_start(valist, trace);
     trace_append(engine.trace_hndl, level, trace, valist);
     va_end(valist);
+}
+
+/** ****************************************************************************
+
+  @brief      Callback invoked by FORTH vm when has any output to be displayed
+
+  @param[in]  agent_id Agent ID for this VM
+  @param[in]  msg      Output msg
+
+  @return     void
+
+*******************************************************************************/
+void engine_vm_output_cb(int agent_id, char* msg)
+{
+    if(msg)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Msg [%s] received from VM for agent [%d]",
+            msg,
+            agent_id); 
+
+        db_update_agent_output(&engine.db_connection, agent_id, msg);
+    }
+    else
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "WARNING: NULL msg received from VM for agent [%d]",
+            agent_id); 
+    }
 }
 

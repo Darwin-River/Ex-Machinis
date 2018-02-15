@@ -726,6 +726,9 @@ struct forth { /**< FORTH environment */
 	int unget;           /**< single character of push back */
 	bool unget_set;      /**< character is in the push back buffer? */
 	size_t line;         /**< count of new lines read in */
+#ifndef USE_ORIGINAL_FORTH_LIB
+	void (*outputCb)(int agent_id, char* msg);    /**< Callback to be invoked when we need to notify output */
+#endif
 	forth_cell_t m[];    /**< ~~ Forth Virtual Machine memory */
 };
 
@@ -1045,6 +1048,12 @@ const char *forth_strerror(void)
 }
 
 #ifndef USE_ORIGINAL_FORTH_LIB
+void forth_notify_output(forth_t* o, char* msg)
+{
+	if(!forth_is_invalid(o) && msg && o->outputCb)
+		o->outputCb(o->m[ARGC], msg);
+}
+
 /* Redefine libforth logger functions to use our own logging mechanism */
 int forth_logger(const char *prefix, const char *func, 
 		unsigned line, const char *fmt, ...)
@@ -1720,7 +1729,10 @@ static void forth_make_default(forth_t *o, size_t size, FILE *in, FILE *out)
 	o->m[STDOUT]     = (forth_cell_t)stdout;
 	o->m[STDERR]     = (forth_cell_t)stderr;
 	o->m[RSTK] = size - o->m[STACK_SIZE]; /* set up return stk ptr */
+#ifdef USE_ORIGINAL_FORTH_LIB	
+	/* Do not reset this register never - we keep here agent ID */
 	o->m[ARGC] = o->m[ARGV] = 0;
+#endif	
 	o->S       = o->m + size - (2 * o->m[STACK_SIZE]); /* v. stk pointer */
 	o->vstart  = o->m + size - (2 * o->m[STACK_SIZE]);
 	o->vend    = o->vstart + o->m[STACK_SIZE];
@@ -2020,6 +2032,7 @@ forth_t *forth_load_core_memory(char *m, size_t size)
 	}
 	make_header(o->header, forth_blog2(size));
 	memcpy(o->m, m + offset, size);
+	/* Do not reset latest register values previously stored in DB */
 	forth_make_default(o, size / sizeof(forth_cell_t), stdin, stdout);
 	return o;
 }
@@ -2044,6 +2057,7 @@ char *forth_save_core_memory(forth_t *o, size_t *size)
 	memcpy(m, o->header, sizeof(o->header)); /* copy header */
 	memcpy(m + sizeof(o->header), o->m, w); /* core */
 	*size = o->core_size * sizeof(forth_cell_t) + sizeof(o->header);
+
 	return m;
 }
 
@@ -2863,6 +2877,11 @@ be called on the invalidated object any longer.
 end:	
 	o->S = S;
 	o->m[TOP] = f;
+
+#ifndef USE_ORIGINAL_FORTH_LIB
+	forth_notify_output(o, "OK");
+#endif
+
 	return 0;
 }
 
@@ -2875,6 +2894,22 @@ size_t forth_get_core_size(forth_t *o)
 	/* valid environment - return its size */
 	uint64_t w = o->core_size;
 	return (w * sizeof(forth_cell_t) + sizeof(o->header));
+}
+
+size_t forth_get_agent_id(forth_t *o)
+{
+	if(forth_is_invalid(o))
+		return -1;
+
+	/* valid environment - return agent ID stored at ARGC */
+	return (size_t)o->m[ARGC];
+}
+void forth_set_output_cb(forth_t *o, void (*cb)(int agent_id, char* msg))
+{
+	if(forth_is_invalid(o))
+		return;
+
+	o->outputCb = cb;
 }
 #endif
 

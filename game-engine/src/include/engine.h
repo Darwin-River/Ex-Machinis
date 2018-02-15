@@ -223,4 +223,16 @@ void engine_trace_header(TraceLevel_t level);
 *******************************************************************************/
 void engine_trace_append(TraceLevel_t level, const char *trace, ... );
 
+/** ****************************************************************************
+
+  @brief      Callback invoked by FORTH vm when has any output to be displayed
+
+  @param[in]  agent_id Agent ID for this VM
+  @param[in]  msg      Output msg
+
+  @return     void
+
+*******************************************************************************/
+void engine_vm_output_cb(int agent_id, char* msg);
+
 #endif // __EM_ENGINE_MODULE__

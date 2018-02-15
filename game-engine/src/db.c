@@ -322,7 +322,7 @@ ErrorCode_t db_get_agent_vm(DbConnection_t* connection, int agent_id, VirtualMac
                         agent_id);
 
                     // Create a new VM object
-                    *vm = vm_new();
+                    *vm = vm_new(agent_id);
                 }
                 else
                 {
@@ -354,7 +354,7 @@ ErrorCode_t db_get_agent_vm(DbConnection_t* connection, int agent_id, VirtualMac
 
 /** ****************************************************************************
 
-    @brief          Gets current agent VM
+    @brief          Saves current agent VM in DB
 
     @param[in|out]  Connection info, updated once disconnected
     @param[in]      Agent ID whose VM we want to update
@@ -413,6 +413,48 @@ ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMa
     {
         free(vm_data);
         vm_data = NULL;
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Updates latest command output in DB
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Agent ID whose VM we want to update
+    @param[in]      Output msg we need to update
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_update_agent_output(DbConnection_t* connection, int agent_id, char* msg)
+{
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // ignore null msg
+    if(!msg) return ENGINE_INTERNAL_ERROR;
+
+    // Prepare query
+    char query_text[DB_MAX_SQL_QUERY_LEN + 1];
+
+    snprintf(query_text, 
+        DB_MAX_SQL_QUERY_LEN, 
+        "UPDATE agents SET OUTPUT = '%s'",
+        msg);
+
+    // run it 
+    if (mysql_query(connection->hndl, query_text)) 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+    else 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Updated VM output for agent [%d] with value [%s]", agent_id, msg);
     }
 
     return result;
