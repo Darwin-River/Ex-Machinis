@@ -283,7 +283,7 @@ more memory.
 
 
 #ifndef USE_ORIGINAL_FORTH_LIB
-/* Connect to engine */
+/* Connect to engine tracing s*/
 #include "engine.h"
 #endif
 

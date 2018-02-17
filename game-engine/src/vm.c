@@ -45,7 +45,7 @@ VirtualMachine_t* vm_new(int agent_id)
     {
         forth_set_debug_level((forth_t*)vm, FORTH_DEBUG_ALL);
         forth_set_args((forth_t*)vm, agent_id, NULL); // we store agent ID in register ARGC
-        forth_set_output_cb((forth_t*)vm, engine_vm_output_cb);
+        forth_set_output_cb((forth_t*)vm, engine_vm_output_cb); // cb called when output is ready
 
         engine_trace(TRACE_LEVEL_ALWAYS, "New VM created with size [%ld] for agent [%d]",
             vm_get_size(vm), agent_id); 
