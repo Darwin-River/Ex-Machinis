@@ -29,17 +29,8 @@ save_pid()
 #-----------------------------------------------------------------
 signal_handler()
 {
-  SIGNAL=$(($? - 128))
-
-  if [ ${SIGNAL} -ne -128 ]
-  then
-    SIGNAL_NAME=`kill -l ${SIGNAL}`
-  else
-    SIGNAL_NAME=UNKNOWN
-  fi
-
   log_msg "************************************************************"
-  log_msg "WARNING: Process stopped by signal SIG${SIGNAL_NAME} - ${SIGNAL}"
+  log_msg "WARNING: Process stopped by signal"
   log_msg "************************************************************" 
   exit 1
 }
