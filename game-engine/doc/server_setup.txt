@@ -322,6 +322,7 @@ root@ExMachinis:~# dpkg-query -L  gdb
 game-engine/
 game-engine/conf
 game-engine/bin
+game-engine/bin/scripts
 game-engine/tmp
 game-engine/log
 
