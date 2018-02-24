@@ -12,12 +12,16 @@
 /******************************* INCLUDES ************************************/
 
 #include <mysql.h>
+#include <linux/limits.h>
 
 #include "libforth.h"
 
 /******************************* DEFINES *************************************/
 
+// size limits
 #define MAX_COMMAND_CODE_SIZE  2048
+#define MAX_AGENT_NAME_SIZE     256
+#define MAX_EMAIL_ADDRESS_SIZE  512
 
 /******************************* TYPES ***************************************/
 
@@ -46,6 +50,7 @@ typedef enum
 	ENGINE_DB_NOT_FOUND_ERROR,
 	ENGINE_FORTH_EVAL_ERROR,
 	ENGINE_FORTH_SERIALIZE_ERROR,
+	ENGINE_EMAIL_ERROR,
 	ENGINE_INTERNAL_ERROR,
 } ErrorCode_t;
 
@@ -78,9 +83,24 @@ typedef struct
 
 
 //-----------------------------------------------------------------------------
-//  Virtual Machine structure (we wrap the forth_t here)
+//  Virtual Machine structure (we wrap the forth_t here in an oppac object)
 //-----------------------------------------------------------------------------
 typedef forth_t VirtualMachine_t;
+
+//-----------------------------------------------------------------------------
+//  EMAIL info object
+//-----------------------------------------------------------------------------
+typedef struct
+{
+	int agent_id;
+	int company_id;
+	int user_id;
+	char email_addr[MAX_EMAIL_ADDRESS_SIZE+1];
+	char agent_name[MAX_AGENT_NAME_SIZE+1];
+	char email_script[PATH_MAX]; 
+	char message[MAX_COMMAND_CODE_SIZE+1];
+
+} EmailInfo_t;
 
 
 #endif // __EM_COMMON_TYPES_MODULE__

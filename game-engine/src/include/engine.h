@@ -41,7 +41,10 @@ enum
     DB_NAME_ID,
 
     // Logic configuration
-    DB_READ_TIME,
+    DB_READ_TIME_ID,
+
+    // Email configuration
+    SEND_EMAIL_SCRIPT_ID,
 
     // Max configured parameters
     MAX_CONFIG_PARAM

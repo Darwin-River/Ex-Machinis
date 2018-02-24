@@ -1,0 +1,9 @@
+insert into commands (code, agent_id, created_at, updated_at) VALUES('1 3 +', 55, NOW(), NOW());
+insert into commands (code, agent_id, created_at, updated_at) VALUES('2 3 +', 56, NOW(), NOW());
+insert into commands (code, agent_id, created_at, updated_at) VALUES('3 3 +', 57, NOW(), NOW());
+insert into commands (code, agent_id, created_at, updated_at) VALUES('4 3 +', 55, NOW(), NOW());
+insert into commands (code, agent_id, created_at, updated_at) VALUES('5 3 +', 56, NOW(), NOW());
+insert into commands (code, agent_id, created_at, updated_at) VALUES('6 3 +', 57, NOW(), NOW());
+insert into commands (code, agent_id, created_at, updated_at) VALUES('7 3 +', 55, NOW(), NOW());
+insert into commands (code, agent_id, created_at, updated_at) VALUES('8 3 +', 56, NOW(), NOW());
+insert into commands (code, agent_id, created_at, updated_at) VALUES('9 3 +', 57, NOW(), NOW());

@@ -20,6 +20,7 @@
 #include "config.h"
 #include "db.h"
 #include "vm.h"
+#include "email.h"
 
 /******************************* DEFINES *************************************/
 
@@ -326,7 +327,7 @@ ErrorCode_t engine_run()
         // always deallocate VM
         if(engine.last_vm) vm_free(engine.last_vm);
 
-		sleep(atoi(engine.config.params[DB_READ_TIME]));
+		sleep(atoi(engine.config.params[DB_READ_TIME_ID]));
 	}
 
 	// deallocate resources/Stop modules
@@ -462,6 +463,21 @@ void engine_vm_output_cb(int agent_id, char* msg)
             agent_id); 
 
         db_update_agent_output(&engine.db_connection, agent_id, msg);
+
+        // Get agent email info and send it by email
+        EmailInfo_t email_info;
+        memset(&email_info, 0, sizeof(email_info));
+
+        // Fill the info we have so far
+        email_info.agent_id = agent_id;
+        snprintf(email_info.message, MAX_COMMAND_CODE_SIZE, "\"%s\"", msg);
+        snprintf(email_info.email_script, PATH_MAX, "%s", engine.config.params[SEND_EMAIL_SCRIPT_ID]);
+
+        if(db_get_agent_email_info(&engine.db_connection, &email_info) == ENGINE_OK)
+        {
+            // send email
+            email_send(&email_info);
+        }
     }
     else
     {

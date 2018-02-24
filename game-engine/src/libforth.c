@@ -2207,6 +2207,9 @@ int forth_run(forth_t *o)
 	assert(o);
 	jmp_buf on_error;
 	if(forth_is_invalid(o)) {
+#ifndef USE_ORIGINAL_FORTH_LIB		
+		forth_notify_output(o, "Invalid FORTH state");
+#endif		
 		fatal("refusing to run an invalid forth, %"PRIdCell, forth_is_invalid(o));
 		return -1;
 	}
@@ -2218,8 +2221,13 @@ int forth_run(forth_t *o)
 	 * how "throw" and "catch" work in Forth. */
 	if ((errorval = setjmp(on_error)) || forth_is_invalid(o)) {
 		/* if the interpreter is invalid we always exit*/
-		if(forth_is_invalid(o))
+		if(forth_is_invalid(o)) 
 			return -1;
+
+#ifndef USE_ORIGINAL_FORTH_LIB	
+        if(errorval != OK)	
+			forth_notify_output(o, "Command error");
+#endif			
 		switch(errorval) {
 			default:
 			case FATAL:
@@ -2864,6 +2872,9 @@ machine memory has been corrupted somehow.
 **/
 		default:
 			fatal("illegal operation %" PRIdCell, w);
+#ifndef USE_ORIGINAL_FORTH_LIB	
+			forth_notify_output(o, "FORTH VM internal error");
+#endif			
 			longjmp(on_error, FATAL);
 		}
 	}
@@ -2877,10 +2888,6 @@ be called on the invalidated object any longer.
 end:	
 	o->S = S;
 	o->m[TOP] = f;
-
-#ifndef USE_ORIGINAL_FORTH_LIB
-	forth_notify_output(o, "OK");
-#endif
 
 	return 0;
 }

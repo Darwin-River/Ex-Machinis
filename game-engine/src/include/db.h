@@ -151,4 +151,57 @@ ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMa
 *******************************************************************************/
 ErrorCode_t db_update_agent_output(DbConnection_t* connection, int agent_id, char* msg);
 
+/** ****************************************************************************
+
+    @brief          Gets email data for a given agent ID
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in|out]  Agent email info, calling function supplies here the agent_id and 
+                    this function fills the rest of the information querying DB
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_agent_email_info(DbConnection_t* connection, EmailInfo_t* email_info);
+
+/** ****************************************************************************
+
+    @brief          Gets company ID for a given agent ID
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Agent ID whose company ID we want to obtain
+    @param[in|out]  Output parameter where we store the company ID once obtained
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_agent_company_id(DbConnection_t* connection, int agent_id, int* company_id);
+
+/** ****************************************************************************
+
+    @brief          Gets user ID for a given agent using its company ID previously obtained
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Current agent company's ID 
+    @param[in|out]  Output parameter where we store the user ID once obtained
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_agent_user_id(DbConnection_t* connection, int company_id, int* user_id);
+
+/** ****************************************************************************
+
+    @brief          Gets email and name for a given user ID
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Current user ID 
+    @param[in|out]  Output parameter where we store the users's email address
+    @param[in|out]  Output parameter where we store the users's name
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_agent_email_name(DbConnection_t* connection, int user_id, char* email, char* name);
+
 #endif // __EM_DB_MODULE__

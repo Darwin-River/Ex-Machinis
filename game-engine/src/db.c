@@ -8,6 +8,8 @@
 
 /******************************* INCLUDES ************************************/
 
+#include <string.h>
+
 #include "db.h"
 #include "trace.h"
 #include "engine.h"
@@ -457,6 +459,293 @@ ErrorCode_t db_update_agent_output(DbConnection_t* connection, int agent_id, cha
             "Updated VM output for agent [%d] with value [%s]", agent_id, msg);
     }
 
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Gets company ID for a given agent ID
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Agent ID whose company ID we want to obtain
+    @param[in|out]  Output parameter where we store the company ID once obtained
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_agent_company_id(DbConnection_t* connection, int agent_id, int* company_id)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!company_id) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        snprintf(query_text, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT company_id FROM agents WHERE id = %d", agent_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            // retrieve the result and check that is an only row with a single field
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+
+            if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
+                (mysql_num_fields(db_result) != 1))
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get COMPANY_ID for agent [%d] (invalid result)",
+                    agent_id);
+
+                result = ENGINE_DB_QUERY_ERROR;
+            } 
+            else 
+            {
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row) 
+                {
+                    // store result
+                    *company_id = atoi(row[0]);
+
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "COMPANY_ID [%d] obtained for agent [%d]", *company_id, agent_id);
+                }
+                else 
+                {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "ERROR: Unable to get COMPANY_ID for agent [%d] (no row)", agent_id);
+
+                    result = ENGINE_DB_QUERY_ERROR;
+                }
+            }
+
+            mysql_free_result(db_result);
+        }
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Gets user ID for a given agent using its company ID previously obtained
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Current agent company's ID 
+    @param[in|out]  Output parameter where we store the user ID once obtained
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_agent_user_id(DbConnection_t* connection, int company_id, int* user_id)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!user_id) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        snprintf(query_text, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT user_id FROM companies WHERE id = %d", company_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            // retrieve the result and check that is an only row with a single field
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+
+            if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
+                (mysql_num_fields(db_result) != 1))
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get USER_ID for COMPANY_ID [%d] (invalid result)",
+                    company_id);
+
+                result = ENGINE_DB_QUERY_ERROR;
+            } 
+            else 
+            {
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row) 
+                {
+                    // store result
+                    *user_id = atoi(row[0]);
+
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "USER_ID [%d] obtained for COMPANY_ID [%d]", *user_id, company_id);
+                }
+                else 
+                {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "ERROR: Unable to get USER_ID for COMPANY_ID [%d] (no row)", company_id);
+
+                    result = ENGINE_DB_QUERY_ERROR;
+                }
+            }
+
+            mysql_free_result(db_result);
+        }
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Gets email and name for a given user ID
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Current user ID 
+    @param[in|out]  Output parameter where we store the users's email address
+    @param[in|out]  Output parameter where we store the users's name
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_agent_email_name(DbConnection_t* connection, int user_id, char* email, char* name)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!email || !name) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        snprintf(query_text, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT email, name FROM users WHERE id = %d", user_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            // retrieve the result and check that is an only row with a single field
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+
+            if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
+                (mysql_num_fields(db_result) != 2))
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get EMAIL info for USER_ID [%d] "
+                    "(invalid result for query [%s])",
+                    user_id,
+                    query_text);
+
+                result = ENGINE_DB_QUERY_ERROR;
+            } 
+            else 
+            {
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row) 
+                {
+                    // store results
+                    strcpy(email, row[0]);
+                    strcpy(name, row[1]);
+
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "EMAIL [%s] NAME [%s] obtained for USER_ID [%d]", 
+                        email, name, user_id);
+                }
+                else 
+                {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "ERROR: Unable to get EMAIL info for USER_ID [%d] (no row)", 
+                        user_id);
+
+                    result = ENGINE_DB_QUERY_ERROR;
+                }
+            }
+
+            mysql_free_result(db_result);
+        }
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Gets email data for a given agent ID
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in|out]  Agent email info, calling function supplies here the agent_id and 
+                    this function fills the rest of the information querying DB
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_agent_email_info(DbConnection_t* connection, EmailInfo_t* email_info)
+{
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result == ENGINE_OK)
+    {
+        // ignore null msg
+        if(!email_info) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    { 
+        // Get agent company ID first
+        result = db_get_agent_company_id(connection, 
+                                         email_info->agent_id,
+                                         &email_info->company_id);
+    }
+
+    if(result == ENGINE_OK)
+    { 
+        // Get now user ID using company_id
+        result = db_get_agent_user_id(connection, 
+                                      email_info->company_id,
+                                      &email_info->user_id);
+    }
+
+    if(result == ENGINE_OK)
+    { 
+        // Get now email and name
+        result = db_get_agent_email_name(connection,
+                                         email_info->user_id, 
+                                         email_info->email_addr,
+                                         email_info->agent_name);
+    }
+   
     return result;
 }
 

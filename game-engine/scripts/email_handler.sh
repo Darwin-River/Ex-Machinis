@@ -97,7 +97,7 @@ while :
 do
   log_msg "Checking input emails"
 
-  CHECK_OUTPUT=`curl -s https://www.exmachinis.com/get-mails/JJy3CC9cUtzsbLsY`
+  CHECK_OUTPUT=`curl -s ${EMAIL_URL}`
 
   log_msg ${CHECK_OUTPUT}
 
