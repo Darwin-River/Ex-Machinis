@@ -18,6 +18,6 @@ $headers = "From: registrar@exmachinis.com";
 $subject = "Command result";
 
 // send email
-//mail($to, $subject, $msg, $headers);
-mail("crodnun@yahoo.es", $subject, $msg, $headers);
+mail($to, $subject, $msg, $headers);
+//mail("crodnun@yahoo.es", $subject, $msg, $headers);
 ?>

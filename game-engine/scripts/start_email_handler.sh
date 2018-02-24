@@ -76,6 +76,10 @@ then
     log_msg "WARNING: Email handler with PID ${PID} seems stopped, restarting ..."
     rm -f ${PID_FILE}
   fi
+else
+  # It is the first time - add cron watchdog
+  # Add the watchdog line to cron
+  (crontab -u ${USER} -l ; echo "*/1 * * * * sh -c '. $HOME/.profile; $PLAT_HOME/bin/scripts/start_email_handler.sh' >> /dev/null 2>&1") | crontab -u ${USER} -  
 fi
 
 # If reach this point a restart is required

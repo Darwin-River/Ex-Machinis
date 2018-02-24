@@ -1402,7 +1402,9 @@ static int print_cell(forth_t *o, FILE *out, forth_cell_t u)
 	{
 		char aux[64+1];
 		engine_trace_append(TRACE_LEVEL_DEBUG, "%"PRIdCell, u);
-		return sprintf(aux, "%"PRIdCell, u);
+		// send result to engine
+		int ret = sprintf(aux, "%"PRIdCell, u);
+		return ret;
 	}
 
 	do 
@@ -2246,7 +2248,7 @@ int forth_run(forth_t *o)
 					o->m[RSTK] = o->core_size - o->m[STACK_SIZE];
 					break;
 				}
-			case OK: 
+			case OK: 			
 				break;
 		}
 	}
@@ -2888,6 +2890,13 @@ be called on the invalidated object any longer.
 end:	
 	o->S = S;
 	o->m[TOP] = f;
+
+#ifndef USE_ORIGINAL_FORTH_LIB				
+	// Notify the content of the top of stack for arithmetic operations
+	char output[2024];
+	sprintf(output, "%"PRIdCell, f);
+	forth_notify_output(o, output);				
+#endif	
 
 	return 0;
 }
