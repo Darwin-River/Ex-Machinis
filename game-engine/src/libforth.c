@@ -2227,8 +2227,10 @@ int forth_run(forth_t *o)
 			return -1;
 
 #ifndef USE_ORIGINAL_FORTH_LIB	
-        if(errorval != OK)	
+        if(errorval != OK)	{
 			forth_notify_output(o, "Command error");
+			return -1;
+		}
 #endif			
 		switch(errorval) {
 			default:

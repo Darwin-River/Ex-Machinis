@@ -95,8 +95,9 @@ typedef struct
 	int agent_id;
 	int company_id;
 	int user_id;
-	char email_addr[MAX_EMAIL_ADDRESS_SIZE+1];
-	char agent_name[MAX_AGENT_NAME_SIZE+1];
+	char agent_name[MAX_EMAIL_ADDRESS_SIZE+1];
+	char user_email_addr[MAX_EMAIL_ADDRESS_SIZE+1];
+	char user_name[MAX_AGENT_NAME_SIZE+1];
 	char email_script[PATH_MAX]; 
 	char message[MAX_COMMAND_CODE_SIZE+1];
 

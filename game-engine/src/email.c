@@ -45,9 +45,10 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
 		char email_command[MAX_COMMAND_CODE_SIZE];
 		snprintf(email_command,
 			MAX_COMMAND_CODE_SIZE, 
-			"%s %s %s",
+			"%s %s %s %s",
 			email_info->email_script,
-			email_info->email_addr,
+			email_info->user_email_addr,
+			email_info->agent_name,
 			email_info->message);
 
         int error = system(email_command);

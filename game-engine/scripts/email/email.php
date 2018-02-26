@@ -1,5 +1,5 @@
 <?php
-if (count($argv) != 3)
+if (count($argv) != 4)
 {
   exit(10);
 }
@@ -8,16 +8,17 @@ if (count($argv) != 3)
 $to = $argv[1];
 
 // In argv[2] the message
-$msg = $argv[2];
+$msg = $argv[3];
 
 // use wordwrap() if lines are longer than 70 characters
 $msg = wordwrap($msg,70);
 
-// From & subject are fixed for the moment
-$headers = "From: registrar@exmachinis.com";
+// From name is received at $arv[2]
+$headers = "From: " . $argv[2] . "@exmachinis.com";
+
+// Subject is fixed for the moment
 $subject = "Command result";
 
 // send email
 mail($to, $subject, $msg, $headers);
-//mail("crodnun@yahoo.es", $subject, $msg, $headers);
 ?>

@@ -308,11 +308,8 @@ ErrorCode_t engine_run()
                 engine.last_vm);
         }
 
-        if(result == ENGINE_OK)
-        {
-            // Delete command
-            result = db_delete_command(&engine.db_connection, &engine.last_command);
-        }
+        // Delete command always to avoid spam when error
+        result = db_delete_command(&engine.db_connection, &engine.last_command);
 
         // commit or rollback current transaction
         if((result == ENGINE_OK) || (result == ENGINE_DB_NOT_FOUND_ERROR))
