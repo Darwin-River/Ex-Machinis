@@ -2516,7 +2516,16 @@ require some explaining, but ADD, SUB and DIV will not.
 		case TOR:     m[ck(++m[RSTK])] = f; f = *S--;   break;
 		case BRANCH:  I += m[ck(I)];                    break;
 		case QBRANCH: I += f == 0 ? m[I] : 1; f = *S--; break;
-		case PNUM:    f = print_cell(o, (FILE*)(o->m[FOUT]), f); break;
+		case PNUM:    
+		{
+			f = print_cell(o, (FILE*)(o->m[FOUT]), f); 
+#ifndef USE_ORIGINAL_FORTH_LIB	
+			char output[2046];
+			sprintf(output, "%"PRIdCell" by zero ", f);
+			forth_notify_output(o, output);
+#endif		
+			break;
+		}
 		case COMMA:   m[dic(m[DIC]++)] = f; f = *S--;   break;
 		case EQUAL:   f = *S-- == f;                    break;
 		case SWAP:    w = f;  f = *S--;   *++S = w;     break;

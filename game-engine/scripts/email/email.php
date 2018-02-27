@@ -5,7 +5,7 @@ if (count($argv) != 4)
 }
 
 // In argv[1] we receive the destination address
-$to = $argv[1];
+$dest = $argv[1];
 
 // In argv[2] the message
 $msg = $argv[3];
@@ -20,5 +20,6 @@ $headers = "From: " . $argv[2] . "@exmachinis.com";
 $subject = "Command result";
 
 // send email
-mail($to, $subject, $msg, $headers);
+//mail("crodnun@yahoo.es", $subject, $msg, $headers);
+mail($dest, $subject, $msg, $headers);
 ?>
