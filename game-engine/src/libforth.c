@@ -2518,12 +2518,12 @@ require some explaining, but ADD, SUB and DIV will not.
 		case QBRANCH: I += f == 0 ? m[I] : 1; f = *S--; break;
 		case PNUM:    
 		{
-			f = print_cell(o, (FILE*)(o->m[FOUT]), f); 
 #ifndef USE_ORIGINAL_FORTH_LIB	
 			char output[2046];
-			sprintf(output, "%"PRIdCell" by zero ", f);
+			sprintf(output, "%"PRIdCell, f);
 			forth_notify_output(o, output);
-#endif		
+#endif
+			f = print_cell(o, (FILE*)(o->m[FOUT]), f); 		
 			break;
 		}
 		case COMMA:   m[dic(m[DIC]++)] = f; f = *S--;   break;
@@ -2900,14 +2900,7 @@ be called on the invalidated object any longer.
 **/
 end:	
 	o->S = S;
-	o->m[TOP] = f;
-
-#ifndef USE_ORIGINAL_FORTH_LIB				
-	// Notify the content of the top of stack for arithmetic operations
-	char output[2024];
-	sprintf(output, "%"PRIdCell, f);
-	forth_notify_output(o, output);				
-#endif	
+	o->m[TOP] = f;	
 
 	return 0;
 }
