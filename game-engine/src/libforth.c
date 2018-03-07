@@ -728,6 +728,7 @@ struct forth { /**< FORTH environment */
 	size_t line;         /**< count of new lines read in */
 #ifndef USE_ORIGINAL_FORTH_LIB
 	void (*outputCb)(int agent_id, char* msg);    /**< Callback to be invoked when we need to notify output */
+	char emit_msg[2048];
 #endif
 	forth_cell_t m[];    /**< ~~ Forth Virtual Machine memory */
 };
@@ -1739,6 +1740,9 @@ static void forth_make_default(forth_t *o, size_t size, FILE *in, FILE *out)
 	o->vstart  = o->m + size - (2 * o->m[STACK_SIZE]);
 	o->vend    = o->vstart + o->m[STACK_SIZE];
 	forth_set_file_input(o, in);  /* set up input after our eval */
+#ifndef USE_ORIGINAL_FORTH_LIB		
+	memset(o->emit_msg, 0, sizeof(o->emit_msg));
+#endif	
 }
 
 /**
@@ -2511,7 +2515,14 @@ require some explaining, but ADD, SUB and DIV will not.
 		case UMORE:   f = *S-- > f;                     break;
 		case EXIT:    I = m[ck(m[RSTK]--)];             break;
 		case KEY:     *++S = f; f = forth_get_char(o);  break;
-		case EMIT:    f = fputc(f, (FILE*)o->m[FOUT]);  break;
+		case EMIT:    
+		{
+#ifndef USE_ORIGINAL_FORTH_LIB		
+			o->emit_msg[strlen(o->emit_msg)] = f;
+#endif				
+			f = fputc(f, (FILE*)o->m[FOUT]);  
+			break;
+		}
 		case FROMR:   *++S = f; f = m[ck(m[RSTK]--)];   break;
 		case TOR:     m[ck(++m[RSTK])] = f; f = *S--;   break;
 		case BRANCH:  I += m[ck(I)];                    break;
@@ -2901,6 +2912,13 @@ be called on the invalidated object any longer.
 end:	
 	o->S = S;
 	o->m[TOP] = f;	
+
+#ifndef USE_ORIGINAL_FORTH_LIB
+	if((o->emit_msg[0] != 0) && !isblank(o->emit_msg[0])) {
+		forth_notify_output(o, o->emit_msg);
+		o->emit_msg[0] = 0;
+	}
+#endif
 
 	return 0;
 }
