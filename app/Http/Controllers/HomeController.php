@@ -144,9 +144,11 @@ class HomeController extends Controller
                     //all set, save code
                     $codeAdded = false;
                     if ($mail->textPlain != null)
-                        $codeAdded = $agent->addCodeFromText($mail->textPlain);
+                        //$codeAdded = $agent->addCodeFromText($mail->textPlain);
+                        $codeAdded = $agent->insertCommandInfo($mail->textPlain, $mail->subject);
                     else
-                        $codeAdded = $agent->addCodeFromText(Html2Text\Html2Text::convert($mail->textHtml));
+                        //$codeAdded = $agent->addCodeFromText(Html2Text\Html2Text::convert($mail->textHtml));
+                        $codeAdded = $agent->insertCommandInfo(Html2Text\Html2Text::convert($mail->textHtml), $mail->subject);
                     if ($codeAdded)
                         echo "Code was added for agent " . $agent->name . "<br/>";
 

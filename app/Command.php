@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Command extends Model
 {
     protected $fillable = [
-        'code', 'agent_id'
+        'code', 'agent_id', 'subject'
     ];
 
 }

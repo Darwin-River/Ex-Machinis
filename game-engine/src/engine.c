@@ -288,6 +288,14 @@ ErrorCode_t engine_run()
 
         if(result == ENGINE_OK)
         {
+            // save last agent input & subject command info
+            result = db_update_agent_input(&engine.db_connection, 
+                engine.last_command.agent_id, 
+                &engine.last_command);
+        }
+
+        if(result == ENGINE_OK)
+        {
             // Get a VM for current agent_id
             result = db_get_agent_vm(&engine.db_connection, 
                 engine.last_command.agent_id,

@@ -143,13 +143,26 @@ ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMa
     @brief          Updates latest command output in DB
 
     @param[in|out]  Connection info, updated once disconnected
-    @param[in]      Agent ID whose VM we want to update
+    @param[in]      Agent ID whose VM output we want to update
     @param[in]      Output msg we need to update
 
     @return         Execution result
 
 *******************************************************************************/
 ErrorCode_t db_update_agent_output(DbConnection_t* connection, int agent_id, char* msg);
+
+/** ****************************************************************************
+
+    @brief          Updates latest input output in DB
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Agent ID whose input we want to update
+    @param[in]      Command information including msg and subject
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_update_agent_input(DbConnection_t* connection, int agent_id, Command_t* command);
 
 /** ****************************************************************************
 
@@ -172,11 +185,14 @@ ErrorCode_t db_get_agent_email_info(DbConnection_t* connection, EmailInfo_t* ema
     @param[in]      Agent ID whose company ID we want to obtain
     @param[in|out]  Output parameter where we store the company ID once obtained
     @param[in|out]  Output parameter where we store the agent name once obtained
+    @param[in|out]  Output parameter where we store the current agent subject
+    @param[in|out]  Output parameter where we store the current agent command
 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_agent_info(DbConnection_t* connection, int agent_id, int* company_id, char* agent_name);
+ErrorCode_t db_get_agent_info(DbConnection_t* connection, int agent_id, 
+    int* company_id, char* agent_name, char* email_subject, char* email_content);
 
 /** ****************************************************************************
 

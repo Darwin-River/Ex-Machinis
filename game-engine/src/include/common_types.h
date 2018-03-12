@@ -77,6 +77,7 @@ typedef struct
 {
 	int command_id;
 	int agent_id;
+	char subject[MAX_COMMAND_CODE_SIZE+1];
 	char code[MAX_COMMAND_CODE_SIZE+1]; 
 
 } Command_t;
@@ -99,7 +100,10 @@ typedef struct
 	char user_email_addr[MAX_EMAIL_ADDRESS_SIZE+1];
 	char user_name[MAX_AGENT_NAME_SIZE+1];
 	char email_script[PATH_MAX]; 
-	char message[MAX_COMMAND_CODE_SIZE+1];
+	char input_content[MAX_COMMAND_CODE_SIZE+1]; // original email content 
+	char message[MAX_COMMAND_CODE_SIZE+1]; // Msg received from VM
+	char output_content[(MAX_COMMAND_CODE_SIZE*3)+1]; // *3 to include req/rsp and additional info in content
+	char subject[MAX_COMMAND_CODE_SIZE+1];
 
 } EmailInfo_t;
 

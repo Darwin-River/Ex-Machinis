@@ -56,4 +56,28 @@ class Agent extends Model
         }
         return $commandsCreated;
     }
+
+    /**
+     * Extracts and saves all code between tags <script></script> and also email subject in DB
+     * @param string $command_text mail body
+     * @param string $subject mail subject
+     *
+     */
+    public function insertCommandInfo($command_text, $subject)
+    {
+        $commandsCreated = false;
+        if (preg_match("'<script>(.*?)</script>' si", $command_text, $matches)) {
+            for ($i = 1; $i < sizeof($matches); $i = $i + 2) {
+                //create new command for this agent
+                $command = new Command();
+                $command->code = trim($matches[$i]);
+                $command->agent_id = $this->id;
+                $command->subject = $subject;
+                $command->save();
+                $commandsCreated = true;
+
+            }
+        }
+        return $commandsCreated;
+    }
 }

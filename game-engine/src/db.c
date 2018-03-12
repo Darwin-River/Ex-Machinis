@@ -181,7 +181,7 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
 
 	snprintf(query_text, 
         DB_MAX_SQL_QUERY_LEN, 
-        "SELECT ID, CODE, AGENT_ID FROM commands ORDER BY ID LIMIT 1");
+        "SELECT id, code, agent_id, subject FROM commands ORDER BY ID LIMIT 1");
 
     // run it 
     if (mysql_query(connection->hndl, query_text)) 
@@ -208,12 +208,14 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
                 command->command_id = atoi(row[0]);
                 command->agent_id = atoi(row[2]);
                 sprintf(command->code, "%s", row[1]);
+                sprintf(command->subject, "%s", row[3]);
 
                 engine_trace(TRACE_LEVEL_ALWAYS,
-                	"Command info read from DB: CMD_ID=[%d] COMMAND=[%s] AGENT_ID=[%d]",
+                	"Command info read from DB: CMD_ID=[%d] COMMAND=[%s] AGENT_ID=[%d] SUBJECT=[%s]",
                 	command->command_id,
                 	command->code,
-                	command->agent_id);
+                	command->agent_id,
+                    command->subject);
             }
             else 
             {
@@ -425,7 +427,7 @@ ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMa
     @brief          Updates latest command output in DB
 
     @param[in|out]  Connection info, updated once disconnected
-    @param[in]      Agent ID whose VM we want to update
+    @param[in]      Agent ID whose output we want to update
     @param[in]      Output msg we need to update
 
     @return         Execution result
@@ -464,17 +466,65 @@ ErrorCode_t db_update_agent_output(DbConnection_t* connection, int agent_id, cha
 
 /** ****************************************************************************
 
+    @brief          Updates latest input output in DB
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Agent ID whose input we want to update
+    @param[in]      Command information including msg and subject
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_update_agent_input(DbConnection_t* connection, int agent_id, Command_t* command)
+{
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // ignore null msg
+    if(!command) return ENGINE_INTERNAL_ERROR;
+
+    // Prepare query
+    char query_text[DB_MAX_SQL_QUERY_LEN + 1];
+
+    snprintf(query_text, 
+        DB_MAX_SQL_QUERY_LEN, 
+        "UPDATE agents SET input = '%s', subject = '%s' where id = %d",
+        command->code,
+        command->subject,
+        agent_id);
+
+    // run it 
+    if (mysql_query(connection->hndl, query_text)) 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+    else 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Updated VM info for agent [%d] with input [%s] subject [%s]", 
+            agent_id, command->code, command->subject);
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
     @brief          Gets company ID and agent name for a given agent ID
 
     @param[in|out]  Connection info, updated once disconnected
     @param[in]      Agent ID whose company ID we want to obtain
     @param[in|out]  Output parameter where we store the company ID once obtained
     @param[in|out]  Output parameter where we store the agent name once obtained
+    @param[in|out]  Output parameter where we store the current agent subject
+    @param[in|out]  Output parameter where we store the current agent command
 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_agent_info(DbConnection_t* connection, int agent_id, int* company_id, char* agent_name)
+ErrorCode_t db_get_agent_info(DbConnection_t* connection, int agent_id, 
+    int* company_id, char* agent_name, char* email_subject, char* email_content)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -484,14 +534,15 @@ ErrorCode_t db_get_agent_info(DbConnection_t* connection, int agent_id, int* com
     // sanity check
     if(result == ENGINE_OK)
     {
-        if(!company_id) return ENGINE_INTERNAL_ERROR;
+        if(!company_id || !agent_name || !email_subject || !email_content) 
+            return ENGINE_INTERNAL_ERROR;
     }
 
     if(result == ENGINE_OK)
     {
         snprintf(query_text, 
             DB_MAX_SQL_QUERY_LEN, 
-            "SELECT company_id, name FROM agents WHERE id = %d", agent_id);
+            "SELECT company_id, name, subject, input FROM agents WHERE id = %d", agent_id);
 
         // run it 
         if (mysql_query(connection->hndl, query_text)) 
@@ -505,10 +556,10 @@ ErrorCode_t db_get_agent_info(DbConnection_t* connection, int agent_id, int* com
             MYSQL_RES* db_result = mysql_store_result(connection->hndl);
 
             if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
-                (mysql_num_fields(db_result) != 2))
+                (mysql_num_fields(db_result) != 4))
             {
                 engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "ERROR: Unable to get COMPANY_ID and NAME for agent [%d] (invalid result)",
+                    "ERROR: Unable to get info for agent [%d] (invalid result)",
                     agent_id);
 
                 result = ENGINE_DB_QUERY_ERROR;
@@ -518,18 +569,20 @@ ErrorCode_t db_get_agent_info(DbConnection_t* connection, int agent_id, int* com
                 MYSQL_ROW row = mysql_fetch_row(db_result);
                 if(row) 
                 {
-                    // store result
+                    // store result - strcpy safely/same size
                     *company_id = atoi(row[0]);
                     strcpy(agent_name, row[1]);
+                    strcpy(email_subject, row[2]);
+                    strcpy(email_content, row[3]);
 
                     engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "COMPANY_ID [%d] NAME [%s] obtained for agent [%d]", 
-                        *company_id, agent_name, agent_id);
+                        "COMPANY_ID [%d] NAME [%s] SUBJECT [%s] INPUT [%s] obtained for agent [%d]", 
+                        *company_id, agent_name, email_subject, email_content, agent_id);
                 }
                 else 
                 {
                     engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "ERROR: Unable to get COMPANY_ID for agent [%d] (no row)", agent_id);
+                        "ERROR: Unable to get info for agent [%d] (no row)", agent_id);
 
                     result = ENGINE_DB_QUERY_ERROR;
                 }
@@ -730,7 +783,9 @@ ErrorCode_t db_get_agent_email_info(DbConnection_t* connection, EmailInfo_t* ema
         result = db_get_agent_info(connection, 
                                    email_info->agent_id,
                                    &email_info->company_id,
-                                   email_info->agent_name);
+                                   email_info->agent_name,
+                                   email_info->subject,
+                                   email_info->input_content);
     }
 
     if(result == ENGINE_OK)

@@ -48,4 +48,40 @@ mysql> desc agents;
 +------------+------------------+------+-----+---------+----------------+
 12 rows in set (0.01 sec)
 
+--------------------------
 
+Modifications done in DB to accomodate email fields:
+
+ALTER TABLE commands ADD subject varchar(2048)  NULL;
+ALTER TABLE agents ADD subject varchar(2048)  NULL;
+
+
+--------------------------
+
+Structure of the PHP code that deals with emails:
+
+1) We receive emails here:
+
+app/Http/Controllers/HomeController.php at function getMails()
+
+
+2) We create an email object and we can then access all the properties of this email:
+
+$mail = $mailbox->getMail($mailId);
+
+
+3) With the email information we can store in DB the command information received. For this we create an agent and using the agent we 
+   store in DB the command information.
+
+   --------------------------------------------------
+   Agent.php (depending on plain text or HTML format)
+   --------------------------------------------------
+
+   $agent->addCodeFromText($mail->textPlain);
+  
+   $agent->addCodeFromText(Html2Text\Html2Text::convert($mail->textHtml));
+
+
+4) At Command.php we define the model to store commands in DB (new field is required here to accomodate the subject)
+
+--------------------------
