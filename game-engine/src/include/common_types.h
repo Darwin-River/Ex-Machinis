@@ -30,7 +30,7 @@
 //-----------------------------------------------------------------------------
 typedef enum
 {
-	ENGINE_FALSE,
+	ENGINE_FALSE = 0,
     ENGINE_TRUE
 } Bool_t;
 
@@ -106,6 +106,19 @@ typedef struct
 	char subject[MAX_COMMAND_CODE_SIZE+1];
 
 } EmailInfo_t;
+
+//-----------------------------------------------------------------------------
+//  AGENT info object
+//-----------------------------------------------------------------------------
+typedef struct
+{
+	int agent_id;
+	int company_id;
+	char agent_name[MAX_EMAIL_ADDRESS_SIZE+1];
+	char input_content[MAX_COMMAND_CODE_SIZE+1]; // accumulated input content
+	char subject[MAX_COMMAND_CODE_SIZE+1];
+
+} AgentInfo_t;
 
 
 #endif // __EM_COMMON_TYPES_MODULE__

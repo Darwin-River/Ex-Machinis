@@ -62,6 +62,55 @@ ErrorCode_t db_reconnect(DbConnection_t* connection)
 	return result;
 }
 
+/** ****************************************************************************
+
+  @brief          Compares two email subjects to determine if we are on the same email chain
+
+  @param[in]      last_subject    Last email subject
+  @param[in]      current_subject Current email subject
+
+  @return         Boolean result (ENGINE_TRUE: we are on the same chain, ENGINE_FALSE: new chain)
+
+*******************************************************************************/
+Bool_t db_is_same_email_chain(char* last_subject, char* current_subject)
+{
+    Bool_t is_same = ENGINE_FALSE;
+
+    // input pointers checked at calling function
+
+    // If both are the same, no doubt - assume the same
+    if(!strcmp(last_subject, current_subject))
+    {
+        is_same = ENGINE_TRUE;
+    }
+    else
+    {
+        // Check if it is a reply first
+        char* reply_pos = strstr(current_subject, "Re:");
+
+        if(reply_pos)
+        {
+            // Check now if our current subject is the same than last one
+            reply_pos += (strlen("Re:"));
+            char* subject_pos = strstr(reply_pos, last_subject);
+
+            if(subject_pos)
+            {
+                is_same = ENGINE_TRUE;
+            }
+        }
+    }    
+
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+        "Last subject [%s], current [%s] same [%d]", 
+        last_subject,
+        current_subject,
+        is_same);    
+
+    return is_same;
+}
+
+
 /******************************* PUBLIC FUNCTIONS ****************************/
 
 /** ***************************************************************************
@@ -179,6 +228,10 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
 	// always check connection is alive
 	ErrorCode_t result = db_reconnect(connection);
 
+    // Initialize out command
+    memset(command, 0, sizeof(Command_t));
+    command->command_id = -1;
+
 	snprintf(query_text, 
         DB_MAX_SQL_QUERY_LEN, 
         "SELECT id, code, agent_id, subject FROM commands ORDER BY ID LIMIT 1");
@@ -249,6 +302,13 @@ ErrorCode_t db_delete_command(DbConnection_t* connection, Command_t* command)
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
+
+    if(result == ENGINE_OK)
+    {
+        // Treat no more commands as OK
+        if(!command || command->command_id < 0)
+            return ENGINE_OK;
+    }
 
     snprintf(query_text, 
         DB_MAX_SQL_QUERY_LEN, 
@@ -477,33 +537,63 @@ ErrorCode_t db_update_agent_output(DbConnection_t* connection, int agent_id, cha
 *******************************************************************************/
 ErrorCode_t db_update_agent_input(DbConnection_t* connection, int agent_id, Command_t* command)
 {
+    char new_input[MAX_COMMAND_CODE_SIZE+1];
+    char new_subject[MAX_COMMAND_CODE_SIZE+1];
+
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
 
     // ignore null msg
     if(!command) return ENGINE_INTERNAL_ERROR;
 
-    // Prepare query
-    char query_text[DB_MAX_SQL_QUERY_LEN + 1];
+    // Get firstly the current agent info
+    AgentInfo_t agent_info;
+    memset(&agent_info, 0, sizeof(agent_info));
+    agent_info.agent_id = agent_id;
+    result = db_get_agent_info(connection, &agent_info);
 
-    snprintf(query_text, 
-        DB_MAX_SQL_QUERY_LEN, 
-        "UPDATE agents SET input = '%s', subject = '%s' where id = %d",
-        command->code,
-        command->subject,
-        agent_id);
-
-    // run it 
-    if (mysql_query(connection->hndl, query_text)) 
+    if(result == ENGINE_OK) 
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-        result = ENGINE_DB_QUERY_ERROR;
+        // Check current subject to see if it is a new email chain or not
+        Bool_t same_email_chain = db_is_same_email_chain(agent_info.subject, command->subject);
+        if(same_email_chain == ENGINE_TRUE) 
+        {
+            // Keep subject and update input content
+            sprintf(new_subject, "%s", agent_info.subject);
+            sprintf(new_input, "%s\n%s", agent_info.input_content, command->code);
+        }
+        else
+        {
+            // New subject and input content
+            sprintf(new_subject, "%s", command->subject);
+            sprintf(new_input, "%s", command->code);
+        }
     }
-    else 
+
+    if(result == ENGINE_OK) 
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Updated VM info for agent [%d] with input [%s] subject [%s]", 
-            agent_id, command->code, command->subject);
+        // Prepare query to update input and subject
+        char query_text[DB_MAX_SQL_QUERY_LEN + 1];
+
+        snprintf(query_text, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "UPDATE agents SET input = '%s', subject = '%s' where id = %d",
+            new_input,
+            new_subject,
+            agent_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "Updated VM info for agent [%d] with input [%s] subject [%s]", 
+                agent_id, new_input, new_subject);
+        }
     }
 
     return result;
@@ -514,17 +604,12 @@ ErrorCode_t db_update_agent_input(DbConnection_t* connection, int agent_id, Comm
     @brief          Gets company ID and agent name for a given agent ID
 
     @param[in|out]  Connection info, updated once disconnected
-    @param[in]      Agent ID whose company ID we want to obtain
-    @param[in|out]  Output parameter where we store the company ID once obtained
-    @param[in|out]  Output parameter where we store the agent name once obtained
-    @param[in|out]  Output parameter where we store the current agent subject
-    @param[in|out]  Output parameter where we store the current agent command
+    @param[in|out]  Output parameter where we store whole agent info and receive agent ID
 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_agent_info(DbConnection_t* connection, int agent_id, 
-    int* company_id, char* agent_name, char* email_subject, char* email_content)
+ErrorCode_t db_get_agent_info(DbConnection_t* connection, AgentInfo_t* agent_info)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -534,7 +619,7 @@ ErrorCode_t db_get_agent_info(DbConnection_t* connection, int agent_id,
     // sanity check
     if(result == ENGINE_OK)
     {
-        if(!company_id || !agent_name || !email_subject || !email_content) 
+        if(!agent_info) 
             return ENGINE_INTERNAL_ERROR;
     }
 
@@ -542,7 +627,7 @@ ErrorCode_t db_get_agent_info(DbConnection_t* connection, int agent_id,
     {
         snprintf(query_text, 
             DB_MAX_SQL_QUERY_LEN, 
-            "SELECT company_id, name, subject, input FROM agents WHERE id = %d", agent_id);
+            "SELECT company_id, name, subject, input FROM agents WHERE id = %d", agent_info->agent_id);
 
         // run it 
         if (mysql_query(connection->hndl, query_text)) 
@@ -560,7 +645,7 @@ ErrorCode_t db_get_agent_info(DbConnection_t* connection, int agent_id,
             {
                 engine_trace(TRACE_LEVEL_ALWAYS, 
                     "ERROR: Unable to get info for agent [%d] (invalid result)",
-                    agent_id);
+                    agent_info->agent_id);
 
                 result = ENGINE_DB_QUERY_ERROR;
             } 
@@ -570,19 +655,20 @@ ErrorCode_t db_get_agent_info(DbConnection_t* connection, int agent_id,
                 if(row) 
                 {
                     // store result - strcpy safely/same size
-                    *company_id = atoi(row[0]);
-                    strcpy(agent_name, row[1]);
-                    strcpy(email_subject, row[2]);
-                    strcpy(email_content, row[3]);
+                    agent_info->company_id = atoi(row[0]);
+                    strcpy(agent_info->agent_name, row[1]);
+                    strcpy(agent_info->subject, row[2]);
+                    strcpy(agent_info->input_content, row[3]);
 
                     engine_trace(TRACE_LEVEL_ALWAYS, 
                         "COMPANY_ID [%d] NAME [%s] SUBJECT [%s] INPUT [%s] obtained for agent [%d]", 
-                        *company_id, agent_name, email_subject, email_content, agent_id);
+                        agent_info->company_id, agent_info->agent_name, agent_info->subject, 
+                        agent_info->input_content, agent_info->agent_id);
                 }
                 else 
                 {
                     engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "ERROR: Unable to get info for agent [%d] (no row)", agent_id);
+                        "ERROR: Unable to get info for agent [%d] (no row)", agent_info->agent_id);
 
                     result = ENGINE_DB_QUERY_ERROR;
                 }
@@ -770,6 +856,7 @@ ErrorCode_t db_get_agent_email_info(DbConnection_t* connection, EmailInfo_t* ema
 {
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
+    AgentInfo_t agent_info;
 
     if(result == ENGINE_OK)
     {
@@ -780,16 +867,20 @@ ErrorCode_t db_get_agent_email_info(DbConnection_t* connection, EmailInfo_t* ema
     if(result == ENGINE_OK)
     { 
         // Get agent company ID first
-        result = db_get_agent_info(connection, 
-                                   email_info->agent_id,
-                                   &email_info->company_id,
-                                   email_info->agent_name,
-                                   email_info->subject,
-                                   email_info->input_content);
+        memset(&agent_info, 0, sizeof(agent_info));
+        agent_info.agent_id = email_info->agent_id;
+
+        result = db_get_agent_info(connection, &agent_info);
     }
 
     if(result == ENGINE_OK)
     { 
+        // Get email info from agent info
+        email_info->company_id = agent_info.company_id;
+        strcpy(email_info->agent_name, agent_info.agent_name);
+        strcpy(email_info->subject, agent_info.subject);
+        strcpy(email_info->input_content, agent_info.input_content);
+
         // Get now user ID using company_id
         result = db_get_agent_user_id(connection, 
                                       email_info->company_id,

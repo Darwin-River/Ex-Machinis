@@ -18,6 +18,8 @@ DB function to reset agent VM and start from scratch
 
 We can see the available words in a given VM
 
+- Make configurable the Reply string and the email template in HTML
+
 
 
 
