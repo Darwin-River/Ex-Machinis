@@ -329,8 +329,10 @@ ErrorCode_t engine_run()
             result = db_rollback_transaction(&engine.db_connection);
         }
 
-        // always deallocate VM
+        // always deallocate VM and command resources
         if(engine.last_vm) vm_free(engine.last_vm);
+        if(engine.last_command.email_content)
+            engine_free(engine.last_command.email_content, strlen(engine.last_command.email_content) + 1);
 
 		sleep(atoi(engine.config.params[DB_READ_TIME_ID]));
 	}
@@ -412,7 +414,6 @@ void engine_trace(TraceLevel_t level, const char *trace, ... )
 	va_end(valist);
 }
 
-
 /** ****************************************************************************
 
   @brief      Initializes a log line only with date and level, this function must be 
@@ -475,7 +476,13 @@ void engine_vm_output_cb(int agent_id, char* msg)
 
         // Fill the info we have so far
         email_info.agent_id = agent_id;
-        snprintf(email_info.message, MAX_COMMAND_CODE_SIZE, "\"%s\"", msg);
+        // email format
+        snprintf(email_info.email_template, 
+            MAX_COMMAND_CODE_SIZE, 
+            "%s", 
+            engine.config.params[SEND_EMAIL_TEMPLATE_ID]); 
+
+        snprintf(email_info.message, MAX_COMMAND_CODE_SIZE, "%s", msg); // it is quoted later at email module
         snprintf(email_info.email_script, PATH_MAX, "%s", engine.config.params[SEND_EMAIL_SCRIPT_ID]);
 
         if(db_get_agent_email_info(&engine.db_connection, &email_info) == ENGINE_OK)
@@ -483,12 +490,64 @@ void engine_vm_output_cb(int agent_id, char* msg)
             // send email
             email_send(&email_info);
         }
+
+        if(email_info.input_content)engine_free(email_info.input_content, strlen(email_info.input_content)+1);
     }
     else
     {
         engine_trace(TRACE_LEVEL_ALWAYS, 
             "WARNING: NULL msg received from VM for agent [%d]",
             agent_id); 
+    }
+}
+
+/** ****************************************************************************
+
+  @brief      Allocation wrapper to control memory used by the engine
+
+  @param[in]  size Size we want to allocate
+  
+  @return     Pointer to memory allocated or NULL when failed
+
+*******************************************************************************/
+void* engine_malloc(size_t size)
+{
+    void* memory = malloc(size);
+
+    if(memory)
+    {
+        engine.memory_in_use += size; 
+
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Allocated [%ld] bytes (Total memory: [%ld])",
+            size,
+            engine.memory_in_use);
+    }
+
+    return memory;
+}
+
+/** ****************************************************************************
+
+  @brief      Free wrapper to control memory used by the engine
+
+  @param[in]  Pointer to memory we want to deallocate
+  
+  @return     void
+
+*******************************************************************************/
+void engine_free(void* memory, size_t size)
+{
+    if(memory)
+    {
+        free(memory);
+
+        engine.memory_in_use -= size; 
+
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Deallocated [%ld] bytes (Total memory: [%ld])",
+            size,
+            engine.memory_in_use);
     }
 }
 

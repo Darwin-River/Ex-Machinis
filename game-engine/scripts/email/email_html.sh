@@ -19,6 +19,7 @@ EMAIL_CONTENT=$4
     echo "From: ${EMAIL_FROM}"
     echo "To: ${EMAIL_TO}"
     echo "Subject: ${EMAIL_SUBJECT}"
-    echo 'Content-Type: text/plain;charset="utf-8"'
-    echo "${EMAIL_CONTENT}"
+    echo "Content-Disposition: inline"
+    echo 'Content-Type: text/html;boundary=${EMAIL_CONTENT}'
+    echo "<HTML><BODY>${EMAIL_CONTENT}</BODY></HTML>"
  } | /usr/lib/sendmail -t

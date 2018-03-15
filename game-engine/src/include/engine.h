@@ -45,6 +45,7 @@ enum
 
     // Email configuration
     SEND_EMAIL_SCRIPT_ID,
+    SEND_EMAIL_TEMPLATE_ID,
 
     // Max configured parameters
     MAX_CONFIG_PARAM
@@ -112,6 +113,8 @@ typedef struct
     VirtualMachine_t* last_vm;  // last agent VM
 
     ErrorCode_t error;
+
+    long long memory_in_use;
 
 } Engine_t;
 
@@ -237,5 +240,27 @@ void engine_trace_append(TraceLevel_t level, const char *trace, ... );
 
 *******************************************************************************/
 void engine_vm_output_cb(int agent_id, char* msg);
+
+/** ****************************************************************************
+
+  @brief      Allocation wrapper to control memory used by the engine
+
+  @param[in]  size Size we want to allocate
+  
+  @return     Pointer to memory allocated or NULL when failed
+
+*******************************************************************************/
+void* engine_malloc(size_t size);
+
+/** ****************************************************************************
+
+  @brief      Free wrapper to control memory used by the engine
+
+  @param[in]  Pointer to memory we want to deallocate
+  
+  @return     void
+
+*******************************************************************************/
+void engine_free(void* memory, size_t size);
 
 #endif // __EM_ENGINE_MODULE__

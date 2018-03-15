@@ -32,8 +32,12 @@ then
   else
     echo "WARNING: Email handler seems stopped"  
     rm ${PID_FILE}
+    # Remove watchdog line from cron
+    crontab -u ${USER} -l | grep -v 'start_email_handler.sh'  | crontab -u ${USER} -
   fi
 else
   echo "WARNING: File ${PID_FILE} is not defined, could not stop email handler module"
+  # Remove watchdog line from cron
+  crontab -u ${USER} -l | grep -v 'start_email_handler.sh'  | crontab -u ${USER} -
 fi
 

@@ -73,6 +73,7 @@ class Agent extends Model
                 $command->code = trim($matches[$i]);
                 $command->agent_id = $this->id;
                 $command->subject = $subject;
+                $command->email_content = $command_text;
                 $command->save();
                 $commandsCreated = true;
 

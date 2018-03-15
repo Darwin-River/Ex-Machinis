@@ -31,7 +31,8 @@
 typedef struct 
 {
     TraceConf_t conf;
-    FILE* fp;  // log file pointer
+    FILE* fp;          // log file pointer
+    int current_day;   // to detect when we change the day, close current file and generate new one
 
 } TraceInfo_t;
 
@@ -74,6 +75,14 @@ ErrorCode_t trace_init(TraceConf_t* conf, TraceHndl_t* out_hndl)
 	{
 		// Save config
 		memcpy(&trace_info->conf, conf, sizeof(TraceConf_t));
+
+		// Save current day
+		time_t now;
+		struct tm* lnow;
+		// date and time
+		now = time(NULL);
+		lnow = localtime(&now);
+		trace_info->current_day = lnow->tm_mday;
 
 		// Open file 
 		trace_info->fp = fopen(trace_info->conf.log_file_path, "a");
@@ -133,6 +142,23 @@ void trace_write(TraceHndl_t hdnl, TraceLevel_t level, const char *trace, va_lis
 		long milliseconds = currentTime.tv_usec / 1000;
 
 		strftime(date, TRACE_DATE_MAXLENGTH, "%d/%m/%Y,%H:%M:%S", lnow);
+
+		// Check if day changed to close and open a new file
+		if(trace_info->current_day != lnow->tm_mday)
+		{
+			char new_name[PATH_MAX+1];
+			fclose(trace_info->fp);
+			sprintf(new_name, "%s.%02d%02d%04d", 
+				trace_info->conf.log_file_path,
+				lnow->tm_mday,
+				lnow->tm_mon+1,
+				lnow->tm_year+1900); // years since 1900
+
+			rename(trace_info->conf.log_file_path, new_name);
+
+			// Open file again
+			trace_info->fp = fopen(trace_info->conf.log_file_path, "w");
+		}
 
 		// write line
 		fprintf(trace_info->fp, 

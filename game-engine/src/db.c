@@ -234,7 +234,7 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
 
 	snprintf(query_text, 
         DB_MAX_SQL_QUERY_LEN, 
-        "SELECT id, code, agent_id, subject FROM commands ORDER BY ID LIMIT 1");
+        "SELECT id, code, agent_id, subject, email_content FROM commands ORDER BY ID LIMIT 1");
 
     // run it 
     if (mysql_query(connection->hndl, query_text)) 
@@ -262,6 +262,8 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
                 command->agent_id = atoi(row[2]);
                 sprintf(command->code, "%s", row[1]);
                 sprintf(command->subject, "%s", row[3]);
+                command->email_content = engine_malloc(strlen(row[4])+1);
+                sprintf(command->email_content, "%s", row[4]);
 
                 engine_trace(TRACE_LEVEL_ALWAYS,
                 	"Command info read from DB: CMD_ID=[%d] COMMAND=[%s] AGENT_ID=[%d] SUBJECT=[%s]",
@@ -269,6 +271,10 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
                 	command->code,
                 	command->agent_id,
                     command->subject);
+
+                engine_trace(TRACE_LEVEL_ALWAYS,
+                    "Command info read from DB: EMAIL_CONTENT=[%s]",
+                    command->email_content);
             }
             else 
             {
@@ -537,8 +543,8 @@ ErrorCode_t db_update_agent_output(DbConnection_t* connection, int agent_id, cha
 *******************************************************************************/
 ErrorCode_t db_update_agent_input(DbConnection_t* connection, int agent_id, Command_t* command)
 {
-    char new_input[MAX_COMMAND_CODE_SIZE+1];
     char new_subject[MAX_COMMAND_CODE_SIZE+1];
+    char* new_input = NULL;
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -560,23 +566,24 @@ ErrorCode_t db_update_agent_input(DbConnection_t* connection, int agent_id, Comm
         {
             // Keep subject and update input content
             sprintf(new_subject, "%s", agent_info.subject);
-            sprintf(new_input, "%s\n%s", agent_info.input_content, command->code);
+            new_input = command->email_content;
         }
         else
         {
             // New subject and input content
             sprintf(new_subject, "%s", command->subject);
-            sprintf(new_input, "%s", command->code);
+            new_input = command->email_content;
         }
     }
 
     if(result == ENGINE_OK) 
     {
         // Prepare query to update input and subject
-        char query_text[DB_MAX_SQL_QUERY_LEN + 1];
+        size_t query_size = strlen(new_input)*3;
+        char* query_text = engine_malloc(query_size);
 
         snprintf(query_text, 
-            DB_MAX_SQL_QUERY_LEN, 
+            query_size, 
             "UPDATE agents SET input = '%s', subject = '%s' where id = %d",
             new_input,
             new_subject,
@@ -594,7 +601,11 @@ ErrorCode_t db_update_agent_input(DbConnection_t* connection, int agent_id, Comm
                 "Updated VM info for agent [%d] with input [%s] subject [%s]", 
                 agent_id, new_input, new_subject);
         }
+
+        engine_free(query_text, query_size);
     }
+
+    if(agent_info.input_content)engine_free(agent_info.input_content, strlen(agent_info.input_content)+1);
 
     return result;
 }
@@ -658,7 +669,8 @@ ErrorCode_t db_get_agent_info(DbConnection_t* connection, AgentInfo_t* agent_inf
                     agent_info->company_id = atoi(row[0]);
                     strcpy(agent_info->agent_name, row[1]);
                     strcpy(agent_info->subject, row[2]);
-                    strcpy(agent_info->input_content, row[3]);
+                    agent_info->input_content = engine_malloc(strlen(row[3])+1);
+                    sprintf(agent_info->input_content, "%s", row[3]);
 
                     engine_trace(TRACE_LEVEL_ALWAYS, 
                         "COMPANY_ID [%d] NAME [%s] SUBJECT [%s] INPUT [%s] obtained for agent [%d]", 
@@ -879,7 +891,7 @@ ErrorCode_t db_get_agent_email_info(DbConnection_t* connection, EmailInfo_t* ema
         email_info->company_id = agent_info.company_id;
         strcpy(email_info->agent_name, agent_info.agent_name);
         strcpy(email_info->subject, agent_info.subject);
-        strcpy(email_info->input_content, agent_info.input_content);
+        email_info->input_content = agent_info.input_content;
 
         // Get now user ID using company_id
         result = db_get_agent_user_id(connection, 

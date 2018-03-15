@@ -85,3 +85,50 @@ $mail = $mailbox->getMail($mailId);
 4) At Command.php we define the model to store commands in DB (new field is required here to accomodate the subject)
 
 --------------------------
+
+Modifications done in DB to accomodate email content:
+
+
+mysql> desc commands;
++---------------+------------------+------+-----+---------+----------------+
+| Field         | Type             | Null | Key | Default | Extra          |
++---------------+------------------+------+-----+---------+----------------+
+| id            | int(10) unsigned | NO   | PRI | NULL    | auto_increment |
+| code          | varchar(2048)    | NO   |     | NULL    |                |
+| agent_id      | int(10) unsigned | NO   | MUL | NULL    |                |
+| created_at    | timestamp        | YES  |     | NULL    |                |
+| updated_at    | timestamp        | YES  |     | NULL    |                |
+| subject       | varchar(2048)    | YES  |     | NULL    |                |
+| email_content | longtext         | YES  |     | NULL    |                |
++---------------+------------------+------+-----+---------+----------------+
+7 rows in set (0.00 sec)
+
+
+mysql> alter table agents modify input longtext;
+Query OK, 33 rows affected (0.10 sec)
+Records: 33  Duplicates: 0  Warnings: 0
+
+mysql> alter table agents modify output longtext;
+Query OK, 33 rows affected (0.10 sec)
+Records: 33  Duplicates: 0  Warnings: 0
+
+mysql> desc agents;
++------------+------------------+------+-----+---------+----------------+
+| Field      | Type             | Null | Key | Default | Extra          |
++------------+------------------+------+-----+---------+----------------+
+| id         | int(10) unsigned | NO   | PRI | NULL    | auto_increment |
+| name       | varchar(255)     | NO   |     | NULL    |                |
+| company_id | int(10) unsigned | NO   | MUL | NULL    |                |
+| coord_x    | double(8,2)      | NO   |     | NULL    |                |
+| coord_y    | double(8,2)      | NO   |     | NULL    |                |
+| coord_z    | double(8,2)      | NO   |     | NULL    |                |
+| speed_x    | double(8,2)      | NO   |     | 0.00    |                |
+| speed_y    | double(8,2)      | NO   |     | 0.00    |                |
+| speed_z    | double(8,2)      | NO   |     | 0.00    |                |
+| vm         | mediumblob       | YES  |     | NULL    |                |
+| input      | longtext         | YES  |     | NULL    |                |
+| output     | longtext         | YES  |     | NULL    |                |
+| subject    | varchar(2048)    | YES  |     | NULL    |                |
++------------+------------------+------+-----+---------+----------------+
+
+--------------------------

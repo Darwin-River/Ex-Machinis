@@ -46,6 +46,7 @@ char conf_param_names[MAX_CONFIG_PARAM+1][MAX_CONF_PARAM_LEN] =
 
     // EMAIL configuration
     "SEND_EMAIL_SCRIPT",
+    "SEND_EMAIL_TEMPLATE",
 };
 
 /******************************* LOCAL FUNCTIONS *****************************/

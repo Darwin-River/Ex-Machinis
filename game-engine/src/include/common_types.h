@@ -52,6 +52,7 @@ typedef enum
 	ENGINE_FORTH_SERIALIZE_ERROR,
 	ENGINE_EMAIL_ERROR,
 	ENGINE_INTERNAL_ERROR,
+	ENGINE_MEMORY_ALLOC_ERROR,
 } ErrorCode_t;
 
 
@@ -79,6 +80,7 @@ typedef struct
 	int agent_id;
 	char subject[MAX_COMMAND_CODE_SIZE+1];
 	char code[MAX_COMMAND_CODE_SIZE+1]; 
+	char* email_content; // dynamically allocated
 
 } Command_t;
 
@@ -96,14 +98,15 @@ typedef struct
 	int agent_id;
 	int company_id;
 	int user_id;
+	char email_template[MAX_COMMAND_CODE_SIZE+1];
 	char agent_name[MAX_EMAIL_ADDRESS_SIZE+1];
 	char user_email_addr[MAX_EMAIL_ADDRESS_SIZE+1];
 	char user_name[MAX_AGENT_NAME_SIZE+1];
 	char email_script[PATH_MAX]; 
-	char input_content[MAX_COMMAND_CODE_SIZE+1]; // original email content 
+	char* input_content; // dynamically allocated
 	char message[MAX_COMMAND_CODE_SIZE+1]; // Msg received from VM
-	char output_content[(MAX_COMMAND_CODE_SIZE*3)+1]; // *3 to include req/rsp and additional info in content
 	char subject[MAX_COMMAND_CODE_SIZE+1];
+	char* output_content; // dynamically allocated
 
 } EmailInfo_t;
 
@@ -115,9 +118,8 @@ typedef struct
 	int agent_id;
 	int company_id;
 	char agent_name[MAX_EMAIL_ADDRESS_SIZE+1];
-	char input_content[MAX_COMMAND_CODE_SIZE+1]; // accumulated input content
+	char* input_content; // dynamically allocated
 	char subject[MAX_COMMAND_CODE_SIZE+1];
-
 } AgentInfo_t;
 
 

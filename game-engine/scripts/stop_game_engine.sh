@@ -32,8 +32,12 @@ then
   else
     echo "WARNING: Game engine seems stopped"  
     rm  ${PID_FILE}
+    # Remove cron line anyways
+    crontab -u ${USER} -l | grep -v 'start_game_engine.sh'  | crontab -u ${USER} -
   fi
 else
   echo "WARNING: File ${PID_FILE} is not defined, could not stop game engine"
+  # Remove cron line anyways
+  crontab -u ${USER} -l | grep -v 'start_game_engine.sh'  | crontab -u ${USER} -  
 fi
 

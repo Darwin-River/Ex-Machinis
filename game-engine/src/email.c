@@ -8,7 +8,8 @@
 
 /******************************* INCLUDES ************************************/
 
- #include <stdlib.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "email.h"
 #include "trace.h"
@@ -42,19 +43,37 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
 
 	if(email_info) 
 	{
-		char email_command[MAX_COMMAND_CODE_SIZE*4];
+		size_t buffer_size = strlen(email_info->input_content) + strlen(email_info->message) + 256;
+		email_info->output_content = (char*) engine_malloc(buffer_size);
+
+		if(!email_info->output_content)
+		{
+			return ENGINE_MEMORY_ALLOC_ERROR;
+		}
+
+        size_t command_buffer_size = (buffer_size * 2);
+		char* email_command = (char*) engine_malloc(command_buffer_size);
+
+		if(!email_command)
+		{
+			return ENGINE_MEMORY_ALLOC_ERROR;
+		}
+
+		engine_trace(TRACE_LEVEL_ALWAYS,
+	        	"Allocated buffers with [%ld] and [%ld] bytes",
+	        	buffer_size,
+	        	buffer_size*2);
 
 		// Build first the rsp content
 		snprintf(email_info->output_content,
-			(MAX_COMMAND_CODE_SIZE*3), 
-			"<div style=\"color:#FF0000\">-------- Output ----------<br><br><pre>%s</pre></div><br><br>"
-			"-------- Input -----------<br><br><div style=\"color:#000000\"><pre>%s</pre></div><br><br>",
+			buffer_size, 
+			email_info->email_template,
 			email_info->message,
 			email_info->input_content);
 
         // Now build the command to be executed to send the email
 		snprintf(email_command,
-			MAX_COMMAND_CODE_SIZE, 
+			command_buffer_size, 
 			"%s %s \"%s\" %s \"%s\"",
 			email_info->email_script,
 			email_info->user_email_addr,
@@ -81,6 +100,18 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
 	        	"email sent to agent [%d] command [%s]",
 	        	email_info->agent_id,
 	        	email_command);
+        }
+
+        if(email_command) 
+        {
+        	engine_free(email_command, command_buffer_size);
+        	email_command = NULL;
+        }
+
+        if(email_info->output_content) 
+        {
+        	engine_free(email_info->output_content, buffer_size);
+        	email_info->output_content = NULL;
         }
 	}
 	else
