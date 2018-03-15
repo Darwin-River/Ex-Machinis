@@ -156,6 +156,8 @@ void trace_write(TraceHndl_t hdnl, TraceLevel_t level, const char *trace, va_lis
 
 			rename(trace_info->conf.log_file_path, new_name);
 
+			trace_info->current_day = lnow->tm_mday;
+
 			// Open file again
 			trace_info->fp = fopen(trace_info->conf.log_file_path, "w");
 		}
