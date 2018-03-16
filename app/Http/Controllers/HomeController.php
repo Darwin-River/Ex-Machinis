@@ -148,7 +148,8 @@ class HomeController extends Controller
                         $codeAdded = $agent->insertCommandInfo($mail->textPlain, $mail->subject);
                     else
                         //$codeAdded = $agent->addCodeFromText(Html2Text\Html2Text::convert($mail->textHtml));
-                        $codeAdded = $agent->insertCommandInfo(Html2Text\Html2Text::convert($mail->textHtml), $mail->subject);
+                        //$codeAdded = $agent->insertCommandInfo(Html2Text\Html2Text::convert($mail->textHtml), $mail->subject);
+                        echo "HTML email for agent " . $agent->name . "has been ignored <br/>";
                     if ($codeAdded)
                         echo "Code was added for agent " . $agent->name . "<br/>";
 
