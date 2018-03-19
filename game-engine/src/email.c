@@ -10,6 +10,8 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <sys/time.h>
 
 #include "email.h"
 #include "trace.h"
@@ -43,7 +45,7 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
 
 	if(email_info) 
 	{
-		size_t buffer_size = strlen(email_info->input_content) + strlen(email_info->message) + 256;
+		size_t buffer_size = (strlen(email_info->input_content) + strlen(email_info->message) + strlen(email_info->email_template))*10;
 		email_info->output_content = (char*) engine_malloc(buffer_size);
 
 		if(!email_info->output_content)
@@ -64,11 +66,23 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
 	        	buffer_size,
 	        	buffer_size*2);
 
+        // calculate current date buffer
+		time_t now;
+   		struct tm *info;
+   		char date_buffer[MAX_EMAIL_DATE_SIZE];
+   		time(&now);
+   		info = localtime(&now);
+   		strftime(date_buffer, MAX_EMAIL_DATE_SIZE, "%c", info);
+
 		// Build first the rsp content
 		snprintf(email_info->output_content,
 			buffer_size, 
-			email_info->email_template,
+			email_info->email_template, // "<pre>---- Output ----\n\n%s\n\n<b>From:</b> %s\n<b>Sent:</b> %s\n<b>To:</b> %s\n<b>Subject:</b> %s\n\n%s\n\n</pre>"
 			email_info->message,
+			email_info->user_email_addr,
+			date_buffer,
+			email_info->agent_email,
+			email_info->subject,
 			email_info->input_content);
 
         // Now build the command to be executed to send the email

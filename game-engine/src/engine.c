@@ -480,13 +480,20 @@ void engine_vm_output_cb(int agent_id, char* msg)
         snprintf(email_info.email_template, 
             MAX_COMMAND_CODE_SIZE, 
             "%s", 
-            engine.config.params[SEND_EMAIL_TEMPLATE_ID]); 
+            engine.config.params[SEND_EMAIL_TEMPLATE_ID]);
 
         snprintf(email_info.message, MAX_COMMAND_CODE_SIZE, "%s", msg); // it is quoted later at email module
         snprintf(email_info.email_script, PATH_MAX, "%s", engine.config.params[SEND_EMAIL_SCRIPT_ID]);
 
         if(db_get_agent_email_info(&engine.db_connection, &email_info) == ENGINE_OK)
         {
+            // agent email
+            snprintf(email_info.agent_email, 
+                MAX_EMAIL_ADDRESS_SIZE, 
+                "%s@%s", 
+                email_info.agent_name,
+                engine.config.params[AGENTS_EMAIL_DOMAIN_ID]); 
+
             // send email
             email_send(&email_info);
         }

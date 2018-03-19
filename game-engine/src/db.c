@@ -579,7 +579,7 @@ ErrorCode_t db_update_agent_input(DbConnection_t* connection, int agent_id, Comm
     if(result == ENGINE_OK) 
     {
         // Prepare query to update input and subject
-        size_t query_size = strlen(new_input)*3;
+        size_t query_size = strlen(new_input) + strlen(new_subject) + DB_MAX_SQL_QUERY_LEN;
         char* query_text = engine_malloc(query_size);
 
         snprintf(query_text, 

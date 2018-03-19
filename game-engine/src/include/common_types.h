@@ -22,6 +22,7 @@
 #define MAX_COMMAND_CODE_SIZE  2048
 #define MAX_AGENT_NAME_SIZE     256
 #define MAX_EMAIL_ADDRESS_SIZE  512
+#define MAX_EMAIL_DATE_SIZE     156
 
 /******************************* TYPES ***************************************/
 
@@ -100,6 +101,7 @@ typedef struct
 	int user_id;
 	char email_template[MAX_COMMAND_CODE_SIZE+1];
 	char agent_name[MAX_EMAIL_ADDRESS_SIZE+1];
+	char agent_email[MAX_EMAIL_ADDRESS_SIZE+1];
 	char user_email_addr[MAX_EMAIL_ADDRESS_SIZE+1];
 	char user_name[MAX_AGENT_NAME_SIZE+1];
 	char email_script[PATH_MAX]; 

@@ -46,6 +46,7 @@ enum
     // Email configuration
     SEND_EMAIL_SCRIPT_ID,
     SEND_EMAIL_TEMPLATE_ID,
+    AGENTS_EMAIL_DOMAIN_ID,
 
     // Max configured parameters
     MAX_CONFIG_PARAM
