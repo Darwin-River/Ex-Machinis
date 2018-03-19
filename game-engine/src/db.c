@@ -110,6 +110,34 @@ Bool_t db_is_same_email_chain(char* last_subject, char* current_subject)
     return is_same;
 }
 
+/** ***************************************************************************
+
+  @brief      Scapes an string value that will be used inside a mysql query
+
+  @param[in]  value    Value to be scaped
+  @param[in]  len      Value size
+  @param[in]  out      out buffer
+  @param[in]  out_len  Out buffer size
+
+  @return     void
+
+******************************************************************************/
+void db_scape_string(
+    DbConnection_t* connection, 
+    char *value, 
+    size_t len, 
+    char *out, 
+    size_t out_len
+)
+{
+    unsigned long to_len;
+
+    to_len = mysql_real_escape_string(connection->hndl, out, value, strlen(value));
+    out[to_len+1] = '\0';
+    
+   engine_trace(TRACE_LEVEL_DEBUG, "Value [%s] scaped now is [%s]", value, out);
+}
+
 
 /******************************* PUBLIC FUNCTIONS ****************************/
 
@@ -509,11 +537,15 @@ ErrorCode_t db_update_agent_output(DbConnection_t* connection, int agent_id, cha
 
     // Prepare query
     char query_text[DB_MAX_SQL_QUERY_LEN + 1];
+    size_t buffer_size = strlen(msg)*2 + 1;
+    char* scaped_msg = engine_malloc(buffer_size);
+
+    db_scape_string(connection, msg, strlen(msg), scaped_msg, buffer_size);
 
     snprintf(query_text, 
         DB_MAX_SQL_QUERY_LEN, 
         "UPDATE agents SET OUTPUT = '%s'",
-        msg);
+        scaped_msg);
 
     // run it 
     if (mysql_query(connection->hndl, query_text)) 
@@ -526,6 +558,8 @@ ErrorCode_t db_update_agent_output(DbConnection_t* connection, int agent_id, cha
         engine_trace(TRACE_LEVEL_ALWAYS, 
             "Updated VM output for agent [%d] with value [%s]", agent_id, msg);
     }
+
+    engine_free(scaped_msg, buffer_size);
 
     return result;
 }
@@ -582,10 +616,15 @@ ErrorCode_t db_update_agent_input(DbConnection_t* connection, int agent_id, Comm
         size_t query_size = strlen(new_input) + strlen(new_subject) + DB_MAX_SQL_QUERY_LEN;
         char* query_text = engine_malloc(query_size);
 
+        size_t input_size = strlen(new_input)*2 + 1;
+        char* scaped_input = engine_malloc(input_size);
+
+        db_scape_string(connection, new_input, strlen(new_input), scaped_input, input_size);
+
         snprintf(query_text, 
             query_size, 
             "UPDATE agents SET input = '%s', subject = '%s' where id = %d",
-            new_input,
+            scaped_input,
             new_subject,
             agent_id);
 
@@ -603,6 +642,7 @@ ErrorCode_t db_update_agent_input(DbConnection_t* connection, int agent_id, Comm
         }
 
         engine_free(query_text, query_size);
+        engine_free(scaped_input, input_size);
     }
 
     if(agent_info.input_content)engine_free(agent_info.input_content, strlen(agent_info.input_content)+1);
