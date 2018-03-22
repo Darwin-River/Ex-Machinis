@@ -707,10 +707,14 @@ ErrorCode_t db_get_agent_info(DbConnection_t* connection, AgentInfo_t* agent_inf
                 {
                     // store result - strcpy safely/same size
                     agent_info->company_id = atoi(row[0]);
-                    strcpy(agent_info->agent_name, row[1]);
-                    strcpy(agent_info->subject, row[2]);
-                    agent_info->input_content = engine_malloc(strlen(row[3])+1);
-                    sprintf(agent_info->input_content, "%s", row[3]);
+                    sprintf(agent_info->agent_name, "%s", row[1]);
+                    sprintf(agent_info->subject, "%s", row[2]?row[2]:"");
+                    if(row[3]) {
+                        agent_info->input_content = engine_malloc(strlen(row[3])+1);
+                    } else {
+                        agent_info->input_content = engine_malloc(1);
+                    }
+                    sprintf(agent_info->input_content, "%s", row[3]?row[3]:"");
 
                     engine_trace(TRACE_LEVEL_ALWAYS, 
                         "COMPANY_ID [%d] NAME [%s] SUBJECT [%s] INPUT [%s] obtained for agent [%d]", 

@@ -89,9 +89,22 @@ class HomeController extends Controller
                             $message->to($mail->fromAddress, $mail->fromName)->from("registrar@exmachinis.com", "JSA-FAP Administrator")->subject('Program Acceptance');
                         });
                     } else {
-                        //notify user he's already registered
+                        // Get the user company ID and the drones currently assigned
+                        $company = Company::where('user_id', $user->id)->first();
 
-                        Mail::raw('Registration error: your email is already registered.', function ($message) use ($mail) {
+                        echo 'User already registered: ' . $company->user_id . ' at company ' . $company->id . '<br/>';
+
+                        // Get now all the drones for this user and concatenate their email addresses
+                        $drones = Agent::where('company_id', $company->id)->get();
+                        $dronesInfo = 'Registration error: your email is already registered with the following drones: ';
+
+                        foreach ($drones as $drone) {
+                            $drone_email = $drone->name . '@exmachinis.com';
+                            $dronesInfo .= $drone_email;
+                            $dronesInfo .= ', ';
+                        }
+
+                        Mail::raw($dronesInfo, function ($message) use ($mail) {
                             $message->to($mail->fromAddress, $mail->fromName)
                                 ->from("registrar@exmachinis.com", getenv("APP_NAME") . ' Registrations')
                                 ->subject("[" . getenv("APP_NAME") . "] Already registered");
