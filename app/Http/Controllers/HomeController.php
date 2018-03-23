@@ -126,7 +126,7 @@ class HomeController extends Controller
         } else {
             foreach ($mailsIds as $mailId) {
                 $mail = $mailbox->getMail($mailId);
-                echo "received mail with subject <b>" . strtolower(trim($mail->subject)) . '</b><br/>';
+                echo 'received mail with subject <b>' . strtolower(trim($mail->subject)) . PHP_EOL;
                 $recipients = $mail->to;
                 foreach ($recipients as $address => $name) {
                     $mailAddressParts = explode('@', $address);
@@ -154,16 +154,25 @@ class HomeController extends Controller
                         });
                         continue;
                     }
-                    //all set, save code
-                    $codeAdded = false;
+                    // Get the email content as plain text
                     if ($mail->textPlain != null)
-                        //$codeAdded = $agent->addCodeFromText($mail->textPlain);
-                        $codeAdded = $agent->insertCommandInfo($mail->textPlain, $mail->subject);
+                        $mail_content = $mail->textPlain;
                     else
-                        $codeAdded = $agent->insertCommandInfo(Html2Text::convert($mail->textHtml), $mail->subject);
-                        //echo "HTML email for agent " . $agent->name . "has been ignored <br/>";
-                    if ($codeAdded)
-                        echo "Code was added for agent " . $agent->name . "<br/>";
+                        $mail_content = Html2Text::convert($mail->textHtml);
+
+                    // Extract code and add it to DB 
+                    $codeAdded = false;
+                    $codeAdded = $agent->insertCommandInfo($mail_content, $mail->subject);
+
+                    if (! $codeAdded)
+                        echo 'Invalid content received<br/>';
+
+                        Mail::raw('The following code is incorrect:' . PHP_EOL . PHP_EOL . $mail_content, function ($message) use ($mail) {
+                            $message->to($mail->fromAddress, $mail->fromName)
+                                ->from("services@exmachinis.com", getenv("APP_NAME"))
+                                ->subject("[" . getenv("APP_NAME") . "] Invalid code received");
+                        });
+                    }
 
                     //var_dump($localAddress);
                 }
