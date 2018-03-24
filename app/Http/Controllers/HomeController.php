@@ -89,6 +89,7 @@ class HomeController extends Controller
                             $message->to($mail->fromAddress, $mail->fromName)->from("registrar@exmachinis.com", "JSA-FAP Administrator")->subject('Program Acceptance');
                         });
                     } else {
+                        //notify user he's already registered
                         // Get the user company ID and the drones currently assigned
                         $company = Company::where('user_id', $user->id)->first();
 
@@ -100,7 +101,7 @@ class HomeController extends Controller
 
                         foreach ($drones as $drone) {
                             $drone_email = $drone->name . '@exmachinis.com';
-                            $dronesInfo .= $drone_email;
+                            $dronesInfo .= $drone_email; 
                             $dronesInfo .= ', ';
                         }
 
@@ -126,7 +127,7 @@ class HomeController extends Controller
         } else {
             foreach ($mailsIds as $mailId) {
                 $mail = $mailbox->getMail($mailId);
-                echo 'received mail with subject <b>' . strtolower(trim($mail->subject)) . PHP_EOL;
+                echo "received mail with subject <b>" . strtolower(trim($mail->subject)) . '</b><br/>';
                 $recipients = $mail->to;
                 foreach ($recipients as $address => $name) {
                     $mailAddressParts = explode('@', $address);
@@ -154,6 +155,7 @@ class HomeController extends Controller
                         });
                         continue;
                     }
+
                     // Get the email content as plain text
                     if ($mail->textPlain != null)
                         $mail_content = $mail->textPlain;
@@ -164,17 +166,26 @@ class HomeController extends Controller
                     $codeAdded = false;
                     $codeAdded = $agent->insertCommandInfo($mail_content, $mail->subject);
 
-                    if (! $codeAdded)
-                        echo 'Invalid content received<br/>';
+                    if (!$codeAdded) {
+                        echo  'Invalid content received<br/>';
 
-                        Mail::raw('The following code is incorrect:' . PHP_EOL . PHP_EOL . $mail_content, function ($message) use ($mail) {
-                            $message->to($mail->fromAddress, $mail->fromName)
-                                ->from("services@exmachinis.com", getenv("APP_NAME"))
-                                ->subject("[" . getenv("APP_NAME") . "] Invalid code received");
+                        $data = [];
+                        $data['from'] = $mail->fromAddress;
+                        foreach ($recipients as $address => $name) {
+                            // Pick just the first
+                            $data['to'] = $address;
+                            break;
+                        }
+                        $data['subject'] = $mail->subject;
+                        $data['sent'] = $mail->date;
+                        $data['input_content'] = $mail_content;
+                        
+                        echo Mail::send(['email.wrong_email_html', 'email.wrong_email_text'], $data, function ($message) use ($mail) {
+                            $message->to($mail->fromAddress, $mail->fromName)->from($mail->to, getenv("APP_NAME"))->subject('Re: ' . $mail->subject);
                         });
+
                     }
 
-                    //var_dump($localAddress);
                 }
 
                 $mailbox->deleteMail($mailId);
