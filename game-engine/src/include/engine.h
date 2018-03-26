@@ -232,15 +232,14 @@ void engine_trace_append(TraceLevel_t level, const char *trace, ... );
 
 /** ****************************************************************************
 
-  @brief      Callback invoked by FORTH vm when has any output to be displayed
+  @brief      Function used to send VM output to users
 
-  @param[in]  agent_id Agent ID for this VM
   @param[in]  msg      Output msg
 
   @return     void
 
 *******************************************************************************/
-void engine_vm_output_cb(int agent_id, char* msg);
+void engine_vm_output_cb(const char* msg);
 
 /** ****************************************************************************
 

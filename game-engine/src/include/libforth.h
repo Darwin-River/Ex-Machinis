@@ -542,17 +542,15 @@ Function added by Carlos Rodriguez to connect agents with VM
 size_t forth_get_agent_id(forth_t *o);
 
 /** 
-@brief Sets callback function to be invoked when FORTH interpreter generates any output
+@brief Function used to retrieve current VM output buffer (handy when script has been run to read whole output)
 
 Function added by Carlos Rodriguez to connect engine with FORTH vm output
 
 @param  o   An initialized FORTH environment. Caller frees.
-@param  cb  Output callback function to be invoked
-
 
 @return void
 **/
-void forth_set_output_cb(forth_t *o, void (*cb)(int agent_id, char* msg));
+const char* forth_get_vm_output(forth_t *o);
 #endif
 
 #ifdef __cplusplus

@@ -102,4 +102,15 @@ size_t vm_get_size(VirtualMachine_t* vm);
 *******************************************************************************/
 char* vm_to_bytes(VirtualMachine_t* vm, size_t* vm_size);
 
+/** ****************************************************************************
+
+  @brief      Function invoked to retrieve current VM output
+
+  @param[in]  vm  Current VM object
+
+  @return     Current VM output or NULL when failed
+
+*******************************************************************************/
+const char* vm_get_command_output(VirtualMachine_t* vm);
+
 #endif // __EM_VM_MODULE__

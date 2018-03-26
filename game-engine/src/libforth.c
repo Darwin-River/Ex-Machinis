@@ -727,8 +727,7 @@ struct forth { /**< FORTH environment */
 	bool unget_set;      /**< character is in the push back buffer? */
 	size_t line;         /**< count of new lines read in */
 #ifndef USE_ORIGINAL_FORTH_LIB
-	void (*outputCb)(int agent_id, char* msg);    /**< Callback to be invoked when we need to notify output */
-	char emit_msg[2048];
+	char output_buffer[2048]; /**< Buffer where we store output obtained after running a FORTH script */
 #endif
 	forth_cell_t m[];    /**< ~~ Forth Virtual Machine memory */
 };
@@ -1049,10 +1048,10 @@ const char *forth_strerror(void)
 }
 
 #ifndef USE_ORIGINAL_FORTH_LIB
-void forth_notify_output(forth_t* o, char* msg)
+void forth_update_output(forth_t* o, char* msg)
 {
-	if(!forth_is_invalid(o) && msg && o->outputCb)
-		o->outputCb(o->m[ARGC], msg);
+	if(!forth_is_invalid(o) && msg)
+		strcat(o->output_buffer, (const char*)msg);
 }
 
 /* Redefine libforth logger functions to use our own logging mechanism */
@@ -1741,7 +1740,8 @@ static void forth_make_default(forth_t *o, size_t size, FILE *in, FILE *out)
 	o->vend    = o->vstart + o->m[STACK_SIZE];
 	forth_set_file_input(o, in);  /* set up input after our eval */
 #ifndef USE_ORIGINAL_FORTH_LIB		
-	memset(o->emit_msg, 0, sizeof(o->emit_msg));
+	// reset out buffer when running a FORTH script
+	memset(o->output_buffer, 0, 2048);
 #endif	
 }
 
@@ -2212,9 +2212,15 @@ int forth_run(forth_t *o)
 	int errorval = 0;
 	assert(o);
 	jmp_buf on_error;
+
+#ifndef USE_ORIGINAL_FORTH_LIB	
+	// reset out buffer when running a FORTH script
+	memset(o->output_buffer, 0, 2048);
+#endif	
+
 	if(forth_is_invalid(o)) {
 #ifndef USE_ORIGINAL_FORTH_LIB		
-		forth_notify_output(o, "Invalid FORTH state");
+		forth_update_output(o, "Invalid FORTH state");
 #endif		
 		fatal("refusing to run an invalid forth, %"PRIdCell, forth_is_invalid(o));
 		return -1;
@@ -2232,7 +2238,7 @@ int forth_run(forth_t *o)
 
 #ifndef USE_ORIGINAL_FORTH_LIB	
         if(errorval != OK)	{
-			forth_notify_output(o, "Command error");
+			forth_update_output(o, "Command error");
 			return -1;
 		}
 #endif			
@@ -2517,8 +2523,8 @@ require some explaining, but ADD, SUB and DIV will not.
 		case KEY:     *++S = f; f = forth_get_char(o);  break;
 		case EMIT:    
 		{
-#ifndef USE_ORIGINAL_FORTH_LIB		
-			o->emit_msg[strlen(o->emit_msg)] = f;
+#ifndef USE_ORIGINAL_FORTH_LIB	
+			forth_update_output(o, (char*)&f);
 #endif				
 			f = fputc(f, (FILE*)o->m[FOUT]);  
 			break;
@@ -2532,7 +2538,7 @@ require some explaining, but ADD, SUB and DIV will not.
 #ifndef USE_ORIGINAL_FORTH_LIB	
 			char output[2046];
 			sprintf(output, "%"PRIdCell, f);
-			forth_notify_output(o, output);
+			forth_update_output(o, output);
 #endif
 			f = print_cell(o, (FILE*)(o->m[FOUT]), f); 		
 			break;
@@ -2897,7 +2903,7 @@ machine memory has been corrupted somehow.
 		default:
 			fatal("illegal operation %" PRIdCell, w);
 #ifndef USE_ORIGINAL_FORTH_LIB	
-			forth_notify_output(o, "FORTH VM internal error");
+			forth_update_output(o, "FORTH VM internal error");
 #endif			
 			longjmp(on_error, FATAL);
 		}
@@ -2912,13 +2918,6 @@ be called on the invalidated object any longer.
 end:	
 	o->S = S;
 	o->m[TOP] = f;	
-
-#ifndef USE_ORIGINAL_FORTH_LIB
-	if((o->emit_msg[0] != 0) && !isblank(o->emit_msg[0])) {
-		forth_notify_output(o, o->emit_msg);
-		o->emit_msg[0] = 0;
-	}
-#endif
 
 	return 0;
 }
@@ -2942,12 +2941,18 @@ size_t forth_get_agent_id(forth_t *o)
 	/* valid environment - return agent ID stored at ARGC */
 	return (size_t)o->m[ARGC];
 }
-void forth_set_output_cb(forth_t *o, void (*cb)(int agent_id, char* msg))
+
+const char* forth_get_vm_output(forth_t *o)
 {
 	if(forth_is_invalid(o))
-		return;
+		return NULL;
 
-	o->outputCb = cb;
+	/* If it is empty - return just a simple "Done" */
+	if(o->output_buffer[0] == 0)
+		sprintf(o->output_buffer, "%s", "Done");
+
+	/* Return the current content of the output buffer */
+	return (const char*)o->output_buffer;
 }
 #endif
 

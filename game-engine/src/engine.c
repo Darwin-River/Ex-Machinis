@@ -306,7 +306,23 @@ ErrorCode_t engine_run()
         {
             // Execute the last code in current VM
             result = vm_run_command(engine.last_vm, &engine.last_command);
-        }            
+
+            if(result != ENGINE_OK)
+            {
+                engine_vm_output_cb("Command error");
+            }
+        } 
+
+        if(result == ENGINE_OK)
+        {
+            // Read VM output and send email
+            const char* output = vm_get_command_output(engine.last_vm);
+
+            if(output) 
+            {
+                engine_vm_output_cb(output);
+            }
+        }           
 
         if(result == ENGINE_OK)
         {
@@ -451,24 +467,25 @@ void engine_trace_append(TraceLevel_t level, const char *trace, ... )
 
 /** ****************************************************************************
 
-  @brief      Callback invoked by FORTH vm when has any output to be displayed
+  @brief      Function used to send VM output to users
 
-  @param[in]  agent_id Agent ID for this VM
   @param[in]  msg      Output msg
 
   @return     void
 
 *******************************************************************************/
-void engine_vm_output_cb(int agent_id, char* msg)
+void engine_vm_output_cb(const char* msg)
 {
+    int agent_id = engine.last_command.agent_id;
+
     if(msg)
     {
         engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Msg [%s] received from VM for agent [%d]",
+            "Output VMS msg [%s] read for agent [%d]",
             msg,
             agent_id); 
 
-        db_update_agent_output(&engine.db_connection, agent_id, msg);
+        db_update_agent_output(&engine.db_connection, agent_id, (char*)msg);
 
         // Get agent email info and send it by email
         EmailInfo_t email_info;

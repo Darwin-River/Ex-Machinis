@@ -45,7 +45,6 @@ VirtualMachine_t* vm_new(int agent_id)
     {
         forth_set_debug_level((forth_t*)vm, FORTH_DEBUG_ALL);
         forth_set_args((forth_t*)vm, agent_id, NULL); // we store agent ID in register ARGC
-        forth_set_output_cb((forth_t*)vm, engine_vm_output_cb); // cb called when output is ready
 
         engine_trace(TRACE_LEVEL_ALWAYS, "New VM created with size [%ld] for agent [%d]",
             vm_get_size(vm), agent_id); 
@@ -98,8 +97,6 @@ VirtualMachine_t* vm_from_bytes(char* vm_bytes, size_t size)
 
         if(vm && (forth_is_invalid((forth_t*)vm) == 0))
         {
-            forth_set_output_cb((forth_t*)vm, engine_vm_output_cb);
-
             engine_trace(TRACE_LEVEL_ALWAYS, 
                 "VM created from [%ld] bytes of memory for agent [%ld]", 
                 size,
@@ -215,4 +212,29 @@ char* vm_to_bytes(VirtualMachine_t* vm, size_t* vm_size)
     }
 
     return vm_bytes;
+}
+
+/** ****************************************************************************
+
+  @brief      Function invoked to retrieve current VM output
+
+  @param[in]  vm  Current VM object
+
+  @return     Current VM output or NULL when failed
+
+*******************************************************************************/
+const char* vm_get_command_output(VirtualMachine_t* vm)
+{
+    const char* output = NULL;
+
+    if(vm)
+    {
+        output = forth_get_vm_output((forth_t*)vm);
+    }
+    else
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL VM, could not retrieve output"); 
+    }
+
+    return output;
 }
