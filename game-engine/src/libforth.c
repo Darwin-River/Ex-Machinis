@@ -2947,9 +2947,8 @@ const char* forth_get_vm_output(forth_t *o)
 	if(forth_is_invalid(o))
 		return NULL;
 
-	/* If it is empty - return just a simple "Done" */
-	if(o->output_buffer[0] == 0)
-		sprintf(o->output_buffer, "%s", "Done");
+	/* Add the final "Done" statement and send output */
+	strcat(o->output_buffer, "\nDone\n");
 
 	/* Return the current content of the output buffer */
 	return (const char*)o->output_buffer;
