@@ -101,6 +101,18 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command);
 
 /** ****************************************************************************
 
+    @brief          Inserts given command info into DB
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in|out]  Command info, command to be inserted
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_insert_command(DbConnection_t* connection, Command_t* command);
+
+/** ****************************************************************************
+
     @brief          Deletes a given command once processed
 
     @param[in|out]  Connection info, updated once disconnected

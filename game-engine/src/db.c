@@ -322,6 +322,68 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
 
 /** ****************************************************************************
 
+    @brief          Inserts given command info into DB
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in|out]  Command info, command to be inserted
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_insert_command(DbConnection_t* connection, Command_t* command)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result == ENGINE_OK)
+    {
+        // Sanity check
+        if(!command || !command->code || !command->email_content)
+            return ENGINE_INTERNAL_ERROR;
+    }
+
+    char* query_end = query_text;
+
+    query_end += snprintf(query_end, 
+        DB_MAX_SQL_QUERY_LEN, 
+        "INSERT INTO commands (code, agent_id, created_at, updated_at, subject, email_content) VALUES('");
+    
+    query_end += mysql_real_escape_string(connection->hndl, query_end, command->code, strlen(command->code));
+    query_end += snprintf(query_end, 
+        DB_MAX_SQL_QUERY_LEN, 
+        "', %d, NOW(), NOW(), '", 
+        command->agent_id);
+
+    query_end += mysql_real_escape_string(connection->hndl, query_end, command->subject, strlen(command->subject));
+    query_end += snprintf(query_end, 
+        DB_MAX_SQL_QUERY_LEN, 
+        "', '");
+
+    query_end += mysql_real_escape_string(connection->hndl, query_end, command->email_content, strlen(command->email_content));
+    query_end += snprintf(query_end, 
+        DB_MAX_SQL_QUERY_LEN, 
+        "')");
+
+    // run it 
+    if (mysql_query(connection->hndl, query_text)) 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+    else 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Command [%s] inserted into DB", command->code);
+    }
+
+
+    return result;
+}
+
+/** ****************************************************************************
+
     @brief          Deletes a given command once processed
 
     @param[in|out]  Connection info, updated once disconnected

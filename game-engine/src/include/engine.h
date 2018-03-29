@@ -42,6 +42,7 @@ enum
 
     // Logic configuration
     DB_READ_TIME_ID,
+    MAX_LINES_PER_CYCLE_ID,
 
     // Email configuration
     SEND_EMAIL_SCRIPT_ID,

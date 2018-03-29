@@ -6,7 +6,7 @@
 # Compiler/linker flags
 #---------------------------------------------------------------------------
 CXX=gcc
-CFLAGS=-std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql
+CFLAGS=-std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql -D_BSD_SOURCE=1
 LDFLAGS=-lmysqlclient -lconfig
 
 #---------------------------------------------------------------------------
