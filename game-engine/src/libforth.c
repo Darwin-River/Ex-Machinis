@@ -728,6 +728,8 @@ struct forth { /**< FORTH environment */
 	size_t line;         /**< count of new lines read in */
 #ifndef USE_ORIGINAL_FORTH_LIB
 	char output_buffer[2048]; /**< Buffer where we store output obtained after running a FORTH script */
+	int max_vm_steps; /**< Max time we spend executing steps in VM, it is the upper limit */
+	int vm_steps_counter;  /**< Current number of steps executed in this cycle */
 #endif
 	forth_cell_t m[];    /**< ~~ Forth Virtual Machine memory */
 };
@@ -799,7 +801,8 @@ More information about X-Macros can be found here:
  X("`error-handler",  ERROR_HANDLER,  28,  "actions to take on error")\
  X("`handler",        THROW_HANDLER,  29,  "exception handler is stored here")\
  X("`signal",         SIGNAL_HANDLER, 30,  "signal handler")\
- X("`x",              SCRATCH_X,      31,  "scratch variable x")
+ X("`x",              SCRATCH_X,      31,  "scratch variable x")\
+ X("s",               VSTK,           32,  "variable stack pointer")
 
 /**
 @brief The virtual machine registers used by the Forth virtual machine.
@@ -1716,7 +1719,7 @@ and sets up the input and output streams.
 the virtual machines memory, and especially with values that may only be
 valid for a limited period (such as pointers to **stdin**). 
 **/
-static void forth_make_default(forth_t *o, size_t size, FILE *in, FILE *out)
+static void forth_make_default(forth_t *o, size_t size, FILE *in, FILE *out, int reset_stacks)
 {
 	assert(o && size >= MINIMUM_CORE_SIZE && in && out);
 	o->core_size     = size;
@@ -1730,18 +1733,27 @@ static void forth_make_default(forth_t *o, size_t size, FILE *in, FILE *out)
 	o->m[STDIN]      = (forth_cell_t)stdin;
 	o->m[STDOUT]     = (forth_cell_t)stdout;
 	o->m[STDERR]     = (forth_cell_t)stderr;
-	o->m[RSTK] = size - o->m[STACK_SIZE]; /* set up return stk ptr */
+	if(reset_stacks)
+		o->m[RSTK] = size - o->m[STACK_SIZE];
 #ifdef USE_ORIGINAL_FORTH_LIB	
 	/* Do not reset this register never - we keep here agent ID */
 	o->m[ARGC] = o->m[ARGV] = 0;
 #endif	
-	o->S       = o->m + size - (2 * o->m[STACK_SIZE]); /* v. stk pointer */
 	o->vstart  = o->m + size - (2 * o->m[STACK_SIZE]);
 	o->vend    = o->vstart + o->m[STACK_SIZE];
+	if(reset_stacks) {
+		o->S = o->m + size - (2 * o->m[STACK_SIZE]); /* v. stk pointer */
+		o->m[VSTK] = size - (2 * o->m[STACK_SIZE]);
+	} else {
+		o->S = o->vstart + o->m[VSTK];
+	}
+
 	forth_set_file_input(o, in);  /* set up input after our eval */
 #ifndef USE_ORIGINAL_FORTH_LIB		
 	// reset out buffer when running a FORTH script
 	memset(o->output_buffer, 0, 2048);
+	o->max_vm_steps = 5;
+	o->vm_steps_counter = 0;
 #endif	
 }
 
@@ -1827,7 +1839,7 @@ and should be informed of this problem.
 /** 
 Default the registers, and input and output streams:
 **/
-	forth_make_default(o, size, in, out);
+	forth_make_default(o, size, in, out, 1);
 
 /** 
 **o->header** needs setting up, but has no effect on the run time behavior of
@@ -2012,7 +2024,7 @@ forth_t *forth_load_core_file(FILE *dump)
 	}
 	o->core_size = core_size;
 	memcpy(o->header, actual, sizeof(o->header));
-	forth_make_default(o, core_size, stdin, stdout);
+	forth_make_default(o, core_size, stdin, stdout, 1);
 	return o;
 fail:
 	free(o);
@@ -2039,7 +2051,7 @@ forth_t *forth_load_core_memory(char *m, size_t size)
 	make_header(o->header, forth_blog2(size));
 	memcpy(o->m, m + offset, size);
 	/* Do not reset latest register values previously stored in DB */
-	forth_make_default(o, size / sizeof(forth_cell_t), stdin, stdout);
+	forth_make_default(o, size / sizeof(forth_cell_t), stdin, stdout, 1);
 	return o;
 }
 
@@ -2375,8 +2387,25 @@ other than **RUN**, they contain the instructions **DUP** and **MUL**
 respectively.
 
 **/
-	for(;(pc = m[ck(I++)]);) { 
+	for(;(pc = m[ck(I++)]);) { 	
+		engine_trace(TRACE_LEVEL_ALWAYS, 
+			"VSTACK depth: [%d] RSTK depth [%d] STEPS DONE [%d] LIMIT [%d]", 
+			(S - o->vstart), 
+			(o->m[RSTK] - (o->core_size - o->m[STACK_SIZE])),
+			o->vm_steps_counter,
+			o->max_vm_steps);
+
+		if(o->vm_steps_counter >= o->max_vm_steps) {
+			engine_trace(TRACE_LEVEL_ALWAYS, 
+				"WARNING: Max steps LIMIT [%d] reached, stop current cycle", 
+				o->max_vm_steps);
+
+			goto end;
+		}	
+
 	INNER:  
+		o->vm_steps_counter++;
+
 		w = instruction(m[ck(pc++)]);
 		if(w < LAST_INSTRUCTION) {
 			cd(stack_bounds[w]);
@@ -2917,7 +2946,14 @@ be called on the invalidated object any longer.
 **/
 end:	
 	o->S = S;
-	o->m[TOP] = f;	
+	o->m[TOP] = f;
+	o->m[VSTK] = o->core_size - (2 * o->m[STACK_SIZE]) + (o->S - o->vstart);
+
+	engine_trace(TRACE_LEVEL_ALWAYS, 
+		"Command processed [%s], RSTK_DEPTH=[%d], VSTK_DEPTH=[%d]",
+		o->m[SIN],
+		(o->S - o->vstart),
+		(o->m[RSTK] - (o->core_size - o->m[STACK_SIZE])));
 
 	return 0;
 }

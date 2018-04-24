@@ -49,6 +49,9 @@ enum
     SEND_EMAIL_TEMPLATE_ID,
     AGENTS_EMAIL_DOMAIN_ID,
 
+    // FORTH image configuration
+    FORTH_IMAGE_PATH_ID,
+
     // Max configured parameters
     MAX_CONFIG_PARAM
 };
@@ -263,5 +266,16 @@ void* engine_malloc(size_t size);
 
 *******************************************************************************/
 void engine_free(void* memory, size_t size);
+
+/** ****************************************************************************
+
+  @brief      Free wrapper to control memory used by the engine
+
+  @param[in]  Pointer to memory we want to deallocate
+  
+  @return     void
+
+*******************************************************************************/
+const char* engine_get_forth_image_path();
 
 #endif // __EM_ENGINE_MODULE__

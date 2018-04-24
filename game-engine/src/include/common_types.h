@@ -14,7 +14,8 @@
 #include <mysql.h>
 #include <linux/limits.h>
 
-#include "libforth.h"
+//#include "libforth.h"
+#include "embed.h" // embedded FORTH version
 
 /******************************* DEFINES *************************************/
 

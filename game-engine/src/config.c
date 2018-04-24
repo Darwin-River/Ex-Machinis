@@ -49,6 +49,9 @@ char conf_param_names[MAX_CONFIG_PARAM+1][MAX_CONF_PARAM_LEN] =
     "SEND_EMAIL_SCRIPT",
     "SEND_EMAIL_TEMPLATE",
     "AGENTS_EMAIL_DOMAIN",
+
+    // FORTH configuration
+    "FORTH_IMAGE_PATH",
 };
 
 /******************************* LOCAL FUNCTIONS *****************************/

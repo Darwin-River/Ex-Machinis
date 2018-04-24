@@ -70,13 +70,14 @@ VirtualMachine_t* vm_from_bytes(char* vm_bytes, size_t size);
 
   @brief      Runs engine logic loop
 
-  @param[in]  vm      VM object
-  @param[in]  command Command to be executed in current VM
+  @param[in]  vm         VM object
+  @param[in]  command    Command to be executed in current VM
+  @param[out] out_buffer Output buffer
 
   @return     Execution result code (ErrorCode_t)
 
 *******************************************************************************/
-ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command);
+ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_buffer);
 
 /** ****************************************************************************
 

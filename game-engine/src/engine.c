@@ -387,10 +387,11 @@ ErrorCode_t engine_run()
                 &engine.last_command);
         }            
 
+        char out_buffer[4096];
         if(result == ENGINE_OK)
         {
             // Execute the last code in current VM
-            result = vm_run_command(engine.last_vm, &engine.last_command);
+            result = vm_run_command(engine.last_vm, &engine.last_command, out_buffer);
 
             if(result != ENGINE_OK)
             {
@@ -401,11 +402,11 @@ ErrorCode_t engine_run()
         if(result == ENGINE_OK)
         {
             // Read VM output and send email
-            const char* output = vm_get_command_output(engine.last_vm);
+            //const char* output = vm_get_command_output(engine.last_vm);
 
-            if(output) 
+            if(out_buffer[0] != 0) 
             {
-                engine_vm_output_cb(output);
+                engine_vm_output_cb(out_buffer);
             }
         }           
 
@@ -660,3 +661,16 @@ void engine_free(void* memory, size_t size)
     }
 }
 
+/** ****************************************************************************
+
+  @brief      Free wrapper to control memory used by the engine
+
+  @param[in]  Pointer to memory we want to deallocate
+  
+  @return     void
+
+*******************************************************************************/
+const char* engine_get_forth_image_path()
+{
+    return (const char*)engine.config.params[FORTH_IMAGE_PATH_ID];
+}
