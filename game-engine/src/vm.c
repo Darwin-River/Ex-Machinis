@@ -8,6 +8,8 @@
 
 /******************************* INCLUDES ************************************/
 
+#include <string.h>
+
 #include "vm.h"
 #include "engine.h"
 #include "trace.h"
@@ -167,11 +169,12 @@ VirtualMachine_t* vm_from_bytes(char* vm_bytes, size_t size)
   @param[in]  vm         VM object
   @param[in]  command    Command to be executed in current VM
   @param[out] out_buffer Output buffer
+  @param[int] out_size   Output buffer size
 
   @return     Execution result code (ErrorCode_t)
 
 *******************************************************************************/
-ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_buffer)
+ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_buffer, size_t out_size)
 {
     ErrorCode_t result = ENGINE_OK;
 
@@ -204,13 +207,14 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
     if(vm && command)
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "Running command: [%s]", command->code);
+        size_t input_len = strlen(command->code);
 
-        int forth_result = embed_eval((forth_t*)vm, (const char*)command->code, out_buffer, NULL);
+        int forth_result = embed_eval((forth_t*)vm, (const char*)command->code, input_len, out_buffer, out_size);
 
-        if(forth_result != 0)
+        if(forth_result < 0)
         {
             engine_trace(TRACE_LEVEL_ALWAYS, 
-                "ERROR: Command evaluation failed for [%s]", command->code);
+                "ERROR: Command evaluation failed for [%s] result [%d]", command->code, forth_result);
 
             result = ENGINE_FORTH_EVAL_ERROR;
         }

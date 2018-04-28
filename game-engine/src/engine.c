@@ -387,11 +387,12 @@ ErrorCode_t engine_run()
                 &engine.last_command);
         }            
 
-        char out_buffer[4096];
+        char out_buffer[4096+1];
         if(result == ENGINE_OK)
         {
             // Execute the last code in current VM
-            result = vm_run_command(engine.last_vm, &engine.last_command, out_buffer);
+            memset(out_buffer, 0, 4096+1);
+            result = vm_run_command(engine.last_vm, &engine.last_command, out_buffer, 4096);
 
             if(result != ENGINE_OK)
             {
@@ -567,7 +568,7 @@ void engine_vm_output_cb(const char* msg)
     if(msg)
     {
         engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Output VMS msg [%s] read for agent [%d]",
+            "Output VM msg [%s] read for agent [%d]",
             msg,
             agent_id); 
 

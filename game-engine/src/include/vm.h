@@ -73,11 +73,12 @@ VirtualMachine_t* vm_from_bytes(char* vm_bytes, size_t size);
   @param[in]  vm         VM object
   @param[in]  command    Command to be executed in current VM
   @param[out] out_buffer Output buffer
+  @param[int] out_size   Output buffer size
 
   @return     Execution result code (ErrorCode_t)
 
 *******************************************************************************/
-ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_buffer);
+ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_buffer, size_t out_size);
 
 /** ****************************************************************************
 

@@ -28,7 +28,7 @@ int      embed_save(forth_t *h, const char *name); /**< Save VM image to disk */
 #ifdef USE_CUSTOM_EMBED	
 forth_t* embed_load_from_memory(unsigned char* bytes, const size_t size);
 unsigned char* embed_save_into_memory(forth_t *h, size_t *size);
-int embed_eval(forth_t *h, const char *in, char *out, const char *block);
+int embed_eval(forth_t *h, const char *in, const size_t in_size, char *out, const size_t out_size) ;
 #endif
 
 #ifdef __cplusplus

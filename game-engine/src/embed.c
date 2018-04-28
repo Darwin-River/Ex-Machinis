@@ -30,7 +30,7 @@ typedef uint16_t uw_t;
 typedef int16_t  sw_t;
 typedef uint32_t ud_t; 
 
-typedef struct forth_t { uw_t pc, t, rp, sp, core[CORE/sizeof(uw_t)]; } forth_t;
+typedef struct forth_t { uw_t pc, t, rp, sp, core[CORE]; /**< @note CORE instead of CORE/sizeof(uw_t) for memory safety */ } forth_t;
 
 void embed_die(const char *fmt, ...)
 {
@@ -143,6 +143,10 @@ int embed_load(forth_t *h, const char *name)
 	const int r = binary_memory_load(input, h->core, CORE/sizeof(uw_t));
 	fclose(input);
 	h->pc = 0; h->t = 0; h->rp = RP0; h->sp = SP0;
+
+	uw_t *m = h->core;
+	engine_trace(TRACE_LEVEL_ALWAYS, "%x,%x,%x,%x,%x\n", (unsigned)(h->pc), (unsigned)(h->t), (unsigned)(h->sp), (unsigned)(h->rp), (unsigned)(m[h->pc]));
+
 	return r;
 }
 
@@ -159,15 +163,25 @@ forth_t* embed_load_from_memory(unsigned char* bytes, const size_t size)
 
 	forth_t* output_vm = embed_new();
 	if(output_vm) {
-		memcpy(output_vm, bytes, sizeof(*output_vm));
+		memcpy(output_vm, bytes, size);
 	}
+
+    forth_t* h = output_vm;
+	uw_t *m = h->core;
+	engine_trace(TRACE_LEVEL_ALWAYS, "%x,%x,%x,%x,%x\n", (unsigned)(h->pc), (unsigned)(h->t), (unsigned)(h->sp), (unsigned)(h->rp), (unsigned)(m[h->pc]));
 
 	return output_vm;
 }
 
 unsigned char* embed_save_into_memory(forth_t *h, size_t *size)
 {
-	assert(h && size);
+	if(!h || !size) {
+		engine_trace(TRACE_LEVEL_ALWAYS, 
+					 "ERROR: Unable to save VM into bytes [%d] [%d]", 
+					 (h==NULL), (size==NULL));
+
+		return NULL;
+	}
 	
 	// allocate a buffer to store the vm copy
 	unsigned char *buffer = malloc(sizeof(*h));
@@ -176,6 +190,9 @@ unsigned char* embed_save_into_memory(forth_t *h, size_t *size)
 		memcpy(buffer, h, sizeof(*h));
 		*size = sizeof(*h);
 	}
+
+	uw_t *m = h->core;
+	engine_trace(TRACE_LEVEL_ALWAYS, "%x,%x,%x,%x,%x\n", (unsigned)(h->pc), (unsigned)(h->t), (unsigned)(h->sp), (unsigned)(h->rp), (unsigned)(m[h->pc]));
 
 	return buffer;
 }
@@ -270,20 +287,20 @@ finished: h->pc = pc; h->sp = sp; h->rp = rp; h->t = t;
 }
 
 #ifdef USE_CUSTOM_EMBED	
-int embed_eval(forth_t *h, const char *in, char *out, const char *block)
+int embed_eval(forth_t *h, const char *in, const size_t in_size, char *out, const size_t out_size) 
 {
-	int in_size = strlen(in);
-	int in_pos = 0;
-	int out_pos = 0;
+	size_t in_pos = 0;
+	size_t out_pos = 0;
+
+	if(!h || !in || !out)
+		return -1;
 
 	static const uw_t delta[] = { 0, 1, -2, -1 };
-	assert(h && in && out);
+
 	uw_t pc = h->pc, t = h->t, rp = h->rp, sp = h->sp, *m = h->core;
 	ud_t d;
 	for(;;) {
 		const uw_t instruction = m[pc];
-		TRACE(pc, instruction, sp, rp, t);
-		assert(!(sp & 0x8000) && !(rp & 0x8000));
 
 		if(0x8000 & instruction) { /* literal */
 			m[++sp] = t;
@@ -291,6 +308,7 @@ int embed_eval(forth_t *h, const char *in, char *out, const char *block)
 			pc++;
 		} else if ((0xE000 & instruction) == 0x6000) { /* ALU */
 			uw_t n = m[sp], T = t;
+			uw_t opc = pc;
 			pc = instruction & 0x10 ? m[rp] >> 1 : pc + 1;
 
 			switch((instruction >> 8u) & 0x1f) {
@@ -316,25 +334,24 @@ int embed_eval(forth_t *h, const char *in, char *out, const char *block)
 			case 19: T = rp << 1;              break;
 			case 20: sp = t >> 1;              break;
 			case 21: rp = t >> 1; T = n;       break;
-			case 22: T = save(h, block, n>>1, ((ud_t)T+1)>>1); break;
-#ifdef OLD_INPUT_OUTPUT			
-			case 23: T = fputc(t, out);        break;
-			case 24: T = fgetc(in);            break;
-#else
-			case 23: 
-				out[out_pos] = t;
-				out_pos++;
+			case 22: T = 0; /**@note not used in this version */ break;
+			case 23:
+				if(out_pos >= (out_size - 1)) {
+					pc = opc;
+					goto finished;
+				}
 				T = t;
-				break;	
+				out[out_pos++] = t;
+				break;
 			case 24: 
 				if(in_pos < in_size) {
 					T = in[in_pos]; 
-					in_pos++;       
+					in_pos++;
 				} else {
-					T = EOF;
+					pc = opc;
+					goto finished;
 				}
-				break;	
-#endif			
+				break;
 			case 25: if(t) { T=n/t; t=n%t; n=t; } else { pc=1; T=10; } break;
 			case 26: if(t) { T=(sw_t)n/(sw_t)t; t=(sw_t)n%(sw_t)t; n=t; } else { pc=1; T=10; } break;
 			case 27: goto finished;
