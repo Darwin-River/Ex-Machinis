@@ -8,7 +8,7 @@ A SSL certificate is required for a public release.
 
 ### Installation
 
-Copy all files and folders to a directory where you want the project to be placed, then set in Apache's httpd.conf the "html" folder as web root (this guide explains it for Ubuntu <a href="https://www.digitalocean.com/community/tutorials/how-to-move-an-apache-web-root-to-a-new-location-on-ubuntu-16-04">https://www.digitalocean.com/community/tutorials/how-to-move-an-apache-web-root-to-a-new-location-on-ubuntu-16-04</a> ) . If the folders structure is changed, you may have to edit index.php on the "html" folder to set the paths.
+Copy all files and folders to a directory (game-engine folder is not necessary) where you want the project to be placed, then set in Apache's httpd.conf the "html" folder as web root (this guide explains it for Ubuntu <a href="https://www.digitalocean.com/community/tutorials/how-to-move-an-apache-web-root-to-a-new-location-on-ubuntu-16-04">https://www.digitalocean.com/community/tutorials/how-to-move-an-apache-web-root-to-a-new-location-on-ubuntu-16-04</a> ) . If the folders structure is changed, you may have to edit index.php on the "html" folder to set the paths.
 In order to import the database, set the user/password on env.php and run 
 ```
 php artisan migrate
@@ -94,10 +94,6 @@ namespace inbox {
 ssl=required
 ssl_cert = </etc/ssl/certs/server.pem
 ssl_key = </etc/ssl/certs/exmachinis.com.key
-```
-A cron job needs to be created to execute incoming mails processing. First set the CRON_KEY on the .env configuration file. Then you can edit the cron table on Linux with the command "crontab -e". To make the process run once every five minutes (replace "CRON_KEY" with the key code):
-```
-*/5 * * * * wget -O /dev/null -o /dev/null  https://www.exmachinis.com/get-mail/{CRON_KEY}
 ```
 
 
