@@ -99,7 +99,7 @@ ssl_key = </etc/ssl/certs/exmachinis.com.key
 
 ### Game engine setup
 
-The game engine modules run under forth Linux user. This user belongs to dev group. 
+The game engine modules run under **forth** Linux user. This user belongs to **dev** group. 
 
 ```
 uid=1006(forth) gid=1006(dev) 
@@ -156,32 +156,35 @@ We have one line to restart the email handler and another to restart the game en
 */1 * * * * sh -c '. /home/forth/.profile; /home/forth/game-engine/bin/scripts/start_game_engine.sh' >> /dev/null 2>&1
 ```
 
-## Engine modules
+### Engine modules
 
-# Email handler
+#### Email handler
 
 The email handler module reads periodically (period is configurable inside the script) the catch-all inbox. 
-For this, it invokes the following command: 
+
+This module is basically a bash script: **/home/forth/game-engine/bin/scripts/start_email_handler.sh**
+
+that invokes the following command: 
 
 ```
 > curl -s https://www.exmachinis.com/get-mails/JJy3CC9cUtzsbLsY
 
 where:
 
-- ** curl -s ** : invokes HTTPS request
+- **curl -s** : invokes HTTPS request
 
-- ** https://www.exmachinis.com ** : domain we want to invoke
+- **https://www.exmachinis.com** : domain we want to invoke (will depend on current server name)
 
-- ** get-mails ** : is the PHP script in charge of processing the emails using Laravel terminology
+- **get-mails** : is the PHP script in charge of processing the emails using Laravel terminology
 
-- ** JJy3CC9cUtzsbLsY ** : It is the key configured at dovecot setup
+- **JJy3CC9cUtzsbLsY** : It is the key configured at dovecot setup
 ```
 
 
 When it receives any email, it checks the destination address and applies the suitable logic depending on this address, updating the Mysql database information.
 
 
-# Game engine
+#### Game engine
 
 It reads MySQL database (periodically) and retrieves emails information stored by email handler module.
 
