@@ -132,7 +132,7 @@ ulimit -c unlimited
 export PATH=$PATH:$PLAT_HOME/bin:$PLAT_HOME/bin/scripts
 ```
 
-All the game files are placed under $PLAT_HOME directory (/home/forth/game-engine) using the following structure of directories:
+All the game files are placed under **$PLAT_HOME** directory (**/home/forth/game-engine**) using the following structure of directories:
 
 ```
 [forth@ExMachinis] # cd $PLAT_HOME
@@ -148,8 +148,8 @@ All the game files are placed under $PLAT_HOME directory (/home/forth/game-engin
 ./test
 ```
 
-At user's cron there are the following tasks programmed (they are just watchdog scripts to restart the suitable module if stopped).
-We have one line to restart the email handler and another to restart the game engine (if they were stopped)
+At user's cron we have the following tasks programmed (they are just watchdog scripts to restart the suitable module if stopped).
+We have one line to restart the email handler and another to restart the game engine (only in case they were stopped)
 
 ```
 */1 * * * * sh -c '. /home/forth/.profile; /home/forth/game-engine/bin/scripts/start_email_handler.sh' >> /dev/null 2>&1
@@ -171,13 +171,13 @@ that invokes the following command:
 
 where:
 
-- **curl -s** : invokes HTTPS request
+- curl -s : invokes HTTPS request
 
-- **https://www.exmachinis.com** : domain we want to invoke (will depend on current server name)
+- https://www.exmachinis.com : domain we want to invoke (will depend on current server name)
 
-- **get-mails** : is the PHP script in charge of processing the emails using Laravel terminology
+- get-mails : is the PHP script in charge of processing the emails using Laravel terminology
 
-- **JJy3CC9cUtzsbLsY** : It is the key configured at dovecot setup
+- JJy3CC9cUtzsbLsY : It is the key configured at dovecot setup
 ```
 
 
