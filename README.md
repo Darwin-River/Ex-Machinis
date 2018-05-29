@@ -97,5 +97,88 @@ ssl_key = </etc/ssl/certs/exmachinis.com.key
 ```
 
 
+### Game engine setup
+
+The game engine modules run under forth Linux user. This user belongs to dev group. 
+
+uid=1006(forth) gid=1006(dev) 
+
+
+At user's environment (.profile) we configure the following stuff:
+
+
+# Define PLAT_HOME path where the game stuff is placed
+export PLAT_HOME=$HOME/game-engine
+export WORKSPACE=$HOME/workspace/game-engine
+
+# Also some alias to move to the PLAT_HOME subdirectories
+alias cdpl='cd $PLAT_HOME;pwd'
+alias cdex='cd $PLAT_HOME/bin;pwd'
+alias cdscr='cd $PLAT_HOME/bin/scripts;pwd'
+alias cdcf='cd $PLAT_HOME/conf;pwd'
+alias cdlog='cd $PLAT_HOME/log;pwd'
+alias cdtmp='cd $PLAT_HOME/tmp;pwd'
+
+# Alias for workspace, to compile the daemon
+alias cdsrc='cd $WORKSPACE;pwd'
+
+# Allow memory coredump generation when engine crashes
+ulimit -c unlimited
+
+
+# Put in the PATH binaries and scripts
+export PATH=$PATH:$PLAT_HOME/bin:$PLAT_HOME/bin/scripts
+
+
+All the game files are placed under $PLAT_HOME directory (/home/forth/game-engine) using the following structure of directories:
+
+[forth@ExMachinis] # cd $PLAT_HOME
+[forth@ExMachinis] # find . -type d
+.
+./conf
+./bin
+./bin/scripts
+./bin/scripts/email
+./backup
+./tmp
+./log
+./test
+
+At user's cron there are the following tasks programmed (they are just watchdog scripts to restart the suitable module if stopped).
+We have one line to restart the email handler and another to restart the game engine (if they were stopped)
+
+*/1 * * * * sh -c '. /home/forth/.profile; /home/forth/game-engine/bin/scripts/start_email_handler.sh' >> /dev/null 2>&1
+*/1 * * * * sh -c '. /home/forth/.profile; /home/forth/game-engine/bin/scripts/start_game_engine.sh' >> /dev/null 2>&1
+
+
+## Engine modules
+
+# Email handler
+
+The email handler module reads periodically (period is configurable inside the script) the catch-all inbox. 
+For this, it invokes the following command: 
+
+> curl -s https://www.exmachinis.com/get-mails/JJy3CC9cUtzsbLsY
+
+where:
+
+curl -s : invokes HTTPS request
+
+https://www.exmachinis.com : domain we want to invoke
+
+get-mails : is the PHP script in charge of processing he emails
+
+
+JJy3CC9cUtzsbLsY : It is the key configured at dovecot setup
+
+
+When it receives any email, it checks the destination address and applies the suitable logic depending on this address, updating the Mysql database information.
+
+
+# Game engine
+
+It reads MySQL database (periodically) and retrieves emails information stored by email handler module.
+
+It runs the FORTH scripts received by email and updates user VM.
 
 
