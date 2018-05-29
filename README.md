@@ -101,12 +101,14 @@ ssl_key = </etc/ssl/certs/exmachinis.com.key
 
 The game engine modules run under forth Linux user. This user belongs to dev group. 
 
+```
 uid=1006(forth) gid=1006(dev) 
+```
 
 
 At user's environment (.profile) we configure the following stuff:
 
-
+```
 # Define PLAT_HOME path where the game stuff is placed
 export PLAT_HOME=$HOME/game-engine
 export WORKSPACE=$HOME/workspace/game-engine
@@ -128,10 +130,11 @@ ulimit -c unlimited
 
 # Put in the PATH binaries and scripts
 export PATH=$PATH:$PLAT_HOME/bin:$PLAT_HOME/bin/scripts
-
+```
 
 All the game files are placed under $PLAT_HOME directory (/home/forth/game-engine) using the following structure of directories:
 
+```
 [forth@ExMachinis] # cd $PLAT_HOME
 [forth@ExMachinis] # find . -type d
 .
@@ -143,13 +146,15 @@ All the game files are placed under $PLAT_HOME directory (/home/forth/game-engin
 ./tmp
 ./log
 ./test
+```
 
 At user's cron there are the following tasks programmed (they are just watchdog scripts to restart the suitable module if stopped).
 We have one line to restart the email handler and another to restart the game engine (if they were stopped)
 
+```
 */1 * * * * sh -c '. /home/forth/.profile; /home/forth/game-engine/bin/scripts/start_email_handler.sh' >> /dev/null 2>&1
 */1 * * * * sh -c '. /home/forth/.profile; /home/forth/game-engine/bin/scripts/start_game_engine.sh' >> /dev/null 2>&1
-
+```
 
 ## Engine modules
 
@@ -158,18 +163,19 @@ We have one line to restart the email handler and another to restart the game en
 The email handler module reads periodically (period is configurable inside the script) the catch-all inbox. 
 For this, it invokes the following command: 
 
+```
 > curl -s https://www.exmachinis.com/get-mails/JJy3CC9cUtzsbLsY
 
 where:
 
-curl -s : invokes HTTPS request
+- ** curl -s ** : invokes HTTPS request
 
-https://www.exmachinis.com : domain we want to invoke
+- ** https://www.exmachinis.com ** : domain we want to invoke
 
-get-mails : is the PHP script in charge of processing he emails
+- ** get-mails ** : is the PHP script in charge of processing the emails using Laravel terminology
 
-
-JJy3CC9cUtzsbLsY : It is the key configured at dovecot setup
+- ** JJy3CC9cUtzsbLsY ** : It is the key configured at dovecot setup
+```
 
 
 When it receives any email, it checks the destination address and applies the suitable logic depending on this address, updating the Mysql database information.
