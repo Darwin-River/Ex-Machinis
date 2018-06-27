@@ -9,9 +9,13 @@ A SSL certificate is required for a public release.
 ### Installation
 
 Copy all files and folders to a directory (game-engine folder is not necessary) where you want the project to be placed, then set in Apache's httpd.conf the "html" folder as web root (this guide explains it for Ubuntu <a href="https://www.digitalocean.com/community/tutorials/how-to-move-an-apache-web-root-to-a-new-location-on-ubuntu-16-04">https://www.digitalocean.com/community/tutorials/how-to-move-an-apache-web-root-to-a-new-location-on-ubuntu-16-04</a> ) . If the folders structure is changed, you may have to edit index.php on the "html" folder to set the paths.
-In order to import the database, set the user/password on env.php and run 
+In order to import the database, set the user/password on env.php and run: 
 ```
 php artisan migrate
+```
+In case the Laravel dependencies weren't copied/downloaded, you will have to run this command from the project's folder:
+```
+php composer install
 ```
 
 ### Mail application setup
@@ -95,7 +99,12 @@ ssl=required
 ssl_cert = </etc/ssl/certs/server.pem
 ssl_key = </etc/ssl/certs/exmachinis.com.key
 ```
-
+#### Notes about certificates
+Postfix requires the SSL certificate and Intermediate CA need to be in a single file, as stated here https://knowledge.digicert.com/solution/SO13616.html .
+If you install new certificates, you may have to run this command to re-generate the symbolic links:
+```
+update-ca-certificates --fresh
+```
 
 ### Game engine setup
 
