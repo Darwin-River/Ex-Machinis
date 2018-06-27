@@ -100,7 +100,7 @@ ssl_cert = </etc/ssl/certs/server.pem
 ssl_key = </etc/ssl/certs/exmachinis.com.key
 ```
 #### Notes about certificates
-Postfix requires the SSL certificate and Intermediate CA need to be in a single file, as stated here https://knowledge.digicert.com/solution/SO13616.html .
+Postfix requires the SSL certificate and Intermediate CA need to be in a single file, as stated here https://knowledge.digicert.com/solution/SO13616.html .  
 If you install new certificates, you may have to run this command to re-generate the symbolic links:
 ```
 update-ca-certificates --fresh
