@@ -36,7 +36,7 @@ inet_interfaces = all
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
 
-smtpd_tls_cert_file=/etc/ssl/certs/server.pem
+smtpd_tls_cert_file=/etc/ssl/certs/server.crt
 smtpd_tls_key_file=/etc/ssl/certs/exmachinis.com.key
 smtpd_use_tls=yes
 smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
@@ -96,9 +96,10 @@ namespace inbox {
   }
 }
 ssl=required
-ssl_cert = </etc/ssl/certs/server.pem
+ssl_cert = </etc/ssl/certs/abec1e3c92ff8964.crt
 ssl_key = </etc/ssl/certs/exmachinis.com.key
 ```
+Note that other Dovecot configuration files also need to be modified as according to https://www.digitalocean.com/community/tutorials/how-to-configure-a-mail-server-using-postfix-dovecot-mysql-and-spamassassin : 10-mail.conf, 10-auth.conf, 10-master.conf and 10-ssl.conf.
 #### Notes about certificates
 Postfix requires the SSL certificate and Intermediate CA need to be in a single file, as stated here https://knowledge.digicert.com/solution/SO13616.html .  
 If you install new certificates, you may have to run this command to re-generate the symbolic links:
