@@ -153,7 +153,26 @@ ssl=required
 ssl_cert = </etc/ssl/certs/abec1e3c92ff8964.crt
 ssl_key = </etc/ssl/certs/exmachinis.com.key
 ```
-Note that other Dovecot configuration files also need to be modified as according to https://www.digitalocean.com/community/tutorials/how-to-configure-a-mail-server-using-postfix-dovecot-mysql-and-spamassassin : 10-mail.conf, 10-auth.conf, 10-master.conf and 10-ssl.conf.
+Note that other Dovecot configuration files also need to be modified as according to https://www.digitalocean.com/community/tutorials/how-to-configure-a-mail-server-using-postfix-dovecot-mysql-and-spamassassin : 10-mail.conf, 10-auth.conf, 10-master.conf and 10-ssl.conf.  
+
+### Creation of email accounts
+Two email accounts have to be created: one for registration and a "catchall" account to process mails that go to any name under the same domain.
+On Linux, accounts can be created using
+```
+adduser registrar
+```
+These accounts' credentials and everything related to mail should be sent on the '.env' file on the Laravel's project root folder:
+```
+MAIL_DRIVER=mail
+MAIL_HOST=exmachinis.com
+MAIL_PORT=587
+MAIL_USERNAME=administrator
+MAIL_PASSWORD=password
+MAIL_ENCRYPTION=tls
+MAIL_REGISTRATION_ACCOUNT=registrar
+MAIL_CATCHALL_ACCOUNT=catchall
+MAIL_INCOMING_PORT=143
+```
 #### Notes about certificates
 Postfix requires the SSL certificate and Intermediate CA need to be in a single file, as stated here https://knowledge.digicert.com/solution/SO13616.html .  
 If you install new certificates, you may have to run this command to re-generate the symbolic links:
