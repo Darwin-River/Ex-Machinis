@@ -9,15 +9,19 @@ A SSL certificate is required for a public release.
 ### Installation
 
 Copy all files and folders to a directory (game-engine folder is not necessary) where you want the project to be placed, then set in Apache's httpd.conf the "html" folder as web root (this guide explains it for Ubuntu <a href="https://www.digitalocean.com/community/tutorials/how-to-move-an-apache-web-root-to-a-new-location-on-ubuntu-16-04">https://www.digitalocean.com/community/tutorials/how-to-move-an-apache-web-root-to-a-new-location-on-ubuntu-16-04</a> ) . If the folders structure is changed, you may have to edit index.php on the "html" folder to set the paths.
-In order to import the database, set the user/password on env.php and run 
+In order to import the database, set the user/password on env.php and run: 
 ```
 php artisan migrate
+```
+In case the Laravel dependencies weren't copied/downloaded, you will have to run this command from the project's folder:
+```
+php composer install
 ```
 
 ### Mail application setup
 
 The mail application uses Postfix and Dovecot. In order to install them on a Ubuntu distribution you can follow this tutorial <a href="https://www.digitalocean.com/community/tutorials/how-to-set-up-a-postfix-e-mail-server-with-dovecot">https://www.digitalocean.com/community/tutorials/how-to-set-up-a-postfix-e-mail-server-with-dovecot</a>.
-Then you should set Postfix and Dovecot's configurations as follows:
+Then you should set Postfix and Dovecot's configurations as follows:   
 main.cf:
 ```
 myhostname = exmachinis.com
@@ -32,7 +36,7 @@ inet_interfaces = all
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
 
-smtpd_tls_cert_file=/etc/ssl/certs/server.pem
+smtpd_tls_cert_file=/etc/ssl/certs/server.crt
 smtpd_tls_key_file=/etc/ssl/certs/exmachinis.com.key
 smtpd_use_tls=yes
 smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
@@ -42,6 +46,60 @@ smtpd_tls_protocols = !SSLv2, !SSLv3
 
 local_recipient_maps =
 luser_relay = catchall
+```
+master.cf (active lines only):  
+```
+submission inet n       -       -       -       -       smtpd
+  -o syslog_name=postfix/submission
+  -o smtpd_tls_wrappermode=no
+  -o smtpd_tls_security_level=encrypt
+  -o smtpd_sasl_auth_enable=yes
+  -o smtpd_reject_unlisted_recipient=no
+  -o smtpd_recipient_restrictions=permit_sasl_authenticated,reject
+  -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
+  -o milter_macro_daemon_name=ORIGINATING
+  -o smtpd_sasl_type=dovecot
+  -o smtpd_sasl_path=private/auth
+pickup    unix  n       -       y       60      1       pickup
+cleanup   unix  n       -       y       -       0       cleanup
+qmgr      unix  n       -       n       300     1       qmgr
+#qmgr     unix  n       -       n       300     1       oqmgr
+tlsmgr    unix  -       -       y       1000?   1       tlsmgr
+rewrite   unix  -       -       y       -       -       trivial-rewrite
+bounce    unix  -       -       y       -       0       bounce
+defer     unix  -       -       y       -       0       bounce
+trace     unix  -       -       y       -       0       bounce
+verify    unix  -       -       y       -       1       verify
+flush     unix  n       -       y       1000?   0       flush
+proxymap  unix  -       -       n       -       -       proxymap
+proxywrite unix -       -       n       -       1       proxymap
+smtp      unix  -       -       y       -       -       smtp
+relay     unix  -       -       y       -       -       smtp
+showq     unix  n       -       y       -       -       showq
+error     unix  -       -       y       -       -       error
+retry     unix  -       -       y       -       -       error
+discard   unix  -       -       y       -       -       discard
+local     unix  -       n       n       -       -       local
+virtual   unix  -       n       n       -       -       virtual
+lmtp      unix  -       -       y       -       -       lmtp
+anvil     unix  -       -       y       -       1       anvil
+scache    unix  -       -       y       -       1       scache
+maildrop  unix  -       n       n       -       -       pipe
+  flags=DRhu user=vmail argv=/usr/bin/maildrop -d ${recipient}
+
+
+uucp      unix  -       n       n       -       -       pipe
+  flags=Fqhu user=uucp argv=uux -r -n -z -a$sender - $nexthop!rmail ($recipient)
+
+ifmail    unix  -       n       n       -       -       pipe
+  flags=F user=ftn argv=/usr/lib/ifmail/ifmail -r $nexthop ($recipient)
+bsmtp     unix  -       n       n       -       -       pipe
+  flags=Fq. user=bsmtp argv=/usr/lib/bsmtp/bsmtp -t$nexthop -f$sender $recipient
+scalemail-backend unix	-	n	n	-	2	pipe
+  flags=R user=scalemail argv=/usr/lib/scalemail/bin/scalemail-store ${nexthop} ${user} ${extension}
+mailman   unix  -       n       n       -       -       pipe
+  flags=FR user=list argv=/usr/lib/mailman/bin/postfix-to-mailman.py
+  ${nexthop} ${user}
 ```
 dovecot.conf:
 ```
@@ -92,10 +150,35 @@ namespace inbox {
   }
 }
 ssl=required
-ssl_cert = </etc/ssl/certs/server.pem
+ssl_cert = </etc/ssl/certs/abec1e3c92ff8964.crt
 ssl_key = </etc/ssl/certs/exmachinis.com.key
 ```
+Note that other Dovecot configuration files also need to be modified as according to https://www.digitalocean.com/community/tutorials/how-to-configure-a-mail-server-using-postfix-dovecot-mysql-and-spamassassin : 10-mail.conf, 10-auth.conf, 10-master.conf and 10-ssl.conf.  
 
+### Creation of email accounts
+Two email accounts have to be created: one for registration and a "catchall" account to process mails that go to any name under the same domain.
+On Linux, accounts can be created using
+```
+adduser registrar
+```
+These accounts' credentials and everything related to mail should be sent on the '.env' file on the Laravel's project root folder:
+```
+MAIL_DRIVER=mail
+MAIL_HOST=exmachinis.com
+MAIL_PORT=587
+MAIL_USERNAME=administrator
+MAIL_PASSWORD=password
+MAIL_ENCRYPTION=tls
+MAIL_REGISTRATION_ACCOUNT=registrar
+MAIL_CATCHALL_ACCOUNT=catchall
+MAIL_INCOMING_PORT=143
+```
+#### Notes about certificates
+Postfix requires the SSL certificate and Intermediate CA need to be in a single file, as stated here https://knowledge.digicert.com/solution/SO13616.html .  
+If you install new certificates, you may have to run this command to re-generate the symbolic links:
+```
+update-ca-certificates --fresh
+```
 
 ### Game engine setup
 
