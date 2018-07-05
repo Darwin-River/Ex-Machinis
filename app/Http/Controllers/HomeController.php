@@ -53,7 +53,7 @@ class HomeController extends Controller
             die("wrong key");
 
         // 4. argument is the directory into which attachments are to be saved:
-        $mailbox = new Mailbox('{exmachinis.com:143/imap/tls}INBOX', 'registrar', 'redfish', null);
+        $mailbox = new Mailbox('{' . getenv('MAIL_HOST') . ':' . getenv('MAIL_INCOMING_PORT') . '/imap/' . getenv('MAIL_ENCRYPTION') . '}INBOX', getenv('MAIL_REGISTRATION_ACCOUNT'), getenv('MAIL_REGISTRATION_PASSWORD'), null);
 
 // Read all messaged into an array:
         $mailsIds = $mailbox->searchMailbox('ALL');
@@ -101,7 +101,7 @@ class HomeController extends Controller
 
                         foreach ($drones as $drone) {
                             $drone_email = $drone->name . '@exmachinis.com';
-                            $dronesInfo .= $drone_email; 
+                            $dronesInfo .= $drone_email;
                             $dronesInfo .= ', ';
                         }
 
@@ -117,7 +117,7 @@ class HomeController extends Controller
             }
         }
         //now check catch-all mails
-        $mailbox = new Mailbox('{exmachinis.com:143/imap/tls}INBOX', 'catchall', 'redfish', null);
+        $mailbox = new Mailbox('{' . getenv('MAIL_HOST') . ':' . getenv('MAIL_INCOMING_PORT') . '/imap/' . getenv('MAIL_ENCRYPTION') . '}INBOX', getenv('MAIL_CATCHALL_ACCOUNT'), getenv('MAIL_CATCHALL_PASSWORD'), null);
 
 // Read all messaged into an array:
         $mailsIds = $mailbox->searchMailbox('ALL');
@@ -167,7 +167,7 @@ class HomeController extends Controller
                     $codeAdded = $agent->insertCommandInfo($mail_content, $mail->subject);
 
                     if (!$codeAdded) {
-                        echo  'Invalid content received<br/>';
+                        echo 'Invalid content received<br/>';
 
                         $data = [];
                         $data['from'] = $mail->fromAddress;
@@ -179,7 +179,7 @@ class HomeController extends Controller
                         $data['subject'] = $mail->subject;
                         $data['sent'] = $mail->date;
                         $data['input_content'] = $mail_content;
-                        
+
                         echo Mail::send(['email.wrong_email_html', 'email.wrong_email_text'], $data, function ($message) use ($mail) {
                             $message->to($mail->fromAddress, $mail->fromName)->from($mail->to, getenv("APP_NAME"))->subject('Re: ' . $mail->subject);
                         });
