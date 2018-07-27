@@ -35,10 +35,11 @@ class HomeController extends Controller
 
     public function test()
     {
-        phpinfo();exit;
+        phpinfo();
+        exit;
 
         echo Mail::send(['email.welcome_html', 'email.welcome_text'], [], function ($message) {
-            $message->to("puppeteer.fernando@gmail.com")->from("registrar@".getenv("MAIL_HOST"))->subject('Testing email');
+            $message->to("puppeteer.fernando@gmail.com")->from("registrar@" . getenv("MAIL_HOST"))->subject('Testing email');
         });
 
     }
@@ -86,7 +87,7 @@ class HomeController extends Controller
                             $data['drone' . ($i + 1)] = $drone->name;
                         }
                         echo Mail::send(['email.welcome_drones_html', 'email.welcome_drones_text'], $data, function ($message) use ($user, $mail) {
-                            $message->to($mail->fromAddress, $mail->fromName)->from("registrar@".getenv("MAIL_HOST"), "JSA-FAP Administrator")->subject('Program Acceptance');
+                            $message->to($mail->fromAddress, $mail->fromName)->from("registrar@" . getenv("MAIL_HOST"), "JSA-FAP Administrator")->subject('Program Acceptance');
                         });
                     } else {
                         //notify user he's already registered
@@ -100,14 +101,14 @@ class HomeController extends Controller
                         $dronesInfo = 'Registration error: your email is already registered with the following drones: ';
 
                         foreach ($drones as $drone) {
-                            $drone_email = $drone->name . getenv("MAIL_HOST");
+                            $drone_email = $drone->name . "@" . getenv("MAIL_HOST");
                             $dronesInfo .= $drone_email;
                             $dronesInfo .= ', ';
                         }
 
                         Mail::raw($dronesInfo, function ($message) use ($mail) {
                             $message->to($mail->fromAddress, $mail->fromName)
-                                ->from("registrar@".getenv("MAIL_HOST"), getenv("APP_NAME") . ' Registrations')
+                                ->from("registrar@" . getenv("MAIL_HOST"), getenv("APP_NAME") . ' Registrations')
                                 ->subject("[" . getenv("APP_NAME") . "] Already registered");
                         });
                     }
@@ -140,7 +141,7 @@ class HomeController extends Controller
                         //notify back
                         Mail::raw('Your message was not delivered to ' . $address . " because the address wasn't found or it can't receive mails.", function ($message) use ($mail) {
                             $message->to($mail->fromAddress, $mail->fromName)
-                                ->from("services@".getenv("MAIL_HOST"), getenv("APP_NAME"))
+                                ->from("services@" . getenv("MAIL_HOST"), getenv("APP_NAME"))
                                 ->subject("[" . getenv("APP_NAME") . "] Email address not found");
                         });
                         continue;
@@ -150,7 +151,7 @@ class HomeController extends Controller
                         //notify back
                         Mail::raw("Your email address doesn't have access to the agent associated with " . $address . ". Please use the address you have registered with.", function ($message) use ($mail) {
                             $message->to($mail->fromAddress, $mail->fromName)
-                                ->from("services@".getenv("MAIL_HOST"), getenv("APP_NAME"))
+                                ->from("services@" . getenv("MAIL_HOST"), getenv("APP_NAME"))
                                 ->subject("[" . getenv("APP_NAME") . "] Forbidden access");
                         });
                         continue;
