@@ -27,4 +27,12 @@ class User extends Authenticatable
         'password', 'remember_token',
     ];
 
+    /**
+     * Get the agents associated with the company.
+     */
+    public function agents()
+    {
+        return $this->hasManyThrough('App\Agent', 'App\Company');
+    }
+
 }

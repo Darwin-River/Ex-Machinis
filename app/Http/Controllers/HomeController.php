@@ -35,8 +35,8 @@ class HomeController extends Controller
 
     public function test()
     {
-        phpinfo();
-        exit;
+       /* phpinfo();
+        exit;*/
 
         echo Mail::send(['email.welcome_html', 'email.welcome_text'], [], function ($message) {
             $message->to("puppeteer.fernando@gmail.com")->from("registrar@" . getenv("MAIL_HOST"))->subject('Testing email');
@@ -45,7 +45,7 @@ class HomeController extends Controller
     }
 
     /**
-     * Download mails from the server and process them. Called by cron job.
+     * Download mails from the server and process them. Called by main loop.
      */
     public function getMails($key)
     {
