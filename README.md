@@ -9,6 +9,7 @@ A SSL certificate is required for a public release.
 ### Installation
 
 Copy all files and folders to a directory (game-engine folder is not necessary) where you want the project to be placed, then set in Apache's httpd.conf the "html" folder as web root (this guide explains it for Ubuntu <a href="https://www.digitalocean.com/community/tutorials/how-to-move-an-apache-web-root-to-a-new-location-on-ubuntu-16-04">https://www.digitalocean.com/community/tutorials/how-to-move-an-apache-web-root-to-a-new-location-on-ubuntu-16-04</a> ) . If the folders structure is changed, you may have to edit index.php on the "html" folder to set the paths.
+There is a "model of .env" file you'd have to use to create a .env file where you have to set all the credentials for the PHP application.
 In order to import the database, set the user/password on env.php and run: 
 ```
 php artisan migrate
