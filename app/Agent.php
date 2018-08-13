@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Agent extends Model
 {
+    //NOTE: Agents are the drones
+
     protected $fillable = [
         'name', 'company_id', "coord_x", "coord_y", "coord_z", "speed_x", "speed_y", "speed_z",
     ];
@@ -32,13 +34,12 @@ class Agent extends Model
             if (Agent::where(['name' => $this->name])->get() != null)
                 $unique = true;
         }
-
     }
 
     /**
      * Extracts and saves all code between tags <script></script>
      * @param string $text mail body
-     *
+     * @return boolean
      */
     public function addCodeFromText($text)
     {
@@ -51,7 +52,6 @@ class Agent extends Model
                 $command->agent_id = $this->id;
                 $command->save();
                 $commandsCreated = true;
-
             }
         }
         return $commandsCreated;
@@ -61,6 +61,7 @@ class Agent extends Model
      * Extracts and saves all code between tags <script></script> and also email subject in DB
      * @param string $command_text mail body
      * @param string $subject mail subject
+     * @return boolean
      *
      */
     public function insertCommandInfo($command_text, $subject)
@@ -76,7 +77,6 @@ class Agent extends Model
                 $command->email_content = $command_text;
                 $command->save();
                 $commandsCreated = true;
-
             }
         }
         return $commandsCreated;

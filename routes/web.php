@@ -23,3 +23,4 @@ Route::get('/home', 'HomeController@index')->name('home');
 Route::get('/test', 'HomeController@test')->name('test');
 
 Route::get('/get-mails/{key}', 'HomeController@getMails');
+Route::get('/user/send-report/{key}', 'UserController@reportCurrentUsersByMail');
