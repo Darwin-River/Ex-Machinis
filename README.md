@@ -99,16 +99,32 @@ ssl_key = </etc/ssl/certs/exmachinis.com.key
 
 ### Game engine setup
 
+External dependencies, we need to install the following libraries/packages required by the game engine (as root user run):
+
+```
+apt-get install libconfig-dev
+```
+
 The game engine modules run under **forth** Linux user. This user belongs to **dev** group. 
 
 ```
 uid=1006(forth) gid=1006(dev) 
 ```
 
+The commands to achieve this are (as root user):
+```
+# addgroup dev
+# adduser --ingroup dev -shell /bin/bash forth
+```
+
 
 At user's environment (.profile) we configure the following stuff:
 
 ```
+# Default Prompt format
+PS1="[\u@\h] # "
+
+
 # Define PLAT_HOME path where the game stuff is placed
 export PLAT_HOME=$HOME/game-engine
 export WORKSPACE=$HOME/workspace/game-engine
