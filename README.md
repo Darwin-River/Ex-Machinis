@@ -188,7 +188,7 @@ update-ca-certificates --fresh
 External dependencies, we need to install the following libraries/packages required by the game engine (as root user run):
 
 ```
-apt-get install libconfig-dev
+apt-get install libconfig-dev libmysqlclient-dev 
 ```
 
 The game engine modules run under **forth** Linux user. This user belongs to **dev** group. 
