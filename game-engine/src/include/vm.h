@@ -82,17 +82,6 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
 
 /** ****************************************************************************
 
-  @brief      Gets VM memory size
-
-  @param[in]  vm  Current VM object
-
-  @return     VM core size or -1 when error
-
-*******************************************************************************/
-size_t vm_get_size(VirtualMachine_t* vm);
-
-/** ****************************************************************************
-
   @brief      Serializes a given VM objet into a new array of bytes
               (Important: memory returned by this function must be deallocated once used)
 
@@ -103,16 +92,5 @@ size_t vm_get_size(VirtualMachine_t* vm);
 
 *******************************************************************************/
 char* vm_to_bytes(VirtualMachine_t* vm, size_t* vm_size);
-
-/** ****************************************************************************
-
-  @brief      Function invoked to retrieve current VM output
-
-  @param[in]  vm  Current VM object
-
-  @return     Current VM output or NULL when failed
-
-*******************************************************************************/
-const char* vm_get_command_output(VirtualMachine_t* vm);
 
 #endif // __EM_VM_MODULE__

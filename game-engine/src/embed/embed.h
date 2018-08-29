@@ -266,7 +266,6 @@ cell_t *embed_core_get(embed_t *h);
  * @param h,   an initialized virtual machine
  * @param str, string to evaluate
  * @return zero on success, negative on failure */
-
 int embed_eval(embed_t *h, const char *str);
 
 /**@brief This array contains the default virtual machine image, generated from
@@ -281,11 +280,6 @@ extern const size_t embed_default_block_size;
 /**@brief This is effectively a static_assert for condition
  * @param constant expression to check */
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
-#endif
-
-
-#ifdef USE_CUSTOM_EMBED
-unsigned char* embed_save_into_memory(embed_t *h, size_t *size);
 #endif
 
 #ifdef __cplusplus

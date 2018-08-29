@@ -6,11 +6,6 @@
 #include <stdio.h>
 #include <string.h>
 
-
-#ifdef USE_CUSTOM_EMBED	
-#include "engine.h"
-#endif
-
 #define SHADOW    (7)     /**< start location of shadow registers */
 #define MIN(X, Y) ((X) > (Y) ? (Y) : (X))
 
@@ -73,7 +68,7 @@ int embed_eval(embed_t *h, const char *str) {
 	embed_opt_t o_new = o_old;
 	o_new.get = embed_sgetc_cb;
 	o_new.in = &str;
-	//o_new.options = EMBED_VM_QUITE_ON;
+	o_new.options = EMBED_VM_QUITE_ON;
 	embed_opt_set(h, &o_new);
 	const int r = embed_vm(h);
 	/*embed_reset(h);*/
@@ -201,7 +196,6 @@ int embed_vm(embed_t * const h) {
 	const embed_yield_t     yield = o->yield;
 	void  *yields = o->yields;
 	assert(mr && mw && yield);
-
 	const m_t l = embed_cells(h);
 	m_t pc = mr(h, 0), t = mr(h, 1), rp = mr(h, 2), sp = mr(h, 3), r = 0;
 	for(d_t d;!yield(yields);) {
@@ -275,27 +269,3 @@ finished: mw(h, 0, pc), mw(h, 1, t), mw(h, 2, rp), mw(h, 3, sp);
 	return (s_t)r;
 }
 
-#ifdef USE_CUSTOM_EMBED
-unsigned char* embed_save_into_memory(embed_t *h, size_t *size)
-{
-	// We only need to save the VM core, the rest is not required
-    if(!h || !size) {
-		engine_trace(TRACE_LEVEL_ALWAYS, 
-	        "ERROR: Unable to save VM into bytes [%d] [%d]", 
-	        (h==NULL), (size==NULL));
-
-	    return NULL;
-	}
-	
-	// allocate a buffer to store the vm core
-	size_t core_size = EMBED_CORE_SIZE*sizeof(cell_t);
-	unsigned char *buffer = calloc(core_size, 1);
-
-	if(buffer) {
-	    memcpy(buffer, h->m, core_size);
-	    *size = core_size;
-	}
-
-	return buffer;
-}
-#endif // USE_CUSTOM_EMBED

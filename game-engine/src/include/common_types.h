@@ -16,6 +16,7 @@
 
 //#include "libforth.h"
 #include "embed.h" // embedded FORTH version
+#include "util.h"  // embed util features
 
 /******************************* DEFINES *************************************/
 
@@ -90,7 +91,8 @@ typedef struct
 //-----------------------------------------------------------------------------
 //  Virtual Machine structure (we wrap the forth_t here in an oppac object)
 //-----------------------------------------------------------------------------
-typedef forth_t VirtualMachine_t;
+typedef embed_t VirtualMachine_t;
+typedef embed_t forth_t; // redefine old type to new one
 
 //-----------------------------------------------------------------------------
 //  EMAIL info object

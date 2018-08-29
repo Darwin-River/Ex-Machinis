@@ -26,7 +26,32 @@
 
 /******************************* GLOBAL VARIABLES ****************************/
 
+// we store in global variable the last command output
+char* g_last_command_output = NULL;
+
 /******************************* LOCAL FUNCTIONS *****************************/
+
+/** ****************************************************************************
+
+  @brief      Callback invoked by VM when we need to write a character
+
+  @param[in]  ch Char received from VM
+  @param[in]  file, handle needed to write to a source, if needed
+
+  @return     ch on success, negative on failure
+
+*******************************************************************************/
+int vm_putc_cb(int ch, void *file) 
+{
+  engine_trace(TRACE_LEVEL_ALWAYS, "Char [%c] received from VM output", ch);
+
+  int next_pos = strlen(g_last_command_output);
+  g_last_command_output += next_pos;
+
+  *g_last_command_output = ch;
+
+  return ch;
+}
 
 /** ****************************************************************************
 
@@ -41,38 +66,21 @@ VirtualMachine_t* vm_new(int agent_id)
 {
     VirtualMachine_t* vm = NULL;
 
-#ifdef LIBFORTH
-    vm = (VirtualMachine_t*)forth_init(DEFAULT_CORE_SIZE, stdin, stdout, NULL);
-
-    if(vm)
-    {
-        forth_set_debug_level((forth_t*)vm, FORTH_DEBUG_ALL);
-        forth_set_args((forth_t*)vm, agent_id, NULL); // we store agent ID in register ARGC
-
-        engine_trace(TRACE_LEVEL_ALWAYS, "New VM created with size [%ld] for agent [%d]",
-            vm_get_size(vm), agent_id); 
-    }
-#else
     // Allocate new embedded VM
     vm = (VirtualMachine_t*)embed_new();
 
     if(vm)
     {
-        // Get configured image file
-        const char* vm_image_file = engine_get_forth_image_path();
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "New VM created with size [%ld] and core size [%ld] for agent [%d]",
+        	sizeof(*vm), sizeof(*(vm->m)), agent_id); 
 
-        // Load VM with pre-defined image file
-        int result = embed_load((forth_t*)vm, vm_image_file);
-
-        if(!result)
-            engine_trace(TRACE_LEVEL_ALWAYS, "New VM created with size [%ld] for agent [%d]",
-                vm_get_size(vm), agent_id); 
-        else 
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "ERROR: Unable to create new VM for agent [%d] with image file [%s] (result [%d])",
-                agent_id, vm_image_file, result); 
-    }    
-#endif    
+        embed_opt_t vm_default_options = *embed_opt_get(vm);
+        embed_opt_t vm_engine_options = vm_default_options;
+        vm_engine_options.put = vm_putc_cb;
+        vm_engine_options.options = 0;
+        embed_opt_set(vm, &vm_engine_options);
+    }      
 
     return vm;
 }
@@ -87,20 +95,7 @@ VirtualMachine_t* vm_new(int agent_id)
 
 *******************************************************************************/
 void vm_free(VirtualMachine_t* vm)
-{
-#ifdef LIBFORTH    
-    if(vm)
-    {    
-        engine_trace(TRACE_LEVEL_ALWAYS, "VM deallocated"); 
-
-        forth_free((forth_t*)vm);
-        vm = NULL;
-    }
-    else
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: Unable to free NULL VM"); 
-    }
-#else 
+{ 
     if(vm)
     {    
         engine_trace(TRACE_LEVEL_ALWAYS, "VM deallocated"); 
@@ -111,8 +106,7 @@ void vm_free(VirtualMachine_t* vm)
     else
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: Unable to free NULL VM"); 
-    }    
-#endif    
+    }        
 }
 
 /** ****************************************************************************
@@ -129,20 +123,7 @@ VirtualMachine_t* vm_from_bytes(char* vm_bytes, size_t size)
 {
     VirtualMachine_t* vm = NULL;
 
-#ifdef LIBFORTH
-    if(vm_bytes)
-    {
-        vm = forth_load_core_memory(vm_bytes, size);
-
-        if(vm && (forth_is_invalid((forth_t*)vm) == 0))
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "VM created from [%ld] bytes of memory for agent [%ld]", 
-                size,
-                forth_get_agent_id((forth_t*)vm)); 
-        }
-    }
-#else
+#ifdef USE_OLD_EMBED
     if(vm_bytes)
     {
         vm = embed_load_from_memory((unsigned char*)vm_bytes, size);
@@ -157,7 +138,34 @@ VirtualMachine_t* vm_from_bytes(char* vm_bytes, size_t size)
                 size); 
         }
     }    
-#endif    
+#else  // USE latest embed version
+    if(vm_bytes)
+    {
+        // Create a new VM and load its core from DB
+        vm = embed_new();
+
+        // Define output options to retrieve the buffer
+        embed_opt_t vm_default_options = *embed_opt_get(vm);
+        embed_opt_t vm_engine_options = vm_default_options;
+        vm_engine_options.put = vm_putc_cb;
+        vm_engine_options.options = 0;
+        embed_opt_set(vm, &vm_engine_options);
+
+        if(vm) {
+            int error = embed_load_buffer(vm, (const uint8_t *)vm_bytes, size);
+
+            if(error) {
+            	engine_trace(TRACE_LEVEL_ALWAYS,
+                	"VM created from [%ld] bytes of memory for agent",
+                	size);
+            } else {
+                engine_trace(TRACE_LEVEL_ALWAYS,
+                    "ERROR: Unable to create VM from [%ld] bytes of memory for agent",
+                    size);
+            }
+        }
+    }
+#endif  
 
     return vm;
 }
@@ -178,38 +186,14 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
 {
     ErrorCode_t result = ENGINE_OK;
 
-#ifdef LIBFORTH
-    if(vm && command && (forth_is_invalid((forth_t*)vm) == 0))
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Running command: [%s]", command->code);
-
-        int forth_result = forth_eval((forth_t*)vm, (const char*)command->code);
-
-        if(forth_result < 0)
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "ERROR: Command evaluation failed for [%s]", command->code);
-
-            result = ENGINE_FORTH_EVAL_ERROR;
-        }
-        else
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "Command succesfully evaluated: [%s]", command->code);
-        }
-    }
-    else
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Could not evaluate command (NULL input)");
-        result = ENGINE_INTERNAL_ERROR;
-    }
-#else
     if(vm && command)
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "Running command: [%s]", command->code);
-        size_t input_len = strlen(command->code);
 
-        int forth_result = embed_eval((forth_t*)vm, (const char*)command->code, input_len, out_buffer, out_size);
+        g_last_command_output = out_buffer;
+        memset(g_last_command_output, 0, out_size); 
+         
+        int forth_result = embed_eval((forth_t*)vm, (const char*)command->code);
 
         if(forth_result < 0)
         {
@@ -228,39 +212,9 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Could not evaluate command (NULL input)");
         result = ENGINE_INTERNAL_ERROR;
-    }    
-#endif    
+    }      
 
     return result;
-}
-
-/** ****************************************************************************
-
-  @brief      Gets VM memory size
-
-  @param[in]  vm  Current VM object
-
-  @return     VM core size or -1 when error
-
-*******************************************************************************/
-size_t vm_get_size(VirtualMachine_t* vm)
-{
-#ifdef LIBFORTH  
-    if(vm && (forth_is_invalid((forth_t*)vm) == 0))
-    {
-        // Cast to low level object and get its core size
-
-        forth_t* f = (forth_t*) vm;
-        size_t vm_size = forth_get_core_size(f);
-
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-            "VM size is [%ld] bytes", vm_size);
-
-        return vm_size;
-    }
-#endif    
-
-    return 0;
 }
 
 /** ****************************************************************************
@@ -278,27 +232,6 @@ char* vm_to_bytes(VirtualMachine_t* vm, size_t* vm_size)
 {
     char* vm_bytes = NULL;
 
-#ifdef LIBFORTH
-    if(vm && vm_size && (forth_is_invalid((forth_t*)vm) == 0))
-    {
-        vm_bytes = forth_save_core_memory((forth_t*) vm, vm_size);
-
-        if(vm_bytes && *vm_size)
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "VM succesfully serialized into [%ld] bytes", *vm_size);
-        }
-        else
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "ERROR: Could not serialize VM (serialization failed)");
-        }
-    }
-    else
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Could not serialize VM (NULL input)");
-    }
-#else
     if(vm && vm_size)
     {
         vm_bytes = (char*)embed_save_into_memory((forth_t*) vm, vm_size);
@@ -317,35 +250,7 @@ char* vm_to_bytes(VirtualMachine_t* vm, size_t* vm_size)
     else
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Could not serialize VM (NULL input)");
-    }    
-#endif    
+    }      
 
     return vm_bytes;
-}
-
-/** ****************************************************************************
-
-  @brief      Function invoked to retrieve current VM output
-
-  @param[in]  vm  Current VM object
-
-  @return     Current VM output or NULL when failed
-
-*******************************************************************************/
-const char* vm_get_command_output(VirtualMachine_t* vm)
-{
-    const char* output = NULL;
-
-#ifdef LIBFORTH
-    if(vm)
-    {
-        output = forth_get_vm_output((forth_t*)vm);
-    }
-    else
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL VM, could not retrieve output"); 
-    }
-#endif    
-
-    return output;
 }
