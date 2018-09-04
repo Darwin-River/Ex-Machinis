@@ -74,6 +74,40 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
    		info = localtime(&now);
    		strftime(date_buffer, MAX_EMAIL_DATE_SIZE, "%c", info);
 
+   		// Input content needs to be scaped if contains single quotes, each single quote must be scaped by '"'"'
+   		size_t scaped_buffer_size = strlen(email_info->input_content) * 5;
+		char* scaped_buffer = (char*) engine_malloc(scaped_buffer_size);
+		char* single_quote_pos = strchr(email_info->input_content, '\'');
+
+		if(!single_quote_pos) {
+			sprintf(scaped_buffer, "%s", email_info->input_content);
+		}
+		else {
+			memset(scaped_buffer, 0, scaped_buffer_size);
+	   		char* start = email_info->input_content;
+	   		char* dest = scaped_buffer;
+	   		while(single_quote_pos) {
+				//engine_trace(TRACE_LEVEL_ALWAYS, "Output is [%s], start [%s]", scaped_buffer, start);
+	   			strncat(dest, start, (single_quote_pos - start));
+	   			//engine_trace(TRACE_LEVEL_ALWAYS, "Output is [%s], start [%s]", scaped_buffer, start);
+	   			dest += (single_quote_pos - start);
+	   			//engine_trace(TRACE_LEVEL_ALWAYS, "Output is [%s], start [%s]", scaped_buffer, start);
+	   			strncat(dest, "\'\"\'\"\'", 5);
+	   			//engine_trace(TRACE_LEVEL_ALWAYS, "Output is [%s], start [%s]", scaped_buffer, start);
+	   			dest += 5;
+	   			start = (single_quote_pos+1);
+	   			single_quote_pos = strchr(start, '\'');
+	   		}
+
+	   		// copy last portion
+	   		strncat(dest, start, strlen(start));
+
+	   		engine_trace(TRACE_LEVEL_ALWAYS,
+	        	"Input is [%s] -> scaped content is [%s]",
+	        	email_info->input_content, 
+	        	scaped_buffer);
+	   	}
+
 		// Build first the rsp content
 		snprintf(email_info->output_content,
 			buffer_size, 
@@ -83,7 +117,8 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
 			date_buffer,
 			email_info->agent_email,
 			email_info->subject,
-			email_info->input_content);
+			scaped_buffer ) ; //email_info->input_content);
+
 
         // Now build the command to be executed to send the email
 		snprintf(email_command,
@@ -126,6 +161,12 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
         {
         	engine_free(email_info->output_content, buffer_size);
         	email_info->output_content = NULL;
+        }
+
+        if(scaped_buffer) 
+        {
+        	engine_free(scaped_buffer, scaped_buffer_size);
+        	scaped_buffer = NULL;
         }
 	}
 	else

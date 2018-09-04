@@ -228,4 +228,24 @@ ErrorCode_t db_get_agent_user_id(DbConnection_t* connection, int company_id, int
 *******************************************************************************/
 ErrorCode_t db_get_user_info(DbConnection_t* connection, int user_id, char* email, char* name);
 
+/** ***************************************************************************
+
+  @brief      Scapes an string value that will be used inside a mysql query
+
+  @param[in]  value    Value to be scaped
+  @param[in]  len      Value size
+  @param[in]  out      out buffer
+  @param[in]  out_len  Out buffer size
+
+  @return     void
+
+******************************************************************************/
+void db_scape_string(
+    DbConnection_t* connection, 
+    char *value, 
+    size_t len, 
+    char *out, 
+    size_t out_len
+);
+
 #endif // __EM_DB_MODULE__
