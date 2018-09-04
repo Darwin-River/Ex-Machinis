@@ -88,7 +88,7 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
         // Now build the command to be executed to send the email
 		snprintf(email_command,
 			command_buffer_size, 
-			"%s %s '%s' %s '%s'",
+			"%s %s \'%s\' %s \'%s\'",
 			email_info->email_script,
 			email_info->user_email_addr,
 			email_info->subject,
