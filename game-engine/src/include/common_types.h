@@ -16,7 +16,7 @@
 
 //#include "libforth.h"
 #include "embed.h" // embedded FORTH version
-#include "util.h"  // embed util features
+#include "embed_util.h"  // embed util features
 
 /******************************* DEFINES *************************************/
 
