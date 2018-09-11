@@ -9,10 +9,12 @@
 /******************************* INCLUDES ************************************/
 
 #include <string.h>
+#include <assert.h>
 
 #include "vm.h"
 #include "engine.h"
 #include "trace.h"
+#include "vm_extension.h"
 
 /******************************* DEFINES *************************************/
 
@@ -28,6 +30,7 @@
 
 // we store in global variable the last command output
 char* g_last_command_output = NULL;
+
 
 /******************************* LOCAL FUNCTIONS *****************************/
 
@@ -45,13 +48,65 @@ int vm_putc_cb(int ch, void *file)
 {
   engine_trace(TRACE_LEVEL_ALWAYS, "Char [%c] received from VM output", ch);
 
-  int next_pos = strlen(g_last_command_output);
-  g_last_command_output += next_pos;
+  if(g_last_command_output)
+  {
+    int next_pos = strlen(g_last_command_output);
+    g_last_command_output += next_pos;
 
-  *g_last_command_output = ch;
+    *g_last_command_output = ch;
+  }
 
   return ch;
 }
+
+/** ****************************************************************************
+
+  @brief      Adds all user defined callbacks to the VM (defining new words with 'embed_eval')
+
+  @param[in]  vm       Current VM
+  @param[in]  optimize Flag to optimize or not the word definition in memory 
+  @param[in]  cb       Array of callbacks to be added
+  @param[in]  number   Callbacks array size
+
+  @return     Execution result
+
+*******************************************************************************/
+static int vm_add_callbacks(VirtualMachine_t* const vm, const bool optimize,  VmExtensionCb_t *cb, const size_t number) 
+{
+  // input pointers checked by calling function
+  //assert(vm && cb);
+
+  const char *optimizer = optimize ? "-2 cells allot ' vm chars ," : "";
+  static const char *preamble = "only forth definitions system +order\n";
+  int r = 0;
+
+  if((r = embed_eval(vm, preamble)) < 0) {
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: evaluation of preamble (%s) returned %d", preamble, r); 
+    return r;
+  }
+
+  for(size_t i = 0; i < number; i++) {
+    char line[80] = { 0 };
+    if(!cb[i].use)
+      continue;
+    r = snprintf(line, sizeof(line), ": %s %u vm ; %s\n", cb[i].name, (unsigned)i, optimizer);
+    assert(strlen(line) < sizeof(line) - 1);
+    if(r < 0) {
+      engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: format error in snprintf (returned %d)", r); 
+      return -1;
+    }
+    if((r = embed_eval(vm, line)) < 0) {
+      engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: evaluation of statement (%s) returned %d", line, r); 
+      return r;
+    }
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Callback (%s) added to VM", cb[i].name); 
+  }
+  embed_reset(vm);
+  return 0;
+}
+
+/******************************* PUBLIC FUNCTIONS *****************************/
 
 /** ****************************************************************************
 
@@ -78,8 +133,36 @@ VirtualMachine_t* vm_new(int agent_id)
         embed_opt_t vm_default_options = *embed_opt_get(vm);
         embed_opt_t vm_engine_options = vm_default_options;
         vm_engine_options.put = vm_putc_cb;
-        vm_engine_options.options = 0;
-        embed_opt_set(vm, &vm_engine_options);
+        //vm_engine_options.options = 0;
+        //embed_opt_set(vm, &vm_engine_options);
+
+        // We need here to add VM extensions, the very first time we create an VM
+        VmExtension_t* vm_ext = vm_extension_new();
+
+        if(!vm_ext) 
+        {
+          engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: unable to allocate VM extension"); 
+          vm_free(vm);
+          vm = NULL;
+        }
+        else
+        {
+          // Join vm and its ext
+          vm_ext->h = vm;
+
+          // Use options defined by extension
+          vm_engine_options.callback = vm_ext->o.callback;
+          vm_engine_options.param = vm_ext;
+          embed_opt_set(vm, &vm_engine_options);
+
+          // Add all callbacks
+          if(vm_add_callbacks(vm, true, vm_ext->callbacks, vm_ext->callbacks_length) < 0) 
+          {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: unable to add VM callbacks"); 
+            vm_free(vm);
+            vm = NULL;
+          }
+        }
     }      
 
     return vm;

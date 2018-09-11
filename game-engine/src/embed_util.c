@@ -82,6 +82,13 @@ fail:
 void embed_free(embed_t *h)  {
 	if(!h)
 		return;
+
+	// deallocate also extension when defined
+	if(h->o.param) {
+		free(h->o.param);
+		h->o.param = 0;
+	}
+
 	memset(h, 0, sizeof(*h));
 	free(h->m);
 	free(h);

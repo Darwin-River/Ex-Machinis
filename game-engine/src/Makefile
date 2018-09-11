@@ -13,7 +13,7 @@ LDFLAGS=-lmysqlclient -lconfig
 # Program sources and name
 #---------------------------------------------------------------------------
 #SRCS=main.c libforth.c db.c trace.c engine.c config.c vm.c email.c
-SRCS=main.c embed.c embed_util.c embed_image.c db.c trace.c engine.c config.c vm.c email.c
+SRCS=main.c embed.c embed_util.c embed_image.c db.c trace.c engine.c config.c vm.c email.c vm_extension.c
 OBJS_PATH=objs
 OBJS=$(patsubst %.c,$(OBJS_PATH)/%.o,$(SRCS))
 
