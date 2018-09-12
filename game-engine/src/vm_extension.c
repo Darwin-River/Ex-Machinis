@@ -123,9 +123,12 @@ static inline void  dpush(VmExtension_t * const v, const sdc_t value) { udpush(v
   @return     Execution result
 
 *******************************************************************************/
-static int vm_ext_report_cb(VmExtension_t * const v) {
-
+static int vm_ext_report_cb(VmExtension_t * const v) 
+{
   engine_trace(TRACE_LEVEL_ALWAYS, "Running report callback"); 
+
+  // Simulate a VM response
+  embed_puts(v->h, "Here goes report result: xxxx");
 
   return 0;
 }
@@ -139,9 +142,12 @@ static int vm_ext_report_cb(VmExtension_t * const v) {
   @return     Execution result
 
 *******************************************************************************/
-static int vm_ext_dummy_cb(VmExtension_t * const v) {
-
+static int vm_ext_dummy_cb(VmExtension_t * const v) 
+{
   engine_trace(TRACE_LEVEL_ALWAYS, "Running dummy callback");  
+
+  // Simulate a VM response
+  embed_puts(v->h, "Here goes dummy result: xxxx");
 
   return 0;
 }
@@ -201,7 +207,7 @@ static int callback_selector(embed_t *h, void *param)
 *******************************************************************************/
 VmExtension_t* vm_extension_new(void) 
 {
-  VmExtension_t *v = embed_alloc(sizeof(*v));
+  VmExtension_t *v = engine_malloc(sizeof(*v));
 
   // Allocate extension
   if(!v)

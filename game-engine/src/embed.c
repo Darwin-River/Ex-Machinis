@@ -289,19 +289,12 @@ unsigned char* embed_save_into_memory(embed_t *h, size_t *size)
 	
 	// allocate a buffer to store the vm core
 	size_t core_size = EMBED_CORE_SIZE*sizeof(cell_t);
-	size_t extension_size = sizeof(void*);
-	size_t total_size = core_size + extension_size;
 
-	engine_trace(TRACE_LEVEL_ALWAYS, 
-	        "VM core size [%d] extension size [%d], allocate [%d], param [%lp]", 
-	        core_size, extension_size, total_size, h->o.param);
-
-	unsigned char *buffer = calloc(total_size, 1);
+	unsigned char *buffer = calloc(core_size, 1);
 
 	if(buffer) {
 	    memcpy(buffer, h->m, core_size);
-	    memcpy(buffer+core_size, h->o.param, extension_size);
-	    *size = total_size;
+	    *size = core_size;
 	}
 
 	return buffer;

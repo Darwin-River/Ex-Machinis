@@ -147,6 +147,10 @@ VirtualMachine_t* vm_new(int agent_id)
         }
         else
         {
+          engine_trace(TRACE_LEVEL_ALWAYS, 
+            "VM extension created at [%lp]", 
+            vm_ext);
+
           // Join vm and its ext
           vm_ext->h = vm;
 
@@ -205,6 +209,7 @@ void vm_free(VirtualMachine_t* vm)
 VirtualMachine_t* vm_from_bytes(char* vm_bytes, size_t size)
 {
     VirtualMachine_t* vm = NULL;
+    int error = 0;
 
 #ifdef USE_OLD_EMBED
     if(vm_bytes)
@@ -227,20 +232,56 @@ VirtualMachine_t* vm_from_bytes(char* vm_bytes, size_t size)
         // Create a new VM and load its core from DB
         vm = embed_new();
 
-        // Define output options to retrieve the buffer
-        embed_opt_t vm_default_options = *embed_opt_get(vm);
-        embed_opt_t vm_engine_options = vm_default_options;
-        vm_engine_options.put = vm_putc_cb;
-        vm_engine_options.options = 0;
-        embed_opt_set(vm, &vm_engine_options);
+        if(vm)
+        {
+          // Define output options to retrieve the buffer
+          embed_opt_t vm_default_options = *embed_opt_get(vm);
+          embed_opt_t vm_engine_options = vm_default_options;
+          vm_engine_options.put = vm_putc_cb;
+          vm_engine_options.options = 0;
 
-        if(vm) {
-            int error = embed_load_buffer(vm, (const uint8_t *)vm_bytes, size);
+          // We need here to add VM extensions again
+          VmExtension_t* vm_ext = vm_extension_new();
+
+          if(!vm_ext) 
+          {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: unable to allocate VM extension"); 
+            vm_free(vm);
+            vm = NULL;
+          }
+          else
+          {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+              "VM extension created at [%lp]", 
+              vm_ext);
+
+            // Join vm and its ext
+            vm_ext->h = vm;
+
+            // Use options defined by extension
+            vm_engine_options.callback = vm_ext->o.callback;
+            vm_engine_options.param = vm_ext;
+            embed_opt_set(vm, &vm_engine_options);
+
+            // Add all callbacks
+            if(vm_add_callbacks(vm, true, vm_ext->callbacks, vm_ext->callbacks_length) < 0) 
+            {
+              engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: unable to add VM callbacks"); 
+              vm_free(vm);
+              vm = NULL;
+            }
+          }
+        }
+
+        if(vm && !error) 
+        {
+            // Load VM core from memory now
+            error = embed_load_buffer(vm, (const uint8_t *)vm_bytes, size);
 
             if(error) {
-            	engine_trace(TRACE_LEVEL_ALWAYS,
-                	"VM created from [%ld] bytes of memory for agent",
-                	size);
+                engine_trace(TRACE_LEVEL_ALWAYS,
+                    "VM created from [%ld] bytes of memory for agent",
+                    size);
             } else {
                 engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to create VM from [%ld] bytes of memory for agent",
@@ -323,6 +364,13 @@ char* vm_to_bytes(VirtualMachine_t* vm, size_t* vm_size)
         {
             engine_trace(TRACE_LEVEL_ALWAYS, 
                 "VM succesfully serialized into [%ld] bytes", *vm_size);
+
+            // Deallocate the extension if any
+            if(vm->o.param)
+            {
+                engine_free(vm->o.param, sizeof(VmExtension_t));
+                vm->o.param = NULL;
+            }
         }
         else
         {
