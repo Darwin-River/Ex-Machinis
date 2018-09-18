@@ -93,4 +93,15 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
 *******************************************************************************/
 char* vm_to_bytes(VirtualMachine_t* vm, size_t* vm_size);
 
+/** ****************************************************************************
+
+  @brief      When invoked, sends email with current VM output buffer content
+
+  @param[in]  vm       Current VM object
+
+  @return     Serialized buffer (dynamically allocated) or NULL when error
+
+*******************************************************************************/
+void vm_report(VirtualMachine_t* vm);
+
 #endif // __EM_VM_MODULE__

@@ -16,6 +16,7 @@
 #include "vm_extension.h"
 #include "engine.h"
 #include "trace.h"
+#include "vm.h"
 
 /******************************* DEFINES *************************************/
 
@@ -127,8 +128,11 @@ static int vm_ext_report_cb(VmExtension_t * const v)
 {
   engine_trace(TRACE_LEVEL_ALWAYS, "Running report callback"); 
 
-  // Simulate a VM response
-  embed_puts(v->h, "Here goes report result: xxxx");
+  // Send current buffer content by email
+  vm_report((VirtualMachine_t*)v->h);
+
+  // At report just do echo
+  embed_puts(v->h, "report");
 
   return 0;
 }

@@ -28,8 +28,10 @@
 
 /******************************* GLOBAL VARIABLES ****************************/
 
-// we store in global variable the last command output
+// we store in global buffer the last command output and use pointer to next char
+char* g_output_buffer = NULL;
 char* g_last_command_output = NULL;
+size_t g_current_size = 0;
 
 
 /******************************* LOCAL FUNCTIONS *****************************/
@@ -48,11 +50,10 @@ int vm_putc_cb(int ch, void *file)
 {
   engine_trace(TRACE_LEVEL_ALWAYS, "Char [%c] received from VM output", ch);
 
-  if(g_last_command_output)
+  if(g_output_buffer)
   {
-    int next_pos = strlen(g_last_command_output);
-    g_last_command_output += next_pos;
-
+    int next_pos = strlen(g_output_buffer);
+    g_last_command_output = (g_output_buffer + next_pos);
     *g_last_command_output = ch;
   }
 
@@ -314,8 +315,10 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "Running command: [%s]", command->code);
 
-        g_last_command_output = out_buffer;
-        memset(g_last_command_output, 0, out_size); 
+        g_output_buffer = out_buffer;
+        g_last_command_output = g_output_buffer;
+        g_current_size = out_size;
+        memset(g_output_buffer, 0, g_current_size); 
          
         int forth_result = embed_eval((forth_t*)vm, (const char*)command->code);
 
@@ -384,4 +387,25 @@ char* vm_to_bytes(VirtualMachine_t* vm, size_t* vm_size)
     }      
 
     return vm_bytes;
+}
+
+/** ****************************************************************************
+
+  @brief      When invoked, sends email with current VM output buffer content
+
+  @param[in]  vm       Current VM object
+
+  @return     Serialized buffer (dynamically allocated) or NULL when error
+
+*******************************************************************************/
+void vm_report(VirtualMachine_t* vm)
+{
+    if(vm)
+    {
+        // invoke the engine to deliver the email with current content
+        engine_vm_output_cb(g_output_buffer);
+
+        // clean buffer and point to the beginning
+        memset(g_output_buffer, 0, g_current_size); 
+    }
 }
