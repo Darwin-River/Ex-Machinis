@@ -313,26 +313,41 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
 
     if(vm && command)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Running command: [%s]", command->code);
+        // Check if it is an empty = 'abort' command
+        if(strlen((const char*)command->code)) 
+        {    
+            engine_trace(TRACE_LEVEL_ALWAYS, "Running command: [%s]", command->code);
 
-        g_output_buffer = out_buffer;
-        g_last_command_output = g_output_buffer;
-        g_current_size = out_size;
-        memset(g_output_buffer, 0, g_current_size); 
-         
-        int forth_result = embed_eval((forth_t*)vm, (const char*)command->code);
+            g_output_buffer = out_buffer;
+            g_last_command_output = g_output_buffer;
+            g_current_size = out_size;
+            memset(g_output_buffer, 0, g_current_size); 
+             
+            int forth_result = embed_eval((forth_t*)vm, (const char*)command->code);
 
-        if(forth_result < 0)
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "ERROR: Command evaluation failed for [%s] result [%d]", command->code, forth_result);
+            if(forth_result < 0)
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Command evaluation failed for [%s] result [%d]", command->code, forth_result);
 
-            result = ENGINE_FORTH_EVAL_ERROR;
+                result = ENGINE_FORTH_EVAL_ERROR;
+            }
+            else
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "Command succesfully evaluated: [%s] result [%s]", command->code, out_buffer);
+            }
         }
-        else
+        else 
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "Command succesfully evaluated: [%s] result [%s]", command->code, out_buffer);
+            // ABORT COMMAND
+            engine_trace(TRACE_LEVEL_ALWAYS, "ABORT command received");
+
+            // Notify by email
+            engine_vm_output_cb("Script aborted");
+
+            // reset VM stuff
+            embed_reset((forth_t*)vm);
         }
     }
     else
