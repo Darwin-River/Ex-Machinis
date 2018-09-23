@@ -134,7 +134,7 @@ VirtualMachine_t* vm_new(int agent_id)
         embed_opt_t vm_default_options = *embed_opt_get(vm);
         embed_opt_t vm_engine_options = vm_default_options;
         vm_engine_options.put = vm_putc_cb;
-        //vm_engine_options.options = 0;
+        vm_engine_options.options |= EMBED_VM_QUITE_ON;
         //embed_opt_set(vm, &vm_engine_options);
 
         // We need here to add VM extensions, the very first time we create an VM
@@ -239,7 +239,7 @@ VirtualMachine_t* vm_from_bytes(char* vm_bytes, size_t size)
           embed_opt_t vm_default_options = *embed_opt_get(vm);
           embed_opt_t vm_engine_options = vm_default_options;
           vm_engine_options.put = vm_putc_cb;
-          vm_engine_options.options = 0;
+          vm_engine_options.options |= EMBED_VM_QUITE_ON;
 
           // We need here to add VM extensions again
           VmExtension_t* vm_ext = vm_extension_new();
