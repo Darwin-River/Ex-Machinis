@@ -43,7 +43,7 @@ char conf_param_names[MAX_CONFIG_PARAM+1][MAX_CONF_PARAM_LEN] =
 
     // LOGIC configuration
     "DB_READ_TIME",
-    "MAX_LINES_PER_CYCLE",
+    "MAX_CYCLE_SECONDS",
 
     // EMAIL configuration
     "SEND_EMAIL_SCRIPT",

@@ -10,6 +10,7 @@
 
 #include <string.h>
 #include <assert.h>
+#include <time.h>
 
 #include "vm.h"
 #include "engine.h"
@@ -33,6 +34,11 @@ char* g_output_buffer = NULL;
 char* g_last_command_output = NULL;
 size_t g_current_size = 0;
 
+// To yield a VM we control time elapsed since we started it, and limit this time
+time_t g_vm_start_time = 0;
+
+// Last VM is yield
+int g_vm_yield = 0;
 
 /******************************* LOCAL FUNCTIONS *****************************/
 
@@ -58,6 +64,33 @@ int vm_putc_cb(int ch, void *file)
   }
 
   return ch;
+}
+
+/** ****************************************************************************
+
+  @brief      Callback invoked by VM to check if a given VM must stop or continue
+
+  @param[in]  Yield parameter
+
+  @return     0 continue, 1 yield
+
+*******************************************************************************/
+int vm_yield_cb(void* param) 
+{
+  time_t now = time(NULL);
+  int max_time = engine_get_max_cycle_seconds();
+
+  if((now - g_vm_start_time) >= max_time) {
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+      "WARNING: VM must yield, elapsed more than [%d] seconds(%ld - %ld)", 
+      max_time, now, g_vm_start_time);
+
+    g_vm_yield = 1;
+
+    return 1;
+  }
+
+  return 0;
 }
 
 /** ****************************************************************************
@@ -134,6 +167,7 @@ VirtualMachine_t* vm_new(int agent_id)
         embed_opt_t vm_default_options = *embed_opt_get(vm);
         embed_opt_t vm_engine_options = vm_default_options;
         vm_engine_options.put = vm_putc_cb;
+        vm_engine_options.yield = vm_yield_cb;
         vm_engine_options.options |= EMBED_VM_QUITE_ON;
         //embed_opt_set(vm, &vm_engine_options);
 
@@ -159,6 +193,10 @@ VirtualMachine_t* vm_new(int agent_id)
           vm_engine_options.callback = vm_ext->o.callback;
           vm_engine_options.param = vm_ext;
           embed_opt_set(vm, &vm_engine_options);
+
+          // control time each VM spends, we need to initialize yield to run some commands
+          g_vm_start_time = time(NULL);
+          g_vm_yield = 0;
 
           // Add all callbacks
           if(vm_add_callbacks(vm, true, vm_ext->callbacks, vm_ext->callbacks_length) < 0) 
@@ -234,11 +272,12 @@ VirtualMachine_t* vm_from_bytes(char* vm_bytes, size_t size)
         vm = embed_new();
 
         if(vm)
-        {
+        {         
           // Define output options to retrieve the buffer
           embed_opt_t vm_default_options = *embed_opt_get(vm);
           embed_opt_t vm_engine_options = vm_default_options;
           vm_engine_options.put = vm_putc_cb;
+          vm_engine_options.yield = vm_yield_cb;
           vm_engine_options.options |= EMBED_VM_QUITE_ON;
 
           // We need here to add VM extensions again
@@ -264,6 +303,10 @@ VirtualMachine_t* vm_from_bytes(char* vm_bytes, size_t size)
             vm_engine_options.param = vm_ext;
             embed_opt_set(vm, &vm_engine_options);
 
+            // control time each VM spends, we need to initialize yield to run some commands
+            g_vm_start_time = time(NULL);
+            g_vm_yield = 0;
+
             // Add all callbacks
             if(vm_add_callbacks(vm, true, vm_ext->callbacks, vm_ext->callbacks_length) < 0) 
             {
@@ -283,6 +326,7 @@ VirtualMachine_t* vm_from_bytes(char* vm_bytes, size_t size)
                 engine_trace(TRACE_LEVEL_ALWAYS,
                     "VM created from [%ld] bytes of memory for agent",
                     size);
+
             } else {
                 engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to create VM from [%ld] bytes of memory for agent",
@@ -423,4 +467,18 @@ void vm_report(VirtualMachine_t* vm)
         // clean buffer and point to the beginning
         memset(g_output_buffer, 0, g_current_size); 
     }
+}
+
+/** ****************************************************************************
+
+  @brief      Function to check if last VM execution was completed or yield
+
+  @param[in]  None
+
+  @return     0/1 value
+
+*******************************************************************************/
+int vm_is_yield() 
+{
+  return g_vm_yield;
 }

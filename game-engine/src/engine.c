@@ -167,81 +167,6 @@ void engine_stop_all()
     trace_stop(engine.trace_hndl);
 }
 
-/** ****************************************************************************
-
-  @brief      For a given command read from DB we apply max lines limitation
-              and store the rest in the DB again.
-
-  @param[in]  void
-
-  @return     Execution result code (ErrorCode_t)
-
-*******************************************************************************/
-ErrorCode_t engine_apply_max_cycle_lines()
-{
-    ErrorCode_t result = ENGINE_OK;
-
-    // Get configured limit
-    int max_lines = atoi(engine.config.params[MAX_LINES_PER_CYCLE_ID]);
-
-    engine_trace(TRACE_LEVEL_ALWAYS, 
-        "Applying [%d] lines limit to command [%s]",
-        max_lines,
-        engine.last_command.code);
-
-    // Extract both the code to be executed and the remaining
-    char new_code[MAX_COMMAND_CODE_SIZE+1];
-    char remaining_code[MAX_COMMAND_CODE_SIZE+1];
-
-    new_code[0] = 0;
-    remaining_code[0] = 0;
-
-    // go line by line
-    char* buffer = strdup(engine.last_command.code);
-    char* line = strtok(buffer, "\r\n");
-    int lines_read = 0;
-
-    char* new_pos = new_code;
-    char* remaining_pos = remaining_code;
-
-    while(line) {
-        lines_read++;
-        if(lines_read <= max_lines) {
-            snprintf(new_pos, MAX_COMMAND_CODE_SIZE, "%s\n", line);
-            new_pos += (strlen(line) + 1);
-        } else {
-            snprintf(remaining_pos, MAX_COMMAND_CODE_SIZE, "%s\n", line);
-            remaining_pos += (strlen(line) + 1);
-        }
-
-        // Get next one
-        line  = strtok(NULL, "\n");
-    }
-
-    engine_trace(TRACE_LEVEL_ALWAYS, 
-        "New code [%s] remaining [%s]",
-        new_code,
-        remaining_code);
-
-    // Make new code = current and store remaining as new command
-    sprintf(engine.last_command.code, "%s", new_code);
-
-    if(remaining_code[0] != 0) {
-        Command_t new_command;
-        memcpy(&new_command, &engine.last_command, sizeof(new_command));
-        sprintf(new_command.code, "%s", remaining_code);
-        new_command.email_content = strdup(engine.last_command.email_content);
-
-        result = db_insert_command(&engine.db_connection, &new_command);
-
-        free(new_command.email_content);
-    }
-    
-    free(buffer);
-
-    return result;
-}
-
 
 /******************************* PUBLIC FUNCTIONS ****************************/
 
@@ -329,6 +254,82 @@ ErrorCode_t engine_init(int argc, char** argv)
 
 /** ****************************************************************************
 
+  @brief      For a given command read from DB we apply max lines limitation
+              and store the rest in the DB again.
+
+  @param[in]  void
+
+  @return     Execution result code (ErrorCode_t)
+
+*******************************************************************************/
+ErrorCode_t engine_apply_max_cycle_lines()
+{
+    ErrorCode_t result = ENGINE_OK;
+
+    // Get configured limit
+    int max_lines = 10000; //atoi(engine.config.params[MAX_LINES_PER_CYCLE_ID]);
+
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+        "Applying [%d] lines limit to command [%s]",
+        max_lines,
+        engine.last_command.code);
+
+    // Extract both the code to be executed and the remaining
+    char new_code[MAX_COMMAND_CODE_SIZE+1];
+    char remaining_code[MAX_COMMAND_CODE_SIZE+1];
+
+    new_code[0] = 0;
+    remaining_code[0] = 0;
+
+
+    // go line by line
+    char* buffer = strdup(engine.last_command.code);
+    char* line = strtok(buffer, "\r\n");
+    int lines_read = 0;
+
+    char* new_pos = new_code;
+    char* remaining_pos = remaining_code;
+
+    while(line) {
+        lines_read++;
+        if(lines_read <= max_lines) {
+            snprintf(new_pos, MAX_COMMAND_CODE_SIZE, "%s\n", line);
+            new_pos += (strlen(line) + 1);
+        } else {
+            snprintf(remaining_pos, MAX_COMMAND_CODE_SIZE, "%s\n", line);
+            remaining_pos += (strlen(line) + 1);
+        }
+
+        // Get next one
+        line  = strtok(NULL, "\n");
+    }
+
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+        "New code [%s] remaining [%s]",
+        new_code,
+        remaining_code);
+
+    // Make new code = current and store remaining as new command
+    sprintf(engine.last_command.code, "%s", new_code);
+
+    if(remaining_code[0] != 0) {
+        Command_t new_command;
+        memcpy(&new_command, &engine.last_command, sizeof(new_command));
+        sprintf(new_command.code, "%s", remaining_code);
+        new_command.email_content = strdup(engine.last_command.email_content);
+
+        result = db_insert_command(&engine.db_connection, &new_command);
+
+        free(new_command.email_content);
+    }
+    
+    free(buffer);
+
+    return result;
+}
+
+/** ****************************************************************************
+
   @brief      Runs engine logic loop
 
   @param[in]  void
@@ -403,7 +404,7 @@ ErrorCode_t engine_run()
         if(result == ENGINE_OK)
         {
             // Read VM output and send email
-            //const char* output = vm_get_command_output(engine.last_vm);
+            //const char* output = vm_get_command_output(engine.last_vm)
 
             if(out_buffer[0] != 0) 
             {
@@ -574,6 +575,10 @@ void engine_vm_output_cb(const char* msg)
 
         db_update_agent_output(&engine.db_connection, agent_id, (char*)msg);
 
+        // If yield - we can not answer now - store output for next round
+        if(vm_is_yield())
+            return;
+
         // Get agent email info and send it by email
         EmailInfo_t email_info;
         memset(&email_info, 0, sizeof(email_info));
@@ -674,4 +679,18 @@ void engine_free(void* memory, size_t size)
 const char* engine_get_forth_image_path()
 {
     return (const char*)engine.config.params[FORTH_IMAGE_PATH_ID];
+}
+
+/** ****************************************************************************
+
+  @brief      Gets the max number of second each VM can spend processing commands
+
+  @param[in]  None
+  
+  @return     Seconds value configured
+
+*******************************************************************************/
+const int engine_get_max_cycle_seconds()
+{
+    return atoi((const char*)engine.config.params[MAX_CYCLE_SECONDS]);
 }

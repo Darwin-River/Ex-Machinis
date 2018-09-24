@@ -42,7 +42,7 @@ enum
 
     // Logic configuration
     DB_READ_TIME_ID,
-    MAX_LINES_PER_CYCLE_ID,
+    MAX_CYCLE_SECONDS,
 
     // Email configuration
     SEND_EMAIL_SCRIPT_ID,
@@ -277,5 +277,16 @@ void engine_free(void* memory, size_t size);
 
 *******************************************************************************/
 const char* engine_get_forth_image_path();
+
+/** ****************************************************************************
+
+  @brief      Gets the max number of second each VM can spend processing commands
+
+  @param[in]  None
+  
+  @return     Seconds value configured
+
+*******************************************************************************/
+const int engine_get_max_cycle_seconds();
 
 #endif // __EM_ENGINE_MODULE__

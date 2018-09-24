@@ -104,4 +104,15 @@ char* vm_to_bytes(VirtualMachine_t* vm, size_t* vm_size);
 *******************************************************************************/
 void vm_report(VirtualMachine_t* vm);
 
+/** ****************************************************************************
+
+  @brief      Function to check if last VM execution was completed or yield
+
+  @param[in]  None
+
+  @return     0/1 value
+
+*******************************************************************************/
+int vm_is_yield();
+
 #endif // __EM_VM_MODULE__
