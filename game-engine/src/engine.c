@@ -167,6 +167,30 @@ void engine_stop_all()
     trace_stop(engine.trace_hndl);
 }
 
+/** ****************************************************************************
+
+  @brief      Inserts a new command into DB (commands table)
+
+  @param[in]  command String to be inserted
+
+  @return     void
+
+*******************************************************************************/
+void engine_insert_db_command(char* command)
+{
+    if(command)
+    {
+        Command_t new_command;
+        memcpy(&new_command, &engine.last_command, sizeof(new_command));
+        sprintf(new_command.code, "%s", command);
+        size_t size = strlen(engine.last_command.email_content) + 1;
+        new_command.email_content = engine_malloc(size);
+        sprintf(new_command.email_content, "%s", engine.last_command.email_content);
+        db_insert_command(&engine.db_connection, &new_command);
+        engine_free(new_command.email_content, size);
+    }
+}
+
 
 /******************************* PUBLIC FUNCTIONS ****************************/
 
@@ -295,7 +319,7 @@ ErrorCode_t engine_apply_max_cycle_lines()
         if(lines_read <= max_lines) {
             snprintf(new_pos, MAX_COMMAND_CODE_SIZE, "%s\n", line);
             new_pos += (strlen(line) + 1);
-        } else {
+        } else {         
             snprintf(remaining_pos, MAX_COMMAND_CODE_SIZE, "%s\n", line);
             remaining_pos += (strlen(line) + 1);
         }
@@ -327,6 +351,7 @@ ErrorCode_t engine_apply_max_cycle_lines()
 
     return result;
 }
+
 
 /** ****************************************************************************
 
@@ -372,6 +397,7 @@ ErrorCode_t engine_run()
             }
         }
 
+
         if(result == ENGINE_OK)
         {
             // Get a VM for current agent_id
@@ -388,12 +414,12 @@ ErrorCode_t engine_run()
                 &engine.last_command);
         }            
 
-        char out_buffer[4096+1];
+        char out_buffer[ENGINE_MAX_BUF_SIZE+1];
         if(result == ENGINE_OK)
         {
             // Execute the last code in current VM
-            memset(out_buffer, 0, 4096+1);
-            result = vm_run_command(engine.last_vm, &engine.last_command, out_buffer, 4096);
+            memset(out_buffer, 0, ENGINE_MAX_BUF_SIZE+1);
+            result = vm_run_command(engine.last_vm, &engine.last_command, out_buffer, ENGINE_MAX_BUF_SIZE);
 
             if(result != ENGINE_OK)
             {
@@ -403,10 +429,17 @@ ErrorCode_t engine_run()
 
         if(result == ENGINE_OK)
         {
-            // Read VM output and send email
-            //const char* output = vm_get_command_output(engine.last_vm)
+            if(vm_is_yield()) 
+            {
+                // update out buffer if any 
+                if(out_buffer[0] != 0) 
+                    db_update_agent_output(&engine.db_connection, 
+                        engine.last_command.agent_id, (char*)out_buffer);
 
-            if(out_buffer[0] != 0) 
+                // When we yield - insert special command to indicate that we need to resume later
+                engine_insert_db_command(engine.config.params[VM_RESUME_COMMAND]);
+            }
+            else if(out_buffer[0] != 0) 
             {
                 engine_vm_output_cb(out_buffer);
             }
@@ -575,10 +608,6 @@ void engine_vm_output_cb(const char* msg)
 
         db_update_agent_output(&engine.db_connection, agent_id, (char*)msg);
 
-        // If yield - we can not answer now - store output for next round
-        if(vm_is_yield())
-            return;
-
         // Get agent email info and send it by email
         EmailInfo_t email_info;
         memset(&email_info, 0, sizeof(email_info));
@@ -669,11 +698,11 @@ void engine_free(void* memory, size_t size)
 
 /** ****************************************************************************
 
-  @brief      Free wrapper to control memory used by the engine
+  @brief      Gets path of the forth image used as template to create VM
 
-  @param[in]  Pointer to memory we want to deallocate
+  @param[in]  None
   
-  @return     void
+  @return     Path string
 
 *******************************************************************************/
 const char* engine_get_forth_image_path()
@@ -693,4 +722,20 @@ const char* engine_get_forth_image_path()
 const int engine_get_max_cycle_seconds()
 {
     return atoi((const char*)engine.config.params[MAX_CYCLE_SECONDS]);
+}
+
+/** ****************************************************************************
+
+  @brief      Gets the command defined (at config) as VM resume command
+              It is an special command that is not executed at the VM, it just 
+              indicates that we need to resume VM to continue executing pending commands
+
+  @param[in]  None
+  
+  @return     Command string
+
+*******************************************************************************/
+const char* engine_get_vm_resume_command()
+{
+    return (const char*)engine.config.params[VM_RESUME_COMMAND];
 }

@@ -23,6 +23,8 @@
 
 /******************************* DEFINES *************************************/
 
+#define ENGINE_MAX_BUF_SIZE   2048
+
 /******************************* TYPES ***************************************/
 
 //-----------------------------------------------------------------------------
@@ -43,6 +45,7 @@ enum
     // Logic configuration
     DB_READ_TIME_ID,
     MAX_CYCLE_SECONDS,
+    VM_RESUME_COMMAND,
 
     // Email configuration
     SEND_EMAIL_SCRIPT_ID,
@@ -269,11 +272,11 @@ void engine_free(void* memory, size_t size);
 
 /** ****************************************************************************
 
-  @brief      Free wrapper to control memory used by the engine
+  @brief      Gets path of the forth image used as template to create VM
 
-  @param[in]  Pointer to memory we want to deallocate
+  @param[in]  None
   
-  @return     void
+  @return     Path string
 
 *******************************************************************************/
 const char* engine_get_forth_image_path();
@@ -288,5 +291,18 @@ const char* engine_get_forth_image_path();
 
 *******************************************************************************/
 const int engine_get_max_cycle_seconds();
+
+/** ****************************************************************************
+
+  @brief      Gets the command defined (at config) as VM resume command
+              It is an special command that is not executed at the VM, it just 
+              indicates that we need to resume VM to continue executing pending commands
+
+  @param[in]  None
+  
+  @return     Command string
+
+*******************************************************************************/
+const char* engine_get_vm_resume_command();
 
 #endif // __EM_ENGINE_MODULE__

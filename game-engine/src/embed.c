@@ -272,6 +272,10 @@ int embed_vm(embed_t * const h) {
 		}
 	}
 finished: mw(h, 0, pc), mw(h, 1, t), mw(h, 2, rp), mw(h, 3, sp);
+	engine_trace(TRACE_LEVEL_ALWAYS, 
+	        "VM finished: pc [%d] t [%d] rp [%d] sp [%d]", 
+	        pc, t, rp, sp);
+
 	return (s_t)r;
 }
 

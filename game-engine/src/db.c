@@ -598,7 +598,7 @@ ErrorCode_t db_update_agent_output(DbConnection_t* connection, int agent_id, cha
     if(!msg) return ENGINE_INTERNAL_ERROR;
 
     // Prepare query
-    char query_text[DB_MAX_SQL_QUERY_LEN + 1];
+    char query_text[strlen(msg) * 2 + 1 + 64]; // enough buffer
     size_t buffer_size = strlen(msg)*2 + 1;
     char* scaped_msg = engine_malloc(buffer_size);
 

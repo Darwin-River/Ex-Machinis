@@ -54,11 +54,17 @@ int g_vm_yield = 0;
 *******************************************************************************/
 int vm_putc_cb(int ch, void *file) 
 {
-  engine_trace(TRACE_LEVEL_ALWAYS, "Char [%c] received from VM output", ch);
+  //engine_trace(TRACE_LEVEL_DEBUG, "Char [%c] received from VM output", ch);
 
   if(g_output_buffer)
   {
     int next_pos = strlen(g_output_buffer);
+
+    if(next_pos > g_current_size) {
+      //engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: Max out buffer size [%ld] reached (discarded)", g_current_size);
+      return ch;
+    }
+
     g_last_command_output = (g_output_buffer + next_pos);
     *g_last_command_output = ch;
   }
@@ -82,8 +88,8 @@ int vm_yield_cb(void* param)
 
   if((now - g_vm_start_time) >= max_time) {
     engine_trace(TRACE_LEVEL_ALWAYS, 
-      "WARNING: VM must yield, elapsed more than [%d] seconds(%ld - %ld)", 
-      max_time, now, g_vm_start_time);
+      "WARNING: VM must yield, elapsed more than [%d] seconds(%ld - %ld), current output buffer [%s]", 
+      max_time, now, g_vm_start_time, g_output_buffer?g_output_buffer:"NULL");
 
     g_vm_yield = 1;
 
@@ -366,8 +372,23 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
             g_last_command_output = g_output_buffer;
             g_current_size = out_size;
             memset(g_output_buffer, 0, g_current_size); 
-             
-            int forth_result = embed_eval((forth_t*)vm, (const char*)command->code);
+
+            // Check if it is a resume / execute command
+            int forth_result = -1;
+
+            if(strcmp(command->code, engine_get_vm_resume_command()))
+            { 
+              engine_trace(TRACE_LEVEL_ALWAYS, "Executing command at VM: [%s]", command->code);
+
+              forth_result = embed_eval((forth_t*)vm, (const char*)command->code);
+            }
+            else
+            {
+              // Just resume VM and execute pending codes
+              engine_trace(TRACE_LEVEL_ALWAYS, "VM resumed: [%s]", command->code);
+
+              forth_result = embed_vm((forth_t*)vm);
+            }
 
             if(forth_result < 0)
             {
