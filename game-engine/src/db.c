@@ -17,7 +17,7 @@
 
 /******************************* DEFINES *************************************/
 
-#define DB_MAX_SQL_QUERY_LEN 1024
+#define DB_MAX_SQL_QUERY_LEN (ENGINE_MAX_BUF_SIZE + 1024) // Max engine buffer + extra bytes for query statement
 
 /******************************* TYPES ***************************************/
 
