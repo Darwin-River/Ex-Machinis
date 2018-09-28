@@ -690,7 +690,7 @@ void engine_free(void* memory, size_t size)
         engine.memory_in_use -= size; 
 
         engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Deallocated [%ld] bytes (Total memory: [%ld])",
+            "Deallocated [%ld] bytes (Total memory in use: [%ld])",
             size,
             engine.memory_in_use);
     }
