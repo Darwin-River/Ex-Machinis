@@ -328,7 +328,7 @@ VirtualMachine_t* vm_from_bytes(char* vm_bytes, size_t size)
             // Load VM core from memory now
             error = embed_load_buffer(vm, (const uint8_t *)vm_bytes, size);
 
-            if(error) {
+            if(!error) {
                 engine_trace(TRACE_LEVEL_ALWAYS,
                     "VM created from [%ld] bytes of memory for agent",
                     size);
