@@ -428,6 +428,46 @@ ErrorCode_t db_delete_command(DbConnection_t* connection, Command_t* command)
 
 /** ****************************************************************************
 
+    @brief          Deletes all resume commands currently stored in DB for a given user
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in|out]  agent_id  Current agent ID
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_delete_resume_commands(DbConnection_t* connection, int agent_id)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result == ENGINE_OK)
+    {
+        snprintf(query_text, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "DELETE FROM commands WHERE AGENT_ID = %d and code = '%s'", 
+            agent_id, engine_get_vm_resume_command());
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "Resume commands for agent [%d] deleted from DB", agent_id);
+        }
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
     @brief          Gets current agent VM
 
     @param[in|out]  Connection info, updated once disconnected

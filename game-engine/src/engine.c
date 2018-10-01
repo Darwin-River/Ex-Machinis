@@ -425,6 +425,13 @@ ErrorCode_t engine_run()
             {
                 engine_vm_output_cb("Command error");
             }
+
+            // When it is an abort, clean pending commands at DB 
+            if(engine.last_command.code[0] == 0)
+            { 
+                // clear any pending resume command
+                db_delete_resume_commands(&engine.db_connection, engine.last_command.agent_id);
+            }
         } 
 
         if(result == ENGINE_OK)

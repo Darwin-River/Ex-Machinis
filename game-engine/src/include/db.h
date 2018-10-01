@@ -125,6 +125,18 @@ ErrorCode_t db_delete_command(DbConnection_t* connection, Command_t* command);
 
 /** ****************************************************************************
 
+    @brief          Deletes all resume commands currently stored in DB for a given user
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in|out]  agent_id  Current agent ID
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_delete_resume_commands(DbConnection_t* connection, int agent_id);
+
+/** ****************************************************************************
+
     @brief          Gets current agent VM
 
     @param[in|out]  Connection info, updated once disconnected
