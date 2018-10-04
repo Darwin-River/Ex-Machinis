@@ -191,6 +191,34 @@ void engine_insert_db_command(char* command)
     }
 }
 
+/** ****************************************************************************
+
+  @brief      Checks if current VM is busy and can not process more commands
+
+  @param[in]  None
+
+  @return     boolean result (true when busy)
+
+*******************************************************************************/
+Bool_t engine_is_current_vm_busy()
+{
+    const char* resume_comand = engine_get_vm_resume_command();
+
+    // Check that current command is not a resume command and also if there are resume commands at DB
+    if(strncmp(engine.last_command.code, resume_comand, strlen(resume_comand)))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Command [%s] is NOT a [%s], check if VM is running other commands",
+            engine.last_command.code,
+            resume_comand);
+
+        // check if we have any pending command
+        return db_agent_has_running_command(&engine.db_connection, engine.last_command.agent_id);
+    }
+
+    return ENGINE_FALSE;
+}
+
 
 /******************************* PUBLIC FUNCTIONS ****************************/
 
@@ -417,20 +445,30 @@ ErrorCode_t engine_run()
         char out_buffer[ENGINE_MAX_BUF_SIZE+1];
         if(result == ENGINE_OK)
         {
-            // Execute the last code in current VM
-            memset(out_buffer, 0, ENGINE_MAX_BUF_SIZE+1);
-            result = vm_run_command(engine.last_vm, &engine.last_command, out_buffer, ENGINE_MAX_BUF_SIZE);
-
-            if(result != ENGINE_OK)
+            // Check the type of command to see if we can go ahead or the user must retry later
+            // ABORT commands are processed always (empty strings)
+            if(engine.last_command.code[0] && engine_is_current_vm_busy() == ENGINE_TRUE)
             {
-                engine_vm_output_cb("Command error");
+                engine_vm_output_cb("Another command is running, retry later");
+                out_buffer[0] = 0; // do not output more emails 
             }
+            else
+            {
+                // Execute the last code in current VM
+                memset(out_buffer, 0, ENGINE_MAX_BUF_SIZE+1);
+                result = vm_run_command(engine.last_vm, &engine.last_command, out_buffer, ENGINE_MAX_BUF_SIZE);
 
-            // When it is an abort, clean pending commands at DB 
-            if(engine.last_command.code[0] == 0)
-            { 
-                // clear any pending resume command
-                db_delete_resume_commands(&engine.db_connection, engine.last_command.agent_id);
+                if(result != ENGINE_OK)
+                {
+                    engine_vm_output_cb("Command error");
+                }
+
+                // When it is an abort, clean pending commands at DB 
+                if(engine.last_command.code[0] == 0)
+                { 
+                    // clear any pending resume command
+                    db_delete_resume_commands(&engine.db_connection, engine.last_command.agent_id);
+                }
             }
         } 
 

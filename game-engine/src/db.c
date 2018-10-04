@@ -468,6 +468,78 @@ ErrorCode_t db_delete_resume_commands(DbConnection_t* connection, int agent_id)
 
 /** ****************************************************************************
 
+    @brief          Checks if there is any pending/paused command already running
+                    for this agent
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in|out]  agent_id  Current agent ID
+
+    @return         Checking result boolean
+
+*******************************************************************************/
+Bool_t db_agent_has_running_command(DbConnection_t* connection, int agent_id)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    Bool_t has_running_command = ENGINE_TRUE;
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result == ENGINE_OK)
+    {
+        snprintf(query_text, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT count(*) from commands WHERE AGENT_ID = %d and code = '%s'", 
+            agent_id, engine_get_vm_resume_command());
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        }
+        else 
+        {
+            // Result got, check how many commands we obtained
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+
+            if(db_result == NULL)  
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to get [%s] result", query_text);
+            } 
+            else
+            {
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row) 
+                {
+                    // Get the number
+                    int pending_commands = atoi(row[0]);
+
+                    engine_trace(TRACE_LEVEL_ALWAYS,
+                        "[%d] pending commands for agent [%d]",
+                        pending_commands, agent_id);
+
+                    if(pending_commands <= 0) 
+                    {
+                        has_running_command = ENGINE_FALSE;
+                    }
+
+                    mysql_free_result(db_result);
+                }
+                else
+                {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "ERROR: Unable to get row for [%s] query", 
+                        query_text);
+                }
+            }
+        }
+    }
+
+    return has_running_command;
+}
+
+/** ****************************************************************************
+
     @brief          Gets current agent VM
 
     @param[in|out]  Connection info, updated once disconnected

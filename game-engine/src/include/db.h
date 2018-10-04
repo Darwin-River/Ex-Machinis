@@ -137,6 +137,19 @@ ErrorCode_t db_delete_resume_commands(DbConnection_t* connection, int agent_id);
 
 /** ****************************************************************************
 
+    @brief          Checks if there is any pending/paused command already running
+                    for this agent
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in|out]  agent_id  Current agent ID
+
+    @return         Checking result boolean
+
+*******************************************************************************/
+Bool_t db_agent_has_running_command(DbConnection_t* connection, int agent_id);
+
+/** ****************************************************************************
+
     @brief          Gets current agent VM
 
     @param[in|out]  Connection info, updated once disconnected
