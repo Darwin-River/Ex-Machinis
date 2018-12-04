@@ -178,4 +178,13 @@ typedef struct
 
 } ObjectOrbitInfo_t;
 
+
+typedef struct
+{
+	double x;
+	double y;
+	double z;
+	
+} CartesianInfo_t;
+
 #endif // __EM_COMMON_TYPES_MODULE__
