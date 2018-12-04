@@ -8,6 +8,8 @@
 
 /******************************* INCLUDES ************************************/
 
+#define _XOPEN_SOURCE
+#include <time.h>
 #include <string.h>
 
 #include "db.h"
@@ -136,6 +138,29 @@ void db_scape_string(
     out[to_len+1] = '\0';
     
    engine_trace(TRACE_LEVEL_DEBUG, "Value [%s] scaped now is [%s]", value, out);
+}
+
+/** ***************************************************************************
+
+  @brief      Converts a given date string into timestamp value
+
+  @param[in]  date    Input date string
+
+  @return     void
+
+******************************************************************************/
+time_t db_date_to_timestamp(char* date, char* format)
+{
+    struct tm tm;
+    time_t epoch = 0;
+
+    // input pointers checked by calling function
+
+    if ( strptime(date, format, &tm) != NULL ) {
+        epoch = mktime(&tm);
+    }
+
+    return epoch;
 }
 
 
@@ -1213,3 +1238,108 @@ ErrorCode_t db_rollback_transaction(DbConnection_t* connection)
     return result;
 }
 
+
+/** ****************************************************************************
+
+    @brief          Gets orbit info for a given object ID
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in|out]  Output parameter where we store the orbit info obtained from DB
+                    This object contains also current object ID to do the search in DB
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_orbit_info(DbConnection_t* connection, ObjectOrbitInfo_t* object)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!object) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        snprintf(query_text, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT * FROM objects WHERE object_id = %d", object->object_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            // retrieve the result and check that is an only row with a single field
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+
+            if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
+                (mysql_num_fields(db_result) != MAX_OBJECT_FIELDS))
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get orbits info for OBJECT_ID [%d] "
+                    "(invalid result for query [%s])",
+                    object->object_id,
+                    query_text);
+
+                result = ENGINE_DB_QUERY_ERROR;
+            } 
+            else 
+            {
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row) 
+                {
+                    // Get epoch first and return error if fails
+                    // otherwise just fill the rest of fields
+                    object->epoch = db_date_to_timestamp(row[EPOCH_IDX], OBJECTS_TIMESTAMP_FORMAT);
+
+                    if(!object->epoch) {
+                        engine_trace(TRACE_LEVEL_ALWAYS, 
+                            "ERROR: Unable to get EPOCH info for OBJECT_ID [%d]", 
+                            object->object_id);
+
+                        result = ENGINE_INTERNAL_ERROR;
+
+                    } else {
+                        sprintf(object->object_name, "%s", row[OBJECT_NAME_IDX]?row[OBJECT_NAME_IDX]:"");
+                        sprintf(object->object_type, "%s", row[OBJECT_TYPE_IDX]?row[OBJECT_TYPE_IDX]:"");
+
+                        object->gravitational_parameter = row[GRAVITATIONAL_PARAMETER_IDX]?atof(row[GRAVITATIONAL_PARAMETER_IDX]):-1;
+                        object->central_body_object_id = row[CENTRAL_BODY_OBJECT_ID_IDX]?atoi(row[CENTRAL_BODY_OBJECT_ID_IDX]):-1;
+
+                        object->semimajor_axis = row[SEMIMAJOR_AXIS_IDX]?atof(row[SEMIMAJOR_AXIS_IDX]):-1;
+                        object->eccentricity = row[ECCENTRICITY_IDX]?atof(row[ECCENTRICITY_IDX]):-1;
+                        object->periapsis_argument = row[PERIAPSIS_ARGUMENT_IDX]?atof(row[PERIAPSIS_ARGUMENT_IDX]):-1;
+                        object->mean_anomaly = row[MEAN_ANOMALY_IDX]?atof(row[MEAN_ANOMALY_IDX]):-1;
+                        object->inclination = row[INCLINATION_IDX]?atof(row[INCLINATION_IDX]):-1;
+                        object->ascending_node_longitude = row[ASCENDING_NODE_LONGITUDE_IDX]?atof(row[ASCENDING_NODE_LONGITUDE_IDX]):-1;
+                        object->mean_angular_motion = row[MEAN_ANGULAR_MOTION_IDX]?atof(row[MEAN_ANGULAR_MOTION_IDX]):-1;
+                    }
+
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "NAME [%s] TYPE [%s] obtained for OBJECT_ID [%d]", 
+                        object->object_name, object->object_type, object->object_id);
+                }
+                else 
+                {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "ERROR: Unable to get orbits info for OBJECT_ID [%d] (no row)", 
+                        object->object_id);
+
+                    result = ENGINE_DB_QUERY_ERROR;
+                }
+            }
+
+            mysql_free_result(db_result);
+        }
+    }
+
+    return result;
+}

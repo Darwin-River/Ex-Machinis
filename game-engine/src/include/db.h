@@ -273,4 +273,17 @@ void db_scape_string(
     size_t out_len
 );
 
+/** ****************************************************************************
+
+    @brief          Gets orbit info for a given object ID
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in|out]  Output parameter where we store the orbit info obtained from DB
+                    This object contains also current object ID to do the search in DB
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_orbit_info(DbConnection_t* connection, ObjectOrbitInfo_t* object);
+
 #endif // __EM_DB_MODULE__
