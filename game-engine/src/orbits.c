@@ -79,6 +79,7 @@ double orbits_get_eccentric_anomaly(ObjectOrbitInfo_t* object, double mean_anoma
 	if(object) {
 
 		// We need to iterate till the Ei value is sufficiently small using this formula
+		// (e) here is the object eccentricity
 
 		//                  
 		//                  Ei -  (M + e * sin(Ei))
@@ -95,8 +96,8 @@ double orbits_get_eccentric_anomaly(ObjectOrbitInfo_t* object, double mean_anoma
 		// first round we start with Ei = mean_anomaly and then calculate the next
 		do {
 			Ei = Ei1; // last value = current value
-			double numerator = Ei - (mean_anomaly + M_E * sin(Ei));
-			double denominator = 1 - (M_E * cos(Ei));
+			double numerator = Ei - (mean_anomaly + object->eccentricity * sin(Ei));
+			double denominator = 1 - (object->eccentricity * cos(Ei));
 
 			Ei1 = Ei - (numerator/denominator);
 
@@ -110,12 +111,13 @@ double orbits_get_eccentric_anomaly(ObjectOrbitInfo_t* object, double mean_anoma
 
   @brief          Gets the true anomaly for a given object
 
-  @param[in]      eccentric_anomaly  Current object info
+  @param[in]      object             Current object info
+  @param[in]      eccentric_anomaly  A given value for eccentric_anomaly
 
   @return         Anomaly obtained or -1 when error
 
 *******************************************************************************/
-double orbits_get_true_anomaly(double eccentric_anomaly)
+double orbits_get_true_anomaly(ObjectOrbitInfo_t* object, double eccentric_anomaly)
 {
 	double anomaly = -1.0;
 
@@ -124,8 +126,8 @@ double orbits_get_true_anomaly(double eccentric_anomaly)
 
 	// we simplify this function doing: atan2(x, y), first we calculate X and then Y
 
-	double X = sqrt(1 - eccentric_anomaly) * cos(eccentric_anomaly/2);
-	double Y = sqrt(1 + eccentric_anomaly) * sin(eccentric_anomaly/2);
+	double X = sqrt(1 - object->eccentricity) * cos(eccentric_anomaly/2);
+	double Y = sqrt(1 + object->eccentricity) * sin(eccentric_anomaly/2);
 
 	// now get anomaly as atan2(X,Y)
 	anomaly = atan2(X, Y);
@@ -149,14 +151,14 @@ double orbits_get_true_anomaly_radius(ObjectOrbitInfo_t* object, double true_ano
 
 	if(object) {
 
-		// The radius depends on semimajor axis (A) and true anomaly (v) as follows, also depends on the e number
+		// The radius depends on semimajor axis (A) , true anomaly (v) and object eccentricity (e) as follows, also depends on the e number
 		// r = A * ((1 - pow(e, 2))/(1 + e * cos(v))) 
 		// For the sake of simplicity let's simplify the formula as follows and calculate the parts:
 		// r = A *(numerator/denominator);
 
 		double A = object->semimajor_axis;
-		double numerator = 1 * pow(M_E, 2);  // M_E = e in maths library
-		double denominator = 1 + (M_E * cos(true_anomaly));
+		double numerator = 1 * pow(object->eccentricity, 2); 
+		double denominator = 1 + (object->eccentricity * cos(true_anomaly));
 
 		radius = A * (numerator/denominator);
 	}
