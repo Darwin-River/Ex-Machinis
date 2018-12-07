@@ -91,6 +91,7 @@ typedef struct
 
 } EngineConfig_t;
 
+
 //-----------------------------------------------------------------------------
 //  Engine object
 //-----------------------------------------------------------------------------
@@ -115,14 +116,13 @@ typedef struct
 
     DbConnection_t db_connection;
 
-
     Command_t last_command;  // last command read from DB
 
-    VirtualMachine_t* last_vm;  // last agent VM
+    AgentInfo_t  last_agent; // keep track of last agent processed
 
     ErrorCode_t error;
 
-    long long memory_in_use;
+    long long memory_in_use;   // keep track of the memory currently allocated (in bytes)
 
 } Engine_t;
 

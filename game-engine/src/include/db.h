@@ -150,17 +150,17 @@ Bool_t db_agent_has_running_command(DbConnection_t* connection, int agent_id);
 
 /** ****************************************************************************
 
-    @brief          Gets current agent VM
+    @brief          Gets current agent VM and other info required by the engine
 
     @param[in|out]  Connection info, updated once disconnected
     @param[in]      Agent ID whose VM data we want to get 
                     (we use current if any or create a new one)
-    @param[in|out]  Output address where engine is stored when success
+    @param[in|out]  Output info obtained for input agent
 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_agent_vm(DbConnection_t* connection, int agent_id, VirtualMachine_t** vm);
+ErrorCode_t db_get_agent_engine_info(DbConnection_t* connection, int agent_id, AgentInfo_t* agent);
 
 /** ****************************************************************************
 
@@ -285,5 +285,19 @@ void db_scape_string(
 
 *******************************************************************************/
 ErrorCode_t db_get_orbit_info(DbConnection_t* connection, ObjectOrbitInfo_t* object);
+
+/** ****************************************************************************
+
+    @brief          Gets earth orbit info
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in|out]  name Object name we are looking for
+    @param[in|out]  Output parameter where we store the orbit info obtained from DB
+                    This object contains also current object ID to do the search in DB
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_object_info_by_name(DbConnection_t* connection, char* name, ObjectOrbitInfo_t* object);
 
 #endif // __EM_DB_MODULE__

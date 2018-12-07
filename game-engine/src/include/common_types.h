@@ -29,7 +29,7 @@
 // orbits info
 #define MAX_OBJECT_NAME_SIZE     45
 #define MAX_OBJECT_TYPE_SIZE     16  
-#define OBJECTS_TIMESTAMP_FORMAT "%%d/%%m/%%Y"
+#define OBJECTS_TIMESTAMP_FORMAT "%Y-%m-%d %H:%M%S"
 
 /******************************* TYPES ***************************************/
 
@@ -117,6 +117,8 @@ typedef struct
 	char message[MAX_COMMAND_CODE_SIZE+1]; // Msg received from VM
 	char subject[MAX_COMMAND_CODE_SIZE+1];
 	char* output_content; // dynamically allocated
+	char drone_position[MAX_OBJECT_NAME_SIZE];
+	double distance;  // from Earth
 
 } EmailInfo_t;
 
@@ -130,8 +132,9 @@ typedef struct
 	char agent_name[MAX_EMAIL_ADDRESS_SIZE+1];
 	char* input_content; // dynamically allocated
 	char subject[MAX_COMMAND_CODE_SIZE+1];
+	int object_id;
+	VirtualMachine_t* vm;
 } AgentInfo_t;
-
 
 //-----------------------------------------------------------------------------
 //  OBJECT orbit info

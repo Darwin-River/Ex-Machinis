@@ -111,7 +111,10 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
 		// Build first the rsp content
 		snprintf(email_info->output_content,
 			buffer_size, 
-			email_info->email_template, // "<pre>---- Output ----\n\n%s\n\n<b>From:</b> %s\n<b>Sent:</b> %s\n<b>To:</b> %s\n<b>Subject:</b> %s\n\n%s\n\n</pre>"
+			email_info->email_template,
+			//"---- Position ----\n\nAt: %s\nDistance: %f light-seconds\n\n---- Output ----\n\n%s\n\nFrom: %s\nSent: %s\nTo: %s\nSubject: 
+			email_info->drone_position,
+			email_info->distance,
 			email_info->message,
 			email_info->user_email_addr,
 			date_buffer,

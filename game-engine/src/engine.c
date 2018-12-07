@@ -21,6 +21,7 @@
 #include "db.h"
 #include "vm.h"
 #include "email.h"
+#include "orbits.h"
 
 /******************************* DEFINES *************************************/
 
@@ -219,6 +220,103 @@ Bool_t engine_is_current_vm_busy()
     return ENGINE_FALSE;
 }
 
+/** ****************************************************************************
+
+  @brief          Gets the position of a given object ID (body and distance from Earth)
+
+  @param[in]      object_id     Current object ID (drone object ID)
+  @param[out]     position      Output buffer where we store current position
+  @param[out]     distance      Output buffer where we store current distance from Earth
+
+  @return         Error code
+
+*******************************************************************************/
+ErrorCode_t engine_get_drone_position(int object_id, char* position, double* distance)
+{
+    ErrorCode_t result = ENGINE_INTERNAL_ERROR;
+
+    if(position && distance) {
+        ObjectOrbitInfo_t drone;
+        ObjectOrbitInfo_t object;
+        ObjectOrbitInfo_t sun;
+        ObjectOrbitInfo_t earth;
+        CartesianInfo_t final_position;
+        int objects_num = 0;
+        Bool_t done = ENGINE_FALSE;
+
+        result = ENGINE_OK; // default OK
+
+        // Obtain the Sun info from DB 
+        memset(&sun, 0, sizeof(ObjectOrbitInfo_t));
+
+        if(db_get_object_info_by_name(&engine.db_connection, "Sun", &sun) != ENGINE_OK) {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to obtain SUN position");
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+
+        if(result == ENGINE_OK) {
+            engine_trace(TRACE_LEVEL_ALWAYS,  "[%s] has OBJ_ID=[%d]", sun.object_name, sun.object_id);
+
+            // Obtain the drone position from this object ID
+            memset(&object, 0, sizeof(ObjectOrbitInfo_t));
+            memset(&final_position, 0, sizeof(CartesianInfo_t));
+            object.object_id = object_id;
+
+            do {
+                // Get current object info
+                if(db_get_orbit_info(&engine.db_connection, &object) != ENGINE_OK) {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "ERROR: Unable to obtain position for drone with OBJ_ID=[%d]",
+                        object.object_id);
+
+                    result = ENGINE_DB_QUERY_ERROR;
+                } else {
+                    // Save drone position at first search (safe = same size)
+                    if(objects_num++ == 0) {
+                        memcpy(&drone, &object, sizeof(ObjectOrbitInfo_t));
+                        sprintf(position, "%s", drone.object_name);
+                    }
+
+                    // Use current object info to calculate position
+                    CartesianInfo_t position;
+                    orbits_get_object_position(&object, &position);
+
+                    // Add coordinates to current values
+                    orbits_add_coordinates(&position, &final_position, &final_position);
+
+                    // Check if our central body is the sun to stop
+                    if(object.central_body_object_id == sun.object_id) {
+                        done = ENGINE_TRUE;
+                    }
+                }
+
+            } while(done == ENGINE_FALSE);
+            
+        }
+
+        if(result == ENGINE_OK) {
+            engine_trace(TRACE_LEVEL_ALWAYS,  "OBJ_ID=[%d] is at [%s]", drone.object_id, drone.object_name);
+
+            // Obtain Earth info
+            memset(&earth, 0, sizeof(ObjectOrbitInfo_t));
+
+            if(db_get_object_info_by_name(&engine.db_connection, "Earth", &earth) != ENGINE_OK) {
+                engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to obtain EARTH position");
+                result = ENGINE_DB_QUERY_ERROR;
+            }
+        } 
+
+        if(result == ENGINE_OK) {
+            engine_trace(TRACE_LEVEL_ALWAYS,  "OBJ_ID=[%d] is at [%s]", earth.object_id, earth.object_name);
+
+            *distance = orbits_get_distance_between_objects(&drone, &earth);
+        } 
+
+        
+    }
+
+    return result;
+}
 
 /******************************* PUBLIC FUNCTIONS ****************************/
 
@@ -401,7 +499,7 @@ ErrorCode_t engine_run()
 	while(engine.status == ENGINE_RUNNING_STATUS)
 	{
         // reset VM
-        engine.last_vm = NULL;
+        engine.last_agent.vm = NULL;
 
 		engine_trace(TRACE_LEVEL_ALWAYS, "Running engine logic");
 
@@ -428,10 +526,10 @@ ErrorCode_t engine_run()
 
         if(result == ENGINE_OK)
         {
-            // Get a VM for current agent_id
-            result = db_get_agent_vm(&engine.db_connection, 
+            // Get whole info for agent_id
+            result = db_get_agent_engine_info(&engine.db_connection, 
                 engine.last_command.agent_id,
-                &engine.last_vm);
+                &engine.last_agent);
         }
 
         if(result == ENGINE_OK)
@@ -456,7 +554,7 @@ ErrorCode_t engine_run()
             {
                 // Execute the last code in current VM
                 memset(out_buffer, 0, ENGINE_MAX_BUF_SIZE+1);
-                result = vm_run_command(engine.last_vm, &engine.last_command, out_buffer, ENGINE_MAX_BUF_SIZE);
+                result = vm_run_command(engine.last_agent.vm, &engine.last_command, out_buffer, ENGINE_MAX_BUF_SIZE);
 
                 if(result != ENGINE_OK)
                 {
@@ -495,7 +593,7 @@ ErrorCode_t engine_run()
             // Save VM in DB
             result = db_save_agent_vm(&engine.db_connection, 
                 engine.last_command.agent_id, 
-                engine.last_vm);
+                engine.last_agent.vm);
         }
 
         // Delete command always to avoid spam when error
@@ -512,7 +610,7 @@ ErrorCode_t engine_run()
         }
 
         // always deallocate VM and command resources
-        if(engine.last_vm) vm_free(engine.last_vm);
+        if(engine.last_agent.vm) vm_free(engine.last_agent.vm);
         if(engine.last_command.email_content)
             engine_free(engine.last_command.email_content, strlen(engine.last_command.email_content) + 1);
 
@@ -665,6 +763,10 @@ void engine_vm_output_cb(const char* msg)
             "%s", 
             engine.config.params[SEND_EMAIL_TEMPLATE_ID]);
 
+
+        // Get current position
+        engine_get_drone_position(engine.last_agent.object_id, email_info.drone_position, &email_info.distance);
+
         snprintf(email_info.message, MAX_COMMAND_CODE_SIZE, "%s", msg); // it is quoted later at email module
         snprintf(email_info.email_script, PATH_MAX, "%s", engine.config.params[SEND_EMAIL_SCRIPT_ID]);
 
@@ -784,3 +886,4 @@ const char* engine_get_vm_resume_command()
 {
     return (const char*)engine.config.params[VM_RESUME_COMMAND];
 }
+
