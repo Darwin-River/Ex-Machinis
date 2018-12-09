@@ -277,16 +277,28 @@ ErrorCode_t engine_get_drone_position(int object_id, char* position, double* dis
                         sprintf(position, "%s", drone.object_name);
                     }
 
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "OBJ_ID=[%d] CENTRAL_BODY_OBJ_ID=[%d] SUN_OBJECT_ID=[%d]",
+                        object.object_id, object.central_body_object_id, sun.object_id);
+
                     // Use current object info to calculate position
                     CartesianInfo_t position;
                     orbits_get_object_position(&object, &position);
 
                     // Add coordinates to current values
-                    orbits_add_coordinates(&position, &final_position, &final_position);
+                    CartesianInfo_t current_total_position;
+                    current_total_position.x = final_position.x;
+                    current_total_position.y = final_position.y;
+                    current_total_position.z = final_position.z;
+
+                    orbits_add_coordinates(&position, &current_total_position, &final_position);
 
                     // Check if our central body is the sun to stop
                     if(object.central_body_object_id == sun.object_id) {
                         done = ENGINE_TRUE;
+                    } else {
+                        // update object ID to do next search
+                        object.object_id = object.central_body_object_id;
                     }
                 }
 
