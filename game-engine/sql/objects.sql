@@ -425,11 +425,11 @@ INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `
 ('01/01/2000', '%d/%m/%Y'), 5.77E+04, 0, 160.629, 161.061, 0.426, 305.871, 11.1913026);
 INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (186, 'Styx', 'Moon', NULL, 9, STR_TO_DATE
 ('01/01/2000', '%d/%m/%Y'), 4.24E+04, 0.0006, 330.244, 194.546, 0.08, 26.956, 17.8551357);
-INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (187, 'Earth Station', 'Station', NULL, 0, STR_TO_DATE
+INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (187, 'Earth Station', 'Station', NULL, 3, STR_TO_DATE
 ('01/01/2000', '%d/%m/%Y'), 5.00E+04, 0.2, 0, 0, 0, 0, 279.5439972);
-INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (188, 'Mars Station', 'Station', NULL, 0, STR_TO_DATE
+INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (188, 'Mars Station', 'Station', NULL, 4, STR_TO_DATE
 ('01/01/2000', '%d/%m/%Y'), 2.00E+04, 0.2, 0, 0, 0, 0, 362.1719973);
-INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (189, 'Jupiter Station', 'Station', NULL, 0, STR_TO_DATE
+INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (189, 'Jupiter Station', 'Station', NULL, 5, STR_TO_DATE
 ('01/01/2000', '%d/%m/%Y'), 1.00E+06, 0.2, 0, 0, 0, 0, 55.69976758);
 
 COMMIT;
