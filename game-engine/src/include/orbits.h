@@ -149,4 +149,20 @@ double orbits_get_distance_between_objects
   ObjectOrbitInfo_t* object2
 );
 
+/** ****************************************************************************
+
+  @brief          Gets the distance to an object for a given cartesian position
+
+  @param[in]      object1    First object
+  @param[in]      position2  Second object position
+
+  @return         Distance obtained
+
+*******************************************************************************/
+double orbits_get_distance_from_object
+(
+  ObjectOrbitInfo_t* object1,
+  CartesianInfo_t* position2
+);
+
 #endif // __EM_ORBITS_MODULE__
