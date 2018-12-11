@@ -156,15 +156,29 @@ time_t db_date_to_timestamp(char* date, char* format)
 
     // input pointers checked by calling function
 
-    if (strptime(date, format, &tm) == NULL) {
+    char* conversion_result = strptime(date, format, &tm);
+
+    if (conversion_result != NULL) {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Date [%s] converted to:  year, month, day, hour, min ,sec [%d-%d-%d %02d:%02d:%02d]",
+            date, 
+            tm.tm_year,
+            tm.tm_mon,
+            tm.tm_mday,
+            tm.tm_hour,
+            tm.tm_min,
+            tm.tm_sec);
+
+
         epoch = mktime(&tm);
     }
 
     engine_trace(TRACE_LEVEL_ALWAYS, 
-        "Converting date into epoch [%s] using format [%s], result = [%ld]",
+        "Converting date into epoch [%s] using format [%s], result = [%ld], conversion_result = [%s]",
         date, 
         format,
-        epoch);
+        epoch,
+        conversion_result);
 
     return epoch;
 }
