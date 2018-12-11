@@ -54,23 +54,23 @@ USE `exmachinis`;
 INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (0, 'Sun', 'Star', 1.33E+20, NULL, STR_TO_DATE
 ('1/1/1960', '%d/%m/%Y'), NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (1, 'Mercury', 'Planet', 2.20E+13, 0, STR_TO_DATE
-('01/01/2000', '%d/%m/%Y'), 0.00E+00, 0.20563593, 77.45779628, 252.2503235, 7.00497902, 48.33076593, 4.09205133);
+('01/01/2000', '%d/%m/%Y'), 5.79E+07, 0.20563593, 77.45779628, 252.2503235, 7.00497902, 48.33076593, 4.09205133);
 INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (2, 'Venus', 'Planet', 3.25E+14, 0, STR_TO_DATE
-('01/01/2000', '%d/%m/%Y'), 0.00E+00, 0.00677672, 131.6024672, 181.9790995, 3.39467605, 76.67984255, 1.602008394);
+('01/01/2000', '%d/%m/%Y'), 1.08E+08, 0.00677672, 131.6024672, 181.9790995, 3.39467605, 76.67984255, 1.602008394);
 INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (3, 'Earth', 'Planet', 3.99E+14, 0, STR_TO_DATE
-('01/01/2000', '%d/%m/%Y'), 0.00E+00, 0.01671123, 102.9376819, 100.4645717, -0.00001531, 0, 0.985536926);
+('01/01/2000', '%d/%m/%Y'), 1.50E+08, 0.01671123, 102.9376819, 100.4645717, -0.00001531, 0, 0.985536926);
 INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (4, 'Mars', 'Planet', 4.28E+13, 0, STR_TO_DATE
-('01/01/2000', '%d/%m/%Y'), 0.00E+00, 0.0933941, -23.94362959, -4.55343205, 1.84969142, 49.55953891, 0.523987563);
+('01/01/2000', '%d/%m/%Y'), 2.28E+08, 0.0933941, -23.94362959, -4.55343205, 1.84969142, 49.55953891, 0.523987563);
 INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (5, 'Jupiter', 'Planet', 1.27E+17, 0, STR_TO_DATE
-('01/01/2000', '%d/%m/%Y'), 0.00E+00, 0.04838624, 14.72847983, 34.39644051, 1.30439695, 100.4739091, 0.083043952);
+('01/01/2000', '%d/%m/%Y'), 7.78E+08, 0.04838624, 14.72847983, 34.39644051, 1.30439695, 100.4739091, 0.083043952);
 INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (6, 'Saturn', 'Planet', 3.79E+16, 0, STR_TO_DATE
-('01/01/2000', '%d/%m/%Y'), 0.00E+00, 0.05386179, 92.59887831, 49.95424423, 2.48599187, 113.6624245, 0.033464093);
+('01/01/2000', '%d/%m/%Y'), 1.43E+09, 0.05386179, 92.59887831, 49.95424423, 2.48599187, 113.6624245, 0.033464093);
 INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (7, 'Uranus', 'Planet', 5.79E+15, 0, STR_TO_DATE
-('01/01/2000', '%d/%m/%Y'), 0.00E+00, 0.04725744, 170.9542763, 313.2381045, 0.77263783, 74.01692503, 0.011724397);
+('01/01/2000', '%d/%m/%Y'), 2.87E+09, 0.04725744, 170.9542763, 313.2381045, 0.77263783, 74.01692503, 0.011724397);
 INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (8, 'Neptune', 'Planet', 6.84E+15, 0, STR_TO_DATE
-('01/01/2000', '%d/%m/%Y'), 0.00E+00, 0.00859048, 44.96476227, -55.12002969, 1.77004347, 131.7842257, 0.005976902);
+('01/01/2000', '%d/%m/%Y'), 4.50E+09, 0.00859048, 44.96476227, -55.12002969, 1.77004347, 131.7842257, 0.005976902);
 INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (9, 'Pluto', 'Planet', 8.71E+11, 0, STR_TO_DATE
-('01/01/2000', '%d/%m/%Y'), 0.00E+00, 0.2488273, 224.0689163, 238.9290383, 17.14001206, 110.3039368, 0.003972592);
+('01/01/2000', '%d/%m/%Y'), 5.91E+09, 0.2488273, 224.0689163, 238.9290383, 17.14001206, 110.3039368, 0.003972592);
 INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (10, 'Moon', 'Moon', NULL, 3, STR_TO_DATE
 ('01/01/2000', '%d/%m/%Y'), 3.84E+05, 0.0554, 318.15, 135.27, 5.16, 125.08, 13.176358);
 INSERT INTO `exmachinis`.`objects` (`object_id`, `object_name`, `object_type`, `gravitational_parameter`, `central_body_object_id`, `epoch`, `semimajor_axis`, `eccentricity`, `periapsis_argument`, `mean_anomaly`, `inclination`, `ascending_node_longitude`, `mean_angular_motion`) VALUES (11, 'Phobos', 'Moon', NULL, 4, STR_TO_DATE
