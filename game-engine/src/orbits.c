@@ -18,6 +18,8 @@
 
 /******************************* DEFINES *************************************/
 
+#define DEG_TO_RADIANS(d)  ((d * M_PI)/180.0)
+
 
 /******************************* TYPES ***************************************/
 
@@ -55,13 +57,14 @@ double orbits_get_mean_anomaly(ObjectOrbitInfo_t* object)
 		//M(t)   = current mean anomaly
 		//M0     = anomaly at epoch (taken from DB field: mean_anomaly)
 		//n      = mean angular motion
-		//(t-t0) = he difference in times expressed in days
+		//(t-t0) = the time difference expressed in days
 
 		anomaly = object->mean_anomaly + object->mean_angular_motion * diff_in_days;
 
 		engine_trace(TRACE_LEVEL_ALWAYS, 
-                     "OBJECT=[%s] epoch [%ld] now [%ld] days [%f] mean_angular_motion [%f] mean_anomaly_T0 [%f] mean_anomaly [%f]",
-                     object->object_name, object->epoch, now, diff_in_days, 
+                     "OBJECT=[%s] epoch [%ld] now [%ld] diff_seconds [%ld] days [%f] "
+                     "mean_angular_motion (deg/day) [%f] mean_anomaly_T0 [%f] mean_anomaly (deg) [%f]",
+                     object->object_name, object->epoch, now, diff_in_seconds, diff_in_days, 
                      object->mean_angular_motion, object->mean_anomaly, anomaly);
 	}
 
@@ -103,8 +106,8 @@ double orbits_get_eccentric_anomaly(ObjectOrbitInfo_t* object, double mean_anoma
 		// first round we start with Ei = mean_anomaly and then calculate the next
 		do {
 			Ei = Ei1; // last value = current value
-			double numerator = Ei - (mean_anomaly + object->eccentricity * sin(Ei));
-			double denominator = 1 - (object->eccentricity * cos(Ei));
+			double numerator = Ei - (mean_anomaly + object->eccentricity * sin(DEG_TO_RADIANS(Ei)));
+			double denominator = 1 - (object->eccentricity * cos(DEG_TO_RADIANS(Ei)));
 
 			Ei1 = Ei - (numerator/denominator);
 
@@ -147,8 +150,8 @@ double orbits_get_true_anomaly(ObjectOrbitInfo_t* object, double eccentric_anoma
 
 	// we simplify this function doing: atan2(x, y), first we calculate X and then Y
 
-	double X = sqrt(1 - object->eccentricity) * cos(eccentric_anomaly/2);
-	double Y = sqrt(1 + object->eccentricity) * sin(eccentric_anomaly/2);
+	double X = sqrt(1 - object->eccentricity) * cos(DEG_TO_RADIANS(eccentric_anomaly/2));
+	double Y = sqrt(1 + object->eccentricity) * sin(DEG_TO_RADIANS(eccentric_anomaly/2));
 
 	// now get anomaly as atan2(X,Y)
 	anomaly = atan2(X, Y);
@@ -184,7 +187,7 @@ double orbits_get_true_anomaly_radius(ObjectOrbitInfo_t* object, double true_ano
 
 		double A = object->semimajor_axis;
 		double numerator = 1 * pow(object->eccentricity, 2); 
-		double denominator = 1 + (object->eccentricity * cos(true_anomaly));
+		double denominator = 1 + (object->eccentricity * cos(DEG_TO_RADIANS(true_anomaly)));
 
 		radius = A * (numerator/denominator);
 
@@ -235,12 +238,12 @@ void orbits_get_cartesian_coordinates
 		// We calculate the values of each item first to make it clearer
 		// Represent Ω the with an 'm' (a character supported by C language)
 
-		double cos_m = cos(object->ascending_node_longitude);
-		double sin_m = sin(object->ascending_node_longitude);
-		double cos_i = cos(object->inclination);
-		double sin_i = sin(object->inclination);
-		double cos_w_v = cos(object->periapsis_argument + true_anomaly);
-		double sin_w_v = sin(object->periapsis_argument + true_anomaly);
+		double cos_m = cos(DEG_TO_RADIANS(object->ascending_node_longitude));
+		double sin_m = sin(DEG_TO_RADIANS(object->ascending_node_longitude));
+		double cos_i = cos(DEG_TO_RADIANS(object->inclination));
+		double sin_i = sin(DEG_TO_RADIANS(object->inclination));
+		double cos_w_v = cos(DEG_TO_RADIANS(object->periapsis_argument + true_anomaly));
+		double sin_w_v = sin(DEG_TO_RADIANS(object->periapsis_argument + true_anomaly));
 		double r = true_anomaly_radius;
 	
 		cartesian->x = r * ((cos_m * cos_w_v) - (sin_m * sin_w_v * cos_i));
@@ -332,7 +335,6 @@ void orbits_add_coordinates
 }
 
 
-
 /** ****************************************************************************
 
   @brief          Gets the distance between 2 objects (in light-seconds)
@@ -373,6 +375,51 @@ double orbits_get_distance_between_objects
                  position1.x, position1.y, position1.z,
                  object2->object_name,
                  position2.x, position2.y, position2.z,
+                 distance);
+		}
+	}
+
+	return distance;
+}
+
+
+/** ****************************************************************************
+
+  @brief          Gets the distance to an object for a given cartesian position
+
+  @param[in]      object1    First object
+  @param[in]      position2  Second object position
+
+  @return         Distance obtained
+
+*******************************************************************************/
+double orbits_get_distance_from_object
+(
+	ObjectOrbitInfo_t* object1,
+	CartesianInfo_t* position2
+)
+{
+	double distance = 0.0;
+
+	if(object1 && position2) {
+		// Get position for both objects
+		CartesianInfo_t position1;
+
+		if(orbits_get_object_position(object1, &position1) == ENGINE_OK)
+		{
+			// Calculate distance between both points
+			// D = sqrt( pow(X1-X2, 2) + pow(Y1-Y2, 2) + pow(Z1-Z2, 2) )  = sqrt ( A + B + C) for sake of simplicity
+			double A = pow(position1.x - position2->x, 2);
+			double B = pow(position1.y - position2->y, 2);
+			double C = pow(position1.z - position2->z, 2);
+
+			distance = sqrt(A + B + C);
+
+			engine_trace(TRACE_LEVEL_ALWAYS, 
+                 "Distance between coordinates for [%s] [%f, %f, %f] and [%f, %f, %f] is [%f]",
+                 object1->object_name,
+                 position1.x, position1.y, position1.z,
+                 position2->x, position2->y, position2->z,
                  distance);
 		}
 	}
