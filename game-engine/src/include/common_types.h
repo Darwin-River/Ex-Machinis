@@ -29,7 +29,7 @@
 // orbits info
 #define MAX_OBJECT_NAME_SIZE     45
 #define MAX_OBJECT_TYPE_SIZE     16  
-#define OBJECTS_TIMESTAMP_FORMAT "%Y-%m-%d %H:%M%S"
+#define OBJECTS_TIMESTAMP_FORMAT "%Y-%m-%d %T"
 
 /******************************* TYPES ***************************************/
 
