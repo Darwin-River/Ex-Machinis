@@ -321,7 +321,8 @@ ErrorCode_t engine_get_drone_position(int object_id, char* position, double* dis
         if(result == ENGINE_OK) {
             engine_trace(TRACE_LEVEL_ALWAYS,  "OBJ_ID=[%d] is at [%s]", earth.object_id, earth.object_name);
 
-            *distance = orbits_get_distance_between_objects(&drone, &earth);
+            // Get distance between Earth <-> drone
+            *distance = orbits_get_distance_from_object(&earth, &final_position);
         } 
 
         
