@@ -19,6 +19,8 @@
 
 /******************************* DEFINES *************************************/
 
+#define LIGHT_SPEED_KM_PER_SECOND   299792.458  // Km/second
+#define LIGHT_SPEED_KM_PER_MINUTE   (LIGHT_SPEED_KM_PER_SECOND * 60.0) // Km/minute 
 
 /******************************* TYPES ***************************************/
 
@@ -114,7 +116,7 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
 			email_info->email_template,
 			//"---- Position ----\n\nAt: %s\nDistance: %f light-minutes\n\n---- Output ----\n\n%s\n\nFrom: %s\nSent: %s\nTo: %s\nSubject: 
 			email_info->drone_position,
-			(email_info->distance / 60.0), // Convert to light-minutes
+			(email_info->distance / LIGHT_SPEED_KM_PER_MINUTE), // Distance is KM -> Convert to light-minutes
 			email_info->message,
 			email_info->user_email_addr,
 			date_buffer,
