@@ -112,9 +112,9 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
 		snprintf(email_info->output_content,
 			buffer_size, 
 			email_info->email_template,
-			//"---- Position ----\n\nAt: %s\nDistance: %f light-seconds\n\n---- Output ----\n\n%s\n\nFrom: %s\nSent: %s\nTo: %s\nSubject: 
+			//"---- Position ----\n\nAt: %s\nDistance: %f light-minutes\n\n---- Output ----\n\n%s\n\nFrom: %s\nSent: %s\nTo: %s\nSubject: 
 			email_info->drone_position,
-			email_info->distance,
+			(email_info->distance / 60.0), // Convert to light-minutes
 			email_info->message,
 			email_info->user_email_addr,
 			date_buffer,

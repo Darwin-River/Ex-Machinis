@@ -186,7 +186,7 @@ double orbits_get_true_anomaly_radius(ObjectOrbitInfo_t* object, double true_ano
 		// r = A *(numerator/denominator);
 
 		double A = object->semimajor_axis;
-		double numerator = 1 * pow(object->eccentricity, 2); 
+		double numerator = 1 - pow(object->eccentricity, 2); 
 		double denominator = 1 + (object->eccentricity * cos(DEG_TO_RADIANS(true_anomaly)));
 
 		radius = A * (numerator/denominator);
