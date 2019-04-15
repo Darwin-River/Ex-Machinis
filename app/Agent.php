@@ -9,7 +9,7 @@ class Agent extends Model
     //NOTE: Agents are the drones
 
     protected $fillable = [
-        'name', 'company_id', "coord_x", "coord_y", "coord_z", "speed_x", "speed_y", "speed_z",
+        'name', 'company_id', "coord_x", "coord_y", "coord_z", "speed_x", "speed_y", "speed_z", "object_id",
     ];
     public $timestamps = false;
 
@@ -67,11 +67,33 @@ class Agent extends Model
     public function insertCommandInfo($command_text, $subject)
     {
         $commandsCreated = false;
-        if (preg_match("'<script>(.*?)</script>' si", $command_text, $matches)) {
-            for ($i = 1; $i < sizeof($matches); $i = $i + 2) {
-                //create new command for this agent
+
+        // Find what comes first, the abort or the script
+        $pos_abort = strpos($command_text, "<abort>");
+        $pos_script = strpos($command_text, "<script>");
+
+        if(($pos_abort === false) || (($pos_script !== false) && ($pos_script < $pos_abort))) {
+
+            if (preg_match("'<script>(.*?)</script>' si", $command_text, $matches)) {
+                for ($i = 1; $i < sizeof($matches); $i = $i + 2) {
+                    //create new command for this agent
+                    $command = new Command();
+                    $command->code = trim($matches[$i]);
+                    if(strlen($command->code) > 0) {
+                        $command->agent_id = $this->id;
+                        $command->subject = $subject;
+                        $command->email_content = $command_text;
+                        $command->save();
+                        $commandsCreated = true;
+                    }
+                }
+            }
+        } else {
+            // Abort scenario: 
+            if (preg_match("'<abort>' si", $command_text)) { // Treat special scenario: abort command received 
+                // abort generates and empty command - this empty command means "abort"
                 $command = new Command();
-                $command->code = trim($matches[$i]);
+                $command->code = "";
                 $command->agent_id = $this->id;
                 $command->subject = $subject;
                 $command->email_content = $command_text;
@@ -79,6 +101,7 @@ class Agent extends Model
                 $commandsCreated = true;
             }
         }
+
         return $commandsCreated;
     }
 }

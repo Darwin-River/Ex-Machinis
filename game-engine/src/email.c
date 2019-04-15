@@ -19,6 +19,8 @@
 
 /******************************* DEFINES *************************************/
 
+#define LIGHT_SPEED_KM_PER_SECOND   299792.458  // Km/second
+#define LIGHT_SPEED_KM_PER_MINUTE   (LIGHT_SPEED_KM_PER_SECOND * 60.0) // Km/minute 
 
 /******************************* TYPES ***************************************/
 
@@ -111,7 +113,10 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
 		// Build first the rsp content
 		snprintf(email_info->output_content,
 			buffer_size, 
-			email_info->email_template, // "<pre>---- Output ----\n\n%s\n\n<b>From:</b> %s\n<b>Sent:</b> %s\n<b>To:</b> %s\n<b>Subject:</b> %s\n\n%s\n\n</pre>"
+			email_info->email_template,
+			//"---- Position ----\n\nAt: %s\nDistance: %f light-minutes\n\n---- Output ----\n\n%s\n\nFrom: %s\nSent: %s\nTo: %s\nSubject: 
+			email_info->drone_position,
+			(email_info->distance / LIGHT_SPEED_KM_PER_MINUTE), // Distance is KM -> Convert to light-minutes
 			email_info->message,
 			email_info->user_email_addr,
 			date_buffer,

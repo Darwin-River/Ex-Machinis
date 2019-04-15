@@ -26,6 +26,11 @@
 #define MAX_EMAIL_ADDRESS_SIZE  512
 #define MAX_EMAIL_DATE_SIZE     156
 
+// orbits info
+#define MAX_OBJECT_NAME_SIZE     45
+#define MAX_OBJECT_TYPE_SIZE     16  
+#define OBJECTS_TIMESTAMP_FORMAT "%Y-%m-%d %T"
+
 /******************************* TYPES ***************************************/
 
 //-----------------------------------------------------------------------------
@@ -112,6 +117,8 @@ typedef struct
 	char message[MAX_COMMAND_CODE_SIZE+1]; // Msg received from VM
 	char subject[MAX_COMMAND_CODE_SIZE+1];
 	char* output_content; // dynamically allocated
+	char drone_position[MAX_OBJECT_NAME_SIZE];
+	double distance;  // from Earth
 
 } EmailInfo_t;
 
@@ -125,7 +132,62 @@ typedef struct
 	char agent_name[MAX_EMAIL_ADDRESS_SIZE+1];
 	char* input_content; // dynamically allocated
 	char subject[MAX_COMMAND_CODE_SIZE+1];
+	int object_id;
+	VirtualMachine_t* vm;
 } AgentInfo_t;
 
+//-----------------------------------------------------------------------------
+//  OBJECT orbit info
+//-----------------------------------------------------------------------------
+
+// Enum to access the fields returned by the query
+typedef enum
+{
+	OBJECT_ID_IDX,
+	OBJECT_NAME_IDX,
+	OBJECT_TYPE_IDX,
+	GRAVITATIONAL_PARAMETER_IDX,
+	CENTRAL_BODY_OBJECT_ID_IDX,
+	EPOCH_IDX,
+	SEMIMAJOR_AXIS_IDX,
+	ECCENTRICITY_IDX,
+	PERIAPSIS_ARGUMENT_IDX,
+	MEAN_ANOMALY_IDX,
+	INCLINATION_IDX,
+	ASCENDING_NODE_LONGITUDE_IDX,
+	MEAN_ANGULAR_MOTION_IDX,
+
+	// Max fields expected
+	MAX_OBJECT_FIELDS
+
+} ObjectFieldId_t;
+
+
+typedef struct
+{
+	int object_id;
+	char object_name[MAX_OBJECT_NAME_SIZE];
+	char object_type[MAX_OBJECT_TYPE_SIZE];
+	double gravitational_parameter;
+	int central_body_object_id;
+	time_t epoch;
+	double semimajor_axis;
+	double eccentricity;
+	double periapsis_argument;
+	double mean_anomaly;
+	double inclination;
+	double ascending_node_longitude;
+	double mean_angular_motion;
+
+} ObjectOrbitInfo_t;
+
+
+typedef struct
+{
+	double x;
+	double y;
+	double z;
+	
+} CartesianInfo_t;
 
 #endif // __EM_COMMON_TYPES_MODULE__
