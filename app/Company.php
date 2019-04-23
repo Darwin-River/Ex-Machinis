@@ -48,11 +48,6 @@ class Company extends Model
         for ($i = 0; $i < Company::INITIAL_AGENTS; $i++) {
             $agent = new Agent();
             $agent->assignRandomName();
-            $agent->company_id = $this->id;
-            //to be changed
-            $agent->coord_x = 0;
-            $agent->coord_y = 0;
-            $agent->coord_z = 0;
             //set the orbit
             $agent->object_id = $orbits[$i];
             $agent->save();

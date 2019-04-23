@@ -79,7 +79,7 @@ class HomeController extends Controller
                         $company = new Company();
                         $company->user_id = $user->id;
                         //    $company->name = $data['company_name'];
-                        $company->save();
+                        //$company->save();
                         //create initial drones:
                         $companyDrones = $company->generateStartingDrones();
                         $data = [];
@@ -92,12 +92,12 @@ class HomeController extends Controller
                     } else {
                         //notify user he's already registered
                         // Get the user company ID and the drones currently assigned
-                        $company = Company::where('user_id', $user->id)->first();
+                        // $company = Company::where('user_id', $user->id)->first();
 
-                        echo 'User already registered: ' . $company->user_id . ' at company ' . $company->id . '<br/>';
+                        echo 'User already registered: ' . $user->name . '<br/>';
 
                         // Get now all the drones for this user and concatenate their email addresses
-                        $drones = Agent::where('company_id', $company->id)->get();
+                        $drones = Agent::where('name', $user->name)->get();
                         $dronesInfo = 'Registration error: your email is already registered with the following drones: ';
 
                         foreach ($drones as $drone) {
@@ -147,7 +147,7 @@ class HomeController extends Controller
                         continue;
                     }
                     //check if user email corresponds with agent
-                    if (trim(strtolower($mail->fromAddress)) != trim(strtolower($agent->company->user->email))) {
+                    if (trim(strtolower($mail->fromAddress)) != trim(strtolower($agent->user->email))) {
                         //notify back
                         Mail::raw("Your email address doesn't have access to the agent associated with " . $address . ". Please use the address you have registered with.", function ($message) use ($mail) {
                             $message->to($mail->fromAddress, $mail->fromName)

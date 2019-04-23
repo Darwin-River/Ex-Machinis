@@ -9,16 +9,16 @@ class Agent extends Model
     //NOTE: Agents are the drones
 
     protected $fillable = [
-        'name', 'company_id', "coord_x", "coord_y", "coord_z", "speed_x", "speed_y", "speed_z", "object_id",
+        'name', "object_id",
     ];
     public $timestamps = false;
 
     /**
-     * Get the company associated with the agent.
+     * Get the user associated with the agent.
      */
-    public function company()
+    public function user()
     {
-        return $this->belongsTo('App\Company');
+        return $this->belongsTo('App\User');
     }
 
     /**
