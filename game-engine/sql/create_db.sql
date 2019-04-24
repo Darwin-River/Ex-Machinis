@@ -18,6 +18,27 @@ CREATE SCHEMA IF NOT EXISTS `exmachinis` DEFAULT CHARACTER SET utf8 ;
 USE `exmachinis` ;
 
 -- -----------------------------------------------------
+-- Table `exmachinis`.`users`
+-- -----------------------------------------------------
+DROP TABLE IF EXISTS `exmachinis`.`users` ;
+
+CREATE TABLE IF NOT EXISTS `exmachinis`.`users` (
+  `user_id` INT(10) UNSIGNED NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
+  `email` VARCHAR(255) NOT NULL,
+  `password` VARCHAR(255) NULL DEFAULT NULL,
+  `remember_token` VARCHAR(100) NULL DEFAULT NULL,
+  `created_at` TIMESTAMP NULL DEFAULT NULL,
+  `updated_at` TIMESTAMP NULL DEFAULT NULL,
+  `credits` INT(10) UNSIGNED NULL COMMENT 'This is the amount of credits the player owns.',
+  PRIMARY KEY (`user_id`),
+  UNIQUE INDEX `users_email_unique` (`email` ASC))
+ENGINE = InnoDB
+AUTO_INCREMENT = 19
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------
 -- Table `exmachinis`.`agents`
 -- -----------------------------------------------------
 DROP TABLE IF EXISTS `exmachinis`.`agents` ;
@@ -33,7 +54,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`agents` (
   `object_id` INT(11) NOT NULL DEFAULT '187' COMMENT 'This is the ID of the static obect where the drone is located.',
   `hull_type` INT(2) UNSIGNED NULL COMMENT 'This is the ID of the drone\'s hull type.',
   PRIMARY KEY (`agent_id`),
-  INDEX `fk_user_id_idx` (`user_id` ASC) VISIBLE,
+  INDEX `fk_user_id_idx` (`user_id` ASC),
   CONSTRAINT `fk_user_id`
     FOREIGN KEY (`user_id`)
     REFERENCES `exmachinis`.`users` (`user_id`)
@@ -62,7 +83,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`commands` (
   INDEX `commands_agent_id_foreign` (`agent_id` ASC),
   CONSTRAINT `commands_agent_id_foreign`
     FOREIGN KEY (`agent_id`)
-    REFERENCES `exmachinis`.`agents` (`id`)
+    REFERENCES `exmachinis`.`agents` (`agent_id`)
     ON DELETE CASCADE
     ON UPDATE CASCADE)
 ENGINE = InnoDB
@@ -128,28 +149,6 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`password_resets` (
   `created_at` TIMESTAMP NULL DEFAULT NULL,
   INDEX `password_resets_email_index` (`email` ASC))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = utf8mb4
-COLLATE = utf8mb4_unicode_ci;
-
-
--- -----------------------------------------------------
--- Table `exmachinis`.`users`
--- -----------------------------------------------------
-DROP TABLE IF EXISTS `exmachinis`.`users` ;
-
-CREATE TABLE IF NOT EXISTS `exmachinis`.`users` (
-  `user_id` INT(10) UNSIGNED NOT NULL,
-  `name` VARCHAR(255) NOT NULL,
-  `email` VARCHAR(255) NOT NULL,
-  `password` VARCHAR(255) NULL DEFAULT NULL,
-  `remember_token` VARCHAR(100) NULL DEFAULT NULL,
-  `created_at` TIMESTAMP NULL DEFAULT NULL,
-  `updated_at` TIMESTAMP NULL DEFAULT NULL,
-  `credits` INT(10) UNSIGNED NULL COMMENT 'This is the amount of credits the player owns.',
-  PRIMARY KEY (`user_id`),
-  UNIQUE INDEX `users_email_unique` (`email` ASC) VISIBLE)
-ENGINE = InnoDB
-AUTO_INCREMENT = 19
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
