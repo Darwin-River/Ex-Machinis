@@ -23,7 +23,8 @@ USE `exmachinis` ;
 DROP TABLE IF EXISTS `exmachinis`.`agents` ;
 
 CREATE TABLE IF NOT EXISTS `exmachinis`.`agents` (
-  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `agent_id` INT(10) UNSIGNED NOT NULL,
+  `user_id` INT(10) UNSIGNED NOT NULL,
   `name` VARCHAR(255) NOT NULL,
   `vm` MEDIUMBLOB NULL DEFAULT NULL,
   `input` LONGTEXT NULL DEFAULT NULL,
@@ -31,7 +32,13 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`agents` (
   `subject` VARCHAR(2048) NULL DEFAULT NULL,
   `object_id` INT(11) NOT NULL DEFAULT '187' COMMENT 'This is the ID of the static obect where the drone is located.',
   `hull_type` INT(2) UNSIGNED NULL COMMENT 'This is the ID of the drone\'s hull type.',
-  PRIMARY KEY (`id`))
+  PRIMARY KEY (`agent_id`),
+  INDEX `fk_user_id_idx` (`user_id` ASC) VISIBLE,
+  CONSTRAINT `fk_user_id`
+    FOREIGN KEY (`user_id`)
+    REFERENCES `exmachinis`.`users` (`user_id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
 ENGINE = InnoDB
 AUTO_INCREMENT = 46
 DEFAULT CHARACTER SET = utf8mb4
@@ -131,7 +138,7 @@ COLLATE = utf8mb4_unicode_ci;
 DROP TABLE IF EXISTS `exmachinis`.`users` ;
 
 CREATE TABLE IF NOT EXISTS `exmachinis`.`users` (
-  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` INT(10) UNSIGNED NOT NULL,
   `name` VARCHAR(255) NOT NULL,
   `email` VARCHAR(255) NOT NULL,
   `password` VARCHAR(255) NULL DEFAULT NULL,
@@ -139,8 +146,8 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`users` (
   `created_at` TIMESTAMP NULL DEFAULT NULL,
   `updated_at` TIMESTAMP NULL DEFAULT NULL,
   `credits` INT(10) UNSIGNED NULL COMMENT 'This is the amount of credits the player owns.',
-  PRIMARY KEY (`id`),
-  UNIQUE INDEX `users_email_unique` (`email` ASC))
+  PRIMARY KEY (`user_id`),
+  UNIQUE INDEX `users_email_unique` (`email` ASC) VISIBLE)
 ENGINE = InnoDB
 AUTO_INCREMENT = 19
 DEFAULT CHARACTER SET = utf8mb4
