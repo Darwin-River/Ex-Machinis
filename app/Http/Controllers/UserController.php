@@ -18,7 +18,7 @@ class UserController extends Controller
     {
 
         $currentUsers = User::with('agents')
-            ->orderBy('id', 'desc')
+            ->orderBy('agent_id', 'desc')
             ->get();
         try {
             Mail::send('email.users_report', ['currentUsers' => $currentUsers], function ($message)/* use ($user, $mail)*/ {

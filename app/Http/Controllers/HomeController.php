@@ -76,12 +76,14 @@ class HomeController extends Controller
                             'name' => $mail->fromName,
                             'email' => strtolower($mail->fromAddress),
                         ]);
+                        $last_id = $user->id;
                         $company = new Company();
-                        $company->user_id = $user->id;
+                        //$company->user_id = $user->id;
                         //    $company->name = $data['company_name'];
                         //$company->save();
+                        echo 'creating drones for user ' .  $last_id . '<br/>';
                         //create initial drones:
-                        $companyDrones = $company->generateStartingDrones();
+                        $companyDrones = $company->generateStartingDrones($last_id);
                         $data = [];
                         foreach ($companyDrones as $i => $drone) {
                             $data['drone' . ($i + 1)] = $drone->name;
@@ -97,7 +99,7 @@ class HomeController extends Controller
                         echo 'User already registered: ' . $user->name . '<br/>';
 
                         // Get now all the drones for this user and concatenate their email addresses
-                        $drones = Agent::where('name', $user->name)->get();
+                        $drones = Agent::where('user_id', $user->user_id)->get();
                         $dronesInfo = 'Registration error: your email is already registered with the following drones: ';
 
                         foreach ($drones as $drone) {
@@ -135,8 +137,12 @@ class HomeController extends Controller
                     if (strtolower($mailAddressParts[1]) != getenv('MAIL_HOST'))
                         continue;//this address is from another domain
                     $localAddress = $mailAddressParts[0];
+
+                    echo "received mail from<b>" . $localAddress . '</b><br/>';
+
                     //check if an agent of that name exists
                     $agent = Agent::where(['name' => $localAddress])->first();
+
                     if ($agent == null) {
                         //notify back
                         Mail::raw('Your message was not delivered to ' . $address . " because the address wasn't found or it can't receive mails.", function ($message) use ($mail) {
@@ -146,8 +152,16 @@ class HomeController extends Controller
                         });
                         continue;
                     }
+                    
+
+                    $agent_user = User::where(['user_id' => $agent->user_id])->first();
+
+                    echo "received mail for agent that belongs to<b>" . var_dump($agent_user) . '</b><br/>';
+
+                    echo "Compare<b>" . $mail->fromAddress . ' with ' . $agent_user->email . '</b><br/>';
+
                     //check if user email corresponds with agent
-                    if (trim(strtolower($mail->fromAddress)) != trim(strtolower($agent->user->email))) {
+                    if (trim(strtolower($mail->fromAddress)) != trim(strtolower($agent_user->email))) {
                         //notify back
                         Mail::raw("Your email address doesn't have access to the agent associated with " . $address . ". Please use the address you have registered with.", function ($message) use ($mail) {
                             $message->to($mail->fromAddress, $mail->fromName)
@@ -162,6 +176,9 @@ class HomeController extends Controller
                         $mail_content = $mail->textPlain;
                     else
                         $mail_content = Html2Text::convert($mail->textHtml);
+
+
+                    echo "Inserting command" . $mail_content . '</b><br/>';
 
                     // Extract code and add it to DB 
                     $codeAdded = false;

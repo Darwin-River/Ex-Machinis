@@ -72,12 +72,13 @@ class RegisterController extends Controller
             'email' => $data['email'],
             'password' => bcrypt($data['password']),
         ]);
+        $id = $user->id;
         $company = new Company();
-        $company->user_id = $user->id;
-        $company->name = $data['company_name'];
-        $company->save();
+        //$company->user_id = $user->user_id;
+        //$company->name = $data['company_name'];
+        //$company->save();
         //create initial drones:
-       $company->generateStartingDrones();
+        $company->generateStartingDrones($id);
 
         return $user;
     }

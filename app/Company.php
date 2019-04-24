@@ -41,13 +41,14 @@ class Company extends Model
      * @return array of Agent objects
      *
      */
-    public function generateStartingDrones()
+    public function generateStartingDrones($user_id)
     {
         $orbits = [ Company::EARTH_STATION_OBJECT_ID, Company::MARS_STATION_OBJECT_ID, Company::JUPITER_STATION_OBJECT_ID ];
         $companyDrones = [];
         for ($i = 0; $i < Company::INITIAL_AGENTS; $i++) {
             $agent = new Agent();
             $agent->assignRandomName();
+            $agent->user_id = $user_id;
             //set the orbit
             $agent->object_id = $orbits[$i];
             $agent->save();
