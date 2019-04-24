@@ -23,7 +23,7 @@ USE `exmachinis` ;
 DROP TABLE IF EXISTS `exmachinis`.`users` ;
 
 CREATE TABLE IF NOT EXISTS `exmachinis`.`users` (
-  `user_id` INT(10) UNSIGNED NOT NULL,
+  `user_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(255) NOT NULL,
   `email` VARCHAR(255) NOT NULL,
   `password` VARCHAR(255) NULL DEFAULT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`users` (
   PRIMARY KEY (`user_id`),
   UNIQUE INDEX `users_email_unique` (`email` ASC))
 ENGINE = InnoDB
-AUTO_INCREMENT = 19
+AUTO_INCREMENT = 1
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
@@ -44,7 +44,7 @@ COLLATE = utf8mb4_unicode_ci;
 DROP TABLE IF EXISTS `exmachinis`.`agents` ;
 
 CREATE TABLE IF NOT EXISTS `exmachinis`.`agents` (
-  `agent_id` INT(10) UNSIGNED NOT NULL,
+  `agent_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id` INT(10) UNSIGNED NOT NULL,
   `name` VARCHAR(255) NOT NULL,
   `vm` MEDIUMBLOB NULL DEFAULT NULL,
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`agents` (
     ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
-AUTO_INCREMENT = 46
+AUTO_INCREMENT = 1
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`commands` (
     ON DELETE CASCADE
     ON UPDATE CASCADE)
 ENGINE = InnoDB
-AUTO_INCREMENT = 1438522
+AUTO_INCREMENT = 1
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`migrations` (
   `batch` INT(11) NOT NULL,
   PRIMARY KEY (`id`))
 ENGINE = InnoDB
-AUTO_INCREMENT = 9
+AUTO_INCREMENT = 1
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
