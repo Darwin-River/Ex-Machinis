@@ -216,7 +216,7 @@ ErrorCode_t db_get_agent_email_info(DbConnection_t* connection, EmailInfo_t* ema
 
 /** ****************************************************************************
 
-    @brief          Gets company ID and agent name for a given agent ID
+    @brief          Gets user ID and agent name for a given agent ID
 
     @param[in|out]  Connection info, updated once disconnected
     @param[in|out]  Output parameter where we store whole agent info and receive agent ID
@@ -225,19 +225,6 @@ ErrorCode_t db_get_agent_email_info(DbConnection_t* connection, EmailInfo_t* ema
 
 *******************************************************************************/
 ErrorCode_t db_get_agent_info(DbConnection_t* connection, AgentInfo_t* agent_info);
-
-/** ****************************************************************************
-
-    @brief          Gets user ID for a given agent using its company ID previously obtained
-
-    @param[in|out]  Connection info, updated once disconnected
-    @param[in]      Current agent company's ID 
-    @param[in|out]  Output parameter where we store the user ID once obtained
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_get_agent_user_id(DbConnection_t* connection, int company_id, int* user_id);
 
 /** ****************************************************************************
 

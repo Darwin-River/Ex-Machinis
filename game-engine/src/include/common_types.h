@@ -105,7 +105,6 @@ typedef embed_t forth_t; // redefine old type to new one
 typedef struct
 {
 	int agent_id;
-	int company_id;
 	int user_id;
 	char email_template[MAX_COMMAND_CODE_SIZE+1];
 	char agent_name[MAX_EMAIL_ADDRESS_SIZE+1];
@@ -128,7 +127,7 @@ typedef struct
 typedef struct
 {
 	int agent_id;
-	int company_id;
+	int user_id;
 	char agent_name[MAX_EMAIL_ADDRESS_SIZE+1];
 	char* input_content; // dynamically allocated
 	char subject[MAX_COMMAND_CODE_SIZE+1];
@@ -156,6 +155,10 @@ typedef enum
 	INCLINATION_IDX,
 	ASCENDING_NODE_LONGITUDE_IDX,
 	MEAN_ANGULAR_MOTION_IDX,
+	COMPUTED_ON_IDX,
+	X_COORD_IDX,
+	Y_COORD_IDX,
+	Z_COORD_IDX,
 
 	// Max fields expected
 	MAX_OBJECT_FIELDS

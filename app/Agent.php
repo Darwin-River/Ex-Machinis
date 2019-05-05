@@ -9,16 +9,16 @@ class Agent extends Model
     //NOTE: Agents are the drones
 
     protected $fillable = [
-        'name', 'company_id', "coord_x", "coord_y", "coord_z", "speed_x", "speed_y", "speed_z", "object_id",
+        'name', 'user_id', 'object_id',
     ];
     public $timestamps = false;
 
     /**
-     * Get the company associated with the agent.
+     * Get the user associated with the agent.
      */
-    public function company()
+    public function user()
     {
-        return $this->belongsTo('App\Company');
+        return $this->belongsTo('App\User');
     }
 
     /**
@@ -49,7 +49,7 @@ class Agent extends Model
                 //create new command for this agent
                 $command = new Command();
                 $command->code = trim($matches[$i]);
-                $command->agent_id = $this->id;
+                $command->agent_id = $this->agent_id;
                 $command->save();
                 $commandsCreated = true;
             }
@@ -80,7 +80,7 @@ class Agent extends Model
                     $command = new Command();
                     $command->code = trim($matches[$i]);
                     if(strlen($command->code) > 0) {
-                        $command->agent_id = $this->id;
+                        $command->agent_id = $this->agent_id;
                         $command->subject = $subject;
                         $command->email_content = $command_text;
                         $command->save();
@@ -94,7 +94,7 @@ class Agent extends Model
                 // abort generates and empty command - this empty command means "abort"
                 $command = new Command();
                 $command->code = "";
-                $command->agent_id = $this->id;
+                $command->agent_id = $this->agent_id;
                 $command->subject = $subject;
                 $command->email_content = $command_text;
                 $command->save();

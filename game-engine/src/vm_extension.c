@@ -12,6 +12,7 @@
 
 #include <string.h>
 #include <assert.h>
+#include <limits.h>
 
 #include "vm_extension.h"
 #include "engine.h"
@@ -22,6 +23,7 @@
 
 // x macro to manage callbacks
 #define CALLBACK_XMACRO\
+  X("execute",  vm_ext_execute_cb, true)\
   X("report",   vm_ext_report_cb, true)\
   X("dummy",    vm_ext_dummy_cb,  true)\
 
@@ -114,6 +116,42 @@ static inline double_cell_t udpop(VmExtension_t * const v) {
 static inline sdc_t dpop(VmExtension_t * const v)                     { return udpop(v); }
 static inline void  dpush(VmExtension_t * const v, const sdc_t value) { udpush(v, value); }
 
+/** ****************************************************************************
+
+  @brief      Callback invoked by VM when excute command is issued
+
+  @param[in]  v Current VM extension object
+
+  @return     Execution result
+
+*******************************************************************************/
+static int vm_ext_execute_cb(VmExtension_t * const v) 
+{
+  engine_trace(TRACE_LEVEL_ALWAYS, "Running execute callback"); 
+
+  // Send current buffer content by email
+  //vm_report((VirtualMachine_t*)v->h);
+
+  // pop the latest 2 values present at stack: they will be the protocolId + processMultiplier
+  cell_t protocolId = pop(v);
+  cell_t processMultiplier = pop(v);
+
+  // Build the output message depending on result
+  char executeOutMsg[LINE_MAX];
+
+  if(v->error) {   
+    sprintf(executeOutMsg, "Execute command error");
+  } else {   
+    sprintf(executeOutMsg, 
+      "Execute params: protocol [%d], process multiplier [%d]",
+      protocolId,
+      processMultiplier);
+  }
+
+  embed_puts(v->h, executeOutMsg);
+
+  return 0;
+}
 
 /** ****************************************************************************
 
