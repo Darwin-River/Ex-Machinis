@@ -31,6 +31,10 @@
 #define MAX_OBJECT_TYPE_SIZE     16  
 #define OBJECTS_TIMESTAMP_FORMAT "%Y-%m-%d %T"
 
+// protocols
+#define MAX_PROTOCOL_NAME_SIZE   45
+#define MAX_PROTOCOL_DESCRIPTION_SIZE  255
+
 /******************************* TYPES ***************************************/
 
 //-----------------------------------------------------------------------------
@@ -192,5 +196,35 @@ typedef struct
 	double z;
 	
 } CartesianInfo_t;
+
+
+//-----------------------------------------------------------------------------
+//  PROTOCOLS execution info
+//-----------------------------------------------------------------------------
+
+typedef struct
+{
+	int protocol_id;
+	char protocol_name[MAX_PROTOCOL_NAME_SIZE];
+	char protocol_description[MAX_PROTOCOL_DESCRIPTION_SIZE];
+	int process_multiplier;
+	int bulk_multiplier;
+	
+} ProtocolInfo_t;
+
+// Enum to access the fields returned by the query against protocols table
+typedef enum
+{
+	PROTOCOL_ID_IDX,
+	PROTOCOL_NAME_IDX,
+	PROTOCOL_BULK_MODIFIER_IDX,
+	PROTOCOL_DESCRIPTION_IDX,
+	PROTOCOL_OBSERVABLE_IDX,
+	PROTOCOL_REPORTABLE_IDX,
+
+	// Max fields expected
+	MAX_PROTOCOL_FIELDS
+
+} ProtocolFieldId_t;
 
 #endif // __EM_COMMON_TYPES_MODULE__
