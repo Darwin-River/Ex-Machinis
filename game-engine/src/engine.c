@@ -900,3 +900,20 @@ const char* engine_get_vm_resume_command()
     return (const char*)engine.config.params[VM_RESUME_COMMAND];
 }
 
+/** ****************************************************************************
+
+  @brief      Gets current engine DB connection
+
+  @param[in]  None
+
+  @return     Current DB connection info
+
+*******************************************************************************/
+DbConnection_t* engine_get_db_connection()
+{
+    if(!engine.db_connection.hndl)
+        engine_init_db();
+
+    return &engine.db_connection;
+}
+

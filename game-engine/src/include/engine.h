@@ -305,4 +305,15 @@ const int engine_get_max_cycle_seconds();
 *******************************************************************************/
 const char* engine_get_vm_resume_command();
 
+/** ****************************************************************************
+
+  @brief      Gets current engine DB connection
+
+  @param[in]  None
+
+  @return     Current DB connection info
+
+*******************************************************************************/
+DbConnection_t* engine_get_db_connection();
+
 #endif // __EM_ENGINE_MODULE__
