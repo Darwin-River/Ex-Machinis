@@ -287,4 +287,18 @@ ErrorCode_t db_get_orbit_info(DbConnection_t* connection, ObjectOrbitInfo_t* obj
 *******************************************************************************/
 ErrorCode_t db_get_object_info_by_name(DbConnection_t* connection, char* name, ObjectOrbitInfo_t* object);
 
+/** ****************************************************************************
+
+    @brief          Gets protocol info for a given protocol ID 
+                    (received in IN/OUT protocol parameter)
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in|out]  Output parameter where we store the protocol info obtained
+                    This object contains also current protocol ID to do the search in DB
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_prococol_info(DbConnection_t* connection, ProtocolInfo_t* protocol);
+
 #endif // __EM_DB_MODULE__

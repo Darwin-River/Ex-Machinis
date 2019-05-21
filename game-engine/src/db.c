@@ -1396,3 +1396,91 @@ ErrorCode_t db_get_object_info_by_name(DbConnection_t* connection, char* name, O
 
     return result;
 }
+
+
+/** ****************************************************************************
+
+    @brief          Gets protocol info for a given protocol ID 
+                    (received in IN/OUT protocol parameter)
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in|out]  Output parameter where we store the protocol info obtained
+                    This object contains also current protocol ID to do the search in DB
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_prococol_info(DbConnection_t* connection, ProtocolInfo_t* protocol)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!protocol) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        snprintf(query_text, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT * FROM protocols WHERE id = %d", protocol->protocol_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            // retrieve the result and check that is an only row with a single field
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+
+            if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
+                (mysql_num_fields(db_result) != MAX_PROTOCOL_FIELDS))
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get protocols info for PROTOCOL_ID [%d] "
+                    "(invalid result for query [%s])",
+                    protocol->protocol_id,
+                    query_text);
+
+                result = ENGINE_DB_QUERY_ERROR;
+            } 
+            else 
+            {
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row) 
+                {
+                    // Pick the fields we need
+                    sprintf(protocol->protocol_name, "%s", row[PROTOCOL_NAME_IDX]?row[PROTOCOL_NAME_IDX]:"");
+                    protocol->bulk_multiplier = row[PROTOCOL_BULK_MODIFIER_IDX]?atoi(row[PROTOCOL_BULK_MODIFIER_IDX]):-1;
+                    sprintf(protocol->protocol_description, "%s", row[PROTOCOL_DESCRIPTION_IDX]?row[PROTOCOL_DESCRIPTION_IDX]:"");
+
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "NAME [%s] DESCRIPTION [%s] BULK_MODIFIER [%d] obtained for PROTOCOL_ID [%d]", 
+                        protocol->protocol_name, 
+                        protocol->protocol_description, 
+                        protocol->bulk_multiplier, 
+                        protocol->protocol_id);
+                }
+                else 
+                {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "ERROR: Unable to get protocol info for PROTOCOL_ID [%d] (no row)", 
+                        protocol->protocol_id);
+
+                    result = ENGINE_DB_QUERY_ERROR;
+                }
+            }
+
+            mysql_free_result(db_result);
+        }
+    }
+
+    return result;
+}
