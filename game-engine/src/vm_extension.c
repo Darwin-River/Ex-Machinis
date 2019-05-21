@@ -18,6 +18,7 @@
 #include "engine.h"
 #include "trace.h"
 #include "vm.h"
+#include "db.h"
 
 /******************************* DEFINES *************************************/
 
@@ -141,11 +142,24 @@ static int vm_ext_execute_cb(VmExtension_t * const v)
 
   if(v->error) {   
     sprintf(executeOutMsg, "Execute command error");
-  } else {   
-    sprintf(executeOutMsg, 
-      "Execute params: protocol [%d], process multiplier [%d]",
-      protocolId,
-      processMultiplier);
+  } else { 
+    // Get from DB the rest of information for this protocol ID
+    ProtocolInfo_t protocol;
+    memset(&protocol, 0, sizeof(protocol));
+    protocol.protocol_id = (int)protocolId;
+    protocol.process_multiplier = (int)processMultiplier;
+    
+    ErrorCode_t result = db_get_prococol_info(engine_get_db_connection(), &protocol);  
+
+    if(result == ENGINE_OK) {
+      sprintf(executeOutMsg, 
+        "Executing protocol  <%s>",
+        protocol.protocol_name);
+    } else {
+      sprintf(executeOutMsg, 
+        "Unable to find info at DB for protocol_id [%d]",
+        protocolId);
+    }
   }
 
   embed_puts(v->h, executeOutMsg);
