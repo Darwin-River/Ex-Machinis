@@ -34,6 +34,7 @@
 // protocols
 #define MAX_PROTOCOL_NAME_SIZE   45
 #define MAX_PROTOCOL_DESCRIPTION_SIZE  255
+#define MAX_PROTOCOL_PARAMETERS_NUM  64
 
 /******************************* TYPES ***************************************/
 
@@ -205,10 +206,12 @@ typedef struct
 typedef struct
 {
 	int protocol_id;
+	int parameters_num;
 	char protocol_name[MAX_PROTOCOL_NAME_SIZE];
 	char protocol_description[MAX_PROTOCOL_DESCRIPTION_SIZE];
 	int process_multiplier;
 	int bulk_multiplier;
+	int parameters[MAX_PROTOCOL_PARAMETERS_NUM];
 	
 } ProtocolInfo_t;
 
@@ -217,6 +220,7 @@ typedef enum
 {
 	PROTOCOL_ID_IDX,
 	PROTOCOL_NAME_IDX,
+	PROTOCOL_PARAMETERS_IDX,
 	PROTOCOL_BULK_MODIFIER_IDX,
 	PROTOCOL_DESCRIPTION_IDX,
 	PROTOCOL_OBSERVABLE_IDX,
@@ -226,5 +230,34 @@ typedef enum
 	MAX_PROTOCOL_FIELDS
 
 } ProtocolFieldId_t;
+
+
+//-----------------------------------------------------------------------------
+//  ACTIONS table
+//-----------------------------------------------------------------------------
+
+typedef struct
+{
+	int action_id;
+	int drone_id;
+	int protocol_id;
+	int process_multiplier;
+	unsigned char aborted;
+	
+} Action_t;
+
+// Enum to access the fields returned by the query against protocols table
+typedef enum
+{
+	ACTION_ID_IDX,
+	ACTION_DRONE_ID_IDX,
+	ACTION_PROTOCOL_ID_IDX,
+	ACTION_PROCESS_MULTIPLIER_IDX,
+	ACTION_ABORTED_ID_IDX,
+
+	// Max fields expected
+	MAX_ACTION_FIELDS
+
+} ActionFieldId_t;
 
 #endif // __EM_COMMON_TYPES_MODULE__
