@@ -331,6 +331,7 @@ DROP TABLE IF EXISTS `exmachinis`.`protocols` ;
 CREATE TABLE IF NOT EXISTS `exmachinis`.`protocols` (
   `id` INT(5) UNSIGNED NOT NULL,
   `name` VARCHAR(45) NULL,
+  `parameters` SMALLINT(2) NOT NULL DEFAULT 0,
   `bulk_modifier` INT(5) UNSIGNED NULL,
   `description` VARCHAR(255) NULL,
   `observable` TINYINT NULL,
