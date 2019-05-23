@@ -1458,6 +1458,7 @@ ErrorCode_t db_get_prococol_info(DbConnection_t* connection, ProtocolInfo_t* pro
                 {
                     // Pick the fields we need
                     sprintf(protocol->protocol_name, "%s", row[PROTOCOL_NAME_IDX]?row[PROTOCOL_NAME_IDX]:"");
+                    protocol->parameters_num = row[PROTOCOL_PARAMETERS_IDX]?atoi(row[PROTOCOL_PARAMETERS_IDX]):0;
                     protocol->bulk_multiplier = row[PROTOCOL_BULK_MODIFIER_IDX]?atoi(row[PROTOCOL_BULK_MODIFIER_IDX]):-1;
                     sprintf(protocol->protocol_description, "%s", row[PROTOCOL_DESCRIPTION_IDX]?row[PROTOCOL_DESCRIPTION_IDX]:"");
 
@@ -1481,6 +1482,105 @@ ErrorCode_t db_get_prococol_info(DbConnection_t* connection, ProtocolInfo_t* pro
             mysql_free_result(db_result);
         }
     }
+
+    return result;
+}
+
+
+/** ****************************************************************************
+
+    @brief          Inserts a new action entry
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in|out]  Action info to be inserted
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_insert_action(DbConnection_t* connection, Action_t* action)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result == ENGINE_OK)
+    {
+        // Sanity check
+        if(!action)
+            return ENGINE_INTERNAL_ERROR;
+    }
+
+    char* query_end = query_text;
+
+    query_end += snprintf(query_end, 
+        DB_MAX_SQL_QUERY_LEN, 
+        "INSERT INTO actions (drone, protocol, multiplier, aborted) VALUES(%d, %d, %d, %d)",
+        action->drone_id,
+        action->protocol_id,
+        action->process_multiplier,
+        action->aborted);
+
+    // run it 
+    if (mysql_query(connection->hndl, query_text)) 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+    else 
+    {
+        // Get auto-increment ID
+        action->action_id = mysql_insert_id(connection->hndl);
+
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Action [%d, %d, %d, %d, %d] inserted into DB",
+            action->action_id,
+            action->drone_id,
+            action->protocol_id,
+            action->process_multiplier,
+            action->aborted);
+    }
+
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Aborts an action using its ID
+
+    @param[in|out]  Connection info, updated once disconnected
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_abort_action(DbConnection_t* connection, int action_id)
+{  
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result == ENGINE_OK)
+    {
+        char* query_end = query_text;
+
+        query_end += snprintf(query_end, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "UPDATE actions SET aborted = 1 WHERE ID = %d",
+            action_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "Action [%d] aborted", action_id);
+        }
+    }        
 
     return result;
 }

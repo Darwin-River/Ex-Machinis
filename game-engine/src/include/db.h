@@ -301,4 +301,27 @@ ErrorCode_t db_get_object_info_by_name(DbConnection_t* connection, char* name, O
 *******************************************************************************/
 ErrorCode_t db_get_prococol_info(DbConnection_t* connection, ProtocolInfo_t* protocol);
 
+/** ****************************************************************************
+
+    @brief          Inserts a new action entry
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in|out]  Action info to be inserted
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_insert_action(DbConnection_t* connection, Action_t* action);
+
+/** ****************************************************************************
+
+    @brief          Aborts an action using its ID
+
+    @param[in|out]  Connection info, updated once disconnected
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_abort_action(DbConnection_t* connection, int action_id);
+
 #endif // __EM_DB_MODULE__
