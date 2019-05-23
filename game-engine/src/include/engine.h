@@ -316,4 +316,15 @@ const char* engine_get_vm_resume_command();
 *******************************************************************************/
 DbConnection_t* engine_get_db_connection();
 
+/** ****************************************************************************
+
+  @brief      Gets current drone ID (drone processing commands)
+
+  @param[in]  None
+
+  @return     Drone ID
+
+*******************************************************************************/
+int engine_get_current_drone_id();
+
 #endif // __EM_ENGINE_MODULE__

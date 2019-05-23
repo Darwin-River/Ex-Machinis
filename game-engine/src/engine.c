@@ -917,3 +917,17 @@ DbConnection_t* engine_get_db_connection()
     return &engine.db_connection;
 }
 
+/** ****************************************************************************
+
+  @brief      Gets current drone ID (drone processing commands)
+
+  @param[in]  None
+
+  @return     Drone ID
+
+*******************************************************************************/
+int engine_get_current_drone_id()
+{
+    return engine.last_agent.object_id;
+}
+
