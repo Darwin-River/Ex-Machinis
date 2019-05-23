@@ -153,11 +153,45 @@ static int vm_ext_execute_cb(VmExtension_t * const v)
 
     if(result == ENGINE_OK) {
       sprintf(executeOutMsg, 
-        "Executing protocol  <%s>",
-        protocol.protocol_name);
+        "Executing protocol  <%s> with <%d> parameters and process multiplier <%d>",
+        protocol.protocol_name, protocol.parameters_num, protocol.process_multiplier);
+
+      // Insert entry in actions table
+      Action_t action;
+      action.drone_id = engine_get_current_drone_id();
+      action.protocol_id = protocol.protocol_id;
+      action.process_multiplier = protocol.process_multiplier;
+      action.aborted = 0;
+
+      db_insert_action(engine_get_db_connection(), &action);
+
+      if(protocol.parameters_num <= MAX_PROTOCOL_PARAMETERS_NUM) {
+        // Store them at array
+        for(int i=0; i < protocol.parameters_num; i++) {
+          protocol.parameters[i] = pop(v);
+          if(v->error) {
+            sprintf(executeOutMsg, 
+              "Unable to get <%d> parameters from stack for protocol_id <%s>",
+              protocol.parameters_num, protocol.protocol_name);
+
+            db_abort_action(engine_get_db_connection(), action.action_id);
+            break;
+          }  
+        }
+
+        if(!v->error) {
+          // Go ahead
+        }  
+
+      } else {
+        sprintf(executeOutMsg, 
+          "Wrong number of protocol parameters <%d> configured for protocol_id <%d>",
+          protocol.parameters_num, protocol.protocol_id);
+      }
+
     } else {
       sprintf(executeOutMsg, 
-        "Unable to find info at DB for protocol_id [%d]",
+        "Unable to find info at DB for protocol_id <%d>",
         protocolId);
     }
   }
