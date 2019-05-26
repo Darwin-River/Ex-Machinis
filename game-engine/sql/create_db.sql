@@ -214,6 +214,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`actions` (
   `multiplier` INT(10) UNSIGNED NULL,
   `aborted` TINYINT NULL,
   `actionscol` VARCHAR(45) NULL,
+  `timestamp` DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC))
 ENGINE = InnoDB;
@@ -238,6 +239,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`events` (
   `new_credits` INT(10) UNSIGNED NULL,
   `new_location` INT(10) UNSIGNED NULL,
   `new_transmission` INT(10) UNSIGNED NULL,
+  `timestamp` DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC))
 ENGINE = InnoDB;
