@@ -340,6 +340,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`protocols` (
   `description` VARCHAR(255) NULL,
   `observable` TINYINT NULL,
   `reportable` TINYINT NULL,
+  `internal` TINYINT NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC))
 ENGINE = InnoDB;
@@ -376,7 +377,8 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`resource_effects` (
   `quantity` INT(5) UNSIGNED NULL,
   `time` INT(5) UNSIGNED NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `id_UNIQUE` (`id` ASC))
+  UNIQUE INDEX `id_UNIQUE` (`id` ASC)
+  INDEX `protocol_idx` (`protocol` ASC))
 ENGINE = InnoDB;
 
 
@@ -395,7 +397,8 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`market_effects` (
   `price` INT(5) UNSIGNED NULL,
   `time` INT(5) UNSIGNED NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `id_UNIQUE` (`id` ASC))
+  UNIQUE INDEX `id_UNIQUE` (`id` ASC)
+  INDEX `protocol_idx` (`protocol` ASC))
 ENGINE = InnoDB;
 
 
@@ -411,7 +414,8 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`location_effects` (
   `location` INT(5) UNSIGNED NULL,
   `time` INT(5) UNSIGNED NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `id_UNIQUE` (`id` ASC))
+  UNIQUE INDEX `id_UNIQUE` (`id` ASC)
+  INDEX `protocol_idx` (`protocol` ASC))
 ENGINE = InnoDB;
 
 
