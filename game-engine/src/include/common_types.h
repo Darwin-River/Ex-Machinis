@@ -212,6 +212,7 @@ typedef struct
 	int process_multiplier;
 	int bulk_multiplier;
 	int parameters[MAX_PROTOCOL_PARAMETERS_NUM];
+	unsigned char internal;
 	
 } ProtocolInfo_t;
 
@@ -225,6 +226,7 @@ typedef enum
 	PROTOCOL_DESCRIPTION_IDX,
 	PROTOCOL_OBSERVABLE_IDX,
 	PROTOCOL_REPORTABLE_IDX,
+	PROTOCOL_INTERNAL_IDX,
 
 	// Max fields expected
 	MAX_PROTOCOL_FIELDS
@@ -260,4 +262,154 @@ typedef enum
 
 } ActionFieldId_t;
 
+//-----------------------------------------------------------------------------
+//  RESOURCES_EFFECTS table
+//-----------------------------------------------------------------------------
+
+typedef struct
+{
+	int resource_effect_id;
+	int drone_id;
+	int resource_id;
+	int protocol_id;
+	int event_type;
+	unsigned char local;
+	unsigned char installed;
+	unsigned char locked;
+	unsigned char deplete;
+	int quantity;
+	int time;
+	
+} ResourceEffect_t;
+
+// Enum with table fields idx
+typedef enum
+{
+	RESOURCE_EFFECT_ID_IDX,
+	RESOURCE_EFFECT_DRONE_ID_IDX,
+	RESOURCE_EFFECT_RESOURCE_ID_IDX,
+	RESOURCE_EFFECT_PROTOCOL_ID_IDX,
+	RESOURCE_EFFECT_EVENT_TYPE_IDX,
+	RESOURCE_EFFECT_LOCAL_IDX,
+	RESOURCE_EFFECT_INSTALLED_IDX,
+	RESOURCE_EFFECT_LOCKED_IDX,
+	RESOURCE_EFFECT_DEPLETE_IDX,
+	RESOURCE_EFFECT_QUANTITY_IDX,
+	RESOURCE_EFFECT_TIME_IDX,
+
+	// Max fields expected
+	MAX_RESOURCE_EFFECT_FIELDS
+
+} ResourceEffectFieldId_t;
+
+
+//-----------------------------------------------------------------------------
+//  MARKET_EFFECTS table
+//-----------------------------------------------------------------------------
+
+typedef struct
+{
+	int market_effect_id;
+	int protocol_id;
+	int event_type;
+	int resource_id;
+	unsigned char upper_limit;
+	int quantity;
+	int price;
+	int time;
+	
+} MarketEffect_t;
+
+// Enum with table fields idx
+typedef enum
+{
+	MARKET_EFFECT_ID_IDX,
+	MARKET_EFFECT_PROTOCOL_ID_IDX,
+	MARKET_EFFECT_EVENT_TYPE_IDX,
+	MARKET_EFFECT_RESOURCE_ID_IDX,
+	MARKET_EFFECT_UPPER_LIMIT_IDX,
+	MARKET_EFFECT_QUANTITY_IDX,
+	MARKET_EFFECT_PRICE_IDX,
+	MARKET_EFFECT_TIME_IDX,
+
+	// Max fields expected
+	MAX_MARKET_EFFECT_FIELDS
+
+} MarketEffectFieldId_t;
+
+//-----------------------------------------------------------------------------
+//  LOCATION_EFFECTS table
+//-----------------------------------------------------------------------------
+
+typedef struct
+{
+	int location_effect_id;
+	int protocol_id;
+	int event_type;
+	int location;
+	int time;
+	
+} LocationEffect_t;
+
+// Enum with table fields idx
+typedef enum
+{
+	LOCATION_EFFECT_ID_IDX,
+	LOCATION_EFFECT_PROTOCOL_ID_IDX,
+	LOCATION_EFFECT_EVENT_TYPE_IDX,
+	LOCATION_EFFECT_LOCATION_IDX,
+	LOCATION_EFFECT_TIME_IDX,
+
+	// Max fields expected
+	MAX_LOCATION_EFFECT_FIELDS
+
+} LocationEffectFieldId_t;
+
+//-----------------------------------------------------------------------------
+//  EVENTS table
+//-----------------------------------------------------------------------------
+
+typedef struct
+{
+	int event_id;
+	int event_type;
+	time_t time;
+	int action_id;
+	unsigned char logged;
+	int drone_id;
+	int resource_id;
+	unsigned char installed;
+	unsigned char locked;
+	int new_quantity;
+	int new_credits;
+	int new_location;
+	int new_transmission;
+	time_t timestamp;
+	
+} Event_t;
+
+// Enum with table fields idx
+typedef enum
+{
+	EVENT_ID_IDX,
+	EVENT_TYPE_IDX,
+	EVENT_TIME_IDX,
+	EVENT_ACTION_IDX,
+	EVENT_LOGGED_IDX,
+	EVENT_DRONE_ID_IDX,
+	EVENT_RESOURCE_ID_IDX,
+	EVENT_INSTALLED_IDX,
+	EVENT_LOCKED_IDX,
+	EVENT_NEW_QUANTITY_IDX,
+	EVENT_NEW_CREDITS_IDX,
+	EVENT_NEW_LOCATION_IDX,
+	EVENT_NEW_TRANSMISSION_IDX,
+	EVENT_TIMESTAMP_IDX,
+
+	// Max fields expected
+	MAX_EVENT_FIELDS
+
+} EventFieldId_t;
+
 #endif // __EM_COMMON_TYPES_MODULE__
+
