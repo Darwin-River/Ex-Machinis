@@ -1461,13 +1461,15 @@ ErrorCode_t db_get_prococol_info(DbConnection_t* connection, ProtocolInfo_t* pro
                     protocol->parameters_num = row[PROTOCOL_PARAMETERS_IDX]?atoi(row[PROTOCOL_PARAMETERS_IDX]):0;
                     protocol->bulk_multiplier = row[PROTOCOL_BULK_MODIFIER_IDX]?atoi(row[PROTOCOL_BULK_MODIFIER_IDX]):-1;
                     sprintf(protocol->protocol_description, "%s", row[PROTOCOL_DESCRIPTION_IDX]?row[PROTOCOL_DESCRIPTION_IDX]:"");
+                    protocol->internal = row[PROTOCOL_INTERNAL_IDX]?atoi(row[PROTOCOL_INTERNAL_IDX]):0;
 
                     engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "NAME [%s] DESCRIPTION [%s] BULK_MODIFIER [%d] obtained for PROTOCOL_ID [%d]", 
+                        "NAME [%s] DESCRIPTION [%s] BULK_MODIFIER [%d] INTERNAL [%d] obtained for PROTOCOL_ID [%d]", 
                         protocol->protocol_name, 
                         protocol->protocol_description, 
                         protocol->bulk_multiplier, 
-                        protocol->protocol_id);
+                        protocol->protocol_id,
+                        protocol->internal);
                 }
                 else 
                 {
@@ -1581,6 +1583,494 @@ ErrorCode_t db_abort_action(DbConnection_t* connection, int action_id)
             engine_trace(TRACE_LEVEL_ALWAYS, "Action [%d] aborted", action_id);
         }
     }        
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief      Gets all the resource effects configured for a given protocol ID
+
+    @param[in]      Connection info, updated once disconnected
+    @param[in]      Protocol Info
+    @param[in|out]  Output buffer where we store the effects found in DB for this protocol
+    @param[in|out]  Output buffer size (number of effects returned)
+
+    @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_resource_effects
+(
+    DbConnection_t* connection, 
+    ProtocolInfo_t* protocol, 
+    ResourceEffect_t** effects, 
+    int* effectsNum
+)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+    MYSQL_RES* db_result = NULL;
+    int fieldsNum = 0;
+    int rowsNum = 0;
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!protocol || !protocol || !effects || !effectsNum) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        // reset entries found
+        *effectsNum = 0;
+
+        snprintf(query_text, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT * FROM resource_effects WHERE protocol = %d", protocol->protocol_id);
+
+        engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
+
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+    }
+
+    if(result == ENGINE_OK)
+    {
+        // retrieve the results
+        db_result = mysql_store_result(connection->hndl);
+
+        if(db_result == NULL)
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Unable to get resource_effects info for PROTOCOL_ID [%d] "
+                "(invalid result for query [%s])",
+                protocol->protocol_id,
+                query_text);
+
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else if((fieldsNum=mysql_num_fields(db_result)) != MAX_RESOURCE_EFFECT_FIELDS) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Invalid fields number from resource_effects for PROTOCOL_ID [%d] "
+                "(expected [%d], obtained [%d], query [%s])",
+                protocol->protocol_id,
+                MAX_RESOURCE_EFFECT_FIELDS,
+                fieldsNum,
+                query_text);
+
+            result = ENGINE_DB_QUERY_ERROR;
+        } 
+        else if((rowsNum=mysql_num_rows(db_result)) <= 0) 
+        {
+            // None entry found is OK (keep default OK)
+            *effectsNum = 0;
+        }
+    }  
+
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+                "[%d] resource_effects found for PROTOCOL_ID [%d]",
+                rowsNum,
+                protocol->protocol_id);
+
+    if((result == ENGINE_OK) && rowsNum)
+    {  
+        // Allocate output effects
+        *effects = malloc(sizeof(ResourceEffect_t) * rowsNum);
+
+        if(!*effects) {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Unable to allocate [%d] output resource_effects for PROTOCOL_ID [%d]",
+                rowsNum,
+                protocol->protocol_id);
+        }
+
+        *effectsNum = rowsNum;
+
+        // iterate results and store them into output buffer
+        for(int effectId=0; effectId < rowsNum; effectId++)
+        {
+            MYSQL_ROW row = mysql_fetch_row(db_result);
+            if(row) 
+            {
+                ResourceEffect_t *currentEffect = (*effects + effectId);
+                // Pick effect fields
+                currentEffect->resource_effect_id = row[RESOURCE_EFFECT_ID_IDX]?atoi(row[RESOURCE_EFFECT_ID_IDX]):0;
+                currentEffect->drone_id = row[RESOURCE_EFFECT_DRONE_ID_IDX]?atoi(row[RESOURCE_EFFECT_DRONE_ID_IDX]):0;
+                currentEffect->resource_id = row[RESOURCE_EFFECT_RESOURCE_ID_IDX]?atoi(row[RESOURCE_EFFECT_RESOURCE_ID_IDX]):0;
+                currentEffect->protocol_id = row[RESOURCE_EFFECT_PROTOCOL_ID_IDX]?atoi(row[RESOURCE_EFFECT_PROTOCOL_ID_IDX]):0;
+                currentEffect->event_type = row[RESOURCE_EFFECT_EVENT_TYPE_IDX]?atoi(row[RESOURCE_EFFECT_EVENT_TYPE_IDX]):0;
+                currentEffect->local = row[RESOURCE_EFFECT_LOCAL_IDX]?atoi(row[RESOURCE_EFFECT_LOCAL_IDX]):0;
+                currentEffect->installed = row[RESOURCE_EFFECT_INSTALLED_IDX]?atoi(row[RESOURCE_EFFECT_INSTALLED_IDX]):0;
+                currentEffect->locked = row[RESOURCE_EFFECT_LOCKED_IDX]?atoi(row[RESOURCE_EFFECT_LOCKED_IDX]):0;
+                currentEffect->deplete = row[RESOURCE_EFFECT_DEPLETE_IDX]?atoi(row[RESOURCE_EFFECT_DEPLETE_IDX]):0;
+                currentEffect->quantity = row[RESOURCE_EFFECT_QUANTITY_IDX]?atoi(row[RESOURCE_EFFECT_QUANTITY_IDX]):0;
+                currentEffect->time = row[RESOURCE_EFFECT_TIME_IDX]?atoi(row[RESOURCE_EFFECT_TIME_IDX]):0;
+
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "Resource effect found "
+                    "ID [%d] DRONE [%d] RESOURCE_ID [%d] EVENT_TYPE [%d] "
+                    "LOCAL [%d] INSTALLED [%d] LOCKED [%d] DEPLETE [%d] QUANTITY [%d] TIME [%d] "
+                    "for PROTOCOL_ID [%d]", 
+                    currentEffect->resource_effect_id, 
+                    currentEffect->drone_id, 
+                    currentEffect->resource_id, 
+                    currentEffect->event_type,
+                    currentEffect->local,
+                    currentEffect->installed,
+                    currentEffect->locked,
+                    currentEffect->deplete,
+                    currentEffect->quantity,
+                    currentEffect->time,
+                    protocol->protocol_id);
+            }
+            else
+            {
+                // unexpected error - abort
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get row [%d] for query [%s] with [%d] rows", 
+                    effectId+1,
+                    query_text,
+                    rowsNum);
+
+                result = ENGINE_DB_QUERY_ERROR;
+
+                // Deallocate resources
+                free(*effects);
+                *effects = NULL;
+                *effectsNum = 0;
+
+                break; // stop for
+            } 
+        }
+    }
+   
+    if(db_result)
+        mysql_free_result(db_result);
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief      Gets all the market effects configured for a given protocol ID
+
+    @param[in]      Connection info, updated once disconnected
+    @param[in]      Protocol Info
+    @param[in|out]  Output buffer where we store the effects found in DB for this protocol
+    @param[in|out]  Output buffer size (number of effects returned)
+
+    @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_market_effects
+(
+    DbConnection_t* connection, 
+    ProtocolInfo_t* protocol, 
+    MarketEffect_t** effects, 
+    int* effectsNum
+)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+    MYSQL_RES* db_result = NULL;
+    int fieldsNum = 0;
+    int rowsNum = 0;
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!protocol || !protocol || !effects || !effectsNum) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        // reset entries found
+        *effectsNum = 0;
+
+        snprintf(query_text, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT * FROM market_effects WHERE protocol = %d", protocol->protocol_id);
+
+        engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
+
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+    }
+
+    if(result == ENGINE_OK)
+    {
+        // retrieve the results
+        db_result = mysql_store_result(connection->hndl);
+
+        if(db_result == NULL)
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Unable to get market_effects info for PROTOCOL_ID [%d] "
+                "(invalid result for query [%s])",
+                protocol->protocol_id,
+                query_text);
+
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else if((fieldsNum=mysql_num_fields(db_result)) != MAX_MARKET_EFFECT_FIELDS) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Invalid fields number from market_effects for PROTOCOL_ID [%d] "
+                "(expected [%d], obtained [%d], query [%s])",
+                protocol->protocol_id,
+                MAX_MARKET_EFFECT_FIELDS,
+                fieldsNum,
+                query_text);
+
+            result = ENGINE_DB_QUERY_ERROR;
+        } 
+        else if((rowsNum=mysql_num_rows(db_result) <= 0)) 
+        {
+            // None entry found is OK (keep default OK)
+            *effectsNum = 0;
+        }
+    }  
+
+    if((result == ENGINE_OK) && effectsNum)
+    {  
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "[%d] market_effects found for PROTOCOL_ID [%d]",
+                        rowsNum,
+                        protocol->protocol_id);
+
+        // Allocate output effects
+        *effects = malloc(sizeof(ResourceEffect_t) * rowsNum);
+
+        if(!*effects) {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Unable to allocate [%d] output market_effects for PROTOCOL_ID [%d]",
+                rowsNum,
+                protocol->protocol_id);
+        }
+
+        *effectsNum = rowsNum;
+
+        // iterate results and store them into output buffer
+        for(int effectId=0; effectId < rowsNum; effectId++)
+        {
+            MYSQL_ROW row = mysql_fetch_row(db_result);
+            if(row) 
+            {
+                MarketEffect_t *currentEffect = (*effects + effectId);
+                // Pick effect fields
+                currentEffect->market_effect_id = row[MARKET_EFFECT_ID_IDX]?atoi(row[MARKET_EFFECT_ID_IDX]):0;
+                currentEffect->protocol_id = row[MARKET_EFFECT_PROTOCOL_ID_IDX]?atoi(row[MARKET_EFFECT_PROTOCOL_ID_IDX]):0;
+                currentEffect->event_type = row[MARKET_EFFECT_EVENT_TYPE_IDX]?atoi(row[MARKET_EFFECT_EVENT_TYPE_IDX]):0;
+                currentEffect->resource_id = row[MARKET_EFFECT_RESOURCE_ID_IDX]?atoi(row[MARKET_EFFECT_RESOURCE_ID_IDX]):0;
+                currentEffect->upper_limit = row[MARKET_EFFECT_UPPER_LIMIT_IDX]?atoi(row[MARKET_EFFECT_UPPER_LIMIT_IDX]):0;
+                currentEffect->quantity = row[MARKET_EFFECT_QUANTITY_IDX]?atoi(row[MARKET_EFFECT_QUANTITY_IDX]):0;
+                currentEffect->price = row[MARKET_EFFECT_PRICE_IDX]?atoi(row[MARKET_EFFECT_PRICE_IDX]):0;
+                currentEffect->time = row[MARKET_EFFECT_TIME_IDX]?atoi(row[MARKET_EFFECT_TIME_IDX]):0;
+
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "Market effect found "
+                    "ID [%d] EVENT_TYPE [%d] RESOURCE_ID [%d] "
+                    "UPPER_LIMIT [%d] QUANTITY [%d] PRICE [%d] TIME [%d] "
+                    "for PROTOCOL_ID [%d]", 
+                    currentEffect->market_effect_id, 
+                    currentEffect->event_type, 
+                    currentEffect->resource_id,
+                    currentEffect->upper_limit,
+                    currentEffect->quantity,
+                    currentEffect->price,
+                    currentEffect->time,
+                    protocol->protocol_id);
+            }
+            else
+            {
+                // unexpected error - abort
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get row [%d] for query [%s] with [%d] rows", 
+                    effectId+1,
+                    query_text,
+                    effectsNum);
+
+                result = ENGINE_DB_QUERY_ERROR;
+
+                // Deallocate resources
+                free(*effects);
+                *effects = NULL;
+                *effectsNum = 0;
+
+                break; // stop for
+            } 
+        }
+    }
+   
+    if(db_result)
+        mysql_free_result(db_result);
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief      Gets all the location effects configured for a given protocol ID
+
+    @param[in]      Connection info, updated once disconnected
+    @param[in]      Protocol Info
+    @param[in|out]  Output buffer where we store the effects found in DB for this protocol
+    @param[in|out]  Output buffer size (number of effects returned)
+
+    @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_location_effects
+(
+    DbConnection_t* connection, 
+    ProtocolInfo_t* protocol, 
+    LocationEffect_t** effects, 
+    int* effectsNum
+)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+    MYSQL_RES* db_result = NULL;
+    int fieldsNum = 0;
+    int rowsNum = 0;
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!protocol || !protocol || !effects || !effectsNum) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        // reset entries found
+        *effectsNum = 0;
+
+        snprintf(query_text, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT * FROM location_effects WHERE protocol = %d", protocol->protocol_id);
+
+        engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
+
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+    }
+
+    if(result == ENGINE_OK)
+    {
+        // retrieve the results
+        db_result = mysql_store_result(connection->hndl);
+
+        if(db_result == NULL)
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Unable to get location_effects info for PROTOCOL_ID [%d] "
+                "(invalid result for query [%s])",
+                protocol->protocol_id,
+                query_text);
+
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else if((fieldsNum=mysql_num_fields(db_result)) != MAX_LOCATION_EFFECT_FIELDS) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Invalid fields number from location_effects for PROTOCOL_ID [%d] "
+                "(expected [%d], obtained [%d], query [%s])",
+                protocol->protocol_id,
+                MAX_LOCATION_EFFECT_FIELDS,
+                fieldsNum,
+                query_text);
+
+            result = ENGINE_DB_QUERY_ERROR;
+        } 
+        else if((rowsNum=mysql_num_rows(db_result) <= 0)) 
+        {
+            // None entry found is OK (keep default OK)
+            *effectsNum = 0;
+        }
+    }  
+
+    if((result == ENGINE_OK) && rowsNum)
+    {  
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "[%d] location_effects found for PROTOCOL_ID [%d]",
+                        rowsNum,
+                        protocol->protocol_id);
+
+        // Allocate output effects
+        *effects = malloc(sizeof(ResourceEffect_t) * rowsNum);
+
+        if(!*effects) {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Unable to allocate [%d] output market_effects for PROTOCOL_ID [%d]",
+                rowsNum,
+                protocol->protocol_id);
+        }
+
+        *effectsNum = rowsNum;
+
+        // iterate results and store them into output buffer
+        for(int effectId=0; effectId < rowsNum; effectId++)
+        {
+            MYSQL_ROW row = mysql_fetch_row(db_result);
+            if(row) 
+            {
+                LocationEffect_t *currentEffect = (*effects + effectId);
+                // Pick effect fields
+                currentEffect->location_effect_id = row[MARKET_EFFECT_ID_IDX]?atoi(row[MARKET_EFFECT_ID_IDX]):0;
+                currentEffect->protocol_id = row[MARKET_EFFECT_PROTOCOL_ID_IDX]?atoi(row[MARKET_EFFECT_PROTOCOL_ID_IDX]):0;
+                currentEffect->event_type = row[MARKET_EFFECT_EVENT_TYPE_IDX]?atoi(row[MARKET_EFFECT_EVENT_TYPE_IDX]):0;
+                currentEffect->location = row[MARKET_EFFECT_RESOURCE_ID_IDX]?atoi(row[MARKET_EFFECT_RESOURCE_ID_IDX]):0;
+                currentEffect->time = row[MARKET_EFFECT_TIME_IDX]?atoi(row[MARKET_EFFECT_TIME_IDX]):0;
+
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "Location effect found "
+                    "ID [%d] EVENT_TYPE [%d] LOCATION [%d] TIME [%d] "
+                    "for PROTOCOL_ID [%d]", 
+                    currentEffect->location_effect_id, 
+                    currentEffect->protocol_id,
+                    currentEffect->event_type,
+                    currentEffect->location,
+                    protocol->protocol_id);
+            }
+            else
+            {
+                // unexpected error - abort
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get row [%d] for query [%s] with [%d] rows", 
+                    effectId+1,
+                    query_text,
+                    effectsNum);
+
+                result = ENGINE_DB_QUERY_ERROR;
+
+                // Deallocate resources
+                free(*effects);
+                *effects = NULL;
+                *effectsNum = 0;
+
+                break; // stop for
+            } 
+        }
+    }
+   
+    if(db_result)
+        mysql_free_result(db_result);
 
     return result;
 }
