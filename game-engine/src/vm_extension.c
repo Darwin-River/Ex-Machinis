@@ -180,9 +180,17 @@ static int vm_ext_execute_cb(VmExtension_t * const v)
         }
 
         if(!v->error) {
-          // Go ahead
-        }  
+          // Go ahead --- pending here to fork the logic depending on internal flag
+          ResourceEffect_t* resourceEffects = NULL;
+          //MarketEffect_t* marketEffects = NULL;
+          //LocationEffect_t* locationEffects = NULL;
+          int effectsNum = 0;
 
+          // TODO: treat each result
+          db_get_resource_effects(engine_get_db_connection(), &protocol, &resourceEffects, &effectsNum);
+          //db_get_market_effects(engine_get_db_connection(), &protocol, &marketEffects, &effectsNum);
+          //db_get_location_effects(engine_get_db_connection(), &protocol, &locationEffects, &effectsNum);
+        }    
       } else {
         sprintf(executeOutMsg, 
           "Wrong number of protocol parameters <%d> configured for protocol_id <%d>",
