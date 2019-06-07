@@ -19,6 +19,7 @@
 #include "trace.h"
 #include "vm.h"
 #include "db.h"
+#include "protocol.h"
 
 /******************************* DEFINES *************************************/
 
@@ -130,78 +131,22 @@ static int vm_ext_execute_cb(VmExtension_t * const v)
 {
   engine_trace(TRACE_LEVEL_ALWAYS, "Running execute callback"); 
 
-  // Send current buffer content by email
-  //vm_report((VirtualMachine_t*)v->h);
-
   // pop the latest 2 values present at stack: they will be the protocolId + processMultiplier
-  cell_t protocolId = pop(v);
-  cell_t processMultiplier = pop(v);
+  cell_t processMultiplier;
+  cell_t protocolId;
+
+  protocolId = pop(v);
+  if(!v->error) processMultiplier = pop(v);
 
   // Build the output message depending on result
   char executeOutMsg[LINE_MAX];
 
   if(v->error) {   
-    sprintf(executeOutMsg, "Execute command error");
+    sprintf(executeOutMsg, "Unable to retrieve protocol info from stack");
   } else { 
-    // Get from DB the rest of information for this protocol ID
-    ProtocolInfo_t protocol;
-    memset(&protocol, 0, sizeof(protocol));
-    protocol.protocol_id = (int)protocolId;
-    protocol.process_multiplier = (int)processMultiplier;
-    
-    ErrorCode_t result = db_get_prococol_info(engine_get_db_connection(), &protocol);  
-
-    if(result == ENGINE_OK) {
-      sprintf(executeOutMsg, 
-        "Executing protocol  <%s> with <%d> parameters and process multiplier <%d>",
-        protocol.protocol_name, protocol.parameters_num, protocol.process_multiplier);
-
-      // Insert entry in actions table
-      Action_t action;
-      action.drone_id = engine_get_current_drone_id();
-      action.protocol_id = protocol.protocol_id;
-      action.process_multiplier = protocol.process_multiplier;
-      action.aborted = 0;
-
-      db_insert_action(engine_get_db_connection(), &action);
-
-      if(protocol.parameters_num <= MAX_PROTOCOL_PARAMETERS_NUM) {
-        // Store them at array
-        for(int i=0; i < protocol.parameters_num; i++) {
-          protocol.parameters[i] = pop(v);
-          if(v->error) {
-            sprintf(executeOutMsg, 
-              "Unable to get <%d> parameters from stack for protocol_id <%s>",
-              protocol.parameters_num, protocol.protocol_name);
-
-            db_abort_action(engine_get_db_connection(), action.action_id);
-            break;
-          }  
-        }
-
-        if(!v->error) {
-          // Go ahead --- pending here to fork the logic depending on internal flag
-          ResourceEffect_t* resourceEffects = NULL;
-          //MarketEffect_t* marketEffects = NULL;
-          //LocationEffect_t* locationEffects = NULL;
-          int effectsNum = 0;
-
-          // TODO: treat each result
-          db_get_resource_effects(engine_get_db_connection(), &protocol, &resourceEffects, &effectsNum);
-          //db_get_market_effects(engine_get_db_connection(), &protocol, &marketEffects, &effectsNum);
-          //db_get_location_effects(engine_get_db_connection(), &protocol, &locationEffects, &effectsNum);
-        }    
-      } else {
-        sprintf(executeOutMsg, 
-          "Wrong number of protocol parameters <%d> configured for protocol_id <%d>",
-          protocol.parameters_num, protocol.protocol_id);
-      }
-
-    } else {
-      sprintf(executeOutMsg, 
-        "Unable to find info at DB for protocol_id <%d>",
-        protocolId);
-    }
+    // Execute protocol and output result (for debugging)
+    protocol_execute((int)protocolId, (int)processMultiplier, v);
+    snprintf(executeOutMsg, LINE_MAX, "%s", protocol_get_result_msg());
   }
 
   embed_puts(v->h, executeOutMsg);
@@ -318,4 +263,25 @@ VmExtension_t* vm_extension_new(void)
   v->o.param          = v;
 
   return v;
+}
+
+/** ****************************************************************************
+
+  @brief      Pops a value from a given VM and returns it
+
+  @param[in]  vmExt      Current VM extension
+  @param[out] outValue   Out buffer where we store value obtained
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_extension_pop(VmExtension_t* vmExt, int* outValue) 
+{
+  if(vmExt && outValue) {
+    *outValue = pop(vmExt);
+    if(!vmExt->error)
+      return ENGINE_OK;
+  }
+
+  return ENGINE_FORTH_EVAL_ERROR;
 }
