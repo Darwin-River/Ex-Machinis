@@ -12,8 +12,7 @@ LDFLAGS=-lmysqlclient -lconfig -lm
 #---------------------------------------------------------------------------
 # Program sources and name
 #---------------------------------------------------------------------------
-#SRCS=main.c libforth.c db.c trace.c engine.c config.c vm.c email.c
-SRCS=main.c embed.c embed_util.c embed_image.c db.c trace.c engine.c config.c vm.c email.c vm_extension.c orbits.c
+SRCS := $(wildcard *.c)
 OBJS_PATH=objs
 OBJS=$(patsubst %.c,$(OBJS_PATH)/%.o,$(SRCS))
 
@@ -30,6 +29,7 @@ $(OBJS_PATH)/%.o: %.c
 	$(CXX) $(CFLAGS) -c $< -o $@
 
 $(EXE_NAME): $(OBJS)
+	@echo $(SRCS)
 	$(CXX) -o $(EXE_NAME) $(OBJS) $(LDFLAGS)
 	@mkdir -p $(EXE_PATH)
 	mv $(EXE_NAME) $(EXE_PATH)
