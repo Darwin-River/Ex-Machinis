@@ -109,14 +109,84 @@ ErrorCode_t protocol_generate_action(ProtocolInfo_t *protocol, Action_t *action)
 
 /** ****************************************************************************
 
-  @brief      Process resource events for current protocol
+  @brief      Process a single resource effect
 
   @param[in]  protocol  Whole protocol info
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_process_resource_events(ProtocolInfo_t *protocol) 
+ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect) 
+{
+  ErrorCode_t result = ENGINE_OK;
+
+  if(effect) {
+    
+  } else {
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol resource effect (NULL effect)"); 
+    result = ENGINE_INTERNAL_ERROR;
+  }
+
+  return result;
+}
+
+/** ****************************************************************************
+
+  @brief      Process a single market effect
+
+  @param[in]  protocol  Whole protocol info
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t protocol_process_market_effect(MarketEffect_t *effect) 
+{
+  ErrorCode_t result = ENGINE_OK;
+
+  if(effect) {
+    
+  } else {
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol market effect (NULL effect)"); 
+    result = ENGINE_INTERNAL_ERROR;
+  }
+
+  return result;
+}
+
+/** ****************************************************************************
+
+  @brief      Process a single location effect
+
+  @param[in]  protocol  Whole protocol info
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t protocol_process_location_effect(MarketEffect_t *effect) 
+{
+  ErrorCode_t result = ENGINE_OK;
+
+  if(effect) {
+    
+  } else {
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol location effect (NULL effect)"); 
+    result = ENGINE_INTERNAL_ERROR;
+  }
+
+  return result;
+}
+
+/** ****************************************************************************
+
+  @brief      Process resource effects for current protocol
+
+  @param[in]  protocol  Whole protocol info
+  @param[in]  action_id Current action ID
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t protocol_process_resource_effects(ProtocolInfo_t *protocol, int action_id) 
 {
   ErrorCode_t result = ENGINE_OK;
 
@@ -125,8 +195,23 @@ ErrorCode_t protocol_process_resource_events(ProtocolInfo_t *protocol)
     int effectsNum = 0;
 
     db_get_resource_effects(protocol, &resourceEffects, &effectsNum);
+
+    for(int effectId=0; effectId < effectsNum; effectId++) {
+      result = protocol_process_resource_effect(&resourceEffects[effectId]);
+
+      if(result != ENGINE_OK) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process resource effect [%d] for protocol [%s]",
+          resourceEffects[effectId].resource_effect_id,
+          protocol->protocol_name);
+
+        // Stop when any error is detected for this protocol   
+        break;
+      } else {
+        // Insert event for current action (pass it as parameter)
+      }
+    }
   } else {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol resource events (NULL protocol)"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol resource effects (NULL protocol)"); 
     result = ENGINE_INTERNAL_ERROR;
   }
 
@@ -135,14 +220,15 @@ ErrorCode_t protocol_process_resource_events(ProtocolInfo_t *protocol)
 
 /** ****************************************************************************
 
-  @brief      Process market events for current protocol
+  @brief      Process market effects for current protocol
 
   @param[in]  protocol  Whole protocol info
+  @param[in]  action_id Current action ID
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_process_market_events(ProtocolInfo_t *protocol) 
+ErrorCode_t protocol_process_market_effects(ProtocolInfo_t *protocol, int action_id) 
 {
   ErrorCode_t result = ENGINE_OK;
 
@@ -151,7 +237,7 @@ ErrorCode_t protocol_process_market_events(ProtocolInfo_t *protocol)
     //int effectsNum = 0;
     //db_get_market_effects(&protocol, &marketEffects, &effectsNum);
   } else {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol market events (NULL protocol)"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol market effects (NULL protocol)"); 
     result = ENGINE_INTERNAL_ERROR;
   }
 
@@ -160,14 +246,15 @@ ErrorCode_t protocol_process_market_events(ProtocolInfo_t *protocol)
 
 /** ****************************************************************************
 
-  @brief      Process location events for current protocol
+  @brief      Process location effects for current protocol
 
   @param[in]  protocol  Whole protocol info
+  @param[in]  action_id Current action ID
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_process_location_events(ProtocolInfo_t *protocol) 
+ErrorCode_t protocol_process_location_effects(ProtocolInfo_t *protocol, int action_id) 
 {
   ErrorCode_t result = ENGINE_OK;
 
@@ -176,7 +263,7 @@ ErrorCode_t protocol_process_location_events(ProtocolInfo_t *protocol)
     //int effectsNum = 0;
     //db_get_location_effects(&protocol, &locationEffects, &effectsNum);
   } else {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol location events (NULL protocol)"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol location effects (NULL protocol)"); 
     result = ENGINE_INTERNAL_ERROR;
   }
 
@@ -185,28 +272,29 @@ ErrorCode_t protocol_process_location_events(ProtocolInfo_t *protocol)
 
 /** ****************************************************************************
 
-  @brief      Process events for current protocol
+  @brief      Process effects for current protocol
 
   @param[in]  protocol  Whole protocol info
+  @param[in]  action_id Current action ID
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_process_events(ProtocolInfo_t *protocol) 
+ErrorCode_t protocol_process_effects(ProtocolInfo_t *protocol, int action_id) 
 {
   ErrorCode_t result = ENGINE_OK;
 
   if(protocol) {
-    result = protocol_process_resource_events(protocol);
+    result = protocol_process_resource_effects(protocol, action_id);
 
     if(result == ENGINE_OK)
-      result = protocol_process_market_events(protocol);
+      result = protocol_process_market_effects(protocol, action_id);
 
     if(result == ENGINE_OK)
-      result = protocol_process_location_events(protocol);
+      result = protocol_process_location_effects(protocol, action_id);
 
   } else {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol events (NULL protocol)"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol effects (NULL protocol)"); 
     result = ENGINE_INTERNAL_ERROR;
   }
 
@@ -278,14 +366,18 @@ ErrorCode_t protocol_execute(int protocolId, int multiplier, VmExtension_t* vmEx
     if(protocol.internal) {
       result = protocol_process_internal(&protocol);
     } else {
-      result = protocol_process_events(&protocol);
+      // Check operation effects
+      result = protocol_process_effects(&protocol, action.action_id);
     }
   }   
 
   // Abort action when something failed
   if((result != ENGINE_OK) && (actionCreated == ENGINE_TRUE)) {
-    db_abort_action(action.action_id);
     sprintf(protocolMsg, "Protocol \"%s\" failed", protocol.protocol_name);
+    // delete any event for current action
+    // 
+    // abort action
+    db_abort_action(action.action_id);
   } else {
     sprintf(protocolMsg, "Protocol \"%s\" succesfully executed", protocol.protocol_name);
   }
