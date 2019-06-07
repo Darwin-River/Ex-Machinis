@@ -292,43 +292,40 @@ ErrorCode_t db_get_object_info_by_name(DbConnection_t* connection, char* name, O
     @brief          Gets protocol info for a given protocol ID 
                     (received in IN/OUT protocol parameter)
 
-    @param[in|out]  Connection info, updated once disconnected
     @param[in|out]  Output parameter where we store the protocol info obtained
                     This object contains also current protocol ID to do the search in DB
 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_prococol_info(DbConnection_t* connection, ProtocolInfo_t* protocol);
+ErrorCode_t db_get_prococol_info(ProtocolInfo_t* protocol);
 
 /** ****************************************************************************
 
     @brief          Inserts a new action entry
 
-    @param[in|out]  Connection info, updated once disconnected
     @param[in|out]  Action info to be inserted
 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_insert_action(DbConnection_t* connection, Action_t* action);
+ErrorCode_t db_insert_action(Action_t* action);
 
 /** ****************************************************************************
 
     @brief          Aborts an action using its ID
 
-    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      action_id Action to be aborted
 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_abort_action(DbConnection_t* connection, int action_id);
+ErrorCode_t db_abort_action(int action_id);
 
 /** ****************************************************************************
 
     @brief      Gets all the resource effects configured for a given protocol ID
 
-    @param[in]      Connection info, updated once disconnected
     @param[in]      Protocol Info
     @param[in|out]  Output buffer where we store the effects found in DB for this protocol
     @param[in|out]  Output buffer size (number of effects returned)
@@ -338,7 +335,6 @@ ErrorCode_t db_abort_action(DbConnection_t* connection, int action_id);
 *******************************************************************************/
 ErrorCode_t db_get_resource_effects
 (
-    DbConnection_t* connection, 
     ProtocolInfo_t* protocol, 
     ResourceEffect_t** effects, 
     int* effectsNum
@@ -348,7 +344,6 @@ ErrorCode_t db_get_resource_effects
 
     @brief      Gets all the market effects configured for a given protocol ID
 
-    @param[in]      Connection info, updated once disconnected
     @param[in]      Protocol Info
     @param[in|out]  Output buffer where we store the effects found in DB for this protocol
     @param[in|out]  Output buffer size (number of effects returned)
@@ -357,8 +352,7 @@ ErrorCode_t db_get_resource_effects
 
 *******************************************************************************/
 ErrorCode_t db_get_market_effects
-(
-    DbConnection_t* connection, 
+( 
     ProtocolInfo_t* protocol, 
     MarketEffect_t** effects, 
     int* effectsNum
@@ -368,7 +362,6 @@ ErrorCode_t db_get_market_effects
 
     @brief      Gets all the location effects configured for a given protocol ID
 
-    @param[in]      Connection info, updated once disconnected
     @param[in]      Protocol Info
     @param[in|out]  Output buffer where we store the effects found in DB for this protocol
     @param[in|out]  Output buffer size (number of effects returned)
@@ -378,7 +371,6 @@ ErrorCode_t db_get_market_effects
 *******************************************************************************/
 ErrorCode_t db_get_location_effects
 (
-    DbConnection_t* connection, 
     ProtocolInfo_t* protocol, 
     LocationEffect_t** effects, 
     int* effectsNum
