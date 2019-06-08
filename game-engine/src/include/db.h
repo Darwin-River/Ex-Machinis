@@ -302,6 +302,32 @@ ErrorCode_t db_get_prococol_info(ProtocolInfo_t* protocol);
 
 /** ****************************************************************************
 
+    @brief          Gets resource info for a given resource ID 
+                    (received in IN/OUT protocol parameter)
+
+    @param[in|out]  Output parameter where we store the resource info obtained
+                    This object contains (as input) current resource ID to do the search in DB
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_resource_info(Resource_t* resource);
+
+/** ****************************************************************************
+
+    @brief          Gets event type info for a given event type ID 
+                    (received in IN/OUT protocol parameter)
+
+    @param[in|out]  Output parameter where we store the event type info obtained
+                    This object contains (as input) current event type ID to do the search in DB
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_event_type_info(EventType_t* event_type);
+
+/** ****************************************************************************
+
     @brief          Inserts a new action entry
 
     @param[in|out]  Action info to be inserted
@@ -375,5 +401,16 @@ ErrorCode_t db_get_location_effects
     LocationEffect_t** effects, 
     int* effectsNum
 );
+
+/** ****************************************************************************
+
+    @brief          Deletes all events currently associated with a given action ID
+
+    @param[in]      Input action ID
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_delete_action_events(int action_id);
 
 #endif // __EM_DB_MODULE__
