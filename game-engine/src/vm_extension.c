@@ -285,3 +285,26 @@ ErrorCode_t vm_extension_pop(VmExtension_t* vmExt, int* outValue)
 
   return ENGINE_FORTH_EVAL_ERROR;
 }
+
+/** ****************************************************************************
+
+  @brief      Push a value into VM stack
+
+  @param[in]  vmExt      Current VM extension
+  @param[in]  outValue   Value to be pushed into stack
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_extension_push(VmExtension_t* vmExt, int inValue) 
+{
+  if(vmExt) {
+    push(vmExt, (cell_t)inValue);
+    if(!vmExt->error) {
+      engine_trace(TRACE_LEVEL_ALWAYS, "Value [%d] pushed into stack", inValue); 
+      return ENGINE_OK;
+    }
+  }
+
+  return ENGINE_FORTH_EVAL_ERROR;
+}
