@@ -109,19 +109,132 @@ ErrorCode_t protocol_generate_action(ProtocolInfo_t *protocol, Action_t *action)
 
 /** ****************************************************************************
 
+  @brief          Validates a given resource ID 
+
+  @param[in|out]  resource   Whole resource info (we pass ID and retrieve the rest of fields)
+
+  @return         Validation result
+
+*******************************************************************************/
+ErrorCode_t protocol_validate_resource_id(Resource_t *resource) 
+{
+  ErrorCode_t result = ENGINE_OK;
+
+  if(resource) {
+    // Check it is at DB
+    result = db_get_resource_info(resource);
+  } else {
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to get resource info (NULL resource)"); 
+    result = ENGINE_INTERNAL_ERROR;
+  }
+
+  return result;
+}
+
+/** ****************************************************************************
+
+  @brief          Validates a given drone ID agains our current drone
+
+  @param[in|out]  drone_id   Drone ID read from DB
+
+  @return         Validation result
+
+*******************************************************************************/
+ErrorCode_t protocol_validate_drone_id(int drone_id) 
+{
+  // Does not care or is our current value => OK
+  if((drone_id == RESOURCE_EFFECT_NULL_DRONE_ID)   || 
+     (drone_id == engine_get_current_drone_id())) {
+
+    return ENGINE_OK;
+  }
+
+  return ENGINE_INTERNAL_ERROR;
+}
+
+/** ****************************************************************************
+
+  @brief          Validates a given event type ID 
+
+  @param[in|out]  event_type   Whole event_type info (we pass ID and retrieve the rest of fields)
+
+  @return         Validation result
+
+*******************************************************************************/
+ErrorCode_t protocol_validate_event_type(EventType_t *event_type) 
+{
+  ErrorCode_t result = ENGINE_OK;
+
+  if(event_type) {
+    // Check it is at DB
+    result = db_get_event_type_info(event_type);
+  } else {
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to get event_type info (NULL event_type)"); 
+    result = ENGINE_INTERNAL_ERROR;
+  }
+
+  return result;
+}
+
+/** ****************************************************************************
+
+  @brief      Validates resource effect info read from DB
+
+  @param[in]  effect    Whole effect info
+
+  @return     Validation result
+
+*******************************************************************************/
+ErrorCode_t protocol_validate_resource_effect(ResourceEffect_t *effect) 
+{
+  ErrorCode_t result = ENGINE_OK;
+
+  if(effect) {
+    Resource_t resource;
+    EventType_t event_type;
+
+    // Check resource
+    resource.resource_id = effect->resource_id;
+    result = protocol_validate_resource_id(&resource);
+    // Check droneID
+    if(result == ENGINE_OK) {
+      result = protocol_validate_drone_id(effect->drone_id);
+    }
+    // Check event type
+    if(result == ENGINE_OK) {
+      event_type.event_type_id = effect->event_type;
+      result = protocol_validate_event_type(&event_type);
+    }
+    // Check local
+    // Check local installed | locked | deplete | quantity | time ???
+  } else {
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to validate resource effect (NULL effect)"); 
+    result = ENGINE_INTERNAL_ERROR;
+  }
+
+  return result;
+}
+
+/** ****************************************************************************
+
   @brief      Process a single resource effect
 
+  @param[in]  effect    Whole effect info
   @param[in]  protocol  Whole protocol info
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect) 
+ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolInfo_t *protocol) 
 {
   ErrorCode_t result = ENGINE_OK;
 
   if(effect) {
-    
+    // We validate resource effect info first
+    result = protocol_validate_resource_effect(effect);
+    if(result == ENGINE_OK) {
+
+    }
   } else {
     engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol resource effect (NULL effect)"); 
     result = ENGINE_INTERNAL_ERROR;
@@ -134,12 +247,13 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect)
 
   @brief      Process a single market effect
 
+  @param[in]  effect    Whole effect info
   @param[in]  protocol  Whole protocol info
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_process_market_effect(MarketEffect_t *effect) 
+ErrorCode_t protocol_process_market_effect(MarketEffect_t *effect, ProtocolInfo_t *protocol) 
 {
   ErrorCode_t result = ENGINE_OK;
 
@@ -157,12 +271,13 @@ ErrorCode_t protocol_process_market_effect(MarketEffect_t *effect)
 
   @brief      Process a single location effect
 
+  @param[in]  effect    Whole effect info
   @param[in]  protocol  Whole protocol info
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_process_location_effect(MarketEffect_t *effect) 
+ErrorCode_t protocol_process_location_effect(MarketEffect_t *effect, ProtocolInfo_t *protocol) 
 {
   ErrorCode_t result = ENGINE_OK;
 
@@ -197,7 +312,7 @@ ErrorCode_t protocol_process_resource_effects(ProtocolInfo_t *protocol, int acti
     db_get_resource_effects(protocol, &resourceEffects, &effectsNum);
 
     for(int effectId=0; effectId < effectsNum; effectId++) {
-      result = protocol_process_resource_effect(&resourceEffects[effectId]);
+      result = protocol_process_resource_effect(&resourceEffects[effectId], protocol);
 
       if(result != ENGINE_OK) {
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process resource effect [%d] for protocol [%s]",
@@ -375,11 +490,13 @@ ErrorCode_t protocol_execute(int protocolId, int multiplier, VmExtension_t* vmEx
   if((result != ENGINE_OK) && (actionCreated == ENGINE_TRUE)) {
     sprintf(protocolMsg, "Protocol \"%s\" failed", protocol.protocol_name);
     // delete any event for current action
-    // 
+    db_delete_action_events(action.action_id);
     // abort action
     db_abort_action(action.action_id);
   } else {
     sprintf(protocolMsg, "Protocol \"%s\" succesfully executed", protocol.protocol_name);
+    // Push action ID into VM stack
+    vm_extension_push(vmExt, action.action_id);
   }
 
   return result;
