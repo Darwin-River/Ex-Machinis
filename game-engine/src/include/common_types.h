@@ -36,6 +36,14 @@
 #define MAX_PROTOCOL_DESCRIPTION_SIZE  255
 #define MAX_PROTOCOL_PARAMETERS_NUM  64
 
+// resources
+#define MAX_RESOURCE_NAME_SIZE          45
+#define MAX_RESOURCE_DESCRIPTION_SIZE   45
+
+// event_types
+#define MAX_EVENT_TYPE_NAME_SIZE  45
+
+
 /******************************* TYPES ***************************************/
 
 //-----------------------------------------------------------------------------
@@ -263,8 +271,63 @@ typedef enum
 } ActionFieldId_t;
 
 //-----------------------------------------------------------------------------
+//  RESOURCES table
+//-----------------------------------------------------------------------------
+
+typedef struct
+{
+	int resource_id;
+	char resource_name[MAX_RESOURCE_NAME_SIZE];
+	char resource_description[MAX_RESOURCE_DESCRIPTION_SIZE];
+	int resource_mass;
+	int resource_capacity;
+	int resource_slot_size;
+	
+} Resource_t;
+
+// Enum to access the fields returned by the query against protocols table
+typedef enum
+{
+	RESOURCE_ID_IDX,
+	RESOURCE_NAME_IDX,
+	RESOURCE_DESCRIPTION_IDX,
+	RESOURCE_MASS_IDX,
+	RESOURCE_CAPACITY_IDX,
+	RESOURCE_SLOT_SIZE_IDX,
+
+	// Max fields expected
+	MAX_RESOURCE_FIELDS
+
+} ResourceFieldId_t;
+
+//-----------------------------------------------------------------------------
+//  EVENT_TYPE table
+//-----------------------------------------------------------------------------
+
+typedef struct
+{
+	int event_type_id;
+	char event_type_name[MAX_EVENT_TYPE_NAME_SIZE];
+
+} EventType_t;
+
+// Enum to access the fields returned by the query against protocols table
+typedef enum
+{
+	EVENT_TYPE_ID_IDX,
+	EVENT_TYPE_NAME_IDX,
+	
+	// Max fields expected
+	MAX_EVENT_TYPE_FIELDS
+
+} EventTypeFieldId_t;
+
+
+//-----------------------------------------------------------------------------
 //  RESOURCES_EFFECTS table
 //-----------------------------------------------------------------------------
+
+#define RESOURCE_EFFECT_NULL_DRONE_ID  0
 
 typedef struct
 {
