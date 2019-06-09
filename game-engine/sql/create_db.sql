@@ -243,7 +243,8 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`events` (
   `timestamp` DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC),
-  INDEX `timestamp_idx` (`timestamp` ASC))
+  INDEX `timestamp_idx` (`timestamp` ASC),
+  INDEX `action_idx` (`action` ASC))
 ENGINE = InnoDB;
 
 
