@@ -221,11 +221,12 @@ ErrorCode_t protocol_validate_resource_effect(ResourceEffect_t *effect)
 
   @param[in]  effect    Whole effect info
   @param[in]  protocol  Whole protocol info
+  @param[in]  action_id Current action ID
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolInfo_t *protocol) 
+ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolInfo_t *protocol, int action_id) 
 {
   ErrorCode_t result = ENGINE_OK;
 
@@ -233,7 +234,23 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
     // We validate resource effect info first
     result = protocol_validate_resource_effect(effect);
     if(result == ENGINE_OK) {
+      // Get previous resource info (if any)
+      Event_t previousEvent;
+      memset(&previousEvent, 0, sizeof(previousEvent));
+      previousEvent.drone_id = engine_get_current_drone_id();
+      previousEvent.resource_id = effect->resource_id;
+      // Get previous quantity (if any, otherwise 0 will be the initial value)
+      db_get_previous_resource_event(&previousEvent);
 
+      // Create new event entry with quantity updated
+      previousEvent.event_type = effect->event_type;
+      previousEvent.action_id = action_id;
+      previousEvent.logged = 1; // TBD: We do not have the observation engine in place yet!!
+      previousEvent.installed = effect->installed;
+      previousEvent.locked = effect->locked;
+      previousEvent.new_quantity += effect->quantity; // add new quantity to existing one
+  
+      result = db_insert_event(&previousEvent);
     }
   } else {
     engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol resource effect (NULL effect)"); 
@@ -312,7 +329,7 @@ ErrorCode_t protocol_process_resource_effects(ProtocolInfo_t *protocol, int acti
     db_get_resource_effects(protocol, &resourceEffects, &effectsNum);
 
     for(int effectId=0; effectId < effectsNum; effectId++) {
-      result = protocol_process_resource_effect(&resourceEffects[effectId], protocol);
+      result = protocol_process_resource_effect(&resourceEffects[effectId], protocol, action_id);
 
       if(result != ENGINE_OK) {
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process resource effect [%d] for protocol [%s]",
@@ -321,9 +338,7 @@ ErrorCode_t protocol_process_resource_effects(ProtocolInfo_t *protocol, int acti
 
         // Stop when any error is detected for this protocol   
         break;
-      } else {
-        // Insert event for current action (pass it as parameter)
-      }
+      } 
     }
   } else {
     engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol resource effects (NULL protocol)"); 
