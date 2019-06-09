@@ -227,7 +227,7 @@ ENGINE = InnoDB;
 DROP TABLE IF EXISTS `exmachinis`.`events` ;
 
 CREATE TABLE IF NOT EXISTS `exmachinis`.`events` (
-  `id` INT(10) UNSIGNED NOT NULL,
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   `event_type` INT(2) UNSIGNED NULL,
   `action` INT(10) UNSIGNED NULL,
   `logged` TINYINT NULL,
@@ -243,7 +243,8 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`events` (
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC),
   INDEX `timestamp_idx` (`timestamp` ASC),
-  INDEX `action_idx` (`action` ASC))
+  INDEX `action_idx` (`action` ASC),
+  INDEX `drone_resource_idx` (`drone` ASC, `resource` ASC))
 ENGINE = InnoDB;
 
 
