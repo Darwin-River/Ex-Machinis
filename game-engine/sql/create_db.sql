@@ -229,7 +229,6 @@ DROP TABLE IF EXISTS `exmachinis`.`events` ;
 CREATE TABLE IF NOT EXISTS `exmachinis`.`events` (
   `id` INT(10) UNSIGNED NOT NULL,
   `event_type` INT(2) UNSIGNED NULL,
-  `time` DATETIME NULL,
   `action` INT(10) UNSIGNED NULL,
   `logged` TINYINT NULL,
   `drone` INT(10) UNSIGNED NULL,
