@@ -38,7 +38,7 @@
 
 // resources
 #define MAX_RESOURCE_NAME_SIZE          45
-#define MAX_RESOURCE_DESCRIPTION_SIZE   45
+#define MAX_RESOURCE_DESCRIPTION_SIZE   1024
 
 // event_types
 #define MAX_EVENT_TYPE_NAME_SIZE  45
@@ -436,7 +436,6 @@ typedef struct
 {
 	int event_id;
 	int event_type;
-	time_t time;
 	int action_id;
 	unsigned char logged;
 	int drone_id;
@@ -456,7 +455,6 @@ typedef enum
 {
 	EVENT_ID_IDX,
 	EVENT_TYPE_IDX,
-	EVENT_TIME_IDX,
 	EVENT_ACTION_IDX,
 	EVENT_LOGGED_IDX,
 	EVENT_DRONE_ID_IDX,
