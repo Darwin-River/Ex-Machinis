@@ -328,6 +328,28 @@ ErrorCode_t db_get_event_type_info(EventType_t* event_type);
 
 /** ****************************************************************************
 
+    @brief          Inserts a new event entry
+
+    @param[in|out]  Event info to be inserted
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_insert_event(Event_t* event);
+
+/** ****************************************************************************
+
+    @brief          Gets last event for a given drone and resource
+
+    @param[in|out]  Event info obtained (drone ID is filled)
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_previous_resource_event(Event_t* event);
+
+/** ****************************************************************************
+
     @brief          Inserts a new action entry
 
     @param[in|out]  Action info to be inserted

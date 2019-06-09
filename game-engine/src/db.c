@@ -2138,9 +2138,11 @@ ErrorCode_t db_get_resource_info(Resource_t* resource)
                 MYSQL_ROW row = mysql_fetch_row(db_result);
                 if(row) 
                 {
+                    engine_trace(TRACE_LEVEL_ALWAYS, "Query [%s] was OK", query_text);
+
                     // Pick the fields we need
-                    sprintf(resource->resource_name, "%s", row[RESOURCE_NAME_IDX]?row[RESOURCE_NAME_IDX]:"");
-                    sprintf(resource->resource_description, "%s", row[RESOURCE_DESCRIPTION_IDX]?row[RESOURCE_DESCRIPTION_IDX]:"");
+                    snprintf(resource->resource_name, MAX_RESOURCE_NAME_SIZE-1, "%s", row[RESOURCE_NAME_IDX]?row[RESOURCE_NAME_IDX]:"");
+                    snprintf(resource->resource_description, MAX_RESOURCE_DESCRIPTION_SIZE-1, "%s", row[RESOURCE_DESCRIPTION_IDX]?row[RESOURCE_DESCRIPTION_IDX]:"");
                     resource->resource_mass = row[RESOURCE_MASS_IDX]?atoi(row[RESOURCE_MASS_IDX]):0;
                     resource->resource_capacity = row[RESOURCE_CAPACITY_IDX]?atoi(row[RESOURCE_CAPACITY_IDX]):0;
                     resource->resource_slot_size = row[RESOURCE_SLOT_SIZE_IDX]?atoi(row[RESOURCE_SLOT_SIZE_IDX]):0;
@@ -2250,6 +2252,188 @@ ErrorCode_t db_get_event_type_info(EventType_t* event_type)
 
             mysql_free_result(db_result);
         }
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Inserts a new event entry
+
+    @param[in|out]  Event info to be inserted
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_insert_event(Event_t* event)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result == ENGINE_OK)
+    {
+        // Sanity check
+        if(!event)
+            return ENGINE_INTERNAL_ERROR;
+    }
+
+    char* query_end = query_text;
+
+    query_end += snprintf(query_end, 
+        DB_MAX_SQL_QUERY_LEN, 
+        "INSERT INTO events "
+        "(event_type, action, logged, drone, resource, installed, locked, new_quantity, new_credits, new_location, new_transmission) "
+        "VALUES(%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d)",
+        event->event_type,
+        event->action_id,
+        event->logged,
+        event->drone_id,
+        event->resource_id,
+        event->installed,
+        event->locked,
+        event->new_quantity,
+        event->new_credits,
+        event->new_location,
+        event->new_transmission);
+
+    // run it 
+    if (mysql_query(connection->hndl, query_text)) 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+    else 
+    {
+        // Get auto-increment ID
+        event->event_id = mysql_insert_id(connection->hndl);
+
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Event [%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d] inserted into DB",
+            event->event_id,
+            event->event_type,
+            event->action_id,
+            event->logged,
+            event->drone_id,
+            event->resource_id,
+            event->installed,
+            event->locked,
+            event->new_quantity,
+            event->new_credits,
+            event->new_location,
+            event->new_transmission,
+            event->timestamp);
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Gets last event for a given drone and resource
+
+    @param[in|out]  Event info obtained (drone ID is filled)
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_previous_resource_event(Event_t* event)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result == ENGINE_OK)
+    {
+        // Sanity check
+        if(!event)
+            return ENGINE_INTERNAL_ERROR;
+    }
+
+    char* query_end = query_text;
+
+    query_end += snprintf(query_end, 
+        DB_MAX_SQL_QUERY_LEN, 
+        "SELECT * from events where drone = %d and resource = %d order by timestamp desc limit 1",
+        event->drone_id,
+        event->resource_id);
+
+    // run it 
+    if (mysql_query(connection->hndl, query_text)) 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+    else 
+    {
+        // retrieve the result and check that is an only row with a single field
+        MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+
+        if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
+            (mysql_num_fields(db_result) != MAX_EVENT_FIELDS))
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Unable to get last drone event info for DRONE_ID [%d] RESOURCE_ID [%d] "
+                "(invalid result for query [%s])",
+                event->drone_id,
+                event->resource_id,
+                query_text);
+
+            result = ENGINE_DB_QUERY_ERROR;
+        } 
+        else 
+        {
+            MYSQL_ROW row = mysql_fetch_row(db_result);
+            if(row) 
+            {
+                // Pick the fields we need
+                event->event_id = row[EVENT_ID_IDX]?atoi(row[EVENT_ID_IDX]):0;
+                event->event_type = row[EVENT_TYPE_IDX]?atoi(row[EVENT_TYPE_IDX]):0;
+                event->action_id = row[EVENT_ACTION_IDX]?atoi(row[EVENT_ACTION_IDX]):0;
+                event->logged = row[EVENT_LOGGED_IDX]?atoi(row[EVENT_LOGGED_IDX]):0;
+                event->installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
+                event->locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
+                event->new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):0;
+                event->new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):0;
+                event->new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):0;
+                event->new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):0;
+               
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "Event read from DB [%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d] "
+                    "for drone_id [%d] resource_id [%d]",
+                    event->event_id,
+                    event->event_type,
+                    event->action_id,
+                    event->logged,
+                    event->installed,
+                    event->locked,
+                    event->new_quantity,
+                    event->new_credits,
+                    event->new_location,
+                    event->new_transmission,
+                    event->timestamp,
+                    event->drone_id,
+                    event->resource_id);
+            }
+            else 
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get previous event info for DRONE_ID [%d] RESOURCE_ID [%d] (no row)", 
+                    event->drone_id,
+                    event->resource_id);
+
+                result = ENGINE_DB_QUERY_ERROR;
+            }
+        }
+
+        mysql_free_result(db_result);
     }
 
     return result;
