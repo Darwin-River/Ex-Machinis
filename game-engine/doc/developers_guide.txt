@@ -1,0 +1,249 @@
+#-------------------------------------------------------------------
+# Introduction
+#-------------------------------------------------------------------
+
+This document details how to work with Ex-Machines game engine from the point of view of a developer and how the daily tasks are done.
+
+The engine is an executable generated from C code.
+
+The C code required to build the engine is under the directory: game-engine/src inside the repository.
+
+We describe here how the code is organized, how it can be compiled and deployed for real life testing.
+
+#-------------------------------------------------------------------
+# Sources structure
+#-------------------------------------------------------------------
+
+The src directory has the following structure:
+
+----------
+ .     
+----------
+
+The root directory contains all the sources (.c files) required to build the engine
+
+----------
+ include 
+---------- 
+
+This folder contains the headers required by the .c files present at the engine. We export here functions, constants, types to make them available for the rest of modules. 
+
+----------
+ embed
+----------
+
+This folder is just the original embed project provided by Richard. 
+It can be built separately to generate a single library.
+The modules required from here are already incorporated (directly) in our engine with name embed_xxxx.c
+Not used at all, kept here just to have a copy of his original project.
+
+----------
+ bin
+----------
+
+This is the temporal output folder where engine executable is generated after being compiled. 
+
+----------
+ objs
+----------
+
+This is temporal folder (not present at repository), where compiled objects are put when building the engine.
+
+#-------------------------------------------------------------------
+# Sources modules
+#-------------------------------------------------------------------
+
+ main.c         : Main entry point to start the engine
+ trace.c        : Tracing module (in charge of logs generation)
+ config.c       : Configuration management. Engine uses the configuration file present under $PLAT_HOME/conf/game-engine.conf
+ engine.c       : Engine core logic. Main loop
+ db.c           : DB access, queries execution. Mysql interface
+ embed_image.c  : Low level routines taken from embed FORTH project
+ embed_util.c   : Low level routines taken from embed FORTH project
+ embed.c        : Low level routines taken from embed FORTH project
+ vm.c           : VM management. This is a high level module to deal with embed project
+ orbits.c       : Orbits maths
+ email.c        : Email delivery (answer user's commands)
+ vm_extension.c : VM extensions. User defined commands that are processed using C routines
+ protocol.c     : Protocols management
+
+#-------------------------------------------------------------------
+# Sources headers
+#------------------------------------------------------------------- 
+
+engine.h       : Engine core module/logic
+config.h       : Configuration management
+email.h        : Email delivery (answer user's commands)
+trace.h        : Tracing module
+embed_util.h   : Low level routines taken from embed FORTH project
+embed.h        : Low level routines taken from embed FORTH project
+vm.h           : VM interface/wrapper for embed project
+orbits.h       : Orbits maths
+protocol.h     : Protocols management
+vm_extension.h : VM extensions management
+db.h           : DB access
+common_types.h : Common stuff shared by all the modules
+ 
+#-------------------------------------------------------------------
+# Deployment
+#-------------------------------------------------------------------
+
+We can work with the codes (compile them) at both servers (advolition & ExMachinis).
+
+At advolition we have the following folder:
+
+/home/forth/workspace
+
+At ExMachinis, the folder is:
+
+/home/forth/workspace/game-engine
+
+There you can update any source file (via SFTP) with your changes and build/update the engine.
+
+The development steps are the following (we always work first at advolition's server, once tested can repeat steps at ExMachinis):
+
+1) Pick the latest codes and put them at your PC (from git)
+2) Modify them using your preferences/editor. Recommended here always to keep a backup of the previous file or just discard   	changes at git if something goes wrong.
+3) Update them via SFTP at the directories detailed above (IMPORTANT: work always at advolition!!!)
+4) Compile them there (new binary is generated)
+5) Stop the engine 
+6) Update new engine-binary
+7) Start the engine
+8) Test it
+
+#-------------------------------------------------------------------
+# Compilation
+#-------------------------------------------------------------------
+
+1) Connect to the remote server
+2) Go to the directory that contains the sources (see directory at previous section depending on the host)
+3) Clean the current build (this steps removes old bin files and objects):
+   
+   > make clean    
+
+
+4) Build again the project, generating an up-to-date binary (named: game-engine)
+
+   > make
+
+5) If the build succeded, you will have the new version of the game-engine executable under: ./bin/game-engine
+
+
+#-------------------------------------------------------------------
+# Compilation examples
+#-------------------------------------------------------------------
+
+Here you have an example of what you should obtain each time you run steps 3) and 4):
+
+
+[forth@advolition] # make clean
+rm -f -rf objs bin
+
+
+
+[forth@advolition] # make 
+
+
+gcc -std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql -D_BSD_SOURCE=1 -DUSE_CUSTOM_EMBED -c protocol.c -o objs/protocol.o
+gcc -std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql -D_BSD_SOURCE=1 -DUSE_CUSTOM_EMBED -c trace.c -o objs/trace.o
+gcc -std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql -D_BSD_SOURCE=1 -DUSE_CUSTOM_EMBED -c db.c -o objs/db.o
+gcc -std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql -D_BSD_SOURCE=1 -DUSE_CUSTOM_EMBED -c config.c -o objs/config.o
+gcc -std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql -D_BSD_SOURCE=1 -DUSE_CUSTOM_EMBED -c embed_image.c -o objs/embed_image.o
+gcc -std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql -D_BSD_SOURCE=1 -DUSE_CUSTOM_EMBED -c email.c -o objs/email.o
+gcc -std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql -D_BSD_SOURCE=1 -DUSE_CUSTOM_EMBED -c embed_util.c -o objs/embed_util.o
+gcc -std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql -D_BSD_SOURCE=1 -DUSE_CUSTOM_EMBED -c main.c -o objs/main.o
+gcc -std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql -D_BSD_SOURCE=1 -DUSE_CUSTOM_EMBED -c vm.c -o objs/vm.o
+gcc -std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql -D_BSD_SOURCE=1 -DUSE_CUSTOM_EMBED -c vm_extension.c -o objs/vm_extension.o
+gcc -std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql -D_BSD_SOURCE=1 -DUSE_CUSTOM_EMBED -c embed.c -o objs/embed.o
+gcc -std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql -D_BSD_SOURCE=1 -DUSE_CUSTOM_EMBED -c engine.c -o objs/engine.o
+gcc -std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql -D_BSD_SOURCE=1 -DUSE_CUSTOM_EMBED -c orbits.c -o objs/orbits.o
+protocol.c trace.c db.c config.c embed_image.c email.c embed_util.c main.c vm.c vm_extension.c embed.c engine.c orbits.c
+gcc -o game-engine objs/protocol.o objs/trace.o objs/db.o objs/config.o objs/embed_image.o objs/email.o objs/embed_util.o objs/main.o objs/vm.o objs/vm_extension.o objs/embed.o objs/engine.o objs/orbits.o -lmysqlclient -lconfig -lm
+mv game-engine bin
+
+
+[forth@advolition] # cd bin
+[forth@advolition] # ls -ltras
+total 100
+92 -rwxr-xr-x 1 forth dev 93104 Jun 28 07:20 game-engine
+ 4 drwxr-xr-x 6 forth dev  4096 Jun 28 07:20 ..
+ 4 drwxr-xr-x 2 forth dev  4096 Jun 28 07:20 .
+  
+
+#-------------------------------------------------------------------
+# Upgrade
+#-------------------------------------------------------------------
+
+Once you have a new version of the game-engine binary (new features added), you can update it as follows:
+
+1) Stop whole system, this stops everything (email handler and game engine):
+
+> stop_system.sh 
+
+2) Go to the deployment directory, where we have the current game-engine version:
+
+> cdex
+
+3) Do a backup of the current game-engine binary (just in case of disaster we can go back to this version):
+
+> cp game-engine game-engine.XXXXXXXX   (normally I put at XXXXXX the date in spanish format , lol)
+
+
+4) Go back to the compilation folder and update the executable with the latest version (just compiled):
+
+
+> cdsrc
+
+> cd bin
+
+> cp game-engine $PLAT_HOME/bin
+
+
+5) Go back to the deployment directory and check that you have there the new version:
+
+
+> cdex
+
+> ls -l game-engine             (this should have the right date, latest version generated)
+
+
+6) Start again the system:
+
+> start_system.sh
+
+
+7) Go to logs and check that nothing is broken and both the engine and email handler are running smoothly:
+
+
+> cdlog
+
+> tail -f  game-engine.log
+
+> tail -f email_handler_YYYYMMDD.log
+
+
+8) If something goes wrong, you will be able to see it here, logs continously restarting, errors, etc,... happy testing !!!!! you
+   can start to test the latest changes added.
+
+
+9) Once tested, you can update the Ex-Machinis server following the same steps, no need to compile there the code, just stopping the system, updating the game-engine binary already generated at advolition (via SFTP) and starting the system again.
+
+SFTP command example (starting at advolition server, assuming we had just tested a valid game-engine version):
+
+
+[forth@advolition] # cdsrc
+/home/forth/workspace
+[forth@advolition] # cd bin
+
+---- Before next steps, you must ensure that the system at Ex-Machinis server is stopped and previous engine backup is done
+
+[forth@advolition] # sftp forth@45.55.171.135    (SFTP session to Ex-Machinis)
+forth@45.55.171.135's password:  xxxxxxxxxxxx  (I can provide it if you do not have this)
+Connected to 45.55.171.135.
+
+
+sftp> cd game-engine/bin
+sftp> put game-engine             (you have updated the binary)
+
+
+---- After this you can go to Ex-Machinis and start the system
