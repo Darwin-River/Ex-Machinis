@@ -2412,6 +2412,8 @@ ErrorCode_t db_get_previous_resource_event(Event_t* event)
                     event->event_type,
                     event->action_id,
                     event->logged,
+                    event->drone_id,
+                    event->resource_id,
                     event->installed,
                     event->locked,
                     event->new_quantity,
