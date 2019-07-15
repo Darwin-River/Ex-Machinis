@@ -120,7 +120,7 @@ typedef struct
 	int agent_id;
 	int user_id;
 	char email_template[MAX_COMMAND_CODE_SIZE+1];
-	char agent_name[MAX_EMAIL_ADDRESS_SIZE+1];
+	char agent_name[MAX_AGENT_NAME_SIZE+1];
 	char agent_email[MAX_EMAIL_ADDRESS_SIZE+1];
 	char user_email_addr[MAX_EMAIL_ADDRESS_SIZE+1];
 	char user_name[MAX_AGENT_NAME_SIZE+1];
@@ -141,7 +141,7 @@ typedef struct
 {
 	int agent_id;
 	int user_id;
-	char agent_name[MAX_EMAIL_ADDRESS_SIZE+1];
+	char agent_name[MAX_AGENT_NAME_SIZE+1];
 	char* input_content; // dynamically allocated
 	char subject[MAX_COMMAND_CODE_SIZE+1];
 	int object_id;

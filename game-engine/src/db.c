@@ -1685,7 +1685,7 @@ ErrorCode_t db_get_resource_effects
     if((result == ENGINE_OK) && rowsNum)
     {  
         // Allocate output effects
-        *effects = malloc(sizeof(ResourceEffect_t) * rowsNum);
+        *effects = (ResourceEffect_t*)malloc(sizeof(ResourceEffect_t) * ((unsigned int)rowsNum));
 
         if(!*effects) {
             engine_trace(TRACE_LEVEL_ALWAYS, 
