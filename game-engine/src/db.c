@@ -2287,11 +2287,12 @@ ErrorCode_t db_insert_event(Event_t* event)
     query_end += snprintf(query_end, 
         DB_MAX_SQL_QUERY_LEN, 
         "INSERT INTO events "
-        "(event_type, action, logged, drone, resource, installed, locked, new_quantity, new_credits, new_location, new_transmission) "
-        "VALUES(%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d)",
+        "(event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_credits, new_location, new_transmission, new_cargo) "
+        "VALUES(%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d)",
         event->event_type,
         event->action_id,
         event->logged,
+        event->outcome,
         event->drone_id,
         event->resource_id,
         event->installed,
@@ -2299,7 +2300,8 @@ ErrorCode_t db_insert_event(Event_t* event)
         event->new_quantity,
         event->new_credits,
         event->new_location,
-        event->new_transmission);
+        event->new_transmission,
+        event->new_cargo);
 
     // run it 
     if (mysql_query(connection->hndl, query_text)) 
@@ -2313,11 +2315,12 @@ ErrorCode_t db_insert_event(Event_t* event)
         event->event_id = mysql_insert_id(connection->hndl);
 
         engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Event [%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d] inserted into DB",
+            "Event [%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d] inserted into DB",
             event->event_id,
             event->event_type,
             event->action_id,
             event->logged,
+            event->outcome,
             event->drone_id,
             event->resource_id,
             event->installed,
@@ -2326,6 +2329,7 @@ ErrorCode_t db_insert_event(Event_t* event)
             event->new_credits,
             event->new_location,
             event->new_transmission,
+            event->new_cargo,
             event->timestamp);
     }
 
@@ -2398,20 +2402,23 @@ ErrorCode_t db_get_previous_resource_event(Event_t* event)
                 event->event_type = row[EVENT_TYPE_IDX]?atoi(row[EVENT_TYPE_IDX]):0;
                 event->action_id = row[EVENT_ACTION_IDX]?atoi(row[EVENT_ACTION_IDX]):0;
                 event->logged = row[EVENT_LOGGED_IDX]?atoi(row[EVENT_LOGGED_IDX]):0;
+                event->outcome = row[EVENT_OUTCOME_IDX]?atoi(row[EVENT_OUTCOME_IDX]):0;
                 event->installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
                 event->locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
                 event->new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):0;
                 event->new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):0;
                 event->new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):0;
                 event->new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):0;
+                event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
                
                 engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "Event read from DB [%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d] "
+                    "Event read from DB [%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d] "
                     "for drone_id [%d] resource_id [%d]",
                     event->event_id,
                     event->event_type,
                     event->action_id,
                     event->logged,
+                    event->outcome,
                     event->drone_id,
                     event->resource_id,
                     event->installed,
@@ -2420,6 +2427,7 @@ ErrorCode_t db_get_previous_resource_event(Event_t* event)
                     event->new_credits,
                     event->new_location,
                     event->new_transmission,
+                    event->new_cargo,
                     event->timestamp,
                     event->drone_id,
                     event->resource_id);

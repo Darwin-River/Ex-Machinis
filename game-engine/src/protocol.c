@@ -180,22 +180,21 @@ ErrorCode_t protocol_validate_event_type(EventType_t *event_type)
 
   @brief      Validates resource effect info read from DB
 
-  @param[in]  effect    Whole effect info
+  @param[in]     effect    Whole effect info
+  @param[in|out] resource  Output resource info obtained when doing validation (resource id provided at input)
 
   @return     Validation result
 
 *******************************************************************************/
-ErrorCode_t protocol_validate_resource_effect(ResourceEffect_t *effect) 
+ErrorCode_t protocol_validate_resource_effect(ResourceEffect_t *effect, Resource_t *resource) 
 {
   ErrorCode_t result = ENGINE_OK;
 
   if(effect) {
-    Resource_t resource;
     EventType_t event_type;
 
     // Check resource
-    resource.resource_id = effect->resource_id;
-    result = protocol_validate_resource_id(&resource);
+    result = protocol_validate_resource_id(resource);
     // Check droneID
     if(result == ENGINE_OK) {
       result = protocol_validate_drone_id(effect->drone_id);
@@ -231,26 +230,27 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
   ErrorCode_t result = ENGINE_OK;
 
   if(effect) {
-    // We validate resource effect info first
-    result = protocol_validate_resource_effect(effect);
+    // We validate resource effect info first (and get whole resource info)
+    Resource_t resource;
+    resource.resource_id = effect->resource_id;
+    result = protocol_validate_resource_effect(effect, &resource);
+     
     if(result == ENGINE_OK) {
-      // Get previous resource info (if any)
-      Event_t previousEvent;
-      memset(&previousEvent, 0, sizeof(previousEvent));
-      previousEvent.drone_id = engine_get_current_drone_id();
-      previousEvent.resource_id = effect->resource_id;
-      // Get previous quantity (if any, otherwise 0 will be the initial value)
-      db_get_previous_resource_event(&previousEvent);
-
-      // Create new event entry with quantity updated
-      previousEvent.event_type = effect->event_type;
-      previousEvent.action_id = action_id;
-      previousEvent.logged = 1; // TBD: We do not have the observation engine in place yet!!
-      previousEvent.installed = effect->installed;
-      previousEvent.locked = effect->locked;
-      previousEvent.new_quantity += effect->quantity; // add new quantity to existing one
+      // We just insert the event indicating the total amount change
+      Event_t newEvent;
+      memset(&newEvent, 0, sizeof(newEvent));
+      newEvent.drone_id = engine_get_current_drone_id();
+      newEvent.resource_id = effect->resource_id;
+      newEvent.event_type = effect->event_type;
+      newEvent.action_id = action_id;
+      newEvent.logged = 1; // TBD: We do not have the observation engine in place yet!!
+      // newEvent.processed = 0; // Default memset()
+      newEvent.installed = effect->installed;
+      newEvent.locked = effect->locked;
+      newEvent.new_quantity = effect->quantity; // here only reflect the change in quantity
+      newEvent.new_cargo = (newEvent.new_quantity * resource.resource_mass); // here we reflect the change in mass units
   
-      result = db_insert_event(&previousEvent);
+      result = db_insert_event(&newEvent);
     }
   } else {
     engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol resource effect (NULL effect)"); 

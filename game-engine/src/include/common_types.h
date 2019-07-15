@@ -438,6 +438,7 @@ typedef struct
 	int event_type;
 	int action_id;
 	unsigned char logged;
+	unsigned char outcome;
 	int drone_id;
 	int resource_id;
 	unsigned char installed;
@@ -446,6 +447,7 @@ typedef struct
 	int new_credits;
 	int new_location;
 	int new_transmission;
+	int new_cargo;
 	time_t timestamp;
 	
 } Event_t;
@@ -457,6 +459,7 @@ typedef enum
 	EVENT_TYPE_IDX,
 	EVENT_ACTION_IDX,
 	EVENT_LOGGED_IDX,
+	EVENT_OUTCOME_IDX,
 	EVENT_DRONE_ID_IDX,
 	EVENT_RESOURCE_ID_IDX,
 	EVENT_INSTALLED_IDX,
@@ -465,6 +468,7 @@ typedef enum
 	EVENT_NEW_CREDITS_IDX,
 	EVENT_NEW_LOCATION_IDX,
 	EVENT_NEW_TRANSMISSION_IDX,
+	EVENT_NEW_CARGO_IDX,
 	EVENT_TIMESTAMP_IDX,
 
 	// Max fields expected
