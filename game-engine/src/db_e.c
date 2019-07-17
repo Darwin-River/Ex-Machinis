@@ -375,8 +375,10 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
 
     if((result == ENGINE_OK) && rowsNum)
     {  
+        engine_trace(TRACE_LEVEL_ALWAYS, "[%d] outcome events found");
+
         // iterate results and delete one by one
-        for(int effectId=0; effectId < rowsNum; effectId++)
+        for(int eventId=0; eventId < rowsNum; eventId++)
         {
 #ifdef ENABLED            
             MYSQL_ROW row = mysql_fetch_row(db_result);
@@ -501,7 +503,7 @@ ErrorCode_t db_purge_old_events()
     if((result == ENGINE_OK) && rowsNum)
     {  
         // iterate results and delete one by one
-        for(int effectId=0; effectId < rowsNum; effectId++)
+        for(int eventId=0; eventId < rowsNum; eventId++)
         {
             MYSQL_ROW row = mysql_fetch_row(db_result);
             if(row) 
