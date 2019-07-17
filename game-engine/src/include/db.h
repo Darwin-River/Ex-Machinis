@@ -435,4 +435,37 @@ ErrorCode_t db_get_location_effects
 *******************************************************************************/
 ErrorCode_t db_delete_action_events(int action_id);
 
+/** ****************************************************************************
+
+    @brief          Purges old events present at DB (older than configurable days value)
+
+    @param[in]      void
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_purge_old_events();
+
+/** ****************************************************************************
+
+    @brief          Deletes event giving event_id
+
+    @param[in]      Input event ID
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_delete_event(int event_id);
+
+/** ****************************************************************************
+
+    @brief          Gets next batch of outcome events
+
+    @param[in]      void
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_outcome_events();
+
 #endif // __EM_DB_MODULE__

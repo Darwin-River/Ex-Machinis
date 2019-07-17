@@ -22,7 +22,7 @@
 
 /******************************* DEFINES *************************************/
 
-#define ENGINE_E_MAX_BUF_SIZE   2048
+#define ENGINE_MAX_BUF_SIZE   2048
 
 /******************************* TYPES ***************************************/
 
@@ -43,6 +43,9 @@ enum
 
     // Logic configuration
     ENGINE_CHECK_TIME,
+    EVENT_EXPIRATION_DAYS,
+    OUTCOME_EVENT_BATCH_SIZE,
+
     // TBD
 
     // Max configured parameters
@@ -316,5 +319,27 @@ DbConnection_t* engine_get_db_connection();
 
 *******************************************************************************/
 int engine_get_current_drone_id();
+
+/** ****************************************************************************
+
+  @brief      Gets the configured value for events expiration days
+
+  @param[in]  None
+  
+  @return     Configured days value or default if not found
+
+*******************************************************************************/
+int engine_get_events_expiration_days();
+
+/** ****************************************************************************
+
+  @brief      Gets the number of outcome events to process per round
+
+  @param[in]  None
+  
+  @return     Configured batch size (number of events)
+
+*******************************************************************************/
+int engine_get_outcome_events_batch_size();
 
 #endif // __EM_E_ENGINE_MODULE__
