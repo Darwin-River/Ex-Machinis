@@ -43,6 +43,8 @@ char conf_param_names[MAX_CONFIG_PARAM+1][MAX_CONF_PARAM_LEN] =
 
     // LOGIC configuration
     "ENGINE_CHECK_TIME",
+    "EVENT_EXPIRATION_DAYS",
+    "OUTCOME_EVENT_BATCH_SIZE",
 };
 
 /******************************* LOCAL FUNCTIONS *****************************/
