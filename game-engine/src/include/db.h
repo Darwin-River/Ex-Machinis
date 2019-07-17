@@ -468,4 +468,15 @@ ErrorCode_t db_delete_event(int event_id);
 *******************************************************************************/
 ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e));
 
+/** ****************************************************************************
+
+    @brief          Gets action information from DB using its ID
+
+    @param[in|out]  action Action information obtained, we will as input the ID to do the search
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_action(Action_t *action);
+
 #endif // __EM_DB_MODULE__
