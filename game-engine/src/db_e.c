@@ -323,12 +323,12 @@ ErrorCode_t db_rollback_transaction(DbConnection_t* connection)
 
     @brief          Gets next batch of outcome events
 
-    @param[in]      void
+    @param[in]      Callback to be invoked when outcome event detected
 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_outcome_events()
+ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 

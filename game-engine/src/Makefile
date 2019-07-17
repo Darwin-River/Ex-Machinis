@@ -13,7 +13,7 @@ LDFLAGS=-lmysqlclient -lconfig -lm
 # Program sources and name
 #---------------------------------------------------------------------------
 GAME_ENGINE_SRCS=config.c db.c email.c embed.c embed_image.c embed_util.c engine.c main.c orbits.c protocol.c trace.c vm.c vm_extension.c
-EVENTS_ENGINE_SRCS=main_e.c engine_e.c config_e.c db_e.c trace.c
+EVENTS_ENGINE_SRCS=main_e.c engine_e.c config_e.c db_e.c trace.c event.c
 OBJS_PATH=objs
 GAME_ENGINE_OBJS=$(patsubst %.c,$(OBJS_PATH)/%.o,$(GAME_ENGINE_SRCS))
 EVENTS_ENGINE_OBJS=$(patsubst %.c,$(OBJS_PATH)/%.o,$(EVENTS_ENGINE_SRCS))

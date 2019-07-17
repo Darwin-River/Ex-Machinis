@@ -16,6 +16,7 @@
 #include <stdarg.h>
 #include <string.h>
 
+#include "event.h"
 #include "engine_e.h"
 #include "db.h"
 
@@ -163,6 +164,20 @@ void engine_stop_all()
     trace_stop(engine.trace_hndl);
 }
 
+/** ****************************************************************************
+
+  @brief      Processing of outcome events callback
+
+  @param[in]  Current event
+
+  @return     void
+
+*******************************************************************************/
+void engine_process_outcome(Event_t* event)
+{
+    // TBD
+}
+
 /******************************* PUBLIC FUNCTIONS ****************************/
 
 /** ****************************************************************************
@@ -274,10 +289,10 @@ ErrorCode_t engine_run()
         // start a transaction
         result = db_start_transaction(&engine.db_connection);
 
-        // process outcome events
+        // process outcome events passing callback
         if(result == ENGINE_OK)
         {
-            result = db_get_outcome_events();
+            result = db_get_outcome_events(engine_process_outcome);
         }
 
         // Purge old events from DB

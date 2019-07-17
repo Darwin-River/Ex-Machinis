@@ -476,5 +476,6 @@ typedef enum
 
 } EventFieldId_t;
 
+
 #endif // __EM_COMMON_TYPES_MODULE__
 
