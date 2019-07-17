@@ -14,7 +14,7 @@
 
 #include "db.h"
 #include "trace.h"
-#include "engine.h"
+#include "engine_e.h"
 
 /******************************* DEFINES *************************************/
 
@@ -61,54 +61,6 @@ ErrorCode_t db_reconnect(DbConnection_t* connection)
 	}
 
 	return result;
-}
-
-/** ****************************************************************************
-
-  @brief          Compares two email subjects to determine if we are on the same email chain
-
-  @param[in]      last_subject    Last email subject
-  @param[in]      current_subject Current email subject
-
-  @return         Boolean result (ENGINE_TRUE: we are on the same chain, ENGINE_FALSE: new chain)
-
-*******************************************************************************/
-Bool_t db_is_same_email_chain(char* last_subject, char* current_subject)
-{
-    Bool_t is_same = ENGINE_FALSE;
-
-    // input pointers checked at calling function
-
-    // If both are the same, no doubt - assume the same
-    if(!strcmp(last_subject, current_subject))
-    {
-        is_same = ENGINE_TRUE;
-    }
-    else
-    {
-        // Check if it is a reply first
-        char* reply_pos = strstr(current_subject, "Re:");
-
-        if(reply_pos)
-        {
-            // Check now if our current subject is the same than last one
-            reply_pos += (strlen("Re:"));
-            char* subject_pos = strstr(reply_pos, last_subject);
-
-            if(subject_pos)
-            {
-                is_same = ENGINE_TRUE;
-            }
-        }
-    }    
-
-    engine_trace(TRACE_LEVEL_ALWAYS, 
-        "Last subject [%s], current [%s] same [%d]", 
-        last_subject,
-        current_subject,
-        is_same);    
-
-    return is_same;
 }
 
 /** ***************************************************************************
@@ -283,664 +235,6 @@ void db_stop(DbConnection_t* connection)
     }
 }
 
-/** ****************************************************************************
-
-    @brief          Gets the next command
-
-    @param[in|out]  Connection info, updated once disconnected
-    @param[in|out]  Command info, command read is stored here once read.
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
-{
-	char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-	// always check connection is alive
-	ErrorCode_t result = db_reconnect(connection);
-
-    // Initialize out command
-    memset(command, 0, sizeof(Command_t));
-    command->command_id = -1;
-
-	snprintf(query_text, 
-        DB_MAX_SQL_QUERY_LEN, 
-        "SELECT id, code, agent_id, subject, email_content FROM commands ORDER BY ID LIMIT 1");
-
-    // run it 
-    if (mysql_query(connection->hndl, query_text)) 
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-        result = ENGINE_DB_QUERY_ERROR;
-    }
-    else 
-    {
-        // retrieve the result
-        MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-
-        if(db_result == NULL)  
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to get next command (no more results)");
-            result = ENGINE_DB_QUERY_ERROR;
-        } 
-        else
-        {
-            MYSQL_ROW row = mysql_fetch_row(db_result);
-            if(row) 
-            {
-                // Read command information
-                command->command_id = atoi(row[0]);
-                command->agent_id = atoi(row[2]);
-                sprintf(command->code, "%s", row[1]);
-                sprintf(command->subject, "%s", row[3]);
-                command->email_content = engine_malloc(strlen(row[4])+1);
-                sprintf(command->email_content, "%s", row[4]);
-
-                engine_trace(TRACE_LEVEL_ALWAYS,
-                	"Command info read from DB: CMD_ID=[%d] COMMAND=[%s] AGENT_ID=[%d] SUBJECT=[%s]",
-                	command->command_id,
-                	command->code,
-                	command->agent_id,
-                    command->subject);
-
-                engine_trace(TRACE_LEVEL_ALWAYS,
-                    "Command info read from DB: EMAIL_CONTENT=[%s]",
-                    command->email_content);
-            }
-            else 
-            {
-            	engine_trace(TRACE_LEVEL_ALWAYS,
-            		"WARNING: No more commands to process");
-
-                result = ENGINE_DB_NOT_FOUND_ERROR;
-            }
-        }
-
-        mysql_free_result(db_result);
-    }
-
-
-	return result;
-}
-
-/** ****************************************************************************
-
-    @brief          Inserts given command info into DB
-
-    @param[in|out]  Connection info, updated once disconnected
-    @param[in|out]  Command info, command to be inserted
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_insert_command(DbConnection_t* connection, Command_t* command)
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    if(result == ENGINE_OK)
-    {
-        // Sanity check
-        if(!command || !command->code || !command->email_content)
-            return ENGINE_INTERNAL_ERROR;
-    }
-
-    char* query_end = query_text;
-
-    query_end += snprintf(query_end, 
-        DB_MAX_SQL_QUERY_LEN, 
-        "INSERT INTO commands (code, agent_id, created_at, updated_at, subject, email_content) VALUES('");
-    
-    query_end += mysql_real_escape_string(connection->hndl, query_end, command->code, strlen(command->code));
-    query_end += snprintf(query_end, 
-        DB_MAX_SQL_QUERY_LEN, 
-        "', %d, NOW(), NOW(), '", 
-        command->agent_id);
-
-    query_end += mysql_real_escape_string(connection->hndl, query_end, command->subject, strlen(command->subject));
-    query_end += snprintf(query_end, 
-        DB_MAX_SQL_QUERY_LEN, 
-        "', '");
-
-    query_end += mysql_real_escape_string(connection->hndl, query_end, command->email_content, strlen(command->email_content));
-    query_end += snprintf(query_end, 
-        DB_MAX_SQL_QUERY_LEN, 
-        "')");
-
-    // run it 
-    if (mysql_query(connection->hndl, query_text)) 
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-        result = ENGINE_DB_QUERY_ERROR;
-    }
-    else 
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Command [%s] inserted into DB", command->code);
-    }
-
-
-    return result;
-}
-
-/** ****************************************************************************
-
-    @brief          Deletes a given command once processed
-
-    @param[in|out]  Connection info, updated once disconnected
-    @param[in|out]  Command info, command to be deleted
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_delete_command(DbConnection_t* connection, Command_t* command)
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    if(result == ENGINE_OK)
-    {
-        // Treat no more commands as OK
-        if(!command || command->command_id < 0)
-            return ENGINE_OK;
-    }
-
-    snprintf(query_text, 
-        DB_MAX_SQL_QUERY_LEN, 
-        "DELETE FROM commands WHERE ID = %d", command->command_id);
-
-    // run it 
-    if (mysql_query(connection->hndl, query_text)) 
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-        result = ENGINE_DB_QUERY_ERROR;
-    }
-    else 
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Command [%d] deleted from DB", command->command_id);
-    }
-
-
-    return result;
-}
-
-/** ****************************************************************************
-
-    @brief          Deletes all resume commands currently stored in DB for a given user
-
-    @param[in|out]  Connection info, updated once disconnected
-    @param[in|out]  agent_id  Current agent ID
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_delete_resume_commands(DbConnection_t* connection, int agent_id)
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    if(result == ENGINE_OK)
-    {
-        snprintf(query_text, 
-            DB_MAX_SQL_QUERY_LEN, 
-            "DELETE FROM commands WHERE AGENT_ID = %d and code = '%s'", 
-            agent_id, engine_get_vm_resume_command());
-
-        // run it 
-        if (mysql_query(connection->hndl, query_text)) 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-        else 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "Resume commands for agent [%d] deleted from DB", agent_id);
-        }
-    }
-
-    return result;
-}
-
-/** ****************************************************************************
-
-    @brief          Checks if there is any pending/paused command already running
-                    for this agent
-
-    @param[in|out]  Connection info, updated once disconnected
-    @param[in|out]  agent_id  Current agent ID
-
-    @return         Checking result boolean
-
-*******************************************************************************/
-Bool_t db_agent_has_running_command(DbConnection_t* connection, int agent_id)
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    Bool_t has_running_command = ENGINE_TRUE;
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    if(result == ENGINE_OK)
-    {
-        snprintf(query_text, 
-            DB_MAX_SQL_QUERY_LEN, 
-            "SELECT count(*) from commands WHERE AGENT_ID = %d and code = '%s'", 
-            agent_id, engine_get_vm_resume_command());
-
-        // run it 
-        if (mysql_query(connection->hndl, query_text)) 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-        }
-        else 
-        {
-            // Result got, check how many commands we obtained
-            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-
-            if(db_result == NULL)  
-            {
-                engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to get [%s] result", query_text);
-            } 
-            else
-            {
-                MYSQL_ROW row = mysql_fetch_row(db_result);
-                if(row) 
-                {
-                    // Get the number
-                    int pending_commands = atoi(row[0]);
-
-                    engine_trace(TRACE_LEVEL_ALWAYS,
-                        "[%d] pending commands for agent [%d]",
-                        pending_commands, agent_id);
-
-                    if(pending_commands <= 0) 
-                    {
-                        has_running_command = ENGINE_FALSE;
-                    }
-
-                    mysql_free_result(db_result);
-                }
-                else
-                {
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "ERROR: Unable to get row for [%s] query", 
-                        query_text);
-                }
-            }
-        }
-    }
-
-    return has_running_command;
-}
-
-/** ****************************************************************************
-
-    @brief          Updates latest command output in DB
-
-    @param[in|out]  Connection info, updated once disconnected
-    @param[in]      Agent ID whose output we want to update
-    @param[in]      Output msg we need to update
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_update_agent_output(DbConnection_t* connection, int agent_id, char* msg)
-{
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    // ignore null msg
-    if(!msg) return ENGINE_INTERNAL_ERROR;
-
-    // Prepare query
-    char query_text[strlen(msg) * 2 + 1 + 64]; // enough buffer
-    size_t buffer_size = strlen(msg)*2 + 1;
-    char* scaped_msg = engine_malloc(buffer_size);
-
-    db_scape_string(connection, msg, strlen(msg), scaped_msg, buffer_size);
-
-    snprintf(query_text, 
-        DB_MAX_SQL_QUERY_LEN, 
-        "UPDATE agents SET OUTPUT = '%s' where AGENT_ID = %d",
-        scaped_msg,
-        agent_id);
-
-    // run it 
-    if (mysql_query(connection->hndl, query_text)) 
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-        result = ENGINE_DB_QUERY_ERROR;
-    }
-    else 
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Updated VM output for agent [%d] with value [%s]", agent_id, msg);
-    }
-
-    engine_free(scaped_msg, buffer_size);
-
-    return result;
-}
-
-/** ****************************************************************************
-
-    @brief          Updates latest input output in DB
-
-    @param[in|out]  Connection info, updated once disconnected
-    @param[in]      Agent ID whose input we want to update
-    @param[in]      Command information including msg and subject
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_update_agent_input(DbConnection_t* connection, int agent_id, Command_t* command)
-{
-    char new_subject[MAX_COMMAND_CODE_SIZE+1];
-    char* new_input = NULL;
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    // ignore null msg
-    if(!command) return ENGINE_INTERNAL_ERROR;
-
-    // Get firstly the current agent info
-    AgentInfo_t agent_info;
-    memset(&agent_info, 0, sizeof(agent_info));
-    agent_info.agent_id = agent_id;
-    result = db_get_agent_info(connection, &agent_info);
-
-    if(result == ENGINE_OK) 
-    {
-        // Check current subject to see if it is a new email chain or not
-        Bool_t same_email_chain = db_is_same_email_chain(agent_info.subject, command->subject);
-        if(same_email_chain == ENGINE_TRUE) 
-        {
-            // Keep subject and update input content
-            sprintf(new_subject, "%s", agent_info.subject);
-            new_input = command->email_content;
-        }
-        else
-        {
-            // New subject and input content
-            sprintf(new_subject, "%s", command->subject);
-            new_input = command->email_content;
-        }
-    }
-
-    if(result == ENGINE_OK) 
-    {
-        // Prepare query to update input and subject
-        size_t query_size = strlen(new_input) + strlen(new_subject) + DB_MAX_SQL_QUERY_LEN;
-        char* query_text = engine_malloc(query_size);
-
-        size_t input_size = strlen(new_input)*2 + 1;
-        char* scaped_input = engine_malloc(input_size);
-
-        db_scape_string(connection, new_input, strlen(new_input), scaped_input, input_size);
-
-        snprintf(query_text, 
-            query_size, 
-            "UPDATE agents SET input = '%s', subject = '%s' where agent_id = %d",
-            scaped_input,
-            new_subject,
-            agent_id);
-
-        // run it 
-        if (mysql_query(connection->hndl, query_text)) 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-        else 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "Updated VM info for agent [%d] with input [%s] subject [%s]", 
-                agent_id, new_input, new_subject);
-        }
-
-        engine_free(query_text, query_size);
-        engine_free(scaped_input, input_size);
-    }
-
-    if(agent_info.input_content)engine_free(agent_info.input_content, strlen(agent_info.input_content)+1);
-
-    return result;
-}
-
-/** ****************************************************************************
-
-    @brief          Gets user ID and agent name for a given agent ID
-
-    @param[in|out]  Connection info, updated once disconnected
-    @param[in|out]  Output parameter where we store whole agent info and receive agent ID
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_get_agent_info(DbConnection_t* connection, AgentInfo_t* agent_info)
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    // sanity check
-    if(result == ENGINE_OK)
-    {
-        if(!agent_info) 
-            return ENGINE_INTERNAL_ERROR;
-    }
-
-    if(result == ENGINE_OK)
-    {
-        snprintf(query_text, 
-            DB_MAX_SQL_QUERY_LEN, 
-            "SELECT user_id, name, subject, input FROM agents WHERE agent_id = %d", agent_info->agent_id);
-
-        // run it 
-        if (mysql_query(connection->hndl, query_text)) 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-        else 
-        {
-            // retrieve the result and check that is an only row with a single field
-            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-
-            if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
-                (mysql_num_fields(db_result) != 4))
-            {
-                engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "ERROR: Unable to get info for agent [%d] (invalid result)",
-                    agent_info->agent_id);
-
-                result = ENGINE_DB_QUERY_ERROR;
-            } 
-            else 
-            {
-                MYSQL_ROW row = mysql_fetch_row(db_result);
-                if(row) 
-                {
-                    // store result - strcpy safely/same size
-                    agent_info->user_id = atoi(row[0]);
-                    sprintf(agent_info->agent_name, "%s", row[1]);
-                    sprintf(agent_info->subject, "%s", row[2]?row[2]:"");
-                    if(row[3]) {
-                        agent_info->input_content = engine_malloc(strlen(row[3])+1);
-                    } else {
-                        agent_info->input_content = engine_malloc(1);
-                    }
-                    sprintf(agent_info->input_content, "%s", row[3]?row[3]:"");
-
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "USER_ID [%d] NAME [%s] SUBJECT [%s] INPUT [%s] obtained for agent [%d]", 
-                        agent_info->user_id, agent_info->agent_name, agent_info->subject, 
-                        agent_info->input_content, agent_info->agent_id);
-                }
-                else 
-                {
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "ERROR: Unable to get info for agent [%d] (no row)", agent_info->agent_id);
-
-                    result = ENGINE_DB_QUERY_ERROR;
-                }
-            }
-
-            mysql_free_result(db_result);
-        }
-    }
-
-    return result;
-}
-
-
-/** ****************************************************************************
-
-    @brief          Gets email and name for a given user ID
-
-    @param[in|out]  Connection info, updated once disconnected
-    @param[in]      Current user ID 
-    @param[in|out]  Output parameter where we store the users's email address
-    @param[in|out]  Output parameter where we store the users's name
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_get_user_info(DbConnection_t* connection, int user_id, char* email, char* name)
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    // sanity check
-    if(result == ENGINE_OK)
-    {
-        if(!email || !name) return ENGINE_INTERNAL_ERROR;
-    }
-
-    if(result == ENGINE_OK)
-    {
-        snprintf(query_text, 
-            DB_MAX_SQL_QUERY_LEN, 
-            "SELECT email, name FROM users WHERE user_id = %d", user_id);
-
-        // run it 
-        if (mysql_query(connection->hndl, query_text)) 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-        else 
-        {
-            // retrieve the result and check that is an only row with a single field
-            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-
-            if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
-                (mysql_num_fields(db_result) != 2))
-            {
-                engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "ERROR: Unable to get EMAIL info for USER_ID [%d] "
-                    "(invalid result for query [%s])",
-                    user_id,
-                    query_text);
-
-                result = ENGINE_DB_QUERY_ERROR;
-            } 
-            else 
-            {
-                MYSQL_ROW row = mysql_fetch_row(db_result);
-                if(row) 
-                {
-                    // store results
-                    strcpy(email, row[0]);
-                    strcpy(name, row[1]);
-
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "EMAIL [%s] NAME [%s] obtained for USER_ID [%d]", 
-                        email, name, user_id);
-                }
-                else 
-                {
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "ERROR: Unable to get EMAIL info for USER_ID [%d] (no row)", 
-                        user_id);
-
-                    result = ENGINE_DB_QUERY_ERROR;
-                }
-            }
-
-            mysql_free_result(db_result);
-        }
-    }
-
-    return result;
-}
-
-/** ****************************************************************************
-
-    @brief          Gets email data for a given agent ID
-
-    @param[in|out]  Connection info, updated once disconnected
-    @param[in|out]  Agent email info, calling function supplies here the agent_id and 
-                    this function fills the rest of the information querying DB
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_get_agent_email_info(DbConnection_t* connection, EmailInfo_t* email_info)
-{
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-    AgentInfo_t agent_info;
-
-    if(result == ENGINE_OK)
-    {
-        // ignore null msg
-        if(!email_info) return ENGINE_INTERNAL_ERROR;
-    }
-
-    if(result == ENGINE_OK)
-    { 
-        // Get agent user ID first
-        memset(&agent_info, 0, sizeof(agent_info));
-        agent_info.agent_id = email_info->agent_id;
-
-        result = db_get_agent_info(connection, &agent_info);
-    }
-
-    if(result == ENGINE_OK)
-    { 
-        // Get email info from agent info + user
-        email_info->user_id = agent_info.user_id;
-        strcpy(email_info->agent_name, agent_info.agent_name);
-        strcpy(email_info->subject, agent_info.subject);
-        email_info->input_content = agent_info.input_content;
-    }
-
-    if(result == ENGINE_OK)
-    { 
-        // Get now email and name
-        result = db_get_user_info(connection,
-                                  email_info->user_id, 
-                                  email_info->user_email_addr,
-                                  email_info->user_name);
-    }
-   
-    return result;
-}
-
 /** ***************************************************************************
 
   @brief          Initiates a transaction (group of queries associated)
@@ -1025,457 +319,34 @@ ErrorCode_t db_rollback_transaction(DbConnection_t* connection)
     return result;
 }
 
-
 /** ****************************************************************************
 
-    @brief          Gets orbit info for a given object ID
+    @brief          Gets next batch of outcome events
 
-    @param[in|out]  Connection info, updated once disconnected
-    @param[in|out]  Output parameter where we store the orbit info obtained from DB
-                    This object contains also current object ID to do the search in DB
+    @param[in]      void
 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_orbit_info(DbConnection_t* connection, ObjectOrbitInfo_t* object)
+ErrorCode_t db_get_outcome_events()
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    // sanity check
-    if(result == ENGINE_OK)
-    {
-        if(!object) return ENGINE_INTERNAL_ERROR;
-    }
-
-    if(result == ENGINE_OK)
-    {
-        snprintf(query_text, 
-            DB_MAX_SQL_QUERY_LEN, 
-            "SELECT * FROM objects WHERE object_id = %d", object->object_id);
-
-        // run it 
-        if (mysql_query(connection->hndl, query_text)) 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-        else 
-        {
-            // retrieve the result and check that is an only row with a single field
-            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-
-            if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
-                (mysql_num_fields(db_result) != MAX_OBJECT_FIELDS))
-            {
-                engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "ERROR: Unable to get orbits info for OBJECT_ID [%d] "
-                    "(invalid result for query [%s])",
-                    object->object_id,
-                    query_text);
-
-                result = ENGINE_DB_QUERY_ERROR;
-            } 
-            else 
-            {
-                MYSQL_ROW row = mysql_fetch_row(db_result);
-                if(row) 
-                {
-                    // Get epoch first and return error if fails
-                    // otherwise just fill the rest of fields
-                    object->epoch = db_date_to_timestamp(row[EPOCH_IDX], OBJECTS_TIMESTAMP_FORMAT);
-
-                    if(!object->epoch) {
-                        engine_trace(TRACE_LEVEL_ALWAYS, 
-                            "ERROR: Unable to get EPOCH info for OBJECT_ID [%d]", 
-                            object->object_id);
-
-                        result = ENGINE_INTERNAL_ERROR;
-
-                    } else {
-                        sprintf(object->object_name, "%s", row[OBJECT_NAME_IDX]?row[OBJECT_NAME_IDX]:"");
-                        sprintf(object->object_type, "%s", row[OBJECT_TYPE_IDX]?row[OBJECT_TYPE_IDX]:"");
-
-                        object->gravitational_parameter = row[GRAVITATIONAL_PARAMETER_IDX]?atof(row[GRAVITATIONAL_PARAMETER_IDX]):-1;
-                        object->central_body_object_id = row[CENTRAL_BODY_OBJECT_ID_IDX]?atoi(row[CENTRAL_BODY_OBJECT_ID_IDX]):-1;
-
-                        object->semimajor_axis = row[SEMIMAJOR_AXIS_IDX]?atof(row[SEMIMAJOR_AXIS_IDX]):-1;
-                        object->eccentricity = row[ECCENTRICITY_IDX]?atof(row[ECCENTRICITY_IDX]):-1;
-                        object->periapsis_argument = row[PERIAPSIS_ARGUMENT_IDX]?atof(row[PERIAPSIS_ARGUMENT_IDX]):-1;
-                        object->mean_anomaly = row[MEAN_ANOMALY_IDX]?atof(row[MEAN_ANOMALY_IDX]):-1;
-                        object->inclination = row[INCLINATION_IDX]?atof(row[INCLINATION_IDX]):-1;
-                        object->ascending_node_longitude = row[ASCENDING_NODE_LONGITUDE_IDX]?atof(row[ASCENDING_NODE_LONGITUDE_IDX]):-1;
-                        object->mean_angular_motion = row[MEAN_ANGULAR_MOTION_IDX]?atof(row[MEAN_ANGULAR_MOTION_IDX]):-1;
-                    }
-
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "NAME [%s] TYPE [%s] obtained for OBJECT_ID [%d]", 
-                        object->object_name, object->object_type, object->object_id);
-                }
-                else 
-                {
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "ERROR: Unable to get orbits info for OBJECT_ID [%d] (no row)", 
-                        object->object_id);
-
-                    result = ENGINE_DB_QUERY_ERROR;
-                }
-            }
-
-            mysql_free_result(db_result);
-        }
-    }
-
-    return result;
-}
-
-
-/** ****************************************************************************
-
-    @brief          Gets earth orbit info
-
-    @param[in|out]  Connection info, updated once disconnected
-    @param[in|out]  name Object name we are looking for
-    @param[in|out]  Output parameter where we store the orbit info obtained from DB
-                    This object contains also current object ID to do the search in DB
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_get_object_info_by_name(DbConnection_t* connection, char* name, ObjectOrbitInfo_t* object)
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    // sanity check
-    if(result == ENGINE_OK)
-    {
-        if(!object || !name) return ENGINE_INTERNAL_ERROR;
-    }
-
-    if(result == ENGINE_OK)
-    {
-        snprintf(query_text, 
-            DB_MAX_SQL_QUERY_LEN, 
-            "SELECT * FROM objects WHERE object_name = '%s'", name);
-
-        // run it 
-        if (mysql_query(connection->hndl, query_text)) 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-        else 
-        {
-            // retrieve the result and check that is an only row with a single field
-            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-
-            if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
-                (mysql_num_fields(db_result) != MAX_OBJECT_FIELDS))
-            {
-                engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "ERROR: Unable to get [%s] orbit info "
-                    "(invalid result for query [%s])",
-                    name, query_text);
-
-                result = ENGINE_DB_QUERY_ERROR;
-            } 
-            else 
-            {
-                MYSQL_ROW row = mysql_fetch_row(db_result);
-                if(row) 
-                {
-                    // Get epoch first and return error if fails
-                    // otherwise just fill the rest of fields
-                    object->epoch = db_date_to_timestamp(row[EPOCH_IDX], OBJECTS_TIMESTAMP_FORMAT);
-
-                    if(!object->epoch) {
-                        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to get EPOCH info for [%s]", name);
-                        result = ENGINE_INTERNAL_ERROR;
-
-                    } else {
-                        // Store object ID 
-                        object->object_id = row[OBJECT_ID_IDX]?atoi(row[OBJECT_ID_IDX]):-1;
-
-                        sprintf(object->object_name, "%s", row[OBJECT_NAME_IDX]?row[OBJECT_NAME_IDX]:"");
-                        sprintf(object->object_type, "%s", row[OBJECT_TYPE_IDX]?row[OBJECT_TYPE_IDX]:"");
-
-                        object->gravitational_parameter = row[GRAVITATIONAL_PARAMETER_IDX]?atof(row[GRAVITATIONAL_PARAMETER_IDX]):-1;
-                        object->central_body_object_id = row[CENTRAL_BODY_OBJECT_ID_IDX]?atoi(row[CENTRAL_BODY_OBJECT_ID_IDX]):-1;
-
-                        object->semimajor_axis = row[SEMIMAJOR_AXIS_IDX]?atof(row[SEMIMAJOR_AXIS_IDX]):-1;
-                        object->eccentricity = row[ECCENTRICITY_IDX]?atof(row[ECCENTRICITY_IDX]):-1;
-                        object->periapsis_argument = row[PERIAPSIS_ARGUMENT_IDX]?atof(row[PERIAPSIS_ARGUMENT_IDX]):-1;
-                        object->mean_anomaly = row[MEAN_ANOMALY_IDX]?atof(row[MEAN_ANOMALY_IDX]):-1;
-                        object->inclination = row[INCLINATION_IDX]?atof(row[INCLINATION_IDX]):-1;
-                        object->ascending_node_longitude = row[ASCENDING_NODE_LONGITUDE_IDX]?atof(row[ASCENDING_NODE_LONGITUDE_IDX]):-1;
-                        object->mean_angular_motion = row[MEAN_ANGULAR_MOTION_IDX]?atof(row[MEAN_ANGULAR_MOTION_IDX]):-1;
-                    }
-
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "NAME [%s] TYPE [%s] obtained for OBJECT_ID [%d]", 
-                        object->object_name, object->object_type, object->object_id);
-                }
-                else 
-                {
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "ERROR: Unable to get orbits info for OBJECT_ID [%d] (no row)", 
-                        object->object_id);
-
-                    result = ENGINE_DB_QUERY_ERROR;
-                }
-            }
-
-            mysql_free_result(db_result);
-        }
-    }
-
-    return result;
-}
-
-
-/** ****************************************************************************
-
-    @brief          Gets protocol info for a given protocol ID 
-                    (received in IN/OUT protocol parameter)
-
-    @param[in|out]  Output parameter where we store the protocol info obtained
-                    This object contains also current protocol ID to do the search in DB
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_get_prococol_info(ProtocolInfo_t* protocol)
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    DbConnection_t* connection =  engine_get_db_connection();
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    // sanity check
-    if(result == ENGINE_OK)
-    {
-        if(!protocol) return ENGINE_INTERNAL_ERROR;
-    }
-
-    if(result == ENGINE_OK)
-    {
-        snprintf(query_text, 
-            DB_MAX_SQL_QUERY_LEN, 
-            "SELECT * FROM protocols WHERE id = %d", protocol->protocol_id);
-
-        // run it 
-        if (mysql_query(connection->hndl, query_text)) 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-        else 
-        {
-            // retrieve the result and check that is an only row with a single field
-            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-
-            if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
-                (mysql_num_fields(db_result) != MAX_PROTOCOL_FIELDS))
-            {
-                engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "ERROR: Unable to get protocols info for PROTOCOL_ID [%d] "
-                    "(invalid result for query [%s])",
-                    protocol->protocol_id,
-                    query_text);
-
-                result = ENGINE_DB_QUERY_ERROR;
-            } 
-            else 
-            {
-                MYSQL_ROW row = mysql_fetch_row(db_result);
-                if(row) 
-                {
-                    // Pick the fields we need
-                    sprintf(protocol->protocol_name, "%s", row[PROTOCOL_NAME_IDX]?row[PROTOCOL_NAME_IDX]:"");
-                    protocol->parameters_num = row[PROTOCOL_PARAMETERS_IDX]?atoi(row[PROTOCOL_PARAMETERS_IDX]):0;
-                    protocol->bulk_multiplier = row[PROTOCOL_BULK_MODIFIER_IDX]?atoi(row[PROTOCOL_BULK_MODIFIER_IDX]):-1;
-                    sprintf(protocol->protocol_description, "%s", row[PROTOCOL_DESCRIPTION_IDX]?row[PROTOCOL_DESCRIPTION_IDX]:"");
-                    protocol->internal = row[PROTOCOL_INTERNAL_IDX]?atoi(row[PROTOCOL_INTERNAL_IDX]):0;
-
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "NAME [%s] DESCRIPTION [%s] BULK_MODIFIER [%d] INTERNAL [%d] obtained for PROTOCOL_ID [%d]", 
-                        protocol->protocol_name, 
-                        protocol->protocol_description, 
-                        protocol->bulk_multiplier, 
-                        protocol->protocol_id,
-                        protocol->internal);
-                }
-                else 
-                {
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "ERROR: Unable to get protocol info for PROTOCOL_ID [%d] (no row)", 
-                        protocol->protocol_id);
-
-                    result = ENGINE_DB_QUERY_ERROR;
-                }
-            }
-
-            mysql_free_result(db_result);
-        }
-    }
-
-    return result;
-}
-
-
-/** ****************************************************************************
-
-    @brief          Inserts a new action entry
-
-    @param[in|out]  Action info to be inserted
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_insert_action(Action_t* action)
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    DbConnection_t* connection =  engine_get_db_connection();
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    if(result == ENGINE_OK)
-    {
-        // Sanity check
-        if(!action)
-            return ENGINE_INTERNAL_ERROR;
-    }
-
-    char* query_end = query_text;
-
-    query_end += snprintf(query_end, 
-        DB_MAX_SQL_QUERY_LEN, 
-        "INSERT INTO actions (drone, protocol, multiplier, aborted) VALUES(%d, %d, %d, %d)",
-        action->drone_id,
-        action->protocol_id,
-        action->process_multiplier,
-        action->aborted);
-
-    // run it 
-    if (mysql_query(connection->hndl, query_text)) 
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-        result = ENGINE_DB_QUERY_ERROR;
-    }
-    else 
-    {
-        // Get auto-increment ID
-        action->action_id = mysql_insert_id(connection->hndl);
-
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Action [%d, %d, %d, %d, %d] inserted into DB",
-            action->action_id,
-            action->drone_id,
-            action->protocol_id,
-            action->process_multiplier,
-            action->aborted);
-    }
-
-
-    return result;
-}
-
-/** ****************************************************************************
-
-    @brief          Aborts an action using its ID
-
-    @param[in]      action_id Action to be aborted
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_abort_action(int action_id)
-{  
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    DbConnection_t* connection =  engine_get_db_connection();
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    if(result == ENGINE_OK)
-    {
-        char* query_end = query_text;
-
-        query_end += snprintf(query_end, 
-            DB_MAX_SQL_QUERY_LEN, 
-            "UPDATE actions SET aborted = 1 WHERE ID = %d",
-            action_id);
-
-        // run it 
-        if (mysql_query(connection->hndl, query_text)) 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-        else 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "Action [%d] aborted", action_id);
-        }
-    }        
-
-    return result;
-}
-
-/** ****************************************************************************
-
-    @brief      Gets all the resource effects configured for a given protocol ID
-
-    @param[in]      Protocol Info
-    @param[in|out]  Output buffer where we store the effects found in DB for this protocol
-    @param[in|out]  Output buffer size (number of effects returned)
-
-    @return     Execution result
-
-*******************************************************************************/
-ErrorCode_t db_get_resource_effects
-(
-    ProtocolInfo_t* protocol, 
-    ResourceEffect_t** effects, 
-    int* effectsNum
-)
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    DbConnection_t* connection =  engine_get_db_connection();
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
+    DbConnection_t* connection = engine_get_db_connection();
     MYSQL_RES* db_result = NULL;
-    int fieldsNum = 0;
     int rowsNum = 0;
 
-    // sanity check
-    if(result == ENGINE_OK)
-    {
-        if(!protocol || !protocol || !effects || !effectsNum) return ENGINE_INTERNAL_ERROR;
-    }
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
 
     if(result == ENGINE_OK)
     {
-        // reset entries found
-        *effectsNum = 0;
-
         snprintf(query_text, 
             DB_MAX_SQL_QUERY_LEN, 
-            "SELECT * FROM resource_effects WHERE protocol = %d", protocol->protocol_id);
+            "SELECT * FROM events WHERE outcome = 0 limit %d;", 
+            engine_get_outcome_events_batch_size());
 
-        engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
-
+        // run it 
         if (mysql_query(connection->hndl, query_text)) 
         {
             engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
@@ -1485,112 +356,85 @@ ErrorCode_t db_get_resource_effects
 
     if(result == ENGINE_OK)
     {
-        // retrieve the results
+        // retrieve the results and process one by one
         db_result = mysql_store_result(connection->hndl);
 
         if(db_result == NULL)
         {
             engine_trace(TRACE_LEVEL_ALWAYS, 
-                "ERROR: Unable to get resource_effects info for PROTOCOL_ID [%d] "
-                "(invalid result for query [%s])",
-                protocol->protocol_id,
+                "ERROR: Unable to get outcome events (invalid result for query [%s])",
                 query_text);
 
             result = ENGINE_DB_QUERY_ERROR;
         }
-        else if((fieldsNum=mysql_num_fields(db_result)) != MAX_RESOURCE_EFFECT_FIELDS) 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "ERROR: Invalid fields number from resource_effects for PROTOCOL_ID [%d] "
-                "(expected [%d], obtained [%d], query [%s])",
-                protocol->protocol_id,
-                MAX_RESOURCE_EFFECT_FIELDS,
-                fieldsNum,
-                query_text);
-
-            result = ENGINE_DB_QUERY_ERROR;
-        } 
         else if((rowsNum=mysql_num_rows(db_result)) <= 0) 
         {
-            // None entry found is OK (keep default OK)
-            *effectsNum = 0;
+            engine_trace(TRACE_LEVEL_ALWAYS, "None outcome event found");
         }
     }  
 
-    engine_trace(TRACE_LEVEL_ALWAYS, 
-                "[%d] resource_effects found for PROTOCOL_ID [%d]",
-                rowsNum,
-                protocol->protocol_id);
-
     if((result == ENGINE_OK) && rowsNum)
     {  
-        // Allocate output effects
-        *effects = (ResourceEffect_t*)malloc(sizeof(ResourceEffect_t) * ((unsigned int)rowsNum));
-
-        if(!*effects) {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "ERROR: Unable to allocate [%d] output resource_effects for PROTOCOL_ID [%d]",
-                rowsNum,
-                protocol->protocol_id);
-        }
-
-        *effectsNum = rowsNum;
-
-        // iterate results and store them into output buffer
+        // iterate results and delete one by one
         for(int effectId=0; effectId < rowsNum; effectId++)
         {
+#ifdef ENABLED            
             MYSQL_ROW row = mysql_fetch_row(db_result);
             if(row) 
             {
-                ResourceEffect_t *currentEffect = (*effects + effectId);
-                // Pick effect fields
-                currentEffect->resource_effect_id = row[RESOURCE_EFFECT_ID_IDX]?atoi(row[RESOURCE_EFFECT_ID_IDX]):0;
-                currentEffect->drone_id = row[RESOURCE_EFFECT_DRONE_ID_IDX]?atoi(row[RESOURCE_EFFECT_DRONE_ID_IDX]):0;
-                currentEffect->resource_id = row[RESOURCE_EFFECT_RESOURCE_ID_IDX]?atoi(row[RESOURCE_EFFECT_RESOURCE_ID_IDX]):0;
-                currentEffect->protocol_id = row[RESOURCE_EFFECT_PROTOCOL_ID_IDX]?atoi(row[RESOURCE_EFFECT_PROTOCOL_ID_IDX]):0;
-                currentEffect->event_type = row[RESOURCE_EFFECT_EVENT_TYPE_IDX]?atoi(row[RESOURCE_EFFECT_EVENT_TYPE_IDX]):0;
-                currentEffect->local = row[RESOURCE_EFFECT_LOCAL_IDX]?atoi(row[RESOURCE_EFFECT_LOCAL_IDX]):0;
-                currentEffect->installed = row[RESOURCE_EFFECT_INSTALLED_IDX]?atoi(row[RESOURCE_EFFECT_INSTALLED_IDX]):0;
-                currentEffect->locked = row[RESOURCE_EFFECT_LOCKED_IDX]?atoi(row[RESOURCE_EFFECT_LOCKED_IDX]):0;
-                currentEffect->deplete = row[RESOURCE_EFFECT_DEPLETE_IDX]?atoi(row[RESOURCE_EFFECT_DEPLETE_IDX]):0;
-                currentEffect->quantity = row[RESOURCE_EFFECT_QUANTITY_IDX]?atoi(row[RESOURCE_EFFECT_QUANTITY_IDX]):0;
-                currentEffect->time = row[RESOURCE_EFFECT_TIME_IDX]?atoi(row[RESOURCE_EFFECT_TIME_IDX]):0;
+                Event_t event;
+                // Pick event fields
+                event.event_id = row[EVENT_ID_IDX]?atoi(row[EVENT_ID_IDX]):0;
+                event.event_type = row[EVENT_TYPE_IDX]?atoi(row[EVENT_TYPE_IDX]):0;
+                event.action_id = row[EVENT_ACTION_IDX]?atoi(row[EVENT_ACTION_IDX]):0;
+                event.logged = row[EVENT_LOGGED_IDX]?atoi(row[EVENT_LOGGED_IDX]):0;
+                event.outcome = row[EVENT_OUTCOME_IDX]?atoi(row[EVENT_OUTCOME_IDX]):0;
+                event.drone_id = row[EVENT_DRONE_ID_IDX]?atoi(row[EVENT_DRONE_ID_IDX]):0;
+                event.resource_id = row[EVENT_RESOURCE_ID_IDX]?atoi(row[EVENT_RESOURCE_ID_IDX]):0;
+                event.installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
+                event.locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
+                event.new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):0;
+                event.new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):0;
+                event.new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):0;
+                event.new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
+                event.timestamp = row[EVENT_TIMESTAMP_IDX]?atoi(row[EVENT_TIMESTAMP_IDX]):0;
 
-                engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "Resource effect found "
-                    "ID [%d] DRONE [%d] RESOURCE_ID [%d] EVENT_TYPE [%d] "
-                    "LOCAL [%d] INSTALLED [%d] LOCKED [%d] DEPLETE [%d] QUANTITY [%d] TIME [%d] "
-                    "for PROTOCOL_ID [%d]", 
-                    currentEffect->resource_effect_id, 
-                    currentEffect->drone_id, 
-                    currentEffect->resource_id, 
-                    currentEffect->event_type,
-                    currentEffect->local,
-                    currentEffect->installed,
-                    currentEffect->locked,
-                    currentEffect->deplete,
-                    currentEffect->quantity,
-                    currentEffect->time,
-                    protocol->protocol_id);
+                if(db_delete_event(event.event_id) == ENGINE_OK) {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "Event expired and deleted "
+                        "EVENT_ID [%d] EVENT_TYPE [%d] ACTION_ID [%d] LOGGED [%d] OUTCOME [%d] "
+                        "DRONE_ID [%d] RESOURCE_ID [%d] INSTALLED [%d] LOCKED [%d] NEW_QUANTITY [%d] "
+                        "NEW_CREDITS [%d] NEW_LOCATION [%d] NEW_CARGO [%d] TIMESTAMP [%ld]", 
+                        event.event_id,
+                        event.event_type,
+                        event.action_id,
+                        event.logged,
+                        event.outcome,
+                        event.drone_id,
+                        event.resource_id,
+                        event.installed,
+                        event.locked,
+                        event.new_quantity,
+                        event.new_credits,
+                        event.new_location,
+                        event.new_transmission,
+                        event.new_cargo,
+                        event.timestamp);
+                }
             }
             else
             {
                 // unexpected error - abort
                 engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "ERROR: Unable to get row [%d] for query [%s] with [%d] rows", 
-                    effectId+1,
+                    "ERROR: Unable to get row for query [%s] with [%d] rows", 
                     query_text,
                     rowsNum);
 
                 result = ENGINE_DB_QUERY_ERROR;
 
-                // Deallocate resources
-                free(*effects);
-                *effects = NULL;
-                *effectsNum = 0;
-
                 break; // stop for
             } 
+#endif            
         }
     }
    
@@ -1602,49 +446,32 @@ ErrorCode_t db_get_resource_effects
 
 /** ****************************************************************************
 
-    @brief      Gets all the market effects configured for a given protocol ID
+    @brief          Purges old events present at DB (older than configurable days value)
 
-    @param[in]      Protocol Info
-    @param[in|out]  Output buffer where we store the effects found in DB for this protocol
-    @param[in|out]  Output buffer size (number of effects returned)
+    @param[in]      void
 
-    @return     Execution result
+    @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_market_effects
-(
-    ProtocolInfo_t* protocol, 
-    MarketEffect_t** effects, 
-    int* effectsNum
-)
+ErrorCode_t db_purge_old_events()
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-    DbConnection_t* connection =  engine_get_db_connection();
+    DbConnection_t* connection = engine_get_db_connection();
+    MYSQL_RES* db_result = NULL;
+    int rowsNum = 0;
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
-    MYSQL_RES* db_result = NULL;
-    int fieldsNum = 0;
-    int rowsNum = 0;
-
-    // sanity check
-    if(result == ENGINE_OK)
-    {
-        if(!protocol || !protocol || !effects || !effectsNum) return ENGINE_INTERNAL_ERROR;
-    }
 
     if(result == ENGINE_OK)
     {
-        // reset entries found
-        *effectsNum = 0;
-
         snprintf(query_text, 
             DB_MAX_SQL_QUERY_LEN, 
-            "SELECT * FROM market_effects WHERE protocol = %d", protocol->protocol_id);
+            "SELECT * FROM events WHERE timestamp < (NOW() - interval %d day);", 
+            engine_get_events_expiration_days());
 
-        engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
-
+        // run it 
         if (mysql_query(connection->hndl, query_text)) 
         {
             engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
@@ -1654,259 +481,83 @@ ErrorCode_t db_get_market_effects
 
     if(result == ENGINE_OK)
     {
-        // retrieve the results
+        // retrieve the results and delete one by one
         db_result = mysql_store_result(connection->hndl);
 
         if(db_result == NULL)
         {
             engine_trace(TRACE_LEVEL_ALWAYS, 
-                "ERROR: Unable to get market_effects info for PROTOCOL_ID [%d] "
-                "(invalid result for query [%s])",
-                protocol->protocol_id,
+                "ERROR: Unable to get expired events (invalid result for query [%s])",
                 query_text);
 
             result = ENGINE_DB_QUERY_ERROR;
         }
-        else if((fieldsNum=mysql_num_fields(db_result)) != MAX_MARKET_EFFECT_FIELDS) 
+        else if((rowsNum=mysql_num_rows(db_result)) <= 0) 
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "ERROR: Invalid fields number from market_effects for PROTOCOL_ID [%d] "
-                "(expected [%d], obtained [%d], query [%s])",
-                protocol->protocol_id,
-                MAX_MARKET_EFFECT_FIELDS,
-                fieldsNum,
-                query_text);
-
-            result = ENGINE_DB_QUERY_ERROR;
-        } 
-        else if((rowsNum=mysql_num_rows(db_result) <= 0)) 
-        {
-            // None entry found is OK (keep default OK)
-            *effectsNum = 0;
-        }
-    }  
-
-    if((result == ENGINE_OK) && effectsNum)
-    {  
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "[%d] market_effects found for PROTOCOL_ID [%d]",
-                        rowsNum,
-                        protocol->protocol_id);
-
-        // Allocate output effects
-        *effects = malloc(sizeof(ResourceEffect_t) * rowsNum);
-
-        if(!*effects) {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "ERROR: Unable to allocate [%d] output market_effects for PROTOCOL_ID [%d]",
-                rowsNum,
-                protocol->protocol_id);
-        }
-
-        *effectsNum = rowsNum;
-
-        // iterate results and store them into output buffer
-        for(int effectId=0; effectId < rowsNum; effectId++)
-        {
-            MYSQL_ROW row = mysql_fetch_row(db_result);
-            if(row) 
-            {
-                MarketEffect_t *currentEffect = (*effects + effectId);
-                // Pick effect fields
-                currentEffect->market_effect_id = row[MARKET_EFFECT_ID_IDX]?atoi(row[MARKET_EFFECT_ID_IDX]):0;
-                currentEffect->protocol_id = row[MARKET_EFFECT_PROTOCOL_ID_IDX]?atoi(row[MARKET_EFFECT_PROTOCOL_ID_IDX]):0;
-                currentEffect->event_type = row[MARKET_EFFECT_EVENT_TYPE_IDX]?atoi(row[MARKET_EFFECT_EVENT_TYPE_IDX]):0;
-                currentEffect->resource_id = row[MARKET_EFFECT_RESOURCE_ID_IDX]?atoi(row[MARKET_EFFECT_RESOURCE_ID_IDX]):0;
-                currentEffect->upper_limit = row[MARKET_EFFECT_UPPER_LIMIT_IDX]?atoi(row[MARKET_EFFECT_UPPER_LIMIT_IDX]):0;
-                currentEffect->quantity = row[MARKET_EFFECT_QUANTITY_IDX]?atoi(row[MARKET_EFFECT_QUANTITY_IDX]):0;
-                currentEffect->price = row[MARKET_EFFECT_PRICE_IDX]?atoi(row[MARKET_EFFECT_PRICE_IDX]):0;
-                currentEffect->time = row[MARKET_EFFECT_TIME_IDX]?atoi(row[MARKET_EFFECT_TIME_IDX]):0;
-
-                engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "Market effect found "
-                    "ID [%d] EVENT_TYPE [%d] RESOURCE_ID [%d] "
-                    "UPPER_LIMIT [%d] QUANTITY [%d] PRICE [%d] TIME [%d] "
-                    "for PROTOCOL_ID [%d]", 
-                    currentEffect->market_effect_id, 
-                    currentEffect->event_type, 
-                    currentEffect->resource_id,
-                    currentEffect->upper_limit,
-                    currentEffect->quantity,
-                    currentEffect->price,
-                    currentEffect->time,
-                    protocol->protocol_id);
-            }
-            else
-            {
-                // unexpected error - abort
-                engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "ERROR: Unable to get row [%d] for query [%s] with [%d] rows", 
-                    effectId+1,
-                    query_text,
-                    effectsNum);
-
-                result = ENGINE_DB_QUERY_ERROR;
-
-                // Deallocate resources
-                free(*effects);
-                *effects = NULL;
-                *effectsNum = 0;
-
-                break; // stop for
-            } 
-        }
-    }
-   
-    if(db_result)
-        mysql_free_result(db_result);
-
-    return result;
-}
-
-/** ****************************************************************************
-
-    @brief      Gets all the location effects configured for a given protocol ID
-
-    @param[in]      Protocol Info
-    @param[in|out]  Output buffer where we store the effects found in DB for this protocol
-    @param[in|out]  Output buffer size (number of effects returned)
-
-    @return     Execution result
-
-*******************************************************************************/
-ErrorCode_t db_get_location_effects
-(
-    ProtocolInfo_t* protocol, 
-    LocationEffect_t** effects, 
-    int* effectsNum
-)
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    DbConnection_t* connection =  engine_get_db_connection();
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-    MYSQL_RES* db_result = NULL;
-    int fieldsNum = 0;
-    int rowsNum = 0;
-
-    // sanity check
-    if(result == ENGINE_OK)
-    {
-        if(!protocol || !protocol || !effects || !effectsNum) return ENGINE_INTERNAL_ERROR;
-    }
-
-    if(result == ENGINE_OK)
-    {
-        // reset entries found
-        *effectsNum = 0;
-
-        snprintf(query_text, 
-            DB_MAX_SQL_QUERY_LEN, 
-            "SELECT * FROM location_effects WHERE protocol = %d", protocol->protocol_id);
-
-        engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
-
-        if (mysql_query(connection->hndl, query_text)) 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-    }
-
-    if(result == ENGINE_OK)
-    {
-        // retrieve the results
-        db_result = mysql_store_result(connection->hndl);
-
-        if(db_result == NULL)
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "ERROR: Unable to get location_effects info for PROTOCOL_ID [%d] "
-                "(invalid result for query [%s])",
-                protocol->protocol_id,
-                query_text);
-
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-        else if((fieldsNum=mysql_num_fields(db_result)) != MAX_LOCATION_EFFECT_FIELDS) 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "ERROR: Invalid fields number from location_effects for PROTOCOL_ID [%d] "
-                "(expected [%d], obtained [%d], query [%s])",
-                protocol->protocol_id,
-                MAX_LOCATION_EFFECT_FIELDS,
-                fieldsNum,
-                query_text);
-
-            result = ENGINE_DB_QUERY_ERROR;
-        } 
-        else if((rowsNum=mysql_num_rows(db_result) <= 0)) 
-        {
-            // None entry found is OK (keep default OK)
-            *effectsNum = 0;
+            engine_trace(TRACE_LEVEL_ALWAYS, "None expired event found");
         }
     }  
 
     if((result == ENGINE_OK) && rowsNum)
     {  
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "[%d] location_effects found for PROTOCOL_ID [%d]",
-                        rowsNum,
-                        protocol->protocol_id);
-
-        // Allocate output effects
-        *effects = malloc(sizeof(ResourceEffect_t) * rowsNum);
-
-        if(!*effects) {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "ERROR: Unable to allocate [%d] output market_effects for PROTOCOL_ID [%d]",
-                rowsNum,
-                protocol->protocol_id);
-        }
-
-        *effectsNum = rowsNum;
-
-        // iterate results and store them into output buffer
+        // iterate results and delete one by one
         for(int effectId=0; effectId < rowsNum; effectId++)
         {
             MYSQL_ROW row = mysql_fetch_row(db_result);
             if(row) 
             {
-                LocationEffect_t *currentEffect = (*effects + effectId);
-                // Pick effect fields
-                currentEffect->location_effect_id = row[MARKET_EFFECT_ID_IDX]?atoi(row[MARKET_EFFECT_ID_IDX]):0;
-                currentEffect->protocol_id = row[MARKET_EFFECT_PROTOCOL_ID_IDX]?atoi(row[MARKET_EFFECT_PROTOCOL_ID_IDX]):0;
-                currentEffect->event_type = row[MARKET_EFFECT_EVENT_TYPE_IDX]?atoi(row[MARKET_EFFECT_EVENT_TYPE_IDX]):0;
-                currentEffect->location = row[MARKET_EFFECT_RESOURCE_ID_IDX]?atoi(row[MARKET_EFFECT_RESOURCE_ID_IDX]):0;
-                currentEffect->time = row[MARKET_EFFECT_TIME_IDX]?atoi(row[MARKET_EFFECT_TIME_IDX]):0;
+                Event_t event;
 
-                engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "Location effect found "
-                    "ID [%d] EVENT_TYPE [%d] LOCATION [%d] TIME [%d] "
-                    "for PROTOCOL_ID [%d]", 
-                    currentEffect->location_effect_id, 
-                    currentEffect->protocol_id,
-                    currentEffect->event_type,
-                    currentEffect->location,
-                    protocol->protocol_id);
+                memset(&event, 0, sizeof(event));
+
+                // Pick event fields
+                event.event_id = row[EVENT_ID_IDX]?atoi(row[EVENT_ID_IDX]):0;
+                event.event_type = row[EVENT_TYPE_IDX]?atoi(row[EVENT_TYPE_IDX]):0;
+                event.action_id = row[EVENT_ACTION_IDX]?atoi(row[EVENT_ACTION_IDX]):0;
+                event.logged = row[EVENT_LOGGED_IDX]?atoi(row[EVENT_LOGGED_IDX]):0;
+                event.outcome = row[EVENT_OUTCOME_IDX]?atoi(row[EVENT_OUTCOME_IDX]):0;
+                event.drone_id = row[EVENT_DRONE_ID_IDX]?atoi(row[EVENT_DRONE_ID_IDX]):0;
+                event.resource_id = row[EVENT_RESOURCE_ID_IDX]?atoi(row[EVENT_RESOURCE_ID_IDX]):0;
+                event.installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
+                event.locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
+                event.new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):0;
+                event.new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):0;
+                event.new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):0;
+                event.new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
+                event.timestamp = row[EVENT_TIMESTAMP_IDX]?atoi(row[EVENT_TIMESTAMP_IDX]):0;
+
+                if(db_delete_event(event.event_id) == ENGINE_OK) {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "Event expired and deleted "
+                        "EVENT_ID [%d] EVENT_TYPE [%d] ACTION_ID [%d] LOGGED [%d] OUTCOME [%d] "
+                        "DRONE_ID [%d] RESOURCE_ID [%d] INSTALLED [%d] LOCKED [%d] NEW_QUANTITY [%d] "
+                        "NEW_CREDITS [%d] NEW_LOCATION [%d] NEW_CARGO [%d] TIMESTAMP [%ld]", 
+                        event.event_id,
+                        event.event_type,
+                        event.action_id,
+                        event.logged,
+                        event.outcome,
+                        event.drone_id,
+                        event.resource_id,
+                        event.installed,
+                        event.locked,
+                        event.new_quantity,
+                        event.new_credits,
+                        event.new_location,
+                        event.new_transmission,
+                        event.new_cargo,
+                        event.timestamp);
+                }
             }
             else
             {
                 // unexpected error - abort
                 engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "ERROR: Unable to get row [%d] for query [%s] with [%d] rows", 
-                    effectId+1,
+                    "ERROR: Unable to get row for query [%s] with [%d] rows", 
                     query_text,
-                    effectsNum);
+                    rowsNum);
 
                 result = ENGINE_DB_QUERY_ERROR;
-
-                // Deallocate resources
-                free(*effects);
-                *effects = NULL;
-                *effectsNum = 0;
 
                 break; // stop for
             } 
@@ -1921,384 +572,14 @@ ErrorCode_t db_get_location_effects
 
 /** ****************************************************************************
 
-    @brief          Gets resource info for a given resource ID 
-                    (received in IN/OUT protocol parameter)
+    @brief          Deletes event giving event_id
 
-    @param[in|out]  Output parameter where we store the resource info obtained
-                    This object contains (as input) current resource ID to do the search in DB
+    @param[in]      Input event ID
 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_resource_info(Resource_t* resource)
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    DbConnection_t* connection =  engine_get_db_connection();
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    // sanity check
-    if(result == ENGINE_OK)
-    {
-        if(!resource) return ENGINE_INTERNAL_ERROR;
-    }
-
-    if(result == ENGINE_OK)
-    {
-        snprintf(query_text, 
-            DB_MAX_SQL_QUERY_LEN, 
-            "SELECT * FROM resources WHERE id = %d", resource->resource_id);
-
-        // run it 
-        if (mysql_query(connection->hndl, query_text)) 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-        else 
-        {
-            // retrieve the result and check that is an only row with a single field
-            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-
-            if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
-                (mysql_num_fields(db_result) != MAX_RESOURCE_FIELDS))
-            {
-                engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "ERROR: Unable to get resource info for RESOURCE_ID [%d] "
-                    "(invalid result for query [%s])",
-                    resource->resource_id,
-                    query_text);
-
-                result = ENGINE_DB_QUERY_ERROR;
-            } 
-            else 
-            {
-                MYSQL_ROW row = mysql_fetch_row(db_result);
-                if(row) 
-                {
-                    engine_trace(TRACE_LEVEL_ALWAYS, "Query [%s] was OK", query_text);
-
-                    // Pick the fields we need
-                    snprintf(resource->resource_name, MAX_RESOURCE_NAME_SIZE-1, "%s", row[RESOURCE_NAME_IDX]?row[RESOURCE_NAME_IDX]:"");
-                    snprintf(resource->resource_description, MAX_RESOURCE_DESCRIPTION_SIZE-1, "%s", row[RESOURCE_DESCRIPTION_IDX]?row[RESOURCE_DESCRIPTION_IDX]:"");
-                    resource->resource_mass = row[RESOURCE_MASS_IDX]?atoi(row[RESOURCE_MASS_IDX]):0;
-                    resource->resource_capacity = row[RESOURCE_CAPACITY_IDX]?atoi(row[RESOURCE_CAPACITY_IDX]):0;
-                    resource->resource_slot_size = row[RESOURCE_SLOT_SIZE_IDX]?atoi(row[RESOURCE_SLOT_SIZE_IDX]):0;
-
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "NAME [%s] DESCRIPTION [%s] MASS [%d] CAPACITY [%d] SLOT_SIZE [%d] obtained for RESOURCE_ID [%d]", 
-                        resource->resource_name, 
-                        resource->resource_description, 
-                        resource->resource_mass, 
-                        resource->resource_capacity,
-                        resource->resource_slot_size,
-                        resource->resource_id);
-                }
-                else 
-                {
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "ERROR: Unable to get resource info for RESOURCE_ID [%d] (no row)", 
-                        resource->resource_id);
-
-                    result = ENGINE_DB_QUERY_ERROR;
-                }
-            }
-
-            mysql_free_result(db_result);
-        }
-    }
-
-    return result;
-}
-
-/** ****************************************************************************
-
-    @brief          Gets event type info for a given event type ID 
-                    (received in IN/OUT protocol parameter)
-
-    @param[in|out]  Output parameter where we store the event type info obtained
-                    This object contains (as input) current event type ID to do the search in DB
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_get_event_type_info(EventType_t* event_type)
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    DbConnection_t* connection =  engine_get_db_connection();
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    // sanity check
-    if(result == ENGINE_OK)
-    {
-        if(!event_type) return ENGINE_INTERNAL_ERROR;
-    }
-
-    if(result == ENGINE_OK)
-    {
-        snprintf(query_text, 
-            DB_MAX_SQL_QUERY_LEN, 
-            "SELECT * FROM event_types WHERE id = %d", event_type->event_type_id);
-
-        // run it 
-        if (mysql_query(connection->hndl, query_text)) 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-        else 
-        {
-            // retrieve the result and check that is an only row with a single field
-            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-
-            if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
-                (mysql_num_fields(db_result) != MAX_EVENT_TYPE_FIELDS))
-            {
-                engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "ERROR: Unable to get event_type info for EVENT_TYPE_ID [%d] "
-                    "(invalid result for query [%s])",
-                    event_type->event_type_id,
-                    query_text);
-
-                result = ENGINE_DB_QUERY_ERROR;
-            } 
-            else 
-            {
-                MYSQL_ROW row = mysql_fetch_row(db_result);
-                if(row) 
-                {
-                    // Pick the fields we need
-                    sprintf(event_type->event_type_name, "%s", row[EVENT_TYPE_NAME_IDX]?row[EVENT_TYPE_NAME_IDX]:"");
-                    
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "NAME [%s] obtained for EVENT_TYPE_ID [%d]", 
-                        event_type->event_type_name, 
-                        event_type->event_type_id);
-                }
-                else 
-                {
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "ERROR: Unable to get resource info for EVENT_TYPE_ID [%d] (no row)", 
-                        event_type->event_type_id);
-
-                    result = ENGINE_DB_QUERY_ERROR;
-                }
-            }
-
-            mysql_free_result(db_result);
-        }
-    }
-
-    return result;
-}
-
-/** ****************************************************************************
-
-    @brief          Inserts a new event entry
-
-    @param[in|out]  Event info to be inserted
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_insert_event(Event_t* event)
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    DbConnection_t* connection =  engine_get_db_connection();
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    if(result == ENGINE_OK)
-    {
-        // Sanity check
-        if(!event)
-            return ENGINE_INTERNAL_ERROR;
-    }
-
-    char* query_end = query_text;
-
-    query_end += snprintf(query_end, 
-        DB_MAX_SQL_QUERY_LEN, 
-        "INSERT INTO events "
-        "(event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_credits, new_location, new_transmission, new_cargo) "
-        "VALUES(%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d)",
-        event->event_type,
-        event->action_id,
-        event->logged,
-        event->outcome,
-        event->drone_id,
-        event->resource_id,
-        event->installed,
-        event->locked,
-        event->new_quantity,
-        event->new_credits,
-        event->new_location,
-        event->new_transmission,
-        event->new_cargo);
-
-    // run it 
-    if (mysql_query(connection->hndl, query_text)) 
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-        result = ENGINE_DB_QUERY_ERROR;
-    }
-    else 
-    {
-        // Get auto-increment ID
-        event->event_id = mysql_insert_id(connection->hndl);
-
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Event [%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d] inserted into DB",
-            event->event_id,
-            event->event_type,
-            event->action_id,
-            event->logged,
-            event->outcome,
-            event->drone_id,
-            event->resource_id,
-            event->installed,
-            event->locked,
-            event->new_quantity,
-            event->new_credits,
-            event->new_location,
-            event->new_transmission,
-            event->new_cargo,
-            event->timestamp);
-    }
-
-    return result;
-}
-
-/** ****************************************************************************
-
-    @brief          Gets last event for a given drone and resource
-
-    @param[in|out]  Event info obtained (drone ID is filled)
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_get_previous_resource_event(Event_t* event)
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    DbConnection_t* connection =  engine_get_db_connection();
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    if(result == ENGINE_OK)
-    {
-        // Sanity check
-        if(!event)
-            return ENGINE_INTERNAL_ERROR;
-    }
-
-    char* query_end = query_text;
-
-    query_end += snprintf(query_end, 
-        DB_MAX_SQL_QUERY_LEN, 
-        "SELECT * from events where drone = %d and resource = %d order by timestamp desc limit 1",
-        event->drone_id,
-        event->resource_id);
-
-    // run it 
-    if (mysql_query(connection->hndl, query_text)) 
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-        result = ENGINE_DB_QUERY_ERROR;
-    }
-    else 
-    {
-        // retrieve the result and check that is an only row with a single field
-        MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-
-        if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
-            (mysql_num_fields(db_result) != MAX_EVENT_FIELDS))
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "ERROR: Unable to get last drone event info for DRONE_ID [%d] RESOURCE_ID [%d] "
-                "(invalid result for query [%s])",
-                event->drone_id,
-                event->resource_id,
-                query_text);
-
-            result = ENGINE_DB_QUERY_ERROR;
-        } 
-        else 
-        {
-            MYSQL_ROW row = mysql_fetch_row(db_result);
-            if(row) 
-            {
-                // Pick the fields we need
-                event->event_id = row[EVENT_ID_IDX]?atoi(row[EVENT_ID_IDX]):0;
-                event->event_type = row[EVENT_TYPE_IDX]?atoi(row[EVENT_TYPE_IDX]):0;
-                event->action_id = row[EVENT_ACTION_IDX]?atoi(row[EVENT_ACTION_IDX]):0;
-                event->logged = row[EVENT_LOGGED_IDX]?atoi(row[EVENT_LOGGED_IDX]):0;
-                event->outcome = row[EVENT_OUTCOME_IDX]?atoi(row[EVENT_OUTCOME_IDX]):0;
-                event->installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
-                event->locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
-                event->new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):0;
-                event->new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):0;
-                event->new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):0;
-                event->new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):0;
-                event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
-               
-                engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "Event read from DB [%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d] "
-                    "for drone_id [%d] resource_id [%d]",
-                    event->event_id,
-                    event->event_type,
-                    event->action_id,
-                    event->logged,
-                    event->outcome,
-                    event->drone_id,
-                    event->resource_id,
-                    event->installed,
-                    event->locked,
-                    event->new_quantity,
-                    event->new_credits,
-                    event->new_location,
-                    event->new_transmission,
-                    event->new_cargo,
-                    event->timestamp,
-                    event->drone_id,
-                    event->resource_id);
-            }
-            else 
-            {
-                engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "ERROR: Unable to get previous event info for DRONE_ID [%d] RESOURCE_ID [%d] (no row)", 
-                    event->drone_id,
-                    event->resource_id);
-
-                result = ENGINE_DB_QUERY_ERROR;
-            }
-        }
-
-        mysql_free_result(db_result);
-    }
-
-    return result;
-}
-
-/** ****************************************************************************
-
-    @brief          Deletes all events currently associated with a given action ID
-
-    @param[in]      Input action ID
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_delete_action_events(int action_id)
+ErrorCode_t db_delete_event(int event_id)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -2311,8 +592,8 @@ ErrorCode_t db_delete_action_events(int action_id)
     {
         snprintf(query_text, 
             DB_MAX_SQL_QUERY_LEN, 
-            "DELETE FROM events WHERE action = %d", 
-            action_id);
+            "DELETE FROM events WHERE event_id = %d", 
+            event_id);
 
         // run it 
         if (mysql_query(connection->hndl, query_text)) 
@@ -2323,8 +604,8 @@ ErrorCode_t db_delete_action_events(int action_id)
         else 
         {
             engine_trace(TRACE_LEVEL_ALWAYS, 
-                "All events for ACTION_ID [%d] deleted from DB", 
-                action_id);
+                "EVENT_ID [%d] deleted from DB", 
+                event_id);
         }
     }
 
