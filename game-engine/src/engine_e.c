@@ -163,173 +163,6 @@ void engine_stop_all()
     trace_stop(engine.trace_hndl);
 }
 
-#ifdef ENABLED
-
-/** ****************************************************************************
-
-  @brief      Inserts a new command into DB (commands table)
-
-  @param[in]  command String to be inserted
-
-  @return     void
-
-*******************************************************************************/
-void engine_insert_db_command(char* command)
-{
-    if(command)
-    {
-        Command_t new_command;
-        memcpy(&new_command, &engine.last_command, sizeof(new_command));
-        sprintf(new_command.code, "%s", command);
-        size_t size = strlen(engine.last_command.email_content) + 1;
-        new_command.email_content = engine_malloc(size);
-        sprintf(new_command.email_content, "%s", engine.last_command.email_content);
-        db_insert_command(&engine.db_connection, &new_command);
-        engine_free(new_command.email_content, size);
-    }
-}
-
-/** ****************************************************************************
-
-  @brief      Checks if current VM is busy and can not process more commands
-
-  @param[in]  None
-
-  @return     boolean result (true when busy)
-
-*******************************************************************************/
-Bool_t engine_is_current_vm_busy()
-{
-    const char* resume_comand = engine_get_vm_resume_command();
-
-    // Check that current command is not a resume command and also if there are resume commands at DB
-    if(strncmp(engine.last_command.code, resume_comand, strlen(resume_comand)))
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Command [%s] is NOT a [%s], check if VM is running other commands",
-            engine.last_command.code,
-            resume_comand);
-
-        // check if we have any pending command
-        return db_agent_has_running_command(&engine.db_connection, engine.last_command.agent_id);
-    }
-
-    return ENGINE_FALSE;
-}
-
-/** ****************************************************************************
-
-  @brief          Gets the position of a given object ID (body and distance from Earth)
-
-  @param[in]      object_id     Current object ID (drone object ID)
-  @param[out]     position      Output buffer where we store current position
-  @param[out]     distance      Output buffer where we store current distance from Earth
-
-  @return         Error code
-
-*******************************************************************************/
-ErrorCode_t engine_get_drone_position(int object_id, char* position, double* distance)
-{
-    ErrorCode_t result = ENGINE_INTERNAL_ERROR;
-
-    if(position && distance) {
-        ObjectOrbitInfo_t drone;
-        ObjectOrbitInfo_t object;
-        ObjectOrbitInfo_t sun;
-        ObjectOrbitInfo_t earth;
-        CartesianInfo_t final_position;
-        int objects_num = 0;
-        Bool_t done = ENGINE_FALSE;
-
-        result = ENGINE_OK; // default OK
-
-        // Obtain the Sun info from DB 
-        memset(&sun, 0, sizeof(ObjectOrbitInfo_t));
-
-        if(db_get_object_info_by_name(&engine.db_connection, "Sun", &sun) != ENGINE_OK) {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to obtain SUN position");
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-
-        if(result == ENGINE_OK) {
-            engine_trace(TRACE_LEVEL_ALWAYS,  "[%s] has OBJ_ID=[%d]", sun.object_name, sun.object_id);
-
-            // Obtain the drone position from this object ID
-            memset(&object, 0, sizeof(ObjectOrbitInfo_t));
-            memset(&final_position, 0, sizeof(CartesianInfo_t));
-            object.object_id = object_id;
-
-            do {
-                // Get current object info
-                if(db_get_orbit_info(&engine.db_connection, &object) != ENGINE_OK) {
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "ERROR: Unable to obtain position for drone with OBJ_ID=[%d]",
-                        object.object_id);
-
-                    result = ENGINE_DB_QUERY_ERROR;
-                } else {
-                    // Save drone position at first search (safe = same size)
-                    if(objects_num++ == 0) {
-                        memcpy(&drone, &object, sizeof(ObjectOrbitInfo_t));
-                        sprintf(position, "%s", drone.object_name);
-                    }
-
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "OBJ_ID=[%d] CENTRAL_BODY_OBJ_ID=[%d] SUN_OBJECT_ID=[%d]",
-                        object.object_id, object.central_body_object_id, sun.object_id);
-
-                    // Use current object info to calculate position
-                    CartesianInfo_t position;
-                    orbits_get_object_position(&object, &position);
-
-                    // Add coordinates to current values
-                    CartesianInfo_t current_total_position;
-                    current_total_position.x = final_position.x;
-                    current_total_position.y = final_position.y;
-                    current_total_position.z = final_position.z;
-
-                    orbits_add_coordinates(&position, &current_total_position, &final_position);
-
-                    // Check if our central body is the sun to stop
-                    if(object.central_body_object_id == sun.object_id) {
-                        done = ENGINE_TRUE;
-                    } else {
-                        // update object ID to do next search
-                        object.object_id = object.central_body_object_id;
-                    }
-                }
-
-            } while(done == ENGINE_FALSE);
-            
-        }
-
-        if(result == ENGINE_OK) {
-            engine_trace(TRACE_LEVEL_ALWAYS,  "OBJ_ID=[%d] is at [%s]", drone.object_id, drone.object_name);
-
-            // Obtain Earth info
-            memset(&earth, 0, sizeof(ObjectOrbitInfo_t));
-
-            if(db_get_object_info_by_name(&engine.db_connection, "Earth", &earth) != ENGINE_OK) {
-                engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to obtain EARTH position");
-                result = ENGINE_DB_QUERY_ERROR;
-            }
-        } 
-
-        if(result == ENGINE_OK) {
-            engine_trace(TRACE_LEVEL_ALWAYS,  "OBJ_ID=[%d] is at [%s]", earth.object_id, earth.object_name);
-
-            // Get distance between Earth <-> drone
-            *distance = orbits_get_distance_from_object(&earth, &final_position);
-        } 
-
-        
-    }
-
-    return result;
-}
-
-#endif
-
 /******************************* PUBLIC FUNCTIONS ****************************/
 
 /** ****************************************************************************
@@ -436,106 +269,22 @@ ErrorCode_t engine_run()
         // reset VM
         engine.last_agent.vm = NULL;
 
-        engine_trace(TRACE_LEVEL_ALWAYS, "Running engine logic");
+        engine_trace(TRACE_LEVEL_ALWAYS, "Running events engine logic");
 
         // start a transaction
         result = db_start_transaction(&engine.db_connection);
 
-#ifdef ENABLED
+        // process outcome events
         if(result == ENGINE_OK)
         {
-            // get next command
-            result = db_get_next_command(&engine.db_connection, &engine.last_command);
+            result = db_get_outcome_events();
         }
 
+        // Purge old events from DB
         if(result == ENGINE_OK)
         {
-            // apply configured max lines per cycle
-            result = engine_apply_max_cycle_lines();
-
-            if(result != ENGINE_OK)
-            {
-                engine_vm_output_cb("Internal error");
-            }
+            result = db_purge_old_events();
         }
-
-
-        if(result == ENGINE_OK)
-        {
-            // Get whole info for agent_id
-            result = db_get_agent_engine_info(&engine.db_connection, 
-                engine.last_command.agent_id,
-                &engine.last_agent);
-        }
-
-        if(result == ENGINE_OK)
-        {
-            // save last agent input & subject command info
-            result = db_update_agent_input(&engine.db_connection, 
-                engine.last_command.agent_id, 
-                &engine.last_command);
-        }            
-
-        char out_buffer[ENGINE_MAX_BUF_SIZE+1];
-        if(result == ENGINE_OK)
-        {
-            // Check the type of command to see if we can go ahead or the user must retry later
-            // ABORT commands are processed always (empty strings)
-            if(engine.last_command.code[0] && engine_is_current_vm_busy() == ENGINE_TRUE)
-            {
-                engine_vm_output_cb("Another command is running, retry later");
-                out_buffer[0] = 0; // do not output more emails 
-            }
-            else
-            {
-                // Execute the last code in current VM
-                memset(out_buffer, 0, ENGINE_MAX_BUF_SIZE+1);
-                result = vm_run_command(engine.last_agent.vm, &engine.last_command, out_buffer, ENGINE_MAX_BUF_SIZE);
-
-                if(result != ENGINE_OK)
-                {
-                    engine_vm_output_cb("Command error");
-                }
-
-                // When it is an abort, clean pending commands at DB 
-                if(engine.last_command.code[0] == 0)
-                { 
-                    // clear any pending resume command
-                    db_delete_resume_commands(&engine.db_connection, engine.last_command.agent_id);
-                }
-            }
-        } 
-
-        if(result == ENGINE_OK)
-        {
-            if(vm_is_yield()) 
-            {
-                // update out buffer if any 
-                if(out_buffer[0] != 0) 
-                    db_update_agent_output(&engine.db_connection, 
-                        engine.last_command.agent_id, (char*)out_buffer);
-
-                // When we yield - insert special command to indicate that we need to resume later
-                engine_insert_db_command(engine.config.params[VM_RESUME_COMMAND]);
-            }
-            else if(out_buffer[0] != 0) 
-            {
-                engine_vm_output_cb(out_buffer);
-            }
-        }           
-
-        if(result == ENGINE_OK)
-        {
-            // Save VM in DB
-            result = db_save_agent_vm(&engine.db_connection, 
-                engine.last_command.agent_id, 
-                engine.last_agent.vm);
-        }
-
-        // Delete command always to avoid spam when error
-        result = db_delete_command(&engine.db_connection, &engine.last_command);
-
-#endif 
 
         // commit or rollback current transaction
         if((result == ENGINE_OK) || (result == ENGINE_DB_NOT_FOUND_ERROR))
@@ -545,16 +294,9 @@ ErrorCode_t engine_run()
         else
         {
             result = db_rollback_transaction(&engine.db_connection);
-        }
+        }       
 
-#ifdef ENABLED
-        // always deallocate VM and command resources
-        if(engine.last_agent.vm) vm_free(engine.last_agent.vm);
-        if(engine.last_command.email_content)
-            engine_free(engine.last_command.email_content, strlen(engine.last_command.email_content) + 1);
-
-#endif // ENABLED        
-
+        // Wait till next engine execution
         sleep(atoi(engine.config.params[ENGINE_CHECK_TIME]));
     }
 
@@ -718,50 +460,30 @@ DbConnection_t* engine_get_db_connection()
     return &engine.db_connection;
 }
 
-
-#ifdef ENABLED
-
 /** ****************************************************************************
 
-  @brief      Gets path of the forth image used as template to create VM
+  @brief      Gets the configured value for events expiration days
 
   @param[in]  None
   
-  @return     Path string
+  @return     Configured days value or default if not found
 
 *******************************************************************************/
-const char* engine_get_forth_image_path()
+int engine_get_events_expiration_days()
 {
-    return (const char*)engine.config.params[FORTH_IMAGE_PATH_ID];
+    return atoi(engine.config.params[EVENT_EXPIRATION_DAYS]);
 }
 
 /** ****************************************************************************
 
-  @brief      Gets the max number of second each VM can spend processing commands
+  @brief      Gets the number of outcome events to process per round
 
   @param[in]  None
   
-  @return     Seconds value configured
+  @return     Configured batch size (number of events)
 
 *******************************************************************************/
-const int engine_get_max_cycle_seconds()
+int engine_get_outcome_events_batch_size()
 {
-    return atoi((const char*)engine.config.params[MAX_CYCLE_SECONDS]);
+    return atoi(engine.config.params[OUTCOME_EVENT_BATCH_SIZE]);
 }
-
-/** ****************************************************************************
-
-  @brief      Gets current drone ID (drone processing commands)
-
-  @param[in]  None
-
-  @return     Drone ID
-
-*******************************************************************************/
-int engine_get_current_drone_id()
-{
-    return engine.last_agent.object_id;
-}
-
-#endif // ENABLED
-
