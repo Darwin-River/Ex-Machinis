@@ -175,7 +175,8 @@ void engine_stop_all()
 *******************************************************************************/
 void engine_process_outcome(Event_t* event)
 {
-    // TBD
+    // pass event to module
+    event_process_outcome(event);
 }
 
 /******************************* PUBLIC FUNCTIONS ****************************/
