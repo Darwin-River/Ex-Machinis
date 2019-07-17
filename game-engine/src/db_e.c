@@ -401,6 +401,10 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
                 event.new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
                 event.timestamp = row[EVENT_TIMESTAMP_IDX]?atoi(row[EVENT_TIMESTAMP_IDX]):0;
 
+                // Invoke callback if any
+                if(outcomeEventCb) outcomeEventCb(&event);
+
+                // Delete this event ??? why???
                 if(db_delete_event(event.event_id) == ENGINE_OK) {
                     engine_trace(TRACE_LEVEL_ALWAYS, 
                         "Event expired and deleted "
@@ -610,6 +614,98 @@ ErrorCode_t db_delete_event(int event_id)
                 event_id);
         }
     }
+
+    return result;
+}
+
+
+/** ****************************************************************************
+
+    @brief          Gets action information from DB using its ID
+
+    @param[in|out]  action Action information obtained, we will as input the ID to do the search
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_action(Action_t *action)
+{  
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!action) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        char* query_end = query_text;
+
+        query_end += snprintf(query_end, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT * from actions where action_id = %d",
+            action->action_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            // retrieve the result and check that is an only row with expeced fields number
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+
+            if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
+                (mysql_num_fields(db_result) != MAX_ACTION_FIELDS))
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get action info for ACTION_ID [%d] "
+                    "(invalid result for query [%s])",
+                    action->action_id,
+                    query_text);
+
+                result = ENGINE_DB_QUERY_ERROR;
+            } 
+            else 
+            {
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row) 
+                {
+                    // Pick the fields we need
+                    action->drone_id = row[ACTION_DRONE_ID_IDX]?atoi(row[ACTION_DRONE_ID_IDX]):0;
+                    action->protocol_id = row[ACTION_PROTOCOL_ID_IDX]?atoi(row[ACTION_PROTOCOL_ID_IDX]):0;
+                    action->process_multiplier = row[ACTION_PROCESS_MULTIPLIER_IDX]?atoi(row[ACTION_PROCESS_MULTIPLIER_IDX]):-1;
+                    action->aborted = row[ACTION_ABORTED_ID_IDX]?atoi(row[ACTION_ABORTED_ID_IDX]):0;
+
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "DRONE_ID [%d] PROTOCOL_ID [%d] PROCESS_MULTIPLIER [%d] ABORTED [%d] obtained for ACTION_ID [%d]", 
+                        action->drone_id, 
+                        action->protocol_id, 
+                        action->process_multiplier, 
+                        action->protocol_id,
+                        action->aborted);
+                }
+                else 
+                {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "ERROR: Unable to get action info for ACTION_ID [%d] (no row)", 
+                        action->action_id);
+
+                    result = ENGINE_DB_QUERY_ERROR;
+                }
+            }
+
+            mysql_free_result(db_result);
+        }
+    }        
 
     return result;
 }
