@@ -39,7 +39,9 @@ ErrorCode_t event_update_new_quantities(Event_t *event)
 {
   ErrorCode_t result = ENGINE_OK;
 
-  // The EE will search for the last processed event with the same drone, resource, installed, and locked values (if such an event exists) and add that quantity to the new_quantities field of the current event.
+  // The EE will search for the last processed event with the same drone, 
+  // resource, installed, and locked values (if such an event exists) and 
+  // add that quantity to the new_quantities field of the current event.
 
   // New query to add all previous quantities
 
