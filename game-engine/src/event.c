@@ -35,17 +35,35 @@
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t event_update_new_quantities(Event_t *event) 
+ErrorCode_t event_update_new_quantity(Event_t *event) 
 {
-  ErrorCode_t result = ENGINE_OK;
+    ErrorCode_t result = ENGINE_OK;
+    Event_t previous_event;
 
-  // The EE will search for the last processed event with the same drone, 
-  // resource, installed, and locked values (if such an event exists) and 
-  // add that quantity to the new_quantities field of the current event.
+    // The EE will search for the last processed event with the same drone, 
+    // resource, installed, and locked values (if such an event exists) and 
+    // add that quantity to the new_quantities field of the current event.
 
-  // New query to add all previous quantities
+    if(event == NULL)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL event received, unable to update new quantity");
+        result = ENGINE_INTERNAL_ERROR;
+    }
 
-  return result;
+    if(result == ENGINE_OK)
+    {
+        // Get last event with same drone, resource, installed and locked values
+        // We pass an enum to indicate this condition
+        result = db_get_previous_event(event, PREVIOUS_EVENT_BY_RESOURCE_INFO, &previous_event);
+    }
+
+    if(result == ENGINE_OK)
+    {
+        // We obtained and event - do the maths to update new_quantity
+        event->new_quantity += previous_event.new_quantity;
+    }
+
+    return result;
 }
 
 /** ****************************************************************************
@@ -60,13 +78,30 @@ ErrorCode_t event_update_new_quantities(Event_t *event)
 *******************************************************************************/
 ErrorCode_t event_update_new_cargo(Event_t *event) 
 {
-  ErrorCode_t result = ENGINE_OK;
+    ErrorCode_t result = ENGINE_OK;
+    Event_t previous_event;
 
-  // new_cargo.  The EE will search for the last processed event with the same drone and add that quantity to the new_cargo field of the current event.
+    // new_cargo.  The EE will search for the last processed event with the same drone and add that quantity to the new_cargo field of the current event.
 
-  // New query to add all previous cargo
+    if(event == NULL)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL event received, unable to update new cargo");
+        result = ENGINE_INTERNAL_ERROR;
+    }
 
-  return result;
+    if(result == ENGINE_OK)
+    {
+        // search for the last processed event with the same drone 
+        result = db_get_previous_event(event, PREVIOUS_EVENT_BY_DRONE, &previous_event);
+    }
+
+    if(result == ENGINE_OK)
+    {
+        // We obtained and event - do the maths to update new_quantity
+        event->new_cargo += previous_event.new_cargo;
+    }
+
+    return result;
 }
 
 /** ****************************************************************************
@@ -82,13 +117,30 @@ ErrorCode_t event_update_new_cargo(Event_t *event)
 *******************************************************************************/
 ErrorCode_t event_update_new_credit(Event_t *event) 
 {
-  ErrorCode_t result = ENGINE_OK;
+    ErrorCode_t result = ENGINE_OK;
+    Event_t previous_event;
 
-  // The EE will search for the last processed event for any drone belonging to the owner of the current drone and add the quantity of the new_credit field of the current event. 
+    // The EE will search for the last processed event for any drone belonging to the owner of the current drone and add the quantity of the new_credit field of the current event. 
 
-  // New query to add all previous credit
+    if(event == NULL)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL event received, unable to update new credits");
+        result = ENGINE_INTERNAL_ERROR;
+    }
 
-  return result;
+    if(result == ENGINE_OK)
+    {
+        // search for the last processed event with the same drone 
+        result = db_get_previous_event(event, PREVIOUS_EVENT_BY_OWNER, &previous_event);
+    }
+
+    if(result == ENGINE_OK)
+    {
+        // We obtained and event - do the maths to update new_quantity
+        event->new_credits += previous_event.new_credits;
+    }
+
+    return result;
 }
 
 /** ****************************************************************************
@@ -190,74 +242,74 @@ ErrorCode_t event_update_observations(Event_t *event)
 *******************************************************************************/
 ErrorCode_t event_process_outcome(Event_t *event) 
 {
-  ErrorCode_t result = ENGINE_OK;
+    ErrorCode_t result = ENGINE_OK;
 
-  // Sanity check 
-  if(result == ENGINE_OK)
-  {
-      engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL outcome event skipped");
-      if(!event) return ENGINE_INTERNAL_ERROR;
-  }
+    // Sanity check 
+    if(event == NULL)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL outcome event skipped");
+        return ENGINE_INTERNAL_ERROR;
+    }
 
-  // Check that associate action is not aborted - we do not process events for aborted actions
-  Action_t action;
-  memset(&action, 0, sizeof(action));
-  action.action_id = event->action_id;
+    // Check that associate action is not aborted - we do not process events for aborted actions
+    Action_t action;
+    memset(&action, 0, sizeof(action));
+    action.action_id = event->action_id;
 
-  result = db_get_action(&action);
+    result = db_get_action(&action);
 
-  if((result != ENGINE_OK) || action.aborted) 
-  {
-      engine_trace(TRACE_LEVEL_ALWAYS, 
-        "WARNING: Outcome event [%d] is associated with an aborted action [%d], ignored",
-        event->event_id,
-        event->action_id);
+    if((result != ENGINE_OK) || action.aborted) 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "WARNING: Outcome event [%d] is associated with an aborted action [%d], ignored",
+            event->event_id,
+            event->action_id);
 
-      // Mark aborted as error
-      if(result == ENGINE_OK) result = ENGINE_LOGIC_ERROR;
-  }
+        // Mark aborted as error
+        if(result == ENGINE_OK) result = ENGINE_LOGIC_ERROR;
+    }
 
-  // Do the maths to calculate the new total cargo
-  if(result == ENGINE_OK)
-  {
-    // Update new_quantities
-    result = event_update_new_quantities(event);
-  }
+    // Do the maths to calculate the new total cargo
+    if(result == ENGINE_OK)
+    {
+        // Update new_quantities
+        result = event_update_new_quantity(event);
+    }
 
-  if(result == ENGINE_OK)
-  {
-    // Update new_cargo
-    result = event_update_new_cargo(event);
-  }
+    if(result == ENGINE_OK)
+    {
+        // Update new_cargo
+        result = event_update_new_cargo(event);
+    }
 
-  if(result == ENGINE_OK)
-  {
-    // Update new_credit
-    result = event_update_new_credit(event);
-  }
+    if(result == ENGINE_OK)
+    {
+        // Update new_credit
+        result = event_update_new_credit(event);
+    }
 
-  if(result == ENGINE_OK)
-  {
-     // Validate event conditions
-     result = event_validate_event_conditions(event);
-  }
+    if(result == ENGINE_OK)
+    {
+        // Validate event conditions
+        result = event_validate_event_conditions(event);
+    }
 
-  if(result == ENGINE_OK)
-  {
-     // Delete all previous events
-     result = event_delete_previous_events(event);
-  }
-  else 
-  {
-     // Abort the associated action
-     event_abort_action(event);
-  }
+    if(result == ENGINE_OK)
+    {
+        // Delete all previous events
+        result = event_delete_previous_events(event);
+    }
+    else 
+    {
+        // Abort the associated action
+        event_abort_action(event);
+    }
 
-  if(result == ENGINE_OK)
-  {
-    // Update observation entries
-    result = event_update_observations(event);
-  }
+    if(result == ENGINE_OK)
+    {
+        // Update observation entries
+        result = event_update_observations(event);
+    }
 
 #ifdef ENABLED
   2.  When it finds such an event, the EE will update the resource, credit, and cargo quantities so they represent 
@@ -287,5 +339,5 @@ h.  The Accumulation Price for items being added to the cargo bay of a non-allie
 8.  If the event is observable and the event does was successfully processed  (i.e. the observable field is true and status = 1), the EE also creates observation table entries for each local drone and sets the observation time to the event time.
 #endif
 
-  return result;
+    return result;
 }
