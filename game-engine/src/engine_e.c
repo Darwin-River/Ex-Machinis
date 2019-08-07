@@ -278,14 +278,14 @@ ErrorCode_t engine_run()
 
     engine.status = ENGINE_RUNNING_STATUS;
 
-    // Checks periodically for commands, executes them and stores VM status
+    // Run events engine
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Running events engine logic");
 
     while(engine.status == ENGINE_RUNNING_STATUS)
     {
         // reset VM
         engine.last_agent.vm = NULL;
-
-        engine_trace(TRACE_LEVEL_ALWAYS, "Running events engine logic");
 
         // start a transaction
         result = db_start_transaction(&engine.db_connection);
