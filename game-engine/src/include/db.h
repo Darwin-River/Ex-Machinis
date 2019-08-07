@@ -19,6 +19,17 @@
 
 /******************************* TYPES ***************************************/
 
+// Enum to control how we obtain the previous event
+typedef enum
+{
+    PREVIOUS_EVENT_BY_RESOURCE_INFO,
+    PREVIOUS_EVENT_BY_DRONE,
+    PREVIOUS_EVENT_BY_OWNER,
+
+    // Define here more filter types
+
+} PreviousEventFilter_t;
+
 /******************************* PROTOTYPES **********************************/
 
 
@@ -478,5 +489,18 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e));
 
 *******************************************************************************/
 ErrorCode_t db_get_action(Action_t *action);
+
+/** ****************************************************************************
+
+    @brief          Gets previous event using input one and applying some filters
+
+    @param[in]      event     Event to do the search
+    @param[in]      filter    Enum that determines the filter to be applied at search
+    @param[in]      out_event Output event obtained (when any)
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, Event_t *out_event);
 
 #endif // __EM_DB_MODULE__
