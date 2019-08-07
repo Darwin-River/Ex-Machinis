@@ -341,10 +341,15 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
 
     if(result == ENGINE_OK)
     {
+        int events_batch_size = engine_get_outcome_events_batch_size();
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Getting next batch of [%d] not processed events ...", 
+            events_batch_size);
+
         snprintf(query_text, 
             DB_MAX_SQL_QUERY_LEN, 
             "SELECT * FROM events WHERE outcome = 0 limit %d;", 
-            engine_get_outcome_events_batch_size());
+            events_batch_size);
 
         // run it 
         if (mysql_query(connection->hndl, query_text)) 
@@ -369,18 +374,17 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
         }
         else if((rowsNum=mysql_num_rows(db_result)) <= 0) 
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "None outcome event found");
+            engine_trace(TRACE_LEVEL_ALWAYS, "None pending event found");
         }
     }  
 
     if((result == ENGINE_OK) && rowsNum)
     {  
-        engine_trace(TRACE_LEVEL_ALWAYS, "[%d] outcome events found");
+        engine_trace(TRACE_LEVEL_ALWAYS, "[%d] pending events found");
 
         // iterate results and delete one by one
         for(int eventId=0; eventId < rowsNum; eventId++)
-        {
-#ifdef ENABLED            
+        {           
             MYSQL_ROW row = mysql_fetch_row(db_result);
             if(row) 
             {
@@ -395,38 +399,15 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
                 event.resource_id = row[EVENT_RESOURCE_ID_IDX]?atoi(row[EVENT_RESOURCE_ID_IDX]):0;
                 event.installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
                 event.locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
-                event.new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):0;
+                event.new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):0;
+                event.new_credits = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):0;
                 event.new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):0;
                 event.new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):0;
                 event.new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
                 event.timestamp = row[EVENT_TIMESTAMP_IDX]?atoi(row[EVENT_TIMESTAMP_IDX]):0;
 
-                // Invoke callback if any
+                // Invoke callback when != NULL
                 if(outcomeEventCb) outcomeEventCb(&event);
-
-                // Delete this event ??? why???
-                if(db_delete_event(event.event_id) == ENGINE_OK) {
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "Event expired and deleted "
-                        "EVENT_ID [%d] EVENT_TYPE [%d] ACTION_ID [%d] LOGGED [%d] OUTCOME [%d] "
-                        "DRONE_ID [%d] RESOURCE_ID [%d] INSTALLED [%d] LOCKED [%d] NEW_QUANTITY [%d] "
-                        "NEW_CREDITS [%d] NEW_LOCATION [%d] NEW_CARGO [%d] TIMESTAMP [%ld]", 
-                        event.event_id,
-                        event.event_type,
-                        event.action_id,
-                        event.logged,
-                        event.outcome,
-                        event.drone_id,
-                        event.resource_id,
-                        event.installed,
-                        event.locked,
-                        event.new_quantity,
-                        event.new_credits,
-                        event.new_location,
-                        event.new_transmission,
-                        event.new_cargo,
-                        event.timestamp);
-                }
             }
             else
             {
@@ -439,8 +420,7 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
                 result = ENGINE_DB_QUERY_ERROR;
 
                 break; // stop for
-            } 
-#endif            
+            }           
         }
     }
    
@@ -614,6 +594,152 @@ ErrorCode_t db_delete_event(int event_id)
                 event_id);
         }
     }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Gets previous event using input one and applying some filters
+
+    @param[in]      event     Event to do the search
+    @param[in]      filter    Enum that determines the filter to be applied at search
+    @param[in]      out_event Output event obtained (when any)
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, Event_t *out_event)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    // Sanity check
+    if(!event || !out_event)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "ERROR: Unable to get previous event for NULL input parameters");
+
+        return ENGINE_INTERNAL_ERROR;
+    }    
+
+    DbConnection_t* connection = engine_get_db_connection();
+    MYSQL_RES* db_result = NULL;
+    int rowsNum = 0;
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result == ENGINE_OK)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Getting previous event for event_id [%d] and filter type [%d] ...", 
+            event->event_id, filter);
+
+        // Build the query depending on filter type
+        switch(filter) {
+            case PREVIOUS_EVENT_BY_RESOURCE_INFO:
+                snprintf(query_text, 
+                    DB_MAX_SQL_QUERY_LEN, 
+                    "SELECT * "
+                    "FROM events "
+                    "WHERE drone = %d and resource = %d and installed = %d and locked = %d "
+                    "and timestamp < FROM_UNIXTIME(%ld) order by timestamp DESC limit 1;",  //
+                    event->drone_id, event->resource_id, event->installed, event->locked, event->timestamp);
+                break;
+            case PREVIOUS_EVENT_BY_DRONE:
+                snprintf(query_text, 
+                    DB_MAX_SQL_QUERY_LEN, 
+                    "SELECT * "
+                    "FROM events "
+                    "WHERE drone = %d "
+                    "and timestamp < FROM_UNIXTIME(%ld) order by timestamp DESC limit 1;", 
+                    event->drone_id, event->timestamp);
+                break;
+            case PREVIOUS_EVENT_BY_OWNER:
+                snprintf(query_text, 
+                    DB_MAX_SQL_QUERY_LEN, 
+                    "SELECT * from events where drone in "
+                    "(select agent_id from agents where user_id = (select user_id from agents where agent_id = %d)) "
+                    "and timestamp < FROM_UNIXTIME(%ld) order by timestamp DESC limit 1;", 
+                    event->drone_id, event->timestamp);
+                break;
+            default:
+                // Unexpected enum value
+                engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unexpected filter value [%d] getting previous event", filter);
+                result = ENGINE_INTERNAL_ERROR;
+                break;
+        }
+    }
+
+    if(result == ENGINE_OK)
+    {
+        // run query 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+    }
+
+    if(result == ENGINE_OK)
+    {
+        // retrieve the results and process one by one
+        db_result = mysql_store_result(connection->hndl);
+
+        if(db_result == NULL)
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Unable to get previous event (invalid result for query [%s])",
+                query_text);
+
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else if((rowsNum=mysql_num_rows(db_result)) <= 0) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "None previous event found");
+            result = ENGINE_LOGIC_ERROR; // Indicates that no entry was found
+        }
+    }  
+
+    if((result == ENGINE_OK) && rowsNum)
+    {  
+        engine_trace(TRACE_LEVEL_ALWAYS, "[%d] previous event found");
+
+        // Store the info obtained at output event
+        MYSQL_ROW row = mysql_fetch_row(db_result);
+        if(row) 
+        {
+            memset(out_event, 0, sizeof(*out_event));
+
+            // Pick event fields
+            out_event->event_id = row[EVENT_ID_IDX]?atoi(row[EVENT_ID_IDX]):0;
+            out_event->event_type = row[EVENT_TYPE_IDX]?atoi(row[EVENT_TYPE_IDX]):0;
+            out_event->action_id = row[EVENT_ACTION_IDX]?atoi(row[EVENT_ACTION_IDX]):0;
+            out_event->logged = row[EVENT_LOGGED_IDX]?atoi(row[EVENT_LOGGED_IDX]):0;
+            out_event->outcome = row[EVENT_OUTCOME_IDX]?atoi(row[EVENT_OUTCOME_IDX]):0;
+            out_event->drone_id = row[EVENT_DRONE_ID_IDX]?atoi(row[EVENT_DRONE_ID_IDX]):0;
+            out_event->resource_id = row[EVENT_RESOURCE_ID_IDX]?atoi(row[EVENT_RESOURCE_ID_IDX]):0;
+            out_event->installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
+            out_event->locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
+            out_event->new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):0;
+            out_event->new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):0;
+            out_event->new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):0;
+            out_event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
+            out_event->timestamp = row[EVENT_TIMESTAMP_IDX]?atoi(row[EVENT_TIMESTAMP_IDX]):0;
+        } 
+        else 
+        {
+            // unexpected error
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Unable to get previous event row for query [%s]", 
+                query_text);
+
+            result = ENGINE_DB_QUERY_ERROR;
+        }           
+    }
+   
+    if(db_result)
+        mysql_free_result(db_result);
 
     return result;
 }
