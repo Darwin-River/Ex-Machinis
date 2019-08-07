@@ -433,6 +433,21 @@ typedef enum
 //  EVENTS table
 //-----------------------------------------------------------------------------
 
+// Outcome values
+typedef enum
+{
+	OUTCOME_OK = 0,
+	OUTCOME_NO_LOCAL = -1,
+	OUTCOME_NO_RESOURCES = -2,
+	OUTCOME_NO_CARGO_SPACE = -3,
+	OUTCOME_NO_CREDITS = -4,
+	OUTCOME_RESOURCES_LOWER_LIMIT = -5,
+	OUTCOME_RESOURCES_UPPER_LIMIT = -6,
+	OUTCOME_WRONG_DEPLETION_PRICE = -7,
+	OUTCOME_WRONG_ACCUMULATION_PRICE = -8
+
+} Outcome_t;
+
 typedef struct
 {
 	int event_id;
@@ -476,7 +491,6 @@ typedef enum
 	MAX_EVENT_FIELDS
 
 } EventFieldId_t;
-
 
 #endif // __EM_COMMON_TYPES_MODULE__
 
