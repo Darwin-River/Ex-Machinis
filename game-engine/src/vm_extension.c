@@ -25,7 +25,7 @@
 
 // x macro to manage callbacks
 #define CALLBACK_XMACRO\
-  X("execute",  vm_ext_execute_cb, true)\
+  X("perform",  vm_ext_execute_cb, true)\
   X("report",   vm_ext_report_cb, true)\
   X("dummy",    vm_ext_dummy_cb,  true)\
 
