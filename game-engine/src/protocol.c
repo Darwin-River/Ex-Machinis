@@ -247,6 +247,7 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
       // newEvent.processed = 0; // Default memset()
       newEvent.installed = effect->installed;
       newEvent.locked = effect->locked;
+      newEvent.outcome = OUTCOME_NO_OUTCOME;
       newEvent.new_quantity = effect->quantity; // here only reflect the change in quantity
       newEvent.new_cargo = (newEvent.new_quantity * resource.resource_mass); // here we reflect the change in mass units
   
