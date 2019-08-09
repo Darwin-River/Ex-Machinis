@@ -481,6 +481,30 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e));
 
 /** ****************************************************************************
 
+    @brief          Updates event info using input info received
+
+    @param[in]      event Event info to be updated
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_update_event(Event_t *event);
+
+/** ****************************************************************************
+
+    @brief          Gets previous event using input one and applying some filters
+
+    @param[in]      event     Event to do the search
+    @param[in]      filter    Enum that determines the filter to be applied at search
+    @param[in]      out_event Output event obtained (when any)
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_delete_previous_events(Event_t *event);
+
+/** ****************************************************************************
+
     @brief          Gets action information from DB using its ID
 
     @param[in|out]  action Action information obtained, we will as input the ID to do the search
@@ -502,5 +526,16 @@ ErrorCode_t db_get_action(Action_t *action);
 
 *******************************************************************************/
 ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, Event_t *out_event);
+
+/** ****************************************************************************
+
+    @brief          Gets the max cargo supported by a given drone
+
+    @param[in|out]  capacity Output param where we store max capacity when success
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_max_drone_cargo(int drone_id, int *capacity);
 
 #endif // __EM_DB_MODULE__

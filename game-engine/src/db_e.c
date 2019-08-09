@@ -404,7 +404,13 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
                 event.new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):0;
                 event.new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):0;
                 event.new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
-                event.timestamp = row[EVENT_TIMESTAMP_IDX]?atoi(row[EVENT_TIMESTAMP_IDX]):0;
+                
+                // Convert date obtained to time_t
+                event.timestamp = db_date_to_timestamp(row[EVENT_TIMESTAMP_IDX], "%F %T");
+
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "DATE [%s] => TIMESTAMP [%ld]", 
+                    row[EVENT_TIMESTAMP_IDX], event.timestamp);
 
                 // Invoke callback when != NULL
                 if(outcomeEventCb) outcomeEventCb(&event);
@@ -635,6 +641,13 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
             "Getting previous event for event_id [%d] and filter type [%d] ...", 
             event->event_id, filter);
 
+        // Generate timestamp string from time_t
+        char timestamp_buffer[80];
+        strftime(timestamp_buffer, 80,"%F %T", localtime(&event->timestamp));
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "TIMESTAMP [%ld] => DATE [%s]", 
+                    event->timestamp, timestamp_buffer);
+
         // Build the query depending on filter type
         switch(filter) {
             case PREVIOUS_EVENT_BY_RESOURCE_INFO:
@@ -643,8 +656,8 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "SELECT * "
                     "FROM events "
                     "WHERE drone = %d and resource = %d and installed = %d and locked = %d "
-                    "and timestamp < FROM_UNIXTIME(%ld) order by timestamp DESC limit 1;",  //
-                    event->drone_id, event->resource_id, event->installed, event->locked, event->timestamp);
+                    "and timestamp < '%s' order by timestamp DESC limit 1;",  //
+                    event->drone_id, event->resource_id, event->installed, event->locked, timestamp_buffer);
                 break;
             case PREVIOUS_EVENT_BY_DRONE:
                 snprintf(query_text, 
@@ -652,16 +665,16 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "SELECT * "
                     "FROM events "
                     "WHERE drone = %d "
-                    "and timestamp < FROM_UNIXTIME(%ld) order by timestamp DESC limit 1;", 
-                    event->drone_id, event->timestamp);
+                    "and timestamp < '%s' order by timestamp DESC limit 1;", 
+                    event->drone_id, timestamp_buffer);
                 break;
             case PREVIOUS_EVENT_BY_OWNER:
                 snprintf(query_text, 
                     DB_MAX_SQL_QUERY_LEN, 
                     "SELECT * from events where drone in "
                     "(select agent_id from agents where user_id = (select user_id from agents where agent_id = %d)) "
-                    "and timestamp < FROM_UNIXTIME(%ld) order by timestamp DESC limit 1;", 
-                    event->drone_id, event->timestamp);
+                    "and timestamp < '%s' order by timestamp DESC limit 1;", 
+                    event->drone_id, timestamp_buffer);
                 break;
             default:
                 // Unexpected enum value
@@ -674,6 +687,9 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
     if(result == ENGINE_OK)
     {
         // run query 
+        engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
+
+
         if (mysql_query(connection->hndl, query_text)) 
         {
             engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
@@ -697,13 +713,13 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
         else if((rowsNum=mysql_num_rows(db_result)) <= 0) 
         {
             engine_trace(TRACE_LEVEL_ALWAYS, "None previous event found");
-            result = ENGINE_LOGIC_ERROR; // Indicates that no entry was found
+            result = ENGINE_NOT_FOUND; // Indicates that no entry was found
         }
     }  
 
     if((result == ENGINE_OK) && rowsNum)
     {  
-        engine_trace(TRACE_LEVEL_ALWAYS, "[%d] previous event found");
+        engine_trace(TRACE_LEVEL_ALWAYS, "[%d] previous event found", rowsNum);
 
         // Store the info obtained at output event
         MYSQL_ROW row = mysql_fetch_row(db_result);
@@ -725,7 +741,8 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
             out_event->new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):0;
             out_event->new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):0;
             out_event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
-            out_event->timestamp = row[EVENT_TIMESTAMP_IDX]?atoi(row[EVENT_TIMESTAMP_IDX]):0;
+            // Convert date obtained to time_t
+            out_event->timestamp = db_date_to_timestamp(row[EVENT_TIMESTAMP_IDX], "%F %T");
         } 
         else 
         {
@@ -775,7 +792,7 @@ ErrorCode_t db_get_action(Action_t *action)
 
         query_end += snprintf(query_end, 
             DB_MAX_SQL_QUERY_LEN, 
-            "SELECT * from actions where action_id = %d",
+            "SELECT * from actions where id = %d",
             action->action_id);
 
         // run it 
@@ -788,15 +805,18 @@ ErrorCode_t db_get_action(Action_t *action)
         {
             // retrieve the result and check that is an only row with expeced fields number
             MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+            uint64_t rowsNum = mysql_num_rows(db_result);
+            unsigned int fieldsNum = mysql_num_fields(db_result);
 
-            if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
-                (mysql_num_fields(db_result) != MAX_ACTION_FIELDS))
+            if((db_result == NULL) || (rowsNum != 1) || (fieldsNum != MAX_ACTION_FIELDS))
             {
                 engine_trace(TRACE_LEVEL_ALWAYS, 
                     "ERROR: Unable to get action info for ACTION_ID [%d] "
-                    "(invalid result for query [%s])",
+                    "(invalid result for query [%s], rows [%d], fields [%d])",
                     action->action_id,
-                    query_text);
+                    query_text,
+                    rowsNum,
+                    fieldsNum);
 
                 result = ENGINE_DB_QUERY_ERROR;
             } 
@@ -824,6 +844,256 @@ ErrorCode_t db_get_action(Action_t *action)
                     engine_trace(TRACE_LEVEL_ALWAYS, 
                         "ERROR: Unable to get action info for ACTION_ID [%d] (no row)", 
                         action->action_id);
+
+                    result = ENGINE_DB_QUERY_ERROR;
+                }
+            }
+
+            mysql_free_result(db_result);
+        }
+    }        
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Aborts an action using its ID
+
+    @param[in]      action_id Action to be aborted
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_abort_action(int action_id)
+{  
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result == ENGINE_OK)
+    {
+        char* query_end = query_text;
+
+        query_end += snprintf(query_end, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "UPDATE actions SET aborted = 1 WHERE ID = %d",
+            action_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "Action [%d] aborted", action_id);
+        }
+    }        
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Updates event info using input info received
+
+    @param[in]      event Event info to be updated
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_update_event(Event_t *event)
+{  
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!event) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        char* query_end = query_text;
+
+        query_end += snprintf(query_end, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "UPDATE events SET outcome = %d, new_quantity = %d, new_credits = %d, new_cargo = %d WHERE id = %d",
+            event->outcome, event->new_quantity, event->new_credits, event->new_cargo, event->event_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "Event [%d] updated with outcome [%d] new_quantity [%d] new_credits [%d] new cargo [%d]", 
+                event->event_id, event->outcome, event->new_quantity, event->new_credits, event->new_cargo);
+        }
+    }        
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Gets previous event using input one and applying some filters
+
+    @param[in]      event     Event to do the search
+    @param[in]      filter    Enum that determines the filter to be applied at search
+    @param[in]      out_event Output event obtained (when any)
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_delete_previous_events(Event_t *event)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    // Sanity check
+    if(!event)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "ERROR: Unable to delete previous events for NULL input event");
+
+        return ENGINE_INTERNAL_ERROR;
+    }    
+
+    DbConnection_t* connection = engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result == ENGINE_OK)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Deleting previous events for event_id [%d] event_type [%d] drone_id [%d] resource_id [%d] installed [%d] locked [%d] ...", 
+            event->event_id, event->event_type, event->drone_id, event->resource_id, event->installed, event->locked);
+
+        // Get date string
+        char timestamp_buffer[80];
+        strftime(timestamp_buffer, 80,"%F %T", localtime(&event->timestamp));
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "TIMESTAMP [%ld] => DATE [%s]", 
+                    event->timestamp, timestamp_buffer);
+
+        snprintf(query_text, 
+                    DB_MAX_SQL_QUERY_LEN, 
+                    "DELETE "
+                    "FROM events "
+                    "WHERE event_type = %d and drone = %d and resource = %d and installed = %d and locked = %d "
+                    "and timestamp < '%s';",  //
+                    event->event_type, event->drone_id, event->resource_id, event->installed, event->locked, timestamp_buffer);
+
+        // run query 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+    }
+
+    if(result == ENGINE_OK)
+    {  
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Deleted [%d] previous events for event_id [%d] event_type [%d] drone_id [%d] "
+            "resource_id [%d] installed [%d] locked [%d] ...", 
+            mysql_affected_rows(connection->hndl), event->event_id, event->event_type, event->drone_id, 
+            event->resource_id, event->installed, event->locked);
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Gets the max cargo supported by a given drone
+
+    @param[in|out]  capacity Output param where we store max capacity when success
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_max_drone_cargo(int drone_id, int *capacity)
+{  
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!capacity) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        char* query_end = query_text;
+
+        query_end += snprintf(query_end, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT cargo_capacity from hulls where id = (select hull_type from agents where agent_id = %d)",
+            drone_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            // retrieve the result and check that is an only row with expeced fields number
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+            uint64_t rowsNum = mysql_num_rows(db_result);
+            unsigned int fieldsNum = mysql_num_fields(db_result);
+
+            if((db_result == NULL) || (rowsNum != 1) || (fieldsNum != 1))
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get max cargo for DRONE_ID [%d] "
+                    "(invalid result for query [%s], rows [%d], fields [%d])",
+                    drone_id,
+                    query_text,
+                    rowsNum,
+                    fieldsNum);
+
+                result = ENGINE_DB_QUERY_ERROR;
+            } 
+            else 
+            {
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row) 
+                {
+                    // Pick the only field value
+                    *capacity = row[0]?atoi(row[0]):0;
+                    
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "DRONE_ID [%d] MAX_CAPACITY [%d]", 
+                        drone_id, 
+                        *capacity );
+                }
+                else 
+                {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "ERROR: Unable to get max drone capacity for drone [%d] (no row)", 
+                        drone_id);
 
                     result = ENGINE_DB_QUERY_ERROR;
                 }
