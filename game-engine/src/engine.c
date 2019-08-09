@@ -928,6 +928,6 @@ DbConnection_t* engine_get_db_connection()
 *******************************************************************************/
 int engine_get_current_drone_id()
 {
-    return engine.last_agent.object_id;
+    return engine.last_command.agent_id;
 }
 
