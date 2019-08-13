@@ -269,13 +269,14 @@ ENGINE = InnoDB;
 DROP TABLE IF EXISTS `exmachinis`.`observations` ;
 
 CREATE TABLE IF NOT EXISTS `exmachinis`.`observations` (
-  `id` INT(10) UNSIGNED NOT NULL,
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   `drone` INT(10) UNSIGNED NULL,
   `event` INT(10) UNSIGNED NULL,
   `time` DATETIME NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC))
-ENGINE = InnoDB;
+ENGINE = InnoDB
+AUTO_INCREMENT = 1;
 
 
 -- -----------------------------------------------------
