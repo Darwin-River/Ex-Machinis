@@ -526,13 +526,13 @@ ErrorCode_t event_update_observations(Event_t *event)
     }        
 
     // Observable events are also observed by any other spacecraft in orbit around the same object.
-    if(result == ENGINE_OK)
+    if(result == ENGINE_OK && protocol.observable)
     {
         result = db_insert_local_observations(event);
     }
     
     // Reportable events are also observed by the Earth Based Central Database.
-    if(result == ENGINE_OK)
+    if(result == ENGINE_OK && protocol.reportable)
     {
         char position[MAX_OBJECT_NAME_SIZE];
         double distance;
