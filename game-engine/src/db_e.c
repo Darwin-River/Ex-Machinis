@@ -1145,7 +1145,7 @@ ErrorCode_t db_insert_observation(Observation_t* observation)
 
     query_end += snprintf(query_end, 
         DB_MAX_SQL_QUERY_LEN, 
-        "INSERT INTO observations (drone, event, time) VALUES(%d, %d, %s)",
+        "INSERT INTO observations (drone, event, time) VALUES(%d, %d, '%s')",
         observation->drone_id,
         observation->event_id,
         timestamp_buffer);
@@ -1162,7 +1162,7 @@ ErrorCode_t db_insert_observation(Observation_t* observation)
         observation->id = mysql_insert_id(connection->hndl);
 
         engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Observation [%d, %d, %d, %d, %s] inserted into DB",
+            "Observation [%d, %d, %d, %s] inserted into DB",
             observation->id,
             observation->drone_id,
             observation->event_id,
