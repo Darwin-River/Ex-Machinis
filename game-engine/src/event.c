@@ -10,10 +10,12 @@
 
 #include <string.h>
 #include <limits.h>
+#include <time.h>
 
 #include "event.h"
 #include "engine_e.h"
 #include "db.h"
+#include "orbits.h"
 
 /******************************* DEFINES *************************************/
 
@@ -385,6 +387,117 @@ ErrorCode_t event_abort_action(Event_t *event)
 
 /** ****************************************************************************
 
+  @brief          Gets the position of a given object ID (body and distance from Earth)
+
+  @param[in]      object_id     Current object ID (drone object ID)
+  @param[out]     position      Output buffer where we store current position
+  @param[out]     distance      Output buffer where we store current distance from Earth
+
+  @return         Error code
+
+*******************************************************************************/
+ErrorCode_t event_get_drone_position(int object_id, char* position, double* distance)
+{
+    ErrorCode_t result = ENGINE_INTERNAL_ERROR;
+
+    if(position && distance) {
+        ObjectOrbitInfo_t drone;
+        ObjectOrbitInfo_t object;
+        ObjectOrbitInfo_t sun;
+        ObjectOrbitInfo_t earth;
+        CartesianInfo_t final_position;
+        int objects_num = 0;
+        Bool_t done = ENGINE_FALSE;
+
+        result = ENGINE_OK; // default OK
+
+        // Obtain the Sun info from DB 
+        memset(&sun, 0, sizeof(ObjectOrbitInfo_t));
+
+        if(db_get_object_info_by_name_x("Sun", &sun) != ENGINE_OK) {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to obtain SUN position");
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+
+        if(result == ENGINE_OK) {
+            engine_trace(TRACE_LEVEL_ALWAYS,  "[%s] has OBJ_ID=[%d]", sun.object_name, sun.object_id);
+
+            // Obtain the drone position from this object ID
+            memset(&object, 0, sizeof(ObjectOrbitInfo_t));
+            memset(&final_position, 0, sizeof(CartesianInfo_t));
+            object.object_id = object_id;
+
+            do {
+                // Get current object info
+                if(db_get_orbit_info_x(&object) != ENGINE_OK) {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "ERROR: Unable to obtain position for drone with OBJ_ID=[%d]",
+                        object.object_id);
+
+                    result = ENGINE_DB_QUERY_ERROR;
+                } else {
+                    // Save drone position at first search (safe = same size)
+                    if(objects_num++ == 0) {
+                        memcpy(&drone, &object, sizeof(ObjectOrbitInfo_t));
+                        sprintf(position, "%s", drone.object_name);
+                    }
+
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "OBJ_ID=[%d] CENTRAL_BODY_OBJ_ID=[%d] SUN_OBJECT_ID=[%d]",
+                        object.object_id, object.central_body_object_id, sun.object_id);
+
+                    // Use current object info to calculate position
+                    CartesianInfo_t position;
+                    orbits_get_object_position(&object, &position);
+
+                    // Add coordinates to current values
+                    CartesianInfo_t current_total_position;
+                    current_total_position.x = final_position.x;
+                    current_total_position.y = final_position.y;
+                    current_total_position.z = final_position.z;
+
+                    orbits_add_coordinates(&position, &current_total_position, &final_position);
+
+                    // Check if our central body is the sun to stop
+                    if(object.central_body_object_id == sun.object_id) {
+                        done = ENGINE_TRUE;
+                    } else {
+                        // update object ID to do next search
+                        object.object_id = object.central_body_object_id;
+                    }
+                }
+
+            } while(done == ENGINE_FALSE);
+            
+        }
+
+        if(result == ENGINE_OK) {
+            engine_trace(TRACE_LEVEL_ALWAYS,  "OBJ_ID=[%d] is at [%s]", drone.object_id, drone.object_name);
+
+            // Obtain Earth info
+            memset(&earth, 0, sizeof(ObjectOrbitInfo_t));
+
+            if(db_get_object_info_by_name_x("Earth", &earth) != ENGINE_OK) {
+                engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to obtain EARTH position");
+                result = ENGINE_DB_QUERY_ERROR;
+            }
+        } 
+
+        if(result == ENGINE_OK) {
+            engine_trace(TRACE_LEVEL_ALWAYS,  "OBJ_ID=[%d] is at [%s]", earth.object_id, earth.object_name);
+
+            // Get distance between Earth <-> drone
+            *distance = orbits_get_distance_from_object(&earth, &final_position);
+        } 
+
+        
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
   @brief      When outcome is OK we update the observations table accordingly
 
   @param[in]  event  Input event
@@ -394,13 +507,54 @@ ErrorCode_t event_abort_action(Event_t *event)
 *******************************************************************************/
 ErrorCode_t event_update_observations(Event_t *event) 
 {
-  ErrorCode_t result = ENGINE_OK;
+    ErrorCode_t result = ENGINE_OK;
+    Observation_t observation;
 
-  // Then, the EE creates a new observations table entry for the acting and affected drones and sets the observation time to that of the event plus the distance in light minutes that the drone is away from the event.  For drones that are local to the event (meaning they are orbiting the same static object), the observation time is identical to the event time.
-  // 7.  If the event is reportable (i.e. the reportable field is true), then the EE creates an observations table entry for the Central Database (Drone ID = 0) and sets the observation time to the event time plus the distance of the drone from the Earth in light minutes.
-  // 8.  If the event is observable and the event does was successfully processed  (i.e. the observable field is true and status = 1), the EE also creates observation table entries for each local drone and sets the observation time to the event time.
+    // Get first the flags observable and reportable for current event
+    ProtocolInfo_t protocol;
+    result = db_get_event_observation_info(event, &protocol);
 
-  return result;
+    if(result == ENGINE_OK)
+    {
+        // All events are observed by the acting and affected drones.
+        memset(&observation, 0, sizeof(observation));
+        observation.event_id = event->event_id;
+        observation.drone_id = event->drone_id;
+        observation.timestamp = time(NULL); // now for affected drone
+
+        result = db_insert_observation(&observation);
+    }        
+
+    // Observable events are also observed by any other spacecraft in orbit around the same object.
+    if(result == ENGINE_OK)
+    {
+        result = db_insert_local_observations(event);
+    }
+    
+    // Reportable events are also observed by the Earth Based Central Database.
+    if(result == ENGINE_OK)
+    {
+        char position[MAX_OBJECT_NAME_SIZE];
+        double distance;
+        int objectId;
+
+        result = db_get_event_object_id(event, &objectId);
+
+        if(result == ENGINE_OK)
+        {
+           result = event_get_drone_position(objectId, position, &distance); 
+        }
+
+        if(result == ENGINE_OK)
+        {
+            observation.event_id = event->event_id;
+            observation.drone_id = 0; // TODO: Special droneID for Earth Based Central Database.
+            observation.timestamp = time(NULL) + (time_t)(distance/LIGHT_SPEED_KM_PER_SECOND);  
+        }
+        
+    }
+
+    return result;
 }
 
 /******************************* PUBLIC FUNCTIONS ****************************/
