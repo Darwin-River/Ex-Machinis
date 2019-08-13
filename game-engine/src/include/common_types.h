@@ -43,6 +43,9 @@
 // event_types
 #define MAX_EVENT_TYPE_NAME_SIZE  45
 
+#define LIGHT_SPEED_KM_PER_SECOND   299792.458  // Km/second
+#define LIGHT_SPEED_KM_PER_MINUTE   (LIGHT_SPEED_KM_PER_SECOND * 60.0) // Km/minute 
+
 
 /******************************* TYPES ***************************************/
 
@@ -222,6 +225,8 @@ typedef struct
 	int process_multiplier;
 	int bulk_multiplier;
 	int parameters[MAX_PROTOCOL_PARAMETERS_NUM];
+	unsigned char observable;
+	unsigned char reportable;
 	unsigned char internal;
 	
 } ProtocolInfo_t;
@@ -494,6 +499,32 @@ typedef enum
 	MAX_EVENT_FIELDS
 
 } EventFieldId_t;
+
+//-----------------------------------------------------------------------------
+//  OBSERVATIONS table
+//-----------------------------------------------------------------------------
+
+typedef struct
+{
+	int id;
+	int drone_id;
+	int event_id;
+	time_t timestamp;
+	
+} Observation_t;
+
+// Enum with table fields idx
+typedef enum
+{
+	OBSERVATION_ID_IDX,
+	OBSERVATION_DRONE_ID_IDX,
+	OBSERVATION_EVENT_ID_IDX,
+	OBSERVATION_TIMESTAMP_IDX,
+
+	// Max fields expected
+	MAX_OBSERVATION_FIELDS
+
+} ObservationFieldId_t;
 
 #endif // __EM_COMMON_TYPES_MODULE__
 

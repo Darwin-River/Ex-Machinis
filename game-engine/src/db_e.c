@@ -598,6 +598,9 @@ ErrorCode_t db_delete_event(int event_id)
             engine_trace(TRACE_LEVEL_ALWAYS, 
                 "EVENT_ID [%d] deleted from DB", 
                 event_id);
+
+            // Delete also associated observations
+            db_delete_event_observations(event_id);
         }
     }
 
@@ -1102,6 +1105,614 @@ ErrorCode_t db_get_max_drone_cargo(int drone_id, int *capacity)
             mysql_free_result(db_result);
         }
     }        
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Inserts a new observation entry
+
+    @param[in|out]  Action info to be inserted
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_insert_observation(Observation_t* observation)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result == ENGINE_OK)
+    {
+        // Sanity check
+        if(!observation)
+            return ENGINE_INTERNAL_ERROR;
+    }
+
+    char* query_end = query_text;
+
+    // time_t -> string
+    char timestamp_buffer[80];
+    strftime(timestamp_buffer, 80,"%F %T", localtime(&observation->timestamp));
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+                "TIMESTAMP [%ld] => DATE [%s]", 
+                observation->timestamp, timestamp_buffer);
+
+    query_end += snprintf(query_end, 
+        DB_MAX_SQL_QUERY_LEN, 
+        "INSERT INTO observations (drone, event, time) VALUES(%d, %d, %s)",
+        observation->drone_id,
+        observation->event_id,
+        timestamp_buffer);
+
+    // run it 
+    if (mysql_query(connection->hndl, query_text)) 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+    else 
+    {
+        // Get auto-increment ID
+        observation->id = mysql_insert_id(connection->hndl);
+
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Observation [%d, %d, %d, %d, %s] inserted into DB",
+            observation->id,
+            observation->drone_id,
+            observation->event_id,
+            timestamp_buffer);
+    }
+
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Deletes all observations for a given event
+
+    @param[in]      Input event ID
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_delete_event_observations(int event_id)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result == ENGINE_OK)
+    {
+        snprintf(query_text, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "DELETE FROM observations WHERE event = %d", 
+            event_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "[%d] observations for EVENT_ID [%d] deleted from DB", 
+                mysql_affected_rows(connection->hndl),
+                event_id);
+        }
+    }
+
+    return result;
+}
+
+
+/** ****************************************************************************
+
+    @brief          Generates observations for any drone at the same orbit than current
+                    drone (event drone)
+
+    @param[in]      Input event ID
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_insert_local_observations(Event_t *event)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result == ENGINE_OK)
+    {
+        // Sanity check
+        if(!event)
+            return ENGINE_INTERNAL_ERROR;
+    }
+
+
+    if(result == ENGINE_OK)
+    {
+        snprintf(query_text, 
+                DB_MAX_SQL_QUERY_LEN, 
+                "SELECT agent_id FROM agents WHERE object_id = (SELECT object_id FROM agents where agent_id = %d);", 
+                event->drone_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+    }
+
+    MYSQL_RES* db_result = NULL;
+    int rowsNum = 0;
+
+    if(result == ENGINE_OK)
+    {
+        // retrieve the results and delete one by one
+        db_result = mysql_store_result(connection->hndl);
+
+        if(db_result == NULL)
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Unable to get local drones for drone_id [%d] (invalid result for query [%s])",
+                event->drone_id,
+                query_text);
+
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else if((rowsNum=mysql_num_rows(db_result)) <= 0) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "None local drone found for drone_id [%d]", event->drone_id);
+        }
+    }  
+
+    if((result == ENGINE_OK) && rowsNum)
+    {  
+        // iterate results and insert observations entry for each one
+        for(int droneId=0; droneId < rowsNum; droneId++)
+        {
+            MYSQL_ROW row = mysql_fetch_row(db_result);
+            if(row) 
+            {
+                Observation_t observation;
+                memset(&observation, 0, sizeof(observation));
+
+                // Fill observation fields
+                observation.event_id = event->event_id;
+                observation.drone_id = row[0]?atoi(row[0]):0;
+                observation.timestamp = time(NULL); // TODO: calculate here the distance between both
+                
+                db_insert_observation(&observation);
+            }
+            else
+            {
+                // unexpected error - abort
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get row for query [%s] with [%d] rows", 
+                    query_text,
+                    rowsNum);
+
+                result = ENGINE_DB_QUERY_ERROR;
+
+                break; // stop for
+            } 
+        }
+    }
+   
+    if(db_result)
+        mysql_free_result(db_result);
+
+    return result;
+}
+
+
+/** ****************************************************************************
+
+    @brief          Gets whole observation info for a given event (observable, reportable, etc,..)
+
+    @param[in]      event    Input event
+    @param[in\out]  protocol Output struct where we store the protocol info required
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protocol)
+{  
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!event || !protocol) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        char* query_end = query_text;
+
+        query_end += snprintf(query_end, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT observable, reportable from protocols where id = (select protocol from actions where id = %d)",
+            event->action_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            // retrieve the result and check that is an only row with expeced fields number
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+            uint64_t rowsNum = mysql_num_rows(db_result);
+            unsigned int fieldsNum = mysql_num_fields(db_result);
+
+            if((db_result == NULL) || (rowsNum != 1) || (fieldsNum != 2))
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get observation info for EVENT_ID [%d] "
+                    "(invalid result for query [%s], rows [%d], fields [%d])",
+                    event->event_id,
+                    query_text,
+                    rowsNum,
+                    fieldsNum);
+
+                result = ENGINE_DB_QUERY_ERROR;
+            } 
+            else 
+            {
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row) 
+                {
+                    // Pick the only field value
+                    int value = row[0]?atoi(row[0]):0;
+                    protocol->observable = (value > 0)?1:0;
+                    value = row[1]?atoi(row[1]):0;
+                    protocol->reportable = (value > 0)?1:0;
+                    
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "EVENT_ID [%d] OBSERVABLE [%d] REPORTABLE [%d]", 
+                        event->event_id, 
+                        protocol->observable,
+                        protocol->reportable);
+                }
+                else 
+                {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "ERROR: Unable to get observation info for EVENT_ID [%d] (no row)", 
+                        event->event_id);
+
+                    result = ENGINE_DB_QUERY_ERROR;
+                }
+            }
+
+            mysql_free_result(db_result);
+        }
+    }        
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Gets object ID for current event drone
+
+    @param[in]      event      Input event
+    @param[out]     object_id  Output object ID obtained when success
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_event_object_id(Event_t *event, int *object_id)
+{  
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!event || !object_id) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        char* query_end = query_text;
+
+        query_end += snprintf(query_end, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT object_id from agents where agent_id = %d",
+            event->drone_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            // retrieve the result and check that is an only row with expeced fields number
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+            uint64_t rowsNum = mysql_num_rows(db_result);
+            unsigned int fieldsNum = mysql_num_fields(db_result);
+
+            if((db_result == NULL) || (rowsNum != 1) || (fieldsNum != 1))
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get object_id for DRONE_ID [%d] "
+                    "(invalid result for query [%s], rows [%d], fields [%d])",
+                    event->drone_id,
+                    query_text,
+                    rowsNum,
+                    fieldsNum);
+
+                result = ENGINE_DB_QUERY_ERROR;
+            } 
+            else 
+            {
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row) 
+                {
+                    // Pick the only field value
+                    *object_id = row[0]?atoi(row[0]):0;
+                    
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "EVENT_ID [%d] DRONE_ID [%d] OBJECT_ID [%d]", 
+                        event->event_id, 
+                        event->drone_id,
+                        *object_id);
+                }
+                else 
+                {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "ERROR: Unable to get object ID for DRONE_ID [%d] (no row)", 
+                        event->drone_id);
+
+                    result = ENGINE_DB_QUERY_ERROR;
+                }
+            }
+
+            mysql_free_result(db_result);
+        }
+    }        
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Gets earth orbit info
+
+    @param[in|out]  name Object name we are looking for
+    @param[in|out]  Output parameter where we store the orbit info obtained from DB
+                    This object contains also current object ID to do the search in DB
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_object_info_by_name_x(char* name, ObjectOrbitInfo_t* object)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!object || !name) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        snprintf(query_text, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT * FROM objects WHERE object_name = '%s'", name);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            // retrieve the result and check that is an only row with a single field
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+
+            if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
+                (mysql_num_fields(db_result) != MAX_OBJECT_FIELDS))
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get [%s] orbit info "
+                    "(invalid result for query [%s])",
+                    name, query_text);
+
+                result = ENGINE_DB_QUERY_ERROR;
+            } 
+            else 
+            {
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row) 
+                {
+                    // Get epoch first and return error if fails
+                    // otherwise just fill the rest of fields
+                    object->epoch = db_date_to_timestamp(row[EPOCH_IDX], OBJECTS_TIMESTAMP_FORMAT);
+
+                    if(!object->epoch) {
+                        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to get EPOCH info for [%s]", name);
+                        result = ENGINE_INTERNAL_ERROR;
+
+                    } else {
+                        // Store object ID 
+                        object->object_id = row[OBJECT_ID_IDX]?atoi(row[OBJECT_ID_IDX]):-1;
+
+                        sprintf(object->object_name, "%s", row[OBJECT_NAME_IDX]?row[OBJECT_NAME_IDX]:"");
+                        sprintf(object->object_type, "%s", row[OBJECT_TYPE_IDX]?row[OBJECT_TYPE_IDX]:"");
+
+                        object->gravitational_parameter = row[GRAVITATIONAL_PARAMETER_IDX]?atof(row[GRAVITATIONAL_PARAMETER_IDX]):-1;
+                        object->central_body_object_id = row[CENTRAL_BODY_OBJECT_ID_IDX]?atoi(row[CENTRAL_BODY_OBJECT_ID_IDX]):-1;
+
+                        object->semimajor_axis = row[SEMIMAJOR_AXIS_IDX]?atof(row[SEMIMAJOR_AXIS_IDX]):-1;
+                        object->eccentricity = row[ECCENTRICITY_IDX]?atof(row[ECCENTRICITY_IDX]):-1;
+                        object->periapsis_argument = row[PERIAPSIS_ARGUMENT_IDX]?atof(row[PERIAPSIS_ARGUMENT_IDX]):-1;
+                        object->mean_anomaly = row[MEAN_ANOMALY_IDX]?atof(row[MEAN_ANOMALY_IDX]):-1;
+                        object->inclination = row[INCLINATION_IDX]?atof(row[INCLINATION_IDX]):-1;
+                        object->ascending_node_longitude = row[ASCENDING_NODE_LONGITUDE_IDX]?atof(row[ASCENDING_NODE_LONGITUDE_IDX]):-1;
+                        object->mean_angular_motion = row[MEAN_ANGULAR_MOTION_IDX]?atof(row[MEAN_ANGULAR_MOTION_IDX]):-1;
+                    }
+
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "NAME [%s] TYPE [%s] obtained for OBJECT_ID [%d]", 
+                        object->object_name, object->object_type, object->object_id);
+                }
+                else 
+                {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "ERROR: Unable to get orbits info for OBJECT_ID [%d] (no row)", 
+                        object->object_id);
+
+                    result = ENGINE_DB_QUERY_ERROR;
+                }
+            }
+
+            mysql_free_result(db_result);
+        }
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Gets orbit info for a given object ID
+
+    @param[in|out]  Output parameter where we store the orbit info obtained from DB
+                    This object contains also current object ID to do the search in DB
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_orbit_info_x(ObjectOrbitInfo_t* object)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!object) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        snprintf(query_text, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT * FROM objects WHERE object_id = %d", object->object_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            // retrieve the result and check that is an only row with a single field
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+
+            if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
+                (mysql_num_fields(db_result) != MAX_OBJECT_FIELDS))
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get orbits info for OBJECT_ID [%d] "
+                    "(invalid result for query [%s])",
+                    object->object_id,
+                    query_text);
+
+                result = ENGINE_DB_QUERY_ERROR;
+            } 
+            else 
+            {
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row) 
+                {
+                    // Get epoch first and return error if fails
+                    // otherwise just fill the rest of fields
+                    object->epoch = db_date_to_timestamp(row[EPOCH_IDX], OBJECTS_TIMESTAMP_FORMAT);
+
+                    if(!object->epoch) {
+                        engine_trace(TRACE_LEVEL_ALWAYS, 
+                            "ERROR: Unable to get EPOCH info for OBJECT_ID [%d]", 
+                            object->object_id);
+
+                        result = ENGINE_INTERNAL_ERROR;
+
+                    } else {
+                        sprintf(object->object_name, "%s", row[OBJECT_NAME_IDX]?row[OBJECT_NAME_IDX]:"");
+                        sprintf(object->object_type, "%s", row[OBJECT_TYPE_IDX]?row[OBJECT_TYPE_IDX]:"");
+
+                        object->gravitational_parameter = row[GRAVITATIONAL_PARAMETER_IDX]?atof(row[GRAVITATIONAL_PARAMETER_IDX]):-1;
+                        object->central_body_object_id = row[CENTRAL_BODY_OBJECT_ID_IDX]?atoi(row[CENTRAL_BODY_OBJECT_ID_IDX]):-1;
+
+                        object->semimajor_axis = row[SEMIMAJOR_AXIS_IDX]?atof(row[SEMIMAJOR_AXIS_IDX]):-1;
+                        object->eccentricity = row[ECCENTRICITY_IDX]?atof(row[ECCENTRICITY_IDX]):-1;
+                        object->periapsis_argument = row[PERIAPSIS_ARGUMENT_IDX]?atof(row[PERIAPSIS_ARGUMENT_IDX]):-1;
+                        object->mean_anomaly = row[MEAN_ANOMALY_IDX]?atof(row[MEAN_ANOMALY_IDX]):-1;
+                        object->inclination = row[INCLINATION_IDX]?atof(row[INCLINATION_IDX]):-1;
+                        object->ascending_node_longitude = row[ASCENDING_NODE_LONGITUDE_IDX]?atof(row[ASCENDING_NODE_LONGITUDE_IDX]):-1;
+                        object->mean_angular_motion = row[MEAN_ANGULAR_MOTION_IDX]?atof(row[MEAN_ANGULAR_MOTION_IDX]):-1;
+                    }
+
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "NAME [%s] TYPE [%s] obtained for OBJECT_ID [%d]", 
+                        object->object_name, object->object_type, object->object_id);
+                }
+                else 
+                {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "ERROR: Unable to get orbits info for OBJECT_ID [%d] (no row)", 
+                        object->object_id);
+
+                    result = ENGINE_DB_QUERY_ERROR;
+                }
+            }
+
+            mysql_free_result(db_result);
+        }
+    }
 
     return result;
 }

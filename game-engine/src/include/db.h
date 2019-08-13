@@ -286,6 +286,18 @@ ErrorCode_t db_get_orbit_info(DbConnection_t* connection, ObjectOrbitInfo_t* obj
 
 /** ****************************************************************************
 
+    @brief          Gets orbit info for a given object ID
+
+    @param[in|out]  Output parameter where we store the orbit info obtained from DB
+                    This object contains also current object ID to do the search in DB
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_orbit_info_x(ObjectOrbitInfo_t* object);
+
+/** ****************************************************************************
+
     @brief          Gets earth orbit info
 
     @param[in|out]  Connection info, updated once disconnected
@@ -297,6 +309,19 @@ ErrorCode_t db_get_orbit_info(DbConnection_t* connection, ObjectOrbitInfo_t* obj
 
 *******************************************************************************/
 ErrorCode_t db_get_object_info_by_name(DbConnection_t* connection, char* name, ObjectOrbitInfo_t* object);
+
+/** ****************************************************************************
+
+    @brief          Gets earth orbit info
+
+    @param[in|out]  name Object name we are looking for
+    @param[in|out]  Output parameter where we store the orbit info obtained from DB
+                    This object contains also current object ID to do the search in DB
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_object_info_by_name_x(char* name, ObjectOrbitInfo_t* object);
 
 /** ****************************************************************************
 
@@ -537,5 +562,75 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
 
 *******************************************************************************/
 ErrorCode_t db_get_max_drone_cargo(int drone_id, int *capacity);
+
+/** ****************************************************************************
+
+    @brief          Inserts a new observation entry
+
+    @param[in|out]  Action info to be inserted
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_insert_observation(Observation_t* observation);
+
+/** ****************************************************************************
+
+    @brief          Deletes all observations for a given event
+
+    @param[in]      Input event ID
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_delete_event_observations(int event_id);
+
+/** ****************************************************************************
+
+    @brief          Generates observations for any drone at the same orbit than current
+                    drone (event drone)
+
+    @param[in]      Input event ID
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_insert_local_observations(Event_t *event);
+
+/** ****************************************************************************
+
+    @brief          Gets whole observation info for a given event (observable, reportable, etc,..)
+
+    @param[in]      event    Input event
+    @param[in\out]  protocol Output struct where we store the protocol info required
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protocol);
+
+/** ****************************************************************************
+
+    @brief          Gets whole observation info for a given event (observable, reportable, etc,..)
+
+    @param[in]      event    Input event
+    @param[in\out]  protocol Output struct where we store the protocol info required
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protocol);
+
+/** ****************************************************************************
+
+    @brief          Gets object ID for current event drone
+
+    @param[in]      event      Input event
+    @param[out]     object_id  Output object ID obtained when success
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_event_object_id(Event_t *event, int *object_id);
 
 #endif // __EM_DB_MODULE__
