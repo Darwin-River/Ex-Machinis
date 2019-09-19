@@ -12,7 +12,8 @@ class Company extends Model
     const EARTH_STATION_OBJECT_ID = 187;
     const MARS_STATION_OBJECT_ID = 188;
     const JUPITER_STATION_OBJECT_ID = 189;
-
+    // Constant to identify the default hull type
+    const DEFAULT_DRONE_HULL_TYPE = 1;
 
     //
     protected $fillable = [
@@ -51,6 +52,7 @@ class Company extends Model
             $agent->user_id = $user_id;
             //set the orbit
             $agent->object_id = $orbits[$i];
+            $agent->hull_type = Company::DEFAULT_DRONE_HULL_TYPE;
             $agent->save();
             $companyDrones[] = $agent;
         }
