@@ -32,7 +32,7 @@
   @brief      The EE will search for the last processed event with the same drone, resource, installed, and locked values
               (if such an event exists) and add that quantity to the new_quantities field of the current event.
 
-  @param[in]  event  Input event
+  @param[in]  event     Input event
 
   @return     Execution result
 
@@ -79,15 +79,15 @@ ErrorCode_t event_update_new_quantity(Event_t *event)
   @brief      The EE will search for the last processed event with the same drone 
               and add that quantity to the new_cargo field of the current event.
 
-  @param[in]  event  Input event
+  @param[in]  event           Input event
+  @param[in]  previous_event  Previous event info
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t event_update_new_cargo(Event_t *event) 
+ErrorCode_t event_update_new_cargo(Event_t *event, Event_t *previous_event) 
 {
     ErrorCode_t result = ENGINE_OK;
-    Event_t previous_event;
 
     // new_cargo.  The EE will search for the last processed event with the same drone and add that quantity to the new_cargo field of the current event.
 
@@ -97,16 +97,22 @@ ErrorCode_t event_update_new_cargo(Event_t *event)
         result = ENGINE_INTERNAL_ERROR;
     }
 
+    if(previous_event == NULL)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL previous_event received, unable to update new cargo");
+        result = ENGINE_INTERNAL_ERROR;
+    }
+
     if(result == ENGINE_OK)
     {
         // search for the last processed event with the same drone 
-        result = db_get_previous_event(event, PREVIOUS_EVENT_BY_DRONE, &previous_event);
+        result = db_get_previous_event(event, PREVIOUS_EVENT_BY_DRONE, previous_event);
     }
 
     if(result == ENGINE_OK)
     {
         // We obtained and event - do the maths to update new_quantity
-        event->new_cargo += previous_event.new_cargo;
+        event->new_cargo += previous_event->new_cargo;
     }
 
     if(result == ENGINE_NOT_FOUND)
@@ -210,7 +216,7 @@ Bool_t event_no_cargo_condition(Event_t *event)
             "Current cargo [%d], max capacity [%d]", 
             event->new_cargo, capacity);
 
-        if(capacity > event->new_cargo) {
+        if(event->new_cargo <= capacity) {
             return ENGINE_FALSE;
         }
         // else { we do not know the max capacity - reject event }
@@ -293,14 +299,17 @@ Bool_t event_wrong_accumulation_price_condition(Event_t *event)
 
   @brief      Validate the event conditions to decide if can continue or not
 
-  @param[in]  event  Input event
+  @param[in]  event           Input event
+  @param[in]  previous_event  Previous event info
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t event_validate_event_conditions(Event_t *event) 
+ErrorCode_t event_validate_event_conditions(Event_t *event, Event_t *previous_event) 
 {
     ErrorCode_t result = ENGINE_LOGIC_ERROR;
+
+    // Pointers checked by calling function
 
     // Update outcome value using Outcome_t enum depending on validations
 
@@ -316,6 +325,7 @@ ErrorCode_t event_validate_event_conditions(Event_t *event)
     } else if(event_no_cargo_condition(event) == ENGINE_TRUE) {
         //c.  There affected ship contains insufficient cargo space to accommodate the accumulation event.
         // This happens when the recently computed new_cargo value is greater than the cargo capacity of the drone (found in hull table)
+        // We need to return to previous event cargo
         event->outcome = OUTCOME_NO_CARGO_SPACE;
     } else if(event_no_credits_condition(event) == ENGINE_TRUE) {
         //d.  The player has insufficient credits to cover the purchase price of transferred items.
@@ -571,6 +581,7 @@ ErrorCode_t event_update_observations(Event_t *event)
 ErrorCode_t event_process_outcome(Event_t *event) 
 {
     ErrorCode_t result = ENGINE_OK;
+    Event_t previous_event;
 
     // Sanity check 
     if(event == NULL)
@@ -607,7 +618,7 @@ ErrorCode_t event_process_outcome(Event_t *event)
     if(result == ENGINE_OK)
     {
         // Update new_cargo
-        result = event_update_new_cargo(event);
+        result = event_update_new_cargo(event, &previous_event);
     }
 
     if(result == ENGINE_OK)
@@ -619,12 +630,12 @@ ErrorCode_t event_process_outcome(Event_t *event)
     if(result == ENGINE_OK)
     {
         // Validate event conditions
-        result = event_validate_event_conditions(event);
+        result = event_validate_event_conditions(event, &previous_event);
     }
 
-    if(result == ENGINE_OK)
+    if((result == ENGINE_OK) && (event->outcome == OUTCOME_OK))
     {
-        // Delete all previous events
+        // Delete all previous events when outcome was OK
         result = event_delete_previous_events(event);
     }
     else 
