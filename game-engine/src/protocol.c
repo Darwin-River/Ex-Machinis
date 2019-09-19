@@ -249,6 +249,13 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
       newEvent.locked = effect->locked;
       newEvent.outcome = OUTCOME_NO_OUTCOME;
       newEvent.new_quantity = effect->quantity; // here only reflect the change in quantity
+      // if depletion - make it negative
+      if(effect->deplete) {
+        newEvent.new_quantity *= -1;
+      }
+      // Apply multiplier
+      newEvent.new_quantity *= protocol->process_multiplier;
+
       newEvent.new_cargo = (newEvent.new_quantity * resource.resource_mass); // here we reflect the change in mass units
   
       result = db_insert_event(&newEvent);
