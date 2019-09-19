@@ -462,7 +462,7 @@ typedef struct
 	int event_type;
 	int action_id;
 	unsigned char logged;
-	unsigned char outcome;
+	signed char outcome;
 	int drone_id;
 	int resource_id;
 	unsigned char installed;
