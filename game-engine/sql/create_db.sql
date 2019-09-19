@@ -274,7 +274,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`observations` (
   `event` INT(10) UNSIGNED NULL,
   `time` DATETIME NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `id_UNIQUE` (`id` ASC) 
+  UNIQUE INDEX `id_UNIQUE` (`id` ASC),
   CONSTRAINT `event`
     FOREIGN KEY (`id`)
     REFERENCES `exmachinis`.`events` (`id`)
