@@ -659,8 +659,9 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "SELECT * "
                     "FROM events "
                     "WHERE drone = %d and resource = %d and installed = %d and locked = %d "
+                    "and outcome = %d " // success
                     "and timestamp < '%s' order by timestamp DESC limit 1;",  //
-                    event->drone_id, event->resource_id, event->installed, event->locked, timestamp_buffer);
+                    event->drone_id, event->resource_id, event->installed, event->locked, OUTCOME_OK, timestamp_buffer);
                 break;
             case PREVIOUS_EVENT_BY_DRONE:
                 snprintf(query_text, 
@@ -668,16 +669,18 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "SELECT * "
                     "FROM events "
                     "WHERE drone = %d "
+                    "and outcome = %d " // success
                     "and timestamp < '%s' order by timestamp DESC limit 1;", 
-                    event->drone_id, timestamp_buffer);
+                    event->drone_id, OUTCOME_OK, timestamp_buffer);
                 break;
             case PREVIOUS_EVENT_BY_OWNER:
                 snprintf(query_text, 
                     DB_MAX_SQL_QUERY_LEN, 
                     "SELECT * from events where drone in "
                     "(select agent_id from agents where user_id = (select user_id from agents where agent_id = %d)) "
+                    "and outcome = %d " // success
                     "and timestamp < '%s' order by timestamp DESC limit 1;", 
-                    event->drone_id, timestamp_buffer);
+                    event->drone_id, OUTCOME_OK, timestamp_buffer);
                 break;
             default:
                 // Unexpected enum value
