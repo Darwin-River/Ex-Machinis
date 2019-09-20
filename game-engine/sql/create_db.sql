@@ -212,7 +212,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`actions` (
   `drone` INT(10) UNSIGNED NULL,
   `protocol` INT(10) UNSIGNED NULL,
   `multiplier` INT(10) UNSIGNED NULL,
-  `aborted` TINYINT NULL,
+  `aborted` TINYINT UNSIGNED NULL DEFAULT 0,
   `actionscol` VARCHAR(45) NULL,
   `timestamp` DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -346,9 +346,9 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`protocols` (
   `parameters` SMALLINT(2) NOT NULL DEFAULT 0,
   `bulk_modifier` INT(5) UNSIGNED NULL,
   `description` VARCHAR(255) NULL,
-  `observable` TINYINT NULL,
-  `reportable` TINYINT NULL,
-  `internal` TINYINT NOT NULL DEFAULT 0,
+  `observable` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `reportable` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `internal` TINYINT UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC))
 ENGINE = InnoDB;
