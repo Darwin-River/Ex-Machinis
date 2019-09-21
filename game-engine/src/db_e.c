@@ -606,7 +606,7 @@ ErrorCode_t db_delete_event(Event_t* event)
                 event->event_id);
 
             // Delete also associated action
-            db_delete_action(event->action_id);
+            //db_delete_action(event->action_id);
         }
     }
 
