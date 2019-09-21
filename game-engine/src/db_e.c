@@ -986,23 +986,18 @@ ErrorCode_t db_delete_previous_events(Event_t *event)
     if(result == ENGINE_OK)
     {
         engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Deleting previous events for event_id [%d] event_type [%d] drone_id [%d] resource_id [%d] installed [%d] locked [%d] ...", 
+            "Deleting previous expired events for "
+            "event_id [%d] event_type [%d] drone_id [%d] resource_id [%d] installed [%d] locked [%d] ...", 
             event->event_id, event->event_type, event->drone_id, event->resource_id, event->installed, event->locked);
-
-        // Get date string
-        char timestamp_buffer[80];
-        strftime(timestamp_buffer, 80,"%F %T", localtime(&event->timestamp));
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "TIMESTAMP [%ld] => DATE [%s]", 
-                    event->timestamp, timestamp_buffer);
 
         snprintf(query_text, 
                     DB_MAX_SQL_QUERY_LEN, 
                     "DELETE "
                     "FROM events "
                     "WHERE event_type = %d and drone = %d and resource = %d and installed = %d and locked = %d "
-                    "and timestamp < '%s';",  //
-                    event->event_type, event->drone_id, event->resource_id, event->installed, event->locked, timestamp_buffer);
+                    "and timestamp < (NOW() - interval %d day);",  //
+                    event->event_type, event->drone_id, event->resource_id, event->installed, event->locked, 
+                    engine_get_events_expiration_days());
 
         // run query 
         if (mysql_query(connection->hndl, query_text)) 
