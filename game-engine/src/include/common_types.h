@@ -227,7 +227,6 @@ typedef struct
 	int parameters[MAX_PROTOCOL_PARAMETERS_NUM];
 	unsigned char observable;
 	unsigned char reportable;
-	unsigned char internal;
 	
 } ProtocolInfo_t;
 
@@ -241,7 +240,6 @@ typedef enum
 	PROTOCOL_DESCRIPTION_IDX,
 	PROTOCOL_OBSERVABLE_IDX,
 	PROTOCOL_REPORTABLE_IDX,
-	PROTOCOL_INTERNAL_IDX,
 
 	// Max fields expected
 	MAX_PROTOCOL_FIELDS

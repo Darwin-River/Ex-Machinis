@@ -439,20 +439,6 @@ ErrorCode_t protocol_process_effects(ProtocolInfo_t *protocol, int action_id)
   return result;
 }
 
-/** ****************************************************************************
-
-  @brief      Process internal protocols with special C++ routines
-
-  @param[in]  protocol  Whole protocol info
-
-  @return     Execution result
-
-*******************************************************************************/
-ErrorCode_t protocol_process_internal(ProtocolInfo_t *protocol) 
-{
-  return ENGINE_OK;
-}
-
 /******************************* PUBLIC FUNCTIONS ****************************/
 
 /** ****************************************************************************
@@ -500,13 +486,7 @@ ErrorCode_t protocol_execute(int protocolId, int multiplier, VmExtension_t* vmEx
   }
 
   if(result == ENGINE_OK) {
-    // Check if it is an internal protocol (treated with custom C++ routines) or not
-    if(protocol.internal) {
-      result = protocol_process_internal(&protocol);
-    } else {
-      // Check operation effects
-      result = protocol_process_effects(&protocol, action.action_id);
-    }
+    result = protocol_process_effects(&protocol, action.action_id);
   }   
 
   // Abort action when something failed
