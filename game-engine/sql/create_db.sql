@@ -276,7 +276,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`observations` (
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC),
   CONSTRAINT `event`
-    FOREIGN KEY (`id`)
+    FOREIGN KEY (`event`)
     REFERENCES `exmachinis`.`events` (`id`)
     ON DELETE CASCADE
     ON UPDATE NO ACTION)
