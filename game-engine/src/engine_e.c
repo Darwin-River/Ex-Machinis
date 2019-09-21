@@ -296,12 +296,6 @@ ErrorCode_t engine_run()
             result = db_get_outcome_events(engine_process_outcome);
         }
 
-        // Purge old events from DB
-        if(result == ENGINE_OK)
-        {
-            result = db_purge_old_events();
-        }
-
         // commit or rollback current transaction
         if((result == ENGINE_OK) || (result == ENGINE_DB_NOT_FOUND_ERROR))
         {
