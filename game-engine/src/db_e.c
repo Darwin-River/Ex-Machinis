@@ -518,7 +518,7 @@ ErrorCode_t db_purge_old_events()
                 event.new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
                 event.timestamp = row[EVENT_TIMESTAMP_IDX]?atoi(row[EVENT_TIMESTAMP_IDX]):0;
 
-                if(db_delete_event(event.event_id) == ENGINE_OK) {
+                if(db_delete_event(&event) == ENGINE_OK) {
                     engine_trace(TRACE_LEVEL_ALWAYS, 
                         "Event expired and deleted "
                         "EVENT_ID [%d] EVENT_TYPE [%d] ACTION_ID [%d] LOGGED [%d] OUTCOME [%d] "
@@ -566,12 +566,12 @@ ErrorCode_t db_purge_old_events()
 
     @brief          Deletes event giving event_id
 
-    @param[in]      Input event ID
+    @param[in]      Input event
 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_delete_event(int event_id)
+ErrorCode_t db_delete_event(Event_t* event)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -580,12 +580,18 @@ ErrorCode_t db_delete_event(int event_id)
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
 
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!event) return ENGINE_INTERNAL_ERROR;
+    }
+
     if(result == ENGINE_OK)
     {
         snprintf(query_text, 
             DB_MAX_SQL_QUERY_LEN, 
             "DELETE FROM events WHERE event_id = %d", 
-            event_id);
+            event->event_id);
 
         // run it 
         if (mysql_query(connection->hndl, query_text)) 
@@ -597,10 +603,10 @@ ErrorCode_t db_delete_event(int event_id)
         {
             engine_trace(TRACE_LEVEL_ALWAYS, 
                 "EVENT_ID [%d] deleted from DB", 
-                event_id);
+                event->event_id);
 
-            // Delete also associated observations
-            db_delete_event_observations(event_id);
+            // Delete also associated action
+            db_delete_action(event->action_id);
         }
     }
 
@@ -1709,6 +1715,48 @@ ErrorCode_t db_get_orbit_info_x(ObjectOrbitInfo_t* object)
             }
 
             mysql_free_result(db_result);
+        }
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Deletes a given action
+
+    @param[in]      Input action ID
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_delete_action(int action_id)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result == ENGINE_OK)
+    {
+        snprintf(query_text, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "DELETE FROM action WHERE action_id = %d", 
+            action_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ACTION_ID [%d] deleted from DB", 
+                action_id);
         }
     }
 

@@ -486,12 +486,12 @@ ErrorCode_t db_purge_old_events();
 
     @brief          Deletes event giving event_id
 
-    @param[in]      Input event ID
+    @param[in]      Input event
 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_delete_event(int event_id);
+ErrorCode_t db_delete_event(Event_t* event);
 
 /** ****************************************************************************
 
@@ -632,5 +632,16 @@ ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protoc
 
 *******************************************************************************/
 ErrorCode_t db_get_event_object_id(Event_t *event, int *object_id);
+
+/** ****************************************************************************
+
+    @brief          Deletes a given action
+
+    @param[in]      Input action ID
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_delete_action(int action_id);
 
 #endif // __EM_DB_MODULE__
