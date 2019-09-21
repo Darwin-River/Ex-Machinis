@@ -194,6 +194,15 @@ Bool_t event_no_local_condition(Event_t *event)
 *******************************************************************************/
 Bool_t event_no_resources_condition(Event_t *event) 
 {
+  if(event->new_cargo < 0) {
+        // Compare current cargo vs. max capacity
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Current cargo [%d] is negative value", 
+            event->new_cargo);
+
+        return ENGINE_TRUE;
+    }
+
     return ENGINE_FALSE;
 }
 
@@ -640,8 +649,9 @@ ErrorCode_t event_process_outcome(Event_t *event)
     }
     else 
     {
-        // Abort the associated action
+        // Abort the associated action and set result != OK to skip rest of the logic
         event_abort_action(event);
+        result = ENGINE_LOGIC_ERROR;
     }
 
     if(result == ENGINE_OK)
