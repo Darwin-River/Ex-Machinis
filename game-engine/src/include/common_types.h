@@ -47,6 +47,9 @@
 #define LIGHT_SPEED_KM_PER_MINUTE   (LIGHT_SPEED_KM_PER_SECOND * 60.0) // Km/minute 
 
 
+#define CENTRAL_DATABASE_DRONE_ID   0
+
+
 /******************************* TYPES ***************************************/
 
 //-----------------------------------------------------------------------------
