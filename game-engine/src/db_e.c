@@ -399,8 +399,8 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
                 event.resource_id = row[EVENT_RESOURCE_ID_IDX]?atoi(row[EVENT_RESOURCE_ID_IDX]):0;
                 event.installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
                 event.locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
-                event.new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):0;
-                event.new_credits = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):0;
+                event.new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):0;
+                event.new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):0;
                 event.new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):0;
                 event.new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):0;
                 event.new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
@@ -1302,7 +1302,9 @@ ErrorCode_t db_insert_local_observations(Event_t *event)
                 observation.drone_id = row[0]?atoi(row[0]):0;
                 observation.timestamp = time(NULL); // TODO: calculate here the distance between both
                 
-                db_insert_observation(&observation);
+                if(observation.drone_id != event->drone_id) {
+                    db_insert_observation(&observation);
+                }
             }
             else
             {
@@ -1487,7 +1489,7 @@ ErrorCode_t db_get_event_object_id(Event_t *event, int *object_id)
                     *object_id = row[0]?atoi(row[0]):0;
                     
                     engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "EVENT_ID [%d] DRONE_ID [%d] OBJECT_ID [%d]", 
+                        "Obtained object ID info: EVENT_ID [%d] DRONE_ID [%d] OBJECT_ID [%d]", 
                         event->event_id, 
                         event->drone_id,
                         *object_id);
