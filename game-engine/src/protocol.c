@@ -206,6 +206,9 @@ ErrorCode_t protocol_validate_resource_effect(ResourceEffect_t *effect, Resource
     }
     // Check local
     // Check local installed | locked | deplete | quantity | time ???
+    if(result == ENGINE_OK) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Valid resource effect: ID [%d]", effect->resource_effect_id); 
+    }
   } else {
     engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to validate resource effect (NULL effect)"); 
     result = ENGINE_INTERNAL_ERROR;
@@ -230,6 +233,24 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
   ErrorCode_t result = ENGINE_OK;
 
   if(effect) {
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+        "Processing resource effect "
+        "ID [%d] DRONE [%d] RESOURCE_ID [%d] EVENT_TYPE [%d] "
+        "LOCAL [%d] INSTALLED [%d] LOCKED [%d] DEPLETE [%d] QUANTITY [%d] TIME [%d] "
+        "for PROTOCOL_ID [%d] MULTIPLIER [%d]", 
+        effect->resource_effect_id, 
+        effect->drone_id, 
+        effect->resource_id, 
+        effect->event_type,
+        effect->local,
+        effect->installed,
+        effect->locked,
+        effect->deplete,
+        effect->quantity,
+        effect->time,
+        protocol->protocol_id,
+        protocol->process_multiplier);
+
     // We validate resource effect info first (and get whole resource info)
     Resource_t resource;
     resource.resource_id = effect->resource_id;
