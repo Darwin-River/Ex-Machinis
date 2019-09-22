@@ -62,7 +62,7 @@ ErrorCode_t event_update_new_quantity(Event_t *event)
     if(result == ENGINE_OK)
     {
         // We obtained and event - do the maths to update new_quantity
-        event->new_quantity += previous_event.new_quantity;
+        event->new_quantity -= previous_event.new_quantity;
     }
 
     if(result == ENGINE_NOT_FOUND)
@@ -360,6 +360,28 @@ ErrorCode_t event_validate_event_conditions(Event_t *event, Event_t *previous_ev
         result = ENGINE_OK;
     }
 
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+        "Updating event "
+        "EVENT_ID [%d] EVENT_TYPE [%d] ACTION_ID [%d] LOGGED [%d] OUTCOME [%d] "
+        "DRONE_ID [%d] RESOURCE_ID [%d] INSTALLED [%d] LOCKED [%d] NEW_QUANTITY [%d] "
+        "NEW_CREDITS [%d] NEW_LOCATION [%d] NEW_CARGO [%d] TIMESTAMP [%ld]", 
+        event->event_id,
+        event->event_type,
+        event->action_id,
+        event->logged,
+        event->outcome,
+        event->drone_id,
+        event->resource_id,
+        event->installed,
+        event->locked,
+        event->new_quantity,
+        event->new_credits,
+        event->new_location,
+        event->new_transmission,
+        event->new_cargo,
+        event->timestamp);
+
+
     // update outcome at DB
     result = db_update_event(event);
 
@@ -567,8 +589,9 @@ ErrorCode_t event_update_observations(Event_t *event)
         if(result == ENGINE_OK)
         {
             observation.event_id = event->event_id;
-            observation.drone_id = 0; // TODO: Special droneID for Earth Based Central Database.
-            observation.timestamp = time(NULL) + (time_t)(distance/LIGHT_SPEED_KM_PER_SECOND);  
+            observation.drone_id = CENTRAL_DATABASE_DRONE_ID;
+            observation.timestamp = time(NULL) + (time_t)(distance/LIGHT_SPEED_KM_PER_SECOND);
+            result = db_insert_observation(&observation);  
         }
         
     }
@@ -599,6 +622,27 @@ ErrorCode_t event_process_outcome(Event_t *event)
         return ENGINE_INTERNAL_ERROR;
     }
 
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+        "Processing event "
+        "EVENT_ID [%d] EVENT_TYPE [%d] ACTION_ID [%d] LOGGED [%d] OUTCOME [%d] "
+        "DRONE_ID [%d] RESOURCE_ID [%d] INSTALLED [%d] LOCKED [%d] NEW_QUANTITY [%d] "
+        "NEW_CREDITS [%d] NEW_LOCATION [%d] NEW_CARGO [%d] TIMESTAMP [%ld]", 
+        event->event_id,
+        event->event_type,
+        event->action_id,
+        event->logged,
+        event->outcome,
+        event->drone_id,
+        event->resource_id,
+        event->installed,
+        event->locked,
+        event->new_quantity,
+        event->new_credits,
+        event->new_location,
+        event->new_transmission,
+        event->new_cargo,
+        event->timestamp);
+
     // Check that associate action is not aborted - we do not process events for aborted actions
     Action_t action;
     memset(&action, 0, sizeof(action));
@@ -621,7 +665,7 @@ ErrorCode_t event_process_outcome(Event_t *event)
     if(result == ENGINE_OK)
     {
         // Update new_quantities
-        result = event_update_new_quantity(event);
+        //result = event_update_new_quantity(event);
     }
 
     if(result == ENGINE_OK)
