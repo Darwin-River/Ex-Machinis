@@ -304,7 +304,7 @@ ErrorCode_t engine_run()
         else
         {
             result = db_rollback_transaction(&engine.db_connection);
-        }       
+        }  
 
         // Wait till next engine execution
         sleep(atoi(engine.config.params[ENGINE_CHECK_TIME]));
@@ -482,6 +482,20 @@ DbConnection_t* engine_get_db_connection()
 int engine_get_events_expiration_days()
 {
     return atoi(engine.config.params[EVENT_EXPIRATION_DAYS]);
+}
+
+/** ****************************************************************************
+
+  @brief      Gets the configured value for actions expiration days
+
+  @param[in]  None
+  
+  @return     Configured days value or default if not found
+
+*******************************************************************************/
+int engine_get_actions_expiration_days()
+{
+    return atoi(engine.config.params[ACTION_EXPIRATION_DAYS]);
 }
 
 /** ****************************************************************************

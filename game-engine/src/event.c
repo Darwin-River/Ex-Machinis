@@ -404,6 +404,9 @@ ErrorCode_t event_delete_previous_events(Event_t *event)
   if(event)
     result = db_delete_previous_events(event);
 
+  // Purge old actions too
+  db_purge_old_actions();
+
   return result;
 }
 

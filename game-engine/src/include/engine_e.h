@@ -44,6 +44,7 @@ enum
     // Logic configuration
     ENGINE_CHECK_TIME,
     EVENT_EXPIRATION_DAYS,
+    ACTION_EXPIRATION_DAYS,
     OUTCOME_EVENT_BATCH_SIZE,
 
     // TBD
@@ -330,6 +331,17 @@ int engine_get_current_drone_id();
 
 *******************************************************************************/
 int engine_get_events_expiration_days();
+
+/** ****************************************************************************
+
+  @brief      Gets the configured value for actions expiration days
+
+  @param[in]  None
+  
+  @return     Configured days value or default if not found
+
+*******************************************************************************/
+int engine_get_actions_expiration_days();
 
 /** ****************************************************************************
 

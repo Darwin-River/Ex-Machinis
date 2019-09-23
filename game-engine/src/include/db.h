@@ -644,4 +644,16 @@ ErrorCode_t db_get_event_object_id(Event_t *event, int *object_id);
 *******************************************************************************/
 ErrorCode_t db_delete_action(int action_id);
 
+/** ****************************************************************************
+
+    @brief          Purges old actions present at DB (older than configurable days value)
+                    Those actions that have no event associated
+
+    @param[in]      void
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_purge_old_actions();
+
 #endif // __EM_DB_MODULE__

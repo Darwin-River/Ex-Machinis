@@ -562,6 +562,100 @@ ErrorCode_t db_purge_old_events()
     return result;
 }
 
+
+/** ****************************************************************************
+
+    @brief          Purges old actions present at DB (older than configurable days value)
+                    Those actions that have no event associated
+
+    @param[in]      void
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_purge_old_actions()
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection = engine_get_db_connection();
+    MYSQL_RES* db_result = NULL;
+    int rowsNum = 0;
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result == ENGINE_OK)
+    {
+        snprintf(query_text, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT id FROM actions WHERE id not in (SELECT action FROM events) AND timestamp < (NOW() - interval %d day);",
+            engine_get_actions_expiration_days());
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+    }
+
+    if(result == ENGINE_OK)
+    {
+        // retrieve the results and delete one by one
+        db_result = mysql_store_result(connection->hndl);
+
+        if(db_result == NULL)
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Unable to get expired actions (invalid result for query [%s])",
+                query_text);
+
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else if((rowsNum=mysql_num_rows(db_result)) <= 0) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "None expired action found");
+        }
+    }  
+
+    if((result == ENGINE_OK) && rowsNum)
+    {  
+        // iterate results and delete actions one by one
+        for(int actionId=0; actionId < rowsNum; actionId++)
+        {
+            MYSQL_ROW row = mysql_fetch_row(db_result);
+            if(row) 
+            {
+                // Pick action ID and delete it
+                int actionId = atoi(row[0]);
+
+                if(db_delete_action(actionId) == ENGINE_OK) {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "Action expired and deleted ACTION_ID [%d]", 
+                        actionId);
+                }
+            }
+            else
+            {
+                // unexpected error - abort
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get row for query [%s] with [%d] rows", 
+                    query_text,
+                    rowsNum);
+
+                result = ENGINE_DB_QUERY_ERROR;
+
+                break; // stop for
+            } 
+        }
+    }
+   
+    if(db_result)
+        mysql_free_result(db_result);
+
+    return result;
+}
+
 /** ****************************************************************************
 
     @brief          Deletes event giving event_id
