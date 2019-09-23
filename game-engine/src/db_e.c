@@ -1394,8 +1394,7 @@ ErrorCode_t db_insert_local_observations(Event_t *event)
                 // Fill observation fields
                 observation.event_id = event->event_id;
                 observation.drone_id = row[0]?atoi(row[0]):0;
-                observation.timestamp = time(NULL); // TODO: calculate here the distance between both
-                
+                observation.timestamp = time(NULL); // They are at the same object
                 if(observation.drone_id != event->drone_id) {
                     db_insert_observation(&observation);
                 }
