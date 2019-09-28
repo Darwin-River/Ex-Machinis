@@ -230,6 +230,7 @@ typedef struct
 	int parameters[MAX_PROTOCOL_PARAMETERS_NUM];
 	unsigned char observable;
 	unsigned char reportable;
+	unsigned char multiplier; // new field to use when none parameters, can receive and optional multiplier
 	
 } ProtocolInfo_t;
 
@@ -243,6 +244,7 @@ typedef enum
 	PROTOCOL_DESCRIPTION_IDX,
 	PROTOCOL_OBSERVABLE_IDX,
 	PROTOCOL_REPORTABLE_IDX,
+	PROTOCOL_MULTIPLIER_IDX,
 
 	// Max fields expected
 	MAX_PROTOCOL_FIELDS

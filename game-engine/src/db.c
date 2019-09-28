@@ -1462,13 +1462,20 @@ ErrorCode_t db_get_prococol_info(ProtocolInfo_t* protocol)
                     protocol->parameters_num = row[PROTOCOL_PARAMETERS_IDX]?atoi(row[PROTOCOL_PARAMETERS_IDX]):0;
                     protocol->bulk_multiplier = row[PROTOCOL_BULK_MODIFIER_IDX]?atoi(row[PROTOCOL_BULK_MODIFIER_IDX]):-1;
                     sprintf(protocol->protocol_description, "%s", row[PROTOCOL_DESCRIPTION_IDX]?row[PROTOCOL_DESCRIPTION_IDX]:"");
+                    protocol->observable = row[PROTOCOL_OBSERVABLE_IDX]?atoi(row[PROTOCOL_OBSERVABLE_IDX]):0;
+                    protocol->reportable = row[PROTOCOL_REPORTABLE_IDX]?atoi(row[PROTOCOL_REPORTABLE_IDX]):0;
+                    protocol->multiplier = row[PROTOCOL_MULTIPLIER_IDX]?atoi(row[PROTOCOL_MULTIPLIER_IDX]):0;
 
                     engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "NAME [%s] DESCRIPTION [%s] BULK_MODIFIER [%d] INTERNAL [%d] obtained for PROTOCOL_ID [%d]", 
+                        "NAME [%s] DESCRIPTION [%s] BULK_MODIFIER [%d] OBSERVABLE [%d] REPORTABLE [%d] MULTIPLIER [%d] "
+                        "obtained for PROTOCOL_ID [%d]", 
                         protocol->protocol_name, 
                         protocol->protocol_description, 
                         protocol->bulk_multiplier, 
-                        protocol->protocol_id);
+                        protocol->protocol_id,
+                        protocol->observable,
+                        protocol->reportable,
+                        protocol->multiplier);
                 }
                 else 
                 {

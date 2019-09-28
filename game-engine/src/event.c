@@ -29,48 +29,22 @@
 
 /** ****************************************************************************
 
-  @brief      The EE will update the new_quantity with the total cargo once event processed
-
-  @param[in]  event     Input event
-
-  @return     Execution result
-
-*******************************************************************************/
-ErrorCode_t event_update_new_quantity(Event_t *event) 
-{
-    ErrorCode_t result = ENGINE_OK;
-
-    // The EE will search for the last processed event with the same drone, 
-    // resource, installed, and locked values (if such an event exists) and 
-    // add that quantity to the new_quantities field of the current event.
-
-    if(event == NULL)
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL event received, unable to update new quantity");
-        result = ENGINE_INTERNAL_ERROR;
-    }
-
-    if(result == ENGINE_OK)
-    {
-        // We obtained and event - do the maths to update new_quantity
-        event->new_quantity = event->new_cargo;
-    }
-
-    return result;
-}
-
-/** ****************************************************************************
-
   @brief      The EE will search for the last processed event with the same drone 
               and add that quantity to the new_cargo field of the current event.
 
-  @param[in]  event           Input event
-  @param[in]  previous_event  Previous event info
+  @param[in]  event                    Input event
+  @param[in]  previous_event           Previous valid event info for this drone
+  @param[in]  previous_resource_event  Previous valid event info for this resource
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t event_update_new_cargo(Event_t *event, Event_t *previous_event) 
+ErrorCode_t event_update_new_cargo_and_quantity
+(
+  Event_t* event, 
+  Event_t* previous_event,
+  Event_t* previous_resource_event
+) 
 {
     ErrorCode_t result = ENGINE_OK;
 
@@ -88,22 +62,17 @@ ErrorCode_t event_update_new_cargo(Event_t *event, Event_t *previous_event)
         result = ENGINE_INTERNAL_ERROR;
     }
 
-    if(result == ENGINE_OK)
+    if(previous_resource_event == NULL)
     {
-        // search for the last processed event with the same drone 
-        result = db_get_previous_event(event, PREVIOUS_EVENT_BY_DRONE, previous_event);
+        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL previous_resource_event received, unable to update new cargo");
+        result = ENGINE_INTERNAL_ERROR;
     }
 
     if(result == ENGINE_OK)
     {
-        // We obtained and event - do the maths to update new_quantity
-        event->new_cargo += previous_event->new_cargo;
-    }
-
-    if(result == ENGINE_NOT_FOUND)
-    {
-        // not found is ok to continue logic
-        result = ENGINE_OK;
+        // Update quantities
+        event->new_cargo = (previous_event->new_cargo + event->new_quantity);
+        event->new_quantity += previous_resource_event->new_quantity;
     }
 
     return result;
@@ -124,6 +93,8 @@ ErrorCode_t event_update_new_credit(Event_t *event)
 {
     ErrorCode_t result = ENGINE_OK;
     Event_t previous_event;
+
+    memset(&previous_event, 0, sizeof(previous_event));
 
     // The EE will search for the last processed event for any drone belonging to the owner of the current drone and add the quantity of the new_credit field of the current event. 
 
@@ -172,21 +143,29 @@ Bool_t event_no_local_condition(Event_t *event)
 
   @brief      Check given condition is met
 
-  @param[in]  event  Input event
+  @param[in]  event                    Input event
+  @param[in]  previous_event           Previous drone event
+  @param[in]  previous_resource_event  Previous event for this resource
 
   @return     Boolean (TRUE when condition is met, FALSE otherwise)
 
 *******************************************************************************/
-Bool_t event_no_resources_condition(Event_t *event) 
+Bool_t event_no_resources_condition
+(
+    Event_t* event, 
+    Event_t* previous_event, 
+    Event_t* previous_resource_event
+) 
 {
-  if(event->new_cargo < 0) {
-        // Compare current cargo vs. max capacity
+    // Check if we can execute this resource change
+    if(event->new_quantity < 0) {
         engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Current cargo [%d] is negative value", 
-            event->new_cargo);
+            "Current resources quantity [%d] is not enough for a depletion of [%d]", 
+            previous_resource_event->new_quantity, previous_event->new_quantity);
 
         return ENGINE_TRUE;
     }
+
 
     return ENGINE_FALSE;
 }
@@ -293,13 +272,19 @@ Bool_t event_wrong_accumulation_price_condition(Event_t *event)
 
   @brief      Validate the event conditions to decide if can continue or not
 
-  @param[in]  event           Input event
-  @param[in]  previous_event  Previous event info
+  @param[in]  event                   Input event
+  @param[in]  previous_event          Previous valid event info for this drone
+  @param[in]  previous_resource_event Previous valid event info for this resource
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t event_validate_event_conditions(Event_t *event, Event_t *previous_event) 
+ErrorCode_t event_validate_event_conditions
+(
+    Event_t* event, 
+    Event_t* previous_event,
+    Event_t* previous_resource_event
+) 
 {
     ErrorCode_t result = ENGINE_LOGIC_ERROR;
 
@@ -311,7 +296,7 @@ ErrorCode_t event_validate_event_conditions(Event_t *event, Event_t *previous_ev
     if(event_no_local_condition(event) == ENGINE_TRUE) {
         //a.  The local field is set to true but the affected drone is not local.
         event->outcome = OUTCOME_NO_LOCAL;
-    } else if(event_no_resources_condition(event) == ENGINE_TRUE) {
+    } else if(event_no_resources_condition(event, previous_event, previous_resource_event) == ENGINE_TRUE) {
         //b.  The affected ship contains insufficient resources of the indicated state 
         // (identical resource, locked, and installed values) to accommodate a depletion event. 
         // This happens when the newly computed new_quantity field is less than zero.
@@ -601,7 +586,11 @@ ErrorCode_t event_update_observations(Event_t *event)
 ErrorCode_t event_process_outcome(Event_t *event) 
 {
     ErrorCode_t result = ENGINE_OK;
+    Event_t previous_resource_event;
     Event_t previous_event;
+
+    memset(&previous_event, 0, sizeof(previous_event));
+    memset(&previous_resource_event, 0, sizeof(previous_resource_event));
 
     // Sanity check 
     if(event == NULL)
@@ -649,17 +638,21 @@ ErrorCode_t event_process_outcome(Event_t *event)
         if(result == ENGINE_OK) result = ENGINE_LOGIC_ERROR;
     }
 
+    // Get previous events info
+    // We get (if exist, the previous valid event and the previous by resource event)
+    if(result == ENGINE_OK)
+    {
+        db_get_previous_event(event, PREVIOUS_EVENT_BY_DRONE, &previous_event); 
+        db_get_previous_event(event, PREVIOUS_EVENT_BY_RESOURCE_INFO, &previous_resource_event); 
+    }
+
     // Do the maths to calculate the new total cargo
     if(result == ENGINE_OK)
     {
         // Update new_cargo
-        result = event_update_new_cargo(event, &previous_event);
-    }
-
-    if(result == ENGINE_OK)
-    {
-        // Update new_quantities
-        result = event_update_new_quantity(event);
+        result = event_update_new_cargo_and_quantity(event, 
+                                                     &previous_event, 
+                                                     &previous_resource_event);
     }
 
     if(result == ENGINE_OK)
@@ -671,7 +664,9 @@ ErrorCode_t event_process_outcome(Event_t *event)
     if(result == ENGINE_OK)
     {
         // Validate event conditions
-        result = event_validate_event_conditions(event, &previous_event);
+        result = event_validate_event_conditions(event, 
+                                                 &previous_event,
+                                                 &previous_resource_event);
     }
 
     if((result == ENGINE_OK) && (event->outcome == OUTCOME_OK))

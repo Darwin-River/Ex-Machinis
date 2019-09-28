@@ -319,16 +319,58 @@ ErrorCode_t protocol_process_market_effect(MarketEffect_t *effect, ProtocolInfo_
 
   @param[in]  effect    Whole effect info
   @param[in]  protocol  Whole protocol info
+  @param[in]  action_id Current action ID
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_process_location_effect(MarketEffect_t *effect, ProtocolInfo_t *protocol) 
+ErrorCode_t protocol_process_location_effect
+(
+    LocationEffect_t *effect, 
+    ProtocolInfo_t *protocol,
+    int action_id
+) 
 {
   ErrorCode_t result = ENGINE_OK;
 
-  if(effect) {
-    
+  if(!effect || !protocol) {
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process location effect (NULL data)"); 
+    result = ENGINE_INTERNAL_ERROR;
+  }
+
+  if(result == ENGINE_OK) {
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+        "Processing location effect "
+        "ID [%d] EVENT_TYPE [%d] LOCATION [%d] TIME [%d] "
+        "for PROTOCOL_ID [%d]", 
+        effect->location_effect_id, 
+        effect->event_type, 
+        effect->location, 
+        effect->time,
+        effect->protocol_id);
+
+    // TBD - Validate any data here - check that object exists when any
+    if(effect->location != -1) {
+      ObjectOrbitInfo_t object;
+      object.object_id = effect->location;
+      result = db_get_orbit_info(engine_get_db_connection(), &object);
+    }
+  }
+
+  // Once validated - insert new event    
+  if(result == ENGINE_OK) {
+    // We just insert the event indicating the total amount change
+    Event_t newEvent;
+    memset(&newEvent, 0, sizeof(newEvent));
+    newEvent.drone_id = engine_get_current_drone_id();
+    newEvent.event_type = effect->event_type;
+    newEvent.action_id = action_id;
+    newEvent.logged = 1; // TBD: We do not have the observation engine in place yet!!
+    newEvent.outcome = OUTCOME_NO_OUTCOME;
+    newEvent.new_location = effect->location; // we use effect info
+    // rest of fields - set to 0 with memset()
+
+    result = db_insert_event(&newEvent);
   } else {
     engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol location effect (NULL effect)"); 
     result = ENGINE_INTERNAL_ERROR;
@@ -415,18 +457,34 @@ ErrorCode_t protocol_process_market_effects(ProtocolInfo_t *protocol, int action
 *******************************************************************************/
 ErrorCode_t protocol_process_location_effects(ProtocolInfo_t *protocol, int action_id) 
 {
-  ErrorCode_t result = ENGINE_OK;
+    ErrorCode_t result = ENGINE_OK;
 
-  if(protocol) {
-    //LocationEffect_t* locationEffects = NULL;
-    //int effectsNum = 0;
-    //db_get_location_effects(&protocol, &locationEffects, &effectsNum);
-  } else {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol location effects (NULL protocol)"); 
-    result = ENGINE_INTERNAL_ERROR;
-  }
+    if(protocol) 
+    {
+        LocationEffect_t* effects = NULL;
+        int effectsNum = 0;
 
-  return result;
+        db_get_location_effects(protocol, &effects, &effectsNum);
+
+        for(int effectId=0; effectId < effectsNum; effectId++) {
+            result = protocol_process_location_effect(&effects[effectId], protocol, action_id);
+
+            if(result != ENGINE_OK) {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to process location effect [%d] for protocol [%s]",
+                    effects[effectId].location_effect_id,
+                    protocol->protocol_name);
+
+                // Stop when any error is detected for this protocol   
+                break;
+            } 
+        }
+    } else {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol location effects (NULL protocol)"); 
+        result = ENGINE_INTERNAL_ERROR;
+    }
+
+    return result;
 }
 
 /** ****************************************************************************
@@ -467,13 +525,12 @@ ErrorCode_t protocol_process_effects(ProtocolInfo_t *protocol, int action_id)
   @brief      Execute protocol ID with given processMultiplier
 
   @param[in]  protocolId  Protocol ID
-  @param[in]  multiplier  Process multiplier
   @param[in]  vmExt       VM extension handler to be used if we need to communicate with forth
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_execute(int protocolId, int multiplier, VmExtension_t* vmExt) 
+ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt) 
 {
   // Get from DB the rest of information for this protocol ID
   Bool_t actionCreated = ENGINE_FALSE;
@@ -485,14 +542,10 @@ ErrorCode_t protocol_execute(int protocolId, int multiplier, VmExtension_t* vmEx
 
   memset(&protocol, 0, sizeof(protocol));
   protocol.protocol_id = protocolId;
-  protocol.process_multiplier = multiplier;
+  protocol.process_multiplier = 1; // default value
 
-  engine_trace(TRACE_LEVEL_ALWAYS, 
-    "Executing protocol [%d] with [%d] parameters and process multiplier [%d]",
-    protocol.protocol_id, 
-    protocol.parameters_num, 
-    protocol.process_multiplier);
-  
+  engine_trace(TRACE_LEVEL_ALWAYS, "Executing protocol [%d]", protocol.protocol_id);
+
   ErrorCode_t result = db_get_prococol_info(&protocol);
 
   if(result == ENGINE_OK) {
@@ -504,6 +557,22 @@ ErrorCode_t protocol_execute(int protocolId, int multiplier, VmExtension_t* vmEx
     actionCreated = ENGINE_TRUE;
     // Retrieve protocol parameters
     result = protocol_read_parameters(&protocol, vmExt); 
+  }
+
+  if(result == ENGINE_OK &&  protocol.multiplier) {
+    // When multiplier flag is enabled - check the presence of an extra multiplier at stack
+    // multiplier is always after the list of params
+    int stack_value;
+    ErrorCode_t vm_result = vm_extension_pop(vmExt, &stack_value);
+    if(vm_result == ENGINE_OK) {
+        // We received the optional multiplier -> use it
+        protocol.process_multiplier = stack_value;
+
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Multiplier set to [%d] for protocol [%d]", 
+            protocol.process_multiplier,
+            protocol.protocol_id);
+    }
   }
 
   if(result == ENGINE_OK) {

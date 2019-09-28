@@ -129,29 +129,28 @@ static inline void  dpush(VmExtension_t * const v, const sdc_t value) { udpush(v
 *******************************************************************************/
 static int vm_ext_execute_cb(VmExtension_t * const v) 
 {
-  engine_trace(TRACE_LEVEL_ALWAYS, "Running execute callback"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "Running execute callback"); 
 
-  // pop the latest 2 values present at stack: they will be the protocolId + processMultiplier
-  cell_t processMultiplier;
-  cell_t protocolId;
+    // pop just the protocol ID from stack
+    // and a variable number of parameters depending on DB configuration
+    cell_t protocolId;
 
-  protocolId = pop(v);
-  if(!v->error) processMultiplier = pop(v);
+    // Build the output message depending on result
+    char executeOutMsg[LINE_MAX];
 
-  // Build the output message depending on result
-  char executeOutMsg[LINE_MAX];
+    protocolId = pop(v);
 
-  if(v->error) {   
-    sprintf(executeOutMsg, "Unable to retrieve protocol info from stack");
-  } else { 
-    // Execute protocol and output result (for debugging)
-    protocol_execute((int)protocolId, (int)processMultiplier, v);
-    snprintf(executeOutMsg, LINE_MAX, "%s", protocol_get_result_msg());
-  }
+    if(!v->error) {
+        // Execute protocol and output result (for debugging)
+        protocol_execute((int)protocolId, v);
+        snprintf(executeOutMsg, LINE_MAX, "%s", protocol_get_result_msg());
+    } else {
+        sprintf(executeOutMsg, "Unable to retrieve protocol info from stack");
+    }
 
-  embed_puts(v->h, executeOutMsg);
+    embed_puts(v->h, executeOutMsg);
 
-  return 0;
+    return 0;
 }
 
 /** ****************************************************************************

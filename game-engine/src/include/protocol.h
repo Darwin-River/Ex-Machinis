@@ -33,13 +33,12 @@
   @brief      Execute protocol ID with given processMultiplier
 
   @param[in]  protocolId  Protocol ID
-  @param[in]  multiplier  Process multiplier
   @param[in]  vmExt       VM extension handler to be used if we need to communicate with forth
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_execute(int protocolId, int multiplier, VmExtension_t* vmExt);
+ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt);
 
 /** ****************************************************************************
 
