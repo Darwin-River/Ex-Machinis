@@ -29,8 +29,7 @@
 
 /** ****************************************************************************
 
-  @brief      The EE will search for the last processed event with the same drone, resource, installed, and locked values
-              (if such an event exists) and add that quantity to the new_quantities field of the current event.
+  @brief      The EE will update the new_quantity with the total cargo once event processed
 
   @param[in]  event     Input event
 
@@ -40,7 +39,6 @@
 ErrorCode_t event_update_new_quantity(Event_t *event) 
 {
     ErrorCode_t result = ENGINE_OK;
-    Event_t previous_event;
 
     // The EE will search for the last processed event with the same drone, 
     // resource, installed, and locked values (if such an event exists) and 
@@ -54,21 +52,8 @@ ErrorCode_t event_update_new_quantity(Event_t *event)
 
     if(result == ENGINE_OK)
     {
-        // Get last event with same drone, resource, installed and locked values
-        // We pass an enum to indicate this condition
-        result = db_get_previous_event(event, PREVIOUS_EVENT_BY_RESOURCE_INFO, &previous_event);
-    }
-
-    if(result == ENGINE_OK)
-    {
         // We obtained and event - do the maths to update new_quantity
-        event->new_quantity -= previous_event.new_quantity;
-    }
-
-    if(result == ENGINE_NOT_FOUND)
-    {
-        // not found is ok to continue logic
-        result = ENGINE_OK;
+        event->new_quantity = event->new_cargo;
     }
 
     return result;
@@ -667,14 +652,14 @@ ErrorCode_t event_process_outcome(Event_t *event)
     // Do the maths to calculate the new total cargo
     if(result == ENGINE_OK)
     {
-        // Update new_quantities
-        //result = event_update_new_quantity(event);
+        // Update new_cargo
+        result = event_update_new_cargo(event, &previous_event);
     }
 
     if(result == ENGINE_OK)
     {
-        // Update new_cargo
-        result = event_update_new_cargo(event, &previous_event);
+        // Update new_quantities
+        result = event_update_new_quantity(event);
     }
 
     if(result == ENGINE_OK)

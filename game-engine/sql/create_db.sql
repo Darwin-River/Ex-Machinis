@@ -348,6 +348,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`protocols` (
   `description` VARCHAR(255) NULL,
   `observable` TINYINT UNSIGNED NOT NULL DEFAULT 0,
   `reportable` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `multiplier` TINYINT UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC))
 ENGINE = InnoDB;
