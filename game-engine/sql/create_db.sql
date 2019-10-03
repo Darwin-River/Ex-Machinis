@@ -419,7 +419,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`location_effects` (
   `id` INT(5) UNSIGNED NOT NULL,
   `protocol` INT(5) UNSIGNED NULL,
   `event_type` INT(2) UNSIGNED NULL,
-  `location` INT(5) UNSIGNED NULL,
+  `location` INT(5) NULL,
   `time` INT(5) UNSIGNED NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC)
