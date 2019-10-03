@@ -1682,11 +1682,6 @@ ErrorCode_t db_get_resource_effects
         }
     }  
 
-    engine_trace(TRACE_LEVEL_ALWAYS, 
-                "[%d] resource_effects found for PROTOCOL_ID [%d]",
-                rowsNum,
-                protocol->protocol_id);
-
     if((result == ENGINE_OK) && rowsNum)
     {  
         // Allocate output effects
@@ -1697,6 +1692,8 @@ ErrorCode_t db_get_resource_effects
                 "ERROR: Unable to allocate [%d] output resource_effects for PROTOCOL_ID [%d]",
                 rowsNum,
                 protocol->protocol_id);
+
+            rowsNum = 0; // reset to avoid for(;;)
         }
 
         *effectsNum = rowsNum;
@@ -1985,6 +1982,8 @@ ErrorCode_t db_get_location_effects
         // retrieve the results
         db_result = mysql_store_result(connection->hndl);
 
+        engine_trace(TRACE_LEVEL_ALWAYS, "DB result [%s]", db_result?"OK":"KO");
+
         if(db_result == NULL)
         {
             engine_trace(TRACE_LEVEL_ALWAYS, 
@@ -2007,7 +2006,7 @@ ErrorCode_t db_get_location_effects
 
             result = ENGINE_DB_QUERY_ERROR;
         } 
-        else if((rowsNum=mysql_num_rows(db_result) <= 0)) 
+        else if((rowsNum=mysql_num_rows(db_result)) <= 0) 
         {
             // None entry found is OK (keep default OK)
             *effectsNum = 0;
@@ -2022,13 +2021,15 @@ ErrorCode_t db_get_location_effects
                         protocol->protocol_id);
 
         // Allocate output effects
-        *effects = malloc(sizeof(ResourceEffect_t) * rowsNum);
+        *effects = (LocationEffect_t*)malloc(sizeof(LocationEffect_t) * ((unsigned int)rowsNum));
 
         if(!*effects) {
             engine_trace(TRACE_LEVEL_ALWAYS, 
-                "ERROR: Unable to allocate [%d] output market_effects for PROTOCOL_ID [%d]",
+                "ERROR: Unable to allocate [%d] output location_effects for PROTOCOL_ID [%d]",
                 rowsNum,
                 protocol->protocol_id);
+
+            rowsNum = 0; // reset to avoid for(;;)
         }
 
         *effectsNum = rowsNum;
@@ -2041,11 +2042,11 @@ ErrorCode_t db_get_location_effects
             {
                 LocationEffect_t *currentEffect = (*effects + effectId);
                 // Pick effect fields
-                currentEffect->location_effect_id = row[MARKET_EFFECT_ID_IDX]?atoi(row[MARKET_EFFECT_ID_IDX]):0;
-                currentEffect->protocol_id = row[MARKET_EFFECT_PROTOCOL_ID_IDX]?atoi(row[MARKET_EFFECT_PROTOCOL_ID_IDX]):0;
-                currentEffect->event_type = row[MARKET_EFFECT_EVENT_TYPE_IDX]?atoi(row[MARKET_EFFECT_EVENT_TYPE_IDX]):0;
-                currentEffect->location = row[MARKET_EFFECT_RESOURCE_ID_IDX]?atoi(row[MARKET_EFFECT_RESOURCE_ID_IDX]):0;
-                currentEffect->time = row[MARKET_EFFECT_TIME_IDX]?atoi(row[MARKET_EFFECT_TIME_IDX]):0;
+                currentEffect->location_effect_id = row[LOCATION_EFFECT_ID_IDX]?atoi(row[LOCATION_EFFECT_ID_IDX]):0;
+                currentEffect->protocol_id = row[LOCATION_EFFECT_PROTOCOL_ID_IDX]?atoi(row[LOCATION_EFFECT_PROTOCOL_ID_IDX]):0;
+                currentEffect->event_type = row[LOCATION_EFFECT_EVENT_TYPE_IDX]?atoi(row[LOCATION_EFFECT_EVENT_TYPE_IDX]):0;
+                currentEffect->location = row[LOCATION_EFFECT_LOCATION_IDX]?atoi(row[LOCATION_EFFECT_LOCATION_IDX]):0;
+                currentEffect->time = row[LOCATION_EFFECT_TIME_IDX]?atoi(row[LOCATION_EFFECT_TIME_IDX]):0;
 
                 engine_trace(TRACE_LEVEL_ALWAYS, 
                     "Location effect found "

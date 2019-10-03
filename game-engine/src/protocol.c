@@ -349,12 +349,16 @@ ErrorCode_t protocol_process_location_effect
         effect->time,
         effect->protocol_id);
 
-    // TBD - Validate any data here - check that object exists when any
-    if(effect->location != -1) {
-      ObjectOrbitInfo_t object;
-      object.object_id = effect->location;
-      result = db_get_orbit_info(engine_get_db_connection(), &object);
+    // When location is -1, apply user defined one
+    if(effect->location == -1) {
+      effect->location = protocol->optional_location;
+      engine_trace(TRACE_LEVEL_ALWAYS, "Using user provided location: [%d]", effect->location); 
     }
+
+    // Validate that object exists
+    ObjectOrbitInfo_t object;
+    object.object_id = effect->location;
+    result = db_get_orbit_info(engine_get_db_connection(), &object);
   }
 
   // Once validated - insert new event    
@@ -543,6 +547,7 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
   memset(&protocol, 0, sizeof(protocol));
   protocol.protocol_id = protocolId;
   protocol.process_multiplier = 1; // default value
+  protocol.optional_location = -1; // default value
 
   engine_trace(TRACE_LEVEL_ALWAYS, "Executing protocol [%d]", protocol.protocol_id);
 
@@ -559,10 +564,11 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
     result = protocol_read_parameters(&protocol, vmExt); 
   }
 
+  int stack_value;
+  
   if(result == ENGINE_OK &&  protocol.multiplier) {
     // When multiplier flag is enabled - check the presence of an extra multiplier at stack
     // multiplier is always after the list of params
-    int stack_value;
     ErrorCode_t vm_result = vm_extension_pop(vmExt, &stack_value);
     if(vm_result == ENGINE_OK) {
         // We received the optional multiplier -> use it
@@ -571,6 +577,17 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
         engine_trace(TRACE_LEVEL_ALWAYS, 
             "Multiplier set to [%d] for protocol [%d]", 
             protocol.process_multiplier,
+            protocol.protocol_id);
+    }
+  } else if(result == ENGINE_OK) {
+    // We can receive an optional location for location effects
+    ErrorCode_t vm_result = vm_extension_pop(vmExt, &stack_value);
+    if(vm_result == ENGINE_OK) {
+      protocol.optional_location = stack_value;
+
+      engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Optional location set to [%d] for protocol [%d]", 
+            protocol.optional_location,
             protocol.protocol_id);
     }
   }
