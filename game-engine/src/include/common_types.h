@@ -226,6 +226,7 @@ typedef struct
 	char protocol_name[MAX_PROTOCOL_NAME_SIZE];
 	char protocol_description[MAX_PROTOCOL_DESCRIPTION_SIZE];
 	int process_multiplier;
+	int optional_location;
 	int bulk_multiplier;
 	int parameters[MAX_PROTOCOL_PARAMETERS_NUM];
 	unsigned char observable;
