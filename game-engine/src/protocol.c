@@ -332,6 +332,7 @@ ErrorCode_t protocol_process_location_effect
 ) 
 {
   ErrorCode_t result = ENGINE_OK;
+  int agent_id = engine_get_current_drone_id();
 
   if(!effect || !protocol) {
     engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process location effect (NULL data)"); 
@@ -366,7 +367,7 @@ ErrorCode_t protocol_process_location_effect
     // We just insert the event indicating the total amount change
     Event_t newEvent;
     memset(&newEvent, 0, sizeof(newEvent));
-    newEvent.drone_id = engine_get_current_drone_id();
+    newEvent.drone_id = agent_id;
     newEvent.event_type = effect->event_type;
     newEvent.action_id = action_id;
     newEvent.logged = 1; // TBD: We do not have the observation engine in place yet!!
@@ -376,10 +377,15 @@ ErrorCode_t protocol_process_location_effect
 
     result = db_insert_event(&newEvent);
   } else {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol location effect (NULL effect)"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol location effect"); 
     result = ENGINE_INTERNAL_ERROR;
   }
 
+  // Update current drone location at DB
+  if(result == ENGINE_OK) {
+    result = db_update_agent_object(engine_get_db_connection(), agent_id, effect->location);
+  }
+  
   return result;
 }
 
