@@ -214,6 +214,19 @@ ErrorCode_t db_update_agent_input(DbConnection_t* connection, int agent_id, Comm
 
 /** ****************************************************************************
 
+    @brief          Updates current agent object ID (when current location changes)
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Agent ID whose output we want to update
+    @param[in]      New object ID to be set
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_update_agent_object(DbConnection_t* connection, int agent_id, int object_id);
+
+/** ****************************************************************************
+
     @brief          Gets email data for a given agent ID
 
     @param[in|out]  Connection info, updated once disconnected
