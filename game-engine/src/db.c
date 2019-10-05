@@ -676,6 +676,7 @@ ErrorCode_t db_get_agent_engine_info(DbConnection_t* connection, int agent_id, A
     return result;
 }
 
+
 /** ****************************************************************************
 
     @brief          Saves current agent VM in DB
@@ -873,6 +874,49 @@ ErrorCode_t db_update_agent_input(DbConnection_t* connection, int agent_id, Comm
     }
 
     if(agent_info.input_content)engine_free(agent_info.input_content, strlen(agent_info.input_content)+1);
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Updates current agent object ID (when current location changes)
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Agent ID whose output we want to update
+    @param[in]      New object ID to be set
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_update_agent_object(DbConnection_t* connection, int agent_id, int object_id)
+{
+    // sanity
+    if(!connection) return ENGINE_INTERNAL_ERROR;
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // Prepare query
+    char query_text[DB_MAX_SQL_QUERY_LEN + 1]; // enough buffer
+    
+    snprintf(query_text, 
+        DB_MAX_SQL_QUERY_LEN, 
+        "UPDATE agents SET OBJECT_ID = '%d' where AGENT_ID = %d",
+        object_id,
+        agent_id);
+
+    // run it 
+    if (mysql_query(connection->hndl, query_text)) 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+    else 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Updated Object ID for agent [%d] with value [%d]", agent_id, object_id);
+    }
 
     return result;
 }
