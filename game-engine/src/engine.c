@@ -565,9 +565,32 @@ ErrorCode_t engine_run()
             }
             else
             {
+                AgentInfo_t info;
+
                 // Execute the last code in current VM
                 memset(out_buffer, 0, ENGINE_MAX_BUF_SIZE+1);
                 result = vm_run_command(engine.last_agent.vm, &engine.last_command, out_buffer, ENGINE_MAX_BUF_SIZE);
+
+                // Update drone info (just in case, we executed a location change)
+                if(result == ENGINE_OK)
+                {
+                    // Get current values
+                    result = db_get_agent_engine_info(&engine.db_connection, 
+                        engine.last_command.agent_id,
+                        &info);
+                }
+
+                if(result == ENGINE_OK)
+                {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "Drone [%d] moving from objectId [%d] to [%d]",
+                        engine.last_command.agent_id,
+                        engine.last_agent.object_id,
+                        info.object_id);
+
+                    // Update object ID to use it when calculating distances and sending email
+                    engine.last_agent.object_id = info.object_id;
+                }
 
                 if(result != ENGINE_OK)
                 {
