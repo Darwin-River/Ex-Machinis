@@ -530,5 +530,32 @@ typedef enum
 
 } ObservationFieldId_t;
 
+
+//-----------------------------------------------------------------------------
+//  ABUNDANCIES table
+//-----------------------------------------------------------------------------
+
+typedef struct
+{
+	int id;
+	int location_id;
+	int resource_id;
+	int multiplier;
+	
+} Abundancies_t;
+
+// Enum with table fields idx
+typedef enum
+{
+	ABUNDANCIES_ID_IDX,
+	ABUNDANCIES_LOCATION_ID_IDX,
+	ABUNDANCIES_RESOURCE_ID_IDX,
+	ABUNDANCIES_MULTIPLIER_IDX,
+
+	// Max fields expected
+	MAX_ABUNDANCIES__FIELDS
+
+} AbundanciesFieldId_t;
+
 #endif // __EM_COMMON_TYPES_MODULE__
 

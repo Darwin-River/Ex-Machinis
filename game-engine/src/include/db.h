@@ -669,4 +669,15 @@ ErrorCode_t db_delete_action(int action_id);
 *******************************************************************************/
 ErrorCode_t db_purge_old_actions();
 
+/** ****************************************************************************
+
+    @brief          Gets resource abundancies depending on current location
+
+    @param[in|out]  abundancies  Input/output object where we store results
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_abundancies(Abundancies_t *abundancies);
+
 #endif // __EM_DB_MODULE__

@@ -47,6 +47,7 @@ ErrorCode_t event_update_new_cargo_and_quantity
 ) 
 {
     ErrorCode_t result = ENGINE_OK;
+    Abundancies_t abundancies;
 
     // new_cargo.  The EE will search for the last processed event with the same drone and add that quantity to the new_cargo field of the current event.
 
@@ -68,8 +69,29 @@ ErrorCode_t event_update_new_cargo_and_quantity
         result = ENGINE_INTERNAL_ERROR;
     }
 
+    if((event->event_type == 1) && result == ENGINE_OK)
+    {
+        // calculate abundancies, when error just use 0 multiplier
+        int objectId;
+        result = db_get_event_object_id(event, &objectId);
+
+        if(result == ENGINE_OK) {
+            memset(&abundancies, 0, sizeof(abundancies));
+            abundancies.resource_id = event->resource_id;
+            abundancies.location_id = objectId;
+
+            result = db_get_abundancies(&abundancies);
+            if(result != ENGINE_OK) {
+                result = ENGINE_OK;
+                abundancies.multiplier = 0;
+            }
+        }
+    }
+
     if(result == ENGINE_OK)
     {
+        // take into account abundancies multiplier for new_quantity
+        event->new_quantity *= abundancies.multiplier;
         // Update quantities
         event->new_cargo = (previous_event->new_cargo + event->new_quantity);
         event->new_quantity += previous_resource_event->new_quantity;
