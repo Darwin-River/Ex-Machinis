@@ -427,6 +427,30 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`location_effects` (
 ENGINE = InnoDB;
 
 
+-- -----------------------------------------------------
+-- Table `exmachinis`.`abundancies`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `exmachinis`.`abundancies` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `location` INT(5) NOT NULL,
+  `resource` INT(10) UNSIGNED NULL,
+  `multiplier` INT(2) NULL,
+  PRIMARY KEY (`id`),
+  INDEX `location_id_foreign_idx` (`location` ASC),
+  INDEX `resource_id_foreign_idx` (`resource` ASC),
+  INDEX `location_resource_idx` (`location` ASC, `resource` ASC),
+  CONSTRAINT `location_id_foreign`
+    FOREIGN KEY (`location`)
+    REFERENCES `exmachinis`.`objects` (`object_id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `resource_id_foreign`
+    FOREIGN KEY (`resource`)
+    REFERENCES `exmachinis`.`resources` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
