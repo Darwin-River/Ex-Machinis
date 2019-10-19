@@ -227,6 +227,10 @@ class Agent extends Model
             $positions_array["rebrand"] = $pos_rebrand;
         }
 
+        // Check if any was found
+        if(empty($positions_array))
+            return false;
+
         // Find the first one
         $first = array_search(min($positions_array), $positions_array);
 
