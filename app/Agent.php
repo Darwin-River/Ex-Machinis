@@ -37,14 +37,14 @@ class Agent extends Model
     }
 
     /**
-     * Extracts and saves all code between tags <script></script>
+     * Extracts and saves all code between tags <run></run>
      * @param string $text mail body
      * @return boolean
      */
     public function addCodeFromText($text)
     {
         $commandsCreated = false;
-        if (preg_match("'<script>(.*?)</script>' si", $text, $matches)) {
+        if (preg_match("'<run>(.*?)</run>' si", $text, $matches)) {
             for ($i = 1; $i < sizeof($matches); $i = $i + 2) {
                 //create new command for this agent
                 $command = new Command();
@@ -58,7 +58,7 @@ class Agent extends Model
     }
 
     /**
-     * Extracts and saves all code between tags <script></script> and also email subject in DB
+     * Extracts and saves all code between tags <run></run> and also email subject in DB
      * @param string $command_text mail body
      * @param string $subject mail subject
      * @return boolean
@@ -68,13 +68,13 @@ class Agent extends Model
     {
         $commandsCreated = false;
 
-        // Find what comes first, the abort or the script
+        // Find what comes first, the abort or the run statements
         $pos_abort = strpos($command_text, "<abort>");
-        $pos_script = strpos($command_text, "<script>");
+        $pos_run = strpos($command_text, "<run>");
 
-        if(($pos_abort === false) || (($pos_script !== false) && ($pos_script < $pos_abort))) {
+        if(($pos_abort === false) || (($pos_run !== false) && ($pos_run < $pos_abort))) {
 
-            if (preg_match("'<script>(.*?)</script>' si", $command_text, $matches)) {
+            if (preg_match("'<run>(.*?)</run>' si", $command_text, $matches)) {
                 for ($i = 1; $i < sizeof($matches); $i = $i + 2) {
                     //create new command for this agent
                     $command = new Command();
