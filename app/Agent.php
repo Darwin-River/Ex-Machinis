@@ -97,7 +97,7 @@ class Agent extends Model
         if (preg_match("'<abort>' si", $command_text)) { // Treat special scenario: abort command received 
             // abort generates and empty command - this empty command means "abort"
             $command = new Command();
-            $command->code = "";
+            $command->code = "<abort>";
             $command->agent_id = $this->agent_id;
             $command->subject = $subject;
             $command->email_content = $command_text;
@@ -118,10 +118,10 @@ class Agent extends Model
     private function processResetCommand($command_text, $subject)
     {
         // Reset scenario: 
-        if (preg_match("'<abort>' si", $command_text)) {
+        if (preg_match("'<reset>' si", $command_text)) {
             // reset generates and empty command - this empty command means "reset"
             $command = new Command();
-            $command->code = "";
+            $command->code = "<reset>";
             $command->agent_id = $this->agent_id;
             $command->subject = $subject;
             $command->email_content = $command_text;
@@ -145,7 +145,8 @@ class Agent extends Model
             for ($i = 1; $i < sizeof($matches); $i = $i + 2) {
                 //create new command for this agent
                 $command = new Command();
-                $command->code = trim($matches[$i]);
+                $new_name = trim($matches[$i]);
+                $command->code = '<rename>' . $new_name . '</rename>';
                 if(strlen($command->code) > 0) {
                     $command->agent_id = $this->agent_id;
                     $command->subject = $subject;
@@ -172,7 +173,7 @@ class Agent extends Model
             for ($i = 1; $i < sizeof($matches); $i = $i + 2) {
                 //create new command for this agent
                 $command = new Command();
-                $command->code = trim($matches[$i]);
+                $command->code = '<rebrand>' . trim($matches[$i]) . '</rebrand>';
                 if(strlen($command->code) > 0) {
                     $command->agent_id = $this->agent_id;
                     $command->subject = $subject;
