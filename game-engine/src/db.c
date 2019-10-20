@@ -691,35 +691,53 @@ ErrorCode_t db_get_agent_engine_info(DbConnection_t* connection, int agent_id, A
 ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMachine_t* vm)
 {
     // always check connection is alive
+    char* query_text = NULL;
+    size_t query_size = 0;
     ErrorCode_t result = db_reconnect(connection);
+    char* query_end = NULL;
+    char* vm_data = NULL;
 
-    // Serialize VM into bytes
-    size_t vm_size = 0;
-    char* vm_data = vm_to_bytes(vm, &vm_size);
+    // When NULL vm = reset it, otherwise it is just an update
+    if(vm != NULL) {
+        // Serialize VM into bytes
+        size_t vm_size = 0;
+        vm_data = vm_to_bytes(vm, &vm_size);
 
-    if(!vm_data || !vm_size)
-    {
-        return ENGINE_FORTH_SERIALIZE_ERROR;
+        if(!vm_data || !vm_size)
+        {
+            return ENGINE_FORTH_SERIALIZE_ERROR;
+        }
+
+        query_size = DB_MAX_SQL_QUERY_LEN + vm_size*2 + 1;
+        query_text = engine_malloc(query_size);
+
+        // Query must have enough room for whole VM bytes scaped
+        // Add 3 parts of the query:
+        // - Start of the statement
+        // - Binary data
+        // - End of the statement
+        query_end = query_text;
+        query_end += snprintf(query_end, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "UPDATE agents SET VM = '");
+
+        query_end += mysql_real_escape_string(connection->hndl, query_end, vm_data, vm_size);
+
+        query_end += snprintf(query_end, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "' WHERE AGENT_ID = %d", 
+            agent_id);
+    } else {
+        query_size = DB_MAX_SQL_QUERY_LEN + 1;
+        query_text = engine_malloc(query_size);
+        query_end = query_text;
+        query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, 
+            "UPDATE agents SET VM = NULL WHERE AGENT_ID = %d", agent_id);
     }
 
-    // Query must have enough room for whole VM bytes scaped
-    // Add 3 parts of the query:
-    // - Start of the statement
-    // - Binary data
-    // - End of the statement
-    char query_text[DB_MAX_SQL_QUERY_LEN + vm_size*2 + 1];
-    char* query_end = query_text;
-
-    query_end += snprintf(query_end, 
-        DB_MAX_SQL_QUERY_LEN, 
-        "UPDATE agents SET VM = '");
-    
-    query_end += mysql_real_escape_string(connection->hndl, query_end, vm_data, vm_size);
-
-    query_end += snprintf(query_end, 
-        DB_MAX_SQL_QUERY_LEN, 
-        "' WHERE AGENT_ID = %d", 
-        agent_id);
+    // Show query at reset
+    if(!vm)
+       engine_trace(TRACE_LEVEL_ALWAYS, "Executing query [%s]", query_text); 
 
     // run it 
     if (mysql_query(connection->hndl, query_text)) 
@@ -729,8 +747,7 @@ ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMa
     }
     else 
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Updated VM for agent [%d]", agent_id);
+        engine_trace(TRACE_LEVEL_ALWAYS, "Updated VM for agent [%d]", agent_id);
     }
 
     // Deallocate dynamic memory
@@ -738,6 +755,10 @@ ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMa
     {
         free(vm_data);
         vm_data = NULL;
+    }
+
+    if(query_size) {
+        engine_free(query_text, query_size);
     }
 
     return result;
@@ -2536,6 +2557,94 @@ ErrorCode_t db_delete_action_events(int action_id)
                 "All events for ACTION_ID [%d] deleted from DB", 
                 action_id);
         }
+    }
+
+    return result;
+}
+
+
+/** ****************************************************************************
+
+    @brief          Updates given agent name
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Agent ID whose output we want to update
+    @param[in]      Name to be used in update
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_update_agent_name(DbConnection_t* connection, int agent_id, char* name)
+{
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // ignore null msg
+    if(!name) return ENGINE_INTERNAL_ERROR;
+
+    // Prepare query
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    snprintf(query_text, 
+        DB_MAX_SQL_QUERY_LEN, 
+        "UPDATE agents SET NAME = '%s' where AGENT_ID = %d",
+        name,
+        agent_id);
+
+    // run it 
+    if (mysql_query(connection->hndl, query_text)) 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+    else 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Updated AGENT[%d] name to [%s]", agent_id, name);
+    }
+
+    return result;
+}
+
+
+/** ****************************************************************************
+
+    @brief          Updates given agent name
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Agent ID whose output we want to update
+    @param[in]      Company name to be used in update
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_update_agent_company(DbConnection_t* connection, int agent_id, char* company_name)
+{
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // ignore null msg
+    if(!company_name) return ENGINE_INTERNAL_ERROR;
+
+    // Prepare query
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    snprintf(query_text, 
+        DB_MAX_SQL_QUERY_LEN, 
+        "UPDATE users SET NAME = '%s' where USER_ID = (SELECT USER_ID from agents where AGENT_ID = %d)",
+        company_name,
+        agent_id);
+
+    // run it 
+    if (mysql_query(connection->hndl, query_text)) 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+    else 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Updated AGENT[%d] company to [%s]", agent_id, company_name);
     }
 
     return result;

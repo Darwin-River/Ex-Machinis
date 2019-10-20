@@ -680,4 +680,30 @@ ErrorCode_t db_purge_old_actions();
 *******************************************************************************/
 ErrorCode_t db_get_abundancies(Abundancies_t *abundancies);
 
+/** ****************************************************************************
+
+    @brief          Updates given agent name
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Agent ID whose output we want to update
+    @param[in]      Name to be used in update
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_update_agent_name(DbConnection_t* connection, int agent_id, char* name);
+
+/** ****************************************************************************
+
+    @brief          Updates given agent name
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Agent ID whose output we want to update
+    @param[in]      Company name to be used in update
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_update_agent_company(DbConnection_t* connection, int agent_id, char* company_name);
+
 #endif // __EM_DB_MODULE__
