@@ -189,6 +189,7 @@ void engine_insert_db_command(char* command)
         sprintf(new_command.email_content, "%s", engine.last_command.email_content);
         db_insert_command(&engine.db_connection, &new_command);
         engine_free(new_command.email_content, size);
+        new_command.email_content = NULL;
     }
 }
 
@@ -386,6 +387,111 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
 
 /** ****************************************************************************
 
+  @brief      Processes rename meta command
+
+  @param[in|out]  out_buf       Input/output buffer where we will store email response
+  @param[in]      out_buf_size  Buffer size
+
+  @return     Execution result code (ErrorCode_t)
+
+*******************************************************************************/
+ErrorCode_t engine_process_meta_rename(char* out_buf, size_t out_buf_size)
+{
+    ErrorCode_t result = ENGINE_OK;
+    ErrorCode_t db_result = ENGINE_OK;
+
+    // input params checked at calling function
+
+    // Process rename
+    // Get the new name
+    char *start = strchr(engine.last_command.code, '>');
+    start++;
+    char *end = strchr(start, '<');
+    char *name = (char*) engine_malloc(end - start + 1);
+    snprintf(name, (end - start + 1), "%s", start);
+    engine_trace(TRACE_LEVEL_ALWAYS, "Changing agent [%d] name to [%s]", engine.last_command.agent_id, name);
+
+    // validate new name: can not contain @ and must be unique
+    if(strchr(name, '@')) {
+        snprintf(out_buf, out_buf_size, "Command error: invalid char @ at agent name [%s]", name);
+    } else if(strcspn (name, " \t\r\n") != strlen(name)) {
+        snprintf(out_buf, out_buf_size, "Command error: agent name can not contain spaces/tabs/newlines [%s]", name);
+    } else if ((db_result=db_check_agent_name(&engine.db_connection, name)) == ENGINE_OK) {
+        snprintf(out_buf, out_buf_size, "Command error: agent name [%s] already exists", name);
+    } else if (db_result == ENGINE_DB_NOT_FOUND_ERROR) {
+        // valid name -> update it
+        result = db_update_agent_name(&engine.db_connection, engine.last_command.agent_id, name);
+        if(result == ENGINE_OK) {
+            snprintf(out_buf, out_buf_size, "Agent name changed to [%s]", name);
+        }
+        // Update agent name to keep the emails chain
+        AgentInfo_t info;
+        if(result == ENGINE_OK)
+        {
+            // Get current values
+            result = db_get_agent_engine_info(&engine.db_connection, 
+                engine.last_command.agent_id,
+                &info);
+        }
+
+        if(result == ENGINE_OK)
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "Agent name updated [%s] -> [%s]",
+                engine.last_agent.agent_name,
+                info.agent_name);
+
+            // Update name to answer using this new one
+            sprintf(engine.last_agent.agent_name, "%s", info.agent_name);
+        }
+    }
+
+    if(name) engine_free(name, (strlen(name)+1));
+
+    return result;
+}
+
+/** ****************************************************************************
+
+  @brief      Processes rebrand meta command
+
+  @param[in|out]  out_buf       Input/output buffer where we will store email response
+  @param[in]      out_buf_size  Buffer size
+
+  @return     Execution result code (ErrorCode_t)
+
+*******************************************************************************/
+ErrorCode_t engine_process_meta_rebrand(char* out_buf, size_t out_buf_size)
+{
+    ErrorCode_t result = ENGINE_OK;
+
+    // Process rebrand
+    // Get the new company name
+    char *start = strchr(engine.last_command.code, '>');
+    start++;
+    char *end = strchr(start, '<');
+    char *company_name = (char*) engine_malloc(end - start + 1);
+    snprintf(company_name, (end - start + 1), "%s", start);
+    engine_trace(TRACE_LEVEL_ALWAYS, "Changing agent [%d] company to [%s]", engine.last_command.agent_id, company_name);
+
+    ErrorCode_t db_result = db_check_company_name(&engine.db_connection, company_name);
+
+    if (db_result == ENGINE_OK) {
+        snprintf(out_buf, out_buf_size, "Command error: company name [%s] already exists", company_name);
+        result = ENGINE_LOGIC_ERROR;
+    } else if(db_result == ENGINE_DB_NOT_FOUND_ERROR) {
+        result = db_update_agent_company(&engine.db_connection, engine.last_command.agent_id, company_name);
+        if(result == ENGINE_OK) {
+            snprintf(out_buf, out_buf_size, "Agent company name changed to [%s]", company_name);
+        }
+    }
+    engine_free(company_name, (strlen(company_name)+1));
+
+    return result;
+}
+
+/** ****************************************************************************
+
   @brief      Processes a meta command (command NOT execute on the VM)
 
   @param[in|out]  out_buf       Input/output buffer where we will store email response
@@ -417,53 +523,9 @@ ErrorCode_t engine_process_meta_command(char* out_buf, size_t out_buf_size)
         engine.last_agent.vm = NULL;
         result = db_save_agent_vm(&engine.db_connection, engine.last_command.agent_id, engine.last_agent.vm);
     } else if (strstr(engine.last_command.code, META_COMMAND_RENAME)) {
-        // Process rename
-        // Get the new name
-        char *start = strchr(engine.last_command.code, '>');
-        start++;
-        char *end = strchr(start, '<');
-        char *name = (char*) engine_malloc(end - start + 1);
-        snprintf(name, (end - start + 1), "%s", start);
-        engine_trace(TRACE_LEVEL_ALWAYS, "Changing agent [%d] name to [%s]", engine.last_command.agent_id, name);
-        result = db_update_agent_name(&engine.db_connection, engine.last_command.agent_id, name);
-        if(result == ENGINE_OK) {
-            snprintf(out_buf, out_buf_size, "Agent name changed to [%s]", name);
-        }
-        engine_free(name, (strlen(name)+1));
-        // Update agent name to keep the emails chain
-        AgentInfo_t info;
-        if(result == ENGINE_OK)
-        {
-            // Get current values
-            result = db_get_agent_engine_info(&engine.db_connection, 
-                engine.last_command.agent_id,
-                &info);
-        }
-
-        if(result == ENGINE_OK)
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "Agent name updated [%s] -> [%s]",
-                engine.last_agent.agent_name,
-                info.agent_name);
-
-            // Update name to answer using this new one
-            sprintf(engine.last_agent.agent_name, "%s", info.agent_name);
-        }
+        result = engine_process_meta_rename(out_buf, out_buf_size);
     } else if (strstr(engine.last_command.code, META_COMMAND_REBRAND)) {
-        // Process rebrand
-        // Get the new company name
-        char *start = strchr(engine.last_command.code, '>');
-        start++;
-        char *end = strchr(start, '<');
-        char *company_name = (char*) engine_malloc(end - start + 1);
-        snprintf(company_name, (end - start + 1), "%s", start);
-        engine_trace(TRACE_LEVEL_ALWAYS, "Changing agent [%d] company to [%s]", engine.last_command.agent_id, company_name);
-        result = db_update_agent_company(&engine.db_connection, engine.last_command.agent_id, company_name);
-        if(result == ENGINE_OK) {
-            snprintf(out_buf, out_buf_size, "Agent company name changed to [%s]", company_name);
-        }
-        engine_free(company_name, (strlen(company_name)+1));
+        result = engine_process_meta_rebrand(out_buf, out_buf_size);
     }
 
     return result;
@@ -498,7 +560,7 @@ ErrorCode_t engine_process_command(char* out_buf, size_t out_buf_size)
     }
 
     // When processing fails, indicate it at email
-    if(result != ENGINE_OK)
+    if(result != ENGINE_OK && !out_buf[0])
     {
         engine_vm_output_cb("Command error");
     }
@@ -763,7 +825,9 @@ ErrorCode_t engine_run()
         }
 
         // Delete command always to avoid spam when error
-        result = db_delete_command(&engine.db_connection, &engine.last_command);
+        if(engine.last_command.code[0]) {
+            result = db_delete_command(&engine.db_connection, &engine.last_command);
+        }
 
         // commit or rollback current transaction
         if((result == ENGINE_OK) || (result == ENGINE_DB_NOT_FOUND_ERROR))
@@ -777,8 +841,10 @@ ErrorCode_t engine_run()
 
         // always deallocate VM and command resources
         if(engine.last_agent.vm) vm_free(engine.last_agent.vm);
-        if(engine.last_command.email_content)
+        if(engine.last_command.email_content) {
             engine_free(engine.last_command.email_content, strlen(engine.last_command.email_content) + 1);
+            engine.last_command.email_content = NULL;
+        }
 
 		sleep(atoi(engine.config.params[DB_READ_TIME_ID]));
 	}
@@ -949,7 +1015,10 @@ void engine_vm_output_cb(const char* msg)
             email_send(&email_info);
         }
 
-        if(email_info.input_content)engine_free(email_info.input_content, strlen(email_info.input_content)+1);
+        if(email_info.input_content) {
+            engine_free(email_info.input_content, strlen(email_info.input_content)+1);
+            engine.last_command.email_content = NULL;
+        }
     }
     else
     {

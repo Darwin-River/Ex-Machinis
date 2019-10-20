@@ -682,6 +682,30 @@ ErrorCode_t db_get_abundancies(Abundancies_t *abundancies);
 
 /** ****************************************************************************
 
+    @brief          Checks if a given agent name exists in DB
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Name to be used in update
+
+    @return         Execution result (ENGINE_OK when found)
+
+*******************************************************************************/
+ErrorCode_t db_check_agent_name(DbConnection_t* connection, char* name);
+
+/** ****************************************************************************
+
+    @brief          Checks if a given company name exists in DB
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Name to be used in update
+
+    @return         Execution result (ENGINE_OK when found)
+
+*******************************************************************************/
+ErrorCode_t db_check_company_name(DbConnection_t* connection, char* company_name);
+
+/** ****************************************************************************
+
     @brief          Updates given agent name
 
     @param[in|out]  Connection info, updated once disconnected

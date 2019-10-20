@@ -696,11 +696,11 @@ ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMa
     ErrorCode_t result = db_reconnect(connection);
     char* query_end = NULL;
     char* vm_data = NULL;
+    size_t vm_size = 0;
 
     // When NULL vm = reset it, otherwise it is just an update
     if(vm != NULL) {
         // Serialize VM into bytes
-        size_t vm_size = 0;
         vm_data = vm_to_bytes(vm, &vm_size);
 
         if(!vm_data || !vm_size)
@@ -757,8 +757,9 @@ ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMa
         vm_data = NULL;
     }
 
-    if(query_size) {
+    if(query_text) {
         engine_free(query_text, query_size);
+        query_text = NULL;
     }
 
     return result;
@@ -2562,6 +2563,101 @@ ErrorCode_t db_delete_action_events(int action_id)
     return result;
 }
 
+/** ****************************************************************************
+
+    @brief          Checks if a given agent name exists in DB
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Name to be used in update
+
+    @return         Execution result (ENGINE_OK when found)
+
+*******************************************************************************/
+ErrorCode_t db_check_agent_name(DbConnection_t* connection, char* name)
+{
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // ignore null msg
+    if(!name) return ENGINE_INTERNAL_ERROR;
+
+    // Prepare query
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    snprintf(query_text, 
+        DB_MAX_SQL_QUERY_LEN, 
+        "SELECT name from agents where LOWER(NAME) = LOWER('%s')",
+        name);
+
+    // run it 
+    if (mysql_query(connection->hndl, query_text)) 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        result = ENGINE_DB_NOT_FOUND_ERROR;
+    }
+    else 
+    {
+        // retrieve the result and check that is an only row with a single field
+        MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+
+        if(mysql_num_rows(db_result) > 0) {   
+            engine_trace(TRACE_LEVEL_ALWAYS, "AGENT name [%s] found in DB", name);
+        } else {
+            engine_trace(TRACE_LEVEL_ALWAYS, "AGENT name [%s] NOT found in DB", name);
+            result = ENGINE_DB_NOT_FOUND_ERROR;
+        }
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Checks if a given company name exists in DB
+
+    @param[in|out]  Connection info, updated once disconnected
+    @param[in]      Name to be used in update
+
+    @return         Execution result (ENGINE_OK when found)
+
+*******************************************************************************/
+ErrorCode_t db_check_company_name(DbConnection_t* connection, char* company_name)
+{
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // ignore null msg
+    if(!company_name) return ENGINE_INTERNAL_ERROR;
+
+    // Prepare query
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    snprintf(query_text, 
+        DB_MAX_SQL_QUERY_LEN, 
+        "SELECT name from users where LOWER(NAME) = LOWER('%s')",
+        company_name);
+
+    // run it 
+    if (mysql_query(connection->hndl, query_text)) 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        result = ENGINE_DB_NOT_FOUND_ERROR;
+    }
+    else 
+    {
+        // retrieve the result and check that is an only row with a single field
+        MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+
+        if(mysql_num_rows(db_result) > 0) {   
+            engine_trace(TRACE_LEVEL_ALWAYS, "COMPANY name [%s] found in DB", company_name);
+        } else {
+            engine_trace(TRACE_LEVEL_ALWAYS, "COMPANY name [%s] NOT found in DB", company_name);
+            result = ENGINE_DB_NOT_FOUND_ERROR;
+        }
+    }
+
+    return result;
+}
 
 /** ****************************************************************************
 
