@@ -331,6 +331,181 @@ ErrorCode_t engine_get_drone_position(int object_id, char* position, double* dis
     return result;
 }
 
+/** ****************************************************************************
+
+  @brief      Processes a VM command (command to be executed on the VM)
+
+  @param[in|out]  out_buf       Input/output buffer where we will store email response
+  @param[in]      out_buf_size  Buffer size
+
+  @return     Execution result code (ErrorCode_t)
+
+*******************************************************************************/
+ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
+{
+    ErrorCode_t result = ENGINE_OK;
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Processing VM command [%s] at agent [%d]", 
+        engine.last_command.code, engine.last_command.agent_id);
+
+    // When busy, wait
+    if(engine_is_current_vm_busy() == ENGINE_TRUE)
+    {
+        engine_vm_output_cb("Another command is running, retry later");
+        out_buf[0] = 0; // do not output more emails 
+        return ENGINE_OK;
+    }
+
+    // VM command & not busy -> execute it and take the suitable actions
+    result = vm_run_command(engine.last_agent.vm, &engine.last_command, out_buf, out_buf_size);
+
+    AgentInfo_t info;
+    // Update drone info (just in case, we executed a location change)
+    if(result == ENGINE_OK)
+    {
+        // Get current values
+        result = db_get_agent_engine_info(&engine.db_connection, 
+            engine.last_command.agent_id,
+            &info);
+    }
+
+    if(result == ENGINE_OK)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Drone [%d] moving from objectId [%d] to [%d]",
+            engine.last_command.agent_id,
+            engine.last_agent.object_id,
+            info.object_id);
+
+        // Update object ID to use it when calculating distances and sending email
+        engine.last_agent.object_id = info.object_id;
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+  @brief      Processes a meta command (command NOT execute on the VM)
+
+  @param[in|out]  out_buf       Input/output buffer where we will store email response
+  @param[in]      out_buf_size  Buffer size
+
+  @return     Execution result code (ErrorCode_t)
+
+*******************************************************************************/
+ErrorCode_t engine_process_meta_command(char* out_buf, size_t out_buf_size)
+{
+    ErrorCode_t result = ENGINE_OK;
+
+    // input params checked at calling function
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Processing meta command [%s] at agent [%d]", 
+        engine.last_command.code, engine.last_command.agent_id);
+
+    // Identify the meta-command
+    if(strcasecmp(engine.last_command.code, META_COMMAND_ABORT) == 0) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Running abort command at agent [%d]", engine.last_command.agent_id);
+        // abort and delete any pending resume
+        vm_abort(engine.last_agent.vm);
+        result = db_delete_resume_commands(&engine.db_connection, engine.last_command.agent_id);
+    } else if (strstr(engine.last_command.code, META_COMMAND_RESET)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Running reset command at agent [%d]", engine.last_command.agent_id);
+        // reset and start with a fresh VM
+        vm_reset(engine.last_agent.vm);
+        if(engine.last_agent.vm) vm_free(engine.last_agent.vm);
+        engine.last_agent.vm = NULL;
+        result = db_save_agent_vm(&engine.db_connection, engine.last_command.agent_id, engine.last_agent.vm);
+    } else if (strstr(engine.last_command.code, META_COMMAND_RENAME)) {
+        // Process rename
+        // Get the new name
+        char *start = strchr(engine.last_command.code, '>');
+        start++;
+        char *end = strchr(start, '<');
+        char *name = (char*) engine_malloc(end - start + 1);
+        snprintf(name, (end - start + 1), "%s", start);
+        engine_trace(TRACE_LEVEL_ALWAYS, "Changing agent [%d] name to [%s]", engine.last_command.agent_id, name);
+        result = db_update_agent_name(&engine.db_connection, engine.last_command.agent_id, name);
+        if(result == ENGINE_OK) {
+            snprintf(out_buf, out_buf_size, "Agent name changed to [%s]", name);
+        }
+        engine_free(name, (strlen(name)+1));
+        // Update agent name to keep the emails chain
+        AgentInfo_t info;
+        if(result == ENGINE_OK)
+        {
+            // Get current values
+            result = db_get_agent_engine_info(&engine.db_connection, 
+                engine.last_command.agent_id,
+                &info);
+        }
+
+        if(result == ENGINE_OK)
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "Agent name updated [%s] -> [%s]",
+                engine.last_agent.agent_name,
+                info.agent_name);
+
+            // Update name to answer using this new one
+            sprintf(engine.last_agent.agent_name, "%s", info.agent_name);
+        }
+    } else if (strstr(engine.last_command.code, META_COMMAND_REBRAND)) {
+        // Process rebrand
+        // Get the new company name
+        char *start = strchr(engine.last_command.code, '>');
+        start++;
+        char *end = strchr(start, '<');
+        char *company_name = (char*) engine_malloc(end - start + 1);
+        snprintf(company_name, (end - start + 1), "%s", start);
+        engine_trace(TRACE_LEVEL_ALWAYS, "Changing agent [%d] company to [%s]", engine.last_command.agent_id, company_name);
+        result = db_update_agent_company(&engine.db_connection, engine.last_command.agent_id, company_name);
+        if(result == ENGINE_OK) {
+            snprintf(out_buf, out_buf_size, "Agent company name changed to [%s]", company_name);
+        }
+        engine_free(company_name, (strlen(company_name)+1));
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+  @brief      Processes a command read from DB and generates output for email
+
+  @param[in|out]  out_buf       Input/output buffer where we will store email response
+  @param[in]      out_buf_size  Buffer size
+
+  @return     Execution result code (ErrorCode_t)
+
+*******************************************************************************/
+ErrorCode_t engine_process_command(char* out_buf, size_t out_buf_size)
+{
+    ErrorCode_t result;
+
+    if(!out_buf || (out_buf_size == 0)) {
+        engine_trace(TRACE_LEVEL_ALWAYS,  "ERROR: Unable to process command (invalid buffer)");
+        return ENGINE_INTERNAL_ERROR;
+    }
+
+    // We need to identify if it is a VM command or just a meta-command
+    if(engine.last_command.code[0] == '<') {
+        // meta command
+        result = engine_process_meta_command(out_buf, out_buf_size);
+    } else {
+        // VM command
+        result = engine_process_vm_command(out_buf, out_buf_size);
+    }
+
+    // When processing fails, indicate it at email
+    if(result != ENGINE_OK)
+    {
+        engine_vm_output_cb("Command error");
+    }
+
+    return result;
+}
+
 /******************************* PUBLIC FUNCTIONS ****************************/
 
 /** ****************************************************************************
@@ -556,54 +731,9 @@ ErrorCode_t engine_run()
         char out_buffer[ENGINE_MAX_BUF_SIZE+1];
         if(result == ENGINE_OK)
         {
-            // Check the type of command to see if we can go ahead or the user must retry later
-            // ABORT commands are processed always (empty strings)
-            if(engine.last_command.code[0] && engine_is_current_vm_busy() == ENGINE_TRUE)
-            {
-                engine_vm_output_cb("Another command is running, retry later");
-                out_buffer[0] = 0; // do not output more emails 
-            }
-            else
-            {
-                AgentInfo_t info;
-
-                // Execute the last code in current VM
-                memset(out_buffer, 0, ENGINE_MAX_BUF_SIZE+1);
-                result = vm_run_command(engine.last_agent.vm, &engine.last_command, out_buffer, ENGINE_MAX_BUF_SIZE);
-
-                // Update drone info (just in case, we executed a location change)
-                if(result == ENGINE_OK)
-                {
-                    // Get current values
-                    result = db_get_agent_engine_info(&engine.db_connection, 
-                        engine.last_command.agent_id,
-                        &info);
-                }
-
-                if(result == ENGINE_OK)
-                {
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "Drone [%d] moving from objectId [%d] to [%d]",
-                        engine.last_command.agent_id,
-                        engine.last_agent.object_id,
-                        info.object_id);
-
-                    // Update object ID to use it when calculating distances and sending email
-                    engine.last_agent.object_id = info.object_id;
-                }
-
-                if(result != ENGINE_OK)
-                {
-                    engine_vm_output_cb("Command error");
-                }
-
-                // When it is an abort, clean pending commands at DB 
-                if(engine.last_command.code[0] == 0)
-                { 
-                    // clear any pending resume command
-                    db_delete_resume_commands(&engine.db_connection, engine.last_command.agent_id);
-                }
-            }
+            // Process input command and retrieve result text in out_buffer
+            memset(out_buffer, 0, ENGINE_MAX_BUF_SIZE+1);
+            engine_process_command(out_buffer, ENGINE_MAX_BUF_SIZE);
         } 
 
         if(result == ENGINE_OK)
