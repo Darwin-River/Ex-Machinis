@@ -115,4 +115,26 @@ void vm_report(VirtualMachine_t* vm);
 *******************************************************************************/
 int vm_is_yield();
 
+/** ****************************************************************************
+
+  @brief      Aborts command execution at current VM
+
+  @param[in]  vm       Current VM object
+
+  @return     void
+
+*******************************************************************************/
+void vm_abort(VirtualMachine_t* vm);
+
+/** ****************************************************************************
+
+  @brief      Resets VM (stops command execution and destroys it to create a new one)
+
+  @param[in]  vm       Current VM object
+
+  @return     void
+
+*******************************************************************************/
+void vm_reset(VirtualMachine_t* vm);
+
 #endif // __EM_VM_MODULE__
