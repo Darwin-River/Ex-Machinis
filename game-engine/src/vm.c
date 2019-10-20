@@ -505,3 +505,51 @@ int vm_is_yield()
 {
   return g_vm_yield;
 }
+
+/** ****************************************************************************
+
+  @brief      Aborts command execution at current VM
+
+  @param[in]  vm       Current VM object
+
+  @return     void
+
+*******************************************************************************/
+void vm_abort(VirtualMachine_t* vm)
+{
+    if(vm)
+    {
+        // ABORT COMMAND
+        engine_trace(TRACE_LEVEL_ALWAYS, "ABORT command received at VM");
+
+        // Notify by email
+        engine_vm_output_cb("Executed VM abort");
+
+        // reset VM stuff
+        embed_reset((forth_t*)vm); 
+    }
+}
+
+/** ****************************************************************************
+
+  @brief      Resets VM (stops command execution and destroys it to create a new one)
+
+  @param[in]  vm       Current VM object
+
+  @return     void
+
+*******************************************************************************/
+void vm_reset(VirtualMachine_t* vm)
+{
+    if(vm)
+    {
+        // ABORT COMMAND
+        engine_trace(TRACE_LEVEL_ALWAYS, "RESET command received at VM");
+
+        // Notify by email
+        engine_vm_output_cb("Executed VM reset");
+
+        // reset VM stuff
+        embed_reset((forth_t*)vm); 
+    }
+}
