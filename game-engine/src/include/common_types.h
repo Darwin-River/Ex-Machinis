@@ -50,6 +50,12 @@
 #define CENTRAL_DATABASE_DRONE_ID   0
 
 
+// meta-commands supported
+#define META_COMMAND_ABORT    "<abort>"
+#define META_COMMAND_RESET    "<reset>"
+#define META_COMMAND_RENAME   "<rename>"
+#define META_COMMAND_REBRAND  "<rebrand>"
+
 /******************************* TYPES ***************************************/
 
 //-----------------------------------------------------------------------------
