@@ -16,3 +16,14 @@ find $PLAT_HOME/log -mtime +7 -delete
 #find $PLAT_HOME/backup -mtime +1 -delete
 
 #mv ${BACKUP_FILE}.gz ${PLAT_HOME}/backup
+
+# Do a backup of DB static tables, keeping a copy of previous backup
+BACKUP_FILE=$PLAT_HOME/tmp/exmachinis_tables.sql
+
+if [ -f ${BACKUP_FILE} ]
+then    
+    mv ${BACKUP_FILE} ${BACKUP_FILE}.previous
+fi  
+
+# do a new backup
+$PLAT_HOME/bin/scripts/dump.sh
