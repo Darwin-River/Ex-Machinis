@@ -49,6 +49,10 @@
 
 #define CENTRAL_DATABASE_DRONE_ID   0
 
+// queries table
+#define MAX_QUERIES_NAME_SIZE          45
+#define MAX_QUERIES_DESCRIPTION_SIZE  255
+#define MAX_QUERIES_SCRIPT_SIZE       512
 
 // meta-commands supported
 #define META_COMMAND_ABORT    "<abort>"
@@ -562,6 +566,35 @@ typedef enum
 	MAX_ABUNDANCIES__FIELDS
 
 } AbundanciesFieldId_t;
+
+
+//-----------------------------------------------------------------------------
+//  QUERIES table
+//-----------------------------------------------------------------------------
+
+typedef struct
+{
+	int id;
+	char name[MAX_QUERIES_NAME_SIZE];
+	char description[MAX_QUERIES_DESCRIPTION_SIZE];
+	int parameters;
+	char script[MAX_QUERIES_SCRIPT_SIZE];
+	
+} Queries_t;
+
+// Enum with table fields idx
+typedef enum
+{
+	QUERIES_ID_IDX,
+	QUERIES_NAME_IDX,
+	QUERIES_DESCRIPTION_IDX,
+	QUERIES_PARAMETERS_IDX,
+	QUERIES_SCRIPT_IDX
+
+	// Max fields expected
+	MAX_QUERIES_FIELDS
+
+} QueriesFieldId_t;
 
 #endif // __EM_COMMON_TYPES_MODULE__
 
