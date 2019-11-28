@@ -289,47 +289,11 @@ AUTO_INCREMENT = 1;
 DROP TABLE IF EXISTS `exmachinis`.`queries` ;
 
 CREATE TABLE IF NOT EXISTS `exmachinis`.`queries` (
-  `id` INT(10) UNSIGNED NOT NULL,
-  `name` VARCHAR(45) NULL,
+  `id` INT(5) UNSIGNED NOT NULL,
+  `name` VARCHAR(45) NOT NULL,
   `description` VARCHAR(255) NULL,
-  `script` VARCHAR(255) NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE INDEX `id_UNIQUE` (`id` ASC))
-ENGINE = InnoDB;
-
-
--- -----------------------------------------------------
--- Table `exmachinis`.`table_joins`
--- -----------------------------------------------------
-DROP TABLE IF EXISTS `exmachinis`.`table_joins` ;
-
-CREATE TABLE IF NOT EXISTS `exmachinis`.`table_joins` (
-  `id` INT(10) UNSIGNED NOT NULL,
-  `query` INT(10) UNSIGNED NULL,
-  `left_table_name` VARCHAR(45) NULL,
-  `left_table_field` VARCHAR(45) NULL,
-  `right_table_name` VARCHAR(45) NULL,
-  `right_table_field` VARCHAR(45) NULL,
-  `join_type` VARCHAR(45) NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE INDEX `id_UNIQUE` (`id` ASC))
-ENGINE = InnoDB;
-
-
--- -----------------------------------------------------
--- Table `exmachinis`.`query_fields`
--- -----------------------------------------------------
-DROP TABLE IF EXISTS `exmachinis`.`query_fields` ;
-
-CREATE TABLE IF NOT EXISTS `exmachinis`.`query_fields` (
-  `id` INT(10) UNSIGNED NOT NULL,
-  `query` INT(10) UNSIGNED NULL,
-  `name` VARCHAR(45) NULL,
-  `description` VARCHAR(255) NULL,
-  `source_table` VARCHAR(45) NULL,
-  `source_field` VARCHAR(45) NULL,
-  `sort_order` INT(2) UNSIGNED NULL,
-  `field_size` INT(3) UNSIGNED NULL,
+  `parameters` INT(1) NOT NULL,
+  `script` VARCHAR(255) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC))
 ENGINE = InnoDB;
