@@ -293,7 +293,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`queries` (
   `name` VARCHAR(45) NOT NULL,
   `description` VARCHAR(255) NULL,
   `parameters` INT(1) NOT NULL,
-  `script` VARCHAR(255) NOT NULL,
+  `script` VARCHAR(512) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC))
 ENGINE = InnoDB;
