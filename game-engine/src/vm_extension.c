@@ -26,6 +26,7 @@
 // x macro to manage callbacks
 #define CALLBACK_XMACRO\
   X("perform",  vm_ext_execute_cb, true)\
+  X("query",  vm_ext_query_cb,  true)\
   X("report",   vm_ext_report_cb, true)\
   X("dummy",    vm_ext_dummy_cb,  true)\
 
@@ -173,6 +174,27 @@ static int vm_ext_report_cb(VmExtension_t * const v)
   embed_puts(v->h, "report");
 
   return 0;
+}
+
+/** ****************************************************************************
+
+  @brief      Callback invoked by VM when query command is issued
+
+  @param[in]  v Current VM extension object
+
+  @return     Execution result
+
+*******************************************************************************/
+static int vm_ext_query_cb(VmExtension_t * const v) 
+{
+    engine_trace(TRACE_LEVEL_ALWAYS, "Running query callback"); 
+
+    char executeOutMsg[LINE_MAX];
+    sprintf(executeOutMsg, "Command not supported yet");
+
+    embed_puts(v->h, executeOutMsg);
+
+    return 0;
 }
 
 /** ****************************************************************************
