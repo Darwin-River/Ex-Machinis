@@ -199,7 +199,7 @@ CREATE TABLE `protocols` (
 
 LOCK TABLES `protocols` WRITE;
 /*!40000 ALTER TABLE `protocols` DISABLE KEYS */;
-INSERT INTO `protocols` VALUES (1,'Mine Iron Ore',0,100,'This protocol is used to add iron ore to your ship\'s cargo hold.',1,1,1),(2,'Mine carbon ore',0,100,'This protocol adds carbon ore to your inventory.',1,1,1),(3,'Smelt iron ore',0,100,'This protocol converts iron ore to iron pellets.',1,1,1),(4,'Dump Iron Ore',0,100,'Dumps a unit of iron ore from the cargo hold.',1,1,1),(5,'Move to X',0,100,'Initial draft for location effects',1,1,0),(6,'Move to Jupiter',0,100,'We move without parameters, effect defines destiny',1,1,0);
+INSERT INTO `protocols` VALUES (1,'Mine Iron Ore',0,100,'Adds a unit of iron ore to your drone\'s cargo hold.',1,1,1),(2,'Mine carbon ore',0,100,'This protocol adds carbon ore to your inventory.',1,1,1),(3,'Smelt iron ore',0,100,'This protocol converts iron ore to iron pellets.',1,1,1),(4,'Dump Iron Ore',0,100,'Dumps a unit of iron ore from the cargo hold.',1,1,1),(5,'Move to X',0,100,'Initial draft for location effects',1,1,0),(6,'Move to Jupiter',0,100,'We move without parameters, effect defines destiny',1,1,0);
 /*!40000 ALTER TABLE `protocols` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -262,8 +262,36 @@ CREATE TABLE `resources` (
 
 LOCK TABLES `resources` WRITE;
 /*!40000 ALTER TABLE `resources` DISABLE KEYS */;
-INSERT INTO `resources` VALUES (1,'Ore, Iron','This the mined rock from which metals can be extracted.',1,0,0),(2,'Pellets, Iron','Small rods of pure iron.',1,0,0),(3,'Ore, Carbon','Small pellets of pure carbon.',1,0,0),(4,'Pellets, Carbon','Small pellets of pure copper.',1,0,0),(5,'Ore, Copper',NULL,1,0,0),(6,'Pellets, Copper',NULL,1,0,0),(7,'Pellets, Bronze','Small pellets of bronze alloy made by combining tin and copper.',1,0,0),(8,'Pellets, Steel','Produced by combining iron and carbon.',1,0,0),(9,'Smelter','This is a furnace used to extract component metals from ore.',50,1,1),(10,'Spider','Spiders are robots that move about the spacecaraft, transfering materials between different processes.',10,1,1),(11,'Crucible','A crucible is used to alloy metals.',50,1,1),(12,'Extruder','An extruder is used to print complex three dimentional structures from metals and alloys.',50,1,1);
+INSERT INTO `resources` VALUES (1,'Ore, Iron','This the mined rock from which metals can be extracted.',1,0,0),(2,'Pellets, Iron','Small rods of pure iron.',1,0,0),(3,'Ore, Carbon','Small pellets of pure carbon.',1,0,0),(4,'Pellets, Carbon','Small pellets of pure copper.',1,0,0),(5,'Ore, Copper',NULL,1,0,0),(7,'Pellets, Bronze','Small pellets of bronze alloy made by combining tin and copper.',1,0,0),(8,'Pellets, Steel','Produced by combining iron and carbon.',1,0,0),(9,'Smelter','This is a furnace used to extract component metals from ore.',50,1,1),(10,'Spider','Spiders are robots that move about the spacecaraft, transfering materials between different processes.',10,1,1),(11,'Crucible','A crucible is used to alloy metals.',50,1,1),(12,'Extruder','An extruder is used to print complex three dimentional structures from metals and alloys.',50,1,1),(108,'Pellets, Copper',NULL,1,0,0);
 /*!40000 ALTER TABLE `resources` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `queries`
+--
+
+DROP TABLE IF EXISTS `queries`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `queries` (
+  `id` int(5) unsigned NOT NULL,
+  `name` varchar(45) NOT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `parameters` int(1) NOT NULL,
+  `script` varchar(512) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id_UNIQUE` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `queries`
+--
+
+LOCK TABLES `queries` WRITE;
+/*!40000 ALTER TABLE `queries` DISABLE KEYS */;
+INSERT INTO `queries` VALUES (1,'Recent Events','Gets the recent events for a given drone',1,'SELECT observations.id, observations.time FROM observations INNER JOIN events ON observations.event = events.id WHERE observations.drone = [drone_id] AND observations.time BETWEEN CURRENT_TIMESTAMP AND CURRENT_TIMESTAMP - INTERVAL [value_1] MINUTE ORDER BY events.timestamp DESC'),(2,'Get object ID','Gets ID for a given game object',1,'SELECT id FROM objects WHERE objects.name=\'[string_1]\'');
+/*!40000 ALTER TABLE `queries` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -275,4 +303,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2019-11-21  5:10:49
+-- Dump completed on 2019-11-28  5:57:19
