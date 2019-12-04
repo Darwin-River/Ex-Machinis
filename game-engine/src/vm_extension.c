@@ -272,9 +272,11 @@ static int vm_ext_query_cb(VmExtension_t * const v)
 
         if(success == ENGINE_TRUE) {
            sprintf(queryOutMsg, 
-                    "Query ID [%d] with [%d] parameters succesfully processed",
+                    "Query ID [%d] with [%d] parameters succesfully processed, results at [%d], size [%d]",
                     queryInfo.id,
-                    queryInfo.parametersNum);
+                    queryInfo.parametersNum,
+                    queryInfo.resultsArrayAddr,
+                    queryInfo.resultsArraySize);
 
             engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
 
