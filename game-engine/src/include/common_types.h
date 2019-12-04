@@ -577,8 +577,12 @@ typedef struct
 	int id;
 	char name[MAX_QUERIES_NAME_SIZE];
 	char description[MAX_QUERIES_DESCRIPTION_SIZE];
-	int parameters;
+	int parametersNum;
 	char script[MAX_QUERIES_SCRIPT_SIZE];
+	// dynamically allocated
+	int *parameterValues;
+	int resultsArrayAddr;
+	int resultsArraySize;
 	
 } Queries_t;
 
