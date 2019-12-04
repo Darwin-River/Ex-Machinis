@@ -2745,3 +2745,93 @@ ErrorCode_t db_update_agent_company(DbConnection_t* connection, int agent_id, ch
 
     return result;
 }
+
+
+/** ****************************************************************************
+
+    @brief          Gets query info using a given ID
+
+    @param[in|out]  Output parameter where we store the query info obtained
+                    This object contains (as input) current query ID to do the search in DB
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_query_info(Queries_t* queryInfo)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection = engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!queryInfo) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        snprintf(query_text, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT * FROM queries WHERE id = %d", queryInfo->id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            // retrieve the result and check that is an only row with a single field
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+
+            if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||  
+                (mysql_num_fields(db_result) != MAX_QUERIES_FIELDS))
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get query info for QUERY_ID [%d] "
+                    "(invalid result for query [%s])",
+                    queryInfo->id,
+                    query_text);
+
+                result = ENGINE_DB_QUERY_ERROR;
+            } 
+            else 
+            {
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row) 
+                {
+                    // Pick the fields we need
+                    sprintf(queryInfo->name, "%s", row[QUERIES_NAME_IDX]?row[QUERIES_NAME_IDX]:"");
+                    sprintf(queryInfo->description, "%s", row[QUERIES_DESCRIPTION_IDX]?row[QUERIES_DESCRIPTION_IDX]:"");
+                    queryInfo->parametersNum = row[QUERIES_PARAMETERS_IDX]?atoi(row[QUERIES_PARAMETERS_IDX]):0;
+                    sprintf(queryInfo->script, "%s", row[QUERIES_SCRIPT_IDX]?row[QUERIES_SCRIPT_IDX]:"");
+                    
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "NAME [%s] DESCRIPTION [%s] PARAMETERS [%d] SCRIPT [%s] obtained for QUERY_ID [%d]", 
+                        queryInfo->name, 
+                        queryInfo->description,
+                        queryInfo->parametersNum,
+                        queryInfo->script,
+                        queryInfo->id);
+                }
+                else 
+                {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "ERROR: Unable to get info for QUERY_ID [%d] (no row)", 
+                        queryInfo->id);
+
+                    result = ENGINE_DB_QUERY_ERROR;
+                }
+            }
+
+            mysql_free_result(db_result);
+        }
+    }
+
+    return result;
+}

@@ -730,4 +730,16 @@ ErrorCode_t db_update_agent_name(DbConnection_t* connection, int agent_id, char*
 *******************************************************************************/
 ErrorCode_t db_update_agent_company(DbConnection_t* connection, int agent_id, char* company_name);
 
+/** ****************************************************************************
+
+    @brief          Gets query info using a given ID
+
+    @param[in|out]  Output parameter where we store the query info obtained
+                    This object contains (as input) current query ID to do the search in DB
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_query_info(Queries_t* queryInfo);
+
 #endif // __EM_DB_MODULE__
