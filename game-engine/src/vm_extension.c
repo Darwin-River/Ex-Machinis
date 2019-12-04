@@ -26,7 +26,7 @@
 // x macro to manage callbacks
 #define CALLBACK_XMACRO\
   X("perform",  vm_ext_execute_cb, true)\
-  X("query",  vm_ext_query_cb,  true)\
+  X("query",    vm_ext_query_cb,  true)\
   X("report",   vm_ext_report_cb, true)\
   X("dummy",    vm_ext_dummy_cb,  true)\
 
@@ -187,12 +187,110 @@ static int vm_ext_report_cb(VmExtension_t * const v)
 *******************************************************************************/
 static int vm_ext_query_cb(VmExtension_t * const v) 
 {
+    Queries_t queryInfo;
+    char queryOutMsg[LINE_MAX];
+    Bool_t success = ENGINE_TRUE;
+
+    memset(&queryInfo, 0, sizeof(Queries_t));
+
     engine_trace(TRACE_LEVEL_ALWAYS, "Running query callback"); 
 
-    char executeOutMsg[LINE_MAX];
-    sprintf(executeOutMsg, "Command not supported yet");
+    // First param (mandatory) is query ID
+    queryInfo.id = pop(v);
 
-    embed_puts(v->h, executeOutMsg);
+    if(!v->error) {
+        if(db_get_query_info(&queryInfo) == ENGINE_OK) {
+            queryInfo.resultsArrayAddr = pop(v);
+
+            if(v->error) {
+                success = ENGINE_FALSE;
+
+                sprintf(queryOutMsg, 
+                    "Unable to get results array address from stack for query ID [%d]", 
+                    queryInfo.id);
+
+                engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
+            }
+        } else {
+            sprintf(queryOutMsg, "Query ID [%d] not found in DB", queryInfo.id);
+            engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg);
+            success = ENGINE_FALSE; 
+        }
+
+        if(success == ENGINE_TRUE) {
+            queryInfo.resultsArraySize = pop(v);
+            if(v->error) {
+                success = ENGINE_FALSE;
+
+                sprintf(queryOutMsg, 
+                    "Unable to get results array size from stack for query ID [%d]", 
+                    queryInfo.id);
+
+                engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
+            }
+        }
+
+        if(success == ENGINE_TRUE && queryInfo.parametersNum) {
+            // Allocate output parameters dynamically
+            queryInfo.parameterValues = (int*) engine_malloc(sizeof(int) * queryInfo.parametersNum);
+
+            if(!queryInfo.parameterValues) {
+                sprintf(queryOutMsg, 
+                    "Unable to allocate [%d] parameters for query ID [%d]",
+                    queryInfo.parametersNum,
+                    queryInfo.id);
+
+                engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
+                success = ENGINE_FALSE;
+            }
+        }
+
+        if(success == ENGINE_TRUE) {
+            // Get parameters from stack
+            for(int i=0; i < queryInfo.parametersNum; i++) {
+                int parameter = pop(v);
+
+                if(v->error) {
+                    sprintf(queryOutMsg, 
+                        "Unable to retrieve [%d] parameters from stack for query ID [%d] ([%d] read)",
+                        queryInfo.parametersNum,
+                        queryInfo.id,
+                        i);
+
+                    engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
+                    success = ENGINE_FALSE;
+
+                    break; // stop for(;;)
+                } else {
+                    queryInfo.parameterValues[i] = parameter;
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "Parameter[%d]=[%d] set for query ID [%d]",
+                        i, parameter, queryInfo.id); 
+                }
+            }
+        }
+
+        if(success == ENGINE_TRUE) {
+           sprintf(queryOutMsg, 
+                    "Query ID [%d] with [%d] parameters succesfully processed",
+                    queryInfo.id,
+                    queryInfo.parametersNum);
+
+            engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
+
+            // Deallocate
+            if(queryInfo.parameterValues) {
+                engine_free(queryInfo.parameterValues, sizeof(int) * queryInfo.parametersNum);
+                queryInfo.parameterValues = NULL;
+            }
+        }
+
+    } else {
+        sprintf(queryOutMsg, "Unable to retrieve query id info from stack");
+        engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg);
+    }
+
+    embed_puts(v->h, queryOutMsg);
 
     return 0;
 }
