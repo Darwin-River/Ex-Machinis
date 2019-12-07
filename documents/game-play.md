@@ -3,6 +3,24 @@
 The Player’s Manual provides a detailed description of available game-play mechanics and strategies.  This manual will grow with the game.  As more features are added, they will be introduced below.  Currently, the manual focuses primarily on coding spacecraft with the fully developed FORTH interpreter.  However, as we develop the more physical components of Ex Machinis game play more details will be provided on navigation, resource extraction, refining, and production.  Thank you for your support and please stay tuned for future developments!
 
 ## Table of Contents
+* [Overview](#Overview)
+  * [Your fortune awaits!](#Your fortune awaits)
+  * [We still have light years to go](#We still have light years to go)
+* [Getting started](#Getting started)
+  * [Requesting your spacecraft](#Requesting your spacecraft])
+  * [Contacting your spacecraft](#Contacting your spacecraft)
+  * [Choosing better names!](#Choosing better names)
+  * [Commanding your fleet](#Commanding your fleet)
+* [Learning FORTH](#Learning FORTH)
+  * [Doing Simple Math](#Doing Simple Math)
+  * [Managing the stack](#Managing the stack)
+  * [Building a dictionary](#Building a dictionary)
+  * [Commenting on your code](#ommenting on your code)
+  * [Sending greetings](#Sending greetings)
+  * [Finding the truth in numbers](#inding the truth in numbers)
+  * [Experimenting with logical operators](#Experimenting with logical operators)
+  * [Using variables when programming your drones](#)
+  * [What’s really happening with variables?](#)
 
 ## Overview
 
