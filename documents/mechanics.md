@@ -21,6 +21,8 @@ Much of the physical labor of drones is accomplished by smaller self-propelled b
 
 Although faster than light communications exist, they are much too expensive and cumbersome to be broadly deployed.  Therefore they are generally only used to span the gaps between the earth and deep space trading hubs.
 
+[Return to the TOC](#Table-of-Contents)
+
 ### Key Concepts
 Ex Machinis is an augmented reality space simulation in which players program and control interstellar drones in real time. Consequently, the simulation is able to adhere to several key principles:
 * Continuous gameplay. The player’s drones always remain in play and continue to follow their programs even while the owner is offline.
