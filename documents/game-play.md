@@ -4,7 +4,7 @@ The Player’s Manual provides a detailed description of available game-play mec
 
 ## Table of Contents
 
-## Chapter 1: Overview
+## Chapter 1: Overview {#overview}
 ### Your fortune awaits!
 Ex Machinis is a multiplayer space game, which takes place in a parallel universe. Within this altered reality, space technologies have rapidly advanced since the 1950’s to the point where extensive interplanetary industries exist to produce materials that drive the human economy back on Earth. The vast majority of these spacecraft and are unmanned vehicles, which are assembled in space and are controlled terrestrial barons.
 
@@ -18,4 +18,4 @@ We currently have a functional email server that allows players to create an acc
 
 Right now we’re developing the Event Engine that will govern the physical actions of spacecraft.  When the Event Engine comes online, your drones will be able manufacture materials move from one location to another.
 
-This player’s  guide is a work in progress.  It will be updated as new features become available in the game.  Please follow us on http://patreon.com/exmachinis to receive updates and find the latest version of this guide.
+This player’s  guide is a work in progress.  It will be updated as new features become available in the game.  Please follow us on **[Patreon](http://patreon.com/exmachinis)** to receive updates and find the latest version of this guide.
