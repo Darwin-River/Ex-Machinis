@@ -4,23 +4,23 @@ The Player’s Manual provides a detailed description of available game-play mec
 
 ## Table of Contents
 * [Overview](#Overview)
-  * [Your fortune awaits!](#Your fortune awaits)
-  * [We still have light years to go](#We still have light years to go)
-* [Getting started](#Getting started)
-  * [Requesting your spacecraft](#Requesting your spacecraft])
-  * [Contacting your spacecraft](#Contacting your spacecraft)
-  * [Choosing better names!](#Choosing better names)
-  * [Commanding your fleet](#Commanding your fleet)
-* [Learning FORTH](#Learning FORTH)
-  * [Doing Simple Math](#Doing Simple Math)
-  * [Managing the stack](#Managing the stack)
-  * [Building a dictionary](#Building a dictionary)
-  * [Commenting on your code](#ommenting on your code)
-  * [Sending greetings](#Sending greetings)
-  * [Finding the truth in numbers](#inding the truth in numbers)
-  * [Experimenting with logical operators](#Experimenting with logical operators)
-  * [Using variables when programming your drones](#)
-  * [What’s really happening with variables?](#)
+  * [Your fortune awaits!](#Your-fortune-awaits)
+  * [We still have light years to go](#We-still-have-light-years-to-go)
+* [Getting started](#Getting-started)
+  * [Requesting your spacecraft](#Requesting-your-spacecraft])
+  * [Contacting your spacecraft](#Contacting-your-spacecraft)
+  * [Choosing better names!](#Choosing-better-names)
+  * [Commanding your fleet](#Commanding-your-fleet)
+* [Learning FORTH](#Learning-FORTH)
+  * [Doing Simple Math](#Doing-Simple-Math)
+  * [Managing the stack](#Managing-the-stack)
+  * [Building a dictionary](#Building-a-dictionary)
+  * [Commenting on your code](#ommenting-on-your-code)
+  * [Sending greetings](#Sending-greetings)
+  * [Finding the truth in numbers](#inding-the-truth-in-numbers)
+  * [Experimenting with logical operators](#Experimenting-with-logical-operators)
+  * [Using variables when programming your drones]
+  * [What’s really happening with variables?]
 
 ## Overview
 
