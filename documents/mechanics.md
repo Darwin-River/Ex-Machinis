@@ -29,6 +29,8 @@ Ex Machinis is an augmented reality space simulation in which players program an
 * Realistic time scales.  Although advanced technologies are able to compress the time it takes for drones to travel long distances and complete industrial activities, it is still expected that many activities will span the course of hours and days.
 * Communications limited to the speed of light. Communications with distant drones is not instantaneous.
 
+[Return to the TOC](#Table-of-Contents)
+
 ### Functional Components
 Ex Machinis has several functional components which operate independently to support gameplay.
   
@@ -37,11 +39,15 @@ The Mail Handler application runs continuously in the database to process incomi
 Incoming emails will be entered as new events in the Central Database and directed to the appropriate drones.
 Outgoing emails, generally originating from in-game drones, will be pulled from the events log at the appropriate time and forwarded to the owner of the drones.
 
+[Return to the TOC](#Table-of-Contents)
+
 #### Game Engine
 The Game Engine is a server based application that runs constantly in the background to retrieve, process, and update game data in the Central Database.  GE activities include:
 * Processing the compiled FORTH routines that are running in each of the drones.
 * Resolving the in-game actions taken by each of the drones in response to their programs.
 * Routinely updating the orbits of celestial data with information with data from a public registry.
+
+[Return to the TOC](#Table-of-Contents)
 
 #### Physics Engine
 The Physics Engine is a small C++ application, which runs continuously in the background to compute and record the cartesian coordinates of orbiting bodies. 
@@ -49,13 +55,19 @@ The Physics Engine is a small C++ application, which runs continuously in the ba
 #### Event Engine
 The Event Engine is a small C++ application, which runs continuously in the background to identify breaking events, check for errors, and determine which drones will become aware of these events.
 
+[Return to the TOC](#Table-of-Contents)
+
 #### Game Database
 The Game Database is a server-side database that holds all game-related data. The database facilitates communications between the Mail Handler, Game Engine, and other applications that are running on the server.  It is also a rich source of data for players and their drones.
+
+[Return to the TOC](#Table-of-Contents)
 
 ## General Mechanics
 
 ### All objects are defined by their orbits
 Every natural and manmade object in the game will be in orbit around the sun, a planet, or a moon.  Static objects are bodies that are locked in a fixed orbit, which does not change during the game.  Drones are dynamic objects, which can move from one orbit to the next. The Physics Engine routinely updates the cartesian coordinates of static and dynamic objects based on their orbital parameters.
+
+[Return to the TOC](#Table-of-Contents)
 
 ### Information travels at the speed of light
 A drone will not know what is happening at a distance until the light or radio transmission actually reaches it.  This can take minutes to hours depending on the drone’s distance from the observed event. Ex Machinis will handle this phenomena via the tEvents and tObservations tables in the Central Database. 
@@ -70,6 +82,8 @@ The following are examples of recorded events:
 * The drone emails program output to the owner.
 
 Drones will only be aware of those events that directly affect them, events that are directly observable, or events related to other drones that they are specifically monitoring on their scanners.  The links between drones and observable events will be held in the tObservations table and managed by the Observation Engine.
+
+[Return to the TOC](#Table-of-Contents)
 
 ### All ingame events result from actions taken by drones
 Drones use onboard resources to perform actions that result in recorded events.  Each action that is performed by a drone will generally:
@@ -86,11 +100,15 @@ Examples of some FORTH initiated activities activities that can be performed by 
 * Mining and enriching ores
 * Using refined metals to produce components for new drone
 
+[Return to the TOC](#Table-of-Contents)
+
 ### Players use FORTH to control their drones
 FORTH is a compact, efficient, and very powerful programming language that uses stacks and operator-defined words to organize complex programs.  Each user manages her fleet of drones by defining and applying FORTH words (functions) in drone-specific programs. These words reside in dictionaries belonging to each drone.
 
 Generally, a user will test out new routines on a single drone before uploading them to other drones in his fleet.
 Programs are usually tested on drone operating nearby to reduce the delay associated with messages traveling long distances through space.
+
+[Return to the TOC](#Table-of-Contents)
 
 ### Players advance by developing more complex codes
 A new player starts by sending simple real-time commands to drone that are operating in his vicinity.  However, as the player expands his operation in search of resources and opportunities, the commands necessarily become more complex.  This complexity results from the challenges associated with:
@@ -99,6 +117,8 @@ A new player starts by sending simple real-time commands to drone that are opera
 * The need to have drones carry-on activities when the player is not online.
 
 FORTH is well suited for this sort of progressive engagement because the player develops and manages an increasingly complex dictionary of words that she can can use to command her drones. These commands can be very simple at first, requiring constant user intervention to pilot the drone. However, the drone’s vocabulary can quickly expand to include more complex commands as the player becomes a sophisticated operator. In theory, there are no limits to the amount of autonomy and complex decision making the player can off-load onto her drone.
+
+[Return to the TOC](#Table-of-Contents)
 
 ### The Game Engine cycles through player-run virtual machines
 Since there will be a rather large number of drones running FORTH programs at any given time, the Game Engine (GE) will need to continuously and efficiently cycle through each of the virtual machines. The GE will do this by systematically inspecting each drone and considering whether it has an active program that needs to be attended to.  This will be apparent by Central Database fields, which indicate the last time the GE attended to a drone and the current state of the drone:
@@ -112,6 +132,8 @@ The GE will process a set number of instructions before updating the VM in the G
 
 If the GE encounters a command that requires it to perform an ingame activity (change orbits, mine ores, transfer cargos, etc…) it will compute times and resource requirements and log the necessary start and stop events.
 
+[Return to the TOC](#Table-of-Contents)
+
 ### Equipment
 The following types of modules can be added to drone hulls and used to perform various activities.  Each of class of module consists of variants which perform differently.
 * Power plants generate the energy used by the ship’s modules. 
@@ -124,6 +146,8 @@ The following types of modules can be added to drone hulls and used to perform v
 * Refineries process ores in to minerals.
 * Forges turn raw materials into functional parts by following blueprint instructions.
 * Construction bots are required to install modules in drone hulls.
+
+[Return to the TOC](#Table-of-Contents)
 
 ## Players and Resources
 
@@ -140,6 +164,8 @@ The Users Table will hold information specific to each player account.
 * updated_at [TIMESTAMP] - The date that the record was last updated.
 * credits [INT(10)] - This is the number of credits that the player has in her bank account.
 
+[Return to the TOC](#Table-of-Contents)
+
 #### Table: agents
 This table stores basic information on the ingame drones.  Most information about drone such as their current orbit and the contents of their cargo hold are recorded in the tEvents table, which is described later on.
 * id [INT(5)] - Table index. Max 65,534 (FFFF).
@@ -150,6 +176,8 @@ This table stores basic information on the ingame drones.  Most information abou
 * subject [VARCHAR(2048)] - The subject of the email exchange.
 * object_id [INT(5)] - The static object where the drone is located.
 * hull_type [INT(2)] - The type of hull used by the drone.
+
+[Return to the TOC](#Table-of-Contents)
 
 #### Table: hulls
 Drones are defined by their hulls and the materials and equipment contained within them. Both cargo, in the form of consumable resources, and functional modules affect what the drone can do.  The different varieties of hulls and their hold capacities are described in the tHull table and specifically linked to each drone in the agents table.
@@ -163,12 +191,16 @@ Drones are defined by their hulls and the materials and equipment contained with
 * d_slots [INT(2)] - The number of D slots.
 * e_slots [INT(2)] - The number of E slots.
 
+[Return to the TOC](#Table-of-Contents)
+
 #### Table: hull_bonuses
 Hull bonuses apply to specific modules, further enhancing the the effects of the modules on the specific resources.
 * id [INT(5)] - This is the table index. Max 65,534 (FFFF).
 * hull_type [INT(2)] - This is the ID of the hull which confers the bonus.
 * affected_resource [INT(5)] - This is the ID of the installed module that is affected by the hull bonus.
 * multiplier [INT(2)] - This is the percent fraction of the time it takes to complete any protocols involving the referenced ResourceID.
+
+[Return to the TOC](#Table-of-Contents)
 
 #### Table: resources
 This is a static table of all the resources that are available in the game.
@@ -179,17 +211,25 @@ This is a static table of all the resources that are available in the game.
 * capacity [INT(10)] - The number of subunits a module can support.
 * slot_size [INT(1)] - This indicates the required slot size for the installed.  When this field is set to zero, the resource is not a module and cannot be installed in the ship.
 
+[Return to the TOC](#Table-of-Contents)
+
 ## Static Objects
 
 All static objects in Ex Machinis follow elliptical orbits around the sun or another object.  Static objects specifically refer to planets, moons, asteroids, comets, space stations, and beacons, which never change their orbits. The data for these objects and their orbits are stored in the Objects Table. Drones are not considered static objects because they’re capable of changing orbits. In order to simplify gameplay, drones do not follow their own orbits.  Rather, they shadow the orbits of smaller objects like asteroids, comets, space stations, and beacons.  There is no limit to the number of drones that can shadow another object.
 
 This chapter details the coordinate systems, parameters, and computations required to track and locate static objects, and their adjacent drones in space.  These calculations are necessary to compute the distances between objects at any time.
 
+[Return to the TOC](#Table-of-Contents)
+
 ### The Physics Engine 
 The Physics Engine is a C++ application, which runs independently on the server to maintain updated cartesian coordinates on each active orbit. It does so by simply cycling through each spacecraft and static object orbit in the database and calculating its current position in space.  Since most orbits will only require minor positional corrections during the course of the day, the Physics Engine is set to run through the tOrbits table only two to four times a day.  The following sections describe the process by which an object’s cartesian coordinates are computed from it’s orbital parameters.
 
+[Return to the TOC](#Table-of-Contents)
+
 ### Units of Measure
 All values will be computed and stored in the database terms of meters, kilograms, and degrees.  However, when distances are reported to players they will generally be given in terms of light seconds where one light second equals 2.998E+8 meters.
+
+[Return to the TOC](#Table-of-Contents)
 
 ### Elliptic Coordinate Systems
 
@@ -200,8 +240,12 @@ All orbits in Ex Machinis are described using the same polar ecliptic coordinate
 Figure 1.  Depicts the orientation of the Ecliptic Coordinate System with respect to the Earth’s orbital plane.
 
 
+[Return to the TOC](#Table-of-Contents)
+
 #### Cartesian Representation
 Although the orbits are typically expressed in the polar representation of the elliptic coordinate system,  they frequently need to be converted to a cartesian representation to compute distances between objects.  In the cartesian coordinate system, the xy plane corresponds with the Earth’s orbital plane and the positive z axis points towards the north ecliptic pole.  The positive x axis points towards the sun from the Earth when the Earth is at it’s vernal equinox.
+
+[Return to the TOC](#Table-of-Contents)
 
 ### Orbital Tables
 
@@ -229,6 +273,8 @@ This table stores the parameters of all of all static objects.  These are called
 
 Figure 2. A diagram of the various parameters that go into describing an orbital plane.  The plane of reference parallels the Earth’s orbital plane with the reference direction paralleling the vector which points from the Earth to the sun during the vernal equinox.
 
+[Return to the TOC](#Table-of-Contents)
+
 ##### Table: abundancies
 All manufacturing starts by harvesting raw materials from planets, moons, asteroids, and comets.  The types of resources that can be harvested depends on the specific object that the spacecraft is orbiting.  
 
@@ -240,26 +286,40 @@ The following fields are contained in the abundancies table:
 * resource [INT(5)] - This is the resource to which the abundancies.multiplier applies.
 * multiplier [INT(2)] - This is the amount that the harvested resource is multiplied by.
 
+[Return to the TOC](#Table-of-Contents)
+
 ### The Orbits of Planets and Moons
 We’ve created a table of orbital parameters for the planets, moons, and in-game satellites that will be used to initially populate the Objects table of the Central DB.  However, a much larger database of orbital data is available here.  We will eventually need to determine a way for importing this data into the Central DB.
 
+[Return to the TOC](#Table-of-Contents)
+
 ### The Orbital Parameters
 The following variables and conversion factors are required to define an elliptical orbit in the database and permit the computation of an object’s position along that orbit at any point in time.
+
+[Return to the TOC](#Table-of-Contents)
 
 #### Gravitational Parameter (μ)
 In orbital mechanics, the gravitational parameter can be described as
 =GM
 Where G is the gravitational constant (6.674×10−11 N·kg–2·m2) and M is the mass of the central body.  This equation assumes that the mass of the central body is much larger than that of the orbiting body. There is a useful table of precisely measured gravitational parameters for the major stellar objects on Wikipedia. The gravitational parameter for all major bodies will be stored in the object data tables with the units of m3/s2.
 
+[Return to the TOC](#Table-of-Contents)
+
 #### Semimajor Axis (a)
 The semimajor axis (a) is half the distance between the furthest points on the ellipse. This value is expressed in meters.
+
+[Return to the TOC](#Table-of-Contents)
 
 #### Semiminor Axis (b)
 The semiminor axis is half the distance of the minor axis, which runs through the center of the ellipse, perpendicular to the major axis. This value is expressed in meters.
 
+[Return to the TOC](#Table-of-Contents)
+
 #### Eccentricity (e)
 The eccentricity (e) is a measure of the elongation of an ellipse and can be related to semimajor (a) and semiminor (b) axis as follows:
 e=1-ba2
+
+[Return to the TOC](#Table-of-Contents)
 
 #### Mean Angular Motion (n)
 The mean angular motion (n) provides the average velocity of the object as it transits the orbit.  It is expressed in radians per second and can be computed from the semimajor axis (a) as expressed in meters and the gravitation parameter () for the body which the object is orbiting.  In the case of the planets, this will be the gravitational parameter of the sun (1.327E20).  
@@ -267,12 +327,18 @@ n=a3
 
 Once, computed, the mean angular motion needs to be converted to degrees/day first by multiplying by 57.2958 degrees/radian and then by dividing by 86,400 seconds/day.  This value can be stored in the DB for the orbital object so that it doesn’t need to be computed again.  In the case of moons, the mean angular motion is already provided in the data set.
 
+[Return to the TOC](#Table-of-Contents)
+
 #### The orbital period (T)
 The orbital period (T) is the time required for the object to complete a single orbit.
 T=2n
 
+[Return to the TOC](#Table-of-Contents)
+
 ### Key Orbital Functions
 These are the main functions that need to be created and used to compute the x, y, and z coordinates for any object at time t.  
+
+[Return to the TOC](#Table-of-Contents)
 
 #### Mean Anomaly (M(t))
 The mean anomaly with respect to time (M(t)) is the angular distance at time t that an object would have from the periapsis if it moved in a circular orbit at a constant speed as described by the mean angular motion (n).
@@ -285,6 +351,8 @@ The mean anomaly can be used to compute the true anomaly of the orbiting body at
 Figure 3. This diagram depicts the relationship between the mean and true anomalies.
 
 
+[Return to the TOC](#Table-of-Contents)
+
 #### Eccentric Anomaly (E)
 The eccentric anomaly (E) defines the angular position of an object that is moving in an elliptical orbit.  It is related to the mean anomaly (M) as follows:
 M=E-esin E
@@ -294,11 +362,15 @@ Ei+1=Ei-Ei-M+esin Ei1-ecos Ei
 
 Here Ei+1 is the result of the current iteration and Ei is the result of the previous iteration.  The process should start by setting the first guess E0 to M.  The iteration is complete when the second term is sufficiently small.
 
+[Return to the TOC](#Table-of-Contents)
+
 #### True Anomaly (ν)
 The true anomaly (ν) represents the orbital objects actual angular position and can be computed from the orbit’s eccentric anomaly (E) and eccentricity (e) using the following equation:
 =2arg1-ecos E2, 1+esin E2
 
 Where arg(x,y) is the polar argument for the vector (x,y).  This function is available in many programming languages as atan2(y,x).
+
+[Return to the TOC](#Table-of-Contents)
 
 ### Solving Kepler’s Equation with JavaScript
 I found an online resource that provides a JavaScript routine for deriving the eccentric (E) and true (v) anomalies using an orbit’s eccentricity (e) and mean anomaly (M): 
@@ -310,6 +382,8 @@ r=a1-e21+ecos
 
 Here, both the semi-major axis (a) and the resulting radius (r) should be expressed in km.  Also, e is the orbital eccentricity.
 
+[Return to the TOC](#Table-of-Contents)
+
 ### Converting the orbital position to Cartesian coordinates
 Using the above variables, you can derive the Cartesian coordinates of the orbital object.  Each of the coordinates will be expressed in terms of km.
 
@@ -320,6 +394,8 @@ y = r (sin Ω cos (ω + ν) + cos Ω sin (ω + ν) cos i)
 z = r (sin i sin (ω + ν))
 
 This provides the Cartesian position of the orbital object with respect to the central body.  However, the central body may could be a moon that is orbiting around a planet, which is in orbit around the sun.  Therefore, the position of the orbital object with respect to the sun is the sum of the Cartesian vectors for the planet, moon, and spacecraft.
+
+[Return to the TOC](#Table-of-Contents)
 
 ## Meta Commands
 
@@ -333,21 +409,33 @@ Spacecraft recognize a few basic meta-commands, which allow players to execute F
 * \<rename\> parameter \</rename\> changes the email address of the drone to parameter@exmachinis.com.  Consequently, the parameter must not contain characters that generate an invalid email address and cannot be in use by any other drone or player.  The drone will return an email confirming its name change.  It will also report any failure to change the name and the reason why the proposed name is unacceptable.
 * \<rebrand\> parameter \</rebrand\> changes the name of the player’s company.  The chosen name must be unique and not exceed the maximum lengths prescribed by the SQL field. The drone will return an email confirming the company’s name change.  It will also report any failure to change the name and the reason why the proposed name is unacceptable.
 
+[Return to the TOC](#Table-of-Contents)
+
 ## Protocols
 
 Every physical action in Ex Machinis results from a drone executing a specific protocol. Protocols are procedures that a drone can perform provided they have the required resources, modules, and cargo space.  Most protocols consume and produce a certain amount of resources with the help of installed modules.  Protocols generally take a finite time to complete.  If any of the modules or reagents are missing or currently in use by another protocol, the protocol will not be begin. 
 
+[Return to the TOC](#Table-of-Contents)
+
 ### Performing a Protocol
 Each protocol has a unique ID and is invoked from FORTH by placing the process multiplier and protocol ID on the top of the stack and calling the perform function.  Many protocols also have additional parameters, which must be set using values on the stack.
+
+[Return to the TOC](#Table-of-Contents)
 
 ### Process Multiplier
 The process multiplier is an integer, which indicates the number of consecutive times a particular protocol will be applied before stopping.  The multiplier will be applied to each of the resources that are consumed and produced by the protocol as well as the corresponding time intervals.  The only thing it will not affect is the number of modules that are required to perform the action.  The process multiplier is an optional variable that is only pulled from the stack if the process modifier flag is true in the protocols table
 
+[Return to the TOC](#Table-of-Contents)
+
 ### Protocol ID
 Each protocol has a unique numeric ID, which is used to invoke the specific action via the perform function.  This number is identical to the Protocol ID in the protocols table, described below. The protocols table and other action tables are used by the perform routine to determine the costs and outcomes of each protocol.
 
+[Return to the TOC](#Table-of-Contents)
+
 ### Protocol Parameters
 Protocols often require parameters to further define their operations. These parameters are pulled from the stack when the protocol is performed. The parameters are placed in a C++ array according to the order in which they were pulled from the stack. Sometimes the values in this array are modified by the Game Engine prior to use.  Other times they are not.  However, in most cases the array values are used in place of variable markers found in the action tables, which are described below.
+
+[Return to the TOC](#Table-of-Contents)
 
 ### Returned Value
 Every time the perform command is called, it returns a value to the stack, which indicates whether or not it succeeded in performing the action.  If the action was successfully initiated, it will place the Action ID (see below) on the stack.  If the drone was unable to initiate the action, it will return a negative value that indicates the source of the error.  The error codes are as follows: 
@@ -357,16 +445,24 @@ Every time the perform command is called, it returns a value to the stack, which
 * -3: Invalid destination
 * -4: Can’t install resource
 
+[Return to the TOC](#Table-of-Contents)
+
 ### Aborted Actions
 Actions can be aborted by the Game Engine, the player, or another ingame event.  In many cases protocols are aborted by the drone before they ever begin because of insufficient resources or cargo space to hold incoming resources.  When aborted, any events that are associated with the action and occuring in the future will be deleted from the events table, which is described below.
+
+[Return to the TOC](#Table-of-Contents)
 
 ### Action Tables
 Ex Machinis uses multiple database tables to describe the various protocols that are available to drones, track their outcomes, and regulate how knowledge of these activities propagates outward from their source at the speed of light.  These tables can be divided into static tables, which do not change as the result of gameplay, and dynamic tables, which do change as the game progresses.
 
 Whenever a field in one of the static tables contains a value less than zero, it’s absolute value will be interpreted as a pointer (p) to the C++ variable variable array var(p), which contains values that were pulled from the stack and/or modified by the Game Engine.  Whenever a value in one of the static table fields is greater than or equal to zero, it will be interpreted as a constant value for that particular field.  There is only one exception to this rule. If the Drone ID field in any of the static tables is zero, it will be replaced with the ID of the drone performing that action.
 
+[Return to the TOC](#Table-of-Contents)
+
 #### Static Action Tables
 The static action tables are used to describe full range of possible drone actions and their outcomes.  Static tables do not change during gameplay. 
+
+[Return to the TOC](#Table-of-Contents)
 
 ##### Table: protocols
 This table lists all of the executable protocols that are available in the game.  It’s a static table, which doesn’t change in the course of gameplay.  However it defines the actions that are available to drones and, when taken in conjunction with the other static tables, proscribes how these actions affect the drone and their surroundings.  The protocols table contains the following fields:
@@ -379,12 +475,16 @@ This table lists all of the executable protocols that are available in the game.
 * reportable [BOOLEAN] - Indicates that the protocol creates an event that will be recorded in the Central Database and discoverable by other drones.
 * multiplier [BOOLEAN] - Indicates that the next value on the stack after the protocol number will be a process multiplier that can be used to perform iterative processes.
 
+[Return to the TOC](#Table-of-Contents)
+
 ##### Table: event_types
 This is a static table, which describes the different types of events that can arise from a protocol.
 * id [INT(2)] - Table index.
 * name [VARCHAR(45)] - A name for the event type.
 
 Some event types have an impact on how the Event Engine responds to an event.  For example, events.event_type = 1 indicates that the event is a harvest type event and the Event Engine will use the abundancies.multiplier value for the corresponding location and resource to modify the amount of resource that’s added to the cargo hold by the event.
+
+[Return to the TOC](#Table-of-Contents)
 
 ##### Table: resource_effects
 This is a static table, which is used to indicate how specific protocols affect the depletion or accumulation of resources in a drone’s hold and credits in a player’s bank account.
@@ -400,6 +500,8 @@ This is a static table, which is used to indicate how specific protocols affect 
 * quantity [INT(5)] - The number of resources depleted or accumulated during the event.
 * time [INT(5)] - How much time in minutes elapses after the start of the protocol before the item is affected.
 
+[Return to the TOC](#Table-of-Contents)
+
 ##### Table: market_effects
 This static table is used to set upper and lower limits on the quantity and price of a particular resource on the market.  The limit is used to constrain the amount of the resource that are sold or purchased by a ship.  In Ex Machinis, drones will be permitted to purchase from or sell to other drones provided the prices and quantities of the resources fall within the market limits set by the other drones.
 * id [INT(5)] - Table index. Max 65,534 (FFFF).
@@ -411,6 +513,8 @@ This static table is used to set upper and lower limits on the quantity and pric
 * price [INT(5)] - This is the upper or lower limit that is being offered (upper) or asked (lower) for the specified resource.
 * time [INT(5)] - How much time in minutes elapses before the item is affected.
 
+[Return to the TOC](#Table-of-Contents)
+
 ##### Table: location_effects
 The static tLocationEffects table describes protocol-induced changes in the drone’s location.  It’s generally associated with propulsion protocols, which begin by setting the drone’s location to zero, indicating it is transit between two points, and end by setting the location to the target destination after the transit has been completed.
 * id [INT(5)] - Table index. Max 65,534 (FFFF).
@@ -418,6 +522,8 @@ The static tLocationEffects table describes protocol-induced changes in the dron
 * event_type [INT(2)] - This is the EventType ID of the particular event.
 * location [INT(5)] - This is the ID of static object where the drone is currently located.  A zero indicates that the drone is in transit between locations.
 * time [INT(5)] - How much time in minutes elapses before the item is affected.
+
+[Return to the TOC](#Table-of-Contents)
 
 #### Dynamic Action Tables
 
@@ -428,6 +534,8 @@ Every time a protocol is executed, an action entry is created to track the outco
 * protocol [INT(5)] - This is the protocol that was performed.
 * multiplier [INT(5)] - This is the number of times that the process is run concurrently.
 * aborted [BOOLEAN] - This is a boolean value which indicates that a particular action has been aborted.
+
+[Return to the TOC](#Table-of-Contents)
 
 ##### Table: events
 The dynamic events table is used to track what has and will happen in the game.  Most events represent either the beginning or end of a particular action and have specific effects on the drone and their environments.  In general, each resource_effects, market_effects, and location_effects entry will be converted to an event when the corresponding protocol is performed by the drone.
@@ -455,10 +563,14 @@ The following fields describe the outcome of the event.  They are used to set ne
 * new_transmission [INT(10)] - This is the ID of the transmission text addressed by the event.
 * new_cargo [INT(10)] - For unprocessed events, this field records the total positive or negative change in mass of the drone’s cargo at the time of the event.  This can be determined when the event is created by multiplying the quantity_effect by the resource mass.  When the event is processed this value is updated to represent the current mass of all the resources the drone’s cargo.
 
+[Return to the TOC](#Table-of-Contents)
+
 ##### Table: transmissions
 The dynamic transmissions table is an adjunct to the events table that is used to store the data contained in drone communications with the drone. 
 * id [INT(10)] - Table index
 * content [VARCHAR(256)] - The text being transmitted
+
+[Return to the TOC](#Table-of-Contents)
 
 ### The Perform Function
 The perform function applies a general algorithm, which uses the action tables, in conjunction with stack-supplied values to implement a broad range of in-game actions. It does so by performing the following procedure whenever it is called: 
@@ -469,6 +581,8 @@ The perform function applies a general algorithm, which uses the action tables, 
 5. Use the ProtocolID to determine whether a particular activity needs any special treatment.  For example, you may need to call a custom C++ routine to determine the travel time between two locations and correct the time parameter accordingly.  These routines will generally make situation-specific changes to some of the values stored in the parameter array.  They will be hard coded into the C++ perform routine.
 6. When performing a multiplexed action, multiply all consumed and produced resources by the process multiplier.  Similarly multiply the time offsets for each of the events by the process multiplier and then by the bulk modifier to account for bulk process efficiencies.
 7. Sequentially search for the Protocol ID in each of the effects tables. Apply variable parameters where indicated (fields with negative numbers). Generate a corresponding event table entry for each effect.
+
+[Return to the TOC](#Table-of-Contents)
 
 ## The Event Engine
 
@@ -505,6 +619,8 @@ The Events Engine takes the following steps when evaluating events:
 
 9. If the event is observable and the event was successfully processed  (i.e. the observable field is true and status = 1), the EE also creates observation table entries for each local drone and sets the observation time to the event time (observation time = current time).
 
+[Return to the TOC](#Table-of-Contents)
+
 #### Table: observations
 Since evidence of each in-game event travels between distant points at the speed of light, it may be hours before a drone on the other side of the solar system is aware that an event has occurred. The Observations Table tracks what each drone knows and when it learns it. The table directly links drones to the events they observe or experience using the following fields:
 * id [INT(10)] - This is the ID of the current observation.
@@ -512,14 +628,20 @@ Since evidence of each in-game event travels between distant points at the speed
 * event [INT(10)] - This is the ID of the observed event.
 * time [DATETIME] - This is the time at which the drone observed the state change.
 
+[Return to the TOC](#Table-of-Contents)
+
 ## Markets and Trade
 
 In Ex Machinis, spacecraft can use scripted protocols to add or remove materials from the cargo hold of other spacecraft via the resource_effects table. Other than the obvious inventory and cargo hold constraints, there are no limits on how much material can be transferred between two spacecraft that are owned by the same player.  However, if a drone attempts to access the cargo hold of another player’s spacecraft, the interaction will be governed by market bids, which the targeted spacecraft places against specific resources that are added to or removed from its hold.
+
+[Return to the TOC](#Table-of-Contents)
 
 ### Placing Market Bids
 These market bids are placed and adjusted by protocols that reference the market_effects table, which is addressed in the Protocols Section of this manual. The market_effects table works by directing the Events Engine to generate buy and sell events that adjust the drone’s criteria for accepting cargo from or releasing cargo to another player’s drones.
 
 By using protocols that evoke the market_effects table, players can set the costs at which the drone will automatically purchase or sell a particular resource from or to another player. The market_effects table also sets limits on the amount of a resource that the drone will buy or sell.  
+
+[Return to the TOC](#Table-of-Contents)
 
 ### Acting on Market Bids
 One player's drone can act on the bids of another player's drone by adding or removing resources from the drones's cargo hold in accordance with existing buy or sell bids. Buy bids permit another player's drone to add a specific resource to the bidder's cargo hold in exchange for money. Similarly, sell bids allow another player's drone to remove resources from the cargo hold at a price that its set by the bid.  
@@ -540,6 +662,8 @@ If the materials are successfully removed from the cargo bay, the Event Engine a
 1. The first event deposits the correct amount of credits in the affected drone's bank. This amount is set based on the amount of material removed from the hold and the unit price set by the buy order.
 2. The second event removes the same amount of credits from the depleting drone's  bank. It is possible for the number of credits to go negative.
 
+[Return to the TOC](#Table-of-Contents)
+
 ### A Trade Example
 
 If a player decides to sell iron ore from one of his drones, he will invoke a protocol, which pulls three values from the stack.  The first value is the Resource ID of the material he wants to sell, the second value is minimum amount of the resource he wants to maintain in the drone's cargo hold (ie. a quantity of iron ore that is NOT for sale), and the third value indicates the unit price that he is requiring for the ore.  The Game Engine uses this information to create a sell-type event, which sets minimums for quantity and cost on the indicated resource via the events.new_quantity and events.new_redits fields.  When the Event Engine processes this event, it simply marks it as complete (events.outcome=1). It doesn't need to make any checks on the availability of resources because no resources are being created or depleted.
@@ -552,12 +676,16 @@ Provided the depletion event occurs without problem, a subsequent event associat
 
 Buy orders will be fulfilled in much the same way. The only difference is that the Event Engine will check for a buy order when another player attempts to add material's to another player's cargo hold.  In this case, the Event Engine will ensure that that the added resources do not exceed the limit set by the corresponding buy order and that they do not exceed the capacity of the cargo hold.  If the materials are successfully added to the buyer's cargo bay, the Event Engine will create concurrent events, which remove credits from the buyer's bank account and add them to the seller's bank account.
 
+[Return to the TOC](#Table-of-Contents)
+
 ## Queries
 
 ### Database Searches
 Each drone has access to an internal database, which contains information on events that directly affected the drone, were observed by the drone, or were reported to the Earth-bound Central Database and uploaded to the drone.  Therefore, a collection of words that can be used to query the onboard database will be a key part of the FORTH lexicon. 
 Drones can access their internal database (a subset of the Game Database) via predefined SQL queries. The queries will serve to organize the data for player consumption as well as limit the information in the Game Database that the players have access to.  Available queries are defined via the queries table, which is described below.
 The drone’s internal database and the much larger Central Database are virtual constructs, which consist of a subset of the data contained in the Game Database.  Basically, each drone will be able to search the Game Database for any events that are linked to the drone’s ID or the Central Database ID (Drone ID = 0) via the links formed by the observations table.  In addition to using the observations table to search event data, the drones will also be able to search data contained in many of the static tables such as the objects and protocols tables.
+
+[Return to the TOC](#Table-of-Contents)
 
 #### Running a Query  
 Drones can evoke any one of the predefined ingame queries with the FORTH-based query command.  Depending on the specific query, the query command pulls three or more values from the stack as follows:
@@ -567,8 +695,12 @@ The number of the query that the player is invoking
 2. A value that indicates the size of the Results Array in bytes
 3. Any additional parameters that are required by the specific query
 
+[Return to the TOC](#Table-of-Contents)
+
 #### The Queries Table
 A single table is used to define the queries that are available to drones through the FORTH query interface.  This is a static table, which does not change as the result of gameplay.  However, the table can be edited by the system administrator to change the type and scope of queries that are available to the players. 
+
+[Return to the TOC](#Table-of-Contents)
 
 ##### Table: queries
 The queries table provides a name and description for each of the possible drone-invoked queries. It also has a field that contains the SQL script for the query, which is written by the system administrator when the query is defined.
@@ -579,6 +711,8 @@ id [INT(5)] - This is the table index.  This is the value that the FORTH query r
 * parameters [INT(1)] - This is the number of query-specific parameters that are pulled from the stack.
 * script  [VARCHAR(255)] - This is the SQL-formatted query script for the particular query. The script is created by the * system administrator using standard SQL syntax.  The system administrator can add variables to the script, which will be replaced by user-supplied parameters or environmental variables when the query is executed
 
+[Return to the TOC](#Table-of-Contents)
+
 #### Query Variables
 When writing a script for the queries.script field, the system administrator will use SQL syntax to indicate how data will be selected, sorted, and reported back to the drone.  In addition to naming specific tables, fields, joins, and search terms in the query script, the system administrator can include variables, which will be replaced with player or Game Engine supplied values when the query is actually performed,  The variables that the system administrator will be able to use in the query script are as follows:
 
@@ -586,6 +720,8 @@ When writing a script for the queries.script field, the system administrator wil
 * [string_1] will be replaced by the string that is pointed to by the first query-specific parameter on the stack.  The ASCII string will be pulled from the drone’s memory location pointed to by the user supplied address. [string_2], [string_3], and [string_4] will do the same for the second, third, and fourth user-supplied values found on the stack.
 * [drone_id] will be replaced by the integer ID of the drone that is performing the query.
 * [time_delay] will be replaced by the distance in light minutes that the drone is from Earth.
+
+[Return to the TOC](#Table-of-Contents)
 
 #### The Query Algorithm
 The query command provides a general mechanism for players to query portions of the Game Database from within the FORTH programming environment.  As mentioned above, the query command pulls three or more values off the stack, which are used to define the query and its output.  Whenever the FORTH VM executes a query command, the Game Engine performs the following steps:
@@ -597,6 +733,8 @@ The query command provides a general mechanism for players to query portions of 
 5. Once it has retrieved all the required parameters from the stack, the Game Engine replaces each of the variables in a copy of the queries.script string with the corresponding user and Game Engine supplied values as indicated in the preceding Query Variables section.
 6. The Game Engine executes the resulting SQL query.  If the query call produces an error, the Game Engine places -2 on the stack and ends the FORTH-invoked query routine.  Otherwise, it places a 1 on the stack and parses the query results into the VM, starting at the location indicated by the pointer it pulled from the stack in Step 2.
 7. When parsing the results, the Game Engine will step through each returned value and determine the data type (as defined by the specific SQL DB filed ).  Integers will be placed in memory as 16-bit values.  Text will be imported into the VM as strings equal in length to the size allocated for the text in the SQL database.  Times will be placed in memory as two 16-bit values.  The first value will count the number of days from 1 January 2000,  The second value will count the number of even seconds (every other second) since midnight. These data will be placed one after another in the VM until all the columns and rows have been processed or the Game Engine reaches the end of the Results Array as indicated by the value collected in step 3.
+
+[Return to the TOC](#Table-of-Contents)
 
 #### First Query Example
 One query, which will be available to players, reports the most recent events that were experienced by a drone.  This query will be defined with the following queries table entry:
@@ -627,6 +765,8 @@ Having replaced the variables in the SQL script with real values, the Game Engin
 ~~~
 In the above memory map, each value is accompanied by a number that indicates how many bytes it occupies.
 
+[Return to the TOC](#Table-of-Contents)
+
 #### Second Query Example
 Another query would allow players to look up the ID of a specific orbital object.  This query would be defined in the queries table as follows:
 ~~~
@@ -645,4 +785,6 @@ As with the other example, the Game Engine will begin by pulling values for the 
 When the word earth is called, it places an address on the stack that points to the string “Earth” in the VM.  However, since $” creates a counted string, the first byte at this location contains an 8-bit value, which indicates the length of the string in bytes.  The Game Engine will use this pointer and the byte to pull the search string “Earth” from memory and replace \[string_1\] with the “Earth” in the query script.
 
 After implementing the query, the Game Engine will place the results in the Results Array.  In this case, the query should only return one integer value, which will occupy the first two bytes of the array.  The player will access this value by fetching (@) the 16-bit value from the address provided by results_array.
+
+[Return to the TOC](#Table-of-Contents)
 
