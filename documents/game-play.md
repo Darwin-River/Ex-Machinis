@@ -24,6 +24,8 @@ Right now we’re developing the Event Engine that will govern the physical acti
 
 This player’s  guide is a work in progress.  It will be updated as new features become available in the game.  Please follow us on **[Patreon](http://patreon.com/exmachinis)** to receive updates and find the latest version of this guide.
 
+[Return to TOC](#Table-of-Contents)
+
 ## Getting started
 
 ### Requesting your spacecraft
@@ -33,12 +35,17 @@ To start playing, you need to email the Registrar (registrar@advolition.com) wit
 
 Also, please be assured that we’ll only use your email to send in-game communications from your spacecraft or an occasional newsletter summarizing updates to the game.  Furthermore, you’ll only receive emails from your spacecraft in response to your own communications and you can unsubscribe from the newsletter at any time.
 
+[Return to TOC](#Table-of-Contents)
+
 ### Contacting your spacecraft
 Most of the game is played via direct email communications with your spacecraft. When one of your ships receives an email from you it will interpret everything between the <run> and </run> brackets as code and respond to you accordingly via email.  
 For example, try sending the following text  to one of your spacecraft and see what happens. Just make sure you retain the spaces between the numbers, the plus sign, and the period, which instructs the spacecraft to report the result.
 ~~~
 <run> 2 3 + . </run>
 ~~~
+
+[Return to TOC](#Table-of-Contents)
+
 ### Choosing better names!
 You’ll notice that each of your spacecraft as a rather generic and unremarkable email address like SN523854@advolition.com.  You’ll probably want to give it a more memorable name like “hero” since you’ll be interacting with it on a regular basis.  To rename your spacecraft, simply send the following text in an email to your drone:
 ~~~
@@ -48,10 +55,14 @@ You’ll actually receive an email from hero@advolition.com confirming the name 
 
 There is no limit to the number of times you change your drone’s email address. The only requirements are that you pick a name that doesn’t contain any illegal characters and isn’t already in use by someone else.  If your chosen name is not allowed, the drone will let you know via its original email address.
 
+[Return to TOC](#Table-of-Contents)
+
 ### Commanding your fleet
 Unlike most space games, players succeed in Ex Machinis by avoiding the grind.  Although it’s possible to send individual commands to your drones, it’s far more efficient to develop advanced routines for coordinating the actions of your multiple ships in distant space.  Remember, the game doesn’t stop when you’re AFK and you don’t want to wait for your communications to bounce back and forth across the void.
 
 You’ll be controlling your spacecraft via a simple but highly efficient programming language known as FORTH.  
+
+[Return to TOC](#Table-of-Contents)
 
 ## Learning FORTH
 FORTH is an amazingly simple but highly flexible programming language that grows out of a few core interpreter functions.  In fact, the version of FORTH, which is currently installed in each of your spacecraft, is described in around 200 lines of game-side C code. 
@@ -61,6 +72,8 @@ This simple architecture has encouraged many FORTH loyalists to develop their ow
 Consequently, FORTH will give advanced Ex Machinis players a tremendous amount of flexibility in developing a programming environment that works for them.  However, it also means that beginners can start the game with a more standard dictionary of intuitive FORTH routines, which facilitate their entry into the game and it's dynamic programming environment.
 
 This chapter is intended to give new users a basic understanding of FORTH so that they can use it to remotely pilot their spacecraft.
+
+[Return to TOC](#Table-of-Contents)
 
 ### Doing Simple Math
 You may have already noticed that FORTH has a strange way of doing math. In FORTH, the numbers come first followed by the operator (2 3 +).  This is because FORTH relies on a data stack to transfer values to and from functions.  
@@ -74,6 +87,8 @@ Similarly, calling the print function (.), pulls a value off the stack (5) and a
 All FORTH functions behave the same way, by removing and adding values to the stack.  This is why FORTH is a stack-based language.  It’s also why FORTH is a very efficient and intuitive programming language.
 
 Understanding stacks is the key to learning FORTH and programming kick-ass spacecraft in Ex Machinis.
+
+[Return to TOC](#Table-of-Contents)
 
 ### Managing the stack
 In FORTH, different program elements share data by adding and removing values from this stack in a last-on-first-off manner. For example, when I email the following code one of my spacecraft, it adds the space-delimited values to the stack so that 1 is on the bottom of the stack and 4 is on top. 
@@ -99,6 +114,8 @@ Try applying each of the following commands to manipulate the contents of the da
 \* The three dots in each of these examples instruct the interpreter to print the first three items on the stack. It’s important that you place a space between each of the periods and the word that precedes them.
 
 When trying the above examples, remember that FORTH words are case sensitive and it is important that you include spaces between the numbers, words, and periods.  It’s also important that you include all FORTH script between <run> and </run>.  Otherwise the interpreter won’t processes the code.
+
+[Return to TOC](#Table-of-Contents)
 
 ### Building a dictionary
 FORTH is a very simple language.  Most of the heavy lifting is done using the data stack and a dictionary of user-defined functions.  
@@ -133,6 +150,8 @@ In this example, the word AddFive really doesn't offer much advantage over simpl
 
 Give this a try with your own spacecraft!  I'm sure you can come up with more useful definitions than the one provided here. 
 
+[Return to TOC](#Table-of-Contents)
+
 ### Commenting on your code
 As with most programming languages, FORTH offers for some convenient mechanisms for commenting on  your code.  This techniques can be very handy in reminding yourself and others of the intentent and function of your definitions. There are two primary ways to add comments to your script that will be ignored by the interpreter:
 
@@ -141,6 +160,8 @@ When you start a line with a backslash (\) the interpreter will ignore everythin
 The interpreter will also ignore any text enclosed between parentheses, regardless of where they occur in the line or whether they enclose multiple lines. 
 
 Note: Remember that the interpreter uses white space to deliminate words.  Therefore, backslashes and parentheses will only be recognized as such by the interpreter if there are spaces between them and other characters.
+
+[Return to TOC](#Table-of-Contents)
 
 ### Sending greetings
 Having your spacecraft output text in an email to you is actually quite easy to do and obviously very useful.  There are a couple ground rules though:  First, this technique for printing quotes can only be called from within a word definition (ie. function).  Second, it’s critical that spaces separate your quotes from the text that is contained between them.
@@ -162,6 +183,8 @@ Next, envoke your new word by sending the following email to your spacecraft:
 Sending this script to your drone will result in a heartfelt greeting from your favorite spacecraft!  I guess there's no surprises there.  But this will obviously be a useful tool when having your ships provide intelligible status reports.
 
 The important components of this command are the dot-quote (."), which instructs the craft to print the text that follows and the end-quote ("), which ends the printed string.  Just remember that because the FORTH interpreter views the dot and end quotes as distinct words, they must be separated from everything around them by a white-space.
+
+[Return to TOC](#Table-of-Contents)
 
 ### Finding the truth in numbers
 FORTH is very loose with numbers and doesn't have specially defined boolean values.  Rather, logical operators interpret all non-zero numbers as true.  Only zero is used to represent the boolean equivalent of false.
@@ -194,7 +217,9 @@ By the way, once you define a word like true?, your spacecraft will remember it,
 
 We'll be using true? in the next section to explore logical (and, or, xor) and comparison (<, >, =) operators.
 
-Experimenting with logical operators
+[Return to TOC](#Table-of-Contents)
+
+### Experimenting with logical operators
 
 In the previous section, we used an if else then statement to demonstrate how FORTH, which is used to program player-controlled spacecraft in Ex Machinis, loosely interprets 0 as false and any other number as true.  In the process, we defined the word true?, which returns "false" if the value on the stack is zero and "true" if it is any other number.  
 
@@ -229,6 +254,8 @@ You may have noticed that there is one very important operator that is missing f
 ~~~
 Try sending the above code to your spacecraft to see how it work.
 
+[Return to TOC](#Table-of-Contents)
+
 ### Using variables when programming your drones
 In FORTH, most values are stored and passed between program elements using the stack.  However, the language also allows users to define simple variables using the variable command.  
 
@@ -245,6 +272,8 @@ That's all there is to it!  Try running this script and variations of it on one 
 
 Of course, like most things in FORTH, there are some interesting things going on behind the scenes when you declare a variable and store and retrieve values from it.  We'll get into some of this in the next section when we address the creation of arrays.
 
+[Return to TOC](#Table-of-Contents)
+
 ### What’s really happening with variables?
 So let’s talk a little bit about what’s happening behind the scenes with variables.  When you declare a variable with the statement, “variable box”, you’re essentially telling the FORTH interpreter to define a new word for you called box.  This definition tells the interpreter that whenever box is called, it should place an address on the stack, which points to a four byte block at the end of the definition.  This location is where your data is stored.
 
@@ -259,5 +288,7 @@ With this in mind, consider that the true functions of fetch (@) and store (!) a
 Fetch and store are very powerful (and dangerous!) functions because they allow you to read from and write to ANY location in your drone’s memory!  However, until you’re sure of what you are doing, I suggest that you only use these functions in conjunction with a previously defined variable like box.
 
 So why am I telling you about these functions now?  Because understanding how FORTH uses variables is the key to defining and using more powerful strings and arrays!
-   
+  
+[Return to TOC](#Table-of-Contents)
+ 
 
