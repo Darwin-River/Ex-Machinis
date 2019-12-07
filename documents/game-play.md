@@ -4,9 +4,9 @@ The Player’s Manual provides a detailed description of available game-play mec
 
 ## Table of Contents
 
-## Chapter 1: Overview {#overview}
+## Overview
 ### Your fortune awaits!
-Ex Machinis is a multiplayer space game, which takes place in a parallel universe. Within this altered reality, space technologies have rapidly advanced since the 1950’s to the point where extensive interplanetary industries exist to produce materials that drive the human economy back on Earth. The vast majority of these spacecraft and are unmanned vehicles, which are assembled in space and are controlled terrestrial barons.
+Ex Machinis is a multiplayer space game, which takes place in a parallel universe. Within this altered reality, space technologies have rapidly advanced since the 1950’s to the point where extensive interplanetary industries exist to produce materials that drive the human economy back on Earth. The vast majority of these spacecraft and are unmanned vehicles, which are assembled in space and are controlled terrestrial barons. [up](#Table-of-Contents)
 
 As part of the international agreement that drove the colonization of space at the end of the second world war, citizens of the signitor nations are guaranteed access to basic spacecraft which can be used to build profitable businesses.  This democratization of space has been the biggest driver behind the rapid growth of extraterrestrial industries and technologies.
 
