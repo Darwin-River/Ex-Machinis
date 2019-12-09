@@ -23,6 +23,7 @@ The Player’s Manual provides a detailed description of available game-play mec
   * [Experimenting with logical operators](#Experimenting-with-logical-operators)
   * [Using variables when programming your drones](#Using-variables-when-programming-your-drones)
   * [What’s really happening with variables?](#Whats-really-happening-with-variables)
+  * [Working with strings](#Working-with-strings)
 
 ## Overview
 
@@ -311,4 +312,40 @@ So why am I telling you about these functions now?  Because understanding how FO
   
 [Return to TOC](#Table-of-Contents)
  
+### Working with strings
+It's important to understand how stings are formed and managed in FORTH, because your drone will use them to query to database about information on its environment and to report information back to you.
 
+In FORTH, strings of chacrters are stored in a memory structure known as a counted string. In this structure, the first byte of memory holds a value that indicates the size of the string and subesquent bytes hold individual characters from that string.
+
+Strings are created using the <code>$"</code> word, which stores everything up to the next quotation mark in memory and returns an address, which points to the location of the string.
+
+As with the word, <code>."</code>, which was introduced above, <code>$"</code> can only be used within another definition.  However, rather than forcing the string to be added to the output buffer, it causes a pointer to the string to be placed on the stack.
+
+Thus, a string can be stored in a word via a simple definition:
+~~~
+<run>
+  : myhome $" Earth" ;
+</run>
+~~~
+This definition creates a word called <code>myhome</code>.  When this word is used in another script, it simply places an address on the stack which points to the location of the string "Earth".  Since this creates a counted string, the section of memory that is referenced by the address would look like this:
+
+| Address | Value/Chracter |
+| :---: | :---: |
+| a | 5 |
+| a + 1 | E |
+| a + 2 | a |
+| a + 3 | r |
+| a + 4 | t |
+| a + 5 | h |
+
+There are many ways to access this string, which we'll cover at a later point. But one important way to do so is by using the words <code>count</code> and <code>type</code> to print out the string.  The word <code>count</code> functions by returning the first byte of an address to the stack. In the case of a counted string, this would be the size of the string.  The word <code>type</code> pulls an address and a lendth from the stack and prints out the contents of that memory range as characters.
+
+Consequently, the following script will istruct your drone to print the string which is pointed to by the previously defined word:
+~~~
+<run>
+  myhome count type
+</run>
+~~~
+Assuming that you've already added <code>home</code> to your drone's dictionary, running the above script will generate an email from your drone that says "Earth".
+
+[Return to TOC](#Table-of-Contents)
