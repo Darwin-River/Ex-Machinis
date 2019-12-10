@@ -59,7 +59,7 @@ Also, please be assured that we’ll only use your email to send in-game communi
 [Return to TOC](#Table-of-Contents)
 
 ### Contacting your spacecraft
-Most of the game is played via direct email communications with your spacecraft. When one of your ships receives an email from you it will interpret everything between the <run> and </run> brackets as code and respond to you accordingly via email.  
+Most of the game is played via direct email communications with your spacecraft. When one of your ships receives an email from you it will interpret everything between the <code>\<run\></code> and <code>\</run\></code> brackets as code and respond to you accordingly via email.  
 For example, try sending the following text  to one of your spacecraft and see what happens. Just make sure you retain the spaces between the numbers, the plus sign, and the period, which instructs the spacecraft to report the result.
 ~~~
 <run> 2 3 + . </run>
@@ -97,13 +97,13 @@ This chapter is intended to give new users a basic understanding of FORTH so tha
 [Return to TOC](#Table-of-Contents)
 
 ### Doing Simple Math
-You may have already noticed that FORTH has a strange way of doing math. In FORTH, the numbers come first followed by the operator (2 3 +).  This is because FORTH relies on a data stack to transfer values to and from functions.  
+You may have already noticed that FORTH has a strange way of doing math. In FORTH, the numbers come first followed by the operator (<code>2 3 +</code>).  This is because FORTH relies on a data stack to transfer values to and from functions.  
 
 For example, when you  enter "2” and “3” seperatred by a space, FORTH places a 2 and then a 3 on the data stack. You can visualize this as a stack of dishes in which the number 2 plate is laid down first and the number 3 plate is placed on top of it. Consequently, when objects are removed from the stack the topmost value is removed first (3) and then the next value (2).
 
-When you call a FORTH function, like addition (+), it removes the top two values from the stack (2 and 3), adds them together, and returns the result (5) to the stack.
+When you call a FORTH function, like addition (<code>+</code>), it removes the top two values from the stack (2 and 3), adds them together, and returns the result (5) to the stack.
 
-Similarly, calling the print function (.), pulls a value off the stack (5) and adds it the output stream, which is returned to you in an email as "5".
+Similarly, calling the print function (<code>.</code>), pulls a value off the stack (5) and adds it the output stream, which is returned to you in an email as "5".
 
 All FORTH functions behave the same way, by removing and adding values to the stack.  This is why FORTH is a stack-based language.  It’s also why FORTH is a very efficient and intuitive programming language.
 
@@ -118,7 +118,7 @@ In FORTH, different program elements share data by adding and removing values fr
   1 2 3 4
 </run>
 ~~~
-If I were to follow this with a call to the addition function (+),  it would remove the 4 and 3 from the top of the stack and place a 7 on the stack.  The stack from bottom to top would end up looking like this:  1 2 7
+If I were to follow this with a call to the addition function (<code>+</code>),  it would remove the 4 and 3 from the top of the stack and place a 7 on the stack.  The stack from bottom to top would end up looking like this: 1 2 7
 
 You may not always want to deal with values in the order they were placed on the stack. Therefore, a number of commands exist that allow you to directly manipulate the order and contents of the stack.
 
@@ -134,7 +134,7 @@ Try applying each of the following commands to manipulate the contents of the da
 
 \* The three dots in each of these examples instruct the interpreter to print the first three items on the stack. It’s important that you place a space between each of the periods and the word that precedes them.
 
-When trying the above examples, remember that FORTH words are case sensitive and it is important that you include spaces between the numbers, words, and periods.  It’s also important that you include all FORTH script between <run> and </run>.  Otherwise the interpreter won’t processes the code.
+When trying the above examples, remember that FORTH words are case sensitive and it is important that you include spaces between the numbers, words, and periods.  It’s also important that you include all FORTH script between <code>\<run\></code> and <code>\</run\></code>.  Otherwise the interpreter won’t processes the code.
 
 [Return to TOC](#Table-of-Contents)
 
@@ -145,9 +145,9 @@ Every time you send your spacecraft instructions enclosed between the script bra
 
 The interpreter will first look for a string of space delimited characters in the onboard dictionary.  If the characters represent a previously defined word, the interpreter will execute the corresponding function. If not, it will attempt to interpret the string as a value and place it on the stack. 
 
-For example, the arithmetic operators (\+, \-, \*, \/) represented words, which the interpreter can find in the dictionary and execute to perform the proscribed computation. 
+For example, the arithmetic operators (<code>\+</code>, <code>\-</code>, <code>\*</code>, <code>\/</code>) represented words, which the interpreter can find in the dictionary and execute to perform the proscribed computation. 
 
-However, FORTH makes it very easy to define your own words on the fly for use in scripts and higher level definitions.  New words are defined by simply enclosing the word and the corresponding script between a colon (:) and a semicolon (;).
+However, FORTH makes it very easy to define your own words on the fly for use in scripts and higher level definitions.  New words are defined by simply enclosing the word and the corresponding script between a colon (<code>:</code>) and a semicolon (<code>;</code>).
 
 For example, if you find that you are frequently adding five to a number on the stack you can create the word, AddFive, to handle this operation in the future.   You would define AddFive by sending the following script to your spacecraft:
 ~~~
@@ -155,7 +155,7 @@ For example, if you find that you are frequently adding five to a number on the 
   : AddFive 5 + ;
 </run>
 ~~~
-Now, anytime you want your spacecraft to add five to the number on the stack you can use your new word instead of "5 +":
+Now, anytime you want your spacecraft to add five to the number on the stack you can use your new word instead of <code>5 +</code>:
 ~~~
 <run>
   4 AddFive .
@@ -167,7 +167,7 @@ This script will cause your spacecraft to return the same result ("9") as the fo
   4 5 + .
 </run>
 ~~~
-In this example, the word AddFive really doesn't offer much advantage over simply typing "5 +".  However, you can easily imagine defining words that perform more complex functions that you wouldn't want to retype every time.
+In this example, the word AddFive really doesn't offer much advantage over simply typing <code>5 +</code>.  However, you can easily imagine defining words that perform more complex functions that you wouldn't want to retype every time.
 
 Give this a try with your own spacecraft!  I'm sure you can come up with more useful definitions than the one provided here. 
 
@@ -176,7 +176,7 @@ Give this a try with your own spacecraft!  I'm sure you can come up with more us
 ### Commenting on your code
 As with most programming languages, FORTH offers for some convenient mechanisms for commenting on  your code.  This techniques can be very handy in reminding yourself and others of the intentent and function of your definitions. There are two primary ways to add comments to your script that will be ignored by the interpreter:
 
-When you start a line with a backslash (\) the interpreter will ignore everything else on that line.
+When you start a line with a backslash (<code>\\</code>) the interpreter will ignore everything else on that line.
 
 The interpreter will also ignore any text enclosed between parentheses, regardless of where they occur in the line or whether they enclose multiple lines. 
 
@@ -203,7 +203,7 @@ Next, envoke your new word by sending the following email to your spacecraft:
 ~~~
 Sending this script to your drone will result in a heartfelt greeting from your favorite spacecraft!  I guess there's no surprises there.  But this will obviously be a useful tool when having your ships provide intelligible status reports.
 
-The important components of this command are the dot-quote (."), which instructs the craft to print the text that follows and the end-quote ("), which ends the printed string.  Just remember that because the FORTH interpreter views the dot and end quotes as distinct words, they must be separated from everything around them by a white-space.
+The important components of this command are the dot-quote (<code>."</code>), which instructs the craft to print the text that follows and the end-quote (<code>"</code>), which ends the printed string.  Just remember that because the FORTH interpreter views the dot and end quotes as distinct words, they must be separated from everything around them by a white-space.
 
 [Return to TOC](#Table-of-Contents)
 
@@ -225,7 +225,7 @@ Try emailing the following text to one of your spacecraft:
 
 </run>
 ~~~
-Remember that spaces are very important, so start by copying and pasting the above script directly into your email, including the \<run\> \<\/run\> brackets. 
+Remember that spaces are very important, so start by copying and pasting the above script directly into your email, including the <code>\<run\> \<\/run\></code> brackets. 
 
 The first part of the emailed script defines a new word, true?, which will return a "true" if the word is preceded by a number other than zero and a "false" if it follows a zero.  In the FORTH syntax, if begins a branched statement, which implements one of two else-delimited options based on the value on the top of the stack.  The word, then, closes the statement.
 
@@ -236,7 +236,7 @@ true false true ok.
 ~~~
 By the way, once you define a word like true?, your spacecraft will remember it, allowing you to use it in future emails.  So, true evaluating some other integers with the word.  
 
-We'll be using true? in the next section to explore logical (and, or, xor) and comparison (<, >, =) operators.
+We'll be using true? in the next section to explore logical (<code>and</code>, <code>or</code>, <code>xor</code>) and comparison (<code><</code>, <code>></code>, <code>=</code>) operators.
 
 [Return to TOC](#Table-of-Contents)
 
@@ -250,7 +250,7 @@ If you haven't already done so, you can define the word true? by emailing the fo
   : true? if ." true " else ." false " then ;
 </run>
 ~~~
-It turns out that FORTH has three logical operators (and, or, xor) which allow you to combine Boolean values in different ways.  Therefore, if we use 0 for false and 1 for true, you can test these operators by sending the following script to your drone:
+It turns out that FORTH has three logical operators (<code>and</code>, <code>or</code>, <code>xor</code>) which allow you to combine Boolean values in different ways.  Therefore, if we use 0 for false and 1 for true, you can test these operators by sending the following script to your drone:
 ~~~
 <run>
   0 1 and true?
@@ -258,7 +258,7 @@ It turns out that FORTH has three logical operators (and, or, xor) which allow y
   0 1 xor true?
 </run>
 ~~~
-You may not recall that FORTH uses a Reverse Polish Notation (RPN) in which you enter the numbers first (i.e. "0 1") before the function or mathematical operator ("and"), which processes them.  Finally, we need to use our previously defined word, true?, to report back the value of the number.  Since "0 and 1" is false, "0 or 1" is true, and "0 xor 1" is also true, your drone will respond to the above script with:
+You may not recall that FORTH uses a Reverse Polish Notation (RPN) in which you enter the numbers first (i.e. "0 1") before the function or mathematical operator (<code>and</code>), which processes them.  Finally, we need to use our previously defined word, true?, to report back the value of the number.  Since "0 and 1" is false, "0 or 1" is true, and "0 xor 1" is also true, your drone will respond to the above script with:
 ~~~
 true true true ok.
 ~~~
@@ -278,10 +278,10 @@ Try sending the above code to your spacecraft to see how it work.
 [Return to TOC](#Table-of-Contents)
 
 ### Using variables when programming your drones
-In FORTH, most values are stored and passed between program elements using the stack.  However, the language also allows users to define simple variables using the variable command.  
+In FORTH, most values are stored and passed between program elements using the stack.  However, the language also allows users to define simple variables using the <code>variable</code> command.  
 
 When a variable is declared, the FORTH interpreter creates an entry in the dictionary using the variable's name.  This new definition serves as a placeholder for any values stored in that variable.
-Values can then be stored in and retrieved from a variable using the store (!) and fetch (@) commands.  In the following example, we define a variable called "box" and then store, fetch, and print the number 2 using this variable.
+Values can then be stored in and retrieved from a variable using the store (<code>!</code>) and fetch (<code>@</code>) commands.  In the following example, we define a variable called "box" and then store, fetch, and print the number 2 using this variable.
 ~~~
 <run>
     variable box ( Define the box variable )
@@ -296,15 +296,15 @@ Of course, like most things in FORTH, there are some interesting things going on
 [Return to TOC](#Table-of-Contents)
 
 ### What’s really happening with variables?
-So let’s talk a little bit about what’s happening behind the scenes with variables.  When you declare a variable with the statement, “variable box”, you’re essentially telling the FORTH interpreter to define a new word for you called box.  This definition tells the interpreter that whenever box is called, it should place an address on the stack, which points to a four byte block at the end of the definition.  This location is where your data is stored.
+So let’s talk a little bit about what’s happening behind the scenes with variables.  When you declare a variable with the statement, “<code>variable box</code>”, you’re essentially telling the FORTH interpreter to define a new word for you called box.  This definition tells the interpreter that whenever box is called, it should place an address on the stack, which points to a four byte block at the end of the definition.  This location is where your data is stored.
 
-You can confirm this is happening by calling box and then printing the contents of the stack. When you do so, your drone will return the address of the place in memory where your value is being stored.  The variable, box, will always return the same value no matter what’s actually being stored in the variable.
+You can confirm this is happening by calling <code>box</code> and then printing the contents of the stack. When you do so, your drone will return the address of the place in memory where your value is being stored.  The variable, <code>box</code>, will always return the same value no matter what’s actually being stored in the variable.
 ~~~
 <run>
     box . ( Print the address that is returned by box )
 </run>
 ~~~
-With this in mind, consider that the true functions of fetch (@) and store (!) are to read and write values to a specified location in memory.  Fetch works by pulling an address off the stack and returning the four-byte value that is stored in that location.  Store pulls an address and then a value from the stack and writes the value to the designated memory slot.
+With this in mind, consider that the true functions of fetch (<code>@</code>) and store (<code>!</code>) are to read and write values to a specified location in memory.  Fetch works by pulling an address off the stack and returning the four-byte value that is stored in that location.  Store pulls an address and then a value from the stack and writes the value to the designated memory slot.
 
 Fetch and store are very powerful (and dangerous!) functions because they allow you to read from and write to ANY location in your drone’s memory!  However, until you’re sure of what you are doing, I suggest that you only use these functions in conjunction with a previously defined variable like box.
 
