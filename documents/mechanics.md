@@ -9,94 +9,89 @@ This wiki is used to organize the project, which began in August 2017.  It conta
 This document lays out the plans for developing Ex Machinis, an online space simulation, which promotes the acquisition of programming skills. 
 
 ## Table of Contents
-
-* System Overview
-  * Plot
-  * Key Concepts
-  * Functional Components
-    * Mail Handler
-    * Game Engine
-    * Physics Engine
-    * Event Engine
-    * Game Database
-* General Mechanics
-  * All objects are defined by their orbits
-  * Information travels at the speed of light
-  * All ingame events result from actions taken by drones
-  * Players use FORTH to control their drones
-  * Players advance by developing more complex codes
-  * The Game Engine cycles through player-run virtual machines
-  * Equipment
-* Players and Resources
-  * Player and Drone Tables
-    * Table: users
-    * Table: agents
-    * Table: hulls
-    * Table: hull_bonuses
-    * Table: resources
-* Static Objects
-  * The Physics Engine 
-  * Units of Measure
-  * Elliptic Coordinate Systems
-    * Polar Representation
-    * Cartesian Representation
-  * Orbital Tables
-    * Table: objects
-      * Table: abundancies
-  * The Orbits of Planets and Moons
-  * The Orbital Parameters
-    * Gravitational Parameter (μ)
-    * Semimajor Axis (a)
-    * Semiminor Axis (b)
-    * Eccentricity (e)
-    * Mean Angular Motion (n)
-    * The orbital period (T)
-  * Key Orbital Functions
-    * Mean Anomaly (M(t))
-    * Eccentric Anomaly (E)
-    * True Anomaly (ν)
-  * Solving Kepler’s Equation with JavaScript
-    * Radius at the True Anomaly (r)
-  * Converting the orbital position to Cartesian coordinates
-* Meta Commands
-* Protocols
-  * Performing a Protocol
-  * Process Multiplier
-  * Protocol ID
-  * Protocol Parameters
-  * Returned Value
-  * Aborted Actions
-  * Action Tables
-    * Static Action Tables
-      * Table: protocols
-      * Table: event_types
-      * Table: resource_effects
-      * Table: market_effects
-      * Table: location_effects
-    * Dynamic Action Tables
-      * Table: actions
-      * Table: events
-      * Table: transmissions
-  * The Perform Function
-* The Event Engine
-    * Table: observations
-* Markets and Trade
-  * Placing Market Bids
-  * Acting on Market Bids
-  * A Trade Example
-* Queries
-  * Database Searches
-    * Running a Query  
-    * The Queries Table
-      * Table: queries
-    * Query Variables
-    * The Query Algorithm
-    * First Query Example
-    * Second Query Example
-
-
-
-
+* [System-Overview](#System-Overview)
+  * [Plot](#Plot)
+  * [Key-Concepts](#Key-Concepts)
+  * [Functional-Components](#Functional-Components)
+    * [Mail-Handler](#Mail-Handler)
+    * [Game-Engine](#Game-Engine)
+    * [Physics-Engine](#Physics-Engine)
+    * [Event-Engine](#Event-Engine)
+    * [Game-Database](#Game-Database)
+* [General-Mechanics](#General-Mechanics)
+  * [All-objects-are-defined-by-their-orbits](#All-objects-are-defined-by-their-orbits)
+  * [Information-travels-at-the-speed-of-light](#Information-travels-at-the-speed-of-light)
+  * [All-ingame-events-result-from-actions-taken-by-drones](#All-ingame-events-result-from-actions-taken-by-drones)
+  * [Players-use-FORTH-to-control-their-drones](#Players-use-FORTH-to-control-their-drones)
+  * [Players-advance-by-developing-more-complex-codes](#Players-advance-by-developing-more-complex-codes)
+  * [The-Game-Engine-cycles-through-player-run-virtual-machines](#The-Game-Engine-cycles-through-player-run-virtual-machines)
+  * [Equipment](#Equipment)
+* [Players-and-Resources](#Players-and-Resources)
+  * [Player-and-Drone-Tables](#Player-and-Drone-Tables)
+    * [Table-users](#Table-users)
+    * [Table-agents](#Table-agents)
+    * [Table-hulls](#Table-hulls)
+    * [Table-hull_bonuses](#Table-hull_bonuses)
+    * [Table-resources](#Table-resources)
+* [Static-Objects](#Static-Objects)
+  * [The-Physics-Engine](#The-Physics-Engine)
+  * [Units-of-Measure](#Units-of-Measure)
+  * [Elliptic-Coordinate-Systems](#Elliptic-Coordinate-Systems)
+    * [Polar-Representation](#Polar-Representation)
+    * [Cartesian-Representation](#Cartesian-Representation)
+  * [Orbital-Tables](#Orbital-Tables)
+    * [Table-objects](#Table-objects)
+            * [Table-abundancies](#Table-abundancies)
+  * [The-Orbits-of-Planets-and-Moons](#The-Orbits-of-Planets-and-Moons)
+  * [The-Orbital-Parameters](#The-Orbital-Parameters)
+    * [Gravitational-Parameter](#Gravitational-Parameter)
+    * [Semimajor-Axis](#Semimajor-Axis)
+    * [Semiminor-Axis](#Semiminor-Axis)
+    * [Eccentricity](#Eccentricity)
+    * [Mean-Angular-Motion](#Mean-Angular-Motion)
+    * [The-orbital-period](#The-orbital-period)
+  * [Key-Orbital-Functions](#Key-Orbital-Functions)
+    * [Mean-Anomaly](#Mean-Anomaly)
+    * [Eccentric-Anomaly](#Eccentric-Anomaly)
+    * [True-Anomaly](#True-Anomaly)
+  * [Solving-Kepler’s-Equation-with-JavaScript](#Solving-Kepler’s-Equation-with-JavaScript)
+    * [Radius-at-the-True-Anomaly](#Radius-at-the-True-Anomaly)
+  * [Converting-the-orbital-position-to-Cartesian-coordinates](#Converting-the-orbital-position-to-Cartesian-coordinates)
+* [Meta-Commands](#Meta-Commands)
+* [Protocols](#Protocols)
+  * [Performing-a-Protocol](#Performing-a-Protocol)
+  * [Process-Multiplier](#Process-Multiplier)
+  * [Protocol-ID](#Protocol-ID)
+  * [Protocol-Parameters](#Protocol-Parameters)
+  * [Returned-Value](#Returned-Value)
+  * [Aborted-Actions](#Aborted-Actions)
+  * [Action-Tables](#Action-Tables)
+    * [Static-Action-Tables](#Static-Action-Tables)
+      * [Table-protocols](#Table-protocols)
+      * [Table-event_types](#Table-event_types)
+      * [Table-resource_effects](#Table-resource_effects)
+      * [Table-market_effects](#Table-market_effects)
+      * [Table-location_effects](#Table-location_effects)
+    * [Dynamic-Action-Tables](#Dynamic-Action-Tables)
+      * [Table-actions](#Table-actions)
+      * [Table-events](#Table-events)
+      * [Table-transmissions](#Table-transmissions)
+  * [The-Perform-Function](#The-Perform-Function)
+* [The-Event-Engine](#The-Event-Engine)
+    * [Table-observations](#Table-observations)
+* [Markets-and-Trade](#Markets-and-Trade)
+  * [Placing-Market-Bids](#Placing-Market-Bids)
+  * [Acting-on-Market-Bids](#Acting-on-Market-Bids)
+  * [A-Trade-Example](#A-Trade-Example)
+* [Queries](#Queries)
+  * [Database-Searches](#Database-Searches)
+    * [Running-a-Query](#Running-a-Query)
+    * [The-Queries-Table](#The-Queries-Table)
+      * [Table-queries](#Table-queries)
+    * [Query-Variables](#Query-Variables)
+    * [The-Query-Algorithm](#The-Query-Algorithm)
+    * [First-Query-Example](#First-Query-Example)
+    * [Second-Query-Example](#Second-Query-Example)
 
 ## System Overview
 
