@@ -10,6 +10,94 @@ This document lays out the plans for developing Ex Machinis, an online space sim
 
 ## Table of Contents
 
+* System Overview
+  * Plot
+  * Key Concepts
+  * Functional Components
+    * Mail Handler
+    * Game Engine
+    * Physics Engine
+    * Event Engine
+    * Game Database
+* General Mechanics
+  * All objects are defined by their orbits
+  * Information travels at the speed of light
+  * All ingame events result from actions taken by drones
+  * Players use FORTH to control their drones
+  * Players advance by developing more complex codes
+  * The Game Engine cycles through player-run virtual machines
+  * Equipment
+* Players and Resources
+  * Player and Drone Tables
+    * Table: users
+    * Table: agents
+    * Table: hulls
+    * Table: hull_bonuses
+    * Table: resources
+* Static Objects
+  * The Physics Engine 
+  * Units of Measure
+  * Elliptic Coordinate Systems
+    * Polar Representation
+    * Cartesian Representation
+  * Orbital Tables
+    * Table: objects
+      * Table: abundancies
+  * The Orbits of Planets and Moons
+  * The Orbital Parameters
+    * Gravitational Parameter (μ)
+    * Semimajor Axis (a)
+    * Semiminor Axis (b)
+    * Eccentricity (e)
+    * Mean Angular Motion (n)
+    * The orbital period (T)
+  * Key Orbital Functions
+    * Mean Anomaly (M(t))
+    * Eccentric Anomaly (E)
+    * True Anomaly (ν)
+  * Solving Kepler’s Equation with JavaScript
+    * Radius at the True Anomaly (r)
+  * Converting the orbital position to Cartesian coordinates
+* Meta Commands
+* Protocols
+  * Performing a Protocol
+  * Process Multiplier
+  * Protocol ID
+  * Protocol Parameters
+  * Returned Value
+  * Aborted Actions
+  * Action Tables
+    * Static Action Tables
+      * Table: protocols
+      * Table: event_types
+      * Table: resource_effects
+      * Table: market_effects
+      * Table: location_effects
+    * Dynamic Action Tables
+      * Table: actions
+      * Table: events
+      * Table: transmissions
+  * The Perform Function
+* The Event Engine
+    * Table: observations
+* Markets and Trade
+  * Placing Market Bids
+  * Acting on Market Bids
+  * A Trade Example
+* Queries
+  * Database Searches
+    * Running a Query  
+    * The Queries Table
+      * Table: queries
+    * Query Variables
+    * The Query Algorithm
+    * First Query Example
+    * Second Query Example
+
+
+
+
+
 ## System Overview
 
 ### Plot
