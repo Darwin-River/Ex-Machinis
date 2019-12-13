@@ -54,7 +54,7 @@ This document lays out the plans for developing Ex Machinis, an online space sim
     * [Mean Anomaly](#Mean-Anomaly)
     * [Eccentric Anomaly](#Eccentric-Anomaly)
     * [True Anomaly](#True-Anomaly)
-  * [Solving Kepler’s Equation with JavaScript](#Solving-Kepler’s-Equation-with-JavaScript)
+  * [Solving Kepler’s Equation with JavaScript](#Solving-Keplers-Equation-with-JavaScript)
     * [Radius at the True Anomaly](#Radius-at-the-True-Anomaly)
   * [Converting the orbital position to Cartesian coordinates](#Converting-the-orbital-position-to-Cartesian-coordinates)
 * [Meta Commands](#Meta-Commands)
