@@ -24,3 +24,4 @@ This game relies on our [generous Patreon sponsors](https://patreon.com/exmachin
 * Simon Jones
 * Joachim Duquesne
 * Dennis Schlueter
+* Jörg Reisig
