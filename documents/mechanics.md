@@ -9,89 +9,89 @@ This wiki is used to organize the project, which began in August 2017.  It conta
 This document lays out the plans for developing Ex Machinis, an online space simulation, which promotes the acquisition of programming skills. 
 
 ## Table of Contents
-* [System-Overview](#System-Overview)
+* [System Overview](#System-Overview)
   * [Plot](#Plot)
-  * [Key-Concepts](#Key-Concepts)
-  * [Functional-Components](#Functional-Components)
-    * [Mail-Handler](#Mail-Handler)
-    * [Game-Engine](#Game-Engine)
-    * [Physics-Engine](#Physics-Engine)
-    * [Event-Engine](#Event-Engine)
-    * [Game-Database](#Game-Database)
-* [General-Mechanics](#General-Mechanics)
-  * [All-objects-are-defined-by-their-orbits](#All-objects-are-defined-by-their-orbits)
-  * [Information-travels-at-the-speed-of-light](#Information-travels-at-the-speed-of-light)
-  * [All-ingame-events-result-from-actions-taken-by-drones](#All-ingame-events-result-from-actions-taken-by-drones)
-  * [Players-use-FORTH-to-control-their-drones](#Players-use-FORTH-to-control-their-drones)
-  * [Players-advance-by-developing-more-complex-codes](#Players-advance-by-developing-more-complex-codes)
-  * [The-Game-Engine-cycles-through-player-run-virtual-machines](#The-Game-Engine-cycles-through-player-run-virtual-machines)
+  * [Key Concepts](#Key-Concepts)
+  * [Functional Components](#Functional-Components)
+    * [Mail Handler](#Mail-Handler)
+    * [Game Engine](#Game-Engine)
+    * [Physics Engine](#Physics-Engine)
+    * [Event Engine](#Event-Engine)
+    * [Game Database](#Game-Database)
+* [General Mechanics](#General-Mechanics)
+  * [All objects are defined by their orbits](#All-objects-are-defined-by-their-orbits)
+  * [Information travels at the speed of light](#Information-travels-at-the-speed-of-light)
+  * [All ingame events result from actions taken by drones](#All-ingame-events-result-from-actions-taken-by-drones)
+  * [Players use FORTH to control their drones](#Players-use-FORTH-to-control-their-drones)
+  * [Players advance by developing more complex codes](#Players-advance-by-developing-more-complex-codes)
+  * [The Game Engine cycles through player run virtual machines](#The-Game-Engine-cycles-through-player-run-virtual-machines)
   * [Equipment](#Equipment)
-* [Players-and-Resources](#Players-and-Resources)
-  * [Player-and-Drone-Tables](#Player-and-Drone-Tables)
+* [Players and Resources](#Players-and-Resources)
+  * [Player and Drone Tables](#Player-and-Drone-Tables)
     * [Table-users](#Table-users)
     * [Table-agents](#Table-agents)
     * [Table-hulls](#Table-hulls)
     * [Table-hull_bonuses](#Table-hull_bonuses)
     * [Table-resources](#Table-resources)
-* [Static-Objects](#Static-Objects)
-  * [The-Physics-Engine](#The-Physics-Engine)
-  * [Units-of-Measure](#Units-of-Measure)
-  * [Elliptic-Coordinate-Systems](#Elliptic-Coordinate-Systems)
-    * [Polar-Representation](#Polar-Representation)
-    * [Cartesian-Representation](#Cartesian-Representation)
-  * [Orbital-Tables](#Orbital-Tables)
+* [Static Objects](#Static-Objects)
+  * [The Physics Engine](#The-Physics-Engine)
+  * [Units of Measure](#Units-of-Measure)
+  * [Elliptic Coordinate Systems](#Elliptic-Coordinate-Systems)
+    * [Polar Representation](#Polar-Representation)
+    * [Cartesian Representation](#Cartesian-Representation)
+  * [Orbital Tables](#Orbital-Tables)
     * [Table-objects](#Table-objects)
-            * [Table-abundancies](#Table-abundancies)
-  * [The-Orbits-of-Planets-and-Moons](#The-Orbits-of-Planets-and-Moons)
-  * [The-Orbital-Parameters](#The-Orbital-Parameters)
-    * [Gravitational-Parameter](#Gravitational-Parameter)
-    * [Semimajor-Axis](#Semimajor-Axis)
-    * [Semiminor-Axis](#Semiminor-Axis)
+    * [Table-abundancies](#Table-abundancies)
+  * [The Orbits of Planets and Moons](#The-Orbits-of-Planets-and-Moons)
+  * [The Orbital Parameters](#The-Orbital-Parameters)
+    * [Gravitational Parameter](#Gravitational-Parameter)
+    * [Semimajor Axis](#Semimajor-Axis)
+    * [Semiminor Axis](#Semiminor-Axis)
     * [Eccentricity](#Eccentricity)
-    * [Mean-Angular-Motion](#Mean-Angular-Motion)
-    * [The-orbital-period](#The-orbital-period)
+    * [Mean Angular-Motion](#Mean-Angular-Motion)
+    * [The orbital period](#The-orbital-period)
   * [Key-Orbital-Functions](#Key-Orbital-Functions)
-    * [Mean-Anomaly](#Mean-Anomaly)
-    * [Eccentric-Anomaly](#Eccentric-Anomaly)
-    * [True-Anomaly](#True-Anomaly)
-  * [Solving-Kepler’s-Equation-with-JavaScript](#Solving-Kepler’s-Equation-with-JavaScript)
-    * [Radius-at-the-True-Anomaly](#Radius-at-the-True-Anomaly)
-  * [Converting-the-orbital-position-to-Cartesian-coordinates](#Converting-the-orbital-position-to-Cartesian-coordinates)
-* [Meta-Commands](#Meta-Commands)
+    * [Mean Anomaly](#Mean-Anomaly)
+    * [Eccentric Anomaly](#Eccentric-Anomaly)
+    * [True Anomaly](#True-Anomaly)
+  * [Solving Kepler’s Equation with JavaScript](#Solving-Kepler’s-Equation-with-JavaScript)
+    * [Radius at the True Anomaly](#Radius-at-the-True-Anomaly)
+  * [Converting the orbital position to Cartesian coordinates](#Converting-the-orbital-position-to-Cartesian-coordinates)
+* [Meta Commands](#Meta-Commands)
 * [Protocols](#Protocols)
-  * [Performing-a-Protocol](#Performing-a-Protocol)
-  * [Process-Multiplier](#Process-Multiplier)
-  * [Protocol-ID](#Protocol-ID)
-  * [Protocol-Parameters](#Protocol-Parameters)
-  * [Returned-Value](#Returned-Value)
-  * [Aborted-Actions](#Aborted-Actions)
-  * [Action-Tables](#Action-Tables)
-    * [Static-Action-Tables](#Static-Action-Tables)
+  * [Performing a Protocol](#Performing-a-Protocol)
+  * [Process Multiplier](#Process-Multiplier)
+  * [Protocol ID](#Protocol-ID)
+  * [Protocol Parameters](#Protocol-Parameters)
+  * [Returned Value](#Returned-Value)
+  * [Aborted Actions](#Aborted-Actions)
+  * [Action Tables](#Action-Tables)
+    * [Static Action Tables](#Static-Action-Tables)
       * [Table-protocols](#Table-protocols)
       * [Table-event_types](#Table-event_types)
       * [Table-resource_effects](#Table-resource_effects)
       * [Table-market_effects](#Table-market_effects)
       * [Table-location_effects](#Table-location_effects)
-    * [Dynamic-Action-Tables](#Dynamic-Action-Tables)
+    * [Dynamic Action Tables](#Dynamic-Action-Tables)
       * [Table-actions](#Table-actions)
       * [Table-events](#Table-events)
       * [Table-transmissions](#Table-transmissions)
-  * [The-Perform-Function](#The-Perform-Function)
-* [The-Event-Engine](#The-Event-Engine)
-    * [Table-observations](#Table-observations)
-* [Markets-and-Trade](#Markets-and-Trade)
-  * [Placing-Market-Bids](#Placing-Market-Bids)
-  * [Acting-on-Market-Bids](#Acting-on-Market-Bids)
-  * [A-Trade-Example](#A-Trade-Example)
+  * [The Perform Function](#The-Perform-Function)
+* [The Event Engine](#The-Event-Engine)
+    * [Tableobservations](#Table-observations)
+* [Markets and Trade](#Markets-and-Trade)
+  * [Placing Market Bids](#Placing-Market-Bids)
+  * [Acting on Market Bids](#Acting-on-Market-Bids)
+  * [A Trade Example](#A-Trade-Example)
 * [Queries](#Queries)
-  * [Database-Searches](#Database-Searches)
-    * [Running-a-Query](#Running-a-Query)
-    * [The-Queries-Table](#The-Queries-Table)
-      * [Table-queries](#Table-queries)
-    * [Query-Variables](#Query-Variables)
-    * [The-Query-Algorithm](#The-Query-Algorithm)
-    * [First-Query-Example](#First-Query-Example)
-    * [Second-Query-Example](#Second-Query-Example)
+  * [Database Searches](#Database-Searches)
+    * [Running a Query](#Running-a-Query)
+    * [The Queries Table](#The-Queries-Table)
+      * [Table queries](#Table-queries)
+    * [Query Variables](#Query-Variables)
+    * [The Query Algorithm](#The-Query-Algorithm)
+    * [First Query Example](#First-Query-Example)
+    * [Second Query Example](#Second-Query-Example)
 
 ## System Overview
 
@@ -381,30 +381,30 @@ The following variables and conversion factors are required to define an ellipti
 
 [Return to the TOC](#Table-of-Contents)
 
-#### Gravitational Parameter (μ)
-In orbital mechanics, the gravitational parameter can be described as
+#### Gravitational Parameter
+In orbital mechanics, the gravitational parameter (μ) can be described as
 =GM
 Where G is the gravitational constant (6.674×10−11 N·kg–2·m2) and M is the mass of the central body.  This equation assumes that the mass of the central body is much larger than that of the orbiting body. There is a useful table of precisely measured gravitational parameters for the major stellar objects on Wikipedia. The gravitational parameter for all major bodies will be stored in the object data tables with the units of m3/s2.
 
 [Return to the TOC](#Table-of-Contents)
 
-#### Semimajor Axis (a)
+#### Semimajor Axis
 The semimajor axis (a) is half the distance between the furthest points on the ellipse. This value is expressed in meters.
 
 [Return to the TOC](#Table-of-Contents)
 
-#### Semiminor Axis (b)
-The semiminor axis is half the distance of the minor axis, which runs through the center of the ellipse, perpendicular to the major axis. This value is expressed in meters.
+#### Semiminor Axis
+The semiminor axis (b) is half the distance of the minor axis, which runs through the center of the ellipse, perpendicular to the major axis. This value is expressed in meters.
 
 [Return to the TOC](#Table-of-Contents)
 
-#### Eccentricity (e)
+#### Eccentricity
 The eccentricity (e) is a measure of the elongation of an ellipse and can be related to semimajor (a) and semiminor (b) axis as follows:
 e=1-ba2
 
 [Return to the TOC](#Table-of-Contents)
 
-#### Mean Angular Motion (n)
+#### Mean Angular Motion
 The mean angular motion (n) provides the average velocity of the object as it transits the orbit.  It is expressed in radians per second and can be computed from the semimajor axis (a) as expressed in meters and the gravitation parameter () for the body which the object is orbiting.  In the case of the planets, this will be the gravitational parameter of the sun (1.327E20).  
 n=a3
 
@@ -412,7 +412,7 @@ Once, computed, the mean angular motion needs to be converted to degrees/day fir
 
 [Return to the TOC](#Table-of-Contents)
 
-#### The orbital period (T)
+#### The orbital period
 The orbital period (T) is the time required for the object to complete a single orbit.
 T=2n
 
@@ -423,7 +423,7 @@ These are the main functions that need to be created and used to compute the x, 
 
 [Return to the TOC](#Table-of-Contents)
 
-#### Mean Anomaly (M(t))
+#### Mean Anomaly
 The mean anomaly with respect to time (M(t)) is the angular distance at time t that an object would have from the periapsis if it moved in a circular orbit at a constant speed as described by the mean angular motion (n).
 M=M0+n(t-t0)
 
@@ -436,7 +436,7 @@ Figure 3. This diagram depicts the relationship between the mean and true anomal
 
 [Return to the TOC](#Table-of-Contents)
 
-#### Eccentric Anomaly (E)
+#### Eccentric Anomaly
 The eccentric anomaly (E) defines the angular position of an object that is moving in an elliptical orbit.  It is related to the mean anomaly (M) as follows:
 M=E-esin E
 
@@ -447,7 +447,7 @@ Here Ei+1 is the result of the current iteration and Ei is the result of the pre
 
 [Return to the TOC](#Table-of-Contents)
 
-#### True Anomaly (ν)
+#### True Anomaly
 The true anomaly (ν) represents the orbital objects actual angular position and can be computed from the orbit’s eccentric anomaly (E) and eccentricity (e) using the following equation:
 =2arg1-ecos E2, 1+esin E2
 
@@ -459,7 +459,7 @@ Where arg(x,y) is the polar argument for the vector (x,y).  This function is ava
 I found an online resource that provides a JavaScript routine for deriving the eccentric (E) and true (v) anomalies using an orbit’s eccentricity (e) and mean anomaly (M): 
 http://www.jgiesen.de/kepler/kepler.html
 
-#### Radius at the True Anomaly (r)
+#### Radius at the True Anomaly
 The distance (r) of the orbital object from the central body at the true anomaly (ν) can be computed using the following equation:
 r=a1-e21+ecos 
 
