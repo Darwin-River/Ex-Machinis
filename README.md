@@ -13,6 +13,12 @@ Depending on your interests, the following documents provide further details on 
 * **[The Game Design Manual](documents/mechanics.md)** detailes the inner workings of the _Ex Machinis_ and servers as the blueprints for game development.
 * **[The Web Design Manual](documents/website.md)** lays out the objectives, principles, and funcional page designs of the Ex Machinis website, which we are just beginning to develop.
 
+## About Our Team
+
+Ex Machinis is being developed and managed by Darwin River Software LLC with support from a number of tallented developers.  
+
+* **Darwin River Software LLC** is a small software studio that was established to support the creation of engaging educational application.  The organization is built on an open soruce model in which contributions from patrons, sponsors, and committed developers, are used to guide and support the creation of free educational software.  Ex Machinis is our effort to create a multiplary space similation that encourages and inspires the development of fundamental programing skills as tool for success. 
+
 ## Our Awesome Sponsors
 
 This game relies on our [generous Patreon sponsors](https://patreon.com/exmachinis) for feedback, encouragement, and support. We wouldn't be here without them!
