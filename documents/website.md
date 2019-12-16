@@ -1,4 +1,4 @@
-# Ex Machinis Web Design
+# Ex Machinis Web Design Manual
 Ex Machinis is an information intensive multiplayer sapace game. The game is played primarily by building and programming feets of autonomous spacecraft via email. These spacecraft are capable of accessing, acting, and reporting on the contents of an extensive in-game database. The database holds searchable information on planets, moons, commets, spacracft, resources, and markets.  However, in addition to accessing this information via their spacecraft, players and visitors will be able to browse the game's data sets via a visually intuitive web interface.
 
 # Primary Objectives
@@ -6,7 +6,8 @@ The Ex Machinis web interface is intended to address a number of important objec
 * **Ranking players.** The web interface serves as an elaborate leader-board for ranking players in the game. Chief among these may be the player's accumulated wealth as expressed in terms of money, resources, and spacecraft. 
 * **Trouble shooting code.** The website will give players imediate and intuative access to data that will be valuable for trouble-shooting the performance of the their programmed spacecraft.  Much of this informations will be found in pages which track the inventory and events assoicated with a specific drone.
 * **Searching for information.** The web site will allow players to quickly look up the most current infrormation on spacecraft, resources, protocols, markets, and orbital bodies.
-* **Community building.** Given the complexities of the game, Ex Machinis players will rely extensively on other players to develop and implement strategies and code. Much of this knowlege and advice will be shared via a discussion board, which will be accessed via that web interface.
+* **Building communities.** Given the complexities of the game, Ex Machinis players will rely extensively on other players to develop and implement strategies and code. Much of this knowlege and advice will be shared via a discussion board, which will be accessed via that web interface.
+* **Recruiting new players.** You don't need to be a registered player to learn about Ex Machinis and observe real0-time game-play.  Anyone can access the website to read the player's manual, review the chat boards, and browse game data on companies, spacraft, and events. The intent is to give prospective players an opportunity to observe game-play before deciding to participate. 
 
 # Core Design Principles
 There are a number of core design principles, which will be used to guide the construction of our web interface.
