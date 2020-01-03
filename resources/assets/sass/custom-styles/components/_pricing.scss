@@ -1,0 +1,125 @@
+/*
+*
+* Pricing
+*/
+
+// 
+// Table of Contents:
+//
+// Pricing Classic
+//
+
+
+
+//
+// Pricing Classic
+//
+
+.pricing-classic {
+	position: relative;
+	text-align: center;
+	padding: 30px 15px 28px;
+	border-radius: 6px;
+	border: 1px solid $gray-500;
+	z-index: 1;
+}
+
+.pricing-classic-list {
+	color: $white;
+
+	li + li {	margin-top: 8px; }
+}
+
+.pricing-classic-old-price {
+	color: inherit;
+	text-decoration: line-through;
+}
+
+* + .pricing-classic-list { margin-top: 20px; }
+* + .pricing-classic-old-price { margin-top: 20px; }
+* + .pricing-classic-price { margin-top: 16px; }
+* + .pricing-classic-button { margin-top: 20px; }
+
+// Large 992  ≤ 1200 Extra Large
+@include media-breakpoint-between(lg, lg) {
+
+	.pricing-classic-list {
+		font-size: 14px;
+	}
+}
+
+// Large ≥992px
+@include media-breakpoint-up(lg) {
+
+	.pricing-classic {
+		padding-top: 46px;
+	}
+
+	* + .pricing-classic-list { margin-top: 30px; }
+	* + .pricing-classic-old-price { margin-top: 36px; }
+}
+
+.desktop {
+	// Large ≥992px
+	@include media-breakpoint-up(lg) {
+
+		.pricing-classic {
+			border-radius: 0;
+			border: none;
+		}
+
+		.pricing-classic-button {
+			display: flex;
+			align-items: flex-end;
+			justify-content: center;
+			position: absolute;
+			top: 0;
+			right: 0;
+			bottom: 0;
+			left: 0;
+			padding-bottom: 25px;
+			border-radius: 6px;
+			border: 1px solid $gray-500;
+			transition: all .3s ease;
+			pointer-events: none;
+			z-index: -1;
+
+			.button-wrap {
+				opacity: 0;
+				visibility: hidden;
+				transition: all .2s ease;
+				pointer-events: auto;
+			}
+		}
+
+		.pricing-classic:hover {
+
+			.pricing-classic-button {
+				bottom: -75px;
+			}
+
+			.button-wrap {
+				opacity: 1;
+				visibility: visible;
+				transition-delay: .1s;
+			}
+		}
+
+		* + .pricing-classic-button { margin-top: 0; }
+	}
+
+	// Extra large ≥1200px
+	@include media-breakpoint-up(xl) {
+
+		.pricing-classic-button {
+			padding-bottom: 35px;
+		}
+
+		.pricing-classic:hover {
+
+			.pricing-classic-button {
+				bottom: -87px;
+			}
+		}
+	}
+}

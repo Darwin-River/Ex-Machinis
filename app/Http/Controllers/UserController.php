@@ -29,7 +29,17 @@ class UserController extends Controller
         } catch (\Exception $e) {
             echo "There was an error:" . $e->getMessage();
         }
+    }
 
+    /**
+     * Creates user and shipcraft from submitted form
+     * @param $request Request object
+     */
+    public function webRegistration(Request $request)
+    {
+        $name = $request->post('name');
+        $email = $request->post('email');
+        User::registerUser($email, $name);
     }
 
 }

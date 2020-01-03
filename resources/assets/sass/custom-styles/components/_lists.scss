@@ -1,0 +1,344 @@
+/*
+*
+* Lists
+*/
+
+// Vertical list
+.list {
+  > li + li {
+    margin-top: 10px;
+  }
+}
+
+.list-xs > li + li {
+  margin-top: 5px;
+}
+
+.list-sm > li + li {
+  margin-top: 10px;
+}
+
+.list-md > li + li {
+  margin-top: 18px;
+}
+
+.list-lg > li + li {
+  margin-top: 25px;
+}
+
+.list-xl > li + li {
+  margin-top: 40px;
+}
+
+// Medium ≥768px
+@include media-breakpoint-up(md) {
+
+  .list-xl > li + li {
+    margin-top: 50px;
+  }
+}
+
+@include media-breakpoint-up(lg) {
+
+  .list-xl > li + li {
+    margin-top: 60px;
+  }
+}
+
+// Extra large ≥1200px
+@include media-breakpoint-up(xl) {
+  .list-xl > li + li {
+    margin-top: 80px;
+  }
+}
+
+//
+// List inline
+//
+.list-inline {
+  > li {
+    display: inline-block;
+  }
+}
+
+html {
+
+  .list-inline-sm {
+    @include spacing(20px, 10px);
+  }
+
+  .list-inline-md {
+    @include spacingX(30px);
+  }
+}
+
+//
+// List terms
+//
+.list-terms {
+  dt + dd {
+    margin-top: 16px;
+  }
+
+  dd + dt {
+    margin-top: 40px;
+  }
+
+  // Large ≥992px
+  @include media-breakpoint-up(lg) {
+    dt + dd {
+      margin-top: 24px;
+    }
+    dd + dt {
+      margin-top: 60px;
+    }
+  }
+}
+
+* + .list-terms {
+  margin-top: 25px;
+}
+
+.list-terms-1 {
+  // Extra large ≥1200px
+  @include media-breakpoint-up(xl) {
+    padding-right: 93px;
+  }
+}
+
+//
+// Index list
+//
+.index-list {
+  counter-reset: li;
+
+  > li {
+    .list-index-counter {
+      &:before {
+        content: counter(li, decimal-leading-zero);
+        counter-increment: li;
+      }
+    }
+  }
+}
+
+//
+// Marked list
+//
+.list-marked {
+  text-align: left;
+
+  > li {
+    text-indent: -30px;
+    padding-left: 30px;
+
+    &::before {
+      position: relative;
+      display: inline-block;
+      vertical-align: middle;
+      content: "\f054";
+      top: -2px;
+      width: 20px;
+      margin-right: 10px;
+      font: 400 16px/28px $mdi;
+      letter-spacing: 0;
+      text-indent: 0;
+      color: $gray-500;
+    }
+  }
+
+  > li + li {
+    margin-top: 6px;
+  }
+}
+
+p + .list-marked {
+  margin-top: 16px;
+}
+
+h3 + .list-marked {
+  margin-top: 26px;
+}
+
+h4 + .list-marked {
+  margin-top: 24px;
+}
+
+//
+// Ordered List
+//
+.list-ordered {
+  text-align: left;
+  counter-reset: li;
+
+  > li {
+    text-indent: -30px;
+    padding-left: 30px;
+
+    &:before {
+      display: inline-block;
+      counter-increment: li;
+      content: counter(li, decimal) '.';
+      width: 20px;
+      margin-right: 10px;
+      text-indent: 0;
+      color: inherit;
+    }
+  }
+
+  > li + li {
+    margin-top: 8px;
+  }
+}
+
+p + .list-ordered {
+  margin-top: 16px;
+}
+
+
+//
+// List Colors
+//
+
+.list-secondary-2 {
+  color: $secondary-2;
+
+  a {
+    @include link(inherit, $white)
+  }
+}
+
+
+//
+// List social
+//
+.list-social-classic {
+  text-align: center;
+  @include group(6px);
+
+  .icon {
+    width: 38px;
+    height: 38px;
+    font-size: 18px;
+    line-height: 38px;
+    border-radius: 50%;
+    color: $white-invariable;
+  }
+
+  .mdi-google {
+    background: $google;
+
+    &:hover {
+      background: darken($google, 10%);
+    }
+  }
+
+  .mdi-twitter {
+    background: $twitter;
+
+    &:hover {
+      background: darken($twitter, 10%);
+    }
+  }
+
+  .mdi-facebook {
+    background: $facebook;
+
+    &:hover {
+      background: darken($facebook, 10%);
+    }
+  }
+}
+
+.list-social-modern {
+  text-align: center;
+  @include group(6px);
+
+  .icon {
+    width: 38px;
+    height: 38px;
+    font-size: 18px;
+    line-height: 38px;
+    border-radius: 50%;
+    color: $gray-400;
+    background: $gray-700;
+
+    &:hover {
+      color: $white-invariable;
+    }
+  }
+
+  .mdi-google:hover {
+    background: $google;
+  }
+
+  .mdi-instagram:hover {
+    background: $instagram;
+  }
+
+  .mdi-twitter:hover {
+    background: $twitter;
+  }
+
+  .mdi-facebook:hover {
+    background: $facebook;
+  }
+
+  .mdi-patreon:hover {
+    background: $patreon;
+  }
+
+  .mdi-github-circle:hover {
+    background: $github;
+  }
+}
+
+.list-social {
+  font-size: 0;
+  line-height: 0;
+
+  @include spacing(20px, 10px);
+
+  .icon {
+    font-size: 20px;
+  }
+
+  a {
+    @include link(inherit, $secondary-2)
+  }
+}
+
+* + .list-social {
+  margin-top: 26px;
+}
+
+.contacts-info + .list-social {
+  margin-top: 30px;
+}
+
+// Medium ≥768px
+@include media-breakpoint-up(md) {
+
+  .list-social {
+    @include spacing(26px, 10px);
+  }
+}
+
+// Large ≥1200px
+@include media-breakpoint-up(xl) {
+  .list-social + .button {
+    margin-top: 40px;
+  }
+}
+
+
+// Context Styling
+.bg-gray-700-invariable {
+
+  .list-social {
+
+    a:hover {
+      color: $secondary-2-invariable;
+    }
+  }
+}

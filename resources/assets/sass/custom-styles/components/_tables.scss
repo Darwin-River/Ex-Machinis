@@ -1,0 +1,248 @@
+/*
+*
+* Tables custom
+*/
+
+$table-head-padding: 16px 30px;
+$table-cell-padding: $table-head-padding;
+$table-custom-padding: 22px 30px;
+$table-condensed-cell-padding: 5px;
+
+$table-bg: $gray-800;
+$table-bg-accent: $gray-700;
+$table-bg-hover: $primary;
+$table-bg-active: $table-bg-hover;
+
+$table-border-color: $gray-400-invariable;
+
+.table-custom {
+	width: 100%;
+	max-width: 100%;
+	text-align: left;
+	background: $table-bg;
+	border-collapse: collapse;
+
+	th,
+	td {
+		color: $white;
+		background: $table-bg;
+
+		&:not(:last-child) {
+			width: 23.5%;
+		}
+	}
+
+	th {
+		padding: $table-head-padding;
+		font-weight: normal;
+	}
+
+	td {
+		padding: $table-cell-padding;
+	}
+
+	th, td {
+		border-bottom: 1px solid $table-border-color;
+	}
+}
+
+* + .table-custom-responsive { margin-top: 30px; }
+.table-custom-responsive + .button { margin-top: 30px; }
+
+@include media-breakpoint-up(md) {
+
+	* + .table-custom-responsive { margin-top: 40px; }
+	.table-custom-responsive + .button { margin-top: 50px; }
+}
+
+// Extra large ≥1200px
+@include media-breakpoint-up(xl) {
+
+	h2 + .table-custom-responsive { margin-top: 65px; }
+	.table-custom-responsive + .button { margin-top: 70px; }
+} 
+
+
+
+
+//
+// Table Custom styles variants
+//
+.table-custom-primary {
+
+	thead th {
+		border: none;
+		color: $white-invariable;
+		background: $primary-invariable;
+	}
+}
+
+.table-custom-bordered {
+
+	td, th {
+		border: 1px solid $table-border-color;
+	}
+}
+
+.table-custom-striped {
+
+	tbody tr:nth-of-type(odd) td {
+		background: $table-bg;
+	}
+
+	tbody tr:nth-of-type(even) td {
+		background: $table-bg-accent;
+	}
+
+	th, td { border: 0; }
+}
+
+// Tablr Ticket
+.table-ticket {
+	width: 100%;
+	max-width: 100%;
+	text-align: left;
+	font-size: 14px;
+	line-height: 24px;
+	background-color: transparent;
+
+	tr {
+		transition: all .25s ease-in-out;
+
+		&:hover {
+			background-color: rgba($gray-100, .1);
+		}
+
+		&:first-child td {
+			border-top: 1px solid $gray-500;
+		}
+	}
+
+	td {
+		position: relative;
+		vertical-align: top;
+		padding: 20px 10px;
+		color: $white-invariable;
+		background-color: transparent;
+		border-bottom: 1px solid $gray-500;
+
+		&:first-child {
+			width: 29%;
+			min-width: 240px;
+		}
+
+		&:nth-child(2) {
+			width: 22%;
+			min-width: 170px;
+		}
+
+		&:nth-child(3) {
+			width: 22%;
+			min-width: 170px;
+		}
+
+		&:last-child {
+			width: 13%;
+			min-width: 120px;
+		}
+	}
+
+	// Large ≥992px
+	@include media-breakpoint-up(lg) {
+		font-size: $font-size-base;
+		line-height: 28px;
+	}
+
+	// Extra large ≥1200px
+	@include media-breakpoint-up(xl) {
+
+		td {
+			padding: $table-custom-padding;
+
+			&:first-child { width: 28%;	}
+			&:nth-child(2) { width: 21%; }
+			&:nth-child(3) { width: 21%; }
+			&:last-child { width: 15%; }
+		}
+	}
+}
+
+.table-ticket-title {
+	font-weight: 700;
+
+	@include link($secondary-2-invariable, $white-invariable);
+}
+
+.table-ticket-info {
+	display: flex;
+
+	> * + * {	margin-left: 6px; }
+}
+
+.table-ticket-icon {
+	font-size: 16px;
+	line-height: 24px;
+}
+
+.table-ticket-link {
+	font-size: 16px;
+	line-height: $h6-line-height;
+	font-weight: 700;
+	letter-spacing: .1em;
+	text-transform: uppercase;
+	font-family: $headings-font-family;
+
+	@include link($secondary-2-invariable, $white-invariable);
+}
+
+// Medium ≥768px
+@include media-breakpoint-up(md) {
+
+	.table-ticket-link {
+		font-size: 18px;
+	}
+}
+
+// Large ≥992px
+@include media-breakpoint-up(lg) {
+
+	.table-ticket-icon {
+		font-size: 20px;
+		line-height: 28px;
+	}
+
+	.table-ticket-info {
+		> * + * {	margin-left: 8px; }
+	}
+}
+
+// Extra large ≥1200px
+@include media-breakpoint-up(xl) {
+
+	.table-ticket-icon {
+		font-size: 24px;
+	}
+
+	.table-ticket-link {
+		font-size: $h6-font-size;
+	}
+}
+
+
+
+//
+// Table Custom Additional
+//
+.table-custom-responsive {
+	@include media-breakpoint-down(md) {
+		display: block;
+		width: 100%;
+		overflow-x: auto;
+		-ms-overflow-style: -ms-autohiding-scrollbar; // See https://github.com/twbs/bootstrap/pull/10057
+
+		// Prevent double border on horizontal scroll due to use of `display: block;`
+		&.table-bordered {
+			border: 0;
+		}
+	}
+}
