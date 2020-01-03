@@ -1,0 +1,30 @@
+/*
+*
+* Contexts
+*/
+
+@mixin context-dark {
+	&,
+	#{headings()} {
+		color: $white-invariable;
+	}
+}
+
+.context-dark {
+	@extend %context-dark;
+}
+
+%context-dark {
+	@include context-dark;
+
+	// Logo
+	.brand {
+		.brand-logo-dark {
+			display: none;
+		}
+		.brand-logo-light {
+			display: block;
+		}
+	}
+}
+

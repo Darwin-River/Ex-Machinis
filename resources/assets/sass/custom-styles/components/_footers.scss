@@ -1,0 +1,189 @@
+/*
+*
+* Footers
+*/
+
+//
+// Table of Contents:
+//
+// Footers Classic
+// Footers Modern
+// Footers Minimal
+//
+
+
+//
+// Footers Classic
+//
+.footer-classic {
+	padding-top: 50px;
+	padding-bottom: 25px;
+
+	.rd-form {
+		.button {
+			width: 100%;
+		}
+	}
+
+	h4 + * { margin-top: 16px; }
+	.container + .container { margin-top: 50px; }
+
+	small {
+		font-size: 13px;
+	}
+
+	// Medium ≥768px
+	@include media-breakpoint-up(md) {
+
+		padding-top: 80px;
+
+		.rd-form {
+			.button {
+				width: auto;
+			}
+		}
+
+		h4 + * { margin-top: 26px; }
+		.container + .container { margin-top: 80px; }
+	}
+
+	// Large ≥992px
+	@include media-breakpoint-up(lg) {
+		padding-top: 90px;
+
+		.container + .container { margin-top: 90px; }
+	}
+
+	// Extra large ≥1200px
+	@include media-breakpoint-up(xl) {
+		padding-top: 100px;
+
+		.container + .container { margin-top: 100px; }
+	}
+}
+
+.footer-classic-list-link {
+
+	a {
+		@include link($white-invariable, $secondary-2-invariable);
+	}
+	
+	// Large <991px
+	@include media-breakpoint-down(md) {
+		@include group(30px, 8px);
+	}
+
+	// Large ≥992px
+	@include media-breakpoint-up(lg) {
+
+		li + li {	margin-top: 8px; }
+	}
+}
+
+
+
+//
+// Footers Modern
+//
+.footer-modern {
+	padding-top: 50px;
+	padding-bottom: 25px;
+	background: $gray-800;
+	color: $gray-400;
+
+	.rd-form {
+		.button {
+			width: 100%;
+		}
+	}
+
+	p.rights {
+
+		a {
+			&:hover {
+				color: $secondary;
+			}
+		}
+	}
+
+	h4 + * { margin-top: 16px; }
+	.container + .container { margin-top: 50px; }
+
+	// Medium ≥768px
+	@include media-breakpoint-up(md) {
+
+		padding-top: 80px;
+
+		.post-minimal {
+			max-width: 270px;
+		}
+
+		.rd-form {
+			.button {
+				width: auto;
+			}
+		}
+
+		h4 + * { margin-top: 26px; }
+		.container + .container { margin-top: 80px; }
+	}
+
+	// Large ≥992px
+	@include media-breakpoint-up(lg) {
+		padding-top: 90px;
+
+		.container + .container { margin-top: 90px; }
+	}
+
+	// Extra large ≥1200px
+	@include media-breakpoint-up(xl) {
+		padding-top: 100px;
+
+		.container + .container { margin-top: 100px; }
+	}
+	
+	// Mega large ≥1600px
+	@include media-breakpoint-up(xxl) {
+		padding-top: 125px;
+	} 
+}
+
+// Extra large ≥1200px
+@include media-breakpoint-up(xl) {
+
+	.footer-modern-box {
+		padding-right: 40px;
+	} 
+}
+
+
+
+//
+// Footers Minimal
+//
+.footer-minimal {
+	text-align: center;
+	padding: 20px 0;
+	background: $gray-800;
+
+	p.rights {
+
+		a:hover {
+			color: $secondary;
+		}
+	}
+
+	// Medium ≥768px
+	@include media-breakpoint-up(md) {
+		padding: 35px 0;
+	}
+}
+
+.footer-minimal-brand {
+	font-size: 0;
+	line-height: 0;
+
+	.brand {
+		vertical-align: middle;
+	}
+}

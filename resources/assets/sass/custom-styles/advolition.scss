@@ -1,0 +1,40 @@
+
+
+#compiled_table {
+  border-width: 0;
+  color: white;
+  border-collapse: separate;
+  border-spacing: 0;
+
+  tr th {
+    border-width: 0;
+    padding: 4px;
+  }
+
+  tr td {
+    border-width: 1px;
+    padding: 4px 8px;
+  }
+
+  tr td:first-child, tr td:last-child {
+    border: 0px;
+  }
+
+  /*tr td:first-child, tr td:last-child {
+  font-size: 13px;
+  }*/
+
+  tr td:last-child {
+    text-align: left;
+  }
+
+  .top-border {
+    position: relative;
+    top: -16px;
+  }
+
+  .bottom-border {
+    position: relative;
+    top: 16px;
+  }
+}

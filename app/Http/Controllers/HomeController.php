@@ -33,16 +33,14 @@ class HomeController extends Controller
         return view('home');
     }
 
-    public function test()
-    {
-       /* phpinfo();
-        exit;*/
+    /*  public function test()
+      {
 
-        echo Mail::send(['email.welcome_html', 'email.welcome_text'], [], function ($message) {
-            $message->to("puppeteer.fernando@gmail.com")->from("registrar@" . getenv("MAIL_HOST"))->subject('Testing email');
-        });
+          echo Mail::send(['email.welcome_html', 'email.welcome_text'], [], function ($message) {
+              $message->to("puppeteer.fernando@gmail.com")->from("registrar@" . getenv("MAIL_HOST"))->subject('Testing email');
+          });
 
-    }
+      }*/
 
     /**
      * Download mails from the server and process them. Called by main loop.
@@ -68,52 +66,8 @@ class HomeController extends Controller
                 echo "received mail with subject <b>" . strtolower(trim($mail->subject)) . '</b><br/>';
                 if (strtolower(trim($mail->subject)) == "register") {
                     //check if user exists
-                    $user = User::where('email', strtolower($mail->fromAddress))->first();
-                    if ($user == null) {
-                        //create user
-                        echo 'creating new user<br/>';
-                        $user = User::create([
-                            'name' => $mail->fromName,
-                            'email' => strtolower($mail->fromAddress),
-                        ]);
-                        $last_id = $user->id;
-                        $company = new Company();
-                        //$company->user_id = $user->id;
-                        //    $company->name = $data['company_name'];
-                        //$company->save();
-                        echo 'creating drones for user ' .  $last_id . '<br/>';
-                        //create initial drones:
-                        $companyDrones = $company->generateStartingDrones($last_id);
-                        $data = [];
-                        foreach ($companyDrones as $i => $drone) {
-                            $data['drone' . ($i + 1)] = $drone->name;
-                        }
-                        echo Mail::send(['email.welcome_drones_html', 'email.welcome_drones_text'], $data, function ($message) use ($user, $mail) {
-                            $message->to($mail->fromAddress, $mail->fromName)->from("registrar@" . getenv("MAIL_HOST"), "JSA-FAP Administrator")->subject('Program Acceptance');
-                        });
-                    } else {
-                        //notify user he's already registered
-                        // Get the user company ID and the drones currently assigned
-                        // $company = Company::where('user_id', $user->id)->first();
-
-                        echo 'User already registered: ' . $user->name . '<br/>';
-
-                        // Get now all the drones for this user and concatenate their email addresses
-                        $drones = Agent::where('user_id', $user->user_id)->get();
-                        $dronesInfo = 'Registration error: your email is already registered with the following drones: ';
-
-                        foreach ($drones as $drone) {
-                            $drone_email = $drone->name . "@" . getenv("MAIL_HOST");
-                            $dronesInfo .= $drone_email;
-                            $dronesInfo .= ', ';
-                        }
-
-                        Mail::raw($dronesInfo, function ($message) use ($mail) {
-                            $message->to($mail->fromAddress, $mail->fromName)
-                                ->from("registrar@" . getenv("MAIL_HOST"), getenv("APP_NAME") . ' Registrations')
-                                ->subject("[" . getenv("APP_NAME") . "] Already registered");
-                        });
-                    }
+                    //  $user = User::where('email', strtolower($mail->fromAddress))->first();
+                    User::registerUser(strtolower($mail->fromAddress), $mail->fromName);
 
                 }
                 $mailbox->deleteMail($mailId);
@@ -138,21 +92,22 @@ class HomeController extends Controller
                         continue;//this address is from another domain
                     $localAddress = $mailAddressParts[0];
 
-                    echo "received mail from<b>" . $localAddress . '</b><br/>';
+                    echo "received mail from <b>" . $localAddress . '</b><br/>';
 
                     //check if an agent of that name exists
                     $agent = Agent::where(['name' => $localAddress])->first();
 
                     if ($agent == null) {
                         //notify back
-                        Mail::raw('Your message was not delivered to ' . $address . " because the address wasn't found or it can't receive mails.", function ($message) use ($mail) {
-                            $message->to($mail->fromAddress, $mail->fromName)
-                                ->from("services@" . getenv("MAIL_HOST"), getenv("APP_NAME"))
-                                ->subject("[" . getenv("APP_NAME") . "] Email address not found");
-                        });
+                        if (strtolower($mailAddressParts[1]) != getenv('MAIL_HOST'))//fix: avoid loop of notifying yourself
+                            Mail::raw('Your message was not delivered to ' . $address . " because the address wasn't found or it can't receive mails.", function ($message) use ($mail) {
+                                $message->to($mail->fromAddress, $mail->fromName)
+                                    ->from("services@" . getenv("MAIL_HOST"), getenv("APP_NAME"))
+                                    ->subject("[" . getenv("APP_NAME") . "] Email address not found");
+                            });
                         continue;
                     }
-                    
+
 
                     $agent_user = User::where(['user_id' => $agent->user_id])->first();
 
@@ -201,15 +156,20 @@ class HomeController extends Controller
                         echo Mail::send(['email.wrong_email_html', 'email.wrong_email_text'], $data, function ($message) use ($mail) {
                             $message->to($mail->fromAddress, $mail->fromName)->from($mail->to, getenv("APP_NAME"))->subject('Re: ' . $mail->subject);
                         });
-
                     }
-
                 }
-
                 $mailbox->deleteMail($mailId);
             }
         }
 
+    }
+
+    /**
+     * Display static page with forth dictionary
+     */
+    public function forthDictionary()
+    {
+        return view('pages.forth-dictionary');
     }
 
 

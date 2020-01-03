@@ -1,9 +1,12 @@
-
 // Fonts
 @import url("https://fonts.googleapis.com/css?family=Raleway:300,400,600");
-
 // Variables
 @import "variables";
-
 // Bootstrap
-@import "~bootstrap-sass/assets/stylesheets/bootstrap";
+//@import "~bootstrap-sass/assets/stylesheets/bootstrap";
+//@import "./bootstrap/bootstrap.scss";
+@import "node_modules/bootstrap/scss/bootstrap.scss";
+@import "./custom-styles/style.scss";
+@import "./custom-styles/fonts.scss";
+@import "./custom-styles/advolition.scss";
+

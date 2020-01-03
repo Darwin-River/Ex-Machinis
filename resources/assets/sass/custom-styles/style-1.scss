@@ -1,0 +1,135 @@
+/*
+* Trunk version 2.0.0
+*/
+
+@import "color-scheme/_colors-inverse";
+@import "color-scheme/_brand-inverse";
+@import "main-styles";
+@import "mixins/context-dark";
+
+
+
+.countdown-bg { stroke: $gray-100-invariable; }
+.nav-tabs-wrap { border-color: $tabs-corporate-border; }
+.quote-classic-author { color: inherit; }
+.post-minimal-time { color: inherit; }
+.title-classic-subtitle { color: $gray-100-invariable; }
+.theme-switcher-toggle { background: $white-invariable; }
+
+.theme-switcher-item {
+	&::before,
+	&::after {
+		background: $black-invariable;
+	}
+}
+
+.tabs-line {
+	.nav-link {
+		&.active {
+			color: $gray-700-invariable;
+		}
+	}
+}
+
+
+
+//
+// Progress bar
+//
+.progress-bar-linear-wrap { background: $gray-100-invariable; }
+.progress-value { color: $gray-500-invariable; }
+
+.bg-gray-700 {
+	.progress-value { color: $gray-500-invariable; }
+	.progress-bar-linear-wrap { background: rgba($gray-500-invariable, .2); }
+}
+
+
+
+//
+// Figure
+//
+
+.figure-classic {
+	position: relative;
+	display: inline-block;
+
+	&::before {
+	  position: absolute;
+	  content: '';
+	  top: 0;
+	  right: 0;
+	  bottom: 0;
+	  left: 0;
+		background: rgba($white-invariable, .2);
+	}
+}
+
+
+
+//
+// Navbar
+//
+.rd-navbar-sidebar {
+
+	&:not(.rd-navbar--is-stuck) {
+
+		.brand {
+			.brand-logo-dark { display: none; }
+			.brand-logo-light { display: block; }
+		}
+	}
+
+	.rd-navbar-toggle {
+
+		> * {
+			&,
+			&::before,
+			&::after {
+				background-color: $white-invariable;
+			}
+		}
+
+		&.active {
+			> * {
+
+				&::before,
+				&::after {
+					background-color: $gray-700-invariable;
+				}
+			}
+		}
+	}
+
+	&.rd-navbar--is-stuck {
+		.rd-navbar-toggle {
+
+			> * {
+				&,
+				&::before,
+				&::after {
+					background-color: $gray-700-invariable;
+				}
+			}
+
+			&.active {
+				> * {
+					background-color: transparent;
+				}
+			}
+		}
+	}
+}
+
+.rd-navbar-creative {
+	// Fixed
+	&.rd-navbar-fixed {
+		.rd-navbar-search {
+
+			.form-input {
+				border-color: $gray-100-invariable;
+				background: $gray-100-invariable;
+			}
+		}
+	}
+}

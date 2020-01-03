@@ -1,0 +1,46 @@
+/*
+*
+* Contexts
+*/
+
+@mixin context-light {
+
+	#{headings()} {
+		color: $gray-700;
+
+		a {
+			&:hover {
+				color: $primary;
+			}
+		}
+	}
+}
+
+.context-light {
+	@extend %context-light;
+}
+
+%context-light {
+	@include context-light;
+
+	// Logo
+	.brand {
+		.brand-logo-dark {
+			display: block;
+		}
+
+		.brand-logo-light {
+			display: none;
+		}
+	}
+}
+
+.context-dark {
+	color: $white;
+}
+
+.color-invariable {
+	#{headings()} {
+		color: $gray-700-invariable;
+	}
+}

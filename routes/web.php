@@ -18,9 +18,13 @@ Route::get('/', function () {
 
 Auth::routes();
 
+Route::get('/', 'HomeController@index')->name('Ex-Machinis');
 Route::get('/home', 'HomeController@index')->name('home');
 
-Route::get('/test', 'HomeController@test')->name('test');
+//pages
+Route::get('/forth-dictionary', 'HomeController@forthDictionary');
+
+Route::post('/web-register', 'UserController@webRegistration');
 
 Route::get('/get-mails/{key}', 'HomeController@getMails');
 Route::get('/user/send-report/{key}', 'UserController@reportCurrentUsersByMail');

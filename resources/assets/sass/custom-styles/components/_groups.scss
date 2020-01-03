@@ -1,0 +1,69 @@
+/*
+* Element groups
+*/
+
+html {
+	.group {
+		@include group(15px, 20px);
+	}
+
+	.group-sm {
+		@include group(10px, 10px);
+	}
+
+	.group-md {
+		@include group(20px, 10px);
+	}
+
+	.group-lg {
+		@include group(30px, 20px);
+	}
+
+	.group-justify {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-wrap: wrap;
+	}
+
+	.group-center {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-wrap: wrap;
+	}
+
+	// Mods
+	.group-middle {
+		display: inline-table;
+		vertical-align: middle;
+
+		> * {
+			vertical-align: middle;
+		}
+	}
+}
+
+* + .group-sm { margin-top: 30px; }
+* + .group-md { margin-top: 30px; }
+* + .group-lg { margin-top: 38px; }
+
+.form-wrap + .group-center,
+.form-wrap + .group-justify { margin-top: 20px; }
+
+.rd-form {
+	.row + .group-center,
+	.row + .group-justify { margin-top: 20px; }
+}
+
+// Medium ≥768px
+@include media-breakpoint-up(md) {
+
+	.form-wrap + .group-center,
+	.form-wrap + .group-justify { margin-top: 30px; }
+
+	.rd-form {
+		.row + .group-center,
+		.row + .group-justify { margin-top: 30px; }
+	}
+}
