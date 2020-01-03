@@ -18,12 +18,15 @@
 #include "engine.h"
 #include "trace.h"
 #include "vm.h"
+#include "db.h"
+#include "protocol.h"
 
 /******************************* DEFINES *************************************/
 
 // x macro to manage callbacks
 #define CALLBACK_XMACRO\
-  X("execute",  vm_ext_execute_cb, true)\
+  X("perform",  vm_ext_execute_cb, true)\
+  X("query",    vm_ext_query_cb,  true)\
   X("report",   vm_ext_report_cb, true)\
   X("dummy",    vm_ext_dummy_cb,  true)\
 
@@ -127,30 +130,28 @@ static inline void  dpush(VmExtension_t * const v, const sdc_t value) { udpush(v
 *******************************************************************************/
 static int vm_ext_execute_cb(VmExtension_t * const v) 
 {
-  engine_trace(TRACE_LEVEL_ALWAYS, "Running execute callback"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "Running execute callback"); 
 
-  // Send current buffer content by email
-  //vm_report((VirtualMachine_t*)v->h);
+    // pop just the protocol ID from stack
+    // and a variable number of parameters depending on DB configuration
+    cell_t protocolId;
 
-  // pop the latest 2 values present at stack: they will be the protocolId + processMultiplier
-  cell_t protocolId = pop(v);
-  cell_t processMultiplier = pop(v);
+    // Build the output message depending on result
+    char executeOutMsg[LINE_MAX];
 
-  // Build the output message depending on result
-  char executeOutMsg[LINE_MAX];
+    protocolId = pop(v);
 
-  if(v->error) {   
-    sprintf(executeOutMsg, "Execute command error");
-  } else {   
-    sprintf(executeOutMsg, 
-      "Execute params: protocol [%d], process multiplier [%d]",
-      protocolId,
-      processMultiplier);
-  }
+    if(!v->error) {
+        // Execute protocol and output result (for debugging)
+        protocol_execute((int)protocolId, v);
+        snprintf(executeOutMsg, LINE_MAX, "%s", protocol_get_result_msg());
+    } else {
+        sprintf(executeOutMsg, "Unable to retrieve protocol info from stack");
+    }
 
-  embed_puts(v->h, executeOutMsg);
+    embed_puts(v->h, executeOutMsg);
 
-  return 0;
+    return 0;
 }
 
 /** ****************************************************************************
@@ -173,6 +174,127 @@ static int vm_ext_report_cb(VmExtension_t * const v)
   embed_puts(v->h, "report");
 
   return 0;
+}
+
+/** ****************************************************************************
+
+  @brief      Callback invoked by VM when query command is issued
+
+  @param[in]  v Current VM extension object
+
+  @return     Execution result
+
+*******************************************************************************/
+static int vm_ext_query_cb(VmExtension_t * const v) 
+{
+    Queries_t queryInfo;
+    char queryOutMsg[LINE_MAX];
+    Bool_t success = ENGINE_TRUE;
+
+    memset(&queryInfo, 0, sizeof(Queries_t));
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Running query callback"); 
+
+    // First param (mandatory) is query ID
+    queryInfo.id = pop(v);
+
+    if(!v->error) {
+        if(db_get_query_info(&queryInfo) == ENGINE_OK) {
+            queryInfo.resultsArrayAddr = pop(v);
+
+            if(v->error) {
+                success = ENGINE_FALSE;
+
+                sprintf(queryOutMsg, 
+                    "Unable to get results array address from stack for query ID [%d]", 
+                    queryInfo.id);
+
+                engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
+            }
+        } else {
+            sprintf(queryOutMsg, "Query ID [%d] not found in DB", queryInfo.id);
+            engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg);
+            success = ENGINE_FALSE; 
+        }
+
+        if(success == ENGINE_TRUE) {
+            queryInfo.resultsArraySize = pop(v);
+            if(v->error) {
+                success = ENGINE_FALSE;
+
+                sprintf(queryOutMsg, 
+                    "Unable to get results array size from stack for query ID [%d]", 
+                    queryInfo.id);
+
+                engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
+            }
+        }
+
+        if(success == ENGINE_TRUE && queryInfo.parametersNum) {
+            // Allocate output parameters dynamically
+            queryInfo.parameterValues = (int*) engine_malloc(sizeof(int) * queryInfo.parametersNum);
+
+            if(!queryInfo.parameterValues) {
+                sprintf(queryOutMsg, 
+                    "Unable to allocate [%d] parameters for query ID [%d]",
+                    queryInfo.parametersNum,
+                    queryInfo.id);
+
+                engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
+                success = ENGINE_FALSE;
+            }
+        }
+
+        if(success == ENGINE_TRUE) {
+            // Get parameters from stack
+            for(int i=0; i < queryInfo.parametersNum; i++) {
+                int parameter = pop(v);
+
+                if(v->error) {
+                    sprintf(queryOutMsg, 
+                        "Unable to retrieve [%d] parameters from stack for query ID [%d] ([%d] read)",
+                        queryInfo.parametersNum,
+                        queryInfo.id,
+                        i);
+
+                    engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
+                    success = ENGINE_FALSE;
+
+                    break; // stop for(;;)
+                } else {
+                    queryInfo.parameterValues[i] = parameter;
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "Parameter[%d]=[%d] set for query ID [%d]",
+                        i, parameter, queryInfo.id); 
+                }
+            }
+        }
+
+        if(success == ENGINE_TRUE) {
+           sprintf(queryOutMsg, 
+                    "Query ID [%d] with [%d] parameters succesfully processed, results at [%d], size [%d]",
+                    queryInfo.id,
+                    queryInfo.parametersNum,
+                    queryInfo.resultsArrayAddr,
+                    queryInfo.resultsArraySize);
+
+            engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
+
+            // Deallocate
+            if(queryInfo.parameterValues) {
+                engine_free(queryInfo.parameterValues, sizeof(int) * queryInfo.parametersNum);
+                queryInfo.parameterValues = NULL;
+            }
+        }
+
+    } else {
+        sprintf(queryOutMsg, "Unable to retrieve query id info from stack");
+        engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg);
+    }
+
+    embed_puts(v->h, queryOutMsg);
+
+    return 0;
 }
 
 /** ****************************************************************************
@@ -262,4 +384,48 @@ VmExtension_t* vm_extension_new(void)
   v->o.param          = v;
 
   return v;
+}
+
+/** ****************************************************************************
+
+  @brief      Pops a value from a given VM and returns it
+
+  @param[in]  vmExt      Current VM extension
+  @param[out] outValue   Out buffer where we store value obtained
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_extension_pop(VmExtension_t* vmExt, int* outValue) 
+{
+  if(vmExt && outValue) {
+    *outValue = pop(vmExt);
+    if(!vmExt->error)
+      return ENGINE_OK;
+  }
+
+  return ENGINE_FORTH_EVAL_ERROR;
+}
+
+/** ****************************************************************************
+
+  @brief      Push a value into VM stack
+
+  @param[in]  vmExt      Current VM extension
+  @param[in]  outValue   Value to be pushed into stack
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_extension_push(VmExtension_t* vmExt, int inValue) 
+{
+  if(vmExt) {
+    push(vmExt, (cell_t)inValue);
+    if(!vmExt->error) {
+      engine_trace(TRACE_LEVEL_ALWAYS, "Value [%d] pushed into stack", inValue); 
+      return ENGINE_OK;
+    }
+  }
+
+  return ENGINE_FORTH_EVAL_ERROR;
 }

@@ -2,12 +2,12 @@
 
   PROJECT    : Ex-Machinis
 
-  DESCRIPTION: Engine module
+  DESCRIPTION: Events engine module
  
 ******************************************************************************/
 
-#ifndef __EM_ENGINE_MODULE__
-#define __EM_ENGINE_MODULE__
+#ifndef __EM_E_ENGINE_MODULE__
+#define __EM_E_ENGINE_MODULE__
 
 /******************************* INCLUDES ************************************/
 
@@ -17,9 +17,8 @@
 #include <mysql.h>
 
 #include "common_types.h"
-
+#include "config_e.h"
 #include "trace.h"
-#include "config.h"
 
 /******************************* DEFINES *************************************/
 
@@ -28,7 +27,7 @@
 /******************************* TYPES ***************************************/
 
 //-----------------------------------------------------------------------------
-//  Application configuration - Parameters IDs
+//  Application configuration - Parameters IDs for event-engine process
 //-----------------------------------------------------------------------------
 enum
 {
@@ -43,17 +42,12 @@ enum
     DB_NAME_ID,
 
     // Logic configuration
-    DB_READ_TIME_ID,
-    MAX_CYCLE_SECONDS,
-    VM_RESUME_COMMAND,
+    ENGINE_CHECK_TIME,
+    EVENT_EXPIRATION_DAYS,
+    ACTION_EXPIRATION_DAYS,
+    OUTCOME_EVENT_BATCH_SIZE,
 
-    // Email configuration
-    SEND_EMAIL_SCRIPT_ID,
-    SEND_EMAIL_TEMPLATE_ID,
-    AGENTS_EMAIL_DOMAIN_ID,
-
-    // FORTH image configuration
-    FORTH_IMAGE_PATH_ID,
+    // TBD
 
     // Max configured parameters
     MAX_CONFIG_PARAM
@@ -327,4 +321,37 @@ DbConnection_t* engine_get_db_connection();
 *******************************************************************************/
 int engine_get_current_drone_id();
 
-#endif // __EM_ENGINE_MODULE__
+/** ****************************************************************************
+
+  @brief      Gets the configured value for events expiration days
+
+  @param[in]  None
+  
+  @return     Configured days value or default if not found
+
+*******************************************************************************/
+int engine_get_events_expiration_days();
+
+/** ****************************************************************************
+
+  @brief      Gets the configured value for actions expiration days
+
+  @param[in]  None
+  
+  @return     Configured days value or default if not found
+
+*******************************************************************************/
+int engine_get_actions_expiration_days();
+
+/** ****************************************************************************
+
+  @brief      Gets the number of outcome events to process per round
+
+  @param[in]  None
+  
+  @return     Configured batch size (number of events)
+
+*******************************************************************************/
+int engine_get_outcome_events_batch_size();
+
+#endif // __EM_E_ENGINE_MODULE__
