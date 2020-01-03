@@ -172,5 +172,13 @@ class HomeController extends Controller
         return view('pages.forth-dictionary');
     }
 
+    /**
+     * Display static page with player's manual
+     */
+    public function playersManual()
+    {
+        return view('pages.players-manual');
+    }
+
 
 }

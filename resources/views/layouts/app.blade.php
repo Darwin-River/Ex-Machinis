@@ -126,7 +126,8 @@
                                   </li> -->
                             </ul>
                             <ul class="rd-navbar-list-link">
-                                <li><a href="/forth-dictionary">FORTH dictionary</a></li>
+                                <li><a href="{{url('players-manual')}}">Player's Manual</a></li>
+                                <li><a href="{{url('forth-dictionary')}}">FORTH Dictionary</a></li>
                                 @guest
                                     <li class="float-md-right"><a href="{{url('login')}}">Login</a></li>
                                 @endguest
