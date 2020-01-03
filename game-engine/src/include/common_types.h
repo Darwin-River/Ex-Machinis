@@ -60,6 +60,25 @@
 #define META_COMMAND_RENAME   "<rename>"
 #define META_COMMAND_REBRAND  "<rebrand>"
 
+// Special query tags
+#define MAX_QUERY_TAG_LEN      32
+#define MAX_QUERY_TAGS_NUM     10
+// values
+#define QUERY_TAG_VALUE_1      "[value_1]"
+#define QUERY_TAG_VALUE_2      "[value_2]"
+#define QUERY_TAG_VALUE_3      "[value_3]"
+#define QUERY_TAG_VALUE_4      "[value_4]"
+// strings
+#define QUERY_TAG_STRING_1     "[string_1]"
+#define QUERY_TAG_STRING_2     "[string_2]"
+#define QUERY_TAG_STRING_3     "[string_3]"
+#define QUERY_TAG_STRING_4     "[string_4]"
+// Others
+#define QUERY_TAG_DRONE_ID     "[drone_id]"
+#define QUERY_TAG_TIME_DELAYE  "[time_delay]"
+// !!! modify MAX_QUERY_TAGS_NUM if more added
+
+
 /******************************* TYPES ***************************************/
 
 //-----------------------------------------------------------------------------
@@ -583,6 +602,7 @@ typedef struct
 	int *parameterValues;
 	int resultsArrayAddr;
 	int resultsArraySize;
+	char *finalQuery;
 	
 } Queries_t;
 
