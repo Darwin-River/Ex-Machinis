@@ -121,6 +121,112 @@ static inline void  dpush(VmExtension_t * const v, const sdc_t value) { udpush(v
 
 /** ****************************************************************************
 
+  @brief      Gets the new value for a given tag
+
+  @param[in]  v   Current VM extension object
+  @param[in]  tag Tag whose new value we need to calculate
+
+  @return     New value calculated using input tag
+
+*******************************************************************************/
+char* vm_get_new_tag_value(VmExtension_t* v, const char *tag) 
+{ 
+    // input pointers checked by calling function 
+
+    // value_x are retrieved from v stack
+
+    // string_x are obtained from v stack and v memory (we read the memory from there)
+
+    // droneId is needs to be stored at VM somehow, we do not know it now (check old implementation and see if we can store the ID in VM)
+
+    // time_delay is obtained once we know the droneID
+
+    // [value_1] will be replaced by the first query specific parameter that is pulled from the stack and rendered as a decimal integer. 
+    // [value_2], [value_3], and [value_4] will do the same with the second, third, and fourth query-specific parameters that are pulled from the stack.
+    // [string_1] will be replaced by the string that is pointed to by the first query-specific parameter on the stack. 
+    // The ASCII string will be pulled from the drone’s memory location pointed to by the user supplied address. 
+    // [string_2], [string_3], and [string_4] will do the same for the second, third, and fourth user-supplied values found on the stack.
+    // [drone_id] will be replaced by the integer ID of the drone that is performing the query.
+    // [time_delay] will be replaced by the distance in light minutes that the drone is from Earth.
+
+    return NULL;
+}
+
+/** ****************************************************************************
+
+  @brief      Replace a given tag by the suitable value
+
+  @param[in]  v   Current VM extension object
+  @param[in]  s   Input string
+  @param[in]  tag Tag to be replaced
+
+  @return     Execution result (OK/KO)
+
+*******************************************************************************/
+ErrorCode_t vm_replace_tag(VmExtension_t* v, const char *s, const char *tag) 
+{ 
+    char *result = NULL; 
+    size_t inputLen = strlen(s);
+    size_t tagLen = strlen(tag); 
+    int tagCnt = 0;
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Replacing tag [%s] at query script [%s]", tag, s); 
+
+    // We need to build the SQL command using the query script + user supplied info
+
+    // Get new value depending on input tag
+    char* newValue = vm_get_new_tag_value(v, tag);
+    if(!newValue) {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "ERROR: Unable to get new value for tag [%s] at query script [%s]", tag, s); 
+
+        return ENGINE_LOGIC_ERROR;
+    }
+
+    size_t newValueLen = strlen(newValue);
+  
+    // Counting the number of times that input tag occurs in the string 
+    for (int i = 0; s[i] != '\0'; i++) { 
+        if (strstr(&s[i], tag) == &s[i]) { 
+            tagCnt++; 
+            // Jumping to index after the tag 
+            i += tagLen - 1; 
+        } 
+    } 
+  
+    // Making new string of enough length 
+    result = (char *)malloc(inputLen + (tagCnt * (newValueLen - tagLen)) + 1); 
+  
+    i = 0; 
+    while (*s) 
+    { 
+        // compare the substring with the result 
+        if (strstr(s, tag) == s) 
+        { 
+            strcpy(&result[i], newValue); 
+            i += newValueLen; 
+            s += tagLen; 
+        } 
+        else
+            result[i++] = *s++; 
+    } 
+    result[i] = '\0'; 
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Replacing tag [%s] at query script [%s], result [%s]", tag, s, result); 
+  
+    // update the string after replacement
+    free(s);
+    s = result;
+
+    // deallocate new value obtained
+    free(newValue);
+    newValue = NULL;
+
+    return ENGINE_OK;
+}
+
+/** ****************************************************************************
+
   @brief      Callback invoked by VM when excute command is issued
 
   @param[in]  v Current VM extension object
@@ -174,6 +280,72 @@ static int vm_ext_report_cb(VmExtension_t * const v)
   embed_puts(v->h, "report");
 
   return 0;
+}
+
+/** ****************************************************************************
+
+  @brief      Query processing routine
+
+  @param[in]     v            Current VM extension object
+  @param[in]     queryInfo    Current query info
+  @param[in|out] queryOutMsg  Buffer where we store output result msg
+  @param[in]     outMsgSize   Out buffer size
+
+  @return     None
+
+*******************************************************************************/
+static void vm_ext_process_query
+(
+    VmExtension_t* v, 
+    Queries_t* queryInfo, 
+    char* queryOutMsg, 
+    size_t outMsgSize
+)
+{
+    // input pointers checked at calling function
+
+    // clone original script to replace tags dynamically
+    queryInfo->finalQuery = strdup(queryInfo->script);
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Processing query script [%s]", queryInfo->finalQuery); 
+
+    // Parse the script and replace the special tags by the suitable values read from VM memory
+    char tags[MAX_QUERY_TAGS_NUM][MAX_QUERY_TAG_LEN] = 
+    { 
+        QUERY_TAG_VALUE_1,
+        QUERY_TAG_VALUE_2,
+        QUERY_TAG_VALUE_3,
+        QUERY_TAG_VALUE_4,
+        QUERY_TAG_STRING_1,
+        QUERY_TAG_STRING_2,
+        QUERY_TAG_STRING_3,
+        QUERY_TAG_STRING_4,
+        QUERY_TAG_DRONE_ID,
+        QUERY_TAG_TIME_DELAY
+    };
+
+    for(int i=0; i < MAX_QUERY_TAGS_NUM; i++) {
+        if(strstr(queryInfo->finalQuery, tags[i])) {
+            if(vm_replace_tag(v, queryInfo->finalQuery, tags[i]) != ENGINE_OK) {
+                free(queryInfo->finalQuery);
+
+                sprintf(queryOutMsg, 
+                    "Unable to replace tag [%s] at query script [%s]", 
+                    tags[i],
+                    queryInfo->script);
+
+                engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
+                return;
+            }
+        }
+    }
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Query script after tags replacement [%s]", queryInfo->finalQuery);
+
+    // Execute query at DB and fill the output array parameters with information retrieved
+    // TODO: parse here the SQL results and store them into memory
+    
+    free(queryInfo->finalQuery);
 }
 
 /** ****************************************************************************
@@ -279,6 +451,9 @@ static int vm_ext_query_cb(VmExtension_t * const v)
                     queryInfo.resultsArraySize);
 
             engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
+
+            // Process the query itself
+            vm_ext_process_query(v, &queryInfo, queryOutMsg, LINE_MAX);
 
             // Deallocate
             if(queryInfo.parameterValues) {
