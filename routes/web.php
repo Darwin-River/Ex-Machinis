@@ -23,6 +23,7 @@ Route::get('/home', 'HomeController@index')->name('home');
 
 //pages
 Route::get('/forth-dictionary', 'HomeController@forthDictionary');
+Route::get('/players-manual', 'HomeController@playersManual');
 
 Route::post('/web-register', 'UserController@webRegistration');
 
