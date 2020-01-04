@@ -75,7 +75,7 @@
 #define QUERY_TAG_STRING_4     "[string_4]"
 // Others
 #define QUERY_TAG_DRONE_ID     "[drone_id]"
-#define QUERY_TAG_TIME_DELAYE  "[time_delay]"
+#define QUERY_TAG_TIME_DELAY   "[time_delay]"
 // !!! modify MAX_QUERY_TAGS_NUM if more added
 
 
