@@ -976,6 +976,10 @@ void engine_vm_output_cb(const char* msg)
 
     if(msg)
     {
+        // Apply a workaround to remove the annoying "query redefined msg"
+        char* pos = strstr(msg, "query redefined");
+        if(pos) *pos = 0;
+
         engine_trace(TRACE_LEVEL_ALWAYS, 
             "Output VM msg [%s] read for agent [%d]",
             msg,
