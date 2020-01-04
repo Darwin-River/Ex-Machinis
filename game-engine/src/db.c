@@ -649,8 +649,8 @@ ErrorCode_t db_get_agent_engine_info(DbConnection_t* connection, int agent_id, A
                         "VM found for agent [%d] with size [%ld] bytes", 
                         agent_id, vm_size);
 
-                    // Convert VM bytes into VM object
-                    agent->vm = vm_from_bytes(row[0], vm_size);
+                    // Convert VM bytes into VM object assigning the current agentId
+                    agent->vm = vm_from_bytes(agent_id, row[0], vm_size);
                 }
 
                 // Store also the objectID
