@@ -197,7 +197,7 @@ ErrorCode_t vm_replace_tag(VmExtension_t* v, const char *s, const char *tag)
     // Making new string of enough length 
     result = (char *)malloc(inputLen + (tagCnt * (newValueLen - tagLen)) + 1); 
   
-    i = 0; 
+    int i = 0; 
     while (*s) 
     { 
         // compare the substring with the result 
@@ -215,11 +215,11 @@ ErrorCode_t vm_replace_tag(VmExtension_t* v, const char *s, const char *tag)
     engine_trace(TRACE_LEVEL_ALWAYS, "Replacing tag [%s] at query script [%s], result [%s]", tag, s, result); 
   
     // update the string after replacement
-    free(s);
+    free((void*)s);
     s = result;
 
     // deallocate new value obtained
-    free(newValue);
+    free((void*)newValue);
     newValue = NULL;
 
     return ENGINE_OK;
