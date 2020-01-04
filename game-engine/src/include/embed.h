@@ -113,6 +113,7 @@ typedef struct {
 		*yields;            /**< parameter to yield */
 	const void *name;           /**< second argument to 'save' */
 	embed_vm_option_e options;  /**< virtual machine options register */
+	int               id;       /**< we can define and external ID, handy to connect VM and agent ID */
 } embed_opt_t; /**< Embed VM options structure for customizing behavior */
 
 struct embed_t {
