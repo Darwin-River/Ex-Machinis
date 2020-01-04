@@ -119,6 +119,7 @@ static inline double_cell_t udpop(VmExtension_t * const v) {
 static inline sdc_t dpop(VmExtension_t * const v)                     { return udpop(v); }
 static inline void  dpush(VmExtension_t * const v, const sdc_t value) { udpush(v, value); }
 
+
 /** ****************************************************************************
 
   @brief      Gets the new value for a given tag
@@ -131,15 +132,10 @@ static inline void  dpush(VmExtension_t * const v, const sdc_t value) { udpush(v
 *******************************************************************************/
 char* vm_get_new_tag_value(VmExtension_t* v, const char *tag) 
 { 
+    char *result = NULL;
+    int value = -1;
+
     // input pointers checked by calling function 
-
-    // value_x are retrieved from v stack
-
-    // string_x are obtained from v stack and v memory (we read the memory from there)
-
-    // droneId is needs to be stored at VM somehow, we do not know it now (check old implementation and see if we can store the ID in VM)
-
-    // time_delay is obtained once we know the droneID
 
     // [value_1] will be replaced by the first query specific parameter that is pulled from the stack and rendered as a decimal integer. 
     // [value_2], [value_3], and [value_4] will do the same with the second, third, and fourth query-specific parameters that are pulled from the stack.
@@ -149,7 +145,47 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag)
     // [drone_id] will be replaced by the integer ID of the drone that is performing the query.
     // [time_delay] will be replaced by the distance in light minutes that the drone is from Earth.
 
-    return NULL;
+    if (!strcmp(tag, QUERY_TAG_DRONE_ID)) {
+        // Get drone Id
+        value = v->o.id;
+        engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s stack value [%d]", tag, value);
+    } else if (!strcmp(tag, QUERY_TAG_TIME_DELAY)) {
+        // Get ligth minutes distance
+        char drone_position[MAX_OBJECT_NAME_SIZE];
+        double distance;
+        AgentInfo_t agent_info;
+        agent_info.agent_id = v->o.id;
+        db_get_agent_engine_info(engine_get_db_connection(), v->o.id, &agent_info);
+        engine_get_drone_position(agent_info.object_id, drone_position, &distance);
+        value = 100000; // TODO: remove when ready
+        engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s stack value [%f]", tag, distance);
+    } else {
+        // Get value from stack
+        value = pop(v);
+        if(v->error) {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Tag %s could not be replaced, no value at stack", tag); 
+            return NULL;
+        }
+
+        if(!strcmp(tag, QUERY_TAG_VALUE_1) || !strcmp(tag, QUERY_TAG_VALUE_2) || 
+           !strcmp(tag, QUERY_TAG_VALUE_3) || !strcmp(tag, QUERY_TAG_VALUE_4))    {
+
+            // we use directly the value got from stack
+            engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s stack value [%d]", tag, value);
+   
+        } else if (!strcmp(tag, QUERY_TAG_STRING_1) || !strcmp(tag, QUERY_TAG_STRING_2) || 
+                   !strcmp(tag, QUERY_TAG_STRING_3) || !strcmp(tag, QUERY_TAG_STRING_4))    {
+
+            // the value got from stack is an address, get the string present there
+            engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s stack value address [%d]", tag, value);
+          
+        } else {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unexpected/unsupported tag: %s", tag); 
+            return NULL;
+        } 
+    }
+
+    return result;
 }
 
 /** ****************************************************************************
@@ -195,7 +231,7 @@ ErrorCode_t vm_replace_tag(VmExtension_t* v, const char *s, const char *tag)
     } 
   
     // Making new string of enough length 
-    result = (char *)malloc(inputLen + (tagCnt * (newValueLen - tagLen)) + 1); 
+    result = (char *)engine_malloc(inputLen + (tagCnt * (newValueLen - tagLen)) + 1); 
   
     int i = 0; 
     while (*s) 
@@ -215,11 +251,11 @@ ErrorCode_t vm_replace_tag(VmExtension_t* v, const char *s, const char *tag)
     engine_trace(TRACE_LEVEL_ALWAYS, "Replacing tag [%s] at query script [%s], result [%s]", tag, s, result); 
   
     // update the string after replacement
-    free((void*)s);
+    engine_free((void*)s, strlen(s)+1);
     s = result;
 
     // deallocate new value obtained
-    free((void*)newValue);
+    engine_free((void*)newValue, inputLen + (tagCnt * (newValueLen - tagLen)) + 1);
     newValue = NULL;
 
     return ENGINE_OK;
@@ -327,7 +363,7 @@ static void vm_ext_process_query
     for(int i=0; i < MAX_QUERY_TAGS_NUM; i++) {
         if(strstr(queryInfo->finalQuery, tags[i])) {
             if(vm_replace_tag(v, queryInfo->finalQuery, tags[i]) != ENGINE_OK) {
-                free(queryInfo->finalQuery);
+                engine_free(queryInfo->finalQuery, strlen(queryInfo->finalQuery)+1);
 
                 sprintf(queryOutMsg, 
                     "Unable to replace tag [%s] at query script [%s]", 
