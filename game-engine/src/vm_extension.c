@@ -276,7 +276,7 @@ ErrorCode_t vm_replace_tag(VmExtension_t* v, Queries_t* queryInfo, const char *t
     queryInfo->finalQuery = result;
 
     // deallocate new value obtained
-    engine_free((void*)newValue, newValueLen + 1);
+    engine_free((void*)newValue, MAX_QUERY_VALUE_BUF_LEN);
     newValue = NULL;
 
     return ENGINE_OK;
