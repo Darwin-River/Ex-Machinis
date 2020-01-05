@@ -147,18 +147,32 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag)
 
     if (!strcmp(tag, QUERY_TAG_DRONE_ID)) {
         // Get drone Id
-        value = v->o.id;
-        engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s stack value [%d]", tag, value);
+        value = engine_get_current_drone_id();
+        engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s, drone ID [%d]", tag, value);
+
+        // allocate an int value
+        result = (char*) engine_malloc(MAX_QUERY_VALUE_BUF_LEN);
+        sprintf(result, "%d", value);
     } else if (!strcmp(tag, QUERY_TAG_TIME_DELAY)) {
         // Get ligth minutes distance
         char drone_position[MAX_OBJECT_NAME_SIZE];
         double distance;
         AgentInfo_t agent_info;
-        agent_info.agent_id = v->o.id;
-        db_get_agent_engine_info(engine_get_db_connection(), v->o.id, &agent_info);
-        engine_get_drone_position(agent_info.object_id, drone_position, &distance);
-        value = 100000; // TODO: remove when ready
-        engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s stack value [%f]", tag, distance);
+        agent_info.agent_id = engine_get_current_drone_id();
+        ErrorCode_t error = db_get_agent_engine_info(engine_get_db_connection(), agent_info.agent_id, &agent_info);
+        if(error != ENGINE_OK) {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Tag %s could not be replaced, unable to get agent info", tag); 
+            return NULL;
+        }
+        error = engine_get_drone_position(agent_info.object_id, drone_position, &distance);
+        if(error != ENGINE_OK) {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Tag %s could not be replaced, unable to get drone position", tag); 
+            return NULL;
+        }
+        engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s distance value [%f]", tag, distance);
+        result = (char*) engine_malloc(MAX_QUERY_VALUE_BUF_LEN);
+        sprintf(result, "%f", distance);
+
     } else {
         // Get value from stack
         value = pop(v);
@@ -172,6 +186,10 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag)
 
             // we use directly the value got from stack
             engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s stack value [%d]", tag, value);
+
+            // allocate an int value
+            result = (char*) engine_malloc(MAX_QUERY_VALUE_BUF_LEN);
+            sprintf(result, "%d", value);
    
         } else if (!strcmp(tag, QUERY_TAG_STRING_1) || !strcmp(tag, QUERY_TAG_STRING_2) || 
                    !strcmp(tag, QUERY_TAG_STRING_3) || !strcmp(tag, QUERY_TAG_STRING_4))    {
@@ -192,21 +210,22 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag)
 
   @brief      Replace a given tag by the suitable value
 
-  @param[in]  v   Current VM extension object
-  @param[in]  s   Input string
-  @param[in]  tag Tag to be replaced
+  @param[in]  v           Current VM extension object
+  @param[in]  queryInfo   Current query info
+  @param[in]  tag         Tag to be replaced
 
   @return     Execution result (OK/KO)
 
 *******************************************************************************/
-ErrorCode_t vm_replace_tag(VmExtension_t* v, const char *s, const char *tag) 
+ErrorCode_t vm_replace_tag(VmExtension_t* v, Queries_t* queryInfo, const char *tag) 
 { 
+    char *s = queryInfo->finalQuery;
     char *result = NULL; 
-    size_t inputLen = strlen(s);
+    size_t inputLen = strlen(queryInfo->finalQuery);
     size_t tagLen = strlen(tag); 
     int tagCnt = 0;
 
-    engine_trace(TRACE_LEVEL_ALWAYS, "Replacing tag [%s] at query script [%s]", tag, s); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "Replacing tag [%s] at query script [%s]", tag, queryInfo->finalQuery); 
 
     // We need to build the SQL command using the query script + user supplied info
 
@@ -218,6 +237,8 @@ ErrorCode_t vm_replace_tag(VmExtension_t* v, const char *s, const char *tag)
 
         return ENGINE_LOGIC_ERROR;
     }
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s will be replaced with value [%s]", tag, newValue); 
 
     size_t newValueLen = strlen(newValue);
   
@@ -248,14 +269,14 @@ ErrorCode_t vm_replace_tag(VmExtension_t* v, const char *s, const char *tag)
     } 
     result[i] = '\0'; 
 
-    engine_trace(TRACE_LEVEL_ALWAYS, "Replacing tag [%s] at query script [%s], result [%s]", tag, s, result); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "Replacing tag [%s] at query script [%s], result [%s]", tag, queryInfo->finalQuery, result); 
   
     // update the string after replacement
-    engine_free((void*)s, strlen(s)+1);
-    s = result;
+    engine_free((void*)queryInfo->finalQuery, strlen(queryInfo->finalQuery)+1);
+    queryInfo->finalQuery = result;
 
     // deallocate new value obtained
-    engine_free((void*)newValue, inputLen + (tagCnt * (newValueLen - tagLen)) + 1);
+    engine_free((void*)newValue, newValueLen + 1);
     newValue = NULL;
 
     return ENGINE_OK;
@@ -362,7 +383,7 @@ static void vm_ext_process_query
 
     for(int i=0; i < MAX_QUERY_TAGS_NUM; i++) {
         if(strstr(queryInfo->finalQuery, tags[i])) {
-            if(vm_replace_tag(v, queryInfo->finalQuery, tags[i]) != ENGINE_OK) {
+            if(vm_replace_tag(v, queryInfo, tags[i]) != ENGINE_OK) {
                 engine_free(queryInfo->finalQuery, strlen(queryInfo->finalQuery)+1);
 
                 sprintf(queryOutMsg, 
@@ -372,6 +393,9 @@ static void vm_ext_process_query
 
                 engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
                 return;
+            } else {
+                engine_trace(TRACE_LEVEL_ALWAYS, "Query script after replacing tag %s is [%s]", 
+                    tags[i], queryInfo->finalQuery);
             }
         }
     }
