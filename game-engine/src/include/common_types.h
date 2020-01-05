@@ -602,6 +602,7 @@ typedef struct
 	char script[MAX_QUERIES_SCRIPT_SIZE];
 	// dynamically allocated
 	int *parameterValues;
+	int nextParamId;
 	int resultsArrayAddr;
 	int resultsArraySize;
 	char *finalQuery;
