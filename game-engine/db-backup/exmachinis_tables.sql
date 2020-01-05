@@ -234,7 +234,7 @@ CREATE TABLE `resource_effects` (
 
 LOCK TABLES `resource_effects` WRITE;
 /*!40000 ALTER TABLE `resource_effects` DISABLE KEYS */;
-INSERT INTO `resource_effects` VALUES (1,0,1,1,1,1,0,0,0,10,0),(2,0,3,2,1,0,0,0,0,10,0),(3,0,1,3,2,0,0,0,1,1,0),(4,0,2,3,1,0,0,0,0,1,10),(5,0,1,4,2,0,0,0,1,1,0);
+INSERT INTO `resource_effects` VALUES (1,0,1,1,1,1,0,0,0,10,0),(2,0,3,2,1,0,0,0,0,10,0),(3,0,1,3,2,0,0,0,1,1,0),(4,0,2,3,1,0,0,0,0,1,10),(5,0,1,4,2,0,0,0,1,10,0);
 /*!40000 ALTER TABLE `resource_effects` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -262,7 +262,7 @@ CREATE TABLE `resources` (
 
 LOCK TABLES `resources` WRITE;
 /*!40000 ALTER TABLE `resources` DISABLE KEYS */;
-INSERT INTO `resources` VALUES (1,'Ore, Iron','This the mined rock from which metals can be extracted.',1,0,0),(2,'Pellets, Iron','Small rods of pure iron.',1,0,0),(3,'Ore, Carbon','Small pellets of pure carbon.',1,0,0),(4,'Pellets, Carbon','Small pellets of pure copper.',1,0,0),(5,'Ore, Copper',NULL,1,0,0),(7,'Pellets, Bronze','Small pellets of bronze alloy made by combining tin and copper.',1,0,0),(8,'Pellets, Steel','Produced by combining iron and carbon.',1,0,0),(9,'Smelter','This is a furnace used to extract component metals from ore.',50,1,1),(10,'Spider','Spiders are robots that move about the spacecaraft, transfering materials between different processes.',10,1,1),(11,'Crucible','A crucible is used to alloy metals.',50,1,1),(12,'Extruder','An extruder is used to print complex three dimentional structures from metals and alloys.',50,1,1),(108,'Pellets, Copper',NULL,1,0,0);
+INSERT INTO `resources` VALUES (1,'Ore, Iron','This the mined rock from which metals can be extracted.',12,0,0),(2,'Pellets, Iron','Small rods of pure iron.',1,0,0),(3,'Ore, Carbon','Small pellets of pure carbon.',1,0,0),(4,'Pellets, Carbon','Small pellets of pure copper.',1,0,0),(5,'Ore, Copper',NULL,1,0,0),(7,'Pellets, Bronze','Small pellets of bronze alloy made by combining tin and copper.',1,0,0),(8,'Pellets, Steel','Produced by combining iron and carbon.',1,0,0),(9,'Smelter','This is a furnace used to extract component metals from ore.',50,1,1),(10,'Spider','Spiders are robots that move about the spacecaraft, transfering materials between different processes.',10,1,1),(11,'Crucible','A crucible is used to alloy metals.',50,1,1),(12,'Extruder','An extruder is used to print complex three dimentional structures from metals and alloys.',50,1,1),(108,'Pellets, Copper',NULL,1,0,0);
 /*!40000 ALTER TABLE `resources` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -290,7 +290,7 @@ CREATE TABLE `queries` (
 
 LOCK TABLES `queries` WRITE;
 /*!40000 ALTER TABLE `queries` DISABLE KEYS */;
-INSERT INTO `queries` VALUES (1,'Recent Events','Gets the recent events for a given drone',1,'SELECT events.id, events.time FROM observations INNER JOIN events ON observations.event = events.id WHERE observations.drone = [drone_id] AND observations.time BETWEEN CURRENT_TIMESTAMP AND CURRENT_TIMESTAMP - INTERVAL [value_1] MINUTE ORDER BY events.timestamp DESC;'),(2,'Get object ID','Gets ID for a given game object',1,'SELECT id FROM objects WHERE objects.name=\'[string_1]\'');
+INSERT INTO `queries` VALUES (1,'Recent Events','Gets the recent events for a given drone',1,'SELECT events.id, events.timestamp FROM observations INNER JOIN events ON observations.event = events.id WHERE observations.drone = [drone_id] AND observations.time BETWEEN CURRENT_TIMESTAMP AND CURRENT_TIMESTAMP - INTERVAL [value_1] MINUTE ORDER BY events.timestamp DESC;'),(2,'Get object ID','Gets ID for a given game object',1,'SELECT id FROM objects WHERE objects.name=\'[string_1]\'');
 /*!40000 ALTER TABLE `queries` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -303,4 +303,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2019-12-04 15:46:05
+-- Dump completed on 2020-01-05 11:11:55
