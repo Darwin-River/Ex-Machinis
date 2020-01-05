@@ -2862,6 +2862,8 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo)
 
     if(result == ENGINE_OK)
     {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Running VM query [%s]", queryInfo->finalQuery);
+
         // run the query 
         if (mysql_query(connection->hndl, queryInfo->finalQuery)) 
         {
