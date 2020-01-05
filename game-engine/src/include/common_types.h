@@ -63,6 +63,8 @@
 // Special query tags
 #define MAX_QUERY_TAG_LEN      32
 #define MAX_QUERY_TAGS_NUM     10
+// Query buffers
+#define MAX_QUERY_VALUE_BUF_LEN  16
 // values
 #define QUERY_TAG_VALUE_1      "[value_1]"
 #define QUERY_TAG_VALUE_2      "[value_2]"
