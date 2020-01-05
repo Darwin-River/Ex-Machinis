@@ -403,7 +403,13 @@ static void vm_ext_process_query
     engine_trace(TRACE_LEVEL_ALWAYS, "Query script after tags replacement [%s]", queryInfo->finalQuery);
 
     // Execute query at DB and fill the output array parameters with information retrieved
-    // TODO: parse here the SQL results and store them into memory
+    if(db_run_vm_query(queryInfo) != ENGINE_OK) {
+        sprintf(queryOutMsg, 
+                "Query failed or could not retrive results [%s]", 
+                queryInfo->finalQuery);
+
+        engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg);
+    }
     
     free(queryInfo->finalQuery);
 }
