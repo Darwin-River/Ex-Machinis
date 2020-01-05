@@ -124,13 +124,14 @@ static inline void  dpush(VmExtension_t * const v, const sdc_t value) { udpush(v
 
   @brief      Gets the new value for a given tag
 
-  @param[in]  v   Current VM extension object
-  @param[in]  tag Tag whose new value we need to calculate
+  @param[in]  v         Current VM extension object
+  @param[in]  tag       Tag whose new value we need to calculate
+  @param[in]  queryInfo Current query info
 
-  @return     New value calculated using input tag
+  @return     New value calculated using input tag or NULL when error
 
 *******************************************************************************/
-char* vm_get_new_tag_value(VmExtension_t* v, const char *tag) 
+char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryInfo) 
 { 
     char *result = NULL;
     int value = -1;
@@ -173,13 +174,9 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag)
         result = (char*) engine_malloc(MAX_QUERY_VALUE_BUF_LEN);
         sprintf(result, "%f", distance);
 
-    } else {
-        // Get value from stack
-        value = pop(v);
-        if(v->error) {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Tag %s could not be replaced, no value at stack", tag); 
-            return NULL;
-        }
+    } else if (queryInfo->parametersNum > queryInfo->nextParamId) {
+        // Get value from stack parameters
+        value = queryInfo->parameterValues[queryInfo->nextParamId++];
 
         if(!strcmp(tag, QUERY_TAG_VALUE_1) || !strcmp(tag, QUERY_TAG_VALUE_2) || 
            !strcmp(tag, QUERY_TAG_VALUE_3) || !strcmp(tag, QUERY_TAG_VALUE_4))    {
@@ -196,11 +193,27 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag)
 
             // the value got from stack is an address, get the string present there
             engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s stack value address [%d]", tag, value);
-          
+
+            // Pick the string from the VM address obtained
+            VirtualMachine_t* vm = v->h;
+            cell_t len = embed_read_cell(vm, value);
+            result = (char*) engine_malloc(len+1);
+            embed_memcpy(vm, (unsigned char*)result, value+1, len);
+            result[len] = 0;
+
+            engine_trace(TRACE_LEVEL_ALWAYS, "VM string read [%s] len [%d]", result, len);
+
         } else {
             engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unexpected/unsupported tag: %s", tag); 
             return NULL;
         } 
+    } else {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "ERROR: Tag %s could not be replaced, not enough parameters [%d]", 
+            tag,
+            queryInfo->parametersNum); 
+
+        return NULL;
     }
 
     return result;
@@ -230,7 +243,7 @@ ErrorCode_t vm_replace_tag(VmExtension_t* v, Queries_t* queryInfo, const char *t
     // We need to build the SQL command using the query script + user supplied info
 
     // Get new value depending on input tag
-    char* newValue = vm_get_new_tag_value(v, tag);
+    char* newValue = vm_get_new_tag_value(v, tag, queryInfo);
     if(!newValue) {
         engine_trace(TRACE_LEVEL_ALWAYS, 
             "ERROR: Unable to get new value for tag [%s] at query script [%s]", tag, s); 
