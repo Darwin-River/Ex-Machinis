@@ -6,7 +6,7 @@
              style="background-image: url(/images/bg-breadcrumbs.jpg);">
         <div class="container">
             <div class="breadcrumbs-modern-body">
-                <h5 class="breadcrumbs-modern-subtitle"></h5>
+                <h5 class="breadcrumbs-modern-subtitle"></h6>
                 <h1 class="breadcrumbs-modern-title">FORTH Dictionary</h1>
             </div>
             <ul class="breadcrumbs-path breadcrumbs-modern-path">
@@ -33,7 +33,7 @@
                             other stacks). Each entry looks like
                             this:</p>
 
-                        <mark>word ( y -- z )</mark>
+                        <h6>word ( y -- z )</h6>
                         <p>
                             Where 'word' is the word being described, the contents between the parenthesis
                             describe the stack effects, this word expects one number to be one the stack,
@@ -149,24 +149,22 @@
                         <p>
                             These invisible words have no name but are used to implement the Forth. They
                             are all <i>immediate</i> words.</p>
-
-
                         <p>
-                            <mark>push ( -- x )</mark>
+                        <h6>push ( -- x )</h6>    
                             Push the next value in the instruction stream onto the variable stack, advancing
                             the instruction stream.
                         </p>
 
 
                         <p>
-                            <mark> const ( -- x )</mark>
+                            <h6> const ( -- x )</h6>
                             Push the next location after this instruction, not the instruction stream, onto
                             the variable stack.
                         </p>
 
 
                         <p>
-                            <mark>run ( -- )</mark>
+                            <h6>run ( -- )</h6>
 
                             Save the current instruction stream pointer onto the return stack and set
                             the pointer instruction stream pointer to point to value after *run*.
@@ -178,13 +176,13 @@
                         </p>
 
                         <p>
-                            <mark> ':' ( c" xxx" -- )</mark>
+                            <h6> ':' ( c" xxx" -- )</h6>
 
                             Read in a new word from the input stream and compile it into the dictionary.
                         </p>
 
                         <p>
-                            <mark> 'immediate' ( -- )</mark>
+                            <h6> 'immediate' ( -- )</h6>
 
                             Make the previously declared word immediate. Unlike in most Forth
                             implementations this is used after the words name is given not after the
@@ -201,7 +199,7 @@
 
 
                         <p>
-                            <mark>'\\' ( c" \n" -- )</mark>
+                            <h6>'\\' ( c" \n" -- )</h6>
                             A comment, ignore everything until the end of the line.
                         </p>
                         <br/>
@@ -209,7 +207,7 @@
 
 
                         <p>
-                            <mark>'read' ( c" xxx" -- )</mark>
+                            <h6>'read' ( c" xxx" -- )</h6>
                             <i>read</i> is a complex word that implements most of the input interpreter,
                             it reads in a [Forth][] <i>word</i> (up to 31 characters), if this <i>word</i> is in
                             the <i>dictionary</i> it will either execute the word if we are in <i>command mode</i>
@@ -223,20 +221,20 @@
 
 
                         <p>
-                            <mark>'@' ( address -- x )</mark>
+                            <h6>'@' ( address -- x )</h6>
 
                             Pop an address and push the value at that address onto the stack.
                         </p>
 
 
                         <p>
-                            <mark> '!' ( x address -- )</mark>
+                            <h6> '!' ( x address -- )</h6>
                             Given an address and a value, store that value at that address.
                         </p>
 
 
                         <p>
-                            <mark>'c@' ( char-address -- char )</mark>
+                            <h6>'c@' ( char-address -- char )</h6>
                             Pop a character address and push the character value at that address onto the
                             stack. Note that this access is not checked for being within range of the
                             virtual machines memory, but it is still relative to the start address of
@@ -245,73 +243,73 @@
 
 
                         <p>
-                            <mark>'c!' ( char char-address -- )</mark>
+                            <h6>'c!' ( char char-address -- )</h6>
                             Given a character address, store a character value at that address, like 'c@'
                             the address is relative to the virtual machines starting address.
                         </p>
 
 
                         <p>
-                            <mark>'-' ( x y -- z )</mark>
+                            <h6>'-' ( x y -- z )</h6>
                             Pop two values, subtract 'y' from 'x' and push the result onto the stack.
                         </p>
 
 
                         <p>
-                            <mark>'+' ( x y -- z )</mark>
+                            <h6>'+' ( x y -- z )</h6>
                             Pop two values, add 'y' to 'x' and push the result onto the stack.
                         </p>
 
 
                         <p>
-                            <mark>'and' ( x y -- z )</mark>
+                            <h6>'and' ( x y -- z )</h6>
                             Pop two values, compute the bitwise 'AND' of them and push the result on to
                             the stack.
                         </p>
 
 
                         <p>
-                            <mark>'or' ( x y -- z )</mark>
+                            <h6>'or' ( x y -- z )</h6>
                             Pop two values, compute the bitwise 'OR' of them and push the result on to
                             the stack.
                         </p>
 
 
                         <p>
-                            <mark>'xor' ( x y -- z )</mark>
+                            <h6>'xor' ( x y -- z )</h6>
                             Pop two values, compute the bitwise 'XOR' of them and push the result on to
                             the stack.
                         </p>
 
 
                         <p>
-                            <mark>'invert' ( x y -- z )</mark>
+                            <h6>'invert' ( x y -- z )</h6>
                             Perform a bitwise negation on the top of the stack.
                         </p>
 
 
                         <p>
-                            <mark>'lshift' ( x y -- z )</mark>
+                            <h6>'lshift' ( x y -- z )</h6>
                             Pop two values, compute 'y' shifted by 'x' places to the left and push
                             the result on to the stack.
                         </p>
 
 
                         <p>
-                            <mark>'rshift' ( x y -- z )</mark>
+                            <h6>'rshift' ( x y -- z )</h6>
                             Pop two values, compute 'y' shifted by 'x' places to the right and push
                             the result on to the stack.
                         </p>
 
 
                         <p>
-                            <mark>'\*' ( x y -- z )</mark>
+                            <h6>'\*' ( x y -- z )</h6>
                             Pop two values, multiply them and push the result onto the stack.
                         </p>
 
 
                         <p>
-                            <mark>'/' ( x y -- z )</mark>
+                            <h6>'/' ( x y -- z )</h6>
                             Pop two values, divide 'x' by 'y' and push the result onto the stack. If 'y'
                             is zero and error message is printed and 'x' and 'y' will remain on the
                             stack, but execution will continue on as normal.
@@ -319,28 +317,28 @@
 
 
                         <p>
-                            <mark>'u\<' ( x y -- z )</mark>
+                            <h6>'u\<' ( x y -- z )</h6>
                             Pop two unsigned values, compare them (y < x) and push the result onto the
                             stack, the comparison will be unsigned.
                         </p>
 
 
                         <p>
-                            <mark>'u\>' ( x y -- z )</mark>
+                            <h6>'u\>' ( x y -- z )</h6>
                             Pop two values, compare them (y > x) and push the result onto the stack. The
                             comparison will be unsigned.
                         </p>
 
 
                         <p>
-                            <mark>'\_exit' ( -- )</mark>
+                            <h6>'\_exit' ( -- )</h6>
                             Pop the return stack and set the instruction stream pointer to that
                             value.
                         </p>
 
 
                         <p>
-                            <mark>'exit' ( -- )</mark>
+                            <h6>'exit' ( -- )</h6>
                             This does the same as **\_exit**, the reason there are two exits instead
                             of one is so that the word 'see', defined in **forth.fth** can differentiate
                             between an exit that occurs in the definition of a word, and one that occurs
@@ -618,44 +616,44 @@
                             definition.</p>
 
                         <p>
-                            <mark>'key' ( -- char )</mark>
+                            <h6>'key' ( -- char )</h6>
 
                             Get a value from the input and put it onto the stack.
                         </p>
 
                         <p>
-                            <mark>'\_emit' ( char -- status )</mark>
+                            <h6>'\_emit' ( char -- status )</h6>
 
                             Put a character to the output stream returning a success value.
                         </p>
 
                         <p>
-                            <mark>'r\>' ( -- x )</mark>
+                            <h6>'r\>' ( -- x )</h6>
 
                             Pop a value from the return stack and push it to the variable stack.
                         </p>
 
                         <p>
-                            <mark>'\>r' ( x -- )</mark>
+                            <h6>'\>r' ( x -- )</h6>
 
                             Pop a value from the variable stack and push it to the return stack.
                         </p>
 
                         <p>
-                            <mark>'branch' ( -- )</mark>
+                            <h6>'branch' ( -- )</h6>
 
                             Jump unconditionally to the destination next in the instruction stream.
                         </p>
 
                         <p>
-                            <mark>'?branch' ( bool -- )</mark>
+                            <h6>'?branch' ( bool -- )</h6>
 
                             Pop a value from the variable stack, if it is zero the jump to the
                             destination next in the instruction stream, otherwise skip over it.
                         </p>
 
                         <p>
-                            <mark>'(.)' ( x -- status )</mark>
+                            <h6>'(.)' ( x -- status )</h6>
 
                             Pop a value from the variable stack and print it to the output either
                             as a ASCII decimal or hexadecimal value depending on the BASE register. A
@@ -665,55 +663,55 @@
                         </p>
 
                         <p>
-                            <mark>''' ( -- )</mark>
+                            <h6>''' ( -- )</h6>
 
                             Push the next value in the instruction stream onto the variable stack
                             and advance the instruction stream pointer over it.
                         </p>
                         <p>
-                            <mark>',' ( x -- )</mark>
+                            <h6>',' ( x -- )</h6>
 
                             Write a value into the dictionary, advancing the dictionary pointer.
                         </p>
                         <p>
-                            <mark>'=' ( x y -- z )</mark>
+                            <h6>'=' ( x y -- z )</h6>
 
                             Pop two values, perform a test for equality and push the result.
                         </p>
                         <p>
-                            <mark>'swap' ( x y -- y z )</mark>
+                            <h6>'swap' ( x y -- y z )</h6>
 
                             Swap two values on the stack.
                         </p>
                         <p>
-                            <mark>'dup' ( x -- x x )</mark>
+                            <h6>'dup' ( x -- x x )</h6>
 
                             Duplicate a value on the stack.
                         </p>
                         <p>
-                            <mark>'drop' ( x -- )</mark>
+                            <h6>'drop' ( x -- )</h6>
 
                             Drop a value.
                         </p>
                         <p>
-                            <mark>'over' ( x y -- x y x )</mark>
+                            <h6>'over' ( x y -- x y x )</h6>
 
                             Duplicate the value that is next on the stack.
                         </p>
                         <p>
-                            <mark>'find' ( -- execution-token )</mark>
+                            <h6>'find' ( -- execution-token )</h6>
 
                             Find a word in the dictionary pushing a pointer to that word onto the
                             variable stack.
                         </p>
                         <p>
-                            <mark>'depth' ( -- depth )</mark>
+                            <h6>'depth' ( -- depth )</h6>
 
                             Push the current stack depth onto the stack, the value is the depth of the
                             stack before the depth value was pushed onto the variable stack.
                         </p>
                         <p>
-                            <mark>'sp@' ( -- addr )</mark>
+                            <h6>'sp@' ( -- addr )</h6>
 
                             Push the address of the stack pointer onto the stack, before **sp@** was
                             executed:
@@ -726,12 +724,12 @@
                             <code>2 2 1</code>
                         </p>
                         <p>
-                            <mark>'sp!' ( addr -- )</mark>
+                            <h6>'sp!' ( addr -- )</h6>
 
                             Set the address of the stack pointer.
                         </p>
                         <p>
-                            <mark>'clock' ( -- x )</mark>
+                            <h6>'clock' ( -- x )</h6>
 
                             Push the difference between the startup time and now, in milliseconds. This
                             can be used for timing and implementing sleep functionality, the counter
@@ -739,24 +737,24 @@
                             this is implementation dependent.
                         </p>
                         <p>
-                            <mark>'evaluator' ( c-addr u 0 | file-id 0 1 -- x )</mark>
+                            <h6>'evaluator' ( c-addr u 0 | file-id 0 1 -- x )</h6>
 
                             This word is a primitive used to implement 'evaluate' and 'include-file', it
                             takes a boolean to decide whether it will read from a file (1) or a string (0),
                             and then takes either a forth string, or a **file-id**.
                         </p>
                         <p>
-                            <mark>'system' ( c-addr u -- status )</mark>
+                            <h6>'system' ( c-addr u -- status )</h6>
 
                             Execute a command with the systems command interpreter.
                         </p>
                         <p>
-                            <mark>'raise' ( u -- ??? )</mark>
+                            <h6>'raise' ( u -- ??? )</h6>
 
                             Raises a signal, what happens after the signal is raised is undefined.
                         </p>
                         <p>
-                            <mark>'date' ( -- date )</mark>
+                            <h6>'date' ( -- date )</h6>
 
                             Push the date onto the stack, the order of the arguments are:<br/>
                         </p>
@@ -782,7 +780,7 @@
                         <p>The time is in UTC time.</p>
 
                         <p>
-                            <mark>'memory-copy' ( r-addr1 r-addr2 u -- )</mark>
+                            <h6>'memory-copy' ( r-addr1 r-addr2 u -- )</h6>
 
                             Operates on two raw addresses. Copy 'u' characters from r-addr2 to r-addr1.
                         </p>
