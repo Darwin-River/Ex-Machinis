@@ -304,37 +304,4 @@ unsigned char* embed_save_into_memory(embed_t *h, size_t *size)
 	return buffer;
 }
 
-cell_t embed_read_cell(embed_t *h, int address)
-{
-	// We only need to save the VM core, the rest is not required
-    if(!h || address < 0 || address >= EMBED_CORE_SIZE) {
-		engine_trace(TRACE_LEVEL_ALWAYS, 
-	        "ERROR: Unable to read cell [%d] from VM", 
-	        address);
-
-	    return -1;
-	}
-
-	cell_t* cells = (cell_t*)h->m;
-	return cells[address];
-}
-
-cell_t embed_memcpy(embed_t *h, unsigned char* target, int address, int len)
-{
-	// We only need to save the VM core, the rest is not required
-    if(!h || !target || address < 0 || address >= EMBED_CORE_SIZE || ((address+len) >= EMBED_CORE_SIZE)) {
-		engine_trace(TRACE_LEVEL_ALWAYS, 
-	        "ERROR: Unable to copy [%d] cells from VM, starting at address [%d]", 
-	        len,
-	        address);
-
-	    return -1;
-	}
-
-	cell_t* cells = (cell_t*)h->m;
-	memcpy(target, cells+address, len);
-
-	return 0;
-}
-
 #endif // USE_CUSTOM_EMBED
