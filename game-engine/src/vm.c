@@ -245,13 +245,14 @@ void vm_free(VirtualMachine_t* vm)
 
   @brief      Creates a new FORTH VM using input bytes
 
+  @param[in]  agent_id Current agent ID
   @param[in]  vm_bytes Bytes to be used to build a new VM
   @param[in]  size     Bytes number
 
   @return     New VM object created or NULL when failed
 
 *******************************************************************************/
-VirtualMachine_t* vm_from_bytes(char* vm_bytes, size_t size)
+VirtualMachine_t* vm_from_bytes(int agent_id, char* vm_bytes, size_t size)
 {
     VirtualMachine_t* vm = NULL;
     int error = 0;

@@ -286,6 +286,8 @@ extern const size_t embed_default_block_size;
 
 #ifdef USE_CUSTOM_EMBED
 unsigned char* embed_save_into_memory(embed_t *h, size_t *size);
+cell_t embed_read_cell(embed_t *h, int address);
+cell_t embed_memcpy(embed_t *h, unsigned char* target, int address, int len);
 #endif
 
 #ifdef __cplusplus

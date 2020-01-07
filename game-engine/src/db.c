@@ -649,8 +649,8 @@ ErrorCode_t db_get_agent_engine_info(DbConnection_t* connection, int agent_id, A
                         "VM found for agent [%d] with size [%ld] bytes", 
                         agent_id, vm_size);
 
-                    // Convert VM bytes into VM object
-                    agent->vm = vm_from_bytes(row[0], vm_size);
+                    // Convert VM bytes into VM object assigning the current agentId
+                    agent->vm = vm_from_bytes(agent_id, row[0], vm_size);
                 }
 
                 // Store also the objectID
@@ -2830,6 +2830,82 @@ ErrorCode_t db_get_query_info(Queries_t* queryInfo)
             }
 
             mysql_free_result(db_result);
+        }
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief      Runs a query against DB using info provided by VM.
+                Stores results into the VM using the address and size supplied
+
+    @param[in]  queryInfo Whole query info obtained from VM stack
+
+    @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t db_run_vm_query(Queries_t* queryInfo)
+{
+    DbConnection_t* connection =  engine_get_db_connection();
+    int rowsNum = 0;
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!queryInfo) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Running VM query [%s]", queryInfo->finalQuery);
+
+        // run the query 
+        if (mysql_query(connection->hndl, queryInfo->finalQuery)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", queryInfo->finalQuery);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            // retrieve the result and check that is an only row with a single field
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+
+            if(db_result == NULL)
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Invalid result for query [%s]",
+                    queryInfo->finalQuery);
+
+                result = ENGINE_DB_QUERY_ERROR;
+            } 
+            else if(!(rowsNum=mysql_num_rows(db_result))) {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: No entries found for query [%s]",
+                    queryInfo->finalQuery);
+
+                result = ENGINE_DB_QUERY_ERROR;
+            }
+            else 
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "[%d] entries found for query [%s]",
+                    rowsNum,
+                    queryInfo->finalQuery);
+
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row) 
+                {
+                    // Pick the fields we need
+                    result = ENGINE_OK;
+                }
+            }
+
+            if(db_result) mysql_free_result(db_result);
         }
     }
 

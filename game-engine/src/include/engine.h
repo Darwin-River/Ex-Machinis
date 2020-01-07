@@ -327,4 +327,17 @@ DbConnection_t* engine_get_db_connection();
 *******************************************************************************/
 int engine_get_current_drone_id();
 
+/** ****************************************************************************
+
+  @brief          Gets the position of a given object ID (body and distance from Earth)
+
+  @param[in]      object_id     Current object ID (drone object ID)
+  @param[out]     position      Output buffer where we store current position
+  @param[out]     distance      Output buffer where we store current distance from Earth
+
+  @return         Error code
+
+*******************************************************************************/
+ErrorCode_t engine_get_drone_position(int object_id, char* position, double* distance);
+
 #endif // __EM_ENGINE_MODULE__

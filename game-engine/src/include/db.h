@@ -742,4 +742,16 @@ ErrorCode_t db_update_agent_company(DbConnection_t* connection, int agent_id, ch
 *******************************************************************************/
 ErrorCode_t db_get_query_info(Queries_t* queryInfo);
 
+/** ****************************************************************************
+
+    @brief      Runs a query against DB using info provided by VM.
+                Stores results into the VM using the address and size supplied
+
+    @param[in]  queryInfo Whole query info obtained from VM stack
+
+    @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t db_run_vm_query(Queries_t* queryInfo);
+
 #endif // __EM_DB_MODULE__

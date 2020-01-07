@@ -63,6 +63,8 @@
 // Special query tags
 #define MAX_QUERY_TAG_LEN      32
 #define MAX_QUERY_TAGS_NUM     10
+// Query buffers
+#define MAX_QUERY_VALUE_BUF_LEN  16
 // values
 #define QUERY_TAG_VALUE_1      "[value_1]"
 #define QUERY_TAG_VALUE_2      "[value_2]"
@@ -75,7 +77,7 @@
 #define QUERY_TAG_STRING_4     "[string_4]"
 // Others
 #define QUERY_TAG_DRONE_ID     "[drone_id]"
-#define QUERY_TAG_TIME_DELAYE  "[time_delay]"
+#define QUERY_TAG_TIME_DELAY   "[time_delay]"
 // !!! modify MAX_QUERY_TAGS_NUM if more added
 
 
@@ -600,6 +602,7 @@ typedef struct
 	char script[MAX_QUERIES_SCRIPT_SIZE];
 	// dynamically allocated
 	int *parameterValues;
+	int nextParamId;
 	int resultsArrayAddr;
 	int resultsArraySize;
 	char *finalQuery;
