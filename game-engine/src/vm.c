@@ -606,3 +606,73 @@ ErrorCode_t vm_write_byte(VirtualMachine_t* vm, uint16_t addr, unsigned char val
 
     return result;
 }
+
+/** ****************************************************************************
+
+  @brief      Writes an string into VM memory address
+
+  @param[in]  vm     Current VM object
+  @param[in]  addr   Offset (in bytes) we write into
+  @param[in]  str    String to insert into VM memory
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_write_string(VirtualMachine_t* vm, uint16_t addr, char* str)
+{
+    ErrorCode_t result = ENGINE_OK;
+
+    if(vm)
+    {
+
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+  @brief      Writes an string into VM memory address
+
+  @param[in]  vm     Current VM object
+  @param[in]  addr   Offset (in bytes) we write into
+  @param[in]  value  Integer value to write
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_write_integer(VirtualMachine_t* vm, uint16_t addr, int value)
+{
+    ErrorCode_t result = ENGINE_OK;
+
+    if(vm)
+    {
+        
+    }
+
+    return result;
+}
+
+
+/** ****************************************************************************
+
+  @brief      Writes an string into VM memory address
+
+  @param[in]  vm       Current VM object
+  @param[in]  addr     Offset (in bytes) we write into
+  @param[in]  date_str Date string to insert into VM memory
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_write_datetime(VirtualMachine_t* vm, uint16_t addr, char* date_str)
+{
+    ErrorCode_t result = ENGINE_OK;
+
+    if(vm)
+    {
+        
+    }
+
+    return result;
+}

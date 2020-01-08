@@ -164,4 +164,43 @@ ErrorCode_t vm_read_byte(VirtualMachine_t* vm, uint16_t addr, unsigned char* out
 *******************************************************************************/
 ErrorCode_t vm_write_byte(VirtualMachine_t* vm, uint16_t addr, unsigned char value);
 
+/** ****************************************************************************
+
+  @brief      Writes an string into VM memory address
+
+  @param[in]  vm     Current VM object
+  @param[in]  addr   Offset (in bytes) we write into
+  @param[in]  str    String to insert into VM memory
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_write_string(VirtualMachine_t* vm, uint16_t addr, char* str);
+
+/** ****************************************************************************
+
+  @brief      Writes an string into VM memory address
+
+  @param[in]  vm     Current VM object
+  @param[in]  addr   Offset (in bytes) we write into
+  @param[in]  value  Integer value to write
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_write_integer(VirtualMachine_t* vm, uint16_t addr, int value);
+
+/** ****************************************************************************
+
+  @brief      Writes an string into VM memory address
+
+  @param[in]  vm       Current VM object
+  @param[in]  addr     Offset (in bytes) we write into
+  @param[in]  date_str Date string to insert into VM memory
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_write_datetime(VirtualMachine_t* vm, uint16_t addr, char* date_str);
+
 #endif // __EM_VM_MODULE__
