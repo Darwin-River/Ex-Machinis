@@ -300,8 +300,75 @@ unsigned char* embed_save_into_memory(embed_t *h, size_t *size)
 	return buffer;
 }
 
-unsigned char  embed_read_byte(embed_t const * const h, m_t addr)       { return ((unsigned char*)h->m)[addr]; }
-void embed_write_byte(embed_t * const h, m_t addr, unsigned char value) { ((unsigned char*)h->m)[addr] = value; }
+/*
+* Reads byte present at given VM memory address (input offset given in bytes)
+*/
+unsigned char  embed_read_byte(const embed_t *h, m_t addr) { 
+	if(!h) return 0;
+
+	const embed_mmu_read_t  mr = h->o.read;
+
+	// Convert bytes offset into 16 bits words offset
+	// Take into account even/odd position of the byte inside the word
+	int wordsOffset = addr/2;
+	int firstByte = 1; 
+	if(addr % 2) {
+		firstByte = 0;
+	}
+
+	unsigned char result = mr(h, wordsOffset)&255;
+	if(!firstByte) {
+		result = mr(h, wordsOffset)>>8;
+	}
+
+	engine_trace(TRACE_LEVEL_DEBUG, 
+	    "Reading byte at address [%d] bytes offset, [%d] words offset of the VM "
+	    "(firstByte: %d), value: [%02X]", 
+	    addr,
+	    wordsOffset,
+	    firstByte,
+	    result);
+
+	return result; 
+}
+
+void embed_write_byte(embed_t * const h, m_t addr, unsigned char value) { 
+	if(!h) return;
+
+	const embed_mmu_read_t  mr = h->o.read;
+	const embed_mmu_write_t mw = h->o.write;
+
+	// Convert bytes offset into 16 bits words offset
+	// Take into account even/odd position of the byte inside the word
+	int wordsOffset = addr/2;
+	int firstByte = 1; 
+	if(addr % 2) {
+		firstByte = 0;
+	}
+
+	// Read whole cell value
+	cell_t currentValue = mr(h, wordsOffset);
+	cell_t newValue = currentValue;
+
+	if(!firstByte) {
+		newValue &= 0xFF;        // clean second byte (litle endian)
+		newValue |= (value<<8);  // add value at second byte (litle endian)
+	} else {
+		newValue &= 0xFF00; // clean first byte (litle endian) and update value there
+		newValue |= value;
+	}
+
+	engine_trace(TRACE_LEVEL_DEBUG, 
+	    "Updated byte at address [%d] bytes offset, [%d] words offset of the VM "
+	    "(firstByte: %d), value changed: [%04X] -> [%04X]", 
+	    addr,
+	    wordsOffset,
+	    firstByte,
+	    currentValue,
+	    newValue);
+
+	mw(h, addr, newValue); 
+}
 
 
 #endif // USE_CUSTOM_EMBED
