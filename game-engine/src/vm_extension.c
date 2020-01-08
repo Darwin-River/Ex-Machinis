@@ -211,12 +211,16 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryIn
 
             // Pick the string from the VM address obtained
             VirtualMachine_t* vm = v->h;
-            cell_t len = embed_mmu_read_cb(vm, value);
+            unsigned char len = embed_read_byte(vm, value);
             result = (char*) engine_malloc(len+1);
             //embed_memcpy(vm, (unsigned char*)result, value+1, len);
             result[len] = 0;
 
             engine_trace(TRACE_LEVEL_ALWAYS, "VM string read [%s] len [%d]", result, len);
+
+            for(int i=0; i < 200; i++) {
+                engine_trace(TRACE_LEVEL_ALWAYS, "Addr [%hu] value [%02X]", value+i, embed_read_byte(vm, value+i));
+            }
 
         } else {
             engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unexpected/unsupported tag: %s", tag); 

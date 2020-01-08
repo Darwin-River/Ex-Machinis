@@ -334,6 +334,8 @@ VirtualMachine_t* vm_from_bytes(int agent_id, char* vm_bytes, size_t size)
                     "VM created from [%ld] bytes of memory for agent",
                     size);
 
+                embed_save(vm, "vm.dump");
+
             } else {
                 engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to create VM from [%ld] bytes of memory for agent",

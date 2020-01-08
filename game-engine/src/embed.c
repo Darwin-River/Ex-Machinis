@@ -14,10 +14,6 @@
 #define SHADOW    (7)     /**< start location of shadow registers */
 #define MIN(X, Y) ((X) > (Y) ? (Y) : (X))
 
-typedef cell_t        m_t; /**< The VM is 16-bit, 'uintptr_t' would be more useful */
-typedef signed_cell_t s_t; /**< used for signed calculation and casting */
-typedef double_cell_t d_t; /**< should be double the size of 'm_t' and unsigned */
-
 /* NB. MMU operations could be improved by allowing exceptions to be thrown */
 m_t  embed_mmu_read_cb(embed_t const * const h, m_t addr)       { return ((m_t*)h->m)[addr]; }
 void embed_mmu_write_cb(embed_t * const h, m_t addr, m_t value) { ((m_t*)h->m)[addr] = value; }
@@ -303,5 +299,9 @@ unsigned char* embed_save_into_memory(embed_t *h, size_t *size)
 
 	return buffer;
 }
+
+unsigned char  embed_read_byte(embed_t const * const h, m_t addr)       { return ((unsigned char*)h->m)[addr]; }
+void embed_write_byte(embed_t * const h, m_t addr, unsigned char value) { ((unsigned char*)h->m)[addr] = value; }
+
 
 #endif // USE_CUSTOM_EMBED
