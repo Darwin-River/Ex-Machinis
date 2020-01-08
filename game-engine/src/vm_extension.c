@@ -210,17 +210,17 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryIn
             engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s stack value address [%d]", tag, value);
 
             // Pick the string from the VM address obtained
-            VirtualMachine_t* vm = v->h;
-            unsigned char len = embed_read_byte(vm, value);
+            // address is given in bytes offset at VM memory
+            unsigned char len;
+            vm_read_byte((VirtualMachine_t*)v->h, value, &len);
+
             result = (char*) engine_malloc(len+1);
-            //embed_memcpy(vm, (unsigned char*)result, value+1, len);
+            for(int i=0; i < len; i++) {
+                vm_read_byte((VirtualMachine_t*)v->h, value+1+i, (unsigned char*)&result[i]);
+            }
             result[len] = 0;
 
             engine_trace(TRACE_LEVEL_ALWAYS, "VM string read [%s] len [%d]", result, len);
-
-            for(int i=0; i < 200; i++) {
-                engine_trace(TRACE_LEVEL_ALWAYS, "Addr [%hu] value [%02X]", value+i, embed_read_byte(vm, value+i));
-            }
 
         } else {
             engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unexpected/unsupported tag: %s", tag); 
@@ -294,7 +294,9 @@ ErrorCode_t vm_replace_tag(VmExtension_t* v, Queries_t* queryInfo, const char *t
     } 
     result[i] = '\0'; 
 
-    engine_trace(TRACE_LEVEL_ALWAYS, "Replacing tag [%s] at query script [%s], result [%s]", tag, queryInfo->finalQuery, result); 
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+      "Replacing tag [%s] at query script [%s], result [%s]", 
+      tag, queryInfo->finalQuery, result); 
   
     // update the string after replacement
     engine_free((void*)queryInfo->finalQuery, strlen(queryInfo->finalQuery)+1);
