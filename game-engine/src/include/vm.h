@@ -138,4 +138,30 @@ void vm_abort(VirtualMachine_t* vm);
 *******************************************************************************/
 void vm_reset(VirtualMachine_t* vm);
 
+/** ****************************************************************************
+
+  @brief      Reads byte from VM memory at given address (offset given in bytes)
+
+  @param[in]      vm        Current VM object
+  @param[in]      addr      Offset (in bytes) we read from
+  @param[in|out]  outValue  Output byte where we store the value obtained
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_read_byte(VirtualMachine_t* vm, uint16_t addr, unsigned char* outValue);
+
+/** ****************************************************************************
+
+  @brief      Writes byte into VM memory at given address (offset given in bytes)
+
+  @param[in]  vm     Current VM object
+  @param[in]  addr   Offset (in bytes) we write into
+  @param[in]  value  Byte value to write into VM memory
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_write_byte(VirtualMachine_t* vm, uint16_t addr, unsigned char value);
+
 #endif // __EM_VM_MODULE__

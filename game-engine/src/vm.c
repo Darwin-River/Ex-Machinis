@@ -334,7 +334,7 @@ VirtualMachine_t* vm_from_bytes(int agent_id, char* vm_bytes, size_t size)
                     "VM created from [%ld] bytes of memory for agent",
                     size);
 
-                embed_save(vm, "vm.dump");
+                //embed_save(vm, "vm.dump"); // debugging purposes only
 
             } else {
                 engine_trace(TRACE_LEVEL_ALWAYS,
@@ -555,4 +555,54 @@ void vm_reset(VirtualMachine_t* vm)
         // reset VM stuff
         embed_reset((forth_t*)vm); 
     }
+}
+
+
+/** ****************************************************************************
+
+  @brief      Reads byte from VM memory at given address (offset given in bytes)
+
+  @param[in]      vm        Current VM object
+  @param[in]      addr      Offset (in bytes) we read from
+  @param[in|out]  outValue  Output byte where we store the value obtained
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_read_byte(VirtualMachine_t* vm, uint16_t addr, unsigned char* outValue)
+{
+    ErrorCode_t result = ENGINE_INTERNAL_ERROR;
+
+    if(vm && outValue)
+    {
+        *outValue = embed_read_byte(vm, addr); 
+        result = ENGINE_OK;
+    }
+
+    return result;
+}
+
+
+/** ****************************************************************************
+
+  @brief      Writes byte into VM memory at given address (offset given in bytes)
+
+  @param[in]  vm     Current VM object
+  @param[in]  addr   Offset (in bytes) we write into
+  @param[in]  value  Byte value to write into VM memory
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_write_byte(VirtualMachine_t* vm, uint16_t addr, unsigned char value)
+{
+    ErrorCode_t result = ENGINE_INTERNAL_ERROR;
+
+    if(vm)
+    {
+        embed_write_byte(vm, addr, value); 
+        result = ENGINE_OK;
+    }
+
+    return result;
 }
