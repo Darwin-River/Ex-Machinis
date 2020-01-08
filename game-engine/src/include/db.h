@@ -748,10 +748,11 @@ ErrorCode_t db_get_query_info(Queries_t* queryInfo);
                 Stores results into the VM using the address and size supplied
 
     @param[in]  queryInfo Whole query info obtained from VM stack
+    @param[in]  vm        Current VM
 
     @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t db_run_vm_query(Queries_t* queryInfo);
+ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm);
 
 #endif // __EM_DB_MODULE__
