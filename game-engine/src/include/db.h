@@ -45,6 +45,18 @@ typedef enum
 
 /** ***************************************************************************
 
+  @brief      Converts a given date string into timestamp value
+
+  @param[in]  date    Input date string
+  @param[in]  format  Desired format string
+
+  @return     void
+
+******************************************************************************/
+time_t db_date_to_timestamp(char* date, char* format);
+
+/** ***************************************************************************
+
   @brief          Creates a DB connection using credentials supplied
 
   @param[in|out]  Connection info, updated once connected
@@ -748,10 +760,11 @@ ErrorCode_t db_get_query_info(Queries_t* queryInfo);
                 Stores results into the VM using the address and size supplied
 
     @param[in]  queryInfo Whole query info obtained from VM stack
+    @param[in]  vm        Current VM
 
     @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t db_run_vm_query(Queries_t* queryInfo);
+ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm);
 
 #endif // __EM_DB_MODULE__

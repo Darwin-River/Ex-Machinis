@@ -14,10 +14,6 @@
 #define SHADOW    (7)     /**< start location of shadow registers */
 #define MIN(X, Y) ((X) > (Y) ? (Y) : (X))
 
-typedef cell_t        m_t; /**< The VM is 16-bit, 'uintptr_t' would be more useful */
-typedef signed_cell_t s_t; /**< used for signed calculation and casting */
-typedef double_cell_t d_t; /**< should be double the size of 'm_t' and unsigned */
-
 /* NB. MMU operations could be improved by allowing exceptions to be thrown */
 m_t  embed_mmu_read_cb(embed_t const * const h, m_t addr)       { return ((m_t*)h->m)[addr]; }
 void embed_mmu_write_cb(embed_t * const h, m_t addr, m_t value) { ((m_t*)h->m)[addr] = value; }
@@ -304,37 +300,75 @@ unsigned char* embed_save_into_memory(embed_t *h, size_t *size)
 	return buffer;
 }
 
-cell_t embed_read_cell(embed_t *h, int address)
-{
-	// We only need to save the VM core, the rest is not required
-    if(!h || address < 0 || address >= EMBED_CORE_SIZE) {
-		engine_trace(TRACE_LEVEL_ALWAYS, 
-	        "ERROR: Unable to read cell [%d] from VM", 
-	        address);
+/*
+* Reads byte present at given VM memory address (input offset given in bytes)
+*/
+unsigned char  embed_read_byte(const embed_t *h, m_t addr) { 
+	if(!h) return 0;
 
-	    return -1;
+	const embed_mmu_read_t  mr = h->o.read;
+
+	// Convert bytes offset into 16 bits words offset
+	// Take into account even/odd position of the byte inside the word
+	int wordsOffset = addr/2;
+	int firstByte = 1; 
+	if(addr % 2) {
+		firstByte = 0;
 	}
 
-	cell_t* cells = (cell_t*)h->m;
-	return cells[address];
-}
-
-cell_t embed_memcpy(embed_t *h, unsigned char* target, int address, int len)
-{
-	// We only need to save the VM core, the rest is not required
-    if(!h || !target || address < 0 || address >= EMBED_CORE_SIZE || ((address+len) >= EMBED_CORE_SIZE)) {
-		engine_trace(TRACE_LEVEL_ALWAYS, 
-	        "ERROR: Unable to copy [%d] cells from VM, starting at address [%d]", 
-	        len,
-	        address);
-
-	    return -1;
+	unsigned char result = mr(h, wordsOffset)&255;
+	if(!firstByte) {
+		result = mr(h, wordsOffset)>>8;
 	}
 
-	cell_t* cells = (cell_t*)h->m;
-	memcpy(target, cells+address, len);
+	engine_trace(TRACE_LEVEL_DEBUG, 
+	    "Reading byte at address [%d] bytes offset, [%d] words offset of the VM "
+	    "(firstByte: %d), value: [%02X]", 
+	    addr,
+	    wordsOffset,
+	    firstByte,
+	    result);
 
-	return 0;
+	return result; 
 }
+
+void embed_write_byte(embed_t* h, m_t addr, unsigned char value) { 
+	if(!h) return;
+
+	const embed_mmu_read_t  mr = h->o.read;
+	const embed_mmu_write_t mw = h->o.write;
+
+	// Convert bytes offset into 16 bits words offset
+	// Take into account even/odd position of the byte inside the word
+	int wordsOffset = addr/2;
+	int firstByte = 1; 
+	if(addr % 2) {
+		firstByte = 0;
+	}
+
+	// Read whole cell value
+	cell_t currentValue = mr(h, wordsOffset);
+	cell_t newValue = currentValue;
+
+	if(!firstByte) {
+		newValue &= 0xFF;        // clean second byte (litle endian)
+		newValue |= (value<<8);  // add value at second byte (litle endian)
+	} else {
+		newValue &= 0xFF00; // clean first byte (litle endian) and update value there
+		newValue |= value;
+	}
+
+	engine_trace(TRACE_LEVEL_DEBUG, 
+	    "Updated byte at address [%d] bytes offset, [%d] words offset of the VM "
+	    "(firstByte: %d), value changed: [%04X] -> [%04X]", 
+	    addr,
+	    wordsOffset,
+	    firstByte,
+	    currentValue,
+	    newValue);
+
+	mw(h, wordsOffset, newValue); 
+}
+
 
 #endif // USE_CUSTOM_EMBED

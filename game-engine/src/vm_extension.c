@@ -134,7 +134,7 @@ static inline void  dpush(VmExtension_t * const v, const sdc_t value) { udpush(v
 char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryInfo) 
 { 
     char *result = NULL;
-    int value = -1;
+    cell_t value = -1;
 
     // input pointers checked by calling function 
 
@@ -148,7 +148,7 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryIn
 
     if (!strcmp(tag, QUERY_TAG_DRONE_ID)) {
         // Get drone Id
-        value = engine_get_current_drone_id();
+        value = (cell_t)engine_get_current_drone_id();
         engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s, drone ID [%d]", tag, value);
 
         // allocate an int value
@@ -174,9 +174,24 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryIn
         result = (char*) engine_malloc(MAX_QUERY_VALUE_BUF_LEN);
         sprintf(result, "%f", distance);
 
-    } else if (queryInfo->parametersNum > queryInfo->nextParamId) {
+    } else {
+        // value_x or string_x -> Get the digit value [xxxxxx_d]  -> d is at (len-2)
+        int paramId = tag[strlen(tag)-2] - '0' - 1;
+
+        engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s parameter ID [%d] obtained from [%c]", 
+            tag, paramId, tag[strlen(tag)-2]);
+
+        if(paramId < 0 || paramId >= queryInfo->parametersNum) {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Invalid parameter ID [%d] obtained from tag: %s "
+                "(%d parameters available)", 
+                paramId, tag, queryInfo->parametersNum);
+
+            return NULL;
+        }
+
         // Get value from stack parameters
-        value = queryInfo->parameterValues[queryInfo->nextParamId++];
+        value = (cell_t)queryInfo->parameterValues[paramId];
 
         if(!strcmp(tag, QUERY_TAG_VALUE_1) || !strcmp(tag, QUERY_TAG_VALUE_2) || 
            !strcmp(tag, QUERY_TAG_VALUE_3) || !strcmp(tag, QUERY_TAG_VALUE_4))    {
@@ -195,10 +210,14 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryIn
             engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s stack value address [%d]", tag, value);
 
             // Pick the string from the VM address obtained
-            VirtualMachine_t* vm = v->h;
-            cell_t len = embed_read_cell(vm, value);
+            // address is given in bytes offset at VM memory
+            unsigned char len;
+            vm_read_byte((VirtualMachine_t*)v->h, value, &len);
+
             result = (char*) engine_malloc(len+1);
-            embed_memcpy(vm, (unsigned char*)result, value+1, len);
+            for(int i=0; i < len; i++) {
+                vm_read_byte((VirtualMachine_t*)v->h, value+1+i, (unsigned char*)&result[i]);
+            }
             result[len] = 0;
 
             engine_trace(TRACE_LEVEL_ALWAYS, "VM string read [%s] len [%d]", result, len);
@@ -207,13 +226,6 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryIn
             engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unexpected/unsupported tag: %s", tag); 
             return NULL;
         } 
-    } else {
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-            "ERROR: Tag %s could not be replaced, not enough parameters [%d]", 
-            tag,
-            queryInfo->parametersNum); 
-
-        return NULL;
     }
 
     return result;
@@ -282,7 +294,9 @@ ErrorCode_t vm_replace_tag(VmExtension_t* v, Queries_t* queryInfo, const char *t
     } 
     result[i] = '\0'; 
 
-    engine_trace(TRACE_LEVEL_ALWAYS, "Replacing tag [%s] at query script [%s], result [%s]", tag, queryInfo->finalQuery, result); 
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+      "Replacing tag [%s] at query script [%s], result [%s]", 
+      tag, queryInfo->finalQuery, result); 
   
     // update the string after replacement
     engine_free((void*)queryInfo->finalQuery, strlen(queryInfo->finalQuery)+1);
@@ -416,7 +430,7 @@ static void vm_ext_process_query
     engine_trace(TRACE_LEVEL_ALWAYS, "Query script after tags replacement [%s]", queryInfo->finalQuery);
 
     // Execute query at DB and fill the output array parameters with information retrieved
-    if(db_run_vm_query(queryInfo) != ENGINE_OK) {
+    if(db_run_vm_query(queryInfo, v->h) != ENGINE_OK) {
         sprintf(queryOutMsg, 
                 "Query failed or could not retrive results [%s]", 
                 queryInfo->finalQuery);

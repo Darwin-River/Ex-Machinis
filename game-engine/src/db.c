@@ -140,11 +140,15 @@ void db_scape_string(
    engine_trace(TRACE_LEVEL_DEBUG, "Value [%s] scaped now is [%s]", value, out);
 }
 
+
+/******************************* PUBLIC FUNCTIONS ****************************/
+
 /** ***************************************************************************
 
   @brief      Converts a given date string into timestamp value
 
   @param[in]  date    Input date string
+  @param[in]  format  Desired format string
 
   @return     void
 
@@ -182,9 +186,6 @@ time_t db_date_to_timestamp(char* date, char* format)
 
     return epoch;
 }
-
-
-/******************************* PUBLIC FUNCTIONS ****************************/
 
 /** ***************************************************************************
 
@@ -2842,14 +2843,16 @@ ErrorCode_t db_get_query_info(Queries_t* queryInfo)
                 Stores results into the VM using the address and size supplied
 
     @param[in]  queryInfo Whole query info obtained from VM stack
+    @param[in]  vm        Current VM
 
     @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t db_run_vm_query(Queries_t* queryInfo)
+ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
 {
     DbConnection_t* connection =  engine_get_db_connection();
     int rowsNum = 0;
+    uint16_t value = 0;
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -2857,7 +2860,7 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo)
     // sanity check
     if(result == ENGINE_OK)
     {
-        if(!queryInfo) return ENGINE_INTERNAL_ERROR;
+        if(!queryInfo || !vm) return ENGINE_INTERNAL_ERROR;
     }
 
     if(result == ENGINE_OK)
@@ -2892,17 +2895,52 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo)
             }
             else 
             {
-                engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "[%d] entries found for query [%s]",
-                    rowsNum,
-                    queryInfo->finalQuery);
+                int fieldsNum = mysql_num_fields(db_result);
+                int* fieldTypes = (int*) engine_malloc(fieldsNum * sizeof(int));
 
-                MYSQL_ROW row = mysql_fetch_row(db_result);
-                if(row) 
-                {
-                    // Pick the fields we need
-                    result = ENGINE_OK;
+                for(int fieldId=0; fieldId < fieldsNum; fieldId++) { 
+                    // check the field type and serialize it into VM memory         
+                    MYSQL_FIELD *field = mysql_fetch_field(db_result);
+                    fieldTypes[fieldId] = (int) field->type;
+
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "Query [%s] field[%d] type [%d]",
+                        queryInfo->finalQuery, fieldId, fieldTypes[fieldId]);
                 }
+
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "[%d] entries found for query [%s] ([%d] fields per row)",
+                    rowsNum,
+                    queryInfo->finalQuery,
+                    fieldsNum);
+
+                for(int rowId=0; rowId < rowsNum; rowId++) {
+                    MYSQL_ROW row = mysql_fetch_row(db_result);
+
+                    for(int fieldId=0; fieldId < fieldsNum; fieldId++) { 
+                        // check the field type and serialize it into VM memory         
+                        if(row) 
+                        {
+                            switch(fieldTypes[fieldId]) {
+                                case MYSQL_TYPE_STRING:
+                                    result = vm_write_string(vm, queryInfo->resultsArrayAddr, row[fieldId]);
+                                    break;
+                                case MYSQL_TYPE_DECIMAL:
+                                case MYSQL_TYPE_LONG:
+                                    value = atoi(row[fieldId]);
+                                    result = vm_write_integer(vm, queryInfo->resultsArrayAddr, value);
+                                    break;
+                                case MYSQL_TYPE_DATETIME:
+                                    result = vm_write_datetime(vm, queryInfo->resultsArrayAddr, row[fieldId]);
+                                    break;
+                                default:
+                                    break;
+                            }                     
+                        }
+                    }
+                }
+
+                engine_free(fieldTypes, fieldsNum * sizeof(int));
             }
 
             if(db_result) mysql_free_result(db_result);

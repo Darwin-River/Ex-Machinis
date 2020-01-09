@@ -81,6 +81,9 @@
 // !!! modify MAX_QUERY_TAGS_NUM if more added
 
 
+#define JANUARY_1_2000_DATE    "2000-01-01 00:00:00"
+
+
 /******************************* TYPES ***************************************/
 
 //-----------------------------------------------------------------------------
@@ -602,7 +605,6 @@ typedef struct
 	char script[MAX_QUERIES_SCRIPT_SIZE];
 	// dynamically allocated
 	int *parameterValues;
-	int nextParamId;
 	int resultsArrayAddr;
 	int resultsArraySize;
 	char *finalQuery;

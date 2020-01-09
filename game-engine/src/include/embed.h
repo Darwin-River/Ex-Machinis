@@ -22,6 +22,10 @@ typedef  int16_t signed_cell_t;        /**< Virtual Machine Signed Cell */
 typedef uint32_t double_cell_t;        /**< Virtual Machine Double Cell (2*sizeof(cell_t)) */
 typedef  int32_t signed_double_cell_t; /**< Virtual Machine Signed Double Cell */
 
+typedef cell_t        m_t; /**< The VM is 16-bit, 'uintptr_t' would be more useful */
+typedef signed_cell_t s_t; /**< used for signed calculation and casting */
+typedef double_cell_t d_t; /**< should be double the size of 'm_t' and unsigned */
+
 struct embed_t;                 /**< Forth Virtual Machine State */
 typedef struct embed_t embed_t; /**< Forth Virtual Machine State Type Define */
 
@@ -286,8 +290,8 @@ extern const size_t embed_default_block_size;
 
 #ifdef USE_CUSTOM_EMBED
 unsigned char* embed_save_into_memory(embed_t *h, size_t *size);
-cell_t embed_read_cell(embed_t *h, int address);
-cell_t embed_memcpy(embed_t *h, unsigned char* target, int address, int len);
+unsigned char  embed_read_byte(const embed_t* h, m_t addr);
+void embed_write_byte(embed_t* h, m_t addr, unsigned char value);
 #endif
 
 #ifdef __cplusplus

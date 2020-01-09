@@ -55,6 +55,10 @@ enum
     // FORTH image configuration
     FORTH_IMAGE_PATH_ID,
 
+    // FORTH vm dump flag & output directory
+    FORTH_DUMP_VM,
+    FORTH_VM_OUT_PATH,
+
     // Max configured parameters
     MAX_CONFIG_PARAM
 };
@@ -339,5 +343,27 @@ int engine_get_current_drone_id();
 
 *******************************************************************************/
 ErrorCode_t engine_get_drone_position(int object_id, char* position, double* distance);
+
+/** ****************************************************************************
+
+  @brief      Gets the flag (0/1) that controls VM dump into disk
+
+  @param[in]  None
+  
+  @return     Flag value configured
+
+*******************************************************************************/
+const int engine_get_dump_vm_flag();
+
+/** ****************************************************************************
+
+  @brief      Gets the configured path to dump VM into memory
+
+  @param[in]  None
+  
+  @return     Path value configured
+
+*******************************************************************************/
+const char* engine_get_dump_vm_path();
 
 #endif // __EM_ENGINE_MODULE__
