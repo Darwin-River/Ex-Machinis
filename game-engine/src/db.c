@@ -2851,6 +2851,7 @@ ErrorCode_t db_get_query_info(Queries_t* queryInfo)
 ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
 {
     DbConnection_t* connection =  engine_get_db_connection();
+    Bool_t stop = ENGINE_FALSE;
     int rowsNum = 0;
     uint16_t value = 0;
 
@@ -2915,6 +2916,7 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
                     fieldsNum);
 
                 int currentAddr = queryInfo->resultsArrayAddr;
+                int remainingOffset = queryInfo->resultsArraySize;
 
                 for(int rowId=0; rowId < rowsNum; rowId++) {
                     MYSQL_ROW row = mysql_fetch_row(db_result);
@@ -2926,24 +2928,61 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
                         {
                             switch(fieldTypes[fieldId]) {
                                 case MYSQL_TYPE_STRING:
+                                case MYSQL_TYPE_VAR_STRING:
+                                {
+                                    size_t len = strlen(row[fieldId]);
+                                    if(remainingOffset < len) {
+                                        engine_trace(TRACE_LEVEL_ALWAYS, 
+                                            "No more room left to store string with [%d] bytes (only [%d] bytes left)",
+                                            len,
+                                            remainingOffset);
+
+                                        stop = ENGINE_TRUE;
+                                        break; // stop for
+                                    }
                                     result = vm_write_string(vm, currentAddr, row[fieldId]);
-                                    currentAddr += strlen(row[fieldId]); // we store N bytes
+                                    currentAddr += len; // we store N bytes
+                                    remainingOffset -= len;
                                     break;
+                                }
                                 case MYSQL_TYPE_DECIMAL:
                                 case MYSQL_TYPE_LONG:
+                                    if(remainingOffset < 2) {
+                                        engine_trace(TRACE_LEVEL_ALWAYS, 
+                                            "No more room left to store integer as 2 bytes (only [%d] bytes left)",
+                                            remainingOffset);
+
+                                        stop = ENGINE_TRUE;
+                                        break; // stop for
+                                    }
                                     value = atoi(row[fieldId]);
                                     result = vm_write_integer(vm, currentAddr, value);
                                     currentAddr += 2; // we store 2 bytes
+                                    remainingOffset -= 2;
                                     break;
                                 case MYSQL_TYPE_DATETIME:
+                                    if(remainingOffset < 4) {
+                                        engine_trace(TRACE_LEVEL_ALWAYS, 
+                                            "No more room left to store date as 4 bytes (only [%d] bytes left)",
+                                            remainingOffset);
+
+                                        stop = ENGINE_TRUE;
+                                        break; // stop for
+                                    }
                                     result = vm_write_datetime(vm, currentAddr, row[fieldId]);
                                     currentAddr += 4; // we store 4 bytes
+                                    remainingOffset -= 4;
                                     break;
                                 default:
+                                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                                            "WARNING: Unexpected field type [%d], ignored/not serialized into VM memory",
+                                            fieldTypes[fieldId]);
                                     break;
                             }                     
                         }
                     }
+
+                    if(stop == ENGINE_TRUE) break; // Stop storing more results, no space left
                 }
 
                 engine_free(fieldTypes, fieldsNum * sizeof(int));
