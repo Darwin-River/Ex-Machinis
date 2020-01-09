@@ -33,13 +33,26 @@ $table-border-color: $gray-400-invariable;
 	}
 
 	th {
-		padding: $table-head-padding;
+		padding: 16px 10px;
 		font-weight: normal;
+
+		@include media-breakpoint-up(sm) {
+			padding: $table-head-padding;
+		}
 	}
 
+
+
+
+
 	td {
-		padding: $table-cell-padding;
+		padding: 16px 10px;
+		@include media-breakpoint-up(sm) {
+			padding: $table-cell-padding;
+		}
 	}
+
+
 
 	th, td {
 		border-bottom: 1px solid $table-border-color;
