@@ -158,7 +158,11 @@ CREATE TABLE `objects` (
   `z_coord` double DEFAULT NULL,
   PRIMARY KEY (`object_id`),
   UNIQUE KEY `object_id_UNIQUE` (`object_id`),
-  UNIQUE KEY `object_name_UNIQUE` (`object_name`)
+  UNIQUE KEY `object_name_UNIQUE` (`object_name`),
+  KEY `object_name_INDEX` (`object_name`),
+  KEY `object_type_INDEX` (`object_type`),
+  KEY `object_central_body_object_id_INDEX` (`central_body_object_id`),
+  CONSTRAINT `central_body_object_id_objects_id_FOREIGN_KEY` FOREIGN KEY (`central_body_object_id`) REFERENCES `objects` (`object_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -290,7 +294,7 @@ CREATE TABLE `queries` (
 
 LOCK TABLES `queries` WRITE;
 /*!40000 ALTER TABLE `queries` DISABLE KEYS */;
-INSERT INTO `queries` VALUES (1,'Recent Events','Gets the recent events for a given drone',1,'SELECT events.id, events.timestamp FROM observations INNER JOIN events ON observations.event = events.id WHERE observations.drone = [drone_id] AND observations.time BETWEEN (CURRENT_TIMESTAMP - INTERVAL [value_1] MINUTE) AND CURRENT_TIMESTAMP ORDER BY events.timestamp DESC;\n'),(2,'Get object ID','Gets ID for a given game object',1,'SELECT object_id FROM objects WHERE object_name=\'[string_1]\';');
+INSERT INTO `queries` VALUES (1,'Recent Events','Gets the recent events for a given drone',1,'SELECT events.id, events.timestamp FROM observations INNER JOIN events ON observations.event = events.id WHERE observations.drone = [drone_id] AND observations.time BETWEEN (CURRENT_TIMESTAMP - INTERVAL [value_1] MINUTE) AND CURRENT_TIMESTAMP ORDER BY events.timestamp DESC;\n'),(2,'Get object ID','Gets ID for a given game object',1,'SELECT object_id FROM objects WHERE object_name=\'[string_1]\';'),(3,'Get object type','Gets the type for a given object name',1,'SELECT object_name FROM objects WHERE object_name=\'[string_1]\';');
 /*!40000 ALTER TABLE `queries` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -303,4 +307,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2020-01-09 14:40:34
+-- Dump completed on 2020-01-09 15:11:10
