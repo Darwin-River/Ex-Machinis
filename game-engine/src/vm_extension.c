@@ -457,6 +457,7 @@ static int vm_ext_query_cb(VmExtension_t * const v)
     Bool_t success = ENGINE_TRUE;
 
     memset(&queryInfo, 0, sizeof(Queries_t));
+    memset(queryOutMsg, 0, LINE_MAX);
 
     engine_trace(TRACE_LEVEL_ALWAYS, "Running query callback"); 
 
@@ -536,13 +537,6 @@ static int vm_ext_query_cb(VmExtension_t * const v)
         }
 
         if(success == ENGINE_TRUE) {
-           sprintf(queryOutMsg, 
-                    "Query ID [%d] with [%d] parameters succesfully processed, results at [%d], size [%d]",
-                    queryInfo.id,
-                    queryInfo.parametersNum,
-                    queryInfo.resultsArrayAddr,
-                    queryInfo.resultsArraySize);
-
             engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
 
             // Process the query itself
