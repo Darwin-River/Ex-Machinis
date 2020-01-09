@@ -1,0 +1,16 @@
+<run>
+variable results_query2
+
+results_query2 200 allot
+
+100000 200 results_query2 1 query
+
+results_query2 @ .
+
+results_query2 2 + @ .
+
+results_query2 4 + @ .
+
+results_query2 6 + @ .
+
+</run> 
