@@ -2914,8 +2914,11 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
                     queryInfo->finalQuery,
                     fieldsNum);
 
+                int currentAddr = queryInfo->resultsArrayAddr;
+
                 for(int rowId=0; rowId < rowsNum; rowId++) {
                     MYSQL_ROW row = mysql_fetch_row(db_result);
+                    
 
                     for(int fieldId=0; fieldId < fieldsNum; fieldId++) { 
                         // check the field type and serialize it into VM memory         
@@ -2923,15 +2926,18 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
                         {
                             switch(fieldTypes[fieldId]) {
                                 case MYSQL_TYPE_STRING:
-                                    result = vm_write_string(vm, queryInfo->resultsArrayAddr, row[fieldId]);
+                                    result = vm_write_string(vm, currentAddr, row[fieldId]);
+                                    currentAddr += strlen(row[fieldId]); // we store N bytes
                                     break;
                                 case MYSQL_TYPE_DECIMAL:
                                 case MYSQL_TYPE_LONG:
                                     value = atoi(row[fieldId]);
-                                    result = vm_write_integer(vm, queryInfo->resultsArrayAddr, value);
+                                    result = vm_write_integer(vm, currentAddr, value);
+                                    currentAddr += 2; // we store 2 bytes
                                     break;
                                 case MYSQL_TYPE_DATETIME:
-                                    result = vm_write_datetime(vm, queryInfo->resultsArrayAddr, row[fieldId]);
+                                    result = vm_write_datetime(vm, currentAddr, row[fieldId]);
+                                    currentAddr += 4; // we store 4 bytes
                                     break;
                                 default:
                                     break;
