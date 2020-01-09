@@ -332,7 +332,7 @@ unsigned char  embed_read_byte(const embed_t *h, m_t addr) {
 	return result; 
 }
 
-void embed_write_byte(embed_t * const h, m_t addr, unsigned char value) { 
+void embed_write_byte(embed_t* h, m_t addr, unsigned char value) { 
 	if(!h) return;
 
 	const embed_mmu_read_t  mr = h->o.read;
@@ -367,7 +367,7 @@ void embed_write_byte(embed_t * const h, m_t addr, unsigned char value) {
 	    currentValue,
 	    newValue);
 
-	mw(h, addr, newValue); 
+	mw(h, wordsOffset, newValue); 
 }
 
 

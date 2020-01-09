@@ -291,7 +291,7 @@ extern const size_t embed_default_block_size;
 #ifdef USE_CUSTOM_EMBED
 unsigned char* embed_save_into_memory(embed_t *h, size_t *size);
 unsigned char  embed_read_byte(const embed_t* h, m_t addr);
-void embed_write_byte(embed_t * const h, m_t addr, unsigned char value);
+void embed_write_byte(embed_t* h, m_t addr, unsigned char value);
 #endif
 
 #ifdef __cplusplus
