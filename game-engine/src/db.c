@@ -140,11 +140,15 @@ void db_scape_string(
    engine_trace(TRACE_LEVEL_DEBUG, "Value [%s] scaped now is [%s]", value, out);
 }
 
+
+/******************************* PUBLIC FUNCTIONS ****************************/
+
 /** ***************************************************************************
 
   @brief      Converts a given date string into timestamp value
 
   @param[in]  date    Input date string
+  @param[in]  format  Desired format string
 
   @return     void
 
@@ -182,9 +186,6 @@ time_t db_date_to_timestamp(char* date, char* format)
 
     return epoch;
 }
-
-
-/******************************* PUBLIC FUNCTIONS ****************************/
 
 /** ***************************************************************************
 
@@ -2851,6 +2852,7 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
 {
     DbConnection_t* connection =  engine_get_db_connection();
     int rowsNum = 0;
+    uint16_t value = 0;
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -2925,7 +2927,8 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
                                     break;
                                 case MYSQL_TYPE_DECIMAL:
                                 case MYSQL_TYPE_LONG:
-                                    result = vm_write_integer(vm, queryInfo->resultsArrayAddr, atoi(row[fieldId]));
+                                    value = atoi(row[fieldId]);
+                                    result = vm_write_integer(vm, queryInfo->resultsArrayAddr, value);
                                     break;
                                 case MYSQL_TYPE_DATETIME:
                                     result = vm_write_datetime(vm, queryInfo->resultsArrayAddr, row[fieldId]);
