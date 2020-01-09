@@ -188,7 +188,7 @@ ErrorCode_t vm_write_string(VirtualMachine_t* vm, uint16_t addr, char* str);
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t vm_write_integer(VirtualMachine_t* vm, uint16_t addr, int value);
+ErrorCode_t vm_write_integer(VirtualMachine_t* vm, uint16_t addr, uint16_t value);
 
 /** ****************************************************************************
 

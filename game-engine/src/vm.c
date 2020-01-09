@@ -16,6 +16,7 @@
 #include "engine.h"
 #include "trace.h"
 #include "vm_extension.h"
+#include "db.h"
 
 /******************************* DEFINES *************************************/
 
@@ -255,6 +256,7 @@ void vm_free(VirtualMachine_t* vm)
 VirtualMachine_t* vm_from_bytes(int agent_id, char* vm_bytes, size_t size)
 {
     VirtualMachine_t* vm = NULL;
+    char dump_file[PATH_MAX];
     int error = 0;
 
 #ifdef USE_OLD_EMBED
@@ -334,8 +336,19 @@ VirtualMachine_t* vm_from_bytes(int agent_id, char* vm_bytes, size_t size)
                     "VM created from [%ld] bytes of memory for agent",
                     size);
 
-                //embed_save(vm, "vm.dump"); // debugging purposes only
+                // When enabled, we keep track of each VM content on disk
+                if(engine_get_dump_vm_flag()) {
+                    sprintf(dump_file, "%s/vm_agent_%d.dump", 
+                        engine_get_dump_vm_path(),
+                        agent_id);
 
+                    engine_trace(TRACE_LEVEL_ALWAYS,
+                        "Saving VM for agent [%d] into file [%s]",
+                        agent_id,
+                        dump_file);
+
+                    embed_save(vm, dump_file);
+                }
             } else {
                 engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to create VM from [%ld] bytes of memory for agent",
@@ -620,11 +633,27 @@ ErrorCode_t vm_write_byte(VirtualMachine_t* vm, uint16_t addr, unsigned char val
 *******************************************************************************/
 ErrorCode_t vm_write_string(VirtualMachine_t* vm, uint16_t addr, char* str)
 {
-    ErrorCode_t result = ENGINE_OK;
+    ErrorCode_t result = ENGINE_INTERNAL_ERROR;
 
-    if(vm)
+    if(vm && str)
     {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Writing string [%s] into VM address [%d]",
+            str,
+            addr);
 
+        size_t len = strlen(str);
+        uint16_t next_addr = addr;
+
+        // write len
+        embed_write_byte(vm, next_addr++, (unsigned char)len);
+
+        // write string 
+        for(int i=0; i < len; i++) {
+            embed_write_byte(vm, next_addr++, (unsigned char)str[i]);
+        }
+
+        result = ENGINE_OK;
     }
 
     return result;
@@ -641,13 +670,26 @@ ErrorCode_t vm_write_string(VirtualMachine_t* vm, uint16_t addr, char* str)
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t vm_write_integer(VirtualMachine_t* vm, uint16_t addr, int value)
+ErrorCode_t vm_write_integer(VirtualMachine_t* vm, uint16_t addr, uint16_t value)
 {
-    ErrorCode_t result = ENGINE_OK;
+    ErrorCode_t result = ENGINE_INTERNAL_ERROR;
 
     if(vm)
     {
-        
+        unsigned char first_byte = (unsigned char)(value & 0xFF);
+        unsigned char second_byte = (unsigned char)(value >> 8);
+
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Writing integer [%d] into VM address [%d], bytes [%02X][%02X]",
+            value,
+            addr,
+            first_byte, second_byte);
+
+        // write the 2 bytes 
+        embed_write_byte(vm, addr,   first_byte);
+        embed_write_byte(vm, addr+1, second_byte);
+
+        result = ENGINE_OK;
     }
 
     return result;
@@ -667,11 +709,35 @@ ErrorCode_t vm_write_integer(VirtualMachine_t* vm, uint16_t addr, int value)
 *******************************************************************************/
 ErrorCode_t vm_write_datetime(VirtualMachine_t* vm, uint16_t addr, char* date_str)
 {
-    ErrorCode_t result = ENGINE_OK;
+    ErrorCode_t result = ENGINE_INTERNAL_ERROR;
 
-    if(vm)
+    if(vm && date_str)
     {
-        
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Writing date [%s] into VM address [%d]",
+            date_str,
+            addr);
+
+        // Times will be placed in memory as two 16-bit values. 
+        // The first value will count the number of days from 1 January 2000, 
+        // The second value will count the number of even seconds (every other second) since midnight. 
+        time_t db_date = db_date_to_timestamp(date_str, OBJECTS_TIMESTAMP_FORMAT);
+        time_t ref_date = db_date_to_timestamp(JANUARY_1_2000_DATE, OBJECTS_TIMESTAMP_FORMAT);
+
+        uint16_t days_elapsed = (db_date - ref_date) / (24 * 3600);
+        uint16_t seconds_elapsed = (db_date - ref_date) % (24 * 3600);
+
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Writing date [%s] into VM address [%d], days elapsed [%d], seconds [%d]",
+            date_str,
+            addr,
+            days_elapsed,
+            seconds_elapsed);
+
+        vm_write_integer(vm, addr, days_elapsed);
+        vm_write_integer(vm, addr+2, seconds_elapsed);
+
+        result = ENGINE_OK;
     }
 
     return result;
