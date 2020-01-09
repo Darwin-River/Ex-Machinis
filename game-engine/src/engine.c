@@ -1157,3 +1157,32 @@ int engine_get_current_drone_id()
     return engine.last_command.agent_id;
 }
 
+
+/** ****************************************************************************
+
+  @brief      Gets the flag (0/1) that controls VM dump into disk
+
+  @param[in]  None
+  
+  @return     Flag value configured
+
+*******************************************************************************/
+const int engine_get_dump_vm_flag()
+{
+    return atoi((const char*)engine.config.params[FORTH_DUMP_VM]);
+}
+
+/** ****************************************************************************
+
+  @brief      Gets the configured path to dump VM into memory
+
+  @param[in]  None
+  
+  @return     Path value configured
+
+*******************************************************************************/
+const char* engine_get_dump_vm_path()
+{
+    return (const char*)engine.config.params[FORTH_VM_OUT_PATH];
+}
+
