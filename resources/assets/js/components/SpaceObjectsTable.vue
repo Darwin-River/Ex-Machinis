@@ -54,6 +54,9 @@
                 <div slot="object_name" slot-scope="props">
                     <a v-bind:href="'/astronomical-objects/'+props.rowData.object_id">{{props.rowData.object_name}}</a>
                 </div>
+                <div slot="central_body_name" slot-scope="props">
+                    <a v-bind:href="'/astronomical-objects/'+props.rowData.central_body_id">{{props.rowData.central_body_name}}</a>
+                </div>
             </vuetable>
         </div>
 
