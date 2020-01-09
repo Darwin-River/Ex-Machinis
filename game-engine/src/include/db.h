@@ -45,6 +45,18 @@ typedef enum
 
 /** ***************************************************************************
 
+  @brief      Converts a given date string into timestamp value
+
+  @param[in]  date    Input date string
+  @param[in]  format  Desired format string
+
+  @return     void
+
+******************************************************************************/
+time_t db_date_to_timestamp(char* date, char* format);
+
+/** ***************************************************************************
+
   @brief          Creates a DB connection using credentials supplied
 
   @param[in|out]  Connection info, updated once connected
