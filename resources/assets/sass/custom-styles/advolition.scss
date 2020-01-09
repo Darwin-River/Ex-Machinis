@@ -1,5 +1,4 @@
 
-
 #compiled_table {
   border-width: 0;
   color: white;
@@ -36,5 +35,39 @@
   .bottom-border {
     position: relative;
     top: 16px;
+  }
+}
+
+select.form-input {
+  border-radius: 6px 6px 0 0 !important;
+}
+
+.select-wrapper {
+  position: relative;
+  /*display: inline-block;*/
+}
+
+.select-wrapper::before {
+  position: absolute;
+  border-style: solid;
+  border-width: 0.25em 0.25em 0 0;
+  content: '';
+  display: inline-block;
+  height: 0.7em;
+  right: 1em;
+  top: 0.60em;
+  vertical-align: top;
+  width: 0.7em;
+  transform: rotate(135deg);
+  color: black;
+}
+
+.table-custom-primary thead th {
+  background-color: #2f2fbc !important;
+}
+
+@include media-breakpoint-down(md) {
+  #update_button {
+    width: 100%;
   }
 }
