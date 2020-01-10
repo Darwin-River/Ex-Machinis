@@ -302,15 +302,21 @@ ErrorCode_t vm_replace_tag(VmExtension_t* v, Queries_t* queryInfo, const char *t
     result[i] = '\0'; 
 
     engine_trace(TRACE_LEVEL_ALWAYS, 
-      "Replacing tag [%s] at query script [%s], result [%s]", 
-      tag, queryInfo->finalQuery, result); 
+        "Replacing tag [%s] at query script [%s], result [%s]", 
+        tag, queryInfo->finalQuery, result); 
   
     // update the string after replacement
     engine_free((void*)queryInfo->finalQuery, strlen(queryInfo->finalQuery)+1);
     queryInfo->finalQuery = result;
 
-    // deallocate new value obtained
-    engine_free((void*)newValue, MAX_QUERY_VALUE_BUF_LEN);
+    // deallocate new value obtained depending on tag
+    if (!strcmp(tag, QUERY_TAG_STRING_1) || !strcmp(tag, QUERY_TAG_STRING_2) || 
+        !strcmp(tag, QUERY_TAG_STRING_3) || !strcmp(tag, QUERY_TAG_STRING_4))   {
+        engine_free((void*)newValue, strlen(newValue) + 1);
+
+    } else {
+        engine_free((void*)newValue, MAX_QUERY_VALUE_BUF_LEN);
+    }
     newValue = NULL;
 
     return ENGINE_OK;
@@ -396,7 +402,8 @@ static void vm_ext_process_query
     // input pointers checked at calling function
 
     // clone original script to replace tags dynamically
-    queryInfo->finalQuery = strdup(queryInfo->script);
+    queryInfo->finalQuery = engine_malloc(strlen(queryInfo->script)+1);
+    sprintf(queryInfo->finalQuery, "%s", queryInfo->script);
 
     engine_trace(TRACE_LEVEL_ALWAYS, "Processing query script [%s]", queryInfo->finalQuery); 
 
@@ -448,7 +455,7 @@ static void vm_ext_process_query
         vm_extension_push(v, QUERY_PROCESSED_OK); // push OK code into stack
     }
     
-    free(queryInfo->finalQuery);
+    engine_free(queryInfo->finalQuery, strlen(queryInfo->finalQuery)+1);
 }
 
 /** ****************************************************************************
@@ -548,16 +555,14 @@ static int vm_ext_query_cb(VmExtension_t * const v)
         }
 
         if(success == ENGINE_TRUE) {
-            engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
-
-            // Process the query itself
+            // Process the query
             vm_ext_process_query(v, &queryInfo, queryOutMsg, LINE_MAX);
+        }
 
-            // Deallocate
-            if(queryInfo.parameterValues) {
-                engine_free(queryInfo.parameterValues, sizeof(int) * queryInfo.parametersNum);
-                queryInfo.parameterValues = NULL;
-            }
+        // Deallocate
+        if(queryInfo.parameterValues) {
+            engine_free(queryInfo.parameterValues, sizeof(int) * queryInfo.parametersNum);
+            queryInfo.parameterValues = NULL;
         }
 
     } else {

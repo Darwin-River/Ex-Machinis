@@ -2985,7 +2985,7 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
                     if(stop == ENGINE_TRUE) break; // Stop storing more results, no space left
                 }
 
-                engine_free(fieldTypes, fieldsNum * sizeof(int));
+                if(fieldTypes) engine_free(fieldTypes, fieldsNum * sizeof(int));
             }
 
             if(db_result) mysql_free_result(db_result);
