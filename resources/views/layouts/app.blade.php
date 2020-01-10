@@ -99,7 +99,7 @@
                                                 class="rd-nav-title">Home</span></a>
                                     <!-- RD Navbar Dropdown-->
                                 </li>
-                                <li class="rd-nav-item"><a class="rd-nav-link" href="#"><span
+                                <li class="rd-nav-item "><a class="rd-nav-link " href="#"><span
                                                 class="rd-nav-icon mdi mdi-account"></span><span
                                                 class="rd-nav-title">User</span></a>
                                     <!-- RD Navbar Dropdown-->
@@ -126,9 +126,36 @@
                                   </li> -->
                             </ul>
                             <ul class="rd-navbar-list-link">
-                                <li><a href="{{url('astronomical-objects')}}">Astronomical Objects</a></li>
-                                <li><a href="{{url('players-manual')}}">Player's Manual</a></li>
-                                <li><a href="{{url('forth-dictionary')}}">FORTH Dictionary</a></li>
+                                <li class="d-none d-lg-inline-block"><a class="" href="">Data</a><span
+                                            class="rd-navbar-submenu-toggle"></span>
+                                    <!-- RD Navbar Dropdown-->
+                                    <ul class="rd-menu rd-navbar-dropdown oriented-down">
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('astronomical-objects')}}">Astronomical
+                                                Objects</a></li>
+                                    </ul>
+                                </li>
+                                <li class="d-none d-lg-inline-block"><a class="" href="">Documentation</a><span
+                                            class="rd-navbar-submenu-toggle"></span>
+                                    <!-- RD Navbar Dropdown-->
+                                    <ul class="rd-menu rd-navbar-dropdown oriented-down">
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('astronomical-objects')}}">Astronomical
+                                                Objects</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('players-manual')}}">Player's
+                                                Manual</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('forth-dictionary')}}">FORTH
+                                                Dictionary</a></li>
+                                    </ul>
+                                </li>
+                                <li class="d-block d-lg-none"><a href="{{url('astronomical-objects')}}">Astronomical
+                                        Objects</a></li>
+                                <li class="d-block d-lg-none"><a href="{{url('players-manual')}}">Player's Manual</a>
+                                </li>
+                                <li class="d-block d-lg-none"><a href="{{url('forth-dictionary')}}">FORTH Dictionary</a>
+                                </li>
                                 @guest
                                     <li class="float-lg-right"><a href="{{url('login')}}">Login</a></li>
                                 @endguest
