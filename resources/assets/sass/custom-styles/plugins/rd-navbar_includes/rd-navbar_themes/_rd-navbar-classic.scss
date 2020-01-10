@@ -360,10 +360,7 @@
   line-height: 0;
 
   li {
-    @include media-breakpoint-up(lg) {
-      display: inline-block !important;
-    }
-    display: block !important;
+
     vertical-align: middle;
     position: relative;
   }
