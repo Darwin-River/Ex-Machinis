@@ -30,6 +30,12 @@
   X("report",   vm_ext_report_cb, true)\
   X("dummy",    vm_ext_dummy_cb,  true)\
 
+
+// Query errors at stack
+#define QUERY_PROCESSED_OK             1
+#define NOT_ENOUGH_QUERY_PARAMETERS   -1
+#define SQL_QUERY_FAILED              -2  
+
 /******************************* TYPES ***************************************/
 
 
@@ -437,7 +443,9 @@ static void vm_ext_process_query
                 queryInfo->finalQuery);
 
         engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg);
-        vm_extension_push(v, -2); // push this code when query fails
+        vm_extension_push(v, SQL_QUERY_FAILED); // push this code when query fails
+    } else {
+        vm_extension_push(v, QUERY_PROCESSED_OK); // push OK code into stack
     }
     
     free(queryInfo->finalQuery);
@@ -527,7 +535,7 @@ static int vm_ext_query_cb(VmExtension_t * const v)
 
                     engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
                     success = ENGINE_FALSE;
-                    vm_extension_push(v, -1); // push this code when not enough parameters
+                    vm_extension_push(v, NOT_ENOUGH_QUERY_PARAMETERS); // push this code when not enough parameters
 
                     break; // stop for(;;)
                 } else {
