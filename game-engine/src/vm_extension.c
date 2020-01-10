@@ -172,7 +172,8 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryIn
         }
         engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s distance value [%f]", tag, distance);
         result = (char*) engine_malloc(MAX_QUERY_VALUE_BUF_LEN);
-        sprintf(result, "%f", distance);
+        sprintf(result, "%f", distance/ LIGHT_SPEED_KM_PER_MINUTE);
+        engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s, distance value in light minutes [%s]", tag, result);
 
     } else {
         // value_x or string_x -> Get the digit value [xxxxxx_d]  -> d is at (len-2)
