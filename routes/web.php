@@ -21,11 +21,17 @@ Auth::routes();
 Route::get('/', 'HomeController@index')->name('Ex-Machinis');
 Route::get('/home', 'HomeController@index')->name('home');
 
-//pages
+//static pages
 Route::get('/forth-dictionary', 'HomeController@forthDictionary');
 Route::get('/players-manual', 'HomeController@playersManual');
 
 Route::post('/web-register', 'UserController@webRegistration');
+
+//space objects
+Route::get('/astronomical-objects', 'SpaceObjectController@index');
+Route::get('/astronomical-objects/search', 'SpaceObjectController@objectsSearch');
+Route::get('/astronomical-objects/{id}', 'SpaceObjectController@view');
+
 
 Route::get('/get-mails/{key}', 'HomeController@getMails');
 Route::get('/user/send-report/{key}', 'UserController@reportCurrentUsersByMail');

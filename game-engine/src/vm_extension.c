@@ -30,6 +30,12 @@
   X("report",   vm_ext_report_cb, true)\
   X("dummy",    vm_ext_dummy_cb,  true)\
 
+
+// Query errors at stack
+#define QUERY_PROCESSED_OK             1
+#define NOT_ENOUGH_QUERY_PARAMETERS   -1
+#define SQL_QUERY_FAILED              -2  
+
 /******************************* TYPES ***************************************/
 
 
@@ -172,7 +178,8 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryIn
         }
         engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s distance value [%f]", tag, distance);
         result = (char*) engine_malloc(MAX_QUERY_VALUE_BUF_LEN);
-        sprintf(result, "%f", distance);
+        sprintf(result, "%f", distance/ LIGHT_SPEED_KM_PER_MINUTE);
+        engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s, distance value in light minutes [%s]", tag, result);
 
     } else {
         // value_x or string_x -> Get the digit value [xxxxxx_d]  -> d is at (len-2)
@@ -210,10 +217,14 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryIn
             engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s stack value address [%d]", tag, value);
 
             // Pick the string from the VM address obtained
-            VirtualMachine_t* vm = v->h;
-            cell_t len = embed_mmu_read_cb(vm, value);
+            // address is given in bytes offset at VM memory
+            unsigned char len;
+            vm_read_byte((VirtualMachine_t*)v->h, value, &len);
+
             result = (char*) engine_malloc(len+1);
-            //embed_memcpy(vm, (unsigned char*)result, value+1, len);
+            for(int i=0; i < len; i++) {
+                vm_read_byte((VirtualMachine_t*)v->h, value+1+i, (unsigned char*)&result[i]);
+            }
             result[len] = 0;
 
             engine_trace(TRACE_LEVEL_ALWAYS, "VM string read [%s] len [%d]", result, len);
@@ -290,14 +301,22 @@ ErrorCode_t vm_replace_tag(VmExtension_t* v, Queries_t* queryInfo, const char *t
     } 
     result[i] = '\0'; 
 
-    engine_trace(TRACE_LEVEL_ALWAYS, "Replacing tag [%s] at query script [%s], result [%s]", tag, queryInfo->finalQuery, result); 
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+        "Replacing tag [%s] at query script [%s], result [%s]", 
+        tag, queryInfo->finalQuery, result); 
   
     // update the string after replacement
     engine_free((void*)queryInfo->finalQuery, strlen(queryInfo->finalQuery)+1);
     queryInfo->finalQuery = result;
 
-    // deallocate new value obtained
-    engine_free((void*)newValue, MAX_QUERY_VALUE_BUF_LEN);
+    // deallocate new value obtained depending on tag
+    if (!strcmp(tag, QUERY_TAG_STRING_1) || !strcmp(tag, QUERY_TAG_STRING_2) || 
+        !strcmp(tag, QUERY_TAG_STRING_3) || !strcmp(tag, QUERY_TAG_STRING_4))   {
+        engine_free((void*)newValue, strlen(newValue) + 1);
+
+    } else {
+        engine_free((void*)newValue, MAX_QUERY_VALUE_BUF_LEN);
+    }
     newValue = NULL;
 
     return ENGINE_OK;
@@ -383,7 +402,8 @@ static void vm_ext_process_query
     // input pointers checked at calling function
 
     // clone original script to replace tags dynamically
-    queryInfo->finalQuery = strdup(queryInfo->script);
+    queryInfo->finalQuery = engine_malloc(strlen(queryInfo->script)+1);
+    sprintf(queryInfo->finalQuery, "%s", queryInfo->script);
 
     engine_trace(TRACE_LEVEL_ALWAYS, "Processing query script [%s]", queryInfo->finalQuery); 
 
@@ -424,15 +444,18 @@ static void vm_ext_process_query
     engine_trace(TRACE_LEVEL_ALWAYS, "Query script after tags replacement [%s]", queryInfo->finalQuery);
 
     // Execute query at DB and fill the output array parameters with information retrieved
-    if(db_run_vm_query(queryInfo) != ENGINE_OK) {
+    if(db_run_vm_query(queryInfo, v->h) != ENGINE_OK) {
         sprintf(queryOutMsg, 
                 "Query failed or could not retrive results [%s]", 
                 queryInfo->finalQuery);
 
         engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg);
+        vm_extension_push(v, SQL_QUERY_FAILED); // push this code when query fails
+    } else {
+        vm_extension_push(v, QUERY_PROCESSED_OK); // push OK code into stack
     }
     
-    free(queryInfo->finalQuery);
+    engine_free(queryInfo->finalQuery, strlen(queryInfo->finalQuery)+1);
 }
 
 /** ****************************************************************************
@@ -451,6 +474,7 @@ static int vm_ext_query_cb(VmExtension_t * const v)
     Bool_t success = ENGINE_TRUE;
 
     memset(&queryInfo, 0, sizeof(Queries_t));
+    memset(queryOutMsg, 0, LINE_MAX);
 
     engine_trace(TRACE_LEVEL_ALWAYS, "Running query callback"); 
 
@@ -518,6 +542,7 @@ static int vm_ext_query_cb(VmExtension_t * const v)
 
                     engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
                     success = ENGINE_FALSE;
+                    vm_extension_push(v, NOT_ENOUGH_QUERY_PARAMETERS); // push this code when not enough parameters
 
                     break; // stop for(;;)
                 } else {
@@ -530,23 +555,14 @@ static int vm_ext_query_cb(VmExtension_t * const v)
         }
 
         if(success == ENGINE_TRUE) {
-           sprintf(queryOutMsg, 
-                    "Query ID [%d] with [%d] parameters succesfully processed, results at [%d], size [%d]",
-                    queryInfo.id,
-                    queryInfo.parametersNum,
-                    queryInfo.resultsArrayAddr,
-                    queryInfo.resultsArraySize);
-
-            engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
-
-            // Process the query itself
+            // Process the query
             vm_ext_process_query(v, &queryInfo, queryOutMsg, LINE_MAX);
+        }
 
-            // Deallocate
-            if(queryInfo.parameterValues) {
-                engine_free(queryInfo.parameterValues, sizeof(int) * queryInfo.parametersNum);
-                queryInfo.parameterValues = NULL;
-            }
+        // Deallocate
+        if(queryInfo.parameterValues) {
+            engine_free(queryInfo.parameterValues, sizeof(int) * queryInfo.parametersNum);
+            queryInfo.parameterValues = NULL;
         }
 
     } else {

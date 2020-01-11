@@ -11466,12 +11466,24 @@ img + figcaption {
 }
 
 .table-custom th {
-  padding: 16px 30px;
+  padding: 16px 10px;
   font-weight: normal;
 }
 
+@media (min-width: 576px) {
+  .table-custom th {
+    padding: 16px 30px;
+  }
+}
+
 .table-custom td {
-  padding: 16px 30px;
+  padding: 16px 10px;
+}
+
+@media (min-width: 576px) {
+  .table-custom td {
+    padding: 16px 30px;
+  }
 }
 
 .table-custom th,
@@ -18948,7 +18960,6 @@ html.rd-navbar-fixed-linked .page {
 }
 
 .rd-navbar-list-link li {
-  display: inline-block;
   vertical-align: middle;
   position: relative;
 }
@@ -51140,5 +51151,81 @@ body:not(.lg-from-hash) .lg-outer.lg-start-zoom .lg-item.lg-complete .lg-object 
 #compiled_table .bottom-border {
   position: relative;
   top: 16px;
+}
+
+select.form-input {
+  border-radius: 6px 6px 0 0 !important;
+}
+
+.select-wrapper {
+  position: relative;
+  /*display: inline-block;*/
+}
+
+.select-wrapper::before {
+  position: absolute;
+  border-style: solid;
+  border-width: 0.25em 0.25em 0 0;
+  content: "";
+  display: inline-block;
+  height: 0.7em;
+  right: 1em;
+  top: 0.6em;
+  vertical-align: top;
+  width: 0.7em;
+  -webkit-transform: rotate(135deg);
+          transform: rotate(135deg);
+  color: black;
+}
+
+.table-custom-primary thead th {
+  background-color: #2f2fbc !important;
+}
+
+.rd-navbar-submenu .oriented-down {
+  left: auto !important;
+  margin-left: -15px !important;
+  text-align: left;
+  position: absolute;
+  top: 100% !important;
+  padding: 30px 15px;
+  z-index: 15;
+}
+
+@media (min-width: 1600px) {
+  .rd-navbar-submenu .oriented-down {
+    padding: 44px 30px 40px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .rd-navbar-submenu .oriented-down {
+    margin-left: -30px;
+  }
+}
+
+.rd-navbar-submenu .oriented-down .rd-dropdown-item {
+  display: block !important;
+}
+
+.rd-navbar-submenu .oriented-down::before {
+  content: none;
+  display: none;
+}
+
+@media (max-width: 991px) {
+  #update_button {
+    width: 100%;
+  }
+}
+
+.rd-navbar-main .rd-navbar-nav-wrap .rd-navbar-list-link li {
+  display: block;
+}
+
+@media (min-width: 992px) {
+  .rd-navbar-main .rd-navbar-nav-wrap .rd-navbar-list-link li {
+    display: inline-block;
+  }
 }
 
