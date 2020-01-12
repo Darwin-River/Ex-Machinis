@@ -728,16 +728,18 @@ ErrorCode_t vm_write_datetime(VirtualMachine_t* vm, uint16_t addr, char* date_st
 
         uint16_t days_elapsed = (db_date - ref_date) / (24 * 3600);
         uint16_t seconds_elapsed = (db_date - ref_date) % (24 * 3600);
+        uint16_t half_seconds_elapsed = (seconds_elapsed / 2);
 
         engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Writing date [%s] into VM address [%d], days elapsed [%d], seconds [%d]",
+            "Writing date [%s] into VM address [%d], days elapsed [%d], seconds [%d], half_seconds [%d]",
             date_str,
             addr,
             days_elapsed,
-            seconds_elapsed);
+            seconds_elapsed,
+            half_seconds_elapsed);
 
         vm_write_integer(vm, addr, days_elapsed);
-        vm_write_integer(vm, addr+2, seconds_elapsed);
+        vm_write_integer(vm, addr+2, half_seconds_elapsed);
 
         result = ENGINE_OK;
     }
