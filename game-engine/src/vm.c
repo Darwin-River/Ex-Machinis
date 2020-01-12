@@ -646,7 +646,7 @@ ErrorCode_t vm_write_string(VirtualMachine_t* vm, uint16_t addr, char* str)
         uint16_t next_addr = addr;
 
         // write len
-        //embed_write_byte(vm, next_addr++, (unsigned char)len);
+        embed_write_byte(vm, next_addr++, (unsigned char)len);
 
         // write string 
         for(int i=0; i < len; i++) {
