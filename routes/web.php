@@ -32,6 +32,12 @@ Route::get('/astronomical-objects', 'SpaceObjectController@index');
 Route::get('/astronomical-objects/search', 'SpaceObjectController@objectsSearch');
 Route::get('/astronomical-objects/{id}', 'SpaceObjectController@view');
 
+//agents
+Route::get('/spacecraft', 'AgentController@index');
+Route::get('/spacecraft/search', 'AgentController@agentsSearch');
+Route::get('/spacecraft/{id}', 'AgentController@view');
+Route::get('/protocols', 'AgentController@protocols');
+
 
 Route::get('/get-mails/{key}', 'HomeController@getMails');
 Route::get('/user/send-report/{key}', 'UserController@reportCurrentUsersByMail');

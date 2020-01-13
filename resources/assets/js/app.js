@@ -1,4 +1,3 @@
-
 /**
  * First we will load all of this project's JavaScript dependencies which
  * includes Vue and other libraries. It is a great starting point when
@@ -17,6 +16,8 @@ window.Vue = require('vue');
  */
 
 Vue.component('space-objects-table', require('./components/SpaceObjectsTable.vue').default);
+Vue.component('spacecraft-table', require('./components/SpacecraftTable.vue').default);
+Vue.component('protocols-table', require('./components/ProtocolsTable.vue').default);
 
 const app = new Vue({
     el: '#app'

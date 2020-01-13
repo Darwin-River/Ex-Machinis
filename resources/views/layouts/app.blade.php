@@ -12,9 +12,10 @@
     <title>@yield('pageTitle') - {{ config('app.name') }}</title>
 
     <!-- Styles -->
-    <link href="{{ asset('css/app.css') }}" rel="stylesheet">
     <link rel="stylesheet" type="text/css"
           href="//fonts.googleapis.com/css?family=Open+Sans:400,400i,600,700,700i%7CYanone+Kaffeesatz:300,700%7CNova+Mono">
+    <link href="{{ asset('css/app.css') }}" rel="stylesheet">
+
 
     <meta name="format-detection" content="telephone=no">
     <link rel="icon" href="/images/favicon.ico" type="image/x-icon">
@@ -121,18 +122,54 @@
                                     </ul>
                                 </li>
 
+                                <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
+                                                                             href="{{'astronomical-objects'}}"><span
+                                                class="rd-nav-icon mdi mdi-database-search"></span><span
+                                                class="rd-nav-title">Data</span></a>
+                                    <!-- RD Navbar Dropdown-->
+                                    <ul class="rd-menu rd-navbar-dropdown">
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('astronomical-objects')}}">Astronomical
+                                                Objects</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('spacecraft')}}">Spacecraft
+                                                Search</a></li>
+                                    </ul>
+                                </li>
+                                <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
+                                                                             href="{{url('players-manual')}}"><span
+                                                class="rd-nav-icon mdi mdi-dictionary"></span><span
+                                                class="rd-nav-title">Documentation</span></a>
+                                    <!-- RD Navbar Dropdown-->
+                                    <ul class="rd-menu rd-navbar-dropdown">
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('players-manual')}}">Player's
+                                                Manual</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('forth-dictionary')}}">FORTH
+                                                Dictionary</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('protocols')}}">Protocols</a></li>
+                                    </ul>
+                                </li>
                                 <!--  <li class="rd-nav-item active"><a class="rd-nav-link" href="contacts.html"><span
                                                   class="rd-nav-icon mdi mdi-email"></span><span class="rd-nav-title">Contacts</span></a>
                                   </li> -->
                             </ul>
+
+                            <!-- MAIN MENU -->
                             <ul class="rd-navbar-list-link">
-                                <li class="d-none d-lg-inline-block"><a class="" href="">Data</a><span
+
+                                <li class="d-none d-lg-inline-block"><a class="" href="{{url('astronomical-objects')}}">Data</a><span
                                             class="rd-navbar-submenu-toggle"></span>
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown oriented-down">
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('astronomical-objects')}}">Astronomical
                                                 Objects</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('spacecraft')}}">Spacecraft
+                                                Search</a></li>
                                     </ul>
                                 </li>
                                 <li class="d-none d-lg-inline-block"><a class="" href="">Documentation</a><span
@@ -140,14 +177,13 @@
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown oriented-down">
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('astronomical-objects')}}">Astronomical
-                                                Objects</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('players-manual')}}">Player's
                                                 Manual</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('forth-dictionary')}}">FORTH
                                                 Dictionary</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('protocols')}}">Protocols</a></li>
                                     </ul>
                                 </li>
                                 <li class="d-block d-lg-none"><a href="{{url('astronomical-objects')}}">Astronomical
@@ -156,6 +192,8 @@
                                 </li>
                                 <li class="d-block d-lg-none"><a href="{{url('forth-dictionary')}}">FORTH Dictionary</a>
                                 </li>
+                                <li class="d-block d-lg-none"><a href="{{url('spacecraft')}}">Spacecraft Search</a></li>
+                                <li class="d-block d-lg-none"><a href="{{url('protocols')}}">Protocols</a></li>
                                 @guest
                                     <li class="float-lg-right"><a href="{{url('login')}}">Login</a></li>
                                 @endguest

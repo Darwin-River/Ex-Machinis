@@ -1,9 +1,9 @@
 @extends('layouts.app')
-@php $title = 'Astronomical Objects' ; @endphp
+@php $title = 'Spacecraft Search' ; @endphp
 @section('pageTitle', $title)
 @section('content')
     <!-- Breadcrumbs-->
-   <!-- <section class="breadcrumbs-classic mt-4">
+    <!-- <section class="breadcrumbs-classic mt-4">
 
         <div class="breadcrumbs-classic-footer">
             <div class="container">
@@ -19,8 +19,9 @@
 
         <div class="container" id="container">
             <h1>{{$title}}</h1>
-            <space-objects-table :results-per-page="{{Config::get('constants.options.results_per_page')}}"></space-objects-table>
-            
+            <spacecraft-table
+                    :results-per-page="{{Config::get('constants.options.results_per_page')}}"></spacecraft-table>
+
         </div>
     </section>
 @endsection
