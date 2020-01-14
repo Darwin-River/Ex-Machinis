@@ -144,3 +144,11 @@ th .sort-icon {
  /* text-indent: -15px;*/
   padding-left: 15px;
 }
+
+.table-custom th, .table-custom td {
+  width: auto !important;
+}
+
+.table-custom th {
+  font-weight: bold;
+}

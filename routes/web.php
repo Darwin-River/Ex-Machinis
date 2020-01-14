@@ -27,6 +27,8 @@ Route::get('/players-manual', 'HomeController@playersManual');
 
 Route::post('/web-register', 'UserController@webRegistration');
 
+Route::get('/query-commands', 'HomeController@queryCommands');
+
 //space objects
 Route::get('/astronomical-objects', 'SpaceObjectController@index');
 Route::get('/astronomical-objects/search', 'SpaceObjectController@objectsSearch');

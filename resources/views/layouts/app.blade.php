@@ -14,7 +14,8 @@
     <!-- Styles -->
     <link rel="stylesheet" type="text/css"
           href="//fonts.googleapis.com/css?family=Open+Sans:400,400i,600,700,700i%7CYanone+Kaffeesatz:300,700%7CNova+Mono">
-    <link href="{{ asset('css/app.css') }}" rel="stylesheet">
+    <link href="{{ mix('css/app.css') }}?v=<?= filemtime($_SERVER['DOCUMENT_ROOT'] . '/css/app.css') ?>"
+          rel="stylesheet">
 
 
     <meta name="format-detection" content="telephone=no">
@@ -150,6 +151,9 @@
                                                 Dictionary</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('protocols')}}">Protocols</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('query-commands')}}">Query
+                                                Commands</a></li>
                                     </ul>
                                 </li>
                                 <!--  <li class="rd-nav-item active"><a class="rd-nav-link" href="contacts.html"><span
@@ -184,6 +188,9 @@
                                                 Dictionary</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('protocols')}}">Protocols</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('query-commands')}}">Query
+                                                Commands</a></li>
                                     </ul>
                                 </li>
                                 <li class="d-block d-lg-none"><a href="{{url('astronomical-objects')}}">Astronomical
@@ -194,6 +201,9 @@
                                 </li>
                                 <li class="d-block d-lg-none"><a href="{{url('spacecraft')}}">Spacecraft Search</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('protocols')}}">Protocols</a></li>
+                                <li class="d-block d-lg-none"><a href="{{url('query-commands')}}">Query Commands</a>
+                                </li>
+
                                 @guest
                                     <li class="float-lg-right"><a href="{{url('login')}}">Login</a></li>
                                 @endguest
@@ -308,7 +318,7 @@
 <div class="snackbars" id="form-output-global"></div>
 
 <!-- Scripts -->
-<script src="{{ asset('js/app.js') }}"></script>
+<script src="{{ mix('/js/app.js') }}?v=<?= filemtime($_SERVER['DOCUMENT_ROOT'] . '/js/app.js') ?>"></script>
 <script src="/js/core.min.js"></script>
 <script src="/js/script.js"></script>
 <script>
