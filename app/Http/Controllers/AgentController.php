@@ -15,11 +15,11 @@ class AgentController extends Controller
      */
     public function index()
     {
-        return view('spacecraft.index'/*, compact()*/);
+        return view('spacecraft.index');
     }
 
     /**
-     * Used by search engine
+     * Used by search engine to retrieve agents
      * @param $request Request object
      * @return JsonResponse
      */

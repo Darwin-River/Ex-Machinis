@@ -40,6 +40,10 @@ Route::get('/spacecraft/search', 'AgentController@agentsSearch');
 Route::get('/spacecraft/{id}', 'AgentController@view');
 Route::get('/protocols', 'AgentController@protocols');
 
+//companies
+Route::get('/company', 'UserController@companyIndex');
+Route::get('/company/search', 'UserController@companySearch');
+
 
 Route::get('/get-mails/{key}', 'HomeController@getMails');
 Route::get('/user/send-report/{key}', 'UserController@reportCurrentUsersByMail');

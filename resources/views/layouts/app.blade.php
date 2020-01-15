@@ -135,6 +135,9 @@
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('spacecraft')}}">Spacecraft
                                                 Search</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('company')}}">Company Search</a>
+                                        </li>
                                     </ul>
                                 </li>
                                 <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
@@ -174,6 +177,9 @@
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('spacecraft')}}">Spacecraft
                                                 Search</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('company')}}">Company
+                                                Search</a></li>
                                     </ul>
                                 </li>
                                 <li class="d-none d-lg-inline-block"><a class="" href="">Documentation</a><span
@@ -203,6 +209,8 @@
                                 <li class="d-block d-lg-none"><a href="{{url('protocols')}}">Protocols</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('query-commands')}}">Query Commands</a>
                                 </li>
+                                <li class="d-block d-lg-none"><a href="{{url('company')}}">Company Search</a></li>
+
 
                                 @guest
                                     <li class="float-lg-right"><a href="{{url('login')}}">Login</a></li>

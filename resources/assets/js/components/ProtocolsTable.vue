@@ -73,7 +73,5 @@
 </script>
 
 <style scoped>
-    tr td:nth-child(1), tr td:nth-child(2) {
-        font-weight: bold;
-    }
+
 </style>

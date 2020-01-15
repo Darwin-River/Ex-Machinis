@@ -4,18 +4,18 @@
             <div class="row mt-4 mb-4">
                 <div class="col-md-3 col-sm-6 col-6">
                     <div class="form-wrap form-sm">
-                        <input class="form-input form-control-has-validation input-md" id="agent_id" v-model="agentId"
+                        <input class="form-input form-control-has-validation input-md" id="company_id" v-model="companyId"
                                type="text"
                                name="object_id" data-constraints="@Numeric ">
-                        <label class="form-label rd-input-label" for="agent_id">Id</label>
+                        <label class="form-label rd-input-label" for="company_id">Id</label>
                     </div>
                 </div>
                 <div class="col-md-3 col-sm-6 col-6">
                     <div class="form-wrap form-sm">
-                        <input class="form-input input-md" id="agent_name" v-model="agentName"
+                        <input class="form-input input-md" id="company_name" v-model="companyName"
                                type="text"
                                name="agent_name">
-                        <label class="form-label rd-input-label" for="agent_name">Name</label>
+                        <label class="form-label rd-input-label" for="company_name">Name</label>
                     </div>
                 </div>
                 <div class="col-md-3 col-sm-6 col-6 mt-2 mt-md-0">
@@ -30,25 +30,15 @@
         </form>
 
         <div v-bind:class="'table-responsive '+(loading?' loading-table ':'') ">
-            <vuetable api-url="/spacecraft/search" :fields="fields" data-path="data" pagination-path=""
+            <vuetable api-url="/company/search" :fields="fields" data-path="data" pagination-path=""
                       @vuetable:pagination-data="onPaginationData" @vuetable:loading="startLoading"
                       @vuetable:loaded="stopLoading" ref="vuetable" :append-params="extraParams"
                       :per-page="resultsPerPage" :css="css.table">
-                <div slot="agent_id" slot-scope="props">
-                    <a v-bind:href="'/spacecraft/'+props.rowData.agent_id">{{props.rowData.agent_id}}</a>
+                <div slot="user_id" slot-scope="props">
+                    <a v-bind:href="'/company/'+props.rowData.user_id">{{props.rowData.user_id}}</a>
                 </div>
                 <div slot="name" slot-scope="props">
-                    <a v-bind:href="'/spacecraft/'+props.rowData.agent_id">{{props.rowData.name}}</a>
-                </div>
-                <div slot="hull_name" slot-scope="props">
-                    <span v-if="props.rowData.hull_id">{{props.rowData.hull_name}}</span>
-                    <span v-else class="">-</span>
-                </div>
-                <div slot="location_name" slot-scope="props">
-                    <a v-bind:href="'/astronomical-objects/'+props.rowData.location_id">{{props.rowData.location_name}}</a>
-                </div>
-                <div slot="owner_name" slot-scope="props">
-                    <a v-bind:href="'/users/'+props.rowData.owner_id">{{props.rowData.owner_name}}</a>
+                    <a v-bind:href="'/company/'+props.rowData.user_id">{{props.rowData.name}}</a>
                 </div>
             </vuetable>
         </div>
@@ -72,11 +62,11 @@
 </template>
 
 <script>
-    import Vuetable from 'vuetable-2';
-    import VuetablePagination from 'vuetable-2/src/components/VuetablePagination';
+    import Vuetable from "vuetable-2";
+    import VuetablePagination from "vuetable-2/src/components/VuetablePagination";
 
     export default {
-        name: "SpacecraftTable",
+        name: "CompaniesTable",
         components: {
             Vuetable,
             VuetablePagination,
@@ -88,12 +78,12 @@
         data: () => ({
             fields: [
                 {
-                    name: 'agent_id',
+                    name: 'user_id',
                     title: 'Id',
-                    sortField: 'agent_id',
+                    sortField: 'user_id',
                     titleClass: '',
                     dataClass: '',
-                    width: "10%",
+                    /*   width: "10%",*/
 
                 },
                 {
@@ -106,36 +96,37 @@
 
                 },
                 {
-                    name: 'hull_name',
-                    title: 'Hull Type',
-                    sortField: 'hulls.name',
+                    name: 'age',
+                    title: 'Age (days)',
+                    sortField: 'age',
                     titleClass: '',
                     dataClass: '',
-                    /*     width: "22%",*/
+                    /*width: "22%",*/
 
                 },
                 {
-                    name: 'location_name',
-                    title: 'Location',
-                    sortField: 'objects.object_name',
+                    name: 'agents',
+                    title: 'Spacecraft',
+                    sortField: 'agents',
                     titleClass: '',
                     dataClass: '',
-                    /*  width: "36%",*/
+                    /*width: "22%",*/
 
                 },
                 {
-                    name: 'owner_name',
-                    title: 'Owner',
-                    sortField: 'users.name',
+                    name: 'credits',
+                    title: 'Credits',
+                    sortField: 'credits',
                     titleClass: '',
                     dataClass: '',
-                    /*  width: "36%",*/
+                    /*width: "22%",*/
 
                 },
+
             ],
             extraParams: {},
-            agentName: null,
-            agentId: null,
+            companyName: null,
+            companyId: null,
             loading: false,
 
             totalPages: null,
@@ -148,7 +139,6 @@
                     sortableIcon: 'icon mdi mdi-swap-vertical',
                     handleIcon: 'icon mdi mdi-hand-left',
                     loadingClass: 'loading',
-
                 },
                 pagination: {}
             },
@@ -170,19 +160,19 @@
             },
 
             applyFilters() {
-                //this.selectedLetter = letter;
+
                 let params = {};
-                if (this.agentId)
-                    params.agent_id = this.agentId;
-                if (this.agentName)
-                    params.agent_name = this.agentName;
+                if (this.companyId)
+                    params.user_id = this.companyId;
+                if (this.companyName)
+                    params.name = this.companyName;
 
                 this.extraParams = params;
                 Vue.nextTick(() => this.$refs.vuetable.refresh())
             },
             resetFilters() {
-                this.agentName = null;
-                this.agentId = null;
+                this.companyName = null;
+                this.companyId = null;
                 this.extraParams = {};
                 Vue.nextTick(() => this.$refs.vuetable.refresh());
             },

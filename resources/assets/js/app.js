@@ -19,6 +19,7 @@ Vue.component('space-objects-table', require('./components/SpaceObjectsTable.vue
 Vue.component('spacecraft-table', require('./components/SpacecraftTable.vue').default);
 Vue.component('protocols-table', require('./components/ProtocolsTable.vue').default);
 Vue.component('query-commands-table', require('./components/QueryCommandsTable.vue').default);
+Vue.component('companies-table', require('./components/CompaniesTable').default);
 
 const app = new Vue({
     el: '#app'
