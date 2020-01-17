@@ -29,6 +29,9 @@ Route::post('/web-register', 'UserController@webRegistration');
 
 Route::get('/query-commands', 'HomeController@queryCommands');
 
+Route::get('/resource', 'ResourceController@index');
+Route::get('/resource/{id}', 'ResourceController@view');
+
 //space objects
 Route::get('/astronomical-objects', 'SpaceObjectController@index');
 Route::get('/astronomical-objects/search', 'SpaceObjectController@objectsSearch');

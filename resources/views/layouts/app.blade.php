@@ -138,6 +138,9 @@
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('company')}}">Company Search</a>
                                         </li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('resource')}}">Resources</a>
+                                        </li>
                                     </ul>
                                 </li>
                                 <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
@@ -180,6 +183,8 @@
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('company')}}">Company
                                                 Search</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('resource')}}">Resources</a></li>
                                     </ul>
                                 </li>
                                 <li class="d-none d-lg-inline-block"><a class="" href="">Documentation</a><span
@@ -210,6 +215,7 @@
                                 <li class="d-block d-lg-none"><a href="{{url('query-commands')}}">Query Commands</a>
                                 </li>
                                 <li class="d-block d-lg-none"><a href="{{url('company')}}">Company Search</a></li>
+                                <li class="d-block d-lg-none"><a href="{{url('resource')}}">Resources</a></li>
 
 
                                 @guest
