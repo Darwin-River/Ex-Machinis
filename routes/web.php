@@ -27,10 +27,25 @@ Route::get('/players-manual', 'HomeController@playersManual');
 
 Route::post('/web-register', 'UserController@webRegistration');
 
+Route::get('/query-commands', 'HomeController@queryCommands');
+
+Route::get('/resource', 'ResourceController@index');
+Route::get('/resource/{id}', 'ResourceController@view');
+
 //space objects
 Route::get('/astronomical-objects', 'SpaceObjectController@index');
 Route::get('/astronomical-objects/search', 'SpaceObjectController@objectsSearch');
 Route::get('/astronomical-objects/{id}', 'SpaceObjectController@view');
+
+//agents
+Route::get('/spacecraft', 'AgentController@index');
+Route::get('/spacecraft/search', 'AgentController@agentsSearch');
+Route::get('/spacecraft/{id}', 'AgentController@view');
+Route::get('/protocols', 'AgentController@protocols');
+
+//companies
+Route::get('/company', 'UserController@companyIndex');
+Route::get('/company/search', 'UserController@companySearch');
 
 
 Route::get('/get-mails/{key}', 'HomeController@getMails');

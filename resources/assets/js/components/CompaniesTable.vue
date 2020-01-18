@@ -4,34 +4,18 @@
             <div class="row mt-4 mb-4">
                 <div class="col-md-3 col-sm-6 col-6">
                     <div class="form-wrap form-sm">
-                        <input class="form-input form-control-has-validation input-md" id="object_id" v-model="objectId"
+                        <input class="form-input form-control-has-validation input-md" id="company_id" v-model="companyId"
                                type="text"
                                name="object_id" data-constraints="@Numeric ">
-                        <label class="form-label rd-input-label" for="object_id">Id</label>
+                        <label class="form-label rd-input-label" for="company_id">Id</label>
                     </div>
                 </div>
                 <div class="col-md-3 col-sm-6 col-6">
                     <div class="form-wrap form-sm">
-                        <input class="form-input input-md" id="keyword" v-model="keyword"
+                        <input class="form-input input-md" id="company_name" v-model="companyName"
                                type="text"
-                               name="keyword">
-                        <label class="form-label rd-input-label" for="keyword">Keyword</label>
-                    </div>
-                </div>
-                <div class="col-md-3 col-sm-6 col-6 mt-2 mt-md-0">
-                    <div class="form-wrap form-sm">
-                        <div class="select-wrapper">
-                            <select class="form-input input-md" id="object_type" v-model="objectType"
-                                    name="object_type">
-                                <option :value="null">All types</option>
-                                <option value="Star">Star</option>
-                                <option value="Planet">Planet</option>
-                                <option value="Moon">Moon</option>
-                                <option value="Station">Station</option>
-                                <option value="Comet">Comet</option>
-                                <option value="Asteroid">Asteroid</option>
-                            </select>
-                        </div>
+                               name="agent_name">
+                        <label class="form-label rd-input-label" for="company_name">Name</label>
                     </div>
                 </div>
                 <div class="col-md-3 col-sm-6 col-6 mt-2 mt-md-0">
@@ -44,19 +28,17 @@
                 </div>
             </div>
         </form>
+
         <div v-bind:class="'table-responsive '+(loading?' loading-table ':'') ">
-            <vuetable api-url="/astronomical-objects/search" :fields="fields" data-path="data" pagination-path=""
+            <vuetable api-url="/company/search" :fields="fields" data-path="data" pagination-path=""
                       @vuetable:pagination-data="onPaginationData" @vuetable:loading="startLoading"
                       @vuetable:loaded="stopLoading" ref="vuetable" :append-params="extraParams"
                       :per-page="resultsPerPage" :css="css.table">
-                <div slot="object_id" slot-scope="props">
-                    <a v-bind:href="'/astronomical-objects/'+props.rowData.object_id">{{props.rowData.object_id}}</a>
+                <div slot="user_id" slot-scope="props">
+                    <a v-bind:href="'/company/'+props.rowData.user_id">{{props.rowData.user_id}}</a>
                 </div>
-                <div slot="object_name" slot-scope="props">
-                    <a v-bind:href="'/astronomical-objects/'+props.rowData.object_id">{{props.rowData.object_name}}</a>
-                </div>
-                <div slot="central_body_name" slot-scope="props">
-                    <a v-bind:href="'/astronomical-objects/'+props.rowData.central_body_id">{{props.rowData.central_body_name}}</a>
+                <div slot="name" slot-scope="props">
+                    <a v-bind:href="'/company/'+props.rowData.user_id">{{props.rowData.name}}</a>
                 </div>
             </vuetable>
         </div>
@@ -80,11 +62,11 @@
 </template>
 
 <script>
-    import Vuetable from 'vuetable-2';
-    import VuetablePagination from 'vuetable-2/src/components/VuetablePagination';
+    import Vuetable from "vuetable-2";
+    import VuetablePagination from "vuetable-2/src/components/VuetablePagination";
 
     export default {
-        name: "SpaceObjectsTable",
+        name: "CompaniesTable",
         components: {
             Vuetable,
             VuetablePagination,
@@ -96,48 +78,55 @@
         data: () => ({
             fields: [
                 {
-                    name: 'object_id',
+                    name: 'user_id',
                     title: 'Id',
-                    sortField: 'object_id',
+                    sortField: 'user_id',
                     titleClass: '',
                     dataClass: '',
-                    width: "20%",
+                    /*   width: "10%",*/
 
                 },
                 {
-                    name: 'object_name',
+                    name: 'name',
                     title: 'Name',
-                    sortField: 'object_name',
+                    sortField: 'name',
                     titleClass: '',
                     dataClass: '',
-                    width: "22%",
+                    /*width: "22%",*/
 
                 },
                 {
-                    name: 'object_type',
-                    title: 'Type',
-                    sortField: 'object_type',
+                    name: 'age',
+                    title: 'Age (days)',
+                    sortField: 'age',
                     titleClass: '',
                     dataClass: '',
-                    width: "22%",
-                    /* formatter (value) {
-                         return value === 'M' ? 'Male' : 'Female'
-                     }*/
-                },
-                {
-                    name: 'central_body_name',
-                    title: 'Central Body',
-                    sortField: 'cb.object_name',
-                    titleClass: '',
-                    dataClass: '',
-                    width: "36%",
+                    /*width: "22%",*/
 
                 },
+                {
+                    name: 'agents',
+                    title: 'Spacecraft',
+                    sortField: 'agents',
+                    titleClass: '',
+                    dataClass: '',
+                    /*width: "22%",*/
+
+                },
+                {
+                    name: 'credits',
+                    title: 'Credits',
+                    sortField: 'credits',
+                    titleClass: '',
+                    dataClass: '',
+                    /*width: "22%",*/
+
+                },
+
             ],
             extraParams: {},
-            keyword: null,
-            objectType: null,
-            objectId: null,
+            companyName: null,
+            companyId: null,
             loading: false,
 
             totalPages: null,
@@ -150,7 +139,6 @@
                     sortableIcon: 'icon mdi mdi-swap-vertical',
                     handleIcon: 'icon mdi mdi-hand-left',
                     loadingClass: 'loading',
-
                 },
                 pagination: {}
             },
@@ -172,22 +160,19 @@
             },
 
             applyFilters() {
-                //this.selectedLetter = letter;
+
                 let params = {};
-                if (this.objectId)
-                    params.object_id = this.objectId;
-                if (this.keyword)
-                    params.keyword = this.keyword;
-                if (this.objectType)
-                    params.object_type = this.objectType;
+                if (this.companyId)
+                    params.user_id = this.companyId;
+                if (this.companyName)
+                    params.name = this.companyName;
 
                 this.extraParams = params;
                 Vue.nextTick(() => this.$refs.vuetable.refresh())
             },
             resetFilters() {
-                this.keyword = null;
-                this.objectId = null;
-                this.objectType = null;
+                this.companyName = null;
+                this.companyId = null;
                 this.extraParams = {};
                 Vue.nextTick(() => this.$refs.vuetable.refresh());
             },
@@ -198,7 +183,6 @@
                 this.loading = false;
             }
         },
-        computed: {}
     }
 </script>
 

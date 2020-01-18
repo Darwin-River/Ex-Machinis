@@ -102,9 +102,53 @@ select.form-input {
   }
 }
 
-.rd-navbar-main .rd-navbar-nav-wrap .rd-navbar-list-link li{
+.rd-navbar-main .rd-navbar-nav-wrap .rd-navbar-list-link li {
   @include media-breakpoint-up(lg) {
-    display: inline-block ;
+    display: inline-block;
   }
-  display: block ;
+  display: block;
+}
+
+/*.rd-navbar-list-link {
+
+
+  li a {
+    font-size: 18px;
+    line-height: $h6-line-height;
+    font-weight: $headings-font-weight;
+    font-family: $headings-font-family;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+
+    @include link(inherit, $secondary-2);
+  }
+}*/
+
+.table-responsive {
+  transition: all 1s;
+}
+
+.loading-table {
+  opacity: 0.4;
+  transition: all 1s;
+}
+
+th .sort-icon {
+  display: none;
+  @include media-breakpoint-up(sm) {
+    display: block;
+  }
+}
+
+.rd-navbar-dropdown:not(.oriented-down) li {
+ /* text-indent: -15px;*/
+  padding-left: 15px;
+}
+
+.table-custom th, .table-custom td {
+  width: auto !important;
+}
+
+.table-custom th {
+  font-weight: bold;
 }

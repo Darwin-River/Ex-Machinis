@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Agent;
 use App\Company;
+use App\Query;
+use App\Resource;
 use App\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -178,6 +180,15 @@ class HomeController extends Controller
     public function playersManual()
     {
         return view('pages.players-manual');
+    }
+
+    /**
+     * Displays query commands table
+     */
+    public function queryCommands()
+    {
+        $queryCommands = Query::orderBy('id', 'asc')->get();
+        return view('query-commands', compact('queryCommands'));
     }
 
 

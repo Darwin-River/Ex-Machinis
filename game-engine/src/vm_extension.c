@@ -405,7 +405,13 @@ static void vm_ext_process_query
     queryInfo->finalQuery = engine_malloc(strlen(queryInfo->script)+1);
     sprintf(queryInfo->finalQuery, "%s", queryInfo->script);
 
-    engine_trace(TRACE_LEVEL_ALWAYS, "Processing query script [%s]", queryInfo->finalQuery); 
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+      "Processing query [%d]: parameters [%d], result_size [%d], result_addr [%d], script [%s]", 
+      queryInfo->id,
+      queryInfo->parametersNum,
+      queryInfo->resultsArraySize,
+      queryInfo->resultsArrayAddr,
+      queryInfo->finalQuery); 
 
     // Parse the script and replace the special tags by the suitable values read from VM memory
     char tags[MAX_QUERY_TAGS_NUM][MAX_QUERY_TAG_LEN] = 
@@ -483,13 +489,13 @@ static int vm_ext_query_cb(VmExtension_t * const v)
 
     if(!v->error) {
         if(db_get_query_info(&queryInfo) == ENGINE_OK) {
-            queryInfo.resultsArrayAddr = pop(v);
+            queryInfo.resultsArraySize = pop(v);
 
             if(v->error) {
                 success = ENGINE_FALSE;
 
                 sprintf(queryOutMsg, 
-                    "Unable to get results array address from stack for query ID [%d]", 
+                    "Unable to get results array size from stack for query ID [%d]", 
                     queryInfo.id);
 
                 engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
@@ -501,12 +507,12 @@ static int vm_ext_query_cb(VmExtension_t * const v)
         }
 
         if(success == ENGINE_TRUE) {
-            queryInfo.resultsArraySize = pop(v);
+            queryInfo.resultsArrayAddr = pop(v);
             if(v->error) {
                 success = ENGINE_FALSE;
 
                 sprintf(queryOutMsg, 
-                    "Unable to get results array size from stack for query ID [%d]", 
+                    "Unable to get results array address from stack for query ID [%d]", 
                     queryInfo.id);
 
                 engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg); 
