@@ -13,3 +13,4 @@ phpMyAdmin
 /game-engine/src/objs
 /.vscode
 /template
+/.env
