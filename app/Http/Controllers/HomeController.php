@@ -7,8 +7,13 @@ use App\Company;
 use App\Query;
 use App\Resource;
 use App\User;
+use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\View\View;
 use PhpImap\Mailbox;
 use Html2Text\Html2Text;
 
@@ -189,6 +194,61 @@ class HomeController extends Controller
     {
         $queryCommands = Query::orderBy('id', 'asc')->get();
         return view('query-commands', compact('queryCommands'));
+    }
+
+    /**
+     * Displays the in-game events table
+     * @return View
+     */
+    public function inGameEvents()
+    {
+        return view('in-game-events');
+    }
+
+    /**
+     * Used by search engine to retrieve in-game events
+     * @param $request Request object
+     * @return JsonResponse
+     */
+    public function InGameEventsSearch(Request $request)
+    {
+        $resultsPerPage = Config::get('constants.options.results_per_page');
+        $query = DB::table('events')->select('events.timestamp', 'acting_agents.name as acting_agent_name', 'acting_agents.user_id as acting_company_id', 'acting_users.name as acting_company_name',
+            'acting_agents.agent_id as acting_agent_id', 'acting_agents.name as acting_agent_name', 'protocols.name as protocol_name', 'affected_users.name as affected_company_name','affected_users.user_id as affected_company_id',
+            'event_types.name as event_type_name', 'affected_agents.agent_id as affected_agent_id', 'affected_agents.name as affected_agent_name', 'resources.id as resource_id',
+            'resources.name as resource_name', 'events.locked', 'events.new_quantity', 'events.new_credits', 'events.new_location', 'objects.object_id', 'objects.object_name')
+            ->leftJoin('observations', 'events.id', '=', 'observations.event')
+            ->leftJoin('actions', 'events.action', '=', 'actions.id')
+            ->leftJoin('agents as acting_agents', 'actions.drone', '=', 'acting_agents.agent_id')
+            ->leftJoin('users as acting_users', 'acting_agents.user_id', '=', 'acting_users.user_id')
+            ->leftJoin('protocols', 'actions.protocol', '=', 'protocols.id')
+            ->leftJoin('event_types', 'events.event_type', '=', 'event_types.id')
+            ->leftJoin('agents as affected_agents', 'events.drone', '=', 'affected_agents.agent_id')
+            ->leftJoin('users as affected_users', 'affected_agents.user_id', '=', 'affected_users.user_id')
+            ->leftJoin('resources', 'events.resource', '=', 'resources.id')
+            ->leftJoin('objects', 'events.new_location', '=', 'objects.object_id');
+        //basic restrictions
+        $query->where([['observations.drone', '=', 0], ['observations.time', '<=', Carbon::now()->toDateString()]]);
+        if ($request->get('keyword') !== null)
+            $query->where(function ($query) use ($request) {
+                $query->where('affected_agents.name', 'LIKE', "%" . $request->get('keyword') . "%")
+                    ->orWhere('acting_agents.name', 'LIKE', "%" . $request->get('keyword') . "%")
+                    ->orWhere('protocols.name', 'LIKE', "%" . $request->get('keyword') . "%")
+                    ->orWhere('affected_users.name', 'LIKE', "%" . $request->get('keyword') . "%")
+                    ->orWhere('resources.name', 'LIKE', "%" . $request->get('keyword') . "%")
+                    ->orWhere('event_types.name', 'LIKE', "%" . $request->get('keyword') . "%")
+                    ->orWhere('object_name', 'LIKE', "%" . $request->get('keyword') . "%");
+            });
+
+        if ($request->get('sort')) {
+            $sortParts = explode('|', $request->get('sort'));
+            $query->orderBy($sortParts[0], $sortParts[1]);
+        } else
+            $query->orderBy('time', 'desc');
+        $inGameEvents = $query->paginate($resultsPerPage);
+        // var_dump($spaceObjects);exit;
+
+        return response()->json($inGameEvents, 200);
     }
 
 

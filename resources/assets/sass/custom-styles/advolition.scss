@@ -129,7 +129,7 @@ select.form-input {
 }
 
 .loading-table {
-  opacity: 0.4;
+  opacity: 0.3;
   transition: all 1s;
 }
 
@@ -141,7 +141,7 @@ th .sort-icon {
 }
 
 .rd-navbar-dropdown:not(.oriented-down) li {
- /* text-indent: -15px;*/
+  /* text-indent: -15px;*/
   padding-left: 15px;
 }
 
@@ -151,4 +151,22 @@ th .sort-icon {
 
 .table-custom th {
   font-weight: bold;
+}
+
+.small-version {
+  tr th, tr td {
+    font-size: 15px;
+    padding: 14px 23px;
+  }
+}
+
+#table_preloader {
+  position: absolute;
+  /*top: -10px;*/
+  margin-top: 100px;
+  margin-left: auto;
+  margin-right: auto;
+  left: 0;
+  right: 0;
+  opacity: 100% !important;
 }

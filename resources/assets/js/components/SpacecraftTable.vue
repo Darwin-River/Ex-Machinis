@@ -29,6 +29,7 @@
             </div>
         </form>
 
+        <img src="/images/loading.gif" id="table_preloader" v-show="loading"/>
         <div v-bind:class="'table-responsive '+(loading?' loading-table ':'') ">
             <vuetable api-url="/spacecraft/search" :fields="fields" data-path="data" pagination-path=""
                       @vuetable:pagination-data="onPaginationData" @vuetable:loading="startLoading"

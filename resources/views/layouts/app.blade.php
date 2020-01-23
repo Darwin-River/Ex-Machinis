@@ -141,6 +141,10 @@
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('resource')}}">Resources</a>
                                         </li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('in-game-event')}}">In-Game
+                                                Events</a>
+                                        </li>
                                     </ul>
                                 </li>
                                 <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
@@ -185,6 +189,9 @@
                                                 Search</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('resource')}}">Resources</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('in-game-event')}}">In-Game
+                                                Events</a></li>
                                     </ul>
                                 </li>
                                 <li class="d-none d-lg-inline-block"><a class="" href="">Documentation</a><span
@@ -216,6 +223,7 @@
                                 </li>
                                 <li class="d-block d-lg-none"><a href="{{url('company')}}">Company Search</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('resource')}}">Resources</a></li>
+                                <li class="d-block d-lg-none"><a href="{{url('in-game-event')}}">In-Game Events</a></li>
 
 
                                 @guest

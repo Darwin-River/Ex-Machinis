@@ -21,6 +21,9 @@ Vue.component('protocols-table', require('./components/ProtocolsTable.vue').defa
 Vue.component('query-commands-table', require('./components/QueryCommandsTable.vue').default);
 Vue.component('companies-table', require('./components/CompaniesTable').default);
 Vue.component('resources', require('./components/ResourcesTable').default);
+Vue.component('in-game-events-table', require('./components/InGameEventsTable').default);
+
+Vue.use(require('vue-moment'));
 
 const app = new Vue({
     el: '#app'
