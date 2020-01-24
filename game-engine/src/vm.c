@@ -164,12 +164,22 @@ VirtualMachine_t* vm_new(int agent_id)
 
     // Allocate new embedded VM
     vm = (VirtualMachine_t*)embed_new();
+    const char* imageFile =  engine_get_forth_image_path();
 
-    if(vm)
+    if(vm && imageFile)
     {
+        if(embed_load(vm, imageFile) != 0) {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "Unable to create VM using base file [%s]",
+                imageFile);
+
+            vm_free(vm);
+            return NULL;
+        }
+
         engine_trace(TRACE_LEVEL_ALWAYS, 
-            "New VM created with size [%ld] and core size [%ld] for agent [%d]",
-        	sizeof(*vm), sizeof(*(vm->m)), agent_id); 
+            "New VM created with size [%ld] and core size [%ld] with file [%s] for agent [%d]",
+        	sizeof(*vm), sizeof(*(vm->m)), imageFile, agent_id); 
 
         embed_opt_t vm_default_options = *embed_opt_get(vm);
         embed_opt_t vm_engine_options = vm_default_options;
