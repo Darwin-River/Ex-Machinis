@@ -2342,6 +2342,11 @@ ErrorCode_t db_get_event_type_info(EventType_t* event_type)
 ErrorCode_t db_insert_event(Event_t* event)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char new_quantity_text[MAX_QUERY_VALUE_BUF_LEN];
+    char new_credits_text[MAX_QUERY_VALUE_BUF_LEN];
+    char new_location_text[MAX_QUERY_VALUE_BUF_LEN];
+    char new_transmission_text[MAX_QUERY_VALUE_BUF_LEN];
+    char new_cargo_text[MAX_QUERY_VALUE_BUF_LEN];
 
     DbConnection_t* connection =  engine_get_db_connection();
 
@@ -2360,8 +2365,13 @@ ErrorCode_t db_insert_event(Event_t* event)
     query_end += snprintf(query_end, 
         DB_MAX_SQL_QUERY_LEN, 
         "INSERT INTO events "
-        "(event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_credits, new_location, new_transmission, new_cargo) "
-        "VALUES(%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d)",
+        "(event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
+        "VALUES(%d, %d, %d, %d, %d, %d, %d, %d %s%s%s%s%s)", // Only set values != 0
+        event->new_quantity >= 0?", new_quantity":"",
+        event->new_credits >= 0?", new_credits":"",
+        event->new_location >= 0?", new_location":"",
+        event->new_transmission >= 0?", new_transmission":"",
+        event->new_cargo >= 0?", new_cargo":"",
         event->event_type,
         event->action_id,
         event->logged,
@@ -2370,11 +2380,11 @@ ErrorCode_t db_insert_event(Event_t* event)
         event->resource_id,
         event->installed,
         event->locked,
-        event->new_quantity,
-        event->new_credits,
-        event->new_location,
-        event->new_transmission,
-        event->new_cargo);
+        event->new_quantity >= 0?db_int2str(event->new_quantity, new_quantity_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_credits >= 0?db_int2str(event->new_credits, new_credits_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_location >= 0?db_int2str(event->new_location, new_location_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_transmission >= 0?db_int2str(event->new_transmission, new_transmission_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_cargo >= 0?db_int2str(event->new_cargo, new_cargo_text, MAX_QUERY_VALUE_BUF_LEN):"");
 
     // run it 
     if (mysql_query(connection->hndl, query_text)) 
@@ -2478,11 +2488,11 @@ ErrorCode_t db_get_previous_resource_event(Event_t* event)
                 event->outcome = row[EVENT_OUTCOME_IDX]?atoi(row[EVENT_OUTCOME_IDX]):0;
                 event->installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
                 event->locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
-                event->new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):0;
-                event->new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):0;
-                event->new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):0;
-                event->new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):0;
-                event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
+                event->new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):-1;
+                event->new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):-1;
+                event->new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):-1;
+                event->new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):-1;
+                event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):-1;
                
                 engine_trace(TRACE_LEVEL_ALWAYS, 
                     "Event read from DB [%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d] "
@@ -2993,4 +3003,25 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
     }
 
     return result;
+}
+
+
+/** ****************************************************************************
+
+    @brief      Handy function to convert an integer into string and return string
+
+    @param[in]  value  Integer value we want to convert
+    @param[in]  buffer String buffer where we want to store the result
+    @param[in]  szie   String buffer size
+
+    @return     String result
+
+*******************************************************************************/
+char* db_int2str(int value, char* bufffer, size_t size)
+{
+    if(buffer && size) {
+        snprintf(buffer, size, "%d", value);
+    }
+
+    return buffer;
 }
