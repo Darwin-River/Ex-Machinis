@@ -19,7 +19,7 @@
 
         <div class="container" id="container">
             <h1>{{$title}}</h1>
-            <space-objects-table></space-objects-table>
+            <space-objects-table :results-per-page="{{Config::get('constants.options.results_per_page')}}"></space-objects-table>
             
         </div>
     </section>

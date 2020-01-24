@@ -7,6 +7,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Config;
 
 class SpaceObjectController extends Controller
 {
@@ -25,11 +26,10 @@ class SpaceObjectController extends Controller
      */
     public function objectsSearch(Request $request)
     {
-        $resultsPerPage = 50;
-        $page = $request->get('page');
+        $resultsPerPage = Config::get('constants.options.results_per_page');
 
         $query = DB::table('objects')->select('objects.object_id as object_id', 'objects.object_name as object_name', 'objects.object_type as object_type', 'cb.object_name as central_body_name', 'cb.object_id as central_body_id')
-            ->join('objects as cb', 'objects.central_body_object_id', '=', 'cb.object_id')/*with('centralBody')*/
+            ->leftJoin('objects as cb', 'objects.central_body_object_id', '=', 'cb.object_id')/*with('centralBody')*/
         ;
         if ($request->get('object_id') !== null)
             $query->where('objects.object_id', intval($request->get('object_id')));

@@ -44,10 +44,12 @@
                 </div>
             </div>
         </form>
-        <div class="table-responsive">
+        <img src="/images/loading.gif" id="table_preloader" v-show="loading"/>
+        <div v-bind:class="'table-responsive '+(loading?' loading-table ':'') ">
             <vuetable api-url="/astronomical-objects/search" :fields="fields" data-path="data" pagination-path=""
-                      @vuetable:pagination-data="onPaginationData" ref="vuetable" :append-params="extraParams"
-                      :per-page="50" :css="css.table">
+                      @vuetable:pagination-data="onPaginationData" @vuetable:loading="startLoading"
+                      @vuetable:loaded="stopLoading" ref="vuetable" :append-params="extraParams"
+                      :per-page="resultsPerPage" :css="css.table">
                 <div slot="object_id" slot-scope="props">
                     <a v-bind:href="'/astronomical-objects/'+props.rowData.object_id">{{props.rowData.object_id}}</a>
                 </div>
@@ -88,6 +90,9 @@
             Vuetable,
             VuetablePagination,
             /*     VueEvents,*/
+        },
+        props: {
+            resultsPerPage: Number,
         },
         data: () => ({
             fields: [
@@ -134,7 +139,7 @@
             keyword: null,
             objectType: null,
             objectId: null,
-            // see the options API
+            loading: false,
 
             totalPages: null,
 
@@ -186,6 +191,12 @@
                 this.objectType = null;
                 this.extraParams = {};
                 Vue.nextTick(() => this.$refs.vuetable.refresh());
+            },
+            startLoading() {
+                this.loading = true;
+            },
+            stopLoading() {
+                this.loading = false;
             }
         },
         computed: {}
