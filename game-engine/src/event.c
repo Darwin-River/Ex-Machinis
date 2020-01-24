@@ -90,6 +90,8 @@ ErrorCode_t event_update_new_cargo_and_quantity
 
     if(result == ENGINE_OK)
     {
+        if(event->new_quantity < 0) event->new_quantity = 0;
+        if(event->new_cargo < 0)    event->new_cargo = 0;
         // take into account abundancies multiplier for new_quantity
         event->new_quantity *= abundancies.multiplier;
         // Update quantities
@@ -134,6 +136,7 @@ ErrorCode_t event_update_new_credit(Event_t *event)
 
     if(result == ENGINE_OK)
     {
+        if(event->new_credits < 0) event->new_credits = 0;
         // We obtained and event - do the maths to update new_quantity
         event->new_credits += previous_event.new_credits;
     }
