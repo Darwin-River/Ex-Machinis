@@ -3017,7 +3017,7 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
     @return     String result
 
 *******************************************************************************/
-char* db_int2str(int value, char* bufffer, size_t size)
+char* db_int2str(int value, char* buffer, size_t size)
 {
     if(buffer && size) {
         snprintf(buffer, size, "%d", value);
