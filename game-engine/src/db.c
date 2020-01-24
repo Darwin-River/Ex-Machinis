@@ -2366,12 +2366,12 @@ ErrorCode_t db_insert_event(Event_t* event)
         DB_MAX_SQL_QUERY_LEN, 
         "INSERT INTO events "
         "(event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
-        "VALUES(%d, %d, %d, %d, %d, %d, %d, %d %s%s%s%s%s)", // Only set values != 0
-        event->new_quantity >= 0?", new_quantity":"",
-        event->new_credits >= 0?", new_credits":"",
-        event->new_location >= 0?", new_location":"",
-        event->new_transmission >= 0?", new_transmission":"",
-        event->new_cargo >= 0?", new_cargo":"",
+        "VALUES(%d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
+        event->new_quantity?", new_quantity":"",
+        event->new_credits?", new_credits":"",
+        event->new_location?", new_location":"",
+        event->new_transmission?", new_transmission":"",
+        event->new_cargo?", new_cargo":"",
         event->event_type,
         event->action_id,
         event->logged,
@@ -2380,11 +2380,24 @@ ErrorCode_t db_insert_event(Event_t* event)
         event->resource_id,
         event->installed,
         event->locked,
-        event->new_quantity >= 0?db_int2str(event->new_quantity, new_quantity_text, MAX_QUERY_VALUE_BUF_LEN):"",
-        event->new_credits >= 0?db_int2str(event->new_credits, new_credits_text, MAX_QUERY_VALUE_BUF_LEN):"",
-        event->new_location >= 0?db_int2str(event->new_location, new_location_text, MAX_QUERY_VALUE_BUF_LEN):"",
-        event->new_transmission >= 0?db_int2str(event->new_transmission, new_transmission_text, MAX_QUERY_VALUE_BUF_LEN):"",
-        event->new_cargo >= 0?db_int2str(event->new_cargo, new_cargo_text, MAX_QUERY_VALUE_BUF_LEN):"");
+        event->new_quantity?db_int2str(event->new_quantity, new_quantity_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_quantity?", ":"",
+        event->new_credits?db_int2str(event->new_credits, new_credits_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_credits?", ":"",
+        event->new_location?db_int2str(event->new_location, new_location_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_location?", ":"",
+        event->new_transmission?db_int2str(event->new_transmission, new_transmission_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_transmission?", ":"",
+        event->new_cargo?db_int2str(event->new_cargo, new_cargo_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_cargo?", ":"");
+
+    // Trim last comma if any
+    char* lastComma = strrchr(query_text, ',');
+    if(lastComma) {
+        char* nextChar = lastComma;
+        nextChar += 2;
+        if(*nextChar == ')') *lastComma = ' ';
+    }
 
     // run it 
     if (mysql_query(connection->hndl, query_text)) 
