@@ -767,4 +767,17 @@ ErrorCode_t db_get_query_info(Queries_t* queryInfo);
 *******************************************************************************/
 ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm);
 
+/** ****************************************************************************
+
+    @brief      Handy function to convert an integer into string and return string
+
+    @param[in]  value  Integer value we want to convert
+    @param[in]  buffer String buffer where we want to store the result
+    @param[in]  szie   String buffer size
+
+    @return     String result
+
+*******************************************************************************/
+char* db_int2str(int value, char* bufffer, size_t size);
+
 #endif // __EM_DB_MODULE__
