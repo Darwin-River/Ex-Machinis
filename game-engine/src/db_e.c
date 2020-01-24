@@ -399,11 +399,11 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
                 event.resource_id = row[EVENT_RESOURCE_ID_IDX]?atoi(row[EVENT_RESOURCE_ID_IDX]):0;
                 event.installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
                 event.locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
-                event.new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):0;
-                event.new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):0;
-                event.new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):0;
-                event.new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):0;
-                event.new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
+                event.new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):-1;
+                event.new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):-1;
+                event.new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):-1;
+                event.new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):-1;
+                event.new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):-1;
                 
                 // Convert date obtained to time_t
                 event.timestamp = db_date_to_timestamp(row[EVENT_TIMESTAMP_IDX], "%F %T");
@@ -512,10 +512,10 @@ ErrorCode_t db_purge_old_events()
                 event.resource_id = row[EVENT_RESOURCE_ID_IDX]?atoi(row[EVENT_RESOURCE_ID_IDX]):0;
                 event.installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
                 event.locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
-                event.new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):0;
-                event.new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):0;
-                event.new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):0;
-                event.new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
+                event.new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):-1;
+                event.new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):-1;
+                event.new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):-1;
+                event.new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):-1;
                 event.timestamp = row[EVENT_TIMESTAMP_IDX]?atoi(row[EVENT_TIMESTAMP_IDX]):0;
 
                 if(db_delete_event(&event) == ENGINE_OK) {
@@ -843,10 +843,10 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
             out_event->resource_id = row[EVENT_RESOURCE_ID_IDX]?atoi(row[EVENT_RESOURCE_ID_IDX]):0;
             out_event->installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
             out_event->locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
-            out_event->new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):0;
-            out_event->new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):0;
-            out_event->new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):0;
-            out_event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
+            out_event->new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):-1;
+            out_event->new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):-1;
+            out_event->new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):-1;
+            out_event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):-1;
             // Convert date obtained to time_t
             out_event->timestamp = db_date_to_timestamp(row[EVENT_TIMESTAMP_IDX], "%F %T");
         } 
@@ -1032,10 +1032,24 @@ ErrorCode_t db_update_event(Event_t *event)
     {
         char* query_end = query_text;
 
-        query_end += snprintf(query_end, 
-            DB_MAX_SQL_QUERY_LEN, 
-            "UPDATE events SET outcome = %d, new_quantity = %d, new_credits = %d, new_cargo = %d WHERE id = %d",
-            event->outcome, event->new_quantity, event->new_credits, event->new_cargo, event->event_id);
+        query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, "UPDATE events SET outcome = %d,", event->outcome);
+
+
+        // Check first if we have any value to set
+        if((event->new_quantity >= 0) || (event->new_credits >= 0) || (event->new_cargo >= 0))
+        {
+            if(event->new_quantity >= 0)
+                query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, " new_quantity = %d,", event->new_quantity);
+
+            if(event->new_credits >= 0)
+                query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, " new_credits = %d,", event->new_credits);
+
+            if(event->new_cargo >= 0)
+                query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, " new_cargo = %d,", event->new_cargo);
+        }
+
+        query_end--; // overwrite the latest comma
+        query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, " WHERE id = %d,", event->event_id);
 
         // run it 
         if (mysql_query(connection->hndl, query_text)) 
