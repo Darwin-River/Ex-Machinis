@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('pageTitle', 'FORTH Dictionary')
+@section('pageTitle', 'Players Manual')
 @section('content')
     <!-- Breadcrumbs-->
     <section class="breadcrumbs-modern box-transform-wrap bg-image context-dark"
@@ -25,76 +25,71 @@
                 <div class="col-md-12 col-lg-10 col-xl-9 single-post">
                     <div class="post-big">
 
-                        <h1>Chapter 1. Overview</h1>
+                        <h2>Chapter 1. Getting started</h2>
 
-                        <p>The Player’s Manual provides a detailed description of available game-play mechanics and strategies. This manual will grow with the game. As more features are added, they will be introduced below. Currently, the manual focuses primarily on coding spacecraft with the fully developed FORTH interpreter. However, as we develop the more physical components of Ex Machinis game play more details will be provided on navigation, resource extraction, refining, and production. Thank you for your support and please stay tuned for future developments!</p>
-
-                        <p><b>CAUTION:</b> This version of the Player's Manual pertains to the development server, which is located at advolition.com. You're welcome to use the development server to play-test the latest features. However, there's a chance your player account will be corrupted or destroyed as we frequently update the system.</p>
-
-
-                        <br/><h2>Your fortune awaits!</h2>
                         <p>Ex Machinis is a multiplayer space game, which takes place in a parallel universe. Within this altered reality, space technologies have rapidly advanced since the 1950’s to the point where extensive interplanetary industries exist to produce materials that drive the human economy back on Earth. The vast majority of these spacecraft and are unmanned vehicles, which are assembled in space and are controlled terrestrial barons.</p>
 
                         <p>As part of the international agreement that drove the colonization of space at the end of the second world war, citizens of the signitor nations are guaranteed access to basic spacecraft which can be used to build profitable businesses. This democratization of space has been the biggest driver behind the rapid growth of extraterrestrial industries and technologies.</p>
 
-                        <p>It is your birthright to take control of your own remotely piloted spacecraft and build a thriving stellar industry. But this can only be accomplished by programming your spacecraft to efficiently mine, manufacture, and trade materials on the interplanetary economy.</p>
+                        <p>It's your birthright to take control of your own remotely piloted spacecraft and build a thriving stellar industry. But this can only be accomplished by programming your spacecraft to efficiently mine, manufacture, and trade materials on the interplanetary economy.</p>
 
-                        <br/><h2>We still have light years to go</h2>
-                        <p>Ex Machinis is in the very early stages of development but we want to make it available to potential players so they can kick the tires and provide us with valuable feedback and suggestions.</p>
+                        <br/><h3>A word of caution</h3>
 
-                        <p>We currently have a functional email server that allows players to create an account and code a fleet of three spacecraft using a FORTH compiler. The spacecraft are able to process simple FORTH commands but can’t execute any in game activities yet.</p>
+                        <p>The game is in the very early stages of development, and therefore incomplete in many aspects.  However, we want to make it available to potential players so they can kick the tires and provide us with valuable feedback and suggestions.</p>
 
-                        <p>Right now we’re developing the Event Engine that will govern the physical actions of spacecraft. When the Event Engine comes online, your drones will be able manufacture materials move from one location to another.</p>
+                        <p>We currently have a functional email server that allows players to create an account and code a fleet of three spacecraft using a FORTH compiler. The spacecraft are able to process simple FORTH commands and can even complete simple in-game activities!</p>
 
-                        <p>This player’s guide is a work in progress. It will be updated as new features become available in the game. Please follow us on Patreon to receive updates and find the latest version of this guide.</p>
+                        <p>This player’s manual is also a work in progress. We'll be updating it as new features become available in the game.</p>
 
-                        <br/>
-                        <h1>Chapter 2. Getting started</h1>
+                        <br/><h3>Requesting your spacecraft</h3>
 
-                        <br/><h2>Requesting your spacecraft</h2>
-                        <p>As an immersive multiplayer space simulation, there’s no logging into or out of the game. Your assets are always in play. To communicate with your spacecraft, simply send them emails and they will respond in real time. Keep in mind that it will take longer for transmissions to reach spacecraft on the outer edge of the solar system.</p>
+                        <p>To start playing, you will simply need to email the Registrar (registrar@advolition.com) with the word “register” in the subject line. You’ll receive a response from the registrar listing the email addresses of three spacecraft that are under your control. These spacecraft will only respond to communications from the email address you used to contact the registrar.</p>
 
-                        <p>To start playing, you need to email the Registrar (registrar@advolition.com) with the word “register” in the subject line. You’ll receive a response from the registrar listing the email addresses of three spacecraft that are under your control. These spacecraft will only respond to communications from the email address you used to contact the registrar.</p>
+                        <p>We’ll only use your email to send in-game communications from your spacecraft or an occasional newsletter summarizing updates to the game. Furthermore, you’ll only receive emails from your spacecraft in response to your own communications and you can unsubscribe from the newsletter at any time.</p>
 
-                        <p>Also, please be assured that we’ll only use your email to send in-game communications from your spacecraft or an occasional newsletter summarizing updates to the game. Furthermore, you’ll only receive emails from your spacecraft in response to your own communications and you can unsubscribe from the newsletter at any time.</p>
-                        <br/><h2>Contacting your spacecraft</h2>
+                        <br/><h3>Contacting your spacecraft</h3>
+
                         <p>Most of the game is played via direct email communications with your spacecraft. When one of your ships receives an email from you it will interpret everything between the &lt;run&gt; &lt;/run&gt; brackets as code and respond to you accordingly via email.</p>
 
                         <p>For example, try sending the following text to one of your spacecraft and see what happens. Just make sure you retain the spaces between the numbers, the plus sign, and the period, which instructs the spacecraft to report the result.</p>
 
-                        <br/>
-                        <code style=display:block;white-space:pre-wrap>
-                          &lt;run&gt; 2 3 + . &lt;/run&gt;
-                        </code>
+                        <pre><code style="color:white; border: 1px solid #999; display:block; margin-top:20px; padding-left:50px;">
+&lt;run&gt; 2 3 + . &lt;/run&gt;
+                        </code></pre>
 
-                        <br/><h2>Choosing better names!</h2>
-                        <p>You’ll notice that each of your spacecraft as a rather generic and unremarkable email address like SN523854@advolition.com. You’ll probably want to give it a more memorable name like “hero” since you’ll be interacting with it on a regular basis. To rename your spacecraft, simply send the following text in an email to your drone:</p>
+                        <p>You'll receive an email from your spacecraft that reports the result of adding two and three together.</p>
 
-                        <br/>
-                        <code style=display:block;white-space:pre-wrap>
-                          &lt;rename&gt;hero&lt;/rename&gt;
-                        </code>
-
-                        <p>You’ll actually receive an email from hero@advolition.com confirming the name change. You can now send your instructions to this email address instead of the original!</p>
-
-                        <p>There is no limit to the number of times you change your drone’s email address. The only requirements are that you pick a name that doesn’t contain any illegal characters and isn’t already in use by someone else. If your chosen name is not allowed, the drone will let you know via its original email address.</p>
-
-                        <br/><h2>Commanding your fleet</h2>
-                        <p>Unlike most space games, players succeed in Ex Machinis by avoiding the grind. Although it’s possible to send individual commands to your drones, it’s far more efficient to develop advanced routines for coordinating the actions of your multiple ships in distant space. Remember, the game doesn’t stop when you’re AFK and you don’t want to wait for your communications to bounce back and forth across the void.</p>
+                        <br/><h3>Commanding your fleet</h3>
 
                         <p>You’ll be controlling your spacecraft via a simple but highly efficient programming language known as FORTH.</p>
 
-                        <br/>
-                        <h1>Chapter 3. Learning FORTH</h1>
                         <p>FORTH is an amazingly simple but highly flexible programming language that grows out of a few core interpreter functions. In fact, the version of FORTH, which is currently installed in each of your spacecraft, is described in around 200 lines of game-side C code.</p>
 
                         <p>This simple architecture has encouraged many FORTH loyalists to develop their own interpreters and led others to muse that a true FORTH master is one who builds his own interpreter from scratch.</p>
 
                         <p>Consequently, FORTH will give advanced Ex Machinis players a tremendous amount of flexibility in developing a programming environment that works for them. However, it also means that beginners can start the game with a more standard dictionary of intuitive FORTH routines, which facilitate their entry into the game and it's dynamic programming environment.</p>
 
+                        <p>We'll be introducing you to components of the FORTH programming language as we proceed through this tutorial.</p>
+
+                        <br/><h3>Renaming your spacecraft</h3>
+                        <p>You’ll notice that each of your spacecraft as a rather generic and unremarkable email address like SN523854@advolition.com. You’ll probably want to give them more memorable name like “hero” or "scout" before proceeding futher.</p>
+
+                        <p>To rename your spacecraft, simply send the following text in an email to your drone:</p>
+
+<pre><code style="color:white;border: 1px solid #999; display:block;padding-left:50px;margin:0;">
+&lt;rename&gt;hero&lt;/rename&gt;
+</code></pre>
+
+                        <p>You’ll actually receive an email from hero@advolition.com confirming the name change. You can now send your instructions to this email address instead of the original!</p>
+
+                        <p>There is no limit to the number of times you change your drone’s email address. The only requirements are that you pick a name that doesn’t contain any illegal characters and isn’t already in use by someone else. If your chosen name is not allowed, the drone will let you know via its original email address.</p>
+
+                        <br/>
+                        <h2>Chapter 3. Learning FORTH</h2>
+
                         <p>This chapter is intended to give new users a basic understanding of FORTH so that they can use it to remotely pilot their spacecraft.</p>
 
-                        <br/><h2>Doing Simple Math</h2>
+                        <br/><h3>Doing Simple Math</h3>
                         <p>You may have already noticed that FORTH has a strange way of doing math. In FORTH, the numbers come first followed by the operator (2 3 +). This is because FORTH relies on a data stack to transfer values to and from functions.</p>
 
                         <p>For example, when you enter "2” and “3” seperatred by a space, FORTH places a 2 and then a 3 on the data stack. You can visualize this as a stack of dishes in which the number 2 plate is laid down first and the number 3 plate is placed on top of it. Consequently, when objects are removed from the stack the topmost value is removed first (3) and then the next value (2).</p>
@@ -107,15 +102,20 @@
 
                         <p>Understanding stacks is the key to learning FORTH and programming kick-ass spacecraft in Ex Machinis.</p>
 
-                        <br/><h2>Managing the stack</h2>
+                        <br/><h3>Managing the stack</h3>
                         <p>In FORTH, different program elements share data by adding and removing values from this stack in a last-on-first-off manner. For example, when I email the following code one of my spacecraft, it adds the space-delimited values to the stack so that 1 is on the bottom of the stack and 4 is on top.</p>
 
-                        <br/>
-                        <code style=display:block;white-space:pre-wrap>
-                          &lt;run&gt;
-                            1 2 3 4
-                          &lt;/run&gt;
-                        </code>
+                        <div class="table-custom-responsive">
+                          <table class="table-custom table-custom-bordered">
+                            <tr>
+                              <td>
+                                &lt;run&gt;
+                                  1 2 3 4
+                                &lt;/run&gt;
+                              </td>
+                            </tr>
+                          </table>
+                        </div>
 
                         <p>If I were to follow this with a call to the addition function (+), it would remove the 4 and 3 from the top of the stack and place a 7 on the stack. The stack from bottom to top would end up looking like this: 1 2 7</p>
 
@@ -167,7 +167,7 @@
 
                         <p>When trying the above examples, remember that FORTH words are case sensitive and it is important that you include spaces between the numbers, words, and periods. It’s also important that you include all FORTH script between &lt;run&gt; and &lt;/run&gt;. Otherwise the interpreter won’t processes the code.</p>
 
-                        <br/><h2>Building a dictionary</h2>
+                        <br/><h3>Building a dictionary</h3>
                         <p>FORTH is a very simple language. Most of the heavy lifting is done using the data stack and a dictionary of user-defined functions.</p>
 
                         <p>Every time you send your spacecraft instructions enclosed between the script brackets, the spacecraft's on-board interpreter will try to parse your text into words or numbers.</p>
@@ -181,20 +181,20 @@
                         <p>For example, if you find that you are frequently adding five to a number on the stack you can create the word, AddFive, to handle this operation in the future. You would define AddFive by sending the following script to your spacecraft:</p>
 
                         <br/>
-                        <code style=display:block;white-space:pre-wrap>
-                          &lt;run&gt;
-                            : AddFive 5 + ;
-                          &lt;/run&gt;
-                        </code>
+                        <pre><code style="color:white;border: 1px solid #999; display:block;padding-left:50px;margin:0;">
+&lt;run&gt;
+ : AddFive 5 + ;
+&lt;/run&gt;
+                        </code></pre>
 
                         <p>Now, anytime you want your spacecraft to add five to the number on the stack you can use your new word instead of 5 +:</p>
 
                         <br/>
-                        <code style=display:block;white-space:pre-wrap>
-                          &lt;run&gt;
-                            4 AddFive .
-                          &lt;/run&gt;
-                        </code>
+                        <pre><code style="color:white;border: 1px solid #999; display:block;padding-left:50px;margin:0;">
+&lt;run&gt;
+  4 AddFive .
+&lt;/run&gt;
+                        </code></pre>
 
                         <p>This script will cause your spacecraft to return the same result ("9") as the following script:</p>
 
@@ -209,7 +209,7 @@
 
                         <p>Give this a try with your own spacecraft! I'm sure you can come up with more useful definitions than the one provided here.</p>
 
-                        <br/><h2>Commenting on your code</h2>
+                        <br/><h3>Commenting on your code</h3>
                         <p>As with most programming languages, FORTH offers for some convenient mechanisms for commenting on your code. This techniques can be very handy in reminding yourself and others of the intentent and function of your definitions. There are two primary ways to add comments to your script that will be ignored by the interpreter:</p>
 
                         <p>When you start a line with a backslash (\) the interpreter will ignore everything else on that line.</p>
@@ -218,7 +218,7 @@
 
                         <p>Note: Remember that the interpreter uses white space to deliminate words. Therefore, backslashes and parentheses will only be recognized as such by the interpreter if there are spaces between them and other characters.</p>
 
-                        <br/><h2>Sending greetings</h2>
+                        <br/><h3>Sending greetings</h3>
                         <p>Having your spacecraft output text in an email to you is actually quite easy to do and obviously very useful. There are a couple ground rules though: First, this technique for printing quotes can only be called from within a word definition (ie. function). Second, it’s critical that spaces separate your quotes from the text that is contained between them.</p>
 
                         <p>With that in mind, the following definition creates a word that, when called, instructs the spacecraft to print a specific string in its email response to you.</p>
@@ -247,7 +247,7 @@
 
                         <p>The important components of this command are the dot-quote (."), which instructs the craft to print the text that follows and the end-quote ("), which ends the printed string. Just remember that because the FORTH interpreter views the dot and end quotes as distinct words, they must be separated from everything around them by a white-space.</p>
 
-                        <br/><h2>Finding the truth in numbers</h2>
+                        <br/><h3>Finding the truth in numbers</h3>
                         <p>FORTH is very loose with numbers and doesn't have specially defined boolean values. Rather, logical operators interpret all non-zero numbers as true. Only zero is used to represent the boolean equivalent of false.</p>
 
                         <p>A good way to demonstrate this and introduce you to simple branching structures is by defining a new word, which uses an if-else-then statement to make a value judgement about any number that precedes it. Try emailing the following text to one of your spacecraft:</p>
@@ -279,7 +279,7 @@
 
                         <p>We'll be using true? in the next section to explore logical (and, or, xor) and comparison (<, >, =) operators.</p>
 
-                        <br/><h2>Experimenting with logical operators</h2>
+                        <br/><h3>Experimenting with logical operators</h3>
                         <p>In the previous section, we used an if else then statement to demonstrate how FORTH, which is used to program player-controlled spacecraft in Ex Machinis, loosely interprets 0 as false and any other number as true. In the process, we defined the word true?, which returns "false" if the value on the stack is zero and "true" if it is any other number.</p>
 
                         <p>If you haven't already done so, you can define the word true? by emailing the following script to your spacecraft.</p>
@@ -321,7 +321,7 @@
 
                         <p>Try sending the above code to your spacecraft to see how it work.</p>
 
-                        <br/><h2>Using variables when programming your drones</h2>
+                        <br/><h3>Using variables when programming your drones</h3>
                         <p>In FORTH, most values are stored and passed between program elements using the stack. However, the language also allows users to define simple variables using the variable command.</p>
 
                         <p>When a variable is declared, the FORTH interpreter creates an entry in the dictionary using the variable's name. This new definition serves as a placeholder for any values stored in that variable. Values can then be stored in and retrieved from a variable using the store (!) and fetch (@) commands. In the following example, we define a variable called "box" and then store, fetch, and print the number 2 using this variable.</p>
@@ -338,7 +338,7 @@
 
                         <p>Of course, like most things in FORTH, there are some interesting things going on behind the scenes when you declare a variable and store and retrieve values from it. We'll get into some of this in the next section when we address the creation of arrays.</p>
 
-                        <br/><h2>What’s really happening with variables?</h2>
+                        <br/><h3>What’s really happening with variables?</h3>
                         <p>So let’s talk a little bit about what’s happening behind the scenes with variables. When you declare a variable with the statement, “variable box”, you’re essentially telling the FORTH interpreter to define a new word for you called box. This definition tells the interpreter that whenever box is called, it should place an address on the stack, which points to a four byte block at the end of the definition. This location is where your data is stored.</p>
 
                         <p>You can confirm this is happening by calling box and then printing the contents of the stack. When you do so, your drone will return the address of the place in memory where your value is being stored. The variable, box, will always return the same value no matter what’s actually being stored in the variable.</p>
@@ -356,7 +356,7 @@
 
                         <p>So why am I telling you about these functions now? Because understanding how FORTH uses variables is the key to defining and using more powerful strings and arrays!</p>
 
-                        <br/><h2>Working with strings</h2>
+                        <br/><h3>Working with strings</h3>
                         <p>It's important to understand how stings are formed and managed in FORTH, because your drone will use them to query to database about information on its environment and to report information back to you.</p>
 
                         <p>In FORTH, strings of chacrters are stored in a memory structure known as a counted string. In this structure, the first byte of memory holds a value that indicates the size of the string and subesquent bytes hold individual characters from that string.</p>
