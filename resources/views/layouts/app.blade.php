@@ -101,10 +101,12 @@
                                                 class="rd-nav-title">Home</span></a>
                                     <!-- RD Navbar Dropdown-->
                                 </li>
+
+                                <!-- Hide login menu for now.
                                 <li class="rd-nav-item "><a class="rd-nav-link " href="#"><span
                                                 class="rd-nav-icon mdi mdi-account"></span><span
                                                 class="rd-nav-title">User</span></a>
-                                    <!-- RD Navbar Dropdown-->
+                                    
                                     <ul class="rd-menu rd-navbar-dropdown">
                                         @guest
                                             <li class="rd-dropdown-item"><a
@@ -121,7 +123,7 @@
                                             </li>
                                         @endauth
                                     </ul>
-                                </li>
+                                </li> -->
 
                                 <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
                                                                              href="{{'objects'}}"><span
@@ -225,7 +227,7 @@
                                 <li class="d-block d-lg-none"><a href="{{url('resources')}}">Resources</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('events')}}">In-Game Events</a></li>
 
-
+                                <!-- Hide login prompt for now.
                                 @guest
                                     <li class="float-lg-right"><a href="{{url('login')}}">Login</a></li>
                                 @endguest
@@ -241,7 +243,7 @@
                                           style="display: none;">
                                         {{ csrf_field() }}
                                     </form>
-                                @endauth
+                                @endauth -->
                             </ul>
                         </div>
                         <!-- RD Navbar Search-->
