@@ -106,7 +106,7 @@
                                 <li class="rd-nav-item "><a class="rd-nav-link " href="#"><span
                                                 class="rd-nav-icon mdi mdi-account"></span><span
                                                 class="rd-nav-title">User</span></a>
-                                    
+
                                     <ul class="rd-menu rd-navbar-dropdown">
                                         @guest
                                             <li class="rd-dropdown-item"><a
@@ -125,30 +125,7 @@
                                     </ul>
                                 </li> -->
 
-                                <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
-                                                                             href="{{'objects'}}"><span
-                                                class="rd-nav-icon mdi mdi-database-search"></span><span
-                                                class="rd-nav-title">Data</span></a>
-                                    <!-- RD Navbar Dropdown-->
-                                    <ul class="rd-menu rd-navbar-dropdown">
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('objects')}}">Astronomical
-                                                Objects</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('spacecraft')}}">Spacecraft
-                                                Search</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('companies')}}">Company Search</a>
-                                        </li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('resources')}}">Resources</a>
-                                        </li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('events')}}">In-Game
-                                                Events</a>
-                                        </li>
-                                    </ul>
-                                </li>
+
                                 <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
                                                                              href="{{url('players-manual')}}"><span
                                                 class="rd-nav-icon mdi mdi-dictionary"></span><span
@@ -159,13 +136,34 @@
                                                                         href="{{url('players-manual')}}">Player's
                                                 Manual</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('forth-dictionary')}}">FORTH
-                                                Dictionary</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('protocols')}}">Protocols</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('queries')}}">Query
-                                                Commands</a></li>
+                                                                        href="{{url('queries')}}">Queries</a></li>
+                                        <!-- Hiding the FORTH Dictionary for now.
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('forth-dictionary')}}">FORTH
+                                                Dictionary</a></li>
+                                        -->
+                                    </ul>
+                                </li>
+                                <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
+                                                                             href="{{'objects'}}"><span
+                                                class="rd-nav-icon mdi mdi-database-search"></span><span
+                                                class="rd-nav-title">Data</span></a>
+                                    <!-- RD Navbar Dropdown-->
+                                    <ul class="rd-menu rd-navbar-dropdown">
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('objects')}}">Astronomical
+                                                Objects</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('companies')}}">Companies</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('spacecraft')}}">Spacecraft</a></li>
+
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('resources')}}">Resources</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('events')}}">Events</a></li>
                                     </ul>
                                 </li>
                                 <!--  <li class="rd-nav-item active"><a class="rd-nav-link" href="contacts.html"><span
@@ -176,26 +174,7 @@
                             <!-- MAIN MENU -->
                             <ul class="rd-navbar-list-link">
 
-                                <li class="d-none d-lg-inline-block"><a class="" href="{{url('objects')}}">Data</a><span
-                                            class="rd-navbar-submenu-toggle"></span>
-                                    <!-- RD Navbar Dropdown-->
-                                    <ul class="rd-menu rd-navbar-dropdown oriented-down">
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('objects')}}">Astronomical
-                                                Objects</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('spacecraft')}}">Spacecraft
-                                                Search</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('companies')}}">Company
-                                                Search</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('resources')}}">Resources</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('events')}}">In-Game
-                                                Events</a></li>
-                                    </ul>
-                                </li>
+
                                 <li class="d-none d-lg-inline-block"><a class="" href="">Documentation</a><span
                                             class="rd-navbar-submenu-toggle"></span>
                                     <!-- RD Navbar Dropdown-->
@@ -204,28 +183,46 @@
                                                                         href="{{url('players-manual')}}">Player's
                                                 Manual</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('forth-dictionary')}}">FORTH
-                                                Dictionary</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('protocols')}}">Protocols</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('queries')}}">Query
-                                                Commands</a></li>
+                                                                        href="{{url('queries')}}">Queries</a></li>
+                                        <!-- Hiding the FORTH Dictionary for now.
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('forth-dictionary')}}">FORTH
+                                                Dictionary</a></li>
+                                        -->
                                     </ul>
                                 </li>
+                                <li class="d-none d-lg-inline-block"><a class="" href="{{url('objects')}}">Data</a><span
+                                            class="rd-navbar-submenu-toggle"></span>
+                                    <!-- RD Navbar Dropdown-->
+                                    <ul class="rd-menu rd-navbar-dropdown oriented-down">
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('objects')}}">Astronomical
+                                                Objects</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('companies')}}">Companies</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('spacecraft')}}">Spacecraft</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('resources')}}">Resources</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('events')}}">Events</a></li>
+                                    </ul>
+                                </li>
+
+                                <li class="d-block d-lg-none"><a href="{{url('players-manual')}}">Player's Manual</a></li>
+                                <li class="d-block d-lg-none"><a href="{{url('protocols')}}">Protocols</a></li>
+                                <li class="d-block d-lg-none"><a href="{{url('queries')}}">Queries</a></li>
+                                <!-- Hide for now.
+                                <li class="d-block d-lg-none"><a href="{{url('forth-dictionary')}}">FORTH Dictionary</a></li>
+                                -->
                                 <li class="d-block d-lg-none"><a href="{{url('objects')}}">Astronomical
                                         Objects</a></li>
-                                <li class="d-block d-lg-none"><a href="{{url('players-manual')}}">Player's Manual</a>
-                                </li>
-                                <li class="d-block d-lg-none"><a href="{{url('forth-dictionary')}}">FORTH Dictionary</a>
-                                </li>
-                                <li class="d-block d-lg-none"><a href="{{url('spacecraft')}}">Spacecraft Search</a></li>
-                                <li class="d-block d-lg-none"><a href="{{url('protocols')}}">Protocols</a></li>
-                                <li class="d-block d-lg-none"><a href="{{url('queries')}}">Query Commands</a>
-                                </li>
-                                <li class="d-block d-lg-none"><a href="{{url('companies')}}">Company Search</a></li>
+                                <li class="d-block d-lg-none"><a href="{{url('companies')}}">Companies</a></li>
+                                <li class="d-block d-lg-none"><a href="{{url('spacecraft')}}">Spacecraft</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('resources')}}">Resources</a></li>
-                                <li class="d-block d-lg-none"><a href="{{url('events')}}">In-Game Events</a></li>
+                                <li class="d-block d-lg-none"><a href="{{url('events')}}">Events</a></li>
 
                                 <!-- Hide login prompt for now.
                                 @guest
