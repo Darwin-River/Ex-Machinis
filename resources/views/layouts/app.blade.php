@@ -269,11 +269,22 @@
 
     <footer class="section footer-classic bg-gray-700-invariable text-md-left">
         <div class="container">
-            <div class="row row-40">
+            <div class="row row-80">
                 <div class="col-sm-6 col-lg-4">
-                    <h4>About the Game</h4>
-                    <p class="text-width-xl-90">Ex Machinis is a multiplayer space game in which players program fleets
+                    <h4>About us</h4>
+                    <p class="text-width-xl-90">Ex Machinis is a free multiplayer space game in which players program fleets
                         of remotely-piloted spacecraft to trade and manufacture goods and materials.</p>
+                    <div class="row row-20">
+                        <div class="col-6 col-sm-12 align-self-center">
+                            <ul class="list-inline list-social inset-lg-top-10">
+                                <li><a class="icon mdi mdi-twitter" href="https://twitter.com/exmachinis"></a></li>
+                                <li><a class="icon mdi mdi-patreon"
+                                       href="https://www.patreon.com/exmachinis"></a></li>
+                                <li><a class="icon mdi mdi-github-circle"
+                                       href="https://github.com/Darwin-River/Ex-Machinis"></a></li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
                 <!--<div class="col-sm-6 col-lg-2">
                     <h4>Quick Links</h4>
@@ -285,10 +296,10 @@
                         <li><a href="#">ISS Tracking</a></li>
                         <li><a href="#">Researching</a></li>
                     </ul>
-                </div>-->
+                </div>
                 <div class="col-sm-6 col-lg-4">
-                    <h4>Help Us Succeed</h4>
-                    <p>Support us in Patreon:<br/>
+                    <h4>Support us on Patreon</h4>
+                    <p>
                         <a href="https://www.patreon.com/exmachinis">https://www.patreon.com/exmachinis</a>
                     </p>
                     <div class="row row-20">
@@ -302,29 +313,33 @@
                             </ul>
                         </div>
                     </div>
-                </div>
+                </div>-->
                 <div class="col-sm-12 col-lg-4">
                     <h4>Join the game</h4>
-                    <p>Sign up now submitting your e-mail to receive access to your own spacecraft.<br/>
+                    <!--
+                    <p>Submit your e-mail to receive access to your own spacecraft.<br/>
                         <small>Or else send a mail to <a href="mailto:registrar@advolition.com?subject=register">registrar@advolition.com</a>
                             with <b>register</b> as subject.</small></p>
+                    -->
                     <form class="rd-form rd-mailform form-sm" data-form-output="form-output-global"
                           data-form-type="subscribe" method="post" action="/web-register" novalidate="novalidate">
-                        <div class="form-wrap">
-                            <input class="form-input form-control-has-validation" id="subscribe-form-2-name"
-                                   type="text" name="name" data-constraints="@Required"><span
-                                    class="form-validation"></span>
-                            <label class="form-label rd-input-label" for="subscribe-form-2-name">User Name</label>
-                        </div>
+
                         <div class="form-wrap mt-2">
                             <input class="form-input form-control-has-validation" id="subscribe-form-2-email"
                                    type="email" name="email" data-constraints="@Email @Required"><span
                                     class="form-validation"></span>
                             <label class="form-label rd-input-label" for="subscribe-form-2-email">E-mail</label>
                         </div>
+                        <div class="form-wrap">
+                            <input class="form-input form-control-has-validation" id="subscribe-form-2-name"
+                                   type="text" name="name" data-constraints="@Required"><span
+                                    class="form-validation"></span>
+                            <label class="form-label rd-input-label" for="subscribe-form-2-name">A name for your company</label>
+                        </div></br>
                         <button class="button button-sm button-primary" type="submit">Submit</button>
                     </form>
                 </div>
+
             </div>
         </div>
         <div class="container">
