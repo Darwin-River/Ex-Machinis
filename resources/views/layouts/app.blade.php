@@ -124,25 +124,25 @@
                                 </li>
 
                                 <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
-                                                                             href="{{'astronomical-objects'}}"><span
+                                                                             href="{{'objects'}}"><span
                                                 class="rd-nav-icon mdi mdi-database-search"></span><span
                                                 class="rd-nav-title">Data</span></a>
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown">
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('astronomical-objects')}}">Astronomical
+                                                                        href="{{url('objects')}}">Astronomical
                                                 Objects</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('spacecraft')}}">Spacecraft
                                                 Search</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('company')}}">Company Search</a>
+                                                                        href="{{url('companies')}}">Company Search</a>
                                         </li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('resource')}}">Resources</a>
+                                                                        href="{{url('resources')}}">Resources</a>
                                         </li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('in-game-event')}}">In-Game
+                                                                        href="{{url('events')}}">In-Game
                                                 Events</a>
                                         </li>
                                     </ul>
@@ -162,7 +162,7 @@
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('protocols')}}">Protocols</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('query-commands')}}">Query
+                                                                        href="{{url('queries')}}">Query
                                                 Commands</a></li>
                                     </ul>
                                 </li>
@@ -174,23 +174,23 @@
                             <!-- MAIN MENU -->
                             <ul class="rd-navbar-list-link">
 
-                                <li class="d-none d-lg-inline-block"><a class="" href="{{url('astronomical-objects')}}">Data</a><span
+                                <li class="d-none d-lg-inline-block"><a class="" href="{{url('objects')}}">Data</a><span
                                             class="rd-navbar-submenu-toggle"></span>
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown oriented-down">
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('astronomical-objects')}}">Astronomical
+                                                                        href="{{url('objects')}}">Astronomical
                                                 Objects</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('spacecraft')}}">Spacecraft
                                                 Search</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('company')}}">Company
+                                                                        href="{{url('companies')}}">Company
                                                 Search</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('resource')}}">Resources</a></li>
+                                                                        href="{{url('resources')}}">Resources</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('in-game-event')}}">In-Game
+                                                                        href="{{url('events')}}">In-Game
                                                 Events</a></li>
                                     </ul>
                                 </li>
@@ -207,11 +207,11 @@
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('protocols')}}">Protocols</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('query-commands')}}">Query
+                                                                        href="{{url('queries')}}">Query
                                                 Commands</a></li>
                                     </ul>
                                 </li>
-                                <li class="d-block d-lg-none"><a href="{{url('astronomical-objects')}}">Astronomical
+                                <li class="d-block d-lg-none"><a href="{{url('objects')}}">Astronomical
                                         Objects</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('players-manual')}}">Player's Manual</a>
                                 </li>
@@ -219,11 +219,11 @@
                                 </li>
                                 <li class="d-block d-lg-none"><a href="{{url('spacecraft')}}">Spacecraft Search</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('protocols')}}">Protocols</a></li>
-                                <li class="d-block d-lg-none"><a href="{{url('query-commands')}}">Query Commands</a>
+                                <li class="d-block d-lg-none"><a href="{{url('queries')}}">Query Commands</a>
                                 </li>
-                                <li class="d-block d-lg-none"><a href="{{url('company')}}">Company Search</a></li>
-                                <li class="d-block d-lg-none"><a href="{{url('resource')}}">Resources</a></li>
-                                <li class="d-block d-lg-none"><a href="{{url('in-game-event')}}">In-Game Events</a></li>
+                                <li class="d-block d-lg-none"><a href="{{url('companies')}}">Company Search</a></li>
+                                <li class="d-block d-lg-none"><a href="{{url('resources')}}">Resources</a></li>
+                                <li class="d-block d-lg-none"><a href="{{url('events')}}">In-Game Events</a></li>
 
 
                                 @guest

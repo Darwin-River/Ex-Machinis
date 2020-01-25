@@ -27,15 +27,15 @@ Route::get('/players-manual', 'HomeController@playersManual');
 
 Route::post('/web-register', 'UserController@webRegistration');
 
-Route::get('/query-commands', 'HomeController@queryCommands');
+Route::get('/queries', 'HomeController@queryCommands');
 
-Route::get('/resource', 'ResourceController@index');
-Route::get('/resource/{id}', 'ResourceController@view');
+Route::get('/resources', 'ResourceController@index');
+Route::get('/resources/{id}', 'ResourceController@view');
 
 //space objects
-Route::get('/astronomical-objects', 'SpaceObjectController@index');
-Route::get('/astronomical-objects/search', 'SpaceObjectController@objectsSearch');
-Route::get('/astronomical-objects/{id}', 'SpaceObjectController@view');
+Route::get('/objects', 'SpaceObjectController@index');
+Route::get('/objects/search', 'SpaceObjectController@objectsSearch');
+Route::get('/objects/{id}', 'SpaceObjectController@view');
 
 //agents
 Route::get('/spacecraft', 'AgentController@index');
@@ -44,12 +44,12 @@ Route::get('/spacecraft/{id}', 'AgentController@view');
 Route::get('/protocols', 'AgentController@protocols');
 
 //companies
-Route::get('/company', 'UserController@companyIndex');
-Route::get('/company/search', 'UserController@companySearch');
+Route::get('/companies', 'UserController@companyIndex');
+Route::get('/companies/search', 'UserController@companySearch');
 
 //in-game events
-Route::get('/in-game-event', 'HomeController@inGameEvents');
-Route::get('/in-game-event/search', 'HomeController@InGameEventsSearch');
+Route::get('/events', 'HomeController@inGameEvents');
+Route::get('/events/search', 'HomeController@InGameEventsSearch');
 
 
 Route::get('/get-mails/{key}', 'HomeController@getMails');

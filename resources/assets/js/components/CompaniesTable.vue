@@ -31,15 +31,15 @@
 
         <img src="/images/loading.gif" id="table_preloader" v-show="loading"/>
         <div v-bind:class="'table-responsive '+(loading?' loading-table ':'') ">
-            <vuetable api-url="/company/search" :fields="fields" data-path="data" pagination-path=""
+            <vuetable api-url="/companies/search" :fields="fields" data-path="data" pagination-path=""
                       @vuetable:pagination-data="onPaginationData" @vuetable:loading="startLoading"
                       @vuetable:loaded="stopLoading" ref="vuetable" :append-params="extraParams"
                       :per-page="resultsPerPage" :css="css.table">
                 <div slot="user_id" slot-scope="props">
-                    <a v-bind:href="'/company/'+props.rowData.user_id">{{props.rowData.user_id}}</a>
+                    <a v-bind:href="'/companies/'+props.rowData.user_id">{{props.rowData.user_id}}</a>
                 </div>
                 <div slot="name" slot-scope="props">
-                    <a v-bind:href="'/company/'+props.rowData.user_id">{{props.rowData.name}}</a>
+                    <a v-bind:href="'/companies/'+props.rowData.user_id">{{props.rowData.name}}</a>
                 </div>
             </vuetable>
         </div>
