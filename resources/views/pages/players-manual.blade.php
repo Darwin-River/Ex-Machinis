@@ -53,9 +53,10 @@
 
                         <p>For example, try sending the following text to one of your spacecraft and see what happens. Just make sure you retain the spaces between the numbers, the plus sign, and the period, which instructs the spacecraft to report the result.</p>
 
-                        <pre><code style="color:white; border: 1px solid #999; display:block; margin-top:20px; padding-left:50px;">
-&lt;run&gt; 2 3 + . &lt;/run&gt;
-                        </code></pre>
+<pre style="color:white; border: 1px solid white; display:block; margin-top:20px; padding:20px 40px;">
+<code>&lt;run&gt;
+  2 3 + .
+&lt;/run&gt;</code></pre>
 
                         <p>You'll receive an email from your spacecraft that reports the result of adding two and three together.</p>
 
@@ -76,9 +77,8 @@
 
                         <p>To rename your spacecraft, simply send the following text in an email to your drone:</p>
 
-<pre><code style="color:white;border: 1px solid #999; display:block;padding-left:50px;margin:0;">
-&lt;rename&gt;hero&lt;/rename&gt;
-</code></pre>
+<pre style="color:white; border: 1px solid white; display:block; margin-top:20px; padding:20px 40px;">
+<code>&lt;rename&gt;hero&lt;/rename&gt;</code></pre>
 
                         <p>You’ll actually receive an email from hero@advolition.com confirming the name change. You can now send your instructions to this email address instead of the original!</p>
 
@@ -105,17 +105,10 @@
                         <br/><h3>Managing the stack</h3>
                         <p>In FORTH, different program elements share data by adding and removing values from this stack in a last-on-first-off manner. For example, when I email the following code one of my spacecraft, it adds the space-delimited values to the stack so that 1 is on the bottom of the stack and 4 is on top.</p>
 
-                        <div class="table-custom-responsive">
-                          <table class="table-custom table-custom-bordered">
-                            <tr>
-                              <td>
-                                &lt;run&gt;
-                                  1 2 3 4
-                                &lt;/run&gt;
-                              </td>
-                            </tr>
-                          </table>
-                        </div>
+<pre style="color:white; border: 1px solid white; display:block; margin-top:20px; padding:20px 40px;">
+<code>&lt;run&gt;
+  1 2 3 4
+&lt;/run&gt;</code></pre>
 
                         <p>If I were to follow this with a call to the addition function (+), it would remove the 4 and 3 from the top of the stack and place a 7 on the stack. The stack from bottom to top would end up looking like this: 1 2 7</p>
 
@@ -180,30 +173,24 @@
 
                         <p>For example, if you find that you are frequently adding five to a number on the stack you can create the word, AddFive, to handle this operation in the future. You would define AddFive by sending the following script to your spacecraft:</p>
 
-                        <br/>
-                        <pre><code style="color:white;border: 1px solid #999; display:block;padding-left:50px;margin:0;">
-&lt;run&gt;
+<pre style="color:white; border: 1px solid white; display:block; margin-top:20px; padding:20px 40px;">
+<code>&lt;run&gt;
  : AddFive 5 + ;
-&lt;/run&gt;
-                        </code></pre>
+&lt;/run&gt;</code></pre>
 
                         <p>Now, anytime you want your spacecraft to add five to the number on the stack you can use your new word instead of 5 +:</p>
 
-                        <br/>
-                        <pre><code style="color:white;border: 1px solid #999; display:block;padding-left:50px;margin:0;">
-&lt;run&gt;
+<pre style="color:white; border: 1px solid white; display:block; margin-top:20px; padding:20px 40px;">
+<code>&lt;run&gt;
   4 AddFive .
-&lt;/run&gt;
-                        </code></pre>
+&lt;/run&gt;</code></pre>
 
                         <p>This script will cause your spacecraft to return the same result ("9") as the following script:</p>
 
-                        <br/>
-                        <code style=display:block;white-space:pre-wrap>
-                          &lt;run&gt;
-                            4 5 + .
-                          &lt;/run&gt;
-                        </code>
+<pre style="color:white; border: 1px solid white; display:block; margin-top:20px; padding:20px 40px;">
+<code>&lt;run&gt;
+  4 5 + .
+&lt;/run&gt;</code></pre>
 
                         <p>In this example, the word AddFive really doesn't offer much advantage over simply typing 5 +. However, you can easily imagine defining words that perform more complex functions that you wouldn't want to retype every time.</p>
 
@@ -225,23 +212,19 @@
 
                         <p>Start by emailed the following text to one of your spacecraft:</p>
 
-                        <br/>
-                        <code style=display:block;white-space:pre-wrap>
-                          &lt;run&gt;
-                            : helloworld .” Greetings Earthlings! “ ;
-                          &lt;/run&gt;
-                        </code>
+<pre style="color:white; border: 1px solid white; display:block; margin-top:20px; padding:20px 40px;">
+<code>&lt;run&gt;
+  : helloworld .” Greetings Earthlings! “ ;
+&lt;/run&gt;</code></pre>
 
                         <p>The spacecraft will respond to this email with a simple "ok" to acknowledge that it has received the new definition and incorporated it into its on-board dictionary. Remember, the spaces in the above example are very important since the allow the interpreter to delineate words and numbers.</p>
 
                         <p>Next, envoke your new word by sending the following email to your spacecraft:</p>
 
-                        <br/>
-                        <code style=display:block;white-space:pre-wrap>
-                          &lt;run&gt;
-                            helloworld
-                          &lt;/run&gt;
-                        </code>
+<pre style="color:white; border: 1px solid white; display:block; margin-top:20px; padding:20px 40px;">
+<code>&lt;run&gt;
+  helloworld
+&lt;/run&gt;</code></pre>
 
                         <p>Sending this script to your drone will result in a heartfelt greeting from your favorite spacecraft! I guess there's no surprises there. But this will obviously be a useful tool when having your ships provide intelligible status reports.</p>
 
@@ -252,18 +235,16 @@
 
                         <p>A good way to demonstrate this and introduce you to simple branching structures is by defining a new word, which uses an if-else-then statement to make a value judgement about any number that precedes it. Try emailing the following text to one of your spacecraft:</p>
 
-                        <br/>
-                        <code style=display:block;white-space:pre-wrap>
-                          &lt;run&gt;
-                            ( define true? )
-                            : true? if ." true " else ." false " then ;
+<pre style="color:white; border: 1px solid white; display:block; margin-top:20px; padding:20px 40px;">
+<code>&lt;run&gt;
+  ( define true? )
+  : true? if ." true " else ." false " then ;
 
-                            ( test true? )
-                            -1 true?
-                            0 true?
-                            1 true?
-                          &lt;/run&gt;
-                        </code>
+  ( test true? )
+  -1 true?
+  0 true?
+  1 true?
+&lt;/run&gt;</code></pre>
 
                         <p>Remember that spaces are very important, so start by copying and pasting the above script directly into your email, including the &lt;run&gt; &lt;/run&gt; brackets.</p>
 
@@ -284,23 +265,19 @@
 
                         <p>If you haven't already done so, you can define the word true? by emailing the following script to your spacecraft.</p>
 
-                        <br/>
-                        <code style=display:block;white-space:pre-wrap>
-                          &lt;run&gt;
-                            : true? if ." true " else ." false " then ;
-                          &lt;/run&gt;
-                        </code>
+<pre style="color:white; border: 1px solid white; display:block; margin-top:20px; padding:20px 40px;">
+<code>&lt;run&gt;
+  : true? if ." true " else ." false " then ;
+&lt;/run&gt;</code></pre>
 
                         <p>It turns out that FORTH has three logical operators (and, or, xor) which allow you to combine Boolean values in different ways. Therefore, if we use 0 for false and 1 for true, you can test these operators by sending the following script to your drone:</p>
 
-                        <br/>
-                        <code style=display:block;white-space:pre-wrap>
-                          &lt;run&gt;
-                            0 1 and true?
-                            0 1 or true?
-                            0 1 xor true?
-                          &lt;/run&gt;
-                        </code>
+<pre style="color:white; border: 1px solid white; display:block; margin-top:20px; padding:20px 40px;">
+<code>&lt;run&gt;
+  0 1 and true?
+  0 1 or true?
+  0 1 xor true?
+&lt;/run&gt;</code></pre>
 
                         <p>You may not recall that FORTH uses a Reverse Polish Notation (RPN) in which you enter the numbers first (i.e. "0 1") before the function or mathematical operator (and), which processes them. Finally, we need to use our previously defined word, true?, to report back the value of the number. Since "0 and 1" is false, "0 or 1" is true, and "0 xor 1" is also true, your drone will respond to the above script with:</p>
 
@@ -310,14 +287,12 @@
 
                         <p>You may have noticed that there is one very important operator that is missing from the version of FORTH that is currently running on your spacecraft. There is no not operator. However, the beauty of FORTH is that you can easily define your own not operator as follows:</p>
 
-                        <br/>
-                        <code style=display:block;white-space:pre-wrap>
-                          &lt;run&gt;
-                            : not 1 xor ; ( define not )
-                            0 not true? ( see how not works on 0 )
-                            1 not true? ( see how not works on 1 )
-                          &lt;/run&gt;
-                        </code>
+<pre style="color:white; border: 1px solid white; display:block; margin-top:20px; padding:20px 40px;">
+<code>&lt;run&gt;
+  : not 1 xor ; ( define not )
+  0 not true? ( see how not works on 0 )
+  1 not true? ( see how not works on 1 )
+&lt;/run&gt;</code></pre>
 
                         <p>Try sending the above code to your spacecraft to see how it work.</p>
 
@@ -326,13 +301,12 @@
 
                         <p>When a variable is declared, the FORTH interpreter creates an entry in the dictionary using the variable's name. This new definition serves as a placeholder for any values stored in that variable. Values can then be stored in and retrieved from a variable using the store (!) and fetch (@) commands. In the following example, we define a variable called "box" and then store, fetch, and print the number 2 using this variable.</p>
 
-                        <codestyle=display:block;white-space:pre-wrap>
-                          &lt;run&gt;
-                            variable box ( Define the box variable )
-                            2 box ! ( Store the number two in the variable )
-                            box @ . ( Retrieve the contents and print the value )
-                          &lt;/run&gt;
-                        </code>
+<pre style="color:white; border: 1px solid white; display:block; margin-top:20px; padding:20px 40px;">
+<code>&lt;run&gt;
+  variable box ( Define the box variable )
+  2 box ! ( Store the number two in the variable )
+  box @ . ( Retrieve the contents and print the value )
+&lt;/run&gt;</code></pre>
 
                         <p>That's all there is to it! Try running this script and variations of it on one of your drones.</p>
 
@@ -343,12 +317,10 @@
 
                         <p>You can confirm this is happening by calling box and then printing the contents of the stack. When you do so, your drone will return the address of the place in memory where your value is being stored. The variable, box, will always return the same value no matter what’s actually being stored in the variable.</p>
 
-                        <br/>
-                        <code style=display:block;white-space:pre-wrap>
-                          &lt;run&gt;
-                            box . ( Print the address that is returned by box )
-                          &lt;/run&gt;
-                        </code>
+<pre style="color:white; border: 1px solid white; display:block; margin-top:20px; padding:20px 40px;">
+<code>&lt;run&gt;
+  box . ( Print the address that is returned by box )
+&lt;/run&gt;</code></pre>
 
                         <p>With this in mind, consider that the true functions of fetch (@) and store (!) are to read and write values to a specified location in memory. Fetch works by pulling an address off the stack and returning the four-byte value that is stored in that location. Store pulls an address and then a value from the stack and writes the value to the designated memory slot.</p>
 
@@ -367,12 +339,10 @@
 
                         <p>Thus, a string can be stored in a word via a simple definition:</p>
 
-                        <br/>
-                        <code style=display:block;white-space:pre-wrap>
-                          &lt;run&gt;
-                            : myhome $" Earth" ;
-                            &lt;/run&gt;
-                        </code>
+<pre style="color:white; border: 1px solid white; display:block; margin-top:20px; padding:20px 40px;">
+<code>&lt;run&gt;
+  : myhome $" Earth" ;
+&lt;/run&gt;</code></pre>
 
                         <p>This definition creates a word called myhome. When this word is used in another script, it simply places an address on the stack which points to the location of the string "Earth". Since this creates a counted string, the section of memory that is referenced by the address would look like this:</p>
 
@@ -413,12 +383,10 @@
 
                         <p>Consequently, the following script will istruct your drone to print the string which is pointed to by the previously defined word:</p>
 
-                        <br/>
-                        <code style=display:block;white-space:pre-wrap>
-                          &lt;run&gt;
-                            myhome count type
-                            &lt;/run&gt;
-                        </code>
+<pre style="color:white; border: 1px solid white; display:block; margin-top:20px; padding:20px 40px;">
+<code>&lt;run&gt;
+  myhome count type
+&lt;/run&gt;</code></pre>
 
                         <p>Assuming that you've already added home to your drone's dictionary, running the above script will generate an email from your drone that says "Earth".</p>
 
