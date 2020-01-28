@@ -33,64 +33,39 @@
 
                         <p>It's your birthright to take control of your own remotely piloted spacecraft and build a thriving stellar industry. But this can only be accomplished by programming your spacecraft to efficiently mine, manufacture, and trade materials on the interplanetary economy.</p>
 
-                        <br/><h3>A word of caution</h3>
+                        <br/><h3>Joining the game</h3>
 
-                        <p>The game is in the very early stages of development, and therefore incomplete in many aspects.  However, we want to make it available to potential players so they can kick the tires and provide us with valuable feedback and suggestions.</p>
-
-                        <p>We currently have a functional email server that allows players to create an account and code a fleet of three spacecraft using a FORTH compiler. The spacecraft are able to process simple FORTH commands and can even complete simple in-game activities!</p>
-
-                        <p>This player’s manual is also a work in progress. We'll be updating it as new features become available in the game.</p>
-
-                        <br/><h3>Requesting your spacecraft</h3>
-
-                        <p>To start playing, you will simply need to email the Registrar (registrar@advolition.com) with the word “register” in the subject line. You’ll receive a response from the registrar listing the email addresses of three spacecraft that are under your control. These spacecraft will only respond to communications from the email address you used to contact the registrar.</p>
+                        <p>To start playing, you simply need to email the Registrar (registrar@advolition.com) with the word “register” in the subject line. You’ll receive a response from the registrar listing the email addresses of three spacecraft that are under your control. These spacecraft will only respond to communications from the email address you used to contact the registrar.</p>
 
                         <p>We’ll only use your email to send in-game communications from your spacecraft or an occasional newsletter summarizing updates to the game. Furthermore, you’ll only receive emails from your spacecraft in response to your own communications and you can unsubscribe from the newsletter at any time.</p>
 
-                        <br/><h3>Contacting your spacecraft</h3>
-
-                        <p>Most of the game is played via direct email communications with your spacecraft. When one of your ships receives an email from you it will interpret everything between the &lt;run&gt; &lt;/run&gt; brackets as code and respond to you accordingly via email.</p>
-
-                        <p>For example, try sending the following text to one of your spacecraft and see what happens. Just make sure you retain the spaces between the numbers, the plus sign, and the period, which instructs the spacecraft to report the result.</p>
-
-<pre style="color:white; border: 1px solid white; display:block; margin-top:20px; padding:20px 40px;">
-<code>&lt;run&gt;
-  2 3 + .
-&lt;/run&gt;</code></pre>
-
-                        <p>You'll receive an email from your spacecraft that reports the result of adding two and three together.</p>
-
-                        <br/><h3>Commanding your fleet</h3>
-
-                        <p>You’ll be controlling your spacecraft via a simple but highly efficient programming language known as FORTH.</p>
-
-                        <p>FORTH is an amazingly simple but highly flexible programming language that grows out of a few core interpreter functions. In fact, the version of FORTH, which is currently installed in each of your spacecraft, is described in around 200 lines of game-side C code.</p>
-
-                        <p>This simple architecture has encouraged many FORTH loyalists to develop their own interpreters and led others to muse that a true FORTH master is one who builds his own interpreter from scratch.</p>
-
-                        <p>Consequently, FORTH will give advanced Ex Machinis players a tremendous amount of flexibility in developing a programming environment that works for them. However, it also means that beginners can start the game with a more standard dictionary of intuitive FORTH routines, which facilitate their entry into the game and it's dynamic programming environment.</p>
-
-                        <p>We'll be introducing you to components of the FORTH programming language as we proceed through this tutorial.</p>
-
                         <br/><h3>Renaming your spacecraft</h3>
-                        <p>You’ll notice that each of your spacecraft as a rather generic and unremarkable email address like SN523854@advolition.com. You’ll probably want to give them more memorable name like “hero” or "scout" before proceeding futher.</p>
+                        <p>You’ll notice that each of your spacecraft has a rather generic and unremarkable email address like SN523854@advolition.com. You’ll probably want to give them more memorable name like “hero” or "scout" before proceeding futher.</p>
 
                         <p>To rename your spacecraft, simply send the following text in an email to your drone:</p>
 
-<pre style="color:white; border: 1px solid white; display:block; margin-top:20px; padding:20px 40px;">
-<code>&lt;rename&gt;hero&lt;/rename&gt;</code></pre>
+<pre><code>&lt;rename&gt;hero&lt;/rename&gt;</code></pre>
 
                         <p>You’ll actually receive an email from hero@advolition.com confirming the name change. You can now send your instructions to this email address instead of the original!</p>
 
                         <p>There is no limit to the number of times you change your drone’s email address. The only requirements are that you pick a name that doesn’t contain any illegal characters and isn’t already in use by someone else. If your chosen name is not allowed, the drone will let you know via its original email address.</p>
 
-                        <br/>
-                        <h2>Chapter 3. Learning FORTH</h2>
+                        <br/><h3>Sending your first command</h3>
 
-                        <p>This chapter is intended to give new users a basic understanding of FORTH so that they can use it to remotely pilot their spacecraft.</p>
+                        <p>Most of the game is played via direct email communications with your spacecraft. When one of your ships receives an email from you it will interpret everything between the &lt;run&gt; &lt;/run&gt; brackets as FORTH code and respond to you accordingly via email.</p>
 
-                        <br/><h3>Doing Simple Math</h3>
-                        <p>You may have already noticed that FORTH has a strange way of doing math. In FORTH, the numbers come first followed by the operator (2 3 +). This is because FORTH relies on a data stack to transfer values to and from functions.</p>
+                        <p>FORTH is an amazingly simple but highly flexible programming language that grows out of a few core interpreter functions. In fact, the version of FORTH, which is currently installed in each of your spacecraft, is described in around 200 lines of game-side C code. We'll be introducing you to components of the FORTH programming language as we proceed through this tutorial.</p>
+
+                        <p>For now, try sending the following text to one of your spacecraft and see what happens. Just make sure you retain the spaces between the numbers, the plus sign, and the period, which instructs the spacecraft to report the result.</p>
+
+<pre><code>&lt;run&gt;
+  2 3 + .
+&lt;/run&gt;</code></pre>
+
+                        <p>You'll receive an email from your spacecraft that reports the result of adding two and three together.</p>
+
+                        <br/><h3>Understanding the stack</h3>
+                        <p>You may have noticed that FORTH has a strange way of doing math. In FORTH, the numbers come first followed by the operator (2 3 +). This is because FORTH relies on a data stack to transfer values to and from functions.</p>
 
                         <p>For example, when you enter "2” and “3” seperatred by a space, FORTH places a 2 and then a 3 on the data stack. You can visualize this as a stack of dishes in which the number 2 plate is laid down first and the number 3 plate is placed on top of it. Consequently, when objects are removed from the stack the topmost value is removed first (3) and then the next value (2).</p>
 
@@ -101,6 +76,33 @@
                         <p>All FORTH functions behave the same way, by removing and adding values to the stack. This is why FORTH is a stack-based language. It’s also why FORTH is a very efficient and intuitive programming language.</p>
 
                         <p>Understanding stacks is the key to learning FORTH and programming kick-ass spacecraft in Ex Machinis.</p>
+
+                        <br/><h3>Performing protocols</h3>
+
+                        <p>Every physical action your spacecraft takes will result from calls to predefined protocols.  Protocols enable your drones to do things like mine resources, manufacture products, and travel between locations.  In many cases, protocols use, deplete, and produce reseources located in your ship's hold.</p>
+
+                        <p>You can find a complete <a href="http://advolition.com/protocols">list of protocols</a> on the website.  Right now, your choice of protocols is very limited.  That's because we've just created a few simple protocols to test game mechanics.  However, as the game matures, the number and complexity of these actions will increase dramatically.</P>
+
+                        <p>Protocols are invoked by sending your drone a FORTH script that calls upon the "perform" function.  This function pulls one or more paramaters from the stack.  These paramaters provide the ID for the protocol you want to perform and any other parameters that are required by the protocol.</p>
+
+                        <p>For example, if you wanted to move your spaceraft (Protocol ID = 5) to Saturn (Object ID = 6) you would send your spacecraft the following message:
+<pre><code>&lt;run&gt;
+  6 5 perform
+&lt;/run&gt;</code></pre
+
+                        <p>And as quick as that, your spacecraft will be at Saturn!  Give it a try and see what happens.  You'll notice that your drones always report their current location at the top of every email they send you.  This location will now indicate Saturn.</p>
+
+                        <p>You can use this command to go elsewhere in the solarsystem as well.  All you need is the Object ID for your destination.  This can be found in the <a href="http://advolition.com/objects">Astronomical Objects table</a>.
+
+
+
+
+                        <br/>
+                        <h2>Chapter 3. Learning FORTH</h2>
+
+                        <p>This chapter is intended to give new users a basic understanding of FORTH so that they can use it to remotely pilot their spacecraft.</p>
+
+
 
                         <br/><h3>Managing the stack</h3>
                         <p>In FORTH, different program elements share data by adding and removing values from this stack in a last-on-first-off manner. For example, when I email the following code one of my spacecraft, it adds the space-delimited values to the stack so that 1 is on the bottom of the stack and 4 is on top.</p>
