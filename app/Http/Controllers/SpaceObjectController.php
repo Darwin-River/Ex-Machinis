@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Agent;
 use App\SpaceObject;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Config;
+use Illuminate\View\View;
 
 class SpaceObjectController extends Controller
 {
@@ -55,10 +57,16 @@ class SpaceObjectController extends Controller
 
     /**
      * Displays one space object
+     * @param $id integer object id
+     * @return View
      */
-    public function view()
+    public function view($id)
     {
-        return view('space-objects.view');
+        $object = SpaceObject::where('object_id', '=', $id)->with('centralBody')->with('abundancies')->first();
+
+        $localSpacecraft = Agent::where('object_id', '=', $id)->with('hull')->get();
+
+        return view('space-objects.view', compact('object','localSpacecraft'));
     }
 
 }

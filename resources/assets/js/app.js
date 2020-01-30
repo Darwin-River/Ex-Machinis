@@ -5,6 +5,7 @@
  */
 
 require('./bootstrap');
+require('vue-moment');
 
 window.Vue = require('vue');
 

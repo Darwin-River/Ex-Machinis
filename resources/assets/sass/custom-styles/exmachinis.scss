@@ -178,3 +178,10 @@ th .sort-icon {
   margin-top: 20px;
   padding: 20px 40px;
 }
+
+.table-ticket {
+  tr:first-child td,  tr:last-child td  {
+    width: auto;
+    min-width: auto;
+  }
+}
