@@ -36,4 +36,15 @@
 *******************************************************************************/
 ErrorCode_t event_process_outcome(Event_t *event);
 
+/** ****************************************************************************
+
+  @brief      Trace a given event info
+
+  @param[in]  event  Input event
+
+  @return     void
+
+*******************************************************************************/
+void event_trace(Event_t* event);
+
 #endif // __EM_EVENT_MODULE__
