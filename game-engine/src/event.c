@@ -92,7 +92,7 @@ ErrorCode_t event_update_new_cargo_and_quantity
     }
 
     if(event->event_type == 2)
-        abundancies.multiplier = 1; // default when decreasing inventory
+      abundancies.multiplier = 1; // default when decreasing inventory
 
     if(previous_event->new_cargo == NULL_VALUE) previous_event->new_cargo = 0; // first cargo
     if(previous_resource_event->new_quantity == NULL_VALUE) previous_resource_event->new_quantity = 0; // first time
@@ -105,7 +105,7 @@ ErrorCode_t event_update_new_cargo_and_quantity
           previous_event->new_cargo, previous_resource_event->new_quantity);
 
         // take into account abundancies multiplier for new_quantity
-        previous_resource_event->new_quantity *= abundancies.multiplier;
+        event->new_quantity *= abundancies.multiplier;
         // Update quantities
         event->new_cargo = (previous_event->new_cargo + event->new_quantity);
         event->new_quantity += previous_resource_event->new_quantity;
