@@ -48,8 +48,11 @@ ErrorCode_t event_update_new_cargo_and_quantity
 {
     ErrorCode_t result = ENGINE_OK;
     Abundancies_t abundancies;
+    memset(&abundancies, 0, sizeof(abundancies));
 
     // new_cargo.  The EE will search for the last processed event with the same drone and add that quantity to the new_cargo field of the current event.
+
+    event_trace(event);
 
     if(event == NULL)
     {
@@ -88,16 +91,31 @@ ErrorCode_t event_update_new_cargo_and_quantity
         }
     }
 
-    if(result == ENGINE_OK)
+    if(event->event_type == 2)
+        abundancies.multiplier = 1; // default when decreasing inventory
+
+    if(previous_event->new_cargo == NULL_VALUE) previous_event->new_cargo = 0; // first cargo
+    if(previous_resource_event->new_quantity == NULL_VALUE) previous_resource_event->new_quantity = 0; // first time
+
+    if((result == ENGINE_OK) && (event->new_quantity != NULL_VALUE))
     {
-        if(event->new_quantity < 0) event->new_quantity = 0;
-        if(event->new_cargo < 0)    event->new_cargo = 0;
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+          "New quantity %d, abundancies %d, prev_event_cargo %d, previous_event_resource_quantity %d",  
+          event->new_quantity, abundancies.multiplier,
+          previous_event->new_cargo, previous_resource_event->new_quantity);
+
         // take into account abundancies multiplier for new_quantity
-        event->new_quantity *= abundancies.multiplier;
+        previous_resource_event->new_quantity *= abundancies.multiplier;
         // Update quantities
         event->new_cargo = (previous_event->new_cargo + event->new_quantity);
         event->new_quantity += previous_resource_event->new_quantity;
     }
+    else if((result == ENGINE_OK) && (event->new_quantity == NULL_VALUE))
+    {
+      event->new_cargo = previous_event->new_cargo;
+    }
+
+    event_trace(event);
 
     return result;
 }
@@ -136,9 +154,10 @@ ErrorCode_t event_update_new_credit(Event_t *event)
 
     if(result == ENGINE_OK)
     {
-        if(event->new_credits < 0) event->new_credits = 0;
-        // We obtained and event - do the maths to update new_quantity
-        event->new_credits += previous_event.new_credits;
+        if(event->new_credits >= 0 &&  event->new_credits != NULL_VALUE) {
+          // We obtained and event - do the maths to update new_quantity
+          event->new_credits += previous_event.new_credits;
+        }
     }
 
     if(result == ENGINE_NOT_FOUND)
@@ -183,7 +202,7 @@ Bool_t event_no_resources_condition
 ) 
 {
     // Check if we can execute this resource change
-    if(event->new_quantity < 0) {
+    if((event->new_quantity != NULL_VALUE) && (event->new_quantity < 0)) {
         engine_trace(TRACE_LEVEL_ALWAYS, 
             "Current resources quantity [%d] is not enough for a depletion of [%d]", 
             previous_resource_event->new_quantity, previous_event->new_quantity);
@@ -207,6 +226,9 @@ Bool_t event_no_resources_condition
 Bool_t event_no_cargo_condition(Event_t *event) 
 {
     int capacity = 0;
+
+    if(event->new_cargo == NULL_VALUE)
+      return ENGINE_FALSE;
 
     if(db_get_max_drone_cargo(event->drone_id, &capacity) == ENGINE_OK) {
         // Compare current cargo vs. max capacity
@@ -713,4 +735,37 @@ ErrorCode_t event_process_outcome(Event_t *event)
     }
 
     return result;
+}
+
+/** ****************************************************************************
+
+  @brief      Trace a given event info
+
+  @param[in]  event  Input event
+
+  @return     void
+
+*******************************************************************************/
+void event_trace(Event_t* event) 
+{
+  engine_trace(TRACE_LEVEL_ALWAYS, 
+          "Event info: "
+          "EVENT_ID [%d] EVENT_TYPE [%d] ACTION_ID [%d] LOGGED [%d] OUTCOME [%d] "
+          "DRONE_ID [%d] RESOURCE_ID [%d] INSTALLED [%d] LOCKED [%d] NEW_QUANTITY [%d] "
+          "NEW_CREDITS [%d] NEW_LOCATION [%d] NEW_CARGO [%d] TIMESTAMP [%ld]", 
+          event->event_id,
+          event->event_type,
+          event->action_id,
+          event->logged,
+          event->outcome,
+          event->drone_id,
+          event->resource_id,
+          event->installed,
+          event->locked,
+          event->new_quantity,
+          event->new_credits,
+          event->new_location,
+          event->new_transmission,
+          event->new_cargo,
+          event->timestamp);
 }
