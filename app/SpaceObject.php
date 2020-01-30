@@ -3,6 +3,7 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class SpaceObject extends Model
@@ -17,5 +18,14 @@ class SpaceObject extends Model
     public function centralBody()
     {
         return $this->hasOne('App\SpaceObject', 'object_id', 'central_body_object_id');
+    }
+
+    /**
+     * Return object's resources
+     * @return HasMany object
+     */
+    public function abundancies()
+    {
+        return $this->hasMany('App\Abundancy','location','object_id');
     }
 }

@@ -18,7 +18,15 @@ class Agent extends Model
      */
     public function user()
     {
-        return $this->belongsTo('App\User');
+        return $this->belongsTo('App\User','user_id','user_id');
+    }
+
+    /**
+     * Get the hull associated with the agent.
+     */
+    public function hull()
+    {
+        return $this->belongsTo('App\Hull','hull_type','id');
     }
 
     /**
