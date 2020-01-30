@@ -942,8 +942,8 @@ ErrorCode_t db_get_action(Action_t *action)
                         action->drone_id, 
                         action->protocol_id, 
                         action->process_multiplier, 
-                        action->protocol_id,
-                        action->aborted);
+                        action->aborted,
+                        action->action_id);
                 }
                 else 
                 {
@@ -1049,7 +1049,7 @@ ErrorCode_t db_update_event(Event_t *event)
         }
 
         query_end--; // overwrite the latest comma
-        query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, " WHERE id = %d,", event->event_id);
+        query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, " WHERE id = %d", event->event_id);
 
         // run it 
         if (mysql_query(connection->hndl, query_text)) 
