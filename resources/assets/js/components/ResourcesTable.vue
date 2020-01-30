@@ -32,7 +32,7 @@
                         {{resource.id}}
                     </td>
                     <td>
-                        <a v-bind:href="'/resource/'+resource.id">
+                        <a v-bind:href="'/resources/'+resource.id">
                             {{resource.name}}
                         </a>
                     </td>

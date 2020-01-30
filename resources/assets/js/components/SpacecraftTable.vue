@@ -46,7 +46,7 @@
                     <span v-else class="">-</span>
                 </div>
                 <div slot="location_name" slot-scope="props">
-                    <a v-bind:href="'/astronomical-objects/'+props.rowData.location_id">{{props.rowData.location_name}}</a>
+                    <a v-bind:href="'/objects/'+props.rowData.location_id">{{props.rowData.location_name}}</a>
                 </div>
                 <div slot="owner_name" slot-scope="props">
                     <a v-bind:href="'/users/'+props.rowData.owner_id">{{props.rowData.owner_name}}</a>

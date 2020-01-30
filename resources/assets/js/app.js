@@ -25,6 +25,13 @@ Vue.component('in-game-events-table', require('./components/InGameEventsTable').
 
 Vue.use(require('vue-moment'));
 
+Vue.mixin({
+    methods: {
+        capitalizeFirstLetter: str => str.charAt(0).toUpperCase() + str.slice(1)
+    }
+})
+
 const app = new Vue({
-    el: '#app'
+    el: '#app',
+
 });

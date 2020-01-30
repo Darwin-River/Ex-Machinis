@@ -9,8 +9,9 @@
                 <div class="col offset-md-1">
                     <div class="post-erin">
                         <h5 class="post-erin-subtitle">welcome to</h5>
-                        <h1 class="post-erin-title">EX MACHINIS — a multiplayer space game<br><span
-                                    class="font-weight-light">where you code fleets of remotely piloted spacecract</span>
+                        <h1 class="post-erin-title">Ex Machinis — a multiplayer space game<br>
+                          <span class="font-weight-light">where you build and program fleets of spacecraft</span><br>
+                          <span class="font-weight-light">to exploit the riches of our solar system</span>
                         </h1><a class="button button-2 button-lg button-white-2 button-icon button-icon-left"
                                 href="players-manual"><span
                                     class="icon mdi mdi-arrow-right"></span><span>Learn more</span></a>

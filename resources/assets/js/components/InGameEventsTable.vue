@@ -23,7 +23,7 @@
         <img src="/images/loading.gif" id="table_preloader" v-show="loading"/>
         <div v-bind:class="'table-responsive '+(loading?' loading-table ':'') ">
 
-            <vuetable api-url="/in-game-event/search" :fields="fields" data-path="data" pagination-path=""
+            <vuetable api-url="/events/search" :fields="fields" data-path="data" pagination-path=""
                       @vuetable:pagination-data="onPaginationData" @vuetable:loading="startLoading"
                       @vuetable:loaded="stopLoading" ref="vuetable" :append-params="extraParams"
                       :per-page="resultsPerPage" :css="css.table">
@@ -31,7 +31,7 @@
                 <div slot="acting_agent_id" slot-scope="props">
                     <div v-if="props.rowData.acting_agent_id">
                         <a v-bind:href="'/spacecraft/'+props.rowData.acting_agent_id">{{props.rowData.acting_agent_name}}</a>
-                        (<a v-bind:href="'/company/'+props.rowData.acting_company_id">{{props.rowData.acting_company_name}}</a>)
+                        (<a v-bind:href="'/companies/'+props.rowData.acting_company_id">{{props.rowData.acting_company_name}}</a>)
                     </div>
                     <div v-else>
                         -
@@ -40,26 +40,27 @@
                 <div slot="affected_agent_id" slot-scope="props">
                     <div v-if="props.rowData.affected_agent_id">
                         <a v-bind:href="'/spacecraft/'+props.rowData.affected_agent_id">{{props.rowData.affected_agent_name}}</a>
-                        (<a v-bind:href="'/company/'+props.rowData.affected_company_id">{{props.rowData.affected_company_name}}</a>)
+                        (<a v-bind:href="'/companies/'+props.rowData.affected_company_id">{{props.rowData.affected_company_name}}</a>)
                     </div>
                     <div v-else>
                         -
                     </div>
                 </div>
-                <div slot="resource_id" slot-scope="props">
-                    <a v-bind:href="'/resource/'+props.rowData.resource_id">{{props.rowData.resource_name}}</a>
+                <div slot="resource_name" slot-scope="props">
+                    <a v-bind:href="'/resources/'+props.rowData.resource_id">{{props.rowData.resource_name}}</a> <span
+                        class="icon mdi mdi-lock" title="resource in use" v-if="props.rowData.locked === 1"></span>
                 </div>
                 <div slot="object_name" slot-scope="props">
-                    <a v-bind:href="'/astronomical-objects/'+props.rowData.object_id">{{props.rowData.object_name}}</a>
+                    <a v-bind:href="'/objects/'+props.rowData.object_id">{{props.rowData.object_name}}</a>
                 </div>
                 <div slot="affected_company_name" slot-scope="props">
                     <a v-bind:href="'/company/'+props.rowData.affected_company_id">{{props.rowData.affected_company_name}}</a>
                 </div>
                 <div slot="affected_resource_name" slot-scope="props">
-                    <a v-bind:href="'/resource/'+props.rowData.affected_resource_id">{{props.rowData.affected_resource_name}}</a>
+                    <a v-bind:href="'/resources/'+props.rowData.affected_resource_id">{{props.rowData.affected_resource_name}}</a>
                 </div>
                 <div slot="timestamp" slot-scope="props">
-                    {{ props.rowData.timestamp | moment("MM/DD/YYYY h:mm:ss A") }}
+                    {{ formatDate(props.rowData.timestamp) | moment("MM/DD/YYYY h:mm:ss A") }}
                 </div>
             </vuetable>
         </div>
@@ -85,6 +86,7 @@
 <script>
     import Vuetable from "vuetable-2";
     import VuetablePagination from "vuetable-2/src/components/VuetablePagination";
+    import {formatDate} from '../helper.js';
 
     export default {
         name: "InGameEventsTable",
@@ -116,7 +118,7 @@
                 {
                     name: 'protocol_name',
                     title: 'Action',
-                /*    sortField: 'protocol_name',*/
+                    /*    sortField: 'protocol_name',*/
                     titleClass: '',
                     dataClass: '',
                     /*width: "22%",*/
@@ -130,24 +132,24 @@
                     /*width: "22%",*/
 
                 },
-             /*   {
-                    name: 'affected_agent_name',
-                    title: 'Affected Spacecraft',
+                /*   {
+                       name: 'affected_agent_name',
+                       title: 'Affected Spacecraft',
 
-                    titleClass: '',
-                    dataClass: '',
-                },*/
+                       titleClass: '',
+                       dataClass: '',
+                   },*/
                 {
                     name: 'resource_name',
                     title: 'Affected Resource',
-                   /* sortField: 'resource_name',*/
+                    /* sortField: 'resource_name',*/
                     titleClass: '',
                     dataClass: '',
                 },
                 {
                     name: 'event_type_name',
                     title: 'Effect',
-               /*     sortField: 'event_type_name',*/
+                    /*     sortField: 'event_type_name',*/
                     titleClass: '',
                     dataClass: '',
                     /*width: "22%",*/
@@ -155,7 +157,7 @@
                 {
                     name: 'new_quantity',
                     title: 'New Quantity',
-                 /*   sortField: 'new_quantity',*/
+                    /*   sortField: 'new_quantity',*/
                     titleClass: '',
                     dataClass: '',
                     /*width: "22%",*/
@@ -163,7 +165,7 @@
                 {
                     name: 'new_credits',
                     title: 'New Credits',
-                /*    sortField: 'new_credits',*/
+                    /*    sortField: 'new_credits',*/
                     titleClass: '',
                     dataClass: '',
                     /*width: "22%",*/
@@ -171,21 +173,20 @@
                 {
                     name: 'object_name',
                     title: 'New Location',
-                /*    sortField: 'new_location',*/
+                    /*    sortField: 'new_location',*/
                     titleClass: '',
                     dataClass: '',
                     /*width: "22%",*/
                 },
-                {
-                    name: 'locked',
-                    title: '',
-                /*    sortField: 'locked',*/
-                    titleClass: '',
-                    dataClass: '',
-                    formatter(value) {
-                        return value === 1 ? '<span class="icon mdi mdi-lock" title="resource in use"></span> ' : ''
-                    }
-                },
+                /* {
+                     name: 'locked',
+                     title: '',
+                     titleClass: '',
+                     dataClass: '',
+                     formatter(value) {
+                         return value === 1 ? '<span class="icon mdi mdi-lock" title="resource in use"></span> ' : ''
+                     }
+                 },*/
 
             ],
             extraParams: {},
@@ -243,6 +244,9 @@
             stopLoading() {
                 this.loading = false;
             },
+            formatDate(date) {
+                return formatDate(date);
+            }
             /*   actionDescription(rowData) {
                    switch (rowData.event_type_name) {
                        case "Increment Inventory":
