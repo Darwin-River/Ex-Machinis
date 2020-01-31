@@ -228,7 +228,7 @@ class HomeController extends Controller
             ->leftJoin('resources', 'events.resource', '=', 'resources.id')
             ->leftJoin('objects', 'events.new_location', '=', 'objects.object_id');
         //basic restrictions
-        $query->where([['observations.drone', '=', 0], ['observations.time', '<=', Carbon::now()->toDateString()]]);
+        $query->where([['observations.drone', '=', 0], ['observations.time', '<=', Carbon::now()->toDateTimeString()]]);
         if ($request->get('keyword') !== null)
             $query->where(function ($query) use ($request) {
                 $query->where('affected_agents.name', 'LIKE', "%" . $request->get('keyword') . "%")
