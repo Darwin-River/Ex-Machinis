@@ -399,11 +399,11 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
                 event.resource_id = row[EVENT_RESOURCE_ID_IDX]?atoi(row[EVENT_RESOURCE_ID_IDX]):0;
                 event.installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
                 event.locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
-                event.new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):-1;
-                event.new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):-1;
+                event.new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):NULL_VALUE;
+                event.new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):NULL_VALUE;
                 event.new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):-1;
                 event.new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):-1;
-                event.new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):-1;
+                event.new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
                 
                 // Convert date obtained to time_t
                 event.timestamp = db_date_to_timestamp(row[EVENT_TIMESTAMP_IDX], "%F %T");
@@ -512,10 +512,11 @@ ErrorCode_t db_purge_old_events()
                 event.resource_id = row[EVENT_RESOURCE_ID_IDX]?atoi(row[EVENT_RESOURCE_ID_IDX]):0;
                 event.installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
                 event.locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
-                event.new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):-1;
+                event.new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):NULL_VALUE;
+                event.new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):NULL_VALUE;
                 event.new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):-1;
                 event.new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):-1;
-                event.new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):-1;
+                event.new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):NULL_VALUE;
                 event.timestamp = row[EVENT_TIMESTAMP_IDX]?atoi(row[EVENT_TIMESTAMP_IDX]):0;
 
                 if(db_delete_event(&event) == ENGINE_OK) {
@@ -843,10 +844,11 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
             out_event->resource_id = row[EVENT_RESOURCE_ID_IDX]?atoi(row[EVENT_RESOURCE_ID_IDX]):0;
             out_event->installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
             out_event->locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
-            out_event->new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):-1;
+            out_event->new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):NULL_VALUE;
+            out_event->new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):NULL_VALUE;
             out_event->new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):-1;
             out_event->new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):-1;
-            out_event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):-1;
+            out_event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
             // Convert date obtained to time_t
             out_event->timestamp = db_date_to_timestamp(row[EVENT_TIMESTAMP_IDX], "%F %T");
         } 
@@ -1036,15 +1038,15 @@ ErrorCode_t db_update_event(Event_t *event)
 
 
         // Check first if we have any value to set
-        if((event->new_quantity >= 0) || (event->new_credits >= 0) || (event->new_cargo >= 0))
+        if((event->new_quantity != NULL_VALUE) || (event->new_credits != NULL_VALUE) || (event->new_cargo != NULL_VALUE))
         {
-            if(event->new_quantity >= 0)
+            if(event->new_quantity != NULL_VALUE)
                 query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, " new_quantity = %d,", event->new_quantity);
 
-            if(event->new_credits >= 0)
+            if(event->new_credits != NULL_VALUE)
                 query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, " new_credits = %d,", event->new_credits);
 
-            if(event->new_cargo >= 0)
+            if(event->new_cargo != NULL_VALUE)
                 query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, " new_cargo = %d,", event->new_cargo);
         }
 
@@ -1852,7 +1854,7 @@ ErrorCode_t db_delete_action(int action_id)
     {
         snprintf(query_text, 
             DB_MAX_SQL_QUERY_LEN, 
-            "DELETE FROM action WHERE action_id = %d", 
+            "DELETE FROM actions WHERE id = %d", 
             action_id);
 
         // run it 

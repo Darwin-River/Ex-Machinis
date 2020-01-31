@@ -2501,11 +2501,11 @@ ErrorCode_t db_get_previous_resource_event(Event_t* event)
                 event->outcome = row[EVENT_OUTCOME_IDX]?atoi(row[EVENT_OUTCOME_IDX]):0;
                 event->installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
                 event->locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
-                event->new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):-1;
-                event->new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):-1;
+                event->new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):NULL_VALUE;
+                event->new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):NULL_VALUE;
                 event->new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):-1;
                 event->new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):-1;
-                event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):-1;
+                event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
                
                 engine_trace(TRACE_LEVEL_ALWAYS, 
                     "Event read from DB [%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d] "
@@ -3032,7 +3032,9 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
 *******************************************************************************/
 char* db_int2str(int value, char* buffer, size_t size)
 {
-    if(buffer && size) {
+    if(value == NULL_VALUE) {
+        sprintf(buffer, "NULL");
+    } else if(buffer && size) {
         snprintf(buffer, size, "%d", value);
     }
 
