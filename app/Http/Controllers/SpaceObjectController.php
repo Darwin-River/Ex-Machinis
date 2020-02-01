@@ -66,7 +66,10 @@ class SpaceObjectController extends Controller
 
         $localSpacecraft = Agent::where('object_id', '=', $id)->with('hull')->get();
 
-        return view('space-objects.view', compact('object','localSpacecraft'));
+        $orbitingBodies = DB::table('objects')->select('objects.object_id', 'objects.object_name','object_type',DB::raw('COUNT(agents.agent_id) as local_spacecraft'))->leftJoin('agents', 'objects.object_id', '=', 'agents.object_id')
+            ->where('objects.object_id', '=', $id)->groupBy('objects.object_id')->get();
+
+        return view('space-objects.view', compact('object', 'localSpacecraft', 'orbitingBodies'));
     }
 
 }

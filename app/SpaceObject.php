@@ -26,6 +26,6 @@ class SpaceObject extends Model
      */
     public function abundancies()
     {
-        return $this->hasMany('App\Abundancy','location','object_id');
+        return $this->hasMany('App\Abundancy','location','object_id')->orderBy('multiplier','desc');
     }
 }
