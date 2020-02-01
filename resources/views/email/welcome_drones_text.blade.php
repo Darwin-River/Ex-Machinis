@@ -1,2 +1,9 @@
-Welcome to Ex-machinis!\r\n
-You own drones {{$drone1 }}, {{$drone2}}, and {{$drone3}}. You can send portions of code to execute to each one of them using assigned e-mails {{$drone1 }}@{!!  getenv("MAIL_HOST") !!}, {{$drone2 }}@<?php echo  getenv("MAIL_HOST") ?>, and {{$drone3 }}@<?php echo  getenv("MAIL_HOST") ?>,. The code must be included between tags &lt;run&gt; and &lt;/run&gt;.
+Welcome to Ex Machinis, a multiplayer space game in which you program remotely piloted spacecraft to mine, manufacture, and trade resources on the edge of the solar system!
+
+You've been assigned three spacecraft ({{$drone1 }}@<?php echo  getenv("MAIL_HOST") ?>, {{$drone2 }}@<?php echo  getenv("MAIL_HOST") ?>, and {{$drone3 }}@<?php echo  getenv("MAIL_HOST") ?>), which you can program and command via email.  The drones will only respond to communications from your email address.
+
+Be sure to check out the Player's Manual (<?php echo  getenv("MAIL_HOST") ?>/players-manual) for information on how to interact with your ships.
+
+Ex Machinis is in the early stages of development.  New features are being added every week and we're doing our best to track down bugs as soon as they appear.  You can help us by logging bugs and potential enhancements on GitHub (https://github.com/Darwin-River/Ex-Machinis/issues).
+
+Although gameplay is entirely free, we do need funds to sustain this project.  Please consider supporting us on Patreaon (https://www.patreon.com/exmachinis).

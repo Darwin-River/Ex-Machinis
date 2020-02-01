@@ -49,7 +49,7 @@
                         <p><a href="#h3_understanding_the_stack">- Understanding the stack</a></p>
                         <p><a href="#h3_performing_protocols">- Performing protocols</a></p>
                         <p><a href="#h3_putting_it_into_words">- Putting it into words</a></p>
-                      
+
                         <p><a href="#h2_learning_FORTH"><b>Chapter 2: Learning FORTH</b></a></p>
                         <p><a href="#h3_managing_the_stack">- Managing the stack</a></p>
                         <p><a href="#h3_building_a_dictionary">- Building a dictionary</a></p>
@@ -66,18 +66,18 @@
 
                         <br/><h3 id="h3_joining_the_game">Joining the game</h3>
 
-                        <p>To start playing, you simply need to email the Registrar (registrar@advolition.com) with the word “register” in the subject line. You’ll receive a response from the registrar listing the email addresses of three spacecraft that are under your control. These spacecraft will only respond to communications from the email address you used to contact the registrar.</p>
+                        <p>To start playing, you simply need to email the Registrar (registrar@<?php echo  getenv("MAIL_HOST") ?>) with the word “register” in the subject line. You’ll receive a response from the registrar listing the email addresses of three spacecraft that are under your control. These spacecraft will only respond to communications from the email address you used to contact the registrar.</p>
 
                         <p>We’ll only use your email to send in-game communications from your spacecraft or an occasional newsletter summarizing updates to the game. Furthermore, you’ll only receive emails from your spacecraft in response to your own communications and you can unsubscribe from the newsletter at any time.</p>
 
                         <br/><h3 id="h3_renaming_your_spacecraft">Renaming your spacecraft</h3>
-                        <p>You’ll notice that each of your spacecraft has a rather generic and unremarkable email address like SN523854@advolition.com. You’ll probably want to give them more memorable name like “hero” or "scout" before proceeding futher.</p>
+                        <p>You’ll notice that each of your spacecraft has a rather generic and unremarkable email address like SN523854@<?php echo  getenv("MAIL_HOST") ?>. You’ll probably want to give them more memorable name like “hero” or "scout" before proceeding futher.</p>
 
                         <p>To rename your spacecraft, simply send the following text in an email to your drone:</p>
 
 <pre><code>&lt;rename&gt;hero&lt;/rename&gt;</code></pre>
 
-                        <p>You’ll actually receive an email from hero@advolition.com confirming the name change. You can now send your instructions to this email address instead of the original!</p>
+                        <p>You’ll actually receive an email from hero@<?php echo  getenv("MAIL_HOST") ?> confirming the name change. You can now send your instructions to this email address instead of the original!</p>
 
                         <p>There is no limit to the number of times you change your drone’s email address. The only requirements are that you pick a name that doesn’t contain any illegal characters and isn’t already in use by someone else. If your chosen name is not allowed, the drone will let you know via its original email address.</p>
 
@@ -113,7 +113,7 @@
 
                         <p>Every physical action your spacecraft takes will result from calls to predefined protocols.  Protocols enable your drones to do things like mine resources, manufacture products, and travel between locations.  In many cases, protocols use, deplete, and produce reseources located in your ship's hold.</p>
 
-                        <p>You can find a complete <a href="http://advolition.com/protocols">list of protocols</a> on the website.  Right now, your choice of protocols is very limited.  That's because we've just created a few simple protocols to test game mechanics.  However, as the game matures, the number and complexity of these actions will increase dramatically.</P>
+                        <p>You can find a complete <a href="http://<?php echo  getenv("MAIL_HOST") ?>/protocols">list of protocols</a> on the website.  Right now, your choice of protocols is very limited.  That's because we've just created a few simple protocols to test game mechanics.  However, as the game matures, the number and complexity of these actions will increase dramatically.</P>
 
                         <p>Protocols are invoked by sending your drone a FORTH script that calls upon the "perform" function.  This function pulls one or more paramaters from the stack.  These paramaters provide the ID for the protocol you want to perform and any other parameters that are required by the protocol.</p>
 
@@ -124,7 +124,7 @@
 
                         <p>And as quick as that, your spacecraft will be at Saturn!  Give it a try and see what happens.  You'll notice that your drones always report their current location at the top of every email they send you.  This location will now indicate Saturn.</p>
 
-                        <p>You can use this command to go elsewhere in the solarsystem as well.  All you need is the Object ID for your destination.  This can be found in the <a href="http://advolition.com/objects">Astronomical Objects table</a>.</p>
+                        <p>You can use this command to go elsewhere in the solarsystem as well.  All you need is the Object ID for your destination.  This can be found in the <a href="http://<?php echo  getenv("MAIL_HOST") ?>/objects">Astronomical Objects table</a>.</p>
 
                         <br/><h3 id="h3_putting_it_into_words">Putting it into words</h3>
 
