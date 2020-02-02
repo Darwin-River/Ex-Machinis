@@ -40,7 +40,7 @@
                           thriving stellar industry. But this can only be accomplished by programming your spacecraft
                           to efficiently mine, manufacture, and trade materials on the interplanetary economy.</p>
 
-                        <br/><H2>Table of Contents</h2>
+                        <br/><H2 id="h2_TOC">Table of Contents</h2>
 
                         <p><a href="#h2_getting_started"><b>Chapter 1. Getting started</b></a></p>
                         <p><a href="#h3_joining_the_game">- Joining the game</a></p>
