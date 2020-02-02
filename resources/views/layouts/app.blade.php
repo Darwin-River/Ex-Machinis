@@ -102,18 +102,18 @@
                                     <!-- RD Navbar Dropdown-->
                                 </li>
 
-                                <!-- Hide login menu for now.
+                            <!-- Hide login menu for now.
                                 <li class="rd-nav-item "><a class="rd-nav-link " href="#"><span
                                                 class="rd-nav-icon mdi mdi-account"></span><span
                                                 class="rd-nav-title">User</span></a>
 
                                     <ul class="rd-menu rd-navbar-dropdown">
                                         @guest
-                                            <li class="rd-dropdown-item"><a
-                                                        href="{{url('login')}}">Login</a></li>
+                                <li class="rd-dropdown-item"><a
+                                            href="{{url('login')}}">Login</a></li>
                                         @endguest
-                                        @auth
-                                            <h4 class="rd-megamenu-title">{{Auth::user()->name}}</h4>
+                            @auth
+                                <h4 class="rd-megamenu-title">{{Auth::user()->name}}</h4>
                                             <li class="rd-dropdown-item">
                                                 <a href="{{ route('logout') }}"
                                                    onclick="event.preventDefault();
@@ -139,7 +139,7 @@
                                                                         href="{{url('protocols')}}">Protocols</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('queries')}}">Queries</a></li>
-                                        <!-- Hiding the FORTH Dictionary for now.
+                                    <!-- Hiding the FORTH Dictionary for now.
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('forth-dictionary')}}">FORTH
                                                 Dictionary</a></li>
@@ -186,7 +186,7 @@
                                                                         href="{{url('protocols')}}">Protocols</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('queries')}}">Queries</a></li>
-                                        <!-- Hiding the FORTH Dictionary for now.
+                                    <!-- Hiding the FORTH Dictionary for now.
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('forth-dictionary')}}">FORTH
                                                 Dictionary</a></li>
@@ -211,10 +211,11 @@
                                     </ul>
                                 </li>
 
-                                <li class="d-block d-lg-none"><a href="{{url('players-manual')}}">Player's Manual</a></li>
+                                <li class="d-block d-lg-none"><a href="{{url('players-manual')}}">Player's Manual</a>
+                                </li>
                                 <li class="d-block d-lg-none"><a href="{{url('protocols')}}">Protocols</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('queries')}}">Queries</a></li>
-                                <!-- Hide for now.
+                            <!-- Hide for now.
                                 <li class="d-block d-lg-none"><a href="{{url('forth-dictionary')}}">FORTH Dictionary</a></li>
                                 -->
                                 <li class="d-block d-lg-none"><a href="{{url('objects')}}">Astronomical
@@ -223,14 +224,14 @@
                                 <li class="d-block d-lg-none"><a href="{{url('spacecraft')}}">Spacecraft</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('resources')}}">Resources</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('events')}}">Events</a></li>
-
-                                <!-- Hide login prompt for now.
+                                <li><a href="{{url('about-us')}}">About-us</a></li>
+                            <!-- Hide login prompt for now.
                                 @guest
-                                    <li class="float-lg-right"><a href="{{url('login')}}">Login</a></li>
+                                <li class="float-lg-right"><a href="{{url('login')}}">Login</a></li>
                                 @endguest
-                                @auth
-                                    <li class="float-lg-right">
-                                        <a href="{{ route('logout') }}"
+                            @auth
+                                <li class="float-lg-right">
+                                    <a href="{{ route('logout') }}"
                                            onclick="event.preventDefault();
                                                      document.getElementById('logout-form').submit();">
                                             Logout
@@ -239,8 +240,8 @@
                                     <form id="logout-form" action="{{ route('logout') }}" method="POST"
                                           style="display: none;">
                                         {{ csrf_field() }}
-                                    </form>
-                                @endauth -->
+                                        </form>
+@endauth -->
                             </ul>
                         </div>
                         <!-- RD Navbar Search-->
@@ -272,7 +273,8 @@
             <div class="row row-80">
                 <div class="col-sm-6 col-lg-4">
                     <h4>About us</h4>
-                    <p class="text-width-xl-90">Ex Machinis is a free multiplayer space game in which players program fleets
+                    <p class="text-width-xl-90">Ex Machinis is a free multiplayer space game in which players program
+                        fleets
                         of remotely-piloted spacecraft to trade and manufacture goods and materials.</p>
                     <div class="row row-20">
                         <div class="col-6 col-sm-12 align-self-center">
@@ -334,8 +336,10 @@
                             <input class="form-input form-control-has-validation" id="subscribe-form-2-name"
                                    type="text" name="name" data-constraints="@Required"><span
                                     class="form-validation"></span>
-                            <label class="form-label rd-input-label" for="subscribe-form-2-name">A name for your company</label>
-                        </div></br>
+                            <label class="form-label rd-input-label" for="subscribe-form-2-name">A name for your
+                                company</label>
+                        </div>
+                        </br>
                         <button class="button button-sm button-primary" type="submit">Submit</button>
                     </form>
                 </div>
