@@ -64,12 +64,15 @@
                     @foreach($abundancies as $abundancy)
                         <div class="col-4">
                             <div class="counter-modern">
+                                <div class="counter-modern-title">
+                                    <a
+                                            href="{{url('/resources/'.$abundancy->resourceObject->id)}}">{{$abundancy->resourceObject->name}}</a>
+                                </div>
                                 <h2 class="counter-modern-number"><span
                                             class="counter">{{$abundancy->multiplier}}</span>
                                 </h2>
-                                <div class="counter-modern-title"><a
-                                            href="{{url('/resources/'.$abundancy->resourceObject->id)}}">{{$abundancy->resourceObject->name}}</a>
-                                    <br/><span title="id" class="rd-nav-icon mdi mdi-pound"></span> <a
+                                <div class="counter-modern-title">
+                                    <span title="id" class="rd-nav-icon mdi mdi-pound"></span> <a
                                             href="{{url('/resources/'.$abundancy->resourceObject->id)}}">{{$abundancy->resource}}</a>
                                 </div>
                             </div>
