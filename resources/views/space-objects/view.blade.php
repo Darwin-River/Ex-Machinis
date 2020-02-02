@@ -49,7 +49,7 @@
             </div>
             <div class="row row-xxl row-30 row-md-60">
                 <div class="col">
-                    <h2 class="wow fadeInLeft">Extractable Resources's Abundance</h2>
+                    <h2 class="wow fadeInLeft">Extractable Resources</h2>
                 </div>
             </div>
             <div class="row row-xxl row-30 row-md-60 mt-3">
