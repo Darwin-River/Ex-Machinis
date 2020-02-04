@@ -25,18 +25,32 @@
             <div class="row">
                 <div class="col-md-12 col-lg-10 col-xl-9 single-post">
                     <div class="post-big">
-                        <p>
-                            Ex Machinis is an online multiplayer space simulation designed to expose players to
-                            programming and robotics. In the game, which takes place against the backdrop of our
-                            real-time solar system, players program remotely piloted spacecraft to mine, manufacture,
-                            and trade goods and services.
-                        </p>
-                        <p>
-                            The game uses augmented reality to project a parallel universe upon our own. In the game's
-                            re-imagined post-war history, world leaders embraced space exploration and colonization as a
-                            means of protecting mankind form the global threats that emerged in the wake of the second
-                            world war.
-                        </p>
+                        <br/><h2>Our Tiny Company</h2>
+                        <p><b>Darwin River Software LLC</b> is a small company that was established to support the creation of engaging educational application. The organization is built on an open soruce model in which contributions from patrons, sponsors, and committed developers, are used to guide and support the creation of free educational software. Ex Machinis is our effort to create a multiplayer space game that encourages and inspires the development of fundamental programing skills as tool for success.</p>
+
+                        <br/><h2>Our Tallented Team</h2>
+                        <p>Ex Machinis is being developed and maintained by a small team of dedicated and highly motivated developers.  You can follow our efforts on <a href="https://github.com/Darwin-River/Ex-Machinis">GitHub</a>.</p><br/>
+                        <ul>
+                          <li>Carlos Rodriguez Nuñuez</li>
+                          <li>Fernando Rivas</li>
+                          <li>David Rozak</li>
+                        </ul>
+
+                        <br/><h2>Our Awesome Sponsors</h2>
+                        <p>We rely entirely on our generous <a href="https://patreon.com/exmachinis">Patreon sponsors</a> for encouragement, feedback, and financial support. We wouldn't be here without them!</p><br/>
+                        <ul>
+                          <li>Rodney Bonner</li>
+                          <li>Epoch Nine</li>
+                          <li>Radical Wave</li>
+                          <li>Jason Starttraveler</li>
+                          <li>Tovirus</li>
+                          <li>Simon Jones</li>
+                          <li>Joachim Duquesne</li>
+                          <li>Dennis Schlueter</li>
+                          <li>Jörg Reisig</li>
+                          <li>Wonkyness2</li>
+                        </ul>
+
                     </div>
                 </div>
             </div>
