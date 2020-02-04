@@ -66,7 +66,7 @@
                                         href="{{$agent->location->object_id}}">{{$agent->location->object_name}}</a>
                             </td>
                             <td><span class="rd-nav-icon mdi mdi-package-down" title="cargo"></span>
-                                @if(!$agent->hull->cargo_capacity)
+                                @if(!$agent->hull || !$agent->hull->cargo_capacity)
                                     <span class="text-nowrap">No cargo capacity</span>
                                 @else
                                     <span class="text-nowrap">{{(sizeof($agent->lastEVents)>0 && $agent->lastEVents[0]->newCargo)?$agent->lastEVents[0]->newCargo:0}}
