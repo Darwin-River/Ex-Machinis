@@ -59,7 +59,7 @@
                             <td>
                             <span
                                     class="rd-nav-icon mdi mdi-border-outside"
-                                    title="hull"></span> {{$agent->hull?$agent->hull->name:'-'}}
+                                    title="hull"></span> {{$agent->hull?$agent->hull->name:'no hull'}}
                             </td>
                             <td>
                                 <span class="rd-nav-icon mdi mdi-map-marker" title="location"></span> <a
@@ -67,7 +67,7 @@
                             </td>
                             <td><span class="rd-nav-icon mdi mdi-package-down" title="cargo"></span>
                                 @if(!$agent->hull || !$agent->hull->cargo_capacity)
-                                    <span class="text-nowrap">No cargo capacity</span>
+                                    <span class="text-nowrap">no cargo capacity</span>
                                 @else
                                     <span class="text-nowrap">{{(sizeof($agent->lastEVents)>0 && $agent->lastEVents[0]->newCargo)?$agent->lastEVents[0]->newCargo:0}}
                                         / {{$agent->hull->cargo_capacity}} Kg</span>
