@@ -140,23 +140,23 @@ $table-border-color: $gray-400-invariable;
 		border-bottom: 1px solid $gray-500;
 
 		&:first-child {
-			width: 29%;
-			min-width: 240px;
+			/*width: 29%;
+			min-width: 240px;*/
 		}
 
 		&:nth-child(2) {
-			width: 22%;
-			min-width: 170px;
+		/*	width: 22%;
+			min-width: 170px;*/
 		}
 
 		&:nth-child(3) {
-			width: 22%;
-			min-width: 170px;
+			/*width: 22%;
+			min-width: 170px;*/
 		}
 
 		&:last-child {
-			width: 13%;
-			min-width: 120px;
+			/*width: 13%;
+			min-width: 120px;*/
 		}
 	}
 

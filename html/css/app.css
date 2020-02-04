@@ -137,6 +137,7 @@ h2,
 h3,
 h4,
 h5,
+.description-fields,
 h6 {
   margin-top: 0;
   margin-bottom: 0.5rem;
@@ -428,6 +429,7 @@ h2,
 h3,
 h4,
 h5,
+.description-fields,
 h6,
 .h1,
 .h2,
@@ -463,6 +465,7 @@ h4,
 }
 
 h5,
+.description-fields,
 .h5 {
   font-size: 1.25rem;
 }
@@ -35329,6 +35332,7 @@ a.text-dark:hover {
 .context-light h3,
 .context-light h4,
 .context-light h5,
+.context-light .description-fields,
 .context-light h6,
 .context-light [class*=heading-] {
   color: #29293a;
@@ -35339,6 +35343,7 @@ a.text-dark:hover {
 .context-light h3 a:hover,
 .context-light h4 a:hover,
 .context-light h5 a:hover,
+.context-light .description-fields a:hover,
 .context-light h6 a:hover,
 .context-light [class*=heading-] a:hover {
   color: #3e3ef5;
@@ -35361,6 +35366,7 @@ a.text-dark:hover {
 .color-invariable h3,
 .color-invariable h4,
 .color-invariable h5,
+.color-invariable .description-fields,
 .color-invariable h6,
 .color-invariable [class*=heading-] {
   color: #29293a;
@@ -35483,6 +35489,7 @@ h2,
 h3,
 h4,
 h5,
+.description-fields,
 h6,
 [class*=heading-] {
   margin-top: 0;
@@ -35498,6 +35505,7 @@ h2 a,
 h3 a,
 h4 a,
 h5 a,
+.description-fields a,
 h6 a,
 [class*=heading-] a {
   color: inherit;
@@ -35508,6 +35516,7 @@ h2 a:hover,
 h3 a:hover,
 h4 a:hover,
 h5 a:hover,
+.description-fields a:hover,
 h6 a:hover,
 [class*=heading-] a:hover {
   color: #f99200;
@@ -35601,6 +35610,7 @@ h4,
 }
 
 h5,
+.description-fields,
 .heading-5 {
   font-size: 16px;
   line-height: 1.5;
@@ -35612,6 +35622,7 @@ h5,
 
 @media (min-width: 576px) {
   h5,
+  .description-fields,
   .heading-5 {
     font-size: 18px;
   }
@@ -35619,6 +35630,7 @@ h5,
 
 @media (min-width: 768px) {
   h5,
+  .description-fields,
   .heading-5 {
     font-size: 20px;
   }
@@ -38124,23 +38136,23 @@ img + figcaption {
 }
 
 .table-ticket td:first-child {
-  width: 29%;
-  min-width: 240px;
+  /*width: 29%;
+  min-width: 240px;*/
 }
 
 .table-ticket td:nth-child(2) {
-  width: 22%;
-  min-width: 170px;
+  /*	width: 22%;
+  	min-width: 170px;*/
 }
 
 .table-ticket td:nth-child(3) {
-  width: 22%;
-  min-width: 170px;
+  /*width: 22%;
+  min-width: 170px;*/
 }
 
 .table-ticket td:last-child {
-  width: 13%;
-  min-width: 120px;
+  /*width: 13%;
+  min-width: 120px;*/
 }
 
 @media (min-width: 992px) {
@@ -41367,7 +41379,8 @@ h4 + p {
   margin-top: 18px;
 }
 
-h5 + p {
+h5 + p,
+.description-fields + p {
   margin-top: 20px;
 }
 
@@ -41383,7 +41396,8 @@ p + p {
   margin-top: 8px;
 }
 
-h5 + h2 {
+h5 + h2,
+.description-fields + h2 {
   margin-top: 20px;
 }
 
@@ -41476,7 +41490,8 @@ figure + p {
 }
 
 @media (min-width: 1200px) {
-  h5 + h2 {
+  h5 + h2,
+  .description-fields + h2 {
     margin-top: 30px;
   }
 
@@ -42041,12 +42056,14 @@ html [class*=section-].section-bottom-0 {
 */
 
 .grid-demonstration h5,
+.grid-demonstration .description-fields,
 .grid-demonstration .heading-5 {
   font-weight: 700;
 }
 
 @media (max-width: 1199px) {
   .grid-demonstration h5,
+  .grid-demonstration .description-fields,
   .grid-demonstration .heading-5 {
     font-size: 14px;
   }
@@ -42245,6 +42262,7 @@ html [class*=section-].section-bottom-0 {
 .bg-dark h3,
 .bg-dark h4,
 .bg-dark h5,
+.bg-dark .description-fields,
 .bg-dark h6,
 .bg-dark [class*=heading-] {
   color: #ffffff;
@@ -42276,6 +42294,7 @@ html [class*=section-].section-bottom-0 {
 .bg-gray-700-invariable h3,
 .bg-gray-700-invariable h4,
 .bg-gray-700-invariable h5,
+.bg-gray-700-invariable .description-fields,
 .bg-gray-700-invariable h6,
 .bg-gray-700-invariable [class*=heading-] {
   color: #ffffff;
@@ -42572,7 +42591,8 @@ p.rights a:hover {
 }
 
 @media (min-width: 1200px) {
-  h5 + .offset-negative-left {
+  h5 + .offset-negative-left,
+  .description-fields + .offset-negative-left {
     margin-top: 36px;
   }
 
@@ -51114,6 +51134,10 @@ body:not(.lg-from-hash) .lg-outer.lg-start-zoom .lg-item.lg-complete .lg-object 
   }
 }
 
+.text-nowrap {
+  white-space: nowrap;
+}
+
 #compiled_table {
   border-width: 0;
   color: white;
@@ -51273,6 +51297,7 @@ th .sort-icon {
 .table-custom th,
 .table-custom td {
   width: auto !important;
+  min-width: auto !important;
 }
 
 .table-custom th {
@@ -51306,7 +51331,16 @@ th .sort-icon {
 
 .table-ticket tr:first-child td,
 .table-ticket tr:last-child td {
-  width: auto;
-  min-width: auto;
+  width: auto !important;
+  min-width: auto !important;
+}
+
+.description-fields {
+  font-weight: normal !important;
+  text-align: left;
+}
+
+.description-fields a {
+  color: #f99200;
 }
 

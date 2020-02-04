@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Agent;
 use App\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\View\View;
 
 class UserController extends Controller
 {
@@ -75,6 +77,20 @@ class UserController extends Controller
         // var_dump($spaceObjects);exit;
 
         return response()->json($spaceObjects, 200);
+    }
+
+    /**
+     * Displays single company
+     * @param int $id user id
+     * @return View
+     */
+    public function companyView($id)
+    {
+        $user = User::where('user_id', '=', $id)->first();
+
+        $spacecraft = Agent::with('hull')->with('location')->with('lastEVents')->where('user_id', '=', $id)->get();
+
+        return view('user.company', compact('user', 'spacecraft'));
     }
 
 }

@@ -224,7 +224,7 @@
                                 <li class="d-block d-lg-none"><a href="{{url('spacecraft')}}">Spacecraft</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('resources')}}">Resources</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('events')}}">Events</a></li>
-                                <li><a href="{{url('about-us')}}">About-us</a></li>
+                                <li><a href="{{url('about-us')}}">About Us</a></li>
                             <!-- Hide login prompt for now.
                                 @guest
                                 <li class="float-lg-right"><a href="{{url('login')}}">Login</a></li>

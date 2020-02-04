@@ -1,4 +1,8 @@
 
+.text-nowrap {
+  white-space: nowrap;
+}
+
 #compiled_table {
   border-width: 0;
   color: white;
@@ -147,6 +151,7 @@ th .sort-icon {
 
 .table-custom th, .table-custom td {
   width: auto !important;
+  min-width: auto !important;
 }
 
 .table-custom th {
@@ -180,8 +185,21 @@ th .sort-icon {
 }
 
 .table-ticket {
-  tr:first-child td,  tr:last-child td  {
-    width: auto;
-    min-width: auto;
+  tr:first-child td, tr:last-child td {
+    width: auto !important;
+    min-width: auto !important;
   }
+}
+
+.description-fields {
+
+  @extend h5;
+
+  font-weight: normal !important;
+  text-align: left;
+
+  a {
+    color: #f99200;
+  }
+
 }

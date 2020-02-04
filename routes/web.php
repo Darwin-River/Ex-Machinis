@@ -47,6 +47,7 @@ Route::get('/protocols', 'AgentController@protocols');
 //companies
 Route::get('/companies', 'UserController@companyIndex');
 Route::get('/companies/search', 'UserController@companySearch');
+Route::get('/companies/{id}', 'UserController@companyView');
 
 //in-game events
 Route::get('/events', 'HomeController@inGameEvents');

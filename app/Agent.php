@@ -18,7 +18,7 @@ class Agent extends Model
      */
     public function user()
     {
-        return $this->belongsTo('App\User','user_id','user_id');
+        return $this->belongsTo('App\User', 'user_id', 'user_id');
     }
 
     /**
@@ -26,7 +26,23 @@ class Agent extends Model
      */
     public function hull()
     {
-        return $this->belongsTo('App\Hull','hull_type','id');
+        return $this->belongsTo('App\Hull', 'hull_type', 'id');
+    }
+
+    /**
+     * Get the last 20 events occurred to the agent, with the last on top
+     */
+    public function lastEVents()
+    {
+        return $this->hasMany('App\Event', 'drone', 'agent_id')->orderBy('id', 'desc')->take(20);
+    }
+
+    /**
+     * Get the agent's current location
+     */
+    public function location()
+    {
+        return $this->belongsTo('App\SpaceObject', 'object_id', 'object_id');
     }
 
     /**
@@ -79,7 +95,7 @@ class Agent extends Model
                 //create new command for this agent
                 $command = new Command();
                 $command->code = trim($matches[$i]);
-                if(strlen($command->code) > 0) {
+                if (strlen($command->code) > 0) {
                     $command->agent_id = $this->agent_id;
                     $command->subject = $subject;
                     $command->email_content = $command_text;
@@ -155,7 +171,7 @@ class Agent extends Model
                 $command = new Command();
                 $new_name = trim($matches[$i]);
                 $command->code = '<rename>' . $new_name . '</rename>';
-                if(strlen($command->code) > 0) {
+                if (strlen($command->code) > 0) {
                     $command->agent_id = $this->agent_id;
                     $command->subject = $subject;
                     $command->email_content = $command_text;
@@ -182,7 +198,7 @@ class Agent extends Model
                 //create new command for this agent
                 $command = new Command();
                 $command->code = '<rebrand>' . trim($matches[$i]) . '</rebrand>';
-                if(strlen($command->code) > 0) {
+                if (strlen($command->code) > 0) {
                     $command->agent_id = $this->agent_id;
                     $command->subject = $subject;
                     $command->email_content = $command_text;
@@ -212,39 +228,39 @@ class Agent extends Model
         // Find the position of the supported meta-commands
         // Insert positions found into array
         $pos_abort = strpos($command_text, "<abort>");
-        if($pos_abort !== false) {
+        if ($pos_abort !== false) {
             $positions_array["abort"] = $pos_abort;
         }
 
         $pos_run = strpos($command_text, "<run>");
-        if($pos_run !== false) {
+        if ($pos_run !== false) {
             $positions_array["run"] = $pos_run;
         }
 
         $pos_reset = strpos($command_text, "<reset>");
-        if($pos_reset !== false) {
+        if ($pos_reset !== false) {
             $positions_array["reset"] = $pos_reset;
         }
 
         $pos_rename = strpos($command_text, "<rename>");
-        if($pos_rename !== false) {
+        if ($pos_rename !== false) {
             $positions_array["rename"] = $pos_rename;
         }
 
         $pos_rebrand = strpos($command_text, "<rebrand>");
-        if($pos_rebrand !== false) {
+        if ($pos_rebrand !== false) {
             $positions_array["rebrand"] = $pos_rebrand;
         }
 
         // Check if any was found
-        if(empty($positions_array))
+        if (empty($positions_array))
             return false;
 
         // Find the first one
         $first = array_search(min($positions_array), $positions_array);
 
         // Create the suitable command depending on meta-command received
-        switch($first) {
+        switch ($first) {
             case "run":
                 $commandsCreated = $this->processRunCommand($command_text, $subject);
                 break;

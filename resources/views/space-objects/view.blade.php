@@ -23,29 +23,46 @@
     <section class="section section-xs section-first bg-default text-md-left">
 
         <div class="container grid-demonstration" id="container">
-            <div class="row row-xxl row-30 row-md-60 ">
-                <div class="col-12 col-lg-6 col mb-0 mb-lg-4">
-                    <b>Type: </b>{{$object->object_type}}<br/>
-                    <b>Epoch: </b>{{$object->epoch?date('m/d/Y', strtotime($object->epoch)):'-'}}<br/>
-                    <b>Semimajor Axis: </b> {{$object->semimajor_axis?$object->semimajor_axis:'-'}}<br/>
-                    <b>Eccentricity: </b> {{$object->eccentricity?$object->eccentricity:'-'}}<br/>
-                    <b>Periapsis Argument: </b>{{$object->periapsis_argument?$object->periapsis_argument:'-'}}<br/>
 
-                </div>
-                <div class="col-12 col-lg-6 mb-0 mb-lg-4">
-                    <b>Central
-                        Body: </b>{!! $object->centralBody?"<a href='".url('/objects/'.$object->central_body_object_id)."'>".$object->centralBody->object_name."</a>":'-'!!}
-                    <br/>
-                    <b>Mean Anomally: </b> {{$object->mean_anomaly?$object->mean_anomaly:'-'}}<br/>
-                    <b>Inclination: </b>{{$object->inclination?$object->inclination:'-'}}<br/>
-                    <b>Ascending Node: </b> {{$object->ascending_node_longitude?$object->ascending_node_longitude:'-'}}
-                    <br/>
-                    <b>Mean Angular Motion: </b>{{$object->mean_angular_motion?$object->mean_angular_motion:'-'}}<br/>
-                </div>
-                <div class="col-12 col-lg-4 ">
+                <div class="row row-xxl row-30 row-md-60 description-fields">
+                    <div class="col-12 col-lg-6 col mb-0 mb-lg-4">
+
+                        <b>Type: </b>{{$object->object_type}}<br/>
 
 
-                </div>
+                        <b>Epoch: </b>{{$object->epoch?date('m/d/Y', strtotime($object->epoch)):'-'}}<br/>
+
+
+                        <b>Semimajor Axis: </b> {{$object->semimajor_axis?$object->semimajor_axis:'-'}}<br/>
+
+
+                        <b>Eccentricity: </b> {{$object->eccentricity?$object->eccentricity:'-'}}<br/>
+
+                        <b>Periapsis Argument: </b>{{$object->periapsis_argument?$object->periapsis_argument:'-'}}
+                        <br/>
+
+
+                    </div>
+                    <div class="col-12 col-lg-6 ">
+
+                        <b>Central
+                            Body: </b>{!! $object->centralBody?"<a href='".url('/objects/'.$object->central_body_object_id)."'>".$object->centralBody->object_name."</a>":'-'!!}
+                        <br/>
+
+                        <b>Mean Anomally: </b> {{$object->mean_anomaly?$object->mean_anomaly:'-'}}<br/>
+
+                        <b>Inclination: </b>{{$object->inclination?$object->inclination:'-'}}<br/>
+
+
+                        <b>Ascending
+                            Node: </b> {{$object->ascending_node_longitude?$object->ascending_node_longitude:'-'}}
+
+                        <b>Mean Angular
+                            Motion: </b>{{$object->mean_angular_motion?$object->mean_angular_motion:'-'}}
+                        <br/>
+
+                    </div>
+
             </div>
             <div class="row row-xxl row-30 row-md-60">
                 <div class="col">
