@@ -24,44 +24,44 @@
 
         <div class="container grid-demonstration" id="container">
 
-                <div class="row row-xxl row-30 row-md-60 description-fields">
-                    <div class="col-12 col-lg-6 col mb-0 mb-lg-4">
+            <div class="row row-xxl row-30 row-md-60 description-fields">
+                <div class="col-12 col-lg-6 col mb-0 mb-lg-4">
 
-                        <b>Type: </b>{{$object->object_type}}<br/>
-
-
-                        <b>Epoch: </b>{{$object->epoch?date('m/d/Y', strtotime($object->epoch)):'-'}}<br/>
+                    <b>Type: </b>{{$object->object_type}}<br/>
 
 
-                        <b>Semimajor Axis: </b> {{$object->semimajor_axis?$object->semimajor_axis:'-'}}<br/>
+                    <b>Epoch: </b>{{$object->epoch?date('m/d/Y', strtotime($object->epoch)):'-'}}<br/>
 
 
-                        <b>Eccentricity: </b> {{$object->eccentricity?$object->eccentricity:'-'}}<br/>
-
-                        <b>Periapsis Argument: </b>{{$object->periapsis_argument?$object->periapsis_argument:'-'}}
-                        <br/>
+                    <b>Semimajor Axis: </b> {{$object->semimajor_axis?$object->semimajor_axis:'-'}}<br/>
 
 
-                    </div>
-                    <div class="col-12 col-lg-6 ">
+                    <b>Eccentricity: </b> {{$object->eccentricity?$object->eccentricity:'-'}}<br/>
 
-                        <b>Central
-                            Body: </b>{!! $object->centralBody?"<a href='".url('/objects/'.$object->central_body_object_id)."'>".$object->centralBody->object_name."</a>":'-'!!}
-                        <br/>
-
-                        <b>Mean Anomally: </b> {{$object->mean_anomaly?$object->mean_anomaly:'-'}}<br/>
-
-                        <b>Inclination: </b>{{$object->inclination?$object->inclination:'-'}}<br/>
+                    <b>Periapsis Argument: </b>{{$object->periapsis_argument?$object->periapsis_argument:'-'}}
+                    <br/>
 
 
-                        <b>Ascending
-                            Node: </b> {{$object->ascending_node_longitude?$object->ascending_node_longitude:'-'}}
+                </div>
+                <div class="col-12 col-lg-6 ">
 
-                        <b>Mean Angular
-                            Motion: </b>{{$object->mean_angular_motion?$object->mean_angular_motion:'-'}}
-                        <br/>
+                    <b>Central
+                        Body: </b>{!! $object->centralBody?"<a href='".url('/objects/'.$object->central_body_object_id)."'>".$object->centralBody->object_name."</a>":'-'!!}
+                    <br/>
 
-                    </div>
+                    <b>Mean Anomally: </b> {{$object->mean_anomaly?$object->mean_anomaly:'-'}}<br/>
+
+                    <b>Inclination: </b>{{$object->inclination?$object->inclination:'-'}}<br/>
+
+
+                    <b>Ascending
+                        Node: </b> {{$object->ascending_node_longitude?$object->ascending_node_longitude:'-'}}<br/>
+
+                    <b>Mean Angular
+                        Motion: </b>{{$object->mean_angular_motion?$object->mean_angular_motion:'-'}}
+                    <br/>
+
+                </div>
 
             </div>
             <div class="row row-xxl row-30 row-md-60">

@@ -136,8 +136,8 @@ h1,
 h2,
 h3,
 h4,
-h5,
 .description-fields,
+h5,
 h6 {
   margin-top: 0;
   margin-bottom: 0.5rem;
@@ -428,8 +428,8 @@ h1,
 h2,
 h3,
 h4,
-h5,
 .description-fields,
+h5,
 h6,
 .h1,
 .h2,
@@ -460,12 +460,12 @@ h3,
 }
 
 h4,
+.description-fields,
 .h4 {
   font-size: 1.5rem;
 }
 
 h5,
-.description-fields,
 .h5 {
   font-size: 1.25rem;
 }
@@ -35331,8 +35331,8 @@ a.text-dark:hover {
 .context-light h2,
 .context-light h3,
 .context-light h4,
-.context-light h5,
 .context-light .description-fields,
+.context-light h5,
 .context-light h6,
 .context-light [class*=heading-] {
   color: #29293a;
@@ -35342,8 +35342,8 @@ a.text-dark:hover {
 .context-light h2 a:hover,
 .context-light h3 a:hover,
 .context-light h4 a:hover,
-.context-light h5 a:hover,
 .context-light .description-fields a:hover,
+.context-light h5 a:hover,
 .context-light h6 a:hover,
 .context-light [class*=heading-] a:hover {
   color: #3e3ef5;
@@ -35365,8 +35365,8 @@ a.text-dark:hover {
 .color-invariable h2,
 .color-invariable h3,
 .color-invariable h4,
-.color-invariable h5,
 .color-invariable .description-fields,
+.color-invariable h5,
 .color-invariable h6,
 .color-invariable [class*=heading-] {
   color: #29293a;
@@ -35488,8 +35488,8 @@ h1,
 h2,
 h3,
 h4,
-h5,
 .description-fields,
+h5,
 h6,
 [class*=heading-] {
   margin-top: 0;
@@ -35504,8 +35504,8 @@ h1 a,
 h2 a,
 h3 a,
 h4 a,
-h5 a,
 .description-fields a,
+h5 a,
 h6 a,
 [class*=heading-] a {
   color: inherit;
@@ -35515,8 +35515,8 @@ h1 a:hover,
 h2 a:hover,
 h3 a:hover,
 h4 a:hover,
-h5 a:hover,
 .description-fields a:hover,
+h5 a:hover,
 h6 a:hover,
 [class*=heading-] a:hover {
   color: #f99200;
@@ -35597,6 +35597,7 @@ h3,
 }
 
 h4,
+.description-fields,
 .heading-4 {
   font-size: 22px;
   line-height: 1.1428571429;
@@ -35604,13 +35605,13 @@ h4,
 
 @media (min-width: 992px) {
   h4,
+  .description-fields,
   .heading-4 {
     font-size: 28px;
   }
 }
 
 h5,
-.description-fields,
 .heading-5 {
   font-size: 16px;
   line-height: 1.5;
@@ -35622,7 +35623,6 @@ h5,
 
 @media (min-width: 576px) {
   h5,
-  .description-fields,
   .heading-5 {
     font-size: 18px;
   }
@@ -35630,7 +35630,6 @@ h5,
 
 @media (min-width: 768px) {
   h5,
-  .description-fields,
   .heading-5 {
     font-size: 20px;
   }
@@ -37679,7 +37678,8 @@ h3 + .list-marked {
   margin-top: 26px;
 }
 
-h4 + .list-marked {
+h4 + .list-marked,
+.description-fields + .list-marked {
   margin-top: 24px;
 }
 
@@ -41016,7 +41016,8 @@ textarea.form-input {
   width: 100%;
 }
 
-.footer-classic h4 + * {
+.footer-classic h4 + *,
+.footer-classic .description-fields + * {
   margin-top: 16px;
 }
 
@@ -41037,7 +41038,8 @@ textarea.form-input {
     width: auto;
   }
 
-  .footer-classic h4 + * {
+  .footer-classic h4 + *,
+  .footer-classic .description-fields + * {
     margin-top: 26px;
   }
 
@@ -41121,7 +41123,8 @@ textarea.form-input {
   color: #f99200;
 }
 
-.footer-modern h4 + * {
+.footer-modern h4 + *,
+.footer-modern .description-fields + * {
   margin-top: 16px;
 }
 
@@ -41142,7 +41145,8 @@ textarea.form-input {
     width: auto;
   }
 
-  .footer-modern h4 + * {
+  .footer-modern h4 + *,
+  .footer-modern .description-fields + * {
     margin-top: 26px;
   }
 
@@ -41375,12 +41379,12 @@ h3 + p {
   margin-top: 18px;
 }
 
-h4 + p {
+h4 + p,
+.description-fields + p {
   margin-top: 18px;
 }
 
-h5 + p,
-.description-fields + p {
+h5 + p {
   margin-top: 20px;
 }
 
@@ -41396,8 +41400,7 @@ p + p {
   margin-top: 8px;
 }
 
-h5 + h2,
-.description-fields + h2 {
+h5 + h2 {
   margin-top: 20px;
 }
 
@@ -41490,8 +41493,7 @@ figure + p {
 }
 
 @media (min-width: 1200px) {
-  h5 + h2,
-  .description-fields + h2 {
+  h5 + h2 {
     margin-top: 30px;
   }
 
@@ -42056,14 +42058,12 @@ html [class*=section-].section-bottom-0 {
 */
 
 .grid-demonstration h5,
-.grid-demonstration .description-fields,
 .grid-demonstration .heading-5 {
   font-weight: 700;
 }
 
 @media (max-width: 1199px) {
   .grid-demonstration h5,
-  .grid-demonstration .description-fields,
   .grid-demonstration .heading-5 {
     font-size: 14px;
   }
@@ -42261,8 +42261,8 @@ html [class*=section-].section-bottom-0 {
 .bg-dark h2,
 .bg-dark h3,
 .bg-dark h4,
-.bg-dark h5,
 .bg-dark .description-fields,
+.bg-dark h5,
 .bg-dark h6,
 .bg-dark [class*=heading-] {
   color: #ffffff;
@@ -42293,8 +42293,8 @@ html [class*=section-].section-bottom-0 {
 .bg-gray-700-invariable h2,
 .bg-gray-700-invariable h3,
 .bg-gray-700-invariable h4,
-.bg-gray-700-invariable h5,
 .bg-gray-700-invariable .description-fields,
+.bg-gray-700-invariable h5,
 .bg-gray-700-invariable h6,
 .bg-gray-700-invariable [class*=heading-] {
   color: #ffffff;
@@ -42591,8 +42591,7 @@ p.rights a:hover {
 }
 
 @media (min-width: 1200px) {
-  h5 + .offset-negative-left,
-  .description-fields + .offset-negative-left {
+  h5 + .offset-negative-left {
     margin-top: 36px;
   }
 
@@ -49350,7 +49349,8 @@ yx-axis
   z-index: 1080;
 }
 
-.lg-sub-html h4 {
+.lg-sub-html h4,
+.lg-sub-html .description-fields {
   margin: 0;
   font-size: 13px;
   font-weight: 700;
@@ -50336,7 +50336,8 @@ body:not(.lg-from-hash) .lg-outer.lg-start-zoom .lg-item.lg-complete .lg-object 
   z-index: 1;
 }
 
-.vide-style-1 h1 + h4 {
+.vide-style-1 h1 + h4,
+.vide-style-1 h1 + .description-fields {
   margin-top: 20px;
 }
 
