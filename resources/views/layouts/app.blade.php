@@ -153,8 +153,7 @@
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown">
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('objects')}}">Astronomical
-                                                Objects</a></li>
+                                                                        href="{{url('objects')}}">Space Objects</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('companies')}}">Companies</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
@@ -198,7 +197,7 @@
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown oriented-down">
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('objects')}}">Astronomical
+                                                                        href="{{url('objects')}}">Space
                                                 Objects</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('companies')}}">Companies</a></li>
@@ -218,7 +217,7 @@
                             <!-- Hide for now.
                                 <li class="d-block d-lg-none"><a href="{{url('forth-dictionary')}}">FORTH Dictionary</a></li>
                                 -->
-                                <li class="d-block d-lg-none"><a href="{{url('objects')}}">Astronomical
+                                <li class="d-block d-lg-none"><a href="{{url('objects')}}">Space
                                         Objects</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('companies')}}">Companies</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('spacecraft')}}">Spacecraft</a></li>

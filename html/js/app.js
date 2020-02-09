@@ -2145,6 +2145,11 @@ __webpack_require__.r(__webpack_exports__);
 //
 //
 //
+//
+//
+//
+//
+//
 
 
 
@@ -2157,7 +2162,9 @@ __webpack_require__.r(__webpack_exports__);
 
   },
   props: {
-    resultsPerPage: Number
+    resultsPerPage: Number,
+    limitResults: Number,
+    agentId: Number
   },
   data: function data() {
     return {
@@ -2217,33 +2224,6 @@ __webpack_require__.r(__webpack_exports__);
         dataClass: ''
         /*width: "22%",*/
 
-      }, {
-        name: 'new_quantity',
-        title: 'New Quantity',
-
-        /*   sortField: 'new_quantity',*/
-        titleClass: '',
-        dataClass: ''
-        /*width: "22%",*/
-
-      }, {
-        name: 'new_credits',
-        title: 'New Credits',
-
-        /*    sortField: 'new_credits',*/
-        titleClass: '',
-        dataClass: ''
-        /*width: "22%",*/
-
-      }, {
-        name: 'object_name',
-        title: 'New Location',
-
-        /*    sortField: 'new_location',*/
-        titleClass: '',
-        dataClass: ''
-        /*width: "22%",*/
-
       }
       /* {
            name: 'locked',
@@ -2272,6 +2252,10 @@ __webpack_require__.r(__webpack_exports__);
       }
     };
   },
+  created: function created() {
+    if (this.agentId !== null) this.extraParams.observing_agent = this.agentId;
+    if (this.limitResults) this.extraParams.limit = this.limitResults;
+  },
   methods: {
     //...
     // when the pagination data is available, set it to pagination component
@@ -2289,9 +2273,9 @@ __webpack_require__.r(__webpack_exports__);
     applyFilters: function applyFilters() {
       var _this = this;
 
-      var params = {};
-      if (this.keyword) params.keyword = this.keyword;
-      this.extraParams = params;
+      var params = this.extraParams;
+      if (this.keyword) this.extraParams.keyword = this.keyword;else delete this.extraParams.keyword; //this.extraParams = params;
+
       Vue.nextTick(function () {
         return _this.$refs.vuetable.refresh();
       });
@@ -2299,8 +2283,9 @@ __webpack_require__.r(__webpack_exports__);
     resetFilters: function resetFilters() {
       var _this2 = this;
 
-      this.keyword = null;
-      this.extraParams = {};
+      this.keyword = null; // this.extraParams = {};
+
+      delete this.extraParams.keyword;
       Vue.nextTick(function () {
         return _this2.$refs.vuetable.refresh();
       });
@@ -39033,7 +39018,7 @@ var render = function() {
               ])
             ]),
             _vm._v(" "),
-            _c("div", { staticClass: "col-md-3 col-sm-6 col-6 mt-2 mt-md-0" }, [
+            _c("div", { staticClass: "col-md-3 col-sm-6 col-6 mt-0 mt-md-0" }, [
               _c(
                 "button",
                 {
@@ -39256,6 +39241,41 @@ var render = function() {
                         ) +
                         "\n            "
                     )
+                  ])
+                }
+              },
+              {
+                key: "event_type_name",
+                fn: function(props) {
+                  return _c("div", {}, [
+                    _vm._v(
+                      "\n                " +
+                        _vm._s(props.rowData.event_type_name) +
+                        " "
+                    ),
+                    props.rowData.new_quantity
+                      ? _c("span", [
+                          _vm._v(_vm._s(props.rowData.new_quantity) + " units")
+                        ])
+                      : _vm._e(),
+                    props.rowData.new_credits
+                      ? _c("span", [
+                          _vm._v(_vm._s(props.rowData.new_credits) + " credits")
+                        ])
+                      : _vm._e(),
+                    props.rowData.object_name
+                      ? _c("span", [
+                          _c(
+                            "a",
+                            {
+                              attrs: {
+                                href: /objects/ + props.rowData.object_id
+                              }
+                            },
+                            [_vm._v(_vm._s(props.rowData.object_name))]
+                          )
+                        ])
+                      : _vm._e()
                   ])
                 }
               }

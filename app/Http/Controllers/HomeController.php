@@ -216,8 +216,8 @@ class HomeController extends Controller
         $query = DB::table('events')->select('events.timestamp', 'acting_agents.name as acting_agent_name', 'acting_agents.user_id as acting_company_id', 'acting_users.name as acting_company_name',
             'acting_agents.agent_id as acting_agent_id', 'acting_agents.name as acting_agent_name', 'protocols.name as protocol_name', 'affected_users.name as affected_company_name', 'affected_users.user_id as affected_company_id',
             'event_types.name as event_type_name', 'affected_agents.agent_id as affected_agent_id', 'affected_agents.name as affected_agent_name', 'resources.id as resource_id',
-            'resources.name as resource_name', 'events.locked', 'events.new_quantity', 'events.new_credits', 'events.new_location', 'objects.object_id', 'objects.object_name')
-            ->leftJoin('observations', 'events.id', '=', 'observations.event')
+            'resources.name as resource_name', 'events.locked', 'events.new_quantity', 'events.new_credits', 'events.new_location', 'objects.object_id', 'objects.object_name', 'observations.drone as observing_drone')
+            ->join('observations', 'events.id', '=', 'observations.event') //obligatory to be observed
             ->leftJoin('actions', 'events.action', '=', 'actions.id')
             ->leftJoin('agents as acting_agents', 'actions.drone', '=', 'acting_agents.agent_id')
             ->leftJoin('users as acting_users', 'acting_agents.user_id', '=', 'acting_users.user_id')
@@ -228,7 +228,7 @@ class HomeController extends Controller
             ->leftJoin('resources', 'events.resource', '=', 'resources.id')
             ->leftJoin('objects', 'events.new_location', '=', 'objects.object_id');
         //basic restrictions
-        $query->where([['observations.drone', '=', 0], ['observations.time', '<=', Carbon::now()->toDateTimeString()]]);
+        $query->where([/*['observations.drone', '=', 0],*/ ['observations.time', '<=', Carbon::now()->toDateTimeString()]]);
         if ($request->get('keyword') !== null)
             $query->where(function ($query) use ($request) {
                 $query->where('affected_agents.name', 'LIKE', "%" . $request->get('keyword') . "%")
@@ -240,12 +240,22 @@ class HomeController extends Controller
                     ->orWhere('object_name', 'LIKE', "%" . $request->get('keyword') . "%");
             });
 
+        if ($request->get('observing_agent') !== null) {
+            $query->where('observations.drone', '=', $request->get('observing_agent'));
+        } else
+            $query->where('observations.drone', '=', 0);
+
         if ($request->get('sort')) {
             $sortParts = explode('|', $request->get('sort'));
             $query->orderBy($sortParts[0], $sortParts[1]);
         } else
             $query->orderBy('time', 'desc');
-        $inGameEvents = $query->paginate($resultsPerPage);
+        if ($request->get('limit')) {
+            // $query->take($request->get('limit'));
+            $inGameEvents = $query->take(10)->get();
+            $inGameEvents = ['current_page' => 1, 'data' => $inGameEvents, 'per_page' => 10, 'total' => sizeof($inGameEvents), 'to' => sizeof($inGameEvents), 'preve_page_url' => null, 'from' => 1];
+        } else
+            $inGameEvents = $query->paginate($resultsPerPage);
         // var_dump($spaceObjects);exit;
 
         return response()->json($inGameEvents, 200);
