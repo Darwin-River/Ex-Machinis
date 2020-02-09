@@ -271,6 +271,7 @@ ErrorCode_t engine_get_drone_position(int object_id, char* position, double* dis
                         object.object_id);
 
                     result = ENGINE_DB_QUERY_ERROR;
+                    done = ENGINE_TRUE; // stop here
                 } else {
                     // Save drone position at first search (safe = same size)
                     if(objects_num++ == 0) {
@@ -295,7 +296,7 @@ ErrorCode_t engine_get_drone_position(int object_id, char* position, double* dis
                     orbits_add_coordinates(&position, &current_total_position, &final_position);
 
                     // Check if our central body is the sun to stop
-                    if(object.central_body_object_id == sun.object_id) {
+                    if((object.central_body_object_id == sun.object_id) || (object.object_id == sun.object_id)) {
                         done = ENGINE_TRUE;
                     } else {
                         // update object ID to do next search

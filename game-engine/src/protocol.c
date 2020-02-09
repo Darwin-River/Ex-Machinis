@@ -572,7 +572,7 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
 
   int stack_value;
   
-  if(result == ENGINE_OK &&  protocol.multiplier) {
+  if(result == ENGINE_OK && protocol.multiplier) {
     // When multiplier flag is enabled - check the presence of an extra multiplier at stack
     // multiplier is always after the list of params
     ErrorCode_t vm_result = vm_extension_pop(vmExt, &stack_value);
