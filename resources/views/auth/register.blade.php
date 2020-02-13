@@ -1,97 +1,61 @@
 @extends('layouts.app')
-
+@php $title = 'Join the Game' ; @endphp
+@section('pageTitle', $title)
 @section('content')
-    <div class="container">
-        <div class="row">
-            <div class="col-md-8 col-md-offset-2">
-                <div class="panel panel-default">
-                    <div class="panel-heading">Register</div>
-
-                    <div class="panel-body">
-                        <form class="form-horizontal" method="POST" action="{{ route('register') }}">
-                            {{ csrf_field() }}
-
-                            <div class="form-group{{ $errors->has('name') ? ' has-error' : '' }}">
-                                <label for="name" class="col-md-4 control-label">User Name</label>
-
-                                <div class="col-md-6">
-                                    <input id="name" type="text" class="form-control" name="name"
-                                           value="{{ old('name') }}" required autofocus>
-
-                                    @if ($errors->has('name'))
-                                        <span class="help-block">
-                                        <strong>{{ $errors->first('name') }}</strong>
-                                    </span>
-                                    @endif
-                                </div>
+    <section class="section section-xs section-first bg-default text-md-left">
+        <div class="container" id="container">
+            <h1>{{$title}}</h1>
+            <p class="text-left">Please provide an e-mail address and your space company name to start.</p>
+            <div class="row justify-content-center justify-content-md-start mt-0">
+                <div class="col-sm-9 col-md-7 col-lg-5 col-xl-4">
+                    @if(count($errors))
+                        <div class="form-group mt-1">
+                            <div class="alert alert-danger">
+                                <ul>
+                                    @foreach($errors->all() as $error)
+                                        <li>{{$error}}</li>
+                                    @endforeach
+                                </ul>
                             </div>
+                        </div>
+                    @endif
+                    <form class="app"  method="POST"
+                          action="{{ url('web-register') }}">
+                        {{ csrf_field() }}
 
-                            <div class="form-group{{ $errors->has('email') ? ' has-error' : '' }}">
-                                <label for="email" class="col-md-4 control-label">E-Mail Address</label>
-
-                                <div class="col-md-6">
-                                    <input id="email" type="email" class="form-control" name="email"
-                                           value="{{ old('email') }}" required>
-
-                                    @if ($errors->has('email'))
-                                        <span class="help-block">
+                        <div class="form-wrap {{ $errors->has('email') ? ' has-error' : '' }}">
+                            <label class="form-label-outside" for="email">E-mail</label>
+                            <input class="form-input form-control-has-validation form-control-last-child"
+                                   id="email" type="email" name="email" data-constraints="@Email @Required"
+                                   value="{{ old('email') }}" required><span
+                                    class="form-validation"></span>
+                            @if ($errors->has('email'))
+                                <span class="help-block">
                                         <strong>{{ $errors->first('email') }}</strong>
                                     </span>
-                                    @endif
-                                </div>
-                            </div>
-
-                            <div class="form-group{{ $errors->has('password') ? ' has-error' : '' }}">
-                                <label for="password" class="col-md-4 control-label">Password</label>
-
-                                <div class="col-md-6">
-                                    <input id="password" type="password" class="form-control" name="password" value="{{ old('password') }}" required>
-
-                                    @if ($errors->has('password'))
-                                        <span class="help-block">
-                                        <strong>{{ $errors->first('password') }}</strong>
+                            @endif
+                        </div>
+                        <div class="form-wrap {{ $errors->has('name') ? ' has-error' : '' }}">
+                            <label class="form-label-outside" for="name">Name for your Space Company</label>
+                            <input class="form-input form-control-has-validation form-control-last-child"
+                                   id="name" type="text" name="name"
+                                   data-constraints="@Required" required><span class="form-validation"></span>
+                            @if ($errors->has('name'))
+                                <span class="help-block">
+                                        <strong>{{ $errors->first('name') }}</strong>
                                     </span>
-                                    @endif
-                                </div>
-                            </div>
+                            @endif
+                        </div>
+                        <div class="group-sm group-justify justify-content-sm-between">
+                            <button class="button button-primary" type="submit">Sign Up</button>
 
-
-                            <div class="form-group">
-                                <label for="password-confirm" class="col-md-4 control-label">Confirm Password</label>
-
-                                <div class="col-md-6">
-                                    <input id="password-confirm" type="password" class="form-control" value="{{ old('password_confirmation') }}"
-                                           name="password_confirmation" required>
-                                </div>
-                            </div>
-
-                            <div class="form-group{{ $errors->has('company_name') ? ' has-error' : '' }}">
-                                <label for="name" class="col-md-4 control-label">Space Company Name</label>
-
-                                <div class="col-md-6">
-                                    <input id="company_name" type="text" class="form-control" name="company_name"
-                                           value="{{ old('company_name') }}" required autofocus>
-
-                                    @if ($errors->has('company_name'))
-                                        <span class="help-block">
-                                        <strong>{{ $errors->first('company_name') }}</strong>
-                                    </span>
-                                    @endif
-                                </div>
-                            </div>
-
-
-                            <div class="form-group">
-                                <div class="col-md-6 col-md-offset-4">
-                                    <button type="submit" class="btn btn-primary">
-                                        Register
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
+                        </div>
+                    </form>
                 </div>
             </div>
+
         </div>
-    </div>
+    </section>
+
+
 @endsection

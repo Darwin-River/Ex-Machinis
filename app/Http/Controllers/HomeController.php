@@ -40,15 +40,6 @@ class HomeController extends Controller
         return view('home');
     }
 
-    /*  public function test()
-      {
-
-          echo Mail::send(['email.welcome_html', 'email.welcome_text'], [], function ($message) {
-              $message->to("puppeteer.fernando@gmail.com")->from("registrar@" . getenv("MAIL_HOST"))->subject('Testing email');
-          });
-
-      }*/
-
     /**
      * Download mails from the server and process them. Called by main loop.
      */
@@ -268,6 +259,17 @@ class HomeController extends Controller
     public function aboutUs()
     {
         return view('pages.about-us');
+    }
+
+    /**
+     * Displays a flash message alone
+     * @param $request Request object
+     * @return \Illuminate\Http\Response
+     */
+    public function message(Request $request)
+    {
+        $this->querystringToFlash($request);
+        return view('show_message');
     }
 
 

@@ -1,20 +1,24 @@
 {
     "name": "laravel/laravel",
     "description": "The Laravel Framework.",
-    "keywords": ["framework", "laravel"],
+    "keywords": [
+        "framework",
+        "laravel"
+    ],
     "license": "MIT",
     "type": "project",
     "require": {
         "php": ">=7.0.0",
         "doctrine/dbal": "^2.5",
-        "fideloper/proxy": "~3.3",
+        "fideloper/proxy": "~4.0",
         "graham-campbell/markdown": "^11.1",
-        "laravel/framework": "5.5.*",
+        "laravel/framework": "^5.8.0",
         "laravel/tinker": "~1.0",
         "php-imap/php-imap": "^3.0",
         "soundasleep/html2text": "~0.5"
     },
     "require-dev": {
+        "composer/composer": "^1.9",
         "filp/whoops": "~2.0",
         "fzaninotto/faker": "~1.4",
         "mockery/mockery": "0.9.*",
@@ -27,7 +31,10 @@
         ],
         "psr-4": {
             "App\\": "app/"
-        }
+        },
+        "files": [
+            "app/Helper.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
@@ -36,8 +43,7 @@
     },
     "extra": {
         "laravel": {
-            "dont-discover": [
-            ]
+            "dont-discover": []
         }
     },
     "scripts": {

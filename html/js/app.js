@@ -2253,7 +2253,13 @@ __webpack_require__.r(__webpack_exports__);
     };
   },
   created: function created() {
-    if (this.agentId !== null) this.extraParams.observing_agent = this.agentId;
+    console.log(this.agentId);
+
+    if (this.agentId != null) {
+      this.extraParams.observing_agent = this.agentId;
+      this.fields[0].sortField = null;
+    }
+
     if (this.limitResults) this.extraParams.limit = this.limitResults;
   },
   methods: {
@@ -39096,19 +39102,28 @@ var render = function() {
                             },
                             [_vm._v(_vm._s(props.rowData.acting_agent_name))]
                           ),
-                          _vm._v("\n                    ("),
-                          _c(
-                            "a",
-                            {
-                              attrs: {
-                                href:
-                                  "/companies/" +
-                                  props.rowData.acting_company_id
-                              }
-                            },
-                            [_vm._v(_vm._s(props.rowData.acting_company_name))]
-                          ),
-                          _vm._v(")\n                ")
+                          _vm._v(" "),
+                          !_vm.agentId
+                            ? _c("span", [
+                                _vm._v("("),
+                                _c(
+                                  "a",
+                                  {
+                                    attrs: {
+                                      href:
+                                        "/companies/" +
+                                        props.rowData.acting_company_id
+                                    }
+                                  },
+                                  [
+                                    _vm._v(
+                                      _vm._s(props.rowData.acting_company_name)
+                                    )
+                                  ]
+                                ),
+                                _vm._v(")")
+                              ])
+                            : _vm._e()
                         ])
                       : _c("div", [
                           _vm._v("\n                    -\n                ")
@@ -39133,23 +39148,30 @@ var render = function() {
                             },
                             [_vm._v(_vm._s(props.rowData.affected_agent_name))]
                           ),
-                          _vm._v("\n                    ("),
-                          _c(
-                            "a",
-                            {
-                              attrs: {
-                                href:
-                                  "/companies/" +
-                                  props.rowData.affected_company_id
-                              }
-                            },
-                            [
-                              _vm._v(
-                                _vm._s(props.rowData.affected_company_name)
-                              )
-                            ]
-                          ),
-                          _vm._v(")\n                ")
+                          _vm._v(" "),
+                          !_vm.agentId
+                            ? _c("span", [
+                                _vm._v("("),
+                                _c(
+                                  "a",
+                                  {
+                                    attrs: {
+                                      href:
+                                        "/companies/" +
+                                        props.rowData.affected_company_id
+                                    }
+                                  },
+                                  [
+                                    _vm._v(
+                                      _vm._s(
+                                        props.rowData.affected_company_name
+                                      )
+                                    )
+                                  ]
+                                ),
+                                _vm._v(")")
+                              ])
+                            : _vm._e()
                         ])
                       : _c("div", [
                           _vm._v("\n                    -\n                ")
@@ -40292,7 +40314,9 @@ var render = function() {
                   return _c("div", {}, [
                     _c(
                       "a",
-                      { attrs: { href: "/users/" + props.rowData.owner_id } },
+                      {
+                        attrs: { href: "/companies/" + props.rowData.owner_id }
+                      },
                       [_vm._v(_vm._s(props.rowData.owner_name))]
                     )
                   ])

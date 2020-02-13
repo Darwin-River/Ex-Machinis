@@ -5,10 +5,13 @@ namespace App\Http\Controllers;
 use App\Agent;
 use App\User;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Validator;
 use Illuminate\View\View;
 
 class UserController extends Controller
@@ -38,12 +41,20 @@ class UserController extends Controller
     /**
      * Creates user and shipcraft from submitted form
      * @param $request Request object
+     * @return RedirectResponse
+     * @throws ValidationException
      */
     public function webRegistration(Request $request)
     {
+        $this->validate(request(), [
+            'email' => 'required|email|unique:users|max:255',
+            'name' => 'required|unique:users',
+        ]);
         $name = $request->post('name');
         $email = $request->post('email');
         User::registerUser($email, $name);
+
+        return redirect('/message')->withSuccess('Thank you for joining ' . getenv("APP_NAME") . '! Please check your e-mail inbox to continue.');
     }
 
     /**

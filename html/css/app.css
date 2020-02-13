@@ -51139,6 +51139,14 @@ body:not(.lg-from-hash) .lg-outer.lg-start-zoom .lg-item.lg-complete .lg-object 
   white-space: nowrap;
 }
 
+.help-block {
+  color: #f5543f;
+}
+
+.alert-danger {
+  color: #dd0203;
+}
+
 #compiled_table {
   border-width: 0;
   color: white;

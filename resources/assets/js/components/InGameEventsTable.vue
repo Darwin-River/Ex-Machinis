@@ -31,7 +31,7 @@
                 <div slot="acting_agent_id" slot-scope="props">
                     <div v-if="props.rowData.acting_agent_id">
                         <a v-bind:href="'/spacecraft/'+props.rowData.acting_agent_id">{{props.rowData.acting_agent_name}}</a>
-                        (<a v-bind:href="'/companies/'+props.rowData.acting_company_id">{{props.rowData.acting_company_name}}</a>)
+                        <span v-if="!agentId">(<a v-bind:href="'/companies/'+props.rowData.acting_company_id">{{props.rowData.acting_company_name}}</a>)</span>
                     </div>
                     <div v-else>
                         -
@@ -40,7 +40,7 @@
                 <div slot="affected_agent_id" slot-scope="props">
                     <div v-if="props.rowData.affected_agent_id">
                         <a v-bind:href="'/spacecraft/'+props.rowData.affected_agent_id">{{props.rowData.affected_agent_name}}</a>
-                        (<a v-bind:href="'/companies/'+props.rowData.affected_company_id">{{props.rowData.affected_company_name}}</a>)
+                        <span v-if="!agentId">(<a v-bind:href="'/companies/'+props.rowData.affected_company_id">{{props.rowData.affected_company_name}}</a>)</span>
                     </div>
                     <div v-else>
                         -
@@ -193,8 +193,11 @@
 
         }),
         created() {
-            if (this.agentId !== null)
+            console.log(this.agentId);
+            if (this.agentId != null) {
                 this.extraParams.observing_agent = this.agentId;
+                this.fields[0].sortField = null;
+            }
             if (this.limitResults)
                 this.extraParams.limit = this.limitResults;
         },
@@ -214,14 +217,11 @@
             },
 
             applyFilters() {
-
                 let params = this.extraParams;
-
                 if (this.keyword)
                     this.extraParams.keyword = this.keyword;
                 else
                     delete this.extraParams.keyword;
-
 
                 //this.extraParams = params;
                 Vue.nextTick(() => this.$refs.vuetable.refresh())
