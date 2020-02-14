@@ -685,6 +685,27 @@ ErrorCode_t event_process_outcome(Event_t *event)
         if(result == ENGINE_OK) result = ENGINE_LOGIC_ERROR;
     }
 
+    // Check if it is a market event type
+    // These events - are just marked with outcome = OK and registered at observations table
+    if((result == ENGINE_OK) && ((event->event_type == SELL_EVENT_TYPE) || (event->event_type == BUY_EVENT_TYPE))) 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Market event [%d], no processing done, only observations table updated",
+            event->event_id,
+            event->action_id);
+
+        event->outcome = OUTCOME_OK;
+        event->logged = 1;
+
+        // update outcome at DB
+        result = db_update_event(event);
+
+        if(result == ENGINE_OK)
+            result = event_update_observations(event);
+
+        return result;
+    }
+
     // Get previous events info
     // We get (if exist, the previous valid event and the previous by resource event)
     if(result == ENGINE_OK)

@@ -219,6 +219,40 @@ ErrorCode_t protocol_validate_resource_effect(ResourceEffect_t *effect, Resource
 
 /** ****************************************************************************
 
+  @brief      Validates market effect info read from DB
+
+  @param[in]     effect    Whole effect info
+  @param[in|out] resource  Output resource info obtained when doing validation (resource id provided at input)
+
+  @return     Validation result
+
+*******************************************************************************/
+ErrorCode_t protocol_validate_market_effect(MarketEffect_t *effect, Resource_t *resource) 
+{
+  ErrorCode_t result = ENGINE_OK;
+
+  if(effect) {
+    EventType_t event_type;
+
+    // Check resource
+    if(resource->resource_id != -1)
+      result = protocol_validate_resource_id(resource);
+
+    // Check event type
+    if(result == ENGINE_OK) {
+      event_type.event_type_id = effect->event_type;
+      result = protocol_validate_event_type(&event_type);
+    }
+  } else {
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to validate market effect (NULL effect)"); 
+    result = ENGINE_INTERNAL_ERROR;
+  }
+
+  return result;
+}
+
+/** ****************************************************************************
+
   @brief      Process a single resource effect
 
   @param[in]  effect    Whole effect info
@@ -295,16 +329,56 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
 
   @param[in]  effect    Whole effect info
   @param[in]  protocol  Whole protocol info
+  @param[in]  action_id Current action ID
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_process_market_effect(MarketEffect_t *effect, ProtocolInfo_t *protocol) 
+ErrorCode_t protocol_process_market_effect(MarketEffect_t *effect, ProtocolInfo_t *protocol, int action_id) 
 {
   ErrorCode_t result = ENGINE_OK;
 
   if(effect) {
-    
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+        "Processing market effect "
+        "ID [%d] PROTOCOL_ID [%d] EVENT_TYPE [%d] RESOURCE_ID [%d] "
+        "UPPER_LIMIT [%d] QUANTITY [%d] PRICE [%d] TIME [%d]", 
+        effect->market_effect_id, 
+        effect->protocol_id, 
+        effect->event_type, 
+        effect->resource_id,
+        effect->upper_limit,
+        effect->quantity,
+        effect->price,
+        effect->time);
+
+    // Validations
+    Resource_t resource;
+    resource.resource_id = effect->resource_id;
+    result = protocol_validate_market_effect(effect, &resource);
+
+    // Adjust the protocol info received using market_effects rules
+    if(result == ENGINE_OK) {
+      // We just insert the event indicating the total amount change
+      Event_t newEvent;
+      memset(&newEvent, 0, sizeof(newEvent));
+      newEvent.drone_id = engine_get_current_drone_id();
+      newEvent.resource_id = (effect->resource_id == -1)?protocol->parameters[MARKET_RESOURCE_IDX]:effect->resource_id;
+      newEvent.event_type = effect->event_type;
+      newEvent.action_id = action_id;
+      // Default memset()
+      // newEvent.logged = 0;
+      // newEvent.processed = 0; 
+      // newEvent.installed = 0;
+      // newEvent.locked = effect->locked;
+      newEvent.outcome = OUTCOME_NO_OUTCOME;
+      // Use stack defined limits
+      newEvent.new_quantity = (effect->quantity == -1)?protocol->parameters[MARKET_QUANTITY_IDX]:effect->quantity;
+      newEvent.new_credits = (effect->price == -1)?protocol->parameters[MARKET_PRICE_IDX]:effect->price;
+  
+      result = db_insert_event(&newEvent);
+    }
+
   } else {
     engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol market effect (NULL effect)"); 
     result = ENGINE_INTERNAL_ERROR;
@@ -444,9 +518,29 @@ ErrorCode_t protocol_process_market_effects(ProtocolInfo_t *protocol, int action
   ErrorCode_t result = ENGINE_OK;
 
   if(protocol) {
-    //MarketEffect_t* marketEffects = NULL;
-    //int effectsNum = 0;
-    //db_get_market_effects(&protocol, &marketEffects, &effectsNum);
+    MarketEffect_t* marketEffects = NULL;
+    int effectsNum = 0;
+    db_get_market_effects(protocol, &marketEffects, &effectsNum);
+
+    for(int effectId=0; effectId < effectsNum; effectId++) {
+      // Only process those effects with the same resource or when none specified at effect
+      if((marketEffects[effectId].resource_id == -1) || (marketEffects[effectId].resource_id == protocol->parameters[MARKET_RESOURCE_IDX])) {
+        result = protocol_process_market_effect(&marketEffects[effectId], protocol, action_id);
+
+        if(result != ENGINE_OK) {
+          engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process market effect [%d] for protocol [%s]",
+            marketEffects[effectId].market_effect_id,
+            protocol->protocol_name);
+
+          // Stop when any error is detected for this protocol   
+          break;
+        } 
+      } else {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Market effect [%d] for protocol [%s] ignored (does not apply to current resource)",
+          marketEffects[effectId].market_effect_id,
+          protocol->protocol_name);
+      }
+    }
   } else {
     engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol market effects (NULL protocol)"); 
     result = ENGINE_INTERNAL_ERROR;
