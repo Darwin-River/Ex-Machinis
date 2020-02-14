@@ -11,7 +11,7 @@
             </div>
             <ul class="breadcrumbs-path breadcrumbs-modern-path">
                 <li><a href="/">Home</a></li>
-                <li><a href="/objects">Astronomical Objects</a></li>
+                <li><a href="/objects">Space Objects</a></li>
                 <li class="active">{{$title}}</li>
             </ul>
         </div>
@@ -29,12 +29,9 @@
 
                     <b>Type: </b>{{$object->object_type}}<br/>
 
-
                     <b>Epoch: </b>{{$object->epoch?date('m/d/Y', strtotime($object->epoch)):'-'}}<br/>
 
-
                     <b>Semimajor Axis: </b> {{$object->semimajor_axis?$object->semimajor_axis:'-'}}<br/>
-
 
                     <b>Eccentricity: </b> {{$object->eccentricity?$object->eccentricity:'-'}}<br/>
 
@@ -53,9 +50,8 @@
 
                     <b>Inclination: </b>{{$object->inclination?$object->inclination:'-'}}<br/>
 
-
-                    <b>Ascending
-                        Node: </b> {{$object->ascending_node_longitude?$object->ascending_node_longitude:'-'}}<br/>
+                    <b>Ascending Node: </b> {{$object->ascending_node_longitude?$object->ascending_node_longitude:'-'}}
+                    <br/>
 
                     <b>Mean Angular
                         Motion: </b>{{$object->mean_angular_motion?$object->mean_angular_motion:'-'}}

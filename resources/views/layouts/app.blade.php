@@ -153,8 +153,7 @@
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown">
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('objects')}}">Astronomical
-                                                Objects</a></li>
+                                                                        href="{{url('objects')}}">Space Objects</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('companies')}}">Companies</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
@@ -198,7 +197,7 @@
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown oriented-down">
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('objects')}}">Astronomical
+                                                                        href="{{url('objects')}}">Space
                                                 Objects</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('companies')}}">Companies</a></li>
@@ -218,13 +217,14 @@
                             <!-- Hide for now.
                                 <li class="d-block d-lg-none"><a href="{{url('forth-dictionary')}}">FORTH Dictionary</a></li>
                                 -->
-                                <li class="d-block d-lg-none"><a href="{{url('objects')}}">Astronomical
+                                <li class="d-block d-lg-none"><a href="{{url('objects')}}">Space
                                         Objects</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('companies')}}">Companies</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('spacecraft')}}">Spacecraft</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('resources')}}">Resources</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('events')}}">Events</a></li>
                                 <li><a href="{{url('about-us')}}">About Us</a></li>
+                                <li><a href="{{url('register')}}">Join the Game</a></li>
                             <!-- Hide login prompt for now.
                                 @guest
                                 <li class="float-lg-right"><a href="{{url('login')}}">Login</a></li>
@@ -339,7 +339,7 @@
                             <label class="form-label rd-input-label" for="subscribe-form-2-name">A name for your
                                 company</label>
                         </div>
-                        </br>
+                        <br/>
                         <button class="button button-sm button-primary" type="submit">Submit</button>
                     </form>
                 </div>

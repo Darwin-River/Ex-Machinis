@@ -686,7 +686,6 @@ The Events Engine takes the following steps when evaluating events:
   * The local field is set to true but the affected drone is not local. The outcome will be set to -1 if this error is detected.
   * The affected ship contains insufficient resources of the indicated state (identical resource, locked, and installed values) to accommodate a depletion event. This happens when the newly computed new_quantity field is less than zero. The outcome will be set to -2 if this error is detected.
   * There affected ship contains insufficient cargo space to accommodate the accumulation event. This happens when the recently computed new_cargo value is greater than the cargo capacity of the drone (found in hull table).  The outcome will be set to -3 if this error is detected.
-  * The player has insufficient credits to cover the purchase price of transferred items.  The outcome will be set to -4 if this error is detected.
   * The depletion event will violate the affected drone’s self imposed lower limit for the resource. This only applies to cases in which the acting and affected ships are different. The outcome will be set to -5 if this error is detected.
   * The accumulation event will violate the affected drone’s self imposed upper limit for the resource. This only applies to cases in which the acting and affected ships are different. The outcome will be set to -6 if this error is detected.
   * The Depletion Price for items being removed from the cargo bay of a non-allied ship is equal to or greater than the price the player has set on those items. The outcome will be set to -7 if this error is detected.
@@ -734,16 +733,16 @@ A drone can only **add** a resource to the cargo hold of another player's drone 
 2. The added resource doesn't exceed the amount of material permitted by the buy order or the cargo capacity.
 
 If materials are successfully added to the cargo hold, the Event Engine automatically creates two new concurrent events that are associated with the action:
-1. The first event deposits the correct amount of credits in the acting drone's bank. This amount is set based on the amount of material successfully added to the hold and the unit price set by the buy order.
-2. The second event removes the same amount of credits from the affected drone's  bank. It is possible for the number of credits to go negative.
+1. The first event deposits the correct amount of credits in the player's bank account of the acting drone. This amount is set based on the amount of material successfully added to the hold and the unit price set by the buy order.
+2. The second event removes the same amount of credits from the player's back account of the affected drone. It is possible for the number of credits to go negative.
 
 A drone can only **remove** a resource from the cargo hold of another players drone if:
 1. The affected drone has placed a sell order for that resource, and
 2. The depletion event doesn't drop the amount of resource in the affected drones cargo below zero or below the limit set in the sell order.
 
 If the materials are successfully removed from the cargo bay, the Event Engine automatically creates two new events associated with the action:
-1. The first event deposits the correct amount of credits in the affected drone's bank. This amount is set based on the amount of material removed from the hold and the unit price set by the buy order.
-2. The second event removes the same amount of credits from the depleting drone's  bank. It is possible for the number of credits to go negative.
+1. The first event deposits the correct amount of credits in the player's bank account of the affected drone. This amount is set based on the amount of material removed from the hold and the unit price set by the buy order.
+2. The second event removes the same amount of credits from the player's bank account of the depleting drone. It is possible for the number of credits to go negative.
 
 [Return to the TOC](#Table-of-Contents)
 
@@ -755,7 +754,7 @@ When another player wants to buy iron ore he will search the database for sell e
 
 When the Event Engine processes the resulting depletion event (removing the ore from the seller's cargo), it will ensure that the indicated amount of resources are available for sale. In other words, there must be enough resources in the cargo hold to accommodate the depletion without allowing the total quantity to drop below the level set by the sell order. If there are enough resources, the depletion event will occur and the Event Engine will create two new contemporaneous events to remove credits from the buyer and give them to the seller.  Otherwise, the event will be blocked and the other events associated with that action will be aborted.
 
-Provided the depletion event occurs without problem, a subsequent event associated with the cargo transfer action will add the depleted resources to the buyer's cargo hold if there is enough room in the hold. This will be handled like any other event which adds resources to the cargo hold. 
+Provided the depletion event occurs without a problem, a subsequent event associated with the cargo transfer action will add the depleted resources to the buyer's cargo hold if there is enough room in the hold. This will be handled like any other event which adds resources to the cargo hold. 
 
 Buy orders will be fulfilled in much the same way. The only difference is that the Event Engine will check for a buy order when another player attempts to add material's to another player's cargo hold.  In this case, the Event Engine will ensure that that the added resources do not exceed the limit set by the corresponding buy order and that they do not exceed the capacity of the cargo hold.  If the materials are successfully added to the buyer's cargo bay, the Event Engine will create concurrent events, which remove credits from the buyer's bank account and add them to the seller's bank account.
 

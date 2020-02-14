@@ -10,7 +10,7 @@
                         <label class="form-label rd-input-label" for="keyword">Keyword</label>
                     </div>
                 </div>
-                <div class="col-md-3 col-sm-6 col-6 mt-2 mt-md-0">
+                <div class="col-md-3 col-sm-6 col-6 mt-0 mt-md-0">
                     <button class="button button-sm button-primary " type="submit"
                             id="update_button">Update
                     </button>
@@ -31,7 +31,7 @@
                 <div slot="acting_agent_id" slot-scope="props">
                     <div v-if="props.rowData.acting_agent_id">
                         <a v-bind:href="'/spacecraft/'+props.rowData.acting_agent_id">{{props.rowData.acting_agent_name}}</a>
-                        (<a v-bind:href="'/companies/'+props.rowData.acting_company_id">{{props.rowData.acting_company_name}}</a>)
+                        <span v-if="!agentId">(<a v-bind:href="'/companies/'+props.rowData.acting_company_id">{{props.rowData.acting_company_name}}</a>)</span>
                     </div>
                     <div v-else>
                         -
@@ -40,7 +40,7 @@
                 <div slot="affected_agent_id" slot-scope="props">
                     <div v-if="props.rowData.affected_agent_id">
                         <a v-bind:href="'/spacecraft/'+props.rowData.affected_agent_id">{{props.rowData.affected_agent_name}}</a>
-                        (<a v-bind:href="'/companies/'+props.rowData.affected_company_id">{{props.rowData.affected_company_name}}</a>)
+                        <span v-if="!agentId">(<a v-bind:href="'/companies/'+props.rowData.affected_company_id">{{props.rowData.affected_company_name}}</a>)</span>
                     </div>
                     <div v-else>
                         -
@@ -61,6 +61,11 @@
                 </div>
                 <div slot="timestamp" slot-scope="props">
                     {{ formatDate(props.rowData.timestamp) | moment("MM/DD/YYYY h:mm:ss A") }}
+                </div>
+                <div slot="event_type_name" slot-scope="props">
+                    {{props.rowData.event_type_name}} <span v-if="props.rowData.new_quantity">{{props.rowData.new_quantity}} units</span><span
+                        v-if="props.rowData.new_credits">{{props.rowData.new_credits}} credits</span><span
+                        v-if="props.rowData.object_name"><a v-bind:href="/objects/+props.rowData.object_id">{{props.rowData.object_name}}</a></span>
                 </div>
             </vuetable>
         </div>
@@ -97,6 +102,8 @@
         },
         props: {
             resultsPerPage: Number,
+            limitResults: Number,
+            agentId: Number,
         },
         data: () => ({
             fields: [
@@ -154,30 +161,7 @@
                     dataClass: '',
                     /*width: "22%",*/
                 },
-                {
-                    name: 'new_quantity',
-                    title: 'New Quantity',
-                    /*   sortField: 'new_quantity',*/
-                    titleClass: '',
-                    dataClass: '',
-                    /*width: "22%",*/
-                },
-                {
-                    name: 'new_credits',
-                    title: 'New Credits',
-                    /*    sortField: 'new_credits',*/
-                    titleClass: '',
-                    dataClass: '',
-                    /*width: "22%",*/
-                },
-                {
-                    name: 'object_name',
-                    title: 'New Location',
-                    /*    sortField: 'new_location',*/
-                    titleClass: '',
-                    dataClass: '',
-                    /*width: "22%",*/
-                },
+
                 /* {
                      name: 'locked',
                      title: '',
@@ -208,6 +192,15 @@
             },
 
         }),
+        created() {
+            console.log(this.agentId);
+            if (this.agentId != null) {
+                this.extraParams.observing_agent = this.agentId;
+                this.fields[0].sortField = null;
+            }
+            if (this.limitResults)
+                this.extraParams.limit = this.limitResults;
+        },
         methods: {
             //...
             // when the pagination data is available, set it to pagination component
@@ -224,18 +217,19 @@
             },
 
             applyFilters() {
-
-                let params = {};
-
+                let params = this.extraParams;
                 if (this.keyword)
-                    params.keyword = this.keyword;
+                    this.extraParams.keyword = this.keyword;
+                else
+                    delete this.extraParams.keyword;
 
-                this.extraParams = params;
+                //this.extraParams = params;
                 Vue.nextTick(() => this.$refs.vuetable.refresh())
             },
             resetFilters() {
                 this.keyword = null;
-                this.extraParams = {};
+                // this.extraParams = {};
+                delete this.extraParams.keyword;
                 Vue.nextTick(() => this.$refs.vuetable.refresh());
             },
             startLoading() {

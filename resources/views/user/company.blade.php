@@ -38,12 +38,13 @@
 
                     </div>
                 </div>
-                <div class="row row-xxl row-30 row-md-60">
-                    <div class="col">
-                        <h2 class="wow fadeInLeft">Spacecraft</h2>
-                    </div>
+            </div>
+            <div class="row row-xxl row-30 row-md-60">
+                <div class="col">
+                    <h2 class="wow fadeInLeft">Spacecraft</h2>
                 </div>
             </div>
+
             <div class="table-custom-responsive">
                 <table class="table-ticket">
                     @if(sizeof($spacecraft) == 0)

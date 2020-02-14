@@ -124,7 +124,7 @@
 
                         <p>And as quick as that, your spacecraft will be at Saturn!  Give it a try and see what happens.  You'll notice that your drones always report their current location at the top of every email they send you.  This location will now indicate Saturn.</p>
 
-                        <p>You can use this command to go elsewhere in the solarsystem as well.  All you need is the Object ID for your destination.  This can be found in the <a href="http://<?php echo  getenv("MAIL_HOST") ?>/objects">Astronomical Objects table</a>.</p>
+                        <p>You can use this command to go elsewhere in the solarsystem as well.  All you need is the Object ID for your destination.  This can be found in the <a href="http://<?php echo  getenv("MAIL_HOST") ?>/objects">Space Objects table</a>.</p>
 
                         <br/><h3 id="h3_putting_it_into_words">Putting it into words</h3>
 

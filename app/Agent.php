@@ -34,7 +34,7 @@ class Agent extends Model
      */
     public function lastEVents()
     {
-        return $this->hasMany('App\Event', 'drone', 'agent_id')->orderBy('id', 'desc')->take(20);
+        return $this->hasMany('App\Event', 'drone', 'agent_id')->orderBy('id', 'desc')->take(10);
     }
 
     /**

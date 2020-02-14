@@ -3,6 +3,14 @@
   white-space: nowrap;
 }
 
+.help-block {
+  color: $danger-color;
+}
+
+.alert-danger {
+  color: #dd0203;
+}
+
 #compiled_table {
   border-width: 0;
   color: white;

@@ -26,10 +26,15 @@ Route::get('/forth-dictionary', 'HomeController@forthDictionary');
 Route::get('/players-manual', 'HomeController@playersManual');
 Route::get('/about-us', 'HomeController@aboutUs');
 
-Route::post('/web-register', 'UserController@webRegistration');
+Route::group(['middleware' => ['web']], function () {
+    Route::post('/web-register', 'UserController@webRegistration');
+});
 
 Route::get('/queries', 'HomeController@queryCommands');
 
+Route::get('message', 'HomeController@message');
+
+//resources
 Route::get('/resources', 'ResourceController@index');
 Route::get('/resources/{id}', 'ResourceController@view');
 
