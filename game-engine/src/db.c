@@ -2366,11 +2366,11 @@ ErrorCode_t db_insert_event(Event_t* event)
         "INSERT INTO events "
         "(event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
         "VALUES(%d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
-        event->new_quantity?", new_quantity":"",
-        event->new_credits?", new_credits":"",
-        event->new_location?", new_location":"",
-        event->new_transmission?", new_transmission":"",
-        event->new_cargo?", new_cargo":"",
+        event->new_quantity!=NULL_VALUE?", new_quantity":"",
+        event->new_credits!=NULL_VALUE?", new_credits":"",
+        event->new_location!=NULL_VALUE?", new_location":"",
+        event->new_transmission!=NULL_VALUE?", new_transmission":"",
+        event->new_cargo!=NULL_VALUE?", new_cargo":"",
         event->event_type,
         event->action_id,
         event->logged,
@@ -2379,16 +2379,16 @@ ErrorCode_t db_insert_event(Event_t* event)
         event->resource_id,
         event->installed,
         event->locked,
-        event->new_quantity?db_int2str(event->new_quantity, new_quantity_text, MAX_QUERY_VALUE_BUF_LEN):"",
-        event->new_quantity?", ":"",
-        event->new_credits?db_int2str(event->new_credits, new_credits_text, MAX_QUERY_VALUE_BUF_LEN):"",
-        event->new_credits?", ":"",
-        event->new_location?db_int2str(event->new_location, new_location_text, MAX_QUERY_VALUE_BUF_LEN):"",
-        event->new_location?", ":"",
-        event->new_transmission?db_int2str(event->new_transmission, new_transmission_text, MAX_QUERY_VALUE_BUF_LEN):"",
-        event->new_transmission?", ":"",
-        event->new_cargo?db_int2str(event->new_cargo, new_cargo_text, MAX_QUERY_VALUE_BUF_LEN):"",
-        event->new_cargo?", ":"");
+        event->new_quantity!=NULL_VALUE?db_int2str(event->new_quantity, new_quantity_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_quantity!=NULL_VALUE?", ":"",
+        event->new_credits!=NULL_VALUE?db_int2str(event->new_credits, new_credits_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_credits!=NULL_VALUE?", ":"",
+        event->new_location!=NULL_VALUE?db_int2str(event->new_location, new_location_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_location!=NULL_VALUE?", ":"",
+        event->new_transmission!=NULL_VALUE?db_int2str(event->new_transmission, new_transmission_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_transmission!=NULL_VALUE?", ":"",
+        event->new_cargo!=NULL_VALUE?db_int2str(event->new_cargo, new_cargo_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_cargo!=NULL_VALUE?", ":"");
 
     // Trim last comma if any
     char* lastComma = strrchr(query_text, ',');
@@ -2406,6 +2406,8 @@ ErrorCode_t db_insert_event(Event_t* event)
     }
     else 
     {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Query [%s] executed", query_text);
+
         // Get auto-increment ID
         event->event_id = mysql_insert_id(connection->hndl);
 
@@ -2502,7 +2504,7 @@ ErrorCode_t db_get_previous_resource_event(Event_t* event)
                 event->locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
                 event->new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):NULL_VALUE;
                 event->new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):NULL_VALUE;
-                event->new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):-1;
+                event->new_location = atoi(row[EVENT_NEW_LOCATION_IDX]);
                 event->new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):-1;
                 event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
                

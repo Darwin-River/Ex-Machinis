@@ -303,6 +303,13 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
       newEvent.installed = effect->installed;
       newEvent.locked = effect->locked;
       newEvent.outcome = OUTCOME_NO_OUTCOME;
+
+      newEvent.new_quantity = NULL_VALUE;
+      newEvent.new_credits = NULL_VALUE;
+      newEvent.new_location = NULL_VALUE;
+      newEvent.new_transmission = NULL_VALUE;
+      newEvent.new_cargo = NULL_VALUE;
+
       newEvent.new_quantity = effect->quantity; // here only reflect the change in quantity
       // if depletion - make it negative
       if(effect->deplete) {
@@ -366,6 +373,11 @@ ErrorCode_t protocol_process_market_effect(MarketEffect_t *effect, ProtocolInfo_
       newEvent.resource_id = (effect->resource_id == -1)?protocol->parameters[MARKET_RESOURCE_IDX]:effect->resource_id;
       newEvent.event_type = effect->event_type;
       newEvent.action_id = action_id;
+      newEvent.new_quantity = NULL_VALUE;
+      newEvent.new_credits = NULL_VALUE;
+      newEvent.new_location = NULL_VALUE;
+      newEvent.new_transmission = NULL_VALUE;
+      newEvent.new_cargo = NULL_VALUE;
       // Default memset()
       // newEvent.logged = 0;
       // newEvent.processed = 0; 
@@ -446,7 +458,13 @@ ErrorCode_t protocol_process_location_effect
     newEvent.action_id = action_id;
     newEvent.logged = 1; // TBD: We do not have the observation engine in place yet!!
     newEvent.outcome = OUTCOME_NO_OUTCOME;
-    newEvent.new_location = effect->location; // we use effect info
+    newEvent.new_quantity = NULL_VALUE;
+    newEvent.new_credits = NULL_VALUE;
+    newEvent.new_location = NULL_VALUE;
+    newEvent.new_transmission = NULL_VALUE;
+    newEvent.new_cargo = NULL_VALUE;
+
+    newEvent.new_location = (effect->location != -1)?effect->location:protocol->parameters[0]; // we use effect info or stack
     // rest of fields - set to 0 with memset()
 
     result = db_insert_event(&newEvent);

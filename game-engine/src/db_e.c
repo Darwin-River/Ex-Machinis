@@ -363,6 +363,7 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
     {
         // retrieve the results and process one by one
         db_result = mysql_store_result(connection->hndl);
+        rowsNum = mysql_num_rows(db_result);
 
         if(db_result == NULL)
         {
@@ -372,7 +373,7 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
 
             result = ENGINE_DB_QUERY_ERROR;
         }
-        else if((rowsNum=mysql_num_rows(db_result)) <= 0) 
+        else if(rowsNum <= 0) 
         {
             engine_trace(TRACE_LEVEL_ALWAYS, "None pending event found");
         }
@@ -409,8 +410,8 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
                 event.timestamp = db_date_to_timestamp(row[EVENT_TIMESTAMP_IDX], "%F %T");
 
                 engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "DATE [%s] => TIMESTAMP [%ld]", 
-                    row[EVENT_TIMESTAMP_IDX], event.timestamp);
+                    "DATE [%s] => TIMESTAMP [%ld] %s", 
+                    row[EVENT_TIMESTAMP_IDX], event.timestamp, row[EVENT_NEW_LOCATION_IDX]);
 
                 // Invoke callback when != NULL
                 if(outcomeEventCb) outcomeEventCb(&event);
