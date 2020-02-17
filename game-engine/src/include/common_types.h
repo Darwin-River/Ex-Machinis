@@ -85,6 +85,10 @@
 
 #define NULL_VALUE     0xFFFF
 
+// Special event types (sell and buy)
+#define SELL_EVENT_TYPE   4
+#define BUY_EVENT_TYPE    5
+
 
 /******************************* TYPES ***************************************/
 
@@ -447,6 +451,20 @@ typedef enum
 	MAX_MARKET_EFFECT_FIELDS
 
 } MarketEffectFieldId_t;
+
+// Enum to access the stack parameters received in buy/sell orders
+typedef enum
+{
+	MARKET_RESOURCE_IDX,
+	MARKET_QUANTITY_IDX,
+	MARKET_PRICE_IDX,
+
+	// Max fields expected
+	MAX_MARKET_FIELDS
+
+} MarketEffectParamId_t;
+
+// Special
 
 //-----------------------------------------------------------------------------
 //  LOCATION_EFFECTS table

@@ -1683,13 +1683,13 @@ ErrorCode_t db_get_resource_effects
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-    DbConnection_t* connection =  engine_get_db_connection();
+    DbConnection_t* connection = engine_get_db_connection();
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
     MYSQL_RES* db_result = NULL;
     int fieldsNum = 0;
-    int rowsNum = 0;
+    uint64_t rowsNum = 0;
 
     // sanity check
     if(result == ENGINE_OK)
@@ -1855,7 +1855,7 @@ ErrorCode_t db_get_market_effects
     ErrorCode_t result = db_reconnect(connection);
     MYSQL_RES* db_result = NULL;
     int fieldsNum = 0;
-    int rowsNum = 0;
+    uint64_t rowsNum = 0;
 
     // sanity check
     if(result == ENGINE_OK)
@@ -1870,7 +1870,8 @@ ErrorCode_t db_get_market_effects
 
         snprintf(query_text, 
             DB_MAX_SQL_QUERY_LEN, 
-            "SELECT * FROM market_effects WHERE protocol = %d", protocol->protocol_id);
+            "SELECT * FROM market_effects WHERE protocol = %d",
+            protocol->protocol_id);
 
         engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
 
@@ -1885,6 +1886,9 @@ ErrorCode_t db_get_market_effects
     {
         // retrieve the results
         db_result = mysql_store_result(connection->hndl);
+        rowsNum = mysql_num_rows(db_result);
+
+        engine_trace(TRACE_LEVEL_ALWAYS, "DB result [%s], rows [%d]", db_result?"OK":"KO", mysql_num_rows(db_result));
 
         if(db_result == NULL)
         {
@@ -1908,11 +1912,6 @@ ErrorCode_t db_get_market_effects
 
             result = ENGINE_DB_QUERY_ERROR;
         } 
-        else if((rowsNum=mysql_num_rows(db_result) <= 0)) 
-        {
-            // None entry found is OK (keep default OK)
-            *effectsNum = 0;
-        }
     }  
 
     if((result == ENGINE_OK) && effectsNum)
@@ -2367,11 +2366,11 @@ ErrorCode_t db_insert_event(Event_t* event)
         "INSERT INTO events "
         "(event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
         "VALUES(%d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
-        event->new_quantity?", new_quantity":"",
-        event->new_credits?", new_credits":"",
-        event->new_location?", new_location":"",
-        event->new_transmission?", new_transmission":"",
-        event->new_cargo?", new_cargo":"",
+        event->new_quantity!=NULL_VALUE?", new_quantity":"",
+        event->new_credits!=NULL_VALUE?", new_credits":"",
+        event->new_location!=NULL_VALUE?", new_location":"",
+        event->new_transmission!=NULL_VALUE?", new_transmission":"",
+        event->new_cargo!=NULL_VALUE?", new_cargo":"",
         event->event_type,
         event->action_id,
         event->logged,
@@ -2380,16 +2379,16 @@ ErrorCode_t db_insert_event(Event_t* event)
         event->resource_id,
         event->installed,
         event->locked,
-        event->new_quantity?db_int2str(event->new_quantity, new_quantity_text, MAX_QUERY_VALUE_BUF_LEN):"",
-        event->new_quantity?", ":"",
-        event->new_credits?db_int2str(event->new_credits, new_credits_text, MAX_QUERY_VALUE_BUF_LEN):"",
-        event->new_credits?", ":"",
-        event->new_location?db_int2str(event->new_location, new_location_text, MAX_QUERY_VALUE_BUF_LEN):"",
-        event->new_location?", ":"",
-        event->new_transmission?db_int2str(event->new_transmission, new_transmission_text, MAX_QUERY_VALUE_BUF_LEN):"",
-        event->new_transmission?", ":"",
-        event->new_cargo?db_int2str(event->new_cargo, new_cargo_text, MAX_QUERY_VALUE_BUF_LEN):"",
-        event->new_cargo?", ":"");
+        event->new_quantity!=NULL_VALUE?db_int2str(event->new_quantity, new_quantity_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_quantity!=NULL_VALUE?", ":"",
+        event->new_credits!=NULL_VALUE?db_int2str(event->new_credits, new_credits_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_credits!=NULL_VALUE?", ":"",
+        event->new_location!=NULL_VALUE?db_int2str(event->new_location, new_location_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_location!=NULL_VALUE?", ":"",
+        event->new_transmission!=NULL_VALUE?db_int2str(event->new_transmission, new_transmission_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_transmission!=NULL_VALUE?", ":"",
+        event->new_cargo!=NULL_VALUE?db_int2str(event->new_cargo, new_cargo_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_cargo!=NULL_VALUE?", ":"");
 
     // Trim last comma if any
     char* lastComma = strrchr(query_text, ',');
@@ -2407,6 +2406,8 @@ ErrorCode_t db_insert_event(Event_t* event)
     }
     else 
     {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Query [%s] executed", query_text);
+
         // Get auto-increment ID
         event->event_id = mysql_insert_id(connection->hndl);
 
@@ -2503,7 +2504,7 @@ ErrorCode_t db_get_previous_resource_event(Event_t* event)
                 event->locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
                 event->new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):NULL_VALUE;
                 event->new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):NULL_VALUE;
-                event->new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):-1;
+                event->new_location = atoi(row[EVENT_NEW_LOCATION_IDX]);
                 event->new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):-1;
                 event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
                
@@ -3039,4 +3040,94 @@ char* db_int2str(int value, char* buffer, size_t size)
     }
 
     return buffer;
+}
+
+
+/** ****************************************************************************
+
+    @brief          Gets object ID for a given drone ID
+
+    @param[in]      drone_id   Input drone ID
+    @param[out]     object_id  Output object ID obtained when success
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_drone_object_id(int drone_id, int *object_id)
+{  
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!object_id) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        char* query_end = query_text;
+
+        query_end += snprintf(query_end, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT object_id from agents where agent_id = %d",
+            drone_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            // retrieve the result and check that is an only row with expeced fields number
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+            uint64_t rowsNum = mysql_num_rows(db_result);
+            unsigned int fieldsNum = mysql_num_fields(db_result);
+
+            if((db_result == NULL) || (rowsNum != 1) || (fieldsNum != 1))
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get object_id for DRONE_ID [%d] "
+                    "(invalid result for query [%s], rows [%d], fields [%d])",
+                    drone_id,
+                    query_text,
+                    rowsNum,
+                    fieldsNum);
+
+                result = ENGINE_DB_QUERY_ERROR;
+            } 
+            else 
+            {
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row) 
+                {
+                    // Pick the only field value
+                    *object_id = row[0]?atoi(row[0]):0;
+                    
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "Obtained object ID [%d] for DRONE_ID [%d]", 
+                        *object_id, 
+                        drone_id);
+                }
+                else 
+                {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "ERROR: Unable to get object ID for DRONE_ID [%d] (no row)", 
+                        drone_id);
+
+                    result = ENGINE_DB_QUERY_ERROR;
+                }
+            }
+
+            mysql_free_result(db_result);
+        }
+    }        
+
+    return result;
 }

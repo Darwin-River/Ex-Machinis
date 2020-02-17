@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 5.7.28, for Linux (x86_64)
+-- MySQL dump 10.13  Distrib 5.7.29, for Linux (x86_64)
 --
 -- Host: localhost    Database: exmachinis
 -- ------------------------------------------------------
--- Server version	5.7.28-0ubuntu0.18.04.4
+-- Server version	5.7.29-0ubuntu0.18.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -36,7 +36,7 @@ CREATE TABLE `event_types` (
 
 LOCK TABLES `event_types` WRITE;
 /*!40000 ALTER TABLE `event_types` DISABLE KEYS */;
-INSERT INTO `event_types` VALUES (1,'Increment Inventory'),(2,'Decrement Inventory'),(3,'Move to location');
+INSERT INTO `event_types` VALUES (1,'Increment inventory to'),(2,'Decrement inventory to'),(3,'Move to'),(4,'Sell resource'),(5,'Buy resource');
 /*!40000 ALTER TABLE `event_types` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -109,13 +109,13 @@ DROP TABLE IF EXISTS `market_effects`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `market_effects` (
   `id` int(5) unsigned NOT NULL,
-  `protocol` int(5) unsigned DEFAULT NULL,
-  `event_type` int(2) unsigned DEFAULT NULL,
-  `resource` int(5) unsigned DEFAULT NULL,
-  `upper_limit` tinyint(4) DEFAULT NULL,
-  `quantity` int(5) unsigned DEFAULT NULL,
-  `price` int(5) unsigned DEFAULT NULL,
-  `time` int(5) unsigned DEFAULT NULL,
+  `protocol` int(5) unsigned NOT NULL,
+  `event_type` int(2) unsigned NOT NULL,
+  `resource` int(5) NOT NULL DEFAULT '-1',
+  `upper_limit` tinyint(3) unsigned NOT NULL DEFAULT '0',
+  `quantity` int(5) NOT NULL DEFAULT '-1',
+  `price` int(5) NOT NULL DEFAULT '-1',
+  `time` int(5) unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `id_UNIQUE` (`id`),
   KEY `protocol_idx` (`protocol`)
@@ -128,6 +128,7 @@ CREATE TABLE `market_effects` (
 
 LOCK TABLES `market_effects` WRITE;
 /*!40000 ALTER TABLE `market_effects` DISABLE KEYS */;
+INSERT INTO `market_effects` VALUES (1,7,4,-1,0,-1,-1,0),(2,8,5,-1,0,-1,-1,0);
 /*!40000 ALTER TABLE `market_effects` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -203,7 +204,7 @@ CREATE TABLE `protocols` (
 
 LOCK TABLES `protocols` WRITE;
 /*!40000 ALTER TABLE `protocols` DISABLE KEYS */;
-INSERT INTO `protocols` VALUES (1,'Mine Iron Ore',0,100,'[1 perform]: Adds a unit of iron ore to your drone\'s cargo hold.',1,1,1),(2,'Mine carbon ore',0,100,'This protocol adds carbon ore to your inventory.',1,1,1),(3,'Smelt iron ore',0,100,'This protocol converts iron ore to iron pellets.',1,1,1),(4,'Dump Iron Ore',0,100,'Dumps a unit of iron ore from the cargo hold.',1,1,1),(5,'Move to X',0,100,'Initial draft for location effects',1,1,0),(6,'Move to Jupiter',0,100,'We move without parameters, effect defines destiny',1,1,0);
+INSERT INTO `protocols` VALUES (1,'Mine Iron Ore',0,100,'1 perform | Adds 10 units of iron ore to your drone\'s cargo hold.',1,1,1),(2,'Mine carbon ore',0,100,'2 perform | Adds 10 units of carbon ore to your inventory.',1,1,1),(3,'Smelt iron ore',0,100,'3 perform | Converts one unit of iron ore to one unit of refined iron pellets.',1,1,1),(4,'Dump Iron Ore',0,100,'4 perform | Dumps 10 units of iron ore from your cargo hold.',1,1,1),(5,'Move to X',0,100,'N1 5 perform | Moves the spacecraft to the the astronimical object whoes ID is N1.',1,1,0),(6,'Move to Jupiter',0,100,'6 perform | Moves the spacecraft to Jupiter.',1,1,0),(7,'Sell Resource',3,100,'[P M R 7 perform]: Places order to sell resource R at price P, keeping min M units at drone\'s cargo hold.',1,1,0),(8,'Buy Resource',3,100,'[P M R 8 perform]: Places order to buy resource R at price P, keeping max M units at drone\'s cargo hold.',1,1,0);
 /*!40000 ALTER TABLE `protocols` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -257,7 +258,7 @@ CREATE TABLE `resources` (
   `capacity` int(2) unsigned DEFAULT NULL,
   `slot_size` int(1) unsigned DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=109 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -294,7 +295,7 @@ CREATE TABLE `queries` (
 
 LOCK TABLES `queries` WRITE;
 /*!40000 ALTER TABLE `queries` DISABLE KEYS */;
-INSERT INTO `queries` VALUES (1,'Recent Events','[N1 1 query]: Returns the event ID (2), day (2), and seconds (2), of all events that affected the drone in the last N1 minutes.',1,'SELECT events.id, events.timestamp FROM observations INNER JOIN events ON observations.event = events.id WHERE observations.drone = [drone_id] AND observations.time BETWEEN (CURRENT_TIMESTAMP - INTERVAL [value_1] MINUTE) AND CURRENT_TIMESTAMP ORDER BY events.timestamp DESC;\n'),(2,'Get object ID','[P1 2 query] Returns the IDs (2) for all astronomical objects with the name S1.',1,'SELECT object_id FROM objects WHERE object_name=\'[string_1]\';'),(3,'Get object type','[S1 3 query] Returns the object type for an object with the name S1.',1,'SELECT object_type FROM objects WHERE object_name=\'[string_1]\';');
+INSERT INTO `queries` VALUES (1,'Recent Events','N1 R L 1 query | Returns the event ID [2], day [2], and seconds [2], of all events that affected the drone in the last N1 minutes.',1,'SELECT events.id, events.timestamp FROM observations INNER JOIN events ON observations.event = events.id WHERE observations.drone = [drone_id] AND observations.time BETWEEN (CURRENT_TIMESTAMP - INTERVAL [value_1] MINUTE) AND CURRENT_TIMESTAMP ORDER BY events.timestamp DESC;\n'),(2,'Get object ID','S1 R L 2 query | Returns the IDs [2] for all astronomical objects with the name S1.',1,'SELECT object_id FROM objects WHERE object_name=\'[string_1]\';'),(3,'Get object type','S1 R L 3 query | Returns the object type [30] for an object with the name stored in S1.',1,'SELECT object_type FROM objects WHERE object_name=\'[string_1]\';');
 /*!40000 ALTER TABLE `queries` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -307,4 +308,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2020-01-13  0:00:01
+-- Dump completed on 2020-02-14  7:24:46

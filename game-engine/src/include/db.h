@@ -780,4 +780,16 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm);
 *******************************************************************************/
 char* db_int2str(int value, char* buffer, size_t size);
 
+/** ****************************************************************************
+
+    @brief          Gets object ID for a given drone ID
+
+    @param[in]      drone_id   Input drone ID
+    @param[out]     object_id  Output object ID obtained when success
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_drone_object_id(int drone_id, int *object_id);
+
 #endif // __EM_DB_MODULE__

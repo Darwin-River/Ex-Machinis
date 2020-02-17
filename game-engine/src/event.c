@@ -496,6 +496,7 @@ ErrorCode_t event_get_drone_position(int object_id, char* position, double* dist
                         object.object_id);
 
                     result = ENGINE_DB_QUERY_ERROR;
+                    done = ENGINE_TRUE;
                 } else {
                     // Save drone position at first search (safe = same size)
                     if(objects_num++ == 0) {
@@ -520,7 +521,7 @@ ErrorCode_t event_get_drone_position(int object_id, char* position, double* dist
                     orbits_add_coordinates(&position, &current_total_position, &final_position);
 
                     // Check if our central body is the sun to stop
-                    if(object.central_body_object_id == sun.object_id) {
+                    if((object.central_body_object_id == sun.object_id) || (object.object_id == sun.object_id)) {
                         done = ENGINE_TRUE;
                     } else {
                         // update object ID to do next search
@@ -683,6 +684,27 @@ ErrorCode_t event_process_outcome(Event_t *event)
 
         // Mark aborted as error
         if(result == ENGINE_OK) result = ENGINE_LOGIC_ERROR;
+    }
+
+    // Check if it is a market event type
+    // These events - are just marked with outcome = OK and registered at observations table
+    if((result == ENGINE_OK) && ((event->event_type == SELL_EVENT_TYPE) || (event->event_type == BUY_EVENT_TYPE))) 
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Market event [%d], no processing done, only observations table updated",
+            event->event_id,
+            event->action_id);
+
+        event->outcome = OUTCOME_OK;
+        event->logged = 1;
+
+        // update outcome at DB
+        result = db_update_event(event);
+
+        if(result == ENGINE_OK)
+            result = event_update_observations(event);
+
+        return result;
     }
 
     // Get previous events info

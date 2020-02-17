@@ -349,7 +349,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`resource_effects` (
   `quantity` INT(5) UNSIGNED NULL,
   `time` INT(5) UNSIGNED NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `id_UNIQUE` (`id` ASC)
+  UNIQUE INDEX `id_UNIQUE` (`id` ASC),
   INDEX `protocol_idx` (`protocol` ASC))
 ENGINE = InnoDB;
 
@@ -361,15 +361,15 @@ DROP TABLE IF EXISTS `exmachinis`.`market_effects` ;
 
 CREATE TABLE IF NOT EXISTS `exmachinis`.`market_effects` (
   `id` INT(5) UNSIGNED NOT NULL,
-  `protocol` INT(5) UNSIGNED NULL,
-  `event_type` INT(2) UNSIGNED NULL,
-  `resource` INT(5) UNSIGNED NULL,
-  `upper_limit` TINYINT NULL,
-  `quantity` INT(5) UNSIGNED NULL,
-  `price` INT(5) UNSIGNED NULL,
-  `time` INT(5) UNSIGNED NULL,
+  `protocol` INT(5) UNSIGNED NOT NULL,
+  `event_type` INT(2) UNSIGNED NOT NULL,
+  `resource` INT(5) NOT NULL DEFAULT -1,
+  `upper_limit` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `quantity` INT(5) NOT NULL DEFAULT -1,
+  `price` INT(5) NOT NULL DEFAULT -1,
+  `time` INT(5) UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `id_UNIQUE` (`id` ASC)
+  UNIQUE INDEX `id_UNIQUE` (`id` ASC),
   INDEX `protocol_idx` (`protocol` ASC))
 ENGINE = InnoDB;
 
