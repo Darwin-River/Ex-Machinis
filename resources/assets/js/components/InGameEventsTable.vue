@@ -193,7 +193,6 @@
 
         }),
         created() {
-            console.log(this.agentId);
             if (this.agentId != null) {
                 this.extraParams.observing_agent = this.agentId;
                 this.fields[0].sortField = null;
@@ -241,16 +240,6 @@
             formatDate(date) {
                 return formatDate(date);
             }
-            /*   actionDescription(rowData) {
-                   switch (rowData.event_type_name) {
-                       case "Increment Inventory":
-                           return "Mine " + rowData.resource_name;
-                       case "Decrement Inventory":
-                           return "Mine " + rowData.resource_name;
-                       case "Move to location":
-                           return "Move to " + rowData.new_location_name;
-                   }
-               }*/
         },
     }
 </script>
