@@ -277,57 +277,33 @@
         <div class="container">
             <div class="row row-80">
                 <div class="col-sm-6 col-lg-4">
-                    <h4>About us</h4>
-                    <p class="text-width-xl-90">Ex Machinis is a free multiplayer space game in which players program
-                        fleets
-                        of remotely-piloted spacecraft to trade and manufacture goods and materials.</p>
-                    <div class="row row-20">
-                        <div class="col-6 col-sm-12 align-self-center">
-                            <ul class="list-inline list-social inset-lg-top-10">
-                                <li><a class="icon mdi mdi-twitter" href="https://twitter.com/exmachinis"></a></li>
-                                <li><a class="icon mdi mdi-patreon"
-                                       href="https://www.patreon.com/exmachinis"></a></li>
-                                <li><a class="icon mdi mdi-github-circle"
-                                       href="https://github.com/Darwin-River/Ex-Machinis"></a></li>
-                            </ul>
-                        </div>
-                    </div>
+                    <h4>Lieutenant</h4>
+                    <p class="text-width-xl-90">Reaceive advanced notice of <b>in-game updates</b> when you support this project at $1 per month.</p>
+                    <br/>
+                    <a href="https://www.patreon.com/bePatron?u=6799833" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
                 </div>
-                <!--<div class="col-sm-6 col-lg-2">
-                    <h4>Quick Links</h4>
-                    <ul class="footer-classic-list-link">
-                        <li><a href="#">News</a></li>
-                        <li><a href="#">Documentary</a></li>
-                        <li><a href="#">Sighting</a></li>
-                        <li><a href="#">Incidents</a></li>
-                        <li><a href="#">ISS Tracking</a></li>
-                        <li><a href="#">Researching</a></li>
-                    </ul>
-                </div>
+
                 <div class="col-sm-6 col-lg-4">
-                    <h4>Support us on Patreon</h4>
-                    <p>
-                        <a href="https://www.patreon.com/exmachinis">https://www.patreon.com/exmachinis</a>
-                    </p>
-                    <div class="row row-20">
-                        <div class="col-6 col-sm-12 align-self-center">
-                            <ul class="list-inline list-social inset-lg-top-10">
-                                <li><a class="icon mdi mdi-twitter" href="https://twitter.com/exmachinis"></a></li>
-                                <li><a class="icon mdi mdi-patreon"
-                                       href="https://www.patreon.com/exmachinis"></a></li>
-                                <li><a class="icon mdi mdi-github-circle"
-                                       href="https://github.com/Darwin-River/Ex-Machinis"></a></li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>-->
+                    <h4>Commander</h4>
+                    <p class="text-width-xl-90">Benetif from exclusive <b>game-play tips</b> and <b>programming tutorials</b> when you contribute at least $3 a month.</p>
+                    <br/>
+                    <a href="https://www.patreon.com/bePatron?u=6799833" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
+                </div>
+
+                <div class="col-sm-6 col-lg-4">
+                    <h4>Admiral</h4>
+                    <p class="text-width-xl-90">Enjoy <b>behind the scenes access</b> to our development plans and visions when you support us at $6 a month.</p>
+                    <br/>
+                    <a href="https://www.patreon.com/bePatron?u=6799833" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
+                </div>
+                <!--
                 <div class="col-sm-12 col-lg-4">
                     <h4>Join the game</h4>
-                    <!--
+
                     <p>Submit your e-mail to receive access to your own spacecraft.<br/>
                         <small>Or else send a mail to <a href="mailto:registrar@advolition.com?subject=register">registrar@advolition.com</a>
                             with <b>register</b> as subject.</small></p>
-                    -->
+
                     <form class="rd-form rd-mailform form-sm" data-form-output="form-output-global"
                           data-form-type="subscribe" method="post" action="/web-register" novalidate="novalidate">
 
@@ -348,7 +324,7 @@
                         <button class="button button-sm button-primary" type="submit">Submit</button>
                     </form>
                 </div>
-
+-->
             </div>
         </div>
         <div class="container">
