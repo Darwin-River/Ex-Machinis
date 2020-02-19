@@ -42,8 +42,8 @@ class ResourceController extends Controller
     public function buyOrdersSearch(Request $request)
     {
         $resultsPerPage = Config::get('constants.options.results_per_page');
-        $query = DB::table('events')->select('agents.name as agent_name', 'agents.agent_id', 'resources.name as resource_name', 'resources.id as resource_id', 'events.timestamp',
-            'events.new_credits as price', 'objects.object_name', 'objects.object_id', DB::raw('(events.new_quantity-sqInventory.units) AS volume'))
+        $query = DB::table('events')->select('agents.name as agent_name', 'agents.agent_id', 'resources.name as resource_name', 'resources.id as resource_id', DB::raw('MAX(events.timestamp) as timestamp'),
+            DB::raw('MAX(events.new_credits) as price'), 'objects.object_name', 'objects.object_id', DB::raw('(MAX(events.new_quantity)-MAX(sqInventory.units)) AS volume'))
             ->leftJoin('agents', 'agents.agent_id', '=', 'events.drone')
             ->leftJoin('resources', 'events.resource', '=', 'resources.id')
             ->leftJoin('objects', 'objects.object_id', '=', 'agents.object_id')
@@ -54,6 +54,7 @@ class ResourceController extends Controller
             $query->orderBy($sortParts[0], $sortParts[1]);
         } else
             $query->orderBy('timestamp', 'desc');
+        $query->groupBy('events.drone', 'events.resource');
         $orders = $query->paginate($resultsPerPage);
         // var_dump($spaceObjects);exit;
 

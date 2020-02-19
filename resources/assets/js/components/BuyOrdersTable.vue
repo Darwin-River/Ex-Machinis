@@ -87,10 +87,12 @@
                 },
                 {
                     name: 'price',
-                    title: 'Price',
+                    title: 'Unit Price',
                     titleClass: '',
                     dataClass: '',
-                    /*width: "22%",*/
+                    formatter(value) {
+                        return value + '<span class="d-none d-md-inline"> credits</span>';
+                    }
                 },
                 {
                     name: 'volume',
@@ -98,7 +100,9 @@
                     /*    sortField: 'protocol_name',*/
                     titleClass: '',
                     dataClass: '',
-                    /*width: "22%",*/
+                    formatter(value) {
+                        return value + '<span class="d-none d-md-inline"> units</span>';
+                    }
                 },
                 {
                     name: 'timestamp',
