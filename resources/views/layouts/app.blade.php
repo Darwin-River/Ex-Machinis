@@ -275,7 +275,7 @@
 
     <footer class="section footer-classic bg-gray-700-invariable text-md-left">
         <div class="container">
-          <h3>Support us on Patreaon and unlock exclusive content.</h3>
+          <h3>Support us on Patreon and unlock exclusive content.</h3>
             <div class="row row-80">
                 <div class="col-sm-6 col-lg-4">
                     <h4>Lieutenant</h4>
