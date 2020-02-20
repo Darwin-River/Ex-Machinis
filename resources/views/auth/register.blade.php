@@ -5,7 +5,14 @@
     <section class="section section-xs section-first bg-default text-md-left">
         <div class="container" id="container">
             <h1>{{$title}}</h1>
-            <p class="text-left">Please provide an e-mail address and your space company name to start.</p>
+
+            <br/>
+            <h4>Please provide an email address and name for your space company to start.</h4>
+
+            <p>Game-play is free. We rely entirely on <a href="http://patreon.com/exmachinis">Patreon support</a> to sustain and advance this project.</p>
+
+            <p>Furthermore, we’ll only use your email address to send in-game communications and an occasional newsletter summarizing updates to the game. You can unsubscribe at any time.</p>
+
             <div class="row justify-content-center justify-content-md-start mt-0">
                 <div class="col-sm-9 col-md-7 col-lg-5 col-xl-4">
                     @if(count($errors))
