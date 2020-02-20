@@ -39727,7 +39727,9 @@ var render = function() {
                       : _vm._e(),
                     props.rowData.new_credits
                       ? _c("span", [
-                          _vm._v(_vm._s(props.rowData.new_credits) + " credits")
+                          _vm._v(
+                            " " + _vm._s(props.rowData.new_credits) + " credits"
+                          )
                         ])
                       : _vm._e(),
                     props.rowData.object_name

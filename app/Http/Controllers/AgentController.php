@@ -62,32 +62,32 @@ class AgentController extends Controller
         if (!$agent)
             abort(404);
 
-        $cargoManifest = DB::table('events')->select(DB::raw('min(resources.id) as resource_id'), DB::raw('min(resources.name) as name'), DB::raw('min(events.locked) as locked'), DB::raw('min(resources.mass) as mass')
-            , DB::raw('min(events.new_quantity) as new_quantity'), DB::raw('min(events.id) as event_id'))
+        $cargoManifest = DB::table('events')->select(DB::raw('(resources.id) as resource_id'), DB::raw('(resources.name) as name'), DB::raw('(events.locked) as locked'), DB::raw('(resources.mass) as mass')
+            , DB::raw('(events.new_quantity) as new_quantity'), DB::raw('(events.id) as event_id'))
             ->leftJoin('resources', 'events.resource', '=', 'resources.id')
             ->leftJoin('event_types', 'events.event_type', '=', 'event_types.id')
+            ->join(DB::raw('(SELECT MAX(events.id) AS id FROM events WHERE drone = ' . $id . '  GROUP BY events.resource ORDER BY id) AS events_latest '), "events_latest.id", '=', 'events.id')//aggregation join
             ->where('new_quantity', ">", 0)
             ->where('events.drone', '=', $id)->where(function ($q) {
                 return $q->where('event_types.id', EventType::TYPE_INCREMENT_INVENTORY)->orWhere('event_types.id', EventType::TYPE_DECREMENT_INVENTORY);
-            })->groupBy('resources.name')->orderBy('new_quantity', 'desc')->get();
+            })/*->groupBy('resources.name')*/->orderBy('new_quantity', 'desc')->get();
 
-    /*    $agentEvents = DB::table('observations')->select('observations.drone', 'events.timestamp', 'agents.name as agent_name', 'event_types.name as effect', 'resources.id as resource_id', 'resources.name as resource_name',
-            'events.locked', 'agents.agent_id', 'protocols.name as action', 'new_quantity', 'new_credits', 'new_location', 'objects.object_id', 'objects.object_name')
-            ->leftJoin('events', 'observations.event', '=', 'events.id')
-            ->leftJoin('resources', 'events.resource', '=', 'resources.id')
-            ->leftJoin('event_types', 'events.event_type', '=', 'event_types.id')
-            ->leftJoin('actions', 'events.action', '=', 'actions.id')
-            ->leftJoin('protocols', 'actions.protocol', '=', 'protocols.id')
-            ->leftJoin('agents', 'actions.drone', '=', 'agents.agent_id')
-            ->leftJoin('objects', 'events.new_location', '=', 'objects.object_id')
-            ->where('observations.drone', '=', $id)
-            ->orderBy('events.timestamp','desc')
-            ->limit(10)
-            ->get();*/
+        /*    $agentEvents = DB::table('observations')->select('observations.drone', 'events.timestamp', 'agents.name as agent_name', 'event_types.name as effect', 'resources.id as resource_id', 'resources.name as resource_name',
+                'events.locked', 'agents.agent_id', 'protocols.name as action', 'new_quantity', 'new_credits', 'new_location', 'objects.object_id', 'objects.object_name')
+                ->leftJoin('events', 'observations.event', '=', 'events.id')
+                ->leftJoin('resources', 'events.resource', '=', 'resources.id')
+                ->leftJoin('event_types', 'events.event_type', '=', 'event_types.id')
+                ->leftJoin('actions', 'events.action', '=', 'actions.id')
+                ->leftJoin('protocols', 'actions.protocol', '=', 'protocols.id')
+                ->leftJoin('agents', 'actions.drone', '=', 'agents.agent_id')
+                ->leftJoin('objects', 'events.new_location', '=', 'objects.object_id')
+                ->where('observations.drone', '=', $id)
+                ->orderBy('events.timestamp','desc')
+                ->limit(10)
+                ->get();*/
 
         return view('spacecraft.view', compact('agent', 'cargoManifest'/*, 'agentEvents'*/));
     }
-
 
 
     /**
