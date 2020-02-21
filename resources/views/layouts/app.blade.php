@@ -287,7 +287,7 @@
 
                 <div class="col-sm-6 col-lg-4">
                     <h4>Commander</h4>
-                    <p class="text-width-xl-90">Benetif from exclusive <b>game-play tips</b> and <b>programming tutorials</b> when you contribute at least $3 a month.</p>
+                    <p class="text-width-xl-90">Benefit from exclusive <b>game-play tips</b> and <b>programming tutorials</b> when you contribute at least $3 a month.</p>
                     <br/>
                     <a href="https://www.patreon.com/bePatron?u=6799833" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
                     <br/>
@@ -295,10 +295,10 @@
 
                 <div class="col-sm-6 col-lg-4">
                     <h4>Admiral</h4>
-                    <p class="text-width-xl-90">Enjoy <b>behind the scenes access</b> to our development plans and visions when you support us at $6 a month.</p>
+                    <p class="text-width-xl-90">Enjoy <b>behind-the-scenes access</b> to our development plans and visions when you support us at $6 a month.</p>
                     <br/>
                     <a href="https://www.patreon.com/bePatron?u=6799833" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
-                    <br/>
+
                 </div>
                 <!--
                 <div class="col-sm-12 col-lg-4">
@@ -329,7 +329,9 @@
                     </form>
                 </div>
 -->
+              <p><b>Thank's for helping us succeed!</b></p>
             </div>
+
         </div>
         <div class="container">
             <!-- Rights-->
