@@ -67,7 +67,7 @@ class AgentController extends Controller
             ->leftJoin('event_types', 'events.event_type', '=', 'event_types.id')
             ->join(DB::raw('(SELECT MAX(events.id) AS id FROM events WHERE drone = ' . $id . '  GROUP BY events.resource ORDER BY id) AS events_latest '), "events_latest.id", '=', 'events.id')//aggregation join
             ->where('new_quantity', ">", 0)
-            ->where('events.outcome', ">", 1)
+            ->where('events.outcome', "=", 1)
             ->where('events.drone', '=', $id)->where(function ($q) {
                 return $q->where('event_types.id', EventType::TYPE_INCREMENT_INVENTORY)->orWhere('event_types.id', EventType::TYPE_DECREMENT_INVENTORY);
             })/*->groupBy('resources.name')*/->orderBy('new_quantity', 'desc')->get();
