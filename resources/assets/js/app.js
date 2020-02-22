@@ -23,7 +23,7 @@ Vue.component('query-commands-table', require('./components/QueryCommandsTable.v
 Vue.component('companies-table', require('./components/CompaniesTable').default);
 Vue.component('resources', require('./components/ResourcesTable').default);
 Vue.component('in-game-events-table', require('./components/InGameEventsTable').default);
-Vue.component('buy-orders-table', require('./components/BuyOrdersTable').default);
+Vue.component('buy-orders-table', require('./components/OrdersTable').default);
 
 Vue.use(require('vue-moment'));
 

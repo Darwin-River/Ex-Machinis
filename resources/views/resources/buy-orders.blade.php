@@ -7,7 +7,7 @@
 
     <div class="container" id="container">
         <h1>{{$title}}</h1>
-        <buy-orders-table :results-per-page="{{Config::get('constants.options.results_per_page')}}"></buy-orders-table>
+        <buy-orders-table :results-per-page="{{Config::get('constants.options.results_per_page')}}" data-url="buys/search"></buy-orders-table>
 
     </div>
 </section>

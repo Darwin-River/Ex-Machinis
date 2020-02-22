@@ -165,6 +165,8 @@
                                                                         href="{{url('events')}}">Events</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('buys')}}">Buy Orders</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('sells')}}">Sell Orders</a></li>
                                     </ul>
                                 </li>
                                 <!--  <li class="rd-nav-item active"><a class="rd-nav-link" href="contacts.html"><span
@@ -211,6 +213,8 @@
                                                                         href="{{url('events')}}">Events</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('buys')}}">Buy Orders</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('sells')}}">Sell Orders</a></li>
                                     </ul>
                                 </li>
 
@@ -228,6 +232,7 @@
                                 <li class="d-block d-lg-none"><a href="{{url('resources')}}">Resources</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('events')}}">Events</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('buys')}}">Buy Orders</a></li>
+                                <li class="d-block d-lg-none"><a href="{{url('sells')}}">Sell Orders</a></li>
                                 <li><a href="{{url('about-us')}}">About Us</a></li>
                                 <li><a href="{{url('register')}}" class="text-warning">Join the Game</a></li>
                             <!-- Hide login prompt for now.

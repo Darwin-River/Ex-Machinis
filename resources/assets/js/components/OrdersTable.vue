@@ -23,7 +23,7 @@
 
         <img src="/images/loading.gif" id="table_preloader" v-show="loading"/>
         <div v-bind:class="'table-responsive '+(loading?' loading-table ':'') ">
-            <vuetable api-url="/buys/search" :fields="fields" data-path="data" pagination-path=""
+            <vuetable :api-url="dataUrl" :fields="fields" data-path="data" pagination-path=""
                       @vuetable:pagination-data="onPaginationData" @vuetable:loading="startLoading"
                       @vuetable:loaded="stopLoading" ref="vuetable" :append-params="extraParams"
                       :per-page="resultsPerPage" :css="css.table">
@@ -66,7 +66,7 @@
     import {formatDate} from "../helper";
 
     export default {
-        name: "BuyOrdersTable",
+        name: "OrdersTable",
         components: {
             Vuetable,
             VuetablePagination,
@@ -75,6 +75,7 @@
             resultsPerPage: Number,
             limitResults: Number,
             agentId: Number,
+            dataUrl: String,
         },
         data: () => ({
             fields: [
