@@ -36,7 +36,7 @@
                         <b>Hull</b>: {{$agent->hull->name}}<br/>
                         <b>Max Cargo</b>: {{$agent->hull->cargo_capacity}} kg.<br/>
 
-                        <b>Current Cargo</b>: {{$agent->hull->cargo_capacity}} kg.<br/>
+                        <b>Current Cargo</b>: {{$totalWeight}} kg.<br/>
                     </div>
                 </div>
             </div>
@@ -83,7 +83,8 @@
                 </div>
             </div>
             <in-game-events-table
-                    :results-per-page="{{Config::get('constants.options.results_per_page')}}" :limit-results="10" :agent-id="{{$agent->agent_id}}"></in-game-events-table>
+                    :results-per-page="{{Config::get('constants.options.results_per_page')}}" :limit-results="10"
+                    :agent-id="{{$agent->agent_id}}"></in-game-events-table>
         </div>
     </section>
 
