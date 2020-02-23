@@ -293,7 +293,7 @@ class Agent extends Model
         $lastInventoryEvent = Event::where('drone', '=', $this->agent_id)->where('outcome', '=', 1)->where(function ($q) {
             $q->where('event_type', EventType::TYPE_DECREMENT_INVENTORY)
                 ->orWhere('event_type', EventType::TYPE_INCREMENT_INVENTORY);
-        })->first();
+        })->orderBy('id', 'desc')->first();
         if (!$lastInventoryEvent)
             return 0;
         return $lastInventoryEvent->new_cargo === null ? 0 : $lastInventoryEvent->new_cargo;
