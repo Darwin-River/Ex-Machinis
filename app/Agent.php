@@ -290,12 +290,12 @@ class Agent extends Model
      */
     public function getCurrentCargoWeight()
     {
-        $lastInventoryEvent = Event::where('drone', '=', $this->agent_id)->where('outcome', '=', 1)->where(function ($q) {
+        $lastInventoryEvent = Event::where('drone', '=', $this->agent_id)->where('outcome', '=', 1)->where('new_cargo', '>=', 0)->where(function ($q) {
             $q->where('event_type', EventType::TYPE_DECREMENT_INVENTORY)
                 ->orWhere('event_type', EventType::TYPE_INCREMENT_INVENTORY);
         })->orderBy('id', 'desc')->first();
         if (!$lastInventoryEvent)
             return 0;
-        return $lastInventoryEvent->new_cargo === null ? 0 : $lastInventoryEvent->new_cargo;
+        return $lastInventoryEvent->new_cargo === null ? 0 : max(0, $lastInventoryEvent->new_cargo);
     }
 }

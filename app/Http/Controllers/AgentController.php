@@ -70,7 +70,7 @@ class AgentController extends Controller
             ->where('events.outcome', "=", 1)*/
             /*  ->where('events.drone', '=', $id)->where(function ($q) {
                   return $q->where('event_types.id', EventType::TYPE_INCREMENT_INVENTORY)->orWhere('event_types.id', EventType::TYPE_DECREMENT_INVENTORY);
-              })*//*->groupBy('resources.name')*/ ->orderBy('new_quantity', 'desc')->havingRaw('new_quantity > 0')->get();
+              })*//*->groupBy('resources.name')*/ ->orderBy('new_quantity', 'desc')->havingRaw('new_quantity >= 0')->get();
         $totalWeight = 0;
         foreach ($cargoManifest as $cargoItem) {
             if ($cargoItem->mass && $cargoItem->new_quantity)
