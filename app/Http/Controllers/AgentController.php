@@ -66,27 +66,19 @@ class AgentController extends Controller
             ->leftJoin('resources', 'events.resource', '=', 'resources.id')
             ->leftJoin('event_types', 'events.event_type', '=', 'event_types.id')
             ->join(DB::raw('(SELECT MAX(events.id) AS id FROM events  WHERE drone = ' . $id . ' AND events.outcome = 1 AND (event_type = ' . EventType::TYPE_INCREMENT_INVENTORY . ' OR event_type = ' . EventType::TYPE_DECREMENT_INVENTORY . ')   GROUP BY events.resource ORDER BY id DESC) AS events_latest '), "events_latest.id", '=', 'events.id')//aggregation join
-            /*->where('new_quantity', ">", 0)
-            ->where('events.outcome', "=", 1)*/
-            /*  ->where('events.drone', '=', $id)->where(function ($q) {
-                  return $q->where('event_types.id', EventType::TYPE_INCREMENT_INVENTORY)->orWhere('event_types.id', EventType::TYPE_DECREMENT_INVENTORY);
-              })*//*->groupBy('resources.name')*/ ->orderBy('new_quantity', 'desc')->havingRaw('new_quantity >= 0')->get();
+            ->orderBy('new_quantity', 'desc')->havingRaw('new_quantity >= 0')->get();
         $totalWeight = 0;
         foreach ($cargoManifest as $cargoItem) {
             if ($cargoItem->mass && $cargoItem->new_quantity)
                 $totalWeight += $cargoItem->mass * $cargoItem->new_quantity;
         }
 
-        echo DB::table('events')->select(DB::raw('(resources.id) as resource_id'), DB::raw('(resources.name) as name'), DB::raw('(events.locked) as locked'), DB::raw('(resources.mass) as mass')
-            , DB::raw('(events.new_quantity) as new_quantity'), DB::raw('(events.id) as event_id'))
-            ->leftJoin('resources', 'events.resource', '=', 'resources.id')
-            ->leftJoin('event_types', 'events.event_type', '=', 'event_types.id')
-            ->join(DB::raw('(SELECT MAX(events.id) AS id FROM events  WHERE drone = ' . $id . ' AND events.outcome = 1 AND (event_type = ' . EventType::TYPE_INCREMENT_INVENTORY . ' OR event_type = ' . EventType::TYPE_DECREMENT_INVENTORY . ')   GROUP BY events.resource ORDER BY id DESC) AS events_latest '), "events_latest.id", '=', 'events.id')//aggregation join
-            /*->where('new_quantity', ">", 0)
-            ->where('events.outcome', "=", 1)*/
-            /*  ->where('events.drone', '=', $id)->where(function ($q) {
-                  return $q->where('event_types.id', EventType::TYPE_INCREMENT_INVENTORY)->orWhere('event_types.id', EventType::TYPE_DECREMENT_INVENTORY);
-              })*//*->groupBy('resources.name')*/ ->orderBy('new_quantity', 'desc')->havingRaw('new_quantity > 0')->toSql();
+        /*  echo DB::table('events')->select(DB::raw('(resources.id) as resource_id'), DB::raw('(resources.name) as name'), DB::raw('(events.locked) as locked'), DB::raw('(resources.mass) as mass')
+              , DB::raw('(events.new_quantity) as new_quantity'), DB::raw('(events.id) as event_id'))
+              ->leftJoin('resources', 'events.resource', '=', 'resources.id')
+              ->leftJoin('event_types', 'events.event_type', '=', 'event_types.id')
+              ->join(DB::raw('(SELECT MAX(events.id) AS id FROM events  WHERE drone = ' . $id . ' AND events.outcome = 1 AND (event_type = ' . EventType::TYPE_INCREMENT_INVENTORY . ' OR event_type = ' . EventType::TYPE_DECREMENT_INVENTORY . ')   GROUP BY events.resource ORDER BY id DESC) AS events_latest '), "events_latest.id", '=', 'events.id')//aggregation join
+  ->orderBy('new_quantity', 'desc')->havingRaw('new_quantity > 0')->toSql();*/
         return view('spacecraft.view', compact('agent', 'cargoManifest', 'totalWeight'));
     }
 
