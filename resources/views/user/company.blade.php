@@ -3,7 +3,7 @@
 @section('pageTitle', $title)
 @section('content')
     <section class="breadcrumbs-modern box-transform-wrap bg-image context-dark"
-             style="background-image: url('/images/bg-breadcrumbs.jpg');">
+             style="background-image: url('/images/cityscape-1.jpg');">
         <div class="container">
             <div class="breadcrumbs-modern-body">
                 <h5 class="breadcrumbs-modern-subtitle"></h5>
@@ -15,10 +15,7 @@
                 <li class="active">{{$title}}</li>
             </ul>
         </div>
-        <div class="box-transform" style="background-image: url('/images/bg-breadcrumbs.jpg');"></div>
-        <div class="comets comets-left"></div>
-        <div class="comets comets-center"></div>
-        <div class="comets comets-top"></div>
+        <div class="box-transform" style="background-image: url('/images/cityscape-1.jpg');"></div>
     </section>
     <section class="section section-xs section-first bg-default text-md-left">
         <div class="container grid-demonstration" id="container">
