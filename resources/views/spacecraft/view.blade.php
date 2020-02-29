@@ -3,7 +3,7 @@
 @section('pageTitle', $title)
 @section('content')
     <section class="breadcrumbs-modern box-transform-wrap bg-image context-dark"
-             style="background-image: url('/images/bg-breadcrumbs.jpg');">
+             style="background-image: url('/images/240907570-huge.jpg');">
         <div class="container">
             <div class="breadcrumbs-modern-body">
                 <h5 class="breadcrumbs-modern-subtitle"></h5>
@@ -15,10 +15,7 @@
                 <li class="active">{{$title}}</li>
             </ul>
         </div>
-        <div class="box-transform" style="background-image: url('/images/bg-breadcrumbs.jpg');"></div>
-        <div class="comets comets-left"></div>
-        <div class="comets comets-center"></div>
-        <div class="comets comets-top"></div>
+        <div class="box-transform" style="background-image: url('/images/240907570-huge.jpg');"></div>
     </section>
 
     <section class="section section-xs section-first bg-default text-md-left">
@@ -26,7 +23,7 @@
             <div class="description-fields">
                 <div class="row row-xxl row-30 row-md-60 ">
                     <div class="col-12 col-sm-6 col mb-0">
-                        <b>Id</b>: {{$agent->agent_id}}<br/>
+                        <b>Spacecraft Id</b>: {{$agent->agent_id}}<br/>
                         <b>Location</b>: <a
                                 href="{{url('objects/'.$agent->object_id)}}">{{$agent->location->object_name}}</a><br/>
 
