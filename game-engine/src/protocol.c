@@ -143,7 +143,7 @@ ErrorCode_t protocol_validate_resource_id(Resource_t *resource)
 ErrorCode_t protocol_validate_drone_id(int drone_id) 
 {
   // Does not care or is our current value => OK
-  if((drone_id == RESOURCE_EFFECT_NULL_DRONE_ID)   || 
+  if((drone_id == RESOURCE_EFFECT_NULL_DRONE_ID) || 
      (drone_id == engine_get_current_drone_id())) {
 
     return ENGINE_OK;
@@ -194,9 +194,10 @@ ErrorCode_t protocol_validate_resource_effect(ResourceEffect_t *effect, Resource
     EventType_t event_type;
 
     // Check resource
-    result = protocol_validate_resource_id(resource);
+    if(resource->resource_id >= 0)
+      result = protocol_validate_resource_id(resource);
     // Check droneID
-    if(result == ENGINE_OK) {
+    if(result == ENGINE_OK && (effect->drone_id >= 0)) {
       result = protocol_validate_drone_id(effect->drone_id);
     }
     // Check event type
@@ -265,6 +266,7 @@ ErrorCode_t protocol_validate_market_effect(MarketEffect_t *effect, Resource_t *
 ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolInfo_t *protocol, int action_id) 
 {
   ErrorCode_t result = ENGINE_OK;
+  int parameterId = 0;
 
   if(effect) {
     engine_trace(TRACE_LEVEL_ALWAYS, 
@@ -294,8 +296,37 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
       // We just insert the event indicating the total amount change
       Event_t newEvent;
       memset(&newEvent, 0, sizeof(newEvent));
+
       newEvent.drone_id = engine_get_current_drone_id();
+      // Take into account negative parameters that mean => retrieve it from stack
+      if(effect->drone_id < 0) {
+        parameterId = (((-1) * effect->drone_id) - 1);
+        if(parameterId >= protocol->parameters_num) {
+          engine_trace(TRACE_LEVEL_ALWAYS, 
+            "ERROR: stack parameter [%d] can not be retrieved (only [%d] available)",
+            parameterId,
+            protocol->parameters_num); 
+
+          return ENGINE_INTERNAL_ERROR;
+        }
+        newEvent.drone_id = protocol->parameters[parameterId];
+      }
+
       newEvent.resource_id = effect->resource_id;
+      // Take into account negative parameters that mean => retrieve it from stack
+      if(effect->resource_id < 0) {
+        parameterId = (((-1) * effect->resource_id) - 1);
+        if(parameterId >= protocol->parameters_num) {
+          engine_trace(TRACE_LEVEL_ALWAYS, 
+            "ERROR: stack parameter [%d] can not be retrieved (only [%d] available)",
+            parameterId,
+            protocol->parameters_num); 
+
+          return ENGINE_INTERNAL_ERROR;
+        }
+        newEvent.resource_id = protocol->parameters[parameterId];
+      }
+
       newEvent.event_type = effect->event_type;
       newEvent.action_id = action_id;
       newEvent.logged = 1; // TBD: We do not have the observation engine in place yet!!
@@ -311,10 +342,26 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
       newEvent.new_cargo = NULL_VALUE;
 
       newEvent.new_quantity = effect->quantity; // here only reflect the change in quantity
+
+      // Take into account negative parameters that mean => retrieve it from stack
+      if(effect->quantity < 0) {
+        parameterId = (((-1) * effect->quantity) - 1);
+        if(parameterId >= protocol->parameters_num) {
+          engine_trace(TRACE_LEVEL_ALWAYS, 
+            "ERROR: stack parameter [%d] can not be retrieved (only [%d] available)",
+            parameterId,
+            protocol->parameters_num); 
+
+          return ENGINE_INTERNAL_ERROR;
+        }
+        newEvent.new_quantity = protocol->parameters[parameterId];
+      }
+
       // if depletion - make it negative
       if(effect->deplete) {
         newEvent.new_quantity *= -1;
       }
+
       // Apply multiplier
       newEvent.new_quantity *= protocol->process_multiplier;
 
