@@ -37,6 +37,10 @@ Route::get('message', 'HomeController@message');
 //resources
 Route::get('/resources', 'ResourceController@index');
 Route::get('/resources/{id}', 'ResourceController@view');
+Route::get('/buys', 'ResourceController@buyOrders');
+Route::get('/buys/search', 'ResourceController@buyOrdersSearch');
+Route::get('/sells', 'ResourceController@sellOrders');
+Route::get('/sells/search', 'ResourceController@sellOrdersSearch');
 
 //space objects
 Route::get('/objects', 'SpaceObjectController@index');

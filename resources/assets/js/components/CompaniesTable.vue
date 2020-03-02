@@ -41,6 +41,7 @@
                 <div slot="name" slot-scope="props">
                     <a v-bind:href="'/companies/'+props.rowData.user_id">{{props.rowData.name}}</a>
                 </div>
+
             </vuetable>
         </div>
 

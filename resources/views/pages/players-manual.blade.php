@@ -28,7 +28,7 @@
                       <p>Ex Machinis is a multiplayer space game, which takes place in a parallel universe. Within
                           this altered reality, space technologies have rapidly advanced since the 1950’s to the point
                           where extensive interplanetary industries exist to produce materials that drive the human
-                          economy back on Earth. The vast majority of these spacecraft and are unmanned vehicles,
+                          economy back on Earth and Mars. The vast majority of these spacecraft and are unmanned vehicles,
                           which are assembled in space and are controlled terrestrial barons.</p>
 
                       <p>As part of the international agreement that drove the colonization of space at the end of the
@@ -66,9 +66,9 @@
 
                         <br/><h3 id="h3_joining_the_game">Joining the game</h3>
 
-                        <p>To start playing, you simply need to email the Registrar (registrar@<?php echo  getenv("MAIL_HOST") ?>) with the word “register” in the subject line. You’ll receive a response from the registrar listing the email addresses of three spacecraft that are under your control. These spacecraft will only respond to communications from the email address you used to contact the registrar.</p>
+                        <p>When you <a href="https://<?php echo  getenv("MAIL_HOST") ?>/register">register</a> with Ex Machinis, you'll receive an email from the registrar listing the addresses of three spacecraft that are under your control. These spacecraft will only respond to communications from the email address you used in your registration form.</p>
 
-                        <p>We’ll only use your email to send in-game communications from your spacecraft or an occasional newsletter summarizing updates to the game. Furthermore, you’ll only receive emails from your spacecraft in response to your own communications and you can unsubscribe from the newsletter at any time.</p>
+                        <p>Game-play is free. We rely entirely on <a href="http://patreon.com/exmachinis">Patreon support</a> to sustain and advance this project.</p>
 
                         <br/><h3 id="h3_renaming_your_spacecraft">Renaming your spacecraft</h3>
                         <p>You’ll notice that each of your spacecraft has a rather generic and unremarkable email address like SN523854@<?php echo  getenv("MAIL_HOST") ?>. You’ll probably want to give them more memorable name like “hero” or "scout" before proceeding futher.</p>
