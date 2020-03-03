@@ -338,15 +338,15 @@ DROP TABLE IF EXISTS `exmachinis`.`resource_effects` ;
 
 CREATE TABLE IF NOT EXISTS `exmachinis`.`resource_effects` (
   `id` INT(5) UNSIGNED NOT NULL,
-  `drone` INT(5) UNSIGNED NULL,
-  `resource` INT(5) UNSIGNED NULL,
+  `drone` INT(5) SIGNED NULL,
+  `resource` INT(5) SIGNED NULL,
   `protocol` INT(5) UNSIGNED NULL,
   `event_type` INT(2) UNSIGNED NULL,
   `local` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
   `installed` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
   `locked` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
   `deplete` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
-  `quantity` INT(5) UNSIGNED NULL,
+  `quantity` INT(5) SIGNED NULL,
   `time` INT(5) UNSIGNED NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC),
