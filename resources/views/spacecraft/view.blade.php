@@ -52,7 +52,7 @@
                     @foreach($cargoManifest as $cargoPlacement)
                         <tr>
                             <td>
-                                <a href="{{url('/resourecs/'.$cargoPlacement->resource_id)}}">{{$cargoPlacement->name}}</a>
+                                <a href="{{url('/resources/'.$cargoPlacement->resource_id)}}">{{$cargoPlacement->name}}</a>
                             </td>
                             <td>
                                 @if($cargoPlacement->locked)
