@@ -348,7 +348,7 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
 
         snprintf(query_text, 
             DB_MAX_SQL_QUERY_LEN, 
-            "SELECT * FROM events WHERE outcome = 0 limit %d;", 
+            "SELECT * FROM events as e where outcome = 0 and (select aborted from actions where id = e.action) != 1 limit %d;", 
             events_batch_size);
 
         // run it 
