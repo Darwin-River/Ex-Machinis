@@ -647,5 +647,32 @@ typedef enum
 
 } QueriesFieldId_t;
 
+
+typedef struct
+{
+	int id;
+	char name[MAX_QUERIES_NAME_SIZE];
+	int mass;
+	int locked;
+	int quantity;
+	int event_id;
+	
+} DroneResources_t;
+
+// Enum with table fields idx
+typedef enum
+{
+	DRONE_RESOURCE_ID_IDX,
+	DRONE_RESOURCE_NAME_IDX,
+	DRONE_RESOURCE_LOCKED_IDX,
+	DRONE_RESOURCE_MASS_IDX,
+	DRONE_RESOURCE_QUANTITY_IDX,
+	DRONE_RESOURCE_EVENT_ID_IDX,
+
+	// Max fields expected
+	MAX_DRONE_RESOURCE_FIELDS
+
+} DroneResourceFieldId_t;
+
 #endif // __EM_COMMON_TYPES_MODULE__
 

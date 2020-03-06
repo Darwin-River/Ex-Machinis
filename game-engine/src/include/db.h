@@ -803,4 +803,17 @@ char* db_int2str(int value, char* buffer, size_t size);
 *******************************************************************************/
 ErrorCode_t db_get_drone_object_id(int drone_id, int *object_id);
 
+/** ****************************************************************************
+
+    @brief          Gets current drone cargo per resource
+
+    @param[in]      Current drone ID
+    @param[in|out]  Output parameter where we store the rows obtained
+    @param[in|out]  Output parameter where we store the number of rows obtained
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_drone_resources(int droneId, DroneResources_t** resources, int* resourcesNum);
+
 #endif // __EM_DB_MODULE__

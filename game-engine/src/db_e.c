@@ -1748,3 +1748,159 @@ ErrorCode_t db_delete_action(int action_id)
 
     return result;
 }
+
+
+/** ****************************************************************************
+
+    @brief          Gets current drone cargo per resource
+
+    @param[in]      Current drone ID
+    @param[in|out]  Output parameter where we store the rows obtained
+    @param[in|out]  Output parameter where we store the number of rows obtained
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_drone_resources(int droneId, DroneResources_t** resources, int* resourcesNum)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection = engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+    MYSQL_RES* db_result = NULL;
+    int fieldsNum = 0;
+    uint64_t rowsNum = 0;
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Getting resources for droneID [%d]", droneId);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!resources || !resourcesNum) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        // reset entries found
+        *resourcesNum = 0;
+
+        snprintf(query_text, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "select  resources.id as resource_id, resources.name as name, events.locked as locked, resources.mass as mass, events.new_quantity as new_quantity, events.id as event_id  from events left join resources on events.resource = resources.id  left join event_types on event_types.id = events.event_type  join (select max(events.id) as id from events where drone = %d and events.outcome = 1 and events.outcome = 0 and (events.event_type = 1 or events.event_type = 2) group by events.resource ORDER BY id DESC) as events_latest on events_latest.id = events.id   ORDER BY new_quantity;",
+            droneId);
+
+        engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
+
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+    }
+
+    if(result == ENGINE_OK)
+    {
+        // retrieve the results
+        db_result = mysql_store_result(connection->hndl);
+
+        if(db_result == NULL)
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Unable to get drone resources for DRONE_ID [%d] "
+                "(invalid result for query [%s])",
+                droneId,
+                query_text);
+
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else if((fieldsNum=mysql_num_fields(db_result)) != MAX_DRONE_RESOURCE_FIELDS) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Invalid fields number obtained for drone resources for DRONE_ID [%d] "
+                "(expected [%d], obtained [%d], query [%s])",
+                droneId,
+                MAX_DRONE_RESOURCE_FIELDS,
+                fieldsNum,
+                query_text);
+
+            result = ENGINE_DB_QUERY_ERROR;
+        } 
+        else if((rowsNum=mysql_num_rows(db_result)) <= 0) 
+        {
+            // None entry found is OK (keep default OK)
+            *resourcesNum = 0;
+        }
+    }  
+
+    if((result == ENGINE_OK) && rowsNum)
+    {  
+        // Allocate output effects
+        *resources = (DroneResources_t*)malloc(sizeof(DroneResources_t) * ((unsigned int)rowsNum));
+
+        if(!*resources) {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Unable to allocate [%d] output drone resources for DRONE_ID [%d]",
+                rowsNum,
+                droneId);
+
+            rowsNum = 0; // reset to avoid for(;;)
+        }
+
+        *resourcesNum = rowsNum;
+
+        // iterate results and store them into output buffer
+        for(int resourceId=0; resourceId < rowsNum; resourceId++)
+        {
+            MYSQL_ROW row = mysql_fetch_row(db_result);
+            if(row) 
+            {
+                DroneResources_t *resource = (*resources + resourceId);
+                // Pick effect fields
+                resource->id = row[DRONE_RESOURCE_ID_IDX]?atoi(row[DRONE_RESOURCE_ID_IDX]):0;
+                sprintf(resource->name, "%s", row[DRONE_RESOURCE_NAME_IDX]?row[DRONE_RESOURCE_NAME_IDX]:"");
+                resource->locked = row[DRONE_RESOURCE_LOCKED_IDX]?atoi(row[DRONE_RESOURCE_LOCKED_IDX]):0;
+                resource->mass = row[DRONE_RESOURCE_MASS_IDX]?atoi(row[DRONE_RESOURCE_MASS_IDX]):0;
+                resource->quantity = row[DRONE_RESOURCE_QUANTITY_IDX]?atoi(row[DRONE_RESOURCE_QUANTITY_IDX]):0;
+                resource->event_id = row[DRONE_RESOURCE_EVENT_ID_IDX]?atoi(row[DRONE_RESOURCE_EVENT_ID_IDX]):0;
+
+                // | resource_id | name        | locked | mass | new_quantity | event_id |
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "Resource found "
+                    "ID [%d] NAME [%s] LOCKED [%d] MASS [%d] QUANTITY [%d] EVENT_ID [%d] "
+                    "for DRONE_ID [%d]", 
+                    resource->id, 
+                    resource->name, 
+                    resource->locked,
+                    resource->mass, 
+                    resource->quantity,
+                    resource->event_id,
+                    droneId);
+            }
+            else
+            {
+                // unexpected error - abort
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get row [%d] for query [%s] with [%d] rows", 
+                    resourceId+1,
+                    query_text,
+                    rowsNum);
+
+                result = ENGINE_DB_QUERY_ERROR;
+
+                // Deallocate resources
+                free(*resources);
+                *resources = NULL;
+                *resourcesNum = 0;
+
+                break; // stop for
+            } 
+        }
+    }
+   
+    if(db_result)
+        mysql_free_result(db_result);
+
+    return result;
+}

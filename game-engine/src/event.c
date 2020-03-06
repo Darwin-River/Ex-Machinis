@@ -81,12 +81,28 @@ ErrorCode_t event_update_new_cargo_and_quantity
           previous_resource_event->new_quantity);
 
         // Update quantities
-        event->new_cargo = (previous_event->new_cargo + event->new_quantity);
+        //event->new_cargo = (previous_event->new_cargo + event->new_quantity);
         event->new_quantity += previous_resource_event->new_quantity;
     }
-    else if((result == ENGINE_OK) && (event->new_quantity == NULL_VALUE))
+
+    // Calculate new cargo using all previous events
+    DroneResources_t *resources = NULL;
+    int resourcesNum = 0;
+    result = db_get_drone_resources(event->drone_id, &resources, &resourcesNum);
+    if(result == ENGINE_OK)
     {
-      event->new_cargo = previous_event->new_cargo;
+        // add all those quantities >= 0 to obtain the final cargo
+        event->new_cargo = 0;
+        for(int i=0; i < resourcesNum; i++) {
+            DroneResources_t* resource = (resources + i); // shortcut
+            if(resource->quantity >= 0) {
+                event->new_cargo += (resource->quantity * resource->mass);
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                  "Adding resource [%s], quantity [%d], mass [%d] to new_cargo, total now [%d]",  
+                  resource->name, resource->quantity, resource->mass, 
+                  event->new_cargo);
+            }
+        }
     }
 
     event_trace(event);
