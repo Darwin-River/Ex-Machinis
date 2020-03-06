@@ -15,7 +15,7 @@
 
 /******************************* DEFINES *************************************/
 
-
+#define DB_MAX_SQL_QUERY_LEN (ENGINE_MAX_BUF_SIZE + 1024) // Max engine buffer + extra bytes for query statement
 
 /******************************* TYPES ***************************************/
 
@@ -42,6 +42,17 @@ typedef enum
 
 
 /******************************* PUBLIC FUNCTIONS ****************************/
+
+/** ****************************************************************************
+
+  @brief          Checks connection status and reconnects when necessary
+
+  @param[in|out]  Connection info
+
+  @return         void
+
+*******************************************************************************/
+ErrorCode_t db_reconnect(DbConnection_t* connection);
 
 /** ***************************************************************************
 
