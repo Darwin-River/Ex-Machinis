@@ -266,13 +266,17 @@ ErrorCode_t protocol_validate_market_effect(MarketEffect_t *effect, Resource_t *
 ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolInfo_t *protocol, int action_id) 
 {
   ErrorCode_t result = ENGINE_OK;
+  Abundancies_t abundancies;
   int parameterId = 0;
 
   if(effect) {
+    memset(&abundancies, 0, sizeof(abundancies));
+    abundancies.multiplier = 1; // default - no multiplier
+
     engine_trace(TRACE_LEVEL_ALWAYS, 
         "Processing resource effect "
         "ID [%d] DRONE [%d] RESOURCE_ID [%d] EVENT_TYPE [%d] "
-        "LOCAL [%d] INSTALLED [%d] LOCKED [%d] DEPLETE [%d] QUANTITY [%d] TIME [%d] "
+        "LOCAL [%d] INSTALLED [%d] LOCKED [%d] DEPLETE [%d] ABUNDANCIES [%d] QUANTITY [%d] TIME [%d] "
         "for PROTOCOL_ID [%d] MULTIPLIER [%d]", 
         effect->resource_effect_id, 
         effect->drone_id, 
@@ -282,6 +286,7 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
         effect->installed,
         effect->locked,
         effect->deplete,
+        effect->abundancies,
         effect->quantity,
         effect->time,
         protocol->protocol_id,
@@ -365,9 +370,31 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
       // Apply multiplier
       newEvent.new_quantity *= protocol->process_multiplier;
 
-      newEvent.new_cargo = (newEvent.new_quantity * resource.resource_mass); // here we reflect the change in mass units
-  
-      result = db_insert_event(&newEvent);
+      // Apply abundancies when enabled and event type => increases cargo
+      if(effect->abundancies  &&  (newEvent.event_type == 1)) {
+        // calculate abundancies, when error just use 0 multiplier
+        int objectId;
+        result = db_get_event_object_id(&newEvent, &objectId);
+
+        if(result == ENGINE_OK) {
+            abundancies.resource_id = newEvent.resource_id;
+            abundancies.location_id = objectId;
+
+            result = db_get_abundancies(&abundancies);
+            if(result != ENGINE_OK) {
+                result = ENGINE_OK;
+                // not found - no resource at this location
+                abundancies.multiplier = 0;
+            }
+        }
+      }
+
+      if(result == ENGINE_OK) {
+        newEvent.new_quantity *= abundancies.multiplier;
+        newEvent.new_cargo = (newEvent.new_quantity * resource.resource_mass); // here we reflect the change in mass units
+    
+        result = db_insert_event(&newEvent);
+      }
     }
   } else {
     engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol resource effect (NULL effect)"); 
