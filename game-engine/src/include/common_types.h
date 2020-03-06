@@ -392,6 +392,7 @@ typedef struct
 	unsigned char installed;
 	unsigned char locked;
 	unsigned char deplete;
+	unsigned char abundancies;
 	int quantity;
 	int time;
 	
@@ -409,6 +410,7 @@ typedef enum
 	RESOURCE_EFFECT_INSTALLED_IDX,
 	RESOURCE_EFFECT_LOCKED_IDX,
 	RESOURCE_EFFECT_DEPLETE_IDX,
+	RESOURCE_EFFECT_ABUNDANCIES_IDX,
 	RESOURCE_EFFECT_QUANTITY_IDX,
 	RESOURCE_EFFECT_TIME_IDX,
 
