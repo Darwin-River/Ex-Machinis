@@ -280,29 +280,35 @@
 
     <footer class="section footer-classic bg-gray-700-invariable text-md-left">
         <div class="container">
-          <h3>Support us on Patreon and unlock exclusive content.</h3>
+            <h3>Support us on Patreon and unlock exclusive content.</h3>
             <div class="row row-80">
                 <div class="col-sm-6 col-lg-4">
                     <h4>Lieutenant</h4>
-                    <p class="text-width-xl-90">Receive advanced notice of <b>in-game updates</b> when you support this project at $1 per month.</p>
+                    <p class="text-width-xl-90">Receive advanced notice of <b>in-game updates</b> when you support this
+                        project at $1 per month.</p>
                     <br/>
-                    <a href="https://www.patreon.com/bePatron?u=6799833" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
+                    <a href="https://www.patreon.com/bePatron?u=6799833"
+                       data-patreon-widget-type="become-patron-button">Become a Patron!</a>
                     <br/>
                 </div>
 
                 <div class="col-sm-6 col-lg-4">
                     <h4>Commander</h4>
-                    <p class="text-width-xl-90">Benefit from exclusive <b>game-play tips</b> and <b>programming tutorials</b> when you contribute at least $3 a month.</p>
+                    <p class="text-width-xl-90">Benefit from exclusive <b>game-play tips</b> and <b>programming
+                            tutorials</b> when you contribute at least $3 a month.</p>
                     <br/>
-                    <a href="https://www.patreon.com/bePatron?u=6799833" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
+                    <a href="https://www.patreon.com/bePatron?u=6799833"
+                       data-patreon-widget-type="become-patron-button">Become a Patron!</a>
                     <br/>
                 </div>
 
                 <div class="col-sm-6 col-lg-4">
                     <h4>Admiral</h4>
-                    <p class="text-width-xl-90">Enjoy <b>behind-the-scenes access</b> to our development plans and visions when you support us at $6 a month.</p>
+                    <p class="text-width-xl-90">Enjoy <b>behind-the-scenes access</b> to our development plans and
+                        visions when you support us at $6 a month.</p>
                     <br/>
-                    <a href="https://www.patreon.com/bePatron?u=6799833" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
+                    <a href="https://www.patreon.com/bePatron?u=6799833"
+                       data-patreon-widget-type="become-patron-button">Become a Patron!</a>
 
                 </div>
                 <!--
@@ -334,7 +340,7 @@
                     </form>
                 </div>
 -->
-              <p><b>Thank's for helping us succeed!</b></p>
+                <p><b>Thank's for helping us succeed!</b></p>
             </div>
 
         </div>
@@ -353,10 +359,12 @@
 <script src="{{ mix('/js/app.js') }}?v=<?= filemtime($_SERVER['DOCUMENT_ROOT'] . '/js/app.js') ?>"></script>
 <script src="/js/core.min.js"></script>
 <script src="/js/script.js"></script>
+<script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
 <script>
     $(document).ready(function () {
 
     })
 </script>
+
 </body>
 </html>

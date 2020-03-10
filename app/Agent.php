@@ -46,6 +46,22 @@ class Agent extends Model
     }
 
     /**
+     * Get the agent's resources inventory
+     */
+    public function inventory()
+    {
+        return $this->hasOne('App\Inventory', 'drone', 'agent_id');
+    }
+
+    /**
+     * Get the agent's resources inventory
+     */
+    public function object()
+    {
+        return $this->belongsTo('App\SpaceObject', 'object_id', 'object_id');
+    }
+
+    /**
      * Assigns a random name to the unit
      */
     public function assignRandomName()
@@ -294,6 +310,10 @@ class Agent extends Model
             $q->where('event_type', EventType::TYPE_DECREMENT_INVENTORY)
                 ->orWhere('event_type', EventType::TYPE_INCREMENT_INVENTORY);
         })->orderBy('id', 'desc')->first();
+       /* echo  Event::where('drone', '=', $this->agent_id)->where('outcome', '=', 1)->where('new_cargo', '>=', 0)->where(function ($q) {
+                $q->where('event_type', EventType::TYPE_DECREMENT_INVENTORY)
+                    ->orWhere('event_type', EventType::TYPE_INCREMENT_INVENTORY);
+            })->orderBy('id', 'desc')->toSql();*/
         if (!$lastInventoryEvent)
             return 0;
         return $lastInventoryEvent->new_cargo === null ? 0 : max(0, $lastInventoryEvent->new_cargo);

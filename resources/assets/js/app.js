@@ -24,6 +24,7 @@ Vue.component('companies-table', require('./components/CompaniesTable').default)
 Vue.component('resources', require('./components/ResourcesTable').default);
 Vue.component('in-game-events-table', require('./components/InGameEventsTable').default);
 Vue.component('buy-orders-table', require('./components/OrdersTable').default);
+Vue.component('resource-orders-table', require('./components/ResourceOrdersTable').default);
 
 Vue.use(require('vue-moment'));
 
@@ -35,5 +36,4 @@ Vue.mixin({
 
 const app = new Vue({
     el: '#app',
-
 });
