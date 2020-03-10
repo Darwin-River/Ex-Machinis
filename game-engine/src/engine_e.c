@@ -246,7 +246,7 @@ ErrorCode_t engine_init(int argc, char** argv)
 
     // update trace level using conf
     trace_set_level(engine.trace_hndl, 
-        atoi(engine.config.params[APP_TRACE_LEVEL_ID]));
+    atoi(engine.config.params[APP_TRACE_LEVEL_ID]));
 
     // Initialize DB connection
     if(engine.error == ENGINE_OK)
@@ -260,7 +260,7 @@ ErrorCode_t engine_init(int argc, char** argv)
     	engine_stop_all();
     }
 
-	return engine.error;
+    return engine.error;
 }
 
 /** ****************************************************************************

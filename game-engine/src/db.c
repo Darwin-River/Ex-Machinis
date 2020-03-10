@@ -19,8 +19,6 @@
 
 /******************************* DEFINES *************************************/
 
-#define DB_MAX_SQL_QUERY_LEN (ENGINE_MAX_BUF_SIZE + 1024) // Max engine buffer + extra bytes for query statement
-
 /******************************* TYPES ***************************************/
 
 /******************************* PROTOTYPES **********************************/
@@ -28,41 +26,6 @@
 /******************************* GLOBAL VARIABLES ****************************/
 
 /******************************* LOCAL FUNCTIONS *****************************/
-
-/** ****************************************************************************
-
-  @brief          Checks connection status and reconnects when necessary
-
-  @param[in|out]  Connection info
-
-  @return         void
-
-*******************************************************************************/
-ErrorCode_t db_reconnect(DbConnection_t* connection)
-{
-	ErrorCode_t result = ENGINE_OK;
-
-	if(connection && connection->hndl) {
-		// Check connection status & reconnect if required
-		if(mysql_stat(connection->hndl) == NULL) 
-		{
-			engine_trace(TRACE_LEVEL_ALWAYS,
-        		"WARNING: Connection lost with [%s] database, reconnecting...",
-        		connection->db_name?connection->db_name:"NULL");
-
-			result = db_init(connection);
-		}
-		// else { Connection is alive }
-	}
-	else
-	{
-		// NULL input
-        engine_trace(TRACE_LEVEL_ALWAYS,
-        	"ERROR: Could not reconnect with DB, NULL connection");
-	}
-
-	return result;
-}
 
 /** ****************************************************************************
 
@@ -1782,13 +1745,14 @@ ErrorCode_t db_get_resource_effects
                 currentEffect->installed = row[RESOURCE_EFFECT_INSTALLED_IDX]?atoi(row[RESOURCE_EFFECT_INSTALLED_IDX]):0;
                 currentEffect->locked = row[RESOURCE_EFFECT_LOCKED_IDX]?atoi(row[RESOURCE_EFFECT_LOCKED_IDX]):0;
                 currentEffect->deplete = row[RESOURCE_EFFECT_DEPLETE_IDX]?atoi(row[RESOURCE_EFFECT_DEPLETE_IDX]):0;
+                currentEffect->abundancies = row[RESOURCE_EFFECT_ABUNDANCIES_IDX]?atoi(row[RESOURCE_EFFECT_ABUNDANCIES_IDX]):0;
                 currentEffect->quantity = row[RESOURCE_EFFECT_QUANTITY_IDX]?atoi(row[RESOURCE_EFFECT_QUANTITY_IDX]):0;
                 currentEffect->time = row[RESOURCE_EFFECT_TIME_IDX]?atoi(row[RESOURCE_EFFECT_TIME_IDX]):0;
 
                 engine_trace(TRACE_LEVEL_ALWAYS, 
                     "Resource effect found "
                     "ID [%d] DRONE [%d] RESOURCE_ID [%d] EVENT_TYPE [%d] "
-                    "LOCAL [%d] INSTALLED [%d] LOCKED [%d] DEPLETE [%d] QUANTITY [%d] TIME [%d] "
+                    "LOCAL [%d] INSTALLED [%d] LOCKED [%d] DEPLETE [%d] ABUNDANCIES [%d] QUANTITY [%d] TIME [%d] "
                     "for PROTOCOL_ID [%d]", 
                     currentEffect->resource_effect_id, 
                     currentEffect->drone_id, 
@@ -1798,6 +1762,7 @@ ErrorCode_t db_get_resource_effects
                     currentEffect->installed,
                     currentEffect->locked,
                     currentEffect->deplete,
+                    currentEffect->abundancies,
                     currentEffect->quantity,
                     currentEffect->time,
                     protocol->protocol_id);
@@ -3120,6 +3085,98 @@ ErrorCode_t db_get_drone_object_id(int drone_id, int *object_id)
                     engine_trace(TRACE_LEVEL_ALWAYS, 
                         "ERROR: Unable to get object ID for DRONE_ID [%d] (no row)", 
                         drone_id);
+
+                    result = ENGINE_DB_QUERY_ERROR;
+                }
+            }
+
+            mysql_free_result(db_result);
+        }
+    }        
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Gets resource abundancies depending on current location
+
+    @param[in|out]  abundancies  Input/output object where we store results
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_abundancies(Abundancies_t *abundancies)
+{  
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!abundancies) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        char* query_end = query_text;
+
+        query_end += snprintf(query_end, 
+            DB_MAX_SQL_QUERY_LEN, 
+            "SELECT multiplier from abundancies where location = %d and resource = %d order by id limit 1",
+            abundancies->location_id,
+            abundancies->resource_id);
+
+        // run it 
+        if (mysql_query(connection->hndl, query_text)) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else 
+        {
+            // retrieve the result and check that is an only row with expeced fields number
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+            uint64_t rowsNum = mysql_num_rows(db_result);
+            unsigned int fieldsNum = mysql_num_fields(db_result);
+
+            if((db_result == NULL) || (rowsNum != 1) || (fieldsNum != 1))
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get abundancies info for LOCATION [%d] RESOURCE [%d] "
+                    "(invalid result for query [%s], rows [%d], fields [%d])",
+                    abundancies->location_id,
+                    abundancies->resource_id,
+                    query_text,
+                    rowsNum,
+                    fieldsNum);
+
+                result = ENGINE_DB_QUERY_ERROR;
+            } 
+            else 
+            {
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row) 
+                {
+                    // Pick the only field value
+                    abundancies->multiplier = row[0]?atoi(row[0]):0;
+                    
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "Obtained abundancies info: LOCATION [%d] RESOURCE [%d] MULTIPLIER [%d]", 
+                        abundancies->location_id,
+                        abundancies->resource_id,
+                        abundancies->multiplier);
+                }
+                else 
+                {
+                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                        "ERROR: Unable to get abundancies info for LOCATION [%d] RESOURCE [%d] (no row)", 
+                        abundancies->location_id,
+                        abundancies->resource_id);
 
                     result = ENGINE_DB_QUERY_ERROR;
                 }

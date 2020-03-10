@@ -25,26 +25,13 @@
                 <div class="col-md-12 col-lg-10 col-xl-9 single-post">
                     <div class="post-big">
 
-                      <p>Ex Machinis is a multiplayer space game, which takes place in a parallel universe. Within
-                          this altered reality, space technologies have rapidly advanced since the 1950’s to the point
-                          where extensive interplanetary industries exist to produce materials that drive the human
-                          economy back on Earth and Mars. The vast majority of these spacecraft and are unmanned vehicles,
-                          which are assembled in space and are controlled terrestrial barons.</p>
 
-                      <p>As part of the international agreement that drove the colonization of space at the end of the
-                          second world war, citizens of the signitor nations are guaranteed access to basic spacecraft
-                          which can be used to build profitable businesses. This democratization of space has been the
-                          biggest driver behind the rapid growth of extraterrestrial industries and technologies.</p>
-
-                      <p>It's your birthright to take control of your own remotely piloted spacecraft and build a
-                          thriving stellar industry. But this can only be accomplished by programming your spacecraft
-                          to efficiently mine, manufacture, and trade materials on the interplanetary economy.</p>
 
                         <br/><H2 id="h2_TOC">Table of Contents</h2>
 
                         <p><a href="#h2_getting_started"><b>Chapter 1. Getting started</b></a></p>
                         <p><a href="#h3_joining_the_game">- Joining the game</a></p>
-                        <p><a href="#h3_renaming_your_spacecraft">- Renaming your spacecraft</a></p>
+                        <p><a href="#h3_renaming_your_spacecraft">- Renaming your spacecraft and your company</a></p>
                         <p><a href="#h3_sending_your_first_command">- Sending your first command</a></p>
                         <p><a href="#h3_understanding_the_stack">- Understanding the stack</a></p>
                         <p><a href="#h3_performing_protocols">- Performing protocols</a></p>
@@ -63,23 +50,42 @@
 
                         <br/><h2 id="h2_getting_started">Chapter 1. Getting started</h2>
 
+                        <p>Ex Machinis is a multiplayer space game, which takes place in a parallel universe. Within
+                            this altered reality, space technologies have rapidly advanced since the 1950’s to the point
+                            where extensive interplanetary industries exist to produce materials that drive the human
+                            economy back on Earth and Mars. The vast majority of these spacecraft and are unmanned vehicles,
+                            which are assembled in space and are controlled terrestrial barons.</p>
+
+                        <p>As part of the international agreement that drove the colonization of space at the end of the
+                            second world war, citizens of the signitor nations are guaranteed access to basic spacecraft
+                            which can be used to build profitable businesses. This democratization of space has been the
+                            biggest driver behind the rapid growth of extraterrestrial industries and technologies.</p>
+
+                        <p>It's your birthright to take control of your own remotely piloted spacecraft and build a
+                            thriving stellar industry. But this can only be accomplished by programming your spacecraft
+                            to efficiently mine, manufacture, and trade materials on the interplanetary economy.</p>
+
 
                         <br/><h3 id="h3_joining_the_game">Joining the game</h3>
 
-                        <p>When you <a href="https://<?php echo  getenv("MAIL_HOST") ?>/register">register</a> with Ex Machinis, you'll receive an email from the registrar listing the addresses of three spacecraft that are under your control. These spacecraft will only respond to communications from the email address you used in your registration form.</p>
+                        <p>Joining the game is simple and free. When you <a href="https://<?php echo  getenv("MAIL_HOST") ?>/register">register</a> with Ex Machinis, you'll receive an email from the registrar listing the addresses of three spacecraft that are under your control. These spacecraft will only respond to communications from the email address you used in your registration form.</p>
 
-                        <p>Game-play is free. We rely entirely on <a href="http://patreon.com/exmachinis">Patreon support</a> to sustain and advance this project.</p>
-
-                        <br/><h3 id="h3_renaming_your_spacecraft">Renaming your spacecraft</h3>
+                        <br/><h3 id="h3_renaming_your_spacecraft">Renaming your spacecraft and your company</h3>
                         <p>You’ll notice that each of your spacecraft has a rather generic and unremarkable email address like SN523854@<?php echo  getenv("MAIL_HOST") ?>. You’ll probably want to give them more memorable name like “hero” or "scout" before proceeding futher.</p>
 
                         <p>To rename your spacecraft, simply send the following text in an email to your drone:</p>
 
 <pre><code>&lt;rename&gt;hero&lt;/rename&gt;</code></pre>
 
-                        <p>You’ll actually receive an email from hero@<?php echo  getenv("MAIL_HOST") ?> confirming the name change. You can now send your instructions to this email address instead of the original!</p>
+                        <p>You’ll actually receive a response from hero@<?php echo  getenv("MAIL_HOST") ?> confirming the name change. You can now send your instructions to this email address instead of the original!</p>
 
                         <p>There is no limit to the number of times you change your drone’s email address. The only requirements are that you pick a name that doesn’t contain any illegal characters and isn’t already in use by someone else. If your chosen name is not allowed, the drone will let you know via its original email address.</p>
+
+                        <p>You can also change your company name at anytime by emailing a rebrand instruction to one of your drones:</p>
+
+<pre><code>&lt;rebrand&gt;Avalon&lt;/rebrand&gt;</code></pre>
+
+                        <p>This will immediately change the name of your company in the <a href="https://advolition.com/companies">company directory</a>.</p>
 
                         <br/><h3 id="h3_sending_your_first_command">Sending your first command</h3>
 
@@ -132,13 +138,13 @@
 
                         <p>A FORTH definition consists of a colon followed by the word you're defining and then the values and words that comprise the definition. The definition ends with a semicolon.  Here's an example of how you can define a word that returns your spacecraft to Earth (Object ID = 3).
 <pre><code>&lt;run&gt;
-  : comehome 3 5 perform ;
+  : come_home 3 5 perform ;
 &lt;/run&gt;</code></pre>
 
                         <p>Now, whenever you want to call your spacecraft back to Earth you simply need to send it this command.</p>
 
 <pre><code>&lt;run&gt;
-  comehome
+  come_home
 &lt;/run&gt;</code></pre>
 
                         <p>Here are some things to keep in mind when defining a new word:</p>
@@ -146,13 +152,27 @@
 
                         <p>Because whitespaces seperate words and numbers, it's important to include spaces between all your programming elements, inludein colons and semicolons.  In the above example, FORTH will interpret "perform;" as a single word if the space is omitted.</p>
 
-                        <p>You can pass values to a word by placing them on the stack. In other words, any thing that's on the stack when the word is called can be pulled from the stack by one of the words that are called from within the definition.</p>
+                        <p>You can pass values to a word by placing them on the stack. In other words, anything that's on the stack when the word is called can be pulled from the stack by one of the words that are called from within the definition.</p>
 
+                        <p>For example, suppose you wanted to define a more general movement command.  You could create a new word uses the last number placed on the stack as the Object ID:</p>
+
+<pre><code>&lt;run&gt;
+  : go_there 5 perform ;
+&lt;/run&gt;</code></pre>
+
+                        <p>Now you can send your spacecraft to Jupiter (Object ID = 5), or any other location, by placing the destination's object ID on the stack before invoking your new command:
+
+<pre><code>&lt;run&gt;
+  5 go_there ( go to Jupiter )
+  3 go_there ( go to Earth )
+&lt;/run&gt;</code></pre>
 
                         <br/>
                         <h2 id="h2_learning_FORTH">Chapter 2. Learning FORTH</h2>
 
                         <p>This chapter is intended to give new users a basic understanding of FORTH so that they can use it to remotely pilot their spacecraft.</p>
+
+
 
 
 

@@ -18,8 +18,6 @@
 
 /******************************* DEFINES *************************************/
 
-#define DB_MAX_SQL_QUERY_LEN (ENGINE_MAX_BUF_SIZE + 1024) // Max engine buffer + extra bytes for query statement
-
 /******************************* TYPES ***************************************/
 
 /******************************* PROTOTYPES **********************************/
@@ -27,41 +25,6 @@
 /******************************* GLOBAL VARIABLES ****************************/
 
 /******************************* LOCAL FUNCTIONS *****************************/
-
-/** ****************************************************************************
-
-  @brief          Checks connection status and reconnects when necessary
-
-  @param[in|out]  Connection info
-
-  @return         void
-
-*******************************************************************************/
-ErrorCode_t db_reconnect(DbConnection_t* connection)
-{
-	ErrorCode_t result = ENGINE_OK;
-
-	if(connection && connection->hndl) {
-		// Check connection status & reconnect if required
-		if(mysql_stat(connection->hndl) == NULL) 
-		{
-			engine_trace(TRACE_LEVEL_ALWAYS,
-        		"WARNING: Connection lost with [%s] database, reconnecting...",
-        		connection->db_name?connection->db_name:"NULL");
-
-			result = db_init(connection);
-		}
-		// else { Connection is alive }
-	}
-	else
-	{
-		// NULL input
-        engine_trace(TRACE_LEVEL_ALWAYS,
-        	"ERROR: Could not reconnect with DB, NULL connection");
-	}
-
-	return result;
-}
 
 /** ***************************************************************************
 
@@ -348,7 +311,7 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
 
         snprintf(query_text, 
             DB_MAX_SQL_QUERY_LEN, 
-            "SELECT * FROM events WHERE outcome = 0 limit %d;", 
+            "SELECT * FROM events as e where outcome = 0 and (select aborted from actions where id = e.action) != 1 limit %d;", 
             events_batch_size);
 
         // run it 
@@ -1531,95 +1494,6 @@ ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protoc
     return result;
 }
 
-/** ****************************************************************************
-
-    @brief          Gets object ID for current event drone
-
-    @param[in]      event      Input event
-    @param[out]     object_id  Output object ID obtained when success
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_get_event_object_id(Event_t *event, int *object_id)
-{  
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    DbConnection_t* connection =  engine_get_db_connection();
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    // sanity check
-    if(result == ENGINE_OK)
-    {
-        if(!event || !object_id) return ENGINE_INTERNAL_ERROR;
-    }
-
-    if(result == ENGINE_OK)
-    {
-        char* query_end = query_text;
-
-        query_end += snprintf(query_end, 
-            DB_MAX_SQL_QUERY_LEN, 
-            "SELECT object_id from agents where agent_id = %d",
-            event->drone_id);
-
-        // run it 
-        if (mysql_query(connection->hndl, query_text)) 
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-        else 
-        {
-            // retrieve the result and check that is an only row with expeced fields number
-            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-            uint64_t rowsNum = mysql_num_rows(db_result);
-            unsigned int fieldsNum = mysql_num_fields(db_result);
-
-            if((db_result == NULL) || (rowsNum != 1) || (fieldsNum != 1))
-            {
-                engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "ERROR: Unable to get object_id for DRONE_ID [%d] "
-                    "(invalid result for query [%s], rows [%d], fields [%d])",
-                    event->drone_id,
-                    query_text,
-                    rowsNum,
-                    fieldsNum);
-
-                result = ENGINE_DB_QUERY_ERROR;
-            } 
-            else 
-            {
-                MYSQL_ROW row = mysql_fetch_row(db_result);
-                if(row) 
-                {
-                    // Pick the only field value
-                    *object_id = row[0]?atoi(row[0]):0;
-                    
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "Obtained object ID info: EVENT_ID [%d] DRONE_ID [%d] OBJECT_ID [%d]", 
-                        event->event_id, 
-                        event->drone_id,
-                        *object_id);
-                }
-                else 
-                {
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "ERROR: Unable to get object ID for DRONE_ID [%d] (no row)", 
-                        event->drone_id);
-
-                    result = ENGINE_DB_QUERY_ERROR;
-                }
-            }
-
-            mysql_free_result(db_result);
-        }
-    }        
-
-    return result;
-}
 
 /** ****************************************************************************
 
@@ -1878,92 +1752,155 @@ ErrorCode_t db_delete_action(int action_id)
 
 /** ****************************************************************************
 
-    @brief          Gets resource abundancies depending on current location
+    @brief          Gets current drone cargo per resource
 
-    @param[in|out]  abundancies  Input/output object where we store results
+    @param[in]      Current drone ID
+    @param[in|out]  Output parameter where we store the rows obtained
+    @param[in|out]  Output parameter where we store the number of rows obtained
 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_abundancies(Abundancies_t *abundancies)
-{  
+ErrorCode_t db_get_drone_resources(int droneId, DroneResources_t** resources, int* resourcesNum)
+{
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-    DbConnection_t* connection =  engine_get_db_connection();
+    DbConnection_t* connection = engine_get_db_connection();
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
+    MYSQL_RES* db_result = NULL;
+    int fieldsNum = 0;
+    uint64_t rowsNum = 0;
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Getting resources for droneID [%d]", droneId);
 
     // sanity check
     if(result == ENGINE_OK)
     {
-        if(!abundancies) return ENGINE_INTERNAL_ERROR;
+        if(!resources || !resourcesNum) return ENGINE_INTERNAL_ERROR;
     }
 
     if(result == ENGINE_OK)
     {
-        char* query_end = query_text;
+        // reset entries found
+        *resourcesNum = 0;
 
-        query_end += snprintf(query_end, 
+        snprintf(query_text, 
             DB_MAX_SQL_QUERY_LEN, 
-            "SELECT multiplier from abundancies where location = %d and resource = %d order by id limit 1",
-            abundancies->location_id,
-            abundancies->resource_id);
+            "select  resources.id as resource_id, resources.name as name, events.locked as locked, resources.mass as mass, events.new_quantity as new_quantity, events.id as event_id  from events left join resources on events.resource = resources.id  left join event_types on event_types.id = events.event_type  join (select max(events.id) as id from events where drone = %d and events.outcome = 1 and (events.event_type = 1 or events.event_type = 2) group by events.resource ORDER BY id DESC) as events_latest on events_latest.id = events.id   ORDER BY new_quantity;",
+            droneId);
 
-        // run it 
+        engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
+
         if (mysql_query(connection->hndl, query_text)) 
         {
             engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             result = ENGINE_DB_QUERY_ERROR;
         }
-        else 
-        {
-            // retrieve the result and check that is an only row with expeced fields number
-            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-            uint64_t rowsNum = mysql_num_rows(db_result);
-            unsigned int fieldsNum = mysql_num_fields(db_result);
+    }
 
-            if((db_result == NULL) || (rowsNum != 1) || (fieldsNum != 1))
+    if(result == ENGINE_OK)
+    {
+        // retrieve the results
+        db_result = mysql_store_result(connection->hndl);
+
+        if(db_result == NULL)
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Unable to get drone resources for DRONE_ID [%d] "
+                "(invalid result for query [%s])",
+                droneId,
+                query_text);
+
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else if((fieldsNum=mysql_num_fields(db_result)) != MAX_DRONE_RESOURCE_FIELDS) 
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Invalid fields number obtained for drone resources for DRONE_ID [%d] "
+                "(expected [%d], obtained [%d], query [%s])",
+                droneId,
+                MAX_DRONE_RESOURCE_FIELDS,
+                fieldsNum,
+                query_text);
+
+            result = ENGINE_DB_QUERY_ERROR;
+        } 
+        else if((rowsNum=mysql_num_rows(db_result)) <= 0) 
+        {
+            // None entry found is OK (keep default OK)
+            *resourcesNum = 0;
+        }
+    }  
+
+    if((result == ENGINE_OK) && rowsNum)
+    {  
+        // Allocate output effects
+        *resources = (DroneResources_t*)malloc(sizeof(DroneResources_t) * ((unsigned int)rowsNum));
+
+        if(!*resources) {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "ERROR: Unable to allocate [%d] output drone resources for DRONE_ID [%d]",
+                rowsNum,
+                droneId);
+
+            rowsNum = 0; // reset to avoid for(;;)
+        }
+
+        *resourcesNum = rowsNum;
+
+        // iterate results and store them into output buffer
+        for(int resourceId=0; resourceId < rowsNum; resourceId++)
+        {
+            MYSQL_ROW row = mysql_fetch_row(db_result);
+            if(row) 
             {
+                DroneResources_t *resource = (*resources + resourceId);
+                // Pick effect fields
+                resource->id = row[DRONE_RESOURCE_ID_IDX]?atoi(row[DRONE_RESOURCE_ID_IDX]):0;
+                sprintf(resource->name, "%s", row[DRONE_RESOURCE_NAME_IDX]?row[DRONE_RESOURCE_NAME_IDX]:"");
+                resource->locked = row[DRONE_RESOURCE_LOCKED_IDX]?atoi(row[DRONE_RESOURCE_LOCKED_IDX]):0;
+                resource->mass = row[DRONE_RESOURCE_MASS_IDX]?atoi(row[DRONE_RESOURCE_MASS_IDX]):0;
+                resource->quantity = row[DRONE_RESOURCE_QUANTITY_IDX]?atoi(row[DRONE_RESOURCE_QUANTITY_IDX]):0;
+                resource->event_id = row[DRONE_RESOURCE_EVENT_ID_IDX]?atoi(row[DRONE_RESOURCE_EVENT_ID_IDX]):0;
+
+                // | resource_id | name        | locked | mass | new_quantity | event_id |
                 engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "ERROR: Unable to get abundancies info for LOCATION [%d] RESOURCE [%d] "
-                    "(invalid result for query [%s], rows [%d], fields [%d])",
-                    abundancies->location_id,
-                    abundancies->resource_id,
+                    "Resource found "
+                    "ID [%d] NAME [%s] LOCKED [%d] MASS [%d] QUANTITY [%d] EVENT_ID [%d] "
+                    "for DRONE_ID [%d]", 
+                    resource->id, 
+                    resource->name, 
+                    resource->locked,
+                    resource->mass, 
+                    resource->quantity,
+                    resource->event_id,
+                    droneId);
+            }
+            else
+            {
+                // unexpected error - abort
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "ERROR: Unable to get row [%d] for query [%s] with [%d] rows", 
+                    resourceId+1,
                     query_text,
-                    rowsNum,
-                    fieldsNum);
+                    rowsNum);
 
                 result = ENGINE_DB_QUERY_ERROR;
+
+                // Deallocate resources
+                free(*resources);
+                *resources = NULL;
+                *resourcesNum = 0;
+
+                break; // stop for
             } 
-            else 
-            {
-                MYSQL_ROW row = mysql_fetch_row(db_result);
-                if(row) 
-                {
-                    // Pick the only field value
-                    abundancies->multiplier = row[0]?atoi(row[0]):0;
-                    
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "Obtained abundancies info: LOCATION [%d] RESOURCE [%d] MULTIPLIER [%d]", 
-                        abundancies->location_id,
-                        abundancies->resource_id,
-                        abundancies->multiplier);
-                }
-                else 
-                {
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "ERROR: Unable to get abundancies info for LOCATION [%d] RESOURCE [%d] (no row)", 
-                        abundancies->location_id,
-                        abundancies->resource_id);
-
-                    result = ENGINE_DB_QUERY_ERROR;
-                }
-            }
-
-            mysql_free_result(db_result);
         }
-    }        
+    }
+   
+    if(db_result)
+        mysql_free_result(db_result);
 
     return result;
 }

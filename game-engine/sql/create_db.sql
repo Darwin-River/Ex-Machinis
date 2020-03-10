@@ -135,7 +135,8 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`objects` (
   UNIQUE INDEX `object_id_UNIQUE` (`object_id` ASC),
   UNIQUE INDEX `object_name_UNIQUE` (`object_name` ASC))
 ENGINE = InnoDB
-DEFAULT CHARACTER SET = latin1;
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 
 -- -----------------------------------------------------
@@ -169,7 +170,9 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`hulls` (
   `d_slots` INT(2) UNSIGNED NULL,
   `e_slots` INT(2) UNSIGNED NULL,
   PRIMARY KEY (`id`))
-ENGINE = InnoDB;
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 
 -- -----------------------------------------------------
@@ -183,7 +186,9 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`hull_bonuses` (
   `affected_resource` INT(5) UNSIGNED NULL,
   `multiplier` INT(2) UNSIGNED NULL,
   PRIMARY KEY (`id`))
-ENGINE = InnoDB;
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 
 -- -----------------------------------------------------
@@ -199,7 +204,9 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`resources` (
   `capacity` INT(2) UNSIGNED NULL,
   `slot_size` INT(1) UNSIGNED NULL,
   PRIMARY KEY (`id`))
-ENGINE = InnoDB;
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 
 -- -----------------------------------------------------
@@ -218,7 +225,9 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`actions` (
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC),
   INDEX `timestamp_idx` (`timestamp` ASC))
-ENGINE = InnoDB;
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 
 -- -----------------------------------------------------
@@ -247,7 +256,9 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`events` (
   INDEX `timestamp_idx` (`timestamp` ASC),
   INDEX `action_idx` (`action` ASC),
   INDEX `drone_resource_idx` (`drone` ASC, `resource` ASC))
-ENGINE = InnoDB;
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 
 -- -----------------------------------------------------
@@ -260,7 +271,9 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`transmissions` (
   `content` VARCHAR(255) NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC))
-ENGINE = InnoDB;
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 
 -- -----------------------------------------------------
@@ -281,7 +294,9 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`observations` (
     ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
-AUTO_INCREMENT = 1;
+AUTO_INCREMENT = 1
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------
 -- Table `exmachinis`.`queries`
@@ -296,7 +311,9 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`queries` (
   `script` VARCHAR(512) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC))
-ENGINE = InnoDB;
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 
 -- -----------------------------------------------------
@@ -315,7 +332,9 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`protocols` (
   `multiplier` TINYINT UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC))
-ENGINE = InnoDB;
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 
 -- -----------------------------------------------------
@@ -328,7 +347,9 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`event_types` (
   `name` VARCHAR(45) NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC))
-ENGINE = InnoDB;
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 
 -- -----------------------------------------------------
@@ -338,20 +359,23 @@ DROP TABLE IF EXISTS `exmachinis`.`resource_effects` ;
 
 CREATE TABLE IF NOT EXISTS `exmachinis`.`resource_effects` (
   `id` INT(5) UNSIGNED NOT NULL,
-  `drone` INT(5) UNSIGNED NULL,
-  `resource` INT(5) UNSIGNED NULL,
+  `drone` INT(5) SIGNED NULL,
+  `resource` INT(5) SIGNED NULL,
   `protocol` INT(5) UNSIGNED NULL,
   `event_type` INT(2) UNSIGNED NULL,
   `local` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
   `installed` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
   `locked` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
   `deplete` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
-  `quantity` INT(5) UNSIGNED NULL,
+  `abundancies` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+  `quantity` INT(5) SIGNED NULL,
   `time` INT(5) UNSIGNED NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC),
   INDEX `protocol_idx` (`protocol` ASC))
-ENGINE = InnoDB;
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 
 -- -----------------------------------------------------
@@ -371,7 +395,9 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`market_effects` (
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC),
   INDEX `protocol_idx` (`protocol` ASC))
-ENGINE = InnoDB;
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 
 -- -----------------------------------------------------
@@ -388,7 +414,9 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`location_effects` (
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC)
   INDEX `protocol_idx` (`protocol` ASC))
-ENGINE = InnoDB;
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 
 -- -----------------------------------------------------
@@ -413,7 +441,9 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`abundancies` (
     REFERENCES `exmachinis`.`resources` (`id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
-ENGINE = InnoDB;
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
