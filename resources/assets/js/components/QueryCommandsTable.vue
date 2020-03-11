@@ -1,18 +1,18 @@
 <template>
     <div>
 
-            <div class="row mt-4 mb-4">
+        <div class="row mt-4 mb-4">
 
-                <div class="col-md-3 col-sm-6 col-6">
-                    <div class="form-wrap form-sm">
-                        <input class="form-input input-md" id="keyword" v-model="keyword"
-                               type="text"
-                               name="keyword">
-                        <label class="form-label rd-input-label" for="keyword">Filter by keyword</label>
-                    </div>
+            <div class="col-md-3 col-sm-6 col-6">
+                <div class="form-wrap form-sm">
+                    <input class="form-input input-md" id="keyword" v-model="keyword"
+                           type="text"
+                           name="keyword">
+                    <label class="form-label rd-input-label" for="keyword">Filter by keyword</label>
                 </div>
-
             </div>
+
+        </div>
 
         <div v-bind:class="'mb-4 table-responsive '+(loading?' loading-table ':'') ">
             <table class="table-custom table-custom-bordered">
@@ -48,11 +48,15 @@
         name: "QueryCommandsTable",
         props: {
             queriesList: Array,
+            keywordParameter: String,
         },
         data: () => ({
             keyword: null,
             loading: false,
         }),
+        created() {
+            this.keyword = this.keywordParameter;
+        },
         computed: {
             filteredQueries() {
                 if (this.keyword == null)

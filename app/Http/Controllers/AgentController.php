@@ -85,10 +85,13 @@ class AgentController extends Controller
 
     /**
      * Displays list of protocols
+     * @param $request Request
+     * @return View
      */
-    public function protocols()
+    public function protocols(Request $request)
     {
         $protocols = Protocol::orderBy('id', 'asc')->get();
-        return view('spacecraft.protocols', compact('protocols'));
+        $keyword = $request->get('keyword');
+        return view('spacecraft.protocols', compact('protocols','keyword'));
     }
 }

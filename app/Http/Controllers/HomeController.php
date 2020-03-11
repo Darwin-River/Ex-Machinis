@@ -36,7 +36,6 @@ class HomeController extends Controller
      */
     public function index()
     {
-
         return view('home');
     }
 
@@ -180,11 +179,13 @@ class HomeController extends Controller
 
     /**
      * Displays query commands table
+     * Request $request
      */
-    public function queryCommands()
+    public function queryCommands(Request $request)
     {
         $queryCommands = Query::orderBy('id', 'asc')->get();
-        return view('query-commands', compact('queryCommands'));
+        $keyword = $request->get('keyword');
+        return view('query-commands', compact('queryCommands', 'keyword'));
     }
 
     /**

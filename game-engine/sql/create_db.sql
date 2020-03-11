@@ -55,12 +55,17 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`agents` (
   `hull_type` INT(2) UNSIGNED NULL COMMENT 'This is the ID of the drone\'s hull type.',
   PRIMARY KEY (`agent_id`),
   INDEX `fk_user_id_idx` (`user_id` ASC),
+  KEY `agent_name_INDEX` (`name`),
+  KEY `fk_object_id_idx` (`object_id`),
+  KEY `fk_hull_type_idx` (`hull_type`),
   CONSTRAINT `fk_user_id`
     FOREIGN KEY (`user_id`)
     REFERENCES `exmachinis`.`users` (`user_id`)
     ON DELETE CASCADE
-    ON UPDATE NO ACTION)
-ENGINE = InnoDB
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_hull_type` FOREIGN KEY (`hull_type`) REFERENCES `hulls` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk_object_id` FOREIGN KEY (`object_id`) REFERENCES `objects` (`object_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE = InnoDB
 AUTO_INCREMENT = 1
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
@@ -133,8 +138,12 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`objects` (
   `z_coord` DOUBLE NULL,
   PRIMARY KEY (`object_id`),
   UNIQUE INDEX `object_id_UNIQUE` (`object_id` ASC),
-  UNIQUE INDEX `object_name_UNIQUE` (`object_name` ASC))
-ENGINE = InnoDB
+  UNIQUE INDEX `object_name_UNIQUE` (`object_name` ASC),
+  KEY `object_name_INDEX` (`object_name`),
+  KEY `object_type_INDEX` (`object_type`),
+  KEY `object_central_body_object_id_INDEX` (`central_body_object_id`),
+  CONSTRAINT `central_body_object_id_objects_id_FOREIGN_KEY` FOREIGN KEY (`central_body_object_id`) REFERENCES `objects` (`object_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
@@ -255,7 +264,8 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`events` (
   UNIQUE INDEX `id_UNIQUE` (`id` ASC),
   INDEX `timestamp_idx` (`timestamp` ASC),
   INDEX `action_idx` (`action` ASC),
-  INDEX `drone_resource_idx` (`drone` ASC, `resource` ASC))
+  INDEX `drone_resource_idx` (`drone` ASC, `resource` ASC),
+    CONSTRAINT `fk_agent_id` FOREIGN KEY (`drone`) REFERENCES `agents` (`agent_id`) ON DELETE CASCADE ON UPDATE CASCADE)
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
@@ -288,6 +298,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`observations` (
   `time` DATETIME NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `id_UNIQUE` (`id` ASC),
+  KEY `event` (`event`),
   CONSTRAINT `event`
     FOREIGN KEY (`event`)
     REFERENCES `exmachinis`.`events` (`id`)

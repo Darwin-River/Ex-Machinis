@@ -46,6 +46,10 @@
         name: "ProtocolsTable",
         props: {
             protocolsList: Array,
+            keywordParameter: String,
+        },
+        created() {
+            this.keyword = this.keywordParameter;
         },
         data: () => ({
             keyword: null,

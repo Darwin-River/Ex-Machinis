@@ -12,7 +12,7 @@
 
             <p>When results are returned from a query, they are added to the results arrray (R) in the order indicated, with the data from each field occupying the number of bytes specified within the square brackets.</p>
 
-            <query-commands-table :queries-list="{{json_encode($queryCommands)}}"></query-commands-table>
+            <query-commands-table :queries-list="{{json_encode($queryCommands)}}" keyword-parameter="{{$keyword}}"></query-commands-table>
         </div>
     </section>
 @endsection

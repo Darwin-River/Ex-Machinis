@@ -2564,7 +2564,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony default export */ __webpack_exports__["default"] = ({
   name: "ProtocolsTable",
   props: {
-    protocolsList: Array
+    protocolsList: Array,
+    keywordParameter: String
+  },
+  created: function created() {
+    this.keyword = this.keywordParameter;
   },
   data: function data() {
     return {
@@ -2648,13 +2652,17 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony default export */ __webpack_exports__["default"] = ({
   name: "QueryCommandsTable",
   props: {
-    queriesList: Array
+    queriesList: Array,
+    keywordParameter: String
   },
   data: function data() {
     return {
       keyword: null,
       loading: false
     };
+  },
+  created: function created() {
+    this.keyword = this.keywordParameter;
   },
   computed: {
     filteredQueries: function filteredQueries() {
