@@ -1788,7 +1788,7 @@ ErrorCode_t db_get_drone_resources(int droneId, DroneResources_t** resources, in
 
         snprintf(query_text, 
             DB_MAX_SQL_QUERY_LEN, 
-            "select  resources.id as resource_id, resources.name as name, events.locked as locked, resources.mass as mass, events.new_quantity as new_quantity, events.id as event_id  from events left join resources on events.resource = resources.id  left join event_types on event_types.id = events.event_type  join (select max(events.id) as id from events where drone = %d and events.outcome = 1 and (events.event_type = 1 or events.event_type = 2) group by events.resource ORDER BY id DESC) as events_latest on events_latest.id = events.id   ORDER BY new_quantity;",
+            "select  resources.id as resource_id, resources.name as name, events.locked as locked, resources.mass as mass, events.new_quantity as new_quantity, events.id as event_id  from events left join resources on events.resource = resources.id  left join event_types on event_types.id = events.event_type  join (select max(events.id) as id from events where drone = %d and (events.outcome = 1 or events.outcome = 0) and (events.event_type = 1 or events.event_type = 2) group by events.resource ORDER BY id DESC) as events_latest on events_latest.id = events.id   ORDER BY new_quantity;",
             droneId);
 
         engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
