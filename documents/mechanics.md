@@ -82,6 +82,7 @@ This document lays out the plans for developing Ex Machinis, an online space sim
 * [Markets and Trade](#Markets-and-Trade)
   * [Placing Market Bids](#Placing-Market-Bids)
   * [Acting on Market Bids](#Acting-on-Market-Bids)
+  * [Adding and removing credits from a user's bank account](#Adding-and-removing-credits-from-a-users-bank-account)
   * [A Trade Example](#A-Trade-Example)
 * [Queries](#Queries)
   * [Database Searches](#Database-Searches)
@@ -734,9 +735,9 @@ A drone can only **add** a resource to the cargo hold of another player's drone 
 
 Failure to meet these conditions will generate a negative outcome for the increment event and cause the corresponding action and all subsequent events to be aborted.
 
-If the increment event succeeds,  the Event Engine automatically creates two new events that are associated with the same action:
-1. The first event deposits the correct amount of credits in the bank account of the acting drone. This amount is set based on the amount of material successfully added to the hold and the unit price set by the corresponding buy order.
-2. The second event removes the same amount of credits from the bank account of the affected drone. It is possible for the number of credits to go negative.
+If the increment event succeeds,  the Event Engine will:
+1. Add the correct amount of credits in the user's bank account of the acting drone. This amount is set based on the amount of material successfully added to the hold and the unit price set by the corresponding buy order.
+2. Remove the same amount of credits from the user's bank account of the affected drone. It is possible for the number of credits to go negative.
 
 A drone can only **remove** a resource from the cargo hold of another players drone via a depletion event if:
 1. The affected drone has placed a sell order for that resource, and
@@ -744,11 +745,18 @@ A drone can only **remove** a resource from the cargo hold of another players dr
 
 Failure to meet these conditions will generate a negative outcome for the decrement event and cause the corresponding action and all subsequent events to be abborted.
 
-If the decrement event succeeds, the Event Engine automatically creates two new events associated with the action:
-1. The first event deposits the correct amount of credits in the bank account of the affected drone. This amount is set based on the amount of material removed from the hold and the unit price set by the buy order.
-2. The second event removes the same amount of credits from the bank account of the depleting drone. It is possible for the number of credits to go negative.
+If the decrement event succeeds, the Event Engine will:
+1. Add the correct amount of credits in the user's bank account of the affected drone. This amount is set based on the amount of material removed from the hold and the unit price set by the buy order.
+2. Remove the same amount of credits from the user's bank account of the acting drone. It is possible for the number of credits to go negative.
 
 [Return to the TOC](#Table-of-Contents)
+
+### Adding and removing credits from a user's bank account
+
+When the Event Engine adds or subtracts credits from a user's account, it does so by incrementing or decrementing the users.credits field by the indicated amount and creating a new events table entry to record this change: 
+
+- The user.credits field can go negative as a result of a transaction. 
+- Whem creating the corresponding events table entry, the Events Engine will set events.time to the current date/time, events.drone to the ID of the affected drone, events.action to the ID of the related action, events.logged to true, events outcome to 1, and events.event-type to 6 if credits are being added and 7 if credits are being removed. The Events Engine will also set events.new_credits to the new value in users.credits. All other values will be null.
 
 ### A Trade Example
 
