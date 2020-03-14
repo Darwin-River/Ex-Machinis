@@ -714,35 +714,39 @@ Since evidence of each in-game event travels between distant points at the speed
 
 ## Markets and Trade
 
-In Ex Machinis, spacecraft can use scripted protocols to add or remove materials from the cargo hold of other spacecraft via the resource_effects table. Other than the obvious inventory and cargo hold constraints, there are no limits on how much material can be transferred between two spacecraft that are owned by the same player.  However, if a drone attempts to access the cargo hold of another player’s spacecraft, the interaction will be governed by market bids, which the targeted spacecraft places against specific resources that are added to or removed from its hold.
+In Ex Machinis, spacecraft can use scripted protocols to add or remove materials from the cargo hold of other spacecraft via the resource_effects table. Other than the obvious inventory and cargo hold constraints, there are no limits on how much material can be transferred between two spacecraft that are owned by the same player.  However, if a drone attempts to access the cargo hold of another player’s spacecraft, the interaction will be governed by market orders, which the targeted spacecraft places against specific resources that can be added to or removed from its hold.
 
 [Return to the TOC](#Table-of-Contents)
 
-### Placing Market Bids
-These market bids are placed and adjusted by protocols that reference the market_effects table, which is addressed in the Protocols Section of this manual. The market_effects table works by directing the Events Engine to generate buy and sell events that adjust the drone’s criteria for accepting cargo from or releasing cargo to another player’s drones.
+### Placing Market Orders
+These market orders are placed and adjusted by protocols that reference the market_effects table, which is addressed in the Protocols Section of this manual. The market_effects table works by directing the Events Engine to generate buy and sell events that adjust the drone’s criteria for accepting cargo from or releasing cargo to another player’s drones.
 
-By using protocols that evoke the market_effects table, players can set the costs at which the drone will automatically purchase or sell a particular resource from or to another player. The market_effects table also sets limits on the amount of a resource that the drone will buy or sell.  
+By using protocols that invoke the market_effects table, players can set the costs at which the drone will automatically purchase or sell a particular resource from or to another player. The market_effects table also sets limits on the amount of a resource that the drone will buy or sell.  
 
 [Return to the TOC](#Table-of-Contents)
 
-### Acting on Market Bids
-One player's drone can act on the bids of another player's drone by adding or removing resources from the drones's cargo hold in accordance with existing buy or sell bids. Buy bids permit another player's drone to add a specific resource to the bidder's cargo hold in exchange for money. Similarly, sell bids allow another player's drone to remove resources from the cargo hold at a price that its set by the bid.  
+### Acting on Market Orders
+One player's drone can act on the market orders of another player's drone by adding or removing resources from the drones's cargo hold in accordance with existing buy or sell orders. Buy orders permit another player's drone to add (increment) a specific resource in the bidder's cargo hold in exchange for credits (money). Similarly, sell orders allow another player's drone to remove (decrement) resources from the cargo hold at a price that its set by the order.  
 
-A drone can only **add** a resource to the cargo hold of another player's drone if:
+A drone can only **add** a resource to the cargo hold of another player's drone via an increment event if:
 1. The affected drone has placed a buy order for the resource. 
-2. The added resource doesn't exceed the amount of material permitted by the buy order or the cargo capacity.
+2. The incremented resource doesn't exceed the amount of material permitted by the buy order or the target drone's cargo capacity.
 
-If materials are successfully added to the cargo hold, the Event Engine automatically creates two new concurrent events that are associated with the action:
-1. The first event deposits the correct amount of credits in the player's bank account of the acting drone. This amount is set based on the amount of material successfully added to the hold and the unit price set by the buy order.
-2. The second event removes the same amount of credits from the player's back account of the affected drone. It is possible for the number of credits to go negative.
+Failure to meet these conditions will generate a negative outcome for the increment event and cause the corresponding action and all subsequent events to be aborted.
 
-A drone can only **remove** a resource from the cargo hold of another players drone if:
+If the increment event succeeds,  the Event Engine automatically creates two new events that are associated with the same action:
+1. The first event deposits the correct amount of credits in the bank account of the acting drone. This amount is set based on the amount of material successfully added to the hold and the unit price set by the corresponding buy order.
+2. The second event removes the same amount of credits from the bank account of the affected drone. It is possible for the number of credits to go negative.
+
+A drone can only **remove** a resource from the cargo hold of another players drone via a depletion event if:
 1. The affected drone has placed a sell order for that resource, and
-2. The depletion event doesn't drop the amount of resource in the affected drones cargo below zero or below the limit set in the sell order.
+2. The decrement event doesn't drop the amount of resource in the affected drones cargo below zero or below the limit set in the sell order.
 
-If the materials are successfully removed from the cargo bay, the Event Engine automatically creates two new events associated with the action:
-1. The first event deposits the correct amount of credits in the player's bank account of the affected drone. This amount is set based on the amount of material removed from the hold and the unit price set by the buy order.
-2. The second event removes the same amount of credits from the player's bank account of the depleting drone. It is possible for the number of credits to go negative.
+Failure to meet these conditions will generate a negative outcome for the decrement event and cause the corresponding action and all subsequent events to be abborted.
+
+If the decrement event succeeds, the Event Engine automatically creates two new events associated with the action:
+1. The first event deposits the correct amount of credits in the bank account of the affected drone. This amount is set based on the amount of material removed from the hold and the unit price set by the buy order.
+2. The second event removes the same amount of credits from the bank account of the depleting drone. It is possible for the number of credits to go negative.
 
 [Return to the TOC](#Table-of-Contents)
 
