@@ -3,7 +3,7 @@
   PROJECT    : Ex-Machinis
 
   DESCRIPTION: Engine common types
- 
+
 ******************************************************************************/
 
 #ifndef __EM_COMMON_TYPES_MODULE__
@@ -28,7 +28,7 @@
 
 // orbits info
 #define MAX_OBJECT_NAME_SIZE     45
-#define MAX_OBJECT_TYPE_SIZE     16  
+#define MAX_OBJECT_TYPE_SIZE     16
 #define OBJECTS_TIMESTAMP_FORMAT "%Y-%m-%d %T"
 
 // protocols
@@ -44,7 +44,7 @@
 #define MAX_EVENT_TYPE_NAME_SIZE  45
 
 #define LIGHT_SPEED_KM_PER_SECOND   299792.458  // Km/second
-#define LIGHT_SPEED_KM_PER_MINUTE   (LIGHT_SPEED_KM_PER_SECOND * 60.0) // Km/minute 
+#define LIGHT_SPEED_KM_PER_MINUTE   (LIGHT_SPEED_KM_PER_SECOND * 60.0) // Km/minute
 
 
 #define CENTRAL_DATABASE_DRONE_ID   0
@@ -136,7 +136,7 @@ typedef struct
 	char* user;
 	char* password;
 	char* db_name;
-	
+
 } DbConnection_t;
 
 
@@ -148,7 +148,7 @@ typedef struct
 	int command_id;
 	int agent_id;
 	char subject[MAX_COMMAND_CODE_SIZE+1];
-	char code[MAX_COMMAND_CODE_SIZE+1]; 
+	char code[MAX_COMMAND_CODE_SIZE+1];
 	char* email_content; // dynamically allocated
 
 } Command_t;
@@ -172,7 +172,7 @@ typedef struct
 	char agent_email[MAX_EMAIL_ADDRESS_SIZE+1];
 	char user_email_addr[MAX_EMAIL_ADDRESS_SIZE+1];
 	char user_name[MAX_AGENT_NAME_SIZE+1];
-	char email_script[PATH_MAX]; 
+	char email_script[PATH_MAX];
 	char* input_content; // dynamically allocated
 	char message[MAX_COMMAND_CODE_SIZE+1]; // Msg received from VM
 	char subject[MAX_COMMAND_CODE_SIZE+1];
@@ -251,7 +251,7 @@ typedef struct
 	double x;
 	double y;
 	double z;
-	
+
 } CartesianInfo_t;
 
 
@@ -272,7 +272,7 @@ typedef struct
 	unsigned char observable;
 	unsigned char reportable;
 	unsigned char multiplier; // new field to use when none parameters, can receive and optional multiplier
-	
+
 } ProtocolInfo_t;
 
 // Enum to access the fields returned by the query against protocols table
@@ -304,7 +304,7 @@ typedef struct
 	int protocol_id;
 	int process_multiplier;
 	unsigned char aborted;
-	
+
 } Action_t;
 
 // Enum to access the fields returned by the query against protocols table
@@ -334,7 +334,7 @@ typedef struct
 	int resource_mass;
 	int resource_capacity;
 	int resource_slot_size;
-	
+
 } Resource_t;
 
 // Enum to access the fields returned by the query against protocols table
@@ -368,7 +368,7 @@ typedef enum
 {
 	EVENT_TYPE_ID_IDX,
 	EVENT_TYPE_NAME_IDX,
-	
+
 	// Max fields expected
 	MAX_EVENT_TYPE_FIELDS
 
@@ -395,7 +395,7 @@ typedef struct
 	unsigned char abundancies;
 	int quantity;
 	int time;
-	
+
 } ResourceEffect_t;
 
 // Enum with table fields idx
@@ -434,7 +434,7 @@ typedef struct
 	int quantity;
 	int price;
 	int time;
-	
+
 } MarketEffect_t;
 
 // Enum with table fields idx
@@ -479,7 +479,7 @@ typedef struct
 	int event_type;
 	int location;
 	int time;
-	
+
 } LocationEffect_t;
 
 // Enum with table fields idx
@@ -533,7 +533,8 @@ typedef struct
 	int new_transmission;
 	int new_cargo;
 	time_t timestamp;
-	
+  int delay; // The delay imposed on the event by the resource effects table.
+
 } Event_t;
 
 // Enum with table fields idx
@@ -570,7 +571,7 @@ typedef struct
 	int drone_id;
 	int event_id;
 	time_t timestamp;
-	
+
 } Observation_t;
 
 // Enum with table fields idx
@@ -597,7 +598,7 @@ typedef struct
 	int location_id;
 	int resource_id;
 	int multiplier;
-	
+
 } Abundancies_t;
 
 // Enum with table fields idx
@@ -630,7 +631,7 @@ typedef struct
 	int resultsArrayAddr;
 	int resultsArraySize;
 	char *finalQuery;
-	
+
 } Queries_t;
 
 // Enum with table fields idx
@@ -656,7 +657,7 @@ typedef struct
 	int locked;
 	int quantity;
 	int event_id;
-	
+
 } DroneResources_t;
 
 // Enum with table fields idx
@@ -675,4 +676,3 @@ typedef enum
 } DroneResourceFieldId_t;
 
 #endif // __EM_COMMON_TYPES_MODULE__
-
