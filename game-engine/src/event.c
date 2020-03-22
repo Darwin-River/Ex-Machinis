@@ -618,6 +618,92 @@ ErrorCode_t event_update_observations(Event_t *event)
     return result;
 }
 
+/** ****************************************************************************
+
+  @brief      Check if a given event is a market transaction 
+              (resources pushed/pull to/from drones that belong to different players)
+
+  @param[in]  action Parent action (that generated this event)
+  @param[in]  event  Input event
+  @param[out] user   Output struct where we store the current user info (owner of event's drone)
+
+  @return     Execution result
+
+              ENGINE_TRUE: It is a market transaction
+              ENGINE_FALSE: Not a market transaction
+
+*******************************************************************************/
+Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* user) 
+{
+    Bool_t isMarketTransaction = ENGINE_FALSE;
+
+    // Input pointers checked by calling function
+
+    // Check if the drone that generated the action is different from the affected one
+    // and both belong to different users
+    if(action->drone_id != event->drone_id) {
+        User_t action_user;
+
+        if((db_get_drone_user(action->drone_id, &action_user)) && 
+           (db_get_drone_user(event->drone_id, user)) && (action_user.user_id != user->user_id)) {
+
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "Event [%d] represents a market transaction between drone [%d] and drone [%d]",
+                event->event_id,
+                action->drone_id,
+                event->drone_id);
+
+            isMarketTransaction = ENGINE_TRUE;
+        }
+    }
+
+    return isMarketTransaction;
+}
+
+/** ****************************************************************************
+
+  @brief      Processes a market transaction event 
+
+  @param[in]  event  Input event
+  @param[in]  user   Drone user's info
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t event_process_market_transaction(Event_t *event, User_t* user) 
+{
+    ErrorCode_t result = ENGINE_OK;
+    PreviousEventFilter_t filter = PREVIOUS_EVENT_BY_SELL_ORDER;
+    int resource_quantity = 0;
+    if(event->new_quantity >= 0)
+        filter = PREVIOUS_EVENT_BY_BUY_ORDER;
+
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+                "Processing market transaction at event [%d], drone [%d], user [%d]",
+                event->event_id,
+                event->drone_id,
+                user->user_id);
+
+    // Check if there is a sell or buy order associated to current drone
+    // We need to find an event that meets these conditions:
+    // drone + resource + location + event_type (SELL or BUY) + outcome = OK
+    Event_t sell_buy_event;
+    result = db_get_previous_event(event, filter, &sell_buy_event);
+
+    // Sell order found - get current resource quantity
+    if(result == ENGINE_OK) {
+        result = db_get_drone_resource(event->drone_id, event->resource_id, &resource_quantity);
+    }
+
+    if(result == ENGINE_OK) {
+        // Compare quantities - sell order indicates min to keep
+
+        // Check if we have credits to buy it - 
+    }
+
+    return result;
+}
+
 /******************************* PUBLIC FUNCTIONS ****************************/
 
 /** ****************************************************************************
@@ -634,6 +720,8 @@ ErrorCode_t event_process_outcome(Event_t *event)
     ErrorCode_t result = ENGINE_OK;
     Event_t previous_resource_event;
     Event_t previous_event;
+    Bool_t market_transaction = ENGINE_FALSE;
+    User_t user_info; // required at market transactions
 
     memset(&previous_event, 0, sizeof(previous_event));
     memset(&previous_resource_event, 0, sizeof(previous_resource_event));
@@ -666,7 +754,7 @@ ErrorCode_t event_process_outcome(Event_t *event)
         event->new_cargo,
         event->timestamp);
 
-    // Check that associate action is not aborted - we do not process events for aborted actions
+    // Check that associated action is not aborted - we do not process events for aborted actions
     Action_t action;
     memset(&action, 0, sizeof(action));
     action.action_id = event->action_id;
@@ -679,6 +767,10 @@ ErrorCode_t event_process_outcome(Event_t *event)
             "WARNING: Outcome event [%d] is associated with an aborted action [%d], ignored",
             event->event_id,
             event->action_id);
+
+        // Mark this event as aborted
+        event->outcome = OUTCOME_ACTION_ABORTED;
+        db_update_event(event);
 
         // Mark aborted as error
         if(result == ENGINE_OK) result = ENGINE_LOGIC_ERROR;
@@ -711,6 +803,16 @@ ErrorCode_t event_process_outcome(Event_t *event)
     {
         db_get_previous_event(event, PREVIOUS_EVENT_BY_DRONE, &previous_event); 
         db_get_previous_event(event, PREVIOUS_EVENT_BY_RESOURCE_INFO, &previous_resource_event); 
+    }
+
+    if(result == ENGINE_OK)
+    {
+        market_transaction = event_is_market_transaction(&action, event, &user_info);
+    }
+
+    if((result == ENGINE_OK) && (market_transaction == ENGINE_TRUE))
+    {
+        result = event_process_market_transaction(event, &user_info);
     }
 
     // Do the maths to calculate the new total cargo
