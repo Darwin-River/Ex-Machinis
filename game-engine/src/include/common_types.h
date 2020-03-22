@@ -89,6 +89,12 @@
 #define SELL_EVENT_TYPE   4
 #define BUY_EVENT_TYPE    5
 
+// users
+#define MAX_USER_NAME_SIZE             255
+#define MAX_USER_PASSWORD_SIZE         255
+#define MAX_USER_EMAIL_SIZE            255
+#define MAX_USER_REMEMBER_TOKEN_SIZE   100
+
 
 /******************************* TYPES ***************************************/
 
@@ -512,7 +518,8 @@ typedef enum
 	OUTCOME_RESOURCES_LOWER_LIMIT = -5,
 	OUTCOME_RESOURCES_UPPER_LIMIT = -6,
 	OUTCOME_WRONG_DEPLETION_PRICE = -7,
-	OUTCOME_WRONG_ACCUMULATION_PRICE = -8
+	OUTCOME_WRONG_ACCUMULATION_PRICE = -8,
+	OUTCOME_ACTION_ABORTED = -9,
 
 } Outcome_t;
 
@@ -674,5 +681,41 @@ typedef enum
 	MAX_DRONE_RESOURCE_FIELDS
 
 } DroneResourceFieldId_t;
+
+
+//-----------------------------------------------------------------------------
+//  USERS table
+//-----------------------------------------------------------------------------
+
+typedef struct
+{
+	int user_id;
+	char name[MAX_USER_NAME_SIZE];
+	char email[MAX_USER_EMAIL_SIZE];
+	char password[MAX_USER_PASSWORD_SIZE];
+	char remember_token[MAX_USER_REMEMBER_TOKEN_SIZE];
+	time_t created_at;
+	time_t updated_at;
+	int credits;
+
+} User_t;
+
+
+// Enum with table fields idx
+typedef enum
+{
+	USER_USER_ID_IDX,
+	USER_NAME_IDX,
+	USER_EMAIL_IDX,
+	USER_PASSWORD_IDX,
+	USER_REMEMBER_TOKEN_IDX,
+	USER_CREATED_AT_IDX,
+	USER_UPDATED_AT_IDX,
+	USER_CREDITS_IDX,
+
+	// Max fields expected
+	MAX_USER_FIELDS
+
+} UserFieldId_t;
 
 #endif // __EM_COMMON_TYPES_MODULE__
