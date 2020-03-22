@@ -24,10 +24,10 @@ DROP TABLE IF EXISTS `event_types`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `event_types` (
   `id` int(2) unsigned NOT NULL,
-  `name` varchar(45) DEFAULT NULL,
+  `name` varchar(45) CHARACTER SET utf8 DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `id_UNIQUE` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -36,7 +36,7 @@ CREATE TABLE `event_types` (
 
 LOCK TABLES `event_types` WRITE;
 /*!40000 ALTER TABLE `event_types` DISABLE KEYS */;
-INSERT INTO `event_types` VALUES (1,'Increment inventory to'),(2,'Decrement inventory to'),(3,'Move to'),(4,'Sell resource'),(5,'Buy resource');
+INSERT INTO `event_types` VALUES (1,'Increment inventory to'),(2,'Decrement inventory to'),(3,'Move to'),(4,'Sell resource'),(5,'Buy resource'),(6,'Increment credits to'),(7,'Decrement credits to');
 /*!40000 ALTER TABLE `event_types` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -49,8 +49,8 @@ DROP TABLE IF EXISTS `hulls`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `hulls` (
   `id` int(2) unsigned NOT NULL COMMENT 'Table index',
-  `name` varchar(45) DEFAULT NULL COMMENT 'This is the name of the hull',
-  `description` varchar(255) DEFAULT NULL COMMENT 'This is a brief description of the hull design.',
+  `name` varchar(45) CHARACTER SET utf8 DEFAULT NULL COMMENT 'This is the name of the hull',
+  `description` varchar(255) CHARACTER SET utf8 DEFAULT NULL COMMENT 'This is a brief description of the hull design.',
   `cargo_capacity` int(10) unsigned DEFAULT NULL COMMENT 'This the amount of materials that can be held in the ship''s hold.',
   `a_slots` int(2) unsigned DEFAULT NULL,
   `b_slots` int(2) unsigned DEFAULT NULL,
@@ -58,7 +58,7 @@ CREATE TABLE `hulls` (
   `d_slots` int(2) unsigned DEFAULT NULL,
   `e_slots` int(2) unsigned DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -67,7 +67,7 @@ CREATE TABLE `hulls` (
 
 LOCK TABLES `hulls` WRITE;
 /*!40000 ALTER TABLE `hulls` DISABLE KEYS */;
-INSERT INTO `hulls` VALUES (1,'Mosquitto',NULL,50,2,2,1,0,0),(2,'Humming Bird',NULL,500,4,3,2,1,0);
+INSERT INTO `hulls` VALUES (1,'Mosquitto',NULL,500,2,2,1,0,0),(2,'Humming Bird',NULL,5000,4,3,2,1,0);
 /*!40000 ALTER TABLE `hulls` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -87,7 +87,7 @@ CREATE TABLE `location_effects` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `id_UNIQUE` (`id`),
   KEY `protocol_idx` (`protocol`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -119,7 +119,7 @@ CREATE TABLE `market_effects` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `id_UNIQUE` (`id`),
   KEY `protocol_idx` (`protocol`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -141,8 +141,8 @@ DROP TABLE IF EXISTS `objects`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `objects` (
   `object_id` int(11) NOT NULL,
-  `object_name` varchar(45) NOT NULL,
-  `object_type` varchar(16) NOT NULL,
+  `object_name` varchar(45) CHARACTER SET latin1 NOT NULL,
+  `object_type` varchar(16) CHARACTER SET latin1 NOT NULL,
   `gravitational_parameter` double DEFAULT NULL,
   `central_body_object_id` int(11) DEFAULT NULL,
   `epoch` datetime DEFAULT NULL,
@@ -164,7 +164,7 @@ CREATE TABLE `objects` (
   KEY `object_type_INDEX` (`object_type`),
   KEY `object_central_body_object_id_INDEX` (`central_body_object_id`),
   CONSTRAINT `central_body_object_id_objects_id_FOREIGN_KEY` FOREIGN KEY (`central_body_object_id`) REFERENCES `objects` (`object_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -186,16 +186,16 @@ DROP TABLE IF EXISTS `protocols`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `protocols` (
   `id` int(5) unsigned NOT NULL,
-  `name` varchar(45) DEFAULT NULL,
+  `name` varchar(45) CHARACTER SET utf8 DEFAULT NULL,
   `parameters` smallint(2) NOT NULL DEFAULT '0',
   `bulk_modifier` int(5) unsigned DEFAULT NULL,
-  `description` varchar(255) DEFAULT NULL,
+  `description` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
   `observable` tinyint(4) DEFAULT NULL,
   `reportable` tinyint(4) DEFAULT NULL,
   `multiplier` tinyint(3) unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `id_UNIQUE` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -204,7 +204,7 @@ CREATE TABLE `protocols` (
 
 LOCK TABLES `protocols` WRITE;
 /*!40000 ALTER TABLE `protocols` DISABLE KEYS */;
-INSERT INTO `protocols` VALUES (1,'Mine Iron Ore',0,100,'1 perform | Adds 10 units of iron ore to your drone\'s cargo hold.',1,1,1),(2,'Mine carbon ore',0,100,'2 perform | Adds 10 units of carbon ore to your inventory.',1,1,1),(3,'Smelt iron ore',0,100,'3 perform | Converts one unit of iron ore to one unit of refined iron pellets.',1,1,1),(4,'Dump Iron Ore',0,100,'4 perform | Dumps 10 units of iron ore from your cargo hold.',1,1,1),(5,'Move to X',0,100,'N1 5 perform | Moves the spacecraft to the the astronimical object whoes ID is N1.',1,1,0),(6,'Move to Jupiter',0,100,'6 perform | Moves the spacecraft to Jupiter.',1,1,0),(7,'Sell Resource',3,100,'[P M R 7 perform]: Places order to sell resource R at price P, keeping min M units at drone\'s cargo hold.',1,1,0),(8,'Buy Resource',3,100,'[P M R 8 perform]: Places order to buy resource R at price P, keeping max M units at drone\'s cargo hold.',1,1,0);
+INSERT INTO `protocols` VALUES (1,'Mine Iron Ore',0,100,'[Q 1 perform]: Adds N units of iron ore to your drone\'s cargo hold.',1,1,1),(2,'Mine carbon ore',0,100,'[Q 2 perform]: Adds N units of carbon ore to your inventory.',1,1,1),(3,'Smelt iron ore',0,100,'[Q 3 perform]: Converts Q units of iron ore to Q units of refined iron pellets.',1,1,1),(4,'Dump Iron Ore',0,100,'[Q 4 perform]: Dumps Q units of iron ore from your cargo hold.',1,1,1),(5,'Move to X',0,100,'[N 5 perform]: Moves the spacecraft to the the astronimical object whoes ID is N.',1,1,0),(6,'Move to Jupiter',0,100,'[6 perform]: Moves the spacecraft to Jupiter.',1,1,0),(7,'Sell Resource',3,100,'[P M R 7 perform]: Places order to sell resource R at price P, keeping min M units at drone\'s cargo hold.',1,1,0),(8,'Buy Resource',3,100,'[P M R 8 perform]: Places order to buy resource R at price P, keeping max M units at drone\'s cargo hold.',1,1,0),(9,'Deliver Iron Ore',1,100,'[Q D 9 perform]: Transfers Q units of iron ore to drone D.',-1,-1,1),(10,'Push Resource',2,100,'[Q R D 10 perform]: Delivers Q units of resource R to drone D.',-1,-1,1),(11,'Pull Resource',2,100,'[Q R D 11 perform]: Pulls Q units or resource R from drone D.',-1,-1,1);
 /*!40000 ALTER TABLE `protocols` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -217,20 +217,21 @@ DROP TABLE IF EXISTS `resource_effects`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `resource_effects` (
   `id` int(5) unsigned NOT NULL,
-  `drone` int(5) unsigned DEFAULT NULL,
-  `resource` int(5) unsigned DEFAULT NULL,
+  `drone` int(11) DEFAULT NULL,
+  `resource` int(11) DEFAULT NULL,
   `protocol` int(5) unsigned DEFAULT NULL,
   `event_type` int(2) unsigned DEFAULT NULL,
   `local` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `installed` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `locked` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `deplete` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `abundancies` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `quantity` int(5) unsigned DEFAULT NULL,
   `time` int(5) unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `id_UNIQUE` (`id`),
   KEY `protocol_idx` (`protocol`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -239,7 +240,7 @@ CREATE TABLE `resource_effects` (
 
 LOCK TABLES `resource_effects` WRITE;
 /*!40000 ALTER TABLE `resource_effects` DISABLE KEYS */;
-INSERT INTO `resource_effects` VALUES (1,0,1,1,1,1,0,0,0,10,0),(2,0,3,2,1,0,0,0,0,10,0),(3,0,1,3,2,0,0,0,1,1,0),(4,0,2,3,1,0,0,0,0,1,10),(5,0,1,4,2,0,0,0,1,10,0);
+INSERT INTO `resource_effects` VALUES (1,0,1,1,1,1,0,0,0,1,1,0),(2,0,3,2,1,0,0,0,0,1,1,0),(3,0,1,3,2,0,0,0,1,0,1,0),(4,0,2,3,1,0,0,0,0,0,1,10),(5,0,1,4,2,0,0,0,1,0,1,0),(6,0,1,9,2,0,0,0,1,0,1,0),(7,-1,1,9,1,0,0,0,0,0,1,0),(8,0,-2,10,2,0,0,0,1,0,1,0),(9,-1,-2,10,1,0,0,0,0,0,1,1),(10,-1,-2,11,2,0,0,0,1,0,1,0),(11,0,-2,11,1,0,0,0,0,0,1,5);
 /*!40000 ALTER TABLE `resource_effects` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -252,13 +253,13 @@ DROP TABLE IF EXISTS `resources`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `resources` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(45) DEFAULT NULL,
-  `description` longtext,
+  `name` varchar(45) CHARACTER SET utf8 DEFAULT NULL,
+  `description` longtext CHARACTER SET utf8,
   `mass` int(10) unsigned DEFAULT NULL,
   `capacity` int(2) unsigned DEFAULT NULL,
   `slot_size` int(1) unsigned DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=109 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=109 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -267,7 +268,7 @@ CREATE TABLE `resources` (
 
 LOCK TABLES `resources` WRITE;
 /*!40000 ALTER TABLE `resources` DISABLE KEYS */;
-INSERT INTO `resources` VALUES (1,'Ore, Iron','This the mined rock from which metals can be extracted.',12,0,0),(2,'Pellets, Iron','Small rods of pure iron.',1,0,0),(3,'Ore, Carbon','Small pellets of pure carbon.',1,0,0),(4,'Pellets, Carbon','Small pellets of pure copper.',1,0,0),(5,'Ore, Copper',NULL,1,0,0),(7,'Pellets, Bronze','Small pellets of bronze alloy made by combining tin and copper.',1,0,0),(8,'Pellets, Steel','Produced by combining iron and carbon.',1,0,0),(9,'Smelter','This is a furnace used to extract component metals from ore.',50,1,1),(10,'Spider','Spiders are robots that move about the spacecaraft, transfering materials between different processes.',10,1,1),(11,'Crucible','A crucible is used to alloy metals.',50,1,1),(12,'Extruder','An extruder is used to print complex three dimentional structures from metals and alloys.',50,1,1),(108,'Pellets, Copper',NULL,1,0,0);
+INSERT INTO `resources` VALUES (1,'Ore, Iron','This the mined rock from which metals can be extracted.',2,0,0),(2,'Pellets, Iron','Small rods of pure iron.',1,0,0),(3,'Ore, Carbon','Small pellets of pure carbon.',1,0,0),(4,'Pellets, Carbon','Small pellets of pure copper.',1,0,0),(5,'Ore, Copper',NULL,1,0,0),(7,'Pellets, Bronze','Small pellets of bronze alloy made by combining tin and copper.',1,0,0),(8,'Pellets, Steel','Produced by combining iron and carbon.',1,0,0),(9,'Smelter','This is a furnace used to extract component metals from ore.',50,1,1),(10,'Spider','Spiders are robots that move about the spacecaraft, transfering materials between different processes.',10,1,1),(11,'Crucible','A crucible is used to alloy metals.',50,1,1),(12,'Extruder','An extruder is used to print complex three dimentional structures from metals and alloys.',10,1,1),(108,'Pellets, Copper',NULL,1,0,0);
 /*!40000 ALTER TABLE `resources` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -280,13 +281,13 @@ DROP TABLE IF EXISTS `queries`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `queries` (
   `id` int(5) unsigned NOT NULL,
-  `name` varchar(45) NOT NULL,
-  `description` varchar(255) DEFAULT NULL,
+  `name` varchar(45) CHARACTER SET utf8 NOT NULL,
+  `description` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
   `parameters` int(1) NOT NULL,
-  `script` varchar(512) DEFAULT NULL,
+  `script` varchar(512) CHARACTER SET utf8 DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `id_UNIQUE` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -308,4 +309,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2020-02-14  7:24:46
+-- Dump completed on 2020-03-21  0:00:02
