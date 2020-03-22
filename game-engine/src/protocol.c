@@ -3,13 +3,14 @@
   PROJECT    : Ex-Machinis
 
   DESCRIPTION: Protocol executions module
- 
+
 ******************************************************************************/
 
 /******************************* INCLUDES ************************************/
 
 #include <string.h>
 #include <limits.h>
+#include <time.h>
 
 #include "protocol.h"
 #include "trace.h"
@@ -38,7 +39,7 @@ char protocolMsg[LINE_MAX];
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_read_parameters(ProtocolInfo_t *protocol, VmExtension_t* vmExt) 
+ErrorCode_t protocol_read_parameters(ProtocolInfo_t *protocol, VmExtension_t* vmExt)
 {
   ErrorCode_t result = ENGINE_OK;
 
@@ -47,29 +48,29 @@ ErrorCode_t protocol_read_parameters(ProtocolInfo_t *protocol, VmExtension_t* vm
     for(int i=0; i < protocol->parameters_num; i++) {
       result = vm_extension_pop(vmExt, &protocol->parameters[i]);
       if(result != ENGINE_OK) {
-        engine_trace(TRACE_LEVEL_ALWAYS, 
+        engine_trace(TRACE_LEVEL_ALWAYS,
           "ERROR: Unable to retrieve [%d] parameters from stack for protocol ID [%d]",
           protocol->parameters_num,
-          protocol->protocol_id); 
+          protocol->protocol_id);
         break; // stop here - stack error
       }  else {
-        engine_trace(TRACE_LEVEL_ALWAYS, 
+        engine_trace(TRACE_LEVEL_ALWAYS,
             "Parameter[%d]=[%d], protocol ID [%d]",
             i,
             protocol->parameters[i],
-            protocol->protocol_id); 
+            protocol->protocol_id);
       }
     }
 
     if(result == ENGINE_OK) {
-      engine_trace(TRACE_LEVEL_ALWAYS, 
+      engine_trace(TRACE_LEVEL_ALWAYS,
             "[%d] parameters succesfully read from stack for protocol ID [%d]",
             protocol->parameters_num,
-            protocol->protocol_id); 
+            protocol->protocol_id);
     }
 
   } else {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to read protocol parameters (NULL protocol)"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to read protocol parameters (NULL protocol)");
     result = ENGINE_INTERNAL_ERROR;
   }
 
@@ -86,7 +87,7 @@ ErrorCode_t protocol_read_parameters(ProtocolInfo_t *protocol, VmExtension_t* vm
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_generate_action(ProtocolInfo_t *protocol, Action_t *action) 
+ErrorCode_t protocol_generate_action(ProtocolInfo_t *protocol, Action_t *action)
 {
   ErrorCode_t result = ENGINE_OK;
 
@@ -100,7 +101,7 @@ ErrorCode_t protocol_generate_action(ProtocolInfo_t *protocol, Action_t *action)
     result = db_insert_action(action);
 
   } else {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to insert action in DB (NULL parameters)"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to insert action in DB (NULL parameters)");
     result = ENGINE_INTERNAL_ERROR;
   }
 
@@ -109,14 +110,14 @@ ErrorCode_t protocol_generate_action(ProtocolInfo_t *protocol, Action_t *action)
 
 /** ****************************************************************************
 
-  @brief          Validates a given resource ID 
+  @brief          Validates a given resource ID
 
   @param[in|out]  resource   Whole resource info (we pass ID and retrieve the rest of fields)
 
   @return         Validation result
 
 *******************************************************************************/
-ErrorCode_t protocol_validate_resource_id(Resource_t *resource) 
+ErrorCode_t protocol_validate_resource_id(Resource_t *resource)
 {
   ErrorCode_t result = ENGINE_OK;
 
@@ -124,7 +125,7 @@ ErrorCode_t protocol_validate_resource_id(Resource_t *resource)
     // Check it is at DB
     result = db_get_resource_info(resource);
   } else {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to get resource info (NULL resource)"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to get resource info (NULL resource)");
     result = ENGINE_INTERNAL_ERROR;
   }
 
@@ -140,10 +141,10 @@ ErrorCode_t protocol_validate_resource_id(Resource_t *resource)
   @return         Validation result
 
 *******************************************************************************/
-ErrorCode_t protocol_validate_drone_id(int drone_id) 
+ErrorCode_t protocol_validate_drone_id(int drone_id)
 {
   // Does not care or is our current value => OK
-  if((drone_id == RESOURCE_EFFECT_NULL_DRONE_ID) || 
+  if((drone_id == RESOURCE_EFFECT_NULL_DRONE_ID) ||
      (drone_id == engine_get_current_drone_id())) {
 
     return ENGINE_OK;
@@ -154,14 +155,14 @@ ErrorCode_t protocol_validate_drone_id(int drone_id)
 
 /** ****************************************************************************
 
-  @brief          Validates a given event type ID 
+  @brief          Validates a given event type ID
 
   @param[in|out]  event_type   Whole event_type info (we pass ID and retrieve the rest of fields)
 
   @return         Validation result
 
 *******************************************************************************/
-ErrorCode_t protocol_validate_event_type(EventType_t *event_type) 
+ErrorCode_t protocol_validate_event_type(EventType_t *event_type)
 {
   ErrorCode_t result = ENGINE_OK;
 
@@ -169,7 +170,7 @@ ErrorCode_t protocol_validate_event_type(EventType_t *event_type)
     // Check it is at DB
     result = db_get_event_type_info(event_type);
   } else {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to get event_type info (NULL event_type)"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to get event_type info (NULL event_type)");
     result = ENGINE_INTERNAL_ERROR;
   }
 
@@ -186,7 +187,7 @@ ErrorCode_t protocol_validate_event_type(EventType_t *event_type)
   @return     Validation result
 
 *******************************************************************************/
-ErrorCode_t protocol_validate_resource_effect(ResourceEffect_t *effect, Resource_t *resource) 
+ErrorCode_t protocol_validate_resource_effect(ResourceEffect_t *effect, Resource_t *resource)
 {
   ErrorCode_t result = ENGINE_OK;
 
@@ -208,10 +209,10 @@ ErrorCode_t protocol_validate_resource_effect(ResourceEffect_t *effect, Resource
     // Check local
     // Check local installed | locked | deplete | quantity | time ???
     if(result == ENGINE_OK) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Valid resource effect: ID [%d]", effect->resource_effect_id); 
+        engine_trace(TRACE_LEVEL_ALWAYS, "Valid resource effect: ID [%d]", effect->resource_effect_id);
     }
   } else {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to validate resource effect (NULL effect)"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to validate resource effect (NULL effect)");
     result = ENGINE_INTERNAL_ERROR;
   }
 
@@ -228,7 +229,7 @@ ErrorCode_t protocol_validate_resource_effect(ResourceEffect_t *effect, Resource
   @return     Validation result
 
 *******************************************************************************/
-ErrorCode_t protocol_validate_market_effect(MarketEffect_t *effect, Resource_t *resource) 
+ErrorCode_t protocol_validate_market_effect(MarketEffect_t *effect, Resource_t *resource)
 {
   ErrorCode_t result = ENGINE_OK;
 
@@ -245,7 +246,7 @@ ErrorCode_t protocol_validate_market_effect(MarketEffect_t *effect, Resource_t *
       result = protocol_validate_event_type(&event_type);
     }
   } else {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to validate market effect (NULL effect)"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to validate market effect (NULL effect)");
     result = ENGINE_INTERNAL_ERROR;
   }
 
@@ -263,7 +264,7 @@ ErrorCode_t protocol_validate_market_effect(MarketEffect_t *effect, Resource_t *
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolInfo_t *protocol, int action_id) 
+ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolInfo_t *protocol, int action_id)
 {
   ErrorCode_t result = ENGINE_OK;
   Abundancies_t abundancies;
@@ -273,14 +274,14 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
     memset(&abundancies, 0, sizeof(abundancies));
     abundancies.multiplier = 1; // default - no multiplier
 
-    engine_trace(TRACE_LEVEL_ALWAYS, 
+    engine_trace(TRACE_LEVEL_ALWAYS,
         "Processing resource effect "
         "ID [%d] DRONE [%d] RESOURCE_ID [%d] EVENT_TYPE [%d] "
         "LOCAL [%d] INSTALLED [%d] LOCKED [%d] DEPLETE [%d] ABUNDANCIES [%d] QUANTITY [%d] TIME [%d] "
-        "for PROTOCOL_ID [%d] MULTIPLIER [%d]", 
-        effect->resource_effect_id, 
-        effect->drone_id, 
-        effect->resource_id, 
+        "for PROTOCOL_ID [%d] MULTIPLIER [%d]",
+        effect->resource_effect_id,
+        effect->drone_id,
+        effect->resource_id,
         effect->event_type,
         effect->local,
         effect->installed,
@@ -296,21 +297,24 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
     Resource_t resource;
     resource.resource_id = effect->resource_id;
     result = protocol_validate_resource_effect(effect, &resource);
-     
+
     if(result == ENGINE_OK) {
       // We just insert the event indicating the total amount change
       Event_t newEvent;
       memset(&newEvent, 0, sizeof(newEvent));
+
+      // Add resource effect time delay in minutes.
+      newEvent.delay = effect->time;
 
       newEvent.drone_id = engine_get_current_drone_id();
       // Take into account negative parameters that mean => retrieve it from stack
       if(effect->drone_id < 0) {
         parameterId = (((-1) * effect->drone_id) - 1);
         if(parameterId >= protocol->parameters_num) {
-          engine_trace(TRACE_LEVEL_ALWAYS, 
+          engine_trace(TRACE_LEVEL_ALWAYS,
             "ERROR: stack parameter [%d] can not be retrieved (only [%d] available)",
             parameterId,
-            protocol->parameters_num); 
+            protocol->parameters_num);
 
           return ENGINE_INTERNAL_ERROR;
         }
@@ -322,10 +326,10 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
       if(effect->resource_id < 0) {
         parameterId = (((-1) * effect->resource_id) - 1);
         if(parameterId >= protocol->parameters_num) {
-          engine_trace(TRACE_LEVEL_ALWAYS, 
+          engine_trace(TRACE_LEVEL_ALWAYS,
             "ERROR: stack parameter [%d] can not be retrieved (only [%d] available)",
             parameterId,
-            protocol->parameters_num); 
+            protocol->parameters_num);
 
           return ENGINE_INTERNAL_ERROR;
         }
@@ -352,10 +356,10 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
       if(effect->quantity < 0) {
         parameterId = (((-1) * effect->quantity) - 1);
         if(parameterId >= protocol->parameters_num) {
-          engine_trace(TRACE_LEVEL_ALWAYS, 
+          engine_trace(TRACE_LEVEL_ALWAYS,
             "ERROR: stack parameter [%d] can not be retrieved (only [%d] available)",
             parameterId,
-            protocol->parameters_num); 
+            protocol->parameters_num);
 
           return ENGINE_INTERNAL_ERROR;
         }
@@ -392,12 +396,12 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
       if(result == ENGINE_OK) {
         newEvent.new_quantity *= abundancies.multiplier;
         newEvent.new_cargo = (newEvent.new_quantity * resource.resource_mass); // here we reflect the change in mass units
-    
+
         result = db_insert_event(&newEvent);
       }
     }
   } else {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol resource effect (NULL effect)"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol resource effect (NULL effect)");
     result = ENGINE_INTERNAL_ERROR;
   }
 
@@ -415,18 +419,18 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_process_market_effect(MarketEffect_t *effect, ProtocolInfo_t *protocol, int action_id) 
+ErrorCode_t protocol_process_market_effect(MarketEffect_t *effect, ProtocolInfo_t *protocol, int action_id)
 {
   ErrorCode_t result = ENGINE_OK;
 
   if(effect) {
-    engine_trace(TRACE_LEVEL_ALWAYS, 
+    engine_trace(TRACE_LEVEL_ALWAYS,
         "Processing market effect "
         "ID [%d] PROTOCOL_ID [%d] EVENT_TYPE [%d] RESOURCE_ID [%d] "
-        "UPPER_LIMIT [%d] QUANTITY [%d] PRICE [%d] TIME [%d]", 
-        effect->market_effect_id, 
-        effect->protocol_id, 
-        effect->event_type, 
+        "UPPER_LIMIT [%d] QUANTITY [%d] PRICE [%d] TIME [%d]",
+        effect->market_effect_id,
+        effect->protocol_id,
+        effect->event_type,
         effect->resource_id,
         effect->upper_limit,
         effect->quantity,
@@ -454,19 +458,19 @@ ErrorCode_t protocol_process_market_effect(MarketEffect_t *effect, ProtocolInfo_
       newEvent.new_cargo = NULL_VALUE;
       // Default memset()
       // newEvent.logged = 0;
-      // newEvent.processed = 0; 
+      // newEvent.processed = 0;
       // newEvent.installed = 0;
       // newEvent.locked = effect->locked;
       newEvent.outcome = OUTCOME_NO_OUTCOME;
       // Use stack defined limits
       newEvent.new_quantity = (effect->quantity == -1)?protocol->parameters[MARKET_QUANTITY_IDX]:effect->quantity;
       newEvent.new_credits = (effect->price == -1)?protocol->parameters[MARKET_PRICE_IDX]:effect->price;
-  
+
       result = db_insert_event(&newEvent);
     }
 
   } else {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol market effect (NULL effect)"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol market effect (NULL effect)");
     result = ENGINE_INTERNAL_ERROR;
   }
 
@@ -486,34 +490,34 @@ ErrorCode_t protocol_process_market_effect(MarketEffect_t *effect, ProtocolInfo_
 *******************************************************************************/
 ErrorCode_t protocol_process_location_effect
 (
-    LocationEffect_t *effect, 
+    LocationEffect_t *effect,
     ProtocolInfo_t *protocol,
     int action_id
-) 
+)
 {
   ErrorCode_t result = ENGINE_OK;
   int agent_id = engine_get_current_drone_id();
 
   if(!effect || !protocol) {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process location effect (NULL data)"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process location effect (NULL data)");
     result = ENGINE_INTERNAL_ERROR;
   }
 
   if(result == ENGINE_OK) {
-    engine_trace(TRACE_LEVEL_ALWAYS, 
+    engine_trace(TRACE_LEVEL_ALWAYS,
         "Processing location effect "
         "ID [%d] EVENT_TYPE [%d] LOCATION [%d] TIME [%d] "
-        "for PROTOCOL_ID [%d]", 
-        effect->location_effect_id, 
-        effect->event_type, 
-        effect->location, 
+        "for PROTOCOL_ID [%d]",
+        effect->location_effect_id,
+        effect->event_type,
+        effect->location,
         effect->time,
         effect->protocol_id);
 
     // When location is -1, apply user defined one
     if(effect->location == -1) {
       effect->location = protocol->optional_location;
-      engine_trace(TRACE_LEVEL_ALWAYS, "Using user provided location: [%d]", effect->location); 
+      engine_trace(TRACE_LEVEL_ALWAYS, "Using user provided location: [%d]", effect->location);
     }
 
     // Validate that object exists
@@ -522,7 +526,7 @@ ErrorCode_t protocol_process_location_effect
     result = db_get_orbit_info(engine_get_db_connection(), &object);
   }
 
-  // Once validated - insert new event    
+  // Once validated - insert new event
   if(result == ENGINE_OK) {
     // We just insert the event indicating the total amount change
     Event_t newEvent;
@@ -543,7 +547,7 @@ ErrorCode_t protocol_process_location_effect
 
     result = db_insert_event(&newEvent);
   } else {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol location effect"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol location effect");
     result = ENGINE_INTERNAL_ERROR;
   }
 
@@ -551,7 +555,7 @@ ErrorCode_t protocol_process_location_effect
   if(result == ENGINE_OK) {
     result = db_update_agent_object(engine_get_db_connection(), agent_id, effect->location);
   }
-  
+
   return result;
 }
 
@@ -565,7 +569,7 @@ ErrorCode_t protocol_process_location_effect
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_process_resource_effects(ProtocolInfo_t *protocol, int action_id) 
+ErrorCode_t protocol_process_resource_effects(ProtocolInfo_t *protocol, int action_id)
 {
   ErrorCode_t result = ENGINE_OK;
 
@@ -583,12 +587,12 @@ ErrorCode_t protocol_process_resource_effects(ProtocolInfo_t *protocol, int acti
           resourceEffects[effectId].resource_effect_id,
           protocol->protocol_name);
 
-        // Stop when any error is detected for this protocol   
+        // Stop when any error is detected for this protocol
         break;
-      } 
+      }
     }
   } else {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol resource effects (NULL protocol)"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol resource effects (NULL protocol)");
     result = ENGINE_INTERNAL_ERROR;
   }
 
@@ -605,7 +609,7 @@ ErrorCode_t protocol_process_resource_effects(ProtocolInfo_t *protocol, int acti
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_process_market_effects(ProtocolInfo_t *protocol, int action_id) 
+ErrorCode_t protocol_process_market_effects(ProtocolInfo_t *protocol, int action_id)
 {
   ErrorCode_t result = ENGINE_OK;
 
@@ -624,9 +628,9 @@ ErrorCode_t protocol_process_market_effects(ProtocolInfo_t *protocol, int action
             marketEffects[effectId].market_effect_id,
             protocol->protocol_name);
 
-          // Stop when any error is detected for this protocol   
+          // Stop when any error is detected for this protocol
           break;
-        } 
+        }
       } else {
         engine_trace(TRACE_LEVEL_ALWAYS, "Market effect [%d] for protocol [%s] ignored (does not apply to current resource)",
           marketEffects[effectId].market_effect_id,
@@ -634,7 +638,7 @@ ErrorCode_t protocol_process_market_effects(ProtocolInfo_t *protocol, int action
       }
     }
   } else {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol market effects (NULL protocol)"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol market effects (NULL protocol)");
     result = ENGINE_INTERNAL_ERROR;
   }
 
@@ -651,11 +655,11 @@ ErrorCode_t protocol_process_market_effects(ProtocolInfo_t *protocol, int action
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_process_location_effects(ProtocolInfo_t *protocol, int action_id) 
+ErrorCode_t protocol_process_location_effects(ProtocolInfo_t *protocol, int action_id)
 {
     ErrorCode_t result = ENGINE_OK;
 
-    if(protocol) 
+    if(protocol)
     {
         LocationEffect_t* effects = NULL;
         int effectsNum = 0;
@@ -666,17 +670,17 @@ ErrorCode_t protocol_process_location_effects(ProtocolInfo_t *protocol, int acti
             result = protocol_process_location_effect(&effects[effectId], protocol, action_id);
 
             if(result != ENGINE_OK) {
-                engine_trace(TRACE_LEVEL_ALWAYS, 
+                engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to process location effect [%d] for protocol [%s]",
                     effects[effectId].location_effect_id,
                     protocol->protocol_name);
 
-                // Stop when any error is detected for this protocol   
+                // Stop when any error is detected for this protocol
                 break;
-            } 
+            }
         }
     } else {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol location effects (NULL protocol)"); 
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol location effects (NULL protocol)");
         result = ENGINE_INTERNAL_ERROR;
     }
 
@@ -693,7 +697,7 @@ ErrorCode_t protocol_process_location_effects(ProtocolInfo_t *protocol, int acti
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_process_effects(ProtocolInfo_t *protocol, int action_id) 
+ErrorCode_t protocol_process_effects(ProtocolInfo_t *protocol, int action_id)
 {
   ErrorCode_t result = ENGINE_OK;
 
@@ -707,7 +711,7 @@ ErrorCode_t protocol_process_effects(ProtocolInfo_t *protocol, int action_id)
       result = protocol_process_location_effects(protocol, action_id);
 
   } else {
-    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol effects (NULL protocol)"); 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol effects (NULL protocol)");
     result = ENGINE_INTERNAL_ERROR;
   }
 
@@ -726,7 +730,7 @@ ErrorCode_t protocol_process_effects(ProtocolInfo_t *protocol, int action_id)
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt) 
+ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
 {
   // Get from DB the rest of information for this protocol ID
   Bool_t actionCreated = ENGINE_FALSE;
@@ -753,11 +757,11 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
   if(result == ENGINE_OK) {
     actionCreated = ENGINE_TRUE;
     // Retrieve protocol parameters
-    result = protocol_read_parameters(&protocol, vmExt); 
+    result = protocol_read_parameters(&protocol, vmExt);
   }
 
   int stack_value;
-  
+
   if(result == ENGINE_OK && protocol.multiplier) {
     // When multiplier flag is enabled - check the presence of an extra multiplier at stack
     // multiplier is always after the list of params
@@ -766,8 +770,8 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
         // We received the optional multiplier -> use it
         protocol.process_multiplier = stack_value;
 
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Multiplier set to [%d] for protocol [%d]", 
+        engine_trace(TRACE_LEVEL_ALWAYS,
+            "Multiplier set to [%d] for protocol [%d]",
             protocol.process_multiplier,
             protocol.protocol_id);
     }
@@ -777,8 +781,8 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
     if(vm_result == ENGINE_OK) {
       protocol.optional_location = stack_value;
 
-      engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Optional location set to [%d] for protocol [%d]", 
+      engine_trace(TRACE_LEVEL_ALWAYS,
+            "Optional location set to [%d] for protocol [%d]",
             protocol.optional_location,
             protocol.protocol_id);
     }
@@ -786,7 +790,7 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
 
   if(result == ENGINE_OK) {
     result = protocol_process_effects(&protocol, action.action_id);
-  }   
+  }
 
   // Abort action when something failed
   if((result != ENGINE_OK) && (actionCreated == ENGINE_TRUE)) {
@@ -813,7 +817,7 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
   @return     Current result message
 
 *******************************************************************************/
-const char* protocol_get_result_msg() 
+const char* protocol_get_result_msg()
 {
   return protocolMsg;
 }
