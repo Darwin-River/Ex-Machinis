@@ -25,6 +25,8 @@ typedef enum
     PREVIOUS_EVENT_BY_RESOURCE_INFO,
     PREVIOUS_EVENT_BY_DRONE,
     PREVIOUS_EVENT_BY_OWNER,
+    PREVIOUS_EVENT_BY_SELL_ORDER,
+    PREVIOUS_EVENT_BY_BUY_ORDER,
 
     // Define here more filter types
 
@@ -815,5 +817,30 @@ ErrorCode_t db_get_drone_object_id(int drone_id, int *object_id);
 
 *******************************************************************************/
 ErrorCode_t db_get_drone_resources(int droneId, DroneResources_t** resources, int* resourcesNum);
+
+/** ****************************************************************************
+
+    @brief          Gets whole user info for a given drone
+
+    @param[in]      Drone ID
+    @param[in|out]  User info structure where we store the info obtained
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_drone_user(int drone_id, User_t* user);
+
+/** ****************************************************************************
+
+    @brief          Gets resource quantity present at drone bay
+
+    @param[in]      Current drone ID
+    @param[in]      Current resource ID
+    @param[in|out]  Output parameter where we store the quantity obtained when success
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity);
 
 #endif // __EM_DB_MODULE__

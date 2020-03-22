@@ -747,6 +747,26 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "and timestamp < '%s' order by timestamp DESC limit 1;",
                     event->drone_id, OUTCOME_OK, timestamp_buffer);
                 break;
+            case PREVIOUS_EVENT_BY_SELL_ORDER:
+                snprintf(query_text,
+                    DB_MAX_SQL_QUERY_LEN,
+                    "SELECT * from events where "
+                    "drone = %d and "
+                    "event_type = %d and "
+                    "outcome = %d and " // success
+                    "resource = %d;",
+                    event->drone_id, SELL_EVENT_TYPE, OUTCOME_OK, event->resource_id);
+                break;
+            case PREVIOUS_EVENT_BY_BUY_ORDER:
+                snprintf(query_text,
+                    DB_MAX_SQL_QUERY_LEN,
+                    "SELECT * from events where "
+                    "drone = %d and "
+                    "event_type = %d and "
+                    "outcome = %d and " // success
+                    "resource = %d;",
+                    event->drone_id, BUY_EVENT_TYPE, OUTCOME_OK, event->resource_id);
+                break;
             default:
                 // Unexpected enum value
                 engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unexpected filter value [%d] getting previous event", filter);
@@ -875,7 +895,7 @@ ErrorCode_t db_get_action(Action_t *action)
         }
         else
         {
-            // retrieve the result and check that is an only row with expeced fields number
+            // retrieve the result and check that is an only row with expected fields number
             MYSQL_RES* db_result = mysql_store_result(connection->hndl);
             uint64_t rowsNum = mysql_num_rows(db_result);
             unsigned int fieldsNum = mysql_num_fields(db_result);
@@ -1140,7 +1160,7 @@ ErrorCode_t db_get_max_drone_cargo(int drone_id, int *capacity)
         }
         else
         {
-            // retrieve the result and check that is an only row with expeced fields number
+            // retrieve the result and check that is an only row with expected fields number
             MYSQL_RES* db_result = mysql_store_result(connection->hndl);
             uint64_t rowsNum = mysql_num_rows(db_result);
             unsigned int fieldsNum = mysql_num_fields(db_result);
@@ -1443,7 +1463,7 @@ ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protoc
         }
         else
         {
-            // retrieve the result and check that is an only row with expeced fields number
+            // retrieve the result and check that is an only row with expected fields number
             MYSQL_RES* db_result = mysql_store_result(connection->hndl);
             uint64_t rowsNum = mysql_num_rows(db_result);
             unsigned int fieldsNum = mysql_num_fields(db_result);
@@ -1896,6 +1916,217 @@ ErrorCode_t db_get_drone_resources(int droneId, DroneResources_t** resources, in
 
                 break; // stop for
             }
+        }
+    }
+
+    if(db_result)
+        mysql_free_result(db_result);
+
+    return result;
+}
+
+
+/** ****************************************************************************
+
+    @brief          Gets whole user info for a given drone
+
+    @param[in]      Drone ID
+    @param[in|out]  User info structure where we store the info obtained
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_drone_user(int drone_id, User_t* user)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!user) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        char* query_end = query_text;
+
+        query_end += snprintf(query_end,
+            DB_MAX_SQL_QUERY_LEN,
+            "SELECT * FROM users WHERE user_id = (SELECT user_id FROM agents WHERE agent_id = %d);",
+            drone_id);
+
+        // run it
+        if (mysql_query(connection->hndl, query_text))
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else
+        {
+            // retrieve the result and check that is an only row with expected fields number
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+            uint64_t rowsNum = mysql_num_rows(db_result);
+            unsigned int fieldsNum = mysql_num_fields(db_result);
+
+            if((db_result == NULL) || (rowsNum != 1) || (fieldsNum != MAX_USER_FIELDS))
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS,
+                    "ERROR: Unable to get user info for DRONE_ID [%d] "
+                    "(invalid result for query [%s], rows [%d], fields [%d])",
+                    drone_id,
+                    query_text,
+                    rowsNum,
+                    fieldsNum);
+
+                result = ENGINE_DB_QUERY_ERROR;
+            }
+            else
+            {
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row)
+                {
+                    // Pick the row obtained and fill the output info
+                    // For now, only interested in user_id and credits
+                    user->user_id = row[USER_USER_ID_IDX]?atoi(row[USER_USER_ID_IDX]):0;
+                    user->credits = row[USER_CREDITS_IDX]?atoi(row[USER_CREDITS_IDX]):0;
+
+                    engine_trace(TRACE_LEVEL_ALWAYS,
+                        "DRONE_ID [%d] USER_ID [%d] CREDITS [%d]",
+                        drone_id,
+                        user->user_id,
+                        user->credits);
+                }
+                else
+                {
+                    engine_trace(TRACE_LEVEL_ALWAYS,
+                        "ERROR: Unable to get user info for drone [%d] (no row)",
+                        drone_id);
+
+                    result = ENGINE_DB_QUERY_ERROR;
+                }
+            }
+
+            mysql_free_result(db_result);
+        }
+    }
+
+    return result;
+}
+
+
+/** ****************************************************************************
+
+    @brief          Gets resource quantity present at drone bay
+
+    @param[in]      Current drone ID
+    @param[in]      Current resource ID
+    @param[in|out]  Output parameter where we store the quantity obtained when success
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection = engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+    MYSQL_RES* db_result = NULL;
+    int fieldsNum = 0;
+    uint64_t rowsNum = 0;
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Getting quantity for resource ID [%d] and droneID [%d]", resource_id, droneId);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!quantity) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        // reset out value
+        *quantity = 0;
+
+        snprintf(query_text,
+            DB_MAX_SQL_QUERY_LEN,
+            "select new_quantity from events where drone = %d and resource = %d and outcome = 1;",
+            droneId,
+            resource_id);
+
+        engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
+
+        if (mysql_query(connection->hndl, query_text))
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+    }
+
+    if(result == ENGINE_OK)
+    {
+        // retrieve the results
+        db_result = mysql_store_result(connection->hndl);
+
+        if(db_result == NULL)
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS,
+                "ERROR: Unable to get quantity for DRONE_ID [%d] RESOURCE_ID [%d] "
+                "(invalid result for query [%s])",
+                droneId,
+                resource_id,
+                query_text);
+
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else if((fieldsNum=mysql_num_fields(db_result)) != 1)
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS,
+                "ERROR: Invalid fields number obtained for drone DRONE_ID [%d] RESOURCE_ID [%d] "
+                "(expected [1], obtained [%d], query [%s])",
+                droneId,
+                resource_id,
+                fieldsNum,
+                query_text);
+
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else if((rowsNum=mysql_num_rows(db_result)) <= 0)
+        {
+            // None entry found is OK (keep default OK)
+            *quantity = 0;
+        }
+    }
+
+    if((result == ENGINE_OK) && rowsNum)
+    {
+        MYSQL_ROW row = mysql_fetch_row(db_result);
+        if(row)
+        {
+            *quantity = row[0]?atoi(row[0]):0;
+
+            engine_trace(TRACE_LEVEL_ALWAYS,
+                "DRONE [%d] RESOURCE_ID [%d] QUANTITY [%d]",
+                droneId,
+                resource_id,
+                *quantity);
+        }
+        else
+        {
+            // unexpected error - abort
+            engine_trace(TRACE_LEVEL_ALWAYS,
+                "ERROR: Unable to get row for query [%s] with [%d] rows",
+                query_text,
+                rowsNum);
+
+            result = ENGINE_DB_QUERY_ERROR;
         }
     }
 
