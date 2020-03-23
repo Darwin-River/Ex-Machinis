@@ -653,6 +653,14 @@ Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* use
                 event->drone_id);
 
             isMarketTransaction = ENGINE_TRUE;
+
+            // Link users and drones
+            user->current_drone_id = event->drone_id;
+            peer_user->current_drone_id = action->drone_id;
+
+            // Link also users <-> action
+            user->action_id = action->action_id;
+            peer_user->action_id = action->action_id;
         }
     }
 
@@ -663,14 +671,15 @@ Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* use
 
   @brief      Processes a market transaction event 
 
-  @param[in]  event  Input event
-  @param[in]  user   Drone user's info
-  @param[in]  user   Drone user's info (peer drone at market transaction)
+  @param[in]      event  Input event
+  @param[in|out]  user   Drone user's info
+  @param[in|out]  user   Drone user's info (peer drone at market transaction)
+  @param[in|out]  amount Transaction amount (credits) when success
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t event_process_market_transaction(Event_t *event, User_t* user, User_t* peer_user) 
+ErrorCode_t event_process_market_transaction(Event_t *event, User_t* user, User_t* peer_user, int* amount) 
 {
     ErrorCode_t result = ENGINE_OK;
     PreviousEventFilter_t filter = PREVIOUS_EVENT_BY_SELL_ORDER;
@@ -786,6 +795,9 @@ ErrorCode_t event_process_market_transaction(Event_t *event, User_t* user, User_
                     event->new_quantity,
                     event->resource_id,
                     buyer->credits);
+
+                // update output amount 
+                *amount = price;
             } else {
                 engine_trace(TRACE_LEVEL_ALWAYS, 
                     "WARNING: user [%s] CAN NOT pay [%d] credits to buy [%d] units of resource [%d] (current credits [%d])",
@@ -803,6 +815,65 @@ ErrorCode_t event_process_market_transaction(Event_t *event, User_t* user, User_
 
     return result;
 }
+
+/** ****************************************************************************
+
+  @brief      Executes the market transaction, updating bank accounts and inserting events
+
+  @param[in]      event  Input event
+  @param[in|out]  user   Drone user's info
+  @param[in|out]  user   Drone user's info (peer drone at market transaction)
+  @param[in|out]  amount Transaction amount (credits) when success
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* peer_user, int amount) 
+{
+    ErrorCode_t result = ENGINE_OK;
+    
+    // Update bank accounts
+    if(event->new_quantity < 0) {
+        // user sells -> peer_user
+        user->credits += amount;
+        peer_user->credits -= amount;
+    } else {
+        // peer_user sells -> user
+        user->credits -= amount;
+        peer_user->credits += amount;
+    }
+
+    // update credits at DB
+    db_update_user_credits(user);
+    db_update_user_credits(peer_user);
+
+    // Insert 2 events to reflect the transactions
+    Event_t newEvent;
+    memset(&newEvent, 0, sizeof(newEvent));
+
+    // Current user event
+    newEvent.drone_id = user->current_drone_id;
+    newEvent.resource_id = event->resource_id;
+    newEvent.event_type = (event->new_quantity < 0)?INCREMENT_CREDITS_EVENT_TYPE:DECREMENT_CREDITS_EVENT_TYPE;
+    newEvent.action_id = user->action_id;
+    newEvent.outcome = OUTCOME_OK;
+    newEvent.new_quantity = NULL_VALUE;
+    newEvent.new_credits = user->credits;
+    newEvent.new_location = NULL_VALUE;
+    newEvent.new_transmission = NULL_VALUE;
+    newEvent.new_cargo = NULL_VALUE;
+    newEvent.logged = 1;
+    db_insert_event_e(&newEvent); 
+
+    // Peer user event
+    newEvent.drone_id = peer_user->current_drone_id;
+    newEvent.event_type = (event->new_quantity < 0)?DECREMENT_CREDITS_EVENT_TYPE:INCREMENT_CREDITS_EVENT_TYPE;
+    newEvent.new_credits = peer_user->credits;
+    db_insert_event_e(&newEvent); 
+
+    return result;
+}
+
 
 /******************************* PUBLIC FUNCTIONS ****************************/
 
@@ -823,6 +894,7 @@ ErrorCode_t event_process_outcome(Event_t *event)
     Bool_t market_transaction = ENGINE_FALSE;
     User_t user_info; // required at market transactions
     User_t peer_user_info; // required at market transactions
+    int transactionAmount = 0;  // credits involved in transaction
 
     memset(&previous_event, 0, sizeof(previous_event));
     memset(&previous_resource_event, 0, sizeof(previous_resource_event));
@@ -912,7 +984,7 @@ ErrorCode_t event_process_outcome(Event_t *event)
 
     if((result == ENGINE_OK) && (market_transaction == ENGINE_TRUE))
     {
-        result = event_process_market_transaction(event, &user_info, &peer_user_info);
+        result = event_process_market_transaction(event, &user_info, &peer_user_info, &transactionAmount);
     }
 
     // Do the maths to calculate the new total cargo
@@ -952,6 +1024,10 @@ ErrorCode_t event_process_outcome(Event_t *event)
 
     if(result == ENGINE_OK)
     {
+        // Do credits transaction and generate events
+        if(market_transaction == ENGINE_TRUE) {
+            event_do_market_transaction(event, &user_info, &peer_user_info, transactionAmount);
+        }
         // Update observation entries
         result = event_update_observations(event);
     }
