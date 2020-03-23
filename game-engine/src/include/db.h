@@ -843,4 +843,26 @@ ErrorCode_t db_get_drone_user(int drone_id, User_t* user);
 *******************************************************************************/
 ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity);
 
+/** ****************************************************************************
+
+    @brief          Updates user's credits
+
+    @param[in]      user User info to be updated
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_update_user_credits(User_t* user);
+
+/** ****************************************************************************
+
+    @brief          Inserts a new event entry (from events_engine  _e)
+
+    @param[in|out]  Event info to be inserted
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_insert_event_e(Event_t* event);
+
 #endif // __EM_DB_MODULE__
