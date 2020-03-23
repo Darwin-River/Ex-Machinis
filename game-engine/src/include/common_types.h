@@ -86,8 +86,10 @@
 #define NULL_VALUE     0xFFFF
 
 // Special event types (sell and buy)
-#define SELL_EVENT_TYPE   4
-#define BUY_EVENT_TYPE    5
+#define SELL_EVENT_TYPE                4
+#define BUY_EVENT_TYPE                 5
+#define INCREMENT_CREDITS_EVENT_TYPE   6
+#define DECREMENT_CREDITS_EVENT_TYPE   7
 
 // users
 #define MAX_USER_NAME_SIZE             255
@@ -697,6 +699,9 @@ typedef struct
 	time_t created_at;
 	time_t updated_at;
 	int credits;
+	// Internal stuff - not present at DB
+	int current_drone_id; // link user with current drone being managed
+	int action_id; // link with action
 
 } User_t;
 
