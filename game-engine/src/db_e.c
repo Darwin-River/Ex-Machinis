@@ -54,6 +54,29 @@ void db_scape_string(
    engine_trace(TRACE_LEVEL_DEBUG, "Value [%s] scaped now is [%s]", value, out);
 }
 
+
+/** ****************************************************************************
+
+    @brief      Handy function to convert an integer into string and return string
+
+    @param[in]  value  Integer value we want to convert
+    @param[in]  buffer String buffer where we want to store the result
+    @param[in]  szie   String buffer size
+
+    @return     String result
+
+*******************************************************************************/
+char* db_int2str(int value, char* buffer, size_t size)
+{
+    if(value == NULL_VALUE) {
+        sprintf(buffer, "NULL");
+    } else if(buffer && size) {
+        snprintf(buffer, size, "%d", value);
+    }
+
+    return buffer;
+}
+
 /** ***************************************************************************
 
   @brief      Converts a given date string into timestamp value
@@ -2132,6 +2155,163 @@ ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity)
 
     if(db_result)
         mysql_free_result(db_result);
+
+    return result;
+}
+
+
+/** ****************************************************************************
+
+    @brief          Updates user's credits
+
+    @param[in]      user User info to be updated
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_update_user_credits(User_t* user)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    // sanity check
+    if(result == ENGINE_OK)
+    {
+        if(!user) return ENGINE_INTERNAL_ERROR;
+    }
+
+    if(result == ENGINE_OK)
+    {
+        char* query_end = query_text;
+
+        query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, 
+            "UPDATE users SET credits = %d where user_id = %d",
+            user->credits,
+            user->user_id);
+
+        // run it
+        if (mysql_query(connection->hndl, query_text))
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS,
+                "User [%d] updated with credits [%d]",
+                user->user_id, user->user_id);
+        }
+    }
+
+    return result;
+}
+
+
+/** ****************************************************************************
+
+    @brief          Inserts a new event entry (from events_engine  _e)
+
+    @param[in|out]  Event info to be inserted
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_insert_event_e(Event_t* event)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char new_quantity_text[MAX_QUERY_VALUE_BUF_LEN];
+    char new_credits_text[MAX_QUERY_VALUE_BUF_LEN];
+    char new_location_text[MAX_QUERY_VALUE_BUF_LEN];
+    char new_transmission_text[MAX_QUERY_VALUE_BUF_LEN];
+    char new_cargo_text[MAX_QUERY_VALUE_BUF_LEN];
+
+    DbConnection_t* connection =  engine_get_db_connection();
+
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result == ENGINE_OK)
+    {
+        // Sanity check
+        if(!event)
+            return ENGINE_INTERNAL_ERROR;
+    }
+
+    char* query_end = query_text;
+
+    query_end += snprintf(query_end,
+        DB_MAX_SQL_QUERY_LEN,
+        "INSERT INTO events "
+        "(timestamp, event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
+        "VALUES(CAST(DATE_ADD(NOW(), INTERVAL %d MINUTE) AS DATETIME), %d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
+        event->new_quantity!=NULL_VALUE?", new_quantity":"",
+        event->new_credits!=NULL_VALUE?", new_credits":"",
+        event->new_location!=NULL_VALUE?", new_location":"",
+        event->new_transmission!=NULL_VALUE?", new_transmission":"",
+        event->new_cargo!=NULL_VALUE?", new_cargo":"",
+        event->delay,
+        event->event_type,
+        event->action_id,
+        event->logged,
+        event->outcome,
+        event->drone_id,
+        event->resource_id,
+        event->installed,
+        event->locked,
+        event->new_quantity!=NULL_VALUE?db_int2str(event->new_quantity, new_quantity_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_quantity!=NULL_VALUE?", ":"",
+        event->new_credits!=NULL_VALUE?db_int2str(event->new_credits, new_credits_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_credits!=NULL_VALUE?", ":"",
+        event->new_location!=NULL_VALUE?db_int2str(event->new_location, new_location_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_location!=NULL_VALUE?", ":"",
+        event->new_transmission!=NULL_VALUE?db_int2str(event->new_transmission, new_transmission_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_transmission!=NULL_VALUE?", ":"",
+        event->new_cargo!=NULL_VALUE?db_int2str(event->new_cargo, new_cargo_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_cargo!=NULL_VALUE?", ":"");
+
+    // Trim last comma if any
+    char* lastComma = strrchr(query_text, ',');
+    if(lastComma) {
+        char* nextChar = lastComma;
+        nextChar += 2;
+        if(*nextChar == ')') *lastComma = ' ';
+    }
+
+    // run it
+    if (mysql_query(connection->hndl, query_text))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+    else
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Query [%s] executed", query_text);
+
+        // Get auto-increment ID
+        event->event_id = mysql_insert_id(connection->hndl);
+
+        engine_trace(TRACE_LEVEL_ALWAYS,
+            "Event [%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d] inserted into DB",
+            event->event_id,
+            event->event_type,
+            event->action_id,
+            event->logged,
+            event->outcome,
+            event->drone_id,
+            event->resource_id,
+            event->installed,
+            event->locked,
+            event->new_quantity,
+            event->new_credits,
+            event->new_location,
+            event->new_transmission,
+            event->new_cargo,
+            event->timestamp);
+    }
 
     return result;
 }
