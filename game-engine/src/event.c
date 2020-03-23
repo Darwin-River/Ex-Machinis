@@ -626,6 +626,7 @@ ErrorCode_t event_update_observations(Event_t *event)
   @param[in]  action Parent action (that generated this event)
   @param[in]  event  Input event
   @param[out] user   Output struct where we store the current user info (owner of event's drone)
+  @param[out] peer   Output struct where we store the current peer info (owner of the peer drone)
 
   @return     Execution result
 
@@ -633,7 +634,7 @@ ErrorCode_t event_update_observations(Event_t *event)
               ENGINE_FALSE: Not a market transaction
 
 *******************************************************************************/
-Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* user) 
+Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* user, User_t* peer_user) 
 {
     Bool_t isMarketTransaction = ENGINE_FALSE;
 
@@ -642,10 +643,8 @@ Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* use
     // Check if the drone that generated the action is different from the affected one
     // and both belong to different users
     if(action->drone_id != event->drone_id) {
-        User_t action_user;
-
-        if((db_get_drone_user(action->drone_id, &action_user)) && 
-           (db_get_drone_user(event->drone_id, user)) && (action_user.user_id != user->user_id)) {
+        if((db_get_drone_user(action->drone_id, peer_user)) && 
+           (db_get_drone_user(event->drone_id, user)) && (peer_user->user_id != user->user_id)) {
 
             engine_trace(TRACE_LEVEL_ALWAYS, 
                 "Event [%d] represents a market transaction between drone [%d] and drone [%d]",
@@ -666,27 +665,36 @@ Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* use
 
   @param[in]  event  Input event
   @param[in]  user   Drone user's info
+  @param[in]  user   Drone user's info (peer drone at market transaction)
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t event_process_market_transaction(Event_t *event, User_t* user) 
+ErrorCode_t event_process_market_transaction(Event_t *event, User_t* user, User_t* peer_user) 
 {
     ErrorCode_t result = ENGINE_OK;
     PreviousEventFilter_t filter = PREVIOUS_EVENT_BY_SELL_ORDER;
     int resource_quantity = 0;
-    if(event->new_quantity >= 0)
+    Bool_t selling = ENGINE_TRUE;
+
+    if(event->new_quantity >= 0) {
         filter = PREVIOUS_EVENT_BY_BUY_ORDER;
+        selling = ENGINE_FALSE;
+    }
 
     engine_trace(TRACE_LEVEL_ALWAYS, 
-                "Processing market transaction at event [%d], drone [%d], user [%d]",
+                "Processing market transaction at event [%d], "
+                "drone [%d], user [%d] is %s [%d] units of resource [%d]",
                 event->event_id,
                 event->drone_id,
-                user->user_id);
+                user->user_id,
+                (selling==ENGINE_TRUE)?"selling":"buying",
+                event->new_quantity,
+                event->resource_id);
 
-    // Check if there is a sell or buy order associated to current drone
+    // Check if there is a sell or buy order associated to current target drone
     // We need to find an event that meets these conditions:
-    // drone + resource + location + event_type (SELL or BUY) + outcome = OK
+    // drone + resource + event_type (SELL or BUY) + outcome = OK
     Event_t sell_buy_event;
     result = db_get_previous_event(event, filter, &sell_buy_event);
 
@@ -695,10 +703,102 @@ ErrorCode_t event_process_market_transaction(Event_t *event, User_t* user)
         result = db_get_drone_resource(event->drone_id, event->resource_id, &resource_quantity);
     }
 
-    if(result == ENGINE_OK) {
-        // Compare quantities - sell order indicates min to keep
+    if(result == ENGINE_OK) { 
+        // Do quantities maths to determine if this can be done quantities
+        // If the event is a sell order - new_quantity indicates the min amount to keep (for this resource)
+        // If the event is a buy order - new_quantity indicates the max amount to load (for this resource)
+        if(selling == ENGINE_TRUE) {
+            int canSellAmount = resource_quantity + event->new_quantity; // + new_quantity because is negative
+            if(canSellAmount < 0) canSellAmount = 0;
 
-        // Check if we have credits to buy it - 
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "drone [%d], has [%d] units of resource [%d], needs to keep [%d], could sell [%d]",
+                event->drone_id,
+                resource_quantity,
+                event->resource_id,
+                sell_buy_event.new_quantity,
+                canSellAmount);
+
+            if(canSellAmount >= event->new_quantity) {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "drone [%d] sells [%d] units of resource [%d] (operation permitted)",
+                    event->drone_id,
+                    event->new_quantity,
+                    event->resource_id);
+            } else {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "WARNING: drone [%d] CAN NOT SELL [%d] units of resource [%d] "
+                    "(operation forbidden, can only sell [%d])",
+                    event->drone_id,
+                    event->new_quantity,
+                    event->resource_id,
+                    canSellAmount);
+
+                event->outcome = OUTCOME_RESOURCES_LOWER_LIMIT;
+                result = ENGINE_LOGIC_ERROR;
+            }
+        } else {
+            int canBuyAmount = sell_buy_event.new_quantity - resource_quantity;
+            if(canBuyAmount < 0) canBuyAmount = 0;
+
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "drone [%d], has [%d] units of resource [%d], max capacity [%d], can buy [%d]",
+                event->drone_id,
+                resource_quantity,
+                sell_buy_event.new_quantity,
+                canBuyAmount);
+
+            if(canBuyAmount >= event->new_quantity) {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "drone [%d] buys [%d] units of resource [%d] (operation permitted)",
+                    event->drone_id,
+                    event->new_quantity,
+                    event->resource_id);
+            } else {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "WARNING: drone [%d] CAN NOT BUY [%d] units of resource [%d] "
+                    "(operation forbidden, can only buy [%d])",
+                    event->drone_id,
+                    event->new_quantity,
+                    event->resource_id,
+                    canBuyAmount);
+
+                event->outcome = OUTCOME_RESOURCES_UPPER_LIMIT;
+                result = ENGINE_LOGIC_ERROR;
+            }
+        }
+
+        // The amount is OK - check if the buyer has credits to buy it
+        if(result == ENGINE_OK) { 
+            int price = event->new_quantity * sell_buy_event.new_credits; // transaction price
+            User_t* buyer = user;
+
+            if(selling == ENGINE_TRUE) {
+                buyer = peer_user;
+            }
+
+
+            if(buyer->credits >= price) {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "user [%s] pays [%d] credits to buy [%d] units of resource [%d] (current credits [%d])",
+                    buyer->name,
+                    price,
+                    event->new_quantity,
+                    event->resource_id,
+                    buyer->credits);
+            } else {
+                engine_trace(TRACE_LEVEL_ALWAYS, 
+                    "WARNING: user [%s] CAN NOT pay [%d] credits to buy [%d] units of resource [%d] (current credits [%d])",
+                    buyer->name,
+                    price,
+                    event->new_quantity,
+                    event->resource_id,
+                    buyer->credits);
+
+                event->outcome = OUTCOME_NO_CREDITS;
+                result = ENGINE_LOGIC_ERROR;
+            }
+        }
     }
 
     return result;
@@ -722,6 +822,7 @@ ErrorCode_t event_process_outcome(Event_t *event)
     Event_t previous_event;
     Bool_t market_transaction = ENGINE_FALSE;
     User_t user_info; // required at market transactions
+    User_t peer_user_info; // required at market transactions
 
     memset(&previous_event, 0, sizeof(previous_event));
     memset(&previous_resource_event, 0, sizeof(previous_resource_event));
@@ -764,13 +865,12 @@ ErrorCode_t event_process_outcome(Event_t *event)
     if((result != ENGINE_OK) || action.aborted) 
     {
         engine_trace(TRACE_LEVEL_ALWAYS, 
-            "WARNING: Outcome event [%d] is associated with an aborted action [%d], ignored",
+            "WARNING: Event [%d] is associated with an aborted action [%d], not processed/discarded",
             event->event_id,
             event->action_id);
 
         // Mark this event as aborted
         event->outcome = OUTCOME_ACTION_ABORTED;
-        db_update_event(event);
 
         // Mark aborted as error
         if(result == ENGINE_OK) result = ENGINE_LOGIC_ERROR;
@@ -807,12 +907,12 @@ ErrorCode_t event_process_outcome(Event_t *event)
 
     if(result == ENGINE_OK)
     {
-        market_transaction = event_is_market_transaction(&action, event, &user_info);
+        market_transaction = event_is_market_transaction(&action, event, &user_info, &peer_user_info);
     }
 
     if((result == ENGINE_OK) && (market_transaction == ENGINE_TRUE))
     {
-        result = event_process_market_transaction(event, &user_info);
+        result = event_process_market_transaction(event, &user_info, &peer_user_info);
     }
 
     // Do the maths to calculate the new total cargo
