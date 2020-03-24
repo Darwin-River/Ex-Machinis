@@ -2080,9 +2080,11 @@ ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity)
 
         snprintf(query_text,
             DB_MAX_SQL_QUERY_LEN,
-            "select new_quantity from events where drone = %d and resource = %d and outcome = 1;",
+            "select new_quantity from events where drone = %d and resource = %d and (event_type = %d or event_type = %d) and outcome = 1;",
             droneId,
-            resource_id);
+            resource_id,
+            INCREMENT_INVENTORY_EVENT_TYPE,
+            DECREMENT_INVENTORY_EVENT_TYPE);
 
         engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
 
