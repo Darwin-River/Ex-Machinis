@@ -640,11 +640,23 @@ Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* use
 
     // Input pointers checked by calling function
 
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+        "Checking if event [%d] represents a market transaction between drone [%d] and drone [%d]",
+        event->event_id,
+        action->drone_id,
+        event->drone_id);
+
     // Check if the drone that generated the action is different from the affected one
     // and both belong to different users
     if(action->drone_id != event->drone_id) {
-        if((db_get_drone_user(action->drone_id, peer_user)) && 
-           (db_get_drone_user(event->drone_id, user)) && (peer_user->user_id != user->user_id)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Checking if drones [%d] and [%d] belong to different users",
+            action->drone_id,
+            event->drone_id);
+
+        if((db_get_drone_user(action->drone_id, peer_user) == ENGINE_OK) && 
+           (db_get_drone_user(event->drone_id, user) == ENGINE_OK) && 
+           (peer_user->user_id != user->user_id)) {
 
             engine_trace(TRACE_LEVEL_ALWAYS, 
                 "Event [%d] represents a market transaction between drone [%d] and drone [%d]",
@@ -693,13 +705,16 @@ ErrorCode_t event_process_market_transaction(Event_t *event, User_t* user, User_
 
     engine_trace(TRACE_LEVEL_ALWAYS, 
                 "Processing market transaction at event [%d], "
-                "drone [%d], user [%d] is %s [%d] units of resource [%d]",
+                "drone [%d], user [%d] is %s [%d] units of resource [%d] %s drone [%d], user [%d]",
                 event->event_id,
                 event->drone_id,
                 user->user_id,
                 (selling==ENGINE_TRUE)?"selling":"buying",
                 event->new_quantity,
-                event->resource_id);
+                event->resource_id,
+                (selling==ENGINE_TRUE)?"to":"from",
+                user->current_drone_id,
+                user->user_id);
 
     // Check if there is a sell or buy order associated to current target drone
     // We need to find an event that meets these conditions:
@@ -754,6 +769,7 @@ ErrorCode_t event_process_market_transaction(Event_t *event, User_t* user, User_
                 "drone [%d], has [%d] units of resource [%d], max capacity [%d], can buy [%d]",
                 event->drone_id,
                 resource_quantity,
+                event->resource_id,
                 sell_buy_event.new_quantity,
                 canBuyAmount);
 
@@ -789,8 +805,8 @@ ErrorCode_t event_process_market_transaction(Event_t *event, User_t* user, User_
 
             if(buyer->credits >= price) {
                 engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "user [%s] pays [%d] credits to buy [%d] units of resource [%d] (current credits [%d])",
-                    buyer->name,
+                    "user [%d] pays [%d] credits to buy [%d] units of resource [%d] (current credits [%d])",
+                    buyer->user_id,
                     price,
                     event->new_quantity,
                     event->resource_id,
@@ -800,8 +816,8 @@ ErrorCode_t event_process_market_transaction(Event_t *event, User_t* user, User_
                 *amount = price;
             } else {
                 engine_trace(TRACE_LEVEL_ALWAYS, 
-                    "WARNING: user [%s] CAN NOT pay [%d] credits to buy [%d] units of resource [%d] (current credits [%d])",
-                    buyer->name,
+                    "WARNING: user [%d] CAN NOT pay [%d] credits to buy [%d] units of resource [%d] (current credits [%d])",
+                    buyer->user_id,
                     price,
                     event->new_quantity,
                     event->resource_id,
@@ -842,6 +858,17 @@ ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* pe
         user->credits -= amount;
         peer_user->credits += amount;
     }
+
+    engine_trace(TRACE_LEVEL_ALWAYS, 
+        "Completing market transaction at event [%d], "
+        "user [%d] drone [%d] credits [%d] <=>  user [%d] drone [%d] credits [%d]",
+        event->event_id,
+        user->user_id,
+        user->current_drone_id,
+        user->credits,
+        peer_user->user_id,
+        peer_user->current_drone_id,
+        peer_user->credits);
 
     // update credits at DB
     db_update_user_credits(user);
