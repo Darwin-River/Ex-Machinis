@@ -743,18 +743,18 @@ ErrorCode_t event_process_market_transaction(Event_t *event, User_t* user, User_
                 sell_buy_event.new_quantity,
                 canSellAmount);
 
-            if(canSellAmount >= event->new_quantity) {
+            if(canSellAmount && (canSellAmount >= abs(event->new_quantity))) {
                 engine_trace(TRACE_LEVEL_ALWAYS, 
                     "drone [%d] sells [%d] units of resource [%d] (operation permitted)",
                     event->drone_id,
-                    event->new_quantity,
+                    abs(event->new_quantity),
                     event->resource_id);
             } else {
                 engine_trace(TRACE_LEVEL_ALWAYS, 
                     "WARNING: drone [%d] CAN NOT SELL [%d] units of resource [%d] "
                     "(operation forbidden, can only sell [%d])",
                     event->drone_id,
-                    event->new_quantity,
+                    abs(event->new_quantity),
                     event->resource_id,
                     canSellAmount);
 
@@ -773,7 +773,7 @@ ErrorCode_t event_process_market_transaction(Event_t *event, User_t* user, User_
                 sell_buy_event.new_quantity,
                 canBuyAmount);
 
-            if(canBuyAmount >= event->new_quantity) {
+            if(canBuyAmount && (canBuyAmount >= event->new_quantity)) {
                 engine_trace(TRACE_LEVEL_ALWAYS, 
                     "drone [%d] buys [%d] units of resource [%d] (operation permitted)",
                     event->drone_id,
