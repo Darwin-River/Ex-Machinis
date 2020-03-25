@@ -683,15 +683,23 @@ Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* use
 
   @brief      Processes a market transaction event 
 
-  @param[in]      event  Input event
-  @param[in|out]  user   Drone user's info
+  @param[in]      event                    Input event
+  @param[in]      previous_resource_event  Previous resource event or 0's struct when none
+  @param[in|out]  user                     Drone user's info
   @param[in|out]  user   Drone user's info (peer drone at market transaction)
   @param[in|out]  amount Transaction amount (credits) when success
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t event_process_market_transaction(Event_t *event, User_t* user, User_t* peer_user, int* amount) 
+ErrorCode_t event_process_market_transaction
+(
+  Event_t* event, 
+  Event_t* previous_resource_event,
+  User_t* user, 
+  User_t* peer_user, 
+  int* amount
+) 
 {
     ErrorCode_t result = ENGINE_OK;
     PreviousEventFilter_t filter = PREVIOUS_EVENT_BY_SELL_ORDER;
@@ -723,9 +731,7 @@ ErrorCode_t event_process_market_transaction(Event_t *event, User_t* user, User_
     result = db_get_previous_event(event, filter, &sell_buy_event);
 
     // Sell order found - get current resource quantity
-    if(result == ENGINE_OK) {
-        result = db_get_drone_resource(event->drone_id, event->resource_id, &resource_quantity);
-    }
+    resource_quantity = previous_resource_event->new_quantity;
 
     if(result == ENGINE_OK) { 
         // Do quantities maths to determine if this can be done quantities
@@ -1011,7 +1017,11 @@ ErrorCode_t event_process_outcome(Event_t *event)
 
     if((result == ENGINE_OK) && (market_transaction == ENGINE_TRUE))
     {
-        result = event_process_market_transaction(event, &user_info, &peer_user_info, &transactionAmount);
+        result = event_process_market_transaction(event,
+                                                  &previous_resource_event,
+                                                  &user_info,
+                                                  &peer_user_info,
+                                                  &transactionAmount);
     }
 
     // Do the maths to calculate the new total cargo
