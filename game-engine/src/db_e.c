@@ -826,6 +826,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
         }
         else if((rowsNum=mysql_num_rows(db_result)) <= 0)
         {
+            memset(out_event, 0, sizeof(*out_event));
             engine_trace(TRACE_LEVEL_ALWAYS, "None previous event found");
             result = ENGINE_NOT_FOUND; // Indicates that no entry was found
         }
@@ -2080,7 +2081,8 @@ ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity)
 
         snprintf(query_text,
             DB_MAX_SQL_QUERY_LEN,
-            "select new_quantity from events where drone = %d and resource = %d and (event_type = %d or event_type = %d) and outcome = 1;",
+            "select new_quantity from events where drone = %d and resource = %d and (event_type = %d or event_type = %d) and outcome = 1 "
+            "order by timestamp DESC limit 1;",
             droneId,
             resource_id,
             INCREMENT_INVENTORY_EVENT_TYPE,
