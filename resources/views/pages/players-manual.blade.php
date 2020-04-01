@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('pageTitle', 'Players Manual')
+@section('pageTitle', 'Getting Started')
 @section('content')
     <!-- Breadcrumbs-->
     <section class="breadcrumbs-modern box-transform-wrap bg-image context-dark"
@@ -7,11 +7,11 @@
         <div class="container">
             <div class="breadcrumbs-modern-body">
                 <h5 class="breadcrumbs-modern-subtitle"></h5>
-                <h1 class="breadcrumbs-modern-title">Player's Manual</h1>
+                <h1 class="breadcrumbs-modern-title">Getting Started</h1>
             </div>
             <ul class="breadcrumbs-path breadcrumbs-modern-path">
                 <li><a href="/">Home</a></li>
-                <li class="active">Player's Manual</li>
+                <li class="active">Getting Started</li>
             </ul>
         </div>
         <div class="box-transform" style="background-image: url('/images/bg-breadcrumbs.jpg');"></div>

@@ -150,8 +150,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown">
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('players-manual')}}">Player's
-                                                Manual</a></li>
+                                                                        href="{{url('getting-started')}}">Getting Started</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('protocols')}}">Protocols</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
@@ -200,8 +199,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown oriented-down">
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('players-manual')}}">Player's
-                                                Manual</a></li>
+                                                                        href="{{url('getting-started')}}">Getting Started</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('protocols')}}">Protocols</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"

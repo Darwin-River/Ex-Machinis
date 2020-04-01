@@ -23,7 +23,7 @@ Route::get('/home', 'HomeController@index')->name('home');
 
 //static pages
 Route::get('/forth-dictionary', 'HomeController@forthDictionary');
-Route::get('/players-manual', 'HomeController@playersManual');
+Route::get('/getting-started', 'HomeController@playersManual');
 Route::get('/about-us', 'HomeController@aboutUs');
 
 Route::group(['middleware' => ['web']], function () {
