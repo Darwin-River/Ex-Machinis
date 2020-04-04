@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="{{ app()->getLocale() }}">
 <head>
-  
+
 <!-- Google Tag Manager -->
 <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
@@ -150,8 +150,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown">
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('players-manual')}}">Player's
-                                                Manual</a></li>
+                                                                        href="{{url('getting-started')}}">Getting Started</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('protocols')}}">Protocols</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
@@ -200,8 +199,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown oriented-down">
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('players-manual')}}">Player's
-                                                Manual</a></li>
+                                                                        href="{{url('getting-started')}}">Getting Started</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('protocols')}}">Protocols</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
@@ -297,12 +295,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
     <footer class="section footer-classic bg-gray-700-invariable text-md-left">
         <div class="container">
-            <h3>Support us on Patreon and unlock exclusive content.</h3>
+            <h3>Support us on Patreon and enjoy novel content.</h3>
             <div class="row row-80">
                 <div class="col-sm-6 col-lg-4">
                     <h4>Lieutenant</h4>
-                    <p class="text-width-xl-90">Receive advanced notice of <b>in-game updates</b> when you support this
-                        project at $1 per month.</p>
+                    <p class="text-width-xl-90">Receive exclusive access to the regularly updated <b>Player's Manual</b> when you support this project at $2 per month.</p>
                     <br/>
                     <a href="https://www.patreon.com/bePatron?u=6799833"
                        data-patreon-widget-type="become-patron-button">Become a Patron!</a>
@@ -311,8 +308,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
                 <div class="col-sm-6 col-lg-4">
                     <h4>Commander</h4>
-                    <p class="text-width-xl-90">Benefit from exclusive <b>game-play tips</b> and <b>programming
-                            tutorials</b> when you contribute at least $3 a month.</p>
+                    <p class="text-width-xl-90">Benefit from advanced <b>game-play tips</b> and <b>programming
+                            tutorials</b> when you contribute at least $4 a month.</p>
                     <br/>
                     <a href="https://www.patreon.com/bePatron?u=6799833"
                        data-patreon-widget-type="become-patron-button">Become a Patron!</a>
@@ -322,7 +319,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <div class="col-sm-6 col-lg-4">
                     <h4>Admiral</h4>
                     <p class="text-width-xl-90">Enjoy <b>behind-the-scenes access</b> to our development plans and
-                        visions when you support us at $6 a month.</p>
+                        visions when you help us grow at $6 a month.</p>
                     <br/>
                     <a href="https://www.patreon.com/bePatron?u=6799833"
                        data-patreon-widget-type="become-patron-button">Become a Patron!</a>
