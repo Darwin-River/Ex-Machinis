@@ -245,6 +245,7 @@ void vm_free(VirtualMachine_t* vm)
 
         embed_free((forth_t*)vm);
         vm = NULL;
+        g_vm_yield = 0;
     }
     else
     {
