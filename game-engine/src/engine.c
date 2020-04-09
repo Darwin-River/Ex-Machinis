@@ -184,12 +184,16 @@ void engine_insert_db_command(char* command)
         Command_t new_command;
         memcpy(&new_command, &engine.last_command, sizeof(new_command));
         sprintf(new_command.code, "%s", command);
-        size_t size = strlen(engine.last_command.email_content) + 1;
-        new_command.email_content = engine_malloc(size);
-        sprintf(new_command.email_content, "%s", engine.last_command.email_content);
-        db_insert_command(&engine.db_connection, &new_command);
-        engine_free(new_command.email_content, size);
-        new_command.email_content = NULL;
+        if(engine.last_command.email_content) {
+            size_t size = strlen(engine.last_command.email_content) + 1;
+            new_command.email_content = engine_malloc(size);
+            sprintf(new_command.email_content, "%s", engine.last_command.email_content);
+            db_insert_command(&engine.db_connection, &new_command);
+            engine_free(new_command.email_content, size);
+            new_command.email_content = NULL;
+        } else {
+            db_insert_command(&engine.db_connection, &new_command);
+        }
     }
 }
 
