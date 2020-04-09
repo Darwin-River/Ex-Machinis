@@ -125,7 +125,12 @@ class Agent extends Model
     }
 
     /**
-     * Process emails received with <abort> meta-command
+     * Process emails received with <abort> meta-command. We can receive a single abort of abort + command
+     * Deal with both scenarios:
+     * 
+     * - <abort>
+     * - <abort>commands</abort>
+     *
      * @param string $command_text mail body
      * @param string $subject mail subject
      * @return boolean Flag to indicate if the command was inserted in DB
@@ -133,7 +138,9 @@ class Agent extends Model
      */
     private function processAbortCommand($command_text, $subject)
     {
-        // Abort scenario: 
+        $result = false;
+
+        // Abort scenario (only abort)
         if (preg_match("'<abort>' si", $command_text)) { // Treat special scenario: abort command received 
             // abort generates and empty command - this empty command means "abort"
             $command = new Command();
@@ -142,14 +149,37 @@ class Agent extends Model
             $command->subject = $subject;
             $command->email_content = $command_text;
             $command->save();
-            return true;
+            $result = true;
         }
 
-        return false;
+        // Check if there is a command to be executed
+        if (preg_match("'<abort>(.*?)</abort>' si", $command_text, $matches)) {
+            // Execute embedded command now
+            for ($i = 1; $i < sizeof($matches); $i = $i + 2) {
+                //create new command for this agent
+                $command = new Command();
+                $command->code = trim($matches[$i]);
+                if (strlen($command->code) > 0) {
+                    $command->agent_id = $this->agent_id;
+                    $command->subject = $subject;
+                    $command->email_content = $command_text;
+                    $command->save();
+                    $result = true;
+                    break;
+                }
+            }
+        }
+
+        return $result;
     }
 
     /**
-     * Process emails received with <reset> meta-command
+     * Process emails received with <reset> meta-command. We can receive a single reset of reset + command
+     * Deal with both scenarios:
+     * 
+     * - <reset>
+     * - <reset>commands</reset>
+     *
      * @param string $command_text mail body
      * @param string $subject mail subject
      * @return boolean Flag to indicate if the command was inserted in DB
@@ -157,6 +187,8 @@ class Agent extends Model
      */
     private function processResetCommand($command_text, $subject)
     {
+        $result = false;
+
         // Reset scenario: 
         if (preg_match("'<reset>' si", $command_text)) {
             // reset generates and empty command - this empty command means "reset"
@@ -166,10 +198,28 @@ class Agent extends Model
             $command->subject = $subject;
             $command->email_content = $command_text;
             $command->save();
-            return true;
+            $result = true;
         }
 
-        return false;
+        // Check if there is a command to be executed
+        if (preg_match("'<reset>(.*?)</reset>' si", $command_text, $matches)) {
+            // Execute embedded command now
+            for ($i = 1; $i < sizeof($matches); $i = $i + 2) {
+                //create new command for this agent
+                $command = new Command();
+                $command->code = trim($matches[$i]);
+                if (strlen($command->code) > 0) {
+                    $command->agent_id = $this->agent_id;
+                    $command->subject = $subject;
+                    $command->email_content = $command_text;
+                    $command->save();
+                    $result = true;
+                    break;
+                }
+            }
+        }
+
+        return $result;
     }
 
     /**
