@@ -89,7 +89,19 @@ export DB_PASSWORD=c20e5596eee9bf8519074ad62f51b0eaa5a415e805efa4b9
 mysql -u $DB_USER -p$DB_PASSWORD < advolition_model_MMDDYYYY.sql
 ```
 
-Import the game data into exmachinis server (FTP the sql file generated here and run the following command):
+Import the game data into exmachinis server:
+```
+[forth@advolition] # sftp forth@45.55.171.135    (SFTP session to Ex-Machinis)
+forth@45.55.171.135's password:  xxxxxxxxxxxx  (I can provide it if you do not have this)
+Connected to 45.55.171.135.
+
+
+sftp> cd tmp
+sftp> put advolition_data_YYMMDD.sql
+sftp> put advolition_model_YYMMDD.sql
+```
+
+Run the following command:
 
 ```
 export DB_USER=root
