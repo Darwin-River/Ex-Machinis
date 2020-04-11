@@ -58,9 +58,9 @@ At exmachinis remove current DB:
 export DB_USER=root
 export DB_PASSWORD=c20e5596eee9bf8519074ad62f51b0eaa5a415e805efa4b9
 mysql -u $DB_USER -p$DB_PASSWORD
-> drop database exmachinis
-> show databases
-> quit
+> drop database exmachinis;
+> show databases;
+> quit;
 ```
 
 At advolition server generate an sql file with the current model:
