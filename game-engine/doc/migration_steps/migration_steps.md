@@ -94,12 +94,12 @@ sftp> put advolition_model_YYMMDD.sql
 sftp> exit
 ```
 
-Run the following command:
+Run the following command from the exmachinis server:
 
 ```
 export DB_USER=root
 export DB_PASSWORD=c20e5596eee9bf8519074ad62f51b0eaa5a415e805efa4b9
-mysql -u $DB_USER -p$DB_PASSWORD < advolition_data_YYMMDD.sql
+mysql -u $DB_USER -p$DB_PASSWORD exmachinis < advolition_data_YYMMDD.sql
 ```
 
 Now it is time to do the hardest part, incorporate the old users into new model :-) :-). These steps are described below, with the changes to be done to
@@ -153,14 +153,14 @@ To make these changes (at exmachinis server as forth user), we need to  modify t
 
 ```
 cd $PLAT_HOME/tmp
-cp exmachinis_users_backup_MMDDYYYY.sql exmachinis_users_newmodel_YYMMDD.sql
+cp exmachinis_users_backup_YYMMDD.sql exmachinis_users_newmodel_YYMMDD.sql
 ```
 
 To make these changes (at exmachinis server as forth user), we need to  modify the file generated at backup step as follows:
 
 ```
 cd $PLAT_HOME/tmp
-cp exmachinis_users_backup_MMDDYYYY.sql exmachinis_users_newmodel_YYMMDD.sql
+cp exmachinis_users_backup_YYMMDD.sql exmachinis_users_newmodel_YYMMDD.sql
 ```
 
 At the new model file, we need to take into account the changes described above to insert the old information inside the new table.
@@ -271,6 +271,17 @@ The best way (once backup is done) to update the game engines is just to copy wh
 Copying the entire folder:  **/home/forth/game-engine** from one server into the other should work.
 
 Do the previous step with system stopped.
+
+Run sftp from **/home/forth** on the advolition server:
+
+```
+[forth@advolition] # sftp forth@45.55.171.135    (SFTP session to Ex-Machinis)
+forth@45.55.171.135's password:  xxxxxxxxxxxx 
+Connected to 45.55.171.135.
+
+sftp> put -R game-engine (-R recursive with overwrite, -r recursive without overwrite)
+sftp> exit
+```
 
 
 ### Crontab adjustements
