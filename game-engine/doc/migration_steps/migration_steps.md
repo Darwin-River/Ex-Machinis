@@ -15,12 +15,12 @@ To backup DB at exmachinis server, execute the following commands at command lin
 export DB_USER=root
 export DB_NAME=exmachinis
 export DB_PASSWORD=c20e5596eee9bf8519074ad62f51b0eaa5a415e805efa4b9
-mysqldump -u $DB_USER -p$DB_PASSWORD $DB_NAME agents > $PLAT_HOME/tmp/exmachinis_agents_backup_MMDDYYYY.sql
-mysqldump -u $DB_USER -p$DB_PASSWORD $DB_NAME commands > $PLAT_HOME/tmp/exmachinis_commands_backup_MMDDYYYY.sql
-mysqldump -u $DB_USER -p$DB_PASSWORD $DB_NAME companies > $PLAT_HOME/tmp/exmachinis_companies_backup_MMDDYYYY.sql
-mysqldump -u $DB_USER -p$DB_PASSWORD $DB_NAME migrations > $PLAT_HOME/tmp/exmachinis_migrations_backup_MMDDYYYY.sql
-mysqldump -u $DB_USER -p$DB_PASSWORD $DB_NAME password_resets > $PLAT_HOME/tmp/exmachinis_password_resets_backup_MMDDYYYY.sql
-mysqldump -u $DB_USER -p$DB_PASSWORD $DB_NAME users > $PLAT_HOME/tmp/exmachinis_users_backup_MMDDYYYY.sql
+mysqldump -u $DB_USER -p$DB_PASSWORD $DB_NAME agents > $PLAT_HOME/tmp/exmachinis_agents_backup_YYMMDD.sql
+mysqldump -u $DB_USER -p$DB_PASSWORD $DB_NAME commands > $PLAT_HOME/tmp/exmachinis_commands_backup_YYMMDD.sql
+mysqldump -u $DB_USER -p$DB_PASSWORD $DB_NAME companies > $PLAT_HOME/tmp/exmachinis_companies_backup_YYMMDD.sql
+mysqldump -u $DB_USER -p$DB_PASSWORD $DB_NAME migrations > $PLAT_HOME/tmp/exmachinis_migrations_backup_YYMMDD.sql
+mysqldump -u $DB_USER -p$DB_PASSWORD $DB_NAME password_resets > $PLAT_HOME/tmp/exmachinis_password_resets_backup_YYMMDD.sql
+mysqldump -u $DB_USER -p$DB_PASSWORD $DB_NAME users > $PLAT_HOME/tmp/exmachinis_users_backup_YYMMDD.sql
 ```
 
 ### Backup game files
@@ -63,22 +63,14 @@ mysql -u $DB_USER -p$DB_PASSWORD
 > quit;
 ```
 
-At advolition server generate an sql file with the current model:
+At advolition server generate an sql files with the current model and data sets:
 
 ```
 export DB_USER=root
 export DB_PASSWORD=c20e5596eee9bf8519074ad62f51b0eaa5a415e805efa4b9
 export DB_NAME=exmachinis
-mysqldump --no-data -u $DB_USER -p$DB_PASSWORD $DB_NAME > advolition_model_MMDDYYYY.sql
-```
-
-At advolition server generate an sql file with the current game data and settings:
-
-```
-export DB_USER=root
-export DB_PASSWORD=c20e5596eee9bf8519074ad62f51b0eaa5a415e805efa4b9
-export DB_NAME=exmachinis
-mysqldump --no-create-info -u $DB_USER -p$DB_PASSWORD $DB_NAME > advolition_data_MMDDYYYY.sql
+mysqldump --no-data -u $DB_USER -p$DB_PASSWORD $DB_NAME > advolition_model_YYMMDD.sql
+mysqldump --no-create-info -u $DB_USER -p$DB_PASSWORD $DB_NAME > advolition_data_YYMMDD.sql
 ```
 
 Import the new model into exmachinis server (FTP the sql file generated here and run the following command):
@@ -86,7 +78,7 @@ Import the new model into exmachinis server (FTP the sql file generated here and
 ```
 export DB_USER=root
 export DB_PASSWORD=c20e5596eee9bf8519074ad62f51b0eaa5a415e805efa4b9
-mysql -u $DB_USER -p$DB_PASSWORD < advolition_model_MMDDYYYY.sql
+mysql -u $DB_USER -p$DB_PASSWORD < advolition_model_YYMMDD.sql
 ```
 
 Import the game data into exmachinis server:
@@ -96,9 +88,10 @@ forth@45.55.171.135's password:  xxxxxxxxxxxx  (I can provide it if you do not h
 Connected to 45.55.171.135.
 
 
-sftp> cd tmp
+sftp> cd game-engine/tmp
 sftp> put advolition_data_YYMMDD.sql
 sftp> put advolition_model_YYMMDD.sql
+sftp> exit
 ```
 
 Run the following command:
@@ -106,7 +99,7 @@ Run the following command:
 ```
 export DB_USER=root
 export DB_PASSWORD=c20e5596eee9bf8519074ad62f51b0eaa5a415e805efa4b9
-mysql -u $DB_USER -p$DB_PASSWORD < advolition_data_MMDDYYYY.sql
+mysql -u $DB_USER -p$DB_PASSWORD < advolition_data_YYMMDD.sql
 ```
 
 Now it is time to do the hardest part, incorporate the old users into new model :-) :-). These steps are described below, with the changes to be done to
@@ -160,14 +153,14 @@ To make these changes (at exmachinis server as forth user), we need to  modify t
 
 ```
 cd $PLAT_HOME/tmp
-cp exmachinis_users_backup_MMDDYYYY.sql exmachinis_users_newmodel_MMDDYYYY.sql
+cp exmachinis_users_backup_MMDDYYYY.sql exmachinis_users_newmodel_YYMMDD.sql
 ```
 
 To make these changes (at exmachinis server as forth user), we need to  modify the file generated at backup step as follows:
 
 ```
 cd $PLAT_HOME/tmp
-cp exmachinis_users_backup_MMDDYYYY.sql exmachinis_users_newmodel_MMDDYYYY.sql
+cp exmachinis_users_backup_MMDDYYYY.sql exmachinis_users_newmodel_YYMMDD.sql
 ```
 
 At the new model file, we need to take into account the changes described above to insert the old information inside the new table.
@@ -240,7 +233,7 @@ To make these changes (at exmachinis server as forth user), we need to  modify t
 
 ```
 cd $PLAT_HOME/tmp
-cp exmachinis_agents_backup_MMDDYYYY.sql exmachinis_agents_newmodel_MMDDYYYY.sql
+cp exmachinis_agents_backup_YYMMDD.sql exmachinis_agents_newmodel_YYMMDD.sql
 ```
 
 At the new model file, we need to take into account the changes described above to insert the old information inside the new table.
