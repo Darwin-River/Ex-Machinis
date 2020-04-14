@@ -62,7 +62,7 @@ class UserController extends Controller
      */
     public function companyIndex()
     {
-        return view('user.companies', compact('protocols'));
+        return view('user.companies');
     }
 
     /**
