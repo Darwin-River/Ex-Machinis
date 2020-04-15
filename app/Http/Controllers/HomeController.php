@@ -108,7 +108,7 @@ class HomeController extends Controller
 
                     $agent_user = User::where(['user_id' => $agent->user_id])->first();
 
-                    echo "received mail for agent that belongs to<b>" . var_dump($agent_user) . '</b><br/>';
+                    echo "received mail for agent that belongs <b>" . '</b><br/>';
 
                     echo "Compare<b>" . $mail->fromAddress . ' with ' . $agent_user->email . '</b><br/>';
 
@@ -150,7 +150,7 @@ class HomeController extends Controller
                         $data['sent'] = $mail->date;
                         $data['input_content'] = $mail_content;
 
-                        echo Mail::send(['email.wrong_email_html', 'email.wrong_email_text'], $data, function ($message) use ($mail) {
+                         Mail::send(['email.wrong_email_html', 'email.wrong_email_text'], $data, function ($message) use ($mail) {
                             $message->to($mail->fromAddress, $mail->fromName)->from($mail->to, getenv("APP_NAME"))->subject('Re: ' . $mail->subject);
                         });
                     }
