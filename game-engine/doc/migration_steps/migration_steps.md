@@ -278,3 +278,16 @@ crontab -l > crontab_tasks.txt
 echo "*/1 * * * * sh -c '. /home/forth/.profile; /home/forth/game-engine/bin/scripts/start_events_engine.sh' >> /dev/null 2>&1" >> crontab_tasks.txt
 crontab < crontab_tasks.txt
 ```
+
+
+### Configuration review
+
+We will need to review the domain configured under the following files and update it to the suitable value.
+
+**/home/forth/game-engine/conf/game-engine.conf**
+
+Here review that the parameter **AGENTS_EMAIL_DOMAIN** has the correct value
+
+**/home/forth/game-engine/bin/scripts/email**
+
+Review that all the files present at this directory contain the right domain configured
