@@ -58,7 +58,7 @@
 
 <pre><code>&lt;rebrand&gt;Avalon&lt;/rebrand&gt;</code></pre>
 
-                        <p>This will immediately change the name of your company in the <a href="https://advolition.com/companies">company directory</a>.</p>
+                        <p>This will immediately change the name of your company in the <a href="https://<?php echo  getenv("MAIL_HOST") ?>/companies">company directory</a>.</p>
 
                         <br/><h3 id="h3_sending_your_first_command">Sending your first command</h3>
 
