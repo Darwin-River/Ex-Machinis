@@ -307,3 +307,19 @@ Here review that the parameter **AGENTS_EMAIL_DOMAIN** has the correct value
 **/home/forth/game-engine/bin/scripts/email**
 
 Review that all the files present at this directory contain the right domain configured
+
+## Website Migration
+The folders to be moved for the website side would be inside the /var/www folder: 
+- app
+- bootstrap
+- config
+- database
+- html
+- node_modules
+- resources
+- routes
+- storage
+- tests
+- vendor
+
+No need to move the files in the root folder.
