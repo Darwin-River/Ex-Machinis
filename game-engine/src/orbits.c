@@ -337,12 +337,12 @@ void orbits_add_coordinates
 
 /** ****************************************************************************
 
-  @brief          Gets the distance between 2 objects (in light-seconds)
+  @brief          Gets the distance between 2 objects (in Km)
 
   @param[in]      object1    First object
   @param[in]      object2    Second object
 
-  @return         Distance obtained
+  @return         Distance  (Km)
 
 *******************************************************************************/
 double orbits_get_distance_between_objects
@@ -390,7 +390,7 @@ double orbits_get_distance_between_objects
   @param[in]      object1    First object
   @param[in]      position2  Second object position
 
-  @return         Distance obtained
+  @return         Distance obtained (km)
 
 *******************************************************************************/
 double orbits_get_distance_from_object

@@ -6,33 +6,44 @@
 # Compiler/linker flags
 #---------------------------------------------------------------------------
 CXX=gcc
-CFLAGS=-std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql -D_BSD_SOURCE=1 -DUSE_CUSTOM_EMBED
+CFLAGS=-std=c99 -Werror -Wall -O2 -I./include -I/usr/include/mysql -D_DEFAULT_SOURCE=1 -DUSE_CUSTOM_EMBED
 LDFLAGS=-lmysqlclient -lconfig -lm
 
 #---------------------------------------------------------------------------
 # Program sources and name
 #---------------------------------------------------------------------------
-#SRCS=main.c libforth.c db.c trace.c engine.c config.c vm.c email.c
-SRCS=main.c embed.c embed_util.c embed_image.c db.c trace.c engine.c config.c vm.c email.c vm_extension.c orbits.c
+GAME_ENGINE_SRCS=config.c db.c db_common.c email.c embed.c embed_image.c embed_util.c engine.c main.c orbits.c protocol.c trace.c vm.c vm_extension.c
+EVENTS_ENGINE_SRCS=main_e.c engine_e.c config_e.c db_e.c db_common.c trace.c event.c orbits.c
 OBJS_PATH=objs
-OBJS=$(patsubst %.c,$(OBJS_PATH)/%.o,$(SRCS))
+GAME_ENGINE_OBJS=$(patsubst %.c,$(OBJS_PATH)/%.o,$(GAME_ENGINE_SRCS))
+EVENTS_ENGINE_OBJS=$(patsubst %.c,$(OBJS_PATH)/%.o,$(EVENTS_ENGINE_SRCS))
 
-EXE_NAME=game-engine
+GAME_ENGINE_EXE_NAME=game-engine
+EVENTS_ENGINE_EXE_NAME=events-engine
 EXE_PATH=bin
+
+game-engine : CFLAGS += -DUSE_VM
 
 #---------------------------------------------------------------------------
 # Rules
 #---------------------------------------------------------------------------
-all: $(EXE_NAME)
+all: $(GAME_ENGINE_EXE_NAME) $(EVENTS_ENGINE_EXE_NAME)
 
 $(OBJS_PATH)/%.o: %.c
 	@mkdir -p $(OBJS_PATH)
 	$(CXX) $(CFLAGS) -c $< -o $@
 
-$(EXE_NAME): $(OBJS)
-	$(CXX) -o $(EXE_NAME) $(OBJS) $(LDFLAGS)
+$(GAME_ENGINE_EXE_NAME): $(GAME_ENGINE_OBJS)
+	@echo $(GAME_ENGINE_SRCS)
+	$(CXX) -o $(GAME_ENGINE_EXE_NAME) $(GAME_ENGINE_OBJS) $(LDFLAGS)
 	@mkdir -p $(EXE_PATH)
-	mv $(EXE_NAME) $(EXE_PATH)
+	mv $(GAME_ENGINE_EXE_NAME) $(EXE_PATH)
+
+$(EVENTS_ENGINE_EXE_NAME): $(EVENTS_ENGINE_OBJS)
+	@echo $(GAME_ENGINE_SRCS)
+	$(CXX) -o $(EVENTS_ENGINE_EXE_NAME) $(EVENTS_ENGINE_OBJS) $(LDFLAGS)
+	@mkdir -p $(EXE_PATH)
+	mv $(EVENTS_ENGINE_EXE_NAME) $(EXE_PATH)
 
 clean:
-	$(RM) -rf $(OBJS_PATH) $(EXE_PATH)
+	$(RM) -rf $(OBJS_PATH) $(GAME_ENGINE_EXE_NAME) $(EVENTS_ENGINE_EXE_NAME)

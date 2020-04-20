@@ -1,0 +1,13 @@
+<run>
+
+: earth $" Earth";
+
+variable results_carlos
+
+results_carlos 200 allot
+
+earth 200 results_carlos 2 query
+
+results_carlos @ .
+
+</run> 

@@ -1,0 +1,11 @@
+/*
+*
+* Brand
+*/
+
+.brand {
+	display: inline-block;
+
+	.brand-logo-dark { display: none; }
+	.brand-logo-light { display: block; }
+}

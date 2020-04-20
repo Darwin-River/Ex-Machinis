@@ -1,0 +1,239 @@
+/*
+*
+* Sections
+*/
+
+//
+// Section Spacing
+// 
+.section-xs {
+	padding: 25px 0;
+
+	&.section-first { padding-top: 50px; }
+	&.section-last { padding-bottom: 50px; }
+}
+
+.section-sm,
+.section-md,
+.section-lg,
+.section-xl {
+	padding: 50px 0;
+}
+
+// Section collapse
+.section-collapse + .section-collapse {
+	padding-top: 0;
+}
+
+.section-collapse:last-child {
+	padding-bottom: 0;
+}
+
+// Section with bottom zero padding
+html [class*='section-'].section-bottom-0 {
+	padding-bottom: 0;
+}
+
+@include media-breakpoint-up(md) {
+
+	.section-xs {
+		padding: 40px 0;
+
+		&.section-first { padding-top: 80px; }
+		&.section-last { padding-bottom: 80px; }
+	}
+
+	.section-md { padding: 60px 0; }
+	.section-lg { padding: 70px 0; }
+	.section-xl { padding: 80px 0; }
+}
+
+@include media-breakpoint-up(lg) {
+
+	.section-xs {
+		padding: 45px 0;
+
+		&.section-first { padding-top: 90px; }
+		&.section-last { padding-bottom: 90px; }
+	}
+
+	.section-md { padding: 70px 0; }
+	.section-lg { padding: 80px 0; }
+	.section-xl { padding: 90px 0; }
+}
+
+@include media-breakpoint-up(xl) {
+
+	.section-xs {
+		padding: 50px 0;
+
+		&.section-first { padding-top: 100px; }
+		&.section-last { padding-bottom: 100px; }
+	}
+
+	.section-md { padding: 80px 0; }
+	.section-lg { padding: 90px 0; }
+	.section-xl { padding: 100px 0;	}
+
+	.section-custom-1,
+	.section-custom-2 { padding: 120px 0; }
+}
+
+// Mega large ≥1600px
+@include media-breakpoint-up(xxl) {
+
+	.section-xs {
+		padding: 60px 0;
+
+		&.section-first { padding-top: 120px; }
+		&.section-last { padding-bottom: 120px;	}
+	}
+
+	.section-lg { padding: 100px 0; }
+	.section-xl { padding: 120px 0; }
+
+	.section-custom-1 { padding: 165px 0;	}
+	.section-custom-2 { padding: 175px 0;	}
+}
+
+
+
+//
+// Custom sections
+//
+
+// Section single
+.section-single {
+	display: flex;
+	text-align: center;
+
+	.rd-form-inline {
+		max-width: 490px;
+		margin-left: auto;
+		margin-right: auto;
+		text-align: center;
+	}
+
+	[class*='text-width-'] {
+		margin-left: auto;
+		margin-right: auto;
+	}
+
+	.group-middle {
+		* + .button { margin-top: 0; }
+	}
+
+	h1 + h6 { margin-top: 20px;	}
+	* + .countdown-wrap {	margin-top: 40px;	}
+	.countdown-wrap + * {	margin-top: 40px;	}
+
+	* + .group-middle,
+	* + .button { margin-top: 30px; }
+
+	// Medium ≥768px
+	@include media-breakpoint-up(md) {
+
+		h1 + h6 { margin-top: 30px;	}
+
+		* + .group-middle,
+		* + .button { margin-top: 40px; }
+	}
+	
+	// Extra large ≥1200px
+	@include media-breakpoint-up(xl) {
+
+		h1 + h6 { margin-top: 54px;	}
+
+		* + .group-middle { margin-top: 70px; }
+		* + .button { margin-top: 60px; }
+		* + .rd-form { margin-top: 70px; }
+		* + .countdown-wrap {	margin-top: 60px;	}
+		.countdown-wrap + * {	margin-top: 75px;	}
+	} 
+}
+
+.section-single-header {
+	padding: calc(1em + 2vh) 0;
+}
+
+.section-single-main {
+	padding: calc(1em + 2vh) 0;
+}
+
+.section-single-footer {
+	padding: calc(1em + 2vh) 0;
+}
+
+// Mega large ≥1600px
+@include media-breakpoint-up(xxl) {
+	.section-single-header {
+		padding-top: calc(1em + 4vh);
+	}
+
+	.section-single-main {
+		padding-bottom: calc(1em + 4vh);
+	}
+
+	.section-single-footer {
+		padding-bottom: calc(1em + 5vh);
+	}
+}
+
+.section-single-inner {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: space-between;
+	width: 100%;
+	min-height: 100vh;
+
+	> * {
+		width: 100%;
+	}
+}
+
+@supports (display: grid) {
+	.section-single-inner {
+		display: grid;
+		justify-items: center;
+		align-content: space-between;
+		grid-template-columns: 1fr;
+	}
+}
+
+// Mega large ≥1600px
+@include media-breakpoint-up(xxl) {
+
+	.section-fluid {
+		padding-left: 75px;
+		padding-right: 75px;
+
+		.container-fluid {
+			padding-left: 0;
+			padding-right: 0;
+			max-width: 1770px;
+			margin-left: auto;
+			margin-right: auto;
+		}
+	}
+}
+
+// Section height
+.section-height-1 {
+	display: flex;
+	align-items: center;
+	min-height: (840 / 1920) * 100vw;
+
+	.container {
+		width: 100%;
+	}
+}
+
+.ie-10,
+.ie-11,
+.ie-edge {
+
+	.section-height-1 {
+		height: (840 / 1920) * 100vw;
+	}
+}

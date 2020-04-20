@@ -58,13 +58,14 @@ void vm_free(VirtualMachine_t* vm);
 
   @brief      Creates a new FORTH VM using input bytes
 
+  @param[in]  agent_id Current agent ID
   @param[in]  vm_bytes Bytes to be used to build a new VM
   @param[in]  size     Bytes number
 
   @return     New VM object created or NULL when failed
 
 *******************************************************************************/
-VirtualMachine_t* vm_from_bytes(char* vm_bytes, size_t size);
+VirtualMachine_t* vm_from_bytes(int agent_id, char* vm_bytes, size_t size);
 
 /** ****************************************************************************
 
@@ -114,5 +115,92 @@ void vm_report(VirtualMachine_t* vm);
 
 *******************************************************************************/
 int vm_is_yield();
+
+/** ****************************************************************************
+
+  @brief      Aborts command execution at current VM
+
+  @param[in]  vm       Current VM object
+
+  @return     void
+
+*******************************************************************************/
+void vm_abort(VirtualMachine_t* vm);
+
+/** ****************************************************************************
+
+  @brief      Resets VM (stops command execution and destroys it to create a new one)
+
+  @param[in]  vm       Current VM object
+
+  @return     void
+
+*******************************************************************************/
+void vm_reset(VirtualMachine_t* vm);
+
+/** ****************************************************************************
+
+  @brief      Reads byte from VM memory at given address (offset given in bytes)
+
+  @param[in]      vm        Current VM object
+  @param[in]      addr      Offset (in bytes) we read from
+  @param[in|out]  outValue  Output byte where we store the value obtained
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_read_byte(VirtualMachine_t* vm, uint16_t addr, unsigned char* outValue);
+
+/** ****************************************************************************
+
+  @brief      Writes byte into VM memory at given address (offset given in bytes)
+
+  @param[in]  vm     Current VM object
+  @param[in]  addr   Offset (in bytes) we write into
+  @param[in]  value  Byte value to write into VM memory
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_write_byte(VirtualMachine_t* vm, uint16_t addr, unsigned char value);
+
+/** ****************************************************************************
+
+  @brief      Writes an string into VM memory address
+
+  @param[in]  vm     Current VM object
+  @param[in]  addr   Offset (in bytes) we write into
+  @param[in]  str    String to insert into VM memory
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_write_string(VirtualMachine_t* vm, uint16_t addr, char* str);
+
+/** ****************************************************************************
+
+  @brief      Writes an string into VM memory address
+
+  @param[in]  vm     Current VM object
+  @param[in]  addr   Offset (in bytes) we write into
+  @param[in]  value  Integer value to write
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_write_integer(VirtualMachine_t* vm, uint16_t addr, uint16_t value);
+
+/** ****************************************************************************
+
+  @brief      Writes an string into VM memory address
+
+  @param[in]  vm       Current VM object
+  @param[in]  addr     Offset (in bytes) we write into
+  @param[in]  date_str Date string to insert into VM memory
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_write_datetime(VirtualMachine_t* vm, uint16_t addr, char* date_str);
 
 #endif // __EM_VM_MODULE__

@@ -1,0 +1,39 @@
+/*
+* Trunk version 2.0.0
+*/
+@import "color-scheme/_colors";
+@import "color-scheme/_brand";
+@import "main-styles";
+
+
+
+.bg-gray-700 { color: $gray-400-invariable; }
+
+.body-style-2 {
+	// Extra large ≥1200px
+	@include media-breakpoint-up(xl) {
+
+		.rd-navbar-transparent {
+
+			// Static
+			&.rd-navbar-static {
+
+				.brand {
+
+					.brand-logo-dark { display: block; }
+					.brand-logo-light { display: none; }
+				}
+
+				&.rd-navbar--is-stuck,
+				&.rd-navbar--is-clone {
+
+					.brand {
+
+						.brand-logo-dark { display: none; }
+						.brand-logo-light { display: block; }
+					}
+				}
+			}
+		}
+	}
+}

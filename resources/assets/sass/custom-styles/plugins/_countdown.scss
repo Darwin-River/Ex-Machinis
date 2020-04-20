@@ -1,0 +1,167 @@
+/*
+* Countdown
+* --------------------------------------------------
+*/
+
+// Variables
+// Default colors
+$countdown-foreground-color:  $secondary;
+$countdown-background-color:  rgba($gray-100, .2);
+$countdown-heading-color:     $headings-color;
+$countdown-counter-color:     $headings-color;
+
+// Contrast colors
+$countdown-foreground-contrast:  $secondary;
+$countdown-background-contrast:  $gray-400;
+$countdown-heading-contrast:     $gray-100;
+$countdown-counter-contrast:     $gray-400;
+
+
+.countdown-style-1 {
+
+	.countdown-wrap {
+		margin-left: 0;
+	}
+}
+
+// Default styles
+.countdown-wrap {
+	text-align: center;
+	max-width: 710px;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.countdown-group {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+
+	@include group(20px);
+
+	// Medium ≥576px
+	@include media-breakpoint-up(sm) {
+		@include group(30px);
+	}
+}
+
+.countdown-circle {
+	display: block;
+	flex-basis: 112px;
+	flex-shrink: 1;
+
+	svg {
+		display: block;
+		width: 100%;
+	}
+}
+
+.countdown-number {
+	position: relative;
+}
+
+.countdown-gradient {
+	.stop-color-1 { stop-color: $secondary; }
+	.stop-color-2 { stop-color: $primary; }
+}
+
+.countdown-fg {
+	fill: transparent;
+	stroke: $countdown-foreground-color;
+	stroke-width: 2px;
+}
+
+.countdown-bg {
+	fill: transparent;
+	stroke: $countdown-background-color;
+	stroke-width: 1px;
+}
+
+.countdown-overlay {
+	position: absolute;
+	top: 50%;
+	left: 0;
+	right: 0;
+	transform: translateY(-50%);
+}
+
+.countdown-counter {
+}
+
+.countdown-heading {
+	font-size: 14px;
+	letter-spacing: 0;
+	color: $countdown-heading-color;
+}
+
+.countdown-seconds {
+	display: none;
+
+	// Medium ≥576px
+	@include media-breakpoint-up(sm) {
+		display: block;
+	}
+}
+
+// Offsets
+* + .countdown-wrap { margin-top: 30px; }
+* + .countdown-style-1 { margin-top: 30px; }
+* + .countdown-heading { margin-top: 14px; }
+
+// Medium ≥576px
+@include media-breakpoint-up(sm) {
+
+	.countdown-heading {
+		font-size: 16px;
+	}
+}
+
+// Medium ≥768px
+@include media-breakpoint-up(md) {
+
+	.countdown-heading {
+		font-size: 18px;
+		line-height: 1.77777;
+	}
+
+	* + .countdown-heading { margin-top: 27px; }
+	* + .countdown-style-1 { margin-top: 50px; }
+}
+
+// Large ≥992px
+@include media-breakpoint-up(lg) {
+
+	.countdown-style-1 {
+		padding-left: 40px;
+	}
+}
+
+// Extra large ≥1200px
+@include media-breakpoint-up(xl) {
+
+	.countdown-style-1 {
+		padding-left: 80px;
+	}
+
+	* + .countdown-wrap { margin-top: 50px; }
+	* + .countdown-style-1 { margin-top: 70px; }
+}
+
+// Context styling
+%context-dark {
+	.countdown-bg { stroke: rgba($gray-100-invariable, .2); }
+	.countdown-fg { stroke: $primary; }
+	.countdown-heading { color: $white-invariable; }
+}
+
+html {
+	&:not(.ie-10):not(.ie-11):not(.ie-edge) {
+
+		.countdown-circle {
+
+			svg {
+				height: auto;
+			}
+		}
+	}
+}

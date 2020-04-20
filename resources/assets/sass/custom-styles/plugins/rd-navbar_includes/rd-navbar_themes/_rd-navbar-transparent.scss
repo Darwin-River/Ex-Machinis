@@ -1,0 +1,268 @@
+/**
+*
+* RD Navbar Transparent
+* =====================================================
+*/
+
+.rd-navbar-transparent {
+
+	// Static
+	&.rd-navbar-static {
+
+		.rd-navbar-main-outer {
+			padding-left: $grid-gutter-width / 2;
+			padding-right: $grid-gutter-width / 2;
+		}
+
+		// RD Navbar Main
+		.rd-navbar-main {
+			position: relative;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-left: auto;
+			margin-right: auto;
+			max-width: $rd-navbar-width;
+			padding: 10px 0;
+
+			> * + * { margin-left: 30px; }
+
+			// Extra large ≥1200px
+			@include media-breakpoint-up(xl) {
+				padding: 20px 0;
+			}
+		}
+
+		.rd-navbar-main-element {
+			display: flex;
+			align-items: center;
+		}
+
+
+
+		//
+		// RD Navbar Nav
+		//
+		// RD Nav item 1-st level
+		.rd-nav-item {
+			position: static;
+
+			&.focus,
+			&.opened,
+			&.active {
+				.rd-nav-link {
+
+					&::before {
+						opacity: 1;
+						visibility: visible;
+						width: 100%;
+					}
+				}
+			}
+		}
+
+		// Rd Nav Link 1-st level
+		.rd-nav-link {
+			padding: 17px 0 11px;
+			font-size: 18px;
+			line-height: $h6-line-height;
+			font-weight: $headings-font-weight;
+			letter-spacing: .06em;
+			font-family: $headings-font-family;
+			text-transform: uppercase;
+			color: $white;
+			
+			&::before {
+				position: absolute;
+				content: '';
+				width: calc(100% + 15px);
+				height: 2px;
+				bottom: 0;
+				left: 50%;
+				background: $secondary;
+				opacity: 0;
+				visibility: hidden;
+				transform: translate3d(-50%, 0, 0);
+				transition: all .3s ease;
+			}
+
+			&:hover {
+
+				&::before {
+					opacity: 1;
+					visibility: visible;
+					width: 100%;
+				}
+			}
+
+			// Extra large ≥1200px
+			@include media-breakpoint-up(xl) {
+				font-size: $h6-font-size;
+			}
+		}
+
+		// RD Dropdown 1-st level
+		.rd-navbar-dropdown {
+			left: auto;
+			margin-left: -15px;
+			
+			// Mega large ≥1600px
+			@include media-breakpoint-up(xxl) {
+				margin-left: -30px;
+			} 
+		}
+
+
+		&.rd-navbar--is-stuck,
+		&.rd-navbar--is-clone {
+
+			background: $gray-800;
+
+			.rd-navbar-main {
+				padding: 7px 0;
+			}
+
+			.rd-navbar-search-toggle {
+				color: $white;
+			}
+		}
+
+		// RD Navbar Brand
+		.rd-navbar-brand {
+
+			img {
+				width: auto;
+				height: auto;
+				max-width: 170px;
+				max-height: 170px;
+			}
+		}
+
+		// RD Navbar Search
+		.rd-navbar-search {
+			position: static;
+
+			.form-input {
+				border-color: $gray-100-invariable;
+				background: $gray-100-invariable;
+			}
+
+			&.active {
+
+				.rd-search {
+					transform: none;
+				}
+			}
+		}
+
+		.rd-search {
+			margin-top: 10px;
+			transform: translate3d(-30px, 0, 0);
+		}
+
+		.rd-navbar-search-toggle {
+			color: $white;
+
+			span {
+				font-size: 24px;
+			}
+		}
+
+		// Extra large ≥1200px
+		@include media-breakpoint-up(xl) {
+			* + .rd-navbar-search { margin-left: 60px; }
+		}
+	}
+
+	// Fixed 
+	&.rd-navbar-fixed {
+
+		.rd-navbar-panel {
+			background: $gray-800;
+		}
+
+		.rd-navbar-search {
+			.form-input {
+				border-radius: 0;
+			}
+		}
+	}
+}
+
+
+
+.body-style-2 {
+
+	// Extra large ≥1200px
+	@include media-breakpoint-up(xl) {
+
+		.rd-navbar-wrap {
+			position: absolute;
+			top: 0;
+			right: 0;
+			left: 0;
+			z-index: $zindex-rd-navbar;
+		}
+
+		.rd-navbar {
+			background: transparent;
+		}
+
+		.rd-navbar-transparent {
+
+			// Static
+			&.rd-navbar-static {
+
+				// RD Navbar Main
+				.rd-navbar-main {
+					padding-right: 90px;
+				}
+
+				.rd-search {
+					right: 90px;
+				}
+
+				// RD Navbar Stuck || Clone
+				&:not(.rd-navbar--is-stuck) {
+
+					// RD Nav item 1-st level
+					.rd-nav-item {
+						&.focus,
+						&.opened,
+						&.active {
+
+							.rd-nav-link {
+								color: $primary-invariable;
+							}
+						}
+					}
+
+					// Rd Nav Link 1-st level
+					.rd-nav-link {
+						color: $gray-700-invariable;
+
+						&::before {
+							background: $primary-invariable;
+						}
+
+						&:hover {
+							color: $primary-invariable;
+						}
+					}
+				}
+			}
+		}
+
+		.page-header + .section {
+			padding-top: 130px;
+		}
+	}
+
+	// Mega large ≥1600px
+	@include media-breakpoint-up(xxl) {
+
+		.rd-navbar-wrap {
+			top: 18px;
+		}
+	}
+}

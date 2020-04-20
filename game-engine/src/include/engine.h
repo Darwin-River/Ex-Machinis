@@ -55,6 +55,10 @@ enum
     // FORTH image configuration
     FORTH_IMAGE_PATH_ID,
 
+    // FORTH vm dump flag & output directory
+    FORTH_DUMP_VM,
+    FORTH_VM_OUT_PATH,
+
     // Max configured parameters
     MAX_CONFIG_PARAM
 };
@@ -304,5 +308,62 @@ const int engine_get_max_cycle_seconds();
 
 *******************************************************************************/
 const char* engine_get_vm_resume_command();
+
+/** ****************************************************************************
+
+  @brief      Gets current engine DB connection
+
+  @param[in]  None
+
+  @return     Current DB connection info
+
+*******************************************************************************/
+DbConnection_t* engine_get_db_connection();
+
+/** ****************************************************************************
+
+  @brief      Gets current drone ID (drone processing commands)
+
+  @param[in]  None
+
+  @return     Drone ID
+
+*******************************************************************************/
+int engine_get_current_drone_id();
+
+/** ****************************************************************************
+
+  @brief          Gets the position of a given object ID (body and distance from Earth)
+
+  @param[in]      object_id     Current object ID (drone object ID)
+  @param[out]     position      Output buffer where we store current position
+  @param[out]     distance      Output buffer where we store current distance from Earth
+
+  @return         Error code
+
+*******************************************************************************/
+ErrorCode_t engine_get_drone_position(int object_id, char* position, double* distance);
+
+/** ****************************************************************************
+
+  @brief      Gets the flag (0/1) that controls VM dump into disk
+
+  @param[in]  None
+  
+  @return     Flag value configured
+
+*******************************************************************************/
+const int engine_get_dump_vm_flag();
+
+/** ****************************************************************************
+
+  @brief      Gets the configured path to dump VM into memory
+
+  @param[in]  None
+  
+  @return     Path value configured
+
+*******************************************************************************/
+const char* engine_get_dump_vm_path();
 
 #endif // __EM_ENGINE_MODULE__

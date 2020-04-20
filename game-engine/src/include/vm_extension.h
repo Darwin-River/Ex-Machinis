@@ -70,5 +70,29 @@ struct vm_extension_t
 *******************************************************************************/
 VmExtension_t* vm_extension_new(void);
 
+/** ****************************************************************************
+
+  @brief      Pops a value from a given VM and returns it
+
+  @param[in]  vmExt      Current VM extension
+  @param[out] outValue   Out buffer where we store value obtained
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_extension_pop(VmExtension_t* vmExt, int* outValue);
+
+/** ****************************************************************************
+
+  @brief      Push a value into VM stack
+
+  @param[in]  vmExt      Current VM extension
+  @param[in]  outValue   Value to be pushed into stack
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_extension_push(VmExtension_t* vmExt, int inValue);
+
 
 #endif // __EM_VM_EXTENSION_MODULE__
