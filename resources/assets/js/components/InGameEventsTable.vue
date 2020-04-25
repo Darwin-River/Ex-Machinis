@@ -51,7 +51,7 @@
                         class="icon mdi mdi-lock" title="resource in use" v-if="props.rowData.locked === 1"></span>
                 </div>
                 <div slot="object_name" slot-scope="props">
-                    <a v-bind:href="'/objects/'+props.rowData.object_id">{{props.rowData.object_name}}</a>
+                    <a v-bind:href="'/locations/'+props.rowData.object_id">{{props.rowData.object_name}}</a>
                 </div>
                 <div slot="affected_company_name" slot-scope="props">
                     <a v-bind:href="'/company/'+props.rowData.affected_company_id">{{props.rowData.affected_company_name}}</a>
@@ -65,7 +65,7 @@
                 <div slot="event_type_name" slot-scope="props">
                     {{props.rowData.event_type_name}} <span v-if="props.rowData.new_quantity">{{props.rowData.new_quantity}} units</span><span
                         v-if="props.rowData.new_credits"> {{props.rowData.new_credits}} credits</span><span
-                        v-if="props.rowData.object_name"><a v-bind:href="/objects/+props.rowData.object_id">{{props.rowData.object_name}}</a></span>
+                        v-if="props.rowData.object_name"><a v-bind:href="/locations/+props.rowData.object_id">{{props.rowData.object_name}}</a></span>
                 </div>
             </vuetable>
         </div>

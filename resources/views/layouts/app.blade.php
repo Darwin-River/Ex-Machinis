@@ -163,13 +163,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                     </ul>
                                 </li>
                                 <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
-                                                                             href="{{'objects'}}"><span
+                                                                             href="{{'locations'}}"><span
                                                 class="rd-nav-icon mdi mdi-database-search"></span><span
                                                 class="rd-nav-title">Data</span></a>
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown">
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('objects')}}">Space Objects</a></li>
+                                                                        href="{{url('locations')}}">Locations</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('companies')}}">Companies</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
@@ -211,13 +211,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                         -->
                                     </ul>
                                 </li>
-                                <li class="d-none d-lg-inline-block"><a class="" href="{{url('objects')}}">Data</a><span
+                                <li class="d-none d-lg-inline-block"><a class="" href="{{url('locations')}}">Data</a><span
                                             class="rd-navbar-submenu-toggle"></span>
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown oriented-down">
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('objects')}}">Space
-                                                Objects</a></li>
+                                                                        href="{{url('locations')}}">Locations</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('companies')}}">Companies</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
@@ -240,8 +239,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                             <!-- Hide for now.
                                 <li class="d-block d-lg-none"><a href="{{url('forth-dictionary')}}">FORTH Dictionary</a></li>
                                 -->
-                                <li class="d-block d-lg-none"><a href="{{url('objects')}}">Space
-                                        Objects</a></li>
+                                <li class="d-block d-lg-none"><a href="{{url('locations')}}">Locations</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('companies')}}">Companies</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('spacecraft')}}">Spacecraft</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('resources')}}">Resources</a></li>

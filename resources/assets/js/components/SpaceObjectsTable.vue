@@ -51,13 +51,13 @@
                       @vuetable:loaded="stopLoading" ref="vuetable" :append-params="extraParams"
                       :per-page="resultsPerPage" :css="css.table">
                 <div slot="object_id" slot-scope="props">
-                    <a v-bind:href="'/objects/'+props.rowData.object_id">{{props.rowData.object_id}}</a>
+                    <a v-bind:href="'/locations/'+props.rowData.object_id">{{props.rowData.object_id}}</a>
                 </div>
                 <div slot="object_name" slot-scope="props">
-                    <a v-bind:href="'/objects/'+props.rowData.object_id">{{props.rowData.object_name}}</a>
+                    <a v-bind:href="'/locations/'+props.rowData.object_id">{{props.rowData.object_name}}</a>
                 </div>
                 <div slot="central_body_name" slot-scope="props">
-                    <a v-bind:href="'/objects/'+props.rowData.central_body_id">{{props.rowData.central_body_name}}</a>
+                    <a v-bind:href="'/locations/'+props.rowData.central_body_id">{{props.rowData.central_body_name}}</a>
                 </div>
             </vuetable>
         </div>

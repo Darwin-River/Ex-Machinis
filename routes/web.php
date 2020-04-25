@@ -44,9 +44,9 @@ Route::get('/sells/search', 'ResourceController@sellOrdersSearch');
 /*Route::get('/resource-orders/{id}', 'ResourceController@resourceOrders');*/
 
 //space objects
-Route::get('/objects', 'SpaceObjectController@index');
+Route::get('/locations', 'SpaceObjectController@index');
 Route::get('/objects/search', 'SpaceObjectController@objectsSearch');
-Route::get('/objects/{id}', 'SpaceObjectController@view');
+Route::get('/locations/{id}', 'SpaceObjectController@view');
 
 //agents
 Route::get('/spacecraft', 'AgentController@index');

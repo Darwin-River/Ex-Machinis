@@ -35,7 +35,7 @@
                     <a v-bind:href="'/spacecraft/'+props.rowData.agent_id">{{props.rowData.agent_name}}</a>
                 </div>
                 <div slot="object_id" slot-scope="props">
-                    <a v-bind:href="'/objects/'+props.rowData.object_id">{{props.rowData.object_name}}</a>
+                    <a v-bind:href="'/locations/'+props.rowData.object_id">{{props.rowData.object_name}}</a>
                 </div>
 
             </vuetable>

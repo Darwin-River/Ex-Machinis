@@ -22,7 +22,7 @@
             <div class="description-fields">
                 <div class="row row-xxl row-30 row-md-60 ">
                     <div class="col-12 col-lg-12 col mb-0">
-                        <b>Id</b>: <span style="font-weight: normal">{{$user->user_id}}</span><br/>
+                        <b>Company Id</b>: <span style="font-weight: normal">{{$user->user_id}}</span><br/>
                     </div>
                     <div class="col-12 col-lg-12 col mb-0">
                         <b>Founded on</b>: <span
@@ -61,7 +61,7 @@
                             </td>
                             <td>
                                 <span class="rd-nav-icon mdi mdi-map-marker" title="location"></span> <a
-                                        href="{{url('objects/'.$agent->location->object_id)}}">{{$agent->location->object_name}}</a>
+                                        href="{{url('locations/'.$agent->location->object_id)}}">{{$agent->location->object_name}}</a>
                             </td>
                             <td><span class="rd-nav-icon mdi mdi-package-down" title="cargo"></span>
                                 @if(!$agent->hull || !$agent->hull->cargo_capacity)

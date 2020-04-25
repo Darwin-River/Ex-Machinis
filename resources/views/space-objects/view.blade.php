@@ -11,7 +11,7 @@
             </div>
             <ul class="breadcrumbs-path breadcrumbs-modern-path">
                 <li><a href="/">Home</a></li>
-                <li><a href="/objects">Space Objects</a></li>
+                <li><a href="/locations">Locations</a></li>
                 <li class="active">{{$title}}</li>
             </ul>
         </div>
@@ -43,7 +43,7 @@
                 <div class="col-12 col-lg-6 ">
 
                     <b>Central
-                        Body: </b>{!! $object->centralBody?"<a href='".url('/objects/'.$object->central_body_object_id)."'>".$object->centralBody->object_name."</a>":'-'!!}
+                        Body: </b>{!! $object->centralBody?"<a href='".url('/locations/'.$object->central_body_object_id)."'>".$object->centralBody->object_name."</a>":'-'!!}
                     <br/>
 
                     <b>Mean Anomally: </b> {{$object->mean_anomaly?$object->mean_anomaly:'-'}}<br/>
@@ -165,10 +165,10 @@
                             @foreach($orbitingBodies as $body)
                                 <tr>
                                     <td>
-                                        <a href="{{url('objects/'.$body->object_id)}}">{{$body->object_id}}</a>
+                                        <a href="{{url('locations/'.$body->object_id)}}">{{$body->object_id}}</a>
                                     </td>
                                     <td>
-                                        <a href="{{url('objects/'.$body->object_id)}}">{{$body->object_name}}</a>
+                                        <a href="{{url('locations/'.$body->object_id)}}">{{$body->object_name}}</a>
                                     </td>
                                     <td>
                                         {{$body->object_type}}
