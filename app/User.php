@@ -65,7 +65,7 @@ class User extends Authenticatable
             }
             /* echo*/
             Mail::send(['email.welcome_drones_html', 'email.welcome_drones_text'], $data, function ($message) use ($email, $name) {
-                $message->to($email, $name)->from("registrar@" . getenv("MAIL_HOST"), "JSA-FAP Administrator")->subject('Program Acceptance');
+                $message->to($email, $name)->from("registrar@" . getenv("MAIL_HOST"), "Ex Machinis")->subject('Welcome to Ex Machinis!');
             });
         } else {
             //notify user he's already registered
