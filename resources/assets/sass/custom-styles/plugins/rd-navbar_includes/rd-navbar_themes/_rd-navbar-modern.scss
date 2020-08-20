@@ -1,0 +1,29 @@
+/**
+*
+* RD Navbar Modern
+* =====================================================
+*/
+
+.rd-navbar-modern {
+
+	// Static
+	&.rd-navbar-sidebar {
+
+		.rd-navbar-search-2 {
+			margin-top: 30px;
+			order: 1;
+		}
+	}
+
+	// Fixed 
+	&.rd-navbar-fixed {
+
+		.rd-navbar-nav-wrap {
+		}
+
+		.rd-navbar-nav,
+		.rd-navbar-search-2 {
+			margin-top: 20px;
+		}
+	}
+}

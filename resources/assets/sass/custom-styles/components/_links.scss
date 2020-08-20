@@ -1,0 +1,47 @@
+/*
+*
+* Links
+*/
+
+// Standard link style
+a {
+	transition: $transition-base;
+
+	&,
+	&:focus,
+	&:active,
+	&:hover {
+		text-decoration: $link-decoration;
+	}
+
+	@include link($link-color, $link-hover-color);
+
+	&[href*='tel'],
+	&[href*='mailto'] {
+		white-space: nowrap;
+	}
+}
+
+.link-hover {
+	color: $link-hover-color;
+}
+
+.link-press {
+	color: $link-press-color;
+}
+
+.privacy-link {
+	display: inline-block;
+}
+
+* + .privacy-link { margin-top: 40px; }
+
+// Medium ≥768px
+@include media-breakpoint-up(md) {
+	* + .privacy-link { margin-top: 50px; }
+}
+
+// Extra large ≥1200px
+@include media-breakpoint-up(xl) {
+	* + .privacy-link { margin-top: 68px; }
+}

@@ -146,7 +146,7 @@ void trace_write(TraceHndl_t hdnl, TraceLevel_t level, const char *trace, va_lis
 		// Check if day changed to close and open a new file
 		if(trace_info->current_day != lnow->tm_mday)
 		{
-			char new_name[PATH_MAX+1];
+			char new_name[PATH_MAX*2+1];
 			fclose(trace_info->fp);
 			sprintf(new_name, "%s.%02d%02d%04d", 
 				trace_info->conf.log_file_path,

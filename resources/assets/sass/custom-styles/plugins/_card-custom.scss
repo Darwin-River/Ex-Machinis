@@ -1,0 +1,187 @@
+//
+// Panel custom styles
+// 
+
+// Light
+//
+$accordion-corporate-color: $white;
+$accordion-corporate-background: transparent;
+$accordion-corporate-border: $gray-400-invariable;
+$accordion-corporate-content-color: $body-color;
+$accordion-corporate-arrow-color: $white;
+$accordion-corporate-arrow-background: $primary;
+$accordion-corporate-shadow: -1px 2px 5px 0px rgba(#444953, 0.12);
+$accordion-corporate-border-radius: 6px;
+$accordion-corporate-header-padding: 15px 20px 16px 70px;
+$accordion-corporate-content-padding: 0 15px 20px nth($accordion-corporate-header-padding, 4);
+
+// Panel groups
+.card-group-custom {
+	margin-bottom: 0;
+
+	.card-header + .collapse > .card-body,
+	.card-header + .collapse > .list-group {
+		border-top: 0;
+	}
+
+	.card + .card {
+		margin-top: 0;
+	}
+}
+
+.card-group-custom.card-group-corporate {
+	.card + .card {
+		//margin-top: 30px;
+	}
+}
+
+.card-custom {
+	text-align: left;
+	display: block;
+	margin: 0;
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+	background: inherit;
+
+	a {
+		display: block;
+	}
+
+	// Panel heading
+	.card-header {
+		padding: 0;
+		border-bottom: 0;
+		border-top-left-radius: 0;
+		border-top-right-radius: 0;
+		background: transparent;
+	}
+
+	// Panel contents
+	.card-body {
+		padding: 0;
+		border: 0;
+	}
+}
+
+* + .card-group-custom {
+	margin-top: 25px;
+
+	@include media-breakpoint-up(md) {
+		margin-top: 38px;
+	}
+}
+
+// Panel corporate
+.card-corporate {
+	text-align: left;
+	border-top: 1px solid $accordion-corporate-border;
+
+	&:last-child {
+		border-bottom: 1px solid $accordion-corporate-border;
+	}
+
+	.card-title {
+		margin-bottom: 0;
+	}
+
+	.card-title a,
+	.card-body {
+		background: $accordion-corporate-background;
+	}
+
+	.card-title a {
+		position: relative;
+		padding: 10px 15px 10px 30px;
+		font-size: 14px;
+		line-height: $line-height-base;
+		letter-spacing: .01em;
+		color: $accordion-corporate-color;
+		z-index: 1;
+
+		&:hover {
+			.card-arrow {
+				color: $white;
+			}
+		}
+
+
+		// Collapsed state
+		&.collapsed {
+			border-bottom-width: 0;
+
+			.card-arrow {
+				&:before {
+					content: '\f505';
+				}
+			}
+		}
+	}
+
+	// Panel arrow
+	.card-arrow {
+		display: flex;
+		align-items: center;
+		justify-content: flex-start;
+		position: absolute;
+		text-align: center;
+		width: 30px;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		font-size: 20px;
+		line-height: 1;
+		color: $secondary;
+		z-index: 2;
+
+		&::before {
+			position: relative;
+			display: inline-block;
+			content: '\f466';
+			font-family: $mdi;
+			transition: all .25s ease-in-out;
+		}
+	}
+
+	.collapse {
+		position: relative;
+		color: $accordion-corporate-content-color;
+		border-radius: 0 0 $accordion-corporate-border-radius $accordion-corporate-border-radius;
+		z-index: 1;
+	}
+
+	.card-body {
+		padding: 0 15px 15px 30px;
+	}
+
+	// Medium ≥576px
+	@include media-breakpoint-up(sm) {
+
+		.card-title a,
+		.card-body {
+			padding-left: 40px;
+		}
+
+		.card-arrow {
+			width: 40px;
+			justify-content: center;
+		}
+	}
+
+	// Medium ≥768px
+	@include media-breakpoint-up(md) {
+		.card-title a {
+			padding: $accordion-corporate-header-padding;
+			font-size: $font-size-base;
+		}
+
+		.card-arrow {
+			width: 70px;
+			font-size: 22px;
+		}
+
+		.card-body {
+			padding: $accordion-corporate-content-padding;
+		}
+	}
+}

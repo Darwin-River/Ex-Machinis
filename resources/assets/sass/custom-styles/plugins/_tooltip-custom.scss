@@ -1,0 +1,23 @@
+/*
+*
+* Tooltop Custom
+*/
+
+//
+// Base class
+//
+.tooltip {
+	font-size: inherit;
+	line-height: inherit;
+	font-weight: inherit;
+	letter-spacing: inherit;
+}
+
+.tooltip-inner {
+	padding: 1px 9px;
+	color: $white-invariable;
+}
+
+.tooltip-custom {
+	color: $secondary;
+}

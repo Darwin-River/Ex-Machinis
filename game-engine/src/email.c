@@ -19,8 +19,6 @@
 
 /******************************* DEFINES *************************************/
 
-#define LIGHT_SPEED_KM_PER_SECOND   299792.458  // Km/second
-#define LIGHT_SPEED_KM_PER_MINUTE   (LIGHT_SPEED_KM_PER_SECOND * 60.0) // Km/minute 
 
 /******************************* TYPES ***************************************/
 

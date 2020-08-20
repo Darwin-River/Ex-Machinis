@@ -1118,6 +1118,7 @@ h: cpu@    0 cpu-xchg dup cpu! ; ( -- u : get CPU options register )
 h: ?exit if rdrop exit then ; ( u --, R: xt -- xt| : conditional return )
 : 2drop drop drop ;         ( n n -- )
 : 1+ 1 + ;                  ( n -- n : increment a value  )
+: 2+ 2 + ;                  ( n -- n : increment a value by two )
 : negate 1- invert ;        ( n -- n : negate a number )
 : - negate + ;              ( n1 n2 -- n : subtract n1 from n2 )
 h: over- over - ;           ( u u -- u u )
@@ -2774,7 +2775,7 @@ xchange root-voc _forth-wordlist
 \	forth-wordlist reorder definitions
 \	: z x y cr ;
 \	only forth definitions
-\ 
+\
 \ In this example new words *x*, *y* and *reorder* are created and added
 \ to an anonymous wordlist, *z* uses words *x* and *y* from this word this
 \ and then the words in the anonymous word lists are hidden, but not the
@@ -3973,7 +3974,7 @@ On the command line. Four maps are provided, more can be found online at
 	: match              ( a a -- f )
 	  n1+ ( replace with umin of both counts? )
 	  count
-	  for aft 
+	  for aft
 	    count rot count rot <> if 2drop rdrop 0 exit then
 	  then next 2drop -1 ;
 
@@ -4083,20 +4084,20 @@ On the command line. Four maps are provided, more can be found online at
 	only forth definitions
 
 	editor decimal z blk @
-	 1 i            XXXXX            
-	 2 i            X   X            
-	 3 i            X*  X            
-	 4 i          XXX  *XXX          
-	 5 i          X  *  * X          
+	 1 i            XXXXX
+	 2 i            X   X
+	 3 i            X*  X
+	 4 i          XXX  *XXX
+	 5 i          X  *  * X
 	 6 i        XXX X XXX X     XXXXXX
 	 7 i        X   X XXX XXXXXXX  ..X
 	 8 i        X *  *             ..X
 	 9 i        XXXXX XXXX X@XXXX  ..X
 	10 i            X      XXX  XXXXXX
-	11 i            XXXXXXXX         
-	12 i       
+	11 i            XXXXXXXX
+	12 i
 	dup 1+ l z
-	 1 i       XXXXXXXXXXXX 
+	 1 i       XXXXXXXXXXXX
 	 2 i       X..  X     XXX
 	 3 i       X..  X *  *  X
 	 4 i       X..  X*XXXX  X
@@ -4106,18 +4107,18 @@ On the command line. Four maps are provided, more can be found online at
 	 8 i         X *  * * * X
 	 9 i         X    X     X
 	10 i         XXXXXXXXXXXX
-	11 i      
+	11 i
 	dup 1+ l z
 	 1 i               XXXXXXXX
 	 2 i               X     @X
 	 3 i               X *X* XX
-	 4 i               X *  *X 
-	 5 i               XX* * X 
+	 4 i               X *  *X
+	 5 i               XX* * X
 	 6 i       XXXXXXXXX * X XXX
 	 7 i       X....  XX *  *  X
 	 8 i       XX...    *  *   X
 	 9 i       X....  XXXXXXXXXX
-	10 i       XXXXXXXX        
+	10 i       XXXXXXXX
 	dup 1+ l z
 	 1 i                     XXXXXXXX
 	 2 i                     X  ....X
@@ -4126,12 +4127,12 @@ On the command line. Four maps are provided, more can be found online at
 	 5 i          X ***X*  * X  ....X
 	 6 i          X  *     * X  ....X
 	 7 i          X ** X* * *XXXXXXXX
-	 8 i       XXXX  * X     X      
-	 9 i       X   X XXXXXXXXX      
-	10 i       X    *  XX           
-	11 i       X **X** @X           
-	12 i       X   X   XX           
-	13 i       XXXXXXXXX            
+	 8 i       XXXX  * X     X
+	 9 i       X   X XXXXXXXXX
+	10 i       X    *  XX
+	11 i       X **X** @X
+	12 i       X   X   XX
+	13 i       XXXXXXXXX
 	drop
 	q hex
 
@@ -4211,9 +4212,9 @@ A [Conways Games Of Life][] in a few screens, adapted to this Forth:
 	only forth definitions hex
 
 	editor $18 l z
-	3 i      ***  
-	4 i      *    
-	5 i       *   
+	3 i      ***
+	4 i      *
+	5 i       *
 	q
 	hex
 
@@ -4771,8 +4772,8 @@ things.
 
 	editor $18 l z
 	0 i  HELLO ...
-	1 i    
-	2 i 
+	1 i
+	2 i
 	3 i   ... WORLD HOW ARE YOU
 	4 i     X      Y
 	v

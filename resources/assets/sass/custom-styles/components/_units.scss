@@ -1,0 +1,65 @@
+/*
+*
+* Responsive units
+*/
+
+@include unit-responsive(30px, 20px);
+
+//
+// Unit Spacing 
+// 
+.unit-spacing-xs {
+	@include unit-spacing(7px, 15px);
+}
+
+.unit-spacing-sm {
+	@include unit-spacing(16px, 6px);
+}
+
+.unit-spacing-md {
+	@include unit-spacing(20px, 10px);
+}
+
+.unit-spacing-1 {
+	@include unit-spacing(30px, 10px);
+}
+
+.unit-spacing-2 {
+	@include unit-spacing(24px, 10px);
+}
+
+.unit-spacing-3 {
+	@include unit-spacing(20px, 10px);
+}
+
+
+
+// Media
+
+// Medium ≥768px
+@include media-breakpoint-up(md) {
+
+	.unit-spacing-1 {
+		@include unit-spacing(30px, 20px);
+	}
+}
+
+// Large ≥992px
+@include media-breakpoint-up(lg) {
+
+	.unit-spacing-xl {
+		@include unit-spacing(40px, 20px);
+	}
+
+	.unit-spacing-3 {
+		@include unit-spacing(34px, 10px);
+	}
+}
+
+// Extra large ≥1200px
+@include media-breakpoint-up(xl) {
+
+	.unit-spacing-xl {
+		@include unit-spacing(60px, 20px);
+	}
+}

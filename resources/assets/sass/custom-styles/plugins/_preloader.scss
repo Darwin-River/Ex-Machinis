@@ -1,0 +1,108 @@
+/*
+*
+* Preloader
+*/
+
+//
+// Base styles
+//
+.preloader {
+	position: fixed;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	right: 0;
+	padding: 20px;
+	background: $gray-800;
+	transition: all .3s ease;
+	z-index: 9999999;
+
+	&.loaded {
+		opacity: 0;
+		visibility: hidden;
+
+		.cssload-speeding-wheel {
+			animation: none;
+		}
+	}
+}
+
+.fountainG-wrap {
+	position: relative;
+	width: 234px;
+	height: 28px;
+	margin: auto;
+}
+
+.fountainG {
+	position: absolute;
+	top: 0;
+	width: 28px;
+	height: 28px;
+	border-radius: 19px;
+	background: linear-gradient(to bottom, $shade-1 0%, $secondary 100%);;
+	transform: scale(.3);
+	animation-name: bounce_fountainG;
+	animation-duration: 1.5s;
+	animation-iteration-count: infinite;
+	animation-direction: normal;
+}
+
+.fountainG_1 {
+	left: 0;
+	animation-delay: 0.6s;
+}
+
+.fountainG_2 {
+	left: 29px;
+	animation-delay: 0.75s;
+}
+
+.fountainG_3 {
+	left: 58px;
+	animation-delay: 0.9s;
+}
+
+.fountainG_4 {
+	left: 88px;
+	animation-delay: 1.05s;
+}
+
+.fountainG_5 {
+	left: 117px;
+	animation-delay: 1.2s;
+}
+
+.fountainG_6 {
+	left: 146px;
+	animation-delay: 1.35s;
+}
+
+.fountainG_7 {
+	left: 175px;
+	animation-delay: 1.5s;
+}
+
+.fountainG_8 {
+	left: 205px;
+	animation-delay: 1.64s;
+}
+
+* + .fountainG-wrap { margin-top: 30px; }
+
+
+
+@keyframes bounce_fountainG {
+	0% {
+		transform: scale(1);
+		opacity: 1;
+	}
+
+	100% {
+		transform: scale(.3);
+		opacity: 0;
+	}
+}

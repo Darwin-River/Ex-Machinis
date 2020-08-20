@@ -1,0 +1,46 @@
+/*
+*
+* Dividers
+*/
+
+hr {
+	margin-top: 0;
+	margin-bottom: 0;
+	border-top: $hr-border-width solid $hr-border-color;
+}
+
+.hr-style-1 { border-color: rgba($white-invariable, .3); }
+
+.divider {
+	font-size: 0;
+	line-height: 0;
+
+	&::after {
+		content: '';
+		display: inline-block;
+		width: 60px;
+		height: 2px;
+		background-color: $primary;
+	}
+}
+
+.line-loop {
+	animation: moreLoop 3s cubic-bezier(.77, 0, .175, 1) infinite;
+}
+
+// Offsets
+
+hr + .button { margin-top: 40px; }
+.tabs-icon + hr { margin-top: 40px; }
+
+// Medium ≥768px
+@include media-breakpoint-up(md) {
+	hr + .button { margin-top: 60px; }
+	.tabs-icon + hr { margin-top: 60px; }
+}
+
+// Extra large ≥1200px
+@include media-breakpoint-up(xl) {
+	hr + .button { margin-top: 80px; }
+	.tabs-icon + hr { margin-top: 80px; }
+}

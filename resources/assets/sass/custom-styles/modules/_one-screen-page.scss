@@ -1,0 +1,60 @@
+//
+// One screen page
+// --------------------------------------------------
+.one-screen-page {
+	text-align: center;
+	max-height: 100vh;
+	overflow-y: auto;
+	overflow-x: hidden;
+
+	&-inner {
+		flex-direction: column;
+		flex-wrap: nowrap;
+		align-items: center;
+		justify-content: space-between;
+		flex-grow: 1;
+		height: 100vh;
+		padding-top: 30px;
+		padding-bottom: 30px;
+		@include media-breakpoint-up(md) {
+			padding-top: 47px;
+			padding-bottom: 61px;
+		}
+		> * {
+			width: 100%;
+			// fix for IE
+			flex-shrink: 0;
+		}
+	}
+
+	h1 + h6 {
+		margin-top: 20px;
+		color: $gray-100;
+		@include media-breakpoint-up(md) {
+			margin-top: 55px;
+		}
+	}
+
+	h6 + .group-xl {
+		margin-top: 30px;
+		margin-bottom: 30px;
+		@include media-breakpoint-up(md) {
+			margin-top: 60px;
+			margin-bottom: 30px;
+		}
+	}
+}
+
+// disable vertical scroll in NoviBuilder
+[data-x-mode="design-mode"] {
+	.one-screen-page {
+		max-height: none;
+		overflow-x: visible;
+		overflow-y: visible;
+
+		&-inner {
+			min-height: 100vh;
+			height: auto;
+		}
+	}
+}

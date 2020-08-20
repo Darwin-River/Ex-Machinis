@@ -16,6 +16,7 @@
 #include "engine.h"
 #include "trace.h"
 #include "vm_extension.h"
+#include "db.h"
 
 /******************************* DEFINES *************************************/
 
@@ -163,12 +164,22 @@ VirtualMachine_t* vm_new(int agent_id)
 
     // Allocate new embedded VM
     vm = (VirtualMachine_t*)embed_new();
+    const char* imageFile =  engine_get_forth_image_path();
 
-    if(vm)
+    if(vm && imageFile)
     {
+        if(embed_load(vm, imageFile) != 0) {
+            engine_trace(TRACE_LEVEL_ALWAYS, 
+                "Unable to create VM using base file [%s]",
+                imageFile);
+
+            vm_free(vm);
+            return NULL;
+        }
+
         engine_trace(TRACE_LEVEL_ALWAYS, 
-            "New VM created with size [%ld] and core size [%ld] for agent [%d]",
-        	sizeof(*vm), sizeof(*(vm->m)), agent_id); 
+            "New VM created with size [%ld] and core size [%ld] with file [%s] for agent [%d]",
+        	sizeof(*vm), sizeof(*(vm->m)), imageFile, agent_id); 
 
         embed_opt_t vm_default_options = *embed_opt_get(vm);
         embed_opt_t vm_engine_options = vm_default_options;
@@ -234,6 +245,7 @@ void vm_free(VirtualMachine_t* vm)
 
         embed_free((forth_t*)vm);
         vm = NULL;
+        g_vm_yield = 0;
     }
     else
     {
@@ -245,15 +257,17 @@ void vm_free(VirtualMachine_t* vm)
 
   @brief      Creates a new FORTH VM using input bytes
 
+  @param[in]  agent_id Current agent ID
   @param[in]  vm_bytes Bytes to be used to build a new VM
   @param[in]  size     Bytes number
 
   @return     New VM object created or NULL when failed
 
 *******************************************************************************/
-VirtualMachine_t* vm_from_bytes(char* vm_bytes, size_t size)
+VirtualMachine_t* vm_from_bytes(int agent_id, char* vm_bytes, size_t size)
 {
     VirtualMachine_t* vm = NULL;
+    char dump_file[PATH_MAX];
     int error = 0;
 
 #ifdef USE_OLD_EMBED
@@ -333,6 +347,19 @@ VirtualMachine_t* vm_from_bytes(char* vm_bytes, size_t size)
                     "VM created from [%ld] bytes of memory for agent",
                     size);
 
+                // When enabled, we keep track of each VM content on disk
+                if(engine_get_dump_vm_flag()) {
+                    sprintf(dump_file, "%s/vm_agent_%d.dump", 
+                        engine_get_dump_vm_path(),
+                        agent_id);
+
+                    engine_trace(TRACE_LEVEL_ALWAYS,
+                        "Saving VM for agent [%d] into file [%s]",
+                        agent_id,
+                        dump_file);
+
+                    embed_save(vm, dump_file);
+                }
             } else {
                 engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to create VM from [%ld] bytes of memory for agent",
@@ -504,4 +531,229 @@ void vm_report(VirtualMachine_t* vm)
 int vm_is_yield() 
 {
   return g_vm_yield;
+}
+
+/** ****************************************************************************
+
+  @brief      Aborts command execution at current VM
+
+  @param[in]  vm       Current VM object
+
+  @return     void
+
+*******************************************************************************/
+void vm_abort(VirtualMachine_t* vm)
+{
+    if(vm)
+    {
+        // ABORT COMMAND
+        engine_trace(TRACE_LEVEL_ALWAYS, "ABORT command received at VM");
+
+        // Notify by email
+        engine_vm_output_cb("Executed VM abort");
+
+        // reset VM stuff
+        embed_reset((forth_t*)vm); 
+    }
+}
+
+/** ****************************************************************************
+
+  @brief      Resets VM (stops command execution and destroys it to create a new one)
+
+  @param[in]  vm       Current VM object
+
+  @return     void
+
+*******************************************************************************/
+void vm_reset(VirtualMachine_t* vm)
+{
+    if(vm)
+    {
+        // ABORT COMMAND
+        engine_trace(TRACE_LEVEL_ALWAYS, "RESET command received at VM");
+
+        // Notify by email
+        engine_vm_output_cb("Executed VM reset");
+
+        // reset VM stuff
+        embed_reset((forth_t*)vm); 
+    }
+}
+
+
+/** ****************************************************************************
+
+  @brief      Reads byte from VM memory at given address (offset given in bytes)
+
+  @param[in]      vm        Current VM object
+  @param[in]      addr      Offset (in bytes) we read from
+  @param[in|out]  outValue  Output byte where we store the value obtained
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_read_byte(VirtualMachine_t* vm, uint16_t addr, unsigned char* outValue)
+{
+    ErrorCode_t result = ENGINE_INTERNAL_ERROR;
+
+    if(vm && outValue)
+    {
+        *outValue = embed_read_byte(vm, addr); 
+        result = ENGINE_OK;
+    }
+
+    return result;
+}
+
+
+/** ****************************************************************************
+
+  @brief      Writes byte into VM memory at given address (offset given in bytes)
+
+  @param[in]  vm     Current VM object
+  @param[in]  addr   Offset (in bytes) we write into
+  @param[in]  value  Byte value to write into VM memory
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_write_byte(VirtualMachine_t* vm, uint16_t addr, unsigned char value)
+{
+    ErrorCode_t result = ENGINE_INTERNAL_ERROR;
+
+    if(vm)
+    {
+        embed_write_byte(vm, addr, value); 
+        result = ENGINE_OK;
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+  @brief      Writes an string into VM memory address
+
+  @param[in]  vm     Current VM object
+  @param[in]  addr   Offset (in bytes) we write into
+  @param[in]  str    String to insert into VM memory
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_write_string(VirtualMachine_t* vm, uint16_t addr, char* str)
+{
+    ErrorCode_t result = ENGINE_INTERNAL_ERROR;
+
+    if(vm && str)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Writing string [%s] into VM address [%d]",
+            str,
+            addr);
+
+        size_t len = strlen(str);
+        uint16_t next_addr = addr;
+
+        // write len
+        embed_write_byte(vm, next_addr++, (unsigned char)len);
+
+        // write string 
+        for(int i=0; i < len; i++) {
+            embed_write_byte(vm, next_addr++, (unsigned char)str[i]);
+        }
+        // End the string with a NULL
+        embed_write_byte(vm, next_addr++, (unsigned char)0x00);
+
+        result = ENGINE_OK;
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+  @brief      Writes an string into VM memory address
+
+  @param[in]  vm     Current VM object
+  @param[in]  addr   Offset (in bytes) we write into
+  @param[in]  value  Integer value to write
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_write_integer(VirtualMachine_t* vm, uint16_t addr, uint16_t value)
+{
+    ErrorCode_t result = ENGINE_INTERNAL_ERROR;
+
+    if(vm)
+    {
+        unsigned char first_byte = (unsigned char)(value & 0xFF);
+        unsigned char second_byte = (unsigned char)(value >> 8);
+
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Writing integer [%d] into VM address [%d], bytes [%02X][%02X]",
+            value,
+            addr,
+            first_byte, second_byte);
+
+        // write the 2 bytes 
+        embed_write_byte(vm, addr,   first_byte);
+        embed_write_byte(vm, addr+1, second_byte);
+
+        result = ENGINE_OK;
+    }
+
+    return result;
+}
+
+
+/** ****************************************************************************
+
+  @brief      Writes an string into VM memory address
+
+  @param[in]  vm       Current VM object
+  @param[in]  addr     Offset (in bytes) we write into
+  @param[in]  date_str Date string to insert into VM memory
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t vm_write_datetime(VirtualMachine_t* vm, uint16_t addr, char* date_str)
+{
+    ErrorCode_t result = ENGINE_INTERNAL_ERROR;
+
+    if(vm && date_str)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Writing date [%s] into VM address [%d]",
+            date_str,
+            addr);
+
+        // Times will be placed in memory as two 16-bit values. 
+        // The first value will count the number of days from 1 January 2000, 
+        // The second value will count the number of even seconds (every other second) since midnight. 
+        time_t db_date = db_date_to_timestamp(date_str, OBJECTS_TIMESTAMP_FORMAT);
+        time_t ref_date = db_date_to_timestamp(JANUARY_1_2000_DATE, OBJECTS_TIMESTAMP_FORMAT);
+
+        uint16_t days_elapsed = (db_date - ref_date) / (24 * 3600);
+        uint16_t seconds_elapsed = (db_date - ref_date) % (24 * 3600);
+        uint16_t half_seconds_elapsed = (seconds_elapsed / 2);
+
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "Writing date [%s] into VM address [%d], days elapsed [%d], seconds [%d], half_seconds [%d]",
+            date_str,
+            addr,
+            days_elapsed,
+            seconds_elapsed,
+            half_seconds_elapsed);
+
+        vm_write_integer(vm, addr, days_elapsed);
+        vm_write_integer(vm, addr+2, half_seconds_elapsed);
+
+        result = ENGINE_OK;
+    }
+
+    return result;
 }

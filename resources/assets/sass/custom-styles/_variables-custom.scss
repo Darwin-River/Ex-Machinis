@@ -1,0 +1,394 @@
+// Variables
+//
+// Copy settings from this file into the provided `_custom.scss` to override
+// the Bootstrap defaults without modifying key, versioned files.
+//
+// Variables should follow the `$component-state-property-size` formula for
+// consistent naming. Ex: $nav-link-disabled-color and $modal-content-box-shadow-xs.
+//
+// Temporary, used for calculation variables should by named `$_variable-name`
+//
+// Table of Contents
+//
+// Color system
+// Body
+// Page
+// Components
+// Fonts
+// Links
+// Z-index master list
+// Grid breakpoints
+// Grid containers
+// Grid columns
+// Buttons
+// Form
+// Pagination 
+// Tooltips
+
+
+
+// Theme colors
+$primary-invariable: #3e3ef5;
+$secondary-invariable: #f99200;
+
+$secondary-2-invariable: #ffb041;
+
+$black-invariable: #000000;
+$gray-100-invariable: #f3f3f9;
+$gray-400-invariable: #aeb1be;
+$gray-500-invariable: #828590;
+$gray-700-invariable: #29293a;
+$white-invariable: #ffffff;
+
+$shade-1: lighten(saturate(adjust_hue($secondary, -19.629629629629648), 9.852216748768456%), 8.03921568627451%);
+
+
+
+//
+// Body 
+//
+$body-bg: $gray-800;
+$body-color: $gray-500-invariable;
+
+$theme-colors: ();
+
+// Accent colors
+$danger-color: #f5543f;
+$success-color: #98bf44;
+
+// Additional colors
+$facebook: #4d70a8;
+$facebook-light: #748abc;
+$facebook-darken: darken($facebook, 5%);
+
+$twitter: #02bcf3;
+$twitter-light: #81cbdb;
+$twitter-darken: darken($twitter, 5%);
+
+$google: #e2411e;
+$google-light: #de7272;
+$google-darken: darken($google, 5%);
+
+
+$instagram: #e4405f;
+$instagram-light: #de7272;
+$instagram-darken: darken($instagram, 5%);
+
+
+$patreon: #F86754;
+$patreon-light: #ff8a76;
+$patreon-darken: darken($patreon, 5%);
+
+
+$github: black;
+$github-light: #292929;
+$github-darken: darken($github, 5%);
+
+//
+// Page
+//
+$page-boxed-width: 1600px;
+$page-boxed-background-color: $gray-100;
+$page-boxed-background-image: url(/images/bg-pattern-boxed.png);
+
+//
+// Components
+//
+// Define common padding and border radius sizes and more.
+$border-width: 1px;
+
+$border-radius: 0;
+$border-radius-6: 6px;
+$border-radius-lg: .3rem;
+$border-radius-sm: .2rem;
+
+$transition-base: all .25s ease-in-out;
+
+// Map
+//
+$map-height: 260px;
+$map-sm-height: 360px;
+$map-lg-height: 460px;
+
+// Custom
+$shadow-area-1: -3px 0px 50px -2px rgba(0, 0, 0, 0.09);
+$shadow-area-2: 1px 1px 10px 0 rgba(0, 0, 0, 0.2);
+
+//
+// Fonts
+//
+// Font, line-height, and color for body text, headings, and more.
+$font-family-sans-serif: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+$font-family-sans-serif-1: "Yanone Kaffeesatz", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+$font-family-monospace: 'Nova Mono', Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+$font-family-base: $font-family-sans-serif;
+$font-family-sec: $font-family-sans-serif-1;
+$font-family-sec-2: $font-family-monospace;
+
+$font-weight-base: 400;
+$font-weight-bold: 700;
+
+// Base fonts
+$font-size-base: 16px;
+$font-size-xl: 20px;
+$font-size-lg: 18px;
+$font-size-sm: 14px;
+
+$_lh-base: 28px;
+$_lh-xl: 32px;
+$_lh-lg: 28px;
+$_lh-sm: 24px;
+
+// ** < Calculated font values >
+$line-height-base: ($_lh-base / $font-size-base);
+$line-height-xl: ($_lh-xl / $font-size-xl);
+$line-height-lg: ($_lh-lg / $font-size-lg);
+$line-height-sm: ($_lh-sm / $font-size-sm);
+// ** </ Calculated font values >
+
+// Headings
+$headings-font-family: $font-family-sec;
+$headings-font-weight: $font-weight-bold;
+$headings-line-height: 1.1;
+$headings-color: $white;
+
+// Template Heading Values
+$_h1-fsz: 68;
+$_h2-fsz: 48;
+$_h3-fsz: 34;
+$_h4-fsz: 28;
+$_h5-fsz: 20;
+$_h6-fsz: 20;
+
+$_h1-lh: 70;
+$_h2-lh: 54;
+$_h3-lh: 38;
+$_h4-lh: 32;
+$_h5-lh: 30;
+$_h6-lh: 32;
+
+// ** < Calculated Headings values >
+$h1-font-size: $_h1-fsz * 1px;
+$h2-font-size: $_h2-fsz * 1px;
+$h3-font-size: $_h3-fsz * 1px;
+$h4-font-size: $_h4-fsz * 1px;
+$h5-font-size: $_h5-fsz * 1px;
+$h6-font-size: $_h6-fsz * 1px;
+
+$h1-line-height: ($_h1-lh / $_h1-fsz);
+$h2-line-height: ($_h2-lh / $_h2-fsz);
+$h3-line-height: ($_h3-lh / $_h3-fsz);
+$h4-line-height: ($_h4-lh / $_h4-fsz);
+$h5-line-height: ($_h5-lh / $_h5-fsz);
+$h6-line-height: ($_h6-lh / $_h6-fsz);
+// ** </ Calculated Headings values >
+
+// Icon Fonts
+$fa: 'FontAwesome';
+$mdi: 'Material Design Icons';
+$mi: 'Material Icons';
+
+// Lead
+$lead-font-size: 20px;
+$lead-line-height: 30px;
+$lead-font-weight: 300;
+
+// Hr
+$hr-border-color: $gray-100-invariable;
+$hr-border-width: $border-width;
+
+// Mark
+$mark-padding: 5px 10px;
+$mark-bg: $primary;
+
+$dt-font-weight: inherit;
+$list-inline-padding: 5px;
+
+// Code
+$code-font-size: 90%;
+$code-padding-y: 10px;
+$code-padding-x: 5px;
+$code-color: $gray-900;
+$code-bg: $gray-100;
+
+//
+// Links
+//
+$link-color: $secondary;
+$link-decoration: none;
+$link-hover-color: $white;
+$link-press-color: $white;
+$link-hover-decoration: underline;
+
+// Z-index master list
+//
+// Warning: Avoid customizing these values. They're used for a bird's eye view
+// of components dependent on the z-axis and are designed to all work together.
+
+$zindex-dropdown: 1000;
+$zindex-sticky: 1020;
+$zindex-fixed: 1030;
+$zindex-modal-backdrop: 1040;
+$zindex-modal: 1050;
+$zindex-popover: 1060;
+$zindex-tooltip: 1070;
+// Custom
+$zindex-rd-navbar: 1080;
+$zindex-layout-panel: 1100;
+
+//
+// Grid breakpoints
+//
+// Define the minimum dimensions at which your layout will change,
+// adapting to different screen sizes, for use in media queries.
+$grid-breakpoints: (
+	xs: 0,
+	sm: 576px,
+	md: 768px,
+	lg: 992px,
+	xl: 1200px,
+	xxl: 1600px
+);
+
+@include _assert-ascending($grid-breakpoints, "$grid-breakpoints");
+@include _assert-starts-at-zero($grid-breakpoints);
+
+$screen-fullhd: 1600px;
+
+// Grid containers
+//
+// Define the maximum width of `.container` for different screen sizes.
+
+$container-max-widths: (
+	sm: 540px,
+	md: 720px,
+	lg: 960px,
+	xl: 1200px
+);
+@include _assert-ascending($container-max-widths, "$container-max-widths");
+
+//
+// Grid columns
+//
+// Set the number of columns and specify the width of the gutters.
+$grid-columns: 12;
+$grid-gutter-width: 30px;
+$grid-gutter-width-narrow: 30px;
+
+//
+// Buttons
+//
+
+$input-btn-padding-y: 9px;
+$input-btn-padding-x: 37px;
+$input-btn-font-size: 18px;
+$input-btn-line-height: 1.556;
+
+$input-btn-padding-y-sm: 6px;
+$input-btn-padding-x-sm: 28px;
+$input-btn-line-height-sm: 1.5;
+
+$input-btn-padding-y-lg: 13px;
+$input-btn-padding-x-lg: 57px;
+$input-btn-line-height-lg: 1.5;
+
+$btn-font-family: $font-family-sec;
+$btn-font-weight: 700;
+$btn-letter-spacing: .1em;
+$btn-text-transform: uppercase;
+
+$btn-box-shadow: 0;
+$btn-focus-box-shadow: 0;
+$btn-active-box-shadow: 0;
+
+$btn-link-disabled-color: $gray-600;
+
+$btn-block-spacing-y: .5rem;
+
+// Allows for customizing button radius independently from global border radius
+$btn-border-radius: $border-radius-6;
+$btn-border-radius-lg: $border-radius-lg;
+$btn-border-radius-sm: $border-radius-sm;
+
+$btn-transition: all .15s ease-in-out;
+
+//
+// Forms
+//
+$form-input-height: 50px;
+$form-input-lg-height: 60px;
+$form-input-sm-height: 40px;
+
+$form-input-color: $gray-700-invariable;
+$form-input-color-placeholder: $form-input-color;
+
+$form-input-background: $gray-100-invariable;
+$form-input-border-color: $form-input-background;
+$form-input-border-radius: $border-radius-6;
+
+$form-input-font-size: 16px;
+$form-input-line-height: 28px;
+$form-input-font-weight: 400;
+
+$form-input-border: 1px solid $form-input-border-color;
+$form-input-padding-horizontal: 20px;
+$form-input-line-height: round($form-input-font-size * 1.75);
+
+$form-input-padding-vertical: round(($form-input-height - $form-input-line-height) / 2);
+$form-input-padding: $form-input-padding-vertical $form-input-padding-horizontal;
+
+@if ($form-input-border != none) {
+	$form-input-padding-vertical: round(($form-input-height - $form-input-line-height - (nth($form-input-border, 1) * 2)) / 2);
+	$form-input-padding: $form-input-padding-vertical $form-input-padding-horizontal;
+}
+
+$form-textarea-default-height: 150px;
+$form-textarea-default-min-height: $form-input-height;
+$form-textarea-default-max-height: round($form-textarea-default-height * 1.7);
+
+$form-feedback-focus-color: $primary;
+$form-feedback-valid-color: $success-color;
+$form-feedback-invalid-color: $danger-color;
+
+//
+// Pagination
+//
+$pagination-padding-y: 11px;
+$pagination-padding-x: 11px;
+$pagination-font-size: 18px;
+$pagination-line-height: 28px;
+
+$pagination-color: $white-invariable;
+$pagination-bg: $primary;
+$pagination-border-width: 0;
+$pagination-border-color: transparent;
+
+$pagination-hover-color: $white-invariable;
+$pagination-hover-bg: $secondary;
+$pagination-hover-border-color: transparent;
+
+$pagination-active-color: $white;
+$pagination-active-bg: rgba($white, .1);
+$pagination-active-border-color: transparent;
+
+$pagination-disabled-color: $gray-400;
+$pagination-disabled-bg: $gray-200;
+$pagination-disabled-border-color: transparent;
+
+//
+// Tooltips
+//
+$tooltip-max-width: 200px;
+$tooltip-color: $white;
+$tooltip-bg: $secondary;
+$tooltip-opacity: 1;
+$tooltip-padding-y: 6px;
+$tooltip-padding-x: 10px;
+$tooltip-margin: 0;
+
+$tooltip-arrow-width: 6px;
+$tooltip-arrow-height: 6px;
+$tooltip-arrow-color: $tooltip-bg;
+
+

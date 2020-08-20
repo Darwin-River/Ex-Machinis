@@ -1,0 +1,213 @@
+
+.text-nowrap {
+  white-space: nowrap;
+}
+
+.help-block {
+  color: $danger-color;
+}
+
+.alert-danger {
+  color: #dd0203;
+}
+
+#compiled_table {
+  border-width: 0;
+  color: white;
+  border-collapse: separate;
+  border-spacing: 0;
+
+  tr th {
+    border-width: 0;
+    padding: 4px;
+  }
+
+  tr td {
+    border-width: 1px;
+    padding: 4px 8px;
+  }
+
+  tr td:first-child, tr td:last-child {
+    border: 0px;
+  }
+
+  /*tr td:first-child, tr td:last-child {
+  font-size: 13px;
+  }*/
+
+  tr td:last-child {
+    text-align: left;
+  }
+
+  .top-border {
+    position: relative;
+    top: -16px;
+  }
+
+  .bottom-border {
+    position: relative;
+    top: 16px;
+  }
+}
+
+select.form-input {
+  border-radius: 6px 6px 0 0 !important;
+}
+
+.select-wrapper {
+  position: relative;
+  /*display: inline-block;*/
+}
+
+.select-wrapper::before {
+  position: absolute;
+  border-style: solid;
+  border-width: 0.25em 0.25em 0 0;
+  content: '';
+  display: inline-block;
+  height: 0.7em;
+  right: 1em;
+  top: 0.60em;
+  vertical-align: top;
+  width: 0.7em;
+  transform: rotate(135deg);
+  color: black;
+}
+
+.table-custom-primary thead th {
+  background-color: #2f2fbc !important;
+}
+
+// RD Dropdown 1-st level
+.rd-navbar-submenu .oriented-down {
+  left: auto !important;
+  margin-left: -15px !important;
+  text-align: left;
+  position: absolute;
+  top: 100% !important;
+  padding: 30px 15px;
+  z-index: 15;
+
+  // Mega large ≥1600px
+  @include media-breakpoint-up(xxl) {
+    padding: 44px 30px 40px;
+  }
+
+  // Mega large ≥1600px
+  @include media-breakpoint-up(xxl) {
+    margin-left: -30px;
+  }
+
+  .rd-dropdown-item {
+    display: block !important;
+  }
+}
+
+.rd-navbar-submenu .oriented-down::before {
+  content: none;
+  display: none;
+}
+
+@include media-breakpoint-down(md) {
+  #update_button {
+    width: 100%;
+  }
+}
+
+.rd-navbar-main .rd-navbar-nav-wrap .rd-navbar-list-link li {
+  @include media-breakpoint-up(lg) {
+    display: inline-block;
+  }
+  display: block;
+}
+
+/*.rd-navbar-list-link {
+
+
+  li a {
+    font-size: 18px;
+    line-height: $h6-line-height;
+    font-weight: $headings-font-weight;
+    font-family: $headings-font-family;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+
+    @include link(inherit, $secondary-2);
+  }
+}*/
+
+.table-responsive {
+  transition: all 1s;
+}
+
+.loading-table {
+  opacity: 0.3;
+  transition: all 1s;
+}
+
+th .sort-icon {
+  display: none;
+  @include media-breakpoint-up(sm) {
+    display: block;
+  }
+}
+
+.rd-navbar-dropdown:not(.oriented-down) li {
+  /* text-indent: -15px;*/
+  padding-left: 15px;
+}
+
+.table-custom th, .table-custom td {
+  width: auto !important;
+  min-width: auto !important;
+}
+
+.table-custom th {
+  font-weight: bold;
+}
+
+.small-version {
+  tr th, tr td {
+    font-size: 15px;
+    padding: 14px 23px;
+  }
+}
+
+#table_preloader {
+  position: absolute;
+  /*top: -10px;*/
+  margin-top: 100px;
+  margin-left: auto;
+  margin-right: auto;
+  left: 0;
+  right: 0;
+  opacity: 100% !important;
+}
+
+.post-big pre {
+  color: white;
+  border: 1px solid white;
+  display: block;
+  margin-top: 20px;
+  padding: 20px 40px;
+}
+
+.table-ticket {
+  tr:first-child td, tr:last-child td {
+    width: auto !important;
+    min-width: auto !important;
+  }
+}
+
+.description-fields {
+
+  @extend h4;
+
+  font-weight: normal !important;
+  text-align: left;
+
+  a {
+    color: #f99200;
+  }
+
+}
