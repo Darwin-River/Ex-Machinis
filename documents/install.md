@@ -44,6 +44,7 @@ smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
 smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
 smtpd_tls_security_level=may
 smtpd_tls_protocols = !SSLv2, !SSLv3
+smtpd_relay_restrictions = permit_mynetworks permit_sasl_authenticated reject_unauth_destination
 
 local_recipient_maps =
 luser_relay = catchall
