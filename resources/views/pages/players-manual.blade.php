@@ -58,7 +58,7 @@
 
 <pre><code>&lt;rebrand&gt;Avalon&lt;/rebrand&gt;</code></pre>
 
-                        <p>This will immediately change the name of your company in the <a href="https://advolition.com/companies">company directory</a>.</p>
+                        <p>This will immediately change the name of your company in the <a href="https://<?php echo  getenv("MAIL_HOST") ?>/companies">company directory</a>.</p>
 
                         <br/><h3 id="h3_sending_your_first_command">Sending your first command</h3>
 
@@ -139,6 +139,14 @@
   5 go_there ( go to Jupiter )
   3 go_there ( go to Earth )
 &lt;/run&gt;</code></pre>
+
+<br/><h3 id="h3_getting_out_of_trouble">Getting out of trouble</h3>
+<p>It's definately possible to break your drone by sending it code that puts it into an endless loop or damages an important part of its memory. In these cases your spacecraft will become completely undresponsive to subsequent &lt;run&gt; commands. However, it's not hard to recover from these situations if you know what to do.  Here are two metacommands that can resue you from almost any software crash:</p>
+
+<p>Sending "&lt;abort&gt;" to your spacecraft will cause it to imediately terminate any currently active code, allowing you to break it free from an endless loop.</p>
+
+<p>Sending "&lt;reset&gt;" to your drone will not only stop any active scrpts, it will also reset your spacecraft's internal memory to its "factory setting," erasing any damage you might have done to it's internal memory. This metacommand will also erase any words or variables you defined earlier.  But sometimes its good to start with a clean slate.</p>
+
 
 <br/><h3>Learning more about the game</h3>
 <p>Your spacecraft can perform far more complex computations than those described here. While many of the basic functions have been highlighted in this quick start guide, we’re also developing a more complete Player’s Manual, which will cover every aspect of the game in greater detail. The Player’s Manual is available to our sponsors who support this project with a monthly contribution of $2 or more.  If you like what we’re doing with Ex Machinis, please consider following us on Patreon and lending your support to the project.</p>
