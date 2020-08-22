@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@php $title = 'Space Objects' ; @endphp
+@php $title = 'Locations' ; @endphp
 @section('pageTitle', $title)
 @section('content')
     <!-- Breadcrumbs-->

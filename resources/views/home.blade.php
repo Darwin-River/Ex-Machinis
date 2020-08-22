@@ -13,7 +13,7 @@
                           <span class="font-weight-light">where you <b>program</b> fleets of <b>self-replicating spacecraft</b></span><br>
                           <span class="font-weight-light">to exploit the riches of our solar system</span>
                         </h1><a class="button button-2 button-lg button-white-2 button-icon button-icon-left"
-                                href="players-manual"><span
+                                href="getting-started"><span
                                     class="icon mdi mdi-arrow-right"></span><span>Learn more</span></a>
                     </div>
                 </div>

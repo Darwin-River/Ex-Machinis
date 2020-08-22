@@ -113,11 +113,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         <div class="rd-navbar-nav-wrap">
                             <!-- RD Navbar Nav-->
                             <ul class="rd-navbar-nav">
+                              <!--
                                 <li class="rd-nav-item"><a class="rd-nav-link" href="/"><span
                                                 class="rd-nav-icon mdi mdi-home"></span><span
                                                 class="rd-nav-title">Home</span></a>
-                                    <!-- RD Navbar Dropdown-->
+
                                 </li>
+                              -->
 
                             <!-- Hide login menu for now.
                                 <li class="rd-nav-item "><a class="rd-nav-link " href="#"><span
@@ -144,8 +146,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 
                                 <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
-                                                                             href="{{url('players-manual')}}"><span
-                                                class="rd-nav-icon mdi mdi-dictionary"></span><span
+                                                                             href="{{url('getting-started')}}"><span
+                                                class="rd-nav-icon mdi mdi-satellite-uplink"></span><span
                                                 class="rd-nav-title">Documentation</span></a>
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown">
@@ -163,26 +165,41 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                     </ul>
                                 </li>
                                 <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
-                                                                             href="{{'objects'}}"><span
-                                                class="rd-nav-icon mdi mdi-database-search"></span><span
-                                                class="rd-nav-title">Data</span></a>
+                                                                             href="{{'companies'}}"><span
+                                                class="rd-nav-icon mdi mdi-factory"></span><span
+                                                class="rd-nav-title">Infrastructure</span></a>
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown">
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('objects')}}">Space Objects</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('companies')}}">Companies</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('spacecraft')}}">Spacecraft</a></li>
-
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('resources')}}">Resources</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('events')}}">Events</a></li>
+                                    </ul>
+                                </li>
+                                <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
+                                                                             href="{{'buys'}}"><span
+                                                class="rd-nav-icon mdi mdi-chart-line"></span><span
+                                                class="rd-nav-title">Markets</span></a>
+                                    <!-- RD Navbar Dropdown-->
+                                    <ul class="rd-menu rd-navbar-dropdown">
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('buys')}}">Buy Orders</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('sells')}}">Sell Orders</a></li>
+                                    </ul>
+                                </li>
+                                <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
+                                                                             href="{{'locations'}}"><span
+                                                class="rd-nav-icon mdi mdi-moon-waning-crescent"></span><span
+                                                class="rd-nav-title">Environment</span></a>
+                                    <!-- RD Navbar Dropdown-->
+                                    <ul class="rd-menu rd-navbar-dropdown">
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('locations')}}">Locations</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('events')}}">Events</a></li>
                                     </ul>
                                 </li>
                                 <!--  <li class="rd-nav-item active"><a class="rd-nav-link" href="contacts.html"><span
@@ -194,7 +211,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                             <ul class="rd-navbar-list-link">
 
 
-                                <li class="d-none d-lg-inline-block"><a class="" href="">Documentation</a><span
+                                <li class="d-none d-lg-inline-block"><a class="" href="">Command and Control</a><span
                                             class="rd-navbar-submenu-toggle"></span>
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown oriented-down">
@@ -211,43 +228,56 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                         -->
                                     </ul>
                                 </li>
-                                <li class="d-none d-lg-inline-block"><a class="" href="{{url('objects')}}">Data</a><span
+                                <li class="d-none d-lg-inline-block"><a class="" href="{{url('companies')}}">Infrastructure</a><span
                                             class="rd-navbar-submenu-toggle"></span>
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown oriented-down">
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('objects')}}">Space
-                                                Objects</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('companies')}}">Companies</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('spacecraft')}}">Spacecraft</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('resources')}}">Resources</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('events')}}">Events</a></li>
+                                    </ul>
+                                </li>
+                                <li class="d-none d-lg-inline-block"><a class="" href="{{url('buys')}}">Markets</a><span
+                                            class="rd-navbar-submenu-toggle"></span>
+                                    <!-- RD Navbar Dropdown-->
+                                    <ul class="rd-menu rd-navbar-dropdown oriented-down">
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('buys')}}">Buy Orders</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('sells')}}">Sell Orders</a></li>
                                     </ul>
                                 </li>
-
+                                <li class="d-none d-lg-inline-block"><a class="" href="{{url('locations')}}">Environnment</a><span
+                                            class="rd-navbar-submenu-toggle"></span>
+                                    <!-- RD Navbar Dropdown-->
+                                    <ul class="rd-menu rd-navbar-dropdown oriented-down">
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('locations')}}">Locations</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('events')}}">Events</a></li>
+                                    </ul>
+                                </li>
+                                <!--
                                 <li class="d-block d-lg-none"><a href="{{url('players-manual')}}">Player's Manual</a>
                                 </li>
                                 <li class="d-block d-lg-none"><a href="{{url('protocols')}}">Protocols</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('queries')}}">Queries</a></li>
+                              -->
                             <!-- Hide for now.
                                 <li class="d-block d-lg-none"><a href="{{url('forth-dictionary')}}">FORTH Dictionary</a></li>
                                 -->
-                                <li class="d-block d-lg-none"><a href="{{url('objects')}}">Space
-                                        Objects</a></li>
+                                <!--
+                                <li class="d-block d-lg-none"><a href="{{url('locations')}}">Locations</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('companies')}}">Companies</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('spacecraft')}}">Spacecraft</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('resources')}}">Resources</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('events')}}">Events</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('buys')}}">Buy Orders</a></li>
                                 <li class="d-block d-lg-none"><a href="{{url('sells')}}">Sell Orders</a></li>
+                              -->
                                 <li><a href="{{url('about-us')}}">About Us</a></li>
                                 <li><a href="{{url('register')}}" class="text-warning">Join the Game</a></li>
                             <!-- Hide login prompt for now.

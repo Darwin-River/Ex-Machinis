@@ -748,6 +748,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "FROM events "
                     "WHERE drone = %d and resource = %d and installed = %d and locked = %d "
                     "and outcome = %d " // success
+                    "and (event_type = 1 or event_type = 2)" // look only for increment and depletion events
                     "and timestamp < '%s' order by timestamp DESC limit 1;",  //
                     event->drone_id, event->resource_id, event->installed, event->locked, OUTCOME_OK, timestamp_buffer);
                 break;
@@ -777,8 +778,8 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "drone = %d and "
                     "event_type = %d and "
                     "outcome = %d and " // success
-                    "resource = %d;",
-                    event->drone_id, SELL_EVENT_TYPE, OUTCOME_OK, event->resource_id);
+                    "resource = %d and timestamp < '%s' order by timestamp DESC limit 1;",
+                    event->drone_id, SELL_EVENT_TYPE, OUTCOME_OK, event->resource_id, timestamp_buffer);
                 break;
             case PREVIOUS_EVENT_BY_BUY_ORDER:
                 snprintf(query_text,
@@ -787,8 +788,8 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "drone = %d and "
                     "event_type = %d and "
                     "outcome = %d and " // success
-                    "resource = %d;",
-                    event->drone_id, BUY_EVENT_TYPE, OUTCOME_OK, event->resource_id);
+                    "resource = %d and timestamp < '%s' order by timestamp DESC limit 1;",
+                    event->drone_id, BUY_EVENT_TYPE, OUTCOME_OK, event->resource_id, timestamp_buffer);
                 break;
             default:
                 // Unexpected enum value
@@ -2192,7 +2193,7 @@ ErrorCode_t db_update_user_credits(User_t* user)
     {
         char* query_end = query_text;
 
-        query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, 
+        query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN,
             "UPDATE users SET credits = %d where user_id = %d",
             user->credits,
             user->user_id);

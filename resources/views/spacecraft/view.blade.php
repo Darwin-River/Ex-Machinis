@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@php $title = "Agent ".$agent->name ; @endphp
+@php $title = $agent->name ; @endphp
 @section('pageTitle', $title)
 @section('content')
     <section class="breadcrumbs-modern box-transform-wrap bg-image context-dark"
@@ -25,7 +25,7 @@
                     <div class="col-12 col-sm-6 col mb-0">
                         <b>Spacecraft Id</b>: {{$agent->agent_id}}<br/>
                         <b>Location</b>: <a
-                                href="{{url('objects/'.$agent->object_id)}}">{{$agent->location->object_name}}</a><br/>
+                                href="{{url('locations/'.$agent->object_id)}}">{{$agent->location->object_name}}</a><br/>
 
                         <b>Owner</b>: <a href="{{url('companies/'.$agent->user_id)}}">{{$agent->user->name}}</a><br/>
                     </div>

@@ -11,7 +11,8 @@ Depending on your interests, the following documents provide further details on 
 * **[The Player's Manual](https://advolition.com/players-manual)** tells you how to start playing _Ex Machinis_ and progress to more advanced game-play.
 * **[The FORTH Dictionary](documents/dictionary.md)** defines all the core functions that are available to each of the drone. 
 * **[The Game Design Manual](documents/mechanics.md)** detailes the inner workings of the _Ex Machinis_ and servers as the blueprints for game development.
-* **[The Web Design Manual](documents/website.md)** lays out the objectives, principles, and funcional page designs of the Ex Machinis website, which we are just beginning to develop.
+
+You may also want to check out Frank Moraes' [excellent blog post](https://www.whoishostingthis.com/resources/forth-programming/), which introduces FORTH and related resources.
 
 ## About Our Team
 

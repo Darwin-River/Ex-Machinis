@@ -3,7 +3,7 @@
   PROJECT    : Ex-Machinis
 
   DESCRIPTION: Events management module
- 
+
 ******************************************************************************/
 
 /******************************* INCLUDES ************************************/
@@ -29,7 +29,7 @@
 
 /** ****************************************************************************
 
-  @brief      The EE will search for the last processed event with the same drone 
+  @brief      The EE will search for the last processed event with the same drone
               and add that quantity to the new_cargo field of the current event.
 
   @param[in]  event                    Input event
@@ -41,10 +41,10 @@
 *******************************************************************************/
 ErrorCode_t event_update_new_cargo_and_quantity
 (
-  Event_t* event, 
+  Event_t* event,
   Event_t* previous_event,
   Event_t* previous_resource_event
-) 
+)
 {
     ErrorCode_t result = ENGINE_OK;
 
@@ -75,9 +75,9 @@ ErrorCode_t event_update_new_cargo_and_quantity
 
     if((result == ENGINE_OK) && (event->new_quantity != NULL_VALUE))
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-          "New quantity %d, prev_event_cargo %d, previous_event_resource_quantity %d",  
-          event->new_quantity, previous_event->new_cargo, 
+        engine_trace(TRACE_LEVEL_ALWAYS,
+          "New quantity %d, prev_event_cargo %d, previous_event_resource_quantity %d",
+          event->new_quantity, previous_event->new_cargo,
           previous_resource_event->new_quantity);
 
         // Update quantities
@@ -97,17 +97,17 @@ ErrorCode_t event_update_new_cargo_and_quantity
             DroneResources_t* resource = (resources + i); // shortcut
             if(resource->quantity >= 0) {
                 total_cargo += (resource->quantity * resource->mass);
-                engine_trace(TRACE_LEVEL_ALWAYS, 
-                  "Adding resource [%s], quantity [%d], mass [%d] to new_cargo, total now [%d]",  
-                  resource->name, resource->quantity, resource->mass, 
+                engine_trace(TRACE_LEVEL_ALWAYS,
+                  "Adding resource [%s], quantity [%d], mass [%d] to new_cargo, total now [%d]",
+                  resource->name, resource->quantity, resource->mass,
                   total_cargo);
             }
         }
 
         // add current event new_cargo that already contains (mass * quantity)
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-          "Adding current event cargo [%d] to [%d]",  
-          event->new_cargo, 
+        engine_trace(TRACE_LEVEL_ALWAYS,
+          "Adding current event cargo [%d] to [%d]",
+          event->new_cargo,
           total_cargo);
 
         event->new_cargo += total_cargo;
@@ -120,23 +120,23 @@ ErrorCode_t event_update_new_cargo_and_quantity
 
 /** ****************************************************************************
 
-  @brief      The EE will search for the last processed event for any drone belonging 
-              to the owner of the current drone and add the quantity of the new_credit 
-              field of the current event. 
+  @brief      The EE will search for the last processed event for any drone belonging
+              to the owner of the current drone and add the quantity of the new_credit
+              field of the current event.
 
   @param[in]  event  Input event
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t event_update_new_credit(Event_t *event) 
+ErrorCode_t event_update_new_credit(Event_t *event)
 {
     ErrorCode_t result = ENGINE_OK;
     Event_t previous_event;
 
     memset(&previous_event, 0, sizeof(previous_event));
 
-    // The EE will search for the last processed event for any drone belonging to the owner of the current drone and add the quantity of the new_credit field of the current event. 
+    // The EE will search for the last processed event for any drone belonging to the owner of the current drone and add the quantity of the new_credit field of the current event.
 
     if(event == NULL)
     {
@@ -146,7 +146,7 @@ ErrorCode_t event_update_new_credit(Event_t *event)
 
     if(result == ENGINE_OK)
     {
-        // search for the last processed event with the same drone 
+        // search for the last processed event with the same drone
         result = db_get_previous_event(event, PREVIOUS_EVENT_BY_OWNER, &previous_event);
     }
 
@@ -176,7 +176,7 @@ ErrorCode_t event_update_new_credit(Event_t *event)
   @return     Boolean (TRUE when condition is met, FALSE otherwise)
 
 *******************************************************************************/
-Bool_t event_no_local_condition(Event_t *event) 
+Bool_t event_no_local_condition(Event_t *event)
 {
     return ENGINE_FALSE;
 }
@@ -194,15 +194,15 @@ Bool_t event_no_local_condition(Event_t *event)
 *******************************************************************************/
 Bool_t event_no_resources_condition
 (
-    Event_t* event, 
-    Event_t* previous_event, 
+    Event_t* event,
+    Event_t* previous_event,
     Event_t* previous_resource_event
-) 
+)
 {
     // Check if we can execute this resource change
     if((event->new_quantity != NULL_VALUE) && (event->new_quantity < 0)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Current resources quantity [%d] is not enough for a depletion of [%d]", 
+        engine_trace(TRACE_LEVEL_ALWAYS,
+            "Current resources quantity [%d] is not enough for a depletion of [%d]",
             previous_resource_event->new_quantity, previous_event->new_quantity);
 
         return ENGINE_TRUE;
@@ -221,7 +221,7 @@ Bool_t event_no_resources_condition
   @return     Boolean (TRUE when condition is met, FALSE otherwise)
 
 *******************************************************************************/
-Bool_t event_no_cargo_condition(Event_t *event) 
+Bool_t event_no_cargo_condition(Event_t *event)
 {
     int capacity = 0;
 
@@ -230,8 +230,8 @@ Bool_t event_no_cargo_condition(Event_t *event)
 
     if(db_get_max_drone_cargo(event->drone_id, &capacity) == ENGINE_OK) {
         // Compare current cargo vs. max capacity
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-            "Current cargo [%d], max capacity [%d]", 
+        engine_trace(TRACE_LEVEL_ALWAYS,
+            "Current cargo [%d], max capacity [%d]",
             event->new_cargo, capacity);
 
         if(event->new_cargo <= capacity) {
@@ -252,7 +252,7 @@ Bool_t event_no_cargo_condition(Event_t *event)
   @return     Boolean (TRUE when condition is met, FALSE otherwise)
 
 *******************************************************************************/
-Bool_t event_no_credits_condition(Event_t *event) 
+Bool_t event_no_credits_condition(Event_t *event)
 {
     return ENGINE_FALSE;
 }
@@ -266,7 +266,7 @@ Bool_t event_no_credits_condition(Event_t *event)
   @return     Boolean (TRUE when condition is met, FALSE otherwise)
 
 *******************************************************************************/
-Bool_t event_lower_resources_limit_condition(Event_t *event) 
+Bool_t event_lower_resources_limit_condition(Event_t *event)
 {
     return ENGINE_FALSE;
 }
@@ -280,7 +280,7 @@ Bool_t event_lower_resources_limit_condition(Event_t *event)
   @return     Boolean (TRUE when condition is met, FALSE otherwise)
 
 *******************************************************************************/
-Bool_t event_upper_resources_limit_condition(Event_t *event) 
+Bool_t event_upper_resources_limit_condition(Event_t *event)
 {
     return ENGINE_FALSE;
 }
@@ -294,7 +294,7 @@ Bool_t event_upper_resources_limit_condition(Event_t *event)
   @return     Boolean (TRUE when condition is met, FALSE otherwise)
 
 *******************************************************************************/
-Bool_t event_wrong_depletion_price_condition(Event_t *event) 
+Bool_t event_wrong_depletion_price_condition(Event_t *event)
 {
     return ENGINE_FALSE;
 }
@@ -308,7 +308,7 @@ Bool_t event_wrong_depletion_price_condition(Event_t *event)
   @return     Boolean (TRUE when condition is met, FALSE otherwise)
 
 *******************************************************************************/
-Bool_t event_wrong_accumulation_price_condition(Event_t *event) 
+Bool_t event_wrong_accumulation_price_condition(Event_t *event)
 {
     return ENGINE_FALSE;
 }
@@ -326,10 +326,10 @@ Bool_t event_wrong_accumulation_price_condition(Event_t *event)
 *******************************************************************************/
 ErrorCode_t event_validate_event_conditions
 (
-    Event_t* event, 
+    Event_t* event,
     Event_t* previous_event,
     Event_t* previous_resource_event
-) 
+)
 {
     ErrorCode_t result = ENGINE_LOGIC_ERROR;
 
@@ -342,8 +342,8 @@ ErrorCode_t event_validate_event_conditions
         //a.  The local field is set to true but the affected drone is not local.
         event->outcome = OUTCOME_NO_LOCAL;
     } else if(event_no_resources_condition(event, previous_event, previous_resource_event) == ENGINE_TRUE) {
-        //b.  The affected ship contains insufficient resources of the indicated state 
-        // (identical resource, locked, and installed values) to accommodate a depletion event. 
+        //b.  The affected ship contains insufficient resources of the indicated state
+        // (identical resource, locked, and installed values) to accommodate a depletion event.
         // This happens when the newly computed new_quantity field is less than zero.
         event->outcome = OUTCOME_NO_RESOURCES;
     } else if(event_no_cargo_condition(event) == ENGINE_TRUE) {
@@ -355,19 +355,19 @@ ErrorCode_t event_validate_event_conditions
         //d.  The player has insufficient credits to cover the purchase price of transferred items.
         event->outcome = OUTCOME_NO_CREDITS;
     } else if(event_lower_resources_limit_condition(event) == ENGINE_TRUE) {
-        // e.  The depletion event will violate the affected drone’s self imposed lower limit for the resource. 
+        // e.  The depletion event will violate the affected drone’s self imposed lower limit for the resource.
         // This only applies to cases in which the acting and affected ships are different.
         event->outcome = OUTCOME_RESOURCES_LOWER_LIMIT;
     } else if(event_upper_resources_limit_condition(event) == ENGINE_TRUE) {
-        //f.  The accumulation event will violate the affected drone’s self imposed upper limit for the resource. 
-        // This only applies to cases in which the acting and affected ships are different.        
+        //f.  The accumulation event will violate the affected drone’s self imposed upper limit for the resource.
+        // This only applies to cases in which the acting and affected ships are different.
         event->outcome = OUTCOME_RESOURCES_UPPER_LIMIT;
     } else if(event_wrong_depletion_price_condition(event) == ENGINE_TRUE) {
-        //g.  The Depletion Price for items being removed from the cargo bay of a non-allied ship is equal to or greater 
+        //g.  The Depletion Price for items being removed from the cargo bay of a non-allied ship is equal to or greater
         // than the price the player has set on those items.
         event->outcome = OUTCOME_WRONG_DEPLETION_PRICE;
     } else if(event_wrong_accumulation_price_condition(event) == ENGINE_TRUE) {
-        //h.  The Accumulation Price for items being added to the cargo bay of a non-allied ship is less than 
+        //h.  The Accumulation Price for items being added to the cargo bay of a non-allied ship is less than
         // or equal to the price the player has set for those items.
         event->outcome = OUTCOME_WRONG_ACCUMULATION_PRICE;
     } else {
@@ -375,11 +375,11 @@ ErrorCode_t event_validate_event_conditions
         result = ENGINE_OK;
     }
 
-    engine_trace(TRACE_LEVEL_ALWAYS, 
+    engine_trace(TRACE_LEVEL_ALWAYS,
         "Updating event "
         "EVENT_ID [%d] EVENT_TYPE [%d] ACTION_ID [%d] LOGGED [%d] OUTCOME [%d] "
         "DRONE_ID [%d] RESOURCE_ID [%d] INSTALLED [%d] LOCKED [%d] NEW_QUANTITY [%d] "
-        "NEW_CREDITS [%d] NEW_LOCATION [%d] NEW_CARGO [%d] TIMESTAMP [%ld]", 
+        "NEW_CREDITS [%d] NEW_LOCATION [%d] NEW_CARGO [%d] TIMESTAMP [%ld]",
         event->event_id,
         event->event_type,
         event->action_id,
@@ -412,7 +412,7 @@ ErrorCode_t event_validate_event_conditions
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t event_delete_previous_events(Event_t *event) 
+ErrorCode_t event_delete_previous_events(Event_t *event)
 {
   ErrorCode_t result = ENGINE_INTERNAL_ERROR;
 
@@ -434,7 +434,7 @@ ErrorCode_t event_delete_previous_events(Event_t *event)
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t event_abort_action(Event_t *event) 
+ErrorCode_t event_abort_action(Event_t *event)
 {
     ErrorCode_t result = ENGINE_INTERNAL_ERROR;
 
@@ -470,7 +470,7 @@ ErrorCode_t event_get_drone_position(int object_id, char* position, double* dist
 
         result = ENGINE_OK; // default OK
 
-        // Obtain the Sun info from DB 
+        // Obtain the Sun info from DB
         memset(&sun, 0, sizeof(ObjectOrbitInfo_t));
 
         if(db_get_object_info_by_name_x("Sun", &sun) != ENGINE_OK) {
@@ -489,7 +489,7 @@ ErrorCode_t event_get_drone_position(int object_id, char* position, double* dist
             do {
                 // Get current object info
                 if(db_get_orbit_info_x(&object) != ENGINE_OK) {
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                    engine_trace(TRACE_LEVEL_ALWAYS,
                         "ERROR: Unable to obtain position for drone with OBJ_ID=[%d]",
                         object.object_id);
 
@@ -502,7 +502,7 @@ ErrorCode_t event_get_drone_position(int object_id, char* position, double* dist
                         sprintf(position, "%s", drone.object_name);
                     }
 
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
+                    engine_trace(TRACE_LEVEL_ALWAYS,
                         "OBJ_ID=[%d] CENTRAL_BODY_OBJ_ID=[%d] SUN_OBJECT_ID=[%d]",
                         object.object_id, object.central_body_object_id, sun.object_id);
 
@@ -528,7 +528,7 @@ ErrorCode_t event_get_drone_position(int object_id, char* position, double* dist
                 }
 
             } while(done == ENGINE_FALSE);
-            
+
         }
 
         if(result == ENGINE_OK) {
@@ -541,16 +541,16 @@ ErrorCode_t event_get_drone_position(int object_id, char* position, double* dist
                 engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to obtain EARTH position");
                 result = ENGINE_DB_QUERY_ERROR;
             }
-        } 
+        }
 
         if(result == ENGINE_OK) {
             engine_trace(TRACE_LEVEL_ALWAYS,  "OBJ_ID=[%d] is at [%s]", earth.object_id, earth.object_name);
 
             // Get distance between Earth <-> drone
             *distance = orbits_get_distance_from_object(&earth, &final_position);
-        } 
+        }
 
-        
+
     }
 
     return result;
@@ -565,7 +565,7 @@ ErrorCode_t event_get_drone_position(int object_id, char* position, double* dist
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t event_update_observations(Event_t *event) 
+ErrorCode_t event_update_observations(Event_t *event)
 {
     ErrorCode_t result = ENGINE_OK;
     Observation_t observation;
@@ -583,14 +583,14 @@ ErrorCode_t event_update_observations(Event_t *event)
         observation.timestamp = time(NULL); // now for affected drone
 
         result = db_insert_observation(&observation);
-    }        
+    }
 
     // Observable events are also observed by any other spacecraft in orbit around the same object.
     if(result == ENGINE_OK && protocol.observable)
     {
         result = db_insert_local_observations(event);
     }
-    
+
     // Reportable events are also observed by the Earth Based Central Database.
     if(result == ENGINE_OK && protocol.reportable)
     {
@@ -602,7 +602,7 @@ ErrorCode_t event_update_observations(Event_t *event)
 
         if(result == ENGINE_OK)
         {
-           result = event_get_drone_position(objectId, position, &distance); 
+           result = event_get_drone_position(objectId, position, &distance);
         }
 
         if(result == ENGINE_OK)
@@ -610,9 +610,9 @@ ErrorCode_t event_update_observations(Event_t *event)
             observation.event_id = event->event_id;
             observation.drone_id = CENTRAL_DATABASE_DRONE_ID;
             observation.timestamp = time(NULL) + (time_t)(distance/LIGHT_SPEED_KM_PER_SECOND);
-            result = db_insert_observation(&observation);  
+            result = db_insert_observation(&observation);
         }
-        
+
     }
 
     return result;
@@ -620,7 +620,7 @@ ErrorCode_t event_update_observations(Event_t *event)
 
 /** ****************************************************************************
 
-  @brief      Check if a given event is a market transaction 
+  @brief      Check if a given event is a market transaction
               (resources pushed/pull to/from drones that belong to different players)
 
   @param[in]  action Parent action (that generated this event)
@@ -634,13 +634,13 @@ ErrorCode_t event_update_observations(Event_t *event)
               ENGINE_FALSE: Not a market transaction
 
 *******************************************************************************/
-Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* user, User_t* peer_user) 
+Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* user, User_t* peer_user)
 {
     Bool_t isMarketTransaction = ENGINE_FALSE;
 
     // Input pointers checked by calling function
 
-    engine_trace(TRACE_LEVEL_ALWAYS, 
+    engine_trace(TRACE_LEVEL_ALWAYS,
         "Checking if event [%d] represents a market transaction between drone [%d] and drone [%d]",
         event->event_id,
         action->drone_id,
@@ -649,16 +649,16 @@ Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* use
     // Check if the drone that generated the action is different from the affected one
     // and both belong to different users
     if(action->drone_id != event->drone_id) {
-        engine_trace(TRACE_LEVEL_ALWAYS, 
+        engine_trace(TRACE_LEVEL_ALWAYS,
             "Checking if drones [%d] and [%d] belong to different users",
             action->drone_id,
             event->drone_id);
 
-        if((db_get_drone_user(action->drone_id, peer_user) == ENGINE_OK) && 
-           (db_get_drone_user(event->drone_id, user) == ENGINE_OK) && 
+        if((db_get_drone_user(action->drone_id, peer_user) == ENGINE_OK) &&
+           (db_get_drone_user(event->drone_id, user) == ENGINE_OK) &&
            (peer_user->user_id != user->user_id)) {
 
-            engine_trace(TRACE_LEVEL_ALWAYS, 
+            engine_trace(TRACE_LEVEL_ALWAYS,
                 "Event [%d] represents a market transaction between drone [%d] and drone [%d]",
                 event->event_id,
                 action->drone_id,
@@ -681,7 +681,7 @@ Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* use
 
 /** ****************************************************************************
 
-  @brief      Processes a market transaction event 
+  @brief      Processes a market transaction event
 
   @param[in]      event                    Input event
   @param[in]      previous_resource_event  Previous resource event or 0's struct when none
@@ -694,24 +694,24 @@ Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* use
 *******************************************************************************/
 ErrorCode_t event_process_market_transaction
 (
-  Event_t* event, 
+  Event_t* event,
   Event_t* previous_resource_event,
-  User_t* user, 
-  User_t* peer_user, 
+  User_t* user,
+  User_t* peer_user,
   int* amount
-) 
+)
 {
     ErrorCode_t result = ENGINE_OK;
-    PreviousEventFilter_t filter = PREVIOUS_EVENT_BY_SELL_ORDER;
+    PreviousEventFilter_t filter = PREVIOUS_EVENT_BY_SELL_ORDER; // Assuming that the acting drone is adding to another play's cargo,
     int resource_quantity = 0;
     Bool_t selling = ENGINE_TRUE;
 
-    if(event->new_quantity >= 0) {
+    if(event->new_quantity >= 0) { // Meaning that the drone is pulling from another player's the cargo.
         filter = PREVIOUS_EVENT_BY_BUY_ORDER;
         selling = ENGINE_FALSE;
     }
 
-    engine_trace(TRACE_LEVEL_ALWAYS, 
+    engine_trace(TRACE_LEVEL_ALWAYS,
                 "Processing market transaction at event [%d], "
                 "drone [%d], user [%d] is %s [%d] units of resource [%d] %s drone [%d], user [%d]",
                 event->event_id,
@@ -733,30 +733,33 @@ ErrorCode_t event_process_market_transaction
     // Sell order found - get current resource quantity
     resource_quantity = previous_resource_event->new_quantity;
 
-    if(result == ENGINE_OK) { 
+
+    if(result == ENGINE_OK) {
         // Do quantities maths to determine if this can be done quantities
         // If the event is a sell order - new_quantity indicates the min amount to keep (for this resource)
         // If the event is a buy order - new_quantity indicates the max amount to load (for this resource)
         if(selling == ENGINE_TRUE) {
-            int canSellAmount = resource_quantity + event->new_quantity; // + new_quantity because is negative
+            int canSellAmount = resource_quantity - sell_buy_event.new_quantity;
             if(canSellAmount < 0) canSellAmount = 0;
 
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "drone [%d], has [%d] units of resource [%d], needs to keep [%d], could sell [%d]",
-                event->drone_id,
-                resource_quantity,
-                event->resource_id,
+            engine_trace(TRACE_LEVEL_ALWAYS,
+                "Per event ID [%d], drone [%d] has [%d] units of resource [%d]. Per event [%d], it needs to keep [%d] and could sell [%d]",
+                previous_resource_event->event_id,
+                previous_resource_event->drone_id,
+                previous_resource_event->new_quantity,
+                previous_resource_event->resource_id,
+                sell_buy_event.event_id,
                 sell_buy_event.new_quantity,
                 canSellAmount);
 
             if(canSellAmount && (canSellAmount >= abs(event->new_quantity))) {
-                engine_trace(TRACE_LEVEL_ALWAYS, 
+                engine_trace(TRACE_LEVEL_ALWAYS,
                     "drone [%d] sells [%d] units of resource [%d] (operation permitted)",
                     event->drone_id,
                     abs(event->new_quantity),
                     event->resource_id);
             } else {
-                engine_trace(TRACE_LEVEL_ALWAYS, 
+                engine_trace(TRACE_LEVEL_ALWAYS,
                     "WARNING: drone [%d] CAN NOT SELL [%d] units of resource [%d] "
                     "(operation forbidden, can only sell [%d])",
                     event->drone_id,
@@ -771,22 +774,24 @@ ErrorCode_t event_process_market_transaction
             int canBuyAmount = sell_buy_event.new_quantity - resource_quantity;
             if(canBuyAmount < 0) canBuyAmount = 0;
 
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-                "drone [%d], has [%d] units of resource [%d], max capacity [%d], can buy [%d]",
-                event->drone_id,
-                resource_quantity,
-                event->resource_id,
+            engine_trace(TRACE_LEVEL_ALWAYS,
+                "Per event ID [%d], drone [%d] has [%d] units of resource [%d]. Per event [%d], it needs a total of [%d] units and will buy [%d]",
+                previous_resource_event->event_id,
+                previous_resource_event->drone_id,
+                previous_resource_event->new_quantity,
+                previous_resource_event->resource_id,
+                sell_buy_event.event_id,
                 sell_buy_event.new_quantity,
                 canBuyAmount);
 
             if(canBuyAmount && (canBuyAmount >= event->new_quantity)) {
-                engine_trace(TRACE_LEVEL_ALWAYS, 
+                engine_trace(TRACE_LEVEL_ALWAYS,
                     "drone [%d] buys [%d] units of resource [%d] (operation permitted)",
                     event->drone_id,
                     event->new_quantity,
                     event->resource_id);
             } else {
-                engine_trace(TRACE_LEVEL_ALWAYS, 
+                engine_trace(TRACE_LEVEL_ALWAYS,
                     "WARNING: drone [%d] CAN NOT BUY [%d] units of resource [%d] "
                     "(operation forbidden, can only buy [%d])",
                     event->drone_id,
@@ -800,7 +805,7 @@ ErrorCode_t event_process_market_transaction
         }
 
         // The amount is OK - check if the buyer has credits to buy it
-        if(result == ENGINE_OK) { 
+        if(result == ENGINE_OK) {
             int price = event->new_quantity * sell_buy_event.new_credits; // transaction price
             User_t* buyer = user;
 
@@ -810,7 +815,7 @@ ErrorCode_t event_process_market_transaction
 
 
             if(buyer->credits >= price) {
-                engine_trace(TRACE_LEVEL_ALWAYS, 
+                engine_trace(TRACE_LEVEL_ALWAYS,
                     "user [%d] pays [%d] credits to buy [%d] units of resource [%d] (current credits [%d])",
                     buyer->user_id,
                     price,
@@ -818,10 +823,10 @@ ErrorCode_t event_process_market_transaction
                     event->resource_id,
                     buyer->credits);
 
-                // update output amount 
+                // update output amount
                 *amount = price;
             } else {
-                engine_trace(TRACE_LEVEL_ALWAYS, 
+                engine_trace(TRACE_LEVEL_ALWAYS,
                     "WARNING: user [%d] CAN NOT pay [%d] credits to buy [%d] units of resource [%d] (current credits [%d])",
                     buyer->user_id,
                     price,
@@ -850,10 +855,10 @@ ErrorCode_t event_process_market_transaction
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* peer_user, int amount) 
+ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* peer_user, int amount)
 {
     ErrorCode_t result = ENGINE_OK;
-    
+
     // Update bank accounts
     if(event->new_quantity < 0) {
         // user sells -> peer_user
@@ -865,7 +870,7 @@ ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* pe
         peer_user->credits += amount;
     }
 
-    engine_trace(TRACE_LEVEL_ALWAYS, 
+    engine_trace(TRACE_LEVEL_ALWAYS,
         "Completing market transaction at event [%d], "
         "user [%d] drone [%d] credits [%d] <=>  user [%d] drone [%d] credits [%d]",
         event->event_id,
@@ -896,13 +901,13 @@ ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* pe
     newEvent.new_transmission = NULL_VALUE;
     newEvent.new_cargo = NULL_VALUE;
     newEvent.logged = 1;
-    db_insert_event_e(&newEvent); 
+    db_insert_event_e(&newEvent);
 
     // Peer user event
     newEvent.drone_id = peer_user->current_drone_id;
     newEvent.event_type = (event->new_quantity < 0)?DECREMENT_CREDITS_EVENT_TYPE:INCREMENT_CREDITS_EVENT_TYPE;
     newEvent.new_credits = peer_user->credits;
-    db_insert_event_e(&newEvent); 
+    db_insert_event_e(&newEvent);
 
     return result;
 }
@@ -919,7 +924,7 @@ ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* pe
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t event_process_outcome(Event_t *event) 
+ErrorCode_t event_process_outcome(Event_t *event)
 {
     ErrorCode_t result = ENGINE_OK;
     Event_t previous_resource_event;
@@ -932,18 +937,18 @@ ErrorCode_t event_process_outcome(Event_t *event)
     memset(&previous_event, 0, sizeof(previous_event));
     memset(&previous_resource_event, 0, sizeof(previous_resource_event));
 
-    // Sanity check 
+    // Sanity check
     if(event == NULL)
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL outcome event skipped");
         return ENGINE_INTERNAL_ERROR;
     }
 
-    engine_trace(TRACE_LEVEL_ALWAYS, 
+    engine_trace(TRACE_LEVEL_ALWAYS,
         "Processing event "
         "EVENT_ID [%d] EVENT_TYPE [%d] ACTION_ID [%d] LOGGED [%d] OUTCOME [%d] "
         "DRONE_ID [%d] RESOURCE_ID [%d] INSTALLED [%d] LOCKED [%d] NEW_QUANTITY [%d] "
-        "NEW_CREDITS [%d] NEW_LOCATION [%d] NEW_CARGO [%d] TIMESTAMP [%ld]", 
+        "NEW_CREDITS [%d] NEW_LOCATION [%d] NEW_CARGO [%d] TIMESTAMP [%ld]",
         event->event_id,
         event->event_type,
         event->action_id,
@@ -967,9 +972,9 @@ ErrorCode_t event_process_outcome(Event_t *event)
 
     result = db_get_action(&action);
 
-    if((result != ENGINE_OK) || action.aborted) 
+    if((result != ENGINE_OK) || action.aborted)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, 
+        engine_trace(TRACE_LEVEL_ALWAYS,
             "WARNING: Event [%d] is associated with an aborted action [%d], not processed/discarded",
             event->event_id,
             event->action_id);
@@ -983,9 +988,9 @@ ErrorCode_t event_process_outcome(Event_t *event)
 
     // Check if it is a market event type
     // These events - are just marked with outcome = OK and registered at observations table
-    if((result == ENGINE_OK) && ((event->event_type == SELL_EVENT_TYPE) || (event->event_type == BUY_EVENT_TYPE))) 
+    if((result == ENGINE_OK) && ((event->event_type == SELL_EVENT_TYPE) || (event->event_type == BUY_EVENT_TYPE)))
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, 
+        engine_trace(TRACE_LEVEL_ALWAYS,
             "Market event [%d], no processing done, only observations table updated",
             event->event_id,
             event->action_id);
@@ -1006,8 +1011,8 @@ ErrorCode_t event_process_outcome(Event_t *event)
     // We get (if exist, the previous valid event and the previous by resource event)
     if(result == ENGINE_OK)
     {
-        db_get_previous_event(event, PREVIOUS_EVENT_BY_DRONE, &previous_event); 
-        db_get_previous_event(event, PREVIOUS_EVENT_BY_RESOURCE_INFO, &previous_resource_event); 
+        db_get_previous_event(event, PREVIOUS_EVENT_BY_DRONE, &previous_event);
+        db_get_previous_event(event, PREVIOUS_EVENT_BY_RESOURCE_INFO, &previous_resource_event);
     }
 
     if(result == ENGINE_OK)
@@ -1028,8 +1033,8 @@ ErrorCode_t event_process_outcome(Event_t *event)
     if(result == ENGINE_OK)
     {
         // Update new_cargo
-        result = event_update_new_cargo_and_quantity(event, 
-                                                     &previous_event, 
+        result = event_update_new_cargo_and_quantity(event,
+                                                     &previous_event,
                                                      &previous_resource_event);
     }
 
@@ -1042,7 +1047,7 @@ ErrorCode_t event_process_outcome(Event_t *event)
     if(result == ENGINE_OK)
     {
         // Validate event conditions
-        result = event_validate_event_conditions(event, 
+        result = event_validate_event_conditions(event,
                                                  &previous_event,
                                                  &previous_resource_event);
     }
@@ -1052,7 +1057,7 @@ ErrorCode_t event_process_outcome(Event_t *event)
         // Delete all previous events when outcome was OK
         result = event_delete_previous_events(event);
     }
-    else 
+    else
     {
         // Abort the associated action and set result != OK to skip rest of the logic
         event_abort_action(event);
@@ -1081,13 +1086,13 @@ ErrorCode_t event_process_outcome(Event_t *event)
   @return     void
 
 *******************************************************************************/
-void event_trace(Event_t* event) 
+void event_trace(Event_t* event)
 {
-  engine_trace(TRACE_LEVEL_ALWAYS, 
+  engine_trace(TRACE_LEVEL_ALWAYS,
           "Event info: "
           "EVENT_ID [%d] EVENT_TYPE [%d] ACTION_ID [%d] LOGGED [%d] OUTCOME [%d] "
           "DRONE_ID [%d] RESOURCE_ID [%d] INSTALLED [%d] LOCKED [%d] NEW_QUANTITY [%d] "
-          "NEW_CREDITS [%d] NEW_LOCATION [%d] NEW_CARGO [%d] TIMESTAMP [%ld]", 
+          "NEW_CREDITS [%d] NEW_LOCATION [%d] NEW_CARGO [%d] TIMESTAMP [%ld]",
           event->event_id,
           event->event_type,
           event->action_id,
