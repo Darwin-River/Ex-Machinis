@@ -64,6 +64,11 @@ class HomeController extends Controller
                 if (strtolower(trim($mail->subject)) == "register") {
                     //check if user exists
                     //  $user = User::where('email', strtolower($mail->fromAddress))->first();
+                    $name = $mail->fromName;
+                    if (!$name) {
+                        $parts = explode("@", $mail->fromAddress);
+                        $name = $parts[0];
+                    }
                     User::registerUser(strtolower($mail->fromAddress), $mail->fromName);
 
                 }
