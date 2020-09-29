@@ -32,7 +32,7 @@
 
                         <br/><h3 id="h3_joining_the_game">Joining the game</h3>
 
-                        <p>When you <a href="https://<?php echo  getenv("MAIL_HOST") ?>/register">register</a> with Ex Machinis, you'll receive an email from the registrar listing the email addresses of three spacecraft that are under your control. These drones will only respond to communications from the email address.</p>
+                        <p>When you <a href="http://patreon.com/exmachinis">sponsor this project</a> and register with Ex Machinis, you'll receive an email listing the addresses of three spacecraft that are under your control. These drones will only respond to communications from the email address.</p>
 
                         <br/><h3 id="h3_renaming_your_spacecraft">Renaming your spacecraft</h3>
 
@@ -139,15 +139,6 @@
 
 <br/><h3>Learning more about the game</h3>
 <p>Your spacecraft can perform far more complex computations, operations, and actions than those described here. Although we've highlighted a few of the most common functions in this quick start guide, we’re also developing a more complete Player’s Manual, which covers every aspect of the game and the FORTH programming environment.</p>
-
-<br/><h3>Helping us out</h3>
-<p>Currently, the regularly updated Player’s Manual is only available to our <a href="http://patreon.com/exmachinis">Patreon sponsors</a>.</p>
-
-<p>If you like what we’re doing and want to see Ex Machinis mature, please become a sponsor and help us cover our monthly server and development costs.</p>
-
-<p>As a Patreon sponsor who donates just $2 per month, you'll get exclusive access to the Player’s Manual and can cancel your subscription at any time.</p>
-
-<p>The more support we receive from our sponsors the quicker we can develop the game.</p>
 
                     </div>
                 </div>

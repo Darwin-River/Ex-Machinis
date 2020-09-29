@@ -279,8 +279,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                 <li class="d-block d-lg-none"><a href="{{url('sells')}}">Sell Orders</a></li>
                               -->
                                 <li><a href="{{url('about-us')}}">About Us</a></li>
-                                <li><a href="{{url('register')}}" class="text-warning">Join the Game</a></li>
-                            <!-- Hide login prompt for now.
+                              <!--  <li><a href="{{url('register')}}" class="text-warning">Join the Game</a></li>
+                             Hide login prompt for now.
                                 @guest
                                 <li class="float-lg-right"><a href="{{url('login')}}">Login</a></li>
                                 @endguest
@@ -325,7 +325,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
     <footer class="section footer-classic bg-gray-700-invariable text-md-left">
         <div class="container">
-            <h3>Support us on Patreon and enjoy novel content.</h3>
+            <h3>Support us on Patreon and join the game.</h3>
+            <p><b>Gain full access to the game and other exclusive content when you contribute at least $2 per month.</b></p>
             <div class="row row-80">
                 <div class="col-sm-6 col-lg-4">
                     <h4>Lieutenant</h4>
@@ -338,8 +339,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
                 <div class="col-sm-6 col-lg-4">
                     <h4>Commander</h4>
-                    <p class="text-width-xl-90">Benefit from advanced <b>game-play tips</b> and <b>programming
-                            tutorials</b> when you contribute at least $4 a month.</p>
+                    <p class="text-width-xl-90">Benefit from advanced <b>game-play tips</b> and <b>coding examples</b> when you contribute at least $4 a month.</p>
                     <br/>
                     <a href="https://www.patreon.com/bePatron?u=6799833"
                        data-patreon-widget-type="become-patron-button">Become a Patron!</a>

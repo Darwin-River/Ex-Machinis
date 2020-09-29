@@ -7,11 +7,10 @@
             <h1>{{$title}}</h1>
 
             <br/>
-            <h4>Please provide an email address and name for your space company to start.</h4>
 
-            <p>Game-play is free. We rely entirely on <a href="http://patreon.com/exmachinis">Patreon support</a> to sustain and advance this project.</p>
+            <h4>Please provide your email address and a name for your space company.</h4>
 
-            <p>Furthermore, we’ll only use your email address to send in-game communications and an occasional newsletter summarizing updates to the game. You can unsubscribe at any time.</p>
+            <p>You'll receive an email from the Registrar with the addresses of three spacecraft that are under your control.</p>
 
             <div class="row justify-content-center justify-content-md-start mt-0">
                 <div class="col-sm-9 col-md-7 col-lg-5 col-xl-4">
