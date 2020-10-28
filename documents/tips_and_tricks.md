@@ -1,23 +1,11 @@
-## Table of Contents
-
-
-[TOC]
-
-
-
-## Introduction
+# Ex Machinis: Tips and Tricks
 
 This manual provides an expanding collection of FORTH scripts that you might find useful when progrogramming and troubleshooting your Ex Machinis drones.  Although the scripts are meant to function without modification, they also provide convenient examples and starting points for writing your own scripts.
 
-
-## Recent Updates
-
-I’ll be updating this document every month and will make these updates available to mid- and high-level Patreon sponsors as a means of thanking you for your support.  The current version of the guide introduces a short script for 
-
-<p id="gdcalert1" ><span style="color: red; font-weight: bold">>>>>>  gd2md-html alert: undefined internal link (link text: "deriving the correct mining protocol for a targeted mineral"). Did you generate a TOC? </span><br>(<a href="#">Back to top</a>)(<a href="#gdcalert2">Next alert</a>)<br><span style="color: red; font-weight: bold">>>>>> </span></p>
-
-[deriving the correct mining protocol for a targeted mineral](#heading=h.wdslijszpm67).
-
+## Table of Contents
+- [Improving Readability](tips_and_tricks.md#Improving-Readability)
+  - [Creating Definitions for Commonly Used Items](tips_and_tricks.md#Creating-Definitions-for-Commonly-Used-Items)
+  - [Improving Readability with Variables and Words](tips_and_tricks.md#Improving-Readability-with-Variables-and-Words)
 
 ## Improving Readability
 
@@ -26,6 +14,8 @@ If you’ve already read the player’s manual, you should be aware that FORTH i
 This means that the programmer assumes much of the responsibility for writing code which is easy to understand and follow.
 
 This section introduces various techniques for coding your drones in such a way that it is easy for yourself and others to follow what is happening in the script.
+
+[Return to TOC](tips_and_tricks.md#Table-of-Contents)
 
 
 ### Creating Definitions for Commonly Used Items
@@ -107,13 +97,6 @@ goto_location
 
 </run>
 ```
-
-
-This script is included in the 
-
-<p id="gdcalert2" ><span style="color: red; font-weight: bold">>>>>>  gd2md-html alert: undefined internal link (link text: "Appendix A Basic Drone Script"). Did you generate a TOC? </span><br>(<a href="#">Back to top</a>)(<a href="#gdcalert3">Next alert</a>)<br><span style="color: red; font-weight: bold">>>>>> </span></p>
-
-[Appendix A Basic Drone Script](#heading=h.l3m8eup9pwn4).
 
 
 ### Simplifying the Mining Protocol
