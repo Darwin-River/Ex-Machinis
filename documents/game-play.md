@@ -7,48 +7,48 @@ The Player’s Manual provides a detailed description of available game-play mec
 ## Table of Contents
 
 
-- Chapter 1: Getting Started
-  - Your fortune awaits!
-  - Requesting your spacecraft
-  - Sending your first command
-  - Renaming your spacecraft and your company
-- Chapter 2: Stacking Numbers
-  - Doing Simple Math
-  - Managing the stack
-- Chapter 3: Working with Resources
-  - Distinguishing resource sizes and technology levels
-  - Organizing resources by Resource ID
-  - Browsing the Resource Catalog
-- Chapter 4: Issuing Commands
-  - Traveling between locations
-  - Understanding how protocols are organized and numbered
-  - Extracting minerals
-  - Reprocessing minerals
-  - Synthesizing complex materials
-  - Producing more complex spacecraft components
-- Chapter 5: Building A Vocabulary
-  - Creating your own words
-  - Commenting on your code
-  - Sending greetings
-- Chapter 6: Going to Market
-  - Placing and adjusting market orders
-    - Posting buy orders
-    - Posting sell orders
-    - Adjusting your orders
-  - Transferring resources between drones
-- Chapter 7: Stringing Variables
-  - Using variables when programming your drones
-  - What’s really happening with variables?
-  - Creating and Accessing Arrays
-  - Working with strings
-  - Different ways to command your spacecraft
-    - Aborting your script
-    - Resetting your machine
-- Chapter 8: Asking Questions
-- Chapter 9: Making Decisions
-  - Finding the truth in numbers
-  - Experimenting with logical operators
-- Appendix A: FORTH Error Codes	
+- [Chapter 1: Getting Started](game-play.md#Chapter-1-Getting-Started)
+  - [Your fortune awaits!](game-play.md#Your-fortune-awaits)
+  - [Requesting your spacecraft](game-play.md#Requesting-your-spacecraft)
+  - [Sending your first command](game-play.md#Sending-your-first-command)
+  - [Renaming your spacecraft and your company](game-play.md#Renaming-your-spacecraft-and-your-company)
+- [Chapter 2: Stacking Numbers](game-play.md#)
+  - [Doing Simple Math](game-play.md#)
+  - [Managing the stack](game-play.md#)
+- [Chapter 3: Working with Resources](game-play.md#)
+  - [Distinguishing resource sizes and technology levels](game-play.md#)
+  - [Organizing resources by Resource ID](game-play.md#)
+  - [Browsing the Resource Catalog](game-play.md#)
+- [Chapter 4: Issuing Commands](game-play.md#)
+  - [Traveling between locations](game-play.md#)
+  - [Understanding how protocols are organized and numbered](game-play.md#)
+  - [Extracting minerals](game-play.md#)
+  - [Reprocessing minerals](game-play.md#)
+  - [Synthesizing complex materials](game-play.md#)
+  - [Producing more complex spacecraft components](game-play.md#)
+- [Chapter 5: Building A Vocabulary](game-play.md#)
+  - [Creating your own words](game-play.md#)
+  - [Commenting on your code](game-play.md#)
+  - [Sending greetings](game-play.md#)
+- [Chapter 6: Going to Market](game-play.md#)
+  - [Placing and adjusting market orders](game-play.md#)
+    - [Posting buy orders](game-play.md#)
+    - [Posting sell orders](game-play.md#)
+    - [Adjusting your orders](game-play.md#)
+  - [Transferring resources between drones](game-play.md#)
+- [Chapter 7: Stringing Variables](game-play.md#)
+  - [Using variables when programming your drones](game-play.md#)
+  - [What’s really happening with variables?](game-play.md#)
+  - [Creating and Accessing Arrays](game-play.md#)
+  - [Working with strings](game-play.md#)
+  - [Different ways to command your spacecraft](game-play.md#)
+    - [Aborting your script](game-play.md#)
+    - [Resetting your machine](game-play.md#)
+- [Chapter 8: Asking Questions](game-play.md#)
+- [Chapter 9: Making Decisions](game-play.md#)
+  - [Finding the truth in numbers](game-play.md#)
+  - [Experimenting with logical operators](game-play.md#)
+- [Appendix A: FORTH Error Codes](game-play.md#)
 
 ## Chapter 1: Getting Started
 
