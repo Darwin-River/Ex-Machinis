@@ -9,6 +9,7 @@ The game uses augmented reality to project a parallel universe upon our own. In 
 Depending on your interests, the following documents provide further details on various aspects of game-play, game mechanics, and system administration.
 
 * **[The Player's Manual](documents/game-play.md)** tells you how to start playing _Ex Machinis_ and progress to more advanced game-play.
+* **[Tips and Tricks](documents/tips_and_tricks.md)** provides more advanced advice for coding drones in _Ex Machinis_.
 * **[The FORTH Dictionary](documents/dictionary.md)** defines all the core functions that are available to each of the drone. 
 * **[The Game Design Manual](documents/mechanics.md)** detailes the inner workings of the _Ex Machinis_ and servers as the blueprints for game development.
 
