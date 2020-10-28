@@ -6,6 +6,11 @@ This manual provides an expanding collection of FORTH scripts that you might fin
 - [Improving Readability](tips_and_tricks.md#Improving-Readability)
   - [Creating Definitions for Commonly Used Items](tips_and_tricks.md#Creating-Definitions-for-Commonly-Used-Items)
   - [Improving Readability with Variables and Words](tips_and_tricks.md#Improving-Readability-with-Variables-and-Words)
+  - [Simplifying the Mining Protocol](tips_and_tricks.md#Simplifying-the-Mining-Protocol)
+- [Troubleshooting Tools](tips_and_tricks.md#Troubleshooting-Tools)
+  - [Debugging the Stack with peek](tips_and_tricks.md#Debugging-the-Stack-with-peek)
+  - [Clearing the stack with purge](tips_and_tricks.md#Clearing-the-stack-with-purge)
+- [Appendix A: Basic Drone Script](tips_and_tricks.md#Appendix-A-Basic-Drone-Script)
 
 ## Improving Readability
 
