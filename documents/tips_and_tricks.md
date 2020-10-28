@@ -44,6 +44,7 @@ Each of these definitions simply places the integer ID on the stack for the part
 
 Therefore, I recommend that you create a series of definitions at the start of your program, which do nothing more than assign visual meaning to the nondescript numbers that are used to reference in-game items.
 
+[Return to TOC](tips_and_tricks.md#Table-of-Contents)
 
 ### Improving Readability with Variables and Words
 
@@ -98,6 +99,7 @@ goto_location
 </run>
 ```
 
+[Return to TOC](tips_and_tricks.md#Table-of-Contents)
 
 ### Simplifying the Mining Protocol
 
@@ -141,7 +143,7 @@ mine_resource
 </run>
 ```
 
-
+[Return to TOC](tips_and_tricks.md#Table-of-Contents)
 
 ## Troubleshooting Tools
 
@@ -183,6 +185,7 @@ This code is included in the basic drone script in
 
 [Appendix A](#heading=h.l3m8eup9pwn4).
 
+[Return to TOC](tips_and_tricks.md#Table-of-Contents)
 
 ### Clearing the stack with `purge`
 
@@ -207,6 +210,7 @@ This script is included in the
 
 [Appendix A Basic Drone Script](#heading=h.l3m8eup9pwn4).
 
+[Return to TOC](tips_and_tricks.md#Table-of-Contents)
 
 ## Appendix A: Basic Drone Script
 
@@ -286,4 +290,4 @@ variable target
 
 </reset>
 ```
-
+[Return to TOC](tips_and_tricks.md#Table-of-Contents)
