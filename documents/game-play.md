@@ -5,76 +5,52 @@ The Player’s Manual provides a detailed description of available game-play mec
 **CAUTION:** This version of the Player's Manual pertains to the development server, which is located at advolition.com. You're welcome to use the development server to play-test the latest features. However, there's a chance your player account will be corrupted or destroyed as we frequently update the system.
 
 ## Table of Contents
-* [Overview](#Overview)
-  * [Your fortune awaits!](#Your-fortune-awaits)
-  * [We still have light years to go](#We-still-have-light-years-to-go)
-* [Getting started](#Getting-started)
-  * [Requesting your spacecraft](#Requesting-your-spacecraft)
-  * [Contacting your spacecraft](#Contacting-your-spacecraft)
-  * [Choosing better names!](#Choosing-better-names)
-  * [Commanding your fleet](#Commanding-your-fleet)
-* [Learning FORTH](#Learning-FORTH)
-  * [Doing Simple Math](#Doing-Simple-Math)
-  * [Managing the stack](#Managing-the-stack)
-  * [Building a dictionary](#Building-a-dictionary)
-  * [Commenting on your code](#Commenting-on-your-code)
-  * [Sending greetings](#Sending-greetings)
-  * [Finding the truth in numbers](#Finding-the-truth-in-numbers)
-  * [Experimenting with logical operators](#Experimenting-with-logical-operators)
-  * [Using variables when programming your drones](#Using-variables-when-programming-your-drones)
-  * [What’s really happening with variables?](#Whats-really-happening-with-variables)
-  * [Working with strings](#Working-with-strings)
-
-<!-- Copy and paste the converted output. -->
 
 
-<p style="color: red; font-weight: bold">>>>>>  gd2md-html alert:  ERRORs: 2; WARNINGs: 0; ALERTS: 3.</p>
-<ul style="color: red; font-weight: bold"><li>See top comment block for details on ERRORs and WARNINGs. <li>In the converted Markdown or HTML, search for inline alerts that start with >>>>>  gd2md-html alert:  for specific instances that need correction.</ul>
-
-<p style="color: red; font-weight: bold">Links to alert messages:</p><a href="#gdcalert1">alert1</a>
-<a href="#gdcalert2">alert2</a>
-<a href="#gdcalert3">alert3</a>
-
-<p style="color: red; font-weight: bold">>>>>> PLEASE check and correct alert issues and delete this message and the inline alerts.<hr></p>
-
-
-
-## 
-
-**The September 2020 edition of the Player’s Manual:**
-
-
-
-*   Adds a few tables to 
-
-<p id="gdcalert1" ><span style="color: red; font-weight: bold">>>>>>  gd2md-html alert: undefined internal link (link text: "Chapter 3"). Did you generate a TOC? </span><br>(<a href="#">Back to top</a>)(<a href="#gdcalert2">Next alert</a>)<br><span style="color: red; font-weight: bold">>>>>> </span></p>
-
-[Chapter 3](#heading=h.6hta81l37usu) to better illustrate the resource classification and numbering system..
-*   Expanded 
-
-<p id="gdcalert2" ><span style="color: red; font-weight: bold">>>>>>  gd2md-html alert: undefined internal link (link text: "Chapter 4"). Did you generate a TOC? </span><br>(<a href="#">Back to top</a>)(<a href="#gdcalert3">Next alert</a>)<br><span style="color: red; font-weight: bold">>>>>> </span></p>
-
-[Chapter 4](#heading=h.104bw81g0rs) by adding sections on manufacturing materials, parts, and other spacecraft components.
-
-**Thank you for your support!**
-
-
-
-
-## Table of Contents
-
-(Click the header to jump to the section)
-
-
-[TOC]
-
-
-
-## 
-
+- Chapter 1: Getting Started
+  - Your fortune awaits!
+  - Requesting your spacecraft
+  - Sending your first command
+  - Renaming your spacecraft and your company
+- Chapter 2: Stacking Numbers
+  - Doing Simple Math
+  - Managing the stack
+- Chapter 3: Working with Resources
+  - Distinguishing resource sizes and technology levels
+  - Organizing resources by Resource ID
+  - Browsing the Resource Catalog
+- Chapter 4: Issuing Commands
+  - Traveling between locations
+  - Understanding how protocols are organized and numbered
+  - Extracting minerals
+  - Reprocessing minerals
+  - Synthesizing complex materials
+  - Producing more complex spacecraft components
+- Chapter 5: Building A Vocabulary
+  - Creating your own words
+  - Commenting on your code
+  - Sending greetings
+- Chapter 6: Going to Market
+  - Placing and adjusting market orders
+    - Posting buy orders
+    - Posting sell orders
+    - Adjusting your orders
+  - Transferring resources between drones
+- Chapter 7: Stringing Variables
+  - Using variables when programming your drones
+  - What’s really happening with variables?
+  - Creating and Accessing Arrays
+  - Working with strings
+  - Different ways to command your spacecraft
+    - Aborting your script
+    - Resetting your machine
+- Chapter 8: Asking Questions
+- Chapter 9: Making Decisions
+  - Finding the truth in numbers
+  - Experimenting with logical operators
+- Appendix A: FORTH Error Codes	
 
 ## Chapter 1: Getting Started
-
 
 ### Your fortune awaits!
 
@@ -84,6 +60,7 @@ As part of the international agreement that drove the colonization of space at t
 
 It is your birthright to take control of your own remotely piloted spacecraft and build a thriving stellar industry.  But this can only be accomplished by programming your spacecraft to efficiently mine, manufacture, and trade materials on the interplanetary economy.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### Requesting your spacecraft
 
@@ -93,6 +70,7 @@ To start playing, you need to email the Registrar ([registrar@exmachinis.com](ma
 
 Also, please be assured that we’ll only use your email to send in-game communications from your spacecraft or an occasional newsletter summarizing updates to the game.  Furthermore, you’ll only receive emails from your spacecraft in response to your own communications and you can unsubscribe from the newsletter at any time.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### Sending your first command
 
@@ -108,6 +86,7 @@ For example, try sending the following text  to one of your spacecraft and see w
 
 You'll receive an email from your spacecraft that reports the result of adding two and three together.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### Renaming your spacecraft and your company
 
@@ -133,6 +112,7 @@ You can also change your company name at anytime by emailing a rebrand instructi
 
 This will immediately change the name of your company in the company directory ([http://exmachinis.com/companies](http://exmachinis.com/companies?utm_source=patreon&utm_campaign=pm)).
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ## Chapter 2: Stacking Numbers
 
@@ -144,6 +124,7 @@ Consequently, FORTH will give advanced Ex Machinis players a tremendous amount o
 
 This chapter is intended to give new users a basic understanding of FORTH so that they can use it to remotely pilot their spacecraft.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### Doing Simple Math
 
@@ -167,6 +148,7 @@ All FORTH functions behave the same way, by removing and adding values to the st
 
 Understanding stacks is the key to learning FORTH and programming kick-ass spacecraft in Ex Machinis.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### Managing the stack
 
@@ -245,6 +227,7 @@ Try applying each of the following commands to manipulate the contents of the da
 
 When trying the above examples, remember that FORTH words are case sensitive and it is important that you include spaces between the numbers, words, and periods.  It’s also important that you include all FORTH scripts between `&lt;run>` and `&lt;/run>`.  Otherwise the interpreter won’t process the code.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ## Chapter 3: Working with Resources
 
@@ -254,6 +237,7 @@ Examples of resources include minerals, chemicals, alloys, fasteners, rods, plat
 
 Like most things in Ex Machinis, each resource has been assigned a unique ID, which is used by spacecraft to access and manipulate the item.  Each resource also has a unit mass, which determines how much can be stored in a spacecraft’s cargo hold.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### Distinguishing resource sizes and technology levels
 
@@ -298,6 +282,7 @@ Manufactured resources also have an associated size and technology level.  These
 
 **Size and Technology Table**
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### Organizing resources by Resource ID
 
@@ -358,11 +343,13 @@ The **tens **digit is unique for each resource within a subcategory.
 
 The **ones **value is used to distinguish between the size and tech level of a particular resource. In general, 1-3 will be reserved for A-sized resources of each tech level, 4-5 will be assigned to B-sized resources, and C sizes will be encoded by IDs whose one’s digits range from 7-9.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### Browsing the Resource Catalog
 
 You can browse and search the available resources online by going to the Resource Catalog ([http://exmachinis.com/resources](http://exmachinis.com/resources?utm_source=patreon&utm_campaign=pm)).  The catalog provides a filterable list of all the resources in the game along with their unique ID, a brief description of the item, and a unit mass in kilograms.  Clicking on a particular resource will take you to a details page, which lists all of the item’s active buy or sell orders.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ## Chapter 4: Issuing Commands
 
@@ -389,6 +376,7 @@ Give it a try and see what happens. You'll notice that your drones always report
 
 You can use this command to go elsewhere in the solar system as well. All you need is the Location ID for your destination. This can be found in the Space Objects table ([http://exmachinis.com/locations](http://exmachinis.com/locations)).
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### Understanding how protocols are organized and numbered
 
@@ -404,6 +392,7 @@ Finally, protocols that simply used a particular resource to produce a certain r
 
 Of course, some of these protocols, like the transport option, don’t exist yet.  However, it’s easy to compute their IDs because we know what they do or how they will function.  These conventions are just as convenient for players and drones that want to quickly identify or derive the protocol required to complete a particular task.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### Extracting minerals
 
@@ -422,6 +411,7 @@ To mine a particular mineral, send your drone to a location that contains the mi
 ```
 
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### Reprocessing minerals
 
@@ -436,6 +426,7 @@ Provided you have enough magmite onboard, this is easily accomplished by sending
 </run>
 ```
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 
 ### Synthesizing complex materials
@@ -451,12 +442,14 @@ Since these are synthetic processes, the associated protocol IDs are derived by 
 </run>
 ```
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 
 ### Producing more complex spacecraft components
 
 In a similar manner, you can use protocols to synthesize parts from materials, systems from parts, and modules and hulls from systems.  In each case, the process is invoked by calling upon your drone to perform a protocol whose ID is derived by adding ten thousand to the resource ID of the resource that you’re trying to produce. You can find a complete list of these protocols, as well as the resources that are required for the synthetic processes, on the online [protocols page](https://exmachinis.com/protocols).
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ## Chapter 5: Building A Vocabulary
 
@@ -507,6 +500,7 @@ In this example, the word `AddFive `really doesn't offer much advantage over sim
 
 Give this a try with your own spacecraft!  I'm sure you can come up with more useful definitions than the one provided here. 
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### Commenting on your code
 
@@ -519,6 +513,7 @@ As with most programming languages, FORTH offers for some convenient mechanisms 
 
 Remember that the interpreter uses white space to deliminate words.  Therefore, backslashes and parentheses will only be recognized as such by the interpreter if there are spaces between them and other characters.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### Sending greetings
 
@@ -550,16 +545,19 @@ Sending this script to your drone will result in a heartfelt greeting from your 
 
 The important components of this command are the dot-quote (`."`), which instructs the craft to print the text that follows and the end-quote (`"`), which ends the printed string.  Just remember that because the FORTH interpreter views the dot and end quotes as distinct words, they must be separated from everything around them by a white-space.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ## Chapter 6: Going to Market
 
 Ex Machinis markets work based on a two-part system.  First, trade begins when individual drones post public bids to buy or sell materials from their cargo holds at fixed prices.  Then, these orders are fulfilled when other drones respond to these ads by physically transferring the materials between their holds in exchange for credits. The market system ensures that amounts of resources and credits that change hands under these circumstances conform to the terms of an open market bid.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### Placing and adjusting market orders
 
 Any spacecraft can place an order to buy or sell a resource at a set price by performing a buy or sell protocol.  Each of these protocols accepts three parameters, in addition to the protocol ID, that indicate the resource that is being bought or sold, the proposed unit price of the materials,  and an upper or lower bound on the number of units being traded.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 #### Posting buy orders
 
@@ -581,6 +579,7 @@ As an example, the following code instructs the drone to request iron ore at 10 
 
 When executed, this script will post a buy order, which will be publicly displayed online and available for other drones to act on provided the total amount of iron ore in the drone’s cargo bay is under the 50 unit maximum.  In fact, the publicly advertised volume for the trade will always be equal to the difference between the order limit and the amount of resources already available in the spacecraft’s cargo hold.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 #### Posting sell orders
 
@@ -599,6 +598,7 @@ The following code will place a bid to sell iron ore at 12 credits each. The sal
 </run>
 ```
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 
 #### Adjusting your orders
@@ -607,6 +607,7 @@ It’s possible for a drone to simultaneously have a buy and sell order in place
 
 Buy and sell orders cannot be canceled.  However they can be replaced by more restrictive orders. Whenever a drone posts a buy order for a specific resource, it replaces the previous buy order for the resource, if one exists.  The same rule applies for sell orders.  Basically, there can only be one buy order and one sell order posted for the same resource at once.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### Transferring resources between drones
 
@@ -636,6 +637,7 @@ However, if the affected spacecraft is owned by a different player, the push and
 
 You can find a current list of active [buy orders](http://exmachinis.com/buys) and [sell orders](http://exmachinis.com/sells) on the Ex Machinis website.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ## Chapter 7: Stringing Variables
 
@@ -662,6 +664,7 @@ That's all there is to it!  Try running this script and variations of it on one 
 
 Of course, like most things in FORTH, there are some interesting things going on behind the scenes when you declare a variable and store and retrieve values from it.  We'll get into some of this in the next section when we address the creation of arrays.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### What’s really happening with variables?
 
@@ -683,6 +686,7 @@ Fetch and store are very powerful (and dangerous!) functions because they allow 
 
 So why am I telling you about these functions now?  Because understanding how FORTH uses variables is the key to defining and using more powerful strings and arrays!
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### Creating and Accessing Arrays
 
@@ -723,6 +727,7 @@ box 4 + @ . \ retrieves and prints the contents of the third array slot
 </run>
 ```
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 
 ### Working with strings
@@ -808,6 +813,7 @@ Consequently, the following script will instruct your drone to print the string 
 
 Assuming that you've already added home to your drone's dictionary, running the above script will generate an email from your drone that says "Earth".
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### Different ways to command your spacecraft
 
@@ -817,6 +823,7 @@ Although, there are benefits to running your new script in a pre-existing machin
 
 As with `&lt;run>`, `&lt;abort> `and <code>&lt;reset><strong> </strong></code>can be used to bracket any code that you’re sending to your spacecraft.  However, <code>&lt;abort></code> and <code>&lt;reset></code> behave very differently with respect to how they handle the drone’s current machine state. 
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 #### Aborting your script 
 
@@ -824,6 +831,7 @@ The `&lt;abort>` metacommand will stop any code that is running, before executin
 
 The `&lt;abort>` command is very important for stopping code that is caught in an endless loop.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 #### Resetting your machine
 
@@ -833,6 +841,7 @@ The `&lt;reset>` command comes in handy when dealing with a drone whose internal
 
 However, the &lt;`reset>` metacommand is more commonly used to start afresh when developing and testing a new set of routines.  In this context, you would store and edit your entire FORTH dictionary in a word processor application and paste it into your email, nested between the `&lt;reset>...&lt;/reset>` tags every time you want to upload and test the modified code in your drone. In fact, you’ll find yourself using the `&lt;reset>` command far more than the run command when programming your drone to perform more complex behaviors.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ## Chapter 8: Asking Questions
 
@@ -861,8 +870,7 @@ Try sending this script to your drone, with variations on the search term to see
 
 As we develop more complex queries, we’ll provide additional examples of how spacecraft can use queries to probe and respond to their environment.
 
-
-
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ## Chapter 9: Making Decisions
 
@@ -909,6 +917,7 @@ By the way, once you define a word like `true?`, your spacecraft will remember i
 
 We'll be using `true?` in the next section to explore logical (`and, or, xor`) and comparison (<code>&lt;, >,<strong> </strong>=</code>) operators.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ### Experimenting with logical operators
 
@@ -961,6 +970,7 @@ You may have noticed that there is one very important operator that is missing f
 
 Try sending the above code to your spacecraft to see how it works.
 
+[Return to TOC](game-play.md#Table-of-Contents)
 
 ## Appendix A: FORTH Error Codes
 
@@ -1446,6 +1456,4 @@ Your drone will occasionally return an error message indicating a fault in the c
   </tr>
 </table>
 
-
-
-[Return to TOC](#Table-of-Contents)
+[Return to TOC](game-play.md#Table-of-Contents)
