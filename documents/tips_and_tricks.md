@@ -17,7 +17,6 @@ This section introduces various techniques for coding your drones in such a way 
 
 [Return to TOC](tips_and_tricks.md#Table-of-Contents)
 
-
 ### Creating Definitions for Commonly Used Items
 
 Since FORTH is not far removed from the underlying machine language and memory structure, it relies heavily on integer values to store, manipulate, and encode data.  While this has the advantage of greatly reducing the complexity and burden of the interpreter and compiler with respect to memory and processor time, it often makes the code harder to ready.
@@ -25,7 +24,6 @@ Since FORTH is not far removed from the underlying machine language and memory s
 This interplay between efficiency and readability is reflected in the way that FORTH uses integer values to represent each of the game’s locations, drones, resources, protocols and queries.  Essentially, every in game item has a unique two-byte integer ID that is used to access or manipulate the item in forth code.
 
 Fortunately, FORTH makes it very easy for users to assign a memorable name or phrase to a numeric id by defining a word that places the particular ID on the stack.   In the following example, we create a definition for each of our drone’s favorite locations and items.
-
 
 ```
 \ Favorite resources
@@ -38,7 +36,6 @@ Fortunately, FORTH makes it very easy for users to assign a memorable name or ph
 : mars 4 ;
 : jupiter 5 ;
 ```
-
 
 Each of these definitions simply places the integer ID on the stack for the particular resource or location that is represented by the work we are defining.  Consequently, if I insert the word for iron_ore or earth in my code, it will instruct the interpreter or compiler to put the corresponding ID on the stact.  This does not significantly change how the program functions but it does make it easier to read.
 
@@ -53,7 +50,6 @@ It’s possible to significantly improve the readability of your FORTH code by d
 Consider the <code><em>perform </em></code>command, which is used to instruct your drones to implement a broad range of in-game activities.  The <code><em>perform </em></code>command pulls multiple values from the stack that tell the interpreter which protocol is being invoked and how it is to be executed.
 
 The following script creates variables for some of the more common parameters and defines a set of descriptive words, which pulls the required variables from these variables when performing a particular protocol.
-
 
 ```
 <run>
@@ -80,7 +76,6 @@ variable target
 
 </run>
 ```
-
 
 These new variables and definitions can be used in conjunction with the previously-defined favorites words to vastly improve the readability of your script.  For example, the following script places a buy order for up to 10 units of iron ore and then moves your spacecraft to Jupiter:
 
@@ -126,13 +121,7 @@ The following script creates a definition for `mine_resource`, which retrieves t
 </run>
 ```
 
-
-This script, which is included in the 
-
-<p id="gdcalert3" ><span style="color: red; font-weight: bold">>>>>>  gd2md-html alert: undefined internal link (link text: "Appendix A Basic Drone Script"). Did you generate a TOC? </span><br>(<a href="#">Back to top</a>)(<a href="#gdcalert4">Next alert</a>)<br><span style="color: red; font-weight: bold">>>>>> </span></p>
-
-[Appendix A Basic Drone Script](#heading=h.l3m8eup9pwn4), can be invoked by setting the variable `resource `equal to the desired mineral and executing `mine_resource`.  In following example, we’re using the previously defined work, `voxite`, to supply the corresponding resource ID
-
+This script, which is included in the [Appendix A Basic Drone Script](tips_and_tricks.md#Appendix-A-Basic-Drone-Script).
 
 ```
 <run>
@@ -156,7 +145,6 @@ The stack is where it's at in terms of FORTH program execution.  It is also wher
 
 The following definition uses the return stack to temporarily hold values from the variable stack as it sifts through them and prints their values in the drone’s output buffer.
 
-
 ```
 : peek
   depth 0 > if 
@@ -178,12 +166,7 @@ The following definition uses the return stack to temporarily hold values from t
 ;
 ```
 
-
-This code is included in the basic drone script in 
-
-<p id="gdcalert4" ><span style="color: red; font-weight: bold">>>>>>  gd2md-html alert: undefined internal link (link text: "Appendix A"). Did you generate a TOC? </span><br>(<a href="#">Back to top</a>)(<a href="#gdcalert5">Next alert</a>)<br><span style="color: red; font-weight: bold">>>>>> </span></p>
-
-[Appendix A](#heading=h.l3m8eup9pwn4).
+This script, which is included in the [Appendix A Basic Drone Script](tips_and_tricks.md#Appendix-A-Basic-Drone-Script).
 
 [Return to TOC](tips_and_tricks.md#Table-of-Contents)
 
@@ -203,12 +186,7 @@ Sometimes, when you lose track of what is on the stack, it’s easiest just to c
 ;
 ```
 
-
-This script is included in the 
-
-<p id="gdcalert5" ><span style="color: red; font-weight: bold">>>>>>  gd2md-html alert: undefined internal link (link text: "Appendix A Basic Drone Script"). Did you generate a TOC? </span><br>(<a href="#">Back to top</a>)(<a href="#gdcalert6">Next alert</a>)<br><span style="color: red; font-weight: bold">>>>>> </span></p>
-
-[Appendix A Basic Drone Script](#heading=h.l3m8eup9pwn4).
+This script, which is included in the [Appendix A Basic Drone Script](tips_and_tricks.md#Appendix-A-Basic-Drone-Script).
 
 [Return to TOC](tips_and_tricks.md#Table-of-Contents)
 
