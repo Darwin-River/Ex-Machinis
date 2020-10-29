@@ -62,17 +62,13 @@ It is your birthright to take control of your own remotely piloted spacecraft an
 
 ### Requesting your spacecraft
 
-As an immersive multiplayer space simulation, there’s no logging into or out of the game.  Your assets are always in play.  To communicate with your spacecraft, simply send them emails and they will respond in real time.  Keep in mind that it will take longer for transmissions to reach spacecraft on the outer edge of the solar system.
-
-To start playing, you need to email the Registrar ([registrar@exmachinis.com](mailto:registrar@exmachinis.com)) with the word “register” in the subject line.  You’ll receive a response from the registrar listing the email addresses of three spacecraft that are under your control.  These spacecraft will only respond to communications from the email address you used to contact the registrar. 
-
-Also, please be assured that we’ll only use your email to send in-game communications from your spacecraft or an occasional newsletter summarizing updates to the game.  Furthermore, you’ll only receive emails from your spacecraft in response to your own communications and you can unsubscribe from the newsletter at any time.
+Currently, game-play is limited to individuals who are actively supporting this project on [Patreon](http://patreon.com/exmachinis). As a sponsor, you'll receive access to the registration page, which grants you control of thee in-game spacecraft.  These drones will respond directly to your emailed commands.
 
 [Return to TOC](game-play.md#Table-of-Contents)
 
 ### Sending your first command
 
-Most of the game is played via direct email communications with your spacecraft. When one of your ships receives an email from you it will interpret everything between the `&lt;run>` and `&lt;/run>` brackets as code and respond to you accordingly via email.  
+Most of the game is played via direct email communications with your spacecraft. When one of your ships receives an email from you, it will interpret everything between the `&lt;run>` and `&lt;/run>` brackets as code and respond to you accordingly via email.  
 
 For example, try sending the following text  to one of your spacecraft and see what happens. Just make sure you retain the spaces between the numbers, the plus sign, and the period, which instructs the spacecraft to report the result.
 
@@ -108,7 +104,7 @@ You can also change your company name at anytime by emailing a rebrand instructi
 ```
 
 
-This will immediately change the name of your company in the company directory ([http://exmachinis.com/companies](http://exmachinis.com/companies?utm_source=patreon&utm_campaign=pm)).
+This will immediately change the name of your company in the [company directory](http://exmachinis.com/companies?utm_source=patreon&utm_campaign=pm).
 
 [Return to TOC](game-play.md#Table-of-Contents)
 
@@ -337,7 +333,7 @@ The **ones** value is used to distinguish between the size and tech level of a p
 
 ### Browsing the Resource Catalog
 
-You can browse and search the available resources online by going to the [Resource Catalog](http://exmachinis.com/resources?utm_source=patreon&utm_campaign=pm)).  The catalog provides a filterable list of all the resources in the game along with their unique ID, a brief description of the item, and a unit mass in kilograms.  Clicking on a particular resource will take you to a details page, which lists all of the item’s active buy or sell orders.
+You can browse and search the available resources online by going to the [Resource Catalog](http://exmachinis.com/resources?utm_source=patreon&utm_campaign=pm).  The catalog provides a filterable list of all the resources in the game along with their unique ID, a brief description of the item, and a unit mass in kilograms.  Clicking on a particular resource will take you to a details page, which lists all of the item’s active buy or sell orders.
 
 [Return to TOC](game-play.md#Table-of-Contents)
 
@@ -458,16 +454,13 @@ However, FORTH makes it very easy to define your own words on the fly for use in
 
 For example, if you find that you are frequently adding five to a number on the stack you can create the word, `AddFive`, to handle this operation in the future.   You would define `AddFive` by sending the following script to your spacecraft:
 
-
 ```
 <run>
   : AddFive 5 + ;
 </run>
 ```
 
-
 Now, anytime you want your spacecraft to add five to the number on the stack you can use your new word instead of `5 +`:
-
 
 ```
 <run>
@@ -475,16 +468,13 @@ Now, anytime you want your spacecraft to add five to the number on the stack you
 </run>
 ```
 
-
 This script will cause your spacecraft to return the same result ("9") as the following script:
-
 
 ```
 <run>
   4 5 + .
 </run>
 ```
-
 
 In this example, the word `AddFive `really doesn't offer much advantage over simply typing `5 +`.  However, you can easily imagine defining words that perform more complex functions that you wouldn't want to retype every time.
 
@@ -495,8 +485,6 @@ Give this a try with your own spacecraft!  I'm sure you can come up with more us
 ### Commenting on your code
 
 As with most programming languages, FORTH offers for some convenient mechanisms for commenting on  your code.  These techniques can be very handy in reminding yourself and others of the intentent and function of your definitions. There are two primary ways to add comments to your script that will be ignored by the interpreter:
-
-
 
 *   When you start a line with a backslash (`\`) the interpreter will ignore everything else on that line.
 *   The interpreter will also ignore any text enclosed between parentheses, regardless of where they occur in the line or whether they enclose multiple lines. 
@@ -513,23 +501,19 @@ With that in mind, the following definition creates a word that, when called, in
 
 Start by emailed the following text to one of your spacecraft:
 
-
 ```
 <run>
   : helloworld ." Greetings Earthlings! " ;
 </run>
 ```
 
-
 The spacecraft will respond to this email with a simple "`ok`" to acknowledge that it has received the new definition and incorporated it into its on-board dictionary.  Remember, the spaces in the above example are very important since they allow the interpreter to delineate words and numbers.
 
 Next, envoke your new word by sending the following email to your spacecraft:
 
-
 ```
 <run> helloworld </run>
 ```
-
 
 Sending this script to your drone will result in a heartfelt greeting from your favorite spacecraft!  I guess there's no surprises there.  But this will obviously be a useful tool when having your ships provide intelligible status reports.
 
@@ -555,7 +539,6 @@ When posting a buy order, the programmer begins by placing an integer on the sta
 
 As an example, the following code instructs the drone to request iron ore at 10 credits per unit, with the total amount of ore in its cargo hold not to exceed 50 units:
 
-
 ```
 <run> 
   10 ( credits per unit )
@@ -566,7 +549,6 @@ As an example, the following code instructs the drone to request iron ore at 10 
 </run>
 ```
 
-
 When executed, this script will post a buy order, which will be publicly displayed online and available for other drones to act on provided the total amount of iron ore in the drone’s cargo bay is under the 50 unit maximum.  In fact, the publicly advertised volume for the trade will always be equal to the difference between the order limit and the amount of resources already available in the spacecraft’s cargo hold.
 
 [Return to TOC](game-play.md#Table-of-Contents)
@@ -576,7 +558,6 @@ When executed, this script will post a buy order, which will be publicly display
 Sell orders are placed in much the same way as buy orders and represent a public request to sell a resource at a fixed per unit price.  Also, in the case of sell orders, the limit represents the minimum amount of the resource that must remain in the drone’s cargo bay after the sale is complete.
 
 The following code will place a bid to sell iron ore at 12 credits each. The sales order will remain in effect while the amount of ore in the spacecraft’s hold is greater than 5 units.
-
 
 ```
 <run> 
@@ -589,7 +570,6 @@ The following code will place a bid to sell iron ore at 12 credits each. The sal
 ```
 
 [Return to TOC](game-play.md#Table-of-Contents)
-
 
 #### Adjusting your orders
 
@@ -607,7 +587,6 @@ Players are able transfer resources between spacecraft using the push and pull p
 
 In the following example, a drone is instructed to push 5 units of iron ore into the hold of another spacecraft and then pull 10 units of copper ore from that spacecraft into its own hold.
 
-
 ```
 <run>
   \ Push 5 units of iron ore into drone 52's cargo hold.
@@ -617,9 +596,7 @@ In the following example, a drone is instructed to push 5 units of iron ore into
   10 ( quantity ) 5 ( resource ID ) 52 ( target drone ID ) 
   11 ( pull protocol ) perform
 </run>
-
 ```
-
 
 If the acting and affected drones are owned by the same player, these actions can be performed without referring to active market bids.
 
@@ -631,7 +608,6 @@ You can find a current list of active [buy orders](http://exmachinis.com/buys) a
 
 ## Chapter 7: Stringing Variables
 
-
 ### Using variables when programming your drones
 
 In FORTH, most values are stored and passed between program elements using the stack.  However, the language also allows users to define simple variables using the `variable `command.  
@@ -640,7 +616,6 @@ When a variable is declared, the FORTH interpreter creates an entry in the dicti
 
 Values can then be stored in and retrieved from a variable using the store (`!`) and fetch (`@`) commands.  In the following example, we define a variable called "box" and then store, fetch, and print the number 2 using this variable.
 
-
 ```
 <run>
     variable box ( Define the box variable )
@@ -648,7 +623,6 @@ Values can then be stored in and retrieved from a variable using the store (`!`)
     box @ . ( Retrieve the contents and print the value )
 </run>
 ```
-
 
 That's all there is to it!  Try running this script and variations of it on one of your drones.  
 
@@ -662,13 +636,11 @@ So let’s talk a little bit about what’s happening behind the scenes with var
 
 You can confirm this is happening by calling `box `and then printing the contents of the stack. When you do so, your drone will return the address of the place in memory where your value is being stored.  The variable, `box`, will always return the same value no matter what’s actually being stored in the variable.
 
-
 ```
 <run>
     box . ( Print the address that is returned by box )
 </run>
 ```
-
 
 With this in mind, consider that the true functions of fetch (`@`) and store (`!`) are to read and write values to a specified location in memory.  Fetch works by pulling an address off the stack and returning the four-byte value that is stored in that location.  Store pulls an address and then a value from the stack and writes the value to the designated memory slot.
 
@@ -686,16 +658,13 @@ To permit a variable to hold more than one value, you’ll need to instruct the 
 
 For example, to create a variable, `box`, with enough room for five two-byte numbers or ten ASCII characters (10 bytes total), you would need to send the following script to your drone:
 
-
 ```
 <run> variable box 10 allot </run>
 ```
 
-
 Reading and writing to an array that was created using `allot` is actually very simple once you realize that you’re directly accessing a reserved section of memory whose initial location is placed on the stack when you call the variable name.
 
 For example, to add or retrieve a value from the first part of your new `box` array, simply use the variable name in conjunction with the fetch (`@`) and store (`!`) commands described above.
-
 
 ```
 <run> 
@@ -704,9 +673,7 @@ For example, to add or retrieve a value from the first part of your new `box` ar
 </run>
 ```
 
-
 If you want to store and retrieve a value from the second or third position position of the `box` array, you just need to add two or four bytes to the address that’s placed on the stack when you call on the `box` variable:
-
 
 ```
 <run> 
@@ -718,7 +685,6 @@ box 4 + @ . \ retrieves and prints the contents of the third array slot
 ```
 
 [Return to TOC](game-play.md#Table-of-Contents)
-
 
 ### Working with strings
 
@@ -732,16 +698,13 @@ As with the word, `."`, which was introduced above, `$" `can only be used within
 
 Thus, a string can be stored in a word via a simple definition:
 
-
 ```
 <run>
   : myhome $" Earth" ;
 </run>
 ```
 
-
 This definition creates a word called myhome. When this word is used in another script, it simply places an address on the stack which points to the location of the string "Earth". Since this creates a counted string, the section of memory that is referenced by the address would look like this:
-
 
 <table>
   <tr>
@@ -788,18 +751,15 @@ This definition creates a word called myhome. When this word is used in another 
   </tr>
 </table>
 
-
 There are many ways to access this string, which we'll cover at a later point. But one important method is by using the words `count `and `type `to print the string. The word `count `functions by returning the first byte of an address to the stack. In the case of a counted string, this would be the size of the string. The word `type `pulls an address and a length from the stack and prints out the contents of that memory range as characters.
 
 Consequently, the following script will instruct your drone to print the string which is pointed to by the previously defined word:
-
 
 ```
 <run>
   myhome count type
 </run>
 ```
-
 
 Assuming that you've already added home to your drone's dictionary, running the above script will generate an email from your drone that says "Earth".
 
@@ -845,7 +805,6 @@ For example, if I want to find the type of an astronomical object (Query number 
 
 The following script shows how you would use this query to report the object type for Earth:
 
-
 ```
 <run>
   : search_string $" Earth" ; \ search string
@@ -854,7 +813,6 @@ The following script shows how you would use this query to report the object typ
   results_array count type \ prints the results
 </run>
 ```
-
 
 Try sending this script to your drone, with variations on the search term to see how this works.
 
@@ -873,7 +831,6 @@ A good way to demonstrate this and introduce you to simple branching structures 
 
 Try emailing the following text to one of your spacecraft:
 
-
 ```
 <run>
 
@@ -888,7 +845,6 @@ Try emailing the following text to one of your spacecraft:
 </run>
 ```
 
-
 Remember that spaces are very important, so start by copying and pasting the above script directly into your email, including the` &lt;run> ... &lt;/run>` brackets. 
 
 The first part of the emailed script defines a new word, true?, which will return a "true" if the word is preceded by a number other than zero and a "false" if it follows a zero.  In the FORTH syntax, if begins a branched statement, which implements one of two else-delimited options based on the value on the top of the stack.  The word, then, closes the statement.
@@ -897,11 +853,9 @@ The second part of this statement invokes true? after placing each of three diff
 
 After sending the above code to your spacecraft, you should receive an email from your drone, which contains the following response:
 
-
 ```
 true false true ok.
 ```
-
 
 By the way, once you define a word like `true?`, your spacecraft will remember it, allowing you to use it in future emails.  So, true evaluating some other integers with the word.  
 
@@ -915,16 +869,13 @@ In the previous section, we used an if else then statement to demonstrate how FO
 
 If you haven't already done so, you can define the word `true?` by emailing the following script to your spacecraft.
 
-
 ```
 <run>
   : true? if ." true " else ." false " then ;
 </run>
 ```
 
-
 It turns out that FORTH has three logical operators (`and`, `or`, `xor`) which allow you to combine Boolean values in different ways.  Therefore, if we use 0 for false and 1 for true, you can test these operators by sending the following script to your drone:
-
 
 ```
 <run>
@@ -934,19 +885,15 @@ It turns out that FORTH has three logical operators (`and`, `or`, `xor`) which a
 </run>
 ```
 
-
 You may not recall that FORTH uses a Reverse Polish Notation (RPN) in which you enter the numbers first (i.e. "0 1") before the function or mathematical operator, `and which` processes them.  Finally, we need to use our previously defined word, true?, to report back the value of the number.  Since "0 and 1" is false, "0 or 1" is true, and "0 xor 1" is also true, your drone will respond to the above script with:
-
 
 ```
 true true true ok.
 ```
 
-
 Using the above example, instruct your spacecraft to process other combinations of 0's and 1's with and, or, and xor to make sure these logical operators behave as expected.
 
 You may have noticed that there is one very important operator that is missing from the version of FORTH that is currently running on your spacecraft.  There is no not operator.  However, the beauty of FORTH is that you can easily define your own not operator as follows:
-
 
 ```
 <run>
@@ -957,7 +904,6 @@ You may have noticed that there is one very important operator that is missing f
 </run>
 ```
 
-
 Try sending the above code to your spacecraft to see how it works.
 
 [Return to TOC](game-play.md#Table-of-Contents)
@@ -965,7 +911,6 @@ Try sending the above code to your spacecraft to see how it works.
 ## Appendix A: FORTH Error Codes
 
 Your drone will occasionally return an error message indicating a fault in the code that it’s trying to process.  These errors are reported as negative integers, which can be interpreted using the following table.
-
 
 <table>
   <tr>
