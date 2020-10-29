@@ -130,14 +130,6 @@ You may have already noticed that FORTH has a strange way of doing math. In FORT
 
 For example, when you  enter "2” and “3” seperatred by a space, FORTH places a 2 and then a 3 on the data stack. You can visualize this as a stack of dishes in which the number 2 plate is laid down first and the number 3 plate is placed on top of it. Consequently, when objects are removed from the stack the topmost value is removed first (3) and then the next value (2).
 
-
-
-<p id="gdcalert3" ><span style="color: red; font-weight: bold">>>>>>  gd2md-html alert: inline image link here (to images/image1.png). Store image on your image server and adjust path/filename/extension if necessary. </span><br>(<a href="#">Back to top</a>)(<a href="#gdcalert4">Next alert</a>)<br><span style="color: red; font-weight: bold">>>>>> </span></p>
-
-
-![alt_text](images/image1.png "image_tooltip")
-
-
 When you call a FORTH function, like addition (`+`), it removes the top two values from the stack (2 and 3), adds them together, and returns the result (5) to the stack.
 
 Similarly, calling the print function (`.`), pulls a value off the stack (5) and adds it to the output stream, which is returned to you in an email as "5".
@@ -345,7 +337,7 @@ The **ones **value is used to distinguish between the size and tech level of a p
 
 ### Browsing the Resource Catalog
 
-You can browse and search the available resources online by going to the Resource Catalog ([http://exmachinis.com/resources](http://exmachinis.com/resources?utm_source=patreon&utm_campaign=pm)).  The catalog provides a filterable list of all the resources in the game along with their unique ID, a brief description of the item, and a unit mass in kilograms.  Clicking on a particular resource will take you to a details page, which lists all of the item’s active buy or sell orders.
+You can browse and search the available resources online by going to the [Resource Catalog](http://exmachinis.com/resources?utm_source=patreon&utm_campaign=pm)).  The catalog provides a filterable list of all the resources in the game along with their unique ID, a brief description of the item, and a unit mass in kilograms.  Clicking on a particular resource will take you to a details page, which lists all of the item’s active buy or sell orders.
 
 [Return to TOC](game-play.md#Table-of-Contents)
 
@@ -356,7 +348,7 @@ You can browse and search the available resources online by going to the Resourc
 
 Every physical action your spacecraft takes will result from calls to predefined protocols. These protocols allow your drones to do things like mine resources, manufacture products, and travel between locations. In many cases, protocols use, deplete, and produce resources located in your ship's hold.
 
-You can find a current list of protocols on the website ([http://exmachinis.com/protocols](http://exmachinis.com/protocols?utm_source=patreon&utm_campaign=pm)). Right now, your choice of protocols is very limited. That's because we've just created a few simple protocols to test game mechanics. However, as the game matures, the number and complexity of these actions will increase dramatically.
+You can find a current list of [protocols]](http://exmachinis.com/protocols?utm_source=patreon&utm_campaign=pm) on the website. Right now, your choice of protocols is very limited. That's because we've just created a few simple protocols to test game mechanics. However, as the game matures, the number and complexity of these actions will increase dramatically.
 
 Protocols are invoked by sending your drone a FORTH script that calls upon the `perform `function. This function pulls one or more parameters from the stack. These parameters provide the ID for the protocol you want to perform and any other parameters that are required by the protocol.
 
@@ -372,7 +364,7 @@ For example, if you wanted to move your spacecraft (Protocol ID = 5) to Saturn (
 
 Give it a try and see what happens. You'll notice that your drones always report their current location at the top of every email they send you. This location will now indicate Saturn.
 
-You can use this command to go elsewhere in the solar system as well. All you need is the Location ID for your destination. This can be found in the Space Objects table ([http://exmachinis.com/locations](http://exmachinis.com/locations)).
+You can use this command to go elsewhere in the solar system as well. All you need is the Location ID for your destination. This can be found in the [Space Objects](http://exmachinis.com/locations) table.
 
 [Return to TOC](game-play.md#Table-of-Contents)
 
@@ -396,7 +388,7 @@ Of course, some of these protocols, like the transport option, don’t exist yet
 
 Every production process begins with raw materials, which are available from planets, moons, comets, and asteroids.  These resources are generally extracted from orbital bodies in the form of minerals, which contain many of the different elements and compounds required for making construction materials.  
 
-If you call up a particular location online, you’ll be able to see what minerals are available at that location.  For example, Phobos ([http://exmachinis.com/locations/11](http://exmachinis.com/locations/11)) contains kunspar, yalspar, vladnium, and other minerals.  Each of these minerals is accompanied by a value, which indicates the relative abundance of the resource at that location.  The higher the number, the more units you’ll recover from a single mining run.
+If you call up a particular location online, you’ll be able to see what minerals are available at that location.  For example, [Phobos](http://exmachinis.com/locations/11) contains kunspar, yalspar, vladnium, and other minerals.  Each of these minerals is accompanied by a value, which indicates the relative abundance of the resource at that location.  The higher the number, the more units you’ll recover from a single mining run.
 
 To mine a particular mineral, send your drone to a location that contains the mineral and perform the protocol associated with mining the resource.  As indicated in the previous section the desired protocol ID will be the resource ID plus 10000. The following script sends a spacecraft to Mars (Location ID 4) to mine magmite (Resource ID 1000):
 
