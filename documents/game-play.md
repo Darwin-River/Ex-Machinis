@@ -1,8 +1,6 @@
 # Ex Machinis Player's Manual
 
-The Player’s Manual provides a detailed description of available game-play mechanics and strategies.  This manual will grow with the game.  As more features are added, they will be introduced below.  Currently, the manual focuses primarily on coding spacecraft with the fully developed FORTH interpreter.  However, as we develop the more physical components of Ex Machinis game play more details will be provided on navigation, resource extraction, refining, and production.  Thank you for your support and please stay tuned for future developments!
-
-**CAUTION:** This version of the Player's Manual pertains to the development server, which is located at advolition.com. You're welcome to use the development server to play-test the latest features. However, there's a chance your player account will be corrupted or destroyed as we frequently update the system.
+The Player’s Manual provides a detailed description of available game-play mechanics and strategies.  This manual will grow with the game.  As more features are added, they will be introduced below.  Currently, the manual focuses primarily on coding spacecraft with the fully developed FORTH interpreter.  However, as we develop the more physical components of Ex Machinis game play more details will be provided on navigation, resource extraction, refining, and production.  Thank you for you for [supporting us via Patreon](http://patreon.com/exmachinis) and please stay tuned for future developments!
 
 ## Table of Contents
 
