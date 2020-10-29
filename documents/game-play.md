@@ -278,7 +278,7 @@ Manufactured resources also have an associated size and technology level.  These
 
 Resource IDs have been assigned in a manner that helps to organize and categorize the resources.
 
-The **thousands **digit is used to divide the resources into the broad categories of minerals (1000), materials (2000), parts (3000), systems (4000), modules (5000), and spacecraft hulls (6000).
+The **thousands** digit is used to divide the resources into the broad categories of minerals (1000), materials (2000), parts (3000), systems (4000), modules (5000), and spacecraft hulls (6000).
 
 
 <table>
@@ -327,11 +327,11 @@ The **thousands **digit is used to divide the resources into the broad categorie
 </table>
 
 
-The **hundreds **digit further groups resources into subcategories. For example, systems are divided into mechanical (100), electromagnetic (200), hydraulic (300), chemical (400), and nuclear (500) functions.
+The **hundreds** digit further groups resources into subcategories. For example, systems are divided into mechanical (100), electromagnetic (200), hydraulic (300), chemical (400), and nuclear (500) functions.
 
-The **tens **digit is unique for each resource within a subcategory.
+The **tens** digit is unique for each resource within a subcategory.
 
-The **ones **value is used to distinguish between the size and tech level of a particular resource. In general, 1-3 will be reserved for A-sized resources of each tech level, 4-5 will be assigned to B-sized resources, and C sizes will be encoded by IDs whose one’s digits range from 7-9.
+The **ones** value is used to distinguish between the size and tech level of a particular resource. In general, 1-3 will be reserved for A-sized resources of each tech level, 4-5 will be assigned to B-sized resources, and C sizes will be encoded by IDs whose one’s digits range from 7-9.
 
 [Return to TOC](game-play.md#Table-of-Contents)
 
