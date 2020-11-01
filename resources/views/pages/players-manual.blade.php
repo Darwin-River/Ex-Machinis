@@ -96,11 +96,25 @@
 
                         <p>If you access your spacecraft’s online data sheet after executing this command, you should see the new resource in your drone’s cargo hold and a corresponding entry in the events table that logs the acquisition of the material.</p>
 
+                        <br/><h3>Reprocessing minerals</h3>
+                        <p>Minerals can be reprocessed to extract the purified metallic, organic, and inorganic components that are required for the manufacturing process. The procedures for doing so can also be found in the <a href="http://<?php echo  getenv("MAIL_HOST") ?>/protocols">protocols page</a>. For example, protocol 21000 produces common inorganics, metals, and organics from magmite.</p>
+
+                        <p>Provided you have enough magmite onboard, this is easily accomplished by sending the command to your drone:</p>
+
+<pre><code>&lt;run&gt; 21000 perform &lt;/run&gt;</code></pre>
+
+                        <br/><h3>Synthesizing complex materials and spacecraft parts</h3>
+                        <p>Of course, advanced technologies are often made from more complex materials like alloys and polymers. So, there is a whole set of protocols that are designed to build increasingly advanced substances from the materials you pull out of mined minerals.</p>
+
+                        <p>Take for example, the protocol that produces simple polymers from common organics and inorganics (protocol ID 12051):</p>
+
+<pre><code>&lt;run&gt; 12051 perform &lt;/run&gt;</code></pre>
+
+                        <p>In a similar manner, you can use the procedures listed on the <a href="http://<?php echo  getenv("MAIL_HOST") ?>/protocols">protocols page</a> to synthesize parts from materials, systems from parts, and modules and hulls from systems.</p>
+
                         <br/><h3 id="h3_selling_your_resources">Selling your resources</h3>
 
-                        <p>Soon, Ex Machinis will allow you to extract metals and other compounds from the minerals and use these to build increasingly complex parts, systems, and modules for your spacecraft.</p>
-
-                        <p>At any point along the way you can sell your products for a profit.</p>
+                        <p>At any point along the way you can sell the materials you've produced for a profit.</p>
 
                         <p>When you send the following command to your spacecraft, it instructs your drone to place a sell order (Protocol ID = 7) for all (reserve = 0) the Neptine (Resource ID = 1000) in your cargo hold at 10 credits per unit.</p>
 
