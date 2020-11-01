@@ -330,7 +330,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <div class="row row-80">
                 <div class="col-sm-6 col-lg-4">
                     <h4>Lieutenant</h4>
-                    <p class="text-width-xl-90">Receive exclusive access to the regularly updated <b>Player's Manual</b> when you support this project at $2 per month.</p>
+                    <p class="text-width-xl-90">Receive <b>early access</b> to the game when you support this project with at least $2 per month.</p>
                     <br/>
                     <a href="https://www.patreon.com/bePatron?u=6799833"
                        data-patreon-widget-type="become-patron-button">Become a Patron!</a>
@@ -349,7 +349,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <div class="col-sm-6 col-lg-4">
                     <h4>Admiral</h4>
                     <p class="text-width-xl-90">Enjoy <b>behind-the-scenes access</b> to our development plans and
-                        visions when you help us grow at $6 a month.</p>
+                        be recognized as a <b>major contributor</b> when you help us grow at $6 or more a month.</p>
                     <br/>
                     <a href="https://www.patreon.com/bePatron?u=6799833"
                        data-patreon-widget-type="become-patron-button">Become a Patron!</a>
