@@ -174,60 +174,6 @@ The decompiler knows that the end of a word is demarcated by a pointer to
 **\_exit**, and that pointers to **exit** can occur within the body of the
 definition.
 
-
-##### File Access Words
-
-The following compiling words are part of the File Access Word set, a few of
-the fields need explaining in the stack comments. "file-id" refers to a
-previously opened file as returned by "open-file", "ior" refers to a return
-status provided by the file operations. "fam" is a file access method, 
-
-* 'close-file'  ( file-id -- ior )
-
-Close an already opened file.
-
-* 'open-file'   ( c-addr u fam -- file-id ior )
-
-Open a file, given a Forth string (the 'c-addr' and the 'u' arguments), and a
-file access method, which is defined within "forth.fth". Possible file access
-methods are "w/o", "r/w" and "r/o" for read only, read-write and write only
-respectively.
-
-* 'delete-file' ( c-addr u -- ior )
-
-Delete a file on the file system given a Forth string.
-
-* 'read-file'   ( c-addr u file-id -- ior )
-
-Read in 'u' characters into 'c-addr' given a file identifier.
-
-* 'write-file'  ( c-addr u file-id -- ior )
-
-Write 'u' characters from 'c-addr' to a given file identifier.
-
-* 'file-position'   ( file-id -- ud ior )
-
-Get the file position offset from the beginning of the file given a file
-identifier.
-
-* 'reposition-file' ( ud file-id -- ior )
-
-Reposition a files offset relative to the beginning of the file given a file
-identifier.
-
-* 'flush-file' ( file-id -- ior )
-
-Attempt to flush any buffered information written to a file.
-
-* 'rename-file' ( c-addr1 u1 c-addr2 u2 -- ior )
-
-Rename a file on the file system named by the first string ('c-addr1' and 'u1')
-to the second string ('c-addr2' and 'u2').
-
-* 'temporary-file' ( -- file-id ior )
-
-Open up a new temporary file for writing and reading.
-
 ### Defined words
 
 Defined words are ones which have been created with the ':' word, some words
