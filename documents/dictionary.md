@@ -68,108 +68,59 @@ Word | Stack Effect | Meaning
 
 #### Compiling words
 
-* 'read'        ( c" xxx" -- )
+Word | Stack Effect | Meaning
+:----|:------------:|:--------
+| read | c" xxx" -- | *read* is a complex word that implements most of the input interpreter, it reads in a [Forth][] *word* (up to 31 characters), if this *word* is in the *dictionary* it will either execute the word if we are in *command mode* or compile a pointer to the executable section of the word if in *compile mode*. If this *word* is not in the *dictionary* it is checked if it is a number, if it is then in *command mode* we push this value onto the *variable stack*, if in *compile mode* then we compile a *literal* into the *dictionary*. If it is none of these we print an error message and attempt to read in a new word.
+| @ | address -- x | Pop an address and push the value at that address onto the stack.
+| ! | x address -- | Given an address and a value, store that value at that address.
+| c@ | char-address -- char | Pop a character address and push the character value at that address onto the stack. Note that this access is not checked for being within range of the virtual machines memory, but it is still relative to the start address of virtual machine memory. 
+| c! | char char-address -- | Given a character address, store a character value at that address, like 'c@' the address is relative to the virtual machines starting address.
+| - | x y -- z | Pop two values, subtract 'y' from 'x' and push the result onto the stack.
+| + | x y -- z | Pop two values, add 'y' to 'x' and push the result onto the stack.
+| and | x y -- z | Pop two values, compute the bitwise 'AND' of them and push the result on to the stack.
+| or | x y -- z | Pop two values, compute the bitwise 'OR' of them and push the result on to the stack.
+| xor | x y -- z | Pop two values, compute the bitwise 'XOR' of them and push the result on to the stack.
+| invert | x y -- z | Perform a bitwise negation on the top of the stack.
+| lshift | x y -- z | Pop two values, compute 'y' shifted by 'x' places to the left and push the result on to the stack.
+| rshift | x y -- z | Pop two values, compute 'y' shifted by 'x' places to the right and push the result on to the stack.
+| \* | x y -- z |Pop two values, multiply them and push the result onto the stack.
+| / | x y -- z | Pop two values, divide 'x' by 'y' and push the result onto the stack. If 'y'is zero and error message is printed and 'x' and 'y' will remain on the stack, but execution will continue on as normal.
+| u\< | x y -- z | Pop two unsigned values, compare them (y < x) and push the result onto the stack, the comparison will be unsigned.
+| u\> | x y -- z | Pop two values, compare them (y > x) and push the result onto the stack. The comparison will be unsigned.
+| \_exit | -- | Pop the return stack and set the instruction stream pointer to that value.
+| exit | -- | This does the same as **\_exit**, the reason there are two exits instead of one is so that the word 'see', defined in **forth.fth** can differentiate  between an exit that occurs in the definition of a word, and one that occurs at the end of a words definition. ('see' is a decompiler for Forth). Also see Exit Note.
+| key | -- char |Get a value from the input and put it onto the stack.
+|_emit|char -- status|Put a character to the output stream returning a success value.
+|r\>|-- x|Pop a value from the return stack and push it to the variable stack.
+|\>r|x --|Pop a value from the variable stack and push it to the return stack.
+|branch|--|Jump unconditionally to the destination next in the instruction stream.
+|?branch|bool --|Pop a value from the variable stack, if it is zero the jump to the destination next in the instruction stream, otherwise skip over it.
+|(.)|x -- status|Pop a value from the variable stack and print it to the output either as a ASCII decimal or hexadecimal value depending on the BASE register. A return status is pushed onto the stack, greater or equal to zero is a success, negative is a failure. Failure can occur because of an invalid base in the BASE register, or because the output could not be written to.
+|'|--|Push the next value in the instruction stream onto the variable stack and advance the instruction stream pointer over it.
+|,|x --|Write a value into the dictionary, advancing the dictionary pointer.
+|=|x y -- z|Pop two values, perform a test for equality and push the result.
+|swap|x y -- y z|Swap two values on the stack.
+|dup|x -- x x|Duplicate a value on the stack.
+|drop|x --|Drop a value.
+|over|x y -- x y x|Duplicate the value that is next on the stack.
+|find|-- execution-token|Find a word in the dictionary pushing a pointer to that word onto the variable stack.
+|depth|-- depth|Push the current stack depth onto the stack, the value is the depth of the stack before the depth value was pushed onto the variable stack.
+|sp@|-- addr|Push the address of the stack pointer onto the stack, before **sp@** was executed: ```1 2 sp@ . . .``` prints ```2 2 1```
+|sp!|addr --|Set the address of the stack pointer.
+|clock|-- x|Push the difference between the startup time and now, in milliseconds. This can be used for timing and implementing sleep functionality, the counter will not increase the interpreter is blocking and waiting for input, although this is implementation dependent.
+|evaluator|c-addr u 0 \| file-id 0 1 -- x |This word is a primitive used to implement 'evaluate' and 'include-file', it takes a boolean to decide whether it will read from a file (1) or a string (0), and then takes either a forth string, or a **file-id**.
+|system|c-addr u -- status|Execute a command with the systems command interpreter.
+|raise|u -- ???|Raises a signal, what happens after the signal is raised is undefined.
+|date|-- date|Push the date onto the stack, the order of the arguments are: Is day light savings time?; Days since start of year; Week day; Year; Month; Day of month; Hour; Minutes; Seconds (note, this can include lead seconds!). The time is in UTC time.
+|memory-copy|r-addr1 r-addr2 u --|Operates on two raw addresses. Copy 'u' characters from r-addr2 to r-addr1.
+|memory-locate|r-addr char u -- r-addr \| 0|Locate a character in a block of memory 'u' characters wide, returning a pointer to that character or zero if that address cannot be found.
+|memory-set|r-addr char u --|Set 'u' character of memory starting at 'r-addr' to 'char'.
+|memory-compare|r-addr1 r-addr2 u -- x|Compare two blocks of memory 'u' units wide.
+|allocate|u -- r-addr status|Allocate a block of memory.
+|free|r-addr -- status|Free a block of memory.
+|getenv|c-addr u -- r-addr u|Get an [environment variable][] given a string, it returns '0 0' if the variable was not found.
 
-*read* is a complex word that implements most of the input interpreter,
-it reads in a [Forth][] *word* (up to 31 characters), if this *word* is in
-the *dictionary* it will either execute the word if we are in *command mode*
-or compile a pointer to the executable section of the word if in *compile
-mode*. If this *word* is not in the *dictionary* it is checked if it is a
-number, if it is then in *command mode* we push this value onto the *variable
-stack*, if in *compile mode* then we compile a *literal* into the *dictionary*.
-If it is none of these we print an error message and attempt to read in a
-new word.
-
-* '@'           ( address -- x )
-
-Pop an address and push the value at that address onto the stack.
-
-* '!'           ( x address -- )
-
-Given an address and a value, store that value at that address.
-
-* 'c@'          ( char-address -- char )
-
-Pop a character address and push the character value at that address onto the
-stack. Note that this access is not checked for being within range of the
-virtual machines memory, but it is still relative to the start address of
-virtual machine memory. 
-
-* 'c!'          ( char char-address -- )
-
-Given a character address, store a character value at that address, like 'c@'
-the address is relative to the virtual machines starting address.
-
-* '-'           ( x y -- z )
-
-Pop two values, subtract 'y' from 'x' and push the result onto the stack.
-
-* '+'           ( x y -- z )
-
-Pop two values, add 'y' to 'x' and push the result onto the stack.
-
-* 'and'         ( x y -- z )
-
-Pop two values, compute the bitwise 'AND' of them and push the result on to
-the stack.
-
-* 'or'          ( x y -- z )
-
-Pop two values, compute the bitwise 'OR' of them and push the result on to
-the stack.
-
-* 'xor'         ( x y -- z )
-
-Pop two values, compute the bitwise 'XOR' of them and push the result on to
-the stack.
-
-* 'invert'      ( x y -- z )
-
-Perform a bitwise negation on the top of the stack.
-
-* 'lshift'      ( x y -- z )
-
-Pop two values, compute 'y' shifted by 'x' places to the left and push
-the result on to the stack.
-
-* 'rshift'      ( x y -- z )
-
-Pop two values, compute 'y' shifted by 'x' places to the right and push
-the result on to the stack.
-
-* '\*'          ( x y -- z )
-
-Pop two values, multiply them and push the result onto the stack.
-
-* '/'           ( x y -- z )
-
-Pop two values, divide 'x' by 'y' and push the result onto the stack. If 'y'
-is zero and error message is printed and 'x' and 'y' will remain on the
-stack, but execution will continue on as normal.
-
-* 'u\<'         ( x y -- z )
-
-Pop two unsigned values, compare them (y < x) and push the result onto the
-stack, the comparison will be unsigned.
-
-* 'u\>'         ( x y -- z )
-
-Pop two values, compare them (y > x) and push the result onto the stack. The
-comparison will be unsigned.
-
-* '\_exit'        ( -- )
-
-Pop the return stack and set the instruction stream pointer to that
-value.
-
-* 'exit'        ( -- )
-
-This does the same as **\_exit**, the reason there are two exits instead
-of one is so that the word 'see', defined in **forth.fth** can differentiate 
-between an exit that occurs in the definition of a word, and one that occurs
-at the end of a words definition. ('see' is a decompiler for Forth).
-
-
+#### Exit Note
 For example:
 
 	: test 0 begin dup 10 > if exit then dup . cr 1+  again ;
@@ -223,159 +174,6 @@ The decompiler knows that the end of a word is demarcated by a pointer to
 **\_exit**, and that pointers to **exit** can occur within the body of the
 definition.
 
-* 'key'         ( -- char )
-
-Get a value from the input and put it onto the stack.
-
-* '\_emit'      ( char -- status )
-
-Put a character to the output stream returning a success value.
-
-* 'r\>'          ( -- x )
-        
-Pop a value from the return stack and push it to the variable stack.
-
-* '\>r'          ( x -- )
-
-Pop a value from the variable stack and push it to the return stack.
-
-* 'branch'           ( -- )
-
-Jump unconditionally to the destination next in the instruction stream.
-
-* '?branch'          ( bool -- )
-
-Pop a value from the variable stack, if it is zero the jump to the
-destination next in the instruction stream, otherwise skip over it.
-
-* '(.)'           ( x -- status )
-
-Pop a value from the variable stack and print it to the output either
-as a ASCII decimal or hexadecimal value depending on the BASE register. A
-return status is pushed onto the stack, greater or equal to zero is a success,
-negative is a failure. Failure can occur because of an invalid base in the BASE
-register, or because the output could not be written to.
-
-* '''           ( -- )
-
-Push the next value in the instruction stream onto the variable stack
-and advance the instruction stream pointer over it.
-
-* ','           ( x -- )
-
-Write a value into the dictionary, advancing the dictionary pointer.
-
-* '='           ( x y -- z )
-
-Pop two values, perform a test for equality and push the result.
-
-* 'swap'        ( x y -- y z )
-
-Swap two values on the stack.
-
-* 'dup'         ( x -- x x )
-
-Duplicate a value on the stack.
-
-* 'drop'        ( x -- )
-
-Drop a value.
-
-* 'over'        ( x y -- x y x )
-
-Duplicate the value that is next on the stack.
-
-* 'find'        ( -- execution-token )
-
-Find a word in the dictionary pushing a pointer to that word onto the
-variable stack.
-
-* 'depth'       ( -- depth )
-
-Push the current stack depth onto the stack, the value is the depth of the
-stack before the depth value was pushed onto the variable stack.
-
-* 'sp@'         ( -- addr )
-
-Push the address of the stack pointer onto the stack, before **sp@** was 
-executed:
-
-	1 2 sp@ . . .
-
-Prints:
-
-	2 2 1
-
-* 'sp!'         ( addr -- )
-
-Set the address of the stack pointer.
-
-* 'clock'       ( -- x )
-
-Push the difference between the startup time and now, in milliseconds. This
-can be used for timing and implementing sleep functionality, the counter
-will not increase the interpreter is blocking and waiting for input, although
-this is implementation dependent.
-
-* 'evaluator'   ( c-addr u 0 | file-id 0 1 -- x )
-
-This word is a primitive used to implement 'evaluate' and 'include-file', it
-takes a boolean to decide whether it will read from a file (1) or a string (0),
-and then takes either a forth string, or a **file-id**.
-
-* 'system'      ( c-addr u -- status )
-
-Execute a command with the systems command interpreter.
-
-* 'raise'      ( u -- ??? )
-
-Raises a signal, what happens after the signal is raised is undefined.
-
-* 'date'       ( -- date )
-
-Push the date onto the stack, the order of the arguments are:
-
-	Is day light savings time? 
-	Days since start of year
-	Week day
-	Year
-	Month
-	Day of month
-	Hour
-	Minutes
-	Seconds (note, this can include lead seconds!)
-	
-The time is in UTC time.
-
-* 'memory-copy' ( r-addr1 r-addr2 u -- )
-
-Operates on two raw addresses. Copy 'u' characters from r-addr2 to r-addr1.
-
-* 'memory-locate' ( r-addr char u -- r-addr | 0 )
-
-Locate a character in a block of memory 'u' characters wide, returning a pointer to
-that character or zero if that address cannot be found.
-
-* 'memory-set'     ( r-addr char u -- )
-
-Set 'u' character of memory starting at 'r-addr' to 'char'.
-
-* 'memory-compare'  ( r-addr1 r-addr2 u -- x )
-
-Compare two blocks of memory 'u' units wide.
-
-* 'allocate' ( u -- r-addr status )
-
-Allocate a block of memory.
-
-* 'free' ( r-addr -- status )
-
-Free a block of memory.
-
-* 'getenv' ( c-addr u -- r-addr u )
-
-Get an [environment variable][] given a string, it returns '0 0' if the
-variable was not found.
 
 ##### File Access Words
 
