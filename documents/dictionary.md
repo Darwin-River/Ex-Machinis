@@ -50,11 +50,11 @@ There are three types of words.
 These invisible words have no name but are used to implement the Forth. They
 are all *immediate* words.
 
-Word | Meaning
-:----|:--------
-push ( -- x ) | Push the next value in the instruction stream onto the variable stack, advancing the instruction stream. 
-const ( -- x ) | Push the next location after this instruction, not the instruction stream, onto the variable stack. 
-run ( -- ) | Save the current instruction stream pointer onto the return stack and set the pointer instruction stream pointer to point to value after *run*.
+Word | Stack Effect | Meaning
+:----|:------------:|:--------
+push | -- x | Push the next value in the instruction stream onto the variable stack, advancing the instruction stream. 
+const | -- x | Push the next location after this instruction, not the instruction stream, onto the variable stack. 
+run | -- | Save the current instruction stream pointer onto the return stack and set the pointer instruction stream pointer to point to value after *run*.
 
 #### Immediate words
 
