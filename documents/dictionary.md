@@ -18,8 +18,6 @@ have a meaning:
 | addr    | An address in cells                             |
 | c-addr  | Character address                               |
 | r-addr  | A raw address                                   |
-| file-id | A file id, used as a handle for file operations |
-| ior     | A error status returned by file operations      |
 | char    | Single byte / character                         |
 | u       | An unsigned value                               |
 | x       | A signed value                                  |
@@ -180,142 +178,33 @@ Defined words are ones which have been created with the ':' word, some words
 get defined before the user has a chance to define their own to make their
 life easier.
 
-* 'state'       ( -- addr )
-
-Push the address of the register that controls the interpreter state onto
-the stack, this value can be written to put the interpreter into compile
-or command modes. 
-
-* ';'           ( -- )
-
-Write 'exit' into the dictionary and switch back into command mode.
-
-* 'base'         ( -- addr )
-
-This pushes the address of a variable used for input and output conversion of
-numbers, this address can be written to and read, valid numbers to write are 0
-and 2 to 36 (*not* 1).
-
-* 'pwd'         ( -- pointer )
-
-Pushes a pointer to the previously define word onto the stack.
-
-* 'h'           ( -- pointer )
-
-Push a pointer to the dictionary pointer register.
-
-* 'r'           ( -- pointer )
-
-Push a pointer to the register pointer register.
-
-* 'here'        ( -- dictionary-pointer )
-
-Push the current dictionary pointer (equivalent to "h @").
-
-* '\['          ( -- )
-
-Immediately switch into command mode.
-
-* '\]'          ( -- )
-
-Switch into compile mode
-
-* '\>mark'      ( -- location )
-
-Write zero into the head of the dictionary and advance the dictionary pointer,
-push a address to the zero written into the dictionary. This is usually used
-after in a word definition that changes the control flow, after a branch for
-example.
-
-* ':noname'     ( -- execution-token )
-
-This creates a word header for a word without a name and switches to compile
-mode, the usual ';' finishes the definition. It pushes a execution token onto
-the stack that can be written into the dictionary and run, or executed directly.
-
-* 'if'          ( bool -- )
-
-Begin an if-else-then statement. If the top of stack is true then we
-execute all between the if and a corresponding 'else' or 'then', otherwise
-we skip over it.
-
-Abstract Examples:
-
-        : word ... bool if do-stuff ... else do-other-stuff ... then ... ;
-
-        : word ... bool if do-stuff ... then ... ;
-
-and a concrete examples:
-
-        : test-word if 2 2 + . cr else 3 3 * . cr ;
-        0 test-word
-        4             # prints 4
-        1 test-word
-        9             # prints 9
-
-Is a simple and contrived example.
-
-* 'else'        ( -- )
-
-See 'if'.
-
-* 'then'        ( -- )
-
-See 'if'.
-
-* 'begin'       ( -- )
-
-This marks the beginning of a loop.
-
-* 'until'       ( bool -- )
-
-Loop back to the corresponding 'begin' if the top of the stack is zero, continue
-on otherwise.
-
-* "')'"         ( -- char )
-
-Push the number representing the ')' character onto the stack.
-
-* 'tab'         ( -- )
-
-Print a tab.
-
-* 'cr'          ( -- )
-
-Prints a newline.
-
-* '('           ( -- )
-
-This will read the input stream until encountering a ')' character, it
-is used for comments.
-
-* 'allot'       ( amount -- )
-
-Allocate a number of cells in the dictionary.
-
-* 'tuck'        ( x y -- y x y )
-
-The stack comment documents this word entirely.
-
-* 'nip'         ( x y -- y )
-
-The stack comment documents this word entirely.
-
-* 'rot'         ( x y z -- z x y )
-
-The stack comment documents this word entirely. This word rotates three items
-on the variable stack.
-
-* '-rot'        ( x y z -- y z x )
-
-The stack comment documents this word entirely. This word rotates three items
-on the variable stack, in the opposite direction of "rot".
-
-* 'emit'        ( x -- )
-
-Write a single character out to the output stream.
-
-* '?'             ( addr -- )
-
-Print the contents of addr to the screen.
+Word | Stack Effect | Meaning
+:----|:------------:|:--------
+|state|-- addr|Push the address of the register that controls the interpreter state onto the stack, this value can be written to put the interpreter into compile or command modes. 
+|;|( -- )|Write 'exit' into the dictionary and switch back into command mode.
+|base|-- addr|This pushes the address of a variable used for input and output conversion of numbers, this address can be written to and read, valid numbers to write are 0 and 2 to 36 (*not* 1).
+|pwd|-- pointer|Pushes a pointer to the previously define word onto the stack.
+|h|-- pointer|Push a pointer to the dictionary pointer register.
+|r|-- pointer|Push a pointer to the register pointer register.
+|here|-- dictionary-pointer|Push the current dictionary pointer (equivalent to "h @").
+|\[|--|Immediately switch into command mode.
+|\]|--|Switch into compile mode
+|\>mark|-- location|Write zero into the head of the dictionary and advance the dictionary pointer, push a address to the zero written into the dictionary. This is usually used after in a word definition that changes the control flow, after a branch for example.
+|:noname|-- execution-token|This creates a word header for a word without a name and switches to compile mode, the usual ';' finishes the definition. It pushes a execution token onto the stack that can be written into the dictionary and run, or executed directly.
+|if|bool --|Begin an if-else-then statement. If the top of stack is true then we execute all between the if and a corresponding 'else' or 'then', otherwise we skip over it.
+|else|--|See 'if'.
+|then|--|See 'if'.
+|begin|--|This marks the beginning of a loop.
+|until|bool --|Loop back to the corresponding 'begin' if the top of the stack is zero, continue on otherwise.
+|"')'"|-- char|Push the number representing the ')' character onto the stack.
+|tab|-- |Print a tab.
+|cr|--|Prints a newline.
+|(|--|This will read the input stream until encountering a ')' character, it is used for comments.
+|allot|amount --|Allocate a number of cells in the dictionary.
+|tuck|x y -- y x y |The stack effect comment documents this word entirely.
+|nip|x y -- y|The stack effect comment documents this word entirely.
+|rot|x y z -- z x y|The stack effect comment documents this word entirely. This word rotates three items on the variable stack.
+|-rot|x y z -- y z x|The stack effect comment documents this word entirely. This word rotates three items on the variable stack, in the opposite direction of "rot".
+|emit|x --|Write a single character out to the output stream.
+|?|addr --|Print the contents of addr to the screen.
 
