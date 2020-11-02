@@ -60,27 +60,11 @@ run | -- | Save the current instruction stream pointer onto the return stack and
 
 These words are named and are *immediate* words.
 
-* ':'           ( c" xxx" -- )
-
-Read in a new word from the input stream and compile it into the dictionary.
-
-* 'immediate'   ( -- )
-
-Make the previously declared word immediate. Unlike in most Forth
-implementations this is used after the words name is given not after the
-final ';' has been reached.
-
-So:
-
-        : word immediate ... ;
-
-Instead of:
-
-        : word ... ; immediate
-
-* '\\'           ( c" \n" -- )
-
-A comment, ignore everything until the end of the line.
+Word | Stack Effect | Meaning
+:----|:------------:|:--------
+| : | c" xxx" -- | Read in a new word from the input stream and compile it into the dictionary.
+| immediate |  -- | Make the previously declared word immediate. Unlike in most Forth implementations this is used after the words name is given not after the final ';' has been reached. So write ~: word immediate ... ;~ instead of ~: word ... ; immediate~
+| \\ | c" \n" -- | A comment, ignore everything until the end of the line.
 
 #### Compiling words
 
