@@ -13,19 +13,17 @@ describe the stack effects, this word expects one number to be one the stack,
 Some of the descriptions of the variables in the stack effect comment 
 have a meaning:
 
-	.---------.-------------------------------------------------.
-	|  Name   |                   Meaning                       |
-	.---------.-------------------------------------------------.
-	| addr    | An address in cells                             |
-	| c-addr  | Character address                               |
-	| r-addr  | A raw address                                   |
-	| file-id | A file id, used as a handle for file operations |
-	| ior     | A error status returned by file operations      |
-	| char    | Single byte / character                         |
-	| u       | An unsigned value                               |
-	| x       | A signed value                                  |
-	| c" xxx" | The word parses a word (not a stack effect)     |
-	.---------.-------------------------------------------------.
+|  Name   |                   Meaning                       |
+|---------|:------------------------------------------------|
+| addr    | An address in cells                             |
+| c-addr  | Character address                               |
+| r-addr  | A raw address                                   |
+| file-id | A file id, used as a handle for file operations |
+| ior     | A error status returned by file operations      |
+| char    | Single byte / character                         |
+| u       | An unsigned value                               |
+| x       | A signed value                                  |
+| c" xxx" | The word parses a word (not a stack effect)     |
 	
 The addressing modes complicate certain operations of Forth words. A normal
 Forth address, as passed to words like '!', '@', 'c@' and 'c!' are relative to
