@@ -882,3 +882,11 @@ After implementing the query, the Game Engine will place the results in the Resu
 
 [Return to the TOC](#Table-of-Contents)
 
+## Appendix A: In-Game Queries
+
+This appendix lists the specific in-game queries that are being proposed and developed for Ex Machinis.  These queries are organized in terms of the database structures that they support.
+
+### Company Queries
+
+|Query ID| Name | Description | SQL Script|
+|:-------|:-----|:------------|:----------|
