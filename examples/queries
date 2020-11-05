@@ -1,14 +1,16 @@
 <reset>
+
   \ Set up the results array.
   : result_size 100 ;  
   variable result_pointer result_size allot
   
-  \ run_query ( value query_id -- )
-  : run_query result_pointer swap result_size swap query ;
+  \ run_query ( value query_id -- result_pointer )
+  : run_query result_pointer swap result_size swap query result_pointer ;
   
-  \ Search for the company name
-  10 100 run_query
+  \ print_string ( address_pointer -- )
+  : print_string count type ;
   
-  \ Print the results
-  result_pointer count type \ prints the results
+  \ Report the company name
+  11 100 run_query print_string  
+  
 </reset>
