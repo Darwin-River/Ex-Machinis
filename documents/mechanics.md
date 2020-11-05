@@ -890,3 +890,4 @@ This appendix lists the specific in-game queries that are being proposed and dev
 
 |Query ID| Name | Description | SQL Script|
 |:-------|:-----|:------------|:----------|
+| 100 | Get company name | Returns the name of the company with the specified Company ID | SELECT users.name FROM users WHERE (((users.user_id)=[value_1]));
