@@ -93,6 +93,7 @@ This document lays out the plans for developing Ex Machinis, an online space sim
     * [The Query Algorithm](#The-Query-Algorithm)
     * [First Query Example](#First-Query-Example)
     * [Second Query Example](#Second-Query-Example)
+* [Appendix A: In-Game Queries](#appendix-a-in-game-queries)
 
 ## System Overview
 
@@ -891,3 +892,6 @@ This appendix lists the specific in-game queries that are being proposed and dev
 |Query ID| Name | Description | SQL Script|
 |:-------|:-----|:------------|:----------|
 | 100 | Get company name | Returns the name of the company with the specified Company ID | SELECT users.name FROM users WHERE (((users.user_id)=[value_1]));
+| 200 | Get drone name | Returns the name of the spacecraft with the specified Spacecraft ID | SELECT agents.name FROM agents WHERE (((agents.agent_id)=[value_1]));
+
+[Return to the TOC](#Table-of-Contents)
