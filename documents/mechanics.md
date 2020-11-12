@@ -897,6 +897,7 @@ This appendix lists the specific in-game queries that are being proposed and dev
 | 140 | List company drones | Lists the IDs of the spacecraft owned by company N | SELECT agents.agent_id FROM agents WHERE (((agents.user_id)=[value_1])) ORDER BY agents.agent_id;
 | 200 | Get drone name | Returns the name of the spacecraft with the specified Spacecraft ID | SELECT agents.name FROM agents WHERE (((agents.agent_id)=[value_1]));
 | 210 | Get spacecraft owner | Returns the Company ID of the company that owns the specified Spacecraft ID | SELECT agents.user_id FROM agents WHERE (((agents.agent_id)=[value_1]));
+| 220 | Get drone location | Returns the Location ID of the spacified Spacecraft ID | SELECT new_location FROM events WHERE event_type=3 AND drone=[value_1] AND outcome=1 ORDER BY timestamp DESC;
 
 
 [Return to the TOC](#Table-of-Contents)
