@@ -893,7 +893,6 @@ This appendix lists the specific in-game queries that are being proposed and dev
 |:-------|:-----|:------------|:----------|
 | 100 | Get company name | Returns the name of the company with the specified Company ID | SELECT users.name FROM users WHERE (((users.user_id)=[value_1]));
 | 120 | Get company credits | Returns the number of credits owned by the specified Company ID | SELECT users.credits FROM users WHERE (((users.user_id)=[value_1]));
-| 130 | Count company drones | Returns a count of the number of drowns owned by company N | SELECT Count(agents.agent_id) AS CountOfagent_id FROM agents GROUP BY agents.user_id HAVING (((agents.user_id)=[value_1]));
 | 140 | List company drones | Lists the IDs of the spacecraft owned by company N | SELECT agents.agent_id FROM agents WHERE (((agents.user_id)=[value_1])) ORDER BY agents.agent_id;
 | 200 | Get drone name | Returns the name of the spacecraft with the specified Spacecraft ID | SELECT agents.name FROM agents WHERE (((agents.agent_id)=[value_1]));
 | 210 | Get spacecraft owner | Returns the Company ID of the company that owns the specified Spacecraft ID | SELECT agents.user_id FROM agents WHERE (((agents.agent_id)=[value_1]));
