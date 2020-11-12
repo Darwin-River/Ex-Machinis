@@ -11,11 +11,11 @@
   : wCountCompanyDrones ( nCompanyId -- pResult ) 130 wRunQuery ;
   : wListCompanyDrones ( nCompanyId -- pResult ) 140 wRunQuery ;
   : wGetDroneName ( nDroneId -- pResult ) 200 wRunQuery ;
-  : wGetDroneOwner ( nDroneId -- pResult ) 210 wRunQuery ;  
+  : wGetDroneOwner ( nDroneId -- pResult ) 210 wRunQuery ;
+  : wGetDroneLocation ( nDroneId -- pResult ) 220 wRunQuery ;
   : wPrintString ( pString -- ) count type ;
   
   52 wGetDroneOwner @ wGetCompanyName wPrintString  
-  2 wCountCompanyDrones @ .
-  2 wListCompanyDrones dup @ . dup 2 + @ . 4 + @ .
+  2 wGetDroneLocation @ .
   
 </reset>
