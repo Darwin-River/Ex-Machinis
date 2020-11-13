@@ -43,6 +43,7 @@ The Player’s Manual provides a detailed description of available game-play mec
     - [Aborting your script](game-play.md#Aborting-your-script)
     - [Resetting your machine](game-play.md#Resetting-your-machine)
 - [Chapter 8: Asking Questions](game-play.md#Chapter-8-Asking-Questions)
+  - [Reusing your results buffer](game-play.md#Reusing-your-results-buffer)
 - [Chapter 9: Making Decisions](game-play.md#Chapter-9-Making-Decisions)
   - [Finding the truth in numbers](game-play.md#Finding-the-truth-in-numbers)
   - [Experimenting with logical operators](game-play.md#Experimenting-with-logical-operators)
@@ -767,29 +768,29 @@ Assuming that you've already added home to your drone's dictionary, running the 
 
 ### Different ways to command your spacecraft
 
-Up until this point, all of the FORTH scripts we’ve been sending to our drones have been bracketed between the `&lt;run>...&lt;/run> `tags.  The `&lt;run>` command specifically tells the spacecraft to process the code in the context of its current machine state.  This means that your drone will not process the script if another program is already running.  Furthermore, if it does process code sent to it between the `&lt;run>...&lt;/run> `tags, the new code will have access to the dictionary, variables, and stack values that were left there by the previous script.  So, if you used the last script to define the word `helloworld`, put 5 in the variable, `box`, or leave 11 on the stack, the next script you execute using the `&lt;run>...&lt;/run>` tags will have access to the same same resources and values.
+Up until this point, all of the FORTH scripts we’ve been sending to our drones have been bracketed between the `<run>...</run> `tags.  The `<run>` command specifically tells the spacecraft to process the code in the context of its current machine state.  This means that your drone will not process the script if another program is already running.  Furthermore, if it does process code sent to it between the `<run>...</run> `tags, the new code will have access to the dictionary, variables, and stack values that were left there by the previous script.  So, if you used the last script to define the word `helloworld`, put 5 in the variable, `box`, or leave 11 on the stack, the next script you execute using the `<run>...</run>` tags will have access to the same same resources and values.
 
-Although, there are benefits to running your new script in a pre-existing machine state, there will also be times when you’ll need to break into an active script or start over with a clean slate. In these cases you would want to use the `&lt;abort>` and `&lt;reset>` metacommands instead of `&lt;run>`.
+Although, there are benefits to running your new script in a pre-existing machine state, there will also be times when you’ll need to break into an active script or start over with a clean slate. In these cases you would want to use the `<abort>` and `<reset>` metacommands instead of `&lt;run>`.
 
-As with `&lt;run>`, `&lt;abort> `and <code>&lt;reset><strong> </strong></code>can be used to bracket any code that you’re sending to your spacecraft.  However, <code>&lt;abort></code> and <code>&lt;reset></code> behave very differently with respect to how they handle the drone’s current machine state. 
+As with `<run>`, `<abort>` and `<reset>` can be used to bracket any code that you’re sending to your spacecraft.  However, `<abort>` and `<reset>` behave very differently with respect to how they handle the drone’s current machine state. 
 
 [Return to TOC](game-play.md#Table-of-Contents)
 
 #### Aborting your script 
 
-The `&lt;abort>` metacommand will stop any code that is running, before executing the script that is bracketed between the `&lt;abort>...&lt;/abort>` tags.  However it will not affect the dictionary, variables, or stack contents that were left behind by the aborted script.  A single `&lt;abort> `tag can also be sent without code, if you just want to stop the current process.
+The `<abort>` metacommand will stop any code that is running, before executing the script that is bracketed between the `<abort>...<abort>` tags.  However it will not affect the dictionary, variables, or stack contents that were left behind by the aborted script.  A single `<abort> `tag can also be sent without code, if you just want to stop the current process.
 
-The `&lt;abort>` command is very important for stopping code that is caught in an endless loop.
+The `<abort>` command is very important for stopping code that is caught in an endless loop.
 
 [Return to TOC](game-play.md#Table-of-Contents)
 
 #### Resetting your machine
 
-The `&lt;reset>` metacommand will stop any active processes and reset the machine to its native state before executing the code contained between the `&lt;reset>...&lt;/reset>` tags. You can also use a single `&lt;reset>` tag to reset the drone without sending any new code.
+The `<reset>` metacommand will stop any active processes and reset the machine to its native state before executing the code contained between the `<reset>...</reset>` tags. You can also use a single `<reset>` tag to reset the drone without sending any new code.
 
-The `&lt;reset>` command comes in handy when dealing with a drone whose internal memory has been corrupted by a misdirected routine.  This is easy to do if you accidently use the store command (`!`) to overwrite an essential part of memory.
+The `<reset>` command comes in handy when dealing with a drone whose internal memory has been corrupted by a misdirected routine.  This is easy to do if you accidently use the store command (`!`) to overwrite an essential part of memory.
 
-However, the &lt;`reset>` metacommand is more commonly used to start afresh when developing and testing a new set of routines.  In this context, you would store and edit your entire FORTH dictionary in a word processor application and paste it into your email, nested between the `&lt;reset>...&lt;/reset>` tags every time you want to upload and test the modified code in your drone. In fact, you’ll find yourself using the `&lt;reset>` command far more than the run command when programming your drone to perform more complex behaviors.
+However, the `<reset>` metacommand is more commonly used to start afresh when developing and testing a new set of routines.  In this context, you would store and edit your entire FORTH dictionary in a word processor application and paste it into your email, nested between the `<reset>...</reset>` tags every time you want to upload and test the modified code in your drone. In fact, you’ll find yourself using the `<reset>` command far more than the run command when programming your drone to perform more complex behaviors.
 
 [Return to TOC](game-play.md#Table-of-Contents)
 
@@ -807,16 +808,31 @@ The following script shows how you would use this query to report the object typ
 
 ```
 <run>
-  : search_string $" Earth" ; \ search string
-  variable results_array 100 allot \ results array
-  search_string results_array 100 3 query
-  results_array count type \ prints the results
+  : wSearchTerm $" Earth" ;
+  variable pResults 100 allot \ results array
+  wSearchTerm pResults 100 3 query
+  pResults count type \ prints the results
 </run>
 ```
 
 Try sending this script to your drone, with variations on the search term to see how this works.
 
-As we develop more complex queries, we’ll provide additional examples of how spacecraft can use queries to probe and respond to their environment.
+### Reusing your results buffer
+One way to simplify your queries is to reuse the same results buffer for all your searchers.  The following code creates a shared 100 byte results buffer (`pResults`) and a new query command (`wRunQuery`) to automatically direct the query results the results buffer.
+
+```
+<run>
+  variable pResults 100 allot
+  : wRunQuery ( nValue nQueryId -- pResult ) pResults swap 100 swap query pResults ;
+</run>
+```
+The word `wRunQuery` also leaves a pointer to the results buffer on the stack so that you can immediately fetch your results from this location. For example, the following script uses `wRunQuery` to search for the company that ownes drone ID 52 (query 210) and print the contents of the results buffer.
+
+```
+<run>
+  52 210 wRunQuery @ .
+</run>
+```
 
 [Return to TOC](game-play.md#Table-of-Contents)
 
