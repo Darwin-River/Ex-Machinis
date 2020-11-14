@@ -77,6 +77,7 @@ This document lays out the plans for developing Ex Machinis, an online space sim
       * [Table-events](#Table-events)
       * [Table-transmissions](#Table-transmissions)
   * [The Perform Function](#The-Perform-Function)
+  * [Ad Hoc Protocols](#Ad-Hoc-Protocols)
 * [The Event Engine](#The-Event-Engine)
     * [Tableobservations](#Table-observations)
 * [Markets and Trade](#Markets-and-Trade)
@@ -668,6 +669,23 @@ The perform function applies a general algorithm, which uses the action tables, 
 7. Sequentially search for the Protocol ID in each of the effects tables. Apply variable parameters where indicated (fields with negative numbers). Generate a corresponding event table entry for each effect.
 
 [Return to the TOC](#Table-of-Contents)
+
+### Ad Hoc Protocols
+When someone executes "perform", the Game Engine will pull the first number off the stack and determine whether it indicates that the Game Engine should perform a special command. This would be a command that is not addressed in either the protocols or queries tables but that we might add in the future.
+
+If the number does not belong to a special command, the Game Engine will search protocols.id for an entry that matches the number it pulled from the stack.
+
+If it fails to find the value in protocols.id, it will search for the number in queries.id.
+
+If it can't find the number there, it will conclude that the command doesn't exist.
+
+In other words, every time the "perform" command is called the Game Engine engine will follow a simple branching structure:
+
+If the number on the stack corresponds to a specially-defined command, execute that command and then end the routine. (We haven't defined any of these commands yet.)
+Else, if the number on the stack matches a protocol ID, implement that protocol and end the routine.
+Else, if the number on the stack matches a query ID, implement that query and end the routine.
+4, Else, the command is undefined. End the routine without doing anything.
+In practice, we'll assign IDs in one number range (say 1001 - 2000) to protocols and IDs in another number range (say 2001 -3000) to queries. Special commands may occupy the value range from 1-1000.
 
 ## The Event Engine
 
