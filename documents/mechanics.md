@@ -909,12 +909,17 @@ This appendix lists the specific in-game queries that are being proposed and dev
 
 |Query ID| Name | Description | SQL Script|
 |:-------|:-----|:------------|:----------|
-| 100 | Get company name | Returns the name of the company with the specified Company ID | SELECT users.name FROM users WHERE (((users.user_id)=[value_1]));
-| 120 | Get company credits | Returns the number of credits owned by the specified Company ID | SELECT users.credits FROM users WHERE (((users.user_id)=[value_1]));
-| 140 | List company drones | Lists the IDs of the spacecraft owned by company N | SELECT agents.agent_id FROM agents WHERE (((agents.user_id)=[value_1])) ORDER BY agents.agent_id;
-| 200 | Get drone name | Returns the name of the spacecraft with the specified Spacecraft ID | SELECT agents.name FROM agents WHERE (((agents.agent_id)=[value_1]));
-| 210 | Get spacecraft owner | Returns the Company ID of the company that owns the specified Spacecraft ID | SELECT agents.user_id FROM agents WHERE (((agents.agent_id)=[value_1]));
-| 220 | Get drone location | Returns the Location ID of the spacified Spacecraft ID | SELECT new_location FROM events WHERE event_type=3 AND drone=[value_1] AND outcome=1 ORDER BY timestamp DESC;
+| 100 | Get company name | Returns the name of the company with the specified Company ID. | SELECT users.name FROM users WHERE (((users.user_id)=[value_1]));
+| 120 | Get company credits | Returns the number of credits owned by the specified Company ID. | SELECT users.credits FROM users WHERE (((users.user_id)=[value_1]));
+| 140 | List company drones | Lists the IDs of the spacecraft owned by company N. | SELECT agents.agent_id FROM agents WHERE (((agents.user_id)=[value_1])) ORDER BY agents.agent_id;
+| 200 | Get drone name | Returns the name of the spacecraft with the specified Spacecraft ID. | SELECT agents.name FROM agents WHERE (((agents.agent_id)=[value_1]));
+| 210 | Get spacecraft owner | Returns the Company ID of the company that owns the specified Spacecraft ID. | SELECT agents.user_id FROM agents WHERE (((agents.agent_id)=[value_1]));
+| 220 | Get drone location | Returns the Location ID of the spacified Spacecraft ID. | SELECT new_location FROM events WHERE event_type=3 AND drone=[value_1] AND outcome=1 ORDER BY timestamp DESC;
+| 230 | Get hull type | Returns the hull type ID for the indicated spacecraft. | SELECT hull_type FROM agents WHERE agent_id=[value_1];
+| 300 | Get hull name | Returns the hull name for the indicated hull type. | SELECT name FROM hulls WHERE id=[value_1];
+| 310 | Get cargo capacity | Returns the cargo capacity of the indicated hull type. | SELECT cargo_capacity FROM hulls WHERE id=[value_1];
+| 400 | Get resource name | Returns the name of the indicated resource. | SELECT name FROM resources WHERE id=[value_1];
+| 420 | Get resource mass | Returns the unit mass of the resource in kg. | SELECT mass FROM resources WHERE id=[value_1];
 
 
 [Return to the TOC](#Table-of-Contents)
