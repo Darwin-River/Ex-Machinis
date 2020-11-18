@@ -127,7 +127,8 @@ The following definition uses the return stack to temporarily hold values from t
 
 ```
 : vPeek
-  depth 0 > if 
+  depth 0 > 
+  if 
     depth \ get the stack size
     begin
       swap \ swap stack size with next value on stack
@@ -157,7 +158,8 @@ Sometimes, when you lose track of what is on the stack, it’s easiest just to c
 
 ```
 : vPurge
-  depth 0 > if \ is there something on the stack?
+  depth 0 > \ is there something on the stack?
+  if 
     begin
       drop \ drop the top item from the stack
       depth 0 = \ is the stack empty?
@@ -203,7 +205,8 @@ Email the following text to your drone to erase its memory and install the scrip
 
 \ Debugging definitions
 : vPeek
-  depth 0 > if 
+  depth 0 > 
+  if 
     depth \ get the stack size
     begin
       swap \ swap stack size with next value on stack
@@ -222,7 +225,8 @@ Email the following text to your drone to erase its memory and install the scrip
 ;
 	
 : vPurge
-  depth 0 > if \ is there something on the stack?
+  depth 0 > \ is there something on the stack?
+  if
     begin
       drop \ drop the top item from the stack
       depth 0 = \ is the stack empty?
