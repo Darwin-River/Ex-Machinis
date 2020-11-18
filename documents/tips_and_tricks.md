@@ -58,7 +58,7 @@ The following script defines a set of descriptive words, which pulls the require
 
 \ Basic definitions
 : vPlaceSellOrder ( nPrice nLimit nResource -- ) 7 perform ;
-: vPlaceBuyOrder  ( nPrice nLimit nResource ) 8 perform ;
+: vPlaceBuyOrder  ( nPrice nLimit nResource -- ) 8 perform ;
 : vGotoLocation ( nLocation -- ) 5 perform ;
 : vPushResource ( nResource nTarget -- ) 10 perform ;
 : vPullResource ( nResource nTarget -- ) 11 perform ;
@@ -198,7 +198,7 @@ Email the following text to your drone to erase its memory and install the scrip
 
 \ Basic definitions
 : vPlaceSellOrder ( nPrice nLimit nResource -- ) 7 perform ;
-: vPlaceBuyOrder  ( nPrice nLimit nResource ) 8 perform ;
+: vPlaceBuyOrder  ( nPrice nLimit nResource -- ) 8 perform ;
 : vGotoLocation ( nLocation -- ) 5 perform ;
 : vPushResource ( nResource nTarget -- ) 10 perform ;
 : vPullResource ( nResource nTarget -- ) 11 perform ;
