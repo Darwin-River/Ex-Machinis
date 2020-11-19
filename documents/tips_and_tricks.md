@@ -14,7 +14,7 @@ This manual provides an expanding collection of FORTH scripts that you might fin
 
 ## Improving Readability
 
-If you’ve already read the player’s manual, you should be aware that FORTH is a very powerful and flexible programming language, which, due to its compact and highly efficient structure, jettisons many of the guard rails and readability features that are enforced in other languages.
+If you’ve already read the [player’s manual](game-play.md), you should be aware that FORTH is a very powerful and flexible programming language, which, due to its compact and highly efficient structure, jettisons many of the guard rails and readability features that are enforced in other languages.
 
 This means that the programmer assumes much of the responsibility for writing code which is easy to understand and follow.
 
@@ -41,7 +41,9 @@ Fortunately, FORTH makes it very easy for users to assign a memorable name or ph
 : nJupiter 5 ;
 ```
 
-Each of these definitions simply places the integer ID on the stack for the particular resource or location that is represented by the work we are defining.  Consequently, if I insert the words `wVoxite` or `wEarth` in my code, it will instruct the interpreter or compiler to put the corresponding ID on the stack.  This does not significantly change how the program functions but it does make it easier to read.
+Each of these definitions simply places the integer ID on the stack for the particular resource or location that is represented by the work we are defining.  Consequently, if I insert the words `nVoxite` or `nEarth` in my code, it will instruct the interpreter or compiler to put the corresponding ID on the stack.  This does not significantly change how the program functions but it does make it easier to read.
+
+Since each of these words serve to indicate a specific object, I prefix them with a lower-case n for noun.
 
 [Return to TOC](tips_and_tricks.md#Table-of-Contents)
 
@@ -51,23 +53,23 @@ It’s possible to significantly improve the readability of your FORTH code by d
 
 Consider the `perform` command, which is used to instruct your drones to implement a broad range of in-game activities.  The `perform` command pulls multiple values from the stack that tell the interpreter which protocol is being invoked and how it is to be executed.
 
-The following script defines a set of descriptive words, which pulls the required variables from the stack when performing a particular protocol.
+The following script defines a set of descriptive words that place the protocol ID on the stack before invoking the `perform` command. This eliminates the need for you to remember the ID associated with each action..
 
 ```
 <run>
 
 \ Basic definitions
 : vPlaceSellOrder ( nPrice nLimit nResource -- ) 7 perform ;
-: vPlaceBuyOrder  ( nPrice nLimit nResource -- ) 8 perform ;
+: vPlaceBuyOrder ( nPrice nLimit nResource -- ) 8 perform ;
 : vGotoLocation ( nLocation -- ) 5 perform ;
 : vPushResource ( nResource nTarget -- ) 10 perform ;
 : vPullResource ( nResource nTarget -- ) 11 perform ;
 
 </run>
 ```
+I also improve readablity here by using descriptive camel-case phases to describe each newly-defied action and prefix the compound word with a lower-case v for verb. The perenthesis that follow each word enclose uncompiled comments that describe the values that must be placed on the stack before invoking the word, which is represented by the two hyphens.  If executed the command added any values to the stack, they would be listed after the two hyphens.  FORTH porgrammers use this notation to help themselves and other users with stack management.
 
-These new variables and definitions can be used in conjunction with the previously-defined favorites words to vastly improve the readability of your script.  For example, the following script places a buy order for up to 10 units of magmite and then moves your spacecraft to Jupiter:
-
+The definitions can be used in conjunction with the previously-defined favorites to vastly improve the readability of your script.  For example, the following code places a buy order for up to 10 units of magmite and then moves the spacecraft to Jupiter:
 
 ```
 <run>
@@ -79,6 +81,8 @@ nJupiter vGotoLocation
 </run>
 ```
 
+In this example I bracketed the units in parens to remind myselve and others what the values I placed on the stack represent in the context of the `vPlaceBuyOrder` word.
+
 [Return to TOC](tips_and_tricks.md#Table-of-Contents)
 
 ### Simplifying the Mining Protocol
@@ -87,12 +91,11 @@ Mining is the process by which mineral resources are extracted from planets, moo
 
 As with every physical action taken by your drones, mining minerals is invoked by placing the protocol ID on the stack and calling the perform command.
 
-Each mineral has its own mining protocol and protocol ID.  However the protocol ID can be easily derived by adding 10000 to the resource ID for the mineral that you want to mine.
+Each mineral has its own mining protocol and protocol ID.  These protocol IDs can be easily derived by adding 10000 to the resource ID for the mineral that you want to mine.
 
-Therefore, it's possible to create a FORTH word that automatically invokes the correct protocol based on the resource ID of the targeted mineral.
+Therefore, it's possible to create a simple FORTH word that automatically invokes the correct protocol based on the resource ID of the targeted mineral.
 
-The following script creates a definition for `wMineResource`, which retrieves the resource ID from the `pResource` variable and uses this to derive and invoke the appropriate mining protocol.
-
+The following script creates a definition for `vMineResource`, which retrieves the resource ID from the stack and uses it to derive and invoke the appropriate mining protocol.
 
 ```
 <run>
@@ -102,11 +105,12 @@ The following script creates a definition for `wMineResource`, which retrieves t
 </run>
 ```
 
-This script, which is included in the [Appendix A Basic Drone Script](tips_and_tricks.md#Appendix-A-Basic-Drone-Script).
+The following code uses `vMineResource` to mine magmite and then voxite from the local environment.
 
 ```
 <run>
 
+nMagmite vMineResource
 nVoxite vMineResource
 
 </run>
