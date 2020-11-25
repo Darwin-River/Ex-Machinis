@@ -920,6 +920,9 @@ This appendix lists the specific in-game queries that are being proposed and dev
 | 310 | Get cargo capacity | Returns the cargo capacity of the indicated hull type. | SELECT cargo_capacity FROM hulls WHERE id=[value_1];
 | 400 | Get resource name | Returns the name of the indicated resource. | SELECT name FROM resources WHERE id=[value_1];
 | 420 | Get resource mass | Returns the unit mass of the resource in kg. | SELECT mass FROM resources WHERE id=[value_1];
+| 500 | Get location name | Returns the name of the specified location. | SELECT object_name FROM objects WHERE object_id=[value_1];
+| 510 | Get location type | Retuns the type of the specified location. | SELECT object_type FROM objects WHERE object_id=[value_1];
+| 520 | Get location central body | Returns the central body of the specified locaiton. | SELECT central_body_object_id FROM objects WHERE object_id=[value_1];
 
 
 [Return to the TOC](#Table-of-Contents)
