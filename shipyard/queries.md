@@ -1,4 +1,9 @@
-<reset>
+# Queries Script
+
+This bit of code greatly simplifies spacecraft queries by establishing a shared buffer for query results and assigning names to some of the most frequently used queries.
+
+```
+<run>
 
   : wResultSize 100 ;
   
@@ -18,4 +23,5 @@
   52 wGetDroneOwner @ wGetCompanyName wPrintString  
   2 wGetDroneLocation @ .
   
-</reset>
+</run>
+```
