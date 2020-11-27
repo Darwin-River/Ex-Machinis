@@ -907,8 +907,8 @@ This appendix lists the specific in-game queries that are being proposed and dev
 
 ### Company Queries
 
-|Query ID| Name | Description | SQL Script|
-|:-------|:-----|:------------|:----------|
+|Query ID| Name | Description | MySQL Script|
+|:-------|:-----|:------------|:------------|
 | 100 | Get company name | Returns the name of the company with the specified Company ID. | SELECT users.name FROM users WHERE (((users.user_id)=[value_1]));
 | 120 | Get company credits | Returns the number of credits owned by the specified Company ID. | SELECT users.credits FROM users WHERE (((users.user_id)=[value_1]));
 | 140 | List company drones | Lists the IDs of the spacecraft owned by company N. | SELECT agents.agent_id FROM agents WHERE (((agents.user_id)=[value_1])) ORDER BY agents.agent_id;
@@ -923,6 +923,8 @@ This appendix lists the specific in-game queries that are being proposed and dev
 | 500 | Get location name | Returns the name of the specified location. | SELECT object_name FROM objects WHERE object_id=[value_1];
 | 510 | Get location type | Retuns the type of the specified location. | SELECT object_type FROM objects WHERE object_id=[value_1];
 | 520 | Get location central body | Returns the central body of the specified locaiton. | SELECT central_body_object_id FROM objects WHERE object_id=[value_1];
+| 550 | List orbting bodies | Lists the location IDs of the objects orbiting the specified location. | SELECT object_id FROM objects WHERE central_body_object_id=[value_1];
+| 560 | List local resources | Lists the minable resources and their abundancies at the specified location. | SELECT resource, multiplier FROM abundancies WHERE location=[value_1] ORDER BY multiplier DESC;
 
 
 [Return to the TOC](#Table-of-Contents)
