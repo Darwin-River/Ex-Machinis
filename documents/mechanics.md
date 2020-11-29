@@ -916,6 +916,7 @@ This appendix lists the specific in-game queries that are being proposed and dev
 | 210 | Get spacecraft owner | Returns the Company ID of the company that owns the specified Spacecraft ID. | SELECT agents.user_id FROM agents WHERE (((agents.agent_id)=[value_1]));
 | 220 | Get drone location | Returns the Location ID of the spacified Spacecraft ID. | SELECT new_location FROM events WHERE event_type=3 AND drone=[value_1] AND outcome=1 ORDER BY timestamp DESC;
 | 230 | Get hull type | Returns the hull type ID for the indicated spacecraft. | SELECT hull_type FROM agents WHERE agent_id=[value_1];
+| 240 | List spacecraft inventory | Returns the resorce ID and unit qantity for each item in the specified drone | SELECT o.resource, o.new_quantity FROM (SELECT resource, MAX(timestamp) AS maxtime FROM events WHERE drone = [value_1] AND outcome = 1 AND (event_type =1 OR event_type = 2) GROUP BY drone, resource) AS f INNER JOIN events AS o ON o.timestamp = f.maxtime AND o.resource = f.resource WHERE o.drone = [value_1] ORDER BY o.new_quantity DESC;
 | 300 | Get hull name | Returns the hull name for the indicated hull type. | SELECT name FROM hulls WHERE id=[value_1];
 | 310 | Get cargo capacity | Returns the cargo capacity of the indicated hull type. | SELECT cargo_capacity FROM hulls WHERE id=[value_1];
 | 400 | Get resource name | Returns the name of the indicated resource. | SELECT name FROM resources WHERE id=[value_1];
