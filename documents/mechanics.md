@@ -917,7 +917,7 @@ This appendix lists the specific in-game queries that are being proposed and dev
 | Spacecraft | 202 | Get drone location | Returns the Location ID of the spacified Spacecraft ID. | SELECT new_location FROM events WHERE event_type=3 AND drone=[value_1] AND outcome=1 ORDER BY timestamp DESC;
 | Spacecraft | 203 | Get hull type | Returns the hull type ID for the indicated spacecraft. | SELECT hull_type FROM agents WHERE agent_id=[value_1];
 | Spacecraft | 204 | Get cargo mass | Returns the total mass of the resources in the cargo hold of the specified spacecraft. |
-| Spacecraft | 205 | Get my spacecraft ID | Returns the spacecraft ID of the current drone. |
+| Spacecraft | 205 | Get my spacecraft ID | Returns the spacecraft ID of the current drone. | SELECT agent_id FROM agents WHERE agent_id  =  [drone_id];
 | Spacecraft | 210 | List spacecraft inventory | Returns the resorce ID and unit qantity for each item in the specified drone | SELECT o.resource, o.new_quantity FROM (SELECT resource, MAX(timestamp) AS maxtime FROM events WHERE drone = [value_1] AND outcome = 1 AND (event_type =1 OR event_type = 2) GROUP BY drone, resource) AS f INNER JOIN events AS o ON o.timestamp = f.maxtime AND o.resource = f.resource WHERE o.drone = [value_1] ORDER BY o.new_quantity DESC;
 | Hulls | 300 | Get hull name | Returns the hull name for the indicated hull type. | SELECT name FROM hulls WHERE id=[value_1];
 |Hulls | 301 | Get cargo capacity | Returns the cargo capacity of the indicated hull type. | SELECT cargo_capacity FROM hulls WHERE id=[value_1];
