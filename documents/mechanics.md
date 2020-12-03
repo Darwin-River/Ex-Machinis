@@ -907,26 +907,54 @@ This appendix lists the specific in-game queries that are being proposed and dev
 
 ### Company Queries
 
-|Query ID| Name | Description | MySQL Script|
-|:-------|:-----|:------------|:------------|
-| 100 | Get company name | Returns the name of the company with the specified Company ID. | SELECT users.name FROM users WHERE (((users.user_id)=[value_1]));
-| 120 | Get company credits | Returns the number of credits owned by the specified Company ID. | SELECT users.credits FROM users WHERE (((users.user_id)=[value_1]));
-| 140 | List company drones | Lists the IDs of the spacecraft owned by company N. | SELECT agents.agent_id FROM agents WHERE (((agents.user_id)=[value_1])) ORDER BY agents.agent_id;
-| 200 | Get drone name | Returns the name of the spacecraft with the specified Spacecraft ID. | SELECT agents.name FROM agents WHERE (((agents.agent_id)=[value_1]));
-| 210 | Get spacecraft owner | Returns the Company ID of the company that owns the specified Spacecraft ID. | SELECT agents.user_id FROM agents WHERE (((agents.agent_id)=[value_1]));
-| 220 | Get drone location | Returns the Location ID of the spacified Spacecraft ID. | SELECT new_location FROM events WHERE event_type=3 AND drone=[value_1] AND outcome=1 ORDER BY timestamp DESC;
-| 230 | Get hull type | Returns the hull type ID for the indicated spacecraft. | SELECT hull_type FROM agents WHERE agent_id=[value_1];
-| 240 | List spacecraft inventory | Returns the resorce ID and unit qantity for each item in the specified drone | SELECT o.resource, o.new_quantity FROM (SELECT resource, MAX(timestamp) AS maxtime FROM events WHERE drone = [value_1] AND outcome = 1 AND (event_type =1 OR event_type = 2) GROUP BY drone, resource) AS f INNER JOIN events AS o ON o.timestamp = f.maxtime AND o.resource = f.resource WHERE o.drone = [value_1] ORDER BY o.new_quantity DESC;
-| 300 | Get hull name | Returns the hull name for the indicated hull type. | SELECT name FROM hulls WHERE id=[value_1];
-| 310 | Get cargo capacity | Returns the cargo capacity of the indicated hull type. | SELECT cargo_capacity FROM hulls WHERE id=[value_1];
-| 400 | Get resource name | Returns the name of the indicated resource. | SELECT name FROM resources WHERE id=[value_1];
-| 420 | Get resource mass | Returns the unit mass of the resource in kg. | SELECT mass FROM resources WHERE id=[value_1];
-| 500 | Get location name | Returns the name of the specified location. | SELECT object_name FROM objects WHERE object_id=[value_1];
-| 510 | Get location type | Retuns the type of the specified location. | SELECT object_type FROM objects WHERE object_id=[value_1];
-| 520 | Get location central body | Returns the central body of the specified locaiton. | SELECT central_body_object_id FROM objects WHERE object_id=[value_1];
-| 540 | List local drones | Lists all the drones at the current location | SELECT agent_id FROM agents WHERE object_id =[value_1];
-| 550 | List orbting bodies | Lists the location IDs of the objects orbiting the specified location. | SELECT object_id FROM objects WHERE central_body_object_id=[value_1];
-| 560 | List local resources | Lists the minable resources and their abundancies at the specified location. | SELECT resource, multiplier FROM abundancies WHERE location=[value_1] ORDER BY multiplier DESC;
-| 570 | List best extraction sites | Returns a list of the best extraction sites abundancies for the specified resource | SELECT location, multiplier FROM abundancies WHERE resource=[value_1] ORDER BY multiplier DESC;
+| Category | Query ID | Name | Description | MySQL Script|
+|:---------|:---------|:-----|:------------|:------------|
+| Companies | 100 | Get company name | Returns the name of the company with the specified Company ID. | SELECT users.name FROM users WHERE (((users.user_id)=[value_1]));
+| Companies | 101 | Get company credits | Returns the number of credits owned by the specified Company ID. | SELECT users.credits FROM users WHERE (((users.user_id)=[value_1]));
+| Companies | 110 | List company drones | Lists the IDs of the spacecraft owned by company N. | SELECT agents.agent_id FROM agents WHERE (((agents.user_id)=[value_1])) ORDER BY agents.agent_id;
+| Spacecraft | 200 | Get drone name | Returns the name of the spacecraft with the specified Spacecraft ID. | SELECT agents.name FROM agents WHERE (((agents.agent_id)=[value_1]));
+| Spacecraft | 201 | Get spacecraft owner | Returns the Company ID of the company that owns the specified Spacecraft ID. | SELECT agents.user_id FROM agents WHERE (((agents.agent_id)=[value_1]));
+| Spacecraft | 202 | Get drone location | Returns the Location ID of the spacified Spacecraft ID. | SELECT new_location FROM events WHERE event_type=3 AND drone=[value_1] AND outcome=1 ORDER BY timestamp DESC;
+| Spacecraft | 203 | Get hull type | Returns the hull type ID for the indicated spacecraft. | SELECT hull_type FROM agents WHERE agent_id=[value_1];
+| Spacecraft | 204 | Get cargo mass | Returns the total mass of the resources in the cargo hold of the specified spacecraft. |
+| Spacecraft | 205 | Get my spacecraft ID | Returns the spacecraft ID of the current drone. |
+| Spacecraft | 210 | List spacecraft inventory | Returns the resorce ID and unit qantity for each item in the specified drone | SELECT o.resource, o.new_quantity FROM (SELECT resource, MAX(timestamp) AS maxtime FROM events WHERE drone = [value_1] AND outcome = 1 AND (event_type =1 OR event_type = 2) GROUP BY drone, resource) AS f INNER JOIN events AS o ON o.timestamp = f.maxtime AND o.resource = f.resource WHERE o.drone = [value_1] ORDER BY o.new_quantity DESC;
+| Hulls | 300 | Get hull name | Returns the hull name for the indicated hull type. | SELECT name FROM hulls WHERE id=[value_1];
+|Hulls | 301 | Get cargo capacity | Returns the cargo capacity of the indicated hull type. | SELECT cargo_capacity FROM hulls WHERE id=[value_1];
+| Resources | 400 | Get resource name | Returns the name of the indicated resource. | SELECT name FROM resources WHERE id=[value_1];
+| Resources | 401 | Get resource mass | Returns the unit mass of the resource in kg. | SELECT mass FROM resources WHERE id=[value_1];
+| Resources | 410 | List best extraction sites | Returns a list of the best extraction sites abundancies for the specified resource | SELECT location, multiplier FROM abundancies WHERE resource=[value_1] ORDER BY multiplier DESC;
+| Protocols | 500	| Get protocol name	
+| Protocols | 501	| Get protocol duration	
+| Protocols | 510	| List consumed resources	
+| Protocols | 511	| List produced resources	
+| Protocols | 512	| List retained resources	
+| Protocols | 520	| List consuming protocols	
+| Protocols | 521	| List producing protocols	
+| Protocols | 522	| List retaining protocols	
+| Markets | 600	| List local buy orders	| Return a list of best local buy orders along with price and quantity for the specified resource.
+| Markets | 601	| List solar buy orders	| Return a list of best solar system wide buy orders along with price and quantity for the specified resource.
+| Markets | 610	| List local sell orders	| Return a list of best local sell orders along with price and quantity for the specified resource.
+| Markets | 611	| List solar sell orders	| Return a list of best solar system wide sell orders along with price and quantity for the specified resource.
+| Locations | 700 | Get location name | Returns the name of the specified location. | SELECT object_name FROM objects WHERE object_id=[value_1];
+| Locations | 701 | Get location type | Retuns the type of the specified location. | SELECT object_type FROM objects WHERE object_id=[value_1];
+| Locations | 702 | Get location central body | Returns the central body of the specified locaiton. | SELECT central_body_object_id FROM objects WHERE object_id=[value_1];
+| Locations | 710 | List orbting bodies | Lists the location IDs of the objects orbiting the specified location. | SELECT object_id FROM objects WHERE central_body_object_id=[value_1];
+| Locations | 720 | List local drones | Lists all the drones at the current location | SELECT agent_id FROM agents WHERE object_id =[value_1];
+| Locations | 730 | List local resources | Lists the minable resources and their abundancies at the specified location. | SELECT resource, multiplier FROM abundancies WHERE location=[value_1] ORDER BY multiplier DESC;
+| Events | 800	| List personal events	| Lists most recent events that affect drones in the specified location.
+| Events | 801	| List local events	| Lists most recent events that affect the specified drone.
+| Events | 802	| List solar events	| Accepts event type filter.
+| Events | 810	| Get event type	| 
+| Events | 811	| Get event type name	| 
+| Events | 820	| Get acting spacecraft	| 
+| Events | 821	| Get associated protocol	| 
+| Events | 831	| Get affected spacecraft	| 
+| Events | 832	| Get affected resource	| 
+| Events | 840	| Get new quantity	| 
+| Events | 841	| Get new credits	| 
+| Events | 842	| Get new location	| 
+| Events | 843	| Get event time	| 
+
 
 [Return to the TOC](#Table-of-Contents)
