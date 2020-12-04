@@ -924,7 +924,7 @@ This appendix lists the specific in-game queries that are being proposed and dev
 | Resources | 400 | Get resource name | Returns the name of the indicated resource. | SELECT name FROM resources WHERE id=[value_1];
 | Resources | 401 | Get resource mass | Returns the unit mass of the resource in kg. | SELECT mass FROM resources WHERE id=[value_1];
 | Resources | 410 | List best extraction sites | Returns a list of the best extraction sites abundancies for the specified resource | SELECT location, multiplier FROM abundancies WHERE resource=[value_1] ORDER BY multiplier DESC;
-| Protocols | 500	| Get protocol name	
+| Protocols | 500	| Get protocol name | SELECT name FROM protocols WHERE id = [value_1];
 | Protocols | 501	| Get protocol duration	
 | Protocols | 510	| List consumed resources	
 | Protocols | 511	| List produced resources	
