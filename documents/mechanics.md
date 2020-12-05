@@ -924,14 +924,14 @@ This appendix lists the specific in-game queries that are being proposed and dev
 | Resources | 400 | Get resource name | Returns the name of the indicated resource. | SELECT name FROM resources WHERE id=[value_1];
 | Resources | 401 | Get resource mass | Returns the unit mass of the resource in kg. | SELECT mass FROM resources WHERE id=[value_1];
 | Resources | 410 | List best extraction sites | Returns a list of the best extraction sites abundancies for the specified resource | SELECT location, multiplier FROM abundancies WHERE resource=[value_1] ORDER BY multiplier DESC;
-| Protocols | 500	| Get protocol name | SELECT name FROM protocols WHERE id = [value_1];
-| Protocols | 501	| Get protocol duration	| SELECT MAX(time) FROM (SELECT time FROM resource_effects WHERE protocol = [value_1] UNION SELECT time FROM market_effects WHERE protocol = [value_1])  AS combined;
-| Protocols | 510	| List consumed resources	
-| Protocols | 511	| List produced resources	
-| Protocols | 512	| List retained resources	
-| Protocols | 520	| List consuming protocols	
-| Protocols | 521	| List producing protocols	
-| Protocols | 522	| List retaining protocols	
+| Protocols | 500	| Get protocol name | Returns the name of the specified protocol | SELECT name FROM protocols WHERE id = [value_1];
+| Protocols | 501	| Get protocol duration	| Returns the duration in minutes of the specified protocol | SELECT MAX(time) FROM (SELECT time FROM resource_effects WHERE protocol = [value_1] UNION SELECT time FROM market_effects WHERE protocol = [value_1])  AS combined;
+| Protocols | 510	| List consumed resources | Lists resources and their quantities that are consumed by the specified protocol |
+| Protocols | 511	| List produced resources | Lists resources and their quantities that are produced by the specified protocol |	
+| Protocols | 512	| List retained resources | Lists resources and their quantities that are used but not consumed by the specified protocol |	
+| Protocols | 520	| List consuming protocols	| Lists all the protocols that consume the specified resource |
+| Protocols | 521	| List producing protocols	| Lists all the protocols that produce the specified resource |
+| Protocols | 522	| List retaining protocols	| Lists all the protocols that use but don't consume the specified resource |
 | Markets | 600	| List local buy orders	| Return a list of best local buy orders along with price and quantity for the specified resource.
 | Markets | 601	| List solar buy orders	| Return a list of best solar system wide buy orders along with price and quantity for the specified resource.
 | Markets | 610	| List local sell orders	| Return a list of best local sell orders along with price and quantity for the specified resource.
