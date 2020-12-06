@@ -927,7 +927,6 @@ This appendix lists the specific in-game queries that are being proposed and dev
 | Protocols | 500	| Get protocol name | Returns the name of the specified protocol | SELECT name FROM protocols WHERE id = [value_1];
 | Protocols | 501	| Get protocol duration	| Returns the duration in minutes of the specified protocol | SELECT MAX(time) FROM (SELECT time FROM resource_effects WHERE protocol = [value_1] UNION SELECT time FROM market_effects WHERE protocol = [value_1])  AS combined;
 | Protocols | 510	| List consumed resources | Lists resources and their quantities that are consumed by the specified protocol | SELECT resource, quantity FROM resource_effects WHERE protocol=[value_1] AND deplete=True ORDER BY quantity DESC;
-
 | Protocols | 511	| List produced resources | Lists resources and their quantities that are produced by the specified protocol |	SELECT resource, quantity FROM resource_effects WHERE protocol=[value_1] AND deplete=False ORDER BY quantity DESC;
 | Protocols | 512	| List retained resources | Lists resources and their quantities that are used but not consumed by the specified protocol |	SELECT resource, quantity FROM resource_effects WHERE protocol=[value_1] AND deplete=False AND locked=True ORDER BY quantity DESC;
 | Protocols | 520	| List consuming protocols	| Lists all the protocols that consume the specified resource |
