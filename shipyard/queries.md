@@ -19,6 +19,17 @@ This bit of code greatly simplifies spacecraft queries by establishing a shared 
     drop
   ;
   
+  : vFetchBuffer ( pBuffer nCells -- bufferContents )
+    2 *
+    begin
+     over over + @
+     rot rot
+     2 -
+     dup 0 <
+   until
+   drop drop
+ ;
+  
   : vRunQuery ( nValue nQueryId -- pResult ) vPurgeResult pResult swap nResultSize swap query pResult ;
   
   : vGetCompanyName ( nCompanyId -- pResult ) 100 vRunQuery ;  
