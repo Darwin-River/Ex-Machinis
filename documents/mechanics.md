@@ -926,9 +926,10 @@ This appendix lists the specific in-game queries that are being proposed and dev
 | Resources | 410 | List best extraction sites | Returns a list of the best extraction sites abundancies for the specified resource | SELECT location, multiplier FROM abundancies WHERE resource=[value_1] ORDER BY multiplier DESC;
 | Protocols | 500	| Get protocol name | Returns the name of the specified protocol | SELECT name FROM protocols WHERE id = [value_1];
 | Protocols | 501	| Get protocol duration	| Returns the duration in minutes of the specified protocol | SELECT MAX(time) FROM (SELECT time FROM resource_effects WHERE protocol = [value_1] UNION SELECT time FROM market_effects WHERE protocol = [value_1])  AS combined;
-| Protocols | 510	| List consumed resources | Lists resources and their quantities that are consumed by the specified protocol |
-| Protocols | 511	| List produced resources | Lists resources and their quantities that are produced by the specified protocol |	
-| Protocols | 512	| List retained resources | Lists resources and their quantities that are used but not consumed by the specified protocol |	
+| Protocols | 510	| List consumed resources | Lists resources and their quantities that are consumed by the specified protocol | SELECT resource, quantity FROM resource_effects WHERE protocol=[value_1] AND deplete=True ORDER BY quantity DESC;
+
+| Protocols | 511	| List produced resources | Lists resources and their quantities that are produced by the specified protocol |	SELECT resource, quantity FROM resource_effects WHERE protocol=[value_1] AND deplete=False ORDER BY quantity DESC;
+| Protocols | 512	| List retained resources | Lists resources and their quantities that are used but not consumed by the specified protocol |	SELECT resource, quantity FROM resource_effects WHERE protocol=[value_1] AND deplete=False AND locked=True ORDER BY quantity DESC;
 | Protocols | 520	| List consuming protocols	| Lists all the protocols that consume the specified resource |
 | Protocols | 521	| List producing protocols	| Lists all the protocols that produce the specified resource |
 | Protocols | 522	| List retaining protocols	| Lists all the protocols that use but don't consume the specified resource |
