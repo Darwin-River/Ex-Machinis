@@ -7,19 +7,19 @@ This bit of code greatly simplifies spacecraft queries by establishing a shared 
 
   : nResultSize 100 ;
   
-  variable pResult nResultSize allot
+  variable pResults nResultSize allot
   
-  : vPurgeResult ( -- ) 
+  : vPurgeResults ( -- ) 
     0
     begin
-      dup pResult + 0 swap !
+      dup pResults + 0 swap !
       2 +
       dup nResultSize >
     until
     drop
   ;
   
-  : vFetchBuffer ( pBuffer nCells -- bufferContents )
+  : vFetchResults ( pResults nCells -- bufferContents )
     2 *
     begin
      over over + @
@@ -30,7 +30,7 @@ This bit of code greatly simplifies spacecraft queries by establishing a shared 
    drop drop
  ;
   
-  : vRunQuery ( nValue nQueryId -- pResult ) vPurgeResult pResult swap nResultSize swap query pResult ;
+  : vRunQuery ( nValue nQueryId -- pResults ) vPurgeResults pResults swap nResultSize swap query pResults ;
   
   : vGetCompanyName ( nCompanyId -- pResult ) 100 vRunQuery ;  
   : vGetCompanyCredits ( nCompanyId -- pResult ) 120 vRunQuery ;
