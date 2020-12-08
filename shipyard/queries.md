@@ -36,10 +36,10 @@ This bit of code greatly simplifies spacecraft queries by establishing a shared 
     dup >r
     2 *
     begin
-      over over + @
-      rot rot
       2 -
-      dup 0 <
+      over over + @
+      rot rot      
+      dup 0 =
     until
     drop drop
     r>
