@@ -5,33 +5,33 @@ This bit of code greatly simplifies spacecraft queries by establishing a shared 
 ```
 <reset>
 
-  : nCompiled ." Done compiling code. " ;
+  : nCompiled ." Finished compiling code. " ;
 
-  : nNullValue -989 ;
+  : nStopCode -989 ;
 
   : nResultSize 100 ;
-  
+ 
   variable pResults nResultSize allot
-  
-  : vPurgeResults ( -- ) 
+ 
+  : vPurgeResults ( -- )
     0
     begin
-      dup pResults + nNullValue swap !
+      dup pResults + nStopCode swap !
       2 +
       dup nResultSize >
     until
     drop
   ;
-  
+
   : vCountResults ( pResults -- pResults nCount )
     -1
     begin
      1 +
      over over 2 * + @
-     nNullValue =
+     nStopCode =
     until
   ;
-       
+
   : vFetchResults ( pResults nCount -- bufferContents nCount )
     dup >r
     2 *
@@ -44,7 +44,7 @@ This bit of code greatly simplifies spacecraft queries by establishing a shared 
     drop drop
     r>
   ;
-  
+
   : vPrintStack ( bufferContents nCount -- )
     begin
       1 -
@@ -53,14 +53,14 @@ This bit of code greatly simplifies spacecraft queries by establishing a shared 
     until
     drop
   ;
-  
+
   : vRunQuery ( nValue nQueryId -- pResults ) vPurgeResults pResults swap nResultSize swap query pResults ;
-  
+
   : vPrintResults ( pResults -- ) vCountResults vFetchResults vPrintStack ;
-  
+
   : vPrintString ( pString -- ) count type ;
-  
-  : vGetCompanyName ( nCompanyId -- pResult ) 100 vRunQuery ;  
+ 
+  : vGetCompanyName ( nCompanyId -- pResult ) 100 vRunQuery ; 
   : vGetCompanyCredits ( nCompanyId -- pResult ) 101 vRunQuery ;
   : vListCompanyDrones ( nCompanyId -- pResult ) 110 vRunQuery ;
   : vGetDroneName ( nDroneId -- pResult ) 200 vRunQuery ;
