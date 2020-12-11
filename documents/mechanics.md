@@ -6,7 +6,7 @@ The game uses augmented reality to project a parallel universe upon our own. In 
 
 This wiki is used to organize the project, which began in August 2017.  It contains multiple sections which describe the game's design and function in great detail. These are the blueprints we follow when coding and creating content.
 
-This document lays out the plans for developing Ex Machinis, an online space simulation, which promotes the acquisition of programming skills. 
+This document lays out the plans for developing Ex Machinis, an online space simulation, which promotes the acquisition of programming skills.
 
 ## Table of Contents
 * [System Overview](#System-Overview)
@@ -119,7 +119,7 @@ Ex Machinis is an augmented reality space simulation in which players program an
 
 ### Functional Components
 Ex Machinis has several functional components which operate independently to support gameplay.
-  
+
 #### Mail Handler
 The Mail Handler application runs continuously in the database to process incoming and outgoing emails.
 Incoming emails will be entered as new events in the Central Database and directed to the appropriate drones.
@@ -136,7 +136,7 @@ The Game Engine is a server based application that runs constantly in the backgr
 [Return to the TOC](#Table-of-Contents)
 
 #### Physics Engine
-The Physics Engine is a small C++ application, which runs continuously in the background to compute and record the cartesian coordinates of orbiting bodies. 
+The Physics Engine is a small C++ application, which runs continuously in the background to compute and record the cartesian coordinates of orbiting bodies.
 
 #### Event Engine
 The Event Engine is a small C++ application, which runs continuously in the background to identify breaking events, check for errors, and determine which drones will become aware of these events.
@@ -156,7 +156,7 @@ Every natural and manmade object in the game will be in orbit around the sun, a 
 [Return to the TOC](#Table-of-Contents)
 
 ### Information travels at the speed of light
-A drone will not know what is happening at a distance until the light or radio transmission actually reaches it.  This can take minutes to hours depending on the drone’s distance from the observed event. Ex Machinis will handle this phenomena via the tEvents and tObservations tables in the Central Database. 
+A drone will not know what is happening at a distance until the light or radio transmission actually reaches it.  This can take minutes to hours depending on the drone’s distance from the observed event. Ex Machinis will handle this phenomena via the tEvents and tObservations tables in the Central Database.
 
 The Observation Engine is responsible for coordinating the discovery of events by distant drones.
 Every time something occurs in the game it will be recorded in the tEvents table along with the location and time of the event.  
@@ -222,7 +222,7 @@ If the GE encounters a command that requires it to perform an ingame activity (c
 
 ### Equipment
 The following types of modules can be added to drone hulls and used to perform various activities.  Each of class of module consists of variants which perform differently.
-* Power plants generate the energy used by the ship’s modules. 
+* Power plants generate the energy used by the ship’s modules.
 * Fuel tanks contain the reactants that are consumed by power plants.
 * Propellent tanks store the gases that are energized and expelled by the engines to accelerate the drone.
 * Engines energize and release the propellant to accelerate the ship.
@@ -307,7 +307,7 @@ This chapter details the coordinate systems, parameters, and computations requir
 
 [Return to the TOC](#Table-of-Contents)
 
-### The Physics Engine 
+### The Physics Engine
 The Physics Engine is a C++ application, which runs independently on the server to maintain updated cartesian coordinates on each active orbit. It does so by simply cycling through each spacecraft and static object orbit in the database and calculating its current position in space.  Since most orbits will only require minor positional corrections during the course of the day, the Physics Engine is set to run through the tOrbits table only two to four times a day.  The following sections describe the process by which an object’s cartesian coordinates are computed from it’s orbital parameters.
 
 [Return to the TOC](#Table-of-Contents)
@@ -320,7 +320,7 @@ All values will be computed and stored in the database terms of meters, kilogram
 ### Elliptic Coordinate Systems
 
 #### Polar Representation
-All orbits in Ex Machinis are described using the same polar ecliptic coordinate system that is commonly applied to celestial orbits (Figure 1).  The latitude of the coordinate system is oriented on the orbital plane of the Earth with north elliptic pole being oriented in the direction of the Earth’s northern hemisphere.  The zero point for the longitude points through the sun when the Earth is at it’s vernal equinox for the northern hemisphere.  The origin (center) of the polar coordinate system changes so that it is always positioned at the central body around which the object is orbiting. 
+All orbits in Ex Machinis are described using the same polar ecliptic coordinate system that is commonly applied to celestial orbits (Figure 1).  The latitude of the coordinate system is oriented on the orbital plane of the Earth with north elliptic pole being oriented in the direction of the Earth’s northern hemisphere.  The zero point for the longitude points through the sun when the Earth is at it’s vernal equinox for the northern hemisphere.  The origin (center) of the polar coordinate system changes so that it is always positioned at the central body around which the object is orbiting.
 
 
 Figure 1.  Depicts the orientation of the Ecliptic Coordinate System with respect to the Earth’s orbital plane.
@@ -459,12 +459,12 @@ Where arg(x,y) is the polar argument for the vector (x,y).  This function is ava
 [Return to the TOC](#Table-of-Contents)
 
 ### Solving Kepler’s Equation with JavaScript
-I found an online resource that provides a JavaScript routine for deriving the eccentric (E) and true (v) anomalies using an orbit’s eccentricity (e) and mean anomaly (M): 
+I found an online resource that provides a JavaScript routine for deriving the eccentric (E) and true (v) anomalies using an orbit’s eccentricity (e) and mean anomaly (M):
 http://www.jgiesen.de/kepler/kepler.html
 
 #### Radius at the True Anomaly
 The distance (r) of the orbital object from the central body at the true anomaly (ν) can be computed using the following equation:
-r=a1-e21+ecos 
+r=a1-e21+ecos
 
 Here, both the semi-major axis (a) and the resulting radius (r) should be expressed in km.  Also, e is the orbital eccentricity.
 
@@ -499,7 +499,7 @@ Spacecraft recognize a few basic meta-commands, which allow players to execute F
 
 ## Protocols
 
-Every physical action in Ex Machinis results from a drone executing a specific protocol. Protocols are procedures that a drone can perform provided they have the required resources, modules, and cargo space.  Most protocols consume and produce a certain amount of resources with the help of installed modules.  Protocols generally take a finite time to complete.  If any of the modules or reagents are missing or currently in use by another protocol, the protocol will not be begin. 
+Every physical action in Ex Machinis results from a drone executing a specific protocol. Protocols are procedures that a drone can perform provided they have the required resources, modules, and cargo space.  Most protocols consume and produce a certain amount of resources with the help of installed modules.  Protocols generally take a finite time to complete.  If any of the modules or reagents are missing or currently in use by another protocol, the protocol will not be begin.
 
 [Return to the TOC](#Table-of-Contents)
 
@@ -524,7 +524,7 @@ Protocols often require parameters to further define their operations. These par
 [Return to the TOC](#Table-of-Contents)
 
 ### Returned Value
-Every time the perform command is called, it returns a value to the stack, which indicates whether or not it succeeded in performing the action.  If the action was successfully initiated, it will place the Action ID (see below) on the stack.  If the drone was unable to initiate the action, it will return a negative value that indicates the source of the error.  The error codes are as follows: 
+Every time the perform command is called, it returns a value to the stack, which indicates whether or not it succeeded in performing the action.  If the action was successfully initiated, it will place the Action ID (see below) on the stack.  If the drone was unable to initiate the action, it will return a negative value that indicates the source of the error.  The error codes are as follows:
 
 * -1: Unknown protocol
 * -2: Insufficient parameters
@@ -546,7 +546,7 @@ Whenever a field in one of the static tables contains a value less than zero, it
 [Return to the TOC](#Table-of-Contents)
 
 #### Static Action Tables
-The static action tables are used to describe full range of possible drone actions and their outcomes.  Static tables do not change during gameplay. 
+The static action tables are used to describe full range of possible drone actions and their outcomes.  Static tables do not change during gameplay.
 
 [Return to the TOC](#Table-of-Contents)
 
@@ -632,7 +632,7 @@ The fields which describe the event itself are:
 * id [INT(10)] - This is the ID of the current event.
 * event_type [INT(2)] - This is the type of event.
 * time (DATETIME) - This is the time at which the event occurs.
-* action [INT(10)] - This is the action that caused the event. 
+* action [INT(10)] - This is the action that caused the event.
 * logged [BOOLEAN] - This field is true if the Observation Engine has already logged the event as an observation.
 * outcome [INT(2)] - This field defaults to zero but is set to one if the event is successfully processed and a negative value if it produces an error.
 
@@ -643,7 +643,7 @@ The fields, which describe the affected drone or object, are as follows.  These 
 * locked [BOOLEAN]  - This is true if the outcome applies to locked resources.
 
 The following fields describe the outcome of the event.  They are used to set new resource quantities, market prices, or drone locations.
-* new_quantity [INT(5)] - Depending on the unprocessed event type, this is either the change in quantity of a resource or the max or min quantity of market transaction. For processed events, this becomes the total quantity of the resource. 
+* new_quantity [INT(5)] - Depending on the unprocessed event type, this is either the change in quantity of a resource or the max or min quantity of market transaction. For processed events, this becomes the total quantity of the resource.
 * new_credits [INT(10)] - Depending on the unprocessed event type, this either the change in  value of the player’s bank account or the max or min price of a transaction set by a market effects event.  For processed events, this becomes the total value of money in the player’s bank account.
 * new_location [INT(5)] - This is the new Orbit ID of a drone as set by an orbit effect.
 * new_transmission [INT(10)] - This is the ID of the transmission text addressed by the event.
@@ -652,16 +652,16 @@ The following fields describe the outcome of the event.  They are used to set ne
 [Return to the TOC](#Table-of-Contents)
 
 ##### Table: transmissions
-The dynamic transmissions table is an adjunct to the events table that is used to store the data contained in drone communications with the drone. 
+The dynamic transmissions table is an adjunct to the events table that is used to store the data contained in drone communications with the drone.
 * id [INT(10)] - Table index
 * content [VARCHAR(256)] - The text being transmitted
 
 [Return to the TOC](#Table-of-Contents)
 
 ### The Perform Function
-The perform function applies a general algorithm, which uses the action tables, in conjunction with stack-supplied values to implement a broad range of in-game actions. It does so by performing the following procedure whenever it is called: 
+The perform function applies a general algorithm, which uses the action tables, in conjunction with stack-supplied values to implement a broad range of in-game actions. It does so by performing the following procedure whenever it is called:
 1. When the perform function is called, it pulls the first number from the stack and uses that to look up the corresponding Protocol ID in the Protocols Table.  The function aborts the protocol and returns an error if the protocol is not available.
-2. The perform function pulls the second value off the stack for use as a process multiplier. This determines how many times the process is performed in a row without stopping.  Many protocols have bulk modifiers, which reduce the amount of time it takes to perform repetitive actions. 
+2. The perform function pulls the second value off the stack for use as a process multiplier. This determines how many times the process is performed in a row without stopping.  Many protocols have bulk modifiers, which reduce the amount of time it takes to perform repetitive actions.
 3. Create a new actions table entry for the executed protocol.  Set the aborted field to false unless the action is aborted as a result of an error at some point during the following procedure or later in the game.
 4. Next, use the protocol table’s parameter field to determine how many additional values need to be pulled from the stack and stored in a parameter array for future reference. Abort the protocol and return and error if there are not enough values on the stack.
 5. Use the ProtocolID to determine whether a particular activity needs any special treatment.  For example, you may need to call a custom C++ routine to determine the travel time between two locations and correct the time parameter accordingly.  These routines will generally make situation-specific changes to some of the values stored in the parameter array.  They will be hard coded into the C++ perform routine.
@@ -700,7 +700,7 @@ The Events Engine takes the following steps when evaluating events:
 3. When it finds such an event, the EE will update the resource, credit, and cargo quantities so they represent total values rather than changes in the total value.  Important: This adjustment will NOT be performed on events associated with market actions.  Depending on the affected quantity, the EE will compute the totals as follows:
   * new_quantities. The EE will search for the last processed event with the same drone, resource, installed, and locked values (if such an event exists) and add that quantity to the new_quantities field of the current event.  If the resulting value is less than zero the event will not occur.
   * new_cargo.  The EE will search for the last processed event with the same drone and add that quantity to the new_cargo field of the current event.
-  * new_credit.  The EE will search for the last processed event for any drone belonging to the owner of the current drone and add the quantity of the new_credit field of the current event. 
+  * new_credit.  The EE will search for the last processed event for any drone belonging to the owner of the current drone and add the quantity of the new_credit field of the current event.
 
 4. Next, the EE will ensure that the conditions are sufficient for the event to take place.  It will do so by checking for the following errors:
   * The local field is set to true but the affected drone is not local. The outcome will be set to -1 if this error is detected.
@@ -711,7 +711,7 @@ The Events Engine takes the following steps when evaluating events:
   * The Depletion Price for items being removed from the cargo bay of a non-allied ship is equal to or greater than the price the player has set on those items. The outcome will be set to -7 if this error is detected.
   * The Accumulation Price for items being added to the cargo bay of a non-allied ship is less than or equal to the price the player has set for those items. The outcome will be set to -8 if this error is detected.
 
-5. If any of these errors are detected, the EE will update the event’s outcome with the indicated value and flag the corresponding action in the action table as aborted. 
+5. If any of these errors are detected, the EE will update the event’s outcome with the indicated value and flag the corresponding action in the action table as aborted.
 
 6. Removing Old Data. Otherwise, the event’s outcome will be set to 1 and any events (processed or otherwise) with the same event type, drone, resource, installed, and locked values that are older than the game’s data lifespan will be deleted.  Any observation table entries that are associated with a deleted event will also be deleted.  This helps ensure that the database size does not grow beyond limits.
 
@@ -749,7 +749,7 @@ By using protocols that invoke the market_effects table, players can set the cos
 One player's drone can act on the market orders of another player's drone by adding or removing resources from the drones's cargo hold in accordance with existing buy or sell orders. Buy orders permit another player's drone to add (increment) a specific resource in the bidder's cargo hold in exchange for credits (money). Similarly, sell orders allow another player's drone to remove (decrement) resources from the cargo hold at a price that its set by the order.  
 
 A drone can only **add** a resource to the cargo hold of another player's drone via an increment event if:
-1. The affected drone has placed a buy order for the resource. 
+1. The affected drone has placed a buy order for the resource.
 2. The incremented resource doesn't exceed the amount of material permitted by the buy order or the target drone's cargo capacity.
 
 Failure to meet these conditions will generate a negative outcome for the increment event and cause the corresponding action and all subsequent events to be aborted.
@@ -772,9 +772,9 @@ If the decrement event succeeds, the Event Engine will:
 
 ### Adding and removing credits from a user's bank account
 
-When the Event Engine adds or subtracts credits from a user's account, it does so by incrementing or decrementing the users.credits field by the indicated amount and creating a new events table entry to record this change: 
+When the Event Engine adds or subtracts credits from a user's account, it does so by incrementing or decrementing the users.credits field by the indicated amount and creating a new events table entry to record this change:
 
-- The user.credits field can go negative as a result of a transaction. 
+- The user.credits field can go negative as a result of a transaction.
 - Whem creating the corresponding events table entry, the Events Engine will set events.time to the current date/time, events.drone to the ID of the affected drone, events.action to the ID of the related action, events.logged to true, events outcome to 1, and events.event-type to 6 if credits are being added and 7 if credits are being removed. The Events Engine will also set events.new_credits to the new value in users.credits. All other values will be null.
 
 ### A Trade Example
@@ -785,7 +785,7 @@ When another player wants to buy iron ore he will search the database for sell e
 
 When the Event Engine processes the resulting depletion event (removing the ore from the seller's cargo), it will ensure that the indicated amount of resources are available for sale. In other words, there must be enough resources in the cargo hold to accommodate the depletion without allowing the total quantity to drop below the level set by the sell order. If there are enough resources, the depletion event will occur and the Event Engine will create two new contemporaneous events to remove credits from the buyer and give them to the seller.  Otherwise, the event will be blocked and the other events associated with that action will be aborted.
 
-Provided the depletion event occurs without a problem, a subsequent event associated with the cargo transfer action will add the depleted resources to the buyer's cargo hold if there is enough room in the hold. This will be handled like any other event which adds resources to the cargo hold. 
+Provided the depletion event occurs without a problem, a subsequent event associated with the cargo transfer action will add the depleted resources to the buyer's cargo hold if there is enough room in the hold. This will be handled like any other event which adds resources to the cargo hold.
 
 Buy orders will be fulfilled in much the same way. The only difference is that the Event Engine will check for a buy order when another player attempts to add material's to another player's cargo hold.  In this case, the Event Engine will ensure that that the added resources do not exceed the limit set by the corresponding buy order and that they do not exceed the capacity of the cargo hold.  If the materials are successfully added to the buyer's cargo bay, the Event Engine will create concurrent events, which remove credits from the buyer's bank account and add them to the seller's bank account.
 
@@ -794,7 +794,7 @@ Buy orders will be fulfilled in much the same way. The only difference is that t
 ## Queries
 
 ### Database Searches
-Each drone has access to an internal database, which contains information on events that directly affected the drone, were observed by the drone, or were reported to the Earth-bound Central Database and uploaded to the drone.  Therefore, a collection of words that can be used to query the onboard database will be a key part of the FORTH lexicon. 
+Each drone has access to an internal database, which contains information on events that directly affected the drone, were observed by the drone, or were reported to the Earth-bound Central Database and uploaded to the drone.  Therefore, a collection of words that can be used to query the onboard database will be a key part of the FORTH lexicon.
 Drones can access their internal database (a subset of the Game Database) via predefined SQL queries. The queries will serve to organize the data for player consumption as well as limit the information in the Game Database that the players have access to.  Available queries are defined via the queries table, which is described below.
 The drone’s internal database and the much larger Central Database are virtual constructs, which consist of a subset of the data contained in the Game Database.  Basically, each drone will be able to search the Game Database for any events that are linked to the drone’s ID or the Central Database ID (Drone ID = 0) via the links formed by the observations table.  In addition to using the observations table to search event data, the drones will also be able to search data contained in many of the static tables such as the objects and protocols tables.
 
@@ -803,7 +803,7 @@ The drone’s internal database and the much larger Central Database are virtual
 #### Running a Query  
 Drones can evoke any one of the predefined ingame queries with the FORTH-based query command.  Depending on the specific query, the query command pulls three or more values from the stack as follows:
 The number of the query that the player is invoking
- 
+
 1. A pointer to a Results Array that will receive the query results
 2. A value that indicates the size of the Results Array in bytes
 3. Any additional parameters that are required by the specific query
@@ -811,7 +811,7 @@ The number of the query that the player is invoking
 [Return to the TOC](#Table-of-Contents)
 
 #### The Queries Table
-A single table is used to define the queries that are available to drones through the FORTH query interface.  This is a static table, which does not change as the result of gameplay.  However, the table can be edited by the system administrator to change the type and scope of queries that are available to the players. 
+A single table is used to define the queries that are available to drones through the FORTH query interface.  This is a static table, which does not change as the result of gameplay.  However, the table can be edited by the system administrator to change the type and scope of queries that are available to the players.
 
 [Return to the TOC](#Table-of-Contents)
 
@@ -888,7 +888,7 @@ Another query would allow players to look up the ID of a specific orbital object
 The player would likely invoke this query as follows:
 ~~~
  <run>
-   : earth $“ Earth” ; ( create a named search string ) 
+   : earth $“ Earth” ; ( create a named search string )
    earth 2 results_array 2 query ( retrieves the object ID for Earth )
    results_array @ . ( prints the ID of the most recent event )
  </run>
@@ -937,24 +937,23 @@ This appendix lists the specific in-game queries that are being proposed and dev
 | Markets | 610	| List local sell orders	| Return a list of best local sell orders along with price and quantity for the specified resource.
 | Markets | 611	| List solar sell orders	| Return a list of best solar system wide sell orders along with price and quantity for the specified resource.
 | Locations | 700 | Get location name | Returns the name of the specified location. | SELECT object_name FROM objects WHERE object_id=[value_1];
-| Locations | 701 | Get location type | Retuns the type of the specified location. | SELECT object_type FROM objects WHERE object_id=[value_1];
+| Locations | 701 | Get location type | Returns the type of the specified location. | SELECT object_type FROM objects WHERE object_id=[value_1];
 | Locations | 702 | Get location central body | Returns the central body of the specified locaiton. | SELECT central_body_object_id FROM objects WHERE object_id=[value_1];
 | Locations | 710 | List orbting bodies | Lists the location IDs of the objects orbiting the specified location. | SELECT object_id FROM objects WHERE central_body_object_id=[value_1];
 | Locations | 720 | List local drones | Lists all the drones at the current location | SELECT agent_id FROM agents WHERE object_id =[value_1];
 | Locations | 730 | List local resources | Lists the minable resources and their abundancies at the specified location. | SELECT resource, multiplier FROM abundancies WHERE location=[value_1] ORDER BY multiplier DESC;
-| Events | 800	| List personal events	| Lists most recent events that affect drones in the specified location.
-| Events | 801	| List local events	| Lists most recent events that affect the specified drone.
-| Events | 802	| List solar events	| Accepts event type filter.
-| Events | 810	| Get event type	| 
-| Events | 811	| Get event type name	| 
-| Events | 820	| Get acting spacecraft	| 
-| Events | 821	| Get associated protocol	| 
-| Events | 831	| Get affected spacecraft	| 
-| Events | 832	| Get affected resource	| 
-| Events | 840	| Get new quantity	| 
-| Events | 841	| Get new credits	| 
-| Events | 842	| Get new location	| 
-| Events | 843	| Get event time	| 
+| Events | 800	| List personal events	| Lists most recent events that affect the specified drone. | SELECT id FROM events WHERE outcome=1 AND drone=[value_1] ORDER BY timestamp DESC;
+| Events | 801	| List recent events	| Lists most recent events. | SELECT id FROM events WHERE outcome=1 ORDER BY timestamp DESC;
+| Events | 810	| Get event type | Returns the event type ID of the specified event | SELECT event_type FROM events WHERE outcome=1 AND id=[value_1];
+| Events | 811	| Get event type name	|
+| Events | 820	| Get acting spacecraft	|
+| Events | 821	| Get associated protocol	|
+| Events | 831	| Get affected spacecraft	| Returns ID of the spacecraft that was affected by the specified event | SELECT drone FROM events WHERE outcome=1 AND id=[value_1];
+| Events | 832	| Get affected resource	| Returns the ID of the resource that was affected by the specified event | SELECT resource FROM events WHERE outcome=1 AND id=[value_1];
+| Events | 840	| Get new quantity	| Returns the new quantity of the affected resource that results from the specified event | SELECT new_quantity FROM events WHERE outcome=1 AND id=[value_1];
+| Events | 841	| Get new credits	| Returns the new credit value that results from the specified event. | SELECT new_credits FROM events WHERE outcome=1 AND id=[value_1];
+| Events | 842	| Get new location	| Returns the new location that results from the specified event. | SELECT new_location FROM events WHERE outcome=1 AND id=[value_1];
+| Events | 843	| Get event time	|
 
 
 [Return to the TOC](#Table-of-Contents)
