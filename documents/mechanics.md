@@ -949,11 +949,10 @@ This appendix lists the specific in-game queries that are being proposed and dev
 | Events | 820	| Get acting spacecraft	|
 | Events | 821	| Get associated protocol	|
 | Events | 831	| Get affected spacecraft	| Returns ID of the spacecraft that was affected by the specified event | SELECT drone FROM events WHERE outcome=1 AND id=[value_1];
-| Events | 832	| Get affected resource	| Returns the ID of the resource that was affected by the specified event | SELECT resource FROM events WHERE outcome=1 AND id=[value_1];
-| Events | 840	| Get new quantity	| Returns the new quantity of the affected resource that results from the specified event | SELECT new_quantity FROM events WHERE outcome=1 AND id=[value_1];
-| Events | 841	| Get new credits	| Returns the new credit value that results from the specified event. | SELECT new_credits FROM events WHERE outcome=1 AND id=[value_1];
-| Events | 842	| Get new location	| Returns the new location that results from the specified event. | SELECT new_location FROM events WHERE outcome=1 AND id=[value_1];
-| Events | 843	| Get event time	|
+| Events | 832	| Get affected resource	| Returns the ID and quantity of the resource that was affected by the specified event | SELECT resource, new_quantity FROM events WHERE outcome=1 AND id=[value_1];
+| Events | 840	| Get new credits	| Returns the new credit value that results from the specified event. | SELECT new_credits FROM events WHERE outcome=1 AND id=[value_1];
+| Events | 841	| Get new location	| Returns the new location that results from the specified event. | SELECT new_location FROM events WHERE outcome=1 AND id=[value_1];
+| Events | 842	| Get event time	|
 
 
 [Return to the TOC](#Table-of-Contents)
