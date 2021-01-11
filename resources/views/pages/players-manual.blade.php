@@ -152,9 +152,8 @@
 <p>Sending "&lt;reset&gt;" to your drone will not only stop any active scrpts, it will also reset your spacecraft's internal memory to its "factory setting," erasing any damage you might have done to its internal memory. This metacommand will also erase any words you defined earlier.  But sometimes its good to start with a clean slate.</p>
 
 <br/><h3>Learning more about the game</h3>
-<p>Your spacecraft can perform far more complex computations, operations, and actions than those described here. Although we've highlighted a few of the most common functions in this quick start guide, we’re also developing a more complete <a href="https://github.com/Darwin-River/Ex-Machinis/blob/develop/documents/game-play.md">Player’s Manual</a> on GitHub that covers every aspect of the game and the FORTH programming environment.</p>
+<p>Your spacecraft can perform far more complex computations, operations, and actions than those described here. Although we've highlighted a few of the most common functions in this quick start guide, we’re also developing a more complete set of tutorials and guides on  the <a href="https://exmachinis.wiki">Ex Machinis Wiki</a>, which covers every aspect of the game and the FORTH programming environment.</p>
 
-<p>Other usefull GitHub documents include a <a href="https://github.com/Darwin-River/Ex-Machinis/blob/develop/documents/tips_and_tricks.md">Tips and Tricks Tutorial</a>, <a href="https://github.com/Darwin-River/Ex-Machinis/blob/develop/documents/dictionary.md">FORTH Dictionary</a> and <a href="https://github.com/Darwin-River/Ex-Machinis/blob/develop/documents/mechanics.md">Game Design Manual</a>.  Be sure to check these out to learn more about the game and our plans for developing it.
 
                     </div>
                 </div>
