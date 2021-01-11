@@ -240,7 +240,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                                                         href="{{url('resources')}}">Resources</a></li>
                                     </ul>
                                 </li>
-                                <li class="d-none d-lg-inline-block"><a class="" href="{{url('buys')}}">Markets</a><span
+                                <li><a class="" href="{{url('buys')}}">Markets</a><span
                                             class="rd-navbar-submenu-toggle"></span>
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown oriented-down">
@@ -250,7 +250,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                                                         href="{{url('sells')}}">Sell Orders</a></li>
                                     </ul>
                                 </li>
-                                <li class="d-none d-lg-inline-block"><a class="" href="{{url('locations')}}">Environnment</a><span
+                                <li><a href="{{url('locations')}}">Environnmental</a><span
                                             class="rd-navbar-submenu-toggle"></span>
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown oriented-down">
@@ -279,8 +279,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                 <li class="d-block d-lg-none"><a href="{{url('sells')}}">Sell Orders</a></li>
                               -->
                                 <li><a href="{{url('about-us')}}">About Us</a></li>
-                              <!--  <li><a href="{{url('register')}}" class="text-warning">Join the Game</a></li>
-                             Hide login prompt for now.
+                                <li><a href="{{url('register')}}" class="text-warning">Join the Game</a></li>
+                            <!--   Hide login prompt for now.
                                 @guest
                                 <li class="float-lg-right"><a href="{{url('login')}}">Login</a></li>
                                 @endguest
@@ -325,12 +325,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
     <footer class="section footer-classic bg-gray-700-invariable text-md-left">
         <div class="container">
-            <h3>Support us on Patreon and join the game.</h3>
-            <p><b>Gain full access to the game and other exclusive content when you contribute at least $2 per month.</b></p>
+            <h3>Support us on Patreon and join the game!</h3>
+
             <div class="row row-80">
                 <div class="col-sm-6 col-lg-4">
                     <h4>Lieutenant</h4>
-                    <p class="text-width-xl-90">Receive <b>early access</b> to the game when you support this project with at least $2 per month.</p>
+                    <p class="text-width-xl-90">Receive early updates on <b>game mechanics</b> when you support this project with at least $2 per month.</p>
                     <br/>
                     <a href="https://www.patreon.com/bePatron?u=6799833"
                        data-patreon-widget-type="become-patron-button">Become a Patron!</a>
@@ -339,7 +339,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
                 <div class="col-sm-6 col-lg-4">
                     <h4>Commander</h4>
-                    <p class="text-width-xl-90">Benefit from advanced <b>game-play tips</b> and <b>coding examples</b> when you contribute at least $4 a month.</p>
+                    <p class="text-width-xl-90">Be the first to learn about novel <b>training missions</b> when you contribute at least $4 a month.</p>
                     <br/>
                     <a href="https://www.patreon.com/bePatron?u=6799833"
                        data-patreon-widget-type="become-patron-button">Become a Patron!</a>
@@ -348,8 +348,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
                 <div class="col-sm-6 col-lg-4">
                     <h4>Admiral</h4>
-                    <p class="text-width-xl-90">Enjoy <b>behind-the-scenes access</b> to our development plans and
-                        be recognized as a <b>major contributor</b> when you help us grow at $6 or more a month.</p>
+                    <p class="text-width-xl-90">Enjoy behind-the-scenes access to our <b>development plans</b> when you help us grow at $6 or more a month.</p>
                     <br/>
                     <a href="https://www.patreon.com/bePatron?u=6799833"
                        data-patreon-widget-type="become-patron-button">Become a Patron!</a>
