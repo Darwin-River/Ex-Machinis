@@ -13,3 +13,7 @@ Ex Machinis is being developed and managed by Darwin River Software LLC with sup
 ## Our Awesome Sponsors
 
 This game relies on our [generous Patreon sponsors](https://patreon.com/exmachinis) for feedback, encouragement, and support. We wouldn't be here without them!
+
+## FORTH Defined
+
+The [embed.fth file](https://github.com/Darwin-River/Ex-Machinis/blob/develop/game-engine/src/embed/embed.fth) creates the entire FORTH archetecture that is used by Ex Machinis spacecraft.  It is a useful resource for understanding how each of the pre-loaded words function.
