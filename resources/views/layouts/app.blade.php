@@ -279,8 +279,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                 <li class="d-block d-lg-none"><a href="{{url('sells')}}">Sell Orders</a></li>
                               -->
                                 <li><a href="{{url('about-us')}}">About Us</a></li>
-                                <li><a href="{{url('register')}}" class="text-warning">Join the Game</a></li>
-                            <!--   Hide login prompt for now.
+                              <!--   <li><a href="{{url('register')}}" class="text-warning">Join the Game</a></li>
+                              Hide login prompt for now.
                                 @guest
                                 <li class="float-lg-right"><a href="{{url('login')}}">Login</a></li>
                                 @endguest
