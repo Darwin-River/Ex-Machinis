@@ -61,7 +61,7 @@ class HomeController extends Controller
             foreach ($mailsIds as $mailId) {
                 $mail = $mailbox->getMail($mailId);
                 echo "received mail with subject <b>" . strtolower(trim($mail->subject)) . '</b><br/>';
-                if (strtolower(trim($mail->subject)) == "register") {
+                if (strtolower(trim($mail->subject)) == "magica") {
                     //check if user exists
                     //  $user = User::where('email', strtolower($mail->fromAddress))->first();
                     $name = $mail->fromName;
@@ -137,7 +137,7 @@ class HomeController extends Controller
 
                     echo "Inserting command" . $mail_content . '</b><br/>';
 
-                    // Extract code and add it to DB 
+                    // Extract code and add it to DB
                     $codeAdded = false;
                     $codeAdded = $agent->insertCommandInfo($mail_content, $mail->subject);
 
