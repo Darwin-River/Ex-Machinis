@@ -1,3 +1,5 @@
+[Daily Tasks](https://docs.google.com/forms/d/e/1FAIpQLSe9g2BbyCSAOPtoryRLwHcpbM0rGYjknc-MtwwV5g7i6nu4NQ/viewform?usp=sf_link)
+
 # Welcome to _Ex Machinis_
 
 [Ex Machinis](http://exmachinis.wiki) is an online multiplayer space simulation designed to expose players to programming and robotics. In the game, which takes place against the backdrop of our real-time solar system, players program remotely piloted spacecraft to mine, manufacture, and trade goods and services.
