@@ -21,7 +21,7 @@
 /******************************* DEFINES *************************************/
 
 // size limits
-#define MAX_COMMAND_CODE_SIZE  2048
+#define MAX_COMMAND_CODE_SIZE 16000
 #define MAX_AGENT_NAME_SIZE     256
 #define MAX_EMAIL_ADDRESS_SIZE  512
 #define MAX_EMAIL_DATE_SIZE     156
