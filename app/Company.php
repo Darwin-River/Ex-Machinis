@@ -9,6 +9,7 @@ class Company extends Model
     const INITIAL_AGENTS = 3;
     // Define some constants to define the objects ID for drones orbits
     // The 3 initial agents will one in each station orbit
+    const EARTH_OBJECT_ID = 3;
     const EARTH_STATION_OBJECT_ID = 187;
     const MARS_STATION_OBJECT_ID = 188;
     const JUPITER_STATION_OBJECT_ID = 189;
@@ -44,7 +45,7 @@ class Company extends Model
      */
     public function generateStartingDrones($user_id)
     {
-        $orbits = [ Company::EARTH_STATION_OBJECT_ID, Company::MARS_STATION_OBJECT_ID, Company::JUPITER_STATION_OBJECT_ID ];
+        $orbits = [ Company::EARTH_OBJECT_ID, Company::MARS_STATION_OBJECT_ID, Company::JUPITER_STATION_OBJECT_ID ];
         $companyDrones = [];
         for ($i = 0; $i < Company::INITIAL_AGENTS; $i++) {
             $agent = new Agent();
