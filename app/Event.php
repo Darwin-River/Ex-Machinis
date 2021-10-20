@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class Event extends Model
 {
 
+    protected $fillable = [
+        'event_type', 'time', 'action', 'logged', 'outcome', 'drone', 'resource', 'installed', 'locked', 'new_quantity', 'new_cargo',
+    ];
     public $timestamps = false;
 
     /**
