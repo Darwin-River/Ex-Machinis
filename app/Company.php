@@ -60,16 +60,15 @@ class Company extends Model
             // Add a starter kit to the drone's inventory.
             $event = new Event();
             $event->event_type = 1;
-            // $event->time = ???
-            //$event->action = 0;
-            //$event->logged = False;
-            //$event->outcome = 0;
+            $event->action = 0;
+            $event->logged = false;
+            $event->outcome = 0;
             //$event->drone = $agent;
-            //$event->resource = 5901; // Starter Kit Resource ID
-            //$event->installed = False;
-            //$event->locked = False;
-            //$event->new_quantity = 1;
-            //$event->new_cargo = 10;
+            $event->resource = 5901; // Starter Kit Resource ID
+            $event->installed = false;
+            $event->locked = false;
+            $event->new_quantity = 1;
+            $event->new_cargo = 10;
             $event->save();
         }
         return $companyDrones;
