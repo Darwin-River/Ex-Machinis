@@ -127,7 +127,7 @@ class Agent extends Model
     /**
      * Process emails received with <abort> meta-command. We can receive a single abort of abort + command
      * Deal with both scenarios:
-     * 
+     *
      * - <abort>
      * - <abort>commands</abort>
      *
@@ -141,7 +141,7 @@ class Agent extends Model
         $result = false;
 
         // Abort scenario (only abort)
-        if (preg_match("'<abort>' si", $command_text)) { // Treat special scenario: abort command received 
+        if (preg_match("'<abort>' si", $command_text)) { // Treat special scenario: abort command received
             // abort generates and empty command - this empty command means "abort"
             $command = new Command();
             $command->code = "<abort>";
@@ -176,7 +176,7 @@ class Agent extends Model
     /**
      * Process emails received with <reset> meta-command. We can receive a single reset of reset + command
      * Deal with both scenarios:
-     * 
+     *
      * - <reset>
      * - <reset>commands</reset>
      *
@@ -189,7 +189,7 @@ class Agent extends Model
     {
         $result = false;
 
-        // Reset scenario: 
+        // Reset scenario:
         if (preg_match("'<reset>' si", $command_text)) {
             // reset generates and empty command - this empty command means "reset"
             $command = new Command();
