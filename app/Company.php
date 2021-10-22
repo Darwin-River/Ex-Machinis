@@ -57,6 +57,8 @@ class Company extends Model
             $agent->save();
             $companyDrones[] = $agent;
 
+            $agent->addCargo(5901);
+            /*
             // Add a starter kit to the drone's inventory.
             $event = new Event();
             $event->event_type = 1;
@@ -69,7 +71,7 @@ class Company extends Model
             $event->locked = false;
             $event->new_quantity = 1;
             $event->new_cargo = 10;
-            $event->save();
+            $event->save();*/
         }
         return $companyDrones;
     }

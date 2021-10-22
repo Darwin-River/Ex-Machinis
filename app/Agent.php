@@ -76,6 +76,21 @@ class Agent extends Model
         }
     }
 
+    public function addCargo($cargo)
+    {
+      $event = new Event();
+      $event->event_type = 1;
+      $event->action = 0;
+      $event->logged = true;
+      $event->outcome = 1;
+      $event->drone = $this->id;
+      $event->resource = $cargo;
+      $event->installed = false;
+      $event->locked = false;
+      $event->new_quantity = 1;
+      $event->new_cargo = 10;
+      $event->save();
+    }
     /**
      * Extracts and saves all code between tags <run></run>
      * @param string $text mail body
