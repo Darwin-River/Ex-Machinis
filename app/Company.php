@@ -61,8 +61,8 @@ class Company extends Model
             $event = new Event();
             $event->event_type = 1;
             $event->action = 0;
-            $event->logged = false;
-            $event->outcome = 0;
+            $event->logged = true;
+            $event->outcome = 1;
             $event->drone = $agent->id;
             $event->resource = 5901; // Starter Kit Resource ID
             $event->installed = false;
