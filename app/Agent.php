@@ -76,6 +76,10 @@ class Agent extends Model
         }
     }
 
+    /**
+     * Adds new item to inventory but just sets the cargo mass to a fixed value.
+     * @param integer $cargo Added cargo id.
+     */
     public function addCargo($cargo)
     {
       $event = new Event();

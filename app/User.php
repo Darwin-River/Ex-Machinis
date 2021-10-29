@@ -16,7 +16,7 @@ class User extends Authenticatable
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password',
+        'name', 'email', 'password', 'credits'
     ];
 
     /**
@@ -50,6 +50,7 @@ class User extends Authenticatable
             $user = User::create([
                 'name' => $name,
                 'email' => strtolower($email),
+                'credits' => 1000,
             ]);
             $last_id = $user->id;
             $company = new Company();
