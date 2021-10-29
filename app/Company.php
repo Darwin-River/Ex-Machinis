@@ -57,21 +57,8 @@ class Company extends Model
             $agent->save();
             $companyDrones[] = $agent;
 
-            $agent->addCargo(5901);
-            /*
-            // Add a starter kit to the drone's inventory.
-            $event = new Event();
-            $event->event_type = 1;
-            $event->action = 0;
-            $event->logged = true;
-            $event->outcome = 1;
-            $event->drone = $agent->id;
-            $event->resource = 5901; // Starter Kit Resource ID
-            $event->installed = false;
-            $event->locked = false;
-            $event->new_quantity = 1;
-            $event->new_cargo = 10;
-            $event->save();*/
+            $agent->addCargo(5901); // Adds Starter Kit I.
+
         }
         return $companyDrones;
     }
