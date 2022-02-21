@@ -2,4 +2,6 @@
 
 <p>You've been assigned three spacecraft ({{$drone1 }}@<?php echo  getenv("MAIL_HOST") ?>, {{$drone2 }}@<?php echo  getenv("MAIL_HOST") ?>, and {{$drone3 }}@<?php echo  getenv("MAIL_HOST") ?>), which you can program and command via email.  The drones will only respond to communications from your email address.</p>
 
-<p>Be sure to check out the <a href="https://<?php echo  getenv("MAIL_HOST") ?>/getting-started">Getting Started</a> for information on how to interact with your ships.</p>
+<p>Be sure to check out <a href="https://exmachinis.wiki">the Ex Machinis wiki</a> for information on how to interact with your ships.</p>
+
+<p>Also feel free to email me at <a href="mailto: david.rozak@darwinriver.com">david.rozak@darwinriver.com</a> if you encounter any problems with the game.</p>

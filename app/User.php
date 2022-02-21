@@ -85,6 +85,8 @@ class User extends Authenticatable
                 $dronesInfo .= ', ';
             }
 
+            $dronesInfo .= '.\n\nPlease email me at david.rozak@darwinriver.com if you are having any problems with the game.';
+
             Mail::raw($dronesInfo, function ($message) use ($email, $name) {
                 $message->to($email, $name)
                     ->from("registrar@" . getenv("MAIL_HOST"), getenv("APP_NAME") . ' Registrations')
