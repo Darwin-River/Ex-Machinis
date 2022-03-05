@@ -4,4 +4,4 @@
 
 <p>Be sure to check out <a href="https://exmachinis.wiki">the Ex Machinis wiki</a> for information on how to interact with your ships.</p>
 
-<p>Also feel free to contact me at <a href="mailto: help@exmachinis.com">help@exmachinis.com</a> if you encounter any problems with the game.</p>
+<p>Also feel free to contact me at <a href="mailto:help@exmachinis.com">help@exmachinis.com</a> if you encounter any problems with the game.</p>
