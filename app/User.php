@@ -77,20 +77,22 @@ class User extends Authenticatable
 
             // Get now all the drones for this user and concatenate their email addresses
             $drones = Agent::where('user_id', $user->user_id)->get();
-            $dronesInfo = 'Registration error: your email is already registered with the following drones: ';
+            $dronesInfo = "You're already registered with Ex Machinis and have access to the following drones:";
 
             foreach ($drones as $drone) {
+                $dronesInfo .= "\n";
                 $drone_email = $drone->name . "@" . getenv("MAIL_HOST");
                 $dronesInfo .= $drone_email;
-                $dronesInfo .= ', ';
             }
 
-            $dronesInfo .= '.\n\nPlease email me at david.rozak@darwinriver.com if you are having any problems with the game.';
+            $dronesInfo .= "\n\n Please email help@exmachinis.com if you're having problems with the game.";
+
+            $dronesInfo .= "\n\n You can learn more about the game at https://exmachinis.wiki.";
 
             Mail::raw($dronesInfo, function ($message) use ($email, $name) {
                 $message->to($email, $name)
-                    ->from("registrar@" . getenv("MAIL_HOST"), getenv("APP_NAME") . ' Registrations')
-                    ->subject("[" . getenv("APP_NAME") . "] Already registered");
+                    ->from("registrar@" . getenv("MAIL_HOST"), 'Ex Machinis Registrar')
+                    ->subject("Already registered");
             });
         }
     }

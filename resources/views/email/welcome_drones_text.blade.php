@@ -4,4 +4,4 @@ You've been assigned three spacecraft ({{$drone1 }}@<?php echo  getenv("MAIL_HOS
 
 Be sure to check out the Ex Machinis wiki (https://exmachinis.wiki) for information on how to interact with your ships.
 
-Also feel free to email me at david.rozak@darwinriver.com if you encounter any problems with the game.
+Also feel free to contact me at help@exmachinis.com if you encounter any problems with the game.
