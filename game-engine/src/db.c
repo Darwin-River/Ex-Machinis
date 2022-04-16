@@ -2330,13 +2330,13 @@ ErrorCode_t db_insert_event(Event_t* event)
         DB_MAX_SQL_QUERY_LEN,
         "INSERT INTO events "
         "(timestamp, event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
-        "VALUES(CAST(DATE_ADD(NOW(), INTERVAL %d MINUTE) AS DATETIME), %d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
+        "VALUES(CAST(DATE_ADD(NOW(), INTERVAL %d SECOND) AS DATETIME), %d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
         event->new_quantity!=NULL_VALUE?", new_quantity":"",
         event->new_credits!=NULL_VALUE?", new_credits":"",
         event->new_location!=NULL_VALUE?", new_location":"",
         event->new_transmission!=NULL_VALUE?", new_transmission":"",
         event->new_cargo!=NULL_VALUE?", new_cargo":"",
-        event->delay,
+        event->delay * TIME_FACTOR,
         event->event_type,
         event->action_id,
         event->logged,

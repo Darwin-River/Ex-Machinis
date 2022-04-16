@@ -20,6 +20,9 @@
 
 /******************************* DEFINES *************************************/
 
+// multiply the protocol effect delay by this value in seconds.
+#define TIME_FACTOR 5
+
 // size limits
 #define MAX_COMMAND_CODE_SIZE 16000
 #define MAX_AGENT_NAME_SIZE     256
