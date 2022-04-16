@@ -303,7 +303,7 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
       Event_t newEvent;
       memset(&newEvent, 0, sizeof(newEvent));
 
-      // Add resource effect time delay in minutes.
+      // Add resource effect time delay.
       newEvent.delay = effect->time;
 
       newEvent.drone_id = engine_get_current_drone_id();
@@ -541,6 +541,9 @@ ErrorCode_t protocol_process_location_effect
     newEvent.new_location = NULL_VALUE;
     newEvent.new_transmission = NULL_VALUE;
     newEvent.new_cargo = NULL_VALUE;
+
+    // Add time delay.
+    newEvent.delay = effect->time;
 
     newEvent.new_location = (effect->location != -1)?effect->location:protocol->parameters[0]; // we use effect info or stack
     // rest of fields - set to 0 with memset()
