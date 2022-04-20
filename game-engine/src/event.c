@@ -2,7 +2,7 @@
 
   PROJECT    : Ex-Machinis
 
-  DESCRIPTION: Events management module
+  DESCRIPTION: Event Engine
 
 ******************************************************************************/
 
@@ -991,9 +991,9 @@ ErrorCode_t event_process_outcome(Event_t *event)
     if((result == ENGINE_OK) && ((event->event_type == SELL_EVENT_TYPE) || (event->event_type == BUY_EVENT_TYPE)))
     {
         engine_trace(TRACE_LEVEL_ALWAYS,
-            "Market event [%d], no processing done, only observations table updated",
-            event->event_id,
-            event->action_id);
+          "Market event [%d], no processing done, only observations table updated",
+          event->event_id,
+          event->action_id);
 
         event->outcome = OUTCOME_OK;
         event->logged = 1;
@@ -1001,8 +1001,31 @@ ErrorCode_t event_process_outcome(Event_t *event)
         // update outcome at DB
         result = db_update_event(event);
 
-        if(result == ENGINE_OK)
-            result = event_update_observations(event);
+        if(result == ENGINE_OK) result = event_update_observations(event);
+
+        return result;
+    }
+
+    // If move event, update drone location.  No further action required.
+    if(result == ENGINE_OK && event->event_type == MOVE_EVENT_TYPE) {
+
+        // Update drone location.
+        result = db_update_agent_object(engine_get_db_connection(), event->drone_id, event->new_location);
+
+        // Log result.
+        engine_trace(TRACE_LEVEL_ALWAYS,
+                "Drone [%d] moves to location [%d] in event [%d].",
+                event->drone_id,
+                event->new_location,
+                event->event_id);
+
+        // Update event status.
+        event->outcome = OUTCOME_OK;
+        event->logged = 1;
+
+        if(result == ENGINE_OK) result = db_update_event(event);
+
+        if(result == ENGINE_OK) result = event_update_observations(event);
 
         return result;
     }

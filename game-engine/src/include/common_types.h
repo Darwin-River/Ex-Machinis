@@ -91,6 +91,7 @@
 // Special event types (sell and buy)
 #define INCREMENT_INVENTORY_EVENT_TYPE 1
 #define DECREMENT_INVENTORY_EVENT_TYPE 2
+#define MOVE_EVENT_TYPE                3
 #define SELL_EVENT_TYPE                4
 #define BUY_EVENT_TYPE                 5
 #define INCREMENT_CREDITS_EVENT_TYPE   6

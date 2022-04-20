@@ -554,10 +554,10 @@ ErrorCode_t protocol_process_location_effect
     result = ENGINE_INTERNAL_ERROR;
   }
 
-  // Update current drone location at DB
+  /* Update current drone location at DB BUGBUG Should not happen until the event is processed by the Event Engine.
   if(result == ENGINE_OK) {
     result = db_update_agent_object(engine_get_db_connection(), agent_id, effect->location);
-  }
+  }*/
 
   return result;
 }
