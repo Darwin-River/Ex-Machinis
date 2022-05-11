@@ -3,7 +3,7 @@
   PROJECT    : Ex-Machinis
 
   DESCRIPTION: Outgoing emails module
- 
+
 ******************************************************************************/
 
 /******************************* INCLUDES ************************************/
@@ -43,7 +43,7 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
 {
 	ErrorCode_t result = ENGINE_OK;
 
-	if(email_info) 
+	if(email_info)
 	{
 		size_t buffer_size = (strlen(email_info->input_content) + strlen(email_info->message) + strlen(email_info->email_template))*10;
 		email_info->output_content = (char*) engine_malloc(buffer_size);
@@ -104,17 +104,17 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
 
 	   		engine_trace(TRACE_LEVEL_ALWAYS,
 	        	"Input is [%s] -> scaped content is [%s]",
-	        	email_info->input_content, 
+	        	email_info->input_content,
 	        	scaped_buffer);
 	   	}
 
 		// Build first the rsp content
 		snprintf(email_info->output_content,
-			buffer_size, 
+			buffer_size,
 			email_info->email_template,
-			//"---- Position ----\n\nAt: %s\nDistance: %f light-minutes\n\n---- Output ----\n\n%s\n\nFrom: %s\nSent: %s\nTo: %s\nSubject: 
-			email_info->drone_position,
-			(email_info->distance / LIGHT_SPEED_KM_PER_MINUTE), // Distance is KM -> Convert to light-minutes
+			//"\n%s\n\nContact help@exmachinis.com if you need assistance.\n\nFrom: %s\nSent: %s\nTo: %s\nSubject:
+			// email_info->drone_position,
+			// (email_info->distance / LIGHT_SPEED_KM_PER_MINUTE), // Distance is KM -> Convert to light-minutes
 			email_info->message,
 			email_info->user_email_addr,
 			date_buffer,
@@ -125,7 +125,7 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
 
         // Now build the command to be executed to send the email
 		snprintf(email_command,
-			command_buffer_size, 
+			command_buffer_size,
 			"%s %s \'%s\' %s \'%s\'",
 			email_info->email_script,
 			email_info->user_email_addr,
@@ -154,19 +154,19 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
 	        	email_command);
         }
 
-        if(email_command) 
+        if(email_command)
         {
         	engine_free(email_command, command_buffer_size);
         	email_command = NULL;
         }
 
-        if(email_info->output_content) 
+        if(email_info->output_content)
         {
         	engine_free(email_info->output_content, buffer_size);
         	email_info->output_content = NULL;
         }
 
-        if(scaped_buffer) 
+        if(scaped_buffer)
         {
         	engine_free(scaped_buffer, scaped_buffer_size);
         	scaped_buffer = NULL;
