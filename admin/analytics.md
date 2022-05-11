@@ -10,3 +10,6 @@ Google provides a [convenient tool](https://ga-dev-tools.web.app/campaign-url-bu
 - Set the Campaign Medium to "Post".
 - Set the Campaign Name to the six digit date of the post (YYMMDD).
 - Generate a shortened link for use in the Patreon or Twitter post.
+
+## Monitoring traffic
+I can track the numbers of people who arrive at the site from the above campaign by going to [Campaigns>All Campaigns](https://analytics.google.com/analytics/web/#/report/trafficsources-campaigns/a132855804w192601962p188386893/) in Google Analytics.
