@@ -334,7 +334,7 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
 
         snprintf(query_text,
             DB_MAX_SQL_QUERY_LEN,
-            "SELECT * FROM events as e where timestamp <= NOW() and outcome = 0 and (select aborted from actions where id = e.action) != 1 limit %d ORDER BY timestamp ASC, event_type DESC;",
+            "SELECT * FROM events as e where timestamp <= NOW() and outcome = 0 and (select aborted from actions where id = e.action) != 1 ORDER BY timestamp ASC, event_type DESC LIMIT %d;",
             events_batch_size);
 
         // run it
