@@ -749,7 +749,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "WHERE drone = %d and resource = %d and installed = %d and locked = %d "
                     "and outcome = %d " // success
                     "and (event_type = 1 or event_type = 2)" // look only for increment and depletion events
-                    "and timestamp < '%s' order by timestamp DESC limit 1;",  //
+                    "and timestamp <= '%s' order by timestamp DESC limit 1;",  //
                     event->drone_id, event->resource_id, event->installed, event->locked, OUTCOME_OK, timestamp_buffer);
                 break;
             case PREVIOUS_EVENT_BY_DRONE:
