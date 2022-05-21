@@ -21,7 +21,7 @@
 /******************************* DEFINES *************************************/
 
 // multiply the protocol effect delay by this value in seconds.
-#define TIME_FACTOR 5
+#define TIME_FACTOR 1
 
 // size limits
 #define MAX_COMMAND_CODE_SIZE 16000
