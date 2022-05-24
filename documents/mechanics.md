@@ -78,6 +78,7 @@ This document lays out the plans for developing Ex Machinis, an online space sim
       * [Table-transmissions](#Table-transmissions)
   * [The Perform Function](#The-Perform-Function)
   * [Ad Hoc Protocols](#Ad-Hoc-Protocols)
+  * [Tips for creating protocols](#Tips-for-creating-protocols)
 * [The Event Engine](#The-Event-Engine)
     * [Tableobservations](#Table-observations)
 * [Markets and Trade](#Markets-and-Trade)
@@ -686,6 +687,19 @@ Else, if the number on the stack matches a protocol ID, implement that protocol 
 Else, if the number on the stack matches a query ID, implement that query and end the routine.
 4, Else, the command is undefined. End the routine without doing anything.
 In practice, we'll assign IDs in one number range (say 1001 - 2000) to protocols and IDs in another number range (say 2001 -3000) to queries. Special commands may occupy the value range from 1-1000.
+
+[Return to the TOC](#Table-of-Contents)
+
+### Tips for creating protocols
+When creating protocols, use the following guidelines to ensure that they funciton correctly:
+1. First, test for the presence of required modules by sequentially decrementing and incrementing each module by the same amount at the very start of the protocol.  This way, the protocol will abort if the required modules are not present and the player will not loose any resources.
+2. Next, deplete all consumable reseources so that they are removed from the player's inventory.
+3. Then, lock each required module by decrementing the unlocked item and incrementing the locked item.
+4. Wait the amount of time that's required to perform the action.
+5. Unlock the required modules by decrementing the locked items and incrementing the unlocked items.  Do this before adding the products to ensure that the protocol isn't aborted for lack of cargo space.
+6. Add manufactured products to the cargo hold at the very end of the protocol.
+
+[Return to the TOC](#Table-of-Contents)
 
 ## The Event Engine
 
