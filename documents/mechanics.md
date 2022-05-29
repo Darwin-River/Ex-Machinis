@@ -692,12 +692,21 @@ In practice, we'll assign IDs in one number range (say 1001 - 2000) to protocols
 
 ### Tips for creating protocols
 When creating protocols, use the following guidelines to ensure that they funciton correctly:
-1. First, test for the presence of required modules by sequentially decrementing and incrementing each module by the same amount at the very start of the protocol.  This way, the protocol will abort if the required modules are not present and the player will not loose any resources.
+1. First, test for the presence of required modules by simultaneously decrementing and incrementing each module by the same amount at the very start of the protocol.  This way, the protocol will abort if the required modules are not present and the player will not loose any resources.
 2. Next, deplete all consumable reseources so that they are removed from the player's inventory.
 3. Then, lock each required module by decrementing the unlocked item and incrementing the locked item.
 4. Wait the amount of time that's required to perform the action.
 5. Unlock the required modules by decrementing the locked items and incrementing the unlocked items.  Do this before adding the products to ensure that the protocol isn't aborted for lack of cargo space.
 6. Add manufactured products to the cargo hold at the very end of the protocol.
+
+In general, protocols will be configured as follows, where T is the duration of the protocol in seconds:
+| Time (sec) | Phase | Events |
+|:-----------|:------|:-------|
+| 0 | Test modules | Simultaneously increment and decrement all modules required for the protocol to make sure that they're present. |
+| 1 | Remove consumables | Simultaneously remove all resources that will be consumed by the protocol. |
+| 2 | Lock modules | Simultaneously move all modules to a locked state. |
+| T - 1 | Unlock modules | Simultaneously move all modules to an unlocked state. |
+| T | Add products | Simultaneously add all protocol products to the cargo bay. |
 
 [Return to the TOC](#Table-of-Contents)
 
