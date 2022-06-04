@@ -797,13 +797,15 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
 
   // Abort action when something failed
   if((result != ENGINE_OK) && (actionCreated == ENGINE_TRUE)) {
-    sprintf(protocolMsg, "Protocol \"%s\" failed", protocol.protocol_name);
+    // sprintf(protocolMsg, "Protocol \"%s\" failed", protocol.protocol_name);
+    // Push zero into VM stack
+    vm_extension_push(vmExt, 0);
     // delete any event for current action
     db_delete_action_events(action.action_id);
     // abort action
     db_abort_action(action.action_id);
   } else {
-    sprintf(protocolMsg, "Protocol \"%s\" succesfully executed", protocol.protocol_name);
+    // sprintf(protocolMsg, "Protocol \"%s\" succesfully executed", protocol.protocol_name);
     // Push action ID into VM stack
     vm_extension_push(vmExt, action.action_id);
   }
