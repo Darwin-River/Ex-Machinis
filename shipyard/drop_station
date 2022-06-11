@@ -2,4 +2,7 @@
 / Drop Station Drone
 
 : vReady ." Drop Station fully configured! " ;
+
+vReady
+
 </reset>
