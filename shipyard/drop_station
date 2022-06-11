@@ -101,8 +101,6 @@ variable pResultsBuffer nResultsBufferSize allot
 
 : vPrintLocalResources ( n1 -- ) 730 vRunQuery vFetchCountedList vPrintResourceList ;
 
-: vPrintDroneLocation ( l1 -- ) vFetchDroneLocation vPrintLocationName ;
-
 : vPrintBestExtractionSites ( n1 -- ) 
     410 vRunQuery vFetchCountedList
     begin       
@@ -148,6 +146,8 @@ variable pResultsBuffer nResultsBufferSize allot
 : vFetchDroneOwner ( n1 -- n2 ) 201 vRunQuery @ ;
 
 : vFetchDroneLocation ( n1 -- n2 ) 202 vRunQuery @ ;
+
+: vPrintDroneLocation ( l1 -- ) vFetchDroneLocation vPrintLocationName ;
 
 : vFetchHullType ( n1 -- n2 ) 203 vRunQuery @ ;
 
