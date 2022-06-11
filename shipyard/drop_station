@@ -2,9 +2,7 @@
 \ Drop Station Drone
 
 \ BEGIN: Advanced memory functions
-
 : nStopCode -989 ;
-
 : vPurgeStoredValues ( a1 n1 -- )
   begin
     1 -
@@ -12,7 +10,6 @@
     dup 0 =
   until
   drop drop ;
-
 : vCountStoredValues ( a1 -- n1 )
     -1
     begin
@@ -23,7 +20,6 @@
         or
     until 
     swap drop ;
-
 : vFetchStoredValues ( a1 n1 -- l1 )
     dup >r
     2 *
@@ -35,9 +31,7 @@
     until
     drop drop
     r> ;
-
 : vFetchCountedList ( a1 -- l1 ) dup vCountStoredValues vFetchStoredValues ; 
-
 : vPrintCountedList ( l1 -- )
    begin
        1 -
@@ -45,34 +39,25 @@
        dup 0 =
    until
    drop ; 
-
 : vPrintStoredValues ( a1 -- ) vFetchCountedList vPrintCountedList ; 
-
 : vPrintStoredString ( a1 -- ) count type ;
 
 \ BEGIN: Simple query command 
 
 : nResultsBufferSize 500 ;
-
 variable pResultsBuffer nResultsBufferSize allot 
-
 : vRunQuery ( n1 n2 -- a1 ) 
     pResultsBuffer nResultsBufferSize vPurgeStoredValues 
     pResultsBuffer swap nResultsBufferSize swap query drop
     pResultsBuffer ; 
 
 \ BEGIN: Company query commands
-
 : vPrintCompanyName ( n1 -- ) 100 vRunQuery vPrintStoredString ;
-
 : vFetchCompanyCredits ( n1 -- n2 ) 101 vRunQuery @ ;
-
 : vFetchCompanyDrones ( n1 -- l1 ) 110 vRunQuery vFetchCountedList ;
 
 \ BEGIN: Resource query commands 
-
 : vPrintResourceName ( n1 - ) 400 vRunQuery vPrintStoredString ;
-
 : vPrintResourceList ( l1 -- ) 
    begin
        rot . ."  x "
@@ -82,25 +67,16 @@ variable pResultsBuffer nResultsBufferSize allot
        dup 1 <
    until 
    drop ;
-
 : vFetchUnitMass ( n1 -- n2 ) 401 vRunQuery @ ;
-
 : vPrintAsUnits ( n1 -- ) dup . ."  unit" 1 > if ." s" then ; 
 
 \ BEGIN: Location query commands 
-
 : vPrintLocationName ( n1 - ) 700 vRunQuery vPrintStoredString ;
-
 : vPrintLocationType ( n1 -- ) 701 vRunQuery vPrintStoredString ;
-
 : vFetchCentralBody ( n1 -- n2 ) 702 vRunQuery @ ;
-
 : vListOrbitingBodies ( n1 -- l1 ) 710 vRunQuery vFetchCountedList ;
-
 : vListLocalDrones ( n1 -- l1 ) 720 vRunQuery vFetchCountedList ;
-
 : vPrintLocalResources ( n1 -- ) 730 vRunQuery vFetchCountedList vPrintResourceList ;
-
 : vPrintBestExtractionSites ( n1 -- ) 
     410 vRunQuery vFetchCountedList
     begin       
@@ -112,9 +88,7 @@ variable pResultsBuffer nResultsBufferSize allot
     drop ;
 
 \ BEGIN: Protocol query commands
-
 : vPrintProtocolName ( n1 - ) 500 vRunQuery vPrintStoredString ;
-
 : vPrintProtocolList ( l1 -- ) 
    begin
        rot . ."  x "
@@ -124,47 +98,28 @@ variable pResultsBuffer nResultsBufferSize allot
        dup 1 <
    until 
    drop ;
-
 : vFetchProtocolDuration ( n1 -- n2 ) 501 vRunQuery @ ;
-
 : vPrintConsumedResources ( n1 -- ) 510 vRunQuery vFetchCountedList vPrintResourceList ;
-
 : vPrintProducedResources ( n1 -- ) 511 vRunQuery vFetchCountedList vPrintResourceList ;
-
 : vPrintRecycledResources ( n1 -- ) 512 vRunQuery vFetchCountedList vPrintResourceList ;
-
 : vPrintConsumingProtocols ( n1 -- ) 520 vRunQuery vFetchCountedList vPrintProtocolList ;
-
 : vPrintProducingProtocols ( n1 -- ) 521 vRunQuery vFetchCountedList vPrintProtocolList ;
-
 : vPrintRecyclingProtocols ( n1 -- ) 522 vRunQuery vFetchCountedList vPrintProtocolList ;
 
 \ BEGIN: Drone query commands 
-
 : vPrintDroneName ( n1 - ) 200 vRunQuery vPrintStoredString ;
-
 : vFetchDroneOwner ( n1 -- n2 ) 201 vRunQuery @ ;
-
 : vFetchDroneLocation ( n1 -- n2 ) 202 vRunQuery @ ;
-
 : vPrintDroneLocation ( l1 -- ) vFetchDroneLocation vPrintLocationName ;
-
 : vFetchHullType ( n1 -- n2 ) 203 vRunQuery @ ;
-
 : vPrintHullName ( n1 -- ) 300 vRunQuery vPrintStoredString ;
-
 : vFetchCargoCapacity ( n1 - n2 ) 301 vRunQuery @ ;
-
 : vFetchCargoMass ( n1 -- n2 ) 204 vRunQuery @ ;
-
 : vFetchMyId ( -- n1 ) 205 vRunQuery @ ;
-
 : vPrintCargoList ( n1 -- ) 210 vRunQuery vFetchCountedList vPrintResourceList ;
 
 \ BEGIN: Command and control functions
-
 : vDumpResource ( n1 -- ) 1 perform ;
-
 : vReady ." Drop Station fully configured! " ;
 
 vReady
