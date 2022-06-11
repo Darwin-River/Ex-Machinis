@@ -1,5 +1,5 @@
 <reset>
-/ Drop Station Drone
+\ Drop Station Drone
 
 : vReady ." Drop Station fully configured! " ;
 
