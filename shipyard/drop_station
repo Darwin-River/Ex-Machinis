@@ -115,8 +115,13 @@ variable pResultsBuffer nResultsBufferSize allot
 : vPrintHullName ( n1 -- ) 300 vRunQuery vPrintStoredString ;
 : vFetchCargoCapacity ( n1 - n2 ) 301 vRunQuery @ ;
 : vFetchCargoMass ( n1 -- n2 ) 204 vRunQuery @ ;
+: vFetchResourceQuantity (n1 -- n2) 212 vRunQuery @ ;
 : vFetchMyId ( -- n1 ) 205 vRunQuery @ ;
 : vPrintCargoList ( n1 -- ) 210 vRunQuery vFetchCountedList vPrintResourceList ;
+
+\ BEGIN: Import Export Commands
+: vImportResource (n1 -- ) 5911 perform ;
+: vExportResource (n1 -- ) 5921 perform ;
 
 \ BEGIN: Command and control functions
 : vDumpResource ( n1 -- ) 1 perform ;
