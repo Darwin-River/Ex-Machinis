@@ -453,9 +453,9 @@ static void vm_ext_process_query
 
     // Execute query at DB and fill the output array parameters with information retrieved
     if(db_run_vm_query(queryInfo, v->h) != ENGINE_OK) {
-        sprintf(queryOutMsg,
-                "Query failed or could not retrive results [%s]",
-                queryInfo->finalQuery);
+        // sprintf(queryOutMsg,
+        //        "Query failed or could not retrive results [%s]",
+        //        queryInfo->finalQuery);
 
         engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg);
         vm_extension_push(v, SQL_QUERY_FAILED); // push this code when query fails
