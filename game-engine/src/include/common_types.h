@@ -55,7 +55,7 @@
 // queries table
 #define MAX_QUERIES_NAME_SIZE          45
 #define MAX_QUERIES_DESCRIPTION_SIZE  255
-#define MAX_QUERIES_SCRIPT_SIZE       512
+#define MAX_QUERIES_SCRIPT_SIZE      2000
 
 // meta-commands supported
 #define META_COMMAND_ABORT    "<abort>"
