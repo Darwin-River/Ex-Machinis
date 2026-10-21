@@ -91,9 +91,16 @@ before starting the next. Laravel only supports upgrading one major at a time.
   rendered HTML. Watch for the same clash with new directives in later versions.
 
 ### 4. Laravel 9 → 10 → 11 → current
-- Laravel 10: PHP 8.1+, phpunit 10. The upgrade is mostly mechanical.
-  `doctrine/dbal` is still ^2.x and may need ^3.
-- Laravel 11: the new slim app skeleton is optional. Existing `Kernel.php` files
+- ✅ Laravel 10 done: `laravel/framework` ^10.0 (10.50.3), `laravel/ui` ^4.0,
+  `laravel/tinker` ^2.8, `doctrine/dbal` ^3.5.
+  - Laravel 10 no longer honours the `path.public` binding, so
+    `bootstrap/app.php` now calls `usePublicPath()` to make `html/` the web root,
+    for both the site and the tests.
+  - phpunit stays on 9.6, which Laravel 10 supports. phpunit 10 (static data
+    providers, new XML config) comes with Laravel 11.
+  - No raw-SQL expression is cast to a string, so Laravel 10's `DB::raw` change
+    doesn't apply. No view text clashes with a Blade directive.
+- Laravel 11: needs **PHP 8.2+** and phpunit ^10.5. the new slim app skeleton is optional. Existing `Kernel.php` files
   keep working, so don't restructure.
 - After that: follow each release's upgrade guide. Consider running
   [Laravel Shift](https://laravelshift.com) for the mechanical parts.

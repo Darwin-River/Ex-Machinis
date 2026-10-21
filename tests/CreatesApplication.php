@@ -15,11 +15,9 @@ trait CreatesApplication
     {
         $app = require __DIR__.'/../bootstrap/app.php';
 
-        // The web root is html/, not Laravel's default public/. The layout
-        // also reads DOCUMENT_ROOT, which is empty when running from the CLI.
-        $publicPath = realpath(__DIR__.'/../html');
-        $app->instance('path.public', $publicPath);
-        $_SERVER['DOCUMENT_ROOT'] = $publicPath;
+        // The layout reads DOCUMENT_ROOT, which is empty when running from
+        // the CLI. bootstrap/app.php already points public_path() at html/.
+        $_SERVER['DOCUMENT_ROOT'] = $app->publicPath();
 
         $app->make(Kernel::class)->bootstrap();
 
