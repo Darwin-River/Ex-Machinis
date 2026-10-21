@@ -65,7 +65,7 @@ class AgentController extends Controller
             , DB::raw('(events.new_quantity) as new_quantity'), DB::raw('(events.id) as event_id'))
             ->leftJoin('resources', 'events.resource', '=', 'resources.id')
             ->leftJoin('event_types', 'events.event_type', '=', 'event_types.id')
-            ->join(DB::raw('(SELECT MAX(events.id) AS id FROM events  WHERE drone = ' . $id . ' AND events.outcome = 1 AND (event_type = ' . EventType::TYPE_INCREMENT_INVENTORY . ' OR event_type = ' . EventType::TYPE_DECREMENT_INVENTORY . ')   GROUP BY events.resource ORDER BY id DESC) AS events_latest '), "events_latest.id", '=', 'events.id')//aggregation join
+            ->join(DB::raw('(SELECT MAX(events.id) AS id FROM events  WHERE drone = ' . (int) $agent->agent_id . ' AND events.outcome = 1 AND (event_type = ' . EventType::TYPE_INCREMENT_INVENTORY . ' OR event_type = ' . EventType::TYPE_DECREMENT_INVENTORY . ')   GROUP BY events.resource ORDER BY id DESC) AS events_latest '), "events_latest.id", '=', 'events.id')//aggregation join
             ->orderBy('new_quantity', 'desc')->havingRaw('new_quantity >= 0')->get();
         $totalWeight = 0;
         foreach ($cargoManifest as $cargoItem) {

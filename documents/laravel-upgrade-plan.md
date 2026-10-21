@@ -118,6 +118,10 @@ extension on the server or switch to a pure-PHP client such as
 - ✅ Fixed: the users report sorted by a column `users` doesn't have, and counted
   drones through a `companies` table that isn't in the schema.
 - ✅ Fixed: `/companies/{id}` returns a 404 for an unknown id.
+- ✅ Fixed: **SQL injection** in `/spacecraft/{id}`. `AgentController::view`
+  pasted the URL id into a raw subquery, and MySQL's string-to-int cast let
+  the model lookup succeed first. The query now uses the stored `agent_id`,
+  and all `{id}` detail routes only accept numbers.
 - The `sqInventory` view used by the buy and sell order searches isn't defined
   anywhere in the repo. The tests use a stand-in table; the real definition needs
   rebuilding before anything goes live again.
