@@ -5,6 +5,9 @@
 
 . ${HOME}/.profile
 
+# Load secrets (CRON_KEY) from the .env next to this script
+. "$(dirname "$0")/.env"
+
 
 #-----------------------------------------------------------------
 # Log function
@@ -46,7 +49,7 @@ DELAY_SECONDS=5
 LOG_FILE_PREFIX=${PLAT_HOME}/log/email_handler
 
 # URL where we check emails presence
-EMAIL_URL=https://www.exmachinis.com/get-mails/JJy3CC9cUtzsbLsY
+EMAIL_URL=https://www.exmachinis.com/get-mails/${CRON_KEY}
 
 # Tmp file where we store handler PID
 PID_FILE=${PLAT_HOME}/tmp/email.pid

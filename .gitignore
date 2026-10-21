@@ -14,3 +14,5 @@ phpMyAdmin
 /.vscode
 /template
 /.env
+/game-engine/scripts/.env
+*.log

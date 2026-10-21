@@ -270,7 +270,7 @@ This module is basically a bash script: **/home/forth/game-engine/bin/scripts/st
 that invokes the following command: 
 
 ```
-> curl -s https://www.exmachinis.com/get-mails/JJy3CC9cUtzsbLsY
+> curl -s https://www.exmachinis.com/get-mails/<CRON_KEY>
 
 where:
 
@@ -280,7 +280,7 @@ where:
 
 - get-mails : is the PHP script in charge of processing the emails using Laravel terminology
 
-- JJy3CC9cUtzsbLsY : It is the key configured at dovecot setup
+- <CRON_KEY> : It is the key configured at dovecot setup
 ```
 
 
