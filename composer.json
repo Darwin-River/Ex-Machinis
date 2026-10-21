@@ -18,7 +18,7 @@
         "soundasleep/html2text": "~0.5"
     },
     "require-dev": {
-        "composer/composer": "^1.9",
+        "composer/composer": "^2.2",
         "fakerphp/faker": "^1.9.1",
         "filp/whoops": "~2.0",
         "mockery/mockery": "^1.3",
