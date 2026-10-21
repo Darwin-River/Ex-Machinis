@@ -423,7 +423,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`location_effects` (
   `location` INT(5) NULL,
   `time` INT(5) UNSIGNED NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `id_UNIQUE` (`id` ASC)
+  UNIQUE INDEX `id_UNIQUE` (`id` ASC),
   INDEX `protocol_idx` (`protocol` ASC))
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4

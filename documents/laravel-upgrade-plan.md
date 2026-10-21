@@ -31,19 +31,25 @@ That keeps the upgrade cheap.
 Do each hop on its own branch and deploy it (or at least smoke-test it)
 before starting the next. Laravel only supports upgrading one major at a time.
 
-### 0. Safety net (before touching versions)
-1. Write feature tests for the pages people actually use: home, login/register,
-   spacecraft list and detail, resources with buy and sell orders, space
-   objects, and `/get-mails/{key}`. HTTP status plus key text is enough.
-2. Add a GitHub Actions workflow that runs `composer install` and `phpunit`.
-3. Take a DB backup (see `admin/db_backups.md`).
+### 0. Safety net ✅ done
+- `tests/Feature/PagesTest.php` has smoke tests for every public page and JSON
+  search endpoint. They use a MySQL database built from
+  `game-engine/sql/create_db.sql`, `game-engine/db-backup/exmachinis_tables.sql`
+  and `tests/database/fixtures.sql`.
+- `.github/workflows/tests.yml` runs them on PHP 7.4 and MySQL 5.7 for every PR
+  and every push to `main`.
+- Fixes needed to get the suite running:
+  - `config/session.php` called the removed `str_slug()` helper, so the app crashed on boot.
+    It now uses `Str::slug()`.
+  - phpunit went from ~6.0 to ^8.5 and mockery from 0.9 to ^1.3, which Laravel 6 requires.
+  - `create_db.sql` was missing a comma, so `abundancies` was never created.
+- Composer's platform is pinned to PHP 7.4 so the lock file stays installable there.
+  Raise it at each PHP bump.
 
 ### 1. Laravel 6 → 7
 - `app/Exceptions/Handler.php`: change `Exception $exception` to `Throwable $exception`
   in `report()` and `render()`.
-- Bump `phpunit` to ^8.5, `nunomaduro/collision` if added, and `laravel/tinker` to ^2.
-- `config/session.php` uses `str_slug()`; the string and array helpers were removed
-  in 6. Replace it with `Str::slug()` (or add `laravel/helpers` for a while).
+- Bump `laravel/tinker` to ^2.
 
 ### 2. Laravel 7 → 8
 - Models move to `app/Models` by default. This is optional; keeping them in `app/` still works.
@@ -80,6 +86,16 @@ before starting the next. Laravel only supports upgrading one major at a time.
 `imap` extension. Before moving to PHP 8.4, either install the PECL `imap`
 extension on the server or switch to a pure-PHP client such as
 `webklex/php-imap`.
+
+## Issues found while writing tests
+- `/user/send-report/{key}` never checks `{key}`, so anyone can trigger the
+  users-report email.
+- `/get-mails/{key}` uses `die()` on a wrong key, which can't be tested; it should
+  return a 403.
+- `/companies/{id}` returns a 500 instead of a 404 for an unknown id.
+- The `sqInventory` view used by the buy and sell order searches isn't defined
+  anywhere in the repo. The tests use a stand-in table; the real definition needs
+  rebuilding before anything goes live again.
 
 ## Clean-up worth doing along the way
 - Delete or move the stray root-level `HomeController.php` (it differs from
