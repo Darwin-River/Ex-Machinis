@@ -2,7 +2,10 @@
 
 ### Requirements
 
-Ex-Machinis works on an Apache server that supports PHP (at least 7.0 version) and a MySQL database.
+Ex-Machinis works on an Apache server that supports PHP (8.3) and a MySQL database.
+The web root is the `html/` folder. Front-end assets are built with Vite
+(`npm ci && npm run build`, Node 20+) into `html/build/`, which is committed,
+so the server itself doesn't need Node.
 The mail server works on Linux using Postfix as MTA and Dovecot as e-mail retrieval service.
 A SSL certificate is required for a public release.
 

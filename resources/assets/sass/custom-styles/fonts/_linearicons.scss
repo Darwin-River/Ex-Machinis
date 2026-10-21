@@ -1,18 +1,18 @@
 @font-face {
   font-family: 'Linearicons';
-  // src:  url('fonts/Linearicons.eot?4t1dgh');
-  // src:  url('fonts/Linearicons.eot?4t1dgh#iefix') format('embedded-opentype'),
-  // url('fonts/Linearicons.ttf?4t1dgh') format('truetype'),
-  // url('fonts/Linearicons.woff?4t1dgh') format('woff'),
-  // url('fonts/Linearicons.svg?4t1dgh#Linearicons') format('svg');
+  // src:  url('/fonts/Linearicons.eot?4t1dgh');
+  // src:  url('/fonts/Linearicons.eot?4t1dgh#iefix') format('embedded-opentype'),
+  // url('/fonts/Linearicons.ttf?4t1dgh') format('truetype'),
+  // url('/fonts/Linearicons.woff?4t1dgh') format('woff'),
+  // url('/fonts/Linearicons.svg?4t1dgh#Linearicons') format('svg');
   font-weight: normal;
   font-style: normal;
 
-  src: url(../fonts/Linearicons.eot); /* For IE6-8 */
+  src: url(/fonts/Linearicons.eot); /* For IE6-8 */
   src: local('Linearicons'),
   local('Linearicons'),
-  url(../fonts/Linearicons.woff) format('woff'),
-  url(../fonts/Linearicons.ttf) format('truetype');
+  url(/fonts/Linearicons.woff) format('woff'),
+  url(/fonts/Linearicons.ttf) format('truetype');
 }
 
 .linearicons,

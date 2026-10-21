@@ -50,3 +50,23 @@ jobs:
 
       - name: Run tests
         run: vendor/bin/phpunit
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Check the committed build is up to date
+        run: |
+          git status --porcelain html/build
+          test -z "$(git status --porcelain html/build)" || { echo "html/build is stale: run 'npm run build' and commit the result"; exit 1; }

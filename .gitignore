@@ -18,3 +18,4 @@ phpMyAdmin
 *.log
 .phpunit.result.cache
 /.phpunit.cache
+/html/hot
