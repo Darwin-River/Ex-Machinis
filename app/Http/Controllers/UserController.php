@@ -23,18 +23,20 @@ class UserController extends Controller
      */
     public function reportCurrentUsersByMail($key)
     {
+        $this->requireCronKey($key);
 
         $currentUsers = User::with('agents')
-            ->orderBy('agent_id', 'desc')
+            ->orderBy('user_id', 'desc')
             ->get();
         try {
             Mail::send('email.users_report', ['currentUsers' => $currentUsers], function ($message)/* use ($user, $mail)*/ {
                 $message->to(getenv('REPORTS_DESTINATION'))->from("notifitacions@" . getenv("MAIL_HOST"), getenv("APP_NAME"))->subject("[" . getenv("APP_NAME") . "] Users Report");
             });
 
-            echo "Notification sent";
+            return response("Notification sent");
         } catch (\Exception $e) {
-            echo "There was an error:" . $e->getMessage();
+            report($e);
+            return response("There was an error sending the report.", 500);
         }
     }
 
@@ -97,7 +99,7 @@ class UserController extends Controller
      */
     public function companyView($id)
     {
-        $user = User::where('user_id', '=', $id)->first();
+        $user = User::where('user_id', '=', $id)->firstOrFail();
 
         $spacecraft = Agent::with('hull')->with('location')->with('lastEVents')->where('user_id', '=', $id)->get();
 

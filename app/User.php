@@ -29,11 +29,11 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the agents associated with the company.
+     * Get the agents (drones) owned by this user.
      */
     public function agents()
     {
-        return $this->hasManyThrough('App\Agent', 'App\Company');
+        return $this->hasMany('App\Agent', 'user_id', 'user_id');
     }
 
     /**

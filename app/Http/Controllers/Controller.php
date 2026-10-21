@@ -12,6 +12,20 @@ class Controller extends BaseController
     use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
 
     /**
+     * Aborts with 403 unless $key matches the configured cron key.
+     * Always refuses when no cron key is configured.
+     * @param string $key key taken from the URL
+     */
+    protected function requireCronKey($key)
+    {
+        $expected = (string) config('app.cron_key');
+
+        if ($expected === '' || !hash_equals($expected, (string) $key)) {
+            abort(403);
+        }
+    }
+
+    /**
      * If there is a message as get parameter, sets it as flash message
      * $request Request object
      */

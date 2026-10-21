@@ -88,11 +88,12 @@ extension on the server or switch to a pure-PHP client such as
 `webklex/php-imap`.
 
 ## Issues found while writing tests
-- `/user/send-report/{key}` never checks `{key}`, so anyone can trigger the
-  users-report email.
-- `/get-mails/{key}` uses `die()` on a wrong key, which can't be tested; it should
-  return a 403.
-- `/companies/{id}` returns a 500 instead of a 404 for an unknown id.
+- ✅ Fixed: `/user/send-report/{key}` and `/get-mails/{key}` now return a 403 unless
+  `{key}` matches `CRON_KEY` (`config('app.cron_key')`). Both are refused while
+  no key is configured.
+- ✅ Fixed: the users report sorted by a column `users` doesn't have, and counted
+  drones through a `companies` table that isn't in the schema.
+- ✅ Fixed: `/companies/{id}` returns a 404 for an unknown id.
 - The `sqInventory` view used by the buy and sell order searches isn't defined
   anywhere in the repo. The tests use a stand-in table; the real definition needs
   rebuilding before anything goes live again.
