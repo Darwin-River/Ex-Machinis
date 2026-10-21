@@ -23,8 +23,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     <!-- Styles -->
     <link rel="stylesheet" type="text/css"
           href="//fonts.googleapis.com/css?family=Open+Sans:400,400i,600,700,700i%7CYanone+Kaffeesatz:300,700%7CNova+Mono">
-    <link href="{{ mix('css/app.css') }}?v=<?= filemtime($_SERVER['DOCUMENT_ROOT'] . '/css/app.css') ?>"
-          rel="stylesheet">
+    @vite('resources/assets/sass/app.scss')
 
 
     <meta name="format-detection" content="telephone=no">
@@ -399,15 +398,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <div class="snackbars" id="form-output-global"></div>
 
 <!-- Scripts -->
-<script src="{{ mix('/js/app.js') }}?v=<?= filemtime($_SERVER['DOCUMENT_ROOT'] . '/js/app.js') ?>"></script>
-<script src="/js/core.min.js"></script>
-<script src="/js/script.js"></script>
+@vite('resources/assets/js/app.js')
+{{-- Deferred so they run after the app bundle (a module script) has mounted
+     Vue on #app; the theme sets up the navbar and other widgets on that DOM. --}}
+<script src="/js/core.min.js" defer></script>
+<script src="/js/script.js" defer></script>
 <script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
-<script>
-    $(document).ready(function () {
-
-    })
-</script>
 
 </body>
 </html>

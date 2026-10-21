@@ -90,7 +90,7 @@
 
 <script>
     import Vuetable from "vuetable-2";
-    import VuetablePagination from "vuetable-2/src/components/VuetablePagination";
+    import VuetablePagination from "vuetable-2/src/components/VuetablePagination.vue";
     import {formatDate} from '../helper.js';
 
     export default {

@@ -1,32 +1,32 @@
-/**
- * First we will load all of this project's JavaScript dependencies which
- * includes Vue and other libraries. It is a great starting point when
- * building robust, powerful web applications using Vue and Laravel.
- */
+import './bootstrap';
+// Bootstrap's jQuery plugins need window.jQuery, set in ./bootstrap above.
+import 'bootstrap';
+import Vue from 'vue';
+import VueMoment from 'vue-moment';
 
-require('./bootstrap');
-require('vue-moment');
+import SpaceObjectsTable from './components/SpaceObjectsTable.vue';
+import SpacecraftTable from './components/SpacecraftTable.vue';
+import ProtocolsTable from './components/ProtocolsTable.vue';
+import QueryCommandsTable from './components/QueryCommandsTable.vue';
+import CompaniesTable from './components/CompaniesTable.vue';
+import ResourcesTable from './components/ResourcesTable.vue';
+import InGameEventsTable from './components/InGameEventsTable.vue';
+import OrdersTable from './components/OrdersTable.vue';
+import ResourceOrdersTable from './components/ResourceOrdersTable.vue';
 
-window.Vue = require('vue');
+window.Vue = Vue;
 
+Vue.component('space-objects-table', SpaceObjectsTable);
+Vue.component('spacecraft-table', SpacecraftTable);
+Vue.component('protocols-table', ProtocolsTable);
+Vue.component('query-commands-table', QueryCommandsTable);
+Vue.component('companies-table', CompaniesTable);
+Vue.component('resources', ResourcesTable);
+Vue.component('in-game-events-table', InGameEventsTable);
+Vue.component('buy-orders-table', OrdersTable);
+Vue.component('resource-orders-table', ResourceOrdersTable);
 
-/**
- * Next, we will create a fresh Vue application instance and attach it to
- * the page. Then, you may begin adding components to this application
- * or customize the JavaScript scaffolding to fit your unique needs.
- */
-
-Vue.component('space-objects-table', require('./components/SpaceObjectsTable.vue').default);
-Vue.component('spacecraft-table', require('./components/SpacecraftTable.vue').default);
-Vue.component('protocols-table', require('./components/ProtocolsTable.vue').default);
-Vue.component('query-commands-table', require('./components/QueryCommandsTable.vue').default);
-Vue.component('companies-table', require('./components/CompaniesTable').default);
-Vue.component('resources', require('./components/ResourcesTable').default);
-Vue.component('in-game-events-table', require('./components/InGameEventsTable').default);
-Vue.component('buy-orders-table', require('./components/OrdersTable').default);
-Vue.component('resource-orders-table', require('./components/ResourceOrdersTable').default);
-
-Vue.use(require('vue-moment'));
+Vue.use(VueMoment);
 
 Vue.mixin({
     methods: {
@@ -34,6 +34,6 @@ Vue.mixin({
     }
 });
 
-const app = new Vue({
+new Vue({
     el: '#app',
 });

@@ -128,11 +128,35 @@ before starting the next. Laravel only supports upgrading one major at a time.
   `MAIL_MAILER` in `.env`/`config/mail.php`.
 
 ### 5. Frontend
-- Fix the `package.json` scripts for Mix 6 first (`mix`, `mix watch`, `mix --production`).
-- Then move to **Vite** (`laravel-vite-plugin`) and **Vue 3**. The 9 components are
-  simple tables. The main changes are `Vue.component` → `app.component` and
-  removing filters if they're used.
-- Bootstrap `4.0.0-beta` should go to 4.6 or 5.
+**Part 1 ✅ done: working build on Vite.**
+- laravel-mix/webpack replaced by **Vite** (`vite.config.js`, `laravel-vite-plugin`,
+  `@vitejs/plugin-vue2`). `npm run build` writes to `html/build/`, and the
+  layout loads it with `@vite`. The build output is committed, as before, so
+  the server doesn't need Node.
+- Vue stays on 2, at its final release (2.7.16), because six of the nine tables
+  use `vuetable-2`, which has no Vue 3 version.
+- Bootstrap's npm package went from 4.0.0-beta to **4.6.2**, which fixes the 4.x
+  XSS CVEs in its JS plugins. The theme's vendored copy in
+  `resources/assets/sass/bootstrap` is unchanged.
+- Dropped unused packages (d3, vue-events, jquery-mousewheel, fibers,
+  browser-sync, cross-env, webpack).
+- Gotchas fixed so the pages look and behave as before (checked with
+  before/after screenshots of 13 pages at desktop and phone widths):
+  - `core.min.js` and `script.js` are now `defer`, so they still run after
+    Vue mounts `#app`. Otherwise Vue re-renders the navbar the theme just set up.
+  - Newer Sass keeps declarations after nested rules in source order; one rule
+    in `exmachinis.scss` relied on the old hoisting (the top menu wrapped).
+  - SFC templates keep whitespace (`whitespace: 'preserve'`), matching the old
+    vue-loader output.
+  - Font `url()`s are absolute (`/fonts/...`) so they still resolve from
+    `html/build/assets/`.
+- CI runs `npm ci && npm run build` and fails if the committed `html/build` is stale.
+
+**Part 2 (next): Vue 3.** Replace `vuetable-2` in the six tables (a small
+custom table component, or a maintained Vue 3 table library), then switch to
+`@vitejs/plugin-vue`, `createApp()` and `app.component()`, and replace the
+`moment` filter with a method. Consider Bootstrap 5 at the same time, since the
+theme's markup and the vendored Bootstrap copy both need reworking for it.
 
 ### 6. IMAP mail intake
 `/get-mails/{key}` reads the registrar inbox with `php-imap`, which depends on the

@@ -115,10 +115,12 @@ select.form-input {
 }
 
 .rd-navbar-main .rd-navbar-nav-wrap .rd-navbar-list-link li {
+  // Declarations go before nested rules: newer Sass keeps source order, so a
+  // trailing display: block would override the lg+ inline-block below.
+  display: block;
   @include media-breakpoint-up(lg) {
     display: inline-block;
   }
-  display: block;
 }
 
 /*.rd-navbar-list-link {
