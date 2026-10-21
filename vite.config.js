@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
-import vue from '@vitejs/plugin-vue2';
+import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
     plugins: [
@@ -15,9 +15,10 @@ export default defineConfig({
                 // Keep whitespace between elements, as the old vue-loader build
                 // did; the layout of inline buttons depends on it.
                 compilerOptions: { whitespace: 'preserve' },
-                transformAssetUrlsOptions: {
+                transformAssetUrls: {
                     // Leave absolute URLs like /images/loading.gif alone;
                     // they're served directly from html/.
+                    base: null,
                     includeAbsolute: false,
                 },
             },
@@ -33,10 +34,16 @@ export default defineConfig({
             },
         },
     },
+    define: {
+        __VUE_OPTIONS_API__: true,
+        __VUE_PROD_DEVTOOLS__: false,
+        __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
+    },
     resolve: {
         alias: {
-            // Full build with the template compiler; components are also used from Blade.
-            vue: 'vue/dist/vue.esm.js',
+            // Build with the runtime template compiler: the page inside #app is
+            // rendered by Blade and compiled by Vue in the browser.
+            vue: 'vue/dist/vue.esm-bundler.js',
         },
     },
 });

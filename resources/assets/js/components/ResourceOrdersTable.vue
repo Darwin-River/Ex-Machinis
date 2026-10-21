@@ -23,37 +23,35 @@
 
         <img src="/images/loading.gif" id="table_preloader" v-show="loading"/>
         <div v-bind:class="'table-responsive '+(loading?' loading-table ':'') ">
-            <vuetable :api-url="dataUrl" :fields="fields" data-path="data" pagination-path=""
-                      @vuetable:loading="startLoading"
-                      @vuetable:loaded="stopLoading" ref="vuetable" :append-params="extraParams"
+            <data-table :api-url="dataUrl" :fields="fields"
+                      @loading="startLoading"
+                      @loaded="stopLoading" ref="vuetable" :append-params="extraParams"
                       :per-page="resultsPerPage" :css="css.table">
 
-                <div slot="timestamp" slot-scope="props">
-                    {{ formatDate(props.rowData.timestamp) | moment("MM/DD/YYYY h:mm:ss A") }}
-                </div>
-                <div slot="agent_name" slot-scope="props">
+                <template #timestamp="props"><div>
+                    {{ formatDateTime(props.rowData.timestamp) }}
+                </div></template>
+                <template #agent_name="props"><div>
                     <a v-bind:href="'/spacecraft/'+props.rowData.agent_id">{{props.rowData.agent_name}}</a>
-                </div>
-                <div slot="object_id" slot-scope="props">
+                </div></template>
+                <template #object_id="props"><div>
                     <a v-bind:href="'/locations/'+props.rowData.object_id">{{props.rowData.object_name}}</a>
-                </div>
+                </div></template>
 
-            </vuetable>
+            </data-table>
         </div>
 
     </div>
 </template>
 
 <script>
-    import Vuetable from "vuetable-2";
-    import VuetablePagination from "vuetable-2/src/components/VuetablePagination.vue";
-    import {formatDate} from "../helper";
+    import DataTable from './DataTable.vue';
+    import {formatDateTime} from '../helper.js';
 
     export default {
         name: "ResourceOrdersTable",
         components: {
-            Vuetable,
-            VuetablePagination,
+            DataTable,
         },
         props: {
             resourceId: Number,
@@ -119,6 +117,7 @@
             loading: false,
 
             totalPages: null,
+            currentPage: 1,
             resultsPerPage: 10,
 
             css: {
@@ -138,11 +137,11 @@
             //...
             // when the pagination data is available, set it to pagination component
         /*    onPaginationData(paginationData) {
-                this.$refs.pagination.setPaginationData(paginationData);
-                this.totalPages = this.$refs.pagination.totalPage;
+                this.currentPage = paginationData.current_page;
+                this.totalPages = paginationData.last_page;
             },*/
             // when the user click something that causes the page to change,
-            // call "changePage" method in Vuetable, so that that page will be
+            // call "changePage" on the data table, so that that page will be
             // requested from the API endpoint.
          /*   onChangePage(page) {
                 this.$refs.vuetable.changePage(page);
@@ -156,11 +155,11 @@
                     params.location = this.location;
 
                 this.extraParams = params;
-                Vue.nextTick(() => this.$refs.vuetable.refresh())
+                this.$nextTick(() => this.$refs.vuetable.refresh())
             },
             resetFilters() {
                 this.location = null;
-                Vue.nextTick(() => this.$refs.vuetable.refresh());
+                this.$nextTick(() => this.$refs.vuetable.refresh());
             },
             startLoading() {
                 this.loading = true;
@@ -168,8 +167,8 @@
             stopLoading() {
                 this.loading = false;
             },
-            formatDate(date) {
-                return formatDate(date);
+            formatDateTime(date) {
+                return formatDateTime(date);
             },
         },
     }

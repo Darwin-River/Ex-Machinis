@@ -31,26 +31,26 @@
 
         <img src="/images/loading.gif" id="table_preloader" v-show="loading"/>
         <div v-bind:class="'table-responsive '+(loading?' loading-table ':'') ">
-            <vuetable api-url="/companies/search" :fields="fields" data-path="data" pagination-path=""
-                      @vuetable:pagination-data="onPaginationData" @vuetable:loading="startLoading"
-                      @vuetable:loaded="stopLoading" ref="vuetable" :append-params="extraParams"
+            <data-table api-url="/companies/search" :fields="fields"
+                      @pagination-data="onPaginationData" @loading="startLoading"
+                      @loaded="stopLoading" ref="vuetable" :append-params="extraParams"
                       :per-page="resultsPerPage" :css="css.table">
-                <div slot="user_id" slot-scope="props">
+                <template #user_id="props"><div>
                     <a v-bind:href="'/companies/'+props.rowData.user_id">{{props.rowData.user_id}}</a>
-                </div>
-                <div slot="name" slot-scope="props">
+                </div></template>
+                <template #name="props"><div>
                     <a v-bind:href="'/companies/'+props.rowData.user_id">{{props.rowData.name}}</a>
-                </div>
+                </div></template>
 
-            </vuetable>
+            </data-table>
         </div>
 
         <div class="pagination-wrap" v-if="totalPages && totalPages>1" :key="totalPages">
             <!-- Bootstrap Pagination-->
             <nav aria-label="Page navigation">
                 <ul class="pagination">
-                    <li v-bind:class="'page-item '+($refs.pagination.tablePagination.current_page === index?'active':'')"
-                        v-for="index in totalPages"><span v-if="$refs.pagination.tablePagination.current_page === index"
+                    <li v-bind:class="'page-item '+(currentPage === index?'active':'')"
+                        v-for="index in totalPages"><span v-if="currentPage === index"
                                                           class="page-link">{{index}}</span><a v-else href=""
                                                                                                v-on:click.prevent.stop="onChangePage(index)"
                                                                                                class="page-link">{{index}}</a>
@@ -58,20 +58,16 @@
                 </ul>
             </nav>
         </div>
-        <vuetable-pagination ref="pagination" @vuetable-pagination:change-page="onChangePage"
-                             :fields="fields"></vuetable-pagination>
     </div>
 </template>
 
 <script>
-    import Vuetable from "vuetable-2";
-    import VuetablePagination from "vuetable-2/src/components/VuetablePagination.vue";
+    import DataTable from './DataTable.vue';
 
     export default {
         name: "CompaniesTable",
         components: {
-            Vuetable,
-            VuetablePagination,
+            DataTable,
             /*     VueEvents,*/
         },
         props: {
@@ -132,6 +128,7 @@
             loading: false,
 
             totalPages: null,
+            currentPage: 1,
 
             css: {
                 table: {
@@ -150,11 +147,11 @@
             //...
             // when the pagination data is available, set it to pagination component
             onPaginationData(paginationData) {
-                this.$refs.pagination.setPaginationData(paginationData);
-                this.totalPages = this.$refs.pagination.totalPage;
+                this.currentPage = paginationData.current_page;
+                this.totalPages = paginationData.last_page;
             },
             // when the user click something that causes the page to change,
-            // call "changePage" method in Vuetable, so that that page will be
+            // call "changePage" on the data table, so that that page will be
             // requested from the API endpoint.
             onChangePage(page) {
                 this.$refs.vuetable.changePage(page);
@@ -170,13 +167,13 @@
                     params.name = this.companyName;
 
                 this.extraParams = params;
-                Vue.nextTick(() => this.$refs.vuetable.refresh())
+                this.$nextTick(() => this.$refs.vuetable.refresh())
             },
             resetFilters() {
                 this.companyName = null;
                 this.companyId = null;
                 this.extraParams = {};
-                Vue.nextTick(() => this.$refs.vuetable.refresh());
+                this.$nextTick(() => this.$refs.vuetable.refresh());
             },
             startLoading() {
                 this.loading = true;
