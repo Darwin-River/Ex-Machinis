@@ -3,9 +3,15 @@
 Plan for moving the website (`app/`, `routes/`, `resources/`, `config/`) off its
 end-of-life stack. The C game engine is not affected.
 
-## Where we are
+## Status (Oct 2026)
 
-| Piece | Current | Status |
+**Backend upgrade complete:** Laravel 13.38 on PHP 8.3, phpunit 10.5, with 47
+tests running in CI on every PR. What's left: the frontend (step 5) and the IMAP
+decision (step 6).
+
+## Where we started
+
+| Piece | Was | Status then |
 |---|---|---|
 | Laravel | 6.20.42 | End of life since Sept 2022 |
 | PHP | `>=7.0` in composer.json | PHP 7.x is end of life |
@@ -112,7 +118,14 @@ before starting the next. Laravel only supports upgrading one major at a time.
   - The old migrations in `database/migrations` use `->change()`, which in
     Laravel 11 drops any modifiers that aren't restated. They aren't used (the
     schema comes from `game-engine/sql`), but don't run them as they are.
-- Next: Laravel 12, which is a light upgrade from 11.
+- ✅ Laravel 12 done (12.70.1): no code changes needed.
+- ✅ Laravel 13 done (13.38.0): `laravel/tinker` ^3.0. No code changes needed.
+  The legacy `MAIL_DRIVER` setting still works, no view text clashes with a
+  Blade directive, and every route resolves.
+- Optional later: adopt the slim Laravel 11+ skeleton (`bootstrap/app.php`
+  routing and middleware config), move models to `app/Models`, switch route
+  strings to `[Controller::class, 'method']`, and rename `MAIL_DRIVER` to
+  `MAIL_MAILER` in `.env`/`config/mail.php`.
 
 ### 5. Frontend
 - Fix the `package.json` scripts for Mix 6 first (`mix`, `mix watch`, `mix --production`).
