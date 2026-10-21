@@ -59,6 +59,6 @@ class CronEndpointsTest extends TestCase
 
         $this->assertStringContainsString('Test Company', $html);
         $this->assertStringContainsString('test@example.com', $html);
-        $this->assertRegExp('#<td>\s*1\s*</td>\s*</tr>#', $html);
+        $this->assertMatchesRegularExpression('#<td>\s*1\s*</td>\s*</tr>#', $html);
     }
 }
