@@ -23,7 +23,7 @@ class PagesTest extends TestCase
             ->assertSee("<title>{$title} - Ex-Machinis</title>", false);
     }
 
-    public function staticPages()
+    public static function staticPages()
     {
         return [
             'home'             => ['/', 'Home'],
@@ -75,7 +75,7 @@ class PagesTest extends TestCase
             ->assertSee("<title>{$name} - Ex-Machinis</title>", false);
     }
 
-    public function detailPages()
+    public static function detailPages()
     {
         return [
             'resource'   => ['/resources/1', 'Ore, Iron'],
@@ -98,7 +98,7 @@ class PagesTest extends TestCase
         $this->get($url)->assertNotFound();
     }
 
-    public function nonNumericIds()
+    public static function nonNumericIds()
     {
         return [
             'spacecraft sql' => ["/spacecraft/1'"],
