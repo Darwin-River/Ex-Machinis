@@ -46,10 +46,15 @@ before starting the next. Laravel only supports upgrading one major at a time.
 - Composer's platform is pinned to PHP 7.4 so the lock file stays installable there.
   Raise it at each PHP bump.
 
-### 1. Laravel 6 → 7
-- `app/Exceptions/Handler.php`: change `Exception $exception` to `Throwable $exception`
-  in `report()` and `render()`.
-- Bump `laravel/tinker` to ^2.
+### 1. Laravel 6 → 7 ✅ done
+- `laravel/framework` ^7.0 (7.30.7), `laravel/tinker` ^2.0.
+- Added `laravel/ui` ^2.0: Laravel 7 moved `Auth::routes()` and the login,
+  register and password-reset controller traits into that package.
+- `app/Exceptions/Handler.php` now takes `Throwable` instead of `Exception`.
+- Laravel 7's new date format for model JSON doesn't affect this app. Every JSON
+  endpoint uses the query builder, and the models passed to `json_encode` in
+  views have no date columns.
+- Added tests for player sign-up (`POST /web-register`).
 
 ### 2. Laravel 7 → 8
 - Models move to `app/Models` by default. This is optional; keeping them in `app/` still works.
@@ -88,11 +93,12 @@ extension on the server or switch to a pure-PHP client such as
 `webklex/php-imap`.
 
 ## Issues found while writing tests
-- `/user/send-report/{key}` never checks `{key}`, so anyone can trigger the
-  users-report email.
-- `/get-mails/{key}` uses `die()` on a wrong key, which can't be tested; it should
-  return a 403.
-- `/companies/{id}` returns a 500 instead of a 404 for an unknown id.
+- ✅ Fixed: `/user/send-report/{key}` and `/get-mails/{key}` now return a 403 unless
+  `{key}` matches `CRON_KEY` (`config('app.cron_key')`). Both are refused while
+  no key is configured.
+- ✅ Fixed: the users report sorted by a column `users` doesn't have, and counted
+  drones through a `companies` table that isn't in the schema.
+- ✅ Fixed: `/companies/{id}` returns a 404 for an unknown id.
 - The `sqInventory` view used by the buy and sell order searches isn't defined
   anywhere in the repo. The tests use a stand-in table; the real definition needs
   rebuilding before anything goes live again.

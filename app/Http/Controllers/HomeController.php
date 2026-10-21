@@ -45,8 +45,7 @@ class HomeController extends Controller
     public function getMails($key)
     {
 
-        if ($key != env("CRON_KEY"))
-            die("wrong key");
+        $this->requireCronKey($key);
 
         // 4. argument is the directory into which attachments are to be saved:
         $mailbox = new Mailbox('{' . getenv('MAIL_HOST') . ':' . getenv('MAIL_INCOMING_PORT') . '/imap/' . getenv('MAIL_ENCRYPTION') . '}INBOX', getenv('MAIL_REGISTRATION_ACCOUNT'), getenv('MAIL_REGISTRATION_PASSWORD'), null);

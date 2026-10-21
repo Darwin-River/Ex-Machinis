@@ -12,8 +12,9 @@
         "doctrine/dbal": "^2.5",
         "fideloper/proxy": "~4.0",
         "graham-campbell/markdown": "^11.1",
-        "laravel/framework": "^6.20.42",
-        "laravel/tinker": "~1.0",
+        "laravel/framework": "^7.0",
+        "laravel/tinker": "^2.0",
+        "laravel/ui": "^2.0",
         "php-imap/php-imap": "^3.0",
         "soundasleep/html2text": "~0.5"
     },

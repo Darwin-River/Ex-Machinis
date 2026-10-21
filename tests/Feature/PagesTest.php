@@ -76,6 +76,11 @@ class PagesTest extends TestCase
         $this->get('/spacecraft/999999')->assertNotFound();
     }
 
+    public function testMissingCompanyReturns404()
+    {
+        $this->get('/companies/999999')->assertNotFound();
+    }
+
     public function testBuyOrdersSearch()
     {
         $this->get('/buys/search')
