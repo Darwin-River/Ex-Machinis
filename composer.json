@@ -12,8 +12,8 @@
         "laravel/framework": "^13.0",
         "laravel/tinker": "^3.0",
         "laravel/ui": "^4.6",
-        "php-imap/php-imap": "^3.0",
-        "soundasleep/html2text": "~0.5"
+        "soundasleep/html2text": "~0.5",
+        "webklex/php-imap": "^6.2"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",

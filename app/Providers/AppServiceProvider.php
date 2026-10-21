@@ -23,6 +23,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
+        $this->app->bind(\App\Services\Mail\InboxFactory::class, function () {
+            return \App\Services\Mail\ImapInboxFactory::fromEnvironment();
+        });
+
         // Add this part
         $this->app->bind('path.public', function() {
             return base_path().'/html';

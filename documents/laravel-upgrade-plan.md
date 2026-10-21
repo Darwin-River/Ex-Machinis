@@ -5,9 +5,9 @@ end-of-life stack. The C game engine is not affected.
 
 ## Status (Oct 2026)
 
-**Backend upgrade complete:** Laravel 13.38 on PHP 8.3, phpunit 10.5, with 47
-tests running in CI on every PR. **Frontend complete:** Vite + Vue 3.5. What's
-left: the IMAP decision (step 6).
+**Backend upgrade complete:** Laravel 13.38 on PHP 8.3, phpunit 10.5, with 59
+tests running in CI on every PR. **Frontend complete:** Vite + Vue 3.5. **Mail
+intake** no longer needs the PHP imap extension. All planned steps are done.
 
 ## Where we started
 
@@ -29,8 +29,7 @@ That keeps the upgrade cheap.
 ## Target
 
 - **PHP 8.3** (supported to end of 2027) and **the current Laravel major**.
-- Stay on PHP 8.3 until the IMAP question below is settled, because 8.4 drops the
-  `imap` extension.
+- Moving to PHP 8.4+ is no longer blocked by the `imap` extension (see step 6).
 
 ## Steps
 
@@ -172,11 +171,23 @@ before starting the next. Laravel only supports upgrading one major at a time.
 **Possible later:** Bootstrap 5. The theme's markup and its vendored Bootstrap 4
 copy would both need reworking, so it's only worth doing as part of a redesign.
 
-### 6. IMAP mail intake
-`/get-mails/{key}` reads the registrar inbox with `php-imap`, which depends on the
-`imap` extension. Before moving to PHP 8.4, either install the PECL `imap`
-extension on the server or switch to a pure-PHP client such as
-`webklex/php-imap`.
+### 6. IMAP mail intake ✅ done
+- `/get-mails` now reads mail with **`webklex/php-imap`**, a pure-PHP IMAP client.
+  The PHP `imap` extension (removed from PHP core in 8.4) is no longer needed,
+  so PHP 8.4+ is unblocked.
+- Mail access sits behind `App\Services\Mail\Inbox`/`InboxFactory`
+  (`ImapInboxFactory` builds from the existing `MAIL_*` settings). The controller
+  logic is unchanged apart from the fixes below, and is now testable with an
+  in-memory inbox.
+- `MAIL_ENCRYPTION=tls` keeps its old meaning (STARTTLS on the plain port);
+  `ssl` is implicit TLS. New optional `MAIL_INCOMING_VALIDATE_CERT` (default true).
+- Fixed while porting: a "magica" mail from a sender with no display name failed
+  to register (the fallback name was computed but not used), and the
+  invalid-command reply was sent "from" the whole recipient list instead of the
+  drone's address.
+- Tests: `GetMailsTest` (handling logic, fake inbox) and `ImapInboxTest`
+  (adapter and full `/get-mails` path against a real GreenMail IMAP server,
+  which CI starts).
 
 ## Issues found while writing tests
 - ✅ Fixed: `/user/send-report/{key}` and `/get-mails/{key}` now return a 403 unless
