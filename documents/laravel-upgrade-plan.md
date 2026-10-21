@@ -69,16 +69,30 @@ before starting the next. Laravel only supports upgrading one major at a time.
   still honoured. `Paginator::useBootstrap()` isn't needed because no Blade
   view renders `->links()`; pagination is JSON for the Vue tables.
 
-### 3. Laravel 8 → 9 (needs PHP 8.0+)
-- Move CI (`.github/workflows/tests.yml`) and composer's `config.platform.php`
-  to PHP 8.x first, and get the suite green there on Laravel 8.
-- Remove `fideloper/proxy`. Make `TrustProxies` extend
-  `Illuminate\Http\Middleware\TrustProxies`.
-- Flysystem 3 and Symfony Mailer replace SwiftMailer. Check the mail config
-  (`MAIL_DRIVER` → `MAIL_MAILER`) and the welcome and report emails.
+### 3. Laravel 8 → 9 ✅ done
+- Part 1, still on Laravel 8: CI and composer's platform moved to **PHP 8.1**,
+  and composer.json now requires `php ^8.1`. Dependencies were refreshed within
+  their existing constraints, and every PHP file lints cleanly on 8.1.
+- Part 2: `laravel/framework` ^9.0 (9.52.22), `laravel/ui` ^3.4,
+  `laravel/tinker` ^2.7, phpunit ^9.5 (`phpunit.xml` migrated to the 9.x
+  `<coverage>` format).
+- Removed `fideloper/proxy`. `TrustProxies` now extends
+  `Illuminate\Http\Middleware\TrustProxies`. No proxies are trusted, as before.
+- Removed the unused dev dependency `composer/composer` 1.x, which pinned
+  Symfony 5.
+- SwiftMailer → Symfony Mailer: the legacy `MAIL_DRIVER` setting still works.
+  New `MailDeliveryTest` sends the welcome, already-registered and users-report
+  emails through the real mailer (array transport) and checks recipients,
+  subjects and bodies.
+- Flysystem 3: the app doesn't use `Storage`, so nothing changed.
+- Laravel 9 added an `@required` Blade directive, which broke the form
+  validation hints (`data-constraints="@Email @Required"`) in `layouts/app` and
+  `auth/register`. They're now escaped as `@@Required`, and a test checks the
+  rendered HTML. Watch for the same clash with new directives in later versions.
 
 ### 4. Laravel 9 → 10 → 11 → current
 - Laravel 10: PHP 8.1+, phpunit 10. The upgrade is mostly mechanical.
+  `doctrine/dbal` is still ^2.x and may need ^3.
 - Laravel 11: the new slim app skeleton is optional. Existing `Kernel.php` files
   keep working, so don't restructure.
 - After that: follow each release's upgrade guide. Consider running

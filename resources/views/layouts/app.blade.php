@@ -367,13 +367,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
                         <div class="form-wrap mt-2">
                             <input class="form-input form-control-has-validation" id="subscribe-form-2-email"
-                                   type="email" name="email" data-constraints="@Email @Required"><span
+                                   type="email" name="email" data-constraints="@Email @@Required"><span
                                     class="form-validation"></span>
                             <label class="form-label rd-input-label" for="subscribe-form-2-email">E-mail</label>
                         </div>
                         <div class="form-wrap">
                             <input class="form-input form-control-has-validation" id="subscribe-form-2-name"
-                                   type="text" name="name" data-constraints="@Required"><span
+                                   type="text" name="name" data-constraints="@@Required"><span
                                     class="form-validation"></span>
                             <label class="form-label rd-input-label" for="subscribe-form-2-name">A name for your
                                 company</label>

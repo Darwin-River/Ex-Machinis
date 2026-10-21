@@ -32,7 +32,7 @@
                         <div class="form-wrap {{ $errors->has('email') ? ' has-error' : '' }}">
                             <label class="form-label-outside" for="email">E-mail</label>
                             <input class="form-input form-control-has-validation form-control-last-child"
-                                   id="email" type="email" name="email" data-constraints="@Email @Required"
+                                   id="email" type="email" name="email" data-constraints="@Email @@Required"
                                    value="{{ old('email') }}" required><span
                                     class="form-validation"></span>
                             @if ($errors->has('email'))
@@ -45,7 +45,7 @@
                             <label class="form-label-outside" for="name">Name for your Space Company</label>
                             <input class="form-input form-control-has-validation form-control-last-child"
                                    id="name" type="text" name="name"
-                                   data-constraints="@Required" required><span class="form-validation"></span>
+                                   data-constraints="@@Required" required><span class="form-validation"></span>
                             @if ($errors->has('name'))
                                 <span class="help-block">
                                         <strong>{{ $errors->first('name') }}</strong>

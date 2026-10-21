@@ -45,6 +45,20 @@ class PagesTest extends TestCase
         ];
     }
 
+    public function testFormValidationHintsRenderLiterally()
+    {
+        // The front-end validator reads these attributes. Since Laravel 9,
+        // "@required" is a Blade directive, so the views must escape it.
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('data-constraints="@Email @Required"', false)
+            ->assertSee('data-constraints="@Required"', false);
+
+        $this->get('/register')
+            ->assertOk()
+            ->assertSee('data-constraints="@Email @Required"', false);
+    }
+
     public function testAuthPagesLoad()
     {
         $this->get('/login')->assertOk();
