@@ -15,6 +15,9 @@ $app = new Illuminate\Foundation\Application(
     realpath(__DIR__.'/../')
 );
 
+// The web root is html/ (see webpack.mix.js), not Laravel's default public/.
+$app->usePublicPath(realpath(__DIR__.'/../html'));
+
 /*
 |--------------------------------------------------------------------------
 | Bind Important Interfaces

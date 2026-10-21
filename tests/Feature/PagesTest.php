@@ -90,6 +90,25 @@ class PagesTest extends TestCase
         $this->get('/spacecraft/999999')->assertNotFound();
     }
 
+    /**
+     * @dataProvider nonNumericIds
+     */
+    public function testNonNumericIdsReturn404($url)
+    {
+        $this->get($url)->assertNotFound();
+    }
+
+    public function nonNumericIds()
+    {
+        return [
+            'spacecraft sql' => ["/spacecraft/1'"],
+            'spacecraft union' => ['/spacecraft/1%20UNION%20SELECT%201'],
+            'location' => ['/locations/abc'],
+            'resource' => ['/resources/1;'],
+            'company' => ['/companies/x1'],
+        ];
+    }
+
     public function testMissingCompanyReturns404()
     {
         $this->get('/companies/999999')->assertNotFound();

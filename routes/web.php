@@ -36,7 +36,7 @@ Route::get('message', 'HomeController@message');
 
 //resources
 Route::get('/resources', 'ResourceController@index');
-Route::get('/resources/{id}', 'ResourceController@view');
+Route::get('/resources/{id}', 'ResourceController@view')->whereNumber('id');
 Route::get('/buys', 'ResourceController@buyOrders');
 Route::get('/buys/search', 'ResourceController@buyOrdersSearch');
 Route::get('/sells', 'ResourceController@sellOrders');
@@ -46,18 +46,18 @@ Route::get('/sells/search', 'ResourceController@sellOrdersSearch');
 //space objects
 Route::get('/locations', 'SpaceObjectController@index');
 Route::get('/objects/search', 'SpaceObjectController@objectsSearch');
-Route::get('/locations/{id}', 'SpaceObjectController@view');
+Route::get('/locations/{id}', 'SpaceObjectController@view')->whereNumber('id');
 
 //agents
 Route::get('/spacecraft', 'AgentController@index');
 Route::get('/spacecraft/search', 'AgentController@agentsSearch');
-Route::get('/spacecraft/{id}', 'AgentController@view');
+Route::get('/spacecraft/{id}', 'AgentController@view')->whereNumber('id');
 Route::get('/protocols', 'AgentController@protocols');
 
 //companies
 Route::get('/companies', 'UserController@companyIndex');
 Route::get('/companies/search', 'UserController@companySearch');
-Route::get('/companies/{id}', 'UserController@companyView');
+Route::get('/companies/{id}', 'UserController@companyView')->whereNumber('id');
 
 //in-game events
 Route::get('/events', 'HomeController@inGameEvents');

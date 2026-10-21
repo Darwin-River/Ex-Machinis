@@ -9,10 +9,10 @@
     "type": "project",
     "require": {
         "php": "^8.1",
-        "doctrine/dbal": "^2.5",
-        "laravel/framework": "^9.0",
-        "laravel/tinker": "^2.7",
-        "laravel/ui": "^3.4",
+        "doctrine/dbal": "^3.5",
+        "laravel/framework": "^10.0",
+        "laravel/tinker": "^2.8",
+        "laravel/ui": "^4.0",
         "php-imap/php-imap": "^3.0",
         "soundasleep/html2text": "~0.5"
     },
