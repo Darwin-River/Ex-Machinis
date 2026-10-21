@@ -56,21 +56,26 @@ before starting the next. Laravel only supports upgrading one major at a time.
   views have no date columns.
 - Added tests for player sign-up (`POST /web-register`).
 
-### 2. Laravel 7 → 8
-- Models move to `app/Models` by default. This is optional; keeping them in `app/` still works.
-- `database/seeds` → `database/seeders` with namespaces. Update composer autoload.
-- Swap `fzaninotto/faker` for `fakerphp/faker`.
-- Route strings like `'HomeController@index'` still work as long as the
-  `$namespace` property stays in `RouteServiceProvider`. Migrating to
-  `[HomeController::class, 'index']` is cleaner and needed by step 4.
-- Pagination now defaults to Tailwind. Call `Paginator::useBootstrap()` because the site uses Bootstrap.
+### 2. Laravel 7 → 8 ✅ done
+- `laravel/framework` ^8.0 (8.83.29), `laravel/ui` ^3.0.
+- Swapped `fzaninotto/faker` for `fakerphp/faker`.
+- `database/seeds` → `database/seeders` (namespace `Database\Seeders`). The old
+  `UserFactory` closure is now a class-based factory in `Database\Factories`,
+  and composer autoload uses PSR-4 for both.
+- Removed `graham-campbell/markdown`. Nothing used it, and it had no Laravel 8
+  release in the 11.x line.
+- Kept: models stay in `app/`, route strings keep working through
+  `RouteServiceProvider::$namespace`, and the legacy `MAIL_DRIVER` setting is
+  still honoured. `Paginator::useBootstrap()` isn't needed because no Blade
+  view renders `->links()`; pagination is JSON for the Vue tables.
 
 ### 3. Laravel 8 → 9 (needs PHP 8.0+)
+- Move CI (`.github/workflows/tests.yml`) and composer's `config.platform.php`
+  to PHP 8.x first, and get the suite green there on Laravel 8.
 - Remove `fideloper/proxy`. Make `TrustProxies` extend
   `Illuminate\Http\Middleware\TrustProxies`.
 - Flysystem 3 and Symfony Mailer replace SwiftMailer. Check the mail config
   (`MAIL_DRIVER` → `MAIL_MAILER`) and the welcome and report emails.
-- `graham-campbell/markdown` goes to ^14. The config format changed.
 
 ### 4. Laravel 9 → 10 → 11 → current
 - Laravel 10: PHP 8.1+, phpunit 10. The upgrade is mostly mechanical.
