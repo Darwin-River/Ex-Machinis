@@ -16,3 +16,4 @@ phpMyAdmin
 /.env
 /game-engine/scripts/.env
 *.log
+.phpunit.result.cache

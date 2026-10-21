@@ -27,5 +27,8 @@
         <env name="CACHE_DRIVER" value="array"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="QUEUE_DRIVER" value="sync"/>
+        <env name="MAIL_DRIVER" value="array"/>
+        <!-- Test-only key; never used outside the test suite. -->
+        <env name="APP_KEY" value="base64:dGVzdGluZy1vbmx5LWtleS1ub3QtYS1zZWNyZXQhISE="/>
     </php>
 </phpunit>
