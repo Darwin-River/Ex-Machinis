@@ -85,6 +85,10 @@ before starting the next. Laravel only supports upgrading one major at a time.
   emails through the real mailer (array transport) and checks recipients,
   subjects and bodies.
 - Flysystem 3: the app doesn't use `Storage`, so nothing changed.
+- Laravel 9 added an `@required` Blade directive, which broke the form
+  validation hints (`data-constraints="@Email @Required"`) in `layouts/app` and
+  `auth/register`. They're now escaped as `@@Required`, and a test checks the
+  rendered HTML. Watch for the same clash with new directives in later versions.
 
 ### 4. Laravel 9 → 10 → 11 → current
 - Laravel 10: PHP 8.1+, phpunit 10. The upgrade is mostly mechanical.
