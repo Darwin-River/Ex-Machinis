@@ -46,10 +46,15 @@ before starting the next. Laravel only supports upgrading one major at a time.
 - Composer's platform is pinned to PHP 7.4 so the lock file stays installable there.
   Raise it at each PHP bump.
 
-### 1. Laravel 6 → 7
-- `app/Exceptions/Handler.php`: change `Exception $exception` to `Throwable $exception`
-  in `report()` and `render()`.
-- Bump `laravel/tinker` to ^2.
+### 1. Laravel 6 → 7 ✅ done
+- `laravel/framework` ^7.0 (7.30.7), `laravel/tinker` ^2.0.
+- Added `laravel/ui` ^2.0: Laravel 7 moved `Auth::routes()` and the login,
+  register and password-reset controller traits into that package.
+- `app/Exceptions/Handler.php` now takes `Throwable` instead of `Exception`.
+- Laravel 7's new date format for model JSON doesn't affect this app. Every JSON
+  endpoint uses the query builder, and the models passed to `json_encode` in
+  views have no date columns.
+- Added tests for player sign-up (`POST /web-register`).
 
 ### 2. Laravel 7 → 8
 - Models move to `app/Models` by default. This is optional; keeping them in `app/` still works.
