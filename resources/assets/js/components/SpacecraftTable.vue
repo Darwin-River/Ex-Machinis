@@ -31,35 +31,35 @@
 
         <img src="/images/loading.gif" id="table_preloader" v-show="loading"/>
         <div v-bind:class="'table-responsive '+(loading?' loading-table ':'') ">
-            <vuetable api-url="/spacecraft/search" :fields="fields" data-path="data" pagination-path=""
-                      @vuetable:pagination-data="onPaginationData" @vuetable:loading="startLoading"
-                      @vuetable:loaded="stopLoading" ref="vuetable" :append-params="extraParams"
+            <data-table api-url="/spacecraft/search" :fields="fields"
+                      @pagination-data="onPaginationData" @loading="startLoading"
+                      @loaded="stopLoading" ref="vuetable" :append-params="extraParams"
                       :per-page="resultsPerPage" :css="css.table">
-                <div slot="agent_id" slot-scope="props">
+                <template #agent_id="props"><div>
                     <a v-bind:href="'/spacecraft/'+props.rowData.agent_id">{{props.rowData.agent_id}}</a>
-                </div>
-                <div slot="name" slot-scope="props">
+                </div></template>
+                <template #name="props"><div>
                     <a v-bind:href="'/spacecraft/'+props.rowData.agent_id">{{props.rowData.name}}</a>
-                </div>
-                <div slot="hull_name" slot-scope="props">
+                </div></template>
+                <template #hull_name="props"><div>
                     <span v-if="props.rowData.hull_id">{{props.rowData.hull_name}}</span>
                     <span v-else class="">-</span>
-                </div>
-                <div slot="location_name" slot-scope="props">
+                </div></template>
+                <template #location_name="props"><div>
                     <a v-bind:href="'/locations/'+props.rowData.location_id">{{props.rowData.location_name}}</a>
-                </div>
-                <div slot="owner_name" slot-scope="props">
+                </div></template>
+                <template #owner_name="props"><div>
                     <a v-bind:href="'/companies/'+props.rowData.owner_id">{{props.rowData.owner_name}}</a>
-                </div>
-            </vuetable>
+                </div></template>
+            </data-table>
         </div>
 
         <div class="pagination-wrap" v-if="totalPages && totalPages>1" :key="totalPages">
             <!-- Bootstrap Pagination-->
             <nav aria-label="Page navigation">
                 <ul class="pagination">
-                    <li v-bind:class="'page-item '+($refs.pagination.tablePagination.current_page === index?'active':'')"
-                        v-for="index in totalPages"><span v-if="$refs.pagination.tablePagination.current_page === index"
+                    <li v-bind:class="'page-item '+(currentPage === index?'active':'')"
+                        v-for="index in totalPages"><span v-if="currentPage === index"
                                                           class="page-link">{{index}}</span><a v-else href=""
                                                                                                v-on:click.prevent.stop="onChangePage(index)"
                                                                                                class="page-link">{{index}}</a>
@@ -67,20 +67,16 @@
                 </ul>
             </nav>
         </div>
-        <vuetable-pagination ref="pagination" @vuetable-pagination:change-page="onChangePage"
-                             :fields="fields"></vuetable-pagination>
     </div>
 </template>
 
 <script>
-    import Vuetable from 'vuetable-2';
-    import VuetablePagination from 'vuetable-2/src/components/VuetablePagination.vue';
+    import DataTable from './DataTable.vue';
 
     export default {
         name: "SpacecraftTable",
         components: {
-            Vuetable,
-            VuetablePagination,
+            DataTable,
             /*     VueEvents,*/
         },
         props: {
@@ -140,6 +136,7 @@
             loading: false,
 
             totalPages: null,
+            currentPage: 1,
 
             css: {
                 table: {
@@ -159,11 +156,11 @@
             //...
             // when the pagination data is available, set it to pagination component
             onPaginationData(paginationData) {
-                this.$refs.pagination.setPaginationData(paginationData);
-                this.totalPages = this.$refs.pagination.totalPage;
+                this.currentPage = paginationData.current_page;
+                this.totalPages = paginationData.last_page;
             },
             // when the user click something that causes the page to change,
-            // call "changePage" method in Vuetable, so that that page will be
+            // call "changePage" on the data table, so that that page will be
             // requested from the API endpoint.
             onChangePage(page) {
                 this.$refs.vuetable.changePage(page);
@@ -179,13 +176,13 @@
                     params.agent_name = this.agentName;
 
                 this.extraParams = params;
-                Vue.nextTick(() => this.$refs.vuetable.refresh())
+                this.$nextTick(() => this.$refs.vuetable.refresh())
             },
             resetFilters() {
                 this.agentName = null;
                 this.agentId = null;
                 this.extraParams = {};
-                Vue.nextTick(() => this.$refs.vuetable.refresh());
+                this.$nextTick(() => this.$refs.vuetable.refresh());
             },
             startLoading() {
                 this.loading = true;

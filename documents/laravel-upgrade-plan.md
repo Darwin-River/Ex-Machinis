@@ -6,8 +6,8 @@ end-of-life stack. The C game engine is not affected.
 ## Status (Oct 2026)
 
 **Backend upgrade complete:** Laravel 13.38 on PHP 8.3, phpunit 10.5, with 47
-tests running in CI on every PR. What's left: the frontend (step 5) and the IMAP
-decision (step 6).
+tests running in CI on every PR. **Frontend complete:** Vite + Vue 3.5. What's
+left: the IMAP decision (step 6).
 
 ## Where we started
 
@@ -152,11 +152,25 @@ before starting the next. Laravel only supports upgrading one major at a time.
     `html/build/assets/`.
 - CI runs `npm ci && npm run build` and fails if the committed `html/build` is stale.
 
-**Part 2 (next): Vue 3.** Replace `vuetable-2` in the six tables (a small
-custom table component, or a maintained Vue 3 table library), then switch to
-`@vitejs/plugin-vue`, `createApp()` and `app.component()`, and replace the
-`moment` filter with a method. Consider Bootstrap 5 at the same time, since the
-theme's markup and the vendored Bootstrap copy both need reworking for it.
+**Part 2 ✅ done: Vue 3.**
+- Vue 3.5 with `createApp()`, built with `@vitejs/plugin-vue`. The page inside
+  `#app` is still a Blade-rendered in-DOM template, so the runtime compiler build
+  is used and whitespace is preserved, as with Vue 2.
+- `vuetable-2` (Vue 2-only) is replaced by `components/DataTable.vue`, a small
+  component covering what the six tables used: fields and titles,
+  server-side sorting (`sort=field|asc`), paging over Laravel's paginator JSON,
+  slot and HTML-formatter cells, and loading events. It renders the same markup
+  and classes, so the theme's table styles are unchanged.
+- `slot`/`slot-scope` → `#name="props"`; the `moment` filter →
+  `formatDateTime()` in `helper.js`; `Vue.nextTick` → `this.$nextTick`.
+  Dropped `vue-moment` and `vuetable-2`.
+- Checked against the Vue 2 build: identical screenshots (13 pages, desktop and
+  phone), and identical requests, rows, pager and sort state for paging,
+  sorting and keyword search. The console is also cleaner (vuetable's
+  "track-by" warnings are gone).
+
+**Possible later:** Bootstrap 5. The theme's markup and its vendored Bootstrap 4
+copy would both need reworking, so it's only worth doing as part of a redesign.
 
 ### 6. IMAP mail intake
 `/get-mails/{key}` reads the registrar inbox with `php-imap`, which depends on the

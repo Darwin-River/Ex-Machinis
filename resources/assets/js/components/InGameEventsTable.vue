@@ -23,12 +23,12 @@
         <img src="/images/loading.gif" id="table_preloader" v-show="loading"/>
         <div v-bind:class="'table-responsive '+(loading?' loading-table ':'') ">
 
-            <vuetable api-url="/events/search" :fields="fields" data-path="data" pagination-path=""
-                      @vuetable:pagination-data="onPaginationData" @vuetable:loading="startLoading"
-                      @vuetable:loaded="stopLoading" ref="vuetable" :append-params="extraParams"
+            <data-table api-url="/events/search" :fields="fields"
+                      @pagination-data="onPaginationData" @loading="startLoading"
+                      @loaded="stopLoading" ref="vuetable" :append-params="extraParams"
                       :per-page="resultsPerPage" :css="css.table">
 
-                <div slot="acting_agent_id" slot-scope="props">
+                <template #acting_agent_id="props"><div>
                     <div v-if="props.rowData.acting_agent_id">
                         <a v-bind:href="'/spacecraft/'+props.rowData.acting_agent_id">{{props.rowData.acting_agent_name}}</a>
                         <span v-if="!agentId">(<a v-bind:href="'/companies/'+props.rowData.acting_company_id">{{props.rowData.acting_company_name}}</a>)</span>
@@ -36,8 +36,8 @@
                     <div v-else>
                         -
                     </div>
-                </div>
-                <div slot="affected_agent_id" slot-scope="props">
+                </div></template>
+                <template #affected_agent_id="props"><div>
                     <div v-if="props.rowData.affected_agent_id">
                         <a v-bind:href="'/spacecraft/'+props.rowData.affected_agent_id">{{props.rowData.affected_agent_name}}</a>
                         <span v-if="!agentId">(<a v-bind:href="'/companies/'+props.rowData.affected_company_id">{{props.rowData.affected_company_name}}</a>)</span>
@@ -45,37 +45,37 @@
                     <div v-else>
                         -
                     </div>
-                </div>
-                <div slot="resource_name" slot-scope="props">
+                </div></template>
+                <template #resource_name="props"><div>
                     <a v-bind:href="'/resources/'+props.rowData.resource_id">{{props.rowData.resource_name}}</a> <span
                         class="icon mdi mdi-lock" title="resource in use" v-if="props.rowData.locked === 1"></span>
-                </div>
-                <div slot="object_name" slot-scope="props">
+                </div></template>
+                <template #object_name="props"><div>
                     <a v-bind:href="'/locations/'+props.rowData.object_id">{{props.rowData.object_name}}</a>
-                </div>
-                <div slot="affected_company_name" slot-scope="props">
+                </div></template>
+                <template #affected_company_name="props"><div>
                     <a v-bind:href="'/company/'+props.rowData.affected_company_id">{{props.rowData.affected_company_name}}</a>
-                </div>
-                <div slot="affected_resource_name" slot-scope="props">
+                </div></template>
+                <template #affected_resource_name="props"><div>
                     <a v-bind:href="'/resources/'+props.rowData.affected_resource_id">{{props.rowData.affected_resource_name}}</a>
-                </div>
-                <div slot="timestamp" slot-scope="props">
-                    {{ formatDate(props.rowData.timestamp) | moment("MM/DD/YYYY h:mm:ss A") }}
-                </div>
-                <div slot="event_type_name" slot-scope="props">
+                </div></template>
+                <template #timestamp="props"><div>
+                    {{ formatDateTime(props.rowData.timestamp) }}
+                </div></template>
+                <template #event_type_name="props"><div>
                     {{props.rowData.event_type_name}} <span v-if="props.rowData.new_quantity">{{props.rowData.new_quantity}} units</span><span
                         v-if="props.rowData.new_credits"> {{props.rowData.new_credits}} credits</span><span
                         v-if="props.rowData.object_name"><a v-bind:href="/locations/+props.rowData.object_id">{{props.rowData.object_name}}</a></span>
-                </div>
-            </vuetable>
+                </div></template>
+            </data-table>
         </div>
 
         <div class="pagination-wrap" v-if="totalPages && totalPages>1" :key="totalPages">
             <!-- Bootstrap Pagination-->
             <nav aria-label="Page navigation">
                 <ul class="pagination">
-                    <li v-bind:class="'page-item '+($refs.pagination.tablePagination.current_page === index?'active':'')"
-                        v-for="index in totalPages"><span v-if="$refs.pagination.tablePagination.current_page === index"
+                    <li v-bind:class="'page-item '+(currentPage === index?'active':'')"
+                        v-for="index in totalPages"><span v-if="currentPage === index"
                                                           class="page-link">{{index}}</span><a v-else href=""
                                                                                                v-on:click.prevent.stop="onChangePage(index)"
                                                                                                class="page-link">{{index}}</a>
@@ -83,21 +83,17 @@
                 </ul>
             </nav>
         </div>
-        <vuetable-pagination ref="pagination" @vuetable-pagination:change-page="onChangePage"
-                             :fields="fields"></vuetable-pagination>
     </div>
 </template>
 
 <script>
-    import Vuetable from "vuetable-2";
-    import VuetablePagination from "vuetable-2/src/components/VuetablePagination.vue";
-    import {formatDate} from '../helper.js';
+    import DataTable from './DataTable.vue';
+    import {formatDateTime} from '../helper.js';
 
     export default {
         name: "InGameEventsTable",
         components: {
-            Vuetable,
-            VuetablePagination,
+            DataTable,
             /*     VueEvents,*/
         },
         props: {
@@ -178,6 +174,7 @@
             loading: false,
 
             totalPages: null,
+            currentPage: 1,
 
             css: {
                 table: {
@@ -204,11 +201,11 @@
             //...
             // when the pagination data is available, set it to pagination component
             onPaginationData(paginationData) {
-                this.$refs.pagination.setPaginationData(paginationData);
-                this.totalPages = this.$refs.pagination.totalPage;
+                this.currentPage = paginationData.current_page;
+                this.totalPages = paginationData.last_page;
             },
             // when the user click something that causes the page to change,
-            // call "changePage" method in Vuetable, so that that page will be
+            // call "changePage" on the data table, so that that page will be
             // requested from the API endpoint.
             onChangePage(page) {
                 this.$refs.vuetable.changePage(page);
@@ -223,13 +220,13 @@
                     delete this.extraParams.keyword;
 
                 //this.extraParams = params;
-                Vue.nextTick(() => this.$refs.vuetable.refresh())
+                this.$nextTick(() => this.$refs.vuetable.refresh())
             },
             resetFilters() {
                 this.keyword = null;
                 // this.extraParams = {};
                 delete this.extraParams.keyword;
-                Vue.nextTick(() => this.$refs.vuetable.refresh());
+                this.$nextTick(() => this.$refs.vuetable.refresh());
             },
             startLoading() {
                 this.loading = true;
@@ -237,8 +234,8 @@
             stopLoading() {
                 this.loading = false;
             },
-            formatDate(date) {
-                return formatDate(date);
+            formatDateTime(date) {
+                return formatDateTime(date);
             }
         },
     }

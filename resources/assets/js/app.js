@@ -1,8 +1,7 @@
 import './bootstrap';
 // Bootstrap's jQuery plugins need window.jQuery, set in ./bootstrap above.
 import 'bootstrap';
-import Vue from 'vue';
-import VueMoment from 'vue-moment';
+import { createApp } from 'vue';
 
 import SpaceObjectsTable from './components/SpaceObjectsTable.vue';
 import SpacecraftTable from './components/SpacecraftTable.vue';
@@ -14,26 +13,26 @@ import InGameEventsTable from './components/InGameEventsTable.vue';
 import OrdersTable from './components/OrdersTable.vue';
 import ResourceOrdersTable from './components/ResourceOrdersTable.vue';
 
-window.Vue = Vue;
+// The whole page inside #app (rendered by Blade) is the root template.
+const app = createApp({});
 
-Vue.component('space-objects-table', SpaceObjectsTable);
-Vue.component('spacecraft-table', SpacecraftTable);
-Vue.component('protocols-table', ProtocolsTable);
-Vue.component('query-commands-table', QueryCommandsTable);
-Vue.component('companies-table', CompaniesTable);
-Vue.component('resources', ResourcesTable);
-Vue.component('in-game-events-table', InGameEventsTable);
-Vue.component('buy-orders-table', OrdersTable);
-Vue.component('resource-orders-table', ResourceOrdersTable);
+// Keep whitespace between elements, as Vue 2 did; inline layouts depend on it.
+app.config.compilerOptions.whitespace = 'preserve';
 
-Vue.use(VueMoment);
+app.component('space-objects-table', SpaceObjectsTable);
+app.component('spacecraft-table', SpacecraftTable);
+app.component('protocols-table', ProtocolsTable);
+app.component('query-commands-table', QueryCommandsTable);
+app.component('companies-table', CompaniesTable);
+app.component('resources', ResourcesTable);
+app.component('in-game-events-table', InGameEventsTable);
+app.component('buy-orders-table', OrdersTable);
+app.component('resource-orders-table', ResourceOrdersTable);
 
-Vue.mixin({
+app.mixin({
     methods: {
         capitalizeFirstLetter: str => str.charAt(0).toUpperCase() + str.slice(1)
     }
 });
 
-new Vue({
-    el: '#app',
-});
+app.mount('#app');
