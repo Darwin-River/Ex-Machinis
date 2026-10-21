@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
-use PhpImap\Mailbox;
+use App\Services\Mail\IncomingMail;
+use App\Services\Mail\InboxFactory;
 use Html2Text\Html2Text;
 
 class HomeController extends Controller
@@ -40,129 +41,108 @@ class HomeController extends Controller
     }
 
     /**
-     * Download mails from the server and process them. Called by main loop.
+     * Download mails from the server and process them. Called by the cron
+     * email handler (game-engine/scripts/start_email_handler.sh).
+     *
+     * - registrar inbox: a mail with subject "magica" registers the sender.
+     * - catch-all inbox: a mail to <drone name>@MAIL_HOST from the drone
+     *   owner's address is queued as commands for that drone.
+     * Every processed mail is deleted.
      */
-    public function getMails($key)
+    public function getMails($key, InboxFactory $inboxes)
     {
-
         $this->requireCronKey($key);
 
-        // 4. argument is the directory into which attachments are to be saved:
-        $mailbox = new Mailbox('{' . getenv('MAIL_HOST') . ':' . getenv('MAIL_INCOMING_PORT') . '/imap/' . getenv('MAIL_ENCRYPTION') . '}INBOX', getenv('MAIL_REGISTRATION_ACCOUNT'), getenv('MAIL_REGISTRATION_PASSWORD'), null);
+        $log = [];
 
-// Read all messaged into an array:
-        $mailsIds = $mailbox->searchMailbox('ALL');
-        $mails = $mailbox->imap('fetch_overview', [implode(',', $mailsIds), FT_UID]);
+        $inbox = $inboxes->open(getenv('MAIL_REGISTRATION_ACCOUNT'), getenv('MAIL_REGISTRATION_PASSWORD'));
+        $mails = $inbox->messages();
         if (!$mails) {
-            echo 'Mailbox registrar is empty<br/>';
-        } else {
-
-            foreach ($mailsIds as $mailId) {
-                $mail = $mailbox->getMail($mailId);
-                echo "received mail with subject <b>" . strtolower(trim($mail->subject)) . '</b><br/>';
-                if (strtolower(trim($mail->subject)) == "magica") {
-                    //check if user exists
-                    //  $user = User::where('email', strtolower($mail->fromAddress))->first();
-                    $name = $mail->fromName;
-                    if (!$name) {
-                        $parts = explode("@", $mail->fromAddress);
-                        $name = $parts[0];
-                    }
-                    User::registerUser(strtolower($mail->fromAddress), $mail->fromName);
-
-                }
-                $mailbox->deleteMail($mailId);
-            }
+            $log[] = 'Mailbox registrar is empty';
         }
-        //now check catch-all mails
-        $mailbox = new Mailbox('{' . getenv('MAIL_HOST') . ':' . getenv('MAIL_INCOMING_PORT') . '/imap/' . getenv('MAIL_ENCRYPTION') . '}INBOX', getenv('MAIL_CATCHALL_ACCOUNT'), getenv('MAIL_CATCHALL_PASSWORD'), null);
-
-// Read all messaged into an array:
-        $mailsIds = $mailbox->searchMailbox('ALL');
-        $mails = $mailbox->imap('fetch_overview', [implode(',', $mailsIds), FT_UID]);
-        if (!$mails) {
-            echo 'Mailbox catchall is empty<br/>';
-        } else {
-            foreach ($mailsIds as $mailId) {
-                $mail = $mailbox->getMail($mailId);
-                echo "received mail with subject <b>" . strtolower(trim($mail->subject)) . '</b><br/>';
-                $recipients = $mail->to;
-                foreach ($recipients as $address => $name) {
-                    $mailAddressParts = explode('@', $address);
-                    if (strtolower($mailAddressParts[1]) != getenv('MAIL_HOST'))
-                        continue;//this address is from another domain
-                    $localAddress = $mailAddressParts[0];
-
-                    echo "received mail from <b>" . $localAddress . '</b><br/>';
-
-                    //check if an agent of that name exists
-                    $agent = Agent::where(['name' => $localAddress])->first();
-
-                    if ($agent == null) {
-                        //notify back
-                        if (strtolower($mailAddressParts[1]) != getenv('MAIL_HOST'))//fix: avoid loop of notifying yourself
-                            Mail::raw('Your message was not delivered to ' . $address . " because the address wasn't found or it can't receive mails.", function ($message) use ($mail) {
-                                $message->to($mail->fromAddress, $mail->fromName)
-                                    ->from("services@" . getenv("MAIL_HOST"), getenv("APP_NAME"))
-                                    ->subject("[" . getenv("APP_NAME") . "] Email address not found");
-                            });
-                        continue;
-                    }
-
-
-                    $agent_user = User::where(['user_id' => $agent->user_id])->first();
-
-                    echo "received mail for agent that belongs <b>" . '</b><br/>';
-
-                    echo "Compare<b>" . $mail->fromAddress . ' with ' . $agent_user->email . '</b><br/>';
-
-                    //check if user email corresponds with agent
-                    if (trim(strtolower($mail->fromAddress)) != trim(strtolower($agent_user->email))) {
-                        //notify back
-                        Mail::raw("Your email address doesn't have access to the agent associated with " . $address . ". Please use the address you have registered with.", function ($message) use ($mail) {
-                            $message->to($mail->fromAddress, $mail->fromName)
-                                ->from("services@" . getenv("MAIL_HOST"), getenv("APP_NAME"))
-                                ->subject("[" . getenv("APP_NAME") . "] Forbidden access");
-                        });
-                        continue;
-                    }
-
-                    // Get the email content as plain text
-                    if ($mail->textPlain != null)
-                        $mail_content = $mail->textPlain;
-                    else
-                        $mail_content = Html2Text::convert($mail->textHtml);
-
-
-                    echo "Inserting command" . $mail_content . '</b><br/>';
-
-                    // Extract code and add it to DB
-                    $codeAdded = false;
-                    $codeAdded = $agent->insertCommandInfo($mail_content, $mail->subject);
-
-                    if (!$codeAdded) {
-                        echo 'Invalid content received<br/>';
-
-                        $data = [];
-                        $data['from'] = $mail->fromAddress;
-                        foreach ($recipients as $address => $name) {
-                            // Pick just the first
-                            $data['to'] = $address;
-                            break;
-                        }
-                        $data['subject'] = $mail->subject;
-                        $data['sent'] = $mail->date;
-                        $data['input_content'] = $mail_content;
-
-                         Mail::send(['email.wrong_email_html', 'email.wrong_email_text'], $data, function ($message) use ($mail) {
-                            $message->to($mail->fromAddress, $mail->fromName)->from($mail->to, getenv("APP_NAME"))->subject('Re: ' . $mail->subject);
-                        });
-                    }
+        foreach ($mails as $mail) {
+            $log[] = 'received mail with subject <b>' . e(strtolower(trim($mail->subject))) . '</b>';
+            if (strtolower(trim($mail->subject)) == 'magica') {
+                $name = $mail->fromName;
+                if (!$name) {
+                    $name = explode('@', $mail->fromAddress)[0];
                 }
-                $mailbox->deleteMail($mailId);
+                // Use the fallback name (before, the sender's possibly empty
+                // display name was passed, and registration then failed).
+                User::registerUser(strtolower($mail->fromAddress), $name);
             }
+            $inbox->delete($mail);
         }
 
+        // Now check catch-all mails
+        $inbox = $inboxes->open(getenv('MAIL_CATCHALL_ACCOUNT'), getenv('MAIL_CATCHALL_PASSWORD'));
+        $mails = $inbox->messages();
+        if (!$mails) {
+            $log[] = 'Mailbox catchall is empty';
+        }
+        foreach ($mails as $mail) {
+            $log[] = 'received mail with subject <b>' . e(strtolower(trim($mail->subject))) . '</b>';
+            foreach ($mail->to as $address => $name) {
+                $this->processCommandMail($mail, $address, $log);
+            }
+            $inbox->delete($mail);
+        }
+
+        return response(implode("<br/>\n", $log) . "<br/>\n");
+    }
+
+    /**
+     * Handle one recipient of a catch-all mail: queue its commands for the
+     * drone named by the address, if the sender owns that drone.
+     */
+    private function processCommandMail(IncomingMail $mail, string $address, array &$log): void
+    {
+        $mailAddressParts = explode('@', $address);
+        if (count($mailAddressParts) != 2 || strtolower($mailAddressParts[1]) != strtolower(getenv('MAIL_HOST'))) {
+            return; // this address is for another domain
+        }
+        $localAddress = $mailAddressParts[0];
+        $log[] = 'received mail for <b>' . e($localAddress) . '</b>';
+
+        $agent = Agent::where(['name' => $localAddress])->first();
+        if ($agent == null) {
+            // No "address not found" reply: the old code skipped it too, and
+            // replying to catch-all mail would mostly answer spam.
+            return;
+        }
+
+        $agent_user = User::where(['user_id' => $agent->user_id])->first();
+
+        // The sender must be the drone owner's registered address
+        if (trim(strtolower($mail->fromAddress)) != trim(strtolower($agent_user->email))) {
+            Mail::raw("Your email address doesn't have access to the agent associated with " . $address . ". Please use the address you have registered with.", function ($message) use ($mail) {
+                $message->to($mail->fromAddress, $mail->fromName)
+                    ->from("services@" . getenv("MAIL_HOST"), getenv("APP_NAME"))
+                    ->subject("[" . getenv("APP_NAME") . "] Forbidden access");
+            });
+            return;
+        }
+
+        // Get the email content as plain text
+        $mail_content = $mail->textPlain !== null ? $mail->textPlain : Html2Text::convert((string) $mail->textHtml);
+
+        $log[] = 'Inserting command ' . e($mail_content);
+        if ($agent->insertCommandInfo($mail_content, $mail->subject)) {
+            return;
+        }
+
+        $log[] = 'Invalid content received';
+        $data = [
+            'from' => $mail->fromAddress,
+            'to' => $address,
+            'subject' => $mail->subject,
+            'sent' => $mail->date,
+            'input_content' => $mail_content,
+        ];
+        Mail::send(['email.wrong_email_html', 'email.wrong_email_text'], $data, function ($message) use ($mail, $address) {
+            // Reply from the drone's own address
+            $message->to($mail->fromAddress, $mail->fromName)->from($address, getenv("APP_NAME"))->subject('Re: ' . $mail->subject);
+        });
     }
 
     /**
