@@ -36,7 +36,7 @@ class CronEndpointsTest extends TestCase
         $this->get($url . 'anything')->assertForbidden();
     }
 
-    public function cronUrls()
+    public static function cronUrls()
     {
         return [
             'get mails'   => ['/get-mails/'],

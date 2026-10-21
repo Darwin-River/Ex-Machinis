@@ -100,10 +100,19 @@ before starting the next. Laravel only supports upgrading one major at a time.
     providers, new XML config) comes with Laravel 11.
   - No raw-SQL expression is cast to a string, so Laravel 10's `DB::raw` change
     doesn't apply. No view text clashes with a Blade directive.
-- Laravel 11: needs **PHP 8.2+** and phpunit ^10.5. the new slim app skeleton is optional. Existing `Kernel.php` files
-  keep working, so don't restructure.
-- After that: follow each release's upgrade guide. Consider running
-  [Laravel Shift](https://laravelshift.com) for the mechanical parts.
+- ✅ PHP 8.3 done (still on Laravel 10): CI and composer's platform moved to 8.3,
+  and `composer.json` requires `php ^8.3`.
+- ✅ Laravel 11 done: `laravel/framework` ^11.0 (11.57.0), `laravel/ui` ^4.5,
+  `laravel/tinker` ^2.9, phpunit ^10.5, mockery ^1.6, Carbon 3.
+  - Removed `doctrine/dbal`; Laravel 11 no longer uses it.
+  - `phpunit.xml` migrated to the 10.5 format, with `failOnDeprecation` replacing
+    `convertDeprecationsToExceptions`. Data providers are now static.
+  - Kept the existing `Kernel.php`/provider structure, which Laravel 11 still
+    supports. Moving to the slim skeleton is optional.
+  - The old migrations in `database/migrations` use `->change()`, which in
+    Laravel 11 drops any modifiers that aren't restated. They aren't used (the
+    schema comes from `game-engine/sql`), but don't run them as they are.
+- Next: Laravel 12, which is a light upgrade from 11.
 
 ### 5. Frontend
 - Fix the `package.json` scripts for Mix 6 first (`mix`, `mix watch`, `mix --production`).
