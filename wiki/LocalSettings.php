@@ -69,7 +69,7 @@ $wgDBtype = "mysql";
 $wgDBserver = "localhost";
 $wgDBname = "i7432415_mw1";
 $wgDBuser = "i7432415_mw1";
-$wgDBpassword = "S.F4gwVVEBR2U6a9MOW89";
+$wgDBpassword = getenv("MW_DB_PASSWORD") ?: "CHANGE_ME";
 
 # MySQL specific settings
 $wgDBprefix = "mw_";
@@ -108,14 +108,14 @@ $wgShellLocale = "en_US.utf8";
 # Site language code, should be one of the list in ./languages/data/Names.php
 $wgLanguageCode = 'en';
 
-$wgSecretKey = "c48ddacf0c769af6e75ea5dc75150763c65cf7a76b8132a7b6c86a4e4a29f83c";
+$wgSecretKey = getenv("MW_SECRET_KEY") ?: "CHANGE_ME";
 
 # Changing this will log out all existing sessions.
 $wgAuthenticationTokenVersion = "1";
 
 # Site upgrade key. Must be set to a string (default provided) to turn on the
 # web installer while LocalSettings.php is in place
-$wgUpgradeKey = "3b1b91c5020188ca";
+$wgUpgradeKey = getenv("MW_UPGRADE_KEY") ?: "CHANGE_ME";
 
 ## For attaching licensing metadata to pages, and displaying an
 ## appropriate copyright notice / icon. GNU Free Documentation

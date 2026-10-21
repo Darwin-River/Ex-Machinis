@@ -14,7 +14,7 @@ To backup DB at exmachinis server, execute the following commands at command lin
 ```
 export DB_USER=root
 export DB_NAME=exmachinis
-export DB_PASSWORD=c20e5596eee9bf8519074ad62f51b0eaa5a415e805efa4b9
+export DB_PASSWORD='<your DB password>'
 mysqldump -u $DB_USER -p$DB_PASSWORD $DB_NAME agents > $PLAT_HOME/tmp/exmachinis_agents_backup_YYMMDD.sql
 mysqldump -u $DB_USER -p$DB_PASSWORD $DB_NAME commands > $PLAT_HOME/tmp/exmachinis_commands_backup_YYMMDD.sql
 mysqldump -u $DB_USER -p$DB_PASSWORD $DB_NAME companies > $PLAT_HOME/tmp/exmachinis_companies_backup_YYMMDD.sql
@@ -56,7 +56,7 @@ At exmachinis remove current DB:
 
 ```
 export DB_USER=root
-export DB_PASSWORD=c20e5596eee9bf8519074ad62f51b0eaa5a415e805efa4b9
+export DB_PASSWORD='<your DB password>'
 mysql -u $DB_USER -p$DB_PASSWORD
 > drop database exmachinis;
 > show databases;
@@ -67,7 +67,7 @@ At advolition server generate an sql files with the current model and data sets:
 
 ```
 export DB_USER=root
-export DB_PASSWORD=c20e5596eee9bf8519074ad62f51b0eaa5a415e805efa4b9
+export DB_PASSWORD='<your DB password>'
 export DB_NAME=exmachinis
 mysqldump --no-data -u $DB_USER -p$DB_PASSWORD $DB_NAME > advolition_model_YYMMDD.sql
 mysqldump --no-create-info -u $DB_USER -p$DB_PASSWORD $DB_NAME > advolition_data_YYMMDD.sql
@@ -77,7 +77,7 @@ Import the new model into exmachinis server (FTP the sql file generated here and
 
 ```
 export DB_USER=root
-export DB_PASSWORD=c20e5596eee9bf8519074ad62f51b0eaa5a415e805efa4b9
+export DB_PASSWORD='<your DB password>'
 mysql -u $DB_USER -p$DB_PASSWORD < advolition_model_YYMMDD.sql
 ```
 
@@ -98,7 +98,7 @@ Run the following command from the exmachinis server:
 
 ```
 export DB_USER=root
-export DB_PASSWORD=c20e5596eee9bf8519074ad62f51b0eaa5a415e805efa4b9
+export DB_PASSWORD='<your DB password>'
 mysql -u $DB_USER -p$DB_PASSWORD exmachinis < advolition_data_YYMMDD.sql
 ```
 
