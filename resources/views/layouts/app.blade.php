@@ -358,7 +358,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     <h4>Join the game</h4>
 
                     <p>Submit your e-mail to receive access to your own spacecraft.<br/>
-                        <small>Or else send a mail to <a href="mailto:registrar@{{ config('mail.domain') }}?subject=magica">registrar@{{ config('mail.domain') }}</a>
+                        <small>Or else send a mail to <a href="mailto:registrar{{ '@' . config('mail.domain') }}?subject=magica">registrar{{ '@' . config('mail.domain') }}</a>
                             with <b>register</b> as subject.</small></p>
 
                     <form class="rd-form rd-mailform form-sm" data-form-output="form-output-global"
