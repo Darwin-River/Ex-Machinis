@@ -194,4 +194,16 @@ class GetMailsTest extends TestCase
         $this->assertSame([$ok], $this->inboxes->deleted);
         $this->assertSame(['2'], DB::table('commands')->where('agent_id', $this->droneId)->pluck('code')->all());
     }
+
+    public function testMailWithoutCommandGetsHelpfulReply()
+    {
+        $this->inboxes->put('catchall', $this->mail('hello', 'test@example.com', ['SN424242@mail.example.com' => ''], '2 3 + . cr'));
+
+        $this->run_();
+
+        $text = $this->sent()->first()->getTextBody();
+        $this->assertStringContainsString('between <run> and </run> tags', $text);
+        $this->assertStringContainsString("From: test@example.com\nTo: SN424242@mail.example.com\nSent: 2026-10-21 12:00:00", $text);
+        $this->assertStringNotContainsString('\\r\\n', $text);
+    }
 }
