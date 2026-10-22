@@ -8,6 +8,7 @@
 
 /******************************* INCLUDES ************************************/
 
+#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
@@ -97,20 +98,34 @@ ErrorCode_t config_read_parameters(config_t *conf_handle, char* params[])
     // Input pointers checked by calling function
 
     for(i=0; i < MAX_CONFIG_PARAM; i++) {
-        // read all the strings
-        result = config_lookup_string(conf_handle, 
-        	(char*)conf_param_names[i],  
-            (const char**)&params[i]);
+        const char *name = conf_param_names[i];
+        const char *source = "config file";
 
-        if(result != CONFIG_TRUE) {
-            config_missing_param((char*)conf_param_names[i]);
-            // Stop reading
-            return ENGINE_CONFIG_ERROR;
+        // An environment variable with the same name overrides the config
+        // file, so secrets like DB_PASSWORD can stay out of the .conf files
+        char *env_value = getenv(name);
+
+        if(env_value && env_value[0] != '\0') {
+            params[i] = env_value;
+            source = "environment";
         } else {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
-            	"Config param read [%s]=[%s]", 
-                conf_param_names[i], params[i]);
+            result = config_lookup_string(conf_handle,
+                name,
+                (const char**)&params[i]);
+
+            if(result != CONFIG_TRUE) {
+                config_missing_param((char*)name);
+                // Stop reading
+                return ENGINE_CONFIG_ERROR;
+            }
         }
+
+        // Never write secrets to the log
+        engine_trace(TRACE_LEVEL_ALWAYS,
+            "Config param read [%s]=[%s] (from %s)",
+            name,
+            strstr(name, "PASSWORD") ? "********" : params[i],
+            source);
 
     } // End for (;;)
 

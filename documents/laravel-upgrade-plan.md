@@ -114,9 +114,7 @@ before starting the next. Laravel only supports upgrading one major at a time.
     `convertDeprecationsToExceptions`. Data providers are now static.
   - Kept the existing `Kernel.php`/provider structure, which Laravel 11 still
     supports. Moving to the slim skeleton is optional.
-  - The old migrations in `database/migrations` use `->change()`, which in
-    Laravel 11 drops any modifiers that aren't restated. They aren't used (the
-    schema comes from `game-engine/sql`), but don't run them as they are.
+  - The old migrations in `database/migrations` were later removed (see Clean-up).
 - ✅ Laravel 12 done (12.70.1): no code changes needed.
 - ✅ Laravel 13 done (13.38.0): `laravel/tinker` ^3.0. No code changes needed.
   The legacy `MAIL_DRIVER` setting still works, no view text clashes with a
@@ -207,11 +205,22 @@ copy would both need reworking, so it's only worth doing as part of a redesign.
   lost; only fragments survive in the Access file. On an existing database,
   run the `CREATE OR REPLACE VIEW` statement from that file.
 
-## Clean-up worth doing along the way
-- Delete or move the stray root-level `HomeController.php` (it differs from
-  `app/Http/Controllers/HomeController.php`) and `info.php` (it exposes `phpinfo()`).
-- Rename `model of .env` to `.env.example`, which is the Laravel convention.
-- Move secrets out of `game-engine/conf/*.conf` into environment variables.
+## Clean-up ✅ done
+- Removed the stray root-level `HomeController.php` (an old copy of the real
+  controller) and `info.php` (exposed `phpinfo()`).
+- Renamed `model of .env` to `.env.example`.
+- Removed the old Laravel migrations in `database/migrations`. They described a
+  schema that no longer exists (a `companies` table, an older `agents`) and
+  were unsafe to run on Laravel 11+. The schema comes from `game-engine/sql`;
+  `documents/install.md` now says so.
+- Game engines: any `.conf` parameter can be overridden by an environment
+  variable of the same name, and the start scripts export
+  `game-engine/scripts/.env`, so `DB_PASSWORD` can live there instead of in
+  `conf/*.conf`. The engine log no longer prints passwords (it used to log every
+  config value, which is how the DB password ended up in the old log files).
+- The engines build again with current GCC (13): two `-Werror` failures were
+  fixed without changing behaviour (an always-true null check in `db.c`, and a
+  `strncat` that was really a `strcat` in `email.c`). CI now builds both engines.
 
 ## Rough effort
 About 3–5 focused days for the backend hops, including tests, plus 2–3 days for the

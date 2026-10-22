@@ -5,6 +5,13 @@
 
 . ${HOME}/.profile
 
+# Export settings from the .env next to this script. Variables named like
+# config parameters (e.g. DB_PASSWORD) override conf/*.conf, so secrets
+# don't have to be stored in the .conf files.
+set -a
+[ -f "$(dirname "$0")/.env" ] && . "$(dirname "$0")/.env"
+set +a
+
 
 #-----------------------------------------------------------------
 # Log function
