@@ -69,10 +69,11 @@ CI fails if the committed `html/build/` doesn't match a fresh `npm run build`.
 
 ```bash
 sudo apt-get install libconfig-dev libmysqlclient-dev
-make -C game-engine/src all    # builds game-engine/src/bin/game-engine and events-engine
+make -C game-engine/src all    # builds game-engine/src/bin/: game-engine, events-engine and eforth.blk
 ```
 
 - Each engine reads `$PLAT_HOME/conf/<engine-name>.conf` and logs to `$PLAT_HOME/log/`. The [server setup notes](game-engine/doc/server_setup.txt) describe the `PLAT_HOME` layout.
+- `eforth.blk` is the FORTH image each drone's VM starts from (`FORTH_IMAGE_PATH`, normally `$PLAT_HOME/bin/eforth.blk`). It is the engine's built-in image written to a file. Images built in `src/embed/` don't work with the engine.
 - **Keep secrets out of the `.conf` files.** Any parameter can be overridden by an environment variable with the same name. The start scripts export `game-engine/scripts/.env` (template: `game-engine/scripts/env.advolition`), so put `DB_PASSWORD` and `CRON_KEY` there.
 
 ### Run the tests
@@ -103,5 +104,7 @@ IMAP_TEST_HOST=127.0.0.1 vendor/bin/phpunit
 
 ### Deploying
 
-See [documents/install.md](documents/install.md) for the production server: Apache with `html/` as the web root, Postfix/Dovecot, and cron.
+The easiest way to set up a server is Docker: [deploy/README.md](deploy/README.md). One script starts the website, database, both engines and the mail server, then prints the DNS records to add.
+
+For a manual install (Apache with `html/` as the web root, Postfix/Dovecot, and cron), see [documents/install.md](documents/install.md).
 

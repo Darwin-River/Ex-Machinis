@@ -1,0 +1,10 @@
+# HTTPS for the website. Caddy gets and renews a Let's Encrypt certificate
+# for SITE_ADDRESS automatically (port 80 and 443 must reach this server).
+{
+	email {$ADMIN_EMAIL}
+}
+
+{$SITE_ADDRESS} {
+	encode gzip
+	reverse_proxy app:80
+}

@@ -1,0 +1,178 @@
+# Ex-Machinis: the whole game on one server.
+#   ./setup.sh            first time: writes .env and mail accounts, starts everything
+#   docker compose up -d  later starts, after editing .env or pulling new code
+#
+# Only ports 80/443 (website) and 25 (incoming mail) are published.
+
+name: exmachinis
+
+x-engine-env: &engine-env
+  DB_HOST: db
+  DB_PORT: "3306"
+  DB_NAME: exmachinis
+  DB_USER: exmachinis
+  DB_PASSWORD: ${DB_PASSWORD:?run setup.sh first}
+  AGENTS_EMAIL_DOMAIN: ${DOMAIN}
+  MAIL_DOMAIN: ${DOMAIN}
+
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?run setup.sh first}
+      MYSQL_DATABASE: exmachinis
+      MYSQL_USER: exmachinis
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db-data:/var/lib/mysql
+      # Loaded only when the database volume is first created.
+      - ../game-engine/sql/create_db.sql:/docker-entrypoint-initdb.d/01-create_db.sql:ro
+      - ../game-engine/db-backup/exmachinis_tables.sql:/docker-entrypoint-initdb.d/02-tables.sql:ro
+    healthcheck:
+      # Over TCP, so it only passes once the schema has been loaded.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uexmachinis -p\"$$MYSQL_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/app/Dockerfile
+    image: exmachinis-app
+    restart: unless-stopped
+    depends_on:
+      db: {condition: service_healthy}
+    environment:
+      APP_NAME: Ex-Machinis
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: ${APP_KEY:?run setup.sh first}
+      APP_URL: ${APP_URL:-https://${DOMAIN}}
+      LOG_CHANNEL: stderr
+      TRUSTED_PROXIES: "*"
+      DB_HOST: db
+      DB_DATABASE: exmachinis
+      DB_USERNAME: exmachinis
+      DB_PASSWORD: ${DB_PASSWORD}
+      CRON_KEY: ${CRON_KEY:?run setup.sh first}
+      REPORTS_DESTINATION: ${ADMIN_EMAIL}
+      # Outgoing mail goes to the mail container; incoming mail is read from
+      # its registrar and catch-all mailboxes over IMAP.
+      MAIL_DRIVER: smtp
+      MAIL_HOST: mail
+      MAIL_PORT: "25"
+      MAIL_ENCRYPTION: tls
+      MAIL_VERIFY_PEER: "false"
+      MAIL_DOMAIN: ${DOMAIN}
+      MAIL_FROM_ADDRESS: services@${DOMAIN}
+      MAIL_FROM_NAME: Ex-Machinis
+      MAIL_INCOMING_HOST: mail
+      MAIL_INCOMING_PORT: "143"
+      MAIL_INCOMING_VALIDATE_CERT: "false"
+      MAIL_REGISTRATION_ACCOUNT: registrar@${DOMAIN}
+      MAIL_REGISTRATION_PASSWORD: ${MAIL_REGISTRATION_PASSWORD:?run setup.sh first}
+      MAIL_CATCHALL_ACCOUNT: catchall@${DOMAIN}
+      MAIL_CATCHALL_PASSWORD: ${MAIL_CATCHALL_PASSWORD:?run setup.sh first}
+    volumes:
+      - app-storage:/var/www/storage
+
+  game-engine:
+    build:
+      context: ..
+      dockerfile: deploy/engine/Dockerfile
+    image: exmachinis-engine
+    restart: unless-stopped
+    init: true
+    command: ["/opt/exmachinis/bin/run-engine.sh", "game-engine"]
+    depends_on:
+      db: {condition: service_healthy}
+    environment: *engine-env
+    volumes:
+      - engine-logs:/opt/exmachinis/log
+
+  events-engine:
+    image: exmachinis-engine
+    restart: unless-stopped
+    init: true
+    command: ["/opt/exmachinis/bin/run-engine.sh", "events-engine"]
+    depends_on:
+      db: {condition: service_healthy}
+      game-engine: {condition: service_started}
+    environment: *engine-env
+    volumes:
+      - engine-logs:/opt/exmachinis/log
+
+  scheduler:
+    image: exmachinis-engine
+    restart: unless-stopped
+    init: true
+    command: ["/opt/exmachinis/bin/scheduler.sh"]
+    depends_on:
+      app: {condition: service_started}
+      game-engine: {condition: service_started}
+    environment:
+      CRON_KEY: ${CRON_KEY}
+    volumes:
+      - engine-logs:/opt/exmachinis/log
+
+  mail:
+    image: mailserver/docker-mailserver:15
+    restart: unless-stopped
+    hostname: mail.${DOMAIN}
+    ports:
+      - "25:25"
+    environment:
+      # Containers on this network may send without logging in.
+      PERMIT_DOCKER: connected-networks
+      # IMAP is only used inside Docker; IPv4 also works on hosts without IPv6.
+      DOVECOT_INET_PROTOCOLS: ipv4
+      SSL_TYPE: manual
+      SSL_CERT_PATH: /tmp/docker-mailserver/ssl/cert.pem
+      SSL_KEY_PATH: /tmp/docker-mailserver/ssl/key.pem
+      POSTMASTER_ADDRESS: postmaster@${DOMAIN}
+      ENABLE_OPENDKIM: "1"
+      ENABLE_OPENDMARC: "0"
+      ENABLE_POLICYD_SPF: "0"
+      ENABLE_SPAMASSASSIN: "0"
+      ENABLE_CLAMAV: "0"
+      ENABLE_FAIL2BAN: "0"
+      ENABLE_POSTGREY: "0"
+      ENABLE_AMAVIS: "0"
+      ENABLE_POP3: "0"
+      SPOOF_PROTECTION: "0"
+      LOG_LEVEL: info
+    volumes:
+      - ./mail/config:/tmp/docker-mailserver
+      - mail-data:/var/mail
+      - mail-state:/var/mail-state
+      - mail-logs:/var/log/mail
+    stop_grace_period: 1m
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-${DOMAIN}}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  db-data:
+  app-storage:
+  engine-logs:
+  mail-data:
+  mail-state:
+  mail-logs:
+  caddy-data:
+  caddy-config:

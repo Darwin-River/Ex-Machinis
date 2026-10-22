@@ -101,6 +101,10 @@ return [
 
     'password' => env('MAIL_PASSWORD'),
 
+    // Set MAIL_VERIFY_PEER=false only for an SMTP server with a self-signed
+    // certificate, such as the bundled mail container.
+    'verify_peer' => env('MAIL_VERIFY_PEER', true),
+
     /*
     |--------------------------------------------------------------------------
     | Sendmail System Path
