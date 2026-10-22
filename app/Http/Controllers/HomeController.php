@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Agent;
+use App\CommandTooLongException;
 use App\Company;
 use App\Query;
 use App\Resource;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
+use App\Services\Mail\Inbox;
 use App\Services\Mail\IncomingMail;
 use App\Services\Mail\InboxFactory;
 use Html2Text\Html2Text;
@@ -62,16 +64,17 @@ class HomeController extends Controller
         }
         foreach ($mails as $mail) {
             $log[] = 'received mail with subject <b>' . e(strtolower(trim($mail->subject))) . '</b>';
-            if (strtolower(trim($mail->subject)) == 'magica') {
-                $name = $mail->fromName;
-                if (!$name) {
-                    $name = explode('@', $mail->fromAddress)[0];
+            $this->processMail($inbox, $mail, $log, function () use ($mail) {
+                if (strtolower(trim($mail->subject)) == 'magica') {
+                    $name = $mail->fromName;
+                    if (!$name) {
+                        $name = explode('@', $mail->fromAddress)[0];
+                    }
+                    // Use the fallback name (before, the sender's possibly empty
+                    // display name was passed, and registration then failed).
+                    User::registerUser(strtolower($mail->fromAddress), $name);
                 }
-                // Use the fallback name (before, the sender's possibly empty
-                // display name was passed, and registration then failed).
-                User::registerUser(strtolower($mail->fromAddress), $name);
-            }
-            $inbox->delete($mail);
+            });
         }
 
         // Now check catch-all mails
@@ -82,13 +85,31 @@ class HomeController extends Controller
         }
         foreach ($mails as $mail) {
             $log[] = 'received mail with subject <b>' . e(strtolower(trim($mail->subject))) . '</b>';
-            foreach ($mail->to as $address => $name) {
-                $this->processCommandMail($mail, $address, $log);
-            }
-            $inbox->delete($mail);
+            $this->processMail($inbox, $mail, $log, function () use ($mail, &$log) {
+                foreach ($mail->to as $address => $name) {
+                    $this->processCommandMail($mail, $address, $log);
+                }
+            });
         }
 
         return response(implode("<br/>\n", $log) . "<br/>\n");
+    }
+
+    /**
+     * Run $handle for one mail, then delete the mail. If it fails, log the
+     * error and keep the mail for the next run, but carry on with the other
+     * mails: one bad mail must not hold up everyone else's.
+     */
+    private function processMail(Inbox $inbox, IncomingMail $mail, array &$log, \Closure $handle): void
+    {
+        try {
+            $handle();
+        } catch (\Throwable $e) {
+            report($e);
+            $log[] = 'error processing mail from <b>' . e($mail->fromAddress) . '</b>, kept for retry';
+            return;
+        }
+        $inbox->delete($mail);
     }
 
     /**
@@ -127,7 +148,17 @@ class HomeController extends Controller
         $mail_content = $mail->textPlain !== null ? $mail->textPlain : Html2Text::convert((string) $mail->textHtml);
 
         $log[] = 'Inserting command ' . e($mail_content);
-        if ($agent->insertCommandInfo($mail_content, $mail->subject)) {
+        try {
+            if ($agent->insertCommandInfo($mail_content, $mail->subject)) {
+                return;
+            }
+        } catch (CommandTooLongException $e) {
+            $log[] = 'Command too long';
+            Mail::raw("Your program for " . $address . " is " . $e->length . " characters long; the limit is " . $e->max . ". Split it across several emails: words you define stay defined in the drone.", function ($message) use ($mail, $address) {
+                $message->to($mail->fromAddress, $mail->fromName)
+                    ->from($address, getenv("APP_NAME"))
+                    ->subject('Re: ' . $mail->subject);
+            });
             return;
         }
 
