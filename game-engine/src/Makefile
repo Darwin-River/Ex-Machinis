@@ -27,7 +27,7 @@ game-engine : CFLAGS += -DUSE_VM
 #---------------------------------------------------------------------------
 # Rules
 #---------------------------------------------------------------------------
-all: $(GAME_ENGINE_EXE_NAME) $(EVENTS_ENGINE_EXE_NAME)
+all: $(GAME_ENGINE_EXE_NAME) $(EVENTS_ENGINE_EXE_NAME) $(EXE_PATH)/eforth.blk
 
 $(OBJS_PATH)/%.o: %.c
 	@mkdir -p $(OBJS_PATH)
@@ -45,5 +45,11 @@ $(EVENTS_ENGINE_EXE_NAME): $(EVENTS_ENGINE_OBJS)
 	@mkdir -p $(EXE_PATH)
 	mv $(EVENTS_ENGINE_EXE_NAME) $(EXE_PATH)
 
+# The FORTH image each drone's VM starts from (FORTH_IMAGE_PATH)
+$(EXE_PATH)/eforth.blk: dump_image.c embed_image.c
+	@mkdir -p $(OBJS_PATH) $(EXE_PATH)
+	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/dump_image dump_image.c embed_image.c
+	$(OBJS_PATH)/dump_image > $@
+
 clean:
-	$(RM) -rf $(OBJS_PATH) $(GAME_ENGINE_EXE_NAME) $(EVENTS_ENGINE_EXE_NAME)
+	$(RM) -rf $(OBJS_PATH) $(GAME_ENGINE_EXE_NAME) $(EVENTS_ENGINE_EXE_NAME) $(EXE_PATH)/eforth.blk

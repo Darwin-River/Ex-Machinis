@@ -5,7 +5,7 @@ then
   exit 10
 fi
 
-EMAIL_FROM=$3@exmachinis.com 
+EMAIL_FROM=$3@${MAIL_DOMAIN:-exmachinis.com}
 EMAIL_TO="$1"
 EMAIL_SUBJECT="Re: "$2
 EMAIL_CONTENT=$4
@@ -21,4 +21,4 @@ EMAIL_CONTENT=$4
     echo "Subject: ${EMAIL_SUBJECT}"
     echo 'Content-Type: text/plain;charset="utf-8"'
     echo "${EMAIL_CONTENT}"
- } | /usr/lib/sendmail -t
+ } | /usr/lib/sendmail -t -f "${EMAIL_FROM}"
