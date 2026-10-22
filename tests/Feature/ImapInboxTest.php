@@ -68,9 +68,7 @@ class ImapInboxTest extends TestCase
 
         // GreenMail's certificate is self-signed.
         $factory = new ImapInboxFactory($this->host, $port, $encryption, false);
-        $inbox = $factory->open($account, 'any-password');
-
-        $mails = $inbox->messages();
+        [$inbox, $mails] = $this->waitForMessages($factory, $account, 2);
         $this->assertCount(2, $mails);
         $bySubject = [];
         foreach ($mails as $mail) {
@@ -95,6 +93,30 @@ class ImapInboxTest extends TestCase
             $inbox->delete($mail);
         }
         $this->assertCount(0, $factory->open($account, 'any-password')->messages());
+    }
+
+    /**
+     * GreenMail delivers in the background and creates the mailbox on the
+     * first delivery, so logging in right after sending can fail or see
+     * fewer messages. Retry for a few seconds.
+     */
+    private function waitForMessages(ImapInboxFactory $factory, string $account, int $count): array
+    {
+        $deadline = microtime(true) + 10;
+        while (true) {
+            try {
+                $inbox = $factory->open($account, 'any-password');
+                $mails = $inbox->messages();
+                if (count($mails) >= $count || microtime(true) > $deadline) {
+                    return [$inbox, $mails];
+                }
+            } catch (\Throwable $e) {
+                if (microtime(true) > $deadline) {
+                    throw $e;
+                }
+            }
+            usleep(200000);
+        }
     }
 
     public function testIncomingHostFallsBackToMailHost()
@@ -155,12 +177,15 @@ class ImapInboxTest extends TestCase
         $this->send((new Email())->from(new Address("new$suffix@example.com", 'New Player'))->to($registrar)->subject('magica')->text('hi'));
         $this->send((new Email())->from($owner)->to("$drone@$domain")->bcc($catchall)->subject('orders')->text('<run> 1 2 + </run>'));
 
+        $factory = new ImapInboxFactory($this->host, 3143, false);
+        $this->waitForMessages($factory, $registrar, 1);
+        $this->waitForMessages($factory, $catchall, 1);
+
         $this->get('/get-mails/test-cron-key')->assertOk()->assertSee('magica')->assertSee('Inserting command');
 
         $this->assertSame('New Player', User::where('email', "new$suffix@example.com")->value('name'));
         $this->assertSame('1 2 +', DB::table('commands')->where('agent_id', $droneId)->value('code'));
 
-        $factory = new ImapInboxFactory($this->host, 3143, false);
         $this->assertCount(0, $factory->open($registrar, 'x')->messages());
         $this->assertCount(0, $factory->open($catchall, 'x')->messages());
 
