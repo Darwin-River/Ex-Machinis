@@ -30,7 +30,7 @@ class UserController extends Controller
             ->get();
         try {
             Mail::send('email.users_report', ['currentUsers' => $currentUsers], function ($message)/* use ($user, $mail)*/ {
-                $message->to(getenv('REPORTS_DESTINATION'))->from("notifitacions@" . getenv("MAIL_HOST"), getenv("APP_NAME"))->subject("[" . getenv("APP_NAME") . "] Users Report");
+                $message->to(getenv('REPORTS_DESTINATION'))->from("notifitacions@" . config('mail.domain'), getenv("APP_NAME"))->subject("[" . getenv("APP_NAME") . "] Users Report");
             });
 
             return response("Notification sent");
