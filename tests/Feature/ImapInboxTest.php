@@ -68,9 +68,7 @@ class ImapInboxTest extends TestCase
 
         // GreenMail's certificate is self-signed.
         $factory = new ImapInboxFactory($this->host, $port, $encryption, false);
-        $inbox = $factory->open($account, 'any-password');
-
-        $mails = $inbox->messages();
+        [$inbox, $mails] = $this->waitForMessages($factory, $account, 2);
         $this->assertCount(2, $mails);
         $bySubject = [];
         foreach ($mails as $mail) {
@@ -97,6 +95,44 @@ class ImapInboxTest extends TestCase
         $this->assertCount(0, $factory->open($account, 'any-password')->messages());
     }
 
+    /**
+     * GreenMail delivers in the background and creates the mailbox on the
+     * first delivery, so logging in right after sending can fail or see
+     * fewer messages. Retry for a few seconds.
+     */
+    private function waitForMessages(ImapInboxFactory $factory, string $account, int $count): array
+    {
+        $deadline = microtime(true) + 10;
+        while (true) {
+            try {
+                $inbox = $factory->open($account, 'any-password');
+                $mails = $inbox->messages();
+                if (count($mails) >= $count || microtime(true) > $deadline) {
+                    return [$inbox, $mails];
+                }
+            } catch (\Throwable $e) {
+                if (microtime(true) > $deadline) {
+                    throw $e;
+                }
+            }
+            usleep(200000);
+        }
+    }
+
+    public function testIncomingHostFallsBackToMailHost()
+    {
+        $host = fn () => (fn () => $this->host)->call(ImapInboxFactory::fromEnvironment());
+
+        putenv('MAIL_HOST=smtp.example.com');
+        $this->assertSame('smtp.example.com', $host());
+
+        putenv('MAIL_INCOMING_HOST=imap.example.com');
+        $this->assertSame('imap.example.com', $host());
+
+        putenv('MAIL_HOST');
+        putenv('MAIL_INCOMING_HOST');
+    }
+
     public function testEncryptionSettingKeepsItsOldMeaning()
     {
         // "tls" meant STARTTLS in the old c-client mailbox string.
@@ -115,7 +151,9 @@ class ImapInboxTest extends TestCase
      */
     public function testGetMailsEndToEnd()
     {
-        $domain = 'localhost'; // MAIL_HOST is both the IMAP server and the drones' mail domain
+        // As in the Docker setup, the IMAP server (MAIL_INCOMING_HOST) and the
+        // game's mail domain (MAIL_DOMAIN) are different names.
+        $domain = 'localhost';
         $suffix = random_int(100000, 999999);
         $registrar = "registrar$suffix@$domain";
         $catchall = "catchall$suffix@$domain";
@@ -123,13 +161,13 @@ class ImapInboxTest extends TestCase
         $drone = 'SN' . $suffix;
 
         foreach ([
-            'MAIL_HOST' => $domain, 'MAIL_INCOMING_PORT' => '3143', 'MAIL_ENCRYPTION' => '',
+            'MAIL_INCOMING_HOST' => $this->host, 'MAIL_INCOMING_PORT' => '3143', 'MAIL_ENCRYPTION' => '',
             'MAIL_REGISTRATION_ACCOUNT' => $registrar, 'MAIL_REGISTRATION_PASSWORD' => 'x',
             'MAIL_CATCHALL_ACCOUNT' => $catchall, 'MAIL_CATCHALL_PASSWORD' => 'x',
         ] as $k => $v) {
             putenv("$k=$v");
         }
-        config(['app.cron_key' => 'test-cron-key']);
+        config(['app.cron_key' => 'test-cron-key', 'mail.domain' => $domain]);
         // Drone owned by the fixture company; its owner writes from $owner.
         DB::table('users')->where('user_id', 1)->update(['email' => $owner]);
         $droneId = DB::table('agents')->insertGetId(['user_id' => 1, 'name' => $drone, 'object_id' => 3, 'hull_type' => 1]);
@@ -139,16 +177,19 @@ class ImapInboxTest extends TestCase
         $this->send((new Email())->from(new Address("new$suffix@example.com", 'New Player'))->to($registrar)->subject('magica')->text('hi'));
         $this->send((new Email())->from($owner)->to("$drone@$domain")->bcc($catchall)->subject('orders')->text('<run> 1 2 + </run>'));
 
+        $factory = new ImapInboxFactory($this->host, 3143, false);
+        $this->waitForMessages($factory, $registrar, 1);
+        $this->waitForMessages($factory, $catchall, 1);
+
         $this->get('/get-mails/test-cron-key')->assertOk()->assertSee('magica')->assertSee('Inserting command');
 
         $this->assertSame('New Player', User::where('email', "new$suffix@example.com")->value('name'));
         $this->assertSame('1 2 +', DB::table('commands')->where('agent_id', $droneId)->value('code'));
 
-        $factory = new ImapInboxFactory($this->host, 3143, false);
         $this->assertCount(0, $factory->open($registrar, 'x')->messages());
         $this->assertCount(0, $factory->open($catchall, 'x')->messages());
 
-        foreach (['MAIL_HOST', 'MAIL_INCOMING_PORT', 'MAIL_ENCRYPTION', 'MAIL_REGISTRATION_ACCOUNT', 'MAIL_REGISTRATION_PASSWORD', 'MAIL_CATCHALL_ACCOUNT', 'MAIL_CATCHALL_PASSWORD'] as $k) {
+        foreach (['MAIL_INCOMING_HOST', 'MAIL_INCOMING_PORT', 'MAIL_ENCRYPTION', 'MAIL_REGISTRATION_ACCOUNT', 'MAIL_REGISTRATION_PASSWORD', 'MAIL_CATCHALL_ACCOUNT', 'MAIL_CATCHALL_PASSWORD'] as $k) {
             putenv($k);
         }
     }

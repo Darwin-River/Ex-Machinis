@@ -34,7 +34,8 @@ class ImapInboxFactory implements InboxFactory
         };
 
         return new self(
-            (string) getenv('MAIL_HOST'),
+            // MAIL_INCOMING_HOST when the IMAP server differs from MAIL_HOST
+            (string) (getenv('MAIL_INCOMING_HOST') ?: getenv('MAIL_HOST')),
             (int) (getenv('MAIL_INCOMING_PORT') ?: ($encryption === 'ssl' ? 993 : 143)),
             $encryption,
             filter_var(getenv('MAIL_INCOMING_VALIDATE_CERT') ?: 'true', FILTER_VALIDATE_BOOLEAN),

@@ -1,5 +1,7 @@
 # Ex-machinis Installation
 
+> **Setting up a new server?** The Docker setup in [deploy/README.md](../deploy/README.md) does everything below with one script. This guide covers a manual install.
+
 ### Requirements
 
 Ex-Machinis works on an Apache server that supports PHP (8.3) and a MySQL database.

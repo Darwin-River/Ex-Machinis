@@ -36,7 +36,7 @@
 
                         <br/><h3 id="h3_renaming_your_spacecraft">Renaming your spacecraft</h3>
 
-                        <p>You’ll notice that each of your spacecraft has a rather generic email address like SN523854@<?php echo  getenv("MAIL_HOST") ?>.</p>
+                        <p>You’ll notice that each of your spacecraft has a rather generic email address like SN523854@{{ config('mail.domain') }}.</p>
 
                         <p>To give your spacecraft a more memorable name, simply send the following text in an email to your drone:</p>
 
@@ -50,13 +50,13 @@
 
 <pre><code>&lt;rebrand&gt;NEW_NAME&lt;/rebrand&gt;</code></pre>
 
-                        <p>This will immediately change the name of your company in the <a href="https://<?php echo  getenv("MAIL_HOST") ?>/companies">company directory</a>.</p>
+                        <p>This will immediately change the name of your company in the <a href="https://{{ config('mail.domain') }}/companies">company directory</a>.</p>
 
                         <br/><h3 id="h3_finding_your_information_online">Finding your information online</h3>
 
                         <p>Now that you’ve registered with Ex Machinis and renamed your company, you can easily find your information online.</p>
 
-                        <p>The <a href="https://<?php echo  getenv("MAIL_HOST") ?>/companies">company directory</a> provides a searchable list of all player-owned companies, including your own.</p>
+                        <p>The <a href="https://{{ config('mail.domain') }}/companies">company directory</a> provides a searchable list of all player-owned companies, including your own.</p>
 
                         <p>If you find and click on your company name, you’ll be taken to a seperate page that tells you more about the company and its current fleet of spacecraft.</p>
 
@@ -80,15 +80,15 @@
 
                         <p>Specifically, the number 3 is the Location ID for the Earth and the number 5 is Protocol ID for the procedure that tells your spacecraft to move to a new location. </p>
 
-                        <p>You can find a searchable list of all in-game locations and their corresponding IDs on the <a href="https://<?php echo  getenv("MAIL_HOST") ?>/locations">locations page</a>.  Direct your drone fly to any of these locations by replacing the number 3 with the Location ID of your new destination and reissue the command.</p>
+                        <p>You can find a searchable list of all in-game locations and their corresponding IDs on the <a href="https://{{ config('mail.domain') }}/locations">locations page</a>.  Direct your drone fly to any of these locations by replacing the number 3 with the Location ID of your new destination and reissue the command.</p>
 
                         <br/><h3 id="h3_mining_minerals">Mining Minerals</h3>
 
                         <p>Most locations have minerals that can be mined and brought onboard your spacecraft.</p>
 
-                        <p>If you goto the <a href="http://<?php echo  getenv("MAIL_HOST") ?>/locations">locations page</a> and pull up information on your current location, you’ll see a list of available minerals with their abundances and Resource IDs.</p>
+                        <p>If you goto the <a href="http://{{ config('mail.domain') }}/locations">locations page</a> and pull up information on your current location, you’ll see a list of available minerals with their abundances and Resource IDs.</p>
 
-                        <p>Next, you can goto the <a href="http://<?php echo  getenv("MAIL_HOST") ?>/protocols">protocols page</a> and search for the protocol that allows you to mine this mineral.  Use the Protocol ID to instruct your spacecraft to mine the resource.</p>
+                        <p>Next, you can goto the <a href="http://{{ config('mail.domain') }}/protocols">protocols page</a> and search for the protocol that allows you to mine this mineral.  Use the Protocol ID to instruct your spacecraft to mine the resource.</p>
 
                         <p>For example, the following script commands your drone to fly to Mars (Location ID 4) and mine the mineral Neptine (Protocol ID 11000) from the planet’s surface:</p>
 
@@ -97,7 +97,7 @@
                         <p>If you access your spacecraft’s online data sheet after executing this command, you should see the new resource in your drone’s cargo hold and a corresponding entry in the events table that logs the acquisition of the material.</p>
 
                         <br/><h3>Reprocessing minerals</h3>
-                        <p>Minerals can be reprocessed to extract the purified metallic, organic, and inorganic components that are required for the manufacturing process. The procedures for doing so can also be found in the <a href="http://<?php echo  getenv("MAIL_HOST") ?>/protocols">protocols page</a>. For example, protocol 21000 produces common inorganics, metals, and organics from magmite.</p>
+                        <p>Minerals can be reprocessed to extract the purified metallic, organic, and inorganic components that are required for the manufacturing process. The procedures for doing so can also be found in the <a href="http://{{ config('mail.domain') }}/protocols">protocols page</a>. For example, protocol 21000 produces common inorganics, metals, and organics from magmite.</p>
 
                         <p>Provided you have enough magmite onboard, this is easily accomplished by sending the command to your drone:</p>
 
@@ -110,7 +110,7 @@
 
 <pre><code>&lt;run&gt; 12051 perform &lt;/run&gt;</code></pre>
 
-                        <p>In a similar manner, you can use the procedures listed on the <a href="http://<?php echo  getenv("MAIL_HOST") ?>/protocols">protocols page</a> to synthesize parts from materials, systems from parts, and modules and hulls from systems.</p>
+                        <p>In a similar manner, you can use the procedures listed on the <a href="http://{{ config('mail.domain') }}/protocols">protocols page</a> to synthesize parts from materials, systems from parts, and modules and hulls from systems.</p>
 
                         <br/><h3 id="h3_selling_your_resources">Selling your resources</h3>
 
@@ -120,7 +120,7 @@
 
 <pre><code>&lt;run&gt; 10 0 1000 7 perform &lt;/run&gt;</code></pre>
 
-                        <p>After placing this order, you'll be able to find your <a href="http://<?php echo  getenv("MAIL_HOST") ?>/sells">sell order</a> listed on the open market.  This will allow other players to remove Neptine from your cargo hold at the indicated price.</p>
+                        <p>After placing this order, you'll be able to find your <a href="http://{{ config('mail.domain') }}/sells">sell order</a> listed on the open market.  This will allow other players to remove Neptine from your cargo hold at the indicated price.</p>
 
                         <br/><h3 id="h3_defining_new_words">Defining new words</h3>
 

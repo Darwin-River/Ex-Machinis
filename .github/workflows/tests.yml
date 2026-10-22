@@ -90,3 +90,16 @@ jobs:
 
       - name: Build game and events engines
         run: make -C game-engine/src all
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build images and run the end-to-end smoke test
+        run: deploy/smoke-test.sh
+
+      - name: Logs on failure
+        if: failure()
+        working-directory: deploy
+        run: docker compose logs --tail 200

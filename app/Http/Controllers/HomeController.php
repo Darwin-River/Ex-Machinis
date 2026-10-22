@@ -45,7 +45,7 @@ class HomeController extends Controller
      * email handler (game-engine/scripts/start_email_handler.sh).
      *
      * - registrar inbox: a mail with subject "magica" registers the sender.
-     * - catch-all inbox: a mail to <drone name>@MAIL_HOST from the drone
+     * - catch-all inbox: a mail to <drone name>@MAIL_DOMAIN from the drone
      *   owner's address is queued as commands for that drone.
      * Every processed mail is deleted.
      */
@@ -98,7 +98,7 @@ class HomeController extends Controller
     private function processCommandMail(IncomingMail $mail, string $address, array &$log): void
     {
         $mailAddressParts = explode('@', $address);
-        if (count($mailAddressParts) != 2 || strtolower($mailAddressParts[1]) != strtolower(getenv('MAIL_HOST'))) {
+        if (count($mailAddressParts) != 2 || strtolower($mailAddressParts[1]) != strtolower(config('mail.domain'))) {
             return; // this address is for another domain
         }
         $localAddress = $mailAddressParts[0];
@@ -117,7 +117,7 @@ class HomeController extends Controller
         if (trim(strtolower($mail->fromAddress)) != trim(strtolower($agent_user->email))) {
             Mail::raw("Your email address doesn't have access to the agent associated with " . $address . ". Please use the address you have registered with.", function ($message) use ($mail) {
                 $message->to($mail->fromAddress, $mail->fromName)
-                    ->from("services@" . getenv("MAIL_HOST"), getenv("APP_NAME"))
+                    ->from("services@" . config('mail.domain'), getenv("APP_NAME"))
                     ->subject("[" . getenv("APP_NAME") . "] Forbidden access");
             });
             return;

@@ -26,7 +26,7 @@ class GetMailsTest extends TestCase
     {
         parent::setUp();
 
-        putenv('MAIL_HOST=mail.example.com');
+        config(['mail.domain' => 'mail.example.com']);
         putenv('MAIL_REGISTRATION_ACCOUNT=registrar');
         putenv('MAIL_CATCHALL_ACCOUNT=catchall');
         config(['app.cron_key' => 'test-cron-key']);
@@ -41,7 +41,6 @@ class GetMailsTest extends TestCase
 
     protected function tearDown(): void
     {
-        putenv('MAIL_HOST');
         putenv('MAIL_REGISTRATION_ACCOUNT');
         putenv('MAIL_CATCHALL_ACCOUNT');
 

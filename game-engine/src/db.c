@@ -341,8 +341,6 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
 *******************************************************************************/
 ErrorCode_t db_insert_command(DbConnection_t* connection, Command_t* command)
 {
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
 
@@ -353,27 +351,38 @@ ErrorCode_t db_insert_command(DbConnection_t* connection, Command_t* command)
             return ENGINE_INTERNAL_ERROR;
     }
 
+    // Escaping can double each value, so size the buffer from the inputs
+    size_t code_len = strlen(command->code);
+    size_t subject_len = strlen(command->subject);
+    size_t content_len = strlen(command->email_content);
+    size_t query_size = 256 + 2 * (code_len + subject_len + content_len);
+    char* query_text = engine_malloc(query_size);
+    if(!query_text)
+        return ENGINE_INTERNAL_ERROR;
+
     char* query_end = query_text;
+#define QUERY_LEFT (query_size - (size_t)(query_end - query_text))
 
     query_end += snprintf(query_end,
-        DB_MAX_SQL_QUERY_LEN,
+        QUERY_LEFT,
         "INSERT INTO commands (code, agent_id, created_at, updated_at, subject, email_content) VALUES('");
 
-    query_end += mysql_real_escape_string(connection->hndl, query_end, command->code, strlen(command->code));
+    query_end += mysql_real_escape_string(connection->hndl, query_end, command->code, code_len);
     query_end += snprintf(query_end,
-        DB_MAX_SQL_QUERY_LEN,
+        QUERY_LEFT,
         "', %d, NOW(), NOW(), '",
         command->agent_id);
 
-    query_end += mysql_real_escape_string(connection->hndl, query_end, command->subject, strlen(command->subject));
+    query_end += mysql_real_escape_string(connection->hndl, query_end, command->subject, subject_len);
     query_end += snprintf(query_end,
-        DB_MAX_SQL_QUERY_LEN,
+        QUERY_LEFT,
         "', '");
 
-    query_end += mysql_real_escape_string(connection->hndl, query_end, command->email_content, strlen(command->email_content));
+    query_end += mysql_real_escape_string(connection->hndl, query_end, command->email_content, content_len);
     query_end += snprintf(query_end,
-        DB_MAX_SQL_QUERY_LEN,
+        QUERY_LEFT,
         "')");
+#undef QUERY_LEFT
 
     // run it
     if (mysql_query(connection->hndl, query_text))
@@ -387,6 +396,7 @@ ErrorCode_t db_insert_command(DbConnection_t* connection, Command_t* command)
             "Command [%s] inserted into DB", command->code);
     }
 
+    engine_free(query_text, query_size);
 
     return result;
 }
@@ -688,7 +698,7 @@ ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMa
         query_end += mysql_real_escape_string(connection->hndl, query_end, vm_data, vm_size);
 
         query_end += snprintf(query_end,
-            DB_MAX_SQL_QUERY_LEN,
+            query_size - (size_t)(query_end - query_text),
             "' WHERE AGENT_ID = %d",
             agent_id);
     } else {
@@ -756,7 +766,7 @@ ErrorCode_t db_update_agent_output(DbConnection_t* connection, int agent_id, cha
     db_scape_string(connection, msg, strlen(msg), scaped_msg, buffer_size);
 
     snprintf(query_text,
-        DB_MAX_SQL_QUERY_LEN,
+        sizeof(query_text),
         "UPDATE agents SET OUTPUT = '%s' where AGENT_ID = %d",
         scaped_msg,
         agent_id);

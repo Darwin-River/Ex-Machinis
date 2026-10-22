@@ -33,6 +33,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Game Mail Domain
+    |--------------------------------------------------------------------------
+    |
+    | The domain of the game's addresses: drones (SN123456@domain), registrar@,
+    | services@. Defaults to MAIL_HOST, which older setups used for both the
+    | SMTP server and the domain.
+    |
+    */
+
+    'domain' => env('MAIL_DOMAIN', env('MAIL_HOST')),
+
+    /*
+    |--------------------------------------------------------------------------
     | SMTP Host Port
     |--------------------------------------------------------------------------
     |
@@ -87,6 +100,10 @@ return [
     'username' => env('MAIL_USERNAME'),
 
     'password' => env('MAIL_PASSWORD'),
+
+    // Set MAIL_VERIFY_PEER=false only for an SMTP server with a self-signed
+    // certificate, such as the bundled mail container.
+    'verify_peer' => env('MAIL_VERIFY_PEER', true),
 
     /*
     |--------------------------------------------------------------------------

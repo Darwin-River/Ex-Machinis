@@ -66,7 +66,7 @@ class User extends Authenticatable
             }
             /* echo*/
             Mail::send(['email.welcome_drones_html', 'email.welcome_drones_text'], $data, function ($message) use ($email, $name) {
-                $message->to($email, $name)->from("registrar@" . getenv("MAIL_HOST"), "Ex Machinis")->subject('Welcome to Ex Machinis!');
+                $message->to($email, $name)->from("registrar@" . config('mail.domain'), "Ex Machinis")->subject('Welcome to Ex Machinis!');
             });
         } else {
             //notify user he's already registered
@@ -81,7 +81,7 @@ class User extends Authenticatable
 
             foreach ($drones as $drone) {
                 $dronesInfo .= "\n";
-                $drone_email = $drone->name . "@" . getenv("MAIL_HOST");
+                $drone_email = $drone->name . "@" . config('mail.domain');
                 $dronesInfo .= $drone_email;
             }
 
@@ -91,7 +91,7 @@ class User extends Authenticatable
 
             Mail::raw($dronesInfo, function ($message) use ($email, $name) {
                 $message->to($email, $name)
-                    ->from("registrar@" . getenv("MAIL_HOST"), 'Ex Machinis Registrar')
+                    ->from("registrar@" . config('mail.domain'), 'Ex Machinis Registrar')
                     ->subject("Already registered");
             });
         }

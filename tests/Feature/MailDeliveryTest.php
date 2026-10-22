@@ -19,14 +19,13 @@ class MailDeliveryTest extends TestCase
         parent::setUp();
 
         // The app reads these with getenv(); production sets them in .env.
-        putenv('MAIL_HOST=mail.example.com');
+        config(['mail.domain' => 'mail.example.com']);
         putenv('REPORTS_DESTINATION=reports@example.com');
         config(['app.cron_key' => 'test-cron-key']);
     }
 
     protected function tearDown(): void
     {
-        putenv('MAIL_HOST');
         putenv('REPORTS_DESTINATION');
 
         parent::tearDown();
