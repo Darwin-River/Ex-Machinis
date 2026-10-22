@@ -9,6 +9,9 @@
 /******************************* INCLUDES ************************************/
 
 #include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
@@ -74,39 +77,9 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
    		info = localtime(&now);
    		strftime(date_buffer, MAX_EMAIL_DATE_SIZE, "%c", info);
 
-   		// Input content needs to be scaped if contains single quotes, each single quote must be scaped by '"'"'
-   		size_t scaped_buffer_size = strlen(email_info->input_content) * 5;
-		char* scaped_buffer = (char*) engine_malloc(scaped_buffer_size);
-		char* single_quote_pos = strchr(email_info->input_content, '\'');
-
-		if(!single_quote_pos) {
-			sprintf(scaped_buffer, "%s", email_info->input_content);
-		}
-		else {
-			memset(scaped_buffer, 0, scaped_buffer_size);
-	   		char* start = email_info->input_content;
-	   		char* dest = scaped_buffer;
-	   		while(single_quote_pos) {
-				//engine_trace(TRACE_LEVEL_ALWAYS, "Output is [%s], start [%s]", scaped_buffer, start);
-	   			strncat(dest, start, (single_quote_pos - start));
-	   			//engine_trace(TRACE_LEVEL_ALWAYS, "Output is [%s], start [%s]", scaped_buffer, start);
-	   			dest += (single_quote_pos - start);
-	   			//engine_trace(TRACE_LEVEL_ALWAYS, "Output is [%s], start [%s]", scaped_buffer, start);
-	   			strncat(dest, "\'\"\'\"\'", 5);
-	   			//engine_trace(TRACE_LEVEL_ALWAYS, "Output is [%s], start [%s]", scaped_buffer, start);
-	   			dest += 5;
-	   			start = (single_quote_pos+1);
-	   			single_quote_pos = strchr(start, '\'');
-	   		}
-
-	   		// copy last portion
-	   		strcat(dest, start);
-
-	   		engine_trace(TRACE_LEVEL_ALWAYS,
-	        	"Input is [%s] -> scaped content is [%s]",
-	        	email_info->input_content,
-	        	scaped_buffer);
-	   	}
+   		// The reply goes to the script as a separate argument (no shell),
+   		// so the player's text needs no escaping.
+   		const char* scaped_buffer = email_info->input_content;
 
 		// Build first the rsp content
 		snprintf(email_info->output_content,
@@ -123,17 +96,37 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
 			scaped_buffer ) ; //email_info->input_content);
 
 
-        // Now build the command to be executed to send the email
+        // Subject is the player's: one line only, so it can't add headers
+        char subject[MAX_COMMAND_CODE_SIZE+1];
+        snprintf(subject, sizeof(subject), "%s", email_info->subject);
+        for(char* c = subject; *c; c++) {
+            if(*c == '\r' || *c == '\n') *c = ' ';
+        }
+
+        // For the log only
 		snprintf(email_command,
 			command_buffer_size,
-			"%s %s \'%s\' %s \'%s\'",
+			"%s %s '%s' %s '%s'",
 			email_info->email_script,
 			email_info->user_email_addr,
-			email_info->subject,
+			subject,
 			email_info->agent_name,
 			email_info->output_content);
 
-        int error = system(email_command);
+        // Run the script with each value as its own argument. Never through
+        // a shell: the subject and the drone's output come from players.
+        int error = -1;
+        pid_t pid = fork();
+        if(pid == 0) {
+            execl(email_info->email_script, email_info->email_script,
+                email_info->user_email_addr, subject, email_info->agent_name,
+                email_info->output_content, (char*)NULL);
+            _exit(127);
+        } else if(pid > 0) {
+            int status = 0;
+            if(waitpid(pid, &status, 0) == pid)
+                error = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+        }
 
         if(error)
         {
@@ -166,11 +159,6 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
         	email_info->output_content = NULL;
         }
 
-        if(scaped_buffer)
-        {
-        	engine_free(scaped_buffer, scaped_buffer_size);
-        	scaped_buffer = NULL;
-        }
 	}
 	else
 	{

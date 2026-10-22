@@ -133,6 +133,11 @@ time_t db_date_to_timestamp(char* date, char* format)
 
     // input pointers checked by calling function
 
+    // strptime only sets the fields in the format. Clear the rest: a random
+    // tm_isdst made mktime shift dates by an hour, and then the events
+    // engine looked up a drone's inventory an hour in the past.
+    memset(&tm, 0, sizeof(tm));
+    tm.tm_isdst = -1;
     char* conversion_result = strptime(date, format, &tm);
 
     if (conversion_result != NULL) {
@@ -2453,7 +2458,7 @@ ErrorCode_t db_get_previous_resource_event(Event_t* event)
 
     query_end += snprintf(query_end,
         QUERY_SPACE_LEFT,
-        "SELECT * from events where drone = %d and resource = %d order by timestamp desc limit 1",
+        "SELECT * from events where drone = %d and resource = %d order by timestamp desc, id desc limit 1",
         event->drone_id,
         event->resource_id);
 

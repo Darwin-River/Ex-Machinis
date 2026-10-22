@@ -15,10 +15,13 @@ EMAIL_CONTENT=$4
 #echo ${EMAIL_SUBJECT}
 #echo ${EMAIL_CONTENT}
 
-  {  
-    echo "From: ${EMAIL_FROM}"
-    echo "To: ${EMAIL_TO}"
-    echo "Subject: ${EMAIL_SUBJECT}"
-    echo 'Content-Type: text/plain;charset="utf-8"'
-    echo "${EMAIL_CONTENT}"
- } | /usr/lib/sendmail -t -f "${EMAIL_FROM}"
+# Values come from players: keep the subject to one line, and print with
+# printf (echo would treat text like "-n" as an option).
+EMAIL_SUBJECT=$(printf '%s' "${EMAIL_SUBJECT}" | tr '\r\n' '  ')
+{
+    printf 'From: %s\n' "${EMAIL_FROM}"
+    printf 'To: %s\n' "${EMAIL_TO}"
+    printf 'Subject: %s\n' "${EMAIL_SUBJECT}"
+    printf 'Content-Type: text/plain;charset="utf-8"\n\n'
+    printf '%s\n' "${EMAIL_CONTENT}"
+} | /usr/lib/sendmail -t -f "${EMAIL_FROM}"

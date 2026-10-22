@@ -295,6 +295,7 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
 
     // We validate resource effect info first (and get whole resource info)
     Resource_t resource;
+    memset(&resource, 0, sizeof(resource));
     resource.resource_id = effect->resource_id;
     result = protocol_validate_resource_effect(effect, &resource);
 
@@ -334,6 +335,16 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
           return ENGINE_INTERNAL_ERROR;
         }
         newEvent.resource_id = protocol->parameters[parameterId];
+
+        // The resource came from the stack: look it up now (its mass sets
+        // the cargo change below)
+        resource.resource_id = newEvent.resource_id;
+        result = protocol_validate_resource_id(&resource);
+        if(result != ENGINE_OK) {
+          engine_trace(TRACE_LEVEL_ALWAYS,
+            "ERROR: resource [%d] from the stack does not exist", newEvent.resource_id);
+          return result;
+        }
       }
 
       newEvent.event_type = effect->event_type;

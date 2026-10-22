@@ -93,6 +93,11 @@ time_t db_date_to_timestamp(char* date, char* format)
 
     // input pointers checked by calling function
 
+    // strptime only sets the fields in the format. Clear the rest: a random
+    // tm_isdst made mktime shift dates by an hour, and then the events
+    // engine looked up a drone's inventory an hour in the past.
+    memset(&tm, 0, sizeof(tm));
+    tm.tm_isdst = -1;
     char* conversion_result = strptime(date, format, &tm);
 
     if (conversion_result != NULL) {
@@ -749,7 +754,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "WHERE drone = %d and resource = %d and installed = %d and locked = %d "
                     "and outcome = %d " // success
                     "and (event_type = 1 or event_type = 2)" // look only for increment and depletion events
-                    "and timestamp <= '%s' order by timestamp DESC limit 1;",  //
+                    "and timestamp <= '%s' order by timestamp DESC, id DESC limit 1;",  //
                     event->drone_id, event->resource_id, event->installed, event->locked, OUTCOME_OK, timestamp_buffer);
                 break;
             case PREVIOUS_EVENT_BY_DRONE:
@@ -759,7 +764,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "FROM events "
                     "WHERE drone = %d "
                     "and outcome = %d " // success
-                    "and timestamp < '%s' order by timestamp DESC limit 1;",
+                    "and timestamp < '%s' order by timestamp DESC, id DESC limit 1;",
                     event->drone_id, OUTCOME_OK, timestamp_buffer);
                 break;
             case PREVIOUS_EVENT_BY_OWNER:
@@ -768,7 +773,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "SELECT * from events where drone in "
                     "(select agent_id from agents where user_id = (select user_id from agents where agent_id = %d)) "
                     "and outcome = %d " // success
-                    "and timestamp < '%s' order by timestamp DESC limit 1;",
+                    "and timestamp < '%s' order by timestamp DESC, id DESC limit 1;",
                     event->drone_id, OUTCOME_OK, timestamp_buffer);
                 break;
             case PREVIOUS_EVENT_BY_SELL_ORDER:
@@ -778,7 +783,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "drone = %d and "
                     "event_type = %d and "
                     "outcome = %d and " // success
-                    "resource = %d and timestamp < '%s' order by timestamp DESC limit 1;",
+                    "resource = %d and timestamp < '%s' order by timestamp DESC, id DESC limit 1;",
                     event->drone_id, SELL_EVENT_TYPE, OUTCOME_OK, event->resource_id, timestamp_buffer);
                 break;
             case PREVIOUS_EVENT_BY_BUY_ORDER:
@@ -788,7 +793,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "drone = %d and "
                     "event_type = %d and "
                     "outcome = %d and " // success
-                    "resource = %d and timestamp < '%s' order by timestamp DESC limit 1;",
+                    "resource = %d and timestamp < '%s' order by timestamp DESC, id DESC limit 1;",
                     event->drone_id, BUY_EVENT_TYPE, OUTCOME_OK, event->resource_id, timestamp_buffer);
                 break;
             default:
@@ -2127,7 +2132,7 @@ ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity)
         snprintf(query_text,
             DB_MAX_SQL_QUERY_LEN,
             "select new_quantity from events where drone = %d and resource = %d and (event_type = %d or event_type = %d) and outcome = 1 "
-            "order by timestamp DESC limit 1;",
+            "order by timestamp DESC, id DESC limit 1;",
             droneId,
             resource_id,
             INCREMENT_INVENTORY_EVENT_TYPE,
