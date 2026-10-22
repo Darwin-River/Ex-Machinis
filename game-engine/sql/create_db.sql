@@ -456,6 +456,25 @@ ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
+-- -----------------------------------------------------
+-- View `exmachinis`.`sqInventory`
+-- What each drone currently holds of each resource: the new_quantity of its
+-- latest successful (outcome = 1) inventory event (1 = increment,
+-- 2 = decrement inventory; see app/EventType.php). Same rule as the cargo
+-- manifest in AgentController. Used by the buy/sell order searches.
+-- Rebuilt in 2026: the original definition only survived as fragments in
+-- ms-access/ms_access_client.accdb.
+-- -----------------------------------------------------
+CREATE OR REPLACE VIEW `exmachinis`.`sqInventory` AS
+SELECT e.`drone` AS `drone`, e.`resource` AS `resource`, e.`new_quantity` AS `units`
+FROM `exmachinis`.`events` e
+JOIN (
+  SELECT MAX(`id`) AS `id`
+  FROM `exmachinis`.`events`
+  WHERE `outcome` = 1 AND `event_type` IN (1, 2)
+  GROUP BY `drone`, `resource`
+) latest ON latest.`id` = e.`id`;
+
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
