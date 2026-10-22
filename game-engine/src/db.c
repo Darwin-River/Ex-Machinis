@@ -756,6 +756,67 @@ ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMa
 
 /** ****************************************************************************
 
+    @brief          Appends to the output a paused script has produced so far
+                    (agents.OUTPUT holds it until the script finishes)
+
+*******************************************************************************/
+ErrorCode_t db_append_agent_output(DbConnection_t* connection, int agent_id, const char* msg)
+{
+    ErrorCode_t result = db_reconnect(connection);
+    if(!msg) return ENGINE_INTERNAL_ERROR;
+
+    char* safe = db_escape_alloc(connection, msg);
+    if(!safe) return ENGINE_INTERNAL_ERROR;
+    size_t query_size = strlen(safe) + 128;
+    char* query_text = engine_malloc(query_size);
+    if(!query_text) { free(safe); return ENGINE_INTERNAL_ERROR; }
+
+    snprintf(query_text, query_size,
+        "UPDATE agents SET OUTPUT = CONCAT(IFNULL(OUTPUT, ''), '%s') where AGENT_ID = %d",
+        safe, agent_id);
+    if (mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+
+    engine_free(query_text, query_size);
+    free(safe);
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Returns the output a paused script collected (malloc'd,
+                    free() it; "" when none) and clears it
+
+*******************************************************************************/
+char* db_take_agent_output(DbConnection_t* connection, int agent_id)
+{
+    char* out = NULL;
+    char query_text[128];
+
+    if(db_reconnect(connection) == ENGINE_OK) {
+        snprintf(query_text, sizeof(query_text), "SELECT OUTPUT from agents where AGENT_ID = %d", agent_id);
+        if (mysql_query(connection->hndl, query_text) == 0) {
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+            if(db_result) {
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row && row[0]) out = strdup(row[0]);
+                mysql_free_result(db_result);
+            }
+        } else {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        }
+        snprintf(query_text, sizeof(query_text), "UPDATE agents SET OUTPUT = '' where AGENT_ID = %d", agent_id);
+        if (mysql_query(connection->hndl, query_text))
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+    }
+
+    return out ? out : strdup("");
+}
+
+/** ****************************************************************************
+
     @brief          Updates latest command output in DB
 
     @param[in|out]  Connection info, updated once disconnected

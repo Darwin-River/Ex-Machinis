@@ -9,6 +9,7 @@
 /******************************* INCLUDES ************************************/
 
 #include <string.h>
+#include <stdbool.h>
 #include <assert.h>
 #include <time.h>
 
@@ -412,7 +413,16 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
             // Check if it is a resume / execute command and also if there are pending commands running
             int forth_result = -1;
 
-            if(strcmp(command->code, engine_get_vm_resume_command()))
+            // The code ends with a newline (the FORTH interpreter needs it),
+            // so compare the resume marker ignoring surrounding whitespace
+            const char* resume = engine_get_vm_resume_command();
+            const char* code = command->code;
+            while(*code == ' ' || *code == '\t' || *code == '\r' || *code == '\n') code++;
+            size_t code_len = strlen(code);
+            while(code_len > 0 && strchr(" \t\r\n", code[code_len - 1])) code_len--;
+            bool is_resume = (code_len == strlen(resume)) && (strncmp(code, resume, code_len) == 0);
+
+            if(!is_resume)
             { 
                 // it is normal command
                 engine_trace(TRACE_LEVEL_ALWAYS, "Executing command at VM: [%s]", command->code);

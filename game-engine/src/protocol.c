@@ -750,6 +750,7 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
   Bool_t actionCreated = ENGINE_FALSE;
   ProtocolInfo_t protocol;
   Action_t action;
+  memset(&action, 0, sizeof(action));
 
   // Reset result msg
   protocolMsg[0] = 0;
@@ -807,7 +808,10 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
   }
 
   // Abort action when something failed
-  if((result != ENGINE_OK) && (actionCreated == ENGINE_TRUE)) {
+  if((result != ENGINE_OK) && (actionCreated == ENGINE_FALSE)) {
+    // Unknown protocol (no action was created): -1, as mechanics.md says
+    vm_extension_push(vmExt, -1);
+  } else if((result != ENGINE_OK) && (actionCreated == ENGINE_TRUE)) {
     // sprintf(protocolMsg, "Protocol \"%s\" failed", protocol.protocol_name);
     // Push zero into VM stack
     vm_extension_push(vmExt, 0);

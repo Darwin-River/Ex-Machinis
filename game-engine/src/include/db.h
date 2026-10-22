@@ -228,6 +228,12 @@ ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMa
 *******************************************************************************/
 ErrorCode_t db_update_agent_output(DbConnection_t* connection, int agent_id, char* msg);
 
+/** Appends to the output a paused script has produced so far (agents.OUTPUT). */
+ErrorCode_t db_append_agent_output(DbConnection_t* connection, int agent_id, const char* msg);
+
+/** Returns (malloc'd, "" when none) and clears a paused script's collected output. */
+char* db_take_agent_output(DbConnection_t* connection, int agent_id);
+
 /** ****************************************************************************
 
     @brief          Updates latest input output in DB

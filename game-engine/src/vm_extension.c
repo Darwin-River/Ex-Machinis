@@ -339,9 +339,6 @@ static int vm_ext_execute_cb(VmExtension_t * const v)
     // and a variable number of parameters depending on DB configuration
     cell_t protocolId;
 
-    // Build the output message depending on result
-    char executeOutMsg[LINE_MAX];
-
     protocolId = pop(v);
 
     if(!v->error) {
@@ -353,8 +350,6 @@ static int vm_ext_execute_cb(VmExtension_t * const v)
         // Push zero into VM stack
         vm_extension_push(v, 0);
     }
-
-    embed_puts(v->h, executeOutMsg);
 
     return 0;
 }
@@ -374,9 +369,6 @@ static int vm_ext_report_cb(VmExtension_t * const v)
 
   // Send current buffer content by email
   vm_report((VirtualMachine_t*)v->h);
-
-  // At report just do echo
-  embed_puts(v->h, "report");
 
   return 0;
 }
