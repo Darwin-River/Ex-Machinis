@@ -5,7 +5,7 @@ end-of-life stack. The C game engine is not affected.
 
 ## Status (Oct 2026)
 
-**Backend upgrade complete:** Laravel 13.38 on PHP 8.3, phpunit 10.5, with 59
+**Backend upgrade complete:** Laravel 13.38 on PHP 8.3, phpunit 10.5, with 62
 tests running in CI on every PR. **Frontend complete:** Vite + Vue 3.5. **Mail
 intake** no longer needs the PHP imap extension. All planned steps are done.
 
@@ -200,9 +200,12 @@ copy would both need reworking, so it's only worth doing as part of a redesign.
   pasted the URL id into a raw subquery, and MySQL's string-to-int cast let
   the model lookup succeed first. The query now uses the stored `agent_id`,
   and all `{id}` detail routes only accept numbers.
-- The `sqInventory` view used by the buy and sell order searches isn't defined
-  anywhere in the repo. The tests use a stand-in table; the real definition needs
-  rebuilding before anything goes live again.
+- ✅ Rebuilt: the `sqInventory` view used by the buy and sell order searches is
+  now defined in `game-engine/sql/create_db.sql`. It gives each drone's current
+  units per resource from its latest successful increment/decrement inventory
+  event (the same rule as the cargo manifest). The original definition was
+  lost; only fragments survive in the Access file. On an existing database,
+  run the `CREATE OR REPLACE VIEW` statement from that file.
 
 ## Clean-up worth doing along the way
 - Delete or move the stray root-level `HomeController.php` (it differs from

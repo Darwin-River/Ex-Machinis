@@ -3,17 +3,6 @@
 
 USE `exmachinis`;
 
--- Stand-in for `sqInventory`, used by the buy/sell order searches.
--- On the old live server this was a view whose definition is not in
--- this repo (it only survives inside ms-access/ms_access_client.accdb).
--- The columns below are the ones the website queries use.
-CREATE TABLE IF NOT EXISTS `sqInventory` (
-  `drone` INT UNSIGNED NOT NULL,
-  `resource` INT UNSIGNED NOT NULL,
-  `units` INT NULL,
-  PRIMARY KEY (`drone`, `resource`)
-) ENGINE = InnoDB;
-
 -- One company (user) with one drone parked at Earth (object 3).
 INSERT INTO `users` (`user_id`, `name`, `email`, `credits`)
   VALUES (1, 'Test Company', 'test@example.com', 1000);
@@ -27,5 +16,11 @@ INSERT INTO `events` (`id`, `event_type`, `outcome`, `drone`, `resource`, `new_q
   VALUES (1, 5, 1, 1, 1, 10, 100, '2022-11-01 12:00:00'),
          (2, 4, 1, 1, 2, 5, 200, '2022-11-01 12:05:00');
 
-INSERT INTO `sqInventory` (`drone`, `resource`, `units`)
-  VALUES (1, 2, 20);
+-- Inventory history for the drone (read through the sqInventory view): it now
+-- holds 20 of resource 2. Only the latest successful increment/decrement
+-- event counts; the failed one and the move event are ignored.
+INSERT INTO `events` (`id`, `event_type`, `outcome`, `drone`, `resource`, `new_quantity`, `timestamp`)
+  VALUES (3, 1, 1, 1, 2, 12, '2022-10-30 10:00:00'),
+         (4, 1, 1, 1, 2, 20, '2022-10-31 10:00:00'),
+         (5, 2, 0, 1, 2, 99, '2022-10-31 11:00:00'),
+         (6, 3, 1, 1, 2, 77, '2022-10-31 12:00:00');
