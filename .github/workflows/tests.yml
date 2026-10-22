@@ -79,3 +79,14 @@ jobs:
         run: |
           git status --porcelain html/build
           test -z "$(git status --porcelain html/build)" || { echo "html/build is stale: run 'npm run build' and commit the result"; exit 1; }
+
+  engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install build dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libconfig-dev libmysqlclient-dev
+
+      - name: Build game and events engines
+        run: make -C game-engine/src all

@@ -349,7 +349,7 @@ ErrorCode_t db_insert_command(DbConnection_t* connection, Command_t* command)
     if(result == ENGINE_OK)
     {
         // Sanity check
-        if(!command || !command->code || !command->email_content)
+        if(!command || !command->email_content)
             return ENGINE_INTERNAL_ERROR;
     }
 

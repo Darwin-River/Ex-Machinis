@@ -100,7 +100,7 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
 	   		}
 
 	   		// copy last portion
-	   		strncat(dest, start, strlen(start));
+	   		strcat(dest, start);
 
 	   		engine_trace(TRACE_LEVEL_ALWAYS,
 	        	"Input is [%s] -> scaped content is [%s]",

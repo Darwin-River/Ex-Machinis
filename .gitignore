@@ -19,3 +19,4 @@ phpMyAdmin
 .phpunit.result.cache
 /.phpunit.cache
 /html/hot
+/game-engine/src/bin
