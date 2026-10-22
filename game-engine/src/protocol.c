@@ -295,6 +295,7 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
 
     // We validate resource effect info first (and get whole resource info)
     Resource_t resource;
+    memset(&resource, 0, sizeof(resource));
     resource.resource_id = effect->resource_id;
     result = protocol_validate_resource_effect(effect, &resource);
 
@@ -334,6 +335,16 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
           return ENGINE_INTERNAL_ERROR;
         }
         newEvent.resource_id = protocol->parameters[parameterId];
+
+        // The resource came from the stack: look it up now (its mass sets
+        // the cargo change below)
+        resource.resource_id = newEvent.resource_id;
+        result = protocol_validate_resource_id(&resource);
+        if(result != ENGINE_OK) {
+          engine_trace(TRACE_LEVEL_ALWAYS,
+            "ERROR: resource [%d] from the stack does not exist", newEvent.resource_id);
+          return result;
+        }
       }
 
       newEvent.event_type = effect->event_type;
@@ -739,6 +750,7 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
   Bool_t actionCreated = ENGINE_FALSE;
   ProtocolInfo_t protocol;
   Action_t action;
+  memset(&action, 0, sizeof(action));
 
   // Reset result msg
   protocolMsg[0] = 0;
@@ -796,7 +808,10 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
   }
 
   // Abort action when something failed
-  if((result != ENGINE_OK) && (actionCreated == ENGINE_TRUE)) {
+  if((result != ENGINE_OK) && (actionCreated == ENGINE_FALSE)) {
+    // Unknown protocol (no action was created): -1, as mechanics.md says
+    vm_extension_push(vmExt, -1);
+  } else if((result != ENGINE_OK) && (actionCreated == ENGINE_TRUE)) {
     // sprintf(protocolMsg, "Protocol \"%s\" failed", protocol.protocol_name);
     // Push zero into VM stack
     vm_extension_push(vmExt, 0);

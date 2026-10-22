@@ -104,6 +104,16 @@ void db_scape_string(
 }
 
 
+/** Escapes a value for use inside quotes in SQL. Free the result with free(). */
+static char* db_escape_alloc(DbConnection_t* connection, const char* value)
+{
+    size_t len = strlen(value);
+    char* out = malloc(len * 2 + 1);
+    if(out)
+        mysql_real_escape_string(connection->hndl, out, value, len);
+    return out;
+}
+
 /******************************* PUBLIC FUNCTIONS ****************************/
 
 /** ***************************************************************************
@@ -123,6 +133,11 @@ time_t db_date_to_timestamp(char* date, char* format)
 
     // input pointers checked by calling function
 
+    // strptime only sets the fields in the format. Clear the rest: a random
+    // tm_isdst made mktime shift dates by an hour, and then the events
+    // engine looked up a drone's inventory an hour in the past.
+    memset(&tm, 0, sizeof(tm));
+    tm.tm_isdst = -1;
     char* conversion_result = strptime(date, format, &tm);
 
     if (conversion_result != NULL) {
@@ -741,6 +756,67 @@ ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMa
 
 /** ****************************************************************************
 
+    @brief          Appends to the output a paused script has produced so far
+                    (agents.OUTPUT holds it until the script finishes)
+
+*******************************************************************************/
+ErrorCode_t db_append_agent_output(DbConnection_t* connection, int agent_id, const char* msg)
+{
+    ErrorCode_t result = db_reconnect(connection);
+    if(!msg) return ENGINE_INTERNAL_ERROR;
+
+    char* safe = db_escape_alloc(connection, msg);
+    if(!safe) return ENGINE_INTERNAL_ERROR;
+    size_t query_size = strlen(safe) + 128;
+    char* query_text = engine_malloc(query_size);
+    if(!query_text) { free(safe); return ENGINE_INTERNAL_ERROR; }
+
+    snprintf(query_text, query_size,
+        "UPDATE agents SET OUTPUT = CONCAT(IFNULL(OUTPUT, ''), '%s') where AGENT_ID = %d",
+        safe, agent_id);
+    if (mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+
+    engine_free(query_text, query_size);
+    free(safe);
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Returns the output a paused script collected (malloc'd,
+                    free() it; "" when none) and clears it
+
+*******************************************************************************/
+char* db_take_agent_output(DbConnection_t* connection, int agent_id)
+{
+    char* out = NULL;
+    char query_text[128];
+
+    if(db_reconnect(connection) == ENGINE_OK) {
+        snprintf(query_text, sizeof(query_text), "SELECT OUTPUT from agents where AGENT_ID = %d", agent_id);
+        if (mysql_query(connection->hndl, query_text) == 0) {
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+            if(db_result) {
+                MYSQL_ROW row = mysql_fetch_row(db_result);
+                if(row && row[0]) out = strdup(row[0]);
+                mysql_free_result(db_result);
+            }
+        } else {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        }
+        snprintf(query_text, sizeof(query_text), "UPDATE agents SET OUTPUT = '' where AGENT_ID = %d", agent_id);
+        if (mysql_query(connection->hndl, query_text))
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+    }
+
+    return out ? out : strdup("");
+}
+
+/** ****************************************************************************
+
     @brief          Updates latest command output in DB
 
     @param[in|out]  Connection info, updated once disconnected
@@ -836,20 +912,24 @@ ErrorCode_t db_update_agent_input(DbConnection_t* connection, int agent_id, Comm
 
     if(result == ENGINE_OK)
     {
-        // Prepare query to update input and subject
-        size_t query_size = strlen(new_input) + strlen(new_subject) + DB_MAX_SQL_QUERY_LEN;
-        char* query_text = engine_malloc(query_size);
-
+        // Prepare query to update input and subject. Both come from the
+        // player's email, so escape both; escaping can double the length.
         size_t input_size = strlen(new_input)*2 + 1;
         char* scaped_input = engine_malloc(input_size);
+        size_t subject_size = strlen(new_subject)*2 + 1;
+        char* scaped_subject = engine_malloc(subject_size);
 
         db_scape_string(connection, new_input, strlen(new_input), scaped_input, input_size);
+        db_scape_string(connection, new_subject, strlen(new_subject), scaped_subject, subject_size);
+
+        size_t query_size = input_size + subject_size + 128;
+        char* query_text = engine_malloc(query_size);
 
         snprintf(query_text,
             query_size,
             "UPDATE agents SET input = '%s', subject = '%s' where agent_id = %d",
             scaped_input,
-            new_subject,
+            scaped_subject,
             agent_id);
 
         // run it
@@ -867,6 +947,7 @@ ErrorCode_t db_update_agent_input(DbConnection_t* connection, int agent_id, Comm
 
         engine_free(query_text, query_size);
         engine_free(scaped_input, input_size);
+        engine_free(scaped_subject, subject_size);
     }
 
     if(agent_info.input_content)engine_free(agent_info.input_content, strlen(agent_info.input_content)+1);
@@ -1563,7 +1644,7 @@ ErrorCode_t db_insert_action(Action_t* action)
     char* query_end = query_text;
 
     query_end += snprintf(query_end,
-        DB_MAX_SQL_QUERY_LEN,
+        QUERY_SPACE_LEFT,
         "INSERT INTO actions (drone, protocol, multiplier, aborted) VALUES(%d, %d, %d, %d)",
         action->drone_id,
         action->protocol_id,
@@ -1617,7 +1698,7 @@ ErrorCode_t db_abort_action(int action_id)
         char* query_end = query_text;
 
         query_end += snprintf(query_end,
-            DB_MAX_SQL_QUERY_LEN,
+            QUERY_SPACE_LEFT,
             "UPDATE actions SET aborted = 1 WHERE ID = %d",
             action_id);
 
@@ -2337,7 +2418,7 @@ ErrorCode_t db_insert_event(Event_t* event)
     char* query_end = query_text;
 
     query_end += snprintf(query_end,
-        DB_MAX_SQL_QUERY_LEN,
+        QUERY_SPACE_LEFT,
         "INSERT INTO events "
         "(timestamp, event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
         "VALUES(CAST(DATE_ADD(NOW(), INTERVAL %d SECOND) AS DATETIME), %d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
@@ -2437,8 +2518,8 @@ ErrorCode_t db_get_previous_resource_event(Event_t* event)
     char* query_end = query_text;
 
     query_end += snprintf(query_end,
-        DB_MAX_SQL_QUERY_LEN,
-        "SELECT * from events where drone = %d and resource = %d order by timestamp desc limit 1",
+        QUERY_SPACE_LEFT,
+        "SELECT * from events where drone = %d and resource = %d order by timestamp desc, id desc limit 1",
         event->drone_id,
         event->resource_id);
 
@@ -2584,17 +2665,19 @@ ErrorCode_t db_check_agent_name(DbConnection_t* connection, char* name)
 
     // Prepare query
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char* safe_name = db_escape_alloc(connection, name);
+    if(!safe_name) return ENGINE_INTERNAL_ERROR;
 
     snprintf(query_text,
         DB_MAX_SQL_QUERY_LEN,
         "SELECT name from agents where LOWER(NAME) = LOWER('%s')",
-        name);
+        safe_name);
 
     // run it
     if (mysql_query(connection->hndl, query_text))
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-        result = ENGINE_DB_NOT_FOUND_ERROR;
+        result = ENGINE_DB_QUERY_ERROR;
     }
     else
     {
@@ -2609,6 +2692,7 @@ ErrorCode_t db_check_agent_name(DbConnection_t* connection, char* name)
         }
     }
 
+    free(safe_name);
     return result;
 }
 
@@ -2632,17 +2716,19 @@ ErrorCode_t db_check_company_name(DbConnection_t* connection, char* company_name
 
     // Prepare query
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char* safe_company_name = db_escape_alloc(connection, company_name);
+    if(!safe_company_name) return ENGINE_INTERNAL_ERROR;
 
     snprintf(query_text,
         DB_MAX_SQL_QUERY_LEN,
         "SELECT name from users where LOWER(NAME) = LOWER('%s')",
-        company_name);
+        safe_company_name);
 
     // run it
     if (mysql_query(connection->hndl, query_text))
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-        result = ENGINE_DB_NOT_FOUND_ERROR;
+        result = ENGINE_DB_QUERY_ERROR;
     }
     else
     {
@@ -2657,6 +2743,7 @@ ErrorCode_t db_check_company_name(DbConnection_t* connection, char* company_name
         }
     }
 
+    free(safe_company_name);
     return result;
 }
 
@@ -2681,11 +2768,13 @@ ErrorCode_t db_update_agent_name(DbConnection_t* connection, int agent_id, char*
 
     // Prepare query
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char* safe_name = db_escape_alloc(connection, name);
+    if(!safe_name) return ENGINE_INTERNAL_ERROR;
 
     snprintf(query_text,
         DB_MAX_SQL_QUERY_LEN,
         "UPDATE agents SET NAME = '%s' where AGENT_ID = %d",
-        name,
+        safe_name,
         agent_id);
 
     // run it
@@ -2700,6 +2789,7 @@ ErrorCode_t db_update_agent_name(DbConnection_t* connection, int agent_id, char*
             "Updated AGENT[%d] name to [%s]", agent_id, name);
     }
 
+    free(safe_name);
     return result;
 }
 
@@ -2725,11 +2815,13 @@ ErrorCode_t db_update_agent_company(DbConnection_t* connection, int agent_id, ch
 
     // Prepare query
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char* safe_company_name = db_escape_alloc(connection, company_name);
+    if(!safe_company_name) return ENGINE_INTERNAL_ERROR;
 
     snprintf(query_text,
         DB_MAX_SQL_QUERY_LEN,
         "UPDATE users SET NAME = '%s' where USER_ID = (SELECT USER_ID from agents where AGENT_ID = %d)",
-        company_name,
+        safe_company_name,
         agent_id);
 
     // run it
@@ -2744,6 +2836,7 @@ ErrorCode_t db_update_agent_company(DbConnection_t* connection, int agent_id, ch
             "Updated AGENT[%d] company to [%s]", agent_id, company_name);
     }
 
+    free(safe_company_name);
     return result;
 }
 
@@ -3049,7 +3142,7 @@ ErrorCode_t db_get_drone_object_id(int drone_id, int *object_id)
         char* query_end = query_text;
 
         query_end += snprintf(query_end,
-            DB_MAX_SQL_QUERY_LEN,
+            QUERY_SPACE_LEFT,
             "SELECT object_id from agents where agent_id = %d",
             drone_id);
 
@@ -3137,7 +3230,7 @@ ErrorCode_t db_get_abundancies(Abundancies_t *abundancies)
         char* query_end = query_text;
 
         query_end += snprintf(query_end,
-            DB_MAX_SQL_QUERY_LEN,
+            QUERY_SPACE_LEFT,
             "SELECT multiplier from abundancies where location = %d and resource = %d order by id limit 1",
             abundancies->location_id,
             abundancies->resource_id);

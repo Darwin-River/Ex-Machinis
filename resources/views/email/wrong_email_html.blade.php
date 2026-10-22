@@ -1,4 +1,4 @@
-Invalid content received at email!<br/><br/>
+Your drone could not find a command in this email. Put your FORTH code between &lt;run&gt; and &lt;/run&gt; tags, for example: &lt;run&gt;2 3 + . cr&lt;/run&gt;<br/><br/>
 
 <b>From:</b> {{ $from }}<br/>
 

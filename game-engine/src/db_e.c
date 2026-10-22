@@ -93,6 +93,11 @@ time_t db_date_to_timestamp(char* date, char* format)
 
     // input pointers checked by calling function
 
+    // strptime only sets the fields in the format. Clear the rest: a random
+    // tm_isdst made mktime shift dates by an hour, and then the events
+    // engine looked up a drone's inventory an hour in the past.
+    memset(&tm, 0, sizeof(tm));
+    tm.tm_isdst = -1;
     char* conversion_result = strptime(date, format, &tm);
 
     if (conversion_result != NULL) {
@@ -749,7 +754,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "WHERE drone = %d and resource = %d and installed = %d and locked = %d "
                     "and outcome = %d " // success
                     "and (event_type = 1 or event_type = 2)" // look only for increment and depletion events
-                    "and timestamp <= '%s' order by timestamp DESC limit 1;",  //
+                    "and timestamp <= '%s' order by timestamp DESC, id DESC limit 1;",  //
                     event->drone_id, event->resource_id, event->installed, event->locked, OUTCOME_OK, timestamp_buffer);
                 break;
             case PREVIOUS_EVENT_BY_DRONE:
@@ -759,7 +764,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "FROM events "
                     "WHERE drone = %d "
                     "and outcome = %d " // success
-                    "and timestamp < '%s' order by timestamp DESC limit 1;",
+                    "and timestamp < '%s' order by timestamp DESC, id DESC limit 1;",
                     event->drone_id, OUTCOME_OK, timestamp_buffer);
                 break;
             case PREVIOUS_EVENT_BY_OWNER:
@@ -768,7 +773,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "SELECT * from events where drone in "
                     "(select agent_id from agents where user_id = (select user_id from agents where agent_id = %d)) "
                     "and outcome = %d " // success
-                    "and timestamp < '%s' order by timestamp DESC limit 1;",
+                    "and timestamp < '%s' order by timestamp DESC, id DESC limit 1;",
                     event->drone_id, OUTCOME_OK, timestamp_buffer);
                 break;
             case PREVIOUS_EVENT_BY_SELL_ORDER:
@@ -778,7 +783,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "drone = %d and "
                     "event_type = %d and "
                     "outcome = %d and " // success
-                    "resource = %d and timestamp < '%s' order by timestamp DESC limit 1;",
+                    "resource = %d and timestamp < '%s' order by timestamp DESC, id DESC limit 1;",
                     event->drone_id, SELL_EVENT_TYPE, OUTCOME_OK, event->resource_id, timestamp_buffer);
                 break;
             case PREVIOUS_EVENT_BY_BUY_ORDER:
@@ -788,7 +793,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "drone = %d and "
                     "event_type = %d and "
                     "outcome = %d and " // success
-                    "resource = %d and timestamp < '%s' order by timestamp DESC limit 1;",
+                    "resource = %d and timestamp < '%s' order by timestamp DESC, id DESC limit 1;",
                     event->drone_id, BUY_EVENT_TYPE, OUTCOME_OK, event->resource_id, timestamp_buffer);
                 break;
             default:
@@ -908,8 +913,8 @@ ErrorCode_t db_get_action(Action_t *action)
         char* query_end = query_text;
 
         query_end += snprintf(query_end,
-            DB_MAX_SQL_QUERY_LEN,
-            "SELECT * from actions where id = %d",
+            QUERY_SPACE_LEFT,
+            "SELECT id, drone, protocol, multiplier, aborted, timestamp from actions where id = %d",
             action->action_id);
 
         // run it
@@ -996,7 +1001,7 @@ ErrorCode_t db_abort_action(int action_id)
         char* query_end = query_text;
 
         query_end += snprintf(query_end,
-            DB_MAX_SQL_QUERY_LEN,
+            QUERY_SPACE_LEFT,
             "UPDATE actions SET aborted = 1 WHERE ID = %d",
             action_id);
 
@@ -1043,24 +1048,24 @@ ErrorCode_t db_update_event(Event_t *event)
     {
         char* query_end = query_text;
 
-        query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, "UPDATE events SET outcome = %d,", event->outcome);
+        query_end += snprintf(query_end, QUERY_SPACE_LEFT, "UPDATE events SET outcome = %d,", event->outcome);
 
 
         // Check first if we have any value to set
         if((event->new_quantity != NULL_VALUE) || (event->new_credits != NULL_VALUE) || (event->new_cargo != NULL_VALUE))
         {
             if(event->new_quantity != NULL_VALUE)
-                query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, " new_quantity = %d,", event->new_quantity);
+                query_end += snprintf(query_end, QUERY_SPACE_LEFT, " new_quantity = %d,", event->new_quantity);
 
             if(event->new_credits != NULL_VALUE)
-                query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, " new_credits = %d,", event->new_credits);
+                query_end += snprintf(query_end, QUERY_SPACE_LEFT, " new_credits = %d,", event->new_credits);
 
             if(event->new_cargo != NULL_VALUE)
-                query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, " new_cargo = %d,", event->new_cargo);
+                query_end += snprintf(query_end, QUERY_SPACE_LEFT, " new_cargo = %d,", event->new_cargo);
         }
 
         query_end--; // overwrite the latest comma
-        query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, " WHERE id = %d", event->event_id);
+        query_end += snprintf(query_end, QUERY_SPACE_LEFT, " WHERE id = %d", event->event_id);
 
         // run it
         if (mysql_query(connection->hndl, query_text))
@@ -1217,7 +1222,7 @@ ErrorCode_t db_get_max_drone_cargo(int drone_id, int *capacity)
         char* query_end = query_text;
 
         query_end += snprintf(query_end,
-            DB_MAX_SQL_QUERY_LEN,
+            QUERY_SPACE_LEFT,
             "SELECT cargo_capacity from hulls where id = (select hull_type from agents where agent_id = %d)",
             drone_id);
 
@@ -1311,7 +1316,7 @@ ErrorCode_t db_insert_observation(Observation_t* observation)
                 observation->timestamp, timestamp_buffer);
 
     query_end += snprintf(query_end,
-        DB_MAX_SQL_QUERY_LEN,
+        QUERY_SPACE_LEFT,
         "INSERT INTO observations (drone, event, time) VALUES(%d, %d, '%s')",
         observation->drone_id,
         observation->event_id,
@@ -1520,7 +1525,7 @@ ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protoc
         char* query_end = query_text;
 
         query_end += snprintf(query_end,
-            DB_MAX_SQL_QUERY_LEN,
+            QUERY_SPACE_LEFT,
             "SELECT observable, reportable from protocols where id = (select protocol from actions where id = %d)",
             event->action_id);
 
@@ -2025,7 +2030,7 @@ ErrorCode_t db_get_drone_user(int drone_id, User_t* user)
         char* query_end = query_text;
 
         query_end += snprintf(query_end,
-            DB_MAX_SQL_QUERY_LEN,
+            QUERY_SPACE_LEFT,
             "SELECT * FROM users WHERE user_id = (SELECT user_id FROM agents WHERE agent_id = %d);",
             drone_id);
 
@@ -2127,7 +2132,7 @@ ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity)
         snprintf(query_text,
             DB_MAX_SQL_QUERY_LEN,
             "select new_quantity from events where drone = %d and resource = %d and (event_type = %d or event_type = %d) and outcome = 1 "
-            "order by timestamp DESC limit 1;",
+            "order by timestamp DESC, id DESC limit 1;",
             droneId,
             resource_id,
             INCREMENT_INVENTORY_EVENT_TYPE,
@@ -2237,7 +2242,7 @@ ErrorCode_t db_update_user_credits(User_t* user)
     {
         char* query_end = query_text;
 
-        query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN,
+        query_end += snprintf(query_end, QUERY_SPACE_LEFT,
             "UPDATE users SET credits = %d where user_id = %d",
             user->credits,
             user->user_id);
@@ -2293,7 +2298,7 @@ ErrorCode_t db_insert_event_e(Event_t* event)
     char* query_end = query_text;
 
     query_end += snprintf(query_end,
-        DB_MAX_SQL_QUERY_LEN,
+        QUERY_SPACE_LEFT,
         "INSERT INTO events "
         "(timestamp, event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
         "VALUES(CAST(DATE_ADD(NOW(), INTERVAL %d MINUTE) AS DATETIME), %d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0

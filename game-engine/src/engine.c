@@ -15,10 +15,20 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <string.h>
+#include <strings.h>
+#include <ctype.h>
+#include <stdbool.h>
 
 #include "engine.h"
 #include "config.h"
 #include "db.h"
+
+// The current command ran on the drone's VM (not refused, not a meta command)
+static bool g_ran_on_vm = false;
+
+// Emails msg to the current drone's owner. with_pending: put the output the
+// script printed before it last paused first (and clear it).
+void engine_send_output(const char* msg, bool with_pending);
 #include "vm.h"
 #include "email.h"
 #include "orbits.h"
@@ -357,13 +367,19 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
     // When busy, wait
     if(engine_is_current_vm_busy() == ENGINE_TRUE)
     {
-        engine_vm_output_cb("Another command is running, retry later");
+        engine_send_output("Another command is running, retry later", false);
         out_buf[0] = 0; // do not output more emails 
         return ENGINE_OK;
     }
 
+    // A new script (not a resume) starts with no collected output
+    const char* resume = engine_get_vm_resume_command();
+    if(strncmp(engine.last_command.code, resume, strlen(resume)) != 0)
+        free(db_take_agent_output(&engine.db_connection, engine.last_command.agent_id));
+
     // VM command & not busy -> execute it and take the suitable actions
     result = vm_run_command(engine.last_agent.vm, &engine.last_command, out_buf, out_buf_size);
+    g_ran_on_vm = true;
 
     AgentInfo_t info;
     // Update drone info (just in case, we executed a location change)
@@ -388,6 +404,32 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
     }
 
     return result;
+}
+
+#define MAX_NEW_NAME_LEN 64
+
+/** True when name is usable as a drone's email local part. */
+static bool engine_is_valid_agent_name(const char* name)
+{
+    static const char* reserved[] = {
+        "registrar", "catchall", "services", "postmaster", "abuse", "hostmaster",
+        "webmaster", "admin", "root", "help", "noreply", "no-reply", "mailer-daemon", "dscc",
+    };
+    size_t len = strlen(name);
+    if(len == 0 || len > MAX_NEW_NAME_LEN)
+        return false;
+    for(size_t i = 0; i < len; i++) {
+        unsigned char c = (unsigned char)name[i];
+        if(!isalnum(c) && c != '.' && c != '-' && c != '_')
+            return false;
+    }
+    if(name[0] == '.' || name[len - 1] == '.' || strstr(name, ".."))
+        return false;
+    for(size_t i = 0; i < sizeof(reserved) / sizeof(reserved[0]); i++) {
+        if(strcasecmp(name, reserved[i]) == 0)
+            return false;
+    }
+    return true;
 }
 
 /** ****************************************************************************
@@ -416,11 +458,10 @@ ErrorCode_t engine_process_meta_rename(char* out_buf, size_t out_buf_size)
     snprintf(name, (end - start + 1), "%s", start);
     engine_trace(TRACE_LEVEL_ALWAYS, "Changing agent [%d] name to [%s]", engine.last_command.agent_id, name);
 
-    // validate new name: can not contain @ and must be unique
-    if(strchr(name, '@')) {
-        snprintf(out_buf, out_buf_size, "Command error: invalid char @ at agent name [%s]", name);
-    } else if(strcspn (name, " \t\r\n") != strlen(name)) {
-        snprintf(out_buf, out_buf_size, "Command error: agent name can not contain spaces/tabs/newlines [%s]", name);
+    // validate new name: it becomes the drone's email address, so only
+    // letters, digits, '.', '-' and '_', not a reserved address, and unique
+    if(!engine_is_valid_agent_name(name)) {
+        snprintf(out_buf, out_buf_size, "Command error: agent name [%.64s] must be 1-%d letters, digits, '.', '-' or '_', and not a reserved address", name, MAX_NEW_NAME_LEN);
     } else if ((db_result=db_check_agent_name(&engine.db_connection, name)) == ENGINE_OK) {
         snprintf(out_buf, out_buf_size, "Command error: agent name [%s] already exists", name);
     } else if (db_result == ENGINE_DB_NOT_FOUND_ERROR) {
@@ -479,9 +520,15 @@ ErrorCode_t engine_process_meta_rebrand(char* out_buf, size_t out_buf_size)
     snprintf(company_name, (end - start + 1), "%s", start);
     engine_trace(TRACE_LEVEL_ALWAYS, "Changing agent [%d] company to [%s]", engine.last_command.agent_id, company_name);
 
-    ErrorCode_t db_result = db_check_company_name(&engine.db_connection, company_name);
+    size_t company_len = strlen(company_name);
+    ErrorCode_t db_result = (company_len == 0 || company_len > MAX_NEW_NAME_LEN)
+        ? ENGINE_LOGIC_ERROR
+        : db_check_company_name(&engine.db_connection, company_name);
 
-    if (db_result == ENGINE_OK) {
+    if (company_len == 0 || company_len > MAX_NEW_NAME_LEN) {
+        snprintf(out_buf, out_buf_size, "Command error: company name must be 1-%d characters", MAX_NEW_NAME_LEN);
+        result = ENGINE_LOGIC_ERROR;
+    } else if (db_result == ENGINE_OK) {
         snprintf(out_buf, out_buf_size, "Command error: company name [%s] already exists", company_name);
         result = ENGINE_LOGIC_ERROR;
     } else if(db_result == ENGINE_DB_NOT_FOUND_ERROR) {
@@ -514,8 +561,16 @@ ErrorCode_t engine_process_meta_command(char* out_buf, size_t out_buf_size)
     engine_trace(TRACE_LEVEL_ALWAYS, "Processing meta command [%s] at agent [%d]", 
         engine.last_command.code, engine.last_command.agent_id);
 
-    // Identify the meta-command
-    if(strcasecmp(engine.last_command.code, META_COMMAND_ABORT) == 0) {
+    // Identify the meta-command. The code may carry surrounding whitespace
+    // (the line splitter ends every line with \n), so ignore it for abort.
+    const char* code = engine.last_command.code;
+    while(isspace((unsigned char)*code)) code++;
+    size_t code_len = strlen(code);
+    while(code_len > 0 && isspace((unsigned char)code[code_len - 1])) code_len--;
+    bool is_abort = (code_len == strlen(META_COMMAND_ABORT)) &&
+        (strncasecmp(code, META_COMMAND_ABORT, code_len) == 0);
+
+    if(is_abort) {
         engine_trace(TRACE_LEVEL_ALWAYS, "Running abort command at agent [%d]", engine.last_command.agent_id);
         // abort and delete any pending resume
         vm_abort(engine.last_agent.vm);
@@ -527,6 +582,10 @@ ErrorCode_t engine_process_meta_command(char* out_buf, size_t out_buf_size)
         if(engine.last_agent.vm) vm_free(engine.last_agent.vm);
         engine.last_agent.vm = NULL;
         result = db_save_agent_vm(&engine.db_connection, engine.last_command.agent_id, engine.last_agent.vm);
+        // A paused script's resume must not run on the fresh VM
+        if(result == ENGINE_OK)
+            result = db_delete_resume_commands(&engine.db_connection, engine.last_command.agent_id);
+        free(db_take_agent_output(&engine.db_connection, engine.last_command.agent_id));
     } else if (strstr(engine.last_command.code, META_COMMAND_RENAME)) {
         result = engine_process_meta_rename(out_buf, out_buf_size);
     } else if (strstr(engine.last_command.code, META_COMMAND_REBRAND)) {
@@ -567,7 +626,7 @@ ErrorCode_t engine_process_command(char* out_buf, size_t out_buf_size)
     // When processing fails, indicate it at email
     if(result != ENGINE_OK && !out_buf[0])
     {
-        engine_vm_output_cb("Command error");
+        engine_send_output("Command error", false);
     }
 
     return result;
@@ -695,18 +754,23 @@ ErrorCode_t engine_apply_max_cycle_lines()
     char* new_pos = new_code;
     char* remaining_pos = remaining_code;
 
+    // Each line goes after the previous ones; pass only the space left
+    char* new_end = new_code + sizeof(new_code);
+    char* remaining_end = remaining_code + sizeof(remaining_code);
+
     while(line) {
         lines_read++;
+        int written;
         if(lines_read <= max_lines) {
-            snprintf(new_pos, MAX_COMMAND_CODE_SIZE, "%s\n", line);
-            new_pos += (strlen(line) + 1);
-        } else {         
-            snprintf(remaining_pos, MAX_COMMAND_CODE_SIZE, "%s\n", line);
-            remaining_pos += (strlen(line) + 1);
+            written = snprintf(new_pos, new_end - new_pos, "%s\n", line);
+            new_pos += (written < new_end - new_pos) ? written : (new_end - new_pos - 1);
+        } else {
+            written = snprintf(remaining_pos, remaining_end - remaining_pos, "%s\n", line);
+            remaining_pos += (written < remaining_end - remaining_pos) ? written : (remaining_end - remaining_pos - 1);
         }
 
         // Get next one
-        line  = strtok(NULL, "\n");
+        line  = strtok(NULL, "\r\n");
     }
 
     engine_trace(TRACE_LEVEL_ALWAYS, 
@@ -774,7 +838,7 @@ ErrorCode_t engine_run()
 
             if(result != ENGINE_OK)
             {
-                engine_vm_output_cb("Internal error");
+                engine_send_output("Internal error", false);
             }
         }
 
@@ -800,6 +864,8 @@ ErrorCode_t engine_run()
         {
             // Process input command and retrieve result text in out_buffer
             memset(out_buffer, 0, ENGINE_MAX_BUF_SIZE+1);
+            vm_clear_yield();
+            g_ran_on_vm = false;
             engine_process_command(out_buffer, ENGINE_MAX_BUF_SIZE);
         } 
 
@@ -807,17 +873,24 @@ ErrorCode_t engine_run()
         {
             if(vm_is_yield()) 
             {
-                // update out buffer if any 
-                if(out_buffer[0] != 0) 
-                    db_update_agent_output(&engine.db_connection, 
-                        engine.last_command.agent_id, (char*)out_buffer);
+                // Keep this slice's output: it is emailed with the rest when
+                // the script finishes (or calls report)
+                // (skip slices with only whitespace: each pause adds one)
+                if(out_buffer[strspn(out_buffer, " \t\r\n")] != 0) 
+                    db_append_agent_output(&engine.db_connection, 
+                        engine.last_command.agent_id, out_buffer);
 
                 // When we yield - insert special command to indicate that we need to resume later
                 engine_insert_db_command(engine.config.params[VM_RESUME_COMMAND]);
             }
+            else if(g_ran_on_vm)
+            {
+                // The script finished: email everything it printed
+                engine_vm_output_cb(out_buffer);
+            }
             else if(out_buffer[0] != 0) 
             {
-                engine_vm_output_cb(out_buffer);
+                engine_send_output(out_buffer, false);
             }
         }           
 
@@ -975,22 +1048,35 @@ void engine_trace_append(TraceLevel_t level, const char *trace, ... )
   @return     void
 
 *******************************************************************************/
-void engine_vm_output_cb(const char* msg)
+void engine_send_output(const char* msg, bool with_pending)
 {
     int agent_id = engine.last_command.agent_id;
 
     if(msg)
     {
-        // Apply a workaround to remove the annoying "query redefined msg"
-        char* pos = strstr(msg, "query redefined");
-        if(pos) *pos = 0;
+        // With pending: what the script printed before it last paused comes
+        // first. Copy everything: msg may be the VM's own buffer.
+        char* pending = with_pending ? db_take_agent_output(&engine.db_connection, agent_id) : strdup("");
+        size_t full_size = strlen(pending ? pending : "") + strlen(msg) + 1;
+        char* full = malloc(full_size);
+        if(!full) { free(pending); return; }
+        snprintf(full, full_size, "%s%s", pending ? pending : "", msg);
+        free(pending);
+        msg = full;
+
+        // Remove the "query redefined" warning that reloading a VM prints
+        char* pos;
+        while((pos = strstr(full, "query redefined")) != NULL)
+            memmove(pos, pos + strlen("query redefined"), strlen(pos + strlen("query redefined")) + 1);
+
+        // Nothing printed: no email (as before)
+        if(full[strspn(full, " \t\r\n")] == 0) { free(full); return; }
 
         engine_trace(TRACE_LEVEL_ALWAYS, 
             "Output VM msg [%s] read for agent [%d]",
             msg,
             agent_id); 
 
-        db_update_agent_output(&engine.db_connection, agent_id, (char*)msg);
 
         // Get agent email info and send it by email
         EmailInfo_t email_info;
@@ -1024,10 +1110,12 @@ void engine_vm_output_cb(const char* msg)
             email_send(&email_info);
         }
 
+        // Frees this function's copy only. The command's own email_content is
+        // still needed (a paused script's resume is queued with it).
         if(email_info.input_content) {
             engine_free(email_info.input_content, strlen(email_info.input_content)+1);
-            engine.last_command.email_content = NULL;
         }
+        free(full);
     }
     else
     {
@@ -1035,6 +1123,12 @@ void engine_vm_output_cb(const char* msg)
             "WARNING: NULL msg received from VM for agent [%d]",
             agent_id); 
     }
+}
+
+/** Emails a script's output, with what it printed before it last paused. */
+void engine_vm_output_cb(const char* msg)
+{
+    engine_send_output(msg, true);
 }
 
 /** ****************************************************************************

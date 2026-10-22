@@ -47,7 +47,8 @@ class ImapInbox implements Inbox
             to: $to,
             textPlain: $message->hasTextBody() ? $message->getTextBody() : null,
             textHtml: $message->hasHTMLBody() ? $message->getHTMLBody() : null,
-            date: $date ? $date->format('Y-m-d H:i:s') : '',
+            // No Date header: use the time we read it
+            date: ($date ?: now())->format('Y-m-d H:i:s'),
             handle: $message,
         );
     }

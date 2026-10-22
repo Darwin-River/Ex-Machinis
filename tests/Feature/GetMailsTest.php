@@ -153,4 +153,57 @@ class GetMailsTest extends TestCase
         $this->assertCount(0, $this->sent());
         $this->assertSame([$m], $this->inboxes->deleted);
     }
+
+    public function testTooLongCommandIsRejectedAndDoesNotBlockLaterMails()
+    {
+        $long = '<run>' . str_repeat('1 drop ', 400) . '</run>'; // 2800 chars of code
+        $this->inboxes->put('catchall', $big = $this->mail('bigbody', 'test@example.com', ['SN424242@mail.example.com' => ''], $long));
+        $this->inboxes->put('catchall', $ok = $this->mail('orders', 'test@example.com', ['SN424242@mail.example.com' => ''], '<run> 1 2 + </run>'));
+
+        $this->run_();
+
+        $this->assertSame(['1 2 +'], DB::table('commands')->where('agent_id', $this->droneId)->pluck('code')->all());
+        $this->assertSame([$big, $ok], $this->inboxes->deleted);
+        $reply = $this->sent()->first();
+        $this->assertSame('Re: bigbody', $reply->getSubject());
+        $this->assertStringContainsString('the limit is 2048', $reply->getTextBody());
+    }
+
+    public function testLongSubjectIsTrimmed()
+    {
+        $this->inboxes->put('catchall', $this->mail(str_repeat('s', 3000), 'test@example.com', ['SN424242@mail.example.com' => ''], '<run> 1 </run>'));
+
+        $this->run_();
+
+        $this->assertSame(2048, mb_strlen(DB::table('commands')->where('agent_id', $this->droneId)->value('subject')));
+    }
+
+    public function testFailingMailIsKeptButOthersAreProcessed()
+    {
+        // Saving this one mail's command fails (say, a database error)
+        \App\Command::saving(function ($command) {
+            if ($command->code === 'fail') {
+                throw new \RuntimeException('boom');
+            }
+        });
+        $this->inboxes->put('catchall', $bad = $this->mail('a', 'test@example.com', ['SN424242@mail.example.com' => ''], '<run>fail</run>'));
+        $this->inboxes->put('catchall', $ok = $this->mail('b', 'test@example.com', ['SN424242@mail.example.com' => ''], '<run> 2 </run>'));
+
+        $this->run_()->assertSee('kept for retry');
+
+        $this->assertSame([$ok], $this->inboxes->deleted);
+        $this->assertSame(['2'], DB::table('commands')->where('agent_id', $this->droneId)->pluck('code')->all());
+    }
+
+    public function testMailWithoutCommandGetsHelpfulReply()
+    {
+        $this->inboxes->put('catchall', $this->mail('hello', 'test@example.com', ['SN424242@mail.example.com' => ''], '2 3 + . cr'));
+
+        $this->run_();
+
+        $text = $this->sent()->first()->getTextBody();
+        $this->assertStringContainsString('between <run> and </run> tags', $text);
+        $this->assertStringContainsString("From: test@example.com\nTo: SN424242@mail.example.com\nSent: 2026-10-21 12:00:00", $text);
+        $this->assertStringNotContainsString('\\r\\n', $text);
+    }
 }

@@ -36,7 +36,7 @@
 
                         <br/><h3 id="h3_renaming_your_spacecraft">Renaming your spacecraft</h3>
 
-                        <p>You’ll notice that each of your spacecraft has a rather generic email address like SN523854@{{ config('mail.domain') }}.</p>
+                        <p>You’ll notice that each of your spacecraft has a rather generic email address like SN523854{{ '@' . config('mail.domain') }}.</p>
 
                         <p>To give your spacecraft a more memorable name, simply send the following text in an email to your drone:</p>
 

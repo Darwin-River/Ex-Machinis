@@ -17,6 +17,10 @@
 
 #define DB_MAX_SQL_QUERY_LEN (ENGINE_MAX_BUF_SIZE + 1024) // Max engine buffer + extra bytes for query statement
 
+// Space left in a fixed-size query_text array when appending at query_end.
+// Only for char query_text[N] (not a malloc'd pointer).
+#define QUERY_SPACE_LEFT (sizeof(query_text) - (size_t)(query_end - query_text))
+
 /******************************* TYPES ***************************************/
 
 // Enum to control how we obtain the previous event
@@ -223,6 +227,12 @@ ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMa
 
 *******************************************************************************/
 ErrorCode_t db_update_agent_output(DbConnection_t* connection, int agent_id, char* msg);
+
+/** Appends to the output a paused script has produced so far (agents.OUTPUT). */
+ErrorCode_t db_append_agent_output(DbConnection_t* connection, int agent_id, const char* msg);
+
+/** Returns (malloc'd, "" when none) and clears a paused script's collected output. */
+char* db_take_agent_output(DbConnection_t* connection, int agent_id);
 
 /** ****************************************************************************
 

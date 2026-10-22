@@ -61,4 +61,23 @@ send_mail "$DRONE@$DOMAIN" "smoke test" "<run>2 3 + . cr</run>"
 wait_for 90 "drone $DRONE ran the command" sh -c "docker compose logs game-engine | grep -q 'Command succesfully evaluated'"
 wait_for 30 "engine emailed the reply" sh -c "docker compose logs mail | grep -q 'from=<$DRONE@$DOMAIN>'"
 
+# A multi-line program that starts a move (the docs' "travel to Mars" step)
+send_mail "$DRONE@$DOMAIN" "smoke test 2" "<run>
+  : sq dup * ;
+  7 sq . cr
+  4 5 perform . cr
+</run>"
+wait_for 90 "drone ran a multi-line program" sh -c "docker compose logs game-engine | grep -q 'result \[ 49'"
+DRONE_ID=$(sql "select agent_id from agents where name='$DRONE'")
+action_queued() { [ -n "$(sql "select id from actions where drone=$DRONE_ID and protocol=5")" ]; }
+wait_for 60 "move was queued" action_queued
+sleep 15
+[ "$(sql "select aborted from actions where drone=$DRONE_ID and protocol=5")" = 0 ] || fail "the move was aborted"
+
+for svc in game-engine events-engine app; do
+    restarts=$(docker inspect -f '{{.RestartCount}}' "$(docker compose ps -q $svc)")
+    [ "$restarts" = 0 ] || fail "$svc restarted $restarts times"
+done
+echo "ok: no service restarted"
+
 echo "Smoke test passed."
