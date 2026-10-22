@@ -93,7 +93,7 @@ ErrorCode_t db_get_event_object_id(Event_t *event, int *object_id)
         char* query_end = query_text;
 
         query_end += snprintf(query_end, 
-            DB_MAX_SQL_QUERY_LEN, 
+            QUERY_SPACE_LEFT, 
             "SELECT object_id from agents where agent_id = %d",
             event->drone_id);
 

@@ -908,8 +908,8 @@ ErrorCode_t db_get_action(Action_t *action)
         char* query_end = query_text;
 
         query_end += snprintf(query_end,
-            DB_MAX_SQL_QUERY_LEN,
-            "SELECT * from actions where id = %d",
+            QUERY_SPACE_LEFT,
+            "SELECT id, drone, protocol, multiplier, aborted, timestamp from actions where id = %d",
             action->action_id);
 
         // run it
@@ -996,7 +996,7 @@ ErrorCode_t db_abort_action(int action_id)
         char* query_end = query_text;
 
         query_end += snprintf(query_end,
-            DB_MAX_SQL_QUERY_LEN,
+            QUERY_SPACE_LEFT,
             "UPDATE actions SET aborted = 1 WHERE ID = %d",
             action_id);
 
@@ -1043,24 +1043,24 @@ ErrorCode_t db_update_event(Event_t *event)
     {
         char* query_end = query_text;
 
-        query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, "UPDATE events SET outcome = %d,", event->outcome);
+        query_end += snprintf(query_end, QUERY_SPACE_LEFT, "UPDATE events SET outcome = %d,", event->outcome);
 
 
         // Check first if we have any value to set
         if((event->new_quantity != NULL_VALUE) || (event->new_credits != NULL_VALUE) || (event->new_cargo != NULL_VALUE))
         {
             if(event->new_quantity != NULL_VALUE)
-                query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, " new_quantity = %d,", event->new_quantity);
+                query_end += snprintf(query_end, QUERY_SPACE_LEFT, " new_quantity = %d,", event->new_quantity);
 
             if(event->new_credits != NULL_VALUE)
-                query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, " new_credits = %d,", event->new_credits);
+                query_end += snprintf(query_end, QUERY_SPACE_LEFT, " new_credits = %d,", event->new_credits);
 
             if(event->new_cargo != NULL_VALUE)
-                query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, " new_cargo = %d,", event->new_cargo);
+                query_end += snprintf(query_end, QUERY_SPACE_LEFT, " new_cargo = %d,", event->new_cargo);
         }
 
         query_end--; // overwrite the latest comma
-        query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN, " WHERE id = %d", event->event_id);
+        query_end += snprintf(query_end, QUERY_SPACE_LEFT, " WHERE id = %d", event->event_id);
 
         // run it
         if (mysql_query(connection->hndl, query_text))
@@ -1217,7 +1217,7 @@ ErrorCode_t db_get_max_drone_cargo(int drone_id, int *capacity)
         char* query_end = query_text;
 
         query_end += snprintf(query_end,
-            DB_MAX_SQL_QUERY_LEN,
+            QUERY_SPACE_LEFT,
             "SELECT cargo_capacity from hulls where id = (select hull_type from agents where agent_id = %d)",
             drone_id);
 
@@ -1311,7 +1311,7 @@ ErrorCode_t db_insert_observation(Observation_t* observation)
                 observation->timestamp, timestamp_buffer);
 
     query_end += snprintf(query_end,
-        DB_MAX_SQL_QUERY_LEN,
+        QUERY_SPACE_LEFT,
         "INSERT INTO observations (drone, event, time) VALUES(%d, %d, '%s')",
         observation->drone_id,
         observation->event_id,
@@ -1520,7 +1520,7 @@ ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protoc
         char* query_end = query_text;
 
         query_end += snprintf(query_end,
-            DB_MAX_SQL_QUERY_LEN,
+            QUERY_SPACE_LEFT,
             "SELECT observable, reportable from protocols where id = (select protocol from actions where id = %d)",
             event->action_id);
 
@@ -2025,7 +2025,7 @@ ErrorCode_t db_get_drone_user(int drone_id, User_t* user)
         char* query_end = query_text;
 
         query_end += snprintf(query_end,
-            DB_MAX_SQL_QUERY_LEN,
+            QUERY_SPACE_LEFT,
             "SELECT * FROM users WHERE user_id = (SELECT user_id FROM agents WHERE agent_id = %d);",
             drone_id);
 
@@ -2237,7 +2237,7 @@ ErrorCode_t db_update_user_credits(User_t* user)
     {
         char* query_end = query_text;
 
-        query_end += snprintf(query_end, DB_MAX_SQL_QUERY_LEN,
+        query_end += snprintf(query_end, QUERY_SPACE_LEFT,
             "UPDATE users SET credits = %d where user_id = %d",
             user->credits,
             user->user_id);
@@ -2293,7 +2293,7 @@ ErrorCode_t db_insert_event_e(Event_t* event)
     char* query_end = query_text;
 
     query_end += snprintf(query_end,
-        DB_MAX_SQL_QUERY_LEN,
+        QUERY_SPACE_LEFT,
         "INSERT INTO events "
         "(timestamp, event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
         "VALUES(CAST(DATE_ADD(NOW(), INTERVAL %d MINUTE) AS DATETIME), %d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0

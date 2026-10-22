@@ -36,7 +36,15 @@ char* g_last_command_output = NULL;
 size_t g_current_size = 0;
 
 // To yield a VM we control time elapsed since we started it, and limit this time
-time_t g_vm_start_time = 0;
+// When the current command (or resume) started running, in ms (monotonic)
+static long long g_vm_start_ms = 0;
+
+static long long vm_now_ms(void)
+{
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+}
 
 // Last VM is yield
 int g_vm_yield = 0;
@@ -84,13 +92,13 @@ int vm_putc_cb(int ch, void *file)
 *******************************************************************************/
 int vm_yield_cb(void* param) 
 {
-  time_t now = time(NULL);
+  long long elapsed_ms = vm_now_ms() - g_vm_start_ms;
   int max_time = engine_get_max_cycle_seconds();
 
-  if((now - g_vm_start_time) >= max_time) {
+  if(elapsed_ms >= (long long)max_time * 1000) {
     engine_trace(TRACE_LEVEL_ALWAYS, 
-      "WARNING: VM must yield, elapsed more than [%d] seconds(%ld - %ld), current output buffer [%s]", 
-      max_time, now, g_vm_start_time, g_output_buffer?g_output_buffer:"NULL");
+      "WARNING: VM must yield, ran for [%lld] ms (limit [%d] s), current output buffer [%s]", 
+      elapsed_ms, max_time, g_output_buffer?g_output_buffer:"NULL");
 
     g_vm_yield = 1;
 
@@ -211,9 +219,8 @@ VirtualMachine_t* vm_new(int agent_id)
           vm_engine_options.param = vm_ext;
           embed_opt_set(vm, &vm_engine_options);
 
-          // control time each VM spends, we need to initialize yield to run some commands
-          g_vm_start_time = time(NULL);
-          g_vm_yield = 0;
+          // Time the callback setup below (it runs FORTH too)
+          g_vm_start_ms = vm_now_ms();
 
           // Add all callbacks
           if(vm_add_callbacks(vm, true, vm_ext->callbacks, vm_ext->callbacks_length) < 0) 
@@ -245,7 +252,6 @@ void vm_free(VirtualMachine_t* vm)
 
         embed_free((forth_t*)vm);
         vm = NULL;
-        g_vm_yield = 0;
     }
     else
     {
@@ -323,9 +329,8 @@ VirtualMachine_t* vm_from_bytes(int agent_id, char* vm_bytes, size_t size)
             vm_engine_options.param = vm_ext;
             embed_opt_set(vm, &vm_engine_options);
 
-            // control time each VM spends, we need to initialize yield to run some commands
-            g_vm_start_time = time(NULL);
-            g_vm_yield = 0;
+            // Time the callback setup below (it runs FORTH too)
+            g_vm_start_ms = vm_now_ms();
 
             // Add all callbacks
             if(vm_add_callbacks(vm, true, vm_ext->callbacks, vm_ext->callbacks_length) < 0) 
@@ -399,6 +404,10 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
             g_last_command_output = g_output_buffer;
             g_current_size = out_size;
             memset(g_output_buffer, 0, g_current_size); 
+
+            // Each command (or resume) gets its own time slice
+            g_vm_start_ms = vm_now_ms();
+            g_vm_yield = 0;
 
             // Check if it is a resume / execute command and also if there are pending commands running
             int forth_result = -1;
@@ -531,6 +540,12 @@ void vm_report(VirtualMachine_t* vm)
 int vm_is_yield() 
 {
   return g_vm_yield;
+}
+
+/** Clears the yield flag before the engine processes its next command. */
+void vm_clear_yield(void)
+{
+  g_vm_yield = 0;
 }
 
 /** ****************************************************************************

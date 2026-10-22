@@ -15,6 +15,9 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <string.h>
+#include <strings.h>
+#include <ctype.h>
+#include <stdbool.h>
 
 #include "engine.h"
 #include "config.h"
@@ -390,6 +393,32 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
     return result;
 }
 
+#define MAX_NEW_NAME_LEN 64
+
+/** True when name is usable as a drone's email local part. */
+static bool engine_is_valid_agent_name(const char* name)
+{
+    static const char* reserved[] = {
+        "registrar", "catchall", "services", "postmaster", "abuse", "hostmaster",
+        "webmaster", "admin", "root", "help", "noreply", "no-reply", "mailer-daemon", "dscc",
+    };
+    size_t len = strlen(name);
+    if(len == 0 || len > MAX_NEW_NAME_LEN)
+        return false;
+    for(size_t i = 0; i < len; i++) {
+        unsigned char c = (unsigned char)name[i];
+        if(!isalnum(c) && c != '.' && c != '-' && c != '_')
+            return false;
+    }
+    if(name[0] == '.' || name[len - 1] == '.' || strstr(name, ".."))
+        return false;
+    for(size_t i = 0; i < sizeof(reserved) / sizeof(reserved[0]); i++) {
+        if(strcasecmp(name, reserved[i]) == 0)
+            return false;
+    }
+    return true;
+}
+
 /** ****************************************************************************
 
   @brief      Processes rename meta command
@@ -416,11 +445,10 @@ ErrorCode_t engine_process_meta_rename(char* out_buf, size_t out_buf_size)
     snprintf(name, (end - start + 1), "%s", start);
     engine_trace(TRACE_LEVEL_ALWAYS, "Changing agent [%d] name to [%s]", engine.last_command.agent_id, name);
 
-    // validate new name: can not contain @ and must be unique
-    if(strchr(name, '@')) {
-        snprintf(out_buf, out_buf_size, "Command error: invalid char @ at agent name [%s]", name);
-    } else if(strcspn (name, " \t\r\n") != strlen(name)) {
-        snprintf(out_buf, out_buf_size, "Command error: agent name can not contain spaces/tabs/newlines [%s]", name);
+    // validate new name: it becomes the drone's email address, so only
+    // letters, digits, '.', '-' and '_', not a reserved address, and unique
+    if(!engine_is_valid_agent_name(name)) {
+        snprintf(out_buf, out_buf_size, "Command error: agent name [%.64s] must be 1-%d letters, digits, '.', '-' or '_', and not a reserved address", name, MAX_NEW_NAME_LEN);
     } else if ((db_result=db_check_agent_name(&engine.db_connection, name)) == ENGINE_OK) {
         snprintf(out_buf, out_buf_size, "Command error: agent name [%s] already exists", name);
     } else if (db_result == ENGINE_DB_NOT_FOUND_ERROR) {
@@ -479,9 +507,15 @@ ErrorCode_t engine_process_meta_rebrand(char* out_buf, size_t out_buf_size)
     snprintf(company_name, (end - start + 1), "%s", start);
     engine_trace(TRACE_LEVEL_ALWAYS, "Changing agent [%d] company to [%s]", engine.last_command.agent_id, company_name);
 
-    ErrorCode_t db_result = db_check_company_name(&engine.db_connection, company_name);
+    size_t company_len = strlen(company_name);
+    ErrorCode_t db_result = (company_len == 0 || company_len > MAX_NEW_NAME_LEN)
+        ? ENGINE_LOGIC_ERROR
+        : db_check_company_name(&engine.db_connection, company_name);
 
-    if (db_result == ENGINE_OK) {
+    if (company_len == 0 || company_len > MAX_NEW_NAME_LEN) {
+        snprintf(out_buf, out_buf_size, "Command error: company name must be 1-%d characters", MAX_NEW_NAME_LEN);
+        result = ENGINE_LOGIC_ERROR;
+    } else if (db_result == ENGINE_OK) {
         snprintf(out_buf, out_buf_size, "Command error: company name [%s] already exists", company_name);
         result = ENGINE_LOGIC_ERROR;
     } else if(db_result == ENGINE_DB_NOT_FOUND_ERROR) {
@@ -695,18 +729,23 @@ ErrorCode_t engine_apply_max_cycle_lines()
     char* new_pos = new_code;
     char* remaining_pos = remaining_code;
 
+    // Each line goes after the previous ones; pass only the space left
+    char* new_end = new_code + sizeof(new_code);
+    char* remaining_end = remaining_code + sizeof(remaining_code);
+
     while(line) {
         lines_read++;
+        int written;
         if(lines_read <= max_lines) {
-            snprintf(new_pos, MAX_COMMAND_CODE_SIZE, "%s\n", line);
-            new_pos += (strlen(line) + 1);
-        } else {         
-            snprintf(remaining_pos, MAX_COMMAND_CODE_SIZE, "%s\n", line);
-            remaining_pos += (strlen(line) + 1);
+            written = snprintf(new_pos, new_end - new_pos, "%s\n", line);
+            new_pos += (written < new_end - new_pos) ? written : (new_end - new_pos - 1);
+        } else {
+            written = snprintf(remaining_pos, remaining_end - remaining_pos, "%s\n", line);
+            remaining_pos += (written < remaining_end - remaining_pos) ? written : (remaining_end - remaining_pos - 1);
         }
 
         // Get next one
-        line  = strtok(NULL, "\n");
+        line  = strtok(NULL, "\r\n");
     }
 
     engine_trace(TRACE_LEVEL_ALWAYS, 
@@ -800,6 +839,7 @@ ErrorCode_t engine_run()
         {
             // Process input command and retrieve result text in out_buffer
             memset(out_buffer, 0, ENGINE_MAX_BUF_SIZE+1);
+            vm_clear_yield();
             engine_process_command(out_buffer, ENGINE_MAX_BUF_SIZE);
         } 
 

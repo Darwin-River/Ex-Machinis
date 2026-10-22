@@ -116,6 +116,9 @@ void vm_report(VirtualMachine_t* vm);
 *******************************************************************************/
 int vm_is_yield();
 
+/** Clears the yield flag before the engine processes its next command. */
+void vm_clear_yield(void);
+
 /** ****************************************************************************
 
   @brief      Aborts command execution at current VM
