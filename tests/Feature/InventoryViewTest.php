@@ -8,7 +8,8 @@ use Tests\TestCase;
 
 /**
  * The sqInventory view (game-engine/sql/create_db.sql): a drone's current
- * units of each resource, from its latest successful inventory event.
+ * units of each resource, adding up the latest successful inventory event of
+ * each state (installed, locked).
  */
 class InventoryViewTest extends TestCase
 {
@@ -45,6 +46,34 @@ class InventoryViewTest extends TestCase
         $add(2, 0, 0);          // failed: ignored
         $add(4, 1, 50);         // sell order: not an inventory change
         $this->assertSame(2, $this->units(1, 3));
+    }
+
+    public function testModulesInUseStillCount()
+    {
+        // Two units; one gets locked, as an engine is while it travels (#210): the
+        // unlocked count drops to 1 and the locked count rises to 1
+        $add = fn (int $type, int $locked, int $qty) => DB::table('events')->insert([
+            'event_type' => $type, 'outcome' => 1, 'drone' => 1, 'resource' => 3,
+            'installed' => 0, 'locked' => $locked, 'new_quantity' => $qty,
+        ]);
+
+        $add(1, 0, 2);
+        $this->assertSame(2, $this->units(1, 3));
+
+        $add(2, 0, 1);          // lock: one leaves the unlocked state...
+        $add(1, 1, 1);          // ...and joins the locked state
+        $this->assertSame(2, $this->units(1, 3));
+
+        $add(2, 1, 0);          // unlock
+        $add(1, 0, 2);
+        $this->assertSame(2, $this->units(1, 3));
+
+        // The spacecraft page lists the locked engine on its own row, and no
+        // empty (0 units) row once it is unlocked
+        $add(2, 0, 1);
+        $add(1, 1, 1);
+        $page = $this->get('/spacecraft/1')->assertOk();
+        $this->assertSame(2, substr_count($page->getContent(), 'href="' . url('/resources/3') . '"'));
     }
 
     public function testOrderSearchesUseTheView()

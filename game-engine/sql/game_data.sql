@@ -10,6 +10,18 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- An effect's quantity can name a stack parameter (-1, -2...): older
 -- databases have the column unsigned
 ALTER TABLE `resource_effects` MODIFY `quantity` INT NULL;
+-- What each drone holds: the sum over each state (installed, locked) of
+-- its latest inventory event (same as create_db.sql, for older databases)
+CREATE OR REPLACE VIEW `sqInventory` AS
+SELECT e.`drone` AS `drone`, e.`resource` AS `resource`, CAST(SUM(e.`new_quantity`) AS SIGNED) AS `units`
+FROM `events` e
+JOIN (
+  SELECT MAX(`id`) AS `id`
+  FROM `events`
+  WHERE `outcome` = 1 AND `event_type` IN (1, 2)
+  GROUP BY `drone`, `resource`, `installed`, `locked`
+) latest ON latest.`id` = e.`id`
+GROUP BY e.`drone`, e.`resource`;
 START TRANSACTION;
 
 DELETE FROM `resources`;
