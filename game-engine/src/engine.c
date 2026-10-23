@@ -617,6 +617,36 @@ ErrorCode_t engine_process_meta_rebrand(char* out_buf, size_t out_buf_size)
 
 /** ****************************************************************************
 
+  @brief      Starts a drone the events engine has just launched: its copied
+              program goes back to the prompt (whatever drone D was doing
+              when it was copied), the owner is told the drone exists, and it
+              runs its launched word once if the program defines one.
+
+  @param[in|out]  out_buf       Output buffer
+  @param[in]      out_buf_size  Buffer size
+
+  @return     Execution result code (ErrorCode_t)
+
+*******************************************************************************/
+static ErrorCode_t engine_process_meta_launched(char* out_buf, size_t out_buf_size)
+{
+    vm_restart(engine.last_agent.vm);
+
+    bool run = vm_word_defined(engine.last_agent.vm, LAUNCHED_WORD);
+
+    engine_send_output(run ?
+        "Launched. Running my launched word." :
+        "Launched. My program has no launched word: send me commands.", false);
+
+    if(!run)
+        return ENGINE_OK;
+
+    snprintf(engine.last_command.code, sizeof(engine.last_command.code), "%s\n", LAUNCHED_WORD);
+    return engine_process_vm_command(out_buf, out_buf_size);
+}
+
+/** ****************************************************************************
+
   @brief      Processes a meta command (command NOT execute on the VM)
 
   @param[in|out]  out_buf       Input/output buffer where we will store email response
@@ -664,6 +694,9 @@ ErrorCode_t engine_process_meta_command(char* out_buf, size_t out_buf_size)
         free(db_take_agent_output(&engine.db_connection, engine.last_command.agent_id));
         db_set_agent_waiting_action(&engine.db_connection, engine.last_command.agent_id, 0);
         db_set_agent_pending_input(&engine.db_connection, engine.last_command.agent_id, NULL);
+    } else if (code_len == strlen(META_COMMAND_LAUNCHED) &&
+               strncasecmp(code, META_COMMAND_LAUNCHED, code_len) == 0) {
+        result = engine_process_meta_launched(out_buf, out_buf_size);
     } else if (strstr(engine.last_command.code, META_COMMAND_RENAME)) {
         result = engine_process_meta_rename(out_buf, out_buf_size);
     } else if (strstr(engine.last_command.code, META_COMMAND_REBRAND)) {

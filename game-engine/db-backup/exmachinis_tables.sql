@@ -36,7 +36,7 @@ CREATE TABLE `event_types` (
 
 LOCK TABLES `event_types` WRITE;
 /*!40000 ALTER TABLE `event_types` DISABLE KEYS */;
-INSERT INTO `event_types` VALUES (1,'Increment inventory to'),(2,'Decrement inventory to'),(3,'Move to'),(4,'Sell resource'),(5,'Buy resource'),(6,'Increment credits to'),(7,'Decrement credits to');
+INSERT INTO `event_types` VALUES (1,'Increment inventory to'),(2,'Decrement inventory to'),(3,'Move to'),(4,'Sell resource'),(5,'Buy resource'),(6,'Increment credits to'),(7,'Decrement credits to'),(8,'Launch drone');
 /*!40000 ALTER TABLE `event_types` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -226,7 +226,7 @@ CREATE TABLE `resource_effects` (
   `locked` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `deplete` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `abundancies` tinyint(1) unsigned NOT NULL DEFAULT '0',
-  `quantity` int(5) unsigned DEFAULT NULL,
+  `quantity` int(5) DEFAULT NULL,
   `time` int(5) unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `id_UNIQUE` (`id`),

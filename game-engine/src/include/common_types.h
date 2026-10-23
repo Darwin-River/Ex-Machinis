@@ -60,6 +60,10 @@
 #define META_COMMAND_RESET    "<reset>"
 #define META_COMMAND_RENAME   "<rename>"
 #define META_COMMAND_REBRAND  "<rebrand>"
+// Queued by the events engine for a drone it has just launched (not mailed)
+#define META_COMMAND_LAUNCHED "<launched>"
+// Word a launched drone runs once, if its copied program defines it
+#define LAUNCHED_WORD         "launched"
 
 // Special query tags
 #define MAX_QUERY_TAG_LEN      32
@@ -94,10 +98,17 @@
 #define BUY_EVENT_TYPE                 5
 #define INCREMENT_CREDITS_EVENT_TYPE   6
 #define DECREMENT_CREDITS_EVENT_TYPE   7
+#define LAUNCH_EVENT_TYPE              8
 
 // Protocols that move goods between drones (decrement here, increment there)
 #define PUSH_PROTOCOL_ID 10
 #define PULL_PROTOCOL_ID 11
+
+// [D K 12 perform]: builds a drone from ship kit K with a copy of drone D's
+// program. The kit (a resource) and the new drone's hull share an ID.
+#define LAUNCH_PROTOCOL_ID 12
+#define LAUNCH_KIT_PARAM    0   // parameters[] index: K (top of the stack)
+#define LAUNCH_SOURCE_PARAM 1   // parameters[] index: D
 
 // users
 #define MAX_USER_NAME_SIZE             255
@@ -291,6 +302,7 @@ typedef struct
 	unsigned char multiplier; // new field to use when none parameters, can receive and optional multiplier
 	int travel_from_time; // travel: effects at or after this time (game s)...
 	int travel_shift;     // ...are delayed by this much, to last the trip
+	int launch_delay;     // launch: the program's light time from drone D (game s)
 
 } ProtocolInfo_t;
 

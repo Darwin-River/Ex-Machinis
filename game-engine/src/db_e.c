@@ -11,6 +11,8 @@
 #define _XOPEN_SOURCE
 #include <time.h>
 #include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "db.h"
 #include "game_time.h"
@@ -2491,6 +2493,97 @@ ErrorCode_t db_savepoint(const char* statement)
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", statement);
         result = ENGINE_DB_QUERY_ERROR;
     }
+
+    return result;
+}
+
+/** Runs a statement, tracing a failure */
+static ErrorCode_t db_launch_exec(DbConnection_t* connection, const char* query_text)
+{
+    if(mysql_query(connection->hndl, query_text))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    return ENGINE_OK;
+}
+
+/** ****************************************************************************
+
+    @brief          Creates a launched drone: owned by the launching drone's
+                    player, at its location, with the kit's hull and a copy of
+                    drone source_id's program (VM). Queues the <launched>
+                    command so the new drone starts at once.
+
+    @param[in]      launcher_id  Drone that performed the launch
+    @param[in]      source_id    Drone whose program is copied
+    @param[in]      hull_id      The ship kit's ID (its hull has the same ID)
+    @param[out]     new_id       The new drone's ID
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* new_id)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char name[32] = "";
+    DbConnection_t* connection = engine_get_db_connection();
+    ErrorCode_t result = db_reconnect(connection);
+    static int seeded = 0;
+
+    if(!seeded) { srand((unsigned)time(NULL) ^ (unsigned)getpid()); seeded = 1; }
+
+    // A free name like the website gives new players' drones: SN<number>
+    for(int tries = 0; result == ENGINE_OK && tries < 50 && !name[0]; tries++)
+    {
+        char candidate[32];
+        snprintf(candidate, sizeof(candidate), "SN%d", rand() % 1000000);
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "SELECT COUNT(*) FROM agents WHERE name = '%s'", candidate);
+        result = db_launch_exec(connection, query_text);
+        if(result != ENGINE_OK) break;
+
+        MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+        MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+        if(row && row[0] && atoi(row[0]) == 0)
+            snprintf(name, sizeof(name), "%s", candidate);
+        if(db_result) mysql_free_result(db_result);
+    }
+
+    if(result == ENGINE_OK && !name[0])
+        result = ENGINE_LOGIC_ERROR;
+
+    // The copy is taken now, when the launch happens. Drone D must still
+    // belong to the player; if it doesn't, the new drone gets a fresh VM.
+    if(result == ENGINE_OK)
+    {
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "INSERT INTO agents (user_id, name, vm, object_id, hull_type) "
+            "SELECT l.user_id, '%s', "
+            "(SELECT d.vm FROM agents d WHERE d.agent_id = %d AND d.user_id = l.user_id), "
+            "l.object_id, %d FROM agents l WHERE l.agent_id = %d",
+            name, source_id, hull_id, launcher_id);
+        result = db_launch_exec(connection, query_text);
+    }
+
+    if(result == ENGINE_OK)
+    {
+        *new_id = (int)mysql_insert_id(connection->hndl);
+        if(*new_id <= 0) result = ENGINE_LOGIC_ERROR;
+    }
+
+    // Already on board: no light delay before it runs
+    if(result == ENGINE_OK)
+    {
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "INSERT INTO commands (code, agent_id, created_at, updated_at, subject, email_content, deliver_at) "
+            "VALUES ('%s', %d, NOW(), NOW(), 'Launched', '', UNIX_TIMESTAMP())",
+            META_COMMAND_LAUNCHED, *new_id);
+        result = db_launch_exec(connection, query_text);
+    }
+
+    if(result == ENGINE_OK)
+        engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] launched drone [%d] [%s] (hull [%d], program of drone [%d])",
+            launcher_id, *new_id, name, hull_id, source_id);
 
     return result;
 }

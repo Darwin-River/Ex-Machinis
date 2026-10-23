@@ -37,6 +37,7 @@ Thank you for your support!
   - [Reprocessing minerals](#reprocessing-minerals)
   - [Synthesizing complex materials](#synthesizing-complex-materials)
   - [Producing more complex spacecraft components](#producing-more-complex-spacecraft-components)
+  - [Launching new spacecraft](#launching-new-spacecraft)
 - [Chapter 5: Building A Vocabulary](#chapter-5-building-a-vocabulary)
   - [Creating your own words](#creating-your-own-words)
   - [Commenting on your code](#commenting-on-your-code)
@@ -395,7 +396,40 @@ Every production protocol locks one tool module while it works, and each stage t
 | Other modules | 15xxx | Welder (A1) | 1 day | 24 minutes |
 | Ship kits | 16xxx | Riveter (A1) | 3 days | 72 minutes |
 
-Your starter kit's Smelter, Chemical Reactor and Spider take you as far as systems. To make modules, first build a Welder (A1) with your Spider (protocol 15511); for ship kits, a Riveter (A1) (protocol 15521). Ship kits can be made and traded, but can't be turned into new spacecraft yet.
+Your starter kit's Smelter, Chemical Reactor and Spider take you as far as systems. To make modules, first build a Welder (A1) with your Spider (protocol 15511); for ship kits, a Riveter (A1) (protocol 15521). Ship kits can be traded, or launched as new spacecraft (see the next section).
+
+### Launching new spacecraft
+
+A ship kit becomes a new spacecraft with the launch protocol, 12. It takes two parameters: the ID of a drone whose program the new spacecraft should get (any of your drones, including the one doing the launch), and the ship kit's resource ID. The kit must be in the launching drone's cargo hold.
+
+```
+<run>
+  \ Launch a Mining Cruiser (A1) from this drone (ID 52), with a copy of its program
+  52 ( drone to copy ) 6001 ( ship kit ) 12 ( launch ) perform .
+</run>
+```
+
+The kit is used up at once, and the new spacecraft appears an hour of game time later (a minute with the default clock), orbiting where the launching drone is. If the drone you copy is somewhere else, its program has to reach the launch site at the speed of light first, so the launch takes that much longer. Like any `perform`, it leaves 0 when it succeeds or a negative code if it fails, for example -12 if the resource isn't a ship kit or the drone isn't yours.
+
+The new spacecraft:
+
+- has the kit's hull (its name and cargo capacity: 500 for a Cruiser, 2,000 for a Cutter, 5,000 for a Frigate and 20,000 for a Barge) and an empty cargo hold;
+- has its own email address (a generic name like SN123456, which you can [rename](#renaming-your-spacecraft-and-your-company)), and emails you as soon as it's launched;
+- knows every word and variable the copied drone had defined when the launch happened, but nothing else: it starts at the prompt with an empty stack, even if the copied drone was in the middle of a script;
+- runs the word `launched` once, if the copied program defines one. That lets a new spacecraft get to work on its own. Its hold starts empty, so here it first pulls an engine and a Worm from drone 52, which launched it and is in the same place, then flies to the Moon and mines:
+
+```
+<run>
+  : launched  ( -- )
+    1 5001 52 11 perform drop   \ pull an Engine (A1) from drone 52
+    1 5131 52 11 perform drop   \ and a Worm (A1)
+    10 5001 perform drop        \ fly to the Moon
+    11100 perform . ;           \ mine kunspar
+  52 6001 12 perform .
+</run>
+```
+
+Word names are case-sensitive here: the word must be called `launched`, in lower case.
 
 ## Chapter 5: Building A Vocabulary
 

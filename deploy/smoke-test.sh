@@ -6,7 +6,8 @@
 #   - the scheduler's mail checks succeed,
 #   - emailing registrar@ with subject "register" registers a player,
 #   - a drone runs an emailed FORTH command and the engine emails the reply,
-#   - it unpacks its starter kit, flies to the Moon, mines and refines kunspar.
+#   - it unpacks its starter kit, flies to the Moon, mines and refines kunspar,
+#   - it launches a new drone from a ship kit with a copy of its program.
 # Needs ports 80, 443 and 25 free. Leaves the stack running; remove it with
 #   docker compose down -v && rm -rf .env mail/config
 set -euo pipefail
@@ -103,6 +104,28 @@ send_mail "$DRONE@$DOMAIN" "refine" "<run>
   21100 perform . cr
 </run>"
 wait_for 180 "drone refined kunspar into metals" has 2011
+wait_for 60 "drone finished the refining script" idle
+
+# Launch (#238): give the drone a Mining Cruiser kit (building one takes
+# days), then launch a drone with a copy of its own program. The copy is
+# taken while this script is paused in perform: the new drone starts at the
+# prompt and runs its launched word.
+sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo)
+     values (1, 0, 1, 1, $DRONE_ID, 6001, 0, 0, 1, 224)"
+wait_for 10 "drone got a ship kit" has 6001
+send_mail "$DRONE@$DOMAIN" "launch" "<run>
+  : launched .\" launched-word-ran\" cr ;
+  $DRONE_ID 6001 12 perform . cr
+</run>"
+launched() { [ -n "$(sql "select agent_id from agents where user_id=(select user_id from agents where agent_id=$DRONE_ID) and hull_type=6001 and vm is not null")" ]; }
+wait_for 120 "drone launched a Mining Cruiser" launched
+NEW=$(sql "select name from agents where hull_type=6001 order by agent_id desc limit 1")
+wait_for 60 "launched drone $NEW ran its launched word" sh -c "docker compose logs game-engine | grep -q 'result \[launched-word-ran'"
+wait_for 60 "launched drone emailed its owner" sh -c "docker compose logs mail | grep -q 'from=<$NEW@$DOMAIN>'"
+wait_for 60 "drone finished the launch script" idle
+[ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRONE_ID and resource=6001")" = 0 ] || fail "the kit was not used up"
+echo "ok: the kit was used up"
+
 [ -z "$(sql "select id from actions where drone=$DRONE_ID and aborted=1")" ] || fail "an action was aborted"
 echo "ok: no action aborted"
 

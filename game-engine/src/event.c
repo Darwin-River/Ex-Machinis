@@ -1033,6 +1033,27 @@ static ErrorCode_t event_apply(Event_t *event)
         return result;
     }
 
+    // Launch: the new drone is created now (the kit was used up earlier in
+    // the same action). Records the new drone's ID in new_quantity.
+    if(result == ENGINE_OK && event->event_type == LAUNCH_EVENT_TYPE) {
+        int new_id = 0;
+        int source_id = event->new_quantity;
+
+        result = db_launch_drone(event->drone_id, source_id, event->resource_id, &new_id);
+
+        event->outcome = (result == ENGINE_OK) ? OUTCOME_OK : OUTCOME_ACTION_ABORTED;
+        event->logged = 1;
+        event->new_quantity = (result == ENGINE_OK) ? new_id : NULL_VALUE;
+        event->new_cargo = NULL_VALUE;
+        event->new_credits = NULL_VALUE;
+
+        if(result == ENGINE_OK) result = db_update_event(event);
+
+        if(result == ENGINE_OK) result = event_update_observations(event);
+
+        return result;
+    }
+
     // Get previous events info
     // We get (if exist, the previous valid event and the previous by resource event)
     if(result == ENGINE_OK)
