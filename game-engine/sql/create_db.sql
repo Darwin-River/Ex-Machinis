@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`agents` (
   `object_id` INT(11) NOT NULL DEFAULT '187' COMMENT 'This is the ID of the static obect where the drone is located.',
   `hull_type` INT(2) UNSIGNED NULL COMMENT 'This is the ID of the drone\'s hull type.',
   `waiting_action` INT(10) UNSIGNED NULL COMMENT 'The action the drone\'s paused script waits for (perform), NULL when none.',
+  `pending_input` LONGTEXT NULL COMMENT 'The lines a paused script has not read yet; fed back to it when it resumes.',
   PRIMARY KEY (`agent_id`),
   INDEX `fk_user_id_idx` (`user_id` ASC),
   KEY `agent_name_INDEX` (`name`),

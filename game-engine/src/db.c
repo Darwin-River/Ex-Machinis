@@ -3601,3 +3601,71 @@ ErrorCode_t db_send_due_outbox(DbConnection_t* connection, const char* script)
 
     return result;
 }
+
+/** ****************************************************************************
+
+    @brief          Gets the unread rest of a drone's paused script (malloc'd,
+                    NULL when none)
+
+*******************************************************************************/
+char* db_get_agent_pending_input(DbConnection_t* connection, int agent_id)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char* text = NULL;
+
+    if(db_reconnect(connection) != ENGINE_OK)
+        return NULL;
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "SELECT pending_input FROM agents WHERE agent_id = %d", agent_id);
+    if(mysql_query(connection->hndl, query_text))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return NULL;
+    }
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+    if(row && row[0] && row[0][0])
+        text = strdup(row[0]);
+    if(db_result) mysql_free_result(db_result);
+
+    return text;
+}
+
+/** ****************************************************************************
+
+    @brief          Sets (or clears, with NULL) the unread rest of a drone's
+                    paused script
+
+*******************************************************************************/
+ErrorCode_t db_set_agent_pending_input(DbConnection_t* connection, int agent_id, const char* text)
+{
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK)
+        return result;
+
+    char* query_text = NULL;
+    char* safe = text ? db_escape_alloc(connection, text) : NULL;
+    size_t size = (safe ? strlen(safe) : 0) + 128;
+
+    query_text = malloc(size);
+    if(!query_text || (text && !safe))
+    {
+        free(query_text); free(safe);
+        return ENGINE_MEMORY_ALLOC_ERROR;
+    }
+
+    if(safe)
+        snprintf(query_text, size, "UPDATE agents SET pending_input = '%s' WHERE agent_id = %d", safe, agent_id);
+    else
+        snprintf(query_text, size, "UPDATE agents SET pending_input = NULL WHERE agent_id = %d", agent_id);
+
+    if(mysql_query(connection->hndl, query_text))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to save pending input: %s", mysql_error(connection->hndl));
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+
+    free(query_text); free(safe);
+    return result;
+}
