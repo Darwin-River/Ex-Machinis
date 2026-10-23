@@ -80,7 +80,7 @@ DROP TABLE IF EXISTS `exmachinis`.`commands` ;
 
 CREATE TABLE IF NOT EXISTS `exmachinis`.`commands` (
   `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `code` VARCHAR(2048) NOT NULL,
+  `code` TEXT NOT NULL COMMENT 'The script (up to 16,000 characters, MAX_COMMAND_CODE_SIZE)',
   `agent_id` INT(10) UNSIGNED NOT NULL,
   `created_at` TIMESTAMP NULL DEFAULT NULL,
   `updated_at` TIMESTAMP NULL DEFAULT NULL,

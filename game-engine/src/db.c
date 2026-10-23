@@ -327,7 +327,10 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
                 // Read command information
                 command->command_id = atoi(row[0]);
                 command->agent_id = atoi(row[2]);
-                sprintf(command->code, "%s", row[1]);
+                if(row[1] && strlen(row[1]) > MAX_COMMAND_CODE_SIZE)
+                    engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: command [%s] is longer than [%d] characters: cut",
+                        row[0], MAX_COMMAND_CODE_SIZE);
+                snprintf(command->code, sizeof(command->code), "%s", row[1] ? row[1] : "");
                 sprintf(command->subject, "%s", row[3]);
                 command->email_content = engine_malloc(strlen(row[4])+1);
                 sprintf(command->email_content, "%s", row[4]);
