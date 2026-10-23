@@ -1062,7 +1062,10 @@ ErrorCode_t db_update_event(Event_t *event)
     {
         char* query_end = query_text;
 
-        query_end += snprintf(query_end, QUERY_SPACE_LEFT, "UPDATE events SET outcome = %d,", event->outcome);
+        // logged: the EE sets it once it has recorded the event's observations
+        // (market orders are inserted unlogged, #254)
+        query_end += snprintf(query_end, QUERY_SPACE_LEFT, "UPDATE events SET outcome = %d, logged = %d,",
+            event->outcome, event->logged ? 1 : 0);
 
 
         // Check first if we have any value to set

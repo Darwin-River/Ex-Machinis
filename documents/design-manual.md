@@ -707,7 +707,7 @@ The fields which describe the event itself are:
 * event_type [INT(2)] - This is the type of event.
 * time (DATETIME) - This is the time at which the event occurs.
 * action [INT(10)] - This is the action that caused the event.
-* logged [BOOLEAN] - This field is true if the Observation Engine has already logged the event as an observation.
+* logged [BOOLEAN] - True once the event's observations have been recorded. Inventory events are inserted logged; market orders (sell and buy, types 4 and 5) are inserted unlogged and the Event Engine sets the flag when it processes them. Nothing else reads it: whether an event happened is its outcome (1 = it took place), so a processed sell order is valid either way (#254).
 * outcome [INT(2)] - This field defaults to zero but is set to one if the event is successfully processed and a negative value if it produces an error.
 
 The fields, which describe the affected drone or object, are as follows.  These are the fields that are generally used to group event queries.
