@@ -877,6 +877,7 @@ ErrorCode_t db_insert_event_e(Event_t* event);
 
 /** Gets an event's current outcome (OUTCOME_NO_OUTCOME while pending) */
 ErrorCode_t db_get_event_outcome(int event_id, int* outcome);
+ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* new_id);
 
 /** Gets a pending event of an action with the given type, other than exclude_id */
 ErrorCode_t db_get_pending_action_event(int action_id, int event_type, int exclude_id, Event_t* out_event);
@@ -910,6 +911,8 @@ ErrorCode_t db_upgrade_schema(void);
 ErrorCode_t db_set_action_outcome(int action_id, int outcome);
 
 /** Sets (or clears, with 0) the action a drone's script waits for */
+ErrorCode_t db_get_launch_source(DbConnection_t* connection, int launcher_id, int source_id,
+                                 int kit_id, int* source_object);
 ErrorCode_t db_set_agent_waiting_action(DbConnection_t* connection, int agent_id, int action_id);
 
 /** Gets the action a drone's script waits for (0 when none) */

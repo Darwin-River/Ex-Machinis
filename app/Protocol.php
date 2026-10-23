@@ -13,6 +13,7 @@ class Protocol extends Model
     /** Event types in the action tables */
     private const INCREMENT = 1;
     private const DECREMENT = 2;
+    private const LAUNCH = 8;
 
     /** Default game time scale when the game clock hasn't been created yet */
     public const DEFAULT_TIME_SCALE = 60;
@@ -128,6 +129,11 @@ class Protocol extends Model
         }
         if ($e->event_type == self::DECREMENT) {
             return "Removes $quantity × $resource$state from $drone";
+        }
+        if ($e->event_type == self::LAUNCH) {
+            return "Launches a new drone built from $resource, with a copy of the program of "
+                . ($e->quantity < 0 ? 'the drone given as parameter ' . -$e->quantity : 'drone ' . $e->quantity)
+                . ' (later if that drone is far away: the copy travels at the speed of light)';
         }
         return "Event type {$e->event_type} on $resource";
     }

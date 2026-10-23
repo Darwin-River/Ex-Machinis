@@ -71,6 +71,22 @@ class ProtocolPagesTest extends TestCase
             ->assertSee('1 hour of game time');
     }
 
+    public function testLaunchStepIsDescribed()
+    {
+        DB::table('protocols')->insert(['id' => 99101, 'name' => 'Test launch', 'parameters' => 2,
+            'description' => '[D K 99101 perform]: Launches a drone.', 'multiplier' => 0]);
+        DB::table('resource_effects')->insert([
+            'id' => 99907, 'drone' => 0, 'resource' => -1, 'protocol' => 99101, 'event_type' => 8,
+            'local' => 1, 'installed' => 0, 'locked' => 0, 'deplete' => 0, 'abundancies' => 0,
+            'quantity' => -2, 'time' => 3600,
+        ]);
+
+        $this->get('/protocols/99101')
+            ->assertOk()
+            ->assertSee('Launches a new drone built from the resource given as parameter 1')
+            ->assertSee('the drone given as parameter 2');
+    }
+
     public function testUnknownProtocolIs404()
     {
         $this->get('/protocols/99199')->assertNotFound();

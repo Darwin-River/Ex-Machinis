@@ -142,6 +142,8 @@ int vm_waiting_action(void);
 
 *******************************************************************************/
 void vm_abort(VirtualMachine_t* vm);
+void vm_restart(VirtualMachine_t* vm);
+bool vm_word_defined(VirtualMachine_t* vm, const char* name);
 
 /** ****************************************************************************
 

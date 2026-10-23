@@ -3348,6 +3348,29 @@ static ErrorCode_t db_query_ints(DbConnection_t* connection, const char* query_t
 
 /** ****************************************************************************
 
+    @brief          Checks a launch ([D K 12 perform]): K must be a ship kit (it
+                    has a hull) and D one of the launching drone's owner's drones
+
+    @param[out]     source_object  Where drone D is
+
+    @return         ENGINE_OK, or ENGINE_DB_NOT_FOUND_ERROR when refused
+
+*******************************************************************************/
+ErrorCode_t db_get_launch_source(DbConnection_t* connection, int launcher_id, int source_id,
+                                 int kit_id, int* source_object)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT d.object_id FROM agents l JOIN agents d ON d.user_id = l.user_id "
+        "WHERE l.agent_id = %d AND d.agent_id = %d AND EXISTS (SELECT 1 FROM hulls WHERE id = %d)",
+        launcher_id, source_id, kit_id);
+
+    return db_query_ints(connection, query_text, source_object, NULL, 1);
+}
+
+/** ****************************************************************************
+
     @brief          Sets (or clears, with 0) the action a drone's script waits for
 
 *******************************************************************************/

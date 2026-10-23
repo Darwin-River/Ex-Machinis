@@ -641,6 +641,69 @@ void vm_abort(VirtualMachine_t* vm)
 
 /** ****************************************************************************
 
+  @brief      Brings a VM back to the prompt, as Forth's ABORT does: empty
+              stacks, nothing running. Its words and variables are kept.
+
+  @param[in]  vm       Current VM object
+
+  @return     void
+
+*******************************************************************************/
+void vm_restart(VirtualMachine_t* vm)
+{
+    if(vm)
+        embed_reset((forth_t*)vm);
+}
+
+/** ****************************************************************************
+
+  @brief      Checks whether a VM's dictionary has a word (case matters)
+
+  Runs "' ' catch NAME": ' looks the word up, and catch turns "not found"
+  into a non-zero code instead of an error. The stacks are left as found.
+
+  @param[in]  vm       Current VM object
+  @param[in]  name     Word to look for (no spaces)
+
+  @return     true when the word is defined
+
+*******************************************************************************/
+bool vm_word_defined(VirtualMachine_t* vm, const char* name)
+{
+    char input[128];
+    char scratch[256];
+    cell_t code = 1, xt = 0;
+
+    if(!vm || !name || !name[0] || strpbrk(name, " \t\r\n") || strlen(name) > 64)
+        return false;
+
+    snprintf(input, sizeof(input), "' ' catch %s\n", name);
+
+    // Discard anything the lookup prints
+    char* saved_buffer = g_output_buffer;
+    size_t saved_size = g_current_size;
+    memset(scratch, 0, sizeof(scratch));
+    g_output_buffer = scratch;
+    g_current_size = sizeof(scratch) - 1;
+    g_vm_start_ms = vm_now_ms();
+
+    size_t depth = embed_depth((forth_t*)vm);
+    const char* rest = input;
+    int r = vm_run_with_input(vm, &rest);
+
+    g_output_buffer = saved_buffer;
+    g_current_size = saved_size;
+
+    if(r < 0 || embed_depth((forth_t*)vm) <= depth || embed_pop((forth_t*)vm, &code) < 0)
+        return false;
+    if(code == 0)
+        embed_pop((forth_t*)vm, &xt); // found: drop its execution token
+
+    return code == 0;
+}
+
+/** ****************************************************************************
+
   @brief      Resets VM (stops command execution and destroys it to create a new one)
 
   @param[in]  vm       Current VM object

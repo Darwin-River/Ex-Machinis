@@ -143,6 +143,48 @@ static void protocol_plan_travel(ProtocolInfo_t *protocol)
     origin, destination, km, acceleration, seconds, game_time_to_real(seconds));
 }
 
+/** ****************************************************************************
+
+  @brief      Checks a launch ([D K 12 perform]) and times it: the copy of
+              drone D's program reaches the launching drone at the speed of
+              light, so the launch is delayed by that light time.
+
+  @param[in|out]  protocol  Protocol being performed
+
+  @return     ENGINE_OK, or an error when K isn't a ship kit or D isn't one of
+              the player's drones (perform is refused)
+
+*******************************************************************************/
+static ErrorCode_t protocol_plan_launch(ProtocolInfo_t *protocol)
+{
+  protocol->launch_delay = 0;
+
+  if(protocol->protocol_id != LAUNCH_PROTOCOL_ID)
+    return ENGINE_OK;
+
+  int kit = protocol->parameters[LAUNCH_KIT_PARAM];
+  int source = protocol->parameters[LAUNCH_SOURCE_PARAM];
+  int source_object = -1;
+
+  if(db_get_launch_source(engine_get_db_connection(), engine_get_current_drone_id(),
+                          source, kit, &source_object) != ENGINE_OK) {
+    engine_trace(TRACE_LEVEL_ALWAYS,
+      "Launch refused: resource [%d] is not a ship kit or drone [%d] isn't the player's", kit, source);
+    return ENGINE_LOGIC_ERROR;
+  }
+
+  double km = 0;
+  int here = engine_get_current_drone_object_id();
+  if(source_object != here && engine_get_objects_distance(source_object, here, &km) == ENGINE_OK)
+    protocol->launch_delay = (int)lround(km / LIGHT_SPEED_KM_PER_SECOND);
+
+  engine_trace(TRACE_LEVEL_ALWAYS,
+    "Launch from kit [%d] with drone [%d]'s program: [%.0f] km away, [%d] game seconds of light time",
+    kit, source, km, protocol->launch_delay);
+
+  return ENGINE_OK;
+}
+
 /** Game seconds after the action starts that an effect takes place */
 static int protocol_effect_delay(ProtocolInfo_t *protocol, int time)
 {
@@ -429,6 +471,8 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
 
       // Add resource effect time delay (game seconds).
       newEvent.delay = protocol_effect_delay(protocol, effect->time);
+      if(effect->event_type == LAUNCH_EVENT_TYPE)
+        newEvent.delay += protocol->launch_delay;
 
       newEvent.drone_id = engine_get_current_drone_id();
       // Take into account negative parameters that mean => retrieve it from stack
@@ -530,6 +574,9 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
       if(result == ENGINE_OK) {
         newEvent.new_quantity *= abundancies.multiplier;
         newEvent.new_cargo = (newEvent.new_quantity * resource.resource_mass); // here we reflect the change in mass units
+        // A launch carries drone D's ID in new_quantity, not an amount
+        if(newEvent.event_type == LAUNCH_EVENT_TYPE)
+          newEvent.new_cargo = NULL_VALUE;
 
         result = protocol_queue_event(&newEvent);
       }
@@ -927,6 +974,9 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
             protocol.protocol_id);
     }
   }
+
+  if(result == ENGINE_OK)
+    result = protocol_plan_launch(&protocol);
 
   if(result == ENGINE_OK) {
     protocol_plan_travel(&protocol);

@@ -331,6 +331,24 @@ for pid, p in econ_prot.items():
     protocols[pid] = p
     add_effects(pid, effs)
 
+# Launching a drone (#238): [D K 12 perform] uses up ship kit K and, an hour
+# later (plus the light time from drone D), builds a drone with K's hull and a
+# copy of D's program. The parameters come off the stack top first: K is
+# parameter 1 (-1), D parameter 2 (-2). The launch event (type 8) carries D in
+# its quantity; the events engine creates the drone.
+LAUNCH_PROTOCOL, LAUNCH_EVENT, LAUNCH_TIME = '12', 8, 1 * HOUR
+protocols[LAUNCH_PROTOCOL] = [
+    LAUNCH_PROTOCOL, 'Launch drone', '2', '100',
+    '[D K 12 perform]: Builds a new drone from ship kit K in the cargo bay, with a copy of drone D\'s '
+    'program; it runs its launched word if it has one. Takes 1 hour of game time plus the light time from D.',
+    '1', '1', '0']
+add_effects(LAUNCH_PROTOCOL, [
+    {'time': 0, 'drone': 0, 'resource': -1, 'event_type': 2, 'local': 1, 'installed': 0, 'locked': 0,
+     'deplete': 1, 'abundancies': 0, 'quantity': 1},
+    {'time': LAUNCH_TIME, 'drone': 0, 'resource': -1, 'event_type': LAUNCH_EVENT, 'local': 1, 'installed': 0,
+     'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': -2},
+])
+
 # Recipes: quantities from resources.xlsx (or recipes-extra.csv); tool and
 # timing by stage (production_stage); names from economy.xlsx where it has one
 for pid, rec in sorted(recipes.items(), key=lambda kv: int(kv[0])):
@@ -562,6 +580,9 @@ lines = [
     '-- create_db.sql and db-backup/exmachinis_tables.sql.',
     '',
     'SET FOREIGN_KEY_CHECKS = 0;',
+    '-- An effect\'s quantity can name a stack parameter (-1, -2...): older',
+    '-- databases have the column unsigned',
+    'ALTER TABLE `resource_effects` MODIFY `quantity` INT NULL;',
     'START TRANSACTION;',
     '',
 ]
@@ -587,6 +608,35 @@ effect_rows = []
 for n, (pid, e) in enumerate(sorted(effects, key=lambda pe: (pe[0], pe[1]['time'], pe[1]['event_type'])), start=1):
     effect_rows.append((n, e['drone'], e['resource'], pid, e['event_type'], e['local'], e['installed'],
                         e['locked'], e['deplete'], e['abundancies'], e['quantity'], e['time']))
+# Hulls: each ship kit (16xxx makes kit 6xxx) launches a drone whose hull has
+# the kit's ID. Upserted, not replaced: existing drones use hulls 1 and 2.
+HULL_SIZES = {  # cargo capacity, A-E slots
+    'Cruiser': (500, 2, 2, 1, 0, 0),
+    'Cutter': (2000, 3, 3, 2, 0, 0),
+    'Frigate': (5000, 4, 3, 2, 1, 0),
+    'Barge': (20000, 6, 4, 3, 2, 1),
+}
+hulls = []
+for pid, rec in sorted(recipes.items(), key=lambda kv: int(kv[0])):
+    if pid.startswith('16') and rec['product'] in resources:
+        kit = resources[rec['product']]
+        size = next((v for k, v in HULL_SIZES.items() if k in kit['name']), None)
+        if size is None:
+            note(f'ship kit {kit["id"]} "{kit["name"]}": no hull size in its name, no hull made')
+            continue
+        hulls.append((kit['id'], kit['name'], kit['description']) + size)
+lines.append('-- Event types the engines handle (8: launch a drone, #238)')
+lines.append("INSERT INTO `event_types` (id, name) VALUES (8, 'Launch drone') "
+             'ON DUPLICATE KEY UPDATE name = VALUES(name);')
+lines.append('')
+lines.append('-- Hulls of drones launched from ship kits (same ID as the kit)')
+lines.append('INSERT INTO `hulls` (id, name, description, cargo_capacity, a_slots, b_slots, c_slots, d_slots, '
+             'e_slots) VALUES')
+lines.append(',\n'.join('  (' + ', '.join(sql(v) for v in h) + ')' for h in hulls))
+lines.append('ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description), '
+             'cargo_capacity = VALUES(cargo_capacity), a_slots = VALUES(a_slots), b_slots = VALUES(b_slots), '
+             'c_slots = VALUES(c_slots), d_slots = VALUES(d_slots), e_slots = VALUES(e_slots);')
+lines.append('')
 table('resource_effects', ['id', 'drone', 'resource', 'protocol', 'event_type', 'local', 'installed', 'locked',
                            'deplete', 'abundancies', 'quantity', 'time'], effect_rows)
 table('location_effects', ['id', 'protocol', 'event_type', 'location', 'time'],
