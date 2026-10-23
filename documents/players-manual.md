@@ -585,6 +585,23 @@ A transfer either happens completely or not at all. If anything stops it (the se
 
 You can find a current list of active buy orders (http://exmachinis.com/buys) and sell orders (http://exmachinis.com/sells) on the Ex Machinis website.
 
+#### Measuring market volume
+
+Two queries tell how busy a market is: how many units of a resource changed hands over the last H hours of game time, the credits paid for them, and how many trades there were. Query 620 counts trades where your drone is; query 621 counts them anywhere in the solar system.
+
+```
+<run>
+  create volume 6 allot
+  : .volume ( -- )
+    volume @ . ."  units for "  volume 2 + @ . ."  credits in "
+    volume 4 + @ . ."  trades" cr ;
+  \ Magmite (1000) traded here in the last 24 game hours
+  1000 24 volume 6 620 query drop  .volume
+</run>
+```
+
+Dividing the credits by the units gives the average price paid.
+
 ## Chapter 7: Stringing Variables
 
 ### Using variables when programming your drones

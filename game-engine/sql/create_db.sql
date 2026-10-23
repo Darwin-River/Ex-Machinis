@@ -499,6 +499,25 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`game_clock` (
 ENGINE = InnoDB;
 
 -- -----------------------------------------------------
+-- Table `exmachinis`.`trades`
+-- Trades between players (#249): written by the events engine when a push or
+-- pull fills another player's market order (units and credits that changed
+-- hands); read by the market volume queries 620 and 621. The engines also
+-- create it if missing.
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `exmachinis`.`trades` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `resource` INT NOT NULL,
+  `units` INT NOT NULL,
+  `credits` INT NOT NULL,
+  `seller` INT UNSIGNED NOT NULL COMMENT 'Drone that gave the goods',
+  `buyer` INT UNSIGNED NOT NULL COMMENT 'Drone that received them',
+  `location` INT NULL COMMENT 'Object ID where the trade happened',
+  INDEX `trades_resource_time_idx` (`resource`, `time`))
+ENGINE = InnoDB;
+
+-- -----------------------------------------------------
 -- Table `exmachinis`.`outbox`
 -- Drone replies on their way to Earth at the speed of light
 -- -----------------------------------------------------

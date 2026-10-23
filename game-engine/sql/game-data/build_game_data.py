@@ -589,6 +589,19 @@ queries.append((803, 'Search observed events',
                 f'[{usage}]: Lists the events this spacecraft has observed, newest first, that match A P T M D N X K O '
                 '(see the manual); -1 means any.', len(EVENT_FILTERS), script))
 
+# Market volume (#249): units and credits that changed hands in trades of
+# resource N over the last H game hours, and how many trades, from the trades
+# table the events engine fills. [value_1] is H (pushed last), [value_2] N.
+VOLUME = ("SELECT IFNULL(SUM(units),0), IFNULL(SUM(credits),0), COUNT(*) FROM trades WHERE resource=[value_2] "
+          "AND TIMESTAMPDIFF(SECOND,time,NOW())*IFNULL((SELECT MAX(scale) FROM game_clock),1)<=[value_1]*3600{where};")
+queries.append((620, 'Local market volume',
+                '[N H R L 620 query]: Units of resource N traded at the requesting spacecraft\'s location in the last '
+                'H game hours, credits paid for them, and number of trades.', 2,
+                VOLUME.format(where=f' AND location={HERE_}')))
+queries.append((621, 'Solar market volume',
+                '[N H R L 621 query]: Units of resource N traded anywhere in the solar system in the last H game hours, '
+                'credits paid for them, and number of trades.', 2, VOLUME.format(where='')))
+
 queries.sort()
 for q in queries:
     if len(q[4]) > 2000:

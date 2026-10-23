@@ -904,6 +904,22 @@ ErrorCode_t db_savepoint(const char* statement);
     " body LONGTEXT NOT NULL," \
     " INDEX send_at_idx (send_at))"
 
+/* Trades between players (#249): written by the events engine when a push
+   or pull fills another player's market order; read by queries 620 and 621 */
+#define TRADES_TABLE_SQL \
+    "CREATE TABLE IF NOT EXISTS trades (" \
+    " id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY," \
+    " time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP," \
+    " resource INT NOT NULL," \
+    " units INT NOT NULL," \
+    " credits INT NOT NULL," \
+    " seller INT UNSIGNED NOT NULL," \
+    " buyer INT UNSIGNED NOT NULL," \
+    " location INT NULL," \
+    " INDEX trades_resource_time_idx (resource, time))"
+
+ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, int buyer, int location);
+
 /** Adds columns newer engines need to databases created before them */
 ErrorCode_t db_upgrade_schema(void);
 

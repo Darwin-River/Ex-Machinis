@@ -2590,3 +2590,38 @@ ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* ne
 
     return result;
 }
+
+/** ****************************************************************************
+
+    @brief          Records a trade between two players (#249)
+
+    @param[in]      resource  Resource traded
+    @param[in]      units     Units that changed hands
+    @param[in]      credits   Credits paid for them
+    @param[in]      seller    Drone that gave the goods
+    @param[in]      buyer     Drone that received them
+    @param[in]      location  Where it happened (object ID, -1 if unknown)
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, int buyer, int location)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result != ENGINE_OK)
+        return result;
+
+    if(location >= 0)
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "INSERT INTO trades (resource, units, credits, seller, buyer, location) VALUES (%d, %d, %d, %d, %d, %d)",
+            resource, units, credits, seller, buyer, location);
+    else
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "INSERT INTO trades (resource, units, credits, seller, buyer) VALUES (%d, %d, %d, %d, %d)",
+            resource, units, credits, seller, buyer);
+
+    return db_launch_exec(connection, query_text);
+}
