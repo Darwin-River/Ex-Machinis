@@ -777,7 +777,9 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
 
   int stack_value;
 
-  if(result == ENGINE_OK && protocol.multiplier) {
+  // The multiplier and the location are optional: only pop them when the
+  // stack has a value, or the underflow would swallow perform's return value
+  if(result == ENGINE_OK && protocol.multiplier && vm_extension_depth(vmExt) > 0) {
     // When multiplier flag is enabled - check the presence of an extra multiplier at stack
     // multiplier is always after the list of params
     ErrorCode_t vm_result = vm_extension_pop(vmExt, &stack_value);
@@ -790,7 +792,7 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
             protocol.process_multiplier,
             protocol.protocol_id);
     }
-  } else if(result == ENGINE_OK) {
+  } else if(result == ENGINE_OK && !protocol.multiplier && vm_extension_depth(vmExt) > 0) {
     // We can receive an optional location for location effects
     ErrorCode_t vm_result = vm_extension_pop(vmExt, &stack_value);
     if(vm_result == ENGINE_OK) {

@@ -39,6 +39,6 @@ class MailDomainInViewsTest extends TestCase
 
     public function testHomePageRegistrarLink()
     {
-        $this->get('/')->assertOk()->assertSee('mailto:registrar@game.example?subject=magica', false);
+        $this->get('/')->assertOk()->assertSee('mailto:registrar@game.example?subject=register', false);
     }
 }

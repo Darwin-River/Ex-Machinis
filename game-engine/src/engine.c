@@ -1069,8 +1069,15 @@ void engine_send_output(const char* msg, bool with_pending)
         while((pos = strstr(full, "query redefined")) != NULL)
             memmove(pos, pos + strlen("query redefined"), strlen(pos + strlen("query redefined")) + 1);
 
-        // Nothing printed: no email (as before)
-        if(full[strspn(full, " \t\r\n")] == 0) { free(full); return; }
+        // A script that printed nothing (e.g. one that only defines words)
+        // still gets a reply, so the player knows it ran
+        if(full[strspn(full, " \t\r\n")] == 0) {
+            if(!with_pending) { free(full); return; }
+            free(full);
+            full = strdup("ok");
+            if(!full) return;
+            msg = full;
+        }
 
         engine_trace(TRACE_LEVEL_ALWAYS, 
             "Output VM msg [%s] read for agent [%d]",
@@ -1094,7 +1101,17 @@ void engine_send_output(const char* msg, bool with_pending)
         // Get current position
         engine_get_drone_position(engine.last_agent.object_id, email_info.drone_position, &email_info.distance);
 
-        snprintf(email_info.message, MAX_COMMAND_CODE_SIZE, "%s", msg); // it is quoted later at email module
+        // Every reply starts with where the drone is (as the player's manual
+        // promises) and how far its signal travels to reach Earth
+        double light_minutes = email_info.distance / LIGHT_SPEED_KM_PER_MINUTE;
+        if(email_info.drone_position[0] && light_minutes < 1)
+            snprintf(email_info.message, MAX_COMMAND_CODE_SIZE, "Location: %s (%.1f light-seconds from Earth)\n\n%s",
+                email_info.drone_position, light_minutes * 60, msg);
+        else if(email_info.drone_position[0])
+            snprintf(email_info.message, MAX_COMMAND_CODE_SIZE, "Location: %s (%.1f light-minutes from Earth)\n\n%s",
+                email_info.drone_position, light_minutes, msg);
+        else
+            snprintf(email_info.message, MAX_COMMAND_CODE_SIZE, "%s", msg); // it is quoted later at email module
         snprintf(email_info.email_script, PATH_MAX, "%s", engine.config.params[SEND_EMAIL_SCRIPT_ID]);
 
         if(db_get_agent_email_info(&engine.db_connection, &email_info) == ENGINE_OK)

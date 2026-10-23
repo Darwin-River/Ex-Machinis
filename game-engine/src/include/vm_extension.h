@@ -80,6 +80,9 @@ VmExtension_t* vm_extension_new(void);
   @return     Execution result
 
 *******************************************************************************/
+/** Number of values on the VM's data stack. */
+size_t vm_extension_depth(VmExtension_t* vmExt);
+
 ErrorCode_t vm_extension_pop(VmExtension_t* vmExt, int* outValue);
 
 /** ****************************************************************************

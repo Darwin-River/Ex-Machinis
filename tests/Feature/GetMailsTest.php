@@ -206,4 +206,13 @@ class GetMailsTest extends TestCase
         $this->assertStringContainsString("From: test@example.com\nTo: SN424242@mail.example.com\nSent: 2026-10-21 12:00:00", $text);
         $this->assertStringNotContainsString('\\r\\n', $text);
     }
+
+    public function testRegisterSubjectAlsoRegisters()
+    {
+        $this->inboxes->put('registrar', $this->mail('Register', 'manual.reader@example.com', [], null, 'Reader'));
+
+        $this->run_();
+
+        $this->assertNotNull(User::where('email', 'manual.reader@example.com')->first());
+    }
 }

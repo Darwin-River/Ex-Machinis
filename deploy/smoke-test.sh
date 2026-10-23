@@ -4,7 +4,7 @@
 # for the fake domain example.test over plain HTTP, then checks that:
 #   - the website answers,
 #   - the scheduler's mail checks succeed,
-#   - emailing registrar@ with subject "magica" registers a player,
+#   - emailing registrar@ with subject "register" registers a player,
 #   - a drone runs an emailed FORTH command and the engine emails the reply.
 # Needs ports 80, 443 and 25 free. Leaves the stack running; remove it with
 #   docker compose down -v && rm -rf .env mail/config
@@ -51,7 +51,7 @@ wait_for 120 "website answers" curl -fsS -o /dev/null http://localhost/
 wait_for 120 "mail check succeeds" sh -c "docker compose logs app | grep -q 'GET /get-mails/[^ ]* HTTP/1.1\" 200'"
 wait_for 60 "mail server accepts connections" python3 -c "import smtplib; smtplib.SMTP('127.0.0.1', 25, timeout=5).quit()"
 
-send_mail "registrar@$DOMAIN" magica "sign me up"
+send_mail "registrar@$DOMAIN" register "sign me up"
 registered() { [ -n "$(sql "select user_id from users where email='$PLAYER'")" ]; }
 wait_for 60 "player registered by email" registered
 

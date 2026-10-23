@@ -664,6 +664,12 @@ VmExtension_t* vm_extension_new(void)
   return v;
 }
 
+/** Number of values on the VM's data stack. */
+size_t vm_extension_depth(VmExtension_t* vmExt)
+{
+  return vmExt ? embed_depth((embed_t*)vmExt->h) : 0;
+}
+
 /** ****************************************************************************
 
   @brief      Pops a value from a given VM and returns it
