@@ -312,6 +312,38 @@ ErrorCode_t db_rollback_transaction(DbConnection_t* connection)
 
 /** ****************************************************************************
 
+    @brief          Fills an event from a "SELECT * FROM events" row
+
+*******************************************************************************/
+static void db_row_to_event(MYSQL_ROW row, Event_t* event)
+{
+    memset(event, 0, sizeof(*event));
+    // Pick event fields
+    event->event_id = row[EVENT_ID_IDX]?atoi(row[EVENT_ID_IDX]):0;
+    event->event_type = row[EVENT_TYPE_IDX]?atoi(row[EVENT_TYPE_IDX]):0;
+    event->action_id = row[EVENT_ACTION_IDX]?atoi(row[EVENT_ACTION_IDX]):0;
+    event->logged = row[EVENT_LOGGED_IDX]?atoi(row[EVENT_LOGGED_IDX]):0;
+    event->outcome = row[EVENT_OUTCOME_IDX]?atoi(row[EVENT_OUTCOME_IDX]):0;
+    event->drone_id = row[EVENT_DRONE_ID_IDX]?atoi(row[EVENT_DRONE_ID_IDX]):0;
+    event->resource_id = row[EVENT_RESOURCE_ID_IDX]?atoi(row[EVENT_RESOURCE_ID_IDX]):0;
+    event->installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
+    event->locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
+    event->new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):NULL_VALUE;
+    event->new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):NULL_VALUE;
+    event->new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):-1;
+    event->new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):-1;
+    event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
+
+    // Convert date obtained to time_t
+    event->timestamp = db_date_to_timestamp(row[EVENT_TIMESTAMP_IDX], "%F %T");
+
+    engine_trace(TRACE_LEVEL_ALWAYS,
+        "DATE [%s] => TIMESTAMP [%ld] %s",
+        row[EVENT_TIMESTAMP_IDX], event->timestamp, row[EVENT_NEW_LOCATION_IDX]);
+}
+
+/** ****************************************************************************
+
     @brief          Gets next batch of outcome events
 
     @param[in]      Callback to be invoked when outcome event detected
@@ -339,7 +371,7 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
 
         snprintf(query_text,
             DB_MAX_SQL_QUERY_LEN,
-            "SELECT * FROM events as e where timestamp <= NOW() and outcome = 0 and (select aborted from actions where id = e.action) != 1 ORDER BY timestamp ASC, event_type DESC LIMIT %d;",
+            "SELECT * FROM events as e where timestamp <= NOW() and outcome = 0 and (select aborted from actions where id = e.action) != 1 ORDER BY timestamp ASC, action ASC, event_type DESC, id ASC LIMIT %d;",
             events_batch_size);
 
         // run it
@@ -381,28 +413,7 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
             if(row)
             {
                 Event_t event;
-                // Pick event fields
-                event.event_id = row[EVENT_ID_IDX]?atoi(row[EVENT_ID_IDX]):0;
-                event.event_type = row[EVENT_TYPE_IDX]?atoi(row[EVENT_TYPE_IDX]):0;
-                event.action_id = row[EVENT_ACTION_IDX]?atoi(row[EVENT_ACTION_IDX]):0;
-                event.logged = row[EVENT_LOGGED_IDX]?atoi(row[EVENT_LOGGED_IDX]):0;
-                event.outcome = row[EVENT_OUTCOME_IDX]?atoi(row[EVENT_OUTCOME_IDX]):0;
-                event.drone_id = row[EVENT_DRONE_ID_IDX]?atoi(row[EVENT_DRONE_ID_IDX]):0;
-                event.resource_id = row[EVENT_RESOURCE_ID_IDX]?atoi(row[EVENT_RESOURCE_ID_IDX]):0;
-                event.installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
-                event.locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
-                event.new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):NULL_VALUE;
-                event.new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):NULL_VALUE;
-                event.new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):-1;
-                event.new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):-1;
-                event.new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
-
-                // Convert date obtained to time_t
-                event.timestamp = db_date_to_timestamp(row[EVENT_TIMESTAMP_IDX], "%F %T");
-
-                engine_trace(TRACE_LEVEL_ALWAYS,
-                    "DATE [%s] => TIMESTAMP [%ld] %s",
-                    row[EVENT_TIMESTAMP_IDX], event.timestamp, row[EVENT_NEW_LOCATION_IDX]);
+                db_row_to_event(row, &event);
 
                 // Invoke callback when != NULL
                 if(outcomeEventCb) outcomeEventCb(&event);
@@ -2365,6 +2376,119 @@ ErrorCode_t db_insert_event_e(Event_t* event)
             event->new_transmission,
             event->new_cargo,
             event->timestamp);
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Gets an event's current outcome (OUTCOME_NO_OUTCOME while pending)
+
+    @param[in]      event_id Event ID
+    @param[out]     outcome  Current outcome
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_event_outcome(int event_id, int* outcome)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+    ErrorCode_t result = db_reconnect(connection);
+
+    if((result == ENGINE_OK) && outcome)
+    {
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "SELECT outcome FROM events WHERE id = %d", event_id);
+
+        if (mysql_query(connection->hndl, query_text))
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else
+        {
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+            MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+
+            if(row && row[0])
+                *outcome = atoi(row[0]);
+            else
+                result = ENGINE_DB_NOT_FOUND_ERROR;
+
+            if(db_result) mysql_free_result(db_result);
+        }
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Gets a pending event of an action, other than a given one
+
+    @param[in]      action_id   Action ID
+    @param[in]      event_type  Event type wanted
+    @param[in]      exclude_id  Event ID to leave out
+    @param[out]     out_event   Event found
+
+    @return         ENGINE_OK when found, ENGINE_DB_NOT_FOUND_ERROR when none
+
+*******************************************************************************/
+ErrorCode_t db_get_pending_action_event(int action_id, int event_type, int exclude_id, Event_t* out_event)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+    ErrorCode_t result = db_reconnect(connection);
+
+    if((result == ENGINE_OK) && out_event)
+    {
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "SELECT * FROM events WHERE action = %d AND event_type = %d AND id <> %d AND outcome = %d "
+            "ORDER BY timestamp ASC, id ASC LIMIT 1",
+            action_id, event_type, exclude_id, OUTCOME_NO_OUTCOME);
+
+        if (mysql_query(connection->hndl, query_text))
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+        else
+        {
+            MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+            MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+
+            if(row)
+                db_row_to_event(row, out_event);
+            else
+                result = ENGINE_DB_NOT_FOUND_ERROR;
+
+            if(db_result) mysql_free_result(db_result);
+        }
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Runs a savepoint statement ("SAVEPOINT x", "ROLLBACK TO SAVEPOINT x",
+                    "RELEASE SAVEPOINT x") inside the current transaction
+
+    @param[in]      statement SQL statement
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_savepoint(const char* statement)
+{
+    DbConnection_t* connection = engine_get_db_connection();
+    ErrorCode_t result = db_reconnect(connection);
+
+    if((result == ENGINE_OK) && mysql_query(connection->hndl, statement))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", statement);
+        result = ENGINE_DB_QUERY_ERROR;
     }
 
     return result;

@@ -875,4 +875,13 @@ ErrorCode_t db_update_user_credits(User_t* user);
 *******************************************************************************/
 ErrorCode_t db_insert_event_e(Event_t* event);
 
+/** Gets an event's current outcome (OUTCOME_NO_OUTCOME while pending) */
+ErrorCode_t db_get_event_outcome(int event_id, int* outcome);
+
+/** Gets a pending event of an action with the given type, other than exclude_id */
+ErrorCode_t db_get_pending_action_event(int action_id, int event_type, int exclude_id, Event_t* out_event);
+
+/** Runs a SAVEPOINT / ROLLBACK TO SAVEPOINT / RELEASE SAVEPOINT statement */
+ErrorCode_t db_savepoint(const char* statement);
+
 #endif // __EM_DB_MODULE__

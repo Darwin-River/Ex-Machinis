@@ -462,9 +462,11 @@ In the following example, a drone is instructed to push 5 units of kunspar into 
 </run>
 ```
 
-If the acting and affected drones are owned by the same player, these actions can be performed without referring to active market bids.
+Both drones must be orbiting the same body. If the acting and affected drones are owned by the same player, these actions can be performed without referring to active market bids.
 
-However, if the affected spacecraft is owned by a different player, the push and pull commands will only be allowed to take place if the affected drone has posted buy and sell orders for these resources. In that case, the transaction will be constrained to the limits set by the market order and the total appropriate number of credits will be transferred from the buyer's to the seller's bank account.
+However, if the affected spacecraft is owned by a different player, the push and pull commands will only be allowed to take place if the affected drone has posted buy and sell orders for these resources. In that case, the transaction will be constrained to the limits set by the market order and the total appropriate number of credits will be transferred from the buyer's to the seller's bank account. The buyer must have enough credits for the whole order.
+
+A transfer either happens completely or not at all. If anything stops it (the seller has too little to sell, the receiving hold is full, the buyer can't pay, there is no matching order, or the drones are in different places), no goods and no credits change hands, and the action is aborted.
 
 You can find a current list of active buy orders (http://exmachinis.com/buys) and sell orders (http://exmachinis.com/sells) on the Ex Machinis website.
 
