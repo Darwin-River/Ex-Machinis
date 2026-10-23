@@ -50,6 +50,9 @@ static long long vm_now_ms(void)
 // Last VM is yield
 int g_vm_yield = 0;
 
+// Action the running script waits for (set by perform), 0 when none
+static int g_vm_wait_action = 0;
+
 /******************************* LOCAL FUNCTIONS *****************************/
 
 /** ****************************************************************************
@@ -93,6 +96,12 @@ int vm_putc_cb(int ch, void *file)
 *******************************************************************************/
 int vm_yield_cb(void* param) 
 {
+  // perform started an action: pause until it is done
+  if(g_vm_wait_action) {
+    g_vm_yield = 1;
+    return 1;
+  }
+
   long long elapsed_ms = vm_now_ms() - g_vm_start_ms;
   int max_time = engine_get_max_cycle_seconds();
 
@@ -154,67 +163,6 @@ static int vm_add_callbacks(VirtualMachine_t* const vm, const bool optimize,  Vm
   }
   embed_reset(vm);
   return 0;
-}
-
-static int vm_discard_putc(int ch, void *file)
-{
-  (void)file;
-  return ch;
-}
-
-/** ****************************************************************************
-
-  @brief      Defines the callback words a saved drone lacks
-
-  A saved drone's memory holds the words that existed when it was created, so
-  words added to the engine later (such as status) are defined here. Only
-  call it on an idle VM: it runs FORTH. Nothing it does is printed.
-
-  @param[in]  vm  Current VM
-
-  @return     void
-
-*******************************************************************************/
-static void vm_add_missing_callbacks(VirtualMachine_t* const vm)
-{
-  VmExtension_t* vm_ext = (VmExtension_t*)embed_opt_get(vm)->param;
-  if(!vm_ext)
-    return;
-
-  embed_opt_t saved = *embed_opt_get(vm);
-  embed_opt_t quiet = saved;
-  quiet.put = vm_discard_putc;
-  embed_opt_set(vm, &quiet);
-
-  for(size_t i = 0; i < vm_ext->callbacks_length; i++) {
-    VmExtensionCb_t *cb = &vm_ext->callbacks[i];
-    char line[80];
-    m_t code = 0, xt = 0;
-
-    if(!cb->use)
-      continue;
-
-    // ' throws -13 when the word doesn't exist; catch leaves 0 (and the
-    // word's address) when it does
-    snprintf(line, sizeof(line), "' ' catch %s\n", cb->name);
-    if(embed_eval(vm, line) < 0 || embed_pop(vm, &code) < 0)
-      continue;
-
-    if(code == 0) {
-      embed_pop(vm, &xt);
-      continue;
-    }
-
-    // vm is in the system word list, which saved drones don't search
-    snprintf(line, sizeof(line), "system +order : %s %u vm ; -2 cells allot ' vm chars , system -order\n",
-             cb->name, (unsigned)i);
-    if(embed_eval(vm, line) < 0)
-      engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: unable to add word [%s] to a saved VM", cb->name);
-    else
-      engine_trace(TRACE_LEVEL_ALWAYS, "Word [%s] added to a saved VM", cb->name);
-  }
-
-  embed_opt_set(vm, &saved);
 }
 
 /******************************* PUBLIC FUNCTIONS *****************************/
@@ -485,10 +433,7 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
 
             if(!is_resume)
             { 
-                // it is normal command (the VM is idle: add any words the
-                // drone was saved without)
-                vm_add_missing_callbacks(vm);
-
+                // it is normal command
                 engine_trace(TRACE_LEVEL_ALWAYS, "Executing command at VM: [%s]", command->code);
 
                 forth_result = embed_eval((forth_t*)vm, (const char*)command->code);
@@ -613,12 +558,32 @@ void vm_report(VirtualMachine_t* vm)
 *******************************************************************************/
 int vm_is_yield() 
 {
-  return g_vm_yield;
+  return g_vm_yield || g_vm_wait_action;
+}
+
+/** Pauses the running script until the action is done (called by perform). */
+void vm_wait_for_action(int action_id)
+{
+  g_vm_wait_action = action_id;
+}
+
+/** Pushes a value onto a VM's data stack (perform's result on resume). */
+void vm_push_result(VirtualMachine_t* vm, int value)
+{
+  if(vm && embed_push((forth_t*)vm, (m_t)value) < 0)
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: unable to push [%d] onto the VM stack", value);
+}
+
+/** The action the script paused for in this run, 0 when none. */
+int vm_waiting_action(void)
+{
+  return g_vm_wait_action;
 }
 
 /** Clears the yield flag before the engine processes its next command. */
 void vm_clear_yield(void)
 {
+  g_vm_wait_action = 0;
   g_vm_yield = 0;
 }
 

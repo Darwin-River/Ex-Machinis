@@ -67,8 +67,12 @@ wait_for 30 "engine emailed the reply" sh -c "docker compose logs mail | grep -q
 DRONE_ID=$(sql "select agent_id from agents where name='$DRONE'")
 has() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRONE_ID and resource=$1")" -ge "${2:-1}" ]; }
 wait_for 30 "drone got the starter kit" has 5901
+# perform holds a script until its whole action is done; until then the
+# drone refuses new scripts, so wait for it to be idle before sending one
+idle() { [ "$(sql "select count(*) from commands where agent_id=$DRONE_ID") $(sql "select IFNULL(waiting_action, 0) from agents where agent_id=$DRONE_ID")" = "0 0" ]; }
 send_mail "$DRONE@$DOMAIN" "unpack" "<run>25901 perform . cr</run>"
 wait_for 90 "starter kit unpacked (engine in cargo)" has 5001
+wait_for 60 "drone finished the unpack script" idle
 
 send_mail "$DRONE@$DOMAIN" "to the moon" "<run>
   : sq dup * ;
@@ -78,6 +82,7 @@ send_mail "$DRONE@$DOMAIN" "to the moon" "<run>
 wait_for 90 "drone ran a multi-line program" sh -c "docker compose logs game-engine | grep -q 'result \[ 49'"
 at_moon() { [ "$(sql "select object_id from agents where agent_id=$DRONE_ID")" = 10 ]; }
 wait_for 120 "drone flew to the Moon" at_moon
+wait_for 60 "drone finished the trip script" idle
 
 send_mail "$DRONE@$DOMAIN" "mine" "<run>11100 perform . cr</run>"
 wait_for 120 "drone mined kunspar on the Moon" has 1100

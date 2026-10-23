@@ -140,7 +140,6 @@ typedef enum
 	ENGINE_MEMORY_ALLOC_ERROR,
 	ENGINE_LOGIC_ERROR,
 	ENGINE_NOT_FOUND,
-	ENGINE_MISSING_PARAMETERS,
 } ErrorCode_t;
 
 
@@ -537,10 +536,11 @@ typedef enum
 
 } Outcome_t;
 
-// What the status word leaves for an action (failures are Outcome_t values)
-#define ACTION_STATUS_DONE     1
-#define ACTION_STATUS_RUNNING  0
-#define ACTION_STATUS_UNKNOWN  -11  // no such action for this drone
+// What perform leaves: 0 when the action succeeded, an Outcome_t value when
+// it failed, or one of these when it was not started
+#define PERFORM_OK                0
+#define PERFORM_UNKNOWN_PROTOCOL  -11
+#define PERFORM_REFUSED           -12
 
 typedef struct
 {

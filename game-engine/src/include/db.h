@@ -890,7 +890,13 @@ ErrorCode_t db_upgrade_schema(void);
 /** Records why an action failed (first reason only) */
 ErrorCode_t db_set_action_outcome(int action_id, int outcome);
 
-/** Status of one of a drone's actions (see ACTION_STATUS_*) */
-ErrorCode_t db_get_action_status(DbConnection_t* connection, int action_id, int drone_id, int* status);
+/** Sets (or clears, with 0) the action a drone's script waits for */
+ErrorCode_t db_set_agent_waiting_action(DbConnection_t* connection, int agent_id, int action_id);
+
+/** Gets the action a drone's script waits for (0 when none) */
+ErrorCode_t db_get_agent_waiting_action(DbConnection_t* connection, int agent_id, int* action_id);
+
+/** How an action went: running while events remain, else code (0 ok, or why it failed) */
+ErrorCode_t db_get_action_result(DbConnection_t* connection, int action_id, int* running, int* code);
 
 #endif // __EM_DB_MODULE__
