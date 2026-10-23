@@ -399,7 +399,21 @@ VirtualMachine_t* vm_from_bytes(int agent_id, char* vm_bytes, size_t size)
   @return     Execution result code (ErrorCode_t)
 
 *******************************************************************************/
-ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_buffer, size_t out_size)
+/* Runs the VM, reading script lines from *input (advanced as lines are read) */
+static int vm_run_with_input(VirtualMachine_t* vm, const char** input)
+{
+    embed_opt_t o_old = *embed_opt_get((forth_t*)vm);
+    embed_opt_t o_new = o_old;
+    o_new.get = embed_sgetc_cb;
+    o_new.in = (void*)input;
+    embed_opt_set((forth_t*)vm, &o_new);
+    int r = embed_vm((forth_t*)vm);
+    embed_opt_set((forth_t*)vm, &o_old);
+    return r;
+}
+
+ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_buffer, size_t out_size,
+                           char** pending_input)
 {
     ErrorCode_t result = ENGINE_OK;
 
@@ -431,20 +445,34 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
             while(code_len > 0 && strchr(" \t\r\n", code[code_len - 1])) code_len--;
             bool is_resume = (code_len == strlen(resume)) && (strncmp(code, resume, code_len) == 0);
 
+            // The VM reads the script line by line. A paused script picks up
+            // the lines it hadn't read yet (*pending_input) when it resumes.
+            const char* input = "";
+
             if(!is_resume)
             { 
                 // it is normal command
                 engine_trace(TRACE_LEVEL_ALWAYS, "Executing command at VM: [%s]", command->code);
-
-                forth_result = embed_eval((forth_t*)vm, (const char*)command->code);
-
+                input = command->code;
             }
             else
             {
-                // Just resume VM and execute pending codes
-                engine_trace(TRACE_LEVEL_ALWAYS, "VM resumed: [%s]", command->code);
+                // Resume the VM where it paused
+                engine_trace(TRACE_LEVEL_ALWAYS, "VM resumed: [%s] with input [%s]", command->code,
+                    (pending_input && *pending_input) ? *pending_input : "");
+                if(pending_input && *pending_input)
+                    input = *pending_input;
+            }
 
-                forth_result = embed_vm((forth_t*)vm);
+            const char* rest = input;
+            forth_result = vm_run_with_input(vm, &rest);
+
+            // Keep what the script hasn't read if it paused, else nothing
+            if(pending_input)
+            {
+                char* left = (vm_is_yield() && rest && *rest) ? strdup(rest) : NULL;
+                free(*pending_input);
+                *pending_input = left;
             }
 
             if(forth_result < 0)

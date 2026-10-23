@@ -181,6 +181,7 @@ Since actions are short and only one runs at a time (see [The Game Engine cycles
 * `commands.deliver_at`: when a player's command reaches its drone.
 * `outbox`: replies on their way to Earth.
 * `agents.waiting_action`: the action a drone's script is waiting for.
+* `agents.pending_input`: the lines a paused script hasn't read yet.
 
 Examples at the defaults (scale 60, 1 m/s²):
 
@@ -258,7 +259,7 @@ Since there will be a rather large number of drones running FORTH programs at an
 
 A drone is always in one of these states:
 * **Idle:** no script is running. A new script from the player starts at once.
-* **Running:** a script has used up its time slice (`MAX_CYCLE_SECONDS`, about a second) and paused. The GE queues a resume and continues it on a later cycle, so long scripts don't hold up other drones. What the script prints is collected (`agents.output`) and emailed in one message when it ends.
+* **Running:** a script has used up its time slice (`MAX_CYCLE_SECONDS`, about a second) and paused. The GE queues a resume and continues it on a later cycle, so long scripts don't hold up other drones. The VM reads a script one line at a time; when it pauses (here or while waiting, below), the lines it hasn't read yet are kept in `agents.pending_input` and fed back to it when it resumes, so the script carries on with its next line. What the script prints is collected (`agents.output`) and emailed in one message when it ends.
 * **Waiting:** the script called `perform` and the action it started has not finished. The script stays paused, with `agents.waiting_action` set to the action's ID, until every event of that action has been processed by the Event Engine (or the action is aborted). Only then is the drone's resume taken from the queue: `perform` leaves its result on the stack (see [Returned Value](#Returned-Value)) and the script carries on. The GE doesn't load a waiting drone's VM to check on it; the queue simply skips its resume until the action is done.
 
 So a drone performs one in-game action at a time, and its script always knows how the last one went before deciding what to do next. While a drone is running or waiting, a new script emailed to it is refused with "Another command is running, retry later"; `<abort>` still works (see [Meta Commands](#Meta-Commands)).
@@ -803,7 +804,7 @@ The Events Engine takes the following steps when evaluating events:
   * The Depletion Price for items being removed from the cargo bay of a non-allied ship is equal to or greater than the price the player has set on those items. The outcome will be set to -7 if this error is detected.
   * The Accumulation Price for items being added to the cargo bay of a non-allied ship is less than or equal to the price the player has set for those items. The outcome will be set to -8 if this error is detected.
 
-5. If any of these errors are detected, the EE will update the event’s outcome with the indicated value and flag the corresponding action in the action table as aborted. It also stores the first failing outcome in `actions.outcome`, which `perform` leaves on the drone's stack when the script resumes. Failures are not emailed: drones often run unattended, so their scripts check the result and respond. Only errors that stop a script reach the player, in the script's email. A push or pull to another player's drone that has no matching buy or sell order fails with outcome -10. (The engines add the `actions.outcome` and `agents.waiting_action` columns themselves to databases created before them.)
+5. If any of these errors are detected, the EE will update the event’s outcome with the indicated value and flag the corresponding action in the action table as aborted. It also stores the first failing outcome in `actions.outcome`, which `perform` leaves on the drone's stack when the script resumes. Failures are not emailed: drones often run unattended, so their scripts check the result and respond. Only errors that stop a script reach the player, in the script's email. A push or pull to another player's drone that has no matching buy or sell order fails with outcome -10. (The engines add the `actions.outcome`, `agents.waiting_action` and `agents.pending_input` columns themselves to databases created before them.)
 
    **Transfers (push, protocol 10, and pull, protocol 11) are all or nothing.** A transfer is two events: a depletion from one drone and an accumulation into the other. The EE checks first that both drones orbit the same object (outcome -1 otherwise), then processes both events together, ignoring the second one's later timestamp. If either fails, everything both did (inventory, cargo and credits) is rolled back: the failing event gets its error outcome, the other gets -9, and the action is aborted. So a buyer never pays for goods that don't arrive, and a seller never loses goods without being paid.
 

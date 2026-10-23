@@ -1,11 +1,12 @@
 # Ex Machinis: Tips and Tricks
 
-This manual provides an expanding collection of FORTH scripts that you might find useful when progrogramming and troubleshooting your Ex Machinis drones.  Although the scripts are meant to function without modification, they also provide convenient examples and starting points for writing your own scripts.
+This manual provides an expanding collection of FORTH scripts that you might find useful when programming and troubleshooting your Ex Machinis drones.  Although the scripts are meant to function without modification, they also provide convenient examples and starting points for writing your own scripts.
 
 ## Table of Contents
 - [Improving Readability](tips_and_tricks.md#Improving-Readability)
   - [Naming Commonly Used Values](tips_and_tricks.md#Naming-Commonly-Used-Values)
   - [Improving Readability with Words](tips_and_tricks.md#Improving-Readability-with-Words)
+  - [Checking Results](tips_and_tricks.md#Checking-Results)
   - [Simplifying the Mining Protocol](tips_and_tricks.md#Simplifying-the-Mining-Protocol)
 - [Troubleshooting Tools](tips_and_tricks.md#Troubleshooting-Tools)
   - [Debugging the Stack with peek](tips_and_tricks.md#Debugging-the-Stack-with-peek)
@@ -14,7 +15,7 @@ This manual provides an expanding collection of FORTH scripts that you might fin
 
 ## Improving Readability
 
-If you’ve already read the [player’s manual](game-play.md), you should be aware that FORTH is a very powerful and flexible programming language, which, due to its compact and highly efficient structure, jettisons many of the guard rails and readability features that are enforced in other languages.
+If you’ve already read the [player’s manual](players-manual.md), you should be aware that FORTH is a very powerful and flexible programming language, which, due to its compact and highly efficient structure, jettisons many of the guard rails and readability features that are enforced in other languages.
 
 This means that the programmer assumes much of the responsibility for writing code which is easy to understand and follow.
 
@@ -34,11 +35,13 @@ Fortunately, FORTH makes it very easy for users to assign a memorable name or ph
 \ Favorite resources
 : nMagmite 1000 ;
 : nVoxite 1020 ;
+: nKunspar 1100 ;
 
 \ Favorite locations
 : nEarth 3 ;
 : nMars 4 ;
 : nJupiter 5 ;
+: nMoon 10 ;
 ```
 
 Each of these definitions simply places the integer ID on the stack for the particular resource or location that is represented by the work we are defining.  Consequently, if I insert the words `nVoxite` or `nEarth` in my code, it will instruct the interpreter or compiler to put the corresponding ID on the stack.  This does not significantly change how the program functions but it does make it easier to read.
@@ -59,29 +62,48 @@ The following script defines a set of descriptive words that place the protocol 
 <run>
 
 \ Basic definitions
-: vPlaceSellOrder ( nPrice nLimit nResource -- ) 7 perform ;
-: vPlaceBuyOrder ( nPrice nLimit nResource -- ) 8 perform ;
-: vGotoLocation ( nLocation -- ) 5 perform ;
-: vPushResource ( nResource nTarget -- ) 10 perform ;
-: vPullResource ( nResource nTarget -- ) 11 perform ;
+: vPlaceSellOrder ( nPrice nLimit nResource -- ior ) 7 perform ;
+: vPlaceBuyOrder ( nPrice nLimit nResource -- ior ) 8 perform ;
+: vGotoLocation ( nLocation -- ior ) 5001 perform ;
+: vPushResource ( nQuantity nResource nTarget -- ior ) 10 perform ;
+: vPullResource ( nQuantity nResource nTarget -- ior ) 11 perform ;
 
 </run>
 ```
-I also improve readablity here by using descriptive camel-case phases to describe each newly-defied action and prefix the compound word with a lower-case v for verb. The perenthesis that follow each word enclose uncompiled comments that describe the values that must be placed on the stack before invoking the word, which is represented by the two hyphens.  If executed the command added any values to the stack, they would be listed after the two hyphens.  FORTH porgrammers use this notation to help themselves and other users with stack management.
+I also improve readability here by using descriptive camel-case phrases to describe each newly-defined action and prefix the compound word with a lower-case v for verb. The parentheses that follow each word enclose uncompiled comments that describe the values that must be placed on the stack before invoking the word, which is represented by the two hyphens.  The values the word leaves on the stack are listed after the two hyphens.  FORTH programmers use this notation to help themselves and other users with stack management.
 
-The definitions can be used in conjunction with the previously-defined favorites to vastly improve the readability of your script.  For example, the following code places a buy order for up to 10 units of magmite and then moves the spacecraft to Jupiter:
+Every one of these words leaves one value, which FORTH programmers call an *ior* (an input/output result): `perform` waits until the action is finished, then leaves 0 if it worked or a negative code saying why it didn't (see [Issuing Commands](players-manual.md#chapter-4-issuing-commands) in the player's manual). Travelling uses your engine (protocol 5001), so unpack your starter kit first. Pushes and pulls take the quantity first: `5 nKunspar 52 vPushResource` delivers 5 kunspar to drone 52.
+
+The definitions can be used in conjunction with the previously-defined favorites to vastly improve the readability of your script.  For example, the following code places a buy order for up to 10 units of magmite and then moves the spacecraft to the Moon, printing the result of each (0 when it worked):
 
 ```
 <run>
 
-5 ( Credits ) 10 ( Units ) nMagmite vPlaceBuyOrder
+5 ( Credits ) 10 ( Units ) nMagmite vPlaceBuyOrder .
 
-nJupiter vGotoLocation
+nMoon vGotoLocation .
 
 </run>
 ```
 
-In this example I bracketed the units in parens to remind myselve and others what the values I placed on the stack represent in the context of the `vPlaceBuyOrder` word.
+In this example I bracketed the units in parens to remind myself and others what the values I placed on the stack represent in the context of the `vPlaceBuyOrder` word.
+
+### Checking Results
+
+A drone that works on its own has to notice when something goes wrong. Since each of these words leaves 0 on success, a word can test the result with `if` (which, like other control words, only works inside a definition) and decide what to do next:
+
+```
+<run>
+
+: vTryTrip ( nLocation -- )
+  vGotoLocation dup 0= if drop ." arrived" else ." trip failed: " . then cr ;
+
+nMoon vTryTrip
+
+</run>
+```
+
+The drone replies with "arrived", or with the failure code, such as -2 if it has no engine.
 
 [Return to TOC](tips_and_tricks.md#Table-of-Contents)
 
@@ -100,18 +122,17 @@ The following script creates a definition for `vMineResource`, which retrieves t
 ```
 <run>
 
-: vMineResource ( nResource -- ) 10000 + perform ;
+: vMineResource ( nResource -- ior ) 10000 + perform ;
 
 </run>
 ```
 
-The following code uses `vMineResource` to mine magmite and then voxite from the local environment.
+Each mineral needs the right mining module and a location where it's found (see [Extracting minerals](players-manual.md#extracting-minerals) in the player's manual). The Worm in your starter kit mines minerals on moons, so the following code mines kunspar on the Moon and prints the result:
 
 ```
 <run>
 
-nMagmite vMineResource
-nVoxite vMineResource
+nKunspar vMineResource .
 
 </run>
 ```
@@ -127,7 +148,7 @@ Another important practice to follow when coding your drones is defining words a
 
 The stack is where it's at in terms of FORTH program execution.  It is also where many of your errors will occur, since it's often challenging to keep track of what parameters are on the stack at any given time.  Consequently, one of the most valuable troubleshooting routines you can write, is one that prints out the contents of the stack without deleting them or changing their order.
 
-The following definition uses the return stack to temporarily hold values from the variable stack as it sifts through them and prints their values in the drone’s output buffer.
+Your drone already knows one such word: `.s` prints everything on the stack, bottom first, without changing it. The following definition shows how such a word can be built. It uses the return stack to temporarily hold values from the variable stack as it sifts through them and prints their values, top first, in the drone’s output buffer.
 
 ```
 : vPeek
@@ -185,7 +206,7 @@ Email the following text to your drone to erase its memory and install the scrip
 <reset>
 
 \ Basic Drone
-\ Updated 12 June 2020
+\ Updated 23 October 2026
 \ http://exmachinis.com
 
 \ To use this script, copy and paste it as plain text
@@ -194,18 +215,21 @@ Email the following text to your drone to erase its memory and install the scrip
 \ Favorite resources
 : nMagmite 1000 ;
 : nVoxite 1020 ;
+: nKunspar 1100 ;
 
 \ Favorite locations
 : nEarth 3 ;
 : nMars 4 ;
 : nJupiter 5 ;
+: nMoon 10 ;
 
-\ Basic definitions
-: vPlaceSellOrder ( nPrice nLimit nResource -- ) 7 perform ;
-: vPlaceBuyOrder  ( nPrice nLimit nResource -- ) 8 perform ;
-: vGotoLocation ( nLocation -- ) 5 perform ;
-: vPushResource ( nResource nTarget -- ) 10 perform ;
-: vPullResource ( nResource nTarget -- ) 11 perform ;
+\ Basic definitions (each leaves 0, or a negative code)
+: vPlaceSellOrder ( nPrice nLimit nResource -- ior ) 7 perform ;
+: vPlaceBuyOrder  ( nPrice nLimit nResource -- ior ) 8 perform ;
+: vGotoLocation ( nLocation -- ior ) 5001 perform ;
+: vPushResource ( nQuantity nResource nTarget -- ior ) 10 perform ;
+: vPullResource ( nQuantity nResource nTarget -- ior ) 11 perform ;
+: vMineResource ( nResource -- ior ) 10000 + perform ;
 
 \ Debugging definitions
 : vPeek

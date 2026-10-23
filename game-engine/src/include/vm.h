@@ -79,7 +79,11 @@ VirtualMachine_t* vm_from_bytes(int agent_id, char* vm_bytes, size_t size);
   @return     Execution result code (ErrorCode_t)
 
 *******************************************************************************/
-ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_buffer, size_t out_size);
+/* pending_input: in, the unread rest of a paused script (resumes only; may
+   be NULL); out, the rest still unread if the script paused again, else
+   NULL (malloc'd) */
+ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_buffer, size_t out_size,
+                           char** pending_input);
 
 /** ****************************************************************************
 

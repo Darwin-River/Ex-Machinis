@@ -24,6 +24,7 @@ Route::get('/home', 'HomeController@index')->name('home');
 //static pages
 Route::get('/forth-dictionary', 'HomeController@forthDictionary');
 Route::get('/getting-started', 'HomeController@playersManual');
+Route::get('/getting-started/images/{file}', 'HomeController@playersManualImage')->where('file', '[A-Za-z0-9_-]+\.(png|jpg|jpeg|gif|svg)');
 Route::get('/about-us', 'HomeController@aboutUs');
 
 Route::group(['middleware' => ['web']], function () {

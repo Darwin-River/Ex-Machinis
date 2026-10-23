@@ -2,7 +2,7 @@
 #
 # End-to-end check of the Docker deployment (used by CI). Starts the stack
 # for the fake domain example.test over plain HTTP, then checks that:
-#   - the website answers,
+#   - the website answers, and Getting Started shows the players' manual,
 #   - the scheduler's mail checks succeed,
 #   - emailing registrar@ with subject "register" registers a player,
 #   - a drone runs an emailed FORTH command and the engine emails the reply.
@@ -50,6 +50,8 @@ PY
 }
 
 wait_for 120 "website answers" curl -fsS -o /dev/null http://localhost/
+# The image must carry the players' manual (Getting Started renders it)
+wait_for 60 "Getting Started shows the players' manual" sh -c "curl -fsS http://localhost/getting-started | grep -q 'chapter-4-issuing-commands'"
 wait_for 120 "mail check succeeds" sh -c "docker compose logs app | grep -q 'GET /get-mails/[^ ]* HTTP/1.1\" 200'"
 wait_for 60 "mail server accepts connections" python3 -c "import smtplib; smtplib.SMTP('127.0.0.1', 25, timeout=5).quit()"
 
@@ -80,11 +82,14 @@ send_mail "$DRONE@$DOMAIN" "to the moon" "<run>
   : sq dup * ;
   7 sq . cr
   10 5001 perform . cr
+  6 sq . cr
 </run>"
 wait_for 90 "drone ran a multi-line program" sh -c "docker compose logs game-engine | grep -q 'result \[ 49'"
 at_moon() { [ "$(sql "select object_id from agents where agent_id=$DRONE_ID")" = 10 ]; }
 wait_for 120 "drone flew to the Moon" at_moon
 wait_for 60 "drone finished the trip script" idle
+# perform paused the script for the trip: the line after it must still run
+wait_for 30 "script carried on after the trip" sh -c "docker compose logs game-engine | grep -qE '[|] +36[[:space:]]*\$'"
 
 send_mail "$DRONE@$DOMAIN" "mine" "<run>11100 perform . cr</run>"
 wait_for 120 "drone mined kunspar on the Moon" has 1100

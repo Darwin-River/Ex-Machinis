@@ -37,6 +37,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     <script src="js/html5shiv.min.js"></script>
     <![endif]-->
 
+    {{-- Page-specific styles (inside #app, Vue would drop <style> tags) --}}
+    @stack('styles')
 </head>
 
 <body>

@@ -438,7 +438,16 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
     }
 
     // VM command & not busy -> execute it and take the suitable actions
-    result = vm_run_command(engine.last_agent.vm, &engine.last_command, out_buf, out_buf_size);
+    // A resumed script carries on with the lines it hadn't read yet
+    char* pending_input = NULL;
+    if(strncmp(engine.last_command.code, resume, strlen(resume)) == 0)
+        pending_input = db_get_agent_pending_input(&engine.db_connection, engine.last_command.agent_id);
+
+    result = vm_run_command(engine.last_agent.vm, &engine.last_command, out_buf, out_buf_size, &pending_input);
+
+    // Keep the unread rest of a paused script (NULL clears it)
+    db_set_agent_pending_input(&engine.db_connection, engine.last_command.agent_id, pending_input);
+    free(pending_input);
     g_ran_on_vm = true;
 
     // perform started an action: the script stays paused until it is done
@@ -641,6 +650,7 @@ ErrorCode_t engine_process_meta_command(char* out_buf, size_t out_buf_size)
         result = db_delete_resume_commands(&engine.db_connection, engine.last_command.agent_id);
         // The script no longer waits for an action (the action itself goes on)
         db_set_agent_waiting_action(&engine.db_connection, engine.last_command.agent_id, 0);
+        db_set_agent_pending_input(&engine.db_connection, engine.last_command.agent_id, NULL);
     } else if (strstr(engine.last_command.code, META_COMMAND_RESET)) {
         engine_trace(TRACE_LEVEL_ALWAYS, "Running reset command at agent [%d]", engine.last_command.agent_id);
         // reset and start with a fresh VM
@@ -653,6 +663,7 @@ ErrorCode_t engine_process_meta_command(char* out_buf, size_t out_buf_size)
             result = db_delete_resume_commands(&engine.db_connection, engine.last_command.agent_id);
         free(db_take_agent_output(&engine.db_connection, engine.last_command.agent_id));
         db_set_agent_waiting_action(&engine.db_connection, engine.last_command.agent_id, 0);
+        db_set_agent_pending_input(&engine.db_connection, engine.last_command.agent_id, NULL);
     } else if (strstr(engine.last_command.code, META_COMMAND_RENAME)) {
         result = engine_process_meta_rename(out_buf, out_buf_size);
     } else if (strstr(engine.last_command.code, META_COMMAND_REBRAND)) {

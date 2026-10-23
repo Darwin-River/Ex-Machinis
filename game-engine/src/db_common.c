@@ -225,6 +225,10 @@ ErrorCode_t db_upgrade_schema(void)
     if(result == ENGINE_OK)
         result = db_add_column(connection, "agents", "waiting_action", "INT UNSIGNED NULL");
 
+    // The unread rest of a paused script
+    if(result == ENGINE_OK)
+        result = db_add_column(connection, "agents", "pending_input", "LONGTEXT NULL");
+
     // Signals travel at the speed of light: when a player's command reaches
     // its drone (unix seconds), and replies waiting to reach Earth
     if(result == ENGINE_OK)

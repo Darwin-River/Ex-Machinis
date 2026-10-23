@@ -932,4 +932,10 @@ ErrorCode_t db_queue_outbox(DbConnection_t* connection, int delay, const char* u
 /** Sends queued replies that have reached Earth */
 ErrorCode_t db_send_due_outbox(DbConnection_t* connection, const char* script);
 
+/** The unread rest of a drone's paused script (malloc'd, NULL when none) */
+char* db_get_agent_pending_input(DbConnection_t* connection, int agent_id);
+
+/** Sets (or clears, with NULL) the unread rest of a drone's paused script */
+ErrorCode_t db_set_agent_pending_input(DbConnection_t* connection, int agent_id, const char* text);
+
 #endif // __EM_DB_MODULE__

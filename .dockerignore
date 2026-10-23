@@ -19,4 +19,7 @@ game-engine/src/embed/*.o
 game-engine/src/embed/*.a
 game-engine/src/embed/*.blk
 game-engine/src/embed/embed
-documents
+# The website shows the players' manual (Getting Started); nothing else
+documents/*
+!documents/players-manual.md
+!documents/images

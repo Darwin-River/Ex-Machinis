@@ -19,6 +19,12 @@ use App\Services\Mail\Inbox;
 use App\Services\Mail\IncomingMail;
 use App\Services\Mail\InboxFactory;
 use Html2Text\Html2Text;
+use Illuminate\Support\Facades\Cache;
+use League\CommonMark\Environment\Environment;
+use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
+use League\CommonMark\Extension\HeadingPermalink\HeadingPermalinkExtension;
+use League\CommonMark\MarkdownConverter;
 
 class HomeController extends Controller
 {
@@ -223,12 +229,56 @@ class HomeController extends Controller
         return view('pages.forth-dictionary');
     }
 
+    /** Where the players' manual and its images live */
+    private const PLAYERS_MANUAL = 'documents/players-manual.md';
+    private const MANUAL_IMAGES = 'documents/images';
+    private const REPOSITORY_DOCS = 'https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/';
+
     /**
-     * Display static page with player's manual
+     * Getting Started: the players' manual (documents/players-manual.md),
+     * rendered from the Markdown so the page never drifts from it
      */
     public function playersManual()
     {
-        return view('pages.players-manual');
+        $manual = Cache::rememberForever('players-manual:' . filemtime(base_path(self::PLAYERS_MANUAL)),
+            fn () => self::renderPlayersManual(file_get_contents(base_path(self::PLAYERS_MANUAL))));
+
+        return view('pages.players-manual', compact('manual'));
+    }
+
+    /** The manual as HTML, with GitHub-style heading IDs for its links */
+    public static function renderPlayersManual(string $markdown): string
+    {
+        // Notes for maintainers stay in the repository
+        $markdown = preg_replace('/^> \*\*Keep this manual current\.\*\*.*\R/m', '', $markdown);
+
+        $environment = new Environment([
+            'html_input' => 'escape',
+            'allow_unsafe_links' => false,
+            'heading_permalink' => [
+                'apply_id_to_heading' => true,
+                'id_prefix' => '',
+                'fragment_prefix' => '',
+                'insert' => 'none',
+            ],
+        ]);
+        $environment->addExtension(new CommonMarkCoreExtension());
+        $environment->addExtension(new GithubFlavoredMarkdownExtension());
+        $environment->addExtension(new HeadingPermalinkExtension());
+
+        $html = (string) (new MarkdownConverter($environment))->convert($markdown);
+
+        // Images are served by /getting-started/images; other documents are on GitHub
+        $html = preg_replace('/src="images\//', 'src="/getting-started/images/', $html);
+        return preg_replace('/href="(?!https?:|#|\/)([\w.-]+\.md)/', 'href="' . self::REPOSITORY_DOCS . '$1', $html);
+    }
+
+    /** An image used by the players' manual */
+    public function playersManualImage(string $file)
+    {
+        $path = base_path(self::MANUAL_IMAGES . '/' . $file);
+        abort_unless(is_file($path), 404);
+        return response()->file($path, ['Cache-Control' => 'public, max-age=86400']);
     }
 
     /**
