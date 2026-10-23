@@ -119,6 +119,15 @@ int vm_is_yield();
 /** Clears the yield flag before the engine processes its next command. */
 void vm_clear_yield(void);
 
+/** Pauses the running script until the action is done (called by perform) */
+void vm_wait_for_action(int action_id);
+
+/** Pushes a value onto a VM's data stack (perform's result on resume) */
+void vm_push_result(VirtualMachine_t* vm, int value);
+
+/** The action the script paused for in this run, 0 when none */
+int vm_waiting_action(void);
+
 /** ****************************************************************************
 
   @brief      Aborts command execution at current VM

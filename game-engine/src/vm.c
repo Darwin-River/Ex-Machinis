@@ -50,6 +50,9 @@ static long long vm_now_ms(void)
 // Last VM is yield
 int g_vm_yield = 0;
 
+// Action the running script waits for (set by perform), 0 when none
+static int g_vm_wait_action = 0;
+
 /******************************* LOCAL FUNCTIONS *****************************/
 
 /** ****************************************************************************
@@ -93,6 +96,12 @@ int vm_putc_cb(int ch, void *file)
 *******************************************************************************/
 int vm_yield_cb(void* param) 
 {
+  // perform started an action: pause until it is done
+  if(g_vm_wait_action) {
+    g_vm_yield = 1;
+    return 1;
+  }
+
   long long elapsed_ms = vm_now_ms() - g_vm_start_ms;
   int max_time = engine_get_max_cycle_seconds();
 
@@ -549,12 +558,32 @@ void vm_report(VirtualMachine_t* vm)
 *******************************************************************************/
 int vm_is_yield() 
 {
-  return g_vm_yield;
+  return g_vm_yield || g_vm_wait_action;
+}
+
+/** Pauses the running script until the action is done (called by perform). */
+void vm_wait_for_action(int action_id)
+{
+  g_vm_wait_action = action_id;
+}
+
+/** Pushes a value onto a VM's data stack (perform's result on resume). */
+void vm_push_result(VirtualMachine_t* vm, int value)
+{
+  if(vm && embed_push((forth_t*)vm, (m_t)value) < 0)
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: unable to push [%d] onto the VM stack", value);
+}
+
+/** The action the script paused for in this run, 0 when none. */
+int vm_waiting_action(void)
+{
+  return g_vm_wait_action;
 }
 
 /** Clears the yield flag before the engine processes its next command. */
 void vm_clear_yield(void)
 {
+  g_vm_wait_action = 0;
   g_vm_yield = 0;
 }
 

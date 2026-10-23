@@ -194,6 +194,8 @@ Examples of some FORTH initiated activities activities that can be performed by 
 ### Players use FORTH to control their drones
 FORTH is a compact, efficient, and very powerful programming language that uses stacks and operator-defined words to organize complex programs.  Each user manages her fleet of drones by defining and applying FORTH words (functions) in drone-specific programs. These words reside in dictionaries belonging to each drone.
 
+In the game, a drone's eForth interpreter is best understood as a **sequencer**: it decides how one in-game action follows another. Every in-game action is started by `perform`, and the script waits while the action takes place. The script only runs in between actions, to look at how the last action went (the value `perform` leaves on the stack), query the drone's surroundings and decide what to do next. A drone therefore performs one action at a time, and the time a script spends computing is negligible next to the game time its actions take.
+
 Generally, a user will test out new routines on a single drone before uploading them to other drones in his fleet.
 Programs are usually tested on drone operating nearby to reduce the delay associated with messages traveling long distances through space.
 
@@ -210,16 +212,18 @@ FORTH is well suited for this sort of progressive engagement because the player 
 [Return to the TOC](#Table-of-Contents)
 
 ### The Game Engine cycles through player-run virtual machines
-Since there will be a rather large number of drones running FORTH programs at any given time, the Game Engine (GE) will need to continuously and efficiently cycle through each of the virtual machines. The GE will do this by systematically inspecting each drone and considering whether it has an active program that needs to be attended to.  This will be apparent by Central Database fields, which indicate the last time the GE attended to a drone and the current state of the drone:
-* Inactive: The drone is not currently running a FORTH routine.
-* Active: The drone is in the middle of running and active FORTH routine.  When the GE encounters a drone in this state it will automatically upload the VM from the CD and continue processing the routine where it had left off.
-* Passive: The drone is actively running a FORTH routine but has paused its operations (via the CatchEvent command) to await an event.  When the GE encounters a drone in this state it will only upload and process the VM if the drone just experienced an event as indicated by the Discovery Table.
+Since there will be a rather large number of drones running FORTH programs at any given time, the Game Engine (GE) cycles through their virtual machines. Work for the GE is queued in the `commands` table: a player's emailed script, or a "resume" entry for a script that has paused. Each cycle (every `DB_READ_TIME` seconds, 5 by default) the GE takes the oldest command it may run, loads that drone's VM from `agents.vm`, runs it, and saves the VM again. The VM holds everything needed to carry on later: the stacks, the dictionary, variables and where the script stopped.
 
-The drone’s VM  and Input fields should contain all the data the GE needs to pickup and continue processing a drone’s code from where it last left off.  All the stack items and variables will already be encoded in the VM.  Furthermore, there will be a pointer in the VM indicating the last command that was processed by the drone.
+A drone is always in one of these states:
+* **Idle:** no script is running. A new script from the player starts at once.
+* **Running:** a script has used up its time slice (`MAX_CYCLE_SECONDS`, about a second) and paused. The GE queues a resume and continues it on a later cycle, so long scripts don't hold up other drones. What the script prints is collected (`agents.output`) and emailed in one message when it ends.
+* **Waiting:** the script called `perform` and the action it started has not finished. The script stays paused, with `agents.waiting_action` set to the action's ID, until every event of that action has been processed by the Event Engine (or the action is aborted). Only then is the drone's resume taken from the queue: `perform` leaves its result on the stack (see [Returned Value](#Returned-Value)) and the script carries on. The GE doesn't load a waiting drone's VM to check on it; the queue simply skips its resume until the action is done.
 
-The GE will process a set number of instructions before updating the VM in the Game Database and moving on to the next drone that requires attention.  The number of processed commands will be empirically set to optimize the overall performance of the GE.
+So a drone performs one in-game action at a time, and its script always knows how the last one went before deciding what to do next. While a drone is running or waiting, a new script emailed to it is refused with "Another command is running, retry later"; `<abort>` still works (see [Meta Commands](#Meta-Commands)).
 
-If the GE encounters a command that requires it to perform an ingame activity (change orbits, mine ores, transfer cargos, etc…) it will compute times and resource requirements and log the necessary start and stop events.
+When the GE runs a `perform`, it computes the times and resource requirements of the in-game activity (change orbits, mine ores, transfer cargo, etc.) and logs the events that will happen, which the Event Engine processes when they are due.
+
+*Planned, not built:* a "passive" state in which a script pauses (via a CatchEvent word) until the drone observes a particular event.
 
 [Return to the TOC](#Table-of-Contents)
 
@@ -265,6 +269,7 @@ This table stores basic information on the ingame drones.  Most information abou
 * subject [VARCHAR(2048)] - The subject of the email exchange.
 * object_id [INT(5)] - The static object where the drone is located.
 * hull_type [INT(2)] - The type of hull used by the drone.
+* waiting_action [INT(10)] - The action the drone's script is waiting for (set by `perform`), NULL when it isn't waiting.
 
 [Return to the TOC](#Table-of-Contents)
 
@@ -494,8 +499,8 @@ Players generally interact with their spacecraft via email.  Each spacecraft has
 
 Spacecraft recognize a few basic meta-commands, which allow players to execute FORTH scripts, reset errant code, and reconfigure user settings.  These commands are as follows:
 
-* \<run\> parameter \</run\> tells the drone to execute the FORTH script contained within the parameter string.  This parameter can contain line breaks and other special characters.
-* \<abort\> forces the drone to immediately stop any script that it is currently running and return control to the player.  The drone will return an email confirming that it has aborted the script.
+* \<run\> parameter \</run\> tells the drone to execute the FORTH script contained within the parameter string.  This parameter can contain line breaks and other special characters.  The drone's FORTH interpreter reads at most 80 characters of a line (its terminal input buffer), so the GE re-wraps longer lines at spaces before running them, to at most 79 characters. It keeps each string (`."`, `s"`, `c"`, `abort"`, `.(`) and each word that reads the next word (`:`, `'`, `char`, `create`, `variable`, …) together with what it reads, and drops comments from a line it has to split. A single string longer than a line can't be split: the drone replies with an error and runs nothing.
+* \<abort\> forces the drone to immediately stop any script that it is currently running and return control to the player, including a script waiting for an action to finish. The action itself is not stopped: its events still happen.  The drone will return an email confirming that it has aborted the script.
 * \<reset\> stops the currently running script and resets the drone’s virtual memory to its factory setting, erasing any code that the player may have entered.  The drone will return an email to confirm that it has successfully reset its memory.
 * \<rename\> parameter \</rename\> changes the email address of the drone to parameter@exmachinis.com.  Consequently, the parameter must not contain characters that generate an invalid email address and cannot be in use by any other drone or player.  The drone will return an email confirming its name change.  It will also report any failure to change the name and the reason why the proposed name is unacceptable.
 * \<rebrand\> parameter \</rebrand\> changes the name of the player’s company.  The chosen name must be unique and not exceed the maximum lengths prescribed by the SQL field. The drone will return an email confirming the company’s name change.  It will also report any failure to change the name and the reason why the proposed name is unacceptable.
@@ -529,12 +534,26 @@ Protocols often require parameters to further define their operations. These par
 [Return to the TOC](#Table-of-Contents)
 
 ### Returned Value
-Every time the perform command is called, it returns a value to the stack, which indicates whether or not it succeeded in performing the action.  If the action was successfully initiated, it will place the Action ID (see below) on the stack.  If the drone was unable to initiate the action, it will return a negative value that indicates the source of the error.  The error codes are as follows:
+`perform` waits for the action it starts. The drone's script does not run on until every event of the action has been processed (see [The Game Engine cycles through player-run virtual machines](#The-Game-Engine-cycles-through-player-run-virtual-machines)), so a drone performs one in-game action at a time. Then `perform` leaves one value on the stack, following FORTH's convention for I/O results (an *ior*): 0 when the action succeeded, a negative code when it didn't.
 
-* -1: Unknown protocol
-* -2: Insufficient parameters
-* -3: Invalid destination
-* -4: Can’t install resource
+| Code | Meaning |
+|---|---|
+| 0 | The action was completed |
+| -1 | The other drone is not at the same place (outcome -1) |
+| -2 | Not enough of a resource (outcome -2) |
+| -3 | Not enough cargo space (outcome -3) |
+| -4 | Not enough credits (outcome -4) |
+| -5 | The seller's sell order doesn't allow selling that many (outcome -5) |
+| -6 | The buyer's buy order doesn't allow buying that many (outcome -6) |
+| -7, -8 | Wrong depletion or accumulation price (outcomes -7, -8) |
+| -9 | The action was aborted |
+| -10 | The other drone has no matching buy or sell order (outcome -10) |
+| -11 | Unknown protocol (no action was started, no wait) |
+| -12 | Refused when performed, e.g. a parameter names a resource or destination that doesn't exist (no wait) |
+
+Codes -1 to -10 are the outcome of the first event that failed (see [The Event Engine](#The-Event-Engine)). A script handles them like any ior, for example `... perform if ." trip failed" cr then`.
+
+`perform` takes its parameters off the stack like any FORTH word. If the stack holds too few, FORTH's own error -4 (stack underflow) stops the script, as for any other word.
 
 [Return to the TOC](#Table-of-Contents)
 
@@ -625,6 +644,7 @@ Every time a protocol is executed, an action entry is created to track the outco
 * protocol [INT(5)] - This is the protocol that was performed.
 * multiplier [INT(5)] - This is the number of times that the process is run concurrently.
 * aborted [BOOLEAN] - This is a boolean value which indicates that a particular action has been aborted.
+* outcome [INT] - When the action failed, the outcome of the first event that failed (a negative code); NULL otherwise. `perform` leaves it for the drone's script.
 
 [Return to the TOC](#Table-of-Contents)
 
@@ -668,10 +688,11 @@ The perform function applies a general algorithm, which uses the action tables, 
 1. When the perform function is called, it pulls the first number from the stack and uses that to look up the corresponding Protocol ID in the Protocols Table.  The function aborts the protocol and returns an error if the protocol is not available.
 2. The perform function pulls the second value off the stack for use as a process multiplier. This determines how many times the process is performed in a row without stopping.  Many protocols have bulk modifiers, which reduce the amount of time it takes to perform repetitive actions.
 3. Create a new actions table entry for the executed protocol.  Set the aborted field to false unless the action is aborted as a result of an error at some point during the following procedure or later in the game.
-4. Next, use the protocol table’s parameter field to determine how many additional values need to be pulled from the stack and stored in a parameter array for future reference. Abort the protocol and return and error if there are not enough values on the stack.
+4. Next, use the protocol table’s parameter field to determine how many additional values need to be pulled from the stack and stored in a parameter array for future reference. If there are not enough values on the stack, FORTH's stack underflow error (-4) stops the script and the action is aborted.
 5. Use the ProtocolID to determine whether a particular activity needs any special treatment.  For example, you may need to call a custom C++ routine to determine the travel time between two locations and correct the time parameter accordingly.  These routines will generally make situation-specific changes to some of the values stored in the parameter array.  They will be hard coded into the C++ perform routine.
 6. When performing a multiplexed action, multiply all consumed and produced resources by the process multiplier.  Similarly multiply the time offsets for each of the events by the process multiplier and then by the bulk modifier to account for bulk process efficiencies.
-7. Sequentially search for the Protocol ID in each of the effects tables. Apply variable parameters where indicated (fields with negative numbers). Generate a corresponding event table entry for each effect.
+7. Sequentially search for the Protocol ID in each of the effects tables. Apply variable parameters where indicated (fields with negative numbers). Generate a corresponding event table entry for each effect. If an effect can't be applied (for example, a parameter names a resource that doesn't exist), delete the action's events, abort the action and leave -12.
+8. Otherwise, pause the script until the Event Engine has processed all of the action's events, then leave 0 or the failure code (see [Returned Value](#Returned-Value)).
 
 [Return to the TOC](#Table-of-Contents)
 
@@ -738,7 +759,7 @@ The Events Engine takes the following steps when evaluating events:
   * The Depletion Price for items being removed from the cargo bay of a non-allied ship is equal to or greater than the price the player has set on those items. The outcome will be set to -7 if this error is detected.
   * The Accumulation Price for items being added to the cargo bay of a non-allied ship is less than or equal to the price the player has set for those items. The outcome will be set to -8 if this error is detected.
 
-5. If any of these errors are detected, the EE will update the event’s outcome with the indicated value and flag the corresponding action in the action table as aborted.
+5. If any of these errors are detected, the EE will update the event’s outcome with the indicated value and flag the corresponding action in the action table as aborted. It also stores the first failing outcome in `actions.outcome`, which `perform` leaves on the drone's stack when the script resumes. Failures are not emailed: drones often run unattended, so their scripts check the result and respond. Only errors that stop a script reach the player, in the script's email. A push or pull to another player's drone that has no matching buy or sell order fails with outcome -10. (The engines add the `actions.outcome` and `agents.waiting_action` columns themselves to databases created before them.)
 
    **Transfers (push, protocol 10, and pull, protocol 11) are all or nothing.** A transfer is two events: a depletion from one drone and an accumulation into the other. The EE checks first that both drones orbit the same object (outcome -1 otherwise), then processes both events together, ignoring the second one's later timestamp. If either fails, everything both did (inventory, cargo and credits) is rolled back: the failing event gets its error outcome, the other gets -9, and the action is aborted. So a buyer never pays for goods that don't arrive, and a seller never loses goods without being paid.
 

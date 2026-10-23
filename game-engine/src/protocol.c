@@ -16,6 +16,7 @@
 #include "trace.h"
 #include "db.h"
 #include "engine.h"
+#include "vm.h"
 
 /******************************* DEFINES *************************************/
 
@@ -809,22 +810,22 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
     result = protocol_process_effects(&protocol, action.action_id);
   }
 
-  // Abort action when something failed
+  // perform leaves 0 on success or a negative code on failure (like an ior)
   if((result != ENGINE_OK) && (actionCreated == ENGINE_FALSE)) {
-    // Unknown protocol (no action was created): -1, as mechanics.md says
-    vm_extension_push(vmExt, -1);
+    // Unknown protocol (no action was created)
+    vm_extension_push(vmExt, PERFORM_UNKNOWN_PROTOCOL);
   } else if((result != ENGINE_OK) && (actionCreated == ENGINE_TRUE)) {
-    // sprintf(protocolMsg, "Protocol \"%s\" failed", protocol.protocol_name);
-    // Push zero into VM stack
-    vm_extension_push(vmExt, 0);
+    // Refused when performed (e.g. a parameter names something that doesn't
+    // exist). Missing parameters never get here: popping them throws -4.
+    vm_extension_push(vmExt, PERFORM_REFUSED);
     // delete any event for current action
     db_delete_action_events(action.action_id);
     // abort action
     db_abort_action(action.action_id);
   } else {
-    // sprintf(protocolMsg, "Protocol \"%s\" succesfully executed", protocol.protocol_name);
-    // Push action ID into VM stack
-    vm_extension_push(vmExt, action.action_id);
+    // Accepted: the script pauses until the action's events have all been
+    // processed, then perform leaves its result (see vm_wait_for_action)
+    vm_wait_for_action(action.action_id);
   }
 
   return result;

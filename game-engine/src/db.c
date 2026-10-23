@@ -284,9 +284,18 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
     memset(command, 0, sizeof(Command_t));
     command->command_id = -1;
 
+	// A script paused by perform resumes only once its action is done (no
+	// unprocessed events, or aborted): hold its resume back until then.
+	// Other commands, such as <abort> or new mail, are never held.
 	snprintf(query_text,
         DB_MAX_SQL_QUERY_LEN,
-        "SELECT id, code, agent_id, subject, email_content FROM commands ORDER BY ID LIMIT 1");
+        "SELECT c.id, c.code, c.agent_id, c.subject, c.email_content FROM commands c "
+        "LEFT JOIN agents a ON a.agent_id = c.agent_id "
+        "WHERE NOT (c.code LIKE '%s%%' AND a.waiting_action IS NOT NULL "
+        "  AND EXISTS (SELECT 1 FROM actions x WHERE x.id = a.waiting_action AND x.aborted = 0) "
+        "  AND EXISTS (SELECT 1 FROM events e WHERE e.action = a.waiting_action AND e.outcome = 0)) "
+        "ORDER BY c.id LIMIT 1",
+        engine_get_vm_resume_command());
 
     // run it
     if (mysql_query(connection->hndl, query_text))
@@ -3291,4 +3300,132 @@ ErrorCode_t db_get_abundancies(Abundancies_t *abundancies)
     }
 
     return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Runs a query that returns one row of integers
+
+    @return         ENGINE_OK with the row read, ENGINE_DB_NOT_FOUND_ERROR when
+                    there is no row (NULL values read as 0, flagged in nulls)
+
+*******************************************************************************/
+static ErrorCode_t db_query_ints(DbConnection_t* connection, const char* query_text,
+                                 int* values, int* nulls, int count)
+{
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK)
+        return result;
+
+    if(mysql_query(connection->hndl, query_text))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+
+    if(row)
+    {
+        for(int i = 0; i < count; i++) {
+            values[i] = row[i] ? atoi(row[i]) : 0;
+            if(nulls) nulls[i] = (row[i] == NULL);
+        }
+    }
+    else
+    {
+        result = ENGINE_DB_NOT_FOUND_ERROR;
+    }
+
+    if(db_result) mysql_free_result(db_result);
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Sets (or clears, with 0) the action a drone's script waits for
+
+*******************************************************************************/
+ErrorCode_t db_set_agent_waiting_action(DbConnection_t* connection, int agent_id, int action_id)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result != ENGINE_OK)
+        return result;
+
+    if(action_id)
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "UPDATE agents SET waiting_action = %d WHERE agent_id = %d", action_id, agent_id);
+    else
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "UPDATE agents SET waiting_action = NULL WHERE agent_id = %d", agent_id);
+
+    if(mysql_query(connection->hndl, query_text))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Gets the action a drone's script waits for (0 when none)
+
+*******************************************************************************/
+ErrorCode_t db_get_agent_waiting_action(DbConnection_t* connection, int agent_id, int* action_id)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    *action_id = 0;
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT waiting_action FROM agents WHERE agent_id = %d", agent_id);
+
+    return db_query_ints(connection, query_text, action_id, NULL, 1);
+}
+
+/** ****************************************************************************
+
+    @brief          Gets how an action went
+
+    @param[in]      connection DB connection
+    @param[in]      action_id  Action ID
+    @param[out]     running    1 while the action has unprocessed events
+    @param[out]     code       When done: 0 if it succeeded, else why it
+                               failed (an event outcome; -9 when aborted)
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_action_result(DbConnection_t* connection, int action_id, int* running, int* code)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    int values[3] = { 0, 0, 0 };
+    int nulls[3] = { 0, 0, 0 };
+
+    *running = 0;
+    *code = OUTCOME_ACTION_ABORTED;
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT a.aborted, a.outcome, "
+        "(SELECT COUNT(*) FROM events e WHERE e.action = a.id AND e.outcome = 0) "
+        "FROM actions a WHERE a.id = %d", action_id);
+
+    ErrorCode_t result = db_query_ints(connection, query_text, values, nulls, 3);
+    if(result != ENGINE_OK)
+        return result;
+
+    if(!nulls[1])
+        *code = values[1];               // failed: the first failing outcome
+    else if(values[0])
+        *code = OUTCOME_ACTION_ABORTED;  // stopped another way
+    else if(values[2])
+        *running = 1;                    // events still to process
+    else
+        *code = PERFORM_OK;
+
+    return ENGINE_OK;
 }

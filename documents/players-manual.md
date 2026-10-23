@@ -218,7 +218,34 @@ Every physical action your spacecraft takes will result from calls to predefined
 
 You can find a current list of protocols on the website (http://exmachinis.com/protocols).
 
-Protocols are invoked by sending your drone a FORTH script that calls upon the `perform` function. This function pulls one or more parameters from the stack. These parameters provide the ID for the protocol you want to perform and any other parameters that are required by the protocol. `perform` leaves an action ID on the stack, so `.` after it prints the ID of the action you started, or -1 if the protocol doesn't exist.
+Protocols are invoked by sending your drone a FORTH script that calls upon the `perform` function. This function pulls one or more parameters from the stack. These parameters provide the ID for the protocol you want to perform and any other parameters that are required by the protocol. Think of your drone's FORTH script as a sequencer that decides how one action follows another. `perform` waits until the action is finished: your drone's script doesn't go on to the next word until then, so a drone does one thing at a time, and the script only runs in between actions to decide what to do next. A trip, for example, holds the script until the drone arrives. Then `perform` leaves one number on the stack, so `.` after it prints:
+
+| Code | Meaning |
+|---|---|
+| 0 | done |
+| -1 | the other drone is not at the same place |
+| -2 | not enough of a resource in the cargo hold |
+| -3 | not enough room in the cargo hold |
+| -4 | not enough credits |
+| -5 | the seller's order doesn't allow selling that many |
+| -6 | the buyer's order doesn't allow buying that many |
+| -9 | the action was stopped |
+| -10 | the other drone has no matching buy or sell order |
+| -11 | there is no such protocol |
+| -12 | refused, for example because a parameter names something that doesn't exist |
+
+Like any FORTH word, `perform` takes its parameters off the stack. If there are too few, FORTH stops the script with its stack-underflow error (`-4?`).
+
+Your script can use the result to decide what to do next. For example, this word tries to pull 5 kunspar from drone 52 and says whether it worked:
+
+```
+<run>
+: get-kunspar ( -- ) 5 1100 52 11 perform if ." pull failed" else ." got it" then cr ;
+get-kunspar
+</run>
+```
+
+Failures are not emailed to you: a drone running on its own should check and respond. You only get email for what your scripts print, and for errors that stop a script. While a script is running or waiting, the drone answers new scripts with "Another command is running, retry later"; `<abort>` stops the script (the action itself still happens).
 
 ### Unpacking your starter kit
 
@@ -230,17 +257,19 @@ Each of your spacecraft starts with a Starter Kit I (resource 5901) in its cargo
 </run>
 ```
 
+The drone replies with 0 once the kit is unpacked.
+
 ### Traveling between locations
 
 Travel is a protocol that uses your engine (Protocol ID 5001, the same as the Engine (A1)'s Resource ID). It takes one parameter, the Location ID of your destination. For example, if you wanted to move your spacecraft to Saturn (Location ID 6) you would send your spacecraft the following instruction:
 
 ```
 <run>
-  6 5001 perform
+  6 5001 perform .
 </run>
 ```
 
-Give it a try and see what happens. Your drones report their current location at the top of every email they send you. Once the trip is complete, it will indicate Saturn.
+Give it a try and see what happens. `perform` waits for the trip, so your drone replies once it has arrived, printing 0 (done). Your drones report their current location at the top of every email they send you, so this one will indicate Saturn.
 
 You can use this command to go elsewhere in the solar system as well. All you need is the Location ID for your destination. This can be found in the Space Objects table (http://exmachinis.com/locations), which lists the planets and their moons, the space stations, and the asteroids, comets and planetary rings.
 
@@ -358,7 +387,7 @@ In this example, the word `AddFive` really doesn't offer much advantage over sim
 
 Give this a try with your own spacecraft! I'm sure you can come up with more useful definitions than the one provided here.
 
-Keep each line of your scripts under 80 characters: the interpreter reads at most 80 characters of a line at a time, and a longer line is split mid-word.
+The interpreter reads at most 79 characters of a line at a time. The game splits longer lines for you, between words, and keeps each string (`." ..."`, `s" ..."`, `.( ...)`) and each defining word with its name (`: name`) on one line. Comments are dropped from a line it splits. A single string longer than 79 characters can't be split: the drone replies with an error and runs nothing, so break such a string into shorter ones.
 
 ### Commenting on your code
 

@@ -208,3 +208,12 @@ Word | Stack Effect | Meaning
 |emit|x --|Write a single character out to the output stream.
 |?|addr --|Print the contents of addr to the screen.
 
+### Game words
+
+These words are added by the game engine to every drone.
+
+|Word|Stack effect|Description|
+|---------|:------------------------------------------------|---------|
+|perform|... id -- ior|Perform protocol id with the parameters below it. Waits until the action is finished, then leaves 0, or a negative code saying why it failed (see the players' manual).|
+|query|... id -- result|Run in-game query id. See the players' manual.|
+|report|--|Email what the script has printed so far, without waiting for it to end.|

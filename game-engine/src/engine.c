@@ -20,6 +20,7 @@
 #include <stdbool.h>
 
 #include "engine.h"
+#include "wrap.h"
 #include "config.h"
 #include "db.h"
 
@@ -147,6 +148,9 @@ ErrorCode_t engine_init_db()
 
 	// db
 	result = db_init(&engine.db_connection);
+
+	// Add columns newer code needs to older databases
+	if(result == ENGINE_OK) db_upgrade_schema();
 
 	return result;
 }
@@ -349,6 +353,39 @@ ErrorCode_t engine_get_drone_position(int object_id, char* position, double* dis
 
 /** ****************************************************************************
 
+  @brief      Before resuming a script paused by perform, leaves perform's
+              result on its stack: 0 when the action succeeded, else why it
+              failed (a negative outcome code)
+
+  @return     ENGINE_FALSE while the action is still running (the script
+              stays paused), ENGINE_TRUE when the script can resume
+
+*******************************************************************************/
+static Bool_t engine_finish_perform(void)
+{
+    int agent_id = engine.last_command.agent_id;
+    int action_id = 0, running = 0, code = PERFORM_OK;
+
+    if(db_get_agent_waiting_action(&engine.db_connection, agent_id, &action_id) != ENGINE_OK || !action_id)
+        return ENGINE_TRUE; // not waiting: a resume after a time slice
+
+    if(db_get_action_result(&engine.db_connection, action_id, &running, &code) == ENGINE_OK && running)
+    {
+        // Not done yet (normally the resume is held back until it is)
+        engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] still waits for action [%d]", agent_id, action_id);
+        vm_wait_for_action(action_id);
+        return ENGINE_FALSE;
+    }
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Action [%d] done for drone [%d]: perform leaves [%d]", action_id, agent_id, code);
+
+    vm_push_result(engine.last_agent.vm, code);
+    db_set_agent_waiting_action(&engine.db_connection, agent_id, 0);
+    return ENGINE_TRUE;
+}
+
+/** ****************************************************************************
+
   @brief      Processes a VM command (command to be executed on the VM)
 
   @param[in|out]  out_buf       Input/output buffer where we will store email response
@@ -376,10 +413,19 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
     const char* resume = engine_get_vm_resume_command();
     if(strncmp(engine.last_command.code, resume, strlen(resume)) != 0)
         free(db_take_agent_output(&engine.db_connection, engine.last_command.agent_id));
+    else if(engine_finish_perform() == ENGINE_FALSE)
+    {
+        out_buf[0] = 0; // still waiting: stay paused, nothing to email yet
+        return ENGINE_OK;
+    }
 
     // VM command & not busy -> execute it and take the suitable actions
     result = vm_run_command(engine.last_agent.vm, &engine.last_command, out_buf, out_buf_size);
     g_ran_on_vm = true;
+
+    // perform started an action: the script stays paused until it is done
+    if(vm_waiting_action())
+        db_set_agent_waiting_action(&engine.db_connection, engine.last_command.agent_id, vm_waiting_action());
 
     AgentInfo_t info;
     // Update drone info (just in case, we executed a location change)
@@ -575,6 +621,8 @@ ErrorCode_t engine_process_meta_command(char* out_buf, size_t out_buf_size)
         // abort and delete any pending resume
         vm_abort(engine.last_agent.vm);
         result = db_delete_resume_commands(&engine.db_connection, engine.last_command.agent_id);
+        // The script no longer waits for an action (the action itself goes on)
+        db_set_agent_waiting_action(&engine.db_connection, engine.last_command.agent_id, 0);
     } else if (strstr(engine.last_command.code, META_COMMAND_RESET)) {
         engine_trace(TRACE_LEVEL_ALWAYS, "Running reset command at agent [%d]", engine.last_command.agent_id);
         // reset and start with a fresh VM
@@ -586,6 +634,7 @@ ErrorCode_t engine_process_meta_command(char* out_buf, size_t out_buf_size)
         if(result == ENGINE_OK)
             result = db_delete_resume_commands(&engine.db_connection, engine.last_command.agent_id);
         free(db_take_agent_output(&engine.db_connection, engine.last_command.agent_id));
+        db_set_agent_waiting_action(&engine.db_connection, engine.last_command.agent_id, 0);
     } else if (strstr(engine.last_command.code, META_COMMAND_RENAME)) {
         result = engine_process_meta_rename(out_buf, out_buf_size);
     } else if (strstr(engine.last_command.code, META_COMMAND_REBRAND)) {
@@ -761,6 +810,24 @@ ErrorCode_t engine_apply_max_cycle_lines()
     while(line) {
         lines_read++;
         int written;
+
+        // The VM reads at most FORTH_MAX_LINE characters per line: re-wrap
+        // longer lines at spaces
+        char wrapped[MAX_COMMAND_CODE_SIZE+1];
+        int wrap_result = forth_wrap_line(line, FORTH_MAX_LINE, wrapped, sizeof(wrapped));
+        if(wrap_result == WRAP_TOO_LONG) {
+            engine_trace(TRACE_LEVEL_ALWAYS, "Line [%d] can't be split to fit: [%s]", lines_read, line);
+            snprintf(new_code, sizeof(new_code),
+                ".( Error: line %d has a string longer than %d characters.) cr\n"
+                ".( Split it into shorter strings. Nothing was run.) cr\n",
+                lines_read, FORTH_MAX_LINE);
+            remaining_code[0] = 0;
+            break;
+        }
+        if(wrap_result == WRAP_OK) {
+            line = wrapped;
+        }
+
         if(lines_read <= max_lines) {
             written = snprintf(new_pos, new_end - new_pos, "%s\n", line);
             new_pos += (written < new_end - new_pos) ? written : (new_end - new_pos - 1);

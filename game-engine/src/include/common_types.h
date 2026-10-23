@@ -532,8 +532,15 @@ typedef enum
 	OUTCOME_WRONG_DEPLETION_PRICE = -7,
 	OUTCOME_WRONG_ACCUMULATION_PRICE = -8,
 	OUTCOME_ACTION_ABORTED = -9,
+	OUTCOME_NO_MARKET_ORDER = -10,
 
 } Outcome_t;
+
+// What perform leaves: 0 when the action succeeded, an Outcome_t value when
+// it failed, or one of these when it was not started
+#define PERFORM_OK                0
+#define PERFORM_UNKNOWN_PROTOCOL  -11
+#define PERFORM_REFUSED           -12
 
 typedef struct
 {
