@@ -141,10 +141,10 @@ class GetMailsTest extends TestCase
         $this->assertSame('SN424242@mail.example.com', $reply->getFrom()[0]->getAddress());
     }
 
-    public function testUnknownDroneAndOtherDomainsAreIgnored()
+    public function testOtherDomainsAndStrangersToUnknownDronesAreIgnored()
     {
         $before = DB::table('commands')->count();
-        $this->inboxes->put('catchall', $m = $this->mail('x', 'test@example.com',
+        $this->inboxes->put('catchall', $m = $this->mail('x', 'stranger@example.com',
             ['nobody@mail.example.com' => '', 'SN424242@elsewhere.com' => ''], '<run> 1 </run>'));
 
         $this->run_();
@@ -152,6 +152,47 @@ class GetMailsTest extends TestCase
         $this->assertSame($before, DB::table('commands')->count());
         $this->assertCount(0, $this->sent());
         $this->assertSame([$m], $this->inboxes->deleted);
+    }
+
+    public function testPlayerMailingUnknownDroneIsToldTheirDrones()
+    {
+        $before = DB::table('commands')->count();
+        $this->inboxes->put('catchall', $this->mail('orders', 'test@example.com',
+            ['OldName@mail.example.com' => ''], '<run> 1 </run>'));
+
+        $this->run_();
+
+        $this->assertSame($before, DB::table('commands')->count());
+        $reply = $this->sent()->sole();
+        $this->assertSame('test@example.com', $reply->getTo()[0]->getAddress());
+        $this->assertSame('Re: orders', $reply->getSubject());
+        $this->assertStringContainsString('no drone called OldName@mail.example.com', $reply->getTextBody());
+        $this->assertStringContainsString('SN424242@mail.example.com', $reply->getTextBody());
+    }
+
+    public function testHtmlPartIsUsedWhenPlainTextHasNoCommand()
+    {
+        $this->inboxes->put('catchall', new IncomingMail('html', 'test@example.com', 'Sender',
+            ['SN424242@mail.example.com' => ''], 'plain fallback without tags',
+            '<html><body><p>&lt;run&gt; 2 3 + . &lt;/run&gt;</p></body></html>', '2026-10-21 12:00:00'));
+
+        $this->run_();
+
+        $command = DB::table('commands')->where('agent_id', $this->droneId)->orderByDesc('id')->first();
+        $this->assertNotNull($command);
+        $this->assertSame('2 3 + .', trim($command->code));
+    }
+
+    public function testPlainTextWinsWhenItHasTheCommand()
+    {
+        $this->inboxes->put('catchall', new IncomingMail('both', 'test@example.com', 'Sender',
+            ['SN424242@mail.example.com' => ''], '<run> 1 2 + . </run>',
+            '<p>&lt;run&gt; 9 9 + . &lt;/run&gt;</p>', '2026-10-21 12:00:00'));
+
+        $this->run_();
+
+        $command = DB::table('commands')->where('agent_id', $this->droneId)->orderByDesc('id')->first();
+        $this->assertSame('1 2 + .', trim($command->code));
     }
 
     public function testTooLongCommandIsRejectedAndDoesNotBlockLaterMails()

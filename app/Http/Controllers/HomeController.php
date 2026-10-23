@@ -128,8 +128,7 @@ class HomeController extends Controller
 
         $agent = Agent::where(['name' => $localAddress])->first();
         if ($agent == null) {
-            // No "address not found" reply: the old code skipped it too, and
-            // replying to catch-all mail would mostly answer spam.
+            $this->replyUnknownDrone($mail, $address);
             return;
         }
 
@@ -145,8 +144,7 @@ class HomeController extends Controller
             return;
         }
 
-        // Get the email content as plain text
-        $mail_content = $mail->textPlain !== null ? $mail->textPlain : Html2Text::convert((string) $mail->textHtml);
+        $mail_content = self::commandText($mail);
 
         $log[] = 'Inserting command ' . e($mail_content);
         try {
@@ -174,6 +172,46 @@ class HomeController extends Controller
         Mail::send(['email.wrong_email_html', 'email.wrong_email_text'], $data, function ($message) use ($mail, $address) {
             // Reply from the drone's own address
             $message->to($mail->fromAddress, $mail->fromName)->from($address, getenv("APP_NAME"))->subject('Re: ' . $mail->subject);
+        });
+    }
+
+    /**
+     * The mail's text for the drone. Plain text, unless it holds no
+     * meta-command and the HTML part does: some mail clients send an HTML
+     * part with a plain part that lacks what the player typed.
+     */
+    public static function commandText(IncomingMail $mail): string
+    {
+        $hasCommand = fn (?string $text) => $text !== null && preg_match('/<(run|abort|reset|rename|rebrand)>/i', $text) === 1;
+
+        if ($hasCommand($mail->textPlain) || $mail->textHtml === null) {
+            return (string) $mail->textPlain;
+        }
+
+        $fromHtml = Html2Text::convert($mail->textHtml);
+        return ($hasCommand($fromHtml) || $mail->textPlain === null) ? $fromHtml : $mail->textPlain;
+    }
+
+    /**
+     * Mail to a drone name that doesn't exist (a typo, or a drone that has
+     * been renamed). A registered player is told their drones' addresses;
+     * anyone else gets no reply, so spam to the catch-all isn't answered.
+     */
+    private function replyUnknownDrone(IncomingMail $mail, string $address): void
+    {
+        $user = User::where('email', strtolower(trim($mail->fromAddress)))->first();
+        if ($user == null) {
+            return;
+        }
+
+        $domain = config('mail.domain');
+        $drones = Agent::where('user_id', $user->user_id)->orderBy('agent_id')->pluck('name')
+            ->map(fn ($name) => $name . '@' . $domain)->implode("\n");
+
+        Mail::raw("There is no drone called " . $address . ". It may have been renamed.\n\nYour drones are:\n" . $drones . "\n", function ($message) use ($mail) {
+            $message->to($mail->fromAddress, $mail->fromName)
+                ->from("services@" . config('mail.domain'), getenv("APP_NAME"))
+                ->subject('Re: ' . $mail->subject);
         });
     }
 

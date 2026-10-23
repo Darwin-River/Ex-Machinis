@@ -92,6 +92,12 @@ Location: Earth (0.0 light-seconds from Earth)
  5
 ```
 
+A few things to know about these emails:
+
+- Your drone runs only the first command in an email (`<run>`, `<abort>`, `<reset>`, `<rename>` or `<rebrand>`). If you send two `<run>` blocks, the second is ignored, so put your whole script in one block.
+- Plain-text or HTML email both work.
+- If you mail a drone name that doesn't exist, for example after renaming a drone, the game replies with the addresses of your drones.
+
 ### Renaming your spacecraft and your company
 
 You'll notice that each of your spacecraft has a rather generic and unremarkable email address like SN523854@exmachinis.com. You'll probably want to give it a more memorable name like "hero" since you'll be interacting with it on a regular basis. To rename your spacecraft, simply send the following text in an email to your drone:
@@ -685,7 +691,7 @@ The following script shows how you would use this query to report the object typ
 </run>
 ```
 
-Your drone will reply with `1` and `Moon`. Numeric results are read with fetch. For example, query 205 returns the ID of the drone that asks, and query 101 returns a company's credits:
+Your drone will reply with `1` and `Moon`. `query` leaves 1 when it worked, -2 if the database query failed, or -3 if there is no query with that ID (its other arguments then stay on the stack). Numeric results are read with fetch. For example, query 205 returns the ID of the drone that asks, and query 101 returns a company's credits:
 
 ```
 <run>
