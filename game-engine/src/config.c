@@ -58,6 +58,10 @@ char conf_param_names[MAX_CONFIG_PARAM+1][MAX_CONF_PARAM_LEN] =
     // FORTH vm dump flag and path
     "FORTH_DUMP_VM",
     "FORTH_VM_OUT_PATH",
+
+    // GAME TIME configuration
+    "GAME_TIME_SCALE",
+    "TRAVEL_ACCELERATION",
 };
 
 /******************************* LOCAL FUNCTIONS *****************************/

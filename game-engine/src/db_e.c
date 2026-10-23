@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "db.h"
+#include "game_time.h"
 #include "trace.h"
 #include "engine_e.h"
 
@@ -371,7 +372,7 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
 
         snprintf(query_text,
             DB_MAX_SQL_QUERY_LEN,
-            "SELECT * FROM events as e where timestamp <= NOW() and outcome = 0 and (select aborted from actions where id = e.action) != 1 ORDER BY timestamp ASC, action ASC, event_type DESC, id ASC LIMIT %d;",
+            "SELECT * FROM events as e where timestamp <= NOW() and outcome = 0 and (select aborted from actions where id = e.action) != 1 ORDER BY timestamp ASC, action ASC, id ASC LIMIT %d;",
             events_batch_size);
 
         // run it
@@ -2318,7 +2319,7 @@ ErrorCode_t db_insert_event_e(Event_t* event)
         event->new_location!=NULL_VALUE?", new_location":"",
         event->new_transmission!=NULL_VALUE?", new_transmission":"",
         event->new_cargo!=NULL_VALUE?", new_cargo":"",
-        event->delay,
+        game_time_to_real(event->delay), // delay is game seconds
         event->event_type,
         event->action_id,
         event->logged,

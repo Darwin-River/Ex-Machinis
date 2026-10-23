@@ -884,6 +884,25 @@ ErrorCode_t db_get_pending_action_event(int action_id, int event_type, int exclu
 /** Runs a SAVEPOINT / ROLLBACK TO SAVEPOINT / RELEASE SAVEPOINT statement */
 ErrorCode_t db_savepoint(const char* statement);
 
+/** The game clock (see game_time.c): one row, id 1 */
+#define GAME_CLOCK_TABLE_SQL \
+    "CREATE TABLE IF NOT EXISTS game_clock (" \
+    " id INT UNSIGNED NOT NULL PRIMARY KEY," \
+    " real_anchor BIGINT NOT NULL," \
+    " game_anchor DOUBLE NOT NULL," \
+    " scale DOUBLE NOT NULL DEFAULT 1)"
+
+/** Drone replies on their way to Earth: sent at send_at (unix seconds) */
+#define OUTBOX_TABLE_SQL \
+    "CREATE TABLE IF NOT EXISTS outbox (" \
+    " id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY," \
+    " send_at BIGINT NOT NULL," \
+    " user_email VARCHAR(255) NOT NULL," \
+    " subject VARCHAR(2048) NULL," \
+    " agent_name VARCHAR(255) NOT NULL," \
+    " body LONGTEXT NOT NULL," \
+    " INDEX send_at_idx (send_at))"
+
 /** Adds columns newer engines need to databases created before them */
 ErrorCode_t db_upgrade_schema(void);
 
@@ -898,5 +917,19 @@ ErrorCode_t db_get_agent_waiting_action(DbConnection_t* connection, int agent_id
 
 /** How an action went: running while events remain, else code (0 ok, or why it failed) */
 ErrorCode_t db_get_action_result(DbConnection_t* connection, int action_id, int* running, int* code);
+
+/** New commands without a delivery time (resumes flagged immediate) */
+ErrorCode_t db_get_unstamped_commands(DbConnection_t* connection, int* ids, int* objects,
+                                      int* immediate, int max, int* count);
+
+/** Sets when a command reaches its drone: delay real seconds from now */
+ErrorCode_t db_set_command_delivery(DbConnection_t* connection, int command_id, int delay);
+
+/** Queues a drone's reply to reach Earth delay real seconds from now */
+ErrorCode_t db_queue_outbox(DbConnection_t* connection, int delay, const char* user_email,
+                            const char* subject, const char* agent_name, const char* body);
+
+/** Sends queued replies that have reached Earth */
+ErrorCode_t db_send_due_outbox(DbConnection_t* connection, const char* script);
 
 #endif // __EM_DB_MODULE__

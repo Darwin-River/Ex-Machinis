@@ -59,6 +59,10 @@ enum
     FORTH_DUMP_VM,
     FORTH_VM_OUT_PATH,
 
+    // Game time: game seconds per real second, and drones' acceleration
+    GAME_TIME_SCALE_ID,
+    TRAVEL_ACCELERATION_ID,
+
     // Max configured parameters
     MAX_CONFIG_PARAM
 };
@@ -331,6 +335,12 @@ DbConnection_t* engine_get_db_connection();
 *******************************************************************************/
 int engine_get_current_drone_id();
 
+/** Where the drone running the current command is (object ID) */
+int engine_get_current_drone_object_id();
+
+/** Drones' acceleration when travelling (m/s^2 of game time) */
+double engine_get_travel_acceleration();
+
 /** ****************************************************************************
 
   @brief          Gets the position of a given object ID (body and distance from Earth)
@@ -343,6 +353,12 @@ int engine_get_current_drone_id();
 
 *******************************************************************************/
 ErrorCode_t engine_get_drone_position(int object_id, char* position, double* distance);
+
+/** Heliocentric position of a body at game time (km); name is optional */
+ErrorCode_t engine_get_object_position(int object_id, CartesianInfo_t* out, char* name);
+
+/** Distance between two bodies at game time (km) */
+ErrorCode_t engine_get_objects_distance(int object_a, int object_b, double* distance);
 
 /** ****************************************************************************
 

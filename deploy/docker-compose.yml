@@ -14,6 +14,9 @@ x-engine-env: &engine-env
   DB_PASSWORD: ${DB_PASSWORD:?run setup.sh first}
   AGENTS_EMAIL_DOMAIN: ${DOMAIN}
   MAIL_DOMAIN: ${DOMAIN}
+  # Master game clock (see game-engine/conf/game-engine.conf)
+  GAME_TIME_SCALE: ${GAME_TIME_SCALE:-60}
+  TRAVEL_ACCELERATION: ${TRAVEL_ACCELERATION:-1}
 
 services:
   db:

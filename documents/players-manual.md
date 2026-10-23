@@ -31,6 +31,7 @@ Thank you for your support!
 - [Chapter 4: Issuing Commands](#chapter-4-issuing-commands)
   - [Unpacking your starter kit](#unpacking-your-starter-kit)
   - [Traveling between locations](#traveling-between-locations)
+  - [Time and distance](#time-and-distance)
   - [Understanding how protocols are organized and numbered](#understanding-how-protocols-are-organized-and-numbered)
   - [Extracting minerals](#extracting-minerals)
   - [Reprocessing minerals](#reprocessing-minerals)
@@ -67,7 +68,7 @@ It is your birthright to take control of your own remotely piloted spacecraft an
 
 ### Requesting your spacecraft
 
-As an immersive multiplayer space simulation, there's no logging into or out of the game. Your assets are always in play. To communicate with your spacecraft, simply send them emails and they will respond in real time. Keep in mind that it will take longer for transmissions to reach spacecraft on the outer edge of the solar system.
+As an immersive multiplayer space simulation, there's no logging into or out of the game. Your assets are always in play. To communicate with your spacecraft, simply send them emails and they will respond. Your messages travel at the speed of light, so it takes longer for them to reach spacecraft on the outer edge of the solar system, and for their replies to get back to you. Game time runs faster than real time (by default, one real minute is one game hour), and that applies to light delays too: Mars is 4 to 22 light-minutes away, so a message takes 4 to 22 real seconds each way.
 
 To start playing, you need to email the Registrar (registrar@exmachinis.com) with the word "register" in the subject line. You'll receive a response from the registrar listing the email addresses of three spacecraft that are under your control. These spacecraft will only respond to communications from the email address you used to contact the registrar.
 
@@ -269,9 +270,33 @@ Travel is a protocol that uses your engine (Protocol ID 5001, the same as the En
 </run>
 ```
 
-Give it a try and see what happens. `perform` waits for the trip, so your drone replies once it has arrived, printing 0 (done). Your drones report their current location at the top of every email they send you, so this one will indicate Saturn.
+Give it a try and see what happens. `perform` waits for the trip, so your drone replies once it has arrived, printing 0 (done). How long a trip takes depends on how far the destination is when you leave: drones accelerate to the midpoint and slow down after. With the default game clock the Moon is about 11 minutes away, Mars 3 to 6 hours and Neptune about 20 hours. Your drones report their current location at the top of every email they send you, so this one will indicate Saturn.
 
 You can use this command to go elsewhere in the solar system as well. All you need is the Location ID for your destination. This can be found in the Space Objects table (http://exmachinis.com/locations), which lists the planets and their moons, the space stations, and the asteroids, comets and planetary rings.
+
+### Time and distance
+
+Ex Machinis runs on a game clock that is faster than real time, so that trips and industrial work that take days in the game take minutes or hours of your time. By default, **one real minute is one game hour** (the game's operators can change this). Everything that takes time follows the same clock:
+
+- **The solar system moves.** Planets, moons, asteroids and comets follow their real orbits, but at game speed, so the game's sky runs ahead of the real one.
+- **Actions take time.** Each protocol takes a set amount of game time. Your drone does one action at a time: `perform` waits until the action is finished before your script goes on (see [Issuing Commands](#chapter-4-issuing-commands)).
+- **Travel takes time.** Drones speed up to the halfway point and slow down after, so a trip takes 2 × √(distance ÷ acceleration). The distance is measured when the drone leaves, so the planets' positions decide how long a trip takes.
+- **Messages travel at the speed of light.** You are on Earth. Your email reaches a drone only after light has crossed the distance to it, and its reply takes as long to come back. The first line of every reply says how far the drone is, in light-minutes.
+
+With the default clock:
+
+| Trip from Earth | Game time | Your time | Message delay, each way |
+|---|---|---|---|
+| Moon | 11 hours | 11 minutes | under a second |
+| Mars (closest to farthest) | 6.5 to 15 days | 2.6 to 6 hours | 4 to 22 seconds |
+| Jupiter | 20 days | 8 hours | 43 seconds |
+| Neptune | 49 days | 20 hours | 4 minutes |
+
+A few consequences are worth planning for:
+
+- **Program distant drones.** A drone around Neptune is minutes away by message, and a trip there takes most of a day, so give it a script that decides for itself what to do next, rather than steering it one command at a time.
+- **Busy drones refuse new scripts.** While a drone is carrying out an action, it answers new scripts with "Another command is running, retry later". `<abort>` still gets through (after the light delay) and stops the script, but not the action itself: a drone that has set off still arrives.
+- **Replies arrive late.** You get a script's output when the script ends, after the action it waited for and the light delay home.
 
 ### Understanding how protocols are organized and numbered
 

@@ -50,6 +50,12 @@ MAIL_CATCHALL_PASSWORD=$(secret)
 #SITE_ADDRESS=$DOMAIN, www.$DOMAIN   # extra names Caddy should serve
 #APP_URL=https://$DOMAIN
 ${SITE_ADDRESS:+SITE_ADDRESS=$SITE_ADDRESS}
+
+# Game time: game seconds per real second (60 = one real minute is one game
+# hour) and drones' acceleration in m/s^2. See documents/design-manual.md.
+#GAME_TIME_SCALE=60
+#TRAVEL_ACCELERATION=1
+${GAME_TIME_SCALE:+GAME_TIME_SCALE=$GAME_TIME_SCALE}
 EOF
     umask 022
     echo "Wrote deploy/.env"

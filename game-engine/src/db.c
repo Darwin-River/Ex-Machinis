@@ -13,6 +13,8 @@
 #include <string.h>
 
 #include "db.h"
+#include "game_time.h"
+#include "email.h"
 #include "trace.h"
 #include "engine.h"
 #include "vm.h"
@@ -284,14 +286,16 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
     memset(command, 0, sizeof(Command_t));
     command->command_id = -1;
 
-	// A script paused by perform resumes only once its action is done (no
+	// A command runs once it has reached its drone (deliver_at, see
+	// db_stamp_commands). A script paused by perform resumes only once its action is done (no
 	// unprocessed events, or aborted): hold its resume back until then.
 	// Other commands, such as <abort> or new mail, are never held.
 	snprintf(query_text,
         DB_MAX_SQL_QUERY_LEN,
         "SELECT c.id, c.code, c.agent_id, c.subject, c.email_content FROM commands c "
         "LEFT JOIN agents a ON a.agent_id = c.agent_id "
-        "WHERE NOT (c.code LIKE '%s%%' AND a.waiting_action IS NOT NULL "
+        "WHERE c.deliver_at IS NOT NULL AND c.deliver_at <= UNIX_TIMESTAMP() "
+        "AND NOT (c.code LIKE '%s%%' AND a.waiting_action IS NOT NULL "
         "  AND EXISTS (SELECT 1 FROM actions x WHERE x.id = a.waiting_action AND x.aborted = 0) "
         "  AND EXISTS (SELECT 1 FROM events e WHERE e.action = a.waiting_action AND e.outcome = 0)) "
         "ORDER BY c.id LIMIT 1",
@@ -2436,7 +2440,7 @@ ErrorCode_t db_insert_event(Event_t* event)
         event->new_location!=NULL_VALUE?", new_location":"",
         event->new_transmission!=NULL_VALUE?", new_transmission":"",
         event->new_cargo!=NULL_VALUE?", new_cargo":"",
-        event->delay * TIME_FACTOR,
+        game_time_to_real(event->delay), // delay is game seconds
         event->event_type,
         event->action_id,
         event->logged,
@@ -3428,4 +3432,172 @@ ErrorCode_t db_get_action_result(DbConnection_t* connection, int action_id, int*
         *code = PERFORM_OK;
 
     return ENGINE_OK;
+}
+
+/** ****************************************************************************
+
+    @brief          Lists new commands that have no delivery time yet
+
+    @param[out]     ids, objects  Command IDs and where their drones are
+    @param[out]     immediate     1 for engine resumes (not signals from Earth)
+    @param[in]      max           Size of the arrays
+    @param[out]     count         Number found
+
+*******************************************************************************/
+ErrorCode_t db_get_unstamped_commands(DbConnection_t* connection, int* ids, int* objects,
+                                      int* immediate, int max, int* count)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    ErrorCode_t result = db_reconnect(connection);
+
+    *count = 0;
+    if(result != ENGINE_OK)
+        return result;
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT c.id, a.object_id, c.code LIKE '%s%%' FROM commands c "
+        "JOIN agents a ON a.agent_id = c.agent_id WHERE c.deliver_at IS NULL ORDER BY c.id LIMIT %d",
+        engine_get_vm_resume_command(), max);
+
+    if(mysql_query(connection->hndl, query_text))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    MYSQL_ROW row;
+    while(db_result && *count < max && (row = mysql_fetch_row(db_result)))
+    {
+        ids[*count] = row[0] ? atoi(row[0]) : 0;
+        objects[*count] = row[1] ? atoi(row[1]) : 0;
+        immediate[*count] = row[2] ? atoi(row[2]) : 0;
+        (*count)++;
+    }
+    if(db_result) mysql_free_result(db_result);
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Sets when a command reaches its drone: delay real seconds
+                    from now
+
+*******************************************************************************/
+ErrorCode_t db_set_command_delivery(DbConnection_t* connection, int command_id, int delay)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result != ENGINE_OK)
+        return result;
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "UPDATE commands SET deliver_at = UNIX_TIMESTAMP() + %d WHERE id = %d", delay, command_id);
+
+    if(mysql_query(connection->hndl, query_text))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Queues a drone's reply to reach Earth delay real seconds
+                    from now
+
+*******************************************************************************/
+ErrorCode_t db_queue_outbox(DbConnection_t* connection, int delay, const char* user_email,
+                            const char* subject, const char* agent_name, const char* body)
+{
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK)
+        return result;
+
+    char* e_email = db_escape_alloc(connection, user_email);
+    char* e_subject = db_escape_alloc(connection, subject ? subject : "");
+    char* e_agent = db_escape_alloc(connection, agent_name);
+    char* e_body = db_escape_alloc(connection, body);
+    char* query_text = NULL;
+
+    if(e_email && e_subject && e_agent && e_body)
+    {
+        size_t size = strlen(e_email) + strlen(e_subject) + strlen(e_agent) + strlen(e_body) + 256;
+        query_text = malloc(size);
+        if(query_text)
+        {
+            snprintf(query_text, size,
+                "INSERT INTO outbox (send_at, user_email, subject, agent_name, body) "
+                "VALUES (UNIX_TIMESTAMP() + %d, '%s', '%s', '%s', '%s')",
+                delay, e_email, e_subject, e_agent, e_body);
+
+            if(mysql_query(connection->hndl, query_text))
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to queue a reply: %s", mysql_error(connection->hndl));
+                result = ENGINE_DB_QUERY_ERROR;
+            }
+        }
+        else
+        {
+            result = ENGINE_MEMORY_ALLOC_ERROR;
+        }
+    }
+    else
+    {
+        result = ENGINE_MEMORY_ALLOC_ERROR;
+    }
+
+    free(e_email); free(e_subject); free(e_agent); free(e_body); free(query_text);
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Sends the queued replies that have reached Earth, oldest
+                    first, and removes them from the queue
+
+    @param[in]      script  The email script
+
+*******************************************************************************/
+ErrorCode_t db_send_due_outbox(DbConnection_t* connection, const char* script)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result != ENGINE_OK)
+        return result;
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT id, user_email, subject, agent_name, body FROM outbox "
+        "WHERE send_at <= UNIX_TIMESTAMP() ORDER BY send_at, id LIMIT 50");
+
+    if(mysql_query(connection->hndl, query_text))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    MYSQL_ROW row;
+    while(db_result && (row = mysql_fetch_row(db_result)))
+    {
+        int id = row[0] ? atoi(row[0]) : 0;
+        int error = email_run_script(script, row[1] ? row[1] : "", row[2] ? row[2] : "",
+                                     row[3] ? row[3] : "", row[4] ? row[4] : "");
+
+        if(error)
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to send queued reply [%d] (error [%d])", id, error);
+
+        // Sent (or failed for good): don't send it again
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "DELETE FROM outbox WHERE id = %d", id);
+        if(mysql_query(connection->hndl, query_text))
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+    }
+    if(db_result) mysql_free_result(db_result);
+
+    return result;
 }

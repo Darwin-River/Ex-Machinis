@@ -19,6 +19,7 @@
 #include "email.h"
 #include "trace.h"
 #include "engine.h"
+#include "db.h"
 
 /******************************* DEFINES *************************************/
 
@@ -32,6 +33,33 @@
 /******************************* LOCAL FUNCTIONS *****************************/
 
 /******************************* PUBLIC FUNCTIONS ****************************/
+
+/** ****************************************************************************
+
+  @brief          Runs the email script: to, subject, drone name and body each
+                  as its own argument. Never through a shell: the subject and
+                  the drone's output come from players.
+
+  @return         The script's exit status (0 when sent)
+
+*******************************************************************************/
+int email_run_script(const char* script, const char* to, const char* subject,
+                     const char* agent_name, const char* body)
+{
+    int error = -1;
+    pid_t pid = fork();
+
+    if(pid == 0) {
+        execl(script, script, to, subject, agent_name, body, (char*)NULL);
+        _exit(127);
+    } else if(pid > 0) {
+        int status = 0;
+        if(waitpid(pid, &status, 0) == pid)
+            error = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+    }
+
+    return error;
+}
 
 /** ****************************************************************************
 
@@ -113,19 +141,21 @@ ErrorCode_t email_send(EmailInfo_t* email_info)
 			email_info->agent_name,
 			email_info->output_content);
 
-        // Run the script with each value as its own argument. Never through
-        // a shell: the subject and the drone's output come from players.
-        int error = -1;
-        pid_t pid = fork();
-        if(pid == 0) {
-            execl(email_info->email_script, email_info->email_script,
-                email_info->user_email_addr, subject, email_info->agent_name,
-                email_info->output_content, (char*)NULL);
-            _exit(127);
-        } else if(pid > 0) {
-            int status = 0;
-            if(waitpid(pid, &status, 0) == pid)
-                error = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+        int error = 0;
+        if(email_info->delay > 0)
+        {
+            // Light-speed delay: the reply reaches Earth later. Queue it.
+            if(db_queue_outbox(engine_get_db_connection(), email_info->delay, email_info->user_email_addr,
+                               subject, email_info->agent_name, email_info->output_content) != ENGINE_OK)
+                error = -1;
+            else
+                engine_trace(TRACE_LEVEL_ALWAYS, "Reply to [%s] reaches Earth in [%d] s",
+                    email_info->user_email_addr, email_info->delay);
+        }
+        else
+        {
+            error = email_run_script(email_info->email_script, email_info->user_email_addr,
+                                     subject, email_info->agent_name, email_info->output_content);
         }
 
         if(error)
