@@ -936,6 +936,7 @@ static ErrorCode_t event_apply(Event_t *event)
     User_t user_info; // required at market transactions
     User_t peer_user_info; // required at market transactions
     int transactionAmount = 0;  // credits involved in transaction
+    int tradedUnits = 0;        // units that change hands in it
 
     memset(&previous_event, 0, sizeof(previous_event));
     memset(&previous_resource_event, 0, sizeof(previous_resource_event));
@@ -1069,6 +1070,8 @@ static ErrorCode_t event_apply(Event_t *event)
 
     if((result == ENGINE_OK) && (market_transaction == ENGINE_TRUE))
     {
+        // new_quantity is still the change here (it becomes the total below)
+        tradedUnits = abs(event->new_quantity);
         result = event_process_market_transaction(event,
                                                   &previous_resource_event,
                                                   &user_info,
@@ -1115,6 +1118,16 @@ static ErrorCode_t event_apply(Event_t *event)
         // Do credits transaction and generate events
         if(market_transaction == ENGINE_TRUE) {
             event_do_market_transaction(event, &user_info, &peer_user_info, transactionAmount);
+
+            // Record the trade for the market volume queries (#249). The
+            // amount is what user gains: positive when user's drone sold.
+            int location = -1;
+            db_get_event_object_id(event, &location);
+            Bool_t user_sold = (transactionAmount >= 0) ? ENGINE_TRUE : ENGINE_FALSE;
+            db_insert_trade(event->resource_id, tradedUnits, abs(transactionAmount),
+                user_sold ? user_info.current_drone_id : peer_user_info.current_drone_id,
+                user_sold ? peer_user_info.current_drone_id : user_info.current_drone_id,
+                location);
         }
         // Update observation entries
         result = event_update_observations(event);

@@ -274,6 +274,9 @@ ErrorCode_t db_upgrade_schema(void)
     if(result == ENGINE_OK)
         result = db_exec(connection, OUTBOX_TABLE_SQL);
 
+    if(result == ENGINE_OK)
+        result = db_exec(connection, TRADES_TABLE_SQL);
+
     return result;
 }
 
