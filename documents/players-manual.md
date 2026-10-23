@@ -374,7 +374,7 @@ Since these are synthetic processes, the associated protocol IDs are derived by 
 
 ### Producing more complex spacecraft components
 
-In a similar manner, you can use protocols to synthesize parts from materials, systems from parts, and modules and hulls from systems. In each case, the process is invoked by calling upon your drone to perform a protocol whose ID is derived by adding ten thousand to the resource ID of the resource that you're trying to produce. You can find a complete list of these protocols, as well as the resources that are required for the synthetic processes, on the online protocols page (http://exmachinis.com/protocols).
+In a similar manner, you can use protocols to synthesize parts from materials, systems from parts, and modules and hulls from systems. In each case, the process is invoked by calling upon your drone to perform a protocol whose ID is derived by adding ten thousand to the resource ID of the resource that you're trying to produce. You can find a complete list of these protocols on the online protocols page (http://exmachinis.com/protocols). Click a protocol to see the modules it needs, what it uses up and produces, how long it takes, and each of its steps. The queries page (http://exmachinis.com/queries) works the same way.
 
 ## Chapter 5: Building A Vocabulary
 

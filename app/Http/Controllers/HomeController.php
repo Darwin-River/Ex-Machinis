@@ -243,6 +243,15 @@ class HomeController extends Controller
     }
 
     /**
+     * One query: how to call it
+     */
+    public function queryCommand($id)
+    {
+        $query = Query::findOrFail($id);
+        return view('query-command', compact('query'));
+    }
+
+    /**
      * Displays the in-game events table
      * @return View
      */

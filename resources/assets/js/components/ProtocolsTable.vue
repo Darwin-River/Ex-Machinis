@@ -30,7 +30,7 @@
                         {{protocol.id}}
                     </td>
                     <td>
-                        {{protocol.name}}
+                        <a :href="'/protocols/' + protocol.id">{{protocol.name}}</a>
                     </td>
                     <td>
                         {{protocol.description}}
