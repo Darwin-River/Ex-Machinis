@@ -808,8 +808,8 @@ ErrorCode_t vm_write_string(VirtualMachine_t* vm, uint16_t addr, char* str)
         for(int i=0; i < len; i++) {
             embed_write_byte(vm, next_addr++, (unsigned char)str[i]);
         }
-        // End the string with a NULL
-        embed_write_byte(vm, next_addr++, (unsigned char)0x00);
+        // A counted string: no terminating zero (it would land on the next
+        // field, or past the end of a full results array)
 
         result = ENGINE_OK;
     }

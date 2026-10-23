@@ -32,7 +32,6 @@
 
 
 // Query errors at stack
-#define QUERY_PROCESSED_OK             1
 #define NOT_ENOUGH_QUERY_PARAMETERS   -1
 #define SQL_QUERY_FAILED              -2
 #define UNKNOWN_QUERY                 -3
@@ -453,7 +452,8 @@ static void vm_ext_process_query
         engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg);
         vm_extension_push(v, SQL_QUERY_FAILED); // push this code when query fails
     } else {
-        vm_extension_push(v, QUERY_PROCESSED_OK); // push OK code into stack
+        // Success: the number of rows stored in the results array (#256)
+        vm_extension_push(v, queryInfo->rowsStored);
     }
 
     engine_free(queryInfo->finalQuery, strlen(queryInfo->finalQuery)+1);

@@ -669,6 +669,7 @@ typedef struct
 	int *parameterValues;
 	int resultsArrayAddr;
 	int resultsArraySize;
+	int rowsStored; // rows written into the results array (query leaves it)
 	char *finalQuery;
 
 } Queries_t;

@@ -732,7 +732,7 @@ Queries are fairly complex commands because they require you to access your dron
 
 The website has a queries page (http://exmachinis.com/queries), which lists all the queries that are currently available for use by your drones; the [design manual](design-manual.md#appendix-a-in-game-queries) lists them too. These queries invoke predefined SQL scripts, which incorporate user-supplied parameters and return the results to a specified memory location for later retrieval. The page lists the specific parameters you'll need to invoke a query and details how the results will be arranged in memory.
 
-Every query takes the same form, `N R L id query`: the query's parameter N (if it has one), a pointer R to an array that will receive the results, a value L that limits the size of the results array, and the ID of the query you want to run. `query` leaves 1 on the stack when it succeeds. Text results are stored as counted strings, and numbers as two-byte values.
+Every query takes the same form, `N R L id query`: the query's parameter N (if it has one), a pointer R to an array that will receive the results, a value L that limits the size of the results array, and the ID of the query you want to run. When it succeeds, `query` leaves the number of rows it stored in the array (at least 1). Text results are stored as counted strings, and numbers as two-byte values.
 
 For example, to find the type of an astronomical object (Query number 701), I'll need to supply the query command with the object's Location ID, a pointer to an array that will receive the query results, a value that limits the size of the results array, and the ID of the query (701 in this case).
 
@@ -741,12 +741,12 @@ The following script shows how you would use this query to report the object typ
 ```
 <run>
   variable results_array 100 allot \ results array
-  10 results_array 100 701 query . \ prints 1 on success
+  10 results_array 100 701 query . \ prints 1: one row stored
   results_array count type \ prints the results
 </run>
 ```
 
-Your drone will reply with `1` and `Moon`. `query` leaves 1 when it worked, -2 if the database query failed, or -3 if there is no query with that ID (its other arguments then stay on the stack). Numeric results are read with fetch. For example, query 205 returns the ID of the drone that asks, and query 101 returns a company's credits:
+Your drone will reply with `1` and `Moon`: one row was stored. `query` leaves the number of rows it stored when it worked, -2 if the database query failed or found nothing, or -3 if there is no query with that ID (its other arguments then stay on the stack). It stores only whole rows, so if the array is too small for all of them it stores as many as fit, and 0 if not even one fits. Numeric results are read with fetch. For example, query 205 returns the ID of the drone that asks, and query 101 returns a company's credits:
 
 ```
 <run>
@@ -756,6 +756,27 @@ Your drone will reply with `1` and `Moon`. `query` leaves 1 when it worked, -2 i
 ```
 
 Try sending these scripts to your drone, with variations on the location and query IDs, to see how this works.
+
+#### Reading a list of results
+
+Some queries return a list: several rows, one after another in the results array. Leave the results in the array and read the row you need, rather than copying them all onto the stack. When a row holds only numbers, each takes two bytes, so every row has the same size and row n (counting from 0) starts at R + n × size. Two words do the work:
+
+```
+<run>
+  : row ( R n size -- addr )  * + ;  \ where row n starts
+  create cargo 100 allot
+  \ Query 210 lists a drone's cargo: resource ID and units, 4 bytes a row
+  : .cargo ( rows -- )
+    0 begin 2dup > while
+      cargo over 4 row  dup @ .  2 + @ . cr   \ resource and units
+    1+ repeat 2drop ;
+  : show-cargo ( drone -- )
+    cargo 100 210 query  dup 0> if .cargo else drop then ;
+  52 show-cargo
+</run>
+```
+
+The first row is the most important one (query 210 lists the largest holdings first), and reading the array keeps that order, which moving the list onto the stack would reverse. Rows with text don't have a fixed size: step through them field by field with `count` (it leaves the address after the text).
 
 As we develop more complex queries, we'll provide additional examples of how spacecraft can use queries to probe and respond to their environment.
 
