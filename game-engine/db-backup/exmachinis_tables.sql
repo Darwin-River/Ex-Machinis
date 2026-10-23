@@ -284,7 +284,7 @@ CREATE TABLE `queries` (
   `name` varchar(45) CHARACTER SET utf8 NOT NULL,
   `description` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
   `parameters` int(1) NOT NULL,
-  `script` varchar(512) CHARACTER SET utf8 DEFAULT NULL,
+  `script` varchar(2000) CHARACTER SET utf8 DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -145,7 +145,7 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryIn
     // input pointers checked by calling function
 
     // [value_1] will be replaced by the first query specific parameter that is pulled from the stack and rendered as a decimal integer.
-    // [value_2], [value_3], and [value_4] will do the same with the second, third, and fourth query-specific parameters that are pulled from the stack.
+    // [value_2] to [value_9] will do the same with the second to ninth query-specific parameters that are pulled from the stack.
     // [string_1] will be replaced by the string that is pointed to by the first query-specific parameter on the stack.
     // The ASCII string will be pulled from the drone’s memory location pointed to by the user supplied address.
     // [string_2], [string_3], and [string_4] will do the same for the second, third, and fourth user-supplied values found on the stack.
@@ -200,15 +200,15 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryIn
         // Get value from stack parameters
         value = (cell_t)queryInfo->parameterValues[paramId];
 
-        if(!strcmp(tag, QUERY_TAG_VALUE_1) || !strcmp(tag, QUERY_TAG_VALUE_2) ||
-           !strcmp(tag, QUERY_TAG_VALUE_3) || !strcmp(tag, QUERY_TAG_VALUE_4))    {
+        if(!strncmp(tag, "[value_", strlen("[value_")))    {
 
-            // we use directly the value got from stack
-            engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s stack value [%d]", tag, value);
+            // we use directly the value got from stack, as a signed number:
+            // a negative value can mean "any" (query 803)
+            engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s stack value [%d]", tag, (signed_cell_t)value);
 
             // allocate an int value
             result = (char*) engine_malloc(MAX_QUERY_VALUE_BUF_LEN);
-            sprintf(result, "%d", value);
+            sprintf(result, "%d", (signed_cell_t)value);
 
         } else if (!strcmp(tag, QUERY_TAG_STRING_1) || !strcmp(tag, QUERY_TAG_STRING_2) ||
                    !strcmp(tag, QUERY_TAG_STRING_3) || !strcmp(tag, QUERY_TAG_STRING_4))    {
@@ -414,6 +414,11 @@ static void vm_ext_process_query
         QUERY_TAG_VALUE_2,
         QUERY_TAG_VALUE_3,
         QUERY_TAG_VALUE_4,
+        QUERY_TAG_VALUE_5,
+        QUERY_TAG_VALUE_6,
+        QUERY_TAG_VALUE_7,
+        QUERY_TAG_VALUE_8,
+        QUERY_TAG_VALUE_9,
         QUERY_TAG_STRING_1,
         QUERY_TAG_STRING_2,
         QUERY_TAG_STRING_3,

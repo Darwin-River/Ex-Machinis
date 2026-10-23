@@ -949,6 +949,12 @@ ErrorCode_t engine_run()
         // reset VM
         engine.last_agent.vm = NULL;
 
+        // Forget the last drone's pause before loading the next drone's VM:
+        // loading runs FORTH (it defines perform, query...), and a stale
+        // "waiting for an action" flag would stop it at once, leaving a new
+        // drone without those words
+        vm_clear_yield();
+
 		engine_trace(TRACE_LEVEL_ALWAYS, "Running engine logic");
 
         // Read the game clock (shared with the events engine)
