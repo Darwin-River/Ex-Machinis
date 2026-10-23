@@ -6,7 +6,7 @@ This folder runs the whole game on one server with Docker Compose. One script se
 |---|---|
 | `caddy` | HTTPS for the website, with automatic Let's Encrypt certificates (ports 80 and 443) |
 | `app` | The Laravel website (PHP 8.3 and Apache) |
-| `db` | MySQL 8.4, loaded with the game's schema and reference data on first start |
+| `db` | MySQL 8.4, loaded on first start with the game's schema and data (`game-engine/sql/game_data.sql`: resources, protocols, queries, where minerals are found) |
 | `game-engine` | Runs the drones' FORTH programs and emails their output to players |
 | `events-engine` | Processes game events |
 | `scheduler` | Checks the game's mailboxes every 5 seconds, which replaces the old cron jobs, and clears engine logs older than 7 days |
@@ -74,6 +74,7 @@ Run these from the `deploy/` folder.
 | Follow all logs | `docker compose logs -f` |
 | Logs for one service | `docker compose logs -f game-engine` |
 | Update to the latest code | `git pull && docker compose up -d --build` |
+| Load updated game data (after `git pull` changes `game_data.sql`) | `docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" exmachinis' < ../game-engine/sql/game_data.sql` |
 | Restart everything | `docker compose restart` |
 | Stop / start | `docker compose stop` / `docker compose up -d` |
 | MySQL shell | `docker compose exec db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" exmachinis'` |
