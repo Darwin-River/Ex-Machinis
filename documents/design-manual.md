@@ -173,6 +173,15 @@ The clock is kept in the `game_clock` table so both engines share it: *game time
 
 Since actions are short and only one runs at a time (see [The Game Engine cycles through player-run virtual machines](#The-Game-Engine-cycles-through-player-run-virtual-machines)), events of one action that land in the same real second at a high scale are still processed in game-time order: the Game Engine inserts an action's events sorted by game time (depletions first at equal times), and the Event Engine processes an action's same-second events in that order.
 
+**Precision.** Real delays are rounded to whole seconds, and the engines check for due work every few seconds (`DB_READ_TIME` and `ENGINE_CHECK_TIME`, 5 s by default). At high scales, short actions therefore complete within one engine cycle, and messages can arrive up to a cycle after their light time.
+
+**Where it is stored.**
+* `game_clock`: the anchors and the scale.
+* `events.timestamp`: when each event takes place, in real time.
+* `commands.deliver_at`: when a player's command reaches its drone.
+* `outbox`: replies on their way to Earth.
+* `agents.waiting_action`: the action a drone's script is waiting for.
+
 Examples at the defaults (scale 60, 1 m/s²):
 
 | Trip | Game time | Real time | Light delay (real) |
