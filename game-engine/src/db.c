@@ -145,7 +145,7 @@ time_t db_date_to_timestamp(char* date, char* format)
     char* conversion_result = strptime(date, format, &tm);
 
     if (conversion_result != NULL) {
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        engine_trace(TRACE_LEVEL_DEBUG,
             "Date [%s] converted to:  year, month, day, hour, min ,sec [%d-%d-%d %02d:%02d:%02d]",
             date,
             tm.tm_year,
@@ -159,7 +159,7 @@ time_t db_date_to_timestamp(char* date, char* format)
         epoch = mktime(&tm);
     }
 
-    engine_trace(TRACE_LEVEL_ALWAYS,
+    engine_trace(TRACE_LEVEL_DEBUG,
         "Converting date into epoch [%s] using format [%s], result = [%ld], conversion_result = [%s]",
         date,
         format,
@@ -1406,7 +1406,7 @@ ErrorCode_t db_get_orbit_info(DbConnection_t* connection, ObjectOrbitInfo_t* obj
                         object->mean_angular_motion = row[MEAN_ANGULAR_MOTION_IDX]?atof(row[MEAN_ANGULAR_MOTION_IDX]):-1;
                     }
 
-                    engine_trace(TRACE_LEVEL_ALWAYS,
+                    engine_trace(TRACE_LEVEL_DEBUG,
                         "NAME [%s] TYPE [%s] obtained for OBJECT_ID [%d]",
                         object->object_name, object->object_type, object->object_id);
                 }
@@ -1512,7 +1512,7 @@ ErrorCode_t db_get_object_info_by_name(DbConnection_t* connection, char* name, O
                         object->mean_angular_motion = row[MEAN_ANGULAR_MOTION_IDX]?atof(row[MEAN_ANGULAR_MOTION_IDX]):-1;
                     }
 
-                    engine_trace(TRACE_LEVEL_ALWAYS,
+                    engine_trace(TRACE_LEVEL_DEBUG,
                         "NAME [%s] TYPE [%s] obtained for OBJECT_ID [%d]",
                         object->object_name, object->object_type, object->object_id);
                 }
