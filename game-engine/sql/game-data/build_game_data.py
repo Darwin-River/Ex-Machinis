@@ -563,10 +563,36 @@ for qid in sorted(set(econ_q) - set(sheet_ids), key=int):
     queries.append((int(qid), econ_q[qid]['name'][:45],
                     f'[{"N " * params}R L {qid} query]: {desc}'[:255], params, script.replace('exmachinis.', '')))
     note(f'query {qid} "{econ_q[qid]["name"]}" is only in economy.xlsx: kept')
+# The advanced events query (#149): events this spacecraft has observed (the
+# observations table: as acting/affected drone, locally, or once their light
+# has reached it), filtered by up to nine conditions; a negative value means
+# "any". Pushed in this order, so the last one pushed is [value_1].
+EVENT_FILTERS = [  # (letter, meaning, SQL condition on [value_n])
+    ('A', 'acting spacecraft', 'a.drone={v}'),
+    ('P', 'protocol', 'a.protocol={v}'),
+    ('T', 'event type', 'e.event_type={v}'),
+    ('M', 'at least M game minutes old',
+     'TIMESTAMPDIFF(SECOND,e.timestamp,NOW())*IFNULL((SELECT MAX(scale) FROM game_clock),1)>={v}*60'),
+    ('D', 'affected spacecraft', 'e.drone={v}'),
+    ('N', 'resource', 'e.resource={v}'),
+    ('X', 'depleted (1) or added (0)', '(e.event_type=2)=({v}<>0)'),
+    ('K', 'locked (1) or not (0)', 'e.locked=({v}<>0)'),
+    ('O', "at location O (the affected spacecraft's current location)", 'g.object_id={v}'),
+]
+conditions = ' '.join(f'AND ({{v}}<0 OR {c})'.format(v=f'[value_{len(EVENT_FILTERS) - i}]')
+                      for i, (_, _, c) in enumerate(EVENT_FILTERS))
+script = ('SELECT e.id FROM events e LEFT JOIN actions a ON a.id=e.action LEFT JOIN agents g ON g.agent_id=e.drone '
+          'WHERE e.outcome=1 AND EXISTS(SELECT 1 FROM observations o WHERE o.event=e.id AND o.drone=[drone_id] '
+          f'AND o.time<=NOW()) {conditions} ORDER BY e.timestamp DESC,e.id DESC;')
+usage = ' '.join(letter for letter, _, _ in EVENT_FILTERS) + ' R L 803 query'
+queries.append((803, 'Search observed events',
+                f'[{usage}]: Lists the events this spacecraft has observed, newest first, that match A P T M D N X K O '
+                '(see the manual); -1 means any.', len(EVENT_FILTERS), script))
+
 queries.sort()
 for q in queries:
-    if len(q[4]) > 512:
-        note(f'query {q[0]}: SQL is {len(q[4])} characters (the column holds 512)')
+    if len(q[4]) > 2000:
+        note(f'query {q[0]}: SQL is {len(q[4])} characters (the column holds 2000)')
 
 # --- write ------------------------------------------------------------------------
 
@@ -583,6 +609,8 @@ lines = [
     '-- An effect\'s quantity can name a stack parameter (-1, -2...): older',
     '-- databases have the column unsigned',
     'ALTER TABLE `resource_effects` MODIFY `quantity` INT NULL;',
+    "-- Query 803's SQL is longer than the old 512-character column",
+    'ALTER TABLE `queries` MODIFY `script` VARCHAR(2000) NOT NULL;',
     '-- What each drone holds: the sum over each state (installed, locked) of',
     '-- its latest inventory event (same as create_db.sql, for older databases)',
     'CREATE OR REPLACE VIEW `sqInventory` AS',

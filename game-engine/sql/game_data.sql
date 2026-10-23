@@ -10,6 +10,8 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- An effect's quantity can name a stack parameter (-1, -2...): older
 -- databases have the column unsigned
 ALTER TABLE `resource_effects` MODIFY `quantity` INT NULL;
+-- Query 803's SQL is longer than the old 512-character column
+ALTER TABLE `queries` MODIFY `script` VARCHAR(2000) NOT NULL;
 -- What each drone holds: the sum over each state (installed, locked) of
 -- its latest inventory event (same as create_db.sql, for older databases)
 CREATE OR REPLACE VIEW `sqInventory` AS
@@ -2498,6 +2500,7 @@ INSERT INTO `queries` (id, name, description, parameters, script) VALUES
   (800, 'List personal events', '[N R L 800 query]: Lists the most recent events that affected spacecraft N.', 1, 'SELECT id FROM events WHERE outcome = 1 AND drone = [value_1] ORDER BY timestamp DESC, id DESC;'),
   (801, 'List local events', '[R L 801 query]: Lists the most recent events at the requesting spacecraft''s location.', 0, 'SELECT e.id FROM events AS e INNER JOIN agents AS a ON a.agent_id = e.drone WHERE e.outcome = 1 AND a.object_id = (SELECT object_id FROM agents WHERE agent_id = [drone_id]) ORDER BY e.timestamp DESC, e.id DESC;'),
   (802, 'List solar events', '[R L 802 query]: Lists the most recent events anywhere in the solar system.', 0, 'SELECT id FROM events WHERE outcome = 1 ORDER BY timestamp DESC, id DESC;'),
+  (803, 'Search observed events', '[A P T M D N X K O R L 803 query]: Lists the events this spacecraft has observed, newest first, that match A P T M D N X K O (see the manual); -1 means any.', 9, 'SELECT e.id FROM events e LEFT JOIN actions a ON a.id=e.action LEFT JOIN agents g ON g.agent_id=e.drone WHERE e.outcome=1 AND EXISTS(SELECT 1 FROM observations o WHERE o.event=e.id AND o.drone=[drone_id] AND o.time<=NOW()) AND ([value_9]<0 OR a.drone=[value_9]) AND ([value_8]<0 OR a.protocol=[value_8]) AND ([value_7]<0 OR e.event_type=[value_7]) AND ([value_6]<0 OR TIMESTAMPDIFF(SECOND,e.timestamp,NOW())*IFNULL((SELECT MAX(scale) FROM game_clock),1)>=[value_6]*60) AND ([value_5]<0 OR e.drone=[value_5]) AND ([value_4]<0 OR e.resource=[value_4]) AND ([value_3]<0 OR (e.event_type=2)=([value_3]<>0)) AND ([value_2]<0 OR e.locked=([value_2]<>0)) AND ([value_1]<0 OR g.object_id=[value_1]) ORDER BY e.timestamp DESC,e.id DESC;'),
   (810, 'Get event type', '[N R L 810 query]: Get the type ID for event N.', 1, 'SELECT event_type FROM events WHERE outcome=1 AND id=[value_1];'),
   (811, 'Get event type name', '[N R L 811 query]: Returns the name of the type of event N.', 1, 'SELECT t.name FROM events AS e INNER JOIN event_types AS t ON t.id = e.event_type WHERE e.outcome = 1 AND e.id = [value_1];'),
   (820, 'Get acting spacecraft', '[N R L 820 query]: Returns the ID of the spacecraft whose action caused event N.', 1, 'SELECT a.drone FROM events AS e INNER JOIN actions AS a ON a.id = e.action WHERE e.outcome = 1 AND e.id = [value_1];'),

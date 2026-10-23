@@ -778,6 +778,33 @@ Some queries return a list: several rows, one after another in the results array
 
 The first row is the most important one (query 210 lists the largest holdings first), and reading the array keeps that order, which moving the list onto the stack would reverse. Rows with text don't have a fixed size: step through them field by field with `count` (it leaves the address after the text).
 
+#### Searching the events you've seen
+
+Query 803 lists the events your drone has observed, newest first, filtered by up to nine conditions. Information travels at the speed of light, so a drone only knows about events that affected it, events it could see where it orbits, and events whose light has reached it. Push the nine conditions in this order, using -1 for "any":
+
+| | Condition |
+|:--|:--|
+| A | The drone whose action caused the event |
+| P | The protocol that caused it |
+| T | The event type (1 added to a cargo hold, 2 removed, 3 moved...) |
+| M | At least M game minutes old |
+| D | The drone it affected |
+| N | The resource it affected |
+| X | 1 if resources were removed, 0 if not |
+| K | 1 if the resource was in use (locked), 0 if not |
+| O | The location of the affected drone (where it is now) |
+
+```
+<run>
+  create events 40 allot
+  \ Kunspar (1100) removed from any hold this drone has seen, by anyone
+  -1 -1 -1 -1 -1 1100 1 -1 -1 events 40 803 query .
+  events @ .   \ the latest such event's ID
+</run>
+```
+
+It leaves the number of event IDs it stored (two bytes each, so ID n is at events + 2n), or -2 if none match. Ask the other event queries (810 to 843) about any of them: what type it was, who acted, which resource, the new quantity, when it happened.
+
 As we develop more complex queries, we'll provide additional examples of how spacecraft can use queries to probe and respond to their environment.
 
 ## Chapter 9: Making Decisions
