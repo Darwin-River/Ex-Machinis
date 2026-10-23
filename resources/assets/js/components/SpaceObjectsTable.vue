@@ -30,6 +30,7 @@
                                 <option value="Station">Station</option>
                                 <option value="Comet">Comet</option>
                                 <option value="Asteroid">Asteroid</option>
+                                <option value="Ring">Ring</option>
                             </select>
                         </div>
                     </div>

@@ -1,0 +1,42 @@
+# Asteroids, comets and planetary rings added to the map (objects table).
+# Read by build_game_data.py. One row per body:
+#   id, name, type, central body id, epoch (UTC), semi-major axis, unit (au|km),
+#   eccentricity, argument of periapsis w (deg), mean anomaly at epoch M (deg),
+#   inclination i (deg), longitude of ascending node (deg), source
+# The generator computes the mean motion from the semi-major axis: around the
+# Sun with Gauss's constant, around a planet from the planet's GM below.
+#
+# Heliocentric elements are osculating elements from JPL's Small-Body Database
+# or the Minor Planet Center (as published by the sources named), ecliptic
+# J2000. Refresh them from https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html now
+# and then: perturbations make positions drift over decades.
+#
+# Rings are circular orbits at the ring's mean radius in the planet's frame
+# (inclination 0), like the moons' local-frame elements; radii from NASA's
+# planetary ring fact sheets.
+id,name,type,central_body,epoch,a,unit,e,w,M,i,node,source
+191,Ceres,Asteroid,0,2023-02-25 00:00:00,2.76718174,au,0.07881745,73.470461544,17.215651496,10.58634327,80.260148690,JPL SBDB via TheSkyLive (JD 2460000.5)
+192,Pallas,Asteroid,0,2023-02-25 00:00:00,2.7696,au,0.23008,310.865,357.849,34.927,172.918,JPL SBDB via TheSkyLive (JD 2460000.5)
+193,Juno,Asteroid,0,2023-09-13 00:00:00,2.669,au,0.2562,247.74,37.02,12.991,169.84,JPL SBDB via Wikipedia (JD 2460200.5)
+194,Vesta,Asteroid,0,2026-06-09 00:00:00,2.3615,au,0.090203,151.47,81.19,7.14,103.70,MPC via In-The-Sky.org
+195,Hygiea,Asteroid,0,2026-06-09 00:00:00,3.142,au,0.106709,312.42,252.03,3.83,283.12,MPC via In-The-Sky.org
+196,Psyche,Asteroid,0,2026-06-09 00:00:00,2.924,au,0.134933,230.03,79.77,3.10,149.98,MPC via In-The-Sky.org
+197,Halley,Comet,0,2025-11-21 00:00:00,17.86,au,0.967941,112.42,189.56,162.16,59.52,MPC via In-The-Sky.org
+198,Encke,Comet,0,2025-11-21 00:00:00,2.22,au,0.847213,187.28,226.85,11.35,334.02,MPC via In-The-Sky.org
+199,Churyumov-Gerasimenko,Comet,0,2025-11-21 00:00:00,3.46,au,0.649733,22.22,226.64,3.87,36.31,MPC via In-The-Sky.org
+200,Tempel 1,Comet,0,2025-11-21 00:00:00,3.30,au,0.468931,184.49,226.57,10.57,67.15,MPC via In-The-Sky.org
+201,Jupiter Halo Ring,Ring,5,2000-01-01 00:00:00,106000,km,0,0,0,0,0,NASA Jupiter ring fact sheet (89400-123000 km)
+202,Jupiter Main Ring,Ring,5,2000-01-01 00:00:00,125750,km,0,0,0,0,0,NASA Jupiter ring fact sheet (122500-129000 km)
+203,Jupiter Gossamer Ring,Ring,5,2000-01-01 00:00:00,155500,km,0,0,0,0,0,NASA Jupiter ring fact sheet (Amalthea ring 129000-182000 km)
+204,Saturn D Ring,Ring,6,2000-01-01 00:00:00,70700,km,0,0,0,0,0,NASA Saturn ring fact sheet (66900-74510 km)
+205,Saturn C Ring,Ring,6,2000-01-01 00:00:00,83330,km,0,0,0,0,0,NASA Saturn ring fact sheet (74658-92000 km)
+206,Saturn B Ring,Ring,6,2000-01-01 00:00:00,104790,km,0,0,0,0,0,NASA Saturn ring fact sheet (92000-117580 km)
+207,Saturn A Ring,Ring,6,2000-01-01 00:00:00,129470,km,0,0,0,0,0,NASA Saturn ring fact sheet (122170-136775 km)
+208,Saturn F Ring,Ring,6,2000-01-01 00:00:00,140180,km,0,0,0,0,0,NASA Saturn ring fact sheet
+209,Saturn G Ring,Ring,6,2000-01-01 00:00:00,170500,km,0,0,0,0,0,NASA Saturn ring fact sheet (166000-175000 km)
+210,Saturn E Ring,Ring,6,2000-01-01 00:00:00,238000,km,0,0,0,0,0,NASA Saturn ring fact sheet (densest near Enceladus' orbit)
+211,Uranus Alpha Ring,Ring,7,2000-01-01 00:00:00,44718,km,0,0,0,0,0,NASA Uranus ring fact sheet
+212,Uranus Epsilon Ring,Ring,7,2000-01-01 00:00:00,51149,km,0,0,0,0,0,NASA Uranus ring fact sheet
+213,Neptune Galle Ring,Ring,8,2000-01-01 00:00:00,42000,km,0,0,0,0,0,NASA Neptune ring fact sheet (41000-43000 km)
+214,Neptune Le Verrier Ring,Ring,8,2000-01-01 00:00:00,53200,km,0,0,0,0,0,NASA Neptune ring fact sheet
+215,Neptune Adams Ring,Ring,8,2000-01-01 00:00:00,62932,km,0,0,0,0,0,NASA Neptune ring fact sheet

@@ -29,9 +29,10 @@ The [embed.fth file](game-engine/src/embed/embed.fth) creates the entire FORTH a
 | `html/` | The web root (not Laravel's usual `public/`). `html/build/` holds the built frontend and is committed |
 | `game-engine/src/` | The **game engine** and **events engine**, written in C, which run each drone's FORTH VM and process game events |
 | `game-engine/sql/`, `game-engine/db-backup/` | The MySQL schema and reference data. The schema comes from these files, not from Laravel migrations |
+| `game-engine/sql/game-data/` | The game's design spreadsheets (resources, recipes, queries) and `build_game_data.py`, which turns them into `game-engine/sql/game_data.sql` and the query list in the design manual |
 | `game-engine/scripts/`, `game-engine/conf/` | Cron/start scripts and engine configuration |
 | `tests/` | PHPUnit tests and test fixtures |
-| `documents/` | Game docs, the [production install guide](documents/install.md) and the [upgrade plan](documents/laravel-upgrade-plan.md) |
+| `documents/` | Game docs: the [player's manual](documents/players-manual.md) and the [design manual](documents/design-manual.md) (both kept up to date with the code), the [production install guide](documents/install.md) and the [upgrade plan](documents/laravel-upgrade-plan.md) |
 
 ### Run the website locally
 
@@ -45,6 +46,7 @@ php artisan key:generate
 # Create the database (drops and recreates the tables, so use a fresh database)
 mysql -u root -p < game-engine/sql/create_db.sql
 mysql -u root -p exmachinis < game-engine/db-backup/exmachinis_tables.sql
+mysql -u root -p exmachinis < game-engine/sql/game_data.sql
 
 php artisan serve              # http://127.0.0.1:8000, serving html/
 ```
@@ -76,6 +78,16 @@ make -C game-engine/src all    # builds game-engine/src/bin/: game-engine, event
 - `eforth.blk` is the FORTH image each drone's VM starts from (`FORTH_IMAGE_PATH`, normally `$PLAT_HOME/bin/eforth.blk`). It is the engine's built-in image written to a file. Images built in `src/embed/` don't work with the engine.
 - **Keep secrets out of the `.conf` files.** Any parameter can be overridden by an environment variable with the same name. The start scripts export `game-engine/scripts/.env` (template: `game-engine/scripts/env.advolition`), so put `DB_PASSWORD` and `CRON_KEY` there.
 
+### Changing game data
+
+Resources, protocols (recipes, mining, travel, market), their effects, queries and where minerals can be mined all come from spreadsheets:
+
+- `game-engine/sql/game-data/resources.xlsx`: resources and production recipes
+- `game-engine/sql/game-data/queries.xlsx`: the list of in-game queries
+- `documents/economy.xlsx`: mining, travel, market and starter-kit protocols, recipe timings and modules, and query SQL
+
+After changing one, run `python3 game-engine/sql/game-data/build_game_data.py`. It rewrites `game-engine/sql/game_data.sql` and the query appendix of the [design manual](documents/design-manual.md), and lists anything it had to assume. Commit all three; CI fails if they're out of step. To load the new data into an existing database, run `game_data.sql` against it: it replaces those reference tables and leaves players, drones and events alone.
+
 ### Run the tests
 
 The tests use a MySQL database built the same way, plus test fixtures:
@@ -100,7 +112,8 @@ IMAP_TEST_HOST=127.0.0.1 vendor/bin/phpunit
 `.github/workflows/tests.yml` runs on every pull request and every push to `main`:
 - **phpunit:** PHP 8.3 with MySQL 5.7 and GreenMail
 - **frontend:** builds with Vite and checks `html/build/` is up to date
-- **engine:** builds both C engines
+- **engine:** checks the generated game data is up to date, then builds both C engines
+- **docker:** builds the Docker images and runs `deploy/smoke-test.sh`, which signs up a player and plays the starting sequence: unpack the starter kit, fly to the Moon, mine
 
 ### Deploying
 

@@ -29,6 +29,7 @@ services:
       # Loaded only when the database volume is first created.
       - ../game-engine/sql/create_db.sql:/docker-entrypoint-initdb.d/01-create_db.sql:ro
       - ../game-engine/db-backup/exmachinis_tables.sql:/docker-entrypoint-initdb.d/02-tables.sql:ro
+      - ../game-engine/sql/game_data.sql:/docker-entrypoint-initdb.d/03-game_data.sql:ro
     healthcheck:
       # Over TCP, so it only passes once the schema has been loaded.
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uexmachinis -p\"$$MYSQL_PASSWORD\" --silent"]

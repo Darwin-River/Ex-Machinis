@@ -18,7 +18,8 @@
 
 /******************************* DEFINES *************************************/
 
-#define DEG_TO_RADIANS(d)  ((d * M_PI)/180.0)
+#define DEG_TO_RADIANS(d)  (((d) * M_PI)/180.0)
+#define RADIANS_TO_DEG(r)  (((r) * 180.0)/M_PI)
 
 
 /******************************* TYPES ***************************************/
@@ -98,26 +99,26 @@ double orbits_get_eccentric_anomaly(ObjectOrbitInfo_t* object, double mean_anoma
 
 		// We start with E0 = M and iterate, with M = mean_anomaly previously calculated
 
-		double Ei  = mean_anomaly;
-		double Ei1 = mean_anomaly;
+		// Work in degrees throughout (e*sin(E) is converted from radians).
+		// Newton's method converges for any e < 1 when started at E0 = 180
+		// for very eccentric orbits (comets) and at E0 = M otherwise.
+		double e = object->eccentricity;
+		double M = fmod(mean_anomaly, 360.0);
+		if (M < 0) M += 360.0;
+		double Ei  = (e > 0.8) ? 180.0 : M;
+		double Ei1 = Ei;
 		double diff = 1;
+		int iterations = 0;
 
-		// we iterate till the abs difference of Ei and Ei1 is lower than a pre-defined value (we take for the moment 0.01)
-		// first round we start with Ei = mean_anomaly and then calculate the next
 		do {
-			Ei = Ei1; // last value = current value
-			double numerator = Ei - (mean_anomaly + object->eccentricity * sin(DEG_TO_RADIANS(Ei)));
-			double denominator = 1 - (object->eccentricity * cos(DEG_TO_RADIANS(Ei)));
+			Ei = Ei1;
+			double numerator = Ei - RADIANS_TO_DEG(e * sin(DEG_TO_RADIANS(Ei))) - M;
+			double denominator = 1 - (e * cos(DEG_TO_RADIANS(Ei)));
 
 			Ei1 = Ei - (numerator/denominator);
 
 			diff = fabs(Ei - Ei1);
-
-			engine_trace(TRACE_LEVEL_ALWAYS, 
-				"Ei [%f] Ei+1 [%f] numerator [%f] denominator [%f] abs(Ei - Ei1) [%f]",
-                Ei, Ei1, numerator, denominator, diff);
-
-		} while (diff >= 0.01);
+		} while (diff >= 1e-7 && ++iterations < 100);
 
 		// When the condition is met, anomaly = Ei1
 		anomaly = Ei1;
@@ -145,16 +146,11 @@ double orbits_get_true_anomaly(ObjectOrbitInfo_t* object, double eccentric_anoma
 {
 	double anomaly = -1.0;
 
-	// The true anomaly is obtained as follows
-	// v = atan2(sqrt(1-E) * cos(E/2), sqrt(1+E) * sin(E/2));
-
-	// we simplify this function doing: atan2(x, y), first we calculate X and then Y
-
-	double X = sqrt(1 - object->eccentricity) * cos(DEG_TO_RADIANS(eccentric_anomaly/2));
+	// tan(v/2) = sqrt((1+e)/(1-e)) * tan(E/2), so
+	// v = 2 * atan2(sqrt(1+e) * sin(E/2), sqrt(1-e) * cos(E/2)), in degrees
 	double Y = sqrt(1 + object->eccentricity) * sin(DEG_TO_RADIANS(eccentric_anomaly/2));
-
-	// now get anomaly as atan2(X,Y)
-	anomaly = atan2(X, Y);
+	double X = sqrt(1 - object->eccentricity) * cos(DEG_TO_RADIANS(eccentric_anomaly/2));
+	anomaly = RADIANS_TO_DEG(2 * atan2(Y, X));
 
 	engine_trace(TRACE_LEVEL_ALWAYS, 
                  "OBJECT=[%s] eccentric_anomaly [%f] eccentricity [%f] true_anomaly [%f]",

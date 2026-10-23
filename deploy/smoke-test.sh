@@ -4,7 +4,7 @@
 # for the fake domain example.test over plain HTTP, then checks that:
 #   - the website answers,
 #   - the scheduler's mail checks succeed,
-#   - emailing registrar@ with subject "magica" registers a player,
+#   - emailing registrar@ with subject "register" registers a player,
 #   - a drone runs an emailed FORTH command and the engine emails the reply.
 # Needs ports 80, 443 and 25 free. Leaves the stack running; remove it with
 #   docker compose down -v && rm -rf .env mail/config
@@ -51,7 +51,7 @@ wait_for 120 "website answers" curl -fsS -o /dev/null http://localhost/
 wait_for 120 "mail check succeeds" sh -c "docker compose logs app | grep -q 'GET /get-mails/[^ ]* HTTP/1.1\" 200'"
 wait_for 60 "mail server accepts connections" python3 -c "import smtplib; smtplib.SMTP('127.0.0.1', 25, timeout=5).quit()"
 
-send_mail "registrar@$DOMAIN" magica "sign me up"
+send_mail "registrar@$DOMAIN" register "sign me up"
 registered() { [ -n "$(sql "select user_id from users where email='$PLAYER'")" ]; }
 wait_for 60 "player registered by email" registered
 
@@ -61,18 +61,28 @@ send_mail "$DRONE@$DOMAIN" "smoke test" "<run>2 3 + . cr</run>"
 wait_for 90 "drone $DRONE ran the command" sh -c "docker compose logs game-engine | grep -q 'Command succesfully evaluated'"
 wait_for 30 "engine emailed the reply" sh -c "docker compose logs mail | grep -q 'from=<$DRONE@$DOMAIN>'"
 
-# A multi-line program that starts a move (the docs' "travel to Mars" step)
-send_mail "$DRONE@$DOMAIN" "smoke test 2" "<run>
+# The starting sequence from the game data: unpack the starter kit, fly to
+# the Moon (10), mine kunspar (1100) with the kit's mining module, and check a
+# multi-line program at the same time.
+DRONE_ID=$(sql "select agent_id from agents where name='$DRONE'")
+has() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRONE_ID and resource=$1")" -ge "${2:-1}" ]; }
+wait_for 30 "drone got the starter kit" has 5901
+send_mail "$DRONE@$DOMAIN" "unpack" "<run>25901 perform . cr</run>"
+wait_for 90 "starter kit unpacked (engine in cargo)" has 5001
+
+send_mail "$DRONE@$DOMAIN" "to the moon" "<run>
   : sq dup * ;
   7 sq . cr
-  4 5 perform . cr
+  10 5001 perform . cr
 </run>"
 wait_for 90 "drone ran a multi-line program" sh -c "docker compose logs game-engine | grep -q 'result \[ 49'"
-DRONE_ID=$(sql "select agent_id from agents where name='$DRONE'")
-action_queued() { [ -n "$(sql "select id from actions where drone=$DRONE_ID and protocol=5")" ]; }
-wait_for 60 "move was queued" action_queued
-sleep 15
-[ "$(sql "select aborted from actions where drone=$DRONE_ID and protocol=5")" = 0 ] || fail "the move was aborted"
+at_moon() { [ "$(sql "select object_id from agents where agent_id=$DRONE_ID")" = 10 ]; }
+wait_for 120 "drone flew to the Moon" at_moon
+
+send_mail "$DRONE@$DOMAIN" "mine" "<run>11100 perform . cr</run>"
+wait_for 120 "drone mined kunspar on the Moon" has 1100
+[ -z "$(sql "select id from actions where drone=$DRONE_ID and aborted=1")" ] || fail "an action was aborted"
+echo "ok: no action aborted"
 
 for svc in game-engine events-engine app; do
     restarts=$(docker inspect -f '{{.RestartCount}}' "$(docker compose ps -q $svc)")

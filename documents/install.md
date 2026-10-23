@@ -19,7 +19,9 @@ The database schema and reference data come from the SQL files in `game-engine` 
 ```
 mysql -u <user> -p < game-engine/sql/create_db.sql
 mysql -u <user> -p exmachinis < game-engine/db-backup/exmachinis_tables.sql
+mysql -u <user> -p exmachinis < game-engine/sql/game_data.sql
 ```
+`game_data.sql` holds the game's resources, protocols, their effects, queries and where minerals can be mined. It is generated from spreadsheets (see the README's "Changing game data"); run it again whenever it changes.
 `create_db.sql` creates the `exmachinis` database, its tables and the `sqInventory` view. Running it again drops and recreates the tables, so don't run it on a database you want to keep; to update just the view, run its `CREATE OR REPLACE VIEW` statement.
 In case the Laravel dependencies weren't copied/downloaded, you will have to run this command from the project's folder:
 ```

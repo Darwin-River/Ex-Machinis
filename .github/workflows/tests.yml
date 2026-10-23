@@ -85,11 +85,20 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Check the generated game data is up to date
+        run: |
+          python3 game-engine/sql/game-data/build_game_data.py
+          git status --porcelain game-engine/sql/game_data.sql documents/design-manual.md
+          test -z "$(git status --porcelain game-engine/sql/game_data.sql documents/design-manual.md)" || { echo "Run game-engine/sql/game-data/build_game_data.py and commit the result"; exit 1; }
+
       - name: Install build dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y -qq libconfig-dev libmysqlclient-dev
 
       - name: Build game and events engines
         run: make -C game-engine/src all
+
+      - name: Check the orbit maths against real positions
+        run: make -C game-engine/src test
 
   docker:
     runs-on: ubuntu-latest

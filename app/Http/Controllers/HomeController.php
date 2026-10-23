@@ -46,7 +46,7 @@ class HomeController extends Controller
      * Download mails from the server and process them. Called by the cron
      * email handler (game-engine/scripts/start_email_handler.sh).
      *
-     * - registrar inbox: a mail with subject "magica" registers the sender.
+     * - registrar inbox: a mail with subject "register" (or "magica") registers the sender.
      * - catch-all inbox: a mail to <drone name>@MAIL_DOMAIN from the drone
      *   owner's address is queued as commands for that drone.
      * Every processed mail is deleted.
@@ -65,7 +65,8 @@ class HomeController extends Controller
         foreach ($mails as $mail) {
             $log[] = 'received mail with subject <b>' . e(strtolower(trim($mail->subject))) . '</b>';
             $this->processMail($inbox, $mail, $log, function () use ($mail) {
-                if (strtolower(trim($mail->subject)) == 'magica') {
+                // "register" is what the player's manual tells players to use
+                if (in_array(strtolower(trim($mail->subject)), ['register', 'magica'], true)) {
                     $name = $mail->fromName;
                     if (!$name) {
                         $name = explode('@', $mail->fromAddress)[0];

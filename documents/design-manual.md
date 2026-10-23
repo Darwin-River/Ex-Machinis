@@ -2,11 +2,13 @@
 
 _Ex Machinis_ is an online multiplayer space simulation designed to expose players to programming and robotics. In the game, which takes place against the backdrop of the real-time solar system, players program remotely piloted spacecraft to mine, manufacture, and trade goods and services.
 
-The game uses augmented reality to project a parallel universe upon our own. In the game's re-imagined post-war history, world leaders embraced space exploration and colonization as a means of protecting mankind form the global threats that emerged in the wake of the second world war.
+The game uses augmented reality to project a parallel universe upon our own. In the game's re-imagined post-war history, world leaders embraced space exploration and colonization as a means of protecting mankind from the global threats that emerged in the wake of the second world war.
 
 This wiki is used to organize the project, which began in August 2017.  It contains multiple sections which describe the game's design and function in great detail. These are the blueprints we follow when coding and creating content.
 
 This document lays out the plans for developing Ex Machinis, an online space simulation, which promotes the acquisition of programming skills.
+
+> **This is the working design manual.** Update it in the same pull request as the code or game data it describes, so the two never drift apart. The game data (resources, protocols, their effects, queries and where minerals can be mined) is generated from spreadsheets in [`game-engine/sql/game-data`](../game-engine/sql/game-data/): change a spreadsheet, run `build_game_data.py`, and commit the regenerated `game-engine/sql/game_data.sql` together with this manual. The query list in [Appendix A](#Appendix-A-In-Game-Queries) is written by that script.
 
 ## Table of Contents
 * [System Overview](#System-Overview)
@@ -340,22 +342,24 @@ Although the orbits are typically expressed in the polar representation of the e
 This table stores the parameters of all of all static objects.  These are called static objects because, unlike spacecraft, they never change their orbits.  Figure 1 depicts these parameters with respect to a defined orbit.
 * object_id [INT(11)] - This is a unique identifier for the orbiting object.
 * object_name [VARCHAR(45)] - The searchable name of the object.
-* object_type [VARCHAR(16)] - This classifies the object as a star, planet, moon, asteroid, etc...
+* object_type [VARCHAR(16)] - This classifies the object: Star, Planet, Moon, Station, Asteroid, Comet or Ring. Minerals are found on the body types named in their resource category (see `game-engine/sql/game-data/`).
 * gravitational_parameter [DOUBLE] (μ) - The gravitational parameter of the central body expressed in m3/s2.
 * central_body_object_id [INT(11)] -  This is the ID of the object that is being orbited.
 * mean_angular_motion [DECIMAL(13,9)]  (n) - This is the average angular motion expressed in degrees per day.  It can be derived from the gravitational parameter as described below.
 * epoch [DATETIME] (t0) - The time at which the orbital parameters were defined.  This is typically J2000.
 * eccentricity [DECIMAL(10,9)] (e) - Orbital eccentricity between 0 and 1.
-* semimajor_axis [DOUBLE] (a) - Half of the major axis of the orbital ellipse expressed in meters.
+* semimajor_axis [DOUBLE] (a) - Half of the major axis of the orbital ellipse expressed in kilometers.
 * inclination [DECIMAL(12,9)]  (i) - Defines the angle in degrees between the orbital plane and the reference plane.
 * ascending_node_longitude [DECIMAL(12,9)]  (Ω) - defines the angle in degrees between the reference direction and the upward crossing of the orbit on the reference plane (the ascending node).
-* periapsis_argument [DECIMAL(12,9)]  (ω) - defines the angle in degrees between the ascending node and the periapsis.
-* mean_anomaly [DECIMAL(12,9)]  (M0) - defines the position of the orbiting body along the trajectory at the epoch, measured in degrees from periapsis.
+* periapsis_argument [DECIMAL(12,9)]  (ω) - defines the angle in degrees between the ascending node and the periapsis. This is not the longitude of perihelion (ϖ = Ω + ω) that tables of planetary elements often list: convert with ω = ϖ − Ω.
+* mean_anomaly [DECIMAL(12,9)]  (M0) - defines the position of the orbiting body along the trajectory at the epoch, measured in degrees from periapsis. This is not the mean longitude (L = ϖ + M) that tables of planetary elements often list: convert with M = L − ϖ.
 * computed_on [DATETIME] - This is the time at which the object’s cartesian coordinates were last computed by the Physics Engine.
 * x_coord (DOUBLE) - This is the most recent x coordinate of the object in kilometers.
 * y_coord (DOUBLE) - This is the most recent y coordinate of the object in kilometers.
 * z_coord (DOUBLE) - This is the most recent z coordinate of the object in kilometers.
 * The Inclination, Longitude of the Ascending Node, and Argument of Periapsis help orient the orbital plane in space (Figure 2) whereas the other parameters are used to locate the orbital body on the plane.
+
+The planets, moons and stations come from `game-engine/db-backup/exmachinis_tables.sql`. The asteroids, comets and planetary rings come from `game-engine/sql/game-data/bodies.csv`, which records where each body's elements came from; `build_game_data.py` adds them to `game_data.sql`, and also corrects the planets' elements (see `PLANET_A_AU` in that script). Rings are circular orbits at the ring's mean radius in their planet's frame, like the moons. `make -C game-engine/src test` checks the orbit maths against real, observed positions.
 
 
 Figure 2. A diagram of the various parameters that go into describing an orbital plane.  The plane of reference parallels the Earth’s orbital plane with the reference direction paralleling the vector which points from the Earth to the sun during the vernal equinox.
@@ -926,56 +930,59 @@ After implementing the query, the Game Engine will place the results in the Resu
 
 ## Appendix A: In-Game Queries
 
-This appendix lists the specific in-game queries that are being proposed and developed for Ex Machinis.  These queries are organized in terms of the database structures that they support.
+This appendix lists the in-game queries loaded into the game, organized by the database structures they support. Players run a query with `N R L <id> query`: N is the query's parameter (if any), R the results array and L its length in bytes.
 
-### Company Queries
-
-| Category | Query ID | Name | Description | MySQL Script|
-|:---------|:---------|:-----|:------------|:------------|
-| Companies | 100 | Get company name | Returns the name of the company with the specified Company ID. | SELECT users.name FROM users WHERE (((users.user_id)=[value_1]));
-| Companies | 101 | Get company credits | Returns the number of credits owned by the specified Company ID. | SELECT users.credits FROM users WHERE (((users.user_id)=[value_1]));
-| Companies | 110 | List company drones | Lists the IDs of the spacecraft owned by company N. | SELECT agents.agent_id FROM agents WHERE (((agents.user_id)=[value_1])) ORDER BY agents.agent_id;
-| Spacecraft | 200 | Get drone name | Returns the name of the spacecraft with the specified Spacecraft ID. | SELECT agents.name FROM agents WHERE (((agents.agent_id)=[value_1]));
-| Spacecraft | 201 | Get spacecraft owner | Returns the Company ID of the company that owns the specified Spacecraft ID. | SELECT agents.user_id FROM agents WHERE (((agents.agent_id)=[value_1]));
-| Spacecraft | 202 | Get drone location | Returns the Location ID of the spacified Spacecraft ID. | SELECT new_location FROM events WHERE event_type=3 AND drone=[value_1] AND outcome=1 ORDER BY timestamp DESC;
-| Spacecraft | 203 | Get hull type | Returns the hull type ID for the indicated spacecraft. | SELECT hull_type FROM agents WHERE agent_id=[value_1];
-| Spacecraft | 204 | Get cargo mass | Returns the total mass of the resources in the cargo hold of the specified spacecraft. | SELECT  o.new_cargo FROM (SELECT MAX(timestamp) AS maxtime FROM events WHERE drone = [value_1] AND outcome = 1 AND (event_type =1 OR event_type = 2) GROUP BY drone) AS f INNER JOIN events AS o ON o.timestamp = f.maxtime WHERE o.drone = [value_1];
-| Spacecraft | 205 | Get my spacecraft ID | Returns the spacecraft ID of the current drone. | SELECT agent_id FROM agents WHERE agent_id  =  [drone_id];
-| Spacecraft | 210 | List spacecraft inventory | Returns the resorce ID and unit qantity for each item in the specified drone | SELECT o.resource, o.new_quantity FROM (SELECT resource, MAX(timestamp) AS maxtime FROM events WHERE drone = [value_1] AND outcome = 1 AND (event_type =1 OR event_type = 2) GROUP BY drone, resource) AS f INNER JOIN events AS o ON o.timestamp = f.maxtime AND o.resource = f.resource WHERE o.drone = [value_1] ORDER BY o.new_quantity DESC;
-| Hulls | 300 | Get hull name | Returns the hull name for the indicated hull type. | SELECT name FROM hulls WHERE id=[value_1];
-|Hulls | 301 | Get cargo capacity | Returns the cargo capacity of the indicated hull type. | SELECT cargo_capacity FROM hulls WHERE id=[value_1];
-| Resources | 400 | Get resource name | Returns the name of the indicated resource. | SELECT name FROM resources WHERE id=[value_1];
-| Resources | 401 | Get resource mass | Returns the unit mass of the resource in kg. | SELECT mass FROM resources WHERE id=[value_1];
-| Resources | 410 | List best extraction sites | Returns a list of the best extraction sites abundancies for the specified resource | SELECT location, multiplier FROM abundancies WHERE resource=[value_1] ORDER BY multiplier DESC;
-| Protocols | 500	| Get protocol name | Returns the name of the specified protocol | SELECT name FROM protocols WHERE id = [value_1];
-| Protocols | 501	| Get protocol duration	| Returns the duration in minutes of the specified protocol | SELECT MAX(time) FROM (SELECT time FROM resource_effects WHERE protocol = [value_1] UNION SELECT time FROM market_effects WHERE protocol = [value_1])  AS combined;
-| Protocols | 510	| List consumed resources | Lists resources and their quantities that are consumed by the specified protocol | SELECT resource, quantity FROM resource_effects WHERE protocol=[value_1] AND deplete=1 AND locked=0 ORDER BY quantity DESC;
-| Protocols | 511	| List produced resources | Lists resources and their quantities that are produced by the specified protocol |	SELECT resource, quantity FROM resource_effects WHERE protocol=[value_1] AND deplete=0 AND locked=0 ORDER BY quantity DESC;
-| Protocols | 512	| List retained resources | Lists resources and their quantities that are used but not consumed by the specified protocol |	SELECT resource, quantity FROM resource_effects WHERE protocol=[value_1] AND deplete=0 AND locked=1 ORDER BY quantity DESC;
-| Protocols | 520	| List consuming protocols	| Lists all the protocols that consume the specified resource | SELECT protocol, quantity FROM resource_effects WHERE resource = [value_1] AND deplete = 1 AND locked = 0 ORDER BY quantity DESC;
-| Protocols | 521	| List producing protocols	| Lists all the protocols that produce the specified resource | SELECT protocol, quantity FROM resource_effects WHERE resource = [value_1] AND deplete = 0 AND locked = 0 ORDER BY quantity DESC;
-| Protocols | 522	| List retaining protocols	| Lists all the protocols that use but don't consume the specified resource | SELECT protocol, quantity FROM resource_effects WHERE resource = [value_1] AND deplete = 0 AND locked = 1 ORDER BY quantity DESC;
-| Markets | 600	| List local buy orders	| Return a list of best local buy orders along with price and quantity for the specified resource.
-| Markets | 601	| List solar buy orders	| Return a list of best solar system wide buy orders along with price and quantity for the specified resource.
-| Markets | 610	| List local sell orders	| Return a list of best local sell orders along with price and quantity for the specified resource.
-| Markets | 611	| List solar sell orders	| Return a list of best solar system wide sell orders along with price and quantity for the specified resource.
-| Locations | 700 | Get location name | Returns the name of the specified location. | SELECT object_name FROM objects WHERE object_id=[value_1];
-| Locations | 701 | Get location type | Returns the type of the specified location. | SELECT object_type FROM objects WHERE object_id=[value_1];
-| Locations | 702 | Get location central body | Returns the central body of the specified locaiton. | SELECT central_body_object_id FROM objects WHERE object_id=[value_1];
-| Locations | 710 | List orbting bodies | Lists the location IDs of the objects orbiting the specified location. | SELECT object_id FROM objects WHERE central_body_object_id=[value_1];
-| Locations | 720 | List local drones | Lists all the drones at the current location | SELECT agent_id FROM agents WHERE object_id =[value_1];
-| Locations | 730 | List local resources | Lists the minable resources and their abundancies at the specified location. | SELECT resource, multiplier FROM abundancies WHERE location=[value_1] ORDER BY multiplier DESC;
-| Events | 800	| List personal events	| Lists most recent events that affect the specified drone. | SELECT id FROM events WHERE outcome=1 AND drone=[value_1] ORDER BY timestamp DESC;
-| Events | 801	| List recent events	| Lists most recent events. | SELECT id FROM events WHERE outcome=1 ORDER BY timestamp DESC;
-| Events | 810	| Get event type | Returns the event type ID of the specified event | SELECT event_type FROM events WHERE outcome=1 AND id=[value_1];
-| Events | 811	| Get event type name	|
-| Events | 820	| Get acting spacecraft	|
-| Events | 821	| Get associated protocol	|
-| Events | 831	| Get affected spacecraft	| Returns ID of the spacecraft that was affected by the specified event | SELECT drone FROM events WHERE outcome=1 AND id=[value_1];
-| Events | 832	| Get affected resource	| Returns the ID and quantity of the resource that was affected by the specified event | SELECT resource, new_quantity FROM events WHERE outcome=1 AND id=[value_1];
-| Events | 840	| Get new credits	| Returns the new credit value that results from the specified event. | SELECT new_credits FROM events WHERE outcome=1 AND id=[value_1];
-| Events | 841	| Get new location	| Returns the new location that results from the specified event. | SELECT new_location FROM events WHERE outcome=1 AND id=[value_1];
-| Events | 842	| Get event time	|
-
+<!-- queries:start (generated by game-engine/sql/game-data/build_game_data.py; do not edit) -->
+| Category | Query ID | Name | Usage and description | Parameters | MySQL script |
+|:--|:--|:--|:--|:--|:--|
+| Companies | 100 | Get company name | [N R L 100 query]: Returns the name for company N. | 1 | `SELECT users.name FROM users WHERE (((users.user_id)=[value_1]));` |
+| Companies | 101 | Get company credits | [N R L 101 query]: Returns the number of credits in the company's bank account were Company ID = N. | 1 | `SELECT users.credits FROM users WHERE (((users.user_id)=[value_1]));` |
+| Companies | 110 | List company spacecraft | [N R L 110 query]: Returns a list of the IDs for the spacecraft that are owned by company N. | 1 | `SELECT agents.agent_id FROM agents WHERE (((agents.user_id)=[value_1])) ORDER BY agents.agent_id;` |
+| Spacecraft | 200 | Get spacecraft name | [N R L 200 query]: Returns the spacecraft name [30] for Spacraft ID N. | 1 | `SELECT agents.name FROM agents WHERE (((agents.agent_id)=[value_1]));` |
+| Spacecraft | 201 | Get spacecraft owner | [N R L 201 query]: Return the Company ID of the compony that owns Spacecraft ID N. | 1 | `SELECT agents.user_id FROM agents WHERE (((agents.agent_id)=[value_1]));` |
+| Spacecraft | 202 | Get spaecraft location | [N R L 202 query]: Returns the location ID of spacecraft N. | 1 | `SELECT object_id FROM agents WHERE agent_id = [value_1];` |
+| Spacecraft | 203 | Get spacecraft hull type | [N R L 203 query]: Retuns the hull type of spacecraft N. | 1 | `SELECT hull_type FROM agents WHERE agent_id=[value_1];` |
+| Spacecraft | 204 | Get cargo mass | [N R L 204 query]: Returns the total cargo mass in kg of spacecraft N. | 1 | `SELECT IFNULL(SUM(i.units * r.mass), 0) FROM sqInventory AS i INNER JOIN resources AS r ON r.id = i.resource WHERE i.drone = [value_1];` |
+| Spacecraft | 205 | Get my spacecraft ID | [R L 205 query]: Returns the spacecraft ID of the requesting spacecraft. | 0 | `SELECT agent_id FROM agents WHERE agent_id = [drone_id];` |
+| Spacecraft | 210 | List spacecraft inventory | [N R L 210 query]: Lists the resources and quantities in the cargo hold of spacecraft N. | 1 | `SELECT resource, units FROM sqInventory WHERE drone = [value_1] AND units > 0 ORDER BY units DESC;` |
+| Spacecraft | 212 | Get resource quantity | [N R L 212 query]: Returns how many units of resource N are in the requesting spacecraft's cargo hold. | 1 | `SELECT IFNULL(MAX(units), 0) FROM sqInventory WHERE drone = [drone_id] AND resource = [value_1];` |
+| Hulls | 300 | Get hull type name | [N R L 300 query]: Returns the name of hull type N. | 1 | `SELECT name FROM hulls WHERE id=[value_1];` |
+| Hulls | 301 | Get hull type cargo capacity | [N R L 301 query]: Returns the cargo capacity in kg of hull type N. | 1 | `SELECT cargo_capacity FROM hulls WHERE id=[value_1];` |
+| Resources | 400 | Get resource name | [N R L 400 query]: Retuns the name of resource N. | 1 | `SELECT name FROM resources WHERE id=[value_1];` |
+| Resources | 401 | Get resource unit mass | [N R L 401 query]: Retuns the unit mass in kg of resource N. | 1 | `SELECT mass FROM resources WHERE id=[value_1];` |
+| Resources | 410 | List best extraction sites | [N R L 410 query]: Returns the top extraction sites and abundancies for the resource N. | 1 | `SELECT location, multiplier FROM abundancies WHERE resource=[value_1] ORDER BY multiplier DESC;` |
+| Protocols | 500 | Get protocol name | [N R L 500 query]: Returns the name of protocol N. | 1 | `SELECT name FROM protocols WHERE id = [value_1];` |
+| Protocols | 501 | Get protocol duration | [N R L 501 query]: Returns the duration in minutes of protocol N. | 1 | `SELECT MAX(time) FROM (SELECT time FROM resource_effects WHERE protocol = [value_1] UNION SELECT time FROM market_effects WHERE protocol = [value_1]) AS combined;` |
+| Protocols | 510 | List consumed resources | [N R L 510 query]: Lists the resources and quantities that are consumed by protocol N. | 1 | `SELECT resource, quantity FROM resource_effects WHERE protocol=[value_1] AND deplete=1 AND locked=0 ORDER BY quantity DESC;` |
+| Protocols | 511 | List produced resources | [N R L 511 query]: Lists the resources and quantities that are produced by protocol N. | 1 | `SELECT resource, quantity FROM resource_effects WHERE protocol=[value_1] AND deplete=0 AND locked=0 ORDER BY quantity DESC;` |
+| Protocols | 512 | List retained resources | [N R L 512 query]: Lists the resources and quantities that are used by the protocol but returned when done. | 1 | `SELECT resource, quantity FROM resource_effects WHERE protocol=[value_1] AND deplete=0 AND locked=1 ORDER BY quantity DESC;` |
+| Protocols | 520 | List consuming protocols | [N R L 520 query]: Lists all the protocols and qantities that deplete resource N. | 1 | `SELECT protocol, quantity FROM resource_effects WHERE resource = [value_1] AND deplete = 1 AND locked = 0 ORDER BY quantity DESC;` |
+| Protocols | 521 | List producing protocols | [N R L 521 query]: Lists all the procedures and quantities that produce resource N. | 1 | `SELECT protocol, quantity FROM resource_effects WHERE resource = [value_1] AND deplete = 0 AND locked = 0 ORDER BY quantity DESC;` |
+| Protocols | 522 | List retaining protocols | [N R L 522 query]: Lists all the protocols and quatities that use resource N without consuming it. | 1 | `SELECT protocol, quantity FROM resource_effects WHERE resource = [value_1] AND deplete = 0 AND locked = 1 ORDER BY quantity DESC;` |
+| Markets | 600 | List local buy orders | [N R L 600 query]: Lists buy orders for resource N at the requesting spacecraft's location: price, wanted maximum, units held, spacecraft ID. | 1 | `SELECT o.new_credits, o.new_quantity, IFNULL(i.units, 0), o.drone FROM events AS o INNER JOIN (SELECT MAX(id) AS id FROM events WHERE outcome = 1 AND event_type = 5 AND resource = [value_1] GROUP BY drone) AS l ON l.id = o.id INNER JOIN agents AS a ON a.agent_id = o.drone AND a.object_id = (SELECT object_id FROM agents WHERE agent_id = [drone_id]) LEFT JOIN sqInventory AS i ON i.drone = o.drone AND i.resource = [value_1] WHERE IFNULL(i.units, 0) < o.new_quantity ORDER BY o.new_credits DESC;` |
+| Markets | 601 | List solar buy orders | [N R L 601 query]: Lists buy orders for resource N anywhere in the solar system: price, wanted maximum, units held, spacecraft ID. | 1 | `SELECT o.new_credits, o.new_quantity, IFNULL(i.units, 0), o.drone FROM events AS o INNER JOIN (SELECT MAX(id) AS id FROM events WHERE outcome = 1 AND event_type = 5 AND resource = [value_1] GROUP BY drone) AS l ON l.id = o.id LEFT JOIN sqInventory AS i ON i.drone = o.drone AND i.resource = [value_1] WHERE IFNULL(i.units, 0) < o.new_quantity ORDER BY o.new_credits DESC;` |
+| Markets | 610 | List local sell orders | [N R L 610 query]: Lists sell orders for resource N at the requesting spacecraft's location: price, kept minimum, units held, spacecraft ID. | 1 | `SELECT o.new_credits, o.new_quantity, i.units, o.drone FROM events AS o INNER JOIN (SELECT MAX(id) AS id FROM events WHERE outcome = 1 AND event_type = 4 AND resource = [value_1] GROUP BY drone) AS l ON l.id = o.id INNER JOIN agents AS a ON a.agent_id = o.drone AND a.object_id = (SELECT object_id FROM agents WHERE agent_id = [drone_id]) LEFT JOIN sqInventory AS i ON i.drone = o.drone AND i.resource = [value_1] WHERE i.units > o.new_quantity ORDER BY o.new_credits ASC;` |
+| Markets | 611 | List solar sell orders | [N R L 611 query]: Lists sell orders for resource N anywhere in the solar system: price, kept minimum, units held, spacecraft ID. | 1 | `SELECT o.new_credits, o.new_quantity, i.units, o.drone FROM events AS o INNER JOIN (SELECT MAX(id) AS id FROM events WHERE outcome = 1 AND event_type = 4 AND resource = [value_1] GROUP BY drone) AS l ON l.id = o.id LEFT JOIN sqInventory AS i ON i.drone = o.drone AND i.resource = [value_1] WHERE i.units > o.new_quantity ORDER BY o.new_credits ASC;` |
+| Locations | 700 | Get location name | [N R L 700 query]: Returns the name of location ID N. | 1 | `SELECT object_name FROM objects WHERE object_id=[value_1];` |
+| Locations | 701 | Get location type | [N R L 701 query]: Returns the location type of location N. | 1 | `SELECT object_type FROM objects WHERE object_id=[value_1];` |
+| Locations | 702 | Get central body | [N R L 702 query]: Retuns the location ID for the body around which N is orbiting. | 1 | `SELECT central_body_object_id FROM objects WHERE object_id=[value_1];` |
+| Locations | 703 | Get location coordinates | [N R L 703 query]: Retuns the x, y, and z coordinates of location N. | 1 | `SELECT objects.x_coord, objects.y_coord, objects.z_coord FROM objects WHERE object_id=[value_1];` |
+| Locations | 710 | List orbiting bodies | [N R L 710 query]: Returns a list of the object IDs that are in orbit around object N. | 1 | `SELECT object_id FROM objects WHERE central_body_object_id=[value_1];` |
+| Locations | 720 | List local spacecraft | [N R L 720 query]: Lists all the drones at location N. | 1 | `SELECT agent_id FROM agents WHERE object_id =[value_1]` |
+| Locations | 730 | List local resources | [N R L 730 query]: Returns the resource ID and abundancy value of each resource that can be recovered from the location. | 1 | `SELECT resource, multiplier FROM abundancies WHERE location=[value_1] ORDER BY multiplier DESC;` |
+| Events | 800 | List personal events | [N R L 800 query]: Lists the most recent events that affected spacecraft N. | 1 | `SELECT id FROM events WHERE outcome = 1 AND drone = [value_1] ORDER BY timestamp DESC, id DESC;` |
+| Events | 801 | List local events | [R L 801 query]: Lists the most recent events at the requesting spacecraft's location. | 0 | `SELECT e.id FROM events AS e INNER JOIN agents AS a ON a.agent_id = e.drone WHERE e.outcome = 1 AND a.object_id = (SELECT object_id FROM agents WHERE agent_id = [drone_id]) ORDER BY e.timestamp DESC, e.id DESC;` |
+| Events | 802 | List solar events | [R L 802 query]: Lists the most recent events anywhere in the solar system. | 0 | `SELECT id FROM events WHERE outcome = 1 ORDER BY timestamp DESC, id DESC;` |
+| Events | 810 | Get event type | [N R L 810 query]: Get the type ID for event N. | 1 | `SELECT event_type FROM events WHERE outcome=1 AND id=[value_1];` |
+| Events | 811 | Get event type name | [N R L 811 query]: Returns the name of the type of event N. | 1 | `SELECT t.name FROM events AS e INNER JOIN event_types AS t ON t.id = e.event_type WHERE e.outcome = 1 AND e.id = [value_1];` |
+| Events | 820 | Get acting spacecraft | [N R L 820 query]: Returns the ID of the spacecraft whose action caused event N. | 1 | `SELECT a.drone FROM events AS e INNER JOIN actions AS a ON a.id = e.action WHERE e.outcome = 1 AND e.id = [value_1];` |
+| Events | 821 | Get associated protocol | [N R L 821 query]: Returns the ID of the protocol whose action caused event N. | 1 | `SELECT a.protocol FROM events AS e INNER JOIN actions AS a ON a.id = e.action WHERE e.outcome = 1 AND e.id = [value_1];` |
+| Events | 831 | Get affected spacecraft | [N R L 831 query]: Return the ID of the spacecraft affected by event N. | 1 | `SELECT drone FROM events WHERE outcome=1 AND id=[value_1];` |
+| Events | 832 | Get affected resource | [N R L 832 query]: Returns the ID of the resource affected by event N. | 1 | `SELECT resource FROM events WHERE outcome = 1 AND id = [value_1];` |
+| Events | 840 | Get new quantity | [N R L 840 query]: Returns the new quantity set by event N. | 1 | `SELECT new_quantity FROM events WHERE outcome = 1 AND id = [value_1];` |
+| Events | 841 | Get new credits | [N R L 841 query]: Returns the new credits set by event N. | 1 | `SELECT new_credits FROM events WHERE outcome = 1 AND id = [value_1];` |
+| Events | 842 | Get new location | [N R L 842 query]: Returns the new location set by event N. | 1 | `SELECT new_location FROM events WHERE outcome = 1 AND id = [value_1];` |
+| Events | 843 | Get event time | [N R L 843 query]: Returns when event N happened, in seconds since 1970. | 1 | `SELECT UNIX_TIMESTAMP(timestamp) FROM events WHERE outcome = 1 AND id = [value_1];` |
+<!-- queries:end -->
 
 [Return to the TOC](#Table-of-Contents)

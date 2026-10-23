@@ -51,5 +51,11 @@ $(EXE_PATH)/eforth.blk: dump_image.c embed_image.c
 	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/dump_image dump_image.c embed_image.c
 	$(OBJS_PATH)/dump_image > $@
 
+# Orbit maths checked against real positions (needs no database)
+test: test_orbits.c orbits.c
+	@mkdir -p $(OBJS_PATH)
+	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/test_orbits test_orbits.c -lm
+	$(OBJS_PATH)/test_orbits
+
 clean:
 	$(RM) -rf $(OBJS_PATH) $(GAME_ENGINE_EXE_NAME) $(EVENTS_ENGINE_EXE_NAME) $(EXE_PATH)/eforth.blk
