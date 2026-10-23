@@ -73,6 +73,7 @@ Run these from the `deploy/` folder.
 | Status | `docker compose ps` |
 | Follow all logs | `docker compose logs -f` |
 | Logs for one service | `docker compose logs -f game-engine` |
+| Detailed engine logs (every orbit, distance and date calculation) | add `APP_TRACE_LEVEL: "3"` to the engine's `environment` in `docker-compose.yml`, then `docker compose up -d` |
 | Update to the latest code | `git pull && docker compose up -d --build` |
 | Load updated game data (after `git pull` changes `game_data.sql`) | `docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" exmachinis' < ../game-engine/sql/game_data.sql` |
 | Restart everything | `docker compose restart` |

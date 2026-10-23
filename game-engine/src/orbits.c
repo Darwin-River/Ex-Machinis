@@ -63,7 +63,7 @@ double orbits_get_mean_anomaly(ObjectOrbitInfo_t* object)
 
 		anomaly = object->mean_anomaly + object->mean_angular_motion * diff_in_days;
 
-		engine_trace(TRACE_LEVEL_ALWAYS, 
+		engine_trace(TRACE_LEVEL_DEBUG, 
                      "OBJECT=[%s] epoch [%ld] game now [%.0f] diff_seconds [%.0f] days [%f] "
                      "mean_angular_motion (deg/day) [%f] mean_anomaly_T0 [%f] mean_anomaly (deg) [%f]",
                      object->object_name, object->epoch, now, diff_in_seconds, diff_in_days, 
@@ -124,7 +124,7 @@ double orbits_get_eccentric_anomaly(ObjectOrbitInfo_t* object, double mean_anoma
 		// When the condition is met, anomaly = Ei1
 		anomaly = Ei1;
 
-		engine_trace(TRACE_LEVEL_ALWAYS, 
+		engine_trace(TRACE_LEVEL_DEBUG, 
                      "OBJECT=[%s] mean_anomaly [%f] eccentricity [%f] eccentric_anomaly [%f]",
                      object->object_name, mean_anomaly, object->eccentricity, 
                      anomaly);
@@ -153,7 +153,7 @@ double orbits_get_true_anomaly(ObjectOrbitInfo_t* object, double eccentric_anoma
 	double X = sqrt(1 - object->eccentricity) * cos(DEG_TO_RADIANS(eccentric_anomaly/2));
 	anomaly = RADIANS_TO_DEG(2 * atan2(Y, X));
 
-	engine_trace(TRACE_LEVEL_ALWAYS, 
+	engine_trace(TRACE_LEVEL_DEBUG, 
                  "OBJECT=[%s] eccentric_anomaly [%f] eccentricity [%f] true_anomaly [%f]",
                  object->object_name, eccentric_anomaly, object->eccentricity, 
                  anomaly);
@@ -188,7 +188,7 @@ double orbits_get_true_anomaly_radius(ObjectOrbitInfo_t* object, double true_ano
 
 		radius = A * (numerator/denominator);
 
-		engine_trace(TRACE_LEVEL_ALWAYS, 
+		engine_trace(TRACE_LEVEL_DEBUG, 
                  "OBJECT=[%s] true_anomaly [%f] eccentricity [%f] semimajor_axis [%f] true_anomaly_radius [%f]",
                  object->object_name, true_anomaly, object->eccentricity, object->semimajor_axis,
                  radius);
@@ -248,7 +248,7 @@ void orbits_get_cartesian_coordinates
 		cartesian->z = r * (sin_i * sin_w_v);
 
 
-		engine_trace(TRACE_LEVEL_ALWAYS, 
+		engine_trace(TRACE_LEVEL_DEBUG, 
                  "OBJECT=[%s] ascending_node_longitude [%f] inclination [%f] "
                  "periapsis_argument [%f] true_anomaly [%f] true_anomaly_radius [%f] coordinates [%f, %f, %f]",
                  object->object_name, object->ascending_node_longitude, object->inclination, object->periapsis_argument,
@@ -323,7 +323,7 @@ void orbits_add_coordinates
 		vector_result->y = vector_1->y + vector_2->y;
 		vector_result->z = vector_1->z + vector_2->z;
 
-		engine_trace(TRACE_LEVEL_ALWAYS, 
+		engine_trace(TRACE_LEVEL_DEBUG, 
                  "Adding coordinates [%f, %f, %f] + [%f, %f, %f] = [%f, %f, %f]",
                  vector_1->x, vector_1->y, vector_1->z,
                  vector_2->x, vector_2->y, vector_2->z,
@@ -366,7 +366,7 @@ double orbits_get_distance_between_objects
 
 			distance = sqrt(A + B + C);
 
-			engine_trace(TRACE_LEVEL_ALWAYS, 
+			engine_trace(TRACE_LEVEL_DEBUG, 
                  "Distance between coordinates for [%s] [%f, %f, %f] and [%s] [%f, %f, %f] is [%f]",
                  object1->object_name,
                  position1.x, position1.y, position1.z,
@@ -412,7 +412,7 @@ double orbits_get_distance_from_object
 
 			distance = sqrt(A + B + C);
 
-			engine_trace(TRACE_LEVEL_ALWAYS, 
+			engine_trace(TRACE_LEVEL_DEBUG, 
                  "Distance between coordinates for [%s] [%f, %f, %f] and [%f, %f, %f] is [%f]",
                  object1->object_name,
                  position1.x, position1.y, position1.z,

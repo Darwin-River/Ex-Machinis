@@ -480,7 +480,7 @@ ErrorCode_t event_get_drone_position(int object_id, char* position, double* dist
         }
 
         if(result == ENGINE_OK) {
-            engine_trace(TRACE_LEVEL_ALWAYS,  "[%s] has OBJ_ID=[%d]", sun.object_name, sun.object_id);
+            engine_trace(TRACE_LEVEL_DEBUG,  "[%s] has OBJ_ID=[%d]", sun.object_name, sun.object_id);
 
             // Obtain the drone position from this object ID
             memset(&object, 0, sizeof(ObjectOrbitInfo_t));
@@ -503,7 +503,7 @@ ErrorCode_t event_get_drone_position(int object_id, char* position, double* dist
                         sprintf(position, "%s", drone.object_name);
                     }
 
-                    engine_trace(TRACE_LEVEL_ALWAYS,
+                    engine_trace(TRACE_LEVEL_DEBUG,
                         "OBJ_ID=[%d] CENTRAL_BODY_OBJ_ID=[%d] SUN_OBJECT_ID=[%d]",
                         object.object_id, object.central_body_object_id, sun.object_id);
 
@@ -533,7 +533,7 @@ ErrorCode_t event_get_drone_position(int object_id, char* position, double* dist
         }
 
         if(result == ENGINE_OK) {
-            engine_trace(TRACE_LEVEL_ALWAYS,  "OBJ_ID=[%d] is at [%s]", drone.object_id, drone.object_name);
+            engine_trace(TRACE_LEVEL_DEBUG,  "OBJ_ID=[%d] is at [%s]", drone.object_id, drone.object_name);
 
             // Obtain Earth info
             memset(&earth, 0, sizeof(ObjectOrbitInfo_t));
@@ -545,7 +545,7 @@ ErrorCode_t event_get_drone_position(int object_id, char* position, double* dist
         }
 
         if(result == ENGINE_OK) {
-            engine_trace(TRACE_LEVEL_ALWAYS,  "OBJ_ID=[%d] is at [%s]", earth.object_id, earth.object_name);
+            engine_trace(TRACE_LEVEL_DEBUG,  "OBJ_ID=[%d] is at [%s]", earth.object_id, earth.object_name);
 
             // Get distance between Earth <-> drone
             *distance = orbits_get_distance_from_object(&earth, &final_position);

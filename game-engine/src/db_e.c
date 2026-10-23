@@ -104,7 +104,7 @@ time_t db_date_to_timestamp(char* date, char* format)
     char* conversion_result = strptime(date, format, &tm);
 
     if (conversion_result != NULL) {
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        engine_trace(TRACE_LEVEL_DEBUG,
             "Date [%s] converted to:  year, month, day, hour, min ,sec [%d-%d-%d %02d:%02d:%02d]",
             date,
             tm.tm_year,
@@ -118,7 +118,7 @@ time_t db_date_to_timestamp(char* date, char* format)
         epoch = mktime(&tm);
     }
 
-    engine_trace(TRACE_LEVEL_ALWAYS,
+    engine_trace(TRACE_LEVEL_DEBUG,
         "Converting date into epoch [%s] using format [%s], result = [%ld], conversion_result = [%s]",
         date,
         format,
@@ -340,7 +340,7 @@ static void db_row_to_event(MYSQL_ROW row, Event_t* event)
     // Convert date obtained to time_t
     event->timestamp = db_date_to_timestamp(row[EVENT_TIMESTAMP_IDX], "%F %T");
 
-    engine_trace(TRACE_LEVEL_ALWAYS,
+    engine_trace(TRACE_LEVEL_DEBUG,
         "DATE [%s] => TIMESTAMP [%ld] %s",
         row[EVENT_TIMESTAMP_IDX], event->timestamp, row[EVENT_NEW_LOCATION_IDX]);
 }
@@ -754,7 +754,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
         // Generate timestamp string from time_t
         char timestamp_buffer[80];
         strftime(timestamp_buffer, 80,"%F %T", localtime(&event->timestamp));
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        engine_trace(TRACE_LEVEL_DEBUG,
                     "TIMESTAMP [%ld] => DATE [%s]",
                     event->timestamp, timestamp_buffer);
 
@@ -1328,7 +1328,7 @@ ErrorCode_t db_insert_observation(Observation_t* observation)
     // time_t -> string
     char timestamp_buffer[80];
     strftime(timestamp_buffer, 80,"%F %T", localtime(&observation->timestamp));
-    engine_trace(TRACE_LEVEL_ALWAYS,
+    engine_trace(TRACE_LEVEL_DEBUG,
                 "TIMESTAMP [%ld] => DATE [%s]",
                 observation->timestamp, timestamp_buffer);
 
@@ -1691,7 +1691,7 @@ ErrorCode_t db_get_object_info_by_name_x(char* name, ObjectOrbitInfo_t* object)
                         object->mean_angular_motion = row[MEAN_ANGULAR_MOTION_IDX]?atof(row[MEAN_ANGULAR_MOTION_IDX]):-1;
                     }
 
-                    engine_trace(TRACE_LEVEL_ALWAYS,
+                    engine_trace(TRACE_LEVEL_DEBUG,
                         "NAME [%s] TYPE [%s] obtained for OBJECT_ID [%d]",
                         object->object_name, object->object_type, object->object_id);
                 }
@@ -1797,7 +1797,7 @@ ErrorCode_t db_get_orbit_info_x(ObjectOrbitInfo_t* object)
                         object->mean_angular_motion = row[MEAN_ANGULAR_MOTION_IDX]?atof(row[MEAN_ANGULAR_MOTION_IDX]):-1;
                     }
 
-                    engine_trace(TRACE_LEVEL_ALWAYS,
+                    engine_trace(TRACE_LEVEL_DEBUG,
                         "NAME [%s] TYPE [%s] obtained for OBJECT_ID [%d]",
                         object->object_name, object->object_type, object->object_id);
                 }
