@@ -342,22 +342,24 @@ Although the orbits are typically expressed in the polar representation of the e
 This table stores the parameters of all of all static objects.  These are called static objects because, unlike spacecraft, they never change their orbits.  Figure 1 depicts these parameters with respect to a defined orbit.
 * object_id [INT(11)] - This is a unique identifier for the orbiting object.
 * object_name [VARCHAR(45)] - The searchable name of the object.
-* object_type [VARCHAR(16)] - This classifies the object as a star, planet, moon, asteroid, etc...
+* object_type [VARCHAR(16)] - This classifies the object: Star, Planet, Moon, Station, Asteroid, Comet or Ring. Minerals are found on the body types named in their resource category (see `game-engine/sql/game-data/`).
 * gravitational_parameter [DOUBLE] (μ) - The gravitational parameter of the central body expressed in m3/s2.
 * central_body_object_id [INT(11)] -  This is the ID of the object that is being orbited.
 * mean_angular_motion [DECIMAL(13,9)]  (n) - This is the average angular motion expressed in degrees per day.  It can be derived from the gravitational parameter as described below.
 * epoch [DATETIME] (t0) - The time at which the orbital parameters were defined.  This is typically J2000.
 * eccentricity [DECIMAL(10,9)] (e) - Orbital eccentricity between 0 and 1.
-* semimajor_axis [DOUBLE] (a) - Half of the major axis of the orbital ellipse expressed in meters.
+* semimajor_axis [DOUBLE] (a) - Half of the major axis of the orbital ellipse expressed in kilometers.
 * inclination [DECIMAL(12,9)]  (i) - Defines the angle in degrees between the orbital plane and the reference plane.
 * ascending_node_longitude [DECIMAL(12,9)]  (Ω) - defines the angle in degrees between the reference direction and the upward crossing of the orbit on the reference plane (the ascending node).
-* periapsis_argument [DECIMAL(12,9)]  (ω) - defines the angle in degrees between the ascending node and the periapsis.
-* mean_anomaly [DECIMAL(12,9)]  (M0) - defines the position of the orbiting body along the trajectory at the epoch, measured in degrees from periapsis.
+* periapsis_argument [DECIMAL(12,9)]  (ω) - defines the angle in degrees between the ascending node and the periapsis. This is not the longitude of perihelion (ϖ = Ω + ω) that tables of planetary elements often list: convert with ω = ϖ − Ω.
+* mean_anomaly [DECIMAL(12,9)]  (M0) - defines the position of the orbiting body along the trajectory at the epoch, measured in degrees from periapsis. This is not the mean longitude (L = ϖ + M) that tables of planetary elements often list: convert with M = L − ϖ.
 * computed_on [DATETIME] - This is the time at which the object’s cartesian coordinates were last computed by the Physics Engine.
 * x_coord (DOUBLE) - This is the most recent x coordinate of the object in kilometers.
 * y_coord (DOUBLE) - This is the most recent y coordinate of the object in kilometers.
 * z_coord (DOUBLE) - This is the most recent z coordinate of the object in kilometers.
 * The Inclination, Longitude of the Ascending Node, and Argument of Periapsis help orient the orbital plane in space (Figure 2) whereas the other parameters are used to locate the orbital body on the plane.
+
+The planets, moons and stations come from `game-engine/db-backup/exmachinis_tables.sql`. The asteroids, comets and planetary rings come from `game-engine/sql/game-data/bodies.csv`, which records where each body's elements came from; `build_game_data.py` adds them to `game_data.sql`, and also corrects the planets' elements (see `PLANET_A_AU` in that script). Rings are circular orbits at the ring's mean radius in their planet's frame, like the moons. `make -C game-engine/src test` checks the orbit maths against real, observed positions.
 
 
 Figure 2. A diagram of the various parameters that go into describing an orbital plane.  The plane of reference parallels the Earth’s orbital plane with the reference direction paralleling the vector which points from the Earth to the sun during the vernal equinox.

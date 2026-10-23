@@ -218,6 +218,11 @@ for pid, p in econ_prot.items():
             note('protocol 11 (pull): dropped %d rows that look like a mis-filed recipe (%s)'
                  % (len(bad), ', '.join(str(e['resource']) for e in bad)))
         effs = [e for e in effs if e['resource'] <= 0]
+    if pid in ('10', '11') and num(p[7]) != '1':
+        # The player's manual moves N units: "N R D 10 perform". The quantity
+        # is the process multiplier, so these protocols take one.
+        p = p[:7] + ['1']
+        note(f'protocol {pid} ({p[1]}): multiplier enabled, so "N R D {pid} perform" moves N units as the manual says')
     protocols[pid] = p
     add_effects(pid, effs)
 
@@ -269,13 +274,59 @@ if new_recipes:
 loc_eff = [r for r in econ['Location Effects'][1:] if r and num(r[1]) in protocols]
 mkt_eff = [r for r in econ['Market Effects'][1:] if r and num(r[1]) in protocols]
 
-# --- abundances ------------------------------------------------------------------
+# --- the map: asteroids, comets, rings, and corrected planet orbits ----------------
+
+import csv
+import math
+
+AU_KM = 149597870.7
+GAUSS_DEG_PER_DAY = 0.9856076686           # Sun's mean motion constant (Gauss)
+PLANET_GM_KM3_S2 = {5: 126686534.0, 6: 37931187.0, 7: 5793939.0, 8: 6836529.0}  # JPL
+# JPL "Keplerian elements for approximate positions of the major planets"
+# (Standish), J2000: semi-major axes in au. exmachinis_tables.sql has these
+# rounded (Earth 150,000,000 km), and stores the longitude of perihelion and
+# the mean longitude where the engine expects the argument of periapsis and
+# the mean anomaly. The engine places bodies with the standard Kepler
+# equations, so convert: w = longitude of perihelion - node, M = L - longitude of perihelion.
+PLANET_A_AU = {1: 0.38709927, 2: 0.72333566, 3: 1.00000261, 4: 1.52371034, 5: 5.20288700,
+               6: 9.53667594, 7: 19.18916464, 8: 30.06992276, 9: 39.48211675}
+
+
+def mean_motion(a_km, central):
+    if central == 0:
+        return GAUSS_DEG_PER_DAY / (a_km / AU_KM) ** 1.5
+    gm = PLANET_GM_KM3_S2[central]
+    return math.degrees(math.sqrt(gm / a_km ** 3)) * 86400
+
 
 objects_sql = open(os.path.join(REPO, 'game-engine', 'db-backup', 'exmachinis_tables.sql'), encoding='utf-8').read()
 obj_insert = re.search(r'INSERT INTO `objects` VALUES (.*?);\n', objects_sql, re.S).group(1)
+planet_rows = {}
+for m in re.finditer(r"\((\d+),'((?:[^'\\]|\\.)*)','Planet',[^,]*,[^,]*,'[^']*',[^,]*,[^,]*,([^,]*),([^,]*),[^,]*,([^,]*),", obj_insert):
+    planet_rows[int(m.group(1))] = (m.group(2), float(m.group(3)), float(m.group(4)), float(m.group(5)))
+planet_updates = []
+for pid, (name, lon_peri, mean_lon, node) in sorted(planet_rows.items()):
+    a_km = PLANET_A_AU[pid] * AU_KM
+    w = (lon_peri - node) % 360
+    M = (mean_lon - lon_peri) % 360
+    planet_updates.append((pid, name, round(a_km), round(w, 6), round(M, 6), round(mean_motion(a_km, 0), 9)))
+
+new_bodies = []
+with open(os.path.join(HERE, 'bodies.csv'), encoding='utf-8') as f:
+    for row in csv.DictReader(line for line in f if not line.startswith('#')):
+        central = int(row['central_body'])
+        a_km = float(row['a']) * (AU_KM if row['unit'] == 'au' else 1)
+        new_bodies.append((int(row['id']), row['name'], row['type'], None, central, row['epoch'],
+                           round(a_km, 1), float(row['e']), float(row['w']), float(row['M']),
+                           float(row['i']), float(row['node']), round(mean_motion(a_km, central), 9)))
+
+# --- abundances ------------------------------------------------------------------
+
 bodies = defaultdict(list)
 for m in re.finditer(r"\((\d+),'((?:[^'\\]|\\.)*)','([^']*)'", obj_insert):
     bodies[m.group(3)].append(int(m.group(1)))
+for b in new_bodies:
+    bodies[b[2]].append(b[0])
 abundances = []
 for rid, tag in sorted(mineral_tags.items(), key=lambda kv: int(kv[0])):
     kind = MINERAL_BODY_TYPES.get(tag)
@@ -448,6 +499,19 @@ table('location_effects', ['id', 'protocol', 'event_type', 'location', 'time'],
       [tuple(int(num(x)) for x in (r + [''] * 5)[:5]) for r in loc_eff])
 table('market_effects', ['id', 'protocol', 'event_type', 'resource', 'upper_limit', 'quantity', 'price', 'time'],
       [tuple(int(num(x)) for x in (r + [''] * 8)[:8]) for r in mkt_eff])
+lines.append('-- Asteroids, comets and rings (game-data/bodies.csv)')
+lines.append('DELETE FROM `objects` WHERE object_id IN (%s);' % ', '.join(str(b[0]) for b in new_bodies))
+lines.append('INSERT INTO `objects` (object_id, object_name, object_type, gravitational_parameter, '
+             'central_body_object_id, epoch, semimajor_axis, eccentricity, periapsis_argument, mean_anomaly, '
+             'inclination, ascending_node_longitude, mean_angular_motion) VALUES')
+lines.append(',\n'.join('  (' + ', '.join(sql(v) if not isinstance(v, float) else repr(v) for v in b) + ')'
+                        for b in new_bodies) + ';')
+lines.append('')
+lines.append('-- Planets: argument of periapsis and mean anomaly at J2000, precise semi-major axes')
+for pid, name, a_km, w, M, n in planet_updates:
+    lines.append(f'UPDATE `objects` SET semimajor_axis = {a_km}, periapsis_argument = {w}, mean_anomaly = {M}, '
+                 f'mean_angular_motion = {n} WHERE object_id = {pid}; -- {name}')
+lines.append('')
 table('abundancies', ['location', 'resource', 'multiplier'], abundances)
 table('queries', ['id', 'name', 'description', 'parameters', 'script'], queries)
 lines += ['COMMIT;', 'SET FOREIGN_KEY_CHECKS = 1;', '']
@@ -474,6 +538,7 @@ with open(MANUAL, 'w', encoding='utf-8') as f:
 
 print(f'Wrote {os.path.relpath(OUT, REPO)}: {len(resources)} resources, {len(protocols)} protocols, '
       f'{len(effect_rows)} effects, {len(loc_eff)} location effects, {len(mkt_eff)} market effects, '
+      f'{len(new_bodies)} new bodies, {len(planet_updates)} planet orbit corrections, '
       f'{len(abundances)} abundances, {len(queries)} queries.')
 if notes:
     print('\nAssumptions and gaps:')

@@ -97,6 +97,9 @@ jobs:
       - name: Build game and events engines
         run: make -C game-engine/src all
 
+      - name: Check the orbit maths against real positions
+        run: make -C game-engine/src test
+
   docker:
     runs-on: ubuntu-latest
     steps:
