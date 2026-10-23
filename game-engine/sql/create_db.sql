@@ -461,22 +461,26 @@ COLLATE = utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------
 -- View `exmachinis`.`sqInventory`
--- What each drone currently holds of each resource: the new_quantity of its
--- latest successful (outcome = 1) inventory event (1 = increment,
--- 2 = decrement inventory; see app/EventType.php). Same rule as the cargo
--- manifest in AgentController. Used by the buy/sell order searches.
+-- What each drone currently holds of each resource. An inventory event's
+-- new_quantity counts one state of the resource (installed, locked: a module
+-- in use is locked), so this adds up the latest successful (outcome = 1)
+-- inventory event (1 = increment, 2 = decrement inventory; see
+-- app/EventType.php) of each state. Same rule as the cargo manifest in
+-- AgentController and the events engine's cargo mass. Used by queries and
+-- the buy/sell order searches. game_data.sql redefines it on existing databases.
 -- Rebuilt in 2026: the original definition only survived as fragments in
 -- ms-access/ms_access_client.accdb.
 -- -----------------------------------------------------
 CREATE OR REPLACE VIEW `exmachinis`.`sqInventory` AS
-SELECT e.`drone` AS `drone`, e.`resource` AS `resource`, e.`new_quantity` AS `units`
+SELECT e.`drone` AS `drone`, e.`resource` AS `resource`, CAST(SUM(e.`new_quantity`) AS SIGNED) AS `units`
 FROM `exmachinis`.`events` e
 JOIN (
   SELECT MAX(`id`) AS `id`
   FROM `exmachinis`.`events`
   WHERE `outcome` = 1 AND `event_type` IN (1, 2)
-  GROUP BY `drone`, `resource`
-) latest ON latest.`id` = e.`id`;
+  GROUP BY `drone`, `resource`, `installed`, `locked`
+) latest ON latest.`id` = e.`id`
+GROUP BY e.`drone`, e.`resource`;
 
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;

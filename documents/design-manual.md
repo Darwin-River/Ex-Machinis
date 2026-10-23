@@ -847,6 +847,8 @@ The Events Engine takes the following steps when evaluating events:
   * new_cargo.  The EE will search for the last processed event with the same drone and add that quantity to the new_cargo field of the current event.
   * new_credit.  The EE will search for the last processed event for any drone belonging to the owner of the current drone and add the quantity of the new_credit field of the current event.
 
+   Because new_quantity counts one state of a resource (its installed and locked values: a module in use is locked), a drone's holding of a resource is the sum of the latest successful inventory event of each state. The `sqInventory` view (used by the inventory and market queries), the cargo manifest on the website and the EE's cargo mass all add the states up this way, so a locked module still counts (#210).
+
 4. Next, the EE will ensure that the conditions are sufficient for the event to take place.  It will do so by checking for the following errors:
   * The local field is set to true but the affected drone is not local. The outcome will be set to -1 if this error is detected.
   * The affected ship contains insufficient resources of the indicated state (identical resource, locked, and installed values) to accommodate a depletion event. This happens when the newly computed new_quantity field is less than zero. The outcome will be set to -2 if this error is detected.
