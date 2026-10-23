@@ -11,6 +11,8 @@
 #define _XOPEN_SOURCE
 #include <time.h>
 #include <string.h>
+#include <stdlib.h>
+#include <math.h>
 
 #include "db.h"
 #include "game_time.h"
@@ -2943,6 +2945,48 @@ ErrorCode_t db_get_query_info(Queries_t* queryInfo)
     return result;
 }
 
+/** Text columns: stored as counted strings */
+static Bool_t db_vm_field_is_text(int type)
+{
+    switch(type) {
+        case MYSQL_TYPE_STRING: case MYSQL_TYPE_VAR_STRING: case MYSQL_TYPE_VARCHAR:
+        case MYSQL_TYPE_BLOB: case MYSQL_TYPE_TINY_BLOB: case MYSQL_TYPE_MEDIUM_BLOB:
+        case MYSQL_TYPE_LONG_BLOB: case MYSQL_TYPE_ENUM: case MYSQL_TYPE_SET:
+            return ENGINE_TRUE;
+        default:
+            return ENGINE_FALSE;
+    }
+}
+
+/** Date columns: stored in 4 bytes (vm_write_datetime) */
+static Bool_t db_vm_field_is_date(int type)
+{
+    return (type == MYSQL_TYPE_DATETIME || type == MYSQL_TYPE_TIMESTAMP ||
+            type == MYSQL_TYPE_DATE) ? ENGINE_TRUE : ENGINE_FALSE;
+}
+
+/** Bytes a query result field takes in VM memory (0: not stored) */
+static int db_vm_field_size(int type, const char* value)
+{
+    if(db_vm_field_is_text(type)) {
+        size_t len = value ? strlen(value) : 0;
+        if(len > 255) len = 255;          // the length byte limits it
+        return (int)len + 1;
+    }
+    if(db_vm_field_is_date(type))
+        return 4;
+    switch(type) {
+        case MYSQL_TYPE_TINY: case MYSQL_TYPE_SHORT: case MYSQL_TYPE_LONG:
+        case MYSQL_TYPE_INT24: case MYSQL_TYPE_LONGLONG: case MYSQL_TYPE_DECIMAL:
+        case MYSQL_TYPE_NEWDECIMAL: case MYSQL_TYPE_FLOAT: case MYSQL_TYPE_DOUBLE:
+        case MYSQL_TYPE_YEAR: case MYSQL_TYPE_BIT:
+            return 2;
+        default:
+            engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: query field type [%d] not stored in VM memory", type);
+            return 0;
+    }
+}
+
 /** ****************************************************************************
 
     @brief      Runs a query against DB using info provided by VM.
@@ -3021,74 +3065,61 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
                     queryInfo->finalQuery,
                     fieldsNum);
 
+                // Rows are stored one after another, each field in turn:
+                // numbers as 2-byte cells, dates as 4 bytes, text as a counted
+                // string (a length byte and the characters). Only whole rows
+                // are stored: when the next row doesn't fit, it stops.
                 int currentAddr = queryInfo->resultsArrayAddr;
                 int remainingOffset = queryInfo->resultsArraySize;
+                queryInfo->rowsStored = 0;
 
-                for(int rowId=0; rowId < rowsNum; rowId++) {
+                for(int rowId=0; rowId < rowsNum && stop == ENGINE_FALSE; rowId++) {
                     MYSQL_ROW row = mysql_fetch_row(db_result);
+                    if(!row) break;
 
+                    // How many bytes this row needs
+                    int rowSize = 0;
+                    for(int fieldId=0; fieldId < fieldsNum; fieldId++)
+                        rowSize += db_vm_field_size(fieldTypes[fieldId], row[fieldId]);
 
-                    for(int fieldId=0; fieldId < fieldsNum; fieldId++) {
-                        // check the field type and serialize it into VM memory
-                        if(row)
-                        {
-                            switch(fieldTypes[fieldId]) {
-                                case MYSQL_TYPE_STRING:
-                                case MYSQL_TYPE_VAR_STRING:
-                                {
-                                    size_t len = strlen(row[fieldId]);
-                                    if(remainingOffset < len) {
-                                        engine_trace(TRACE_LEVEL_ALWAYS,
-                                            "No more room left to store string with [%d] bytes (only [%d] bytes left)",
-                                            len,
-                                            remainingOffset);
-
-                                        stop = ENGINE_TRUE;
-                                        break; // stop for
-                                    }
-                                    result = vm_write_string(vm, currentAddr, row[fieldId]);
-                                    currentAddr += len; // we store N bytes
-                                    remainingOffset -= len;
-                                    break;
-                                }
-                                case MYSQL_TYPE_DECIMAL:
-                                case MYSQL_TYPE_LONG:
-                                    if(remainingOffset < 2) {
-                                        engine_trace(TRACE_LEVEL_ALWAYS,
-                                            "No more room left to store integer as 2 bytes (only [%d] bytes left)",
-                                            remainingOffset);
-
-                                        stop = ENGINE_TRUE;
-                                        break; // stop for
-                                    }
-                                    value = atoi(row[fieldId]);
-                                    result = vm_write_integer(vm, currentAddr, value);
-                                    currentAddr += 2; // we store 2 bytes
-                                    remainingOffset -= 2;
-                                    break;
-                                case MYSQL_TYPE_DATETIME:
-                                    if(remainingOffset < 4) {
-                                        engine_trace(TRACE_LEVEL_ALWAYS,
-                                            "No more room left to store date as 4 bytes (only [%d] bytes left)",
-                                            remainingOffset);
-
-                                        stop = ENGINE_TRUE;
-                                        break; // stop for
-                                    }
-                                    result = vm_write_datetime(vm, currentAddr, row[fieldId]);
-                                    currentAddr += 4; // we store 4 bytes
-                                    remainingOffset -= 4;
-                                    break;
-                                default:
-                                    engine_trace(TRACE_LEVEL_ALWAYS,
-                                            "WARNING: Unexpected field type [%d], ignored/not serialized into VM memory",
-                                            fieldTypes[fieldId]);
-                                    break;
-                            }
-                        }
+                    if(rowSize > remainingOffset) {
+                        engine_trace(TRACE_LEVEL_ALWAYS,
+                            "No room left for row [%d] ([%d] bytes, [%d] left): [%d] rows stored",
+                            rowId, rowSize, remainingOffset, queryInfo->rowsStored);
+                        stop = ENGINE_TRUE;
+                        break;
                     }
 
-                    if(stop == ENGINE_TRUE) break; // Stop storing more results, no space left
+                    for(int fieldId=0; fieldId < fieldsNum && result == ENGINE_OK; fieldId++) {
+                        const char* text = row[fieldId] ? row[fieldId] : "";
+                        int size = db_vm_field_size(fieldTypes[fieldId], row[fieldId]);
+
+                        if(size == 0)
+                            continue; // a type we don't store
+
+                        if(db_vm_field_is_text(fieldTypes[fieldId])) {
+                            char counted[256];
+                            snprintf(counted, sizeof(counted), "%.*s", size - 1, text);
+                            result = vm_write_string(vm, currentAddr, counted);
+                        } else if(db_vm_field_is_date(fieldTypes[fieldId]) && row[fieldId]) {
+                            result = vm_write_datetime(vm, currentAddr, row[fieldId]);
+                        } else if(db_vm_field_is_date(fieldTypes[fieldId])) {
+                            result = vm_write_integer(vm, currentAddr, 0);
+                            if(result == ENGINE_OK) result = vm_write_integer(vm, currentAddr + 2, 0);
+                        } else {
+                            // Any number (also COUNT, SUM, decimals): rounded
+                            // to an integer in one 16-bit cell
+                            value = (uint16_t)(long)llround(strtod(text, NULL));
+                            result = vm_write_integer(vm, currentAddr, value);
+                        }
+                        currentAddr += size;
+                        remainingOffset -= size;
+                    }
+
+                    if(result == ENGINE_OK)
+                        queryInfo->rowsStored++;
+                    else
+                        stop = ENGINE_TRUE;
                 }
 
                 if(fieldTypes) engine_free(fieldTypes, fieldsNum * sizeof(int));

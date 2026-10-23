@@ -98,6 +98,7 @@ class ProtocolPagesTest extends TestCase
             ->assertOk()
             ->assertSee('<title>Test query - Ex-Machinis</title>', false)
             ->assertSee('N1 R L 99200 query')
+            ->assertSee('leaves the number of rows it stored', false)
             ->assertDontSee('SELECT 1');
     }
 
