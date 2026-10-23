@@ -94,4 +94,16 @@ class AgentController extends Controller
         $keyword = $request->get('keyword');
         return view('spacecraft.protocols', compact('protocols','keyword'));
     }
+
+    /**
+     * One protocol: what it needs, uses up and makes, and its steps
+     */
+    public function protocol($id)
+    {
+        $protocol = Protocol::findOrFail($id);
+        $details = $protocol->details();
+        $scale = Protocol::timeScale();
+
+        return view('spacecraft.protocol', compact('protocol', 'details', 'scale'));
+    }
 }

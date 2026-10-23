@@ -31,6 +31,7 @@ Route::group(['middleware' => ['web']], function () {
 });
 
 Route::get('/queries', 'HomeController@queryCommands');
+Route::get('/queries/{id}', 'HomeController@queryCommand')->whereNumber('id');
 
 Route::get('message', 'HomeController@message');
 
@@ -53,6 +54,7 @@ Route::get('/spacecraft', 'AgentController@index');
 Route::get('/spacecraft/search', 'AgentController@agentsSearch');
 Route::get('/spacecraft/{id}', 'AgentController@view')->whereNumber('id');
 Route::get('/protocols', 'AgentController@protocols');
+Route::get('/protocols/{id}', 'AgentController@protocol')->whereNumber('id');
 
 //companies
 Route::get('/companies', 'UserController@companyIndex');

@@ -32,7 +32,7 @@
                         {{query.id}}
                     </td>
                     <td>
-                        {{query.name}}
+                        <a :href="'/queries/' + query.id">{{query.name}}</a>
                     </td>
                     <td>
                         {{query.description}}
