@@ -185,6 +185,21 @@ static ErrorCode_t protocol_plan_launch(ProtocolInfo_t *protocol)
   return ENGINE_OK;
 }
 
+/** True when the protocol moves the drone to a location given on the stack */
+static Bool_t protocol_takes_location(ProtocolInfo_t *protocol)
+{
+  LocationEffect_t* effects = NULL;
+  int effectsNum = 0;
+  Bool_t takes = ENGINE_FALSE;
+
+  if(db_get_location_effects(protocol, &effects, &effectsNum) == ENGINE_OK) {
+    for(int i = 0; i < effectsNum; i++)
+      if(effects[i].location == -1) takes = ENGINE_TRUE;
+  }
+  free(effects);
+  return takes;
+}
+
 /** Game seconds after the action starts that an effect takes place */
 static int protocol_effect_delay(ProtocolInfo_t *protocol, int time)
 {
@@ -962,8 +977,11 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
             protocol.process_multiplier,
             protocol.protocol_id);
     }
-  } else if(result == ENGINE_OK && !protocol.multiplier && vm_extension_depth(vmExt) > 0) {
-    // We can receive an optional location for location effects
+  } else if(result == ENGINE_OK && !protocol.multiplier && protocol_takes_location(&protocol) &&
+            vm_extension_depth(vmExt) > 0) {
+    // A move whose destination comes from the stack (travel: N 5001
+    // perform). Other protocols take no location: popping one would eat a
+    // value that belongs to the script (#236)
     ErrorCode_t vm_result = vm_extension_pop(vmExt, &stack_value);
     if(vm_result == ENGINE_OK) {
       protocol.optional_location = stack_value;

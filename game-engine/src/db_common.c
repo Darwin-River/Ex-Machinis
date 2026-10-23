@@ -214,6 +214,35 @@ static ErrorCode_t db_add_column(DbConnection_t* connection, const char* table, 
     return db_exec(connection, query_text);
 }
 
+/* Turns a VARCHAR column into TEXT (older databases) */
+static ErrorCode_t db_make_text_column(DbConnection_t* connection, const char* table, const char* column, const char* definition)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    int is_varchar = 0;
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() "
+        "AND table_name = '%s' AND column_name = '%s' AND data_type = 'varchar'", table, column);
+
+    if(mysql_query(connection->hndl, query_text))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return ENGINE_DB_QUERY_ERROR;
+    }
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+    is_varchar = (row && row[0] && atoi(row[0]) > 0);
+    if(db_result) mysql_free_result(db_result);
+
+    if(!is_varchar)
+        return ENGINE_OK;
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Making %s.%s a TEXT column", table, column);
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "ALTER TABLE %s MODIFY %s %s", table, column, definition);
+    return db_exec(connection, query_text);
+}
+
 ErrorCode_t db_upgrade_schema(void)
 {
     DbConnection_t* connection = engine_get_db_connection();
@@ -233,6 +262,11 @@ ErrorCode_t db_upgrade_schema(void)
     // its drone (unix seconds), and replies waiting to reach Earth
     if(result == ENGINE_OK)
         result = db_add_column(connection, "commands", "deliver_at", "BIGINT NULL");
+
+    // Scripts longer than 2,048 characters (the engine takes up to
+    // MAX_COMMAND_CODE_SIZE), such as a whole library sent in one <reset>
+    if(result == ENGINE_OK)
+        result = db_make_text_column(connection, "commands", "code", "TEXT NOT NULL");
 
     if(result == ENGINE_OK)
         result = db_exec(connection, GAME_CLOCK_TABLE_SQL);
