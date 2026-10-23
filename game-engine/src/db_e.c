@@ -2575,8 +2575,8 @@ ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* ne
     if(result == ENGINE_OK)
     {
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-            "INSERT INTO commands (code, agent_id, created_at, updated_at, subject, deliver_at) "
-            "VALUES ('%s', %d, NOW(), NOW(), 'Launched', UNIX_TIMESTAMP())",
+            "INSERT INTO commands (code, agent_id, created_at, updated_at, subject, email_content, deliver_at) "
+            "VALUES ('%s', %d, NOW(), NOW(), 'Launched', '', UNIX_TIMESTAMP())",
             META_COMMAND_LAUNCHED, *new_id);
         result = db_launch_exec(connection, query_text);
     }
