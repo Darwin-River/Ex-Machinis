@@ -9,6 +9,7 @@
 /******************************* INCLUDES ************************************/
 
 #define _XOPEN_SOURCE
+#include <stdlib.h>
 #include <time.h>
 #include <string.h>
 
@@ -154,3 +155,83 @@ ErrorCode_t db_get_event_object_id(Event_t *event, int *object_id)
 }
 
 
+
+/** ****************************************************************************
+
+    @brief          Runs one statement that returns no rows
+
+*******************************************************************************/
+static ErrorCode_t db_exec(DbConnection_t* connection, const char* query_text)
+{
+    ErrorCode_t result = db_reconnect(connection);
+
+    if((result == ENGINE_OK) && mysql_query(connection->hndl, query_text))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Adds the actions columns that report failed actions
+                    (outcome, reported) to databases created before them
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_upgrade_schema(void)
+{
+    DbConnection_t* connection = engine_get_db_connection();
+    ErrorCode_t result = db_reconnect(connection);
+    int missing = 0;
+
+    if(result == ENGINE_OK)
+    {
+        const char* check = "SELECT COUNT(*) FROM information_schema.columns "
+                            "WHERE table_schema = DATABASE() AND table_name = 'actions' AND column_name = 'outcome'";
+        if(mysql_query(connection->hndl, check))
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", check);
+            return ENGINE_DB_QUERY_ERROR;
+        }
+
+        MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+        MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+        missing = (row && row[0] && atoi(row[0]) == 0);
+        if(db_result) mysql_free_result(db_result);
+    }
+
+    if((result == ENGINE_OK) && missing)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Adding actions.outcome and actions.reported columns");
+        result = db_exec(connection,
+            "ALTER TABLE actions ADD COLUMN outcome INT NULL, "
+            "ADD COLUMN reported TINYINT UNSIGNED NOT NULL DEFAULT 0");
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Records why an action failed (the first reason only), so
+                    the game engine can tell the player
+
+    @param[in]      action_id Action ID
+    @param[in]      outcome   Failing event outcome (Outcome_t)
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_set_action_outcome(int action_id, int outcome)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "UPDATE actions SET outcome = %d WHERE id = %d AND outcome IS NULL", outcome, action_id);
+
+    return db_exec(engine_get_db_connection(), query_text);
+}

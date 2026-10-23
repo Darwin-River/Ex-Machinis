@@ -44,6 +44,18 @@ ErrorCode_t protocol_read_parameters(ProtocolInfo_t *protocol, VmExtension_t* vm
   ErrorCode_t result = ENGINE_OK;
 
   if(protocol && vmExt) {
+    // Too few values: pop none, so perform can still leave its error code
+    if(vm_extension_depth(vmExt) < (size_t)protocol->parameters_num) {
+      engine_trace(TRACE_LEVEL_ALWAYS,
+        "ERROR: protocol ID [%d] needs [%d] parameters, the stack has [%d]",
+        protocol->protocol_id, protocol->parameters_num, (int)vm_extension_depth(vmExt));
+
+      // Drop the ones given, so they don't linger on the stack
+      int dropped;
+      while(vm_extension_depth(vmExt) > 0) vm_extension_pop(vmExt, &dropped);
+      return ENGINE_MISSING_PARAMETERS;
+    }
+
     // Store them at array
     for(int i=0; i < protocol->parameters_num; i++) {
       result = vm_extension_pop(vmExt, &protocol->parameters[i]);
@@ -811,12 +823,12 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
 
   // Abort action when something failed
   if((result != ENGINE_OK) && (actionCreated == ENGINE_FALSE)) {
-    // Unknown protocol (no action was created): -1, as mechanics.md says
+    // Unknown protocol (no action was created): -1
     vm_extension_push(vmExt, -1);
   } else if((result != ENGINE_OK) && (actionCreated == ENGINE_TRUE)) {
-    // sprintf(protocolMsg, "Protocol \"%s\" failed", protocol.protocol_name);
-    // Push zero into VM stack
-    vm_extension_push(vmExt, 0);
+    // Too few parameters on the stack: -2. Refused (e.g. a missing module
+    // or a parameter that doesn't exist): 0
+    vm_extension_push(vmExt, (result == ENGINE_MISSING_PARAMETERS) ? -2 : 0);
     // delete any event for current action
     db_delete_action_events(action.action_id);
     // abort action

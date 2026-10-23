@@ -134,6 +134,9 @@ ErrorCode_t engine_init_db()
 	// db
 	result = db_init(&engine.db_connection);
 
+	// Add columns newer code needs to older databases
+	if(result == ENGINE_OK) db_upgrade_schema();
+
 	return result;
 }
 

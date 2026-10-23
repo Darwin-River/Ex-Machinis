@@ -729,6 +729,12 @@ ErrorCode_t event_process_market_transaction
     // drone + resource + event_type (SELL or BUY) + outcome = OK
     Event_t sell_buy_event;
     result = db_get_previous_event(event, filter, &sell_buy_event);
+    if(result != ENGINE_OK) {
+        engine_trace(TRACE_LEVEL_ALWAYS,
+            "Drone [%d] has no %s order for resource [%d]",
+            event->drone_id, (selling == ENGINE_TRUE) ? "sell" : "buy", event->resource_id);
+        event->outcome = OUTCOME_NO_MARKET_ORDER;
+    }
 
     // Sell order found - get current resource quantity
     resource_quantity = previous_resource_event->new_quantity;
@@ -1113,6 +1119,11 @@ static void event_record_failure(Event_t *event, int outcome)
     event->outcome = outcome;
     db_update_event(event);
     event_abort_action(event);
+
+    // Keep why the action failed, so the game engine can tell the player
+    // (not when it was aborted for another reason, such as by the player)
+    if(outcome != OUTCOME_ACTION_ABORTED)
+        db_set_action_outcome(event->action_id, outcome);
 }
 
 /** ****************************************************************************

@@ -218,7 +218,14 @@ Every physical action your spacecraft takes will result from calls to predefined
 
 You can find a current list of protocols on the website (http://exmachinis.com/protocols).
 
-Protocols are invoked by sending your drone a FORTH script that calls upon the `perform` function. This function pulls one or more parameters from the stack. These parameters provide the ID for the protocol you want to perform and any other parameters that are required by the protocol. `perform` leaves an action ID on the stack, so `.` after it prints the ID of the action you started, or -1 if the protocol doesn't exist.
+Protocols are invoked by sending your drone a FORTH script that calls upon the `perform` function. This function pulls one or more parameters from the stack. These parameters provide the ID for the protocol you want to perform and any other parameters that are required by the protocol. `perform` leaves a number on the stack, so `.` after it prints:
+
+- the ID of the action you started, when the protocol was accepted
+- -1 if the protocol doesn't exist
+- -2 if the stack holds too few parameters for it (the ones it does hold are dropped)
+- 0 if the protocol was refused, for example because the drone lacks the module it needs or a parameter names something that doesn't exist
+
+An accepted action can still fail later, when its effects take place: for example, the cargo hold fills up, or a trade partner has no matching order. Your drone then emails you a short notice, "Action N failed", saying why.
 
 ### Unpacking your starter kit
 
@@ -358,7 +365,7 @@ In this example, the word `AddFive` really doesn't offer much advantage over sim
 
 Give this a try with your own spacecraft! I'm sure you can come up with more useful definitions than the one provided here.
 
-Keep each line of your scripts under 80 characters: the interpreter reads at most 80 characters of a line at a time, and a longer line is split mid-word.
+The interpreter reads at most 79 characters of a line at a time. The game splits longer lines for you, between words, and keeps each string (`." ..."`, `s" ..."`, `.( ...)`) and each defining word with its name (`: name`) on one line. Comments are dropped from a line it splits. A single string longer than 79 characters can't be split: the drone replies with an error and runs nothing, so break such a string into shorter ones.
 
 ### Commenting on your code
 

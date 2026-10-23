@@ -12,7 +12,7 @@ LDFLAGS=-lmysqlclient -lconfig -lm
 #---------------------------------------------------------------------------
 # Program sources and name
 #---------------------------------------------------------------------------
-GAME_ENGINE_SRCS=config.c db.c db_common.c email.c embed.c embed_image.c embed_util.c engine.c main.c orbits.c protocol.c trace.c vm.c vm_extension.c
+GAME_ENGINE_SRCS=config.c db.c db_common.c email.c embed.c embed_image.c embed_util.c engine.c main.c orbits.c protocol.c trace.c vm.c vm_extension.c wrap.c
 EVENTS_ENGINE_SRCS=main_e.c engine_e.c config_e.c db_e.c db_common.c trace.c event.c orbits.c
 OBJS_PATH=objs
 GAME_ENGINE_OBJS=$(patsubst %.c,$(OBJS_PATH)/%.o,$(GAME_ENGINE_SRCS))
@@ -51,11 +51,14 @@ $(EXE_PATH)/eforth.blk: dump_image.c embed_image.c
 	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/dump_image dump_image.c embed_image.c
 	$(OBJS_PATH)/dump_image > $@
 
-# Orbit maths checked against real positions (needs no database)
-test: test_orbits.c orbits.c
+# Orbit maths checked against real positions, and long-line wrapping
+# checked on the FORTH VM (need no database)
+test: test_orbits.c orbits.c test_wrap.c wrap.c
 	@mkdir -p $(OBJS_PATH)
 	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/test_orbits test_orbits.c -lm
 	$(OBJS_PATH)/test_orbits
+	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/test_wrap test_wrap.c wrap.c embed.c embed_image.c embed_util.c
+	$(OBJS_PATH)/test_wrap
 
 clean:
 	$(RM) -rf $(OBJS_PATH) $(GAME_ENGINE_EXE_NAME) $(EVENTS_ENGINE_EXE_NAME) $(EXE_PATH)/eforth.blk

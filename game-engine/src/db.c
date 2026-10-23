@@ -3292,3 +3292,70 @@ ErrorCode_t db_get_abundancies(Abundancies_t *abundancies)
 
     return result;
 }
+
+/** ****************************************************************************
+
+    @brief          Gets failed actions not yet reported to their players and
+                    marks them reported
+
+    @param[in]      connection DB connection
+    @param[out]     out        Failed actions found
+    @param[in]      max        Size of out
+    @param[out]     count      Number found
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_take_failed_actions(DbConnection_t* connection, FailedAction_t* out, int max, int* count)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    ErrorCode_t result = db_reconnect(connection);
+
+    *count = 0;
+    if(result != ENGINE_OK)
+        return result;
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT a.id, a.drone, ag.object_id, a.outcome, p.name, "
+        "(SELECT r.name FROM events e JOIN resources r ON r.id = e.resource "
+        " WHERE e.action = a.id AND e.outcome = a.outcome ORDER BY e.id LIMIT 1) "
+        "FROM actions a JOIN agents ag ON ag.agent_id = a.drone "
+        "LEFT JOIN protocols p ON p.id = a.protocol "
+        "WHERE a.outcome < 0 AND a.reported = 0 ORDER BY a.id LIMIT %d", max);
+
+    if(mysql_query(connection->hndl, query_text))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    MYSQL_ROW row;
+
+    while(db_result && (*count < max) && (row = mysql_fetch_row(db_result)))
+    {
+        FailedAction_t* f = &out[*count];
+        memset(f, 0, sizeof(*f));
+        f->action_id = row[0] ? atoi(row[0]) : 0;
+        f->drone_id = row[1] ? atoi(row[1]) : 0;
+        f->object_id = row[2] ? atoi(row[2]) : 0;
+        f->outcome = row[3] ? atoi(row[3]) : 0;
+        snprintf(f->protocol_name, sizeof(f->protocol_name), "%s", row[4] ? row[4] : "");
+        snprintf(f->resource_name, sizeof(f->resource_name), "%s", row[5] ? row[5] : "");
+        (*count)++;
+    }
+
+    if(db_result) mysql_free_result(db_result);
+
+    for(int i = 0; i < *count; i++)
+    {
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "UPDATE actions SET reported = 1 WHERE id = %d", out[i].action_id);
+        if(mysql_query(connection->hndl, query_text))
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            result = ENGINE_DB_QUERY_ERROR;
+        }
+    }
+
+    return result;
+}
