@@ -256,7 +256,7 @@ Failures are not emailed to you: a drone running on its own should check and res
 
 ### Unpacking your starter kit
 
-Each of your spacecraft starts with a Starter Kit I (resource 5901) in its cargo hold. It contains the modules you need to get going: an Engine (A1) for travel, a Worm (A1) for mining moons, a Shuttle (A1), a Chemical Reactor (A1), a Smelter I and a Spider (A1). Unpack it by performing protocol 25901:
+Each of your spacecraft starts with a Starter Kit I (resource 5901) in its cargo hold. It contains the modules you need to get going: an Engine (A1) for travel, a Worm (A1) for mining moons, a Shuttle (A1), a Chemical Reactor (A1), a Smelter (A1) and a Spider (A1). The Smelter, Chemical Reactor and Spider are the tools for everything you make up to systems (see [Producing more complex spacecraft components](#producing-more-complex-spacecraft-components)). Unpack it by performing protocol 25901:
 
 ```
 <run>
@@ -348,9 +348,11 @@ To mine a particular mineral, send your drone to a location that contains the mi
 </run>
 ```
 
+Mining takes 1 hour of game time (1 minute with the default clock). The mining module is locked while it works, and the mineral arrives at the end. How much you get depends on how plentiful the mineral is at the location.
+
 ### Reprocessing minerals
 
-Minerals can be reprocessed to extract the purified metallic, organic, and inorganic components that are required for the manufacturing process. Since reprocessing essentially breaks down the minerals into their constituent parts, the IDs for protocols associated with reprocessing minerals are derived by adding 20000 to the mineral's resource ID. For example, protocol 21000 produces 2 units of Inorganics (A1), 1 unit of Metals (A1), and 1 unit of Organics (A1) from 20 units of magmite. It needs a Smelter (A1) module (Resource ID 5201; not the Smelter I in your starter kit).
+Minerals can be reprocessed to extract the purified metallic, organic, and inorganic components that are required for the manufacturing process. Since reprocessing essentially breaks down the minerals into their constituent parts, the IDs for protocols associated with reprocessing minerals are derived by adding 20000 to the mineral's resource ID. For example, protocol 21000 produces 1 unit of Metals (A1), 2 units of Inorganics (A1) and 1 unit of Organics (A1) from 20 units of magmite. It needs the Smelter (A1) from your starter kit and takes 2 hours of game time.
 
 Provided you have enough magmite onboard, this is easily accomplished by sending the command to your drone:
 
@@ -372,9 +374,28 @@ Since these are synthetic processes, the associated protocol IDs are derived by 
 </run>
 ```
 
+This uses your Chemical Reactor (A1) and takes 2 hours of game time.
+
 ### Producing more complex spacecraft components
 
-In a similar manner, you can use protocols to synthesize parts from materials, systems from parts, and modules and hulls from systems. In each case, the process is invoked by calling upon your drone to perform a protocol whose ID is derived by adding ten thousand to the resource ID of the resource that you're trying to produce. You can find a complete list of these protocols on the online protocols page (http://exmachinis.com/protocols). Click a protocol to see the modules it needs, what it uses up and produces, how long it takes, and each of its steps. The queries page (http://exmachinis.com/queries) works the same way.
+In a similar manner, you can use protocols to synthesize parts from materials, systems from parts, modules from systems, and ship kits from modules. In each case, the process is invoked by calling upon your drone to perform a protocol whose ID is derived by adding ten thousand to the resource ID of the resource that you're trying to produce. You can find a complete list of these protocols on the online protocols page (http://exmachinis.com/protocols). Click a protocol to see the modules it needs, what it uses up and produces, how long it takes, and each of its steps. The queries page (http://exmachinis.com/queries) works the same way.
+
+Every production protocol locks one tool module while it works, and each stage takes longer than the one before:
+
+| What you make | Protocol IDs | Tool needed | Game time | With the default clock |
+| --- | --- | --- | --- | --- |
+| Minerals (mining) | 11xxx | Slug, Worm or Crawler | 1 hour | 1 minute |
+| Refined materials | 21xxx | Smelter (A1) | 2 hours | 2 minutes |
+| Alloys | 12021–12023 | Smelter (A1) | 2 hours | 2 minutes |
+| Organics and polymers | 12042–12053 | Chemical Reactor (A1) | 2 hours | 2 minutes |
+| Metal parts | 13xxx | Smelter (A1) | 4 hours | 4 minutes |
+| Belts and hoses | 13141, 13301 | Chemical Reactor (A1) | 4 hours | 4 minutes |
+| Systems | 14xxx | Spider (A1) | 8 hours | 8 minutes |
+| Spider, Welder, Riveter | 15501, 15511, 15521 | Spider (A1) | 1 day | 24 minutes |
+| Other modules | 15xxx | Welder (A1) | 1 day | 24 minutes |
+| Ship kits | 16xxx | Riveter (A1) | 3 days | 72 minutes |
+
+Your starter kit's Smelter, Chemical Reactor and Spider take you as far as systems. To make modules, first build a Welder (A1) with your Spider (protocol 15511); for ship kits, a Riveter (A1) (protocol 15521). Ship kits can be made and traded, but can't be turned into new spacecraft yet.
 
 ## Chapter 5: Building A Vocabulary
 

@@ -45,6 +45,17 @@ def note(msg):
     notes.append(msg)
 
 
+# Typos in names from the spreadsheets
+NAME_FIXES = {'Synhtesize': 'Synthesize', 'Manurfacture': 'Manufacture', 'Priduce': 'Produce',
+              'Prouce': 'Produce', 'pullies': 'pulleys', 'Chagres': 'Charges'}
+
+
+def fix_name(name):
+    for wrong, right in NAME_FIXES.items():
+        name = name.replace(wrong, right)
+    return ' '.join(name.split())
+
+
 # --- xlsx reading (stdlib only) ----------------------------------------------
 
 def read_xlsx(path):
@@ -123,7 +134,7 @@ for r in design['Resources'][1:]:
         continue
     e = econ_res.get(rid)
     resources[rid] = {
-        'id': int(rid), 'name': r[1].strip()[:45], 'description': r[2].strip(),
+        'id': int(rid), 'name': fix_name(r[1].strip())[:45], 'description': r[2].strip(),
         'mass': int(round(float(r[3] or 0))),
         'capacity': int(num(e[4]) or 0) if e else 0,
         'slot_size': int(num(e[5]) or 0) if e else 0,
@@ -134,6 +145,7 @@ for r in design['Resources'][1:]:
 # --- recipes from the design workbook ------------------------------------------
 
 recipes = {}  # protocol id -> {'inputs': {res: qty}, 'outputs': {res: qty}, 'sheet', 'product'}
+empty_columns = {}  # protocol id -> sheet, for columns without a recipe
 for sheet, rows in design.items():
     if sheet == 'Resources' or len(rows) < 14:
         continue
@@ -149,13 +161,91 @@ for sheet, rows in design.items():
             if len(r) > ci and r[1].strip() and num(r[0]).isdigit() and r[ci] not in ('', '0', '0.0'):
                 comps[num(r[0])] = int(round(float(r[ci])))
         if not product.isdigit() or not comps:
-            note(f'recipe {pid} ({sheet}): no product or no components in the sheet, skipped')
+            empty_columns[pid] = sheet   # reported below unless recipes-extra.csv has it
             continue
         pq = int(round(float(qty or 1))) or 1
         if product_is_input:
             recipes[pid] = {'inputs': {product: pq}, 'outputs': comps, 'sheet': sheet, 'product': product}
         else:
             recipes[pid] = {'inputs': comps, 'outputs': {product: pq}, 'sheet': sheet, 'product': product}
+
+# Recipes resources.xlsx doesn't have yet (recipes-extra.csv, #298); the
+# spreadsheet wins when it has the same protocol
+import csv
+with open(os.path.join(HERE, 'recipes-extra.csv'), encoding='utf-8') as f:
+    for row in csv.DictReader(l for l in f if not l.startswith('#')):
+        pid = row['protocol'].strip()
+        if pid in recipes:
+            continue
+        comps = {}
+        for tok in row['components'].split():
+            rid, _, n = tok.partition('*')
+            comps[rid] = comps.get(rid, 0) + int(n or 1)
+        recipes[pid] = {'inputs': comps, 'outputs': {row['product'].strip(): int(row['quantity'])},
+                        'sheet': 'recipes-extra.csv', 'product': row['product'].strip()}
+for pid, sheet in sorted(empty_columns.items()):
+    if pid == '10000':
+        continue  # an empty column in the kits sheet, with no product (#298)
+    if pid not in recipes:
+        note(f'recipe {pid} ({sheet}): no product or no components in the sheet or recipes-extra.csv, skipped')
+
+# --- production: tools and timing (#298) ---------------------------------------
+# Every recipe locks one tool module while it runs and takes game time
+# (seconds), doubling at each stage. The starter kit holds the Smelter (A1),
+# Chemical Reactor (A1) and Spider (A1), which cover everything up to systems;
+# the Spider builds the Welder and Riveter the later stages need.
+HOUR, DAY = 3600, 86400
+MINING_TIME = 1 * HOUR
+TRANSFER_TIME = 60          # push and pull: one game minute
+SMELTER, CHEM_REACTOR, SPIDER, WELDER, RIVETER = 5201, 5211, 5501, 5511, 5521
+
+
+def production_stage(pid):
+    """(tool resource, game seconds) for a recipe protocol"""
+    p = int(pid)
+    if 21000 <= p < 22000:
+        return SMELTER, 2 * HOUR                       # refining ore
+    if p in (12021, 12022, 12023):
+        return SMELTER, 2 * HOUR                       # alloys
+    if 12000 <= p < 13000:
+        return CHEM_REACTOR, 2 * HOUR                  # organics and polymers
+    if p in (13141, 13301):
+        return CHEM_REACTOR, 4 * HOUR                  # polymer parts (belts, hoses)
+    if 13000 <= p < 14000:
+        return SMELTER, 4 * HOUR                       # metal parts
+    if 14000 <= p < 15000:
+        return SPIDER, 8 * HOUR                        # systems
+    if p in (15501, 15511, 15521):
+        return SPIDER, 1 * DAY                         # Spider, Welder, Riveter
+    if 15000 <= p < 16000:
+        return WELDER, 1 * DAY                         # other modules
+    if 16000 <= p < 17000:
+        return RIVETER, 3 * DAY                        # ship kits
+    return None
+
+
+def production_effects(tool, total, rec):
+    """The refining pattern: check the tool, use the inputs, lock the tool,
+    unlock it, then produce"""
+    def eff(time, resource, event_type, locked, quantity):
+        return {'time': time, 'drone': 0, 'resource': int(resource), 'event_type': event_type, 'local': 1,
+                'installed': 0, 'locked': locked, 'deplete': 1 if event_type == 2 else 0, 'abundancies': 0,
+                'quantity': quantity}
+    effs = [eff(0, tool, 1, 0, 1), eff(0, tool, 2, 0, 1)]
+    effs += [eff(1, rid, 2, 0, q) for rid, q in rec['inputs'].items()]
+    effs += [eff(2, tool, 2, 0, 1), eff(2, tool, 1, 1, 1)]
+    effs += [eff(total - 1, tool, 2, 1, 1), eff(total - 1, tool, 1, 0, 1)]
+    effs += [eff(total, rid, 1, 0, q) for rid, q in rec['outputs'].items()]
+    return effs
+
+
+def game_duration(seconds):
+    for size, unit in ((DAY, 'day'), (HOUR, 'hour'), (60, 'minute')):
+        if seconds >= size and seconds % size == 0:
+            n = seconds // size
+            return f'{n} {unit}' + ('s' if n != 1 else '')
+    return f'{seconds} seconds'
+
 
 # --- protocols and effects from economy.xlsx ----------------------------------
 
@@ -223,52 +313,56 @@ for pid, p in econ_prot.items():
         # is the process multiplier, so these protocols take one.
         p = p[:7] + ['1']
         note(f'protocol {pid} ({p[1]}): multiplier enabled, so "N R D {pid} perform" moves N units as the manual says')
+    if pid == '25901':
+        # The kit's Smelter I (5221) can't refine: refining needs Smelter (A1)
+        effs = [dict(e, resource=SMELTER if e['resource'] == 5221 else e['resource']) for e in effs]
+    if pid.startswith('11') and len(pid) == 5 and effs:
+        # Mining: lock the module at 0, unlock it a second before the end,
+        # the mineral arrives at the end
+        old_end = max(e['time'] for e in effs)
+        effs = [dict(e, time=MINING_TIME if e['time'] == old_end else
+                     MINING_TIME - 1 if e['time'] == old_end - 1 else e['time']) for e in effs]
+        # "Uses a Worm I mining module": the modules are named (A1); say how long
+        desc = re.sub(r'\b(Slug|Worm|Crawler|Skimmer) I mining module', r'\1 (A1) mining module', ' '.join(p[4].split()))
+        p = p[:4] + [f'{desc} Takes {game_duration(MINING_TIME)}.'] + p[5:]
+    if pid in ('10', '11'):
+        effs = [dict(e, time=TRANSFER_TIME) if e['time'] > 0 else e for e in effs]
+        p = p[:4] + [p[4].replace('This procedure takes one minute to complete.', 'It takes one minute of game time.')] + p[5:]
     protocols[pid] = p
     add_effects(pid, effs)
 
-# Recipes: quantities from resources.xlsx, timing and modules from economy.xlsx
-new_recipes = []
+# Recipes: quantities from resources.xlsx (or recipes-extra.csv); tool and
+# timing by stage (production_stage); names from economy.xlsx where it has one
 for pid, rec in sorted(recipes.items(), key=lambda kv: int(kv[0])):
     for rid in list(rec['inputs']) + list(rec['outputs']):
         if rid not in resources:
             note(f'recipe {pid}: unknown resource {rid}')
-    if pid in econ_prot and econ_eff.get(pid):
-        protocols[pid] = econ_prot[pid]
-        old = econ_eff[pid]
-        materials = set(rec['inputs']) | set(rec['outputs'])
-        econ_in = {str(e['resource']) for e in old if e['deplete'] and not e['locked']}
-        econ_out = {str(e['resource']) for e in old if not e['deplete'] and not e['locked']}
-        # module rows: resources the recipe uses but neither consumes nor makes
-        modules = {str(e['resource']) for e in old} - (econ_in ^ econ_out) - materials
-        in_time = max([e['time'] for e in old if str(e['resource']) in econ_in - modules] or [NEW_RECIPE_INPUT_TIME])
-        out_time = max([e['time'] for e in old if str(e['resource']) in econ_out - modules] or [NEW_RECIPE_OUTPUT_TIME])
-        effs = [dict(e) for e in old if str(e['resource']) in modules]
-        for rid, q in rec['inputs'].items():
-            effs.append({'time': in_time, 'drone': 0, 'resource': int(rid), 'event_type': 2, 'local': 1,
-                         'installed': 0, 'locked': 0, 'deplete': 1, 'abundancies': 0, 'quantity': q})
-        for rid, q in rec['outputs'].items():
-            effs.append({'time': out_time, 'drone': 0, 'resource': int(rid), 'event_type': 1, 'local': 1,
-                         'installed': 0, 'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': q})
-        add_effects(pid, effs)
-    else:
-        prod = resources.get(rec['product'], {}).get('name', rec['product'])
-        verb = 'Refine' if rec['sheet'].startswith('Minerals to') else 'Make'
-        ins = ', '.join(f'{q} {resources.get(r, {}).get("name", r)}' for r, q in rec['inputs'].items())
-        outs = ', '.join(f'{q} {resources.get(r, {}).get("name", r)}' for r, q in rec['outputs'].items())
-        protocols[pid] = [pid, f'{verb} {prod}'[:45], '0', '100',
-                          f'[{pid} perform]: Uses {ins} to make {outs}.'[:255], '1', '1', '0']
-        effs = []
-        for rid, q in rec['inputs'].items():
-            effs.append({'time': NEW_RECIPE_INPUT_TIME, 'drone': 0, 'resource': int(rid), 'event_type': 2,
-                         'local': 1, 'installed': 0, 'locked': 0, 'deplete': 1, 'abundancies': 0, 'quantity': q})
-        for rid, q in rec['outputs'].items():
-            effs.append({'time': NEW_RECIPE_OUTPUT_TIME, 'drone': 0, 'resource': int(rid), 'event_type': 1,
-                         'local': 1, 'installed': 0, 'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': q})
-        add_effects(pid, effs)
-        new_recipes.append(pid)
-if new_recipes:
-    note('%d recipes are new in resources.xlsx and got the default timing (inputs at %ds, outputs at %ds, '
-         'no module): %s' % (len(new_recipes), NEW_RECIPE_INPUT_TIME, NEW_RECIPE_OUTPUT_TIME, ', '.join(new_recipes)))
+    stage = production_stage(pid)
+    if stage is None:
+        note(f'recipe {pid}: no production stage for this protocol range, left out')
+        continue
+    tool, total = stage
+    prod = resources.get(rec['product'], {}).get('name', rec['product'])
+    verb = 'Refine' if rec['sheet'].startswith('Minerals to') else 'Make'
+    # Refining keeps its name ("Refine kunspar"); others are named after their
+    # product: some economy.xlsx names contradict what the recipe makes
+    name = fix_name(econ_prot[pid][1]) if pid in econ_prot and verb == 'Refine' else f'{verb} {prod}'
+    words = lambda items: ', '.join(f'{q} {resources.get(r, {}).get("name", r)}' for r, q in items.items())
+    tail = f' Needs a {resources[str(tool)]["name"]}; takes {game_duration(total)}.'
+    desc = f'[{pid} perform]: Uses {words(rec["inputs"])} to make {words(rec["outputs"])}.' + tail
+    if len(desc) > 255:
+        desc = (f'[{pid} perform]: Makes {words(rec["outputs"])} from '
+                f'{sum(rec["inputs"].values())} {"modules" if pid.startswith("16") else "components"} '
+                f'(see its protocol page).' + tail)
+    flags = econ_prot[pid][5:8] if pid in econ_prot else ['1', '1', '0']
+    protocols[pid] = [pid, name[:45], '0', '100', desc[:255]] + list(flags)
+    add_effects(pid, production_effects(tool, total, rec))
+
+# Smelter I (5221) was only kept for the starter kit, which now gives Smelter (A1)
+if '5221' in resources and not any(e['resource'] == 5221 for _, e in effects):
+    del resources['5221']
+    notes[:] = [n for n in notes if not n.startswith('resource 5221 ')]
+    note('resource 5221 "Smelter I" dropped: the starter kit gives Smelter (A1) 5201, which refining needs')
 
 # Location and market effects: only for protocols we keep
 loc_eff = [r for r in econ['Location Effects'][1:] if r and num(r[1]) in protocols]
