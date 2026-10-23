@@ -43,4 +43,8 @@
 *******************************************************************************/
 ErrorCode_t email_send(EmailInfo_t* email_info);
 
+/** Runs the email script with each value as its own argument; 0 when sent */
+int email_run_script(const char* script, const char* to, const char* subject,
+                     const char* agent_name, const char* body);
+
 #endif // __EM_EMAIL_MODULE__

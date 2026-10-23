@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS `exmachinis`.`commands` (
   `updated_at` TIMESTAMP NULL DEFAULT NULL,
   `subject` VARCHAR(2048) NULL DEFAULT NULL,
   `email_content` LONGTEXT NULL DEFAULT NULL,
+  `deliver_at` BIGINT NULL COMMENT 'When the command reaches its drone at the speed of light (unix seconds); set by the game engine.',
   PRIMARY KEY (`id`),
   INDEX `commands_agent_id_foreign` (`agent_id` ASC),
   CONSTRAINT `commands_agent_id_foreign`
@@ -479,3 +480,31 @@ JOIN (
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
+
+-- -----------------------------------------------------
+-- Table `exmachinis`.`game_clock`
+-- How fast game time passes: game = game_anchor + (now - real_anchor) * scale
+-- (see game-engine/src/game_time.c). The engines also create it if missing.
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `exmachinis`.`game_clock` (
+  `id` INT UNSIGNED NOT NULL PRIMARY KEY,
+  `real_anchor` BIGINT NOT NULL,
+  `game_anchor` DOUBLE NOT NULL,
+  `scale` DOUBLE NOT NULL DEFAULT 1)
+ENGINE = InnoDB;
+
+-- -----------------------------------------------------
+-- Table `exmachinis`.`outbox`
+-- Drone replies on their way to Earth at the speed of light
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `exmachinis`.`outbox` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `send_at` BIGINT NOT NULL,
+  `user_email` VARCHAR(255) NOT NULL,
+  `subject` VARCHAR(2048) NULL,
+  `agent_name` VARCHAR(255) NOT NULL,
+  `body` LONGTEXT NOT NULL,
+  INDEX `send_at_idx` (`send_at`))
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;

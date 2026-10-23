@@ -67,7 +67,7 @@ It is your birthright to take control of your own remotely piloted spacecraft an
 
 ### Requesting your spacecraft
 
-As an immersive multiplayer space simulation, there's no logging into or out of the game. Your assets are always in play. To communicate with your spacecraft, simply send them emails and they will respond in real time. Keep in mind that it will take longer for transmissions to reach spacecraft on the outer edge of the solar system.
+As an immersive multiplayer space simulation, there's no logging into or out of the game. Your assets are always in play. To communicate with your spacecraft, simply send them emails and they will respond. Your messages travel at the speed of light, so it takes longer for them to reach spacecraft on the outer edge of the solar system, and for their replies to get back to you. Game time runs faster than real time (by default, one real minute is one game hour), and that applies to light delays too: Mars is 4 to 22 light-minutes away, so a message takes 4 to 22 real seconds each way.
 
 To start playing, you need to email the Registrar (registrar@exmachinis.com) with the word "register" in the subject line. You'll receive a response from the registrar listing the email addresses of three spacecraft that are under your control. These spacecraft will only respond to communications from the email address you used to contact the registrar.
 
@@ -269,7 +269,7 @@ Travel is a protocol that uses your engine (Protocol ID 5001, the same as the En
 </run>
 ```
 
-Give it a try and see what happens. `perform` waits for the trip, so your drone replies once it has arrived, printing 0 (done). Your drones report their current location at the top of every email they send you, so this one will indicate Saturn.
+Give it a try and see what happens. `perform` waits for the trip, so your drone replies once it has arrived, printing 0 (done). How long a trip takes depends on how far the destination is when you leave: drones accelerate to the midpoint and slow down after. With the default game clock the Moon is about 11 minutes away, Mars 3 to 6 hours and Neptune about 20 hours. Your drones report their current location at the top of every email they send you, so this one will indicate Saturn.
 
 You can use this command to go elsewhere in the solar system as well. All you need is the Location ID for your destination. This can be found in the Space Objects table (http://exmachinis.com/locations), which lists the planets and their moons, the space stations, and the asteroids, comets and planetary rings.
 

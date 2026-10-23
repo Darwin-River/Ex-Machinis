@@ -177,8 +177,10 @@ static ErrorCode_t db_exec(DbConnection_t* connection, const char* query_text)
 /** ****************************************************************************
 
     @brief          Adds columns newer engines need to databases created
-                    before them: actions.outcome (why an action failed) and
-                    agents.waiting_action (the action a paused script waits for)
+                    before them: actions.outcome (why an action failed),
+                    agents.waiting_action (the action a paused script waits
+                    for), commands.deliver_at, and the game_clock and outbox
+                    tables
 
     @return         Execution result
 
@@ -222,6 +224,17 @@ ErrorCode_t db_upgrade_schema(void)
 
     if(result == ENGINE_OK)
         result = db_add_column(connection, "agents", "waiting_action", "INT UNSIGNED NULL");
+
+    // Signals travel at the speed of light: when a player's command reaches
+    // its drone (unix seconds), and replies waiting to reach Earth
+    if(result == ENGINE_OK)
+        result = db_add_column(connection, "commands", "deliver_at", "BIGINT NULL");
+
+    if(result == ENGINE_OK)
+        result = db_exec(connection, GAME_CLOCK_TABLE_SQL);
+
+    if(result == ENGINE_OK)
+        result = db_exec(connection, OUTBOX_TABLE_SQL);
 
     return result;
 }

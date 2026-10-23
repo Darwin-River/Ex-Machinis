@@ -111,6 +111,8 @@ rm -rf .env mail/config
 
 - `SITE_ADDRESS`: the names Caddy serves. For example, `SITE_ADDRESS=example.com, www.example.com` also serves `www`, which needs its own DNS record.
 - `APP_URL`: the site's public URL, if it isn't `https://<domain>`.
+- `GAME_TIME_SCALE`: how fast game time passes, in game seconds per real second (default 60: one real minute is one game hour). It governs orbits, action and travel durations, and the light-speed delay of emails. Changing it re-anchors the game clock, so nothing jumps.
+- `TRAVEL_ACCELERATION`: drones' acceleration in m/s² (default 1). Trips take 2·√(distance ÷ acceleration) in game time.
 
 Apply changes with `docker compose up -d`.
 

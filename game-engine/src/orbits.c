@@ -15,6 +15,7 @@
 
 #include "orbits.h"
 #include "engine.h"
+#include "game_time.h"
 
 /******************************* DEFINES *************************************/
 
@@ -47,11 +48,11 @@ double orbits_get_mean_anomaly(ObjectOrbitInfo_t* object)
 
 	if(object) {
 
-	    // Get current timestamp (seconds)
-		time_t now = time(NULL);
+	    // Bodies move on the game clock (see game_time.c)
+		double now = game_time_now();
 
-		time_t diff_in_seconds = now - object->epoch; // seconds between epoch and now
-		double diff_in_days = ((double)diff_in_seconds/86400.0); // days between epoch and now (double value)
+		double diff_in_seconds = now - (double)object->epoch; // seconds between epoch and now
+		double diff_in_days = (diff_in_seconds/86400.0); // days between epoch and now (double value)
 
 		//Formula:    M(t) = M0+n(t-t0)
 
@@ -63,7 +64,7 @@ double orbits_get_mean_anomaly(ObjectOrbitInfo_t* object)
 		anomaly = object->mean_anomaly + object->mean_angular_motion * diff_in_days;
 
 		engine_trace(TRACE_LEVEL_ALWAYS, 
-                     "OBJECT=[%s] epoch [%ld] now [%ld] diff_seconds [%ld] days [%f] "
+                     "OBJECT=[%s] epoch [%ld] game now [%.0f] diff_seconds [%.0f] days [%f] "
                      "mean_angular_motion (deg/day) [%f] mean_anomaly_T0 [%f] mean_anomaly (deg) [%f]",
                      object->object_name, object->epoch, now, diff_in_seconds, diff_in_days, 
                      object->mean_angular_motion, object->mean_anomaly, anomaly);

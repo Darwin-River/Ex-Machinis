@@ -18,6 +18,7 @@
 
 #include "event.h"
 #include "engine_e.h"
+#include "game_time.h"
 #include "db.h"
 
 /******************************* DEFINES *************************************/
@@ -136,6 +137,9 @@ ErrorCode_t engine_init_db()
 
 	// Add columns newer code needs to older databases
 	if(result == ENGINE_OK) db_upgrade_schema();
+
+	// The game clock (its scale is set by the game engine)
+	if(result == ENGINE_OK) game_time_load();
 
 	return result;
 }
@@ -289,6 +293,9 @@ ErrorCode_t engine_run()
     {
         // reset VM
         engine.last_agent.vm = NULL;
+
+        // Read the game clock (the game engine may have changed its scale)
+        game_time_load();
 
         // start a transaction
         result = db_start_transaction(&engine.db_connection);

@@ -22,6 +22,7 @@ This document lays out the plans for developing Ex Machinis, an online space sim
     * [Game Database](#Game-Database)
 * [General Mechanics](#General-Mechanics)
   * [All objects are defined by their orbits](#All-objects-are-defined-by-their-orbits)
+  * [Game time runs on a master clock](#Game-time-runs-on-a-master-clock)
   * [Information travels at the speed of light](#Information-travels-at-the-speed-of-light)
   * [All ingame events result from actions taken by drones](#All-ingame-events-result-from-actions-taken-by-drones)
   * [Players use FORTH to control their drones](#Players-use-FORTH-to-control-their-drones)
@@ -115,7 +116,7 @@ Although faster than light communications exist, they are much too expensive and
 ### Key Concepts
 Ex Machinis is an augmented reality space simulation in which players program and control interstellar drones in real time. Consequently, the simulation is able to adhere to several key principles:
 * Continuous gameplay. The player’s drones always remain in play and continue to follow their programs even while the owner is offline.
-* Realistic time scales.  Although advanced technologies are able to compress the time it takes for drones to travel long distances and complete industrial activities, it is still expected that many activities will span the course of hours and days.
+* Realistic time scales.  Although advanced technologies are able to compress the time it takes for drones to travel long distances and complete industrial activities, it is still expected that many activities will span the course of hours and days. A master time scale lets game time run faster than real time to keep the game playable (see [Game time runs on a master clock](#Game-time-runs-on-a-master-clock)).
 * Communications limited to the speed of light. Communications with distant drones is not instantaneous.
 
 [Return to the TOC](#Table-of-Contents)
@@ -158,8 +159,40 @@ Every natural and manmade object in the game will be in orbit around the sun, a 
 
 [Return to the TOC](#Table-of-Contents)
 
+### Game time runs on a master clock
+Game time can run faster than real time, so that trips and industrial processes measured in days take minutes or hours to play. One master setting, `GAME_TIME_SCALE` (game seconds per real second, default 60: one real minute is one game hour), governs everything in the game that takes time:
+
+* **Orbits.** Bodies are placed where they are at the current *game* time.
+* **Actions.** Effect times in the action tables are game seconds. They become real delays when the action is performed: real = game ÷ scale.
+* **Travel.** See below.
+* **Signals.** The light-speed delay of email between players and drones, and of observations, is the light time divided by the scale (see [Information travels at the speed of light](#Information-travels-at-the-speed-of-light)).
+
+The clock is kept in the `game_clock` table so both engines share it: *game time = game_anchor + (real now − real_anchor) × scale*. The Game Engine reads the scale from its configuration (environment variable `GAME_TIME_SCALE`) when it starts. If the scale has changed, it re-anchors the clock at the current game time, so game time, and every orbit, carries on without a jump. Game time starts equal to real time; at any scale above 1 the game's planets run ahead of the real sky.
+
+**Travel time.** Drones travel with constant acceleration, speeding up to the midpoint and slowing down after, so a trip of distance *d* takes *t = 2·√(d ÷ a)* game seconds. *d* is the distance between the two bodies when the drone leaves (at game time), and *a* is `TRAVEL_ACCELERATION` (m/s², default 1). Every effect of the travel protocol at or after its move (the location effect) is delayed by the trip time, so the engine stays locked until arrival.
+
+Since actions are short and only one runs at a time (see [The Game Engine cycles through player-run virtual machines](#The-Game-Engine-cycles-through-player-run-virtual-machines)), events of one action that land in the same real second at a high scale are still processed in game-time order: the Game Engine inserts an action's events sorted by game time (depletions first at equal times), and the Event Engine processes an action's same-second events in that order.
+
+Examples at the defaults (scale 60, 1 m/s²):
+
+| Trip | Game time | Real time | Light delay (real) |
+|---|---|---|---|
+| Earth to the Moon | 10.9 hours | 11 minutes | under a second |
+| Earth to Mars, closest (0.52 au) | 6.5 days | 2.6 hours | 4 seconds |
+| Earth to Mars, farthest (2.67 au) | 14.6 days | 5.9 hours | 22 seconds |
+| Earth to Jupiter (5.2 au) | 20 days | 8.2 hours | 43 seconds |
+| Earth to Neptune (30 au) | 49 days | 19.6 hours | 4.2 minutes |
+
+[Return to the TOC](#Table-of-Contents)
+
 ### Information travels at the speed of light
 A drone will not know what is happening at a distance until the light or radio transmission actually reaches it.  This can take minutes to hours depending on the drone’s distance from the observed event. Ex Machinis will handle this phenomena via the tEvents and tObservations tables in the Central Database.
+
+Players are on Earth, so their email to and from drones travels at the speed of light too, scaled by the game clock (see [Game time runs on a master clock](#Game-time-runs-on-a-master-clock)):
+
+* **Player to drone.** When a player's mail is queued as a command, the Game Engine sets `commands.deliver_at` to the time its signal reaches the drone: now + the drone's distance from Earth ÷ c ÷ scale. The command runs only after that (meta-commands such as `<abort>` too; engine resumes are immediate).
+* **Drone to player.** A reply is held in the `outbox` table until the drone's signal reaches Earth, the same light time later, then emailed. The reply's first line still gives the drone's distance in light-minutes of game time.
+* **Observations.** An event reported to the Central Database is observed after the drone's light time from Earth ÷ scale.
 
 The Observation Engine is responsible for coordinating the discovery of events by distant drones.
 Every time something occurs in the game it will be recorded in the tEvents table along with the location and time of the event.  
@@ -689,9 +722,9 @@ The perform function applies a general algorithm, which uses the action tables, 
 2. The perform function pulls the second value off the stack for use as a process multiplier. This determines how many times the process is performed in a row without stopping.  Many protocols have bulk modifiers, which reduce the amount of time it takes to perform repetitive actions.
 3. Create a new actions table entry for the executed protocol.  Set the aborted field to false unless the action is aborted as a result of an error at some point during the following procedure or later in the game.
 4. Next, use the protocol table’s parameter field to determine how many additional values need to be pulled from the stack and stored in a parameter array for future reference. If there are not enough values on the stack, FORTH's stack underflow error (-4) stops the script and the action is aborted.
-5. Use the ProtocolID to determine whether a particular activity needs any special treatment.  For example, you may need to call a custom C++ routine to determine the travel time between two locations and correct the time parameter accordingly.  These routines will generally make situation-specific changes to some of the values stored in the parameter array.  They will be hard coded into the C++ perform routine.
+5. If the protocol moves the drone (it has a location effect), work out the trip time from the distance between the drone's body and the destination (see [Game time runs on a master clock](#Game-time-runs-on-a-master-clock)) and delay the move, and every effect timed at or after it, to match.
 6. When performing a multiplexed action, multiply all consumed and produced resources by the process multiplier.  Similarly multiply the time offsets for each of the events by the process multiplier and then by the bulk modifier to account for bulk process efficiencies.
-7. Sequentially search for the Protocol ID in each of the effects tables. Apply variable parameters where indicated (fields with negative numbers). Generate a corresponding event table entry for each effect. If an effect can't be applied (for example, a parameter names a resource that doesn't exist), delete the action's events, abort the action and leave -12.
+7. Sequentially search for the Protocol ID in each of the effects tables. Apply variable parameters where indicated (fields with negative numbers). Generate a corresponding event for each effect, timed by its game-time offset ÷ the game time scale. The events are inserted together, sorted by game time (depletions first at equal times). If an effect can't be applied (for example, a parameter names a resource that doesn't exist), delete the action's events, abort the action and leave -12.
 8. Otherwise, pause the script until the Event Engine has processed all of the action's events, then leave 0 or the failure code (see [Returned Value](#Returned-Value)).
 
 [Return to the TOC](#Table-of-Contents)
@@ -741,7 +774,7 @@ The Event Engine (EE) is a C++ application that runs continuously in the backgro
 
 The Events Engine takes the following steps when evaluating events:
 
-1. The EE scans the events table for any unprocessed events (outcome = 0) that occurred earlier than the current game time and are not associated with an aborted action. It processes them in time order. Events in the same second run in the order their actions were started, so an action always sees the inventory left by an earlier one; within one action, depletions run before accumulations.
+1. The EE scans the events table for any unprocessed events (outcome = 0) that occurred earlier than the current game time and are not associated with an aborted action. It processes them in time order. Events in the same second run in the order their actions were started, so an action always sees the inventory left by an earlier one; within one action, they run in the order the Game Engine inserted them, which is game-time order with depletions first at equal times.
 
 2. Whenever the EE processes a harvest event (events.event_type = 1), the it multiplies the events.new_quantity value by the abundancies.multiplier value for the first entry in the abundancies table with the same drone location and resource values as indicated by the event.  If a matching entry is not found in the table, events.new_quantity is set to zero, indicating that the resource cannot be harvested from that location.
 

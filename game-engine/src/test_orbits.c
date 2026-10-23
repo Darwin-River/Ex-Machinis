@@ -15,6 +15,12 @@
 
 #include "orbits.c"
 
+/* The tests run at scale 1: game time is real time */
+double game_time_now(void)
+{
+    return (double)time(NULL);
+}
+
 void engine_trace(TraceLevel_t level, const char *trace, ...)
 {
     (void)level;

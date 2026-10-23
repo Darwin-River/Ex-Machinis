@@ -15,12 +15,14 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <string.h>
+#include <math.h>
 #include <strings.h>
 #include <ctype.h>
 #include <stdbool.h>
 
 #include "engine.h"
 #include "wrap.h"
+#include "game_time.h"
 #include "config.h"
 #include "db.h"
 
@@ -152,6 +154,9 @@ ErrorCode_t engine_init_db()
 	// Add columns newer code needs to older databases
 	if(result == ENGINE_OK) db_upgrade_schema();
 
+	// The master game time scale comes from this engine's configuration
+	if(result == ENGINE_OK) game_time_set_scale(atof(engine.config.params[GAME_TIME_SCALE_ID]));
+
 	return result;
 }
 
@@ -250,105 +255,118 @@ Bool_t engine_is_current_vm_busy()
   @return         Error code
 
 *******************************************************************************/
-ErrorCode_t engine_get_drone_position(int object_id, char* position, double* distance)
+ErrorCode_t engine_get_object_position(int object_id, CartesianInfo_t* out, char* name)
 {
-    ErrorCode_t result = ENGINE_INTERNAL_ERROR;
+    ObjectOrbitInfo_t object;
+    int steps = 0;
 
-    if(position && distance) {
-        ObjectOrbitInfo_t drone;
-        ObjectOrbitInfo_t object;
-        ObjectOrbitInfo_t sun;
-        ObjectOrbitInfo_t earth;
-        CartesianInfo_t final_position;
-        int objects_num = 0;
-        Bool_t done = ENGINE_FALSE;
+    memset(out, 0, sizeof(*out));
+    memset(&object, 0, sizeof(object));
+    object.object_id = object_id;
 
-        result = ENGINE_OK; // default OK
-
-        // Obtain the Sun info from DB 
-        memset(&sun, 0, sizeof(ObjectOrbitInfo_t));
-
-        if(db_get_object_info_by_name(&engine.db_connection, "Sun", &sun) != ENGINE_OK) {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to obtain SUN position");
-            result = ENGINE_DB_QUERY_ERROR;
+    // Add up the body's position around its central body, that body's
+    // position around its own, and so on up to the Sun
+    while(steps++ < 10)
+    {
+        if(db_get_orbit_info(&engine.db_connection, &object) != ENGINE_OK) {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to obtain position for OBJ_ID=[%d]", object.object_id);
+            return ENGINE_DB_QUERY_ERROR;
         }
 
-        if(result == ENGINE_OK) {
-            engine_trace(TRACE_LEVEL_ALWAYS,  "[%s] has OBJ_ID=[%d]", sun.object_name, sun.object_id);
+        if(steps == 1 && name)
+            sprintf(name, "%s", object.object_name);
 
-            // Obtain the drone position from this object ID
-            memset(&object, 0, sizeof(ObjectOrbitInfo_t));
-            memset(&final_position, 0, sizeof(CartesianInfo_t));
-            object.object_id = object_id;
+        // The Sun (object 0) is the origin
+        if(object.object_id == 0)
+            return ENGINE_OK;
 
-            do {
-                // Get current object info
-                if(db_get_orbit_info(&engine.db_connection, &object) != ENGINE_OK) {
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "ERROR: Unable to obtain position for drone with OBJ_ID=[%d]",
-                        object.object_id);
+        CartesianInfo_t position;
+        CartesianInfo_t total = *out;
+        orbits_get_object_position(&object, &position);
+        orbits_add_coordinates(&position, &total, out);
 
-                    result = ENGINE_DB_QUERY_ERROR;
-                    done = ENGINE_TRUE; // stop here
-                } else {
-                    // Save drone position at first search (safe = same size)
-                    if(objects_num++ == 0) {
-                        memcpy(&drone, &object, sizeof(ObjectOrbitInfo_t));
-                        sprintf(position, "%s", drone.object_name);
-                    }
+        // Planets, asteroids and comets orbit the Sun (central body 0)
+        if(object.central_body_object_id <= 0 || object.central_body_object_id == object.object_id)
+            return ENGINE_OK;
 
-                    engine_trace(TRACE_LEVEL_ALWAYS, 
-                        "OBJ_ID=[%d] CENTRAL_BODY_OBJ_ID=[%d] SUN_OBJECT_ID=[%d]",
-                        object.object_id, object.central_body_object_id, sun.object_id);
-
-                    // Use current object info to calculate position
-                    CartesianInfo_t position;
-                    orbits_get_object_position(&object, &position);
-
-                    // Add coordinates to current values
-                    CartesianInfo_t current_total_position;
-                    current_total_position.x = final_position.x;
-                    current_total_position.y = final_position.y;
-                    current_total_position.z = final_position.z;
-
-                    orbits_add_coordinates(&position, &current_total_position, &final_position);
-
-                    // Check if our central body is the sun to stop
-                    if((object.central_body_object_id == sun.object_id) || (object.object_id == sun.object_id)) {
-                        done = ENGINE_TRUE;
-                    } else {
-                        // update object ID to do next search
-                        object.object_id = object.central_body_object_id;
-                    }
-                }
-
-            } while(done == ENGINE_FALSE);
-            
-        }
-
-        if(result == ENGINE_OK) {
-            engine_trace(TRACE_LEVEL_ALWAYS,  "OBJ_ID=[%d] is at [%s]", drone.object_id, drone.object_name);
-
-            // Obtain Earth info
-            memset(&earth, 0, sizeof(ObjectOrbitInfo_t));
-
-            if(db_get_object_info_by_name(&engine.db_connection, "Earth", &earth) != ENGINE_OK) {
-                engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to obtain EARTH position");
-                result = ENGINE_DB_QUERY_ERROR;
-            }
-        } 
-
-        if(result == ENGINE_OK) {
-            engine_trace(TRACE_LEVEL_ALWAYS,  "OBJ_ID=[%d] is at [%s]", earth.object_id, earth.object_name);
-
-            // Get distance between Earth <-> drone
-            *distance = orbits_get_distance_from_object(&earth, &final_position);
-        } 
-
-        
+        object.object_id = object.central_body_object_id;
     }
 
+    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: OBJ_ID=[%d] has too many central bodies", object_id);
+    return ENGINE_INTERNAL_ERROR;
+}
+
+ErrorCode_t engine_get_objects_distance(int object_a, int object_b, double* distance)
+{
+    CartesianInfo_t a, b;
+    ErrorCode_t result = engine_get_object_position(object_a, &a, NULL);
+
+    if(result == ENGINE_OK)
+        result = engine_get_object_position(object_b, &b, NULL);
+
+    if(result == ENGINE_OK)
+        *distance = sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y) + (a.z - b.z) * (a.z - b.z));
+
     return result;
+}
+
+ErrorCode_t engine_get_drone_position(int object_id, char* position, double* distance)
+{
+    ObjectOrbitInfo_t earth;
+
+    if(!position || !distance)
+        return ENGINE_INTERNAL_ERROR;
+
+    memset(&earth, 0, sizeof(earth));
+    if(db_get_object_info_by_name(&engine.db_connection, "Earth", &earth) != ENGINE_OK) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to obtain EARTH position");
+        return ENGINE_DB_QUERY_ERROR;
+    }
+
+    CartesianInfo_t drone;
+    ErrorCode_t result = engine_get_object_position(object_id, &drone, position);
+
+    if(result == ENGINE_OK)
+        result = engine_get_objects_distance(object_id, earth.object_id, distance);
+
+    if(result == ENGINE_OK)
+        engine_trace(TRACE_LEVEL_ALWAYS, "OBJ_ID=[%d] is at [%s], [%.0f] km from Earth", object_id, position, *distance);
+
+    return result;
+}
+
+/** ****************************************************************************
+
+  @brief      Times when new commands reach their drones. A player's mail
+              travels from Earth at the speed of light, so a command runs
+              only once its signal has crossed the distance to the drone
+              (scaled by the game clock). Engine resumes are immediate.
+
+  @return     void
+
+*******************************************************************************/
+static void engine_stamp_commands(void)
+{
+    int ids[50], objects[50], immediate[50];
+    int count = 0;
+
+    if(db_get_unstamped_commands(&engine.db_connection, ids, objects, immediate, 50, &count) != ENGINE_OK)
+        return;
+
+    for(int i = 0; i < count; i++)
+    {
+        int delay = 0;
+        char position[MAX_OBJECT_NAME_SIZE];
+        double km = 0;
+
+        if(!immediate[i] && engine_get_drone_position(objects[i], position, &km) == ENGINE_OK)
+            delay = game_time_light_delay(km);
+
+        if(delay > 0)
+            engine_trace(TRACE_LEVEL_ALWAYS, "Command [%d] reaches its drone at [%s] in [%d] s", ids[i], position, delay);
+
+        db_set_command_delivery(&engine.db_connection, ids[i], delay);
+    }
 }
 
 /** ****************************************************************************
@@ -889,6 +907,14 @@ ErrorCode_t engine_run()
 
 		engine_trace(TRACE_LEVEL_ALWAYS, "Running engine logic");
 
+        // Read the game clock (shared with the events engine)
+        game_time_load();
+
+        // Signals travel at the speed of light: time when new commands reach
+        // their drones, and send the replies that have reached Earth
+        engine_stamp_commands();
+        db_send_due_outbox(&engine.db_connection, engine.config.params[SEND_EMAIL_SCRIPT_ID]);
+
         // start a transaction
         result = db_start_transaction(&engine.db_connection);
 
@@ -1168,6 +1194,9 @@ void engine_send_output(const char* msg, bool with_pending)
         // Get current position
         engine_get_drone_position(engine.last_agent.object_id, email_info.drone_position, &email_info.distance);
 
+        // The reply reaches Earth at the speed of light (scaled by the game clock)
+        email_info.delay = game_time_light_delay(email_info.distance);
+
         // Every reply starts with where the drone is (as the player's manual
         // promises) and how far its signal travels to reach Earth
         double light_minutes = email_info.distance / LIGHT_SPEED_KM_PER_MINUTE;
@@ -1367,5 +1396,17 @@ const int engine_get_dump_vm_flag()
 const char* engine_get_dump_vm_path()
 {
     return (const char*)engine.config.params[FORTH_VM_OUT_PATH];
+}
+
+/** Drones' acceleration when travelling (m/s^2 of game time) */
+double engine_get_travel_acceleration()
+{
+    return atof(engine.config.params[TRAVEL_ACCELERATION_ID]);
+}
+
+/** Where the drone running the current command is (object ID) */
+int engine_get_current_drone_object_id()
+{
+    return engine.last_agent.object_id;
 }
 

@@ -15,7 +15,9 @@ DOMAIN=example.test
 PLAYER=player@outside.test
 
 [ -f .env ] && { echo "deploy/.env already exists; run this on a clean checkout." >&2; exit 1; }
-SITE_ADDRESS=http://localhost ./setup.sh "$DOMAIN" "admin@$DOMAIN"
+# A fast game clock (1 real second = 1 game hour) so the trip to the Moon
+# and the light-speed delays take seconds
+SITE_ADDRESS=http://localhost GAME_TIME_SCALE=3600 ./setup.sh "$DOMAIN" "admin@$DOMAIN"
 
 fail() {
     echo "FAILED: $*" >&2

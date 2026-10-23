@@ -20,8 +20,6 @@
 
 /******************************* DEFINES *************************************/
 
-// multiply the protocol effect delay by this value in seconds.
-#define TIME_FACTOR 1
 
 // size limits
 #define MAX_COMMAND_CODE_SIZE 16000
@@ -197,6 +195,7 @@ typedef struct
 	char* output_content; // dynamically allocated
 	char drone_position[MAX_OBJECT_NAME_SIZE];
 	double distance;  // from Earth
+	int delay;        // real seconds until the reply reaches Earth (light speed)
 
 } EmailInfo_t;
 
@@ -290,6 +289,8 @@ typedef struct
 	unsigned char observable;
 	unsigned char reportable;
 	unsigned char multiplier; // new field to use when none parameters, can receive and optional multiplier
+	int travel_from_time; // travel: effects at or after this time (game s)...
+	int travel_shift;     // ...are delayed by this much, to last the trip
 
 } ProtocolInfo_t;
 

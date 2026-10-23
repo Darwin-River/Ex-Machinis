@@ -16,6 +16,7 @@
 #include "engine_e.h"
 #include "db.h"
 #include "orbits.h"
+#include "game_time.h"
 
 /******************************* DEFINES *************************************/
 
@@ -609,7 +610,7 @@ ErrorCode_t event_update_observations(Event_t *event)
         {
             observation.event_id = event->event_id;
             observation.drone_id = CENTRAL_DATABASE_DRONE_ID;
-            observation.timestamp = time(NULL) + (time_t)(distance/LIGHT_SPEED_KM_PER_SECOND);
+            observation.timestamp = time(NULL) + game_time_light_delay(distance); // light time, scaled
             result = db_insert_observation(&observation);
         }
 

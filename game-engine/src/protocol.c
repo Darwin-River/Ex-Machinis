@@ -11,12 +11,15 @@
 #include <string.h>
 #include <limits.h>
 #include <time.h>
+#include <math.h>
+#include <stdlib.h>
 
 #include "protocol.h"
 #include "trace.h"
 #include "db.h"
 #include "engine.h"
 #include "vm.h"
+#include "game_time.h"
 
 /******************************* DEFINES *************************************/
 
@@ -29,6 +32,125 @@
 char protocolMsg[LINE_MAX];
 
 /******************************* LOCAL FUNCTIONS *****************************/
+
+/* The events an action is about to create. They are inserted together, in
+   game-time order, once all its effects have been worked out (see
+   protocol_flush_events) */
+static Event_t* g_pending_events = NULL;
+static int g_pending_count = 0;
+static int g_pending_size = 0;
+
+static ErrorCode_t protocol_queue_event(Event_t* event)
+{
+  if(g_pending_count == g_pending_size) {
+    int size = g_pending_size ? g_pending_size * 2 : 16;
+    Event_t* grown = realloc(g_pending_events, sizeof(Event_t) * size);
+    if(!grown)
+      return ENGINE_MEMORY_ALLOC_ERROR;
+    g_pending_events = grown;
+    g_pending_size = size;
+  }
+  g_pending_events[g_pending_count++] = *event;
+  return ENGINE_OK;
+}
+
+/* Game-time order; at the same game time, depletions first. Ties keep the
+   order the effects were worked out in (index). */
+static int protocol_event_order(const void* a, const void* b)
+{
+  const Event_t* x = (const Event_t*)a;
+  const Event_t* y = (const Event_t*)b;
+  int rx = (x->event_type == DECREMENT_INVENTORY_EVENT_TYPE) ? 0 : 1;
+  int ry = (y->event_type == DECREMENT_INVENTORY_EVENT_TYPE) ? 0 : 1;
+
+  if(x->delay != y->delay) return (x->delay < y->delay) ? -1 : 1;
+  if(rx != ry) return rx - ry;
+  return (x->event_id < y->event_id) ? -1 : (x->event_id > y->event_id);
+}
+
+/* Inserts the queued events in game-time order (or drops them) */
+static ErrorCode_t protocol_flush_events(Bool_t insert)
+{
+  ErrorCode_t result = ENGINE_OK;
+
+  // event_id isn't set yet: use it to remember the original order
+  for(int i = 0; i < g_pending_count; i++)
+    g_pending_events[i].event_id = i;
+
+  qsort(g_pending_events, g_pending_count, sizeof(Event_t), protocol_event_order);
+
+  // Inserted in this order, events that land in the same real second (at
+  // a high game time scale) are still processed in game-time order: the
+  // events engine runs an action's same-second events by ID
+  for(int i = 0; insert && result == ENGINE_OK && i < g_pending_count; i++) {
+    g_pending_events[i].event_id = 0;
+    result = db_insert_event(&g_pending_events[i]);
+  }
+
+  g_pending_count = 0;
+  return result;
+}
+
+/** ****************************************************************************
+
+  @brief      Times a trip: when a protocol moves the drone (a location
+              effect), the move happens after the travel time, and every
+              effect at or after the move's time is delayed to match.
+
+  Drones travel with constant acceleration a, speeding up to the midpoint
+  and slowing down after: time = 2 * sqrt(distance / a), with the distance
+  between the two bodies at departure (game time).
+
+  @param[in|out]  protocol  Protocol being performed
+
+  @return     void
+
+*******************************************************************************/
+static void protocol_plan_travel(ProtocolInfo_t *protocol)
+{
+  LocationEffect_t* effects = NULL;
+  int effectsNum = 0;
+
+  protocol->travel_from_time = 0;
+  protocol->travel_shift = 0;
+
+  if(db_get_location_effects(protocol, &effects, &effectsNum) != ENGINE_OK || effectsNum <= 0) {
+    free(effects);
+    return;
+  }
+
+  int destination = (effects[0].location == -1) ? protocol->optional_location : effects[0].location;
+  int move_time = effects[0].time;
+  free(effects);
+
+  int origin = engine_get_current_drone_object_id();
+  double acceleration = engine_get_travel_acceleration();
+  double km = 0;
+
+  if(destination < 0 || acceleration <= 0 ||
+     engine_get_objects_distance(origin, destination, &km) != ENGINE_OK)
+    return; // the location effect reports a bad destination
+
+  double seconds = 2.0 * sqrt(km * 1000.0 / acceleration);
+  if(seconds < 1) seconds = 1;
+  if(seconds > 2e9) seconds = 2e9;
+
+  protocol->travel_from_time = move_time;
+  protocol->travel_shift = (int)lround(seconds) - move_time;
+
+  engine_trace(TRACE_LEVEL_ALWAYS,
+    "Trip from object [%d] to [%d]: [%.0f] km at [%.2f] m/s2 takes [%.0f] game seconds ([%d] real)",
+    origin, destination, km, acceleration, seconds, game_time_to_real(seconds));
+}
+
+/** Game seconds after the action starts that an effect takes place */
+static int protocol_effect_delay(ProtocolInfo_t *protocol, int time)
+{
+  if(protocol->travel_shift && time >= protocol->travel_from_time)
+    return time + protocol->travel_shift;
+  return time;
+}
+
 
 /** ****************************************************************************
 
@@ -305,8 +427,8 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
       Event_t newEvent;
       memset(&newEvent, 0, sizeof(newEvent));
 
-      // Add resource effect time delay.
-      newEvent.delay = effect->time;
+      // Add resource effect time delay (game seconds).
+      newEvent.delay = protocol_effect_delay(protocol, effect->time);
 
       newEvent.drone_id = engine_get_current_drone_id();
       // Take into account negative parameters that mean => retrieve it from stack
@@ -409,7 +531,7 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
         newEvent.new_quantity *= abundancies.multiplier;
         newEvent.new_cargo = (newEvent.new_quantity * resource.resource_mass); // here we reflect the change in mass units
 
-        result = db_insert_event(&newEvent);
+        result = protocol_queue_event(&newEvent);
       }
     }
   } else {
@@ -478,7 +600,7 @@ ErrorCode_t protocol_process_market_effect(MarketEffect_t *effect, ProtocolInfo_
       newEvent.new_quantity = (effect->quantity == -1)?protocol->parameters[MARKET_QUANTITY_IDX]:effect->quantity;
       newEvent.new_credits = (effect->price == -1)?protocol->parameters[MARKET_PRICE_IDX]:effect->price;
 
-      result = db_insert_event(&newEvent);
+      result = protocol_queue_event(&newEvent);
     }
 
   } else {
@@ -554,13 +676,13 @@ ErrorCode_t protocol_process_location_effect
     newEvent.new_transmission = NULL_VALUE;
     newEvent.new_cargo = NULL_VALUE;
 
-    // Add time delay.
-    newEvent.delay = effect->time;
+    // Add time delay (game seconds): the trip's duration for a move
+    newEvent.delay = protocol_effect_delay(protocol, effect->time);
 
     newEvent.new_location = (effect->location != -1)?effect->location:protocol->parameters[0]; // we use effect info or stack
     // rest of fields - set to 0 with memset()
 
-    result = db_insert_event(&newEvent);
+    result = protocol_queue_event(&newEvent);
   } else {
     engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to process protocol location effect");
     result = ENGINE_INTERNAL_ERROR;
@@ -807,7 +929,11 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
   }
 
   if(result == ENGINE_OK) {
+    protocol_plan_travel(&protocol);
+    g_pending_count = 0;
     result = protocol_process_effects(&protocol, action.action_id);
+    ErrorCode_t flushed = protocol_flush_events(result == ENGINE_OK ? ENGINE_TRUE : ENGINE_FALSE);
+    if(result == ENGINE_OK) result = flushed;
   }
 
   // perform leaves 0 on success or a negative code on failure (like an ior)
