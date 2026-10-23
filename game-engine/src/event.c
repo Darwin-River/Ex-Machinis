@@ -806,7 +806,8 @@ ErrorCode_t event_process_market_transaction
 
         // The amount is OK - check if the buyer has credits to buy it
         if(result == ENGINE_OK) {
-            int price = event->new_quantity * sell_buy_event.new_credits; // transaction price
+            // transaction price (new_quantity is negative when the market drone sells)
+            int price = abs(event->new_quantity) * sell_buy_event.new_credits;
             User_t* buyer = user;
 
             if(selling == ENGINE_TRUE) {
@@ -823,8 +824,9 @@ ErrorCode_t event_process_market_transaction
                     event->resource_id,
                     buyer->credits);
 
-                // update output amount
-                *amount = price;
+                // Credits gained by the market drone's owner (user): paid when
+                // selling, charged when buying
+                *amount = (selling == ENGINE_TRUE) ? price : -price;
             } else {
                 engine_trace(TRACE_LEVEL_ALWAYS,
                     "WARNING: user [%d] CAN NOT pay [%d] credits to buy [%d] units of resource [%d] (current credits [%d])",
@@ -850,7 +852,7 @@ ErrorCode_t event_process_market_transaction
   @param[in]      event  Input event
   @param[in|out]  user   Drone user's info
   @param[in|out]  user   Drone user's info (peer drone at market transaction)
-  @param[in|out]  amount Transaction amount (credits) when success
+  @param[in]      amount Credits gained by user (negative when user pays)
 
   @return     Execution result
 
@@ -859,16 +861,9 @@ ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* pe
 {
     ErrorCode_t result = ENGINE_OK;
 
-    // Update bank accounts
-    if(event->new_quantity < 0) {
-        // user sells -> peer_user
-        user->credits += amount;
-        peer_user->credits -= amount;
-    } else {
-        // peer_user sells -> user
-        user->credits -= amount;
-        peer_user->credits += amount;
-    }
+    // Update bank accounts: amount is what user gains (negative when user buys)
+    user->credits += amount;
+    peer_user->credits -= amount;
 
     engine_trace(TRACE_LEVEL_ALWAYS,
         "Completing market transaction at event [%d], "
@@ -892,7 +887,7 @@ ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* pe
     // Current user event
     newEvent.drone_id = user->current_drone_id;
     newEvent.resource_id = event->resource_id;
-    newEvent.event_type = (event->new_quantity < 0)?INCREMENT_CREDITS_EVENT_TYPE:DECREMENT_CREDITS_EVENT_TYPE;
+    newEvent.event_type = (amount >= 0)?INCREMENT_CREDITS_EVENT_TYPE:DECREMENT_CREDITS_EVENT_TYPE;
     newEvent.action_id = user->action_id;
     newEvent.outcome = OUTCOME_OK;
     newEvent.new_quantity = NULL_VALUE;
@@ -905,7 +900,7 @@ ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* pe
 
     // Peer user event
     newEvent.drone_id = peer_user->current_drone_id;
-    newEvent.event_type = (event->new_quantity < 0)?DECREMENT_CREDITS_EVENT_TYPE:INCREMENT_CREDITS_EVENT_TYPE;
+    newEvent.event_type = (amount >= 0)?DECREMENT_CREDITS_EVENT_TYPE:INCREMENT_CREDITS_EVENT_TYPE;
     newEvent.new_credits = peer_user->credits;
     db_insert_event_e(&newEvent);
 
@@ -913,18 +908,19 @@ ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* pe
 }
 
 
-/******************************* PUBLIC FUNCTIONS ****************************/
-
 /** ****************************************************************************
 
-  @brief      Processes outcome event info
+  @brief      Applies one event: checks its conditions and updates inventory,
+              cargo and credits. Does not abort the action on failure.
+
+  @param[in]  event  Input event (outcome set on return)
 
   @param[in]  event  Input event
 
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t event_process_outcome(Event_t *event)
+static ErrorCode_t event_apply(Event_t *event)
 {
     ErrorCode_t result = ENGINE_OK;
     Event_t previous_resource_event;
@@ -1082,8 +1078,7 @@ ErrorCode_t event_process_outcome(Event_t *event)
     }
     else
     {
-        // Abort the associated action and set result != OK to skip rest of the logic
-        event_abort_action(event);
+        // Failed: the caller records the outcome and aborts the action
         result = ENGINE_LOGIC_ERROR;
     }
 
@@ -1096,6 +1091,176 @@ ErrorCode_t event_process_outcome(Event_t *event)
         // Update observation entries
         result = event_update_observations(event);
     }
+
+    return result;
+}
+
+/** ****************************************************************************
+
+  @brief      Records a failed event's outcome and aborts its action
+
+  @param[in]  event    Failed event
+  @param[in]  outcome  Outcome to record
+
+  @return     void
+
+*******************************************************************************/
+static void event_record_failure(Event_t *event, int outcome)
+{
+    if(outcome == OUTCOME_NO_OUTCOME || outcome == OUTCOME_OK)
+        outcome = OUTCOME_ACTION_ABORTED;
+
+    event->outcome = outcome;
+    db_update_event(event);
+    event_abort_action(event);
+}
+
+/** ****************************************************************************
+
+  @brief      Checks whether an event is the first half of a transfer
+              (push or pull) and gets the second half
+
+  A transfer moves goods out of one drone (a decrement event) and into another
+  (an increment event a moment later). Both halves must succeed or neither.
+
+  @param[in]   event    Input event
+  @param[out]  partner  The transfer's increment event
+
+  @return     ENGINE_TRUE when event is a transfer's decrement half
+
+*******************************************************************************/
+static Bool_t event_get_transfer_partner(Event_t *event, Event_t *partner)
+{
+    Action_t action;
+
+    if(event->event_type != DECREMENT_INVENTORY_EVENT_TYPE)
+        return ENGINE_FALSE;
+
+    memset(&action, 0, sizeof(action));
+    action.action_id = event->action_id;
+
+    if(db_get_action(&action) != ENGINE_OK || action.aborted)
+        return ENGINE_FALSE;
+
+    if(action.protocol_id != PUSH_PROTOCOL_ID && action.protocol_id != PULL_PROTOCOL_ID)
+        return ENGINE_FALSE;
+
+    if(db_get_pending_action_event(event->action_id, INCREMENT_INVENTORY_EVENT_TYPE,
+                                   event->event_id, partner) != ENGINE_OK)
+        return ENGINE_FALSE;
+
+    return (partner->resource_id == event->resource_id) ? ENGINE_TRUE : ENGINE_FALSE;
+}
+
+/** ****************************************************************************
+
+  @brief      Applies both halves of a transfer, or neither
+
+  The drones must be at the same place. The halves run together inside a
+  savepoint: if either fails, everything both did (inventory, cargo, credits)
+  is rolled back and the action aborted.
+
+  @param[in]  event    The transfer's decrement event
+  @param[in]  partner  The transfer's increment event
+
+  @return     Execution result
+
+*******************************************************************************/
+static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
+{
+    Event_t first = *event;     // untouched copies, to record a failure
+    Event_t second = *partner;
+    ErrorCode_t result;
+
+    engine_trace(TRACE_LEVEL_ALWAYS,
+        "Transfer for action [%d]: events [%d] and [%d] are applied together",
+        event->action_id, event->event_id, partner->event_id);
+
+    // Both drones must be at the same place
+    int from_object = -1, to_object = -1;
+    if((db_get_event_object_id(event, &from_object) != ENGINE_OK) ||
+       (db_get_event_object_id(partner, &to_object) != ENGINE_OK) ||
+       (from_object != to_object))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS,
+            "Transfer for action [%d] refused: drone [%d] is at [%d], drone [%d] is at [%d]",
+            event->action_id, event->drone_id, from_object, partner->drone_id, to_object);
+
+        event_record_failure(&first, OUTCOME_NO_LOCAL);
+        event_record_failure(&second, OUTCOME_ACTION_ABORTED);
+        return ENGINE_LOGIC_ERROR;
+    }
+
+    result = db_savepoint("SAVEPOINT transfer");
+    if(result != ENGINE_OK)
+        return result;
+
+    result = event_apply(event);
+    if(result == ENGINE_OK)
+        result = event_apply(partner);
+
+    if(result == ENGINE_OK) {
+        db_savepoint("RELEASE SAVEPOINT transfer");
+        return ENGINE_OK;
+    }
+
+    engine_trace(TRACE_LEVEL_ALWAYS,
+        "Transfer for action [%d] failed (outcomes [%d] and [%d]): undoing both halves",
+        event->action_id, event->outcome, partner->outcome);
+
+    db_savepoint("ROLLBACK TO SAVEPOINT transfer");
+
+    if(event->outcome != OUTCOME_OK) {
+        event_record_failure(&first, event->outcome);
+        event_record_failure(&second, OUTCOME_ACTION_ABORTED);
+    } else {
+        event_record_failure(&first, OUTCOME_ACTION_ABORTED);
+        event_record_failure(&second, partner->outcome);
+    }
+
+    return ENGINE_LOGIC_ERROR;
+}
+
+/******************************* PUBLIC FUNCTIONS ****************************/
+
+/** ****************************************************************************
+
+  @brief      Processes outcome event info
+
+  @param[in]  event  Input event
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t event_process_outcome(Event_t *event)
+{
+    ErrorCode_t result;
+    Event_t partner;
+    int outcome = OUTCOME_NO_OUTCOME;
+
+    if(event == NULL)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL outcome event skipped");
+        return ENGINE_INTERNAL_ERROR;
+    }
+
+    // The batch was read before earlier events ran: skip events already
+    // settled since (e.g. the second half of a transfer)
+    if((db_get_event_outcome(event->event_id, &outcome) == ENGINE_OK) &&
+       (outcome != OUTCOME_NO_OUTCOME))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Event [%d] already processed (outcome [%d])",
+            event->event_id, outcome);
+        return ENGINE_OK;
+    }
+
+    memset(&partner, 0, sizeof(partner));
+    if(event_get_transfer_partner(event, &partner) == ENGINE_TRUE)
+        return event_process_transfer(event, &partner);
+
+    result = event_apply(event);
+    if(result != ENGINE_OK)
+        event_record_failure(event, event->outcome);
 
     return result;
 }

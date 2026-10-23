@@ -97,6 +97,10 @@
 #define INCREMENT_CREDITS_EVENT_TYPE   6
 #define DECREMENT_CREDITS_EVENT_TYPE   7
 
+// Protocols that move goods between drones (decrement here, increment there)
+#define PUSH_PROTOCOL_ID 10
+#define PULL_PROTOCOL_ID 11
+
 // users
 #define MAX_USER_NAME_SIZE             255
 #define MAX_USER_PASSWORD_SIZE         255
