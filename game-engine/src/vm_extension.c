@@ -35,6 +35,7 @@
 #define QUERY_PROCESSED_OK             1
 #define NOT_ENOUGH_QUERY_PARAMETERS   -1
 #define SQL_QUERY_FAILED              -2
+#define UNKNOWN_QUERY                 -3
 
 /******************************* TYPES ***************************************/
 
@@ -498,6 +499,10 @@ static int vm_ext_query_cb(VmExtension_t * const v)
             sprintf(queryOutMsg, "Query ID [%d] not found in DB", queryInfo.id);
             engine_trace(TRACE_LEVEL_ALWAYS, queryOutMsg);
             success = ENGINE_FALSE;
+            // Leave a result code like other queries. The query's other
+            // arguments stay on the stack: without the query, how many there
+            // are is unknown.
+            vm_extension_push(v, UNKNOWN_QUERY);
         }
 
         if(success == ENGINE_TRUE) {
