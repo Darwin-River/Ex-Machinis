@@ -225,7 +225,23 @@ Protocols are invoked by sending your drone a FORTH script that calls upon the `
 - -2 if the stack holds too few parameters for it (the ones it does hold are dropped)
 - 0 if the protocol was refused, for example because the drone lacks the module it needs or a parameter names something that doesn't exist
 
-An accepted action can still fail later, when its effects take place: for example, the cargo hold fills up, or a trade partner has no matching order. Your drone then emails you a short notice, "Action N failed", saying why.
+An accepted action can still fail later, when its effects take place: for example, the cargo hold fills up, or a trade partner has no matching order. Your drone's program can check with `status`, which takes an action ID and leaves:
+
+| Code | Meaning |
+|---|---|
+| 1 | done |
+| 0 | still running |
+| -1 | the other drone is not at the same place |
+| -2 | not enough of a resource in the cargo hold |
+| -3 | not enough room in the cargo hold |
+| -4 | not enough credits |
+| -5 | the seller's order doesn't allow selling that many |
+| -6 | the buyer's order doesn't allow buying that many |
+| -9 | stopped (for example by `<abort>`, or refused when performed) |
+| -10 | the other drone has no matching buy or sell order |
+| -11 | this drone has no action with that ID |
+
+For example, `5 1100 52 11 perform` pulls 5 kunspar from drone 52 and leaves the action ID. Later, `status` on that ID tells you whether the pull happened. Failures are not emailed to you: a drone running on its own should check and respond. You only get email for what your scripts print, and for errors that stop a script.
 
 ### Unpacking your starter kit
 

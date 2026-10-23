@@ -537,6 +537,11 @@ typedef enum
 
 } Outcome_t;
 
+// What the status word leaves for an action (failures are Outcome_t values)
+#define ACTION_STATUS_DONE     1
+#define ACTION_STATUS_RUNNING  0
+#define ACTION_STATUS_UNKNOWN  -11  // no such action for this drone
+
 typedef struct
 {
 	int event_id;

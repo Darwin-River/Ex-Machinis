@@ -1120,8 +1120,8 @@ static void event_record_failure(Event_t *event, int outcome)
     db_update_event(event);
     event_abort_action(event);
 
-    // Keep why the action failed, so the game engine can tell the player
-    // (not when it was aborted for another reason, such as by the player)
+    // Keep why the action failed, for the drone's status word (not when it
+    // was aborted for another reason, such as by the player)
     if(outcome != OUTCOME_ACTION_ABORTED)
         db_set_action_outcome(event->action_id, outcome);
 }

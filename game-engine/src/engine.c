@@ -30,8 +30,6 @@ static bool g_ran_on_vm = false;
 // Emails msg to the current drone's owner. with_pending: put the output the
 // script printed before it last paused first (and clear it).
 void engine_send_output(const char* msg, bool with_pending);
-static void engine_email_agent(int agent_id, int object_id, const char* msg, const char* subject);
-static void engine_report_failed_actions(void);
 #include "vm.h"
 #include "email.h"
 #include "orbits.h"
@@ -846,9 +844,6 @@ ErrorCode_t engine_run()
 
 		engine_trace(TRACE_LEVEL_ALWAYS, "Running engine logic");
 
-        // Tell players about actions that failed since the last cycle
-        engine_report_failed_actions();
-
         // start a transaction
         result = db_start_transaction(&engine.db_connection);
 
@@ -1111,33 +1106,7 @@ void engine_send_output(const char* msg, bool with_pending)
             msg,
             agent_id); 
 
-        engine_email_agent(agent_id, engine.last_agent.object_id, msg, NULL);
-        free(full);
-    }
-    else
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, 
-            "WARNING: NULL msg received from VM for agent [%d]",
-            agent_id); 
-    }
-}
 
-/** ****************************************************************************
-
-  @brief      Emails a message to a drone's owner, from the drone
-
-  @param[in]  agent_id   Drone
-  @param[in]  object_id  Where the drone is (for the location line)
-  @param[in]  msg        Message
-  @param[in]  subject    Subject, or NULL to reply to the player's last mail
-                         (quoting it)
-
-  @return     void
-
-*******************************************************************************/
-static void engine_email_agent(int agent_id, int object_id, const char* msg, const char* subject)
-{
-    {
         // Get agent email info and send it by email
         EmailInfo_t email_info;
         memset(&email_info, 0, sizeof(email_info));
@@ -1152,7 +1121,7 @@ static void engine_email_agent(int agent_id, int object_id, const char* msg, con
 
 
         // Get current position
-        engine_get_drone_position(object_id, email_info.drone_position, &email_info.distance);
+        engine_get_drone_position(engine.last_agent.object_id, email_info.drone_position, &email_info.distance);
 
         // Every reply starts with where the drone is (as the player's manual
         // promises) and how far its signal travels to reach Earth
@@ -1169,14 +1138,6 @@ static void engine_email_agent(int agent_id, int object_id, const char* msg, con
 
         if(db_get_agent_email_info(&engine.db_connection, &email_info) == ENGINE_OK)
         {
-            if(subject) {
-                // A notice, not a reply: don't quote the player's last mail
-                if(email_info.input_content)
-                    engine_free(email_info.input_content, strlen(email_info.input_content)+1);
-                email_info.input_content = NULL;
-                snprintf(email_info.subject, sizeof(email_info.subject), "%s", subject);
-            }
-
             // agent email
             snprintf(email_info.agent_email, 
                 MAX_EMAIL_ADDRESS_SIZE, 
@@ -1184,11 +1145,8 @@ static void engine_email_agent(int agent_id, int object_id, const char* msg, con
                 email_info.agent_name,
                 engine.config.params[AGENTS_EMAIL_DOMAIN_ID]); 
 
-            // send email (input_content may not be NULL there)
-            char empty[] = "";
-            if(!email_info.input_content) email_info.input_content = empty;
+            // send email
             email_send(&email_info);
-            if(email_info.input_content == empty) email_info.input_content = NULL;
         }
 
         // Frees this function's copy only. The command's own email_content is
@@ -1196,66 +1154,13 @@ static void engine_email_agent(int agent_id, int object_id, const char* msg, con
         if(email_info.input_content) {
             engine_free(email_info.input_content, strlen(email_info.input_content)+1);
         }
+        free(full);
     }
-}
-
-/** ****************************************************************************
-
-  @brief      Why an action failed, in words (from the event outcome)
-
-*******************************************************************************/
-static const char* engine_outcome_text(int outcome)
-{
-    switch(outcome) {
-        case OUTCOME_NO_LOCAL:                 return "the other drone is not at the same place";
-        case OUTCOME_NO_RESOURCES:             return "not enough of a resource in the cargo hold";
-        case OUTCOME_NO_CARGO_SPACE:           return "not enough room in the cargo hold";
-        case OUTCOME_NO_CREDITS:               return "not enough credits to pay for it";
-        case OUTCOME_RESOURCES_LOWER_LIMIT:    return "the seller's order doesn't allow selling that many";
-        case OUTCOME_RESOURCES_UPPER_LIMIT:    return "the buyer's order doesn't allow buying that many";
-        case OUTCOME_WRONG_DEPLETION_PRICE:    return "the price is below the seller's";
-        case OUTCOME_WRONG_ACCUMULATION_PRICE: return "the price is above the buyer's";
-        case OUTCOME_NO_MARKET_ORDER:          return "the other drone has no matching buy or sell order";
-        default:                               return "it could not be completed";
-    }
-}
-
-/** ****************************************************************************
-
-  @brief      Emails the owners of actions that failed since the last check
-              (the events engine records why on the action)
-
-  @return     void
-
-*******************************************************************************/
-static void engine_report_failed_actions(void)
-{
-    FailedAction_t failed[20];
-    int count = 0;
-
-    if(db_take_failed_actions(&engine.db_connection, failed, 20, &count) != ENGINE_OK)
-        return;
-
-    for(int i = 0; i < count; i++)
+    else
     {
-        FailedAction_t* f = &failed[i];
-        char subject[256];
-        char msg[1024];
-
-        snprintf(subject, sizeof(subject), "Action %d failed", f->action_id);
-        snprintf(msg, sizeof(msg),
-            "Action %d (%s) failed: %s%s%s%s.\nThe action was stopped.\n",
-            f->action_id,
-            f->protocol_name[0] ? f->protocol_name : "unknown protocol",
-            engine_outcome_text(f->outcome),
-            f->resource_name[0] ? " (" : "",
-            f->resource_name,
-            f->resource_name[0] ? ")" : "");
-
-        engine_trace(TRACE_LEVEL_ALWAYS, "Reporting failed action [%d] to drone [%d]: %s",
-            f->action_id, f->drone_id, msg);
-
-        engine_email_agent(f->drone_id, f->object_id, msg, subject);
+        engine_trace(TRACE_LEVEL_ALWAYS, 
+            "WARNING: NULL msg received from VM for agent [%d]",
+            agent_id); 
     }
 }
 

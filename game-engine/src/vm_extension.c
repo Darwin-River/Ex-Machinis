@@ -29,6 +29,7 @@
   X("query",    vm_ext_query_cb,  true)\
   X("report",   vm_ext_report_cb, true)\
   X("dummy",    vm_ext_dummy_cb,  true)\
+  X("status",   vm_ext_status_cb, true)\
 
 
 // Query errors at stack
@@ -351,6 +352,42 @@ static int vm_ext_execute_cb(VmExtension_t * const v)
         vm_extension_push(v, 0);
     }
 
+    return 0;
+}
+
+/** ****************************************************************************
+
+  @brief      Callback for "status" ( action -- code ): how one of this
+              drone's actions went. 1 done, 0 still running, negative: why it
+              failed (-11 when this drone has no such action, -2 when no ID is
+              given). New words go
+              last: saved drones compile each word by its position here.
+
+  @param[in]  v Current VM extension object
+
+  @return     Execution result
+
+*******************************************************************************/
+static int vm_ext_status_cb(VmExtension_t * const v)
+{
+    int status = ACTION_STATUS_UNKNOWN;
+
+    // No action ID given: -2, as perform does for missing parameters
+    if(vm_extension_depth(v) == 0) {
+        vm_extension_push(v, -2);
+        return 0;
+    }
+
+    cell_t action_id = pop(v);
+    if(v->error)
+        return 0;
+
+    db_get_action_status(engine_get_db_connection(), (int)action_id,
+                         engine_get_current_drone_id(), &status);
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Status of action [%d]: [%d]", (int)action_id, status);
+
+    vm_extension_push(v, status);
     return 0;
 }
 

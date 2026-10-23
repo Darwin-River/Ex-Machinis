@@ -176,8 +176,8 @@ static ErrorCode_t db_exec(DbConnection_t* connection, const char* query_text)
 
 /** ****************************************************************************
 
-    @brief          Adds the actions columns that report failed actions
-                    (outcome, reported) to databases created before them
+    @brief          Adds the actions.outcome column (why an action failed) to
+                    databases created before it
 
     @return         Execution result
 
@@ -206,10 +206,8 @@ ErrorCode_t db_upgrade_schema(void)
 
     if((result == ENGINE_OK) && missing)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Adding actions.outcome and actions.reported columns");
-        result = db_exec(connection,
-            "ALTER TABLE actions ADD COLUMN outcome INT NULL, "
-            "ADD COLUMN reported TINYINT UNSIGNED NOT NULL DEFAULT 0");
+        engine_trace(TRACE_LEVEL_ALWAYS, "Adding the actions.outcome column");
+        result = db_exec(connection, "ALTER TABLE actions ADD COLUMN outcome INT NULL");
     }
 
     return result;
@@ -218,7 +216,7 @@ ErrorCode_t db_upgrade_schema(void)
 /** ****************************************************************************
 
     @brief          Records why an action failed (the first reason only), so
-                    the game engine can tell the player
+                    the drone's program can check it with the status word
 
     @param[in]      action_id Action ID
     @param[in]      outcome   Failing event outcome (Outcome_t)

@@ -890,18 +890,7 @@ ErrorCode_t db_upgrade_schema(void);
 /** Records why an action failed (first reason only) */
 ErrorCode_t db_set_action_outcome(int action_id, int outcome);
 
-/** A failed action not yet reported to its player */
-typedef struct
-{
-    int action_id;
-    int drone_id;
-    int object_id;
-    int outcome;
-    char protocol_name[128];
-    char resource_name[128];
-} FailedAction_t;
-
-/** Gets up to max failed actions not yet reported, and marks them reported */
-ErrorCode_t db_take_failed_actions(DbConnection_t* connection, FailedAction_t* out, int max, int* count);
+/** Status of one of a drone's actions (see ACTION_STATUS_*) */
+ErrorCode_t db_get_action_status(DbConnection_t* connection, int action_id, int drone_id, int* status);
 
 #endif // __EM_DB_MODULE__

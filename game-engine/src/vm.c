@@ -156,6 +156,67 @@ static int vm_add_callbacks(VirtualMachine_t* const vm, const bool optimize,  Vm
   return 0;
 }
 
+static int vm_discard_putc(int ch, void *file)
+{
+  (void)file;
+  return ch;
+}
+
+/** ****************************************************************************
+
+  @brief      Defines the callback words a saved drone lacks
+
+  A saved drone's memory holds the words that existed when it was created, so
+  words added to the engine later (such as status) are defined here. Only
+  call it on an idle VM: it runs FORTH. Nothing it does is printed.
+
+  @param[in]  vm  Current VM
+
+  @return     void
+
+*******************************************************************************/
+static void vm_add_missing_callbacks(VirtualMachine_t* const vm)
+{
+  VmExtension_t* vm_ext = (VmExtension_t*)embed_opt_get(vm)->param;
+  if(!vm_ext)
+    return;
+
+  embed_opt_t saved = *embed_opt_get(vm);
+  embed_opt_t quiet = saved;
+  quiet.put = vm_discard_putc;
+  embed_opt_set(vm, &quiet);
+
+  for(size_t i = 0; i < vm_ext->callbacks_length; i++) {
+    VmExtensionCb_t *cb = &vm_ext->callbacks[i];
+    char line[80];
+    m_t code = 0, xt = 0;
+
+    if(!cb->use)
+      continue;
+
+    // ' throws -13 when the word doesn't exist; catch leaves 0 (and the
+    // word's address) when it does
+    snprintf(line, sizeof(line), "' ' catch %s\n", cb->name);
+    if(embed_eval(vm, line) < 0 || embed_pop(vm, &code) < 0)
+      continue;
+
+    if(code == 0) {
+      embed_pop(vm, &xt);
+      continue;
+    }
+
+    // vm is in the system word list, which saved drones don't search
+    snprintf(line, sizeof(line), "system +order : %s %u vm ; -2 cells allot ' vm chars , system -order\n",
+             cb->name, (unsigned)i);
+    if(embed_eval(vm, line) < 0)
+      engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: unable to add word [%s] to a saved VM", cb->name);
+    else
+      engine_trace(TRACE_LEVEL_ALWAYS, "Word [%s] added to a saved VM", cb->name);
+  }
+
+  embed_opt_set(vm, &saved);
+}
+
 /******************************* PUBLIC FUNCTIONS *****************************/
 
 /** ****************************************************************************
@@ -424,7 +485,10 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
 
             if(!is_resume)
             { 
-                // it is normal command
+                // it is normal command (the VM is idle: add any words the
+                // drone was saved without)
+                vm_add_missing_callbacks(vm);
+
                 engine_trace(TRACE_LEVEL_ALWAYS, "Executing command at VM: [%s]", command->code);
 
                 forth_result = embed_eval((forth_t*)vm, (const char*)command->code);
