@@ -778,6 +778,27 @@ In general, protocols will be configured as follows, where T is the duration of 
 | T - 1 | Unlock modules | Simultaneously move all modules to an unlocked state. |
 | T | Add products | Simultaneously add all protocol products to the cargo bay. |
 
+#### Production stages, tools and timing
+
+Every production recipe follows this pattern with one tool module and a duration T in game seconds, set by its stage (`production_stage` in `game-engine/sql/game-data/build_game_data.py`; the game clock converts to real time, see [Game time runs on a master clock](#Game-time-runs-on-a-master-clock)):
+
+| Stage | Protocols | Tool | T (game time) |
+|:--|:--|:--|:--|
+| Mining | 11xxx | Slug, Worm or Crawler (A1) | 1 hour |
+| Refining ore | 21xxx | Smelter (A1) | 2 hours |
+| Alloys | 12021–12023 | Smelter (A1) | 2 hours |
+| Organics and polymers | 12042–12053 | Chemical Reactor (A1) | 2 hours |
+| Metal parts | 13xxx | Smelter (A1) | 4 hours |
+| Polymer parts | 13141, 13301 | Chemical Reactor (A1) | 4 hours |
+| Systems | 14xxx | Spider (A1) | 8 hours |
+| Spider, Welder, Riveter | 15501, 15511, 15521 | Spider (A1) | 1 day |
+| Other modules | 15xxx | Welder (A1) | 1 day |
+| Ship kits | 16xxx | Riveter (A1) | 3 days |
+
+The starter kit (25901) holds the Smelter (A1), Chemical Reactor (A1) and Spider (A1), which cover every stage up to systems; the Spider builds the Welder and Riveter. So no recipe needs a tool that can only be made with itself. The specialised manufacturing modules (Lathe, Roller, Extruder, Cutter, Grinder, Press) are not required by any A1 recipe; they are kept for larger items later. Push and pull (10, 11) take one game minute.
+
+Recipe quantities come from `resources.xlsx`. Recipes it doesn't have yet (the 14 combat and assembly modules and the 12 ship kits) are in `game-data/recipes-extra.csv`: modules from one of each of two to five systems, kits from modules whose masses add up to the kit's mass. Item masses are the Resources sheet's; recipes don't conserve mass. Recipe names and descriptions are generated from the data. Ship kits can't yet be turned into drones (#238).
+
 [Return to the TOC](#Table-of-Contents)
 
 ## The Event Engine

@@ -5,7 +5,8 @@
 #   - the website answers, and Getting Started shows the players' manual,
 #   - the scheduler's mail checks succeed,
 #   - emailing registrar@ with subject "register" registers a player,
-#   - a drone runs an emailed FORTH command and the engine emails the reply.
+#   - a drone runs an emailed FORTH command and the engine emails the reply,
+#   - it unpacks its starter kit, flies to the Moon, mines and refines kunspar.
 # Needs ports 80, 443 and 25 free. Leaves the stack running; remove it with
 #   docker compose down -v && rm -rf .env mail/config
 set -euo pipefail
@@ -93,6 +94,15 @@ wait_for 30 "script carried on after the trip" sh -c "docker compose logs game-e
 
 send_mail "$DRONE@$DOMAIN" "mine" "<run>11100 perform . cr</run>"
 wait_for 120 "drone mined kunspar on the Moon" has 1100
+wait_for 60 "drone finished the mining script" idle
+
+# Refining needs 20 kunspar (each mining run gives 5 here) and the starter
+# kit's Smelter (A1); each perform waits for its action
+send_mail "$DRONE@$DOMAIN" "refine" "<run>
+  11100 perform drop 11100 perform drop 11100 perform drop
+  21100 perform . cr
+</run>"
+wait_for 180 "drone refined kunspar into metals" has 2011
 [ -z "$(sql "select id from actions where drone=$DRONE_ID and aborted=1")" ] || fail "an action was aborted"
 echo "ok: no action aborted"
 
