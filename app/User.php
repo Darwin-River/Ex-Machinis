@@ -10,6 +10,8 @@ class User extends Authenticatable
 {
     use Notifiable;
 
+    protected $primaryKey = 'user_id';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -51,7 +53,7 @@ class User extends Authenticatable
                 'name' => $name,
                 'email' => strtolower($email),
             ]);
-            $last_id = $user->id;
+            $last_id = $user->user_id;
             // The player's first company, with the starting credits
             $company = Company::create([
                 'user_id' => $last_id,

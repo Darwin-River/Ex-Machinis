@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "db_launch.h"
 #include "common_types.h"
@@ -129,4 +130,43 @@ ErrorCode_t db_clear_crashes_in_row(DbConnection_t* connection, int agent_id)
 {
     return db_launch_query(connection,
         "UPDATE agents SET crashes_in_row = 0 WHERE agent_id = %d AND crashes_in_row <> 0", agent_id);
+}
+
+ErrorCode_t db_add_drone_message(DbConnection_t* connection, int agent_id, long long game_t,
+                                 const char* subject, const char* body)
+{
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK)
+        return result;
+
+    subject = subject ? subject : "";
+    body = body ? body : "";
+
+    // Escaping can double each value
+    size_t subject_len = strlen(subject), body_len = strlen(body);
+    size_t query_size = 256 + 2 * (subject_len + body_len);
+    char* query_text = malloc(query_size);
+    if(!query_text)
+        return ENGINE_INTERNAL_ERROR;
+
+    char* end = query_text;
+    end += snprintf(end, query_size, "INSERT INTO drone_messages (agent_id, game_t, subject, body) VALUES (%d, %lld, '",
+        agent_id, game_t);
+    end += mysql_real_escape_string(connection->hndl, end, subject, subject_len);
+    end += snprintf(end, query_size - (size_t)(end - query_text), "', '");
+    end += mysql_real_escape_string(connection->hndl, end, body, body_len);
+    snprintf(end, query_size - (size_t)(end - query_text), "')");
+
+    if(mysql_query(connection->hndl, query_text))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to keep a reply for drone [%d]: %s", agent_id, mysql_error(connection->hndl));
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+    else
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Reply kept for drone [%d] (email is off), reaches Earth at game time [%lld]", agent_id, game_t);
+    }
+
+    free(query_text);
+    return result;
 }

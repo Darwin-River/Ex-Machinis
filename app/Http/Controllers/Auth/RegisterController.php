@@ -2,84 +2,72 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Agent;
-use App\Company;
-use App\User;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Validator;
+use App\Invite;
+use App\User;
 use Illuminate\Foundation\Auth\RegistersUsers;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
+/**
+ * Opening an account on the website (#324 step 6). With email switched off
+ * this is how players join: an account has no company or drones until the
+ * player releases a script. In an invite-only world it needs an unused
+ * invitation code. With email on, players join by email (web-register)
+ * and the sign-up page shows that form instead.
+ */
 class RegisterController extends Controller
 {
-    /*
-    |--------------------------------------------------------------------------
-    | Register Controller
-    |--------------------------------------------------------------------------
-    |
-    | This controller handles the registration of new users as well as their
-    | validation and creation. By default this controller uses a trait to
-    | provide this functionality without requiring any additional code.
-    |
-    */
-
     use RegistersUsers;
 
-    /**
-     * Where to redirect users after registration.
-     *
-     * @var string
-     */
-    protected $redirectTo = '/home';
+    protected $redirectTo = '/release';
 
-    /**
-     * Create a new controller instance.
-     *
-     * @return void
-     */
     public function __construct()
     {
-
         $this->middleware('guest');
     }
 
-    /**
-     * Get a validator for an incoming registration request.
-     *
-     * @param  array $data
-     * @return \Illuminate\Contracts\Validation\Validator
-     */
-    protected function validator(array $data)
+    public function showRegistrationForm()
     {
-        return Validator::make($data, [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6|confirmed',
-            'company_name' => 'required|string|min:4|max:255|unique:companies,name',
-        ]);
+        return view(config('forge.email') ? 'auth.register' : 'auth.forge-register');
     }
 
-    /**
-     * Create a new user instance after a valid registration.
-     *
-     * @param  array $data
-     * @return \App\User
-     */
+    protected function validator(array $data)
+    {
+        $rules = [
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
+        ];
+        $validator = Validator::make($data, $rules);
+
+        if (config('forge.invite_only')) {
+            $validator->after(function ($validator) use ($data) {
+                if (!Invite::findUnused($data['invite_code'] ?? null)) {
+                    $validator->errors()->add('invite_code', 'That invitation code is not valid or has been used.');
+                }
+            });
+        }
+
+        return $validator;
+    }
+
     protected function create(array $data)
     {
-        $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => bcrypt($data['password']),
-        ]);
-        $id = $user->id;
-        $company = new Company();
-        //$company->user_id = $user->user_id;
-        //$company->name = $data['company_name'];
-        //$company->save();
-        //create initial drones:
-        $company->generateStartingDrones($id);
+        return DB::transaction(function () use ($data) {
+            $user = User::create([
+                'name' => $data['name'],
+                'email' => strtolower($data['email']),
+                'password' => bcrypt($data['password']),
+            ]);
 
-        return $user;
+            if (config('forge.invite_only')) {
+                $invite = Invite::findUnused($data['invite_code'] ?? null);
+                abort_if($invite === null, 422, 'That invitation code is not valid or has been used.');
+                $invite->useFor($user);
+            }
+
+            return $user;
+        });
     }
 }

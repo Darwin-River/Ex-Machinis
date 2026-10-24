@@ -41,4 +41,8 @@ ErrorCode_t db_queue_launched(DbConnection_t* connection, int agent_id, long lon
 /** An action succeeded: the drone's crashes are no longer in a row */
 ErrorCode_t db_clear_crashes_in_row(DbConnection_t* connection, int agent_id);
 
+/** Keeps a drone's reply (email switched off): it reaches Earth at game time game_t */
+ErrorCode_t db_add_drone_message(DbConnection_t* connection, int agent_id, long long game_t,
+                                 const char* subject, const char* body);
+
 #endif

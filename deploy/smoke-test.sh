@@ -8,6 +8,7 @@
 #   - a drone runs an emailed FORTH command and the engine emails the reply,
 #   - it unpacks its starter kit, flies to the Moon, mines and refines kunspar,
 #   - a sale between two companies of the same player is refused,
+#   - with email off, a script released on the website runs (no email),
 #   - it launches a new drone from a ship kit with a copy of its program.
 # Needs ports 80, 443 and 25 free. Leaves the stack running; remove it with
 #   docker compose down -v && rm -rf .env mail/config
@@ -184,5 +185,32 @@ for svc in game-engine events-engine app; do
     [ "$restarts" = 0 ] || fail "$svc restarted $restarts times"
 done
 echo "ok: no service restarted"
+
+# Public Forge (#324 step 6): switch email off and make the world
+# invite-only, then open an account with an invitation and release a script
+# on the website. The drone runs it, and its replies are kept for the
+# website instead of being emailed.
+GAME_EMAIL=0 INVITE_ONLY=1 docker compose up -d app game-engine events-engine >/dev/null 2>&1
+wait_for 120 "sign-up page asks for an invitation" sh -c "curl -fsS http://localhost/register | grep -q 'Invitation code'"
+CODE=$(docker compose exec -T app php artisan forge:invite 1 --note=smoke | tr -d '\r' | tail -1)
+[ -n "$CODE" ] || fail "no invitation code"
+JAR=$(mktemp)
+token() { curl -fsS -c "$JAR" -b "$JAR" "http://localhost$1" | grep -o 'name="_token" value="[^"]*"' | head -1 | sed -e 's/.*value="//' -e 's/"$//'; }
+curl -fsS -c "$JAR" -b "$JAR" -o /dev/null -X POST http://localhost/register --data-urlencode "_token=$(token /register)" \
+    --data-urlencode "invite_code=$CODE" -d name=Forger --data-urlencode email=forger@outside.test \
+    -d password=forge-password -d password_confirmation=forge-password
+[ -n "$(sql "select user_id from users where email='forger@outside.test'")" ] || fail "account not opened with the invitation"
+echo "ok: account opened with an invitation"
+curl -fsS -c "$JAR" -b "$JAR" -o /dev/null -X POST http://localhost/release --data-urlencode "_token=$(token /release)" \
+    --data-urlencode "company_name=Smoke Forge" --data-urlencode $'script=: hello  ." forge-release-" ;\n: launched  hello ." ok7" ;'
+FORGE_DRONE=$(sql "select a.agent_id from agents a join companies c on c.company_id = a.company_id where c.name='Smoke Forge'")
+[ -n "$FORGE_DRONE" ] || fail "release did not create a company and drone"
+echo "ok: release created a company with a drone"
+released() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and body like '%forge-release-ok7%' and body like '%has finished%'")" ]; }
+wait_for 90 "released drone ran launched; its reply is kept for the website" released
+FORGE_NAME=$(sql "select name from agents where agent_id=$FORGE_DRONE")
+wait_for 30 "the Release page shows the reply" sh -c "curl -fsS -b '$JAR' http://localhost/release | grep -q 'forge-release-ok7'"
+! docker compose logs mail | grep -q "from=<$FORGE_NAME@" || fail "the released drone sent email"
+echo "ok: no email from the released drone"
 
 echo "Smoke test passed."
