@@ -24,6 +24,8 @@
 #include "wrap.h"
 #include "game_time.h"
 #include "vm_meter.h"
+#include "crash.h"
+#include "db_launch.h"
 #include "config.h"
 #include "db.h"
 
@@ -367,6 +369,18 @@ static void engine_stamp_commands(void)
     }
 }
 
+/* Adds text to the end of a run's output, as far as it fits */
+static void engine_append_output(char* out_buf, size_t out_buf_size, const char* text)
+{
+    size_t len = strnlen(out_buf, out_buf_size);
+    if(len + 1 < out_buf_size)
+        snprintf(out_buf + len, out_buf_size - len, "%s", text);
+}
+
+/* Set when a crash means the drone's program goes back to its clean copy
+   once this command is done (after the VM is saved) */
+static bool g_restore_release_vm = false;
+
 /** ****************************************************************************
 
   @brief      Before resuming a script paused by perform, leaves perform's
@@ -397,7 +411,67 @@ static Bool_t engine_finish_perform(void)
 
     vm_push_result(engine.last_agent.vm, code);
     db_set_agent_waiting_action(&engine.db_connection, agent_id, 0);
+
+    // An action that succeeds ends a run of crashes
+    if(code == PERFORM_OK)
+        db_clear_crashes_in_row(&engine.db_connection, agent_id);
     return ENGINE_TRUE;
+}
+
+/** ****************************************************************************
+
+  @brief      After a run ends (it didn't pause), checks whether it was the
+              launched word. If launched returned normally the drone has
+              finished; if it crashed, the drone restarts from its clean copy
+              after a wait that doubles with each crash in a row, or becomes
+              a wreck after too many.
+
+  @param[in|out]  out_buf       The run's output: the outcome is added to it
+  @param[in]      out_buf_size  Buffer size
+
+  @return     void
+
+*******************************************************************************/
+static void engine_end_launched(char* out_buf, size_t out_buf_size)
+{
+    int agent_id = engine.last_command.agent_id;
+    LaunchState_t state;
+
+    if(db_get_launch_state(&engine.db_connection, agent_id, &state) != ENGINE_OK || !state.running)
+        return;
+
+    int code = vm_take_launched_result(engine.last_agent.vm);
+    char msg[256];
+
+    if(code == 0)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] finished its launched word", agent_id);
+        db_record_launched_finished(&engine.db_connection, agent_id);
+        engine_append_output(out_buf, out_buf_size, "\nMy launched word has finished.\n");
+        return;
+    }
+
+    int in_row = state.crashes_in_row + 1;
+    long long wait = 0;
+    CrashStep_t step = crash_next_step(in_row, engine_get_crash_limit(), engine_get_crash_restart_wait(), &wait);
+
+    if(step == CRASH_WRECK)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] crashed with error [%d], [%d] in a row: it is a wreck", agent_id, code, in_row);
+        db_record_crash(&engine.db_connection, agent_id, code, in_row, -1);
+        snprintf(msg, sizeof(msg), "\nMy launched word crashed with error %d, %d times in a row. I am a wreck.\n", code, in_row);
+    }
+    else
+    {
+        long long restart_at = game_time_now_seconds() + wait;
+        engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] crashed with error [%d], [%d] in a row: restarts in [%lld] game s", agent_id, code, in_row, wait);
+        db_record_crash(&engine.db_connection, agent_id, code, in_row, restart_at);
+        db_queue_launched(&engine.db_connection, agent_id, restart_at);
+        db_add_agent_instructions(&engine.db_connection, agent_id, engine_get_crash_restart_instructions());
+        g_restore_release_vm = true;
+        snprintf(msg, sizeof(msg), "\nMy launched word crashed with error %d (%d in a row). Restarting from my clean copy in %lld game seconds.\n", code, in_row, wait);
+    }
+    engine_append_output(out_buf, out_buf_size, msg);
 }
 
 /** ****************************************************************************
@@ -454,6 +528,10 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
     // perform started an action: the script stays paused until it is done
     if(vm_waiting_action())
         db_set_agent_waiting_action(&engine.db_connection, engine.last_command.agent_id, vm_waiting_action());
+
+    // A run of the launched word that has ended: it returned or crashed
+    if(!vm_is_yield())
+        engine_end_launched(out_buf, out_buf_size);
 
     AgentInfo_t info;
     // Update drone info (just in case, we executed a location change)
@@ -631,7 +709,17 @@ ErrorCode_t engine_process_meta_rebrand(char* out_buf, size_t out_buf_size)
 *******************************************************************************/
 static ErrorCode_t engine_process_meta_launched(char* out_buf, size_t out_buf_size)
 {
+    int agent_id = engine.last_command.agent_id;
+
+    // The program as it is now is the clean copy a crash restarts from
+    db_save_release_vm(&engine.db_connection, agent_id);
+
+    // Back to the prompt: any paused script is dropped, with its resume
     vm_restart(engine.last_agent.vm);
+    db_delete_resume_commands(&engine.db_connection, agent_id);
+    db_set_agent_waiting_action(&engine.db_connection, agent_id, 0);
+    db_set_agent_pending_input(&engine.db_connection, agent_id, NULL);
+    free(db_take_agent_output(&engine.db_connection, agent_id));
 
     bool run = vm_word_defined(engine.last_agent.vm, LAUNCHED_WORD);
 
@@ -642,7 +730,10 @@ static ErrorCode_t engine_process_meta_launched(char* out_buf, size_t out_buf_si
     if(!run)
         return ENGINE_OK;
 
-    snprintf(engine.last_command.code, sizeof(engine.last_command.code), "%s\n", LAUNCHED_WORD);
+    // Run launched inside catch, so a crash leaves its error code on the
+    // stack instead of being lost at the FORTH prompt
+    db_set_launched_running(&engine.db_connection, agent_id, 1);
+    snprintf(engine.last_command.code, sizeof(engine.last_command.code), "' %s catch\n", LAUNCHED_WORD);
     return engine_process_vm_command(out_buf, out_buf_size);
 }
 
@@ -682,6 +773,7 @@ ErrorCode_t engine_process_meta_command(char* out_buf, size_t out_buf_size)
         // The script no longer waits for an action (the action itself goes on)
         db_set_agent_waiting_action(&engine.db_connection, engine.last_command.agent_id, 0);
         db_set_agent_pending_input(&engine.db_connection, engine.last_command.agent_id, NULL);
+        db_set_launched_running(&engine.db_connection, engine.last_command.agent_id, 0);
     } else if (strstr(engine.last_command.code, META_COMMAND_RESET)) {
         engine_trace(TRACE_LEVEL_ALWAYS, "Running reset command at agent [%d]", engine.last_command.agent_id);
         // reset and start with a fresh VM
@@ -695,6 +787,7 @@ ErrorCode_t engine_process_meta_command(char* out_buf, size_t out_buf_size)
         free(db_take_agent_output(&engine.db_connection, engine.last_command.agent_id));
         db_set_agent_waiting_action(&engine.db_connection, engine.last_command.agent_id, 0);
         db_set_agent_pending_input(&engine.db_connection, engine.last_command.agent_id, NULL);
+        db_set_launched_running(&engine.db_connection, engine.last_command.agent_id, 0);
     } else if (code_len == strlen(META_COMMAND_LAUNCHED) &&
                strncasecmp(code, META_COMMAND_LAUNCHED, code_len) == 0) {
         result = engine_process_meta_launched(out_buf, out_buf_size);
@@ -724,6 +817,13 @@ ErrorCode_t engine_process_command(char* out_buf, size_t out_buf_size)
     if(!out_buf || (out_buf_size == 0)) {
         engine_trace(TRACE_LEVEL_ALWAYS,  "ERROR: Unable to process command (invalid buffer)");
         return ENGINE_INTERNAL_ERROR;
+    }
+
+    // A wreck runs nothing
+    LaunchState_t state;
+    if(db_get_launch_state(&engine.db_connection, engine.last_command.agent_id, &state) == ENGINE_OK && state.wrecked) {
+        engine_send_output("This drone is a wreck: it no longer runs commands.", false);
+        return ENGINE_OK;
     }
 
     // We need to identify if it is a VM command or just a meta-command
@@ -1010,6 +1110,7 @@ ErrorCode_t engine_run()
             memset(out_buffer, 0, ENGINE_MAX_BUF_SIZE+1);
             vm_clear_yield();
             g_ran_on_vm = false;
+            g_restore_release_vm = false;
             engine_process_command(out_buffer, ENGINE_MAX_BUF_SIZE);
         } 
 
@@ -1044,6 +1145,10 @@ ErrorCode_t engine_run()
             result = db_save_agent_vm(&engine.db_connection, 
                 engine.last_command.agent_id, 
                 engine.last_agent.vm);
+
+            // After a crash the program goes back to its clean copy
+            if(result == ENGINE_OK && g_restore_release_vm)
+                result = db_restore_release_vm(&engine.db_connection, engine.last_command.agent_id);
         }
 
         // Delete command always to avoid spam when error
@@ -1375,6 +1480,21 @@ long long engine_get_query_instructions()
 long long engine_get_action_instructions()
 {
     return atoll((const char*)engine.config.params[ACTION_INSTRUCTIONS]);
+}
+
+int engine_get_crash_limit()
+{
+    return atoi((const char*)engine.config.params[CRASH_LIMIT]);
+}
+
+long long engine_get_crash_restart_wait()
+{
+    return atoll((const char*)engine.config.params[CRASH_RESTART_WAIT]);
+}
+
+long long engine_get_crash_restart_instructions()
+{
+    return atoll((const char*)engine.config.params[CRASH_RESTART_INSTRUCTIONS]);
 }
 
 /** ****************************************************************************

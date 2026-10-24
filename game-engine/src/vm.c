@@ -17,6 +17,7 @@
 #include "vm.h"
 #include "game_time.h"
 #include "vm_meter.h"
+#include "crash.h"
 #include "engine.h"
 #include "trace.h"
 #include "vm_extension.h"
@@ -87,6 +88,9 @@ int vm_putc_cb(int ch, void *file)
   @return     0 continue, 1 yield
 
 *******************************************************************************/
+/* What the VM returned at the end of the last command (negative: it halted) */
+static int g_last_forth_result = 0;
+
 int vm_yield_cb(void* param) 
 {
   // perform started an action: pause until it is done
@@ -459,6 +463,7 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
 
             const char* rest = input;
             forth_result = vm_run_with_input(vm, &rest);
+            g_last_forth_result = forth_result;
 
             // Keep what the script hasn't read if it paused, else nothing
             if(pending_input)
@@ -587,6 +592,23 @@ int vm_is_yield()
 void vm_wait_for_action(int action_id)
 {
   g_vm_wait_action = action_id;
+}
+
+/** The result of a run of "' launched catch" that has ended (crash.h):
+    0 when launched returned normally, else its error code. Takes catch's
+    code off the stack. */
+int vm_take_launched_result(VirtualMachine_t* vm)
+{
+  size_t depth = 0;
+  m_t top = 0;
+
+  if(vm && g_last_forth_result >= 0)
+  {
+    depth = embed_depth((forth_t*)vm);
+    if(depth && embed_pop((forth_t*)vm, &top) < 0)
+      depth = 0;
+  }
+  return crash_launched_result(g_last_forth_result, depth, (s_t)top);
 }
 
 /** Pushes a value onto a VM's data stack (perform's result on resume). */
