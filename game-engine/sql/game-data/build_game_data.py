@@ -327,7 +327,9 @@ for pid, p in econ_prot.items():
         p = p[:4] + [f'{desc} Takes {game_duration(MINING_TIME)}.'] + p[5:]
     if pid in ('10', '11'):
         effs = [dict(e, time=TRANSFER_TIME) if e['time'] > 0 else e for e in effs]
-        p = p[:4] + [p[4].replace('This procedure takes one minute to complete.', 'It takes one minute of game time.')] + p[5:]
+        # The multiplier N is required (#315): describe it
+        verb = {'10': 'Delivers N units of resource R to drone D.', '11': 'Pulls N units of resource R from drone D.'}[pid]
+        p = p[:4] + [f'[N R D {pid} perform]: {verb} N is required (1 for one unit). It takes one minute of game time.'] + p[5:]
     protocols[pid] = p
     add_effects(pid, effs)
 

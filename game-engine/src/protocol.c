@@ -962,20 +962,25 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
 
   int stack_value;
 
-  // The multiplier and the location are optional: only pop them when the
-  // stack has a value, or the underflow would swallow perform's return value
-  if(result == ENGINE_OK && protocol.multiplier && vm_extension_depth(vmExt) > 0) {
-    // When multiplier flag is enabled - check the presence of an extra multiplier at stack
-    // multiplier is always after the list of params
-    ErrorCode_t vm_result = vm_extension_pop(vmExt, &stack_value);
-    if(vm_result == ENGINE_OK) {
-        // We received the optional multiplier -> use it
-        protocol.process_multiplier = stack_value;
+  // Protocols with the multiplier flag (push, pull) always take it, after
+  // their parameters: N R D 10 perform (#315). Taking it only when the stack
+  // had a value made perform eat a script's own values. Missing, it is a
+  // stack underflow (-4) like a missing parameter; below 1, perform refuses.
+  if(result == ENGINE_OK && protocol.multiplier) {
+    result = vm_extension_pop(vmExt, &stack_value);
+    if(result == ENGINE_OK) {
+        protocol.process_multiplier = (int16_t)stack_value;
 
         engine_trace(TRACE_LEVEL_ALWAYS,
             "Multiplier set to [%d] for protocol [%d]",
             protocol.process_multiplier,
             protocol.protocol_id);
+
+        if(protocol.process_multiplier < 1) {
+          engine_trace(TRACE_LEVEL_ALWAYS, "Multiplier [%d] refused: it must be at least 1",
+            protocol.process_multiplier);
+          result = ENGINE_LOGIC_ERROR;
+        }
     }
   } else if(result == ENGINE_OK && !protocol.multiplier && protocol_takes_location(&protocol) &&
             vm_extension_depth(vmExt) > 0) {
