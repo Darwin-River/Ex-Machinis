@@ -291,7 +291,8 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
 	// A command runs once it has reached its drone (deliver_at, see
 	// db_stamp_commands). A script paused by perform resumes only once its action is done (no
 	// unprocessed events, or aborted): hold its resume back until then.
-	// Other commands, such as <abort> or new mail, are never held.
+	// <launched> is held while the drone's script is still running. Other
+	// commands, such as <abort> or new mail, are never held.
 	snprintf(query_text,
         DB_MAX_SQL_QUERY_LEN,
         "SELECT c.id, c.code, c.agent_id, c.subject, c.email_content FROM commands c "
@@ -300,8 +301,14 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
         "AND NOT (c.code LIKE '%s%%' AND a.waiting_action IS NOT NULL "
         "  AND EXISTS (SELECT 1 FROM actions x WHERE x.id = a.waiting_action AND x.aborted = 0) "
         "  AND EXISTS (SELECT 1 FROM events e WHERE e.action = a.waiting_action AND e.outcome = 0)) "
+        // <launched> waits until the drone's script has finished (no resume
+        // queued): a released script loads in full before launched runs
+        "AND NOT (c.code = '%s' AND EXISTS (SELECT 1 FROM commands r "
+        "  WHERE r.agent_id = c.agent_id AND r.id <> c.id AND r.code LIKE '%s%%')) "
         "ORDER BY c.id LIMIT 1",
         game_time_now_seconds(),
+        engine_get_vm_resume_command(),
+        META_COMMAND_LAUNCHED,
         engine_get_vm_resume_command());
 
     // run it

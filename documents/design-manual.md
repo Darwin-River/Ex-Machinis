@@ -339,6 +339,22 @@ This table stores basic information on the ingame drones.  Most information abou
 * company_id [INT] - The company the drone belongs to. A launched drone joins its launcher's company.
 * instructions [BIGINT] - FORTH instructions the drone's script has run in all (instruction metering).
 * waiting_action [INT(10)] - The action the drone's script is waiting for (set by `perform`), NULL when it isn't waiting.
+* release_vm [MEDIUMBLOB] - The clean copy of the drone's VM, saved the first time it runs `<launched>`. A crash restarts the drone from it ([Crashes](#Crashes)).
+* launched_running [TINYINT] - 1 while the drone's `launched` word runs.
+* crashes_in_row [INT] - Crashes since the drone's last action that succeeded.
+* crashes_total [INT] - All the drone's crashes.
+* wrecked_at [BIGINT] - Game time the drone became a wreck (too many crashes in a row), NULL while it works.
+
+#### Table: drone_crashes
+
+One row per crash of a `launched` word, for post-mortems.
+
+* id [INT] - Table index.
+* drone [INT] - The drone (agents.agent_id).
+* game_t [BIGINT] - Game time of the crash.
+* code [INT] - The error code `catch` caught (FORTH throw codes: -10 is division by zero, -4 stack underflow; a halted VM, such as after `abort`, gives -1).
+* in_row [INT] - Crashes in a row, this one included.
+* restart_at [BIGINT] - Game time the drone restarts; NULL when the crash made it a wreck.
 
 [Return to the TOC](#Table-of-Contents)
 
@@ -801,6 +817,20 @@ Protocol 12 turns a ship kit into a new drone: `[D K 12 perform]`, where K is a 
 **The launch event** (Event Engine) creates the drone, in one step: a new `agents` row owned by the launching drone's player, named `SN<number>` like the starting drones, at the launching drone's `object_id`, with `hull_type` = K and `vm` = a copy of D's `vm` taken now (a fresh VM if D no longer belongs to the player). Its cargo is empty. The event's `new_quantity` is then the new drone's ID. The EE also queues a `<launched>` command for it, with `deliver_at` = now.
 
 **`<launched>`** (Game Engine) brings the copied VM back to the prompt, as Forth's `ABORT` does: empty stacks and no paused script, even if D was in the middle of one (as it is when a drone copies itself: its script waits in `perform` for the launch). The words and variables stay. It emails the player that the drone has launched (from the new drone's address, so the player learns it), then looks up the word `launched` (case-sensitive) with `' ' catch launched` and, if it's defined, runs it once as a script: a launched drone can start working unattended. Its output is emailed when it finishes, like any script's.
+
+The first time a drone runs `<launched>`, its VM as it is then is saved in `agents.release_vm`: the clean copy a crash restarts from. A queued `<launched>` waits while the drone still has a script running (a resume queued), so a script sent just before it, such as a released one, loads in full first. A queued `<launched>` waits while the drone still has a script running (a resume queued), so a script sent just before it, such as a released one, loads in full first.
+
+<a name="Crashes"></a>**Crashes.** The Game Engine runs the word as `' launched catch` and sets `agents.launched_running`. The `catch` frame lives in the VM, so it survives the script pausing in `perform` or at the end of an instruction slice. When the run ends (it doesn't pause), the engine takes `catch`'s code off the stack (`crash_launched_result` in `crash.c`):
+
+- 0: `launched` returned normally. The drone has finished (`crashes_in_row` goes back to 0) and its reply ends "My launched word has finished."
+- Anything else is a crash: the code `catch` caught, -4 (stack underflow) if the word emptied the stack below `catch`'s frame, or the VM's result when it halted (-1, e.g. after `abort`).
+
+After a crash (`engine_end_launched` in `engine.c`), with `crashes_in_row` + 1 = n:
+
+- n < `CRASH_LIMIT` (game-engine.conf, 5): the drone restarts. Its VM is put back to `release_vm` once this command is saved, a new `<launched>` command is queued with `deliver_at` = now + `CRASH_RESTART_WAIT` x 2^(n-1) game seconds (3600, doubling), and `CRASH_RESTART_INSTRUCTIONS` (1000) are added to `agents.instructions` (a stand-in for the fuel a restart will cost).
+- n = `CRASH_LIMIT`: the drone becomes a wreck (`wrecked_at` is set). A wreck runs no more commands: each gets the reply "This drone is a wreck". (What happens to a wreck and its cargo comes later.)
+
+Each crash is recorded in `drone_crashes`. `crashes_in_row` goes back to 0 whenever one of the drone's actions succeeds (`perform` leaves 0), so only crashes with no progress in between add up to a wreck. `<abort>` and `<reset>` stop the run without counting a crash. A `launched` word that loops forever isn't a crash: it keeps running, one instruction slice at a time.
 
 The hulls come from the kits' names (`HULL_SIZES` in `build_game_data.py`), and `game_data.sql` upserts them, leaving hulls 1 and 2 alone:
 

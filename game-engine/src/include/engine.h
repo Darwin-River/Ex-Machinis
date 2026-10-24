@@ -47,6 +47,9 @@ enum
     MAX_CYCLE_INSTRUCTIONS,
     QUERY_INSTRUCTIONS,
     ACTION_INSTRUCTIONS,
+    CRASH_LIMIT,
+    CRASH_RESTART_WAIT,
+    CRASH_RESTART_INSTRUCTIONS,
     VM_RESUME_COMMAND,
 
     // Email configuration
@@ -299,6 +302,15 @@ long long engine_get_query_instructions();
 
 /** Flat instruction cost of an action (perform) */
 long long engine_get_action_instructions();
+
+/** Crashes in a row that make a launched drone a wreck (0: never) */
+int engine_get_crash_limit();
+
+/** Game seconds before the first restart after a crash (doubles each time) */
+long long engine_get_crash_restart_wait();
+
+/** Instructions charged for each restart after a crash */
+long long engine_get_crash_restart_instructions();
 
 /** ****************************************************************************
 

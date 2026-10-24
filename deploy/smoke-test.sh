@@ -144,6 +144,38 @@ wait_for 60 "drone finished the launch script" idle
 [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRONE_ID and resource=6001")" = 0 ] || fail "the kit was not used up"
 echo "ok: the kit was used up"
 
+# Entry point and crashes (#324 step 5): the engine runs launched inside
+# catch and saved a clean copy of the program at launch. A launched word that
+# crashes restarts from the clean copy after a wait; 5 crashes in a row make a
+# wreck.
+NEW_ID=$(sql "select agent_id from agents where name='$NEW'")
+wait_for 60 "launched drone's launched word returned normally" sh -c "docker compose logs game-engine | grep -q 'Drone \[$NEW_ID\] finished its launched word'"
+[ "$(sql "select release_vm is not null from agents where agent_id=$NEW_ID")" = 1 ] || fail "no clean copy saved at launch"
+echo "ok: clean copy saved at launch"
+crash_launched() { # redefine launched to divide by zero, then restart it
+    # (the definition prints a marker unique to this round, so the restart
+    # is only queued once this round's definition has run)
+    # (.( prints at the prompt; the round number is printed by . so the
+    # marker "crash-word- N" (. prints a space first) appears only in the
+    # output, not in the script)
+    send_mail "$NEW@$DOMAIN" "crash $1" "<run>: launched 1 0 / ; .( crash-word-) $1 .</run>"
+    wait_for 60 "launched drone $NEW took the crashing word ($1)" sh -c "docker compose logs game-engine | grep -q 'crash-word- $1 '"
+    sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('<launched>', $NEW_ID, NOW(), NOW(), 'Restart', '')"
+}
+crash_launched 1
+crashed() { [ "$(sql "select count(*) from drone_crashes where drone=$NEW_ID and code=-10 and restart_at is not null")" = 1 ]; }
+wait_for 60 "a crash in launched is caught (-10) and a restart is scheduled" crashed
+[ "$(sql "select count(*) from commands where agent_id=$NEW_ID and code='<launched>' and deliver_at > (select min(restart_at) - 1 from drone_crashes where drone=$NEW_ID)")" = 1 ] || fail "no restart queued"
+[ "$(sql "select vm = release_vm from agents where agent_id=$NEW_ID")" = 1 ] || fail "the program was not put back to its clean copy"
+echo "ok: the program went back to its clean copy and a restart is queued"
+# The restart queued above isn't needed (this world's clock is fast): drop it,
+# then make the next crash the 5th in a row
+sql "delete from commands where agent_id=$NEW_ID and code='<launched>'"
+sql "update agents set crashes_in_row = 4 where agent_id=$NEW_ID"
+crash_launched 2
+wrecked() { [ "$(sql "select wrecked_at is not null from agents where agent_id=$NEW_ID")" = 1 ]; }
+wait_for 60 "the 5th crash in a row makes the drone a wreck" wrecked
+
 [ -z "$(sql "select id from actions where drone=$DRONE_ID and aborted=1 and id <> $REFUSED_ACTION")" ] || fail "an action was aborted"
 echo "ok: no action aborted"
 

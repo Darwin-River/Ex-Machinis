@@ -432,6 +432,18 @@ The new spacecraft:
 
 Word names are case-sensitive here: the word must be called `launched`, in lower case.
 
+#### When `launched` crashes
+
+Your new spacecraft keeps a clean copy of its program from the moment it launched. If `launched` hits an error, such as dividing by zero or a `throw`, the spacecraft emails you the error code and restarts from that clean copy:
+
+- the first restart comes an hour of game time later, and each crash in a row doubles the wait (one hour, two, four, eight);
+- each restart costs a little power;
+- after five crashes in a row the spacecraft becomes a wreck and stops for good.
+
+Crashes only count "in a row" while nothing is getting done: any action that succeeds starts the count again. When `launched` simply ends, the spacecraft tells you it has finished, and waits for your commands.
+
+It's good practice to test each word on its own before you build it into `launched`. Since restarts go back to the clean copy, sending a fixed word to a crashing spacecraft only lasts until its next restart.
+
 ## Chapter 5: Building A Vocabulary
 
 ### Creating your own words

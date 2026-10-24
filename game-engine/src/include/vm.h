@@ -129,6 +129,13 @@ void vm_wait_for_action(int action_id);
 /** Pushes a value onto a VM's data stack (perform's result on resume) */
 void vm_push_result(VirtualMachine_t* vm, int value);
 
+/** The result of a run of "' launched catch" that has ended: 0 when launched
+    returned normally, else its error code (takes catch's code off the stack) */
+int vm_take_launched_result(VirtualMachine_t* vm);
+
+/** Adds text to the current command's output, as the VM's own output does */
+void vm_append_output(const char* text);
+
 /** The action the script paused for in this run, 0 when none */
 int vm_waiting_action(void);
 
