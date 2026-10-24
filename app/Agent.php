@@ -80,23 +80,30 @@ class Agent extends Model
      * Adds new item to inventory but just sets the cargo mass to a fixed value.
      * @param integer $cargo Added cargo id.
      */
-    public function addCargo($cargo)
+    /**
+     * Puts units of a resource in a new drone's hold. $cargoBefore is the
+     * mass already in the hold (events record the hold's total).
+     * Returns the hold's new total.
+     */
+    public function addCargo($cargo, $units = 1, $cargoBefore = 0)
     {
-      $resource = Resource::where('id', $cargo)->first();
-      if ($resource != null) {
+        $resource = Resource::where('id', $cargo)->first();
+        if ($resource == null) {
+            return $cargoBefore;
+        }
         $event = new Event();
         $event->event_type = 1;
         $event->action = 0;
         $event->logged = true;
         $event->outcome = 1;
-        $event->drone = $this->id;
+        $event->drone = $this->id ?? $this->agent_id;
         $event->resource = $cargo;
         $event->installed = false;
         $event->locked = false;
-        $event->new_quantity = 1;
-        $event->new_cargo = $resource->mass();
+        $event->new_quantity = $units;
+        $event->new_cargo = $cargoBefore + $resource->mass() * $units;
         $event->save();
-      }
+        return $event->new_cargo;
     }
     /**
      * Extracts and saves all code between tags <run></run>

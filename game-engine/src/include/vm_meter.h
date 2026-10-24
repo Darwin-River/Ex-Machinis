@@ -26,4 +26,9 @@ long long vm_meter_used(void);
 /** 1 when this slice has used its whole budget */
 int vm_meter_exhausted(void);
 
+/** Power (#324 step 8): whole units of fuel owed for a drone's instructions,
+    given how many are already paid for and the instructions per fuel unit.
+    The rest carries over to the next charge. */
+long long vm_meter_fuel_due(long long instructions, long long paid, long long per_fuel);
+
 #endif

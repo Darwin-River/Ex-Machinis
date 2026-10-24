@@ -9,6 +9,7 @@
 #   - it unpacks its starter kit, flies to the Moon, mines and refines kunspar,
 #   - a sale between two companies of the same player is refused,
 #   - with email off, a script released on the website runs (no email),
+#   - actions and computing burn fuel; a drone that runs dry becomes a wreck,
 #   - the Test button runs a script in the test world, not the live one,
 #   - it launches a new drone from a ship kit with a copy of its program.
 # Needs ports 80, 443 and 25 free. Leaves the stack running; remove it with
@@ -151,6 +152,10 @@ echo "ok: the kit was used up"
 # crashes restarts from the clean copy after a wait; 5 crashes in a row make a
 # wreck.
 NEW_ID=$(sql "select agent_id from agents where name='$NEW'")
+# A launched drone's hold starts empty: give it fuel for the rounds below,
+# as its owner would by pushing some over (#324 step 8)
+sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo)
+     values (1, 0, 1, 1, $NEW_ID, 2061, 0, 0, 200, 200)"
 wait_for 60 "launched drone's launched word returned normally" sh -c "docker compose logs game-engine | grep -q 'Drone \[$NEW_ID\] finished its launched word'"
 [ "$(sql "select release_vm is not null from agents where agent_id=$NEW_ID")" = 1 ] || fail "no clean copy saved at launch"
 echo "ok: clean copy saved at launch"
@@ -177,6 +182,13 @@ sql "update agents set crashes_in_row = 4 where agent_id=$NEW_ID"
 crash_launched 2
 wrecked() { [ "$(sql "select wrecked_at is not null from agents where agent_id=$NEW_ID")" = 1 ]; }
 wait_for 60 "the 5th crash in a row makes the drone a wreck" wrecked
+
+# Fuel (#324 step 8): the first drone's actions and computing burned fuel
+# from its starting 100, and it keeps going
+[ "$(sql "select IFNULL(MAX(units), 0) < 100 and IFNULL(MAX(units), 0) > 0 from sqInventory where drone=$DRONE_ID and resource=2061")" = 1 ] || fail "the drone's fuel was not burned"
+[ -n "$(sql "select id from actions where drone=$DRONE_ID and protocol=2 and aborted=0")" ] || fail "no power was burned for computing"
+[ "$(sql "select wrecked_at is null from agents where agent_id=$DRONE_ID")" = 1 ] || fail "the drone with fuel became a wreck"
+echo "ok: actions and computing burn fuel, and a fuelled drone keeps going"
 
 [ -z "$(sql "select id from actions where drone=$DRONE_ID and aborted=1 and id <> $REFUSED_ACTION")" ] || fail "an action was aborted"
 echo "ok: no action aborted"
@@ -213,6 +225,18 @@ FORGE_NAME=$(sql "select name from agents where agent_id=$FORGE_DRONE")
 wait_for 30 "the Release page shows the reply" sh -c "curl -fsS -b '$JAR' http://localhost/release | grep -q 'forge-release-ok7'"
 ! docker compose logs mail | grep -q "from=<$FORGE_NAME@" || fail "the released drone sent email"
 echo "ok: no email from the released drone"
+
+# A drone that never refuels dies (#324 step 8): release one that only
+# computes, leave it 1 unit of fuel, and it runs dry and becomes a wreck
+curl -fsS -c "$JAR" -b "$JAR" -o /dev/null -X POST http://localhost/release --data-urlencode "_token=$(token /release)" \
+    --data-urlencode "company_name=Dry Forge" --data-urlencode 'script=: launched  begin 0 until ;'
+DRY=$(sql "select a.agent_id from agents a join companies c on c.company_id = a.company_id where c.name='Dry Forge'")
+[ -n "$DRY" ] || fail "release did not create the dry drone"
+KIT=$(sql "select mass from resources where id=5901")
+sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo)
+     values (2, 0, 1, 1, $DRY, 2061, 0, 0, 1, $KIT + 1)"
+dry() { [ "$(sql "select wreck_cause from agents where agent_id=$DRY")" = fuel ]; }
+wait_for 120 "a drone that runs out of fuel becomes a wreck" dry
 
 # Test world (#324 step 7): start its engines and turn on the Test button,
 # then test a script. It runs in the test world's own database, with a faster

@@ -896,6 +896,12 @@ ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, in
 /** Records why an action failed (first reason only) */
 ErrorCode_t db_set_action_outcome(int action_id, int outcome);
 
+/** The latest game time of these drones' events, done or to come (0: none) */
+ErrorCode_t db_get_latest_processed_game_t(const int* drones, int count, long long* game_t);
+
+/** Makes a drone a wreck (e.g. it ran out of fuel) */
+ErrorCode_t db_wreck_drone(int drone_id, const char* cause);
+
 /** Sets (or clears, with 0) the action a drone's script waits for */
 ErrorCode_t db_get_launch_source(DbConnection_t* connection, int launcher_id, int source_id,
                                  int kit_id, int* source_object);

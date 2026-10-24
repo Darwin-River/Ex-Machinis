@@ -79,6 +79,18 @@ int main(void)
     vm_meter_charge(8000);
     check("flat costs count against the budget", vm_meter_exhausted());
 
+    /* Power (#324 step 8): whole fuel units owed, the rest carries over */
+    check("no fuel is owed below one unit's worth of instructions",
+          vm_meter_fuel_due(99999, 0, 100000) == 0);
+    check("one unit is owed at 100,000 instructions",
+          vm_meter_fuel_due(100000, 0, 100000) == 1);
+    check("only whole units are charged; the rest waits for the next charge",
+          vm_meter_fuel_due(350000, 100000, 100000) == 2);
+    check("nothing is owed when everything is paid",
+          vm_meter_fuel_due(500000, 500000, 100000) == 0);
+    check("a price of 0 makes computing free",
+          vm_meter_fuel_due(9999999, 0, 0) == 0);
+
     if(failures) {
         printf("%d check(s) failed\n", failures);
         return 1;

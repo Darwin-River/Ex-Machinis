@@ -16,6 +16,9 @@ return [
     // Test runs a player keeps: starting another stops and removes the oldest
     'test_runs_kept' => 3,
 
+    // Fuel in a new drone's hold (#324 step 8): actions and computing burn it
+    'starting_fuel' => 100,
+
     // A released company's starting bank account
     'starting_credits' => 1000,
 

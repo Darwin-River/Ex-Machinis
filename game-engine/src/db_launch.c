@@ -12,6 +12,7 @@
 #include "engine.h"
 #include "game_time.h"
 #include "trace.h"
+#include "vm_meter.h"
 
 /* Runs one statement built from fmt */
 static ErrorCode_t db_launch_query(DbConnection_t* connection, const char* fmt, ...)
@@ -112,8 +113,8 @@ ErrorCode_t db_record_crash(DbConnection_t* connection, int agent_id, int code, 
     if(result == ENGINE_OK)
         result = db_launch_query(connection,
             "UPDATE agents SET launched_running = 0, crashes_in_row = %d, crashes_total = crashes_total + 1, "
-            "wrecked_at = %s WHERE agent_id = %d",
-            in_row, wrecked, agent_id);
+            "wrecked_at = %s, wreck_cause = %s WHERE agent_id = %d",
+            in_row, wrecked, restart_at < 0 ? "'crashes'" : "NULL", agent_id);
 
     return result;
 }
@@ -168,5 +169,31 @@ ErrorCode_t db_add_drone_message(DbConnection_t* connection, int agent_id, long 
     }
 
     free(query_text);
+    return result;
+}
+
+ErrorCode_t db_take_power_due(DbConnection_t* connection, int agent_id, long long per_fuel, long long* units)
+{
+    *units = 0;
+    if(per_fuel <= 0)
+        return ENGINE_OK;
+
+    ErrorCode_t result = db_launch_query(connection,
+        "SELECT instructions, power_paid FROM agents WHERE agent_id = %d", agent_id);
+    if(result != ENGINE_OK)
+        return result;
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+    long long instructions = (row && row[0]) ? atoll(row[0]) : 0;
+    long long paid = (row && row[1]) ? atoll(row[1]) : 0;
+    if(db_result)
+        mysql_free_result(db_result);
+
+    *units = vm_meter_fuel_due(instructions, paid, per_fuel);
+    if(*units > 0)
+        result = db_launch_query(connection,
+            "UPDATE agents SET power_paid = power_paid + %lld WHERE agent_id = %d", *units * per_fuel, agent_id);
+
     return result;
 }

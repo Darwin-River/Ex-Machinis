@@ -33,3 +33,10 @@ int vm_meter_exhausted(void)
 {
     return g_budget > 0 && g_used >= g_budget;
 }
+
+long long vm_meter_fuel_due(long long instructions, long long paid, long long per_fuel)
+{
+    if(per_fuel <= 0 || instructions <= paid)
+        return 0;
+    return (instructions - paid) / per_fuel;
+}

@@ -61,7 +61,9 @@ class Company extends Model
             $agent->save();
             $companyDrones[] = $agent;
 
-            $agent->addCargo(5901); // Adds Starter Kit I.
+            $cargo = $agent->addCargo(5901); // Adds Starter Kit I.
+            // and its first fuel, which actions and computing burn (#324 step 8)
+            $agent->addCargo(\App\Services\Release::FUEL, config('forge.starting_fuel'), $cargo);
 
         }
         return $companyDrones;

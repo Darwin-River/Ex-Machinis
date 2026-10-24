@@ -6,6 +6,8 @@
 # Modules: one of each of two to five systems (like the finished modules).
 # Kits: modules whose masses add up to the kit's mass in the Resources sheet.
 protocol,product,quantity,components
+# Fuel (#324 step 8): from the Organics and Inorganics that refining magmite gives
+12061,2061,30,2041 2031*2
 15461,5461,1,4261 4251 4231
 15501,5501,1,4261 4281 4111 4421 4411
 15521,5521,1,4321 4111 4281 4261
