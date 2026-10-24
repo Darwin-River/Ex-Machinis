@@ -6,7 +6,8 @@ This folder runs the whole game on one server with Docker Compose. One script se
 |---|---|
 | `caddy` | HTTPS for the website, with automatic Let's Encrypt certificates (ports 80 and 443) |
 | `app` | The Laravel website (PHP 8.3 and Apache) |
-| `db` | MySQL 8.4, loaded on first start with the game's schema and data (`game-engine/sql/game_data.sql`: resources, protocols, queries, where minerals are found) |
+| `db` | MySQL 8.4, loaded with the game's base schema when its volume is first created |
+| `migrate` | Runs on every start, before the website and engines: applies new schema migrations (`game-engine/sql/migrations/`), then loads the game data (`game-engine/sql/game_data.sql`: resources, protocols, queries, where minerals are found), then exits |
 | `game-engine` | Runs the drones' FORTH programs and emails their output to players |
 | `events-engine` | Processes game events |
 | `scheduler` | Checks the game's mailboxes every 5 seconds, which replaces the old cron jobs, and clears engine logs older than 7 days |
@@ -75,7 +76,8 @@ Run these from the `deploy/` folder.
 | Logs for one service | `docker compose logs -f game-engine` |
 | Detailed engine logs (every orbit, distance and date calculation) | add `APP_TRACE_LEVEL: "3"` to the engine's `environment` in `docker-compose.yml`, then `docker compose up -d` |
 | Update to the latest code | `git pull && docker compose up -d --build` |
-| Load updated game data (after `git pull` changes `game_data.sql`) | `docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" exmachinis' < ../game-engine/sql/game_data.sql` |
+| Apply new migrations and game data without restarting the engines | `docker compose run --rm migrate` (`docker compose up -d` also does it) |
+| Schema version | `docker compose exec db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" exmachinis -e "SELECT * FROM schema_version"'` |
 | Restart everything | `docker compose restart` |
 | Stop / start | `docker compose stop` / `docker compose up -d` |
 | MySQL shell | `docker compose exec db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" exmachinis'` |

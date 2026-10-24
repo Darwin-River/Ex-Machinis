@@ -151,9 +151,6 @@ ErrorCode_t engine_init_db()
 	// db
 	result = db_init(&engine.db_connection);
 
-	// Add columns newer code needs to older databases
-	if(result == ENGINE_OK) db_upgrade_schema();
-
 	// The master game time scale comes from this engine's configuration
 	if(result == ENGINE_OK) game_time_set_scale(atof(engine.config.params[GAME_TIME_SCALE_ID]));
 

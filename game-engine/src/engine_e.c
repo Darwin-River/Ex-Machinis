@@ -135,9 +135,6 @@ ErrorCode_t engine_init_db()
 	// db
 	result = db_init(&engine.db_connection);
 
-	// Add columns newer code needs to older databases
-	if(result == ENGINE_OK) db_upgrade_schema();
-
 	// The game clock (its scale is set by the game engine)
 	if(result == ENGINE_OK) game_time_load();
 

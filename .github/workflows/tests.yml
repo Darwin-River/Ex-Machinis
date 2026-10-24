@@ -11,7 +11,8 @@ jobs:
 
     services:
       mysql:
-        image: mysql:5.7
+        # The same version as deploy/docker-compose.yml
+        image: mysql:8.4
         env:
           MYSQL_ROOT_PASSWORD: secret
           MYSQL_DATABASE: exmachinis
@@ -44,10 +45,11 @@ jobs:
       - name: Install PHP dependencies
         run: composer install --no-interaction --no-progress --prefer-dist
 
-      - name: Load database schema and test data
+      - name: Load database schema, migrations and test data
         run: |
           mysql -h 127.0.0.1 -uroot -psecret < game-engine/sql/create_db.sql
           mysql -h 127.0.0.1 -uroot -psecret exmachinis < game-engine/db-backup/exmachinis_tables.sql
+          DB_USER=root DB_NAME=exmachinis MYSQL_PWD=secret game-engine/sql/migrate.sh
           mysql -h 127.0.0.1 -uroot -psecret < tests/database/fixtures.sql
 
       - name: Start test mail server (GreenMail)

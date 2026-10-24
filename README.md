@@ -46,6 +46,7 @@ php artisan key:generate
 # Create the database (drops and recreates the tables, so use a fresh database)
 mysql -u root -p < game-engine/sql/create_db.sql
 mysql -u root -p exmachinis < game-engine/db-backup/exmachinis_tables.sql
+DB_USER=root DB_NAME=exmachinis MYSQL_PWD=... game-engine/sql/migrate.sh
 mysql -u root -p exmachinis < game-engine/sql/game_data.sql
 
 php artisan serve              # http://127.0.0.1:8000, serving html/
@@ -86,7 +87,9 @@ Resources, protocols (recipes, mining, travel, market), their effects, queries a
 - `game-engine/sql/game-data/queries.xlsx`: the list of in-game queries
 - `documents/economy.xlsx`: mining, travel, market and starter-kit protocols, recipe timings and modules, and query SQL
 
-After changing one, run `python3 game-engine/sql/game-data/build_game_data.py`. It rewrites `game-engine/sql/game_data.sql` and the query appendix of the [design manual](documents/design-manual.md), and lists anything it had to assume. Commit all three; CI fails if they're out of step. To load the new data into an existing database, run `game_data.sql` against it: it replaces those reference tables and leaves players, drones and events alone.
+After changing one, run `python3 game-engine/sql/game-data/build_game_data.py`. It rewrites `game-engine/sql/game_data.sql` and the query appendix of the [design manual](documents/design-manual.md), and lists anything it had to assume. Commit all three; CI fails if they're out of step. To load the new data into an existing database, run `game_data.sql` against it: it replaces those reference tables and leaves players, drones and events alone (Docker does this on every start).
+
+Schema changes (new tables or columns) are numbered migrations in `game-engine/sql/migrations/`, applied by `game-engine/sql/migrate.sh`; see the README there.
 
 ### Run the tests
 
@@ -95,6 +98,7 @@ The tests use a MySQL database built the same way, plus test fixtures:
 ```bash
 mysql -u root -p < game-engine/sql/create_db.sql
 mysql -u root -p exmachinis < game-engine/db-backup/exmachinis_tables.sql
+DB_USER=root DB_NAME=exmachinis MYSQL_PWD=... game-engine/sql/migrate.sh
 mysql -u root -p < tests/database/fixtures.sql
 
 DB_HOST=127.0.0.1 DB_PASSWORD=... vendor/bin/phpunit
