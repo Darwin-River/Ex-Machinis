@@ -582,6 +582,7 @@ ErrorCode_t event_update_observations(Event_t *event)
         observation.event_id = event->event_id;
         observation.drone_id = event->drone_id;
         observation.timestamp = time(NULL); // now for affected drone
+        observation.game_t = game_time_now_seconds();
 
         result = db_insert_observation(&observation);
     }
@@ -611,6 +612,7 @@ ErrorCode_t event_update_observations(Event_t *event)
             observation.event_id = event->event_id;
             observation.drone_id = CENTRAL_DATABASE_DRONE_ID;
             observation.timestamp = time(NULL) + game_time_light_delay(distance); // light time, scaled
+            observation.game_t = game_time_now_seconds() + game_time_light_seconds(distance);
             result = db_insert_observation(&observation);
         }
 

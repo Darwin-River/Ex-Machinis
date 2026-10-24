@@ -339,6 +339,7 @@ static void db_row_to_event(MYSQL_ROW row, Event_t* event)
 
     // Convert date obtained to time_t
     event->timestamp = db_date_to_timestamp(row[EVENT_TIMESTAMP_IDX], "%F %T");
+    event->game_t = row[EVENT_GAME_T_IDX]?atoll(row[EVENT_GAME_T_IDX]):0;
 
     engine_trace(TRACE_LEVEL_DEBUG,
         "DATE [%s] => TIMESTAMP [%ld] %s",
@@ -374,7 +375,8 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
 
         snprintf(query_text,
             DB_MAX_SQL_QUERY_LEN,
-            "SELECT * FROM events as e where timestamp <= NOW() and outcome = 0 and (select aborted from actions where id = e.action) != 1 ORDER BY timestamp ASC, action ASC, id ASC LIMIT %d;",
+            "SELECT * FROM events as e where game_t <= %lld and outcome = 0 and (select aborted from actions where id = e.action) != 1 ORDER BY game_t ASC, action ASC, id ASC LIMIT %d;",
+            game_time_now_seconds(),   // due in game time (#327)
             events_batch_size);
 
         // run it
@@ -751,12 +753,8 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
             "Getting previous event for event_id [%d] and filter type [%d] ...",
             event->event_id, filter);
 
-        // Generate timestamp string from time_t
-        char timestamp_buffer[80];
-        strftime(timestamp_buffer, 80,"%F %T", localtime(&event->timestamp));
-        engine_trace(TRACE_LEVEL_DEBUG,
-                    "TIMESTAMP [%ld] => DATE [%s]",
-                    event->timestamp, timestamp_buffer);
+        // Events are ordered by when they happen in game time (#327)
+        long long game_t = event->game_t;
 
         // Build the query depending on filter type
         switch(filter) {
@@ -768,8 +766,8 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "WHERE drone = %d and resource = %d and installed = %d and locked = %d "
                     "and outcome = %d " // success
                     "and (event_type = 1 or event_type = 2)" // look only for increment and depletion events
-                    "and timestamp <= '%s' order by timestamp DESC, id DESC limit 1;",  //
-                    event->drone_id, event->resource_id, event->installed, event->locked, OUTCOME_OK, timestamp_buffer);
+                    "and game_t <= %lld order by game_t DESC, id DESC limit 1;",  //
+                    event->drone_id, event->resource_id, event->installed, event->locked, OUTCOME_OK, game_t);
                 break;
             case PREVIOUS_EVENT_BY_DRONE:
                 snprintf(query_text,
@@ -778,8 +776,8 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "FROM events "
                     "WHERE drone = %d "
                     "and outcome = %d " // success
-                    "and timestamp < '%s' order by timestamp DESC, id DESC limit 1;",
-                    event->drone_id, OUTCOME_OK, timestamp_buffer);
+                    "and game_t < %lld order by game_t DESC, id DESC limit 1;",
+                    event->drone_id, OUTCOME_OK, game_t);
                 break;
             case PREVIOUS_EVENT_BY_OWNER:
                 snprintf(query_text,
@@ -787,8 +785,8 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "SELECT * from events where drone in "
                     "(select agent_id from agents where user_id = (select user_id from agents where agent_id = %d)) "
                     "and outcome = %d " // success
-                    "and timestamp < '%s' order by timestamp DESC, id DESC limit 1;",
-                    event->drone_id, OUTCOME_OK, timestamp_buffer);
+                    "and game_t < %lld order by game_t DESC, id DESC limit 1;",
+                    event->drone_id, OUTCOME_OK, game_t);
                 break;
             case PREVIOUS_EVENT_BY_SELL_ORDER:
                 snprintf(query_text,
@@ -797,8 +795,8 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "drone = %d and "
                     "event_type = %d and "
                     "outcome = %d and " // success
-                    "resource = %d and timestamp < '%s' order by timestamp DESC, id DESC limit 1;",
-                    event->drone_id, SELL_EVENT_TYPE, OUTCOME_OK, event->resource_id, timestamp_buffer);
+                    "resource = %d and game_t < %lld order by game_t DESC, id DESC limit 1;",
+                    event->drone_id, SELL_EVENT_TYPE, OUTCOME_OK, event->resource_id, game_t);
                 break;
             case PREVIOUS_EVENT_BY_BUY_ORDER:
                 snprintf(query_text,
@@ -807,8 +805,8 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "drone = %d and "
                     "event_type = %d and "
                     "outcome = %d and " // success
-                    "resource = %d and timestamp < '%s' order by timestamp DESC, id DESC limit 1;",
-                    event->drone_id, BUY_EVENT_TYPE, OUTCOME_OK, event->resource_id, timestamp_buffer);
+                    "resource = %d and game_t < %lld order by game_t DESC, id DESC limit 1;",
+                    event->drone_id, BUY_EVENT_TYPE, OUTCOME_OK, event->resource_id, game_t);
                 break;
             default:
                 // Unexpected enum value
@@ -879,6 +877,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
             out_event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
             // Convert date obtained to time_t
             out_event->timestamp = db_date_to_timestamp(row[EVENT_TIMESTAMP_IDX], "%F %T");
+            out_event->game_t = row[EVENT_GAME_T_IDX]?atoll(row[EVENT_GAME_T_IDX]):0;
         }
         else
         {
@@ -1334,10 +1333,11 @@ ErrorCode_t db_insert_observation(Observation_t* observation)
 
     query_end += snprintf(query_end,
         QUERY_SPACE_LEFT,
-        "INSERT INTO observations (drone, event, time) VALUES(%d, %d, '%s')",
+        "INSERT INTO observations (drone, event, time, game_t) VALUES(%d, %d, '%s', %lld)",
         observation->drone_id,
         observation->event_id,
-        timestamp_buffer);
+        timestamp_buffer,
+        observation->game_t);
 
     // run it
     if (mysql_query(connection->hndl, query_text))
@@ -1486,6 +1486,7 @@ ErrorCode_t db_insert_local_observations(Event_t *event)
                 observation.event_id = event->event_id;
                 observation.drone_id = row[0]?atoi(row[0]):0;
                 observation.timestamp = time(NULL); // They are at the same object
+                observation.game_t = game_time_now_seconds();
                 if(observation.drone_id != event->drone_id) {
                     db_insert_observation(&observation);
                 }
@@ -2149,7 +2150,7 @@ ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity)
         snprintf(query_text,
             DB_MAX_SQL_QUERY_LEN,
             "select new_quantity from events where drone = %d and resource = %d and (event_type = %d or event_type = %d) and outcome = 1 "
-            "order by timestamp DESC, id DESC limit 1;",
+            "order by game_t DESC, id DESC limit 1;",
             droneId,
             resource_id,
             INCREMENT_INVENTORY_EVENT_TYPE,
@@ -2317,14 +2318,15 @@ ErrorCode_t db_insert_event_e(Event_t* event)
     query_end += snprintf(query_end,
         QUERY_SPACE_LEFT,
         "INSERT INTO events "
-        "(timestamp, event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
-        "VALUES(CAST(DATE_ADD(NOW(), INTERVAL %d MINUTE) AS DATETIME), %d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
+        "(timestamp, game_t, event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
+        "VALUES(CAST(DATE_ADD(NOW(), INTERVAL %d SECOND) AS DATETIME), %lld, %d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
         event->new_quantity!=NULL_VALUE?", new_quantity":"",
         event->new_credits!=NULL_VALUE?", new_credits":"",
         event->new_location!=NULL_VALUE?", new_location":"",
         event->new_transmission!=NULL_VALUE?", new_transmission":"",
         event->new_cargo!=NULL_VALUE?", new_cargo":"",
-        game_time_to_real(event->delay), // delay is game seconds
+        game_time_to_real(event->delay), // delay is game seconds; real time for the website
+        game_time_now_seconds() + event->delay, // when it happens, in game time
         event->event_type,
         event->action_id,
         event->logged,
@@ -2451,7 +2453,7 @@ ErrorCode_t db_get_pending_action_event(int action_id, int event_type, int exclu
     {
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
             "SELECT * FROM events WHERE action = %d AND event_type = %d AND id <> %d AND outcome = %d "
-            "ORDER BY timestamp ASC, id ASC LIMIT 1",
+            "ORDER BY game_t ASC, id ASC LIMIT 1",
             action_id, event_type, exclude_id, OUTCOME_NO_OUTCOME);
 
         if (mysql_query(connection->hndl, query_text))
@@ -2579,8 +2581,8 @@ ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* ne
     {
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
             "INSERT INTO commands (code, agent_id, created_at, updated_at, subject, email_content, deliver_at) "
-            "VALUES ('%s', %d, NOW(), NOW(), 'Launched', '', UNIX_TIMESTAMP())",
-            META_COMMAND_LAUNCHED, *new_id);
+            "VALUES ('%s', %d, NOW(), NOW(), 'Launched', '', %lld)",
+            META_COMMAND_LAUNCHED, *new_id, game_time_now_seconds());
         result = db_launch_exec(connection, query_text);
     }
 
@@ -2616,12 +2618,12 @@ ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, in
 
     if(location >= 0)
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-            "INSERT INTO trades (resource, units, credits, seller, buyer, location) VALUES (%d, %d, %d, %d, %d, %d)",
-            resource, units, credits, seller, buyer, location);
+            "INSERT INTO trades (resource, units, credits, seller, buyer, location, game_t) VALUES (%d, %d, %d, %d, %d, %d, %lld)",
+            resource, units, credits, seller, buyer, location, game_time_now_seconds());
     else
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-            "INSERT INTO trades (resource, units, credits, seller, buyer) VALUES (%d, %d, %d, %d, %d)",
-            resource, units, credits, seller, buyer);
+            "INSERT INTO trades (resource, units, credits, seller, buyer, game_t) VALUES (%d, %d, %d, %d, %d, %lld)",
+            resource, units, credits, seller, buyer, game_time_now_seconds());
 
     return db_launch_exec(connection, query_text);
 }

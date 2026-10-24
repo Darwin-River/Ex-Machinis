@@ -494,10 +494,10 @@ QUERY_SQL = {
     '212': (1, "SELECT IFNULL(MAX(units), 0) FROM sqInventory WHERE drone = [drone_id] AND resource = [value_1];"),
     '600': (1, orders(5, True)), '601': (1, orders(5, False)),
     '610': (1, orders(4, True)), '611': (1, orders(4, False)),
-    '800': (1, "SELECT id FROM events WHERE outcome = 1 AND drone = [value_1] ORDER BY timestamp DESC, id DESC;"),
+    '800': (1, "SELECT id FROM events WHERE outcome = 1 AND drone = [value_1] ORDER BY game_t DESC, id DESC;"),
     '801': (0, "SELECT e.id FROM events AS e INNER JOIN agents AS a ON a.agent_id = e.drone WHERE e.outcome = 1 "
-               f"AND a.object_id = {HERE_} ORDER BY e.timestamp DESC, e.id DESC;"),
-    '802': (0, "SELECT id FROM events WHERE outcome = 1 ORDER BY timestamp DESC, id DESC;"),
+               f"AND a.object_id = {HERE_} ORDER BY e.game_t DESC, e.id DESC;"),
+    '802': (0, "SELECT id FROM events WHERE outcome = 1 ORDER BY game_t DESC, id DESC;"),
     '811': (1, "SELECT t.name FROM events AS e INNER JOIN event_types AS t ON t.id = e.event_type "
                "WHERE e.outcome = 1 AND e.id = [value_1];"),
     '820': (1, "SELECT a.drone FROM events AS e INNER JOIN actions AS a ON a.id = e.action "
@@ -508,7 +508,7 @@ QUERY_SQL = {
     '840': (1, EVENT_COL.format(c='new_quantity')),
     '841': (1, EVENT_COL.format(c='new_credits')),
     '842': (1, EVENT_COL.format(c='new_location')),
-    '843': (1, EVENT_COL.format(c='UNIX_TIMESTAMP(timestamp)')),
+    '843': (1, EVENT_COL.format(c='FROM_UNIXTIME(game_t)')),
 }
 QUERY_DESC = {  # for queries without a description in either spreadsheet
     '202': "Returns the location ID of spacecraft N.",
@@ -529,7 +529,7 @@ QUERY_DESC = {  # for queries without a description in either spreadsheet
     '840': "Returns the new quantity set by event N.",
     '841': "Returns the new credits set by event N.",
     '842': "Returns the new location set by event N.",
-    '843': "Returns when event N happened, in seconds since 1970.",
+    '843': "Returns when event N happened: its game day (day 0 is the world's first) and the even seconds into that day.",
 }
 
 queries = []
@@ -573,8 +573,7 @@ EVENT_FILTERS = [  # (letter, meaning, SQL condition on [value_n])
     ('A', 'acting spacecraft', 'a.drone={v}'),
     ('P', 'protocol', 'a.protocol={v}'),
     ('T', 'event type', 'e.event_type={v}'),
-    ('M', 'at least M game minutes old',
-     'TIMESTAMPDIFF(SECOND,e.timestamp,NOW())*IFNULL((SELECT MAX(scale) FROM game_clock),1)>={v}*60'),
+    ('M', 'at least M game minutes old', '[game_now]-e.game_t>={v}*60'),
     ('D', 'affected spacecraft', 'e.drone={v}'),
     ('N', 'resource', 'e.resource={v}'),
     ('X', 'depleted (1) or added (0)', '(e.event_type=2)=({v}<>0)'),
@@ -585,7 +584,7 @@ conditions = ' '.join(f'AND ({{v}}<0 OR {c})'.format(v=f'[value_{len(EVENT_FILTE
                       for i, (_, _, c) in enumerate(EVENT_FILTERS))
 script = ('SELECT e.id FROM events e LEFT JOIN actions a ON a.id=e.action LEFT JOIN agents g ON g.agent_id=e.drone '
           'WHERE e.outcome=1 AND EXISTS(SELECT 1 FROM observations o WHERE o.event=e.id AND o.drone=[drone_id] '
-          f'AND o.time<=NOW()) {conditions} ORDER BY e.timestamp DESC,e.id DESC;')
+          f'AND o.game_t<=[game_now]) {conditions} ORDER BY e.game_t DESC,e.id DESC;')
 usage = ' '.join(letter for letter, _, _ in EVENT_FILTERS) + ' R L 803 query'
 queries.append((803, 'Search observed events',
                 f'[{usage}]: Lists the events this spacecraft has observed, newest first, that match A P T M D N X K O '
@@ -595,7 +594,7 @@ queries.append((803, 'Search observed events',
 # resource N over the last H game hours, and how many trades, from the trades
 # table the events engine fills. [value_1] is H (pushed last), [value_2] N.
 VOLUME = ("SELECT IFNULL(SUM(units),0), IFNULL(SUM(credits),0), COUNT(*) FROM trades WHERE resource=[value_2] "
-          "AND TIMESTAMPDIFF(SECOND,time,NOW())*IFNULL((SELECT MAX(scale) FROM game_clock),1)<=[value_1]*3600{where};")
+          "AND [game_now]-game_t<=[value_1]*3600{where};")
 queries.append((620, 'Local market volume',
                 '[N H R L 620 query]: Units of resource N traded at the requesting spacecraft\'s location in the last '
                 'H game hours, credits paid for them, and number of trades.', 2,

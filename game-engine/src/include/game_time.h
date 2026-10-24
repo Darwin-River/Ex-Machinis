@@ -16,6 +16,16 @@ double game_time_scale(void);
 /** Current game time, in seconds since 1970 (game calendar) */
 double game_time_now(void);
 
+/** Current game time, rounded to whole game seconds: what the engines store
+ *  in game_t columns and compare against */
+long long game_time_now_seconds(void);
+
+/** The world's first game second: drone dates count days from it */
+double game_time_epoch(void);
+
+/** Game seconds a light signal takes to cross distance_km */
+long long game_time_light_seconds(double distance_km);
+
 /** Real seconds that a game duration takes (rounded, never negative) */
 int game_time_to_real(double game_seconds);
 

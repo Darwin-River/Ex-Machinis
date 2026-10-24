@@ -357,10 +357,10 @@ static void engine_stamp_commands(void)
         double km = 0;
 
         if(!immediate[i] && engine_get_drone_position(objects[i], position, &km) == ENGINE_OK)
-            delay = game_time_light_delay(km);
+            delay = (int)game_time_light_seconds(km);
 
         if(delay > 0)
-            engine_trace(TRACE_LEVEL_ALWAYS, "Command [%d] reaches its drone at [%s] in [%d] s", ids[i], position, delay);
+            engine_trace(TRACE_LEVEL_ALWAYS, "Command [%d] reaches its drone at [%s] in [%d] game s", ids[i], position, delay);
 
         db_set_command_delivery(&engine.db_connection, ids[i], delay);
     }

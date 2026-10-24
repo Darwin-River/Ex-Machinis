@@ -296,11 +296,12 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
         DB_MAX_SQL_QUERY_LEN,
         "SELECT c.id, c.code, c.agent_id, c.subject, c.email_content FROM commands c "
         "LEFT JOIN agents a ON a.agent_id = c.agent_id "
-        "WHERE c.deliver_at IS NOT NULL AND c.deliver_at <= UNIX_TIMESTAMP() "
+        "WHERE c.deliver_at IS NOT NULL AND c.deliver_at <= %lld "  // game time (#327)
         "AND NOT (c.code LIKE '%s%%' AND a.waiting_action IS NOT NULL "
         "  AND EXISTS (SELECT 1 FROM actions x WHERE x.id = a.waiting_action AND x.aborted = 0) "
         "  AND EXISTS (SELECT 1 FROM events e WHERE e.action = a.waiting_action AND e.outcome = 0)) "
         "ORDER BY c.id LIMIT 1",
+        game_time_now_seconds(),
         engine_get_vm_resume_command());
 
     // run it
@@ -2438,14 +2439,15 @@ ErrorCode_t db_insert_event(Event_t* event)
     query_end += snprintf(query_end,
         QUERY_SPACE_LEFT,
         "INSERT INTO events "
-        "(timestamp, event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
-        "VALUES(CAST(DATE_ADD(NOW(), INTERVAL %d SECOND) AS DATETIME), %d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
+        "(timestamp, game_t, event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
+        "VALUES(CAST(DATE_ADD(NOW(), INTERVAL %d SECOND) AS DATETIME), %lld, %d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
         event->new_quantity!=NULL_VALUE?", new_quantity":"",
         event->new_credits!=NULL_VALUE?", new_credits":"",
         event->new_location!=NULL_VALUE?", new_location":"",
         event->new_transmission!=NULL_VALUE?", new_transmission":"",
         event->new_cargo!=NULL_VALUE?", new_cargo":"",
-        game_time_to_real(event->delay), // delay is game seconds
+        game_time_to_real(event->delay), // delay is game seconds; real time for the website
+        game_time_now_seconds() + event->delay, // when it happens, in game time
         event->event_type,
         event->action_id,
         event->logged,
@@ -2537,7 +2539,7 @@ ErrorCode_t db_get_previous_resource_event(Event_t* event)
 
     query_end += snprintf(query_end,
         QUERY_SPACE_LEFT,
-        "SELECT * from events where drone = %d and resource = %d order by timestamp desc, id desc limit 1",
+        "SELECT * from events where drone = %d and resource = %d order by game_t desc, id desc limit 1",
         event->drone_id,
         event->resource_id);
 
@@ -2582,6 +2584,7 @@ ErrorCode_t db_get_previous_resource_event(Event_t* event)
                 event->new_location = atoi(row[EVENT_NEW_LOCATION_IDX]);
                 event->new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):-1;
                 event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
+                event->game_t = row[EVENT_GAME_T_IDX]?atoll(row[EVENT_GAME_T_IDX]):0;
 
                 engine_trace(TRACE_LEVEL_ALWAYS,
                     "Event read from DB [%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d] "
@@ -3538,8 +3541,8 @@ ErrorCode_t db_get_unstamped_commands(DbConnection_t* connection, int* ids, int*
 
 /** ****************************************************************************
 
-    @brief          Sets when a command reaches its drone: delay real seconds
-                    from now
+    @brief          Sets when a command reaches its drone: delay game seconds
+                    from now (deliver_at is in game time)
 
 *******************************************************************************/
 ErrorCode_t db_set_command_delivery(DbConnection_t* connection, int command_id, int delay)
@@ -3551,7 +3554,7 @@ ErrorCode_t db_set_command_delivery(DbConnection_t* connection, int command_id, 
         return result;
 
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "UPDATE commands SET deliver_at = UNIX_TIMESTAMP() + %d WHERE id = %d", delay, command_id);
+        "UPDATE commands SET deliver_at = %lld WHERE id = %d", game_time_now_seconds() + delay, command_id);
 
     if(mysql_query(connection->hndl, query_text))
     {

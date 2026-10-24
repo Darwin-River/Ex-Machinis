@@ -67,9 +67,9 @@
 
 // Special query tags
 #define MAX_QUERY_TAG_LEN      32
-#define MAX_QUERY_TAGS_NUM     15
+#define MAX_QUERY_TAGS_NUM     16
 // Query buffers
-#define MAX_QUERY_VALUE_BUF_LEN  16
+#define MAX_QUERY_VALUE_BUF_LEN  32
 // values
 #define QUERY_TAG_VALUE_1      "[value_1]"
 #define QUERY_TAG_VALUE_2      "[value_2]"
@@ -88,6 +88,7 @@
 // Others
 #define QUERY_TAG_DRONE_ID     "[drone_id]"
 #define QUERY_TAG_TIME_DELAY   "[time_delay]"
+#define QUERY_TAG_GAME_NOW     "[game_now]"   // current game time, game seconds (#327)
 // !!! modify MAX_QUERY_TAGS_NUM if more added
 
 
@@ -576,7 +577,8 @@ typedef struct
 	int new_location;
 	int new_transmission;
 	int new_cargo;
-	time_t timestamp;
+	time_t timestamp;   // real time (for the website)
+	long long game_t;   // game time (game seconds): what the engines compare
   int delay; // The delay imposed on the event by the resource effects table.
 
 } Event_t;
@@ -599,6 +601,7 @@ typedef enum
 	EVENT_NEW_TRANSMISSION_IDX,
 	EVENT_NEW_CARGO_IDX,
 	EVENT_TIMESTAMP_IDX,
+	EVENT_GAME_T_IDX,       // added by migration 0002
 
 	// Max fields expected
 	MAX_EVENT_FIELDS
@@ -614,7 +617,8 @@ typedef struct
 	int id;
 	int drone_id;
 	int event_id;
-	time_t timestamp;
+	time_t timestamp;   // real time when the event becomes visible (website)
+	long long game_t;   // game time when it becomes visible to the drone
 
 } Observation_t;
 

@@ -24,5 +24,7 @@ number order, and records each in the `schema_version` table. It runs:
    leaves its earlier statements applied. Keep each migration small, and make
    it safe to run again where you can (`CREATE TABLE IF NOT EXISTS`, or check
    `information_schema` first, as `0001` does).
-5. Game data (resources, protocols, queries) is not a migration: change the
+5. Migrations run as the database's root user (in Docker and CI), so they may
+   create triggers and procedures.
+6. Game data (resources, protocols, queries) is not a migration: change the
    spreadsheets and run `build_game_data.py`.
