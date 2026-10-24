@@ -215,6 +215,9 @@ ErrorCode_t db_get_agent_engine_info(DbConnection_t* connection, int agent_id, A
 *******************************************************************************/
 ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMachine_t* vm);
 
+/** Adds a slice's instruction count to the drone's total (agents.instructions) */
+ErrorCode_t db_add_agent_instructions(DbConnection_t* connection, int agent_id, long long instructions);
+
 /** ****************************************************************************
 
     @brief          Updates latest command output in DB

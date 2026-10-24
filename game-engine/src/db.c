@@ -3408,6 +3408,33 @@ ErrorCode_t db_get_launch_source(DbConnection_t* connection, int launcher_id, in
 
 /** ****************************************************************************
 
+    @brief          Adds the instructions a drone's script used in a slice to
+                    its running total (agents.instructions; instruction
+                    metering, the basis for power use)
+
+*******************************************************************************/
+ErrorCode_t db_add_agent_instructions(DbConnection_t* connection, int agent_id, long long instructions)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result != ENGINE_OK || instructions <= 0)
+        return result;
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "UPDATE agents SET instructions = instructions + %lld WHERE agent_id = %d", instructions, agent_id);
+
+    if(mysql_query(connection->hndl, query_text))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+
+    return result;
+}
+
+/** ****************************************************************************
+
     @brief          Sets (or clears, with 0) the action a drone's script waits for
 
 *******************************************************************************/
