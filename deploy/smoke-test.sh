@@ -112,6 +112,8 @@ send_mail "$DRONE@$DOMAIN" "sell to my other company" "<run>1 1100 $SISTER 10 pe
 wait_for 90 "a sale to the player's other company is refused (-13)" sh -c "docker compose logs game-engine | grep -q 'perform leaves \[-13\]'"
 wait_for 60 "drone finished the refused-sale script" idle
 [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$SISTER and resource=1100")" = 0 ] || fail "kunspar reached the other company"
+# The refused sale is the one action this test expects to be aborted
+REFUSED_ACTION=$(sql "select IFNULL(MAX(id), 0) from actions where drone=$DRONE_ID and aborted=1")
 
 # Refining needs 20 kunspar (each mining run gives 5 here) and the starter
 # kit's Smelter (A1); each perform waits for its action
@@ -142,7 +144,7 @@ wait_for 60 "drone finished the launch script" idle
 [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRONE_ID and resource=6001")" = 0 ] || fail "the kit was not used up"
 echo "ok: the kit was used up"
 
-[ -z "$(sql "select id from actions where drone=$DRONE_ID and aborted=1")" ] || fail "an action was aborted"
+[ -z "$(sql "select id from actions where drone=$DRONE_ID and aborted=1 and id <> $REFUSED_ACTION")" ] || fail "an action was aborted"
 echo "ok: no action aborted"
 
 for svc in game-engine events-engine app; do
