@@ -67,6 +67,19 @@ As part of the international agreement that drove the colonization of space at t
 
 It is your birthright to take control of your own remotely piloted spacecraft and build a thriving stellar industry. But this can only be accomplished by programming your spacecraft to efficiently mine, manufacture, and trade materials on the interplanetary economy.
 
+### Releasing a script (Public Forge)
+
+In the Public Forge world there is no email. You open an account on the website (you need an invitation code for now), write your drone's program on the **Release** page, and release it:
+
+- each release starts a new company of yours, with one drone in orbit around Earth, a starter kit and 1,000 credits;
+- the drone loads your script, then runs your word `launched` on its own, so your script should define words and end with `: launched ... ;`;
+- what the drone prints appears on the Release page once its signal has reached Earth;
+- if `launched` crashes, the drone restarts it from the script you released (see [When `launched` crashes](#when-launched-crashes)).
+
+A released drone can't be sent new commands from the Release page, so test your words before you release them.
+
+The rest of this chapter describes the email game.
+
 ### Requesting your spacecraft
 
 As an immersive multiplayer space simulation, there's no logging into or out of the game. Your assets are always in play. To communicate with your spacecraft, simply send them emails and they will respond. Your messages travel at the speed of light, so it takes longer for them to reach spacecraft on the outer edge of the solar system, and for their replies to get back to you. Game time runs faster than real time (by default, one real minute is one game hour), and that applies to light delays too: Mars is 4 to 22 light-minutes away, so a message takes 4 to 22 real seconds each way.

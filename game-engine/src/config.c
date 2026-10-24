@@ -50,6 +50,7 @@ char conf_param_names[MAX_CONFIG_PARAM+1][MAX_CONF_PARAM_LEN] =
     "CRASH_LIMIT",
     "CRASH_RESTART_WAIT",
     "CRASH_RESTART_INSTRUCTIONS",
+    "EMAIL_ENABLED",
     "VM_RESUME_COMMAND",
 
     // EMAIL configuration

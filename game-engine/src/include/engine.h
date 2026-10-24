@@ -50,6 +50,7 @@ enum
     CRASH_LIMIT,
     CRASH_RESTART_WAIT,
     CRASH_RESTART_INSTRUCTIONS,
+    EMAIL_ENABLED,
     VM_RESUME_COMMAND,
 
     // Email configuration
@@ -302,6 +303,9 @@ long long engine_get_query_instructions();
 
 /** Flat instruction cost of an action (perform) */
 long long engine_get_action_instructions();
+
+/** False when email is switched off (replies go to drone_messages) */
+bool engine_email_enabled();
 
 /** Crashes in a row that make a launched drone a wreck (0: never) */
 int engine_get_crash_limit();

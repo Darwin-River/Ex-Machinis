@@ -49,6 +49,11 @@ class UserController extends Controller
      */
     public function webRegistration(Request $request)
     {
+        // With email switched off, players open an account and release
+        // scripts instead (#324 step 6)
+        if (!config('forge.email')) {
+            return redirect('/register');
+        }
         $this->validate(request(), [
             'email' => 'required|email|unique:users|max:255',
             'name' => 'required|unique:users',

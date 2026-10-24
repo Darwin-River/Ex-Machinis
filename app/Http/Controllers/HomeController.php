@@ -61,6 +61,11 @@ class HomeController extends Controller
     {
         $this->requireCronKey($key);
 
+        // Email switched off (#324 step 6): no mail is read
+        if (!config('forge.email')) {
+            return response('Email is switched off');
+        }
+
         $log = [];
 
         $inbox = $inboxes->open(getenv('MAIL_REGISTRATION_ACCOUNT'), getenv('MAIL_REGISTRATION_PASSWORD'));

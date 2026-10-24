@@ -17,6 +17,8 @@ x-engine-env: &engine-env
   # Master game clock (see game-engine/conf/game-engine.conf)
   GAME_TIME_SCALE: ${GAME_TIME_SCALE:-60}
   TRAVEL_ACCELERATION: ${TRAVEL_ACCELERATION:-1}
+  # GAME_EMAIL=0 switches the email game off (the Public Forge world)
+  EMAIL_ENABLED: ${GAME_EMAIL:-1}
 
 services:
   db:
@@ -82,6 +84,11 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       CRON_KEY: ${CRON_KEY:?run setup.sh first}
       REPORTS_DESTINATION: ${ADMIN_EMAIL}
+      # Public Forge world (#324 step 6): GAME_EMAIL=0 switches email off
+      # (players release scripts on the website); INVITE_ONLY=1 needs an
+      # invitation code (php artisan forge:invite) to open an account
+      GAME_EMAIL: ${GAME_EMAIL:-1}
+      INVITE_ONLY: ${INVITE_ONLY:-0}
       # Outgoing mail goes to the mail container; incoming mail is read from
       # its registrar and catch-all mailboxes over IMAP.
       MAIL_DRIVER: smtp

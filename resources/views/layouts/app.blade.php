@@ -146,6 +146,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                 </li> -->
 
 
+                                @if(!config('forge.email'))
+                                <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
+                                                                             href="{{url('release')}}"><span
+                                                class="rd-nav-icon mdi mdi-rocket"></span><span
+                                                class="rd-nav-title">Release</span></a></li>
+                                @endif
                                 <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
                                                                              href="{{url('getting-started')}}"><span
                                                 class="rd-nav-icon mdi mdi-satellite-uplink"></span><span

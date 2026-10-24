@@ -67,5 +67,9 @@ Route::get('/events', 'HomeController@inGameEvents');
 Route::get('/events/search', 'HomeController@InGameEventsSearch');
 
 
+//releasing a script (#324 step 6)
+Route::get('/release', 'ReleaseController@show');
+Route::post('/release', 'ReleaseController@store');
+
 Route::get('/get-mails/{key}', 'HomeController@getMails');
 Route::get('/user/send-report/{key}', 'UserController@reportCurrentUsersByMail');

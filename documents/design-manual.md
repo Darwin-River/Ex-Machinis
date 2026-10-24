@@ -358,6 +358,38 @@ One row per crash of a `launched` word, for post-mortems.
 
 [Return to the TOC](#Table-of-Contents)
 
+#### Table: invites
+
+Invitation codes for an invite-only world ([The Release Page](#The-Release-Page)).
+
+* id [INT] - Table index.
+* code [VARCHAR(32)] - The code (12 capital letters and digits).
+* note [VARCHAR(255)] - Who it is for.
+* used_by [INT] - users.user_id of the account opened with it, NULL while unused.
+* used_at [TIMESTAMP] - When it was used.
+
+#### Table: drone_messages
+
+A drone's replies when email is switched off. The Game Engine writes one where it would otherwise email the player.
+
+* id [INT] - Table index.
+* agent_id [INT] - The drone.
+* game_t [BIGINT] - Game time the reply reaches Earth (now + the light delay from the drone). The website shows it from then on.
+* subject [VARCHAR(2048)] - The subject of the command it answers ("Release" for a released script).
+* body [LONGTEXT] - The reply, as it would have been emailed.
+
+<a name="The-Release-Page"></a>**The Release Page (#324 step 6).** The Public Forge world switches the email game off and lets players release scripts on the website instead. Two settings (environment variables, passed to the website and the engines by `deploy/docker-compose.yml`) control it:
+
+* `GAME_EMAIL` (default 1). 0 switches email off. The website's `/get-mails` reads no mail and `/web-register` sends players to `/register`. The engines get it as `EMAIL_ENABLED` (game-engine.conf), and the Game Engine writes replies to `drone_messages` instead of emailing them.
+* `INVITE_ONLY` (default 0). 1 means an account can only be opened with an unused invitation code. An operator creates codes with `php artisan forge:invite [count] [--note=...]`.
+
+With email off, `/register` opens an account with a name, an email address and a password (plus the code when invite-only), and `/login` signs in. An account has no company or drones of its own. `/release` (signed in) posts a company name and a script:
+
+* The script must define `launched` (a `: launched` definition, case-sensitive) and be at most 16,000 characters, with no line longer than a command (2,048).
+* It creates a company (the player's, with 1,000 credits) and one drone in orbit around Earth (object 3, hull 1) with Starter Kit I. It then queues the script as one or more commands, split at line ends to fit the commands table, followed by `<launched>`. All of this happens in one transaction (`App\Services\Release`).
+* The drone loads the script, then runs `launched` with crash handling ([Crashes](#Crashes)). `<launched>` waits until the script has finished loading.
+* The page lists the player's drones with their state (crashes in a row, wreck) and, with email off, the replies in `drone_messages` that have reached Earth.
+
 #### Table: hulls
 Drones are defined by their hulls and the materials and equipment contained within them. Both cargo, in the form of consumable resources, and functional modules affect what the drone can do.  The different varieties of hulls and their hold capacities are described in the tHull table and specifically linked to each drone in the agents table.
 * id [INT(2)] - Table index. Hulls 1 and 2 are the starting drones'; a drone launched from a ship kit has the hull with the kit's ID (6001–6231, see [Launching Drones](#Launching-Drones)).

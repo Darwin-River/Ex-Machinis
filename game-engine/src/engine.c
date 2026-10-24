@@ -1358,7 +1358,15 @@ void engine_send_output(const char* msg, bool with_pending)
             snprintf(email_info.message, MAX_COMMAND_CODE_SIZE, "%s", msg); // it is quoted later at email module
         snprintf(email_info.email_script, PATH_MAX, "%s", engine.config.params[SEND_EMAIL_SCRIPT_ID]);
 
-        if(db_get_agent_email_info(&engine.db_connection, &email_info) == ENGINE_OK)
+        if(!engine_email_enabled())
+        {
+            // Email is off: keep the reply for the website, which shows it
+            // once it has reached Earth (game time, at the speed of light)
+            long long reaches_earth = game_time_now_seconds() + game_time_light_seconds(email_info.distance);
+            db_add_drone_message(&engine.db_connection, agent_id, reaches_earth,
+                engine.last_command.subject, email_info.message);
+        }
+        else if(db_get_agent_email_info(&engine.db_connection, &email_info) == ENGINE_OK)
         {
             // agent email
             snprintf(email_info.agent_email, 
@@ -1472,6 +1480,11 @@ long long engine_get_query_instructions()
 long long engine_get_action_instructions()
 {
     return atoll((const char*)engine.config.params[ACTION_INSTRUCTIONS]);
+}
+
+bool engine_email_enabled()
+{
+    return atoi((const char*)engine.config.params[EMAIL_ENABLED]) != 0;
 }
 
 int engine_get_crash_limit()
