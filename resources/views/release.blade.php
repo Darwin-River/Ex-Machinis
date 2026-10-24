@@ -38,7 +38,67 @@
                               maxlength="{{ config('forge.max_script_length') }}" required>{{ old('script', ": launched  ( -- )\n  .\" Hello from orbit\" cr ;") }}</textarea>
                 </div>
                 <button class="button button-primary" type="submit">Release</button>
+                @if($testWorld)
+                    <button class="button button-default" type="submit" formaction="{{ url('release/test') }}" formnovalidate>Test</button>
+                @endif
             </form>
+            @if($testWorld)
+                <p class="mt-2"><small><b>Test</b> runs your script in the test world: the same rules, game data and
+                    starting company, with a faster clock. Nothing there touches the live world, and you can test as
+                    often as you like (your latest {{ config('forge.test_runs_kept') }} test runs are kept).</small></p>
+            @endif
+
+            @if($testWorld && $testRuns->isNotEmpty())
+                <h3 class="mt-5" id="test-runs">Your test runs</h3>
+                @foreach($testRuns as $run)
+                    <div class="mt-4">
+                        <h5>{{ $run->drone->name }} (test)
+                            &middot; {{ number_format($run->credits) }} credits
+                            @if($run->drone->wrecked_at)
+                                &middot; <span class="text-danger">wreck</span>
+                            @endif
+                            @if($run->crashes)
+                                &middot; <span class="text-warning">{{ $run->crashes }} crash(es)</span>
+                            @endif
+                        </h5>
+                        <h6>Output</h6>
+                        @forelse($run->messages as $message)
+                            <pre class="p-2 bg-light" style="white-space: pre-wrap">{{ $message->body }}</pre>
+                        @empty
+                            <p>Nothing yet: the drone is loading your script.</p>
+                        @endforelse
+                        @if($run->events->isNotEmpty())
+                            <h6>Latest events</h6>
+                            <table class="table table-sm">
+                                <tr><th>Event</th><th>Resource</th><th>Outcome</th><th>Quantity</th><th>Credits</th></tr>
+                                @foreach($run->events as $event)
+                                    <tr>
+                                        <td>{{ $event->type_name ?? $event->event_type }}</td>
+                                        <td>{{ $event->resource_name }}</td>
+                                        <td>{{ $event->outcome }}</td>
+                                        <td>{{ $event->new_quantity }}</td>
+                                        <td>{{ $event->new_credits }}</td>
+                                    </tr>
+                                @endforeach
+                            </table>
+                        @endif
+                        @if($run->trades->isNotEmpty())
+                            <h6>Trades</h6>
+                            <table class="table table-sm">
+                                <tr><th>Resource</th><th>Units</th><th>Credits</th><th>Side</th></tr>
+                                @foreach($run->trades as $trade)
+                                    <tr>
+                                        <td>{{ $trade->resource }}</td>
+                                        <td>{{ $trade->units }}</td>
+                                        <td>{{ $trade->credits }}</td>
+                                        <td>{{ $trade->seller == $run->drone->agent_id ? 'sold' : 'bought' }}</td>
+                                    </tr>
+                                @endforeach
+                            </table>
+                        @endif
+                    </div>
+                @endforeach
+            @endif
 
             <h3 class="mt-5">Your drones</h3>
             @if($drones->isEmpty())

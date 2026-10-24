@@ -76,7 +76,12 @@ In the Public Forge world there is no email. You open an account on the website 
 - what the drone prints appears on the Release page once its signal has reached Earth;
 - if `launched` crashes, the drone restarts it from the script you released (see [When `launched` crashes](#when-launched-crashes)).
 
-A released drone can't be sent new commands from the Release page, so test your words before you release them.
+A released drone can't be sent new commands from the Release page, so test your script before you release it. The **Test** button (when the test world is running) does that:
+
+- your script runs in the test world, a separate copy of the game with the same rules, data and starting company, and a clock that runs ten times faster;
+- the Release page shows what the test drone prints, its latest events (what it did, its cargo and credits), its trades and any crashes;
+- nothing in the test world affects the live one, and you can test as often as you like (your latest three test runs are kept);
+- the test world has its own market, so trades there are only with other test runs.
 
 The rest of this chapter describes the email game.
 

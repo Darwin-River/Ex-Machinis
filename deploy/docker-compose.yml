@@ -58,9 +58,14 @@ services:
       DB_USER: root
       DB_NAME: exmachinis
       MYSQL_PWD: ${DB_ROOT_PASSWORD}
+      # The test world's database (#324 step 7), kept up to date with the
+      # live one: the Release page's Test button runs scripts there
+      TEST_DB_NAME: exmachinis_test
+      DB_APP_USER: exmachinis
     volumes:
       - ../game-engine/sql:/sql:ro
-    entrypoint: ["sh", "-c", "/sql/migrate.sh && mysql -hdb -uroot exmachinis < /sql/game_data.sql && echo 'migrate: game data loaded'"]
+      - ../game-engine/db-backup:/db-backup:ro
+    entrypoint: ["sh", "-c", "/sql/migrate.sh && mysql -hdb -uroot exmachinis < /sql/game_data.sql && echo 'migrate: game data loaded' && /sql/init_test_world.sh"]
 
   app:
     build:
@@ -89,6 +94,10 @@ services:
       # invitation code (php artisan forge:invite) to open an account
       GAME_EMAIL: ${GAME_EMAIL:-1}
       INVITE_ONLY: ${INVITE_ONLY:-0}
+      # TEST_WORLD=1 shows the Release page's Test button; start the test
+      # world's engines with: docker compose --profile testworld up -d
+      TEST_WORLD: ${TEST_WORLD:-0}
+      DB_TEST_DATABASE: exmachinis_test
       # Outgoing mail goes to the mail container; incoming mail is read from
       # its registrar and catch-all mailboxes over IMAP.
       MAIL_DRIVER: smtp
@@ -134,6 +143,42 @@ services:
     environment: *engine-env
     volumes:
       - engine-logs:/opt/exmachinis/log
+
+  # The test world (#324 step 7): the same engines on the test database, with
+  # a faster clock and email always off. Started with the testworld profile.
+  test-game-engine:
+    image: exmachinis-engine
+    profiles: [testworld]
+    restart: unless-stopped
+    init: true
+    command: ["/opt/exmachinis/bin/run-engine.sh", "game-engine"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      game-engine: {condition: service_started}
+    environment:
+      <<: *engine-env
+      DB_NAME: exmachinis_test
+      GAME_TIME_SCALE: ${TEST_GAME_TIME_SCALE:-600}
+      EMAIL_ENABLED: "0"
+    volumes:
+      - test-engine-logs:/opt/exmachinis/log
+
+  test-events-engine:
+    image: exmachinis-engine
+    profiles: [testworld]
+    restart: unless-stopped
+    init: true
+    command: ["/opt/exmachinis/bin/run-engine.sh", "events-engine"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      test-game-engine: {condition: service_started}
+    environment:
+      <<: *engine-env
+      DB_NAME: exmachinis_test
+      GAME_TIME_SCALE: ${TEST_GAME_TIME_SCALE:-600}
+      EMAIL_ENABLED: "0"
+    volumes:
+      - test-engine-logs:/opt/exmachinis/log
 
   scheduler:
     image: exmachinis-engine
@@ -202,6 +247,7 @@ volumes:
   db-data:
   app-storage:
   engine-logs:
+  test-engine-logs:
   mail-data:
   mail-state:
   mail-logs:

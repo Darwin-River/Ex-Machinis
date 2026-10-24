@@ -390,6 +390,17 @@ With email off, `/register` opens an account with a name, an email address and a
 * The drone loads the script, then runs `launched` with crash handling ([Crashes](#Crashes)). `<launched>` waits until the script has finished loading.
 * The page lists the player's drones with their state (crashes in a row, wreck) and, with email off, the replies in `drone_messages` that have reached Earth.
 
+<a name="The-Test-World"></a>**The test world (#324 step 7).** The Release page's **Test** button runs a script in a separate world before the player releases it:
+
+* **Database.** It has its own database, `exmachinis_test`, on the same MySQL server. On every start, the `migrate` service runs `game-engine/sql/init_test_world.sh` after the live migrations. A new test database starts from the same base schema (`create_db.sql`, pointed at the test database, and `exmachinis_tables.sql`). Each start then applies the migrations, loads the current game data and grants the game's MySQL user access. So the test world always has the live world's schema, rules and game data.
+* **Engines.** `test-game-engine` and `test-events-engine` are the same engines with `DB_NAME=exmachinis_test`, email off (`EMAIL_ENABLED=0`) and a faster clock (`TEST_GAME_TIME_SCALE`, default 600). They are in the Compose profile `testworld`. The website shows the Test button when `TEST_WORLD=1` and the test database answers (connection `testworld`, database `DB_TEST_DATABASE`).
+* **A test run** (`POST /release/test`, `App\Services\TestWorld`):
+  * It copies the player's account row into the test world, since drones need an owner.
+  * It releases the script there exactly as a live release does: a company with 1,000 credits and a drone in Earth orbit with Starter Kit I. It needs no company name (the run is named `Test <user>-<random>`).
+  * It keeps the player's latest 3 test runs (`forge.test_runs_kept`). Starting another removes the oldest: its commands, replies, crashes, drone (its events cascade) and company.
+* **Results.** The Release page shows each test run's output (`drone_messages`), crashes, company credits, latest 20 events (named by `event_types`) and trades.
+* **Not yet.** The test world doesn't copy the live world's market. Its order book holds only test runs' orders. When drop stations arrive (step 10) they will be game data, so both worlds will follow the same station rules.
+
 #### Table: hulls
 Drones are defined by their hulls and the materials and equipment contained within them. Both cargo, in the form of consumable resources, and functional modules affect what the drone can do.  The different varieties of hulls and their hold capacities are described in the tHull table and specifically linked to each drone in the agents table.
 * id [INT(2)] - Table index. Hulls 1 and 2 are the starting drones'; a drone launched from a ship kit has the hull with the kit's ID (6001–6231, see [Launching Drones](#Launching-Drones)).

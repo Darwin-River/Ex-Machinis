@@ -9,6 +9,7 @@
 #   - it unpacks its starter kit, flies to the Moon, mines and refines kunspar,
 #   - a sale between two companies of the same player is refused,
 #   - with email off, a script released on the website runs (no email),
+#   - the Test button runs a script in the test world, not the live one,
 #   - it launches a new drone from a ship kit with a copy of its program.
 # Needs ports 80, 443 and 25 free. Leaves the stack running; remove it with
 #   docker compose down -v && rm -rf .env mail/config
@@ -212,5 +213,21 @@ FORGE_NAME=$(sql "select name from agents where agent_id=$FORGE_DRONE")
 wait_for 30 "the Release page shows the reply" sh -c "curl -fsS -b '$JAR' http://localhost/release | grep -q 'forge-release-ok7'"
 ! docker compose logs mail | grep -q "from=<$FORGE_NAME@" || fail "the released drone sent email"
 echo "ok: no email from the released drone"
+
+# Test world (#324 step 7): start its engines and turn on the Test button,
+# then test a script. It runs in the test world's own database, with a faster
+# clock, and the live world gets nothing.
+TEST_WORLD=1 GAME_EMAIL=0 INVITE_ONLY=1 docker compose --profile testworld up -d app test-game-engine test-events-engine >/dev/null 2>&1
+wait_for 120 "the Release page has a Test button" sh -c "curl -fsS -b '$JAR' http://localhost/release | grep -q 'release/test'"
+curl -fsS -c "$JAR" -b "$JAR" -o /dev/null -X POST http://localhost/release/test --data-urlencode "_token=$(token /release)" \
+    --data-urlencode $'script=: hello  ." test-world-" ;\n: launched  hello ." ok8" ;'
+sqltest() {
+    docker compose exec -T db sh -c 'mysql -N -uexmachinis -p"$MYSQL_PASSWORD" exmachinis_test 2>/dev/null' <<<"$1"
+}
+tested() { [ -n "$(sqltest "select id from drone_messages where body like '%test-world-ok8%' and body like '%has finished%'")" ]; }
+wait_for 90 "a test run runs in the test world" tested
+[ -z "$(sql "select company_id from companies where name like 'Test %'")" ] || fail "a test run reached the live world"
+echo "ok: the live world is untouched"
+wait_for 30 "the Release page shows the test run" sh -c "curl -fsS -b '$JAR' http://localhost/release | grep -q 'test-world-ok8'"
 
 echo "Smoke test passed."
