@@ -562,7 +562,7 @@ Buy and sell orders cannot be canceled. However they can be replaced by more res
 
 The second part of a trade involves physically transferring the resource between ships.
 
-Players are able to transfer resources between spacecraft using the push and pull protocols. As with other protocols, these operations are executed by placing several parameters on the stack and then calling the `perform` command. In both instances the first parameter specifies the number of resources being transferred, the second parameter indicates the ID of the transferred resource, the third parameter is the ID of the other drone, and the last value is the protocol being performed: 10 to push and 11 to pull.
+Players are able to transfer resources between spacecraft using the push and pull protocols. As with other protocols, these operations are executed by placing several parameters on the stack and then calling the `perform` command. In both instances the first parameter specifies the number of resources being transferred (it is required: use 1 for a single unit), the second parameter indicates the ID of the transferred resource, the third parameter is the ID of the other drone, and the last value is the protocol being performed: 10 to push and 11 to pull.
 
 In the following example, a drone is instructed to push 5 units of kunspar into the hold of another spacecraft and then pull 10 units of yalspar from that spacecraft into its own hold.
 
