@@ -13,19 +13,6 @@ class Event extends Model
     public $timestamps = false;
 
     /**
-     * Events the website creates (such as a new drone's starter kit) get the
-     * current game time: the engines order and look up events by game_t (#327).
-     */
-    protected static function booted()
-    {
-        static::creating(function (Event $event) {
-            if ($event->game_t === null) {
-                $event->game_t = GameClock::now();
-            }
-        });
-    }
-
-    /**
      * Get the resource associated with the event
      */
     public function resource()

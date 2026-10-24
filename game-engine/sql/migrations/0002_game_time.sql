@@ -33,3 +33,21 @@ CREATE TABLE IF NOT EXISTS game_clock_history (
     game_time DOUBLE NOT NULL,
     scale DOUBLE NOT NULL
 );
+
+-- Any event inserted without a game time (by the website, a script, an
+-- operator) gets the current one, so the engines' game-time lookups always
+-- find it. The engines set game_t themselves.
+DROP TRIGGER IF EXISTS events_game_t;
+
+DELIMITER //
+CREATE TRIGGER events_game_t BEFORE INSERT ON events FOR EACH ROW
+BEGIN
+    IF NEW.game_t IS NULL THEN
+        SET NEW.game_t = (SELECT ROUND(game_anchor + (UNIX_TIMESTAMP() - real_anchor) * scale)
+                          FROM game_clock WHERE id = 1);
+        IF NEW.game_t IS NULL THEN
+            SET NEW.game_t = UNIX_TIMESTAMP();  -- no clock yet: game time is real time
+        END IF;
+    END IF;
+END //
+DELIMITER ;

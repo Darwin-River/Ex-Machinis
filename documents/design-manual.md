@@ -183,7 +183,7 @@ Since actions are short and only one runs at a time (see [The Game Engine cycles
 **Where it is stored.**
 * `game_clock`: the anchors and the scale.
 * `game_clock_history`: every change of scale.
-* `events.game_t`: when each event takes place, in game time; `events.timestamp` holds the same moment in real time, for the website.
+* `events.game_t`: when each event takes place, in game time; `events.timestamp` holds the same moment in real time, for the website. An event inserted without a `game_t` (by the website, such as a new drone's starter kit, or by a script) gets the current game time from the `events_game_t` trigger.
 * `observations.game_t`: when a drone (or the Central Database) sees an event, in game time; `observations.time` is the real time, for the website.
 * `trades.game_t`: when each trade happened, in game time.
 * `commands.deliver_at`: when a player's command reaches its drone, in game time.

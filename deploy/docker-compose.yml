@@ -49,14 +49,16 @@ services:
     restart: "no"
     depends_on:
       db: {condition: service_healthy}
+    # As root: migrations may create triggers, which MySQL (with its binary
+    # log on) only lets an administrator do
     environment:
       DB_HOST: db
-      DB_USER: exmachinis
+      DB_USER: root
       DB_NAME: exmachinis
-      MYSQL_PWD: ${DB_PASSWORD}
+      MYSQL_PWD: ${DB_ROOT_PASSWORD}
     volumes:
       - ../game-engine/sql:/sql:ro
-    entrypoint: ["sh", "-c", "/sql/migrate.sh && mysql -hdb -uexmachinis exmachinis < /sql/game_data.sql && echo 'migrate: game data loaded'"]
+    entrypoint: ["sh", "-c", "/sql/migrate.sh && mysql -hdb -uroot exmachinis < /sql/game_data.sql && echo 'migrate: game data loaded'"]
 
   app:
     build:
