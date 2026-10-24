@@ -885,43 +885,10 @@ ErrorCode_t db_get_pending_action_event(int action_id, int event_type, int exclu
 /** Runs a SAVEPOINT / ROLLBACK TO SAVEPOINT / RELEASE SAVEPOINT statement */
 ErrorCode_t db_savepoint(const char* statement);
 
-/** The game clock (see game_time.c): one row, id 1 */
-#define GAME_CLOCK_TABLE_SQL \
-    "CREATE TABLE IF NOT EXISTS game_clock (" \
-    " id INT UNSIGNED NOT NULL PRIMARY KEY," \
-    " real_anchor BIGINT NOT NULL," \
-    " game_anchor DOUBLE NOT NULL," \
-    " scale DOUBLE NOT NULL DEFAULT 1)"
-
-/** Drone replies on their way to Earth: sent at send_at (unix seconds) */
-#define OUTBOX_TABLE_SQL \
-    "CREATE TABLE IF NOT EXISTS outbox (" \
-    " id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY," \
-    " send_at BIGINT NOT NULL," \
-    " user_email VARCHAR(255) NOT NULL," \
-    " subject VARCHAR(2048) NULL," \
-    " agent_name VARCHAR(255) NOT NULL," \
-    " body LONGTEXT NOT NULL," \
-    " INDEX send_at_idx (send_at))"
-
-/* Trades between players (#249): written by the events engine when a push
-   or pull fills another player's market order; read by queries 620 and 621 */
-#define TRADES_TABLE_SQL \
-    "CREATE TABLE IF NOT EXISTS trades (" \
-    " id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY," \
-    " time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP," \
-    " resource INT NOT NULL," \
-    " units INT NOT NULL," \
-    " credits INT NOT NULL," \
-    " seller INT UNSIGNED NOT NULL," \
-    " buyer INT UNSIGNED NOT NULL," \
-    " location INT NULL," \
-    " INDEX trades_resource_time_idx (resource, time))"
+/* The game_clock, outbox and trades tables are created by database
+   migrations (game-engine/sql/migrations/) */
 
 ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, int buyer, int location);
-
-/** Adds columns newer engines need to databases created before them */
-ErrorCode_t db_upgrade_schema(void);
 
 /** Records why an action failed (first reason only) */
 ErrorCode_t db_set_action_outcome(int action_id, int outcome);

@@ -29,16 +29,34 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - db-data:/var/lib/mysql
-      # Loaded only when the database volume is first created.
+      # The base schema, loaded only when the database volume is first
+      # created. Later changes come from the migrate service.
       - ../game-engine/sql/create_db.sql:/docker-entrypoint-initdb.d/01-create_db.sql:ro
       - ../game-engine/db-backup/exmachinis_tables.sql:/docker-entrypoint-initdb.d/02-tables.sql:ro
-      - ../game-engine/sql/game_data.sql:/docker-entrypoint-initdb.d/03-game_data.sql:ro
     healthcheck:
       # Over TCP, so it only passes once the schema has been loaded.
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uexmachinis -p\"$$MYSQL_PASSWORD\" --silent"]
       interval: 5s
       timeout: 5s
       retries: 60
+
+  # Runs on every start, before the website and engines: applies the schema
+  # migrations the database hasn't had yet (game-engine/sql/migrations/),
+  # then loads the current game data, which replaces the reference tables
+  # (resources, protocols, queries...) and leaves players and drones alone.
+  migrate:
+    image: mysql:8.4
+    restart: "no"
+    depends_on:
+      db: {condition: service_healthy}
+    environment:
+      DB_HOST: db
+      DB_USER: exmachinis
+      DB_NAME: exmachinis
+      MYSQL_PWD: ${DB_PASSWORD}
+    volumes:
+      - ../game-engine/sql:/sql:ro
+    entrypoint: ["sh", "-c", "/sql/migrate.sh && mysql -hdb -uexmachinis exmachinis < /sql/game_data.sql && echo 'migrate: game data loaded'"]
 
   app:
     build:
@@ -47,7 +65,7 @@ services:
     image: exmachinis-app
     restart: unless-stopped
     depends_on:
-      db: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
     environment:
       APP_NAME: Ex-Machinis
       APP_ENV: production
@@ -91,7 +109,7 @@ services:
     init: true
     command: ["/opt/exmachinis/bin/run-engine.sh", "game-engine"]
     depends_on:
-      db: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
     environment: *engine-env
     volumes:
       - engine-logs:/opt/exmachinis/log
@@ -102,7 +120,7 @@ services:
     init: true
     command: ["/opt/exmachinis/bin/run-engine.sh", "events-engine"]
     depends_on:
-      db: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
       game-engine: {condition: service_started}
     environment: *engine-env
     volumes:

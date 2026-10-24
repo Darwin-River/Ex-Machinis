@@ -151,6 +151,8 @@ The Event Engine is a small C++ application, which runs continuously in the back
 #### Game Database
 The Game Database is a server-side database that holds all game-related data. The database facilitates communications between the Mail Handler, Game Engine, and other applications that are running on the server.  It is also a rich source of data for players and their drones.
 
+The schema starts from `game-engine/sql/create_db.sql` and `game-engine/db-backup/exmachinis_tables.sql`. Every later change is a numbered migration in `game-engine/sql/migrations/`, applied in order by `game-engine/sql/migrate.sh`, which records each in the `schema_version` table. In Docker the `migrate` service runs it on every start, before the website and engines, and then loads `game_data.sql`; CI runs it before the tests. The engines no longer change the schema themselves. See the migrations folder's README for how to add one.
+
 [Return to the TOC](#Table-of-Contents)
 
 ## General Mechanics
