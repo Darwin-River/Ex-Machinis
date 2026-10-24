@@ -2462,11 +2462,11 @@ INSERT INTO `abundancies` (location, resource, multiplier) VALUES
 
 DELETE FROM `queries`;
 INSERT INTO `queries` (id, name, description, parameters, script) VALUES
-  (100, 'Get company name', '[N R L 100 query]: Returns the name for company N.', 1, 'SELECT users.name FROM users WHERE (((users.user_id)=[value_1]));'),
-  (101, 'Get company credits', '[N R L 101 query]: Returns the number of credits in the company''s bank account were Company ID = N.', 1, 'SELECT users.credits FROM users WHERE (((users.user_id)=[value_1]));'),
-  (110, 'List company spacecraft', '[N R L 110 query]: Returns a list of the IDs for the spacecraft that are owned by company N.', 1, 'SELECT agents.agent_id FROM agents WHERE (((agents.user_id)=[value_1])) ORDER BY agents.agent_id;'),
+  (100, 'Get company name', '[N R L 100 query]: Returns the name for company N.', 1, 'SELECT name FROM companies WHERE company_id = [value_1];'),
+  (101, 'Get company credits', '[N R L 101 query]: Returns the number of credits in the company''s bank account were Company ID = N.', 1, 'SELECT credits FROM companies WHERE company_id = [value_1];'),
+  (110, 'List company spacecraft', '[N R L 110 query]: Returns a list of the IDs for the spacecraft that are owned by company N.', 1, 'SELECT agent_id FROM agents WHERE company_id = [value_1] ORDER BY agent_id;'),
   (200, 'Get spacecraft name', '[N R L 200 query]: Returns the spacecraft name [30] for Spacraft ID N.', 1, 'SELECT agents.name FROM agents WHERE (((agents.agent_id)=[value_1]));'),
-  (201, 'Get spacecraft owner', '[N R L 201 query]: Return the Company ID of the compony that owns Spacecraft ID N.', 1, 'SELECT agents.user_id FROM agents WHERE (((agents.agent_id)=[value_1]));'),
+  (201, 'Get spacecraft owner', '[N R L 201 query]: Return the Company ID of the compony that owns Spacecraft ID N.', 1, 'SELECT company_id FROM agents WHERE agent_id = [value_1];'),
   (202, 'Get spaecraft location', '[N R L 202 query]: Returns the location ID of spacecraft N.', 1, 'SELECT object_id FROM agents WHERE agent_id = [value_1];'),
   (203, 'Get spacecraft hull type', '[N R L 203 query]: Retuns the hull type of spacecraft N.', 1, 'SELECT hull_type FROM agents WHERE agent_id=[value_1];'),
   (204, 'Get cargo mass', '[N R L 204 query]: Returns the total cargo mass in kg of spacecraft N.', 1, 'SELECT IFNULL(SUM(i.units * r.mass), 0) FROM sqInventory AS i INNER JOIN resources AS r ON r.id = i.resource WHERE i.drone = [value_1];'),

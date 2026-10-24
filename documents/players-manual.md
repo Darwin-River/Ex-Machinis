@@ -239,6 +239,7 @@ Protocols are invoked by sending your drone a FORTH script that calls upon the `
 | -6 | the buyer's order doesn't allow buying that many |
 | -9 | the action was stopped |
 | -10 | the other drone has no matching buy or sell order |
+| -13 | the other drone belongs to another of your own companies: you can't trade between your own companies |
 | -11 | there is no such protocol |
 | -12 | refused, for example because a parameter names something that doesn't exist |
 

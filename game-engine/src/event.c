@@ -650,7 +650,7 @@ Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* use
         event->drone_id);
 
     // Check if the drone that generated the action is different from the affected one
-    // and both belong to different users
+    // and both belong to different companies
     if(action->drone_id != event->drone_id) {
         engine_trace(TRACE_LEVEL_ALWAYS,
             "Checking if drones [%d] and [%d] belong to different users",
@@ -1068,6 +1068,18 @@ static ErrorCode_t event_apply(Event_t *event)
     if(result == ENGINE_OK)
     {
         market_transaction = event_is_market_transaction(&action, event, &user_info, &peer_user_info);
+    }
+
+    // A trade between two companies of the same player is blocked (#324
+    // step 4): it would let a player move money or goods between companies
+    if((result == ENGINE_OK) && (market_transaction == ENGINE_TRUE) &&
+       (user_info.player_id == peer_user_info.player_id))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS,
+            "Event [%d] blocked: companies [%d] and [%d] belong to the same player [%d]",
+            event->event_id, user_info.user_id, peer_user_info.user_id, user_info.player_id);
+        event->outcome = OUTCOME_SAME_PLAYER;
+        result = ENGINE_LOGIC_ERROR;
     }
 
     if((result == ENGINE_OK) && (market_transaction == ENGINE_TRUE))

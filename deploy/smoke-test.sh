@@ -7,6 +7,7 @@
 #   - emailing registrar@ with subject "register" registers a player,
 #   - a drone runs an emailed FORTH command and the engine emails the reply,
 #   - it unpacks its starter kit, flies to the Moon, mines and refines kunspar,
+#   - a sale between two companies of the same player is refused,
 #   - it launches a new drone from a ship kit with a copy of its program.
 # Needs ports 80, 443 and 25 free. Leaves the stack running; remove it with
 #   docker compose down -v && rm -rf .env mail/config
@@ -96,6 +97,21 @@ wait_for 30 "script carried on after the trip" sh -c "docker compose logs game-e
 send_mail "$DRONE@$DOMAIN" "mine" "<run>11100 perform . cr</run>"
 wait_for 120 "drone mined kunspar on the Moon" has 1100
 wait_for 60 "drone finished the mining script" idle
+
+# Companies (#324 step 4): the player gets a second company with a drone at
+# the Moon and a buy order for kunspar. Selling to it is refused: a trade
+# between two companies of the same player leaves -13 and moves nothing.
+PLAYER_ID=$(sql "select user_id from agents where agent_id=$DRONE_ID")
+sql "insert into companies (user_id, name, credits) values ($PLAYER_ID, 'Sister Company', 1000)"
+SISTER_CO=$(sql "select max(company_id) from companies where user_id=$PLAYER_ID")
+sql "insert into agents (user_id, company_id, name, object_id, hull_type) values ($PLAYER_ID, $SISTER_CO, 'sister1', 10, 1)"
+SISTER=$(sql "select agent_id from agents where name='sister1'")
+sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_credits)
+     values (5, 0, 1, 1, $SISTER, 1100, 0, 0, 50, 1)"
+send_mail "$DRONE@$DOMAIN" "sell to my other company" "<run>1 1100 $SISTER 10 perform . cr</run>"
+wait_for 90 "a sale to the player's other company is refused (-13)" sh -c "docker compose logs game-engine | grep -q 'perform leaves \[-13\]'"
+wait_for 60 "drone finished the refused-sale script" idle
+[ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$SISTER and resource=1100")" = 0 ] || fail "kunspar reached the other company"
 
 # Refining needs 20 kunspar (each mining run gives 5 here) and the starter
 # kit's Smelter (A1); each perform waits for its action

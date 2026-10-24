@@ -16,18 +16,21 @@ class Company extends Model
     // Constant to identify the default hull type
     const DEFAULT_DRONE_HULL_TYPE = 1;
 
-    //
+    // A company has its own bank account (credits) and drones; a player
+    // (user) can own many companies (#324 step 4)
+    protected $table = 'companies';
+    protected $primaryKey = 'company_id';
     protected $fillable = [
-        'name', 'user_id'
+        'name', 'user_id', 'credits'
     ];
     public $timestamps = false;
 
     /**
-     * Get the user associated with the company.
+     * Get the player who owns the company.
      */
     public function user()
     {
-        return $this->belongsTo('App\User');
+        return $this->belongsTo('App\User', 'user_id', 'user_id');
     }
 
     /**
@@ -35,7 +38,7 @@ class Company extends Model
      */
     public function agents()
     {
-        return $this->hasMany('App\Agent');
+        return $this->hasMany('App\Agent', 'company_id', 'company_id');
     }
 
     /**
@@ -51,6 +54,7 @@ class Company extends Model
             $agent = new Agent();
             $agent->assignRandomName();
             $agent->user_id = $user_id;
+            $agent->company_id = $this->company_id;
             //set the orbit
             $agent->object_id = $orbits[$i];
             $agent->hull_type = Company::DEFAULT_DRONE_HULL_TYPE;

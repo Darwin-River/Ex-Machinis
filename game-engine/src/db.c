@@ -2742,7 +2742,7 @@ ErrorCode_t db_check_company_name(DbConnection_t* connection, char* company_name
 
     snprintf(query_text,
         DB_MAX_SQL_QUERY_LEN,
-        "SELECT name from users where LOWER(NAME) = LOWER('%s')",
+        "SELECT name from companies where LOWER(name) = LOWER('%s')",
         safe_company_name);
 
     // run it
@@ -2841,7 +2841,7 @@ ErrorCode_t db_update_agent_company(DbConnection_t* connection, int agent_id, ch
 
     snprintf(query_text,
         DB_MAX_SQL_QUERY_LEN,
-        "UPDATE users SET NAME = '%s' where USER_ID = (SELECT USER_ID from agents where AGENT_ID = %d)",
+        "UPDATE companies SET name = '%s' where company_id = (SELECT company_id from agents where agent_id = %d)",
         safe_company_name,
         agent_id);
 
@@ -3399,7 +3399,7 @@ ErrorCode_t db_get_launch_source(DbConnection_t* connection, int launcher_id, in
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "SELECT d.object_id FROM agents l JOIN agents d ON d.user_id = l.user_id "
+        "SELECT d.object_id FROM agents l JOIN agents d ON d.company_id = l.company_id "
         "WHERE l.agent_id = %d AND d.agent_id = %d AND EXISTS (SELECT 1 FROM hulls WHERE id = %d)",
         launcher_id, source_id, kit_id);
 

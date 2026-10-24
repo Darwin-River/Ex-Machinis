@@ -9,7 +9,7 @@ class Agent extends Model
     //NOTE: Agents are the drones
 
     protected $fillable = [
-        'name', 'user_id', 'object_id',
+        'name', 'user_id', 'company_id', 'object_id',
     ];
     public $timestamps = false;
 

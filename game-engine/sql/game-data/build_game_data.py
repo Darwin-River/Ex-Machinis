@@ -492,6 +492,12 @@ QUERY_SQL = {
     '210': (1, "SELECT resource, units FROM sqInventory WHERE drone = [value_1] AND units > 0 ORDER BY units DESC;"),
     # economy.xlsx's version was cut off and didn't filter by drone
     '212': (1, "SELECT IFNULL(MAX(units), 0) FROM sqInventory WHERE drone = [drone_id] AND resource = [value_1];"),
+    # Companies (#324 step 4): a player can own many companies, each with its
+    # own bank account; agents.company_id is a drone's company
+    '100': (1, "SELECT name FROM companies WHERE company_id = [value_1];"),
+    '101': (1, "SELECT credits FROM companies WHERE company_id = [value_1];"),
+    '110': (1, "SELECT agent_id FROM agents WHERE company_id = [value_1] ORDER BY agent_id;"),
+    '201': (1, "SELECT company_id FROM agents WHERE agent_id = [value_1];"),
     '600': (1, orders(5, True)), '601': (1, orders(5, False)),
     '610': (1, orders(4, True)), '611': (1, orders(4, False)),
     '800': (1, "SELECT id FROM events WHERE outcome = 1 AND drone = [value_1] ORDER BY game_t DESC, id DESC;"),

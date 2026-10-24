@@ -50,13 +50,14 @@ class User extends Authenticatable
             $user = User::create([
                 'name' => $name,
                 'email' => strtolower($email),
-                'credits' => 1000,
             ]);
             $last_id = $user->id;
-            $company = new Company();
-            //$company->user_id = $user->id;
-            //    $company->name = $data['company_name'];
-            //$company->save();
+            // The player's first company, with the starting credits
+            $company = Company::create([
+                'user_id' => $last_id,
+                'name' => $name,
+                'credits' => 1000,
+            ]);
             //    echo 'creating drones for user ' . $last_id . '<br/>';
             //create initial drones:
             $companyDrones = $company->generateStartingDrones($last_id);
