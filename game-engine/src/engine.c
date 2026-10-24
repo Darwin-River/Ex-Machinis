@@ -23,6 +23,7 @@
 #include "engine.h"
 #include "wrap.h"
 #include "game_time.h"
+#include "vm_meter.h"
 #include "config.h"
 #include "db.h"
 
@@ -441,6 +442,9 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
         pending_input = db_get_agent_pending_input(&engine.db_connection, engine.last_command.agent_id);
 
     result = vm_run_command(engine.last_agent.vm, &engine.last_command, out_buf, out_buf_size, &pending_input);
+
+    // Instruction metering: add what this slice used to the drone's total
+    db_add_agent_instructions(&engine.db_connection, engine.last_command.agent_id, vm_meter_used());
 
     // Keep the unread rest of a paused script (NULL clears it)
     db_set_agent_pending_input(&engine.db_connection, engine.last_command.agent_id, pending_input);
@@ -1355,18 +1359,22 @@ const char* engine_get_forth_image_path()
     return (const char*)engine.config.params[FORTH_IMAGE_PATH_ID];
 }
 
-/** ****************************************************************************
-
-  @brief      Gets the max number of second each VM can spend processing commands
-
-  @param[in]  None
-  
-  @return     Seconds value configured
-
-*******************************************************************************/
-const int engine_get_max_cycle_seconds()
+/** Instructions a drone's script may run per slice (instruction metering) */
+long long engine_get_max_cycle_instructions()
 {
-    return atoi((const char*)engine.config.params[MAX_CYCLE_SECONDS]);
+    return atoll((const char*)engine.config.params[MAX_CYCLE_INSTRUCTIONS]);
+}
+
+/** Flat instruction cost of a query */
+long long engine_get_query_instructions()
+{
+    return atoll((const char*)engine.config.params[QUERY_INSTRUCTIONS]);
+}
+
+/** Flat instruction cost of an action (perform) */
+long long engine_get_action_instructions()
+{
+    return atoll((const char*)engine.config.params[ACTION_INSTRUCTIONS]);
 }
 
 /** ****************************************************************************

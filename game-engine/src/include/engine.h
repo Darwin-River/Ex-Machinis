@@ -44,7 +44,9 @@ enum
 
     // Logic configuration
     DB_READ_TIME_ID,
-    MAX_CYCLE_SECONDS,
+    MAX_CYCLE_INSTRUCTIONS,
+    QUERY_INSTRUCTIONS,
+    ACTION_INSTRUCTIONS,
     VM_RESUME_COMMAND,
 
     // Email configuration
@@ -289,16 +291,14 @@ void engine_free(void* memory, size_t size);
 *******************************************************************************/
 const char* engine_get_forth_image_path();
 
-/** ****************************************************************************
+/** Instructions a drone's script may run per slice (instruction metering) */
+long long engine_get_max_cycle_instructions();
 
-  @brief      Gets the max number of second each VM can spend processing commands
+/** Flat instruction cost of a query */
+long long engine_get_query_instructions();
 
-  @param[in]  None
-  
-  @return     Seconds value configured
-
-*******************************************************************************/
-const int engine_get_max_cycle_seconds();
+/** Flat instruction cost of an action (perform) */
+long long engine_get_action_instructions();
 
 /** ****************************************************************************
 

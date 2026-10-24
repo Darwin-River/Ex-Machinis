@@ -16,6 +16,7 @@
 
 #include "vm.h"
 #include "game_time.h"
+#include "vm_meter.h"
 #include "engine.h"
 #include "trace.h"
 #include "vm_extension.h"
@@ -38,17 +39,6 @@ char* g_output_buffer = NULL;
 char* g_last_command_output = NULL;
 size_t g_current_size = 0;
 size_t g_output_len = 0; // characters in g_output_buffer
-
-// To yield a VM we control time elapsed since we started it, and limit this time
-// When the current command (or resume) started running, in ms (monotonic)
-static long long g_vm_start_ms = 0;
-
-static long long vm_now_ms(void)
-{
-  struct timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-  return (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
-}
 
 // Last VM is yield
 int g_vm_yield = 0;
@@ -105,13 +95,12 @@ int vm_yield_cb(void* param)
     return 1;
   }
 
-  long long elapsed_ms = vm_now_ms() - g_vm_start_ms;
-  int max_time = engine_get_max_cycle_seconds();
-
-  if(elapsed_ms >= (long long)max_time * 1000) {
-    engine_trace(TRACE_LEVEL_ALWAYS, 
-      "WARNING: VM must yield, ran for [%lld] ms (limit [%d] s), current output buffer [%s]", 
-      elapsed_ms, max_time, g_output_buffer?g_output_buffer:"NULL");
+  // Instruction metering: the slice ends once its budget is used, so the
+  // same script always runs the same instructions per slice
+  if(vm_meter_step()) {
+    engine_trace(TRACE_LEVEL_ALWAYS,
+      "VM yields: used its [%lld] instruction slice, current output buffer [%s]",
+      vm_meter_used(), g_output_buffer?g_output_buffer:"NULL");
 
     g_vm_yield = 1;
 
@@ -232,8 +221,8 @@ VirtualMachine_t* vm_new(int agent_id)
           vm_engine_options.param = vm_ext;
           embed_opt_set(vm, &vm_engine_options);
 
-          // Time the callback setup below (it runs FORTH too)
-          g_vm_start_ms = vm_now_ms();
+          // The callback setup below runs FORTH too: the engine's own code, unmetered
+          vm_meter_start(0);
 
           // Add all callbacks
           if(vm_add_callbacks(vm, true, vm_ext->callbacks, vm_ext->callbacks_length) < 0) 
@@ -342,8 +331,8 @@ VirtualMachine_t* vm_from_bytes(int agent_id, char* vm_bytes, size_t size)
             vm_engine_options.param = vm_ext;
             embed_opt_set(vm, &vm_engine_options);
 
-            // Time the callback setup below (it runs FORTH too)
-            g_vm_start_ms = vm_now_ms();
+            // The callback setup below runs FORTH too: the engine's own code, unmetered
+            vm_meter_start(0);
 
             // Add all callbacks
             if(vm_add_callbacks(vm, true, vm_ext->callbacks, vm_ext->callbacks_length) < 0) 
@@ -433,8 +422,8 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
             g_output_len = 0;
             memset(g_output_buffer, 0, g_current_size); 
 
-            // Each command (or resume) gets its own time slice
-            g_vm_start_ms = vm_now_ms();
+            // Each command (or resume) gets its own slice of instructions
+            vm_meter_start(engine_get_max_cycle_instructions());
             g_vm_yield = 0;
 
             // Check if it is a resume / execute command and also if there are pending commands running
@@ -692,7 +681,7 @@ bool vm_word_defined(VirtualMachine_t* vm, const char* name)
     g_output_buffer = scratch;
     g_current_size = sizeof(scratch);
     g_output_len = 0;
-    g_vm_start_ms = vm_now_ms();
+    vm_meter_start(0);   // the engine's own lookup, unmetered
 
     size_t depth = embed_depth((forth_t*)vm);
     const char* rest = input;

@@ -44,7 +44,9 @@ char conf_param_names[MAX_CONFIG_PARAM+1][MAX_CONF_PARAM_LEN] =
 
     // LOGIC configuration
     "DB_READ_TIME",
-    "MAX_CYCLE_SECONDS",
+    "MAX_CYCLE_INSTRUCTIONS",
+    "QUERY_INSTRUCTIONS",
+    "ACTION_INSTRUCTIONS",
     "VM_RESUME_COMMAND",
 
     // EMAIL configuration

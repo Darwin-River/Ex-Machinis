@@ -22,6 +22,7 @@
 #include "db.h"
 #include "protocol.h"
 #include "game_time.h"
+#include "vm_meter.h"
 
 /******************************* DEFINES *************************************/
 
@@ -356,6 +357,9 @@ static int vm_ext_execute_cb(VmExtension_t * const v)
 {
     engine_trace(TRACE_LEVEL_ALWAYS, "Running execute callback");
 
+    // An action costs a flat number of instructions (its real cost is database work)
+    vm_meter_charge(engine_get_action_instructions());
+
     // pop just the protocol ID from stack
     // and a variable number of parameters depending on DB configuration
     cell_t protocolId;
@@ -503,6 +507,9 @@ static int vm_ext_query_cb(VmExtension_t * const v)
 
     memset(&queryInfo, 0, sizeof(Queries_t));
     memset(queryOutMsg, 0, LINE_MAX);
+
+    // A query costs a flat number of instructions (its real cost is database work)
+    vm_meter_charge(engine_get_query_instructions());
 
     engine_trace(TRACE_LEVEL_ALWAYS, "Running query callback");
 
