@@ -13,6 +13,7 @@
 #include <string.h>
 #include <assert.h>
 #include <limits.h>
+#include <ctype.h>
 
 #include "vm_extension.h"
 #include "engine.h"
@@ -226,6 +227,19 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryIn
                 vm_read_byte((VirtualMachine_t*)v->h, value+1+i, (unsigned char*)&result[i]);
             }
             result[len] = 0;
+
+            // The string goes straight into SQL, so only allow characters
+            // that can't change the query (issue #322)
+            for(int i=0; i < len; i++) {
+                unsigned char c = (unsigned char)result[i];
+                if(!(isalnum(c) || c == ' ' || c == '-' || c == '_' || c == '.')) {
+                    engine_trace(TRACE_LEVEL_ALWAYS,
+                        "ERROR: Tag %s string has a character that is not allowed in a query: code [%d]",
+                        tag, c);
+                    engine_free(result, len+1);
+                    return NULL;
+                }
+            }
 
             engine_trace(TRACE_LEVEL_ALWAYS, "VM string read [%s] len [%d]", result, len);
 
