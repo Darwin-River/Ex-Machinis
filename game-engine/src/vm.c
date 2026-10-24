@@ -35,6 +35,7 @@
 char* g_output_buffer = NULL;
 char* g_last_command_output = NULL;
 size_t g_current_size = 0;
+size_t g_output_len = 0; // characters in g_output_buffer
 
 // To yield a VM we control time elapsed since we started it, and limit this time
 // When the current command (or resume) started running, in ms (monotonic)
@@ -71,15 +72,15 @@ int vm_putc_cb(int ch, void *file)
 
   if(g_output_buffer)
   {
-    int next_pos = strlen(g_output_buffer);
-
-    if(next_pos > g_current_size) {
-      //engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: Max out buffer size [%ld] reached (discarded)", g_current_size);
+    // Keep the last byte for the terminating zero; once full, further output
+    // is dropped (issue #322: the old strlen per character made long output
+    // slow, and the off-by-one could overwrite the terminator)
+    if(g_output_len + 1 >= g_current_size)
       return ch;
-    }
 
-    g_last_command_output = (g_output_buffer + next_pos);
+    g_last_command_output = (g_output_buffer + g_output_len);
     *g_last_command_output = ch;
+    g_output_buffer[++g_output_len] = 0;
   }
 
   return ch;
@@ -427,6 +428,7 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
             g_output_buffer = out_buffer;
             g_last_command_output = g_output_buffer;
             g_current_size = out_size;
+            g_output_len = 0;
             memset(g_output_buffer, 0, g_current_size); 
 
             // Each command (or resume) gets its own time slice
@@ -572,6 +574,7 @@ void vm_report(VirtualMachine_t* vm)
 
         // clean buffer and point to the beginning
         memset(g_output_buffer, 0, g_current_size); 
+        g_output_len = 0;
     }
 }
 
@@ -682,9 +685,11 @@ bool vm_word_defined(VirtualMachine_t* vm, const char* name)
     // Discard anything the lookup prints
     char* saved_buffer = g_output_buffer;
     size_t saved_size = g_current_size;
+    size_t saved_len = g_output_len;
     memset(scratch, 0, sizeof(scratch));
     g_output_buffer = scratch;
-    g_current_size = sizeof(scratch) - 1;
+    g_current_size = sizeof(scratch);
+    g_output_len = 0;
     g_vm_start_ms = vm_now_ms();
 
     size_t depth = embed_depth((forth_t*)vm);
@@ -693,6 +698,7 @@ bool vm_word_defined(VirtualMachine_t* vm, const char* name)
 
     g_output_buffer = saved_buffer;
     g_current_size = saved_size;
+    g_output_len = saved_len;
 
     if(r < 0 || embed_depth((forth_t*)vm) <= depth || embed_pop((forth_t*)vm, &code) < 0)
         return false;
