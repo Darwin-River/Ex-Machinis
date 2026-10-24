@@ -26,6 +26,7 @@
 static double g_scale = 1.0;
 static time_t g_real_anchor = 0;
 static double g_game_anchor = 0;
+static double g_epoch = 0;
 static int g_loaded = 0;
 
 static ErrorCode_t game_time_query(DbConnection_t* connection, const char* query_text)
@@ -47,25 +48,28 @@ ErrorCode_t game_time_load(void)
     if(result != ENGINE_OK)
         return result;
 
-    // First start: game time begins as real time, at scale 1
+    // First start: game time begins as real time, at scale 1, and the world's
+    // first game second (its epoch) is now
     snprintf(query_text, sizeof(query_text),
-        "INSERT IGNORE INTO game_clock (id, real_anchor, game_anchor, scale) "
-        "VALUES (1, UNIX_TIMESTAMP(), UNIX_TIMESTAMP(), 1)");
+        "INSERT IGNORE INTO game_clock (id, real_anchor, game_anchor, scale, epoch) "
+        "VALUES (1, UNIX_TIMESTAMP(), UNIX_TIMESTAMP(), 1, UNIX_TIMESTAMP())");
     result = game_time_query(connection, query_text);
 
     if(result == ENGINE_OK)
-        result = game_time_query(connection, "SELECT real_anchor, game_anchor, scale FROM game_clock WHERE id = 1");
+        result = game_time_query(connection,
+            "SELECT real_anchor, game_anchor, scale, IFNULL(epoch, game_anchor) FROM game_clock WHERE id = 1");
 
     if(result == ENGINE_OK)
     {
         MYSQL_RES* db_result = mysql_store_result(connection->hndl);
         MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
 
-        if(row && row[0] && row[1] && row[2] && atof(row[2]) > 0)
+        if(row && row[0] && row[1] && row[2] && row[3] && atof(row[2]) > 0)
         {
             g_real_anchor = (time_t)atoll(row[0]);
             g_game_anchor = atof(row[1]);
             g_scale = atof(row[2]);
+            g_epoch = atof(row[3]);
             g_loaded = 1;
         }
         else
@@ -103,6 +107,15 @@ ErrorCode_t game_time_set_scale(double scale)
         (long long)now, game_now, scale);
     result = game_time_query(connection, query_text);
 
+    // Keep every rate change, so charts can map game time to real time
+    if(result == ENGINE_OK)
+    {
+        snprintf(query_text, sizeof(query_text),
+            "INSERT INTO game_clock_history (real_time, game_time, scale) VALUES (%lld, %.3f, %.6f)",
+            (long long)now, game_now, scale);
+        result = game_time_query(connection, query_text);
+    }
+
     if(result == ENGINE_OK)
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "Game time scale changed from [%f] to [%f]", g_scale, scale);
@@ -125,6 +138,23 @@ double game_time_now(void)
         return (double)time(NULL); // no clock yet: real time
 
     return g_game_anchor + difftime(time(NULL), g_real_anchor) * g_scale;
+}
+
+long long game_time_now_seconds(void)
+{
+    return llround(game_time_now());
+}
+
+double game_time_epoch(void)
+{
+    return g_loaded ? g_epoch : game_time_now();
+}
+
+long long game_time_light_seconds(double distance_km)
+{
+    if(!(distance_km > 0))
+        return 0;
+    return llround(distance_km / LIGHT_SPEED_KM_PER_SECOND);
 }
 
 int game_time_to_real(double game_seconds)

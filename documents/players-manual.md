@@ -820,7 +820,7 @@ Query 803 lists the events your drone has observed, newest first, filtered by up
 </run>
 ```
 
-It leaves the number of event IDs it stored (two bytes each, so ID n is at events + 2n), or -2 if none match. Ask the other event queries (810 to 843) about any of them: what type it was, who acted, which resource, the new quantity, when it happened.
+It leaves the number of event IDs it stored (two bytes each, so ID n is at events + 2n), or -2 if none match. Ask the other event queries (810 to 843) about any of them: what type it was, who acted, which resource, the new quantity, when it happened. Query 843 gives the time as two values: the game day (day 0 is the day the world began) and the number of even seconds into that day. Every time in the game is game time, so it runs at the game clock's pace.
 
 As we develop more complex queries, we'll provide additional examples of how spacecraft can use queries to probe and respond to their environment.
 

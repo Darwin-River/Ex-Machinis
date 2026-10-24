@@ -21,6 +21,7 @@
 #include "vm.h"
 #include "db.h"
 #include "protocol.h"
+#include "game_time.h"
 
 /******************************* DEFINES *************************************/
 
@@ -161,6 +162,12 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryIn
         // allocate an int value
         result = (char*) engine_malloc(MAX_QUERY_VALUE_BUF_LEN);
         sprintf(result, "%d", value);
+    } else if (!strcmp(tag, QUERY_TAG_GAME_NOW)) {
+        // The current game time, in game seconds: queries compare it with the
+        // game_t columns (#327)
+        result = (char*) engine_malloc(MAX_QUERY_VALUE_BUF_LEN);
+        snprintf(result, MAX_QUERY_VALUE_BUF_LEN, "%lld", game_time_now_seconds());
+        engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s, game time [%s]", tag, result);
     } else if (!strcmp(tag, QUERY_TAG_TIME_DELAY)) {
         // Get ligth minutes distance
         char drone_position[MAX_OBJECT_NAME_SIZE];
@@ -438,7 +445,8 @@ static void vm_ext_process_query
         QUERY_TAG_STRING_3,
         QUERY_TAG_STRING_4,
         QUERY_TAG_DRONE_ID,
-        QUERY_TAG_TIME_DELAY
+        QUERY_TAG_TIME_DELAY,
+        QUERY_TAG_GAME_NOW
     };
 
     for(int i=0; i < MAX_QUERY_TAGS_NUM; i++) {

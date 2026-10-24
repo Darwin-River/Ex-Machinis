@@ -9,11 +9,13 @@
 /******************************* INCLUDES ************************************/
 
 #include <string.h>
+#include <math.h>
 #include <stdbool.h>
 #include <assert.h>
 #include <time.h>
 
 #include "vm.h"
+#include "game_time.h"
 #include "engine.h"
 #include "trace.h"
 #include "vm_extension.h"
@@ -882,14 +884,17 @@ ErrorCode_t vm_write_datetime(VirtualMachine_t* vm, uint16_t addr, char* date_st
             date_str,
             addr);
 
-        // Times will be placed in memory as two 16-bit values. 
-        // The first value will count the number of days from 1 January 2000, 
-        // The second value will count the number of even seconds (every other second) since midnight. 
+        // Times are placed in memory as two 16-bit values: the game day,
+        // counted from the world's first game second (game day 0), and the
+        // number of even seconds (every other second) into that game day.
+        // Query dates are game times (FROM_UNIXTIME(game_t), #327).
         time_t db_date = db_date_to_timestamp(date_str, OBJECTS_TIMESTAMP_FORMAT);
-        time_t ref_date = db_date_to_timestamp(JANUARY_1_2000_DATE, OBJECTS_TIMESTAMP_FORMAT);
+        long long since_epoch = (long long)db_date - llround(game_time_epoch());
+        if(since_epoch < 0)
+            since_epoch = 0;
 
-        uint16_t days_elapsed = (db_date - ref_date) / (24 * 3600);
-        uint16_t seconds_elapsed = (db_date - ref_date) % (24 * 3600);
+        uint16_t days_elapsed = (uint16_t)(since_epoch / (24 * 3600));
+        uint16_t seconds_elapsed = (uint16_t)(since_epoch % (24 * 3600));
         uint16_t half_seconds_elapsed = (seconds_elapsed / 2);
 
         engine_trace(TRACE_LEVEL_ALWAYS, 

@@ -52,8 +52,8 @@ $(EXE_PATH)/eforth.blk: dump_image.c embed_image.c
 	$(OBJS_PATH)/dump_image > $@
 
 # Orbit maths checked against real positions, long-line wrapping checked on
-# the FORTH VM, and VM memory bounds (need no database)
-test: test_orbits.c orbits.c test_wrap.c wrap.c test_vm_bounds.c embed.c
+# the FORTH VM, VM memory bounds, and the game clock (need no database)
+test: test_orbits.c orbits.c test_wrap.c wrap.c test_vm_bounds.c embed.c test_game_time.c game_time.c
 	@mkdir -p $(OBJS_PATH)
 	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/test_orbits test_orbits.c -lm
 	$(OBJS_PATH)/test_orbits
@@ -61,6 +61,8 @@ test: test_orbits.c orbits.c test_wrap.c wrap.c test_vm_bounds.c embed.c
 	$(OBJS_PATH)/test_wrap
 	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/test_vm_bounds test_vm_bounds.c embed.c embed_image.c embed_util.c
 	$(OBJS_PATH)/test_vm_bounds
+	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/test_game_time test_game_time.c game_time.c -Wl,--wrap=time -lm
+	$(OBJS_PATH)/test_game_time
 
 clean:
 	$(RM) -rf $(OBJS_PATH) $(GAME_ENGINE_EXE_NAME) $(EVENTS_ENGINE_EXE_NAME) $(EXE_PATH)/eforth.blk
