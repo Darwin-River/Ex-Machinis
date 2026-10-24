@@ -133,6 +133,9 @@ void vm_push_result(VirtualMachine_t* vm, int value);
     returned normally, else its error code (takes catch's code off the stack) */
 int vm_take_launched_result(VirtualMachine_t* vm);
 
+/** Adds text to the current command's output, as the VM's own output does */
+void vm_append_output(const char* text);
+
 /** The action the script paused for in this run, 0 when none */
 int vm_waiting_action(void);
 

@@ -594,6 +594,13 @@ void vm_wait_for_action(int action_id)
   g_vm_wait_action = action_id;
 }
 
+/** Adds text to the current command's output, as the VM's own output does */
+void vm_append_output(const char* text)
+{
+  for(; text && *text; text++)
+    vm_putc_cb((unsigned char)*text, NULL);
+}
+
 /** The result of a run of "' launched catch" that has ended (crash.h):
     0 when launched returned normally, else its error code. Takes catch's
     code off the stack. */

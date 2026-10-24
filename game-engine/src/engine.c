@@ -369,14 +369,6 @@ static void engine_stamp_commands(void)
     }
 }
 
-/* Adds text to the end of a run's output, as far as it fits */
-static void engine_append_output(char* out_buf, size_t out_buf_size, const char* text)
-{
-    size_t len = strnlen(out_buf, out_buf_size);
-    if(len + 1 < out_buf_size)
-        snprintf(out_buf + len, out_buf_size - len, "%s", text);
-}
-
 /* Set when a crash means the drone's program goes back to its clean copy
    once this command is done (after the VM is saved) */
 static bool g_restore_release_vm = false;
@@ -426,13 +418,12 @@ static Bool_t engine_finish_perform(void)
               after a wait that doubles with each crash in a row, or becomes
               a wreck after too many.
 
-  @param[in|out]  out_buf       The run's output: the outcome is added to it
-  @param[in]      out_buf_size  Buffer size
+  The outcome is added to the run's output.
 
   @return     void
 
 *******************************************************************************/
-static void engine_end_launched(char* out_buf, size_t out_buf_size)
+static void engine_end_launched(void)
 {
     int agent_id = engine.last_command.agent_id;
     LaunchState_t state;
@@ -447,7 +438,7 @@ static void engine_end_launched(char* out_buf, size_t out_buf_size)
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] finished its launched word", agent_id);
         db_record_launched_finished(&engine.db_connection, agent_id);
-        engine_append_output(out_buf, out_buf_size, "\nMy launched word has finished.\n");
+        vm_append_output("\nMy launched word has finished.\n");
         return;
     }
 
@@ -471,7 +462,7 @@ static void engine_end_launched(char* out_buf, size_t out_buf_size)
         g_restore_release_vm = true;
         snprintf(msg, sizeof(msg), "\nMy launched word crashed with error %d (%d in a row). Restarting from my clean copy in %lld game seconds.\n", code, in_row, wait);
     }
-    engine_append_output(out_buf, out_buf_size, msg);
+    vm_append_output(msg);
 }
 
 /** ****************************************************************************
@@ -529,10 +520,6 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
     if(vm_waiting_action())
         db_set_agent_waiting_action(&engine.db_connection, engine.last_command.agent_id, vm_waiting_action());
 
-    // A run of the launched word that has ended: it returned or crashed
-    if(!vm_is_yield())
-        engine_end_launched(out_buf, out_buf_size);
-
     AgentInfo_t info;
     // Update drone info (just in case, we executed a location change)
     if(result == ENGINE_OK)
@@ -554,6 +541,11 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
         // Update object ID to use it when calculating distances and sending email
         engine.last_agent.object_id = info.object_id;
     }
+
+    // A run of the launched word that has ended: it returned or crashed
+    // (after the refresh above, which loads a VM and may print)
+    if(!vm_is_yield())
+        engine_end_launched();
 
     return result;
 }

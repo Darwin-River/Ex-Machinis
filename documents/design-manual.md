@@ -818,11 +818,11 @@ Protocol 12 turns a ship kit into a new drone: `[D K 12 perform]`, where K is a 
 
 **`<launched>`** (Game Engine) brings the copied VM back to the prompt, as Forth's `ABORT` does: empty stacks and no paused script, even if D was in the middle of one (as it is when a drone copies itself: its script waits in `perform` for the launch). The words and variables stay. It emails the player that the drone has launched (from the new drone's address, so the player learns it), then looks up the word `launched` (case-sensitive) with `' ' catch launched` and, if it's defined, runs it once as a script: a launched drone can start working unattended. Its output is emailed when it finishes, like any script's.
 
-The first time a drone runs `<launched>`, its VM as it is then is saved in `agents.release_vm`: the clean copy a crash restarts from.
+The first time a drone runs `<launched>`, its VM as it is then is saved in `agents.release_vm`: the clean copy a crash restarts from. A queued `<launched>` waits while the drone still has a script running (a resume queued), so a script sent just before it, such as a released one, loads in full first. A queued `<launched>` waits while the drone still has a script running (a resume queued), so a script sent just before it, such as a released one, loads in full first.
 
 <a name="Crashes"></a>**Crashes.** The Game Engine runs the word as `' launched catch` and sets `agents.launched_running`. The `catch` frame lives in the VM, so it survives the script pausing in `perform` or at the end of an instruction slice. When the run ends (it doesn't pause), the engine takes `catch`'s code off the stack (`crash_launched_result` in `crash.c`):
 
-- 0: `launched` returned normally. The drone has finished (`crashes_in_row` goes back to 0) and the email ends "My launched word has finished."
+- 0: `launched` returned normally. The drone has finished (`crashes_in_row` goes back to 0) and its reply ends "My launched word has finished."
 - Anything else is a crash: the code `catch` caught, -4 (stack underflow) if the word emptied the stack below `catch`'s frame, or the VM's result when it halted (-1, e.g. after `abort`).
 
 After a crash (`engine_end_launched` in `engine.c`), with `crashes_in_row` + 1 = n:
