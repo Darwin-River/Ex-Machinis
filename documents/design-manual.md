@@ -32,6 +32,7 @@ This document lays out the plans for developing Ex Machinis, an online space sim
 * [Players and Resources](#Players-and-Resources)
   * [Player and Drone Tables](#Player-and-Drone-Tables)
     * [Table-users](#Table-users)
+    * [Table-companies](#Table-companies)
     * [Table-agents](#Table-agents)
     * [Table-hulls](#Table-hulls)
     * [Table-hull_bonuses](#Table-hull_bonuses)
@@ -308,7 +309,19 @@ The Users Table will hold information specific to each player account.
 * password [VARCHAR(255)] - This is the player’s password.
 * created_at [TIMESTAMP] - The date that the use first created their account.
 * updated_at [TIMESTAMP] - The date that the record was last updated.
-* credits [INT(10)] - This is the number of credits that the player has in her bank account.
+* credits [INT(10)] - No longer used: bank accounts belong to companies (below).
+
+[Return to the TOC](#Table-of-Contents)
+
+#### Table: companies
+A player can own many companies; each has its own bank account and drones (Public Forge, #324 step 4). Migration 0004 turned each existing user into one company with the same ID, name and credits.
+* company_id [INT] - Table index.
+* user_id [INT] - The player (users.user_id) who launched the company.
+* name [VARCHAR(255)] - The company's name, changed with the rebrand meta-command.
+* credits [INT] - The company's bank account. Market trades pay into and out of it.
+* created_at [TIMESTAMP] - When the company was launched.
+
+Trades (push and pull against a market order) between two companies of the same player are blocked: the event fails with outcome -13 and the action is aborted, so a player can't move money or goods between their own companies. Queries 100, 101, 110 and 201 read companies: a company's name, its credits, its drones, and a drone's company.
 
 [Return to the TOC](#Table-of-Contents)
 
@@ -322,6 +335,9 @@ This table stores basic information on the ingame drones.  Most information abou
 * subject [VARCHAR(2048)] - The subject of the email exchange.
 * object_id [INT(5)] - The static object where the drone is located.
 * hull_type [INT(2)] - The type of hull used by the drone.
+* user_id [INT] - The player who owns the drone.
+* company_id [INT] - The company the drone belongs to. A launched drone joins its launcher's company.
+* instructions [BIGINT] - FORTH instructions the drone's script has run in all (instruction metering).
 * waiting_action [INT(10)] - The action the drone's script is waiting for (set by `perform`), NULL when it isn't waiting.
 
 [Return to the TOC](#Table-of-Contents)
@@ -604,6 +620,7 @@ Protocols often require parameters to further define their operations. These par
 | -7, -8 | Wrong depletion or accumulation price (outcomes -7, -8) |
 | -9 | The action was aborted |
 | -10 | The other drone has no matching buy or sell order (outcome -10) |
+| -13 | The other drone belongs to another company of the same player: trades between one player's companies are blocked (outcome -13) |
 | -11 | Unknown protocol (no action was started, no wait) |
 | -12 | Refused when performed, e.g. a parameter names a resource or destination that doesn't exist (no wait) |
 
@@ -930,10 +947,10 @@ If the decrement event succeeds, the Event Engine will:
 
 ### Adding and removing credits from a user's bank account
 
-When the Event Engine adds or subtracts credits from a user's account, it does so by incrementing or decrementing the users.credits field by the indicated amount and creating a new events table entry to record this change:
+When the Event Engine adds or subtracts credits from a user's account, it does so by incrementing or decrementing the companies.credits field of the drone's company by the indicated amount and creating a new events table entry to record this change:
 
-- The user.credits field can go negative as a result of a transaction.
-- Whem creating the corresponding events table entry, the Events Engine will set events.time to the current date/time, events.drone to the ID of the affected drone, events.action to the ID of the related action, events.logged to true, events outcome to 1, and events.event-type to 6 if credits are being added and 7 if credits are being removed. The Events Engine will also set events.new_credits to the new value in users.credits. All other values will be null.
+- The companies.credits field can go negative as a result of a transaction.
+- Whem creating the corresponding events table entry, the Events Engine will set events.time to the current date/time, events.drone to the ID of the affected drone, events.action to the ID of the related action, events.logged to true, events outcome to 1, and events.event-type to 6 if credits are being added and 7 if credits are being removed. The Events Engine will also set events.new_credits to the new value in companies.credits. All other values will be null.
 
 ### Recording trades
 
@@ -1072,11 +1089,11 @@ This appendix lists the in-game queries loaded into the game, organized by the d
 <!-- queries:start (generated by game-engine/sql/game-data/build_game_data.py; do not edit) -->
 | Category | Query ID | Name | Usage and description | Parameters | MySQL script |
 |:--|:--|:--|:--|:--|:--|
-| Companies | 100 | Get company name | [N R L 100 query]: Returns the name for company N. | 1 | `SELECT users.name FROM users WHERE (((users.user_id)=[value_1]));` |
-| Companies | 101 | Get company credits | [N R L 101 query]: Returns the number of credits in the company's bank account were Company ID = N. | 1 | `SELECT users.credits FROM users WHERE (((users.user_id)=[value_1]));` |
-| Companies | 110 | List company spacecraft | [N R L 110 query]: Returns a list of the IDs for the spacecraft that are owned by company N. | 1 | `SELECT agents.agent_id FROM agents WHERE (((agents.user_id)=[value_1])) ORDER BY agents.agent_id;` |
+| Companies | 100 | Get company name | [N R L 100 query]: Returns the name for company N. | 1 | `SELECT name FROM companies WHERE company_id = [value_1];` |
+| Companies | 101 | Get company credits | [N R L 101 query]: Returns the number of credits in the company's bank account were Company ID = N. | 1 | `SELECT credits FROM companies WHERE company_id = [value_1];` |
+| Companies | 110 | List company spacecraft | [N R L 110 query]: Returns a list of the IDs for the spacecraft that are owned by company N. | 1 | `SELECT agent_id FROM agents WHERE company_id = [value_1] ORDER BY agent_id;` |
 | Spacecraft | 200 | Get spacecraft name | [N R L 200 query]: Returns the spacecraft name [30] for Spacraft ID N. | 1 | `SELECT agents.name FROM agents WHERE (((agents.agent_id)=[value_1]));` |
-| Spacecraft | 201 | Get spacecraft owner | [N R L 201 query]: Return the Company ID of the compony that owns Spacecraft ID N. | 1 | `SELECT agents.user_id FROM agents WHERE (((agents.agent_id)=[value_1]));` |
+| Spacecraft | 201 | Get spacecraft owner | [N R L 201 query]: Return the Company ID of the compony that owns Spacecraft ID N. | 1 | `SELECT company_id FROM agents WHERE agent_id = [value_1];` |
 | Spacecraft | 202 | Get spaecraft location | [N R L 202 query]: Returns the location ID of spacecraft N. | 1 | `SELECT object_id FROM agents WHERE agent_id = [value_1];` |
 | Spacecraft | 203 | Get spacecraft hull type | [N R L 203 query]: Retuns the hull type of spacecraft N. | 1 | `SELECT hull_type FROM agents WHERE agent_id=[value_1];` |
 | Spacecraft | 204 | Get cargo mass | [N R L 204 query]: Returns the total cargo mass in kg of spacecraft N. | 1 | `SELECT IFNULL(SUM(i.units * r.mass), 0) FROM sqInventory AS i INNER JOIN resources AS r ON r.id = i.resource WHERE i.drone = [value_1];` |

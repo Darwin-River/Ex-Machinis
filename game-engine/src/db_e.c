@@ -783,7 +783,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                 snprintf(query_text,
                     DB_MAX_SQL_QUERY_LEN,
                     "SELECT * from events where drone in "
-                    "(select agent_id from agents where user_id = (select user_id from agents where agent_id = %d)) "
+                    "(select agent_id from agents where company_id = (select company_id from agents where agent_id = %d)) "
                     "and outcome = %d " // success
                     "and game_t < %lld order by game_t DESC, id DESC limit 1;",
                     event->drone_id, OUTCOME_OK, game_t);
@@ -2049,7 +2049,8 @@ ErrorCode_t db_get_drone_user(int drone_id, User_t* user)
 
         query_end += snprintf(query_end,
             QUERY_SPACE_LEFT,
-            "SELECT * FROM users WHERE user_id = (SELECT user_id FROM agents WHERE agent_id = %d);",
+            "SELECT c.company_id, c.user_id, c.credits FROM companies c "
+            "JOIN agents a ON a.company_id = c.company_id WHERE a.agent_id = %d;",
             drone_id);
 
         // run it
@@ -2065,7 +2066,7 @@ ErrorCode_t db_get_drone_user(int drone_id, User_t* user)
             uint64_t rowsNum = mysql_num_rows(db_result);
             unsigned int fieldsNum = mysql_num_fields(db_result);
 
-            if((db_result == NULL) || (rowsNum != 1) || (fieldsNum != MAX_USER_FIELDS))
+            if((db_result == NULL) || (rowsNum != 1) || (fieldsNum != 3))
             {
                 engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to get user info for DRONE_ID [%d] "
@@ -2082,15 +2083,16 @@ ErrorCode_t db_get_drone_user(int drone_id, User_t* user)
                 MYSQL_ROW row = mysql_fetch_row(db_result);
                 if(row)
                 {
-                    // Pick the row obtained and fill the output info
-                    // For now, only interested in user_id and credits
-                    user->user_id = row[USER_USER_ID_IDX]?atoi(row[USER_USER_ID_IDX]):0;
-                    user->credits = row[USER_CREDITS_IDX]?atoi(row[USER_CREDITS_IDX]):0;
+                    // The drone's company: its ID, its player and its bank account
+                    user->user_id = row[0]?atoi(row[0]):0;
+                    user->player_id = row[1]?atoi(row[1]):0;
+                    user->credits = row[2]?atoi(row[2]):0;
 
                     engine_trace(TRACE_LEVEL_ALWAYS,
-                        "DRONE_ID [%d] USER_ID [%d] CREDITS [%d]",
+                        "DRONE_ID [%d] COMPANY_ID [%d] PLAYER_ID [%d] CREDITS [%d]",
                         drone_id,
                         user->user_id,
+                        user->player_id,
                         user->credits);
                 }
                 else
@@ -2261,7 +2263,7 @@ ErrorCode_t db_update_user_credits(User_t* user)
         char* query_end = query_text;
 
         query_end += snprintf(query_end, QUERY_SPACE_LEFT,
-            "UPDATE users SET credits = %d where user_id = %d",
+            "UPDATE companies SET credits = %d where company_id = %d",
             user->credits,
             user->user_id);
 
@@ -2558,13 +2560,14 @@ ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* ne
         result = ENGINE_LOGIC_ERROR;
 
     // The copy is taken now, when the launch happens. Drone D must still
-    // belong to the player; if it doesn't, the new drone gets a fresh VM.
+    // belong to the company; if it doesn't, the new drone gets a fresh VM.
+    // The new drone joins the launcher's company (and player).
     if(result == ENGINE_OK)
     {
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-            "INSERT INTO agents (user_id, name, vm, object_id, hull_type) "
-            "SELECT l.user_id, '%s', "
-            "(SELECT d.vm FROM agents d WHERE d.agent_id = %d AND d.user_id = l.user_id), "
+            "INSERT INTO agents (user_id, company_id, name, vm, object_id, hull_type) "
+            "SELECT l.user_id, l.company_id, '%s', "
+            "(SELECT d.vm FROM agents d WHERE d.agent_id = %d AND d.company_id = l.company_id), "
             "l.object_id, %d FROM agents l WHERE l.agent_id = %d",
             name, source_id, hull_id, launcher_id);
         result = db_launch_exec(connection, query_text);

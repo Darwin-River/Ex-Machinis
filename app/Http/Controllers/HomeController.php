@@ -318,18 +318,18 @@ class HomeController extends Controller
     public function InGameEventsSearch(Request $request)
     {
         $resultsPerPage = Config::get('constants.options.results_per_page');
-        $query = DB::table('events')->select('events.timestamp', 'acting_agents.name as acting_agent_name', 'acting_agents.user_id as acting_company_id', 'acting_users.name as acting_company_name',
-            'acting_agents.agent_id as acting_agent_id', 'acting_agents.name as acting_agent_name', 'protocols.name as protocol_name', 'affected_users.name as affected_company_name', 'affected_users.user_id as affected_company_id',
+        $query = DB::table('events')->select('events.timestamp', 'acting_agents.name as acting_agent_name', 'acting_agents.company_id as acting_company_id', 'acting_companies.name as acting_company_name',
+            'acting_agents.agent_id as acting_agent_id', 'acting_agents.name as acting_agent_name', 'protocols.name as protocol_name', 'affected_companies.name as affected_company_name', 'affected_companies.company_id as affected_company_id',
             'event_types.name as event_type_name', 'affected_agents.agent_id as affected_agent_id', 'affected_agents.name as affected_agent_name', 'resources.id as resource_id',
             'resources.name as resource_name', 'events.locked', 'events.new_quantity', 'events.new_credits', 'events.new_location', 'objects.object_id', 'objects.object_name', 'observations.drone as observing_drone')
             ->join('observations', 'events.id', '=', 'observations.event') //obligatory to be observed
             ->leftJoin('actions', 'events.action', '=', 'actions.id')
             ->leftJoin('agents as acting_agents', 'actions.drone', '=', 'acting_agents.agent_id')
-            ->leftJoin('users as acting_users', 'acting_agents.user_id', '=', 'acting_users.user_id')
+            ->leftJoin('companies as acting_companies', 'acting_agents.company_id', '=', 'acting_companies.company_id')
             ->leftJoin('protocols', 'actions.protocol', '=', 'protocols.id')
             ->leftJoin('event_types', 'events.event_type', '=', 'event_types.id')
             ->leftJoin('agents as affected_agents', 'events.drone', '=', 'affected_agents.agent_id')
-            ->leftJoin('users as affected_users', 'affected_agents.user_id', '=', 'affected_users.user_id')
+            ->leftJoin('companies as affected_companies', 'affected_agents.company_id', '=', 'affected_companies.company_id')
             ->leftJoin('resources', 'events.resource', '=', 'resources.id')
             ->leftJoin('objects', 'events.new_location', '=', 'objects.object_id');
         //basic restrictions
@@ -339,7 +339,7 @@ class HomeController extends Controller
                 $query->where('affected_agents.name', 'LIKE', "%" . $request->get('keyword') . "%")
                     ->orWhere('acting_agents.name', 'LIKE', "%" . $request->get('keyword') . "%")
                     ->orWhere('protocols.name', 'LIKE', "%" . $request->get('keyword') . "%")
-                    ->orWhere('affected_users.name', 'LIKE', "%" . $request->get('keyword') . "%")
+                    ->orWhere('affected_companies.name', 'LIKE', "%" . $request->get('keyword') . "%")
                     ->orWhere('resources.name', 'LIKE', "%" . $request->get('keyword') . "%")
                     ->orWhere('event_types.name', 'LIKE', "%" . $request->get('keyword') . "%")
                     ->orWhere('object_name', 'LIKE', "%" . $request->get('keyword') . "%");

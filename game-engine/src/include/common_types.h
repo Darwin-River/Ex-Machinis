@@ -552,6 +552,8 @@ typedef enum
 	OUTCOME_WRONG_ACCUMULATION_PRICE = -8,
 	OUTCOME_ACTION_ABORTED = -9,
 	OUTCOME_NO_MARKET_ORDER = -10,
+	// -11 and -12 are perform's own codes (below)
+	OUTCOME_SAME_PLAYER = -13,   // a trade between two companies of one player is blocked
 
 } Outcome_t;
 
@@ -739,6 +741,10 @@ typedef struct
 	time_t created_at;
 	time_t updated_at;
 	int credits;
+	// Since #324 step 4 the engines load this from companies, not users:
+	// user_id is then the company ID (companies.company_id) and credits its
+	// bank account; player_id is the player who owns the company
+	int player_id;
 	// Internal stuff - not present at DB
 	int current_drone_id; // link user with current drone being managed
 	int action_id; // link with action

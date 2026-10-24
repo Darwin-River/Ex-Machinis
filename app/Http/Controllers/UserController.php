@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Agent;
 use App\User;
+use App\Company;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -75,13 +76,14 @@ class UserController extends Controller
     public function companySearch(Request $request)
     {
         $resultsPerPage = Config::get('constants.options.results_per_page');
-        $query = DB::table('users')->select('users.user_id AS user_id', 'users.name AS name', DB::raw('DATEDIFF(NOW(),users.created_at) AS age')
-            , DB::raw('COUNT(agents.agent_id) AS agents'), DB::raw('IFNULL(users.credits,0) AS credits'))
-            ->leftJoin('agents', 'agents.user_id', '=', 'users.user_id')->groupBy('users.user_id');
+        // Companies (#324 step 4); the JSON keeps the user_id key for the page's links
+        $query = DB::table('companies')->select('companies.company_id AS user_id', 'companies.name AS name', DB::raw('DATEDIFF(NOW(),companies.created_at) AS age')
+            , DB::raw('COUNT(agents.agent_id) AS agents'), DB::raw('IFNULL(companies.credits,0) AS credits'))
+            ->leftJoin('agents', 'agents.company_id', '=', 'companies.company_id')->groupBy('companies.company_id');
         if ($request->get('user_id') !== null)
-            $query->where('users.user_id', intval($request->get('user_id')));
+            $query->where('companies.company_id', intval($request->get('user_id')));
         if ($request->get('name') !== null)
-            $query->where('users.name', 'LIKE', "%" . $request->get('name') . "%");
+            $query->where('companies.name', 'LIKE', "%" . $request->get('name') . "%");
         if ($request->get('sort')) {
             $sortParts = explode('|', $request->get('sort'));
             $query->orderBy($sortParts[0], $sortParts[1]);
@@ -94,14 +96,17 @@ class UserController extends Controller
 
     /**
      * Displays single company
-     * @param int $id user id
+     * @param int $id company id
      * @return View
      */
     public function companyView($id)
     {
-        $user = User::where('user_id', '=', $id)->firstOrFail();
+        $company = Company::where('company_id', '=', $id)->firstOrFail();
+        // The view shows the company's ID, name, start date and bank account
+        $user = (object) ['user_id' => $company->company_id, 'name' => $company->name,
+            'created_at' => $company->created_at, 'credits' => $company->credits];
 
-        $spacecraft = Agent::with('hull')->with('location')->with('lastEVents')->where('user_id', '=', $id)->get();
+        $spacecraft = Agent::with('hull')->with('location')->with('lastEVents')->where('company_id', '=', $id)->get();
 
         return view('user.company', compact('user', 'spacecraft'));
     }

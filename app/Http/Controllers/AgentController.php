@@ -30,11 +30,11 @@ class AgentController extends Controller
     public function agentsSearch(Request $request)
     {
         $resultsPerPage = Config::get('constants.options.results_per_page');
-        $query = DB::table('agents')->select('agents.agent_id as agent_id', 'agents.name as name', 'hulls.id as hull_id', 'hulls.name as hull_name', 'users.name as owner_name'
-            , 'users.user_id as owner_id',
+        $query = DB::table('agents')->select('agents.agent_id as agent_id', 'agents.name as name', 'hulls.id as hull_id', 'hulls.name as hull_name', 'companies.name as owner_name'
+            , 'companies.company_id as owner_id',
             'objects.object_id AS location_id', 'objects.object_name AS location_name')
             ->leftJoin('hulls', 'agents.hull_type', '=', 'hulls.id')
-            ->leftJoin('users', 'agents.user_id', '=', 'users.user_id')
+            ->leftJoin('companies', 'agents.company_id', '=', 'companies.company_id')
             ->leftJoin('objects', 'agents.object_id', '=', 'objects.object_id');
         if ($request->get('agent_id') !== null)
             $query->where('agents.agent_id', intval($request->get('agent_id')));
