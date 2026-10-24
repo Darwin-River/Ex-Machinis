@@ -156,9 +156,10 @@ crash_launched() { # redefine launched to divide by zero, then restart it
     # (the definition prints a marker unique to this round, so the restart
     # is only queued once this round's definition has run)
     # (.( prints at the prompt; the round number is printed by . so the
-    # marker "crash-word-N" appears only in the output, not in the script)
+    # marker "crash-word- N" (. prints a space first) appears only in the
+    # output, not in the script)
     send_mail "$NEW@$DOMAIN" "crash $1" "<run>: launched 1 0 / ; .( crash-word-) $1 .</run>"
-    wait_for 60 "launched drone $NEW took the crashing word ($1)" sh -c "docker compose logs game-engine | grep -q 'crash-word-$1 '"
+    wait_for 60 "launched drone $NEW took the crashing word ($1)" sh -c "docker compose logs game-engine | grep -q 'crash-word- $1 '"
     sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('<launched>', $NEW_ID, NOW(), NOW(), 'Restart', '')"
 }
 crash_launched 1
