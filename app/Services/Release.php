@@ -44,9 +44,24 @@ class Release
         return $chunks;
     }
 
-    /** Releases the script as a new company of this player; returns its drone */
-    public static function release(User $user, string $companyName, string $script): Agent
+    /**
+     * Releases the script as a new company of this player; returns its drone.
+     * $connection picks the world: null for the live one, 'testworld' for a
+     * test run (#324 step 7).
+     */
+    public static function release(User $user, string $companyName, string $script, ?string $connection = null): Agent
     {
+        if ($connection !== null) {
+            // The models use the default connection: point it at that world
+            $previous = DB::getDefaultConnection();
+            DB::setDefaultConnection($connection);
+            try {
+                return self::release($user, $companyName, $script);
+            } finally {
+                DB::setDefaultConnection($previous);
+            }
+        }
+
         return DB::transaction(function () use ($user, $companyName, $script) {
             $company = Company::create([
                 'user_id' => $user->user_id,

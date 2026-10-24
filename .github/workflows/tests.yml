@@ -51,6 +51,7 @@ jobs:
           mysql -h 127.0.0.1 -uroot -psecret exmachinis < game-engine/db-backup/exmachinis_tables.sql
           DB_USER=root DB_NAME=exmachinis MYSQL_PWD=secret game-engine/sql/migrate.sh
           mysql -h 127.0.0.1 -uroot -psecret < tests/database/fixtures.sql
+          TEST_DB_NAME=exmachinis_test MYSQL_PWD=secret game-engine/sql/init_test_world.sh
 
       - name: Start test mail server (GreenMail)
         run: |

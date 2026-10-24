@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Agent;
 use App\Company;
 use App\Services\Release;
+use App\Services\TestWorld;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -35,19 +36,46 @@ class ReleaseController extends Controller
                 ->groupBy('agent_id');
         }
 
-        return view('release', compact('companies', 'drones', 'messages'));
+        $testWorld = TestWorld::available();
+        $testRuns = $testWorld ? TestWorld::runs($user) : collect();
+
+        return view('release', compact('companies', 'drones', 'messages', 'testWorld', 'testRuns'));
     }
 
-    public function store(Request $request)
+    /**
+     * The Test button (#324 step 7): runs the script in the test world, with
+     * the same rules and a faster clock, and nothing in the live world
+     */
+    public function test(Request $request)
     {
         if (!Auth::check()) {
             return redirect('/login');
         }
-        $max = config('forge.max_script_length');
-        $request->validate([
-            'company_name' => 'required|string|min:3|max:45|unique:companies,name',
-            'script' => 'required|string|max:' . $max,
-        ]);
+        if (!TestWorld::available()) {
+            return back()->withErrors(['script' => 'The test world is not running right now.'])->withInput();
+        }
+        $script = $this->validScript($request, false);
+        if (!is_string($script)) {
+            return $script;
+        }
+
+        $agent = TestWorld::run(Auth::user(), $script);
+
+        return redirect('/release#test-runs')->withInput()->withSuccess('Test run started: drone ' . $agent->name
+            . ' in the test world is loading your script. Its results appear below as it runs.');
+    }
+
+    /**
+     * The script from the form when it can be released, else the response
+     * sending the player back with what is wrong
+     */
+    private function validScript(Request $request, bool $needsCompanyName)
+    {
+        $rules = ['script' => 'required|string|max:' . config('forge.max_script_length')];
+        if ($needsCompanyName) {
+            $rules['company_name'] = 'required|string|min:3|max:45|unique:companies,name';
+        }
+        $request->validate($rules);
 
         $script = str_replace("\r\n", "\n", $request->input('script'));
         $errors = [];
@@ -62,6 +90,18 @@ class ReleaseController extends Controller
         }
         if ($errors) {
             return back()->withErrors($errors)->withInput();
+        }
+        return $script;
+    }
+
+    public function store(Request $request)
+    {
+        if (!Auth::check()) {
+            return redirect('/login');
+        }
+        $script = $this->validScript($request, true);
+        if (!is_string($script)) {
+            return $script;
         }
 
         $agent = Release::release(Auth::user(), $request->input('company_name'), $script);

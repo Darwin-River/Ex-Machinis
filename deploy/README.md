@@ -116,6 +116,9 @@ rm -rf .env mail/config
 - `APP_URL`: the site's public URL, if it isn't `https://<domain>`.
 - `GAME_TIME_SCALE`: how fast game time passes, in game seconds per real second (default 60: one real minute is one game hour). It governs orbits, action and travel durations, and the light-speed delay of emails. Changing it re-anchors the game clock, so nothing jumps.
 - `TRAVEL_ACCELERATION`: drones' acceleration in m/s² (default 1). Trips take 2·√(distance ÷ acceleration) in game time.
+- `GAME_EMAIL=0`: the Public Forge world. Email is off; players open an account and release scripts on the website's Release page.
+- `INVITE_ONLY=1`: opening an account needs an invitation code. Create codes with `docker compose exec app php artisan forge:invite 5`.
+- `TEST_WORLD=1`: shows the Release page's Test button, which runs a script in the test world (database `exmachinis_test`, which `migrate` keeps up to date). Its engines run in the `testworld` profile: start them with `docker compose --profile testworld up -d`. `TEST_GAME_TIME_SCALE` sets its clock (default 600: ten times the live world's default).
 
 Apply changes with `docker compose up -d`.
 
