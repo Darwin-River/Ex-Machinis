@@ -39,9 +39,10 @@ use). Raw-addresses are also in character, not cell, units.
 In future revisions of Forth this memory addressing might be simplified, if a
 simple way of doing this can be achieved.
 
-### Internal words
+### Primitive words
 
-There are three types of words.
+Words that are part of the base language, rather than defined in FORTH, are
+called primitives. There are three types of primitives.
 
 #### 'Invisible' words
 

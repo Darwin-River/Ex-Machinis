@@ -142,9 +142,10 @@
                             simple way of doing this can be achieved.</p>
 
                         <br/>
-                        <h1> Internal words</h1>
+                        <h1>Primitive words</h1>
 
-                        <p>There are three types of words.</p>
+                        <p>Words that are part of the base language, rather than defined in FORTH, are
+                        called primitives. There are three types of primitives.</p>
 
                         <br/>
                         <h2> Invisible words</h2>
