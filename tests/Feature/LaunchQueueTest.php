@@ -26,7 +26,7 @@ class LaunchQueueTest extends TestCase
     {
         parent::setUp();
         Mail::fake();
-        config(['forge.email' => false, 'forge.invite_only' => true]);
+        config(['forge.email' => false]);
     }
 
     /** The game clock as the game engine leaves it after a load check */

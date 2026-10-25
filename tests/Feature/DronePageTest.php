@@ -25,7 +25,7 @@ class DronePageTest extends TestCase
     {
         parent::setUp();
         Mail::fake();
-        config(['forge.email' => false, 'forge.invite_only' => true]);
+        config(['forge.email' => false]);
     }
 
     private function player(string $email): User

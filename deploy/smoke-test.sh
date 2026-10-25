@@ -272,22 +272,16 @@ for svc in game-engine events-engine app; do
 done
 echo "ok: no service restarted"
 
-# Public Forge (#324 step 6): switch email off and make the world
-# invite-only, then open an account with an invitation and release a script
-# on the website. The drone runs it, and its replies are kept for the
-# website instead of being emailed.
-GAME_EMAIL=0 INVITE_ONLY=1 docker compose up -d app game-engine events-engine >/dev/null 2>&1
+# Public Forge (#324 step 6): switch email off and release a script on the
+# website, with no account (#367 step 4: there are none). The drone runs it,
+# and its replies are kept for the website instead of being emailed.
+GAME_EMAIL=0 docker compose up -d app game-engine events-engine >/dev/null 2>&1
 no_tax   # in case the restart reloaded the game data
-wait_for 120 "sign-up page asks for an invitation" sh -c "curl -fsS http://localhost/register | grep -q 'Invitation code'"
-CODE=$(docker compose exec -T app php artisan forge:invite 1 --note=smoke | tr -d '\r' | tail -1)
-[ -n "$CODE" ] || fail "no invitation code"
+wait_for 120 "the Release page answers" sh -c "curl -fsS http://localhost/release | grep -q 'no account needed'"
+[ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost/register)" = 404 ] || fail "there is still a sign-up page"
+echo "ok: no accounts, no sign-up page"
 JAR=$(mktemp)
 token() { curl -fsS -c "$JAR" -b "$JAR" "http://localhost$1" | grep -o 'name="_token" value="[^"]*"' | head -1 | sed -e 's/.*value="//' -e 's/"$//'; }
-curl -fsS -c "$JAR" -b "$JAR" -o /dev/null -X POST http://localhost/register --data-urlencode "_token=$(token /register)" \
-    --data-urlencode "invite_code=$CODE" -d name=Forger --data-urlencode email=forger@outside.test \
-    -d password=forge-password -d password_confirmation=forge-password
-[ -n "$(sql "select user_id from users where email='forger@outside.test'")" ] || fail "account not opened with the invitation"
-echo "ok: account opened with an invitation"
 # Longer than one 2,048-character command, so it is released in pieces that
 # must all load, one after the other, before launched runs (#367)
 PADDING=$(for i in $(seq 1 40); do echo "\\ padding line $i: a released script may be as long as it likes"; done)
@@ -434,7 +428,7 @@ echo "ok: the leaderboard ranks the companies, and wealth snapshots are taken"
 # Test world (#324 step 7): start its engines and turn on the Test button,
 # then test a script. It runs in the test world's own database, with a faster
 # clock, and the live world gets nothing.
-TEST_WORLD=1 GAME_EMAIL=0 INVITE_ONLY=1 docker compose --profile testworld up -d app test-game-engine test-events-engine >/dev/null 2>&1
+TEST_WORLD=1 GAME_EMAIL=0 docker compose --profile testworld up -d app test-game-engine test-events-engine >/dev/null 2>&1
 wait_for 120 "the Release page has a Test button" sh -c "curl -fsS -b '$JAR' http://localhost/release | grep -q 'release/test'"
 # Each test run has its own page (#367 step 3): the Test button leads there
 TEST_PAGE=$(curl -fsS -c "$JAR" -b "$JAR" -o /dev/null -w '%{redirect_url}' -X POST http://localhost/release/test --data-urlencode "_token=$(token /release)" \

@@ -33,7 +33,6 @@ class PagesTest extends TestCase
             'about us'         => ['/about-us', 'About Us'],
             'queries'          => ['/queries', 'Queries'],
             'message'          => ['/message', 'Notification'],
-            'register'         => ['/register', 'Join the Game'],
             'resources'        => ['/resources', 'Resources'],
             'buy orders'       => ['/buys', 'Buy Orders'],
             'sell orders'      => ['/sells', 'Sell Orders'],
@@ -53,16 +52,13 @@ class PagesTest extends TestCase
             ->assertOk()
             ->assertSee('data-constraints="@Email @Required"', false)
             ->assertSee('data-constraints="@Required"', false);
-
-        $this->get('/register')
-            ->assertOk()
-            ->assertSee('data-constraints="@Email @Required"', false);
     }
 
-    public function testAuthPagesLoad()
+    public function testThereAreNoAccountPages()
     {
-        $this->get('/login')->assertOk();
-        $this->get('/password/reset')->assertOk();
+        // No player accounts in Public Forge (#367 step 4)
+        $this->get('/login')->assertNotFound();
+        $this->get('/password/reset')->assertNotFound();
     }
 
     /**

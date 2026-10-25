@@ -23,7 +23,7 @@ class LeaderboardTest extends TestCase
     {
         parent::setUp();
         Mail::fake();
-        config(['forge.email' => false, 'forge.invite_only' => true]);
+        config(['forge.email' => false]);
         DB::table('wealth_snapshots')->delete();
     }
 

@@ -122,28 +122,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                 </li>
                               -->
 
-                            <!-- Hide login menu for now.
-                                <li class="rd-nav-item "><a class="rd-nav-link " href="#"><span
-                                                class="rd-nav-icon mdi mdi-account"></span><span
-                                                class="rd-nav-title">User</span></a>
 
-                                    <ul class="rd-menu rd-navbar-dropdown">
-                                        @guest
-                                <li class="rd-dropdown-item"><a
-                                            href="{{url('login')}}">Login</a></li>
-                                        @endguest
-                            @auth
-                                <h4 class="rd-megamenu-title">{{Auth::user()->name}}</h4>
-                                            <li class="rd-dropdown-item">
-                                                <a href="{{ route('logout') }}"
-                                                   onclick="event.preventDefault();
-                                                     document.getElementById('logout-form').submit();">
-                                                    Logout
-                                                </a>
-                                            </li>
-                                        @endauth
-                                    </ul>
-                                </li> -->
 
 
                                 @if(!config('forge.email'))
@@ -302,24 +281,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                 <li class="d-block d-lg-none"><a href="{{url('sells')}}">Sell Orders</a></li>
                               -->
                                 <li><a href="{{url('about-us')}}">About Us</a></li>
-                              <!--   <li><a href="{{url('register')}}" class="text-warning">Join the Game</a></li>
-                              Hide login prompt for now.
-                                @guest
-                                <li class="float-lg-right"><a href="{{url('login')}}">Login</a></li>
-                                @endguest
-                            @auth
-                                <li class="float-lg-right">
-                                    <a href="{{ route('logout') }}"
-                                           onclick="event.preventDefault();
-                                                     document.getElementById('logout-form').submit();">
-                                            Logout
-                                        </a>
-                                    </li>
-                                    <form id="logout-form" action="{{ route('logout') }}" method="POST"
-                                          style="display: none;">
-                                        {{ csrf_field() }}
-                                        </form>
-@endauth -->
+                              
                             </ul>
                         </div>
                         <!-- RD Navbar Search-->

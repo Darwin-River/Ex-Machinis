@@ -119,7 +119,6 @@ rm -rf .env mail/config
 - `ENGINE_TRACE_LEVEL`: the engines' log detail (default -1: errors, warnings and clock changes only). 0 to 3 log every step, which at full load is gigabytes a day; rotated logs are kept 7 days.
 - `TRAVEL_ACCELERATION`: drones' acceleration in m/s² (default 1). Trips take 2·√(distance ÷ acceleration) in game time.
 - `GAME_EMAIL=0`: the Public Forge world. Email is off; players open an account and release scripts on the website's Release page.
-- `INVITE_ONLY=1`: opening an account needs an invitation code. Create codes with `docker compose exec app php artisan forge:invite 5`.
 - `TEST_WORLD=1`: shows the Release page's Test button, which runs a script in the test world (database `exmachinis_test`, which `migrate` keeps up to date). Its engines run in the `testworld` profile: start them with `docker compose --profile testworld up -d`. `TEST_GAME_TIME_SCALE` sets its clock (default 600: ten times the live world's default).
 
 Apply changes with `docker compose up -d`.
@@ -130,11 +129,10 @@ The mail accounts depend on the domain. To move to another domain, start over wi
 
 ## Opening Public Forge
 
-The first release of Public Forge is invite-only, with email off. In `deploy/.env`:
+The first release of Public Forge has email off and no accounts: anyone can release a script on the website. In `deploy/.env`:
 
 ```
 GAME_EMAIL=0
-INVITE_ONLY=1
 GAME_TIME_SCALE=24      # aims for one game day per real hour
 GAME_TIME_FLOOR=8       # never slower than 8 game hours per real hour
 TEST_WORLD=1            # optional: the Release page's Test button
@@ -143,7 +141,7 @@ TEST_WORLD=1            # optional: the Release page's Test button
 Then `docker compose up -d` (and `docker compose --profile testworld up -d` for the test world).
 
 1. **Load test first**, on a copy, never the live database: `docker compose exec app php artisan forge:load-test 1000 --database=exmachinis_test` releases a thousand starter drones into the test world; `... forge:load-test --report --database=exmachinis_test` shows how the engines keep up, and the test engines' clock floats the same way if you give them a floor. See the design manual's [Throughput](../documents/design-manual.md#Engine-Throughput) for what to look for.
-2. **Invite players**: `docker compose exec app php artisan forge:invite 20 --note="first wave"` prints 20 codes. Send each player one; they open an account at `/register` with it.
+2. **Tell players** the site's address: the Release page needs no account.
 3. **Watch** the Home page's clock line: if the clock sits at the floor and the world is full, releases queue until there is room. A faster server, or a lower floor, makes room.
 
 ## Troubleshooting
