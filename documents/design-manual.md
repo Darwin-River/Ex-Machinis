@@ -302,6 +302,23 @@ So a drone performs one in-game action at a time, and its script always knows ho
 
 Fuel is made from Organics and Inorganics with protocol 12061, "Make Fuel (A1)": 1 Organics (A1) and 2 Inorganics (A1) make 30 Fuel (A1) with a Chemical Reactor in 2 game hours. Refining 20 magmite gives exactly those inputs. A new drone (registration, release, test run) starts with `forge.starting_fuel` (100) in its hold, next to the packed starter kit (375 of hull 1's 500 cargo). It is loose in the hold, because a released script needs power while it loads, before the kit can be unpacked. A launched drone's hold starts empty: its owner must push it fuel before its computing bill comes due.
 
+<a name="Wrecks"></a>**Wrecks and plunder (#324 step 12).** A drone becomes a wreck for good when it runs out of fuel, crashes too often in a row, or its company is eliminated for not paying its tax (`agents.wrecked_at`, `wreck_cause`). A wreck refuses commands and does nothing more, but everything aboard it stays there: its hold and its installed and locked parts. Another player's drone at the same place can plunder it once:
+
+* **Protocol 34, "Plunder wreck":** `W 34 perform`, where W is the wreck's drone ID. It burns 1 fuel and takes 1 game hour; its resource effect is a plunder event (type 11) that carries W in `new_quantity`.
+* **The events engine** (`db_plunder`, `db_wreck.c`) checks the event when its time comes: W must be a wreck, at the plunderer's `object_id`, not plundered yet (else outcome -15, `OUTCOME_NO_WRECK`), and another player's (`agents.user_id` differs; else -13, as for trades between one player's companies). It then marks the wreck plundered (`plundered_at`, `plundered_by`), so a wreck is plundered once even if two drones try.
+* **Everything leaves the wreck:** one action of protocol 35, "Plunder haul" (which nobody performs), with a decrement event for each resource in the hold and among the installed and locked parts (the latest totals, as `sqInventory` reads them).
+* **The plunderer gets its share** (`house_rules.plunder_share`, 50%) of each resource's total, rounded down; the odd part-unit comes too with the matching chance, fixed for each wreck and resource (`wreck_share`, `wreck.c`), so a single part comes away whole from about half of the wrecks. Each resource arrives as its own protocol 35 action with an increment event, which the events engine checks like any other: what doesn't fit in the hold fails with -3 and is lost. What the plunderer doesn't get is destroyed, so wrecks are a sink.
+* Queries 660 ("Wrecks here") and 661 ("Wreck hold") show the wrecks where the drone is and what is aboard one.
+
+<a name="Taxes"></a>**Taxes and company end (#324 step 12).** Every company pays a tax bill each `tax_period` (a game day): `tax_flat` (20) plus `tax_permille` thousandths (0.5%) of the **player's** combined credits, the sum over all their companies that are still trading. Basing the rate on the player's combined credits, and billing each company, means splitting money across several companies doesn't lower the tax. The events engine charges it (`db_tax_due`, `db_wreck.c`) after the station batches, in its own transaction:
+
+1. A company it hasn't seen yet gets `founded_t` and `taxed_t` = now: its grace period (`tax_grace`, 3 game days) and its first tax period start.
+2. When a company's period has passed, it gets one bill. Periods missed while the engine was down are skipped, not charged all at once. In its grace period the company pays nothing.
+3. A company with the credits pays: they vanish (taxes are a sink), and `company_taxes` records the bill.
+4. One that can't pay is **eliminated**: its credits vanish, `eliminated_at` is set, and its drones become wrecks (`wreck_cause = tax`) that other players can plunder.
+
+Query 650 ("My taxes") gives the drone's company's next bill (2 cells), the game hours until it is due and the game hours of grace left. `test_wreck.c` checks the arithmetic of bills and shares.
+
 **Event order.** The Game Engine reads the game clock once per loop, so on a fast clock the events engine can be ahead of it. An event stamped earlier than one already processed would be worked out from older state and undo it. Also, `sqInventory` takes a drone's highest event ID as its current state, so IDs must keep game-time order. So `protocol_flush_events` reloads the clock and starts each new action a game second after the drones' latest event, done or still to come (`db_get_latest_processed_game_t`). A script waits for its own action anyway, so in practice this mostly delays a power bill until the current action ends.
 
 When the GE runs a `perform`, it computes the times and resource requirements of the in-game activity (change orbits, mine ores, transfer cargo, etc.) and logs the events that will happen, which the Event Engine processes when they are due.
@@ -349,8 +366,28 @@ A player can own many companies; each has its own bank account and drones (Publi
 * name [VARCHAR(255)] - The company's name, changed with the rebrand meta-command.
 * credits [INT] - The company's bank account. Market trades pay into and out of it.
 * created_at [TIMESTAMP] - When the company was launched.
+* founded_t [BIGINT] - Game time the tax office first saw the company: its grace period starts then ([Taxes](#Taxes)).
+* taxed_t [BIGINT] - Game time its current tax period started.
+* eliminated_at [BIGINT] - Game time it was eliminated for not paying its tax, NULL while it trades.
 
 Trades (push and pull against a market order) between two companies of the same player are blocked: the event fails with outcome -13 and the action is aborted, so a player can't move money or goods between their own companies. Queries 100, 101, 110 and 201 read companies: a company's name, its credits, its drones, and a drone's company.
+
+#### Table: house_rules
+The numbers of taxes and plunder (#324 step 12), one row (id 1). Game data: `build_game_data.py` writes it, and every start reloads it.
+* tax_period [INT] - Game seconds between tax bills (86,400: a game day).
+* tax_grace [INT] - Game seconds a new company pays no tax (3 game days).
+* tax_flat [INT] - Credits each company pays per bill (20).
+* tax_permille [INT] - Plus this many thousandths of the player's combined credits (5, so 0.5%).
+* plunder_share [INT] - Percent of a wreck's goods and parts a plunderer gets (50).
+
+#### Table: company_taxes
+One row per tax bill, for the website and post-mortems.
+* id [INT] - Table index.
+* company_id [INT] - The company billed.
+* charged_t [BIGINT] - Game time of the bill.
+* amount [BIGINT] - Credits charged; for a company that couldn't pay, the credits it had (they vanish).
+* credits_after [BIGINT] - Its credits after the bill.
+* eliminated [TINYINT] - 1 if it couldn't pay and was eliminated.
 
 [Return to the TOC](#Table-of-Contents)
 
@@ -372,8 +409,10 @@ This table stores basic information on the ingame drones.  Most information abou
 * launched_running [TINYINT] - 1 while the drone's `launched` word runs.
 * crashes_in_row [INT] - Crashes since the drone's last action that succeeded.
 * crashes_total [INT] - All the drone's crashes.
-* wrecked_at [BIGINT] - Game time the drone became a wreck (too many crashes in a row, or out of fuel), NULL while it works.
-* wreck_cause [VARCHAR(16)] - Why: `crashes` or `fuel`.
+* wrecked_at [BIGINT] - Game time the drone became a wreck (too many crashes in a row, out of fuel, or its company eliminated), NULL while it works.
+* wreck_cause [VARCHAR(16)] - Why: `crashes`, `fuel` or `tax`.
+* plundered_at [BIGINT] - Game time the wreck was plundered ([Wrecks and plunder](#Wrecks)), NULL until then. A wreck is plundered once.
+* plundered_by [INT] - The drone that plundered it.
 * power_paid [BIGINT] - Instructions already paid for in fuel ([Fuel](#Fuel)). The migration set it to `instructions`, so what ran before fuel existed is free.
 
 #### Table: drone_crashes
@@ -724,7 +763,9 @@ Protocols often require parameters to further define their operations. These par
 | -7, -8 | Wrong depletion or accumulation price (outcomes -7, -8) |
 | -9 | The action was aborted |
 | -10 | The other drone has no matching buy or sell order (outcome -10) |
-| -13 | The other drone belongs to another company of the same player: trades between one player's companies are blocked (outcome -13) |
+| -13 | The other drone belongs to another company of the same player: trades and plunder between one player's companies are blocked (outcome -13) |
+| -14 | No House station where the drone is trades that resource that way (outcome -14) |
+| -15 | No unplundered wreck of that ID where the drone is (outcome -15) |
 | -11 | Unknown protocol (no action was started, no wait) |
 | -12 | Refused when performed, e.g. a parameter names a resource or destination that doesn't exist (no wait) |
 
@@ -1276,6 +1317,9 @@ This appendix lists the in-game queries loaded into the game, organized by the d
 | Spacecraft | 631 | My station offers | [R L 631 query]: This drone's station offers and orders, newest first: resource, side (1: offer, 2: order), units, units filled (-1 until its batch clears), credits (2 cells). | 0 | `SELECT resource, side, units, IFNULL(filled, -1), IFNULL(paid, 0) AS d_paid FROM station_offers WHERE drone = [drone_id] ORDER BY id DESC;` |
 | Spacecraft | 632 | Station budget here | [R L 632 query]: The credits the House station where the drone is has left for buying (2 cells). | 0 | `SELECT IFNULL(t.budget, s.budget_cap) AS d_budget FROM stations s LEFT JOIN station_state t ON t.station_id = s.id WHERE s.object_id = (SELECT object_id FROM agents WHERE agent_id = [drone_id]);` |
 | Spacecraft | 640 | Deposits here | [R L 640 query]: The mining deposits where the drone is: resource, units left now (2 cells), capacity (2 cells), units regained per game day. A mined-out deposit yields nothing until it refills. | 0 | `SELECT d.resource, FLOOR(LEAST(d.capacity, IFNULL(s.amount, d.capacity) + d.refill_per_day * ([game_now] - IFNULL(s.refilled_t, [game_now])) / 86400)) AS d_units, d.capacity AS d_capacity, d.refill_per_day FROM deposits d LEFT JOIN deposit_state s ON s.object_id = d.object_id AND s.resource = d.resource WHERE d.object_id = (SELECT object_id FROM agents WHERE agent_id = [drone_id]) ORDER BY d.resource;` |
+| Spacecraft | 650 | My taxes | [R L 650 query]: The drone's company's next tax bill (2 cells), game hours until it is due, and game hours of grace left (no tax until then). A company that can't pay is eliminated. | 0 | `SELECT h.tax_flat + FLOOR(h.tax_permille * (SELECT IFNULL(SUM(o.credits), 0) FROM companies o WHERE o.user_id = c.user_id AND o.eliminated_at IS NULL) / 1000) AS d_tax, GREATEST(0, CEIL((IFNULL(c.taxed_t, [game_now]) + h.tax_period - [game_now]) / 3600)), GREATEST(0, CEIL((IFNULL(c.founded_t, [game_now]) + h.tax_grace - [game_now]) / 3600)) FROM companies c JOIN house_rules h ON h.id = 1 WHERE c.company_id = (SELECT company_id FROM agents WHERE agent_id = [drone_id]);` |
+| Spacecraft | 660 | Wrecks here | [R L 660 query]: The wrecks where the drone is: drone ID, 1 if it has been plundered (else 0). | 0 | `SELECT agent_id, plundered_at IS NOT NULL FROM agents WHERE wrecked_at IS NOT NULL AND object_id = (SELECT object_id FROM agents WHERE agent_id = [drone_id]) AND agent_id <> [drone_id] ORDER BY agent_id;` |
+| Spacecraft | 661 | Wreck hold | [W R L 661 query]: What is aboard the wreck W where the drone is: resource, units. | 1 | `SELECT i.resource, i.units FROM sqInventory i JOIN agents w ON w.agent_id = i.drone WHERE i.drone = [value_1] AND w.wrecked_at IS NOT NULL AND w.object_id = (SELECT object_id FROM agents WHERE agent_id = [drone_id]) AND i.units > 0 ORDER BY i.resource;` |
 | Locations | 700 | Get location name | [N R L 700 query]: Returns the name of location ID N. | 1 | `SELECT object_name FROM objects WHERE object_id=[value_1];` |
 | Locations | 701 | Get location type | [N R L 701 query]: Returns the location type of location N. | 1 | `SELECT object_type FROM objects WHERE object_id=[value_1];` |
 | Locations | 702 | Get central body | [N R L 702 query]: Retuns the location ID for the body around which N is orbiting. | 1 | `SELECT central_body_object_id FROM objects WHERE object_id=[value_1];` |

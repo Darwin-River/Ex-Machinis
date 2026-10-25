@@ -436,12 +436,28 @@ protocols['33'] = ['33', 'Station delivery', '0', '100',
                    'Goods a House station delivers or returns when a batch clears. Not performed by drones.',
                    '1', '1', '0']
 
+# Wrecks and plunder (#324 step 12): a drone plunders the wreck W at the
+# place where it is (34). The plunder event (type 11) carries W; the events
+# engine checks it and moves the plunderer's share of the wreck's goods and
+# parts as actions of protocol 35, which nobody performs (db_wreck.c).
+PLUNDER_EVENT, PLUNDER_TIME = 11, 1 * HOUR
+protocols['34'] = ['34', 'Plunder wreck', '1', '100',
+                   '[W 34 perform]: Plunders the wreck W (a drone ID) where the drone is: after 1 hour the drone '
+                   'gets its share of the wreck\'s goods and parts, as far as its hold has room; the rest is destroyed. '
+                   'A wreck is plundered once.', '1', '1', '0']
+add_effects('34', [
+    {'time': PLUNDER_TIME, 'drone': 0, 'resource': FUEL, 'event_type': PLUNDER_EVENT, 'local': 1, 'installed': 0,
+     'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': -1}])
+protocols['35'] = ['35', 'Plunder haul', '0', '100',
+                   'Goods and parts a plunderer takes from a wreck, and their loss from the wreck. Not performed by drones.',
+                   '1', '1', '0']
+
 # Fuel burned by each action (#324 step 8), by the size of the job: 1 to 10
 # units, once per action whatever its multiplier. Unpacking the starter kit
 # is free. Each protocol's description says what it burns.
 def fuel_cost(pid):
     p = int(pid)
-    if p in (25901, int(POWER_PROTOCOL), 33):
+    if p in (25901, int(POWER_PROTOCOL), 33, 35):
         return 0
     if p == int(LAUNCH_PROTOCOL):
         return 10
@@ -785,6 +801,30 @@ queries.append((632, 'Station budget here',
 
 # Mining deposits here (#324 step 11): left now (refilled for the time since
 # it was last worked out), and capacity
+# Taxes (#324 step 12): a company pays tax_flat plus tax_permille thousandths
+# of its player's combined credits every tax_period, after a grace period.
+# Placeholders: 20 credits plus 0.5% a game day, after 3 game days; a
+# plunderer gets half a wreck.
+HOUSE_RULES = [(1, DAY, 3 * DAY, 20, 5, 50)]
+MY_COMPANY = "(SELECT company_id FROM agents WHERE agent_id = [drone_id])"
+queries.append((650, 'My taxes',
+                '[R L 650 query]: The drone\'s company\'s next tax bill (2 cells), game hours until it is due, and '
+                'game hours of grace left (no tax until then). A company that can\'t pay is eliminated.', 0,
+                "SELECT h.tax_flat + FLOOR(h.tax_permille * (SELECT IFNULL(SUM(o.credits), 0) FROM companies o "
+                "WHERE o.user_id = c.user_id AND o.eliminated_at IS NULL) / 1000) AS d_tax, "
+                "GREATEST(0, CEIL((IFNULL(c.taxed_t, [game_now]) + h.tax_period - [game_now]) / 3600)), "
+                "GREATEST(0, CEIL((IFNULL(c.founded_t, [game_now]) + h.tax_grace - [game_now]) / 3600)) "
+                f"FROM companies c JOIN house_rules h ON h.id = 1 WHERE c.company_id = {MY_COMPANY};"))
+queries.append((660, 'Wrecks here',
+                '[R L 660 query]: The wrecks where the drone is: drone ID, 1 if it has been plundered (else 0).', 0,
+                "SELECT agent_id, plundered_at IS NOT NULL FROM agents WHERE wrecked_at IS NOT NULL "
+                f"AND object_id = {HERE_} AND agent_id <> [drone_id] ORDER BY agent_id;"))
+queries.append((661, 'Wreck hold',
+                '[W R L 661 query]: What is aboard the wreck W where the drone is: resource, units.', 1,
+                "SELECT i.resource, i.units FROM sqInventory i JOIN agents w ON w.agent_id = i.drone "
+                f"WHERE i.drone = [value_1] AND w.wrecked_at IS NOT NULL AND w.object_id = {HERE_} AND i.units > 0 "
+                "ORDER BY i.resource;"))
+
 queries.append((640, 'Deposits here',
                 '[R L 640 query]: The mining deposits where the drone is: resource, units left now (2 cells), '
                 'capacity (2 cells), units regained per game day. A mined-out deposit yields nothing until it refills.', 0,
@@ -880,6 +920,11 @@ lines.append("INSERT INTO `event_types` (id, name) VALUES (8, 'Launch drone') "
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')
 lines.append("INSERT INTO `event_types` (id, name) VALUES (9, 'Offer to station'), (10, 'Order from station') "
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')
+lines.append("INSERT INTO `event_types` (id, name) VALUES (11, 'Plunder wreck') "
+             'ON DUPLICATE KEY UPDATE name = VALUES(name);')
+lines.append('')
+lines.append('-- Taxes and plunder (#324 step 12), placeholders to tune in step 20')
+table('house_rules', ['id', 'tax_period', 'tax_grace', 'tax_flat', 'tax_permille', 'plunder_share'], HOUSE_RULES)
 lines.append('')
 lines.append('-- House drop stations (#324 step 10): what they trade. Their budgets')
 lines.append('-- (station_state) are kept: a new station starts with a full budget.')

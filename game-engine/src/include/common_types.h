@@ -119,6 +119,8 @@
 #define STATION_OFFER_EVENT_TYPE       9   // an offer to sell to a House station (#324 step 10)
 #define STATION_ORDER_EVENT_TYPE      10   // an order to buy from a House station
 #define STATION_DELIVERY_PROTOCOL_ID  33   // actions that deliver or return station goods
+#define PLUNDER_EVENT_TYPE            11   // a drone plunders a wreck (#324 step 12)
+#define PLUNDER_HAUL_PROTOCOL_ID      35   // actions that move plunder out of a wreck and into the plunderer
 
 // Protocols that move goods between drones (decrement here, increment there)
 #define PUSH_PROTOCOL_ID 10
@@ -571,6 +573,7 @@ typedef enum
 	// -11 and -12 are perform's own codes (below)
 	OUTCOME_SAME_PLAYER = -13,   // a trade between two companies of one player is blocked
 	OUTCOME_NO_STATION = -14,    // no House station here trades that resource that way (#324 step 10)
+	OUTCOME_NO_WRECK = -15,      // no unplundered wreck of that ID where the drone is (#324 step 12)
 
 } Outcome_t;
 

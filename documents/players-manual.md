@@ -32,6 +32,8 @@ Thank you for your support!
 - [Chapter 4: Issuing Commands](#chapter-4-issuing-commands)
   - [Unpacking your starter kit](#unpacking-your-starter-kit)
   - [Fuel](#fuel)
+  - [Wrecks and plunder](#wrecks-and-plunder)
+  - [Taxes](#taxes)
   - [Traveling between locations](#traveling-between-locations)
   - [Time and distance](#time-and-distance)
   - [Understanding how protocols are organized and numbered](#understanding-how-protocols-are-organized-and-numbered)
@@ -284,7 +286,9 @@ Protocols are invoked by sending your drone a FORTH script that calls upon the `
 | -6 | the buyer's order doesn't allow buying that many |
 | -9 | the action was stopped |
 | -10 | the other drone has no matching buy or sell order |
-| -13 | the other drone belongs to another of your own companies: you can't trade between your own companies |
+| -13 | the other drone belongs to another of your own companies: you can't trade with or plunder your own companies |
+| -14 | no House station where you are trades that resource that way |
+| -15 | no wreck of that ID where you are, or it has already been plundered |
 | -11 | there is no such protocol |
 | -12 | refused, for example because a parameter names something that doesn't exist |
 
@@ -323,6 +327,47 @@ Everything your spacecraft does burns fuel, Fuel (A1) (resource 2061):
 A new spacecraft starts with 100 fuel. When it runs out and can't pay for its thinking, it becomes a **wreck** for good. So keep an eye on your fuel (query your inventory) and make or buy more before you run dry: the Earth Exchange sells it (see [Trading with House stations](#trading-with-house-stations)).
 
 To make fuel, use a Chemical Reactor: `12061 perform` turns 1 Organics (A1) and 2 Inorganics (A1) into 30 Fuel (A1) in 2 game hours. Refining 20 magmite (`21000 perform`) gives exactly those inputs. Fuel can also be traded like any other resource, and pushed to another of your spacecraft. A spacecraft you launch starts with an empty hold, so push it some fuel first.
+
+### Wrecks and plunder
+
+A spacecraft becomes a **wreck** for good when it runs out of fuel, crashes five times in a row, or its company is eliminated for not paying its taxes. A wreck does nothing more, but its cargo and parts stay aboard, and another player's spacecraft at the same place can plunder it:
+
+```
+<run>
+  1234 34 perform .   \ Plunder wreck 1234 (a drone ID) where you are.
+</run>
+```
+
+Plundering takes 1 game hour and burns 1 fuel. Your spacecraft gets half of everything aboard: half of each resource, rounded down (and for an odd unit, such as a single engine, a 50/50 chance). The rest is destroyed. Make room in your hold first: what doesn't fit is lost too. A wreck is plundered once, so be quick. You can't plunder the wrecks of your own companies (`perform` leaves -13). If there's no such wreck where you are, or it was already plundered, `perform` leaves -15.
+
+Two queries find wrecks:
+
+- `R L 660 query`: the wrecks where your spacecraft is: for each, its drone ID and 1 if it has been plundered (else 0).
+- `W R L 661 query`: what is aboard wreck W where your spacecraft is: resource ID and units.
+
+```
+<run>
+  create wrecks 20 allot
+  wrecks 20 660 query .     \ how many wrecks are here
+  wrecks @ .                \ the first one's drone ID
+</run>
+```
+
+### Taxes
+
+Each of your companies pays a tax every game day: 20 credits, plus 0.5% of the credits of all your companies together. A new company pays nothing for its first 3 game days. A company that can't pay is **eliminated**: its credits vanish, and its spacecraft become wrecks that other players can plunder. So keep enough credits in every company you run.
+
+`R L 650 query` tells you where your spacecraft's company stands: its next tax bill (2 cells), the game hours until it is due, and the game hours of grace it has left.
+
+```
+<run>
+  create bill 8 allot
+  bill 8 650 query drop
+  bill 2@ d.      \ the next bill, in credits
+  bill 4 + @ .    \ game hours until it is due
+  bill 6 + @ .    \ game hours of grace left
+</run>
+```
 
 ### Traveling between locations
 

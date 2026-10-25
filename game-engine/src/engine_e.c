@@ -19,6 +19,7 @@
 #include "event.h"
 #include "engine_e.h"
 #include "db_station.h"
+#include "db_wreck.h"
 #include "game_time.h"
 #include "db.h"
 
@@ -320,6 +321,16 @@ ErrorCode_t engine_run()
         if(db_start_transaction(&engine.db_connection) == ENGINE_OK)
         {
             if(db_station_clear_due() == ENGINE_OK)
+                db_commit_transaction(&engine.db_connection);
+            else
+                db_rollback_transaction(&engine.db_connection);
+        }
+
+        // Taxes (#324 step 12): charge the bills that are due, and
+        // eliminate the companies that can't pay, in one transaction
+        if(db_start_transaction(&engine.db_connection) == ENGINE_OK)
+        {
+            if(db_tax_due() == ENGINE_OK)
                 db_commit_transaction(&engine.db_connection);
             else
                 db_rollback_transaction(&engine.db_connection);
