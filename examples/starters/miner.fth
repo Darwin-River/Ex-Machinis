@@ -60,12 +60,14 @@ variable site#   variable misses
   25 0 metals-a1 sell-order drop  35 0 metals-a2 sell-order drop
   45 0 metals-a3 sell-order drop ;
 
-\ Sell the metals at the market, then go back to the site. At the Moon,
-\ only once hold-cap are aboard: until then traders may buy them
+\ Sell the metals at the market, top up the tank from the House there (5 a
+\ unit, delivered when its batch clears), then go back to the site. At the
+\ Moon, only once hold-cap are aboard: until then traders may buy them
 : sell-metals ( -- )
   site# @ 0= if metals hold-cap < if exit then then
   market go drop
   metals-a1 sell-all metals-a2 sell-all metals-a3 sell-all
+  fuel units 50 < if 30 fuel buy-from-station drop then
   site go drop ;
 
 : work ( -- )

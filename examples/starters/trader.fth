@@ -6,10 +6,10 @@
 \ miners' metals: the first to buy gets them.
 
 60 constant cargo-goal   \ metals it gathers before setting off
-20 constant min-load     \ ...or this many, after waiting a long time
-48 constant patience     \ game hours it waits for sellers before going
+20 constant min-load     \ ...or this many, after shopping a while
+24 constant patience     \ looks at the market before it goes with less
 20 constant trip-fuel    \ fuel it wants aboard before a trip
-60 constant nap          \ game minutes between looks at the market
+120 constant nap         \ game minutes to rest when nobody sells
 
 \ The most it pays a unit: the Mars Exchange's price less 5
 : max-price ( metal -- price )
@@ -19,7 +19,7 @@
 
 \ Buy what the cheapest seller here offers of one metal, if the price is
 \ right and there is room in this load
-variable got   variable waited
+variable got   variable looks
 : buy ( metal -- )
   dup 610 ask 0> 0= if drop exit then
   answer 2@ drop over max-price > if drop exit then
@@ -27,10 +27,12 @@ variable got   variable waited
   ?dup 0= if drop exit then
   swap answer 8 + @ pull 0= if 1 got ! then ;
 
-\ Look for sellers; rest a while when nobody sells
+\ Look for sellers; rest a while when nobody sells. Each look counts
+\ toward going with a smaller load, so a trader that buys a little at a
+\ time still sets off
 : shop ( -- )
   0 got !  metals-a1 buy metals-a2 buy metals-a3 buy
-  got @ if 0 waited ! else nap wait drop 1 waited +! then ;
+  1 looks +!  got @ 0= if nap wait drop then ;
 
 \ Top up the tank from the House here; it arrives when the batch clears
 : fuel-up ( -- )
@@ -39,12 +41,12 @@ variable got   variable waited
 
 : sell-metals ( -- ) metals-a1 sell-all metals-a2 sell-all metals-a3 sell-all ;
 
-: haul ( -- ) fuel-up mars go drop sell-metals fuel-up moon go drop 0 waited ! ;
+: haul ( -- ) fuel-up mars go drop sell-metals fuel-up moon go drop 0 looks ! ;
 
 \ A full load, or a smaller one after waiting long enough
 : ready? ( -- f )
   metals cargo-goal < 0=
-  metals min-load < 0= waited @ patience < 0= and or ;
+  metals min-load < 0= looks @ patience < 0= and or ;
 
 : work ( -- ) ready? if haul else shop then ;
 
