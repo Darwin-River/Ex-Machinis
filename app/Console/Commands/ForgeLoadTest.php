@@ -56,7 +56,10 @@ class ForgeLoadTest extends Command
         $first = (int) DB::table('users')->where('email', 'like', '%@' . self::DOMAIN)->count();
         $started = microtime(true);
         for ($i = $first; $i < $first + $count; $i++) {
-            $name = $starters[$i % count($starters)];
+            // In blocks of three: the starters pick their site by drone number
+            // (mod 3), so taking turns one by one would send every copy of a
+            // starter to the same site
+            $name = $starters[intdiv($i, 3) % count($starters)];
             $user = User::create(['name' => "Load $i", 'email' => "load$i@" . self::DOMAIN,
                 'password' => bcrypt('load-test-' . $i, ['rounds' => 4])]);
             Release::release($user, "Load $i " . ucfirst($name), $sources[$name]);
