@@ -461,7 +461,7 @@ With the default clock:
 A few consequences are worth planning for:
 
 - **Program distant drones.** A drone around Neptune is minutes away by message, and a trip there takes most of a day, so give it a script that decides for itself what to do next, rather than steering it one command at a time.
-- **Busy drones refuse new scripts.** While a drone is carrying out an action, it answers new scripts with "Another command is running, retry later". `<abort>` still gets through (after the light delay) and stops the script, but not the action itself: a drone that has set off still arrives.
+- **Busy drones finish first.** While a drone is running a script or carrying out an action, a new script waits until it has finished, then runs. `<abort>` still gets through (after the light delay) and stops the script, but not the action itself: a drone that has set off still arrives.
 - **Replies arrive late.** You get a script's output when the script ends, after the action it waited for and the light delay home.
 
 ### Understanding how protocols are organized and numbered

@@ -285,13 +285,20 @@ static void db_runnable_where(char *where, size_t length)
         "AND NOT (c.code LIKE '%s%%' AND a.waiting_action IS NOT NULL "
         "  AND EXISTS (SELECT 1 FROM actions x WHERE x.id = a.waiting_action AND x.aborted = 0) "
         "  AND EXISTS (SELECT 1 FROM events e WHERE e.action = a.waiting_action AND e.outcome = 0)) "
-        // <launched> waits until the drone's script has finished (no resume
-        // queued): a released script loads in full before launched runs
-        "AND NOT (c.code = '%s' AND EXISTS (SELECT 1 FROM commands r "
+        // <launched>, and any new script (a command that isn't a meta
+        // command such as <abort>), waits until the drone's running script
+        // has finished (no resume queued). A released script comes in
+        // pieces of up to 2,048 characters: each piece loads after the one
+        // before, instead of being refused as "another command is running"
+        // (#367: that dropped the rest of any script longer than one piece),
+        // and launched runs once all of it has loaded
+        "AND NOT ((c.code = '%s' OR (c.code NOT LIKE '<%%' AND c.code NOT LIKE '%s%%')) "
+        "  AND EXISTS (SELECT 1 FROM commands r "
         "  WHERE r.agent_id = c.agent_id AND r.id <> c.id AND r.code LIKE '%s%%'))",
         game_time_now_seconds(),
         engine_get_vm_resume_command(),
         META_COMMAND_LAUNCHED,
+        engine_get_vm_resume_command(),
         engine_get_vm_resume_command());
 }
 

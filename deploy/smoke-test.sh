@@ -284,8 +284,13 @@ curl -fsS -c "$JAR" -b "$JAR" -o /dev/null -X POST http://localhost/register --d
     -d password=forge-password -d password_confirmation=forge-password
 [ -n "$(sql "select user_id from users where email='forger@outside.test'")" ] || fail "account not opened with the invitation"
 echo "ok: account opened with an invitation"
+# Longer than one 2,048-character command, so it is released in pieces that
+# must all load, one after the other, before launched runs (#367)
+PADDING=$(for i in $(seq 1 40); do echo "\\ padding line $i: a released script may be as long as it likes"; done)
 curl -fsS -c "$JAR" -b "$JAR" -o /dev/null -X POST http://localhost/release --data-urlencode "_token=$(token /release)" \
-    --data-urlencode "company_name=Smoke Forge" --data-urlencode $'script=: hello  ." forge-release-" ;\n: launched  hello ." ok7" ;'
+    --data-urlencode "company_name=Smoke Forge" --data-urlencode "script=: hello  .\" forge-release-\" ;
+$PADDING
+: launched  hello .\" ok7\" ;"
 FORGE_DRONE=$(sql "select a.agent_id from agents a join companies c on c.company_id = a.company_id where c.name='Smoke Forge'")
 [ -n "$FORGE_DRONE" ] || fail "release did not create a company and drone"
 echo "ok: release created a company with a drone"
