@@ -7,7 +7,6 @@ use App\Services\World;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /**
@@ -21,8 +20,6 @@ class WorldPagesTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Mail::fake();
-        config(['forge.email' => false]);
     }
 
     private function release(string $email, string $company)

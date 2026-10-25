@@ -125,12 +125,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 
 
-                                @if(!config('forge.email'))
                                 <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
                                                                              href="{{url('release')}}"><span
                                                 class="rd-nav-icon mdi mdi-rocket"></span><span
                                                 class="rd-nav-title">Release</span></a></li>
-                                @endif
                                 <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
                                                                              href="{{url('getting-started')}}"><span
                                                 class="rd-nav-icon mdi mdi-satellite-uplink"></span><span
@@ -339,35 +337,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                        data-patreon-widget-type="become-patron-button">Become a Patron!</a>
 
                 </div>
-                <!--
-                <div class="col-sm-12 col-lg-4">
-                    <h4>Join the game</h4>
 
-                    <p>Submit your e-mail to receive access to your own spacecraft.<br/>
-                        <small>Or else send a mail to <a href="mailto:registrar{{ '@' . config('mail.domain') }}?subject=register">registrar{{ '@' . config('mail.domain') }}</a>
-                            with <b>register</b> as subject.</small></p>
-
-                    <form class="rd-form rd-mailform form-sm" data-form-output="form-output-global"
-                          data-form-type="subscribe" method="post" action="/web-register" novalidate="novalidate">
-
-                        <div class="form-wrap mt-2">
-                            <input class="form-input form-control-has-validation" id="subscribe-form-2-email"
-                                   type="email" name="email" data-constraints="@Email @@Required"><span
-                                    class="form-validation"></span>
-                            <label class="form-label rd-input-label" for="subscribe-form-2-email">E-mail</label>
-                        </div>
-                        <div class="form-wrap">
-                            <input class="form-input form-control-has-validation" id="subscribe-form-2-name"
-                                   type="text" name="name" data-constraints="@@Required"><span
-                                    class="form-validation"></span>
-                            <label class="form-label rd-input-label" for="subscribe-form-2-name">A name for your
-                                company</label>
-                        </div>
-                        <br/>
-                        <button class="button button-sm button-primary" type="submit">Submit</button>
-                    </form>
-                </div>
--->
                 <p><b>Thank's for helping us succeed!</b></p>
             </div>
 

@@ -27,10 +27,6 @@ Route::get('/getting-started', 'HomeController@playersManual');
 Route::get('/getting-started/images/{file}', 'HomeController@playersManualImage')->where('file', '[A-Za-z0-9_-]+\.(png|jpg|jpeg|gif|svg)');
 Route::get('/about-us', 'HomeController@aboutUs');
 
-Route::group(['middleware' => ['web']], function () {
-    Route::post('/web-register', 'UserController@webRegistration');
-});
-
 Route::get('/queries', 'HomeController@queryCommands');
 Route::get('/queries/{id}', 'HomeController@queryCommand')->whereNumber('id');
 
@@ -77,5 +73,6 @@ Route::post('/release', 'ReleaseController@store');
 Route::post('/release/test', 'ReleaseController@test');
 Route::get('/release/test/{token}', 'ReleaseController@testRun');
 
-Route::get('/get-mails/{key}', 'HomeController@getMails');
-Route::get('/user/send-report/{key}', 'UserController@reportCurrentUsersByMail');
+// The scheduler's tick (#367 step 5); /get-mails is its old name
+Route::get('/tick/{key}', 'HomeController@tick');
+Route::get('/get-mails/{key}', 'HomeController@tick');

@@ -9,7 +9,6 @@ use App\Services\Release;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /**
@@ -24,8 +23,6 @@ class ReleasePageTest extends TestCase
     {
         parent::setUp();
 
-        Mail::fake();
-        config(['forge.email' => false]);
     }
 
     private function player(): User
@@ -83,7 +80,6 @@ class ReleasePageTest extends TestCase
         // The script, then <launched>, in order
         $codes = Command::where('agent_id', $drones[0]->agent_id)->orderBy('id')->pluck('code')->all();
         $this->assertEquals([$script, '<launched>'], $codes);
-        Mail::assertNothingSent();
     }
 
     public function testScriptMustDefineLaunched()
@@ -128,11 +124,5 @@ class ReleasePageTest extends TestCase
         // Public, like its code (#367 step 3)
         $this->get('/spacecraft/' . $agent->agent_id)->assertOk()
             ->assertSee('What it said')->assertSee('arrived-reply')->assertDontSee('still-in-transit');
-    }
-
-    public function testMailIsNotReadWhenEmailIsOff()
-    {
-        config(['app.cron_key' => 'k']);
-        $this->get('/get-mails/k')->assertOk()->assertSee('Email is switched off');
     }
 }

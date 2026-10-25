@@ -1,8 +1,8 @@
 # Ex-Machinis: the whole game on one server.
-#   ./setup.sh            first time: writes .env and mail accounts, starts everything
+#   ./setup.sh            first time: writes .env, starts everything
 #   docker compose up -d  later starts, after editing .env or pulling new code
 #
-# Only ports 80/443 (website) and 25 (incoming mail) are published.
+# Only ports 80/443 (the website) are published. There is no email (#367).
 
 name: exmachinis
 
@@ -12,8 +12,6 @@ x-engine-env: &engine-env
   DB_NAME: exmachinis
   DB_USER: exmachinis
   DB_PASSWORD: ${DB_PASSWORD:?run setup.sh first}
-  AGENTS_EMAIL_DOMAIN: ${DOMAIN}
-  MAIL_DOMAIN: ${DOMAIN}
   # Master game clock (see game-engine/conf/game-engine.conf)
   GAME_TIME_SCALE: ${GAME_TIME_SCALE:-60}
   # The clock floor (#324 step 20): the clock slows when the engines fall
@@ -26,8 +24,9 @@ x-engine-env: &engine-env
   # every step, which at full load is gigabytes a day
   APP_TRACE_LEVEL: ${ENGINE_TRACE_LEVEL:--1}
   TRAVEL_ACCELERATION: ${TRAVEL_ACCELERATION:-1}
-  # GAME_EMAIL=0 switches the email game off (the Public Forge world)
-  EMAIL_ENABLED: ${GAME_EMAIL:-1}
+  # No email (#367 step 5): drones' replies go to drone_messages, which the
+  # website shows
+  EMAIL_ENABLED: "0"
 
 services:
   db:
@@ -102,31 +101,10 @@ services:
       DB_USERNAME: exmachinis
       DB_PASSWORD: ${DB_PASSWORD}
       CRON_KEY: ${CRON_KEY:?run setup.sh first}
-      REPORTS_DESTINATION: ${ADMIN_EMAIL}
-      # Public Forge world (#324 step 6): GAME_EMAIL=0 switches email off
-      # (anyone releases scripts on the website; there are no accounts)
-      GAME_EMAIL: ${GAME_EMAIL:-1}
       # TEST_WORLD=1 shows the Release page's Test button; start the test
       # world's engines with: docker compose --profile testworld up -d
       TEST_WORLD: ${TEST_WORLD:-0}
       DB_TEST_DATABASE: exmachinis_test
-      # Outgoing mail goes to the mail container; incoming mail is read from
-      # its registrar and catch-all mailboxes over IMAP.
-      MAIL_DRIVER: smtp
-      MAIL_HOST: mail
-      MAIL_PORT: "25"
-      MAIL_ENCRYPTION: tls
-      MAIL_VERIFY_PEER: "false"
-      MAIL_DOMAIN: ${DOMAIN}
-      MAIL_FROM_ADDRESS: services@${DOMAIN}
-      MAIL_FROM_NAME: Ex-Machinis
-      MAIL_INCOMING_HOST: mail
-      MAIL_INCOMING_PORT: "143"
-      MAIL_INCOMING_VALIDATE_CERT: "false"
-      MAIL_REGISTRATION_ACCOUNT: registrar@${DOMAIN}
-      MAIL_REGISTRATION_PASSWORD: ${MAIL_REGISTRATION_PASSWORD:?run setup.sh first}
-      MAIL_CATCHALL_ACCOUNT: catchall@${DOMAIN}
-      MAIL_CATCHALL_PASSWORD: ${MAIL_CATCHALL_PASSWORD:?run setup.sh first}
     volumes:
       - app-storage:/var/www/storage
 
@@ -157,7 +135,7 @@ services:
       - engine-logs:/opt/exmachinis/log
 
   # The test world (#324 step 7): the same engines on the test database, with
-  # a faster clock and email always off. Started with the testworld profile.
+  # a faster clock. Started with the testworld profile.
   test-game-engine:
     image: exmachinis-engine
     profiles: [testworld]
@@ -172,7 +150,6 @@ services:
       DB_NAME: exmachinis_test
       GAME_TIME_SCALE: ${TEST_GAME_TIME_SCALE:-600}
       GAME_TIME_FLOOR: "0"
-      EMAIL_ENABLED: "0"
     volumes:
       - test-engine-logs:/opt/exmachinis/log
 
@@ -190,7 +167,6 @@ services:
       DB_NAME: exmachinis_test
       GAME_TIME_SCALE: ${TEST_GAME_TIME_SCALE:-600}
       GAME_TIME_FLOOR: "0"
-      EMAIL_ENABLED: "0"
     volumes:
       - test-engine-logs:/opt/exmachinis/log
 
@@ -206,39 +182,6 @@ services:
       CRON_KEY: ${CRON_KEY}
     volumes:
       - engine-logs:/opt/exmachinis/log
-
-  mail:
-    image: mailserver/docker-mailserver:15
-    restart: unless-stopped
-    hostname: mail.${DOMAIN}
-    ports:
-      - "25:25"
-    environment:
-      # Containers on this network may send without logging in.
-      PERMIT_DOCKER: connected-networks
-      # IMAP is only used inside Docker; IPv4 also works on hosts without IPv6.
-      DOVECOT_INET_PROTOCOLS: ipv4
-      SSL_TYPE: manual
-      SSL_CERT_PATH: /tmp/docker-mailserver/ssl/cert.pem
-      SSL_KEY_PATH: /tmp/docker-mailserver/ssl/key.pem
-      POSTMASTER_ADDRESS: postmaster@${DOMAIN}
-      ENABLE_OPENDKIM: "1"
-      ENABLE_OPENDMARC: "0"
-      ENABLE_POLICYD_SPF: "0"
-      ENABLE_SPAMASSASSIN: "0"
-      ENABLE_CLAMAV: "0"
-      ENABLE_FAIL2BAN: "0"
-      ENABLE_POSTGREY: "0"
-      ENABLE_AMAVIS: "0"
-      ENABLE_POP3: "0"
-      SPOOF_PROTECTION: "0"
-      LOG_LEVEL: info
-    volumes:
-      - ./mail/config:/tmp/docker-mailserver
-      - mail-data:/var/mail
-      - mail-state:/var/mail-state
-      - mail-logs:/var/log/mail
-    stop_grace_period: 1m
 
   caddy:
     image: caddy:2
@@ -262,8 +205,5 @@ volumes:
   app-storage:
   engine-logs:
   test-engine-logs:
-  mail-data:
-  mail-state:
-  mail-logs:
   caddy-data:
   caddy-config:

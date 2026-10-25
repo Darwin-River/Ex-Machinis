@@ -1,14 +1,15 @@
 #!/bin/sh
-# Replaces the old cron jobs: checks the game's mailboxes every few seconds
-# (start_email_handler.sh) and clears old engine logs daily (housekeeping.sh).
-INTERVAL="${MAIL_CHECK_SECONDS:-5}"
-URL="http://app/get-mails/${CRON_KEY}"
+# Replaces the old cron jobs: calls the website's tick every few seconds
+# (leaderboard snapshots and the launch queue) and clears old engine logs
+# daily (housekeeping.sh). There is no email to check (#367 step 5).
+INTERVAL="${TICK_SECONDS:-5}"
+URL="http://app/tick/${CRON_KEY}"
 last_cleanup=""
 
-echo "scheduler: checking mail every ${INTERVAL}s"
+echo "scheduler: ticking every ${INTERVAL}s"
 while :; do
     if ! out=$(curl -fsS -m 120 "$URL" 2>&1); then
-        echo "$(date '+%F %T') mail check failed: $out"
+        echo "$(date '+%F %T') tick failed: $out"
     fi
 
     today=$(date +%F)

@@ -7,7 +7,6 @@ use App\Services\Release;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /**
@@ -22,8 +21,6 @@ class LeaderboardTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Mail::fake();
-        config(['forge.email' => false]);
         DB::table('wealth_snapshots')->delete();
     }
 

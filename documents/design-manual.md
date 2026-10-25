@@ -127,6 +127,8 @@ Ex Machinis is an augmented reality space simulation in which players program an
 Ex Machinis has several functional components which operate independently to support gameplay.
 
 #### Mail Handler
+**Removed (#367 step 5).** There is no email: no mail server, no `/get-mails` mail processing, no registration, no welcome or report emails. Commands reach drones only through the `commands` table (a release on the website, or the engines' own resumes and restarts), and replies go to `drone_messages`. The engines' email code stays but is off (`EMAIL_ENABLED` defaults to "0"). The rest of this section, and the meta-commands below, describe the original email game.
+
 The Mail Handler application runs continuously in the database to process incoming and outgoing emails.
 Incoming emails will be entered as new events in the Central Database and directed to the appropriate drones.
 Outgoing emails, generally originating from in-game drones, will be pulled from the events log at the appropriate time and forwarded to the owner of the drones.
@@ -183,7 +185,7 @@ Everything the engines schedule or compare is stored in game time (game seconds,
 
 Each change re-anchors the clock as above (and is written to `game_clock_history`). Behind by more than `CLOCK_LAG_HIGH` already at the floor, the world is **full** (`game_clock.is_full`), until it is less than `CLOCK_LAG_LOW` behind. The check is recorded in `game_clock` (`target_scale`, `floor_scale`, `lag_seconds`, `slices_per_minute`, `is_full`, `load_checked_at`; migration 0015), and the Home page shows the clock live.
 
-While the world is full, the Release page puts new releases in `launch_queue` instead of launching them, and tells the player their place in line; a waiting release keeps its company name. The scheduler's mail check (every few seconds) launches waiting releases in order, at most 5 a time (`LaunchQueue::drain`), while the world isn't full. A load check more than 5 real minutes old (the Game Engine stopped) doesn't count, so releases aren't held on old news.
+While the world is full, the Release page puts new releases in `launch_queue` instead of launching them, and tells the player their place in line; a waiting release keeps its company name. The scheduler's tick (`/tick`, every few seconds) launches waiting releases in order, at most 5 a time (`LaunchQueue::drain`), while the world isn't full. A load check more than 5 real minutes old (the Game Engine stopped) doesn't count, so releases aren't held on old news.
 
 **Travel time.** Drones travel with constant acceleration, speeding up to the midpoint and slowing down after, so a trip of distance *d* takes *t = 2·√(d ÷ a)* game seconds. *d* is the distance between the two bodies when the drone leaves (at game time), and *a* is `TRAVEL_ACCELERATION` (m/s², default 1). Every effect of the travel protocol at or after its move (the location effect) is delayed by the trip time, so the engine stays locked until arrival.
 
@@ -219,8 +221,8 @@ A drone will not know what is happening at a distance until the light or radio t
 
 Players are on Earth, so their email to and from drones travels at the speed of light too, scaled by the game clock (see [Game time runs on a master clock](#Game-time-runs-on-a-master-clock)):
 
-* **Player to drone.** When a player's mail is queued as a command, the Game Engine sets `commands.deliver_at` to the game time its signal reaches the drone: game now + the drone's distance from Earth ÷ c. The command runs only after that (meta-commands such as `<abort>` too; engine resumes are immediate).
-* **Drone to player.** A reply is held in the `outbox` table until the drone's signal reaches Earth, the same light time later, then emailed. The reply's first line still gives the drone's distance in light-minutes of game time.
+* **Player to drone.** When a command is queued (a released script; in the email game, a player's mail), the Game Engine sets `commands.deliver_at` to the game time its signal reaches the drone: game now + the drone's distance from Earth ÷ c. The command runs only after that (meta-commands such as `<abort>` too; engine resumes are immediate).
+* **Drone to player.** A reply is written to `drone_messages` with `game_t` set to when the drone's signal reaches Earth, the same light time later; the website shows it from then on. (In the email game it was held in the `outbox` table until then, and emailed.) The reply's first line still gives the drone's distance in light-minutes of game time.
 * **Observations.** An event reported to the Central Database is observed the drone's light time from Earth later, in game time (`observations.game_t`).
 
 The Observation Engine is responsible for coordinating the discovery of events by distant drones.
@@ -488,7 +490,7 @@ No longer used (#367 step 4: there are no accounts to invite to); the table is l
 
 #### Table: drone_messages
 
-A drone's replies when email is switched off. The Game Engine writes one where it would otherwise email the player.
+A drone's replies. The Game Engine writes one for each reply (with email on, the original game, it emailed the player instead).
 
 * id [INT] - Table index.
 * agent_id [INT] - The drone.
@@ -496,9 +498,7 @@ A drone's replies when email is switched off. The Game Engine writes one where i
 * subject [VARCHAR(2048)] - The subject of the command it answers ("Release" for a released script).
 * body [LONGTEXT] - The reply, as it would have been emailed.
 
-<a name="The-Release-Page"></a>**The Release Page (#324 step 6).** The Public Forge world switches the email game off and lets anyone release scripts on the website instead. A setting (an environment variable, passed to the website and the engines by `deploy/docker-compose.yml`) controls it:
-
-* `GAME_EMAIL` (default 1). 0 switches email off. The website's `/get-mails` reads no mail and `/web-register` sends players to `/release`. The engines get it as `EMAIL_ENABLED` (game-engine.conf), and the Game Engine writes replies to `drone_messages` instead of emailing them.
+<a name="The-Release-Page"></a>**The Release Page (#324 step 6).** Public Forge has no email (#367 step 5: the `GAME_EMAIL` setting, the mail server, mail processing, `/web-register` and `/user/send-report` are gone): anyone releases scripts on the website instead. The engines' `EMAIL_ENABLED` (game-engine.conf) is "0", so the Game Engine writes replies to `drone_messages`. The scheduler calls `/tick/{CRON_KEY}` every 5 seconds (`/get-mails/{key}` is kept as its old name): it takes the leaderboard's snapshots and drains the launch queue.
 
 There are no player accounts (#367 step 4: login, sign-up, password resets, invitation codes, `INVITE_ONLY` and `php artisan forge:invite` are gone; the `users` and `invites` tables stay, for the built-in owner and the email game). `/release`, open to anyone, posts a company name and a script:
 
@@ -535,7 +535,7 @@ There are no player accounts (#367 step 4: login, sign-up, password resets, invi
 
 * **Net wealth** = the company's credits + the goods aboard its working drones (installed and locked included; wrecks' holds don't count) at the House price − the company's starter package: its starting credits (`forge.starting_credits`), starting fuel at the House price and Starter Kit I. A fresh release is worth 0, so wealth is what it made.
 * **The House price** of a good is the least any House station pays for it (`station_goods`, side 1); if no station buys it, the least one sells it for (side 2); otherwise 0. A packed Starter Kit I is worth its contents (the increments of protocol 25901), so unpacking it changes nothing.
-* **Rising** is the gain over the last real week: wealth now − the company's latest snapshot at least 7 days old (0 for a company started within the week). The website takes a snapshot of every company's wealth once a real hour (`wealth_snapshots`, migrations 0014 and 0017), when the scheduler's mail check calls it (`/get-mails`, every few seconds) or when the leaderboard is viewed.
+* **Rising** is the gain over the last real week: wealth now − the company's latest snapshot at least 7 days old (0 for a company started within the week). The website takes a snapshot of every company's wealth once a real hour (`wealth_snapshots`, migrations 0014 and 0017), when the scheduler's tick calls it (`/tick`, every few seconds) or when the leaderboard is viewed.
 * Both boards show the top 50: the company, its working drones, and wealth or gain.
 
 <a name="The-Machine-View"></a>**The Machine view (#324 step 19).** `/machine` runs a word on the engine's own FORTH VM in the browser, one instruction at a time, so a player can watch it work and see what it costs.
