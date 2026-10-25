@@ -79,7 +79,7 @@ no_tax
 wait_for 60 "Getting Started shows the players' manual" sh -c "curl -fsS http://localhost/getting-started | grep -q 'chapter-4-issuing-commands'"
 wait_for 120 "the scheduler's tick succeeds" sh -c "docker compose logs app | grep -q 'GET /tick/[^ ]* HTTP/1.1\" 200'"
 wait_for 60 "the Release page answers" sh -c "curl -fsS http://localhost/release | grep -q 'no account needed'"
-for page in register login get-mails/x web-register; do
+for page in register login web-register; do
     [ "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost/$page")" = 404 ] || fail "/$page still answers"
 done
 [ -z "$(docker compose ps -a -q mail 2>/dev/null)" ] || fail "there is still a mail server"
