@@ -196,6 +196,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('map')}}">Map</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('leaderboard')}}">Leaderboard</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('buys')}}">Buy Orders</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('sells')}}">Sell Orders</a></li>
@@ -259,6 +261,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                                                         href="{{url('market')}}">Market</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('map')}}">Map</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('leaderboard')}}">Leaderboard</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('buys')}}">Buy Orders</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"

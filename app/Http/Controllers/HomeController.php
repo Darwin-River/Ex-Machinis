@@ -63,6 +63,10 @@ class HomeController extends Controller
     {
         $this->requireCronKey($key);
 
+        // The scheduler calls this every few seconds: the leaderboard's
+        // hourly wealth snapshot rides along (#324 step 18)
+        \App\Services\Leaderboard::snapshotIfDue();
+
         // Email switched off (#324 step 6): no mail is read
         if (!config('forge.email')) {
             return response('Email is switched off');

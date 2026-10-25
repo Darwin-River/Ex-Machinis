@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Leaderboard;
 use App\Services\World;
 
 /**
@@ -17,6 +18,16 @@ class WorldController extends Controller
         $sells = World::orders(4);
         $buys = World::orders(5);
         return view('world.market', compact('stations', 'trades', 'sells', 'buys'));
+    }
+
+    /** The leaderboard (#324 step 18): net wealth, all time and Rising */
+    public function leaderboard()
+    {
+        Leaderboard::snapshotIfDue();
+        $allTime = Leaderboard::allTime();
+        $rising = Leaderboard::rising();
+        $kit = Leaderboard::kitValue(Leaderboard::prices());
+        return view('world.leaderboard', compact('allTime', 'rising', 'kit'));
     }
 
     public function map()

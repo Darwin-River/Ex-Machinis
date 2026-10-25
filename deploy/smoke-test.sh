@@ -19,7 +19,7 @@
 #   - a waiting drone runs no instructions but still sells, and a drone sees
 #     live orders only where it is,
 #   - a drone's page shows its code, and a wreck's page has a post-mortem,
-#   - the home feed, the market and the map show the world,
+#   - the home feed, the market, the map and the leaderboard show the world,
 #   - the Test button runs a script in the test world, not the live one,
 #   - it launches a new drone (a clone) from a ship kit with a copy of its
 #     program, some of its fuel and a record of its parent,
@@ -401,6 +401,10 @@ curl -fsS http://localhost/market | grep -q "Moon Depot" || fail "the market pag
 curl -fsS http://localhost/market | grep -q "spacecraft/$FORGE_DRONE" || fail "the market page doesn't show the trades"
 curl -fsS http://localhost/map | grep -q ">Moon<" || fail "the map doesn't list the Moon among the places with drones"
 echo "ok: the home feed, market and map show the world"
+# The leaderboard (#324 step 18) ranks the players
+curl -fsS http://localhost/leaderboard | grep -q "Forger" || fail "the leaderboard doesn't list the players"
+[ "$(sql "select count(*) from wealth_snapshots")" -ge 1 ] || fail "no wealth snapshot was taken"
+echo "ok: the leaderboard ranks the players, and wealth snapshots are taken"
 
 # Test world (#324 step 7): start its engines and turn on the Test button,
 # then test a script. It runs in the test world's own database, with a faster

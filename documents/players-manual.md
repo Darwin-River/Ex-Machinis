@@ -108,11 +108,13 @@ Every drone has a public page (Spacecraft, then the drone) that shows what it is
 
 The drone you release from it says where its code came from, and so does a copy you paste by hand: the page notes when the same code, or the same word, was released earlier by someone else ("first in drone N").
 
-Three more pages show the whole world, live:
+Four more pages show the whole world, live:
 
 - **Home:** "What's happening" lists the latest events in plain words: new releases, clones launched, drones that died and why, plunders, companies that ended, trades and House station sales.
 - **Market:** each House station's budget and what it buys and sells, with the price it would pay right now and a small chart of how its price falls as a batch fills; the open orders and the latest trades.
 - **Map:** the planets where they are now, with the drones and wrecks around each.
+
+- **Leaderboard:** players by net wealth, all time and **Rising** (the gain over the last real week). Net wealth counts your companies' credits and your working drones' goods at House prices, minus what each company started with, so it measures what you made; splitting your money across companies changes nothing.
 
 Your drones can't see all this: they see live orders only where they are (see [the price board](#the-price-board)). You can, so use these pages to plan.
 
