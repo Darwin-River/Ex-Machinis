@@ -19,7 +19,7 @@
 #   - a waiting drone runs no instructions but still sells, and a drone sees
 #     live orders only where it is,
 #   - a drone's page shows its code, and a wreck's page has a post-mortem,
-#   - the home feed, the market and the map show the world,
+#   - the home feed, the market, the map and the leaderboard show the world,
 #   - the Test button runs a script in the test world, not the live one,
 #   - it launches a new drone (a clone) from a ship kit with a copy of its
 #     program, some of its fuel and a record of its parent,
@@ -288,7 +288,10 @@ FORGE_NAME=$(sql "select name from agents where agent_id=$FORGE_DRONE")
 wait_for 30 "the Release page shows the reply" sh -c "curl -fsS -b '$JAR' http://localhost/release | grep -q 'forge-release-ok7'"
 # Starter scripts and game words (#324 step 15): the Release page fills in
 # a starter, and a drone knows the game words
-curl -fsS -b "$JAR" "http://localhost/release?starter=miner" | grep -q "kunspar 20 dig" || fail "the Release page did not offer the miner starter"
+# (fetch a page, then search it: with pipefail, "curl | grep -q" can fail
+# when grep stops reading before curl has written the whole page)
+fetch() { curl -fsS "$@" || echo "fetch failed: $*"; }
+grep -qF "kunspar 20 dig" <<<"$(fetch -b "$JAR" "http://localhost/release?starter=miner")" || fail "the Release page did not offer the miner starter"
 echo "ok: the Release page offers the starter scripts"
 sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('stdlib . moon . kunspar . fuel units 0> .', $FORGE_DRONE, NOW(), NOW(), 'game words', '')"
 knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%2101100-1'")" ]; }
@@ -386,21 +389,26 @@ no_tax
 
 # The Drone page (#324 step 16): a released drone shows its code and a Copy
 # button; a wreck has a post-mortem in plain words
-page() { curl -fsS "http://localhost/spacecraft/$1"; }
-page "$FORGE_DRONE" | grep -q "forge-release-" || fail "the drone page doesn't show the released code"
-page "$FORGE_DRONE" | grep -q "release?copy=$FORGE_DRONE" || fail "the drone page has no Copy this code link"
+FORGE_PAGE=$(fetch "http://localhost/spacecraft/$FORGE_DRONE")
+grep -qF "forge-release-" <<<"$FORGE_PAGE" || fail "the drone page doesn't show the released code"
+grep -qF "release?copy=$FORGE_DRONE" <<<"$FORGE_PAGE" || fail "the drone page has no Copy this code link"
 echo "ok: the drone page shows its code, with a Copy this code link"
-page "$DRY" | grep -q "It ran out of fuel" || fail "no post-mortem for the drone that ran out of fuel"
-page "$FORGE_DRONE" | grep -q "pay its tax bill" || fail "no post-mortem for the drone whose company couldn't pay its tax"
+grep -qF "It ran out of fuel" <<<"$(fetch "http://localhost/spacecraft/$DRY")" || fail "no post-mortem for the drone that ran out of fuel"
+grep -qF "pay its tax bill" <<<"$FORGE_PAGE" || fail "no post-mortem for the drone whose company couldn't pay its tax"
 echo "ok: wrecks have post-mortems"
 
 # Home, Market and Map (#324 step 17): the feed tells what happened, the
 # Market shows the stations and trades, the Map where the drones are
-curl -fsS http://localhost/ | grep -q "became a wreck" || fail "the home page's feed doesn't report the wrecks"
-curl -fsS http://localhost/market | grep -q "Moon Depot" || fail "the market page doesn't show the House stations"
-curl -fsS http://localhost/market | grep -q "spacecraft/$FORGE_DRONE" || fail "the market page doesn't show the trades"
-curl -fsS http://localhost/map | grep -q ">Moon<" || fail "the map doesn't list the Moon among the places with drones"
+grep -qF "became a wreck" <<<"$(fetch http://localhost/)" || fail "the home page's feed doesn't report the wrecks"
+MARKET_PAGE=$(fetch http://localhost/market)
+grep -qF "Moon Depot" <<<"$MARKET_PAGE" || fail "the market page doesn't show the House stations"
+grep -qF "spacecraft/$FORGE_DRONE" <<<"$MARKET_PAGE" || fail "the market page doesn't show the trades"
+grep -qF ">Moon<" <<<"$(fetch http://localhost/map)" || fail "the map doesn't list the Moon among the places with drones"
 echo "ok: the home feed, market and map show the world"
+# The leaderboard (#324 step 18) ranks the players
+grep -qF "Forger" <<<"$(fetch http://localhost/leaderboard)" || fail "the leaderboard doesn't list the players"
+[ "$(sql "select count(*) from wealth_snapshots")" -ge 1 ] || fail "no wealth snapshot was taken"
+echo "ok: the leaderboard ranks the players, and wealth snapshots are taken"
 
 # Test world (#324 step 7): start its engines and turn on the Test button,
 # then test a script. It runs in the test world's own database, with a faster
