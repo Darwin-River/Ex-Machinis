@@ -16,6 +16,15 @@ x-engine-env: &engine-env
   MAIL_DOMAIN: ${DOMAIN}
   # Master game clock (see game-engine/conf/game-engine.conf)
   GAME_TIME_SCALE: ${GAME_TIME_SCALE:-60}
+  # The clock floor (#324 step 20): the clock slows when the engines fall
+  # behind, never below GAME_TIME_FLOOR ("0": it never floats); behind at the
+  # floor, new releases queue
+  GAME_TIME_FLOOR: ${GAME_TIME_FLOOR:-0}
+  CLOCK_LAG_HIGH: ${CLOCK_LAG_HIGH:-60}
+  CLOCK_LAG_LOW: ${CLOCK_LAG_LOW:-15}
+  # -1: quiet logs (errors, warnings and clock changes only); 0 to 3 log
+  # every step, which at full load is gigabytes a day
+  APP_TRACE_LEVEL: ${ENGINE_TRACE_LEVEL:--1}
   TRAVEL_ACCELERATION: ${TRAVEL_ACCELERATION:-1}
   # GAME_EMAIL=0 switches the email game off (the Public Forge world)
   EMAIL_ENABLED: ${GAME_EMAIL:-1}
@@ -24,6 +33,11 @@ services:
   db:
     image: mysql:8.4
     restart: unless-stopped
+    # Throughput (#324 step 20): no binary log (a busy world wrote gigabytes
+    # an hour of it; backups use mysqldump), and the log flushed to disk
+    # once a second rather than at every commit (a power cut can lose the
+    # last second of play; a crash of MySQL alone loses nothing)
+    command: ["--disable-log-bin", "--innodb-flush-log-at-trx-commit=2"]
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?run setup.sh first}
       MYSQL_DATABASE: exmachinis
@@ -159,6 +173,7 @@ services:
       <<: *engine-env
       DB_NAME: exmachinis_test
       GAME_TIME_SCALE: ${TEST_GAME_TIME_SCALE:-600}
+      GAME_TIME_FLOOR: "0"
       EMAIL_ENABLED: "0"
     volumes:
       - test-engine-logs:/opt/exmachinis/log
@@ -176,6 +191,7 @@ services:
       <<: *engine-env
       DB_NAME: exmachinis_test
       GAME_TIME_SCALE: ${TEST_GAME_TIME_SCALE:-600}
+      GAME_TIME_FLOOR: "0"
       EMAIL_ENABLED: "0"
     volumes:
       - test-engine-logs:/opt/exmachinis/log

@@ -277,6 +277,98 @@ void db_stop(DbConnection_t* connection)
     @return         Execution result
 
 *******************************************************************************/
+/* The commands that may run now (FROM commands c LEFT JOIN agents a) */
+static void db_runnable_where(char *where, size_t length)
+{
+    snprintf(where, length,
+        "c.deliver_at IS NOT NULL AND c.deliver_at <= %lld "  // game time (#327)
+        "AND NOT (c.code LIKE '%s%%' AND a.waiting_action IS NOT NULL "
+        "  AND EXISTS (SELECT 1 FROM actions x WHERE x.id = a.waiting_action AND x.aborted = 0) "
+        "  AND EXISTS (SELECT 1 FROM events e WHERE e.action = a.waiting_action AND e.outcome = 0)) "
+        // <launched> waits until the drone's script has finished (no resume
+        // queued): a released script loads in full before launched runs
+        "AND NOT (c.code = '%s' AND EXISTS (SELECT 1 FROM commands r "
+        "  WHERE r.agent_id = c.agent_id AND r.id <> c.id AND r.code LIKE '%s%%'))",
+        game_time_now_seconds(),
+        engine_get_vm_resume_command(),
+        META_COMMAND_LAUNCHED,
+        engine_get_vm_resume_command());
+}
+
+/* One number from a query (0 when there's none) */
+static ErrorCode_t db_query_number(DbConnection_t* connection, const char* query_text, double* value, int* found)
+{
+    *value = 0;
+    if(found) *found = 0;
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+    if(row && row[0]) {
+        *value = atof(row[0]);
+        if(found) *found = 1;
+    }
+    if(db_result) mysql_free_result(db_result);
+    return ENGINE_OK;
+}
+
+ErrorCode_t db_load_backlog(DbConnection_t* connection, long* runnable, double* oldest_event_game_t, int* has_event)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char where[1024];
+    double count = 0;
+    ErrorCode_t result = db_reconnect(connection);
+
+    *runnable = 0;
+    *has_event = 0;
+    *oldest_event_game_t = 0;
+    if(result != ENGINE_OK)
+        return result;
+
+    db_runnable_where(where, sizeof(where));
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT COUNT(*) FROM commands c LEFT JOIN agents a ON a.agent_id = c.agent_id WHERE %s", where);
+    result = db_query_number(connection, query_text, &count, NULL);
+    *runnable = (long)count;
+
+    // The oldest event the events engine should have done by now (as its
+    // own query picks them)
+    if(result == ENGINE_OK) {
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "SELECT e.game_t FROM events e WHERE e.game_t <= %lld AND e.outcome = 0 "
+            "AND (SELECT aborted FROM actions WHERE id = e.action) != 1 ORDER BY e.game_t LIMIT 1",
+            game_time_now_seconds());
+        result = db_query_number(connection, query_text, oldest_event_game_t, has_event);
+    }
+    return result;
+}
+
+ErrorCode_t db_record_load(DbConnection_t* connection, double target, double floor, double lag,
+                           long slices_per_minute, int full, long long checked_at)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char floor_text[32];
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result != ENGINE_OK)
+        return result;
+    if(floor > 0 && floor < target)
+        snprintf(floor_text, sizeof(floor_text), "%.6f", floor);
+    else
+        snprintf(floor_text, sizeof(floor_text), "NULL");
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "UPDATE game_clock SET target_scale = %.6f, floor_scale = %s, lag_seconds = %.1f, "
+        "slices_per_minute = %ld, is_full = %d, load_checked_at = %lld WHERE id = 1",
+        target, floor_text, lag, slices_per_minute, full ? 1 : 0, checked_at);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    return ENGINE_OK;
+}
+
 ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
 {
 	char query_text[DB_MAX_SQL_QUERY_LEN+1];
@@ -293,23 +385,14 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
 	// unprocessed events, or aborted): hold its resume back until then.
 	// <launched> is held while the drone's script is still running. Other
 	// commands, such as <abort> or new mail, are never held.
+	char where[1024];
+	db_runnable_where(where, sizeof(where));
 	snprintf(query_text,
         DB_MAX_SQL_QUERY_LEN,
         "SELECT c.id, c.code, c.agent_id, c.subject, c.email_content FROM commands c "
         "LEFT JOIN agents a ON a.agent_id = c.agent_id "
-        "WHERE c.deliver_at IS NOT NULL AND c.deliver_at <= %lld "  // game time (#327)
-        "AND NOT (c.code LIKE '%s%%' AND a.waiting_action IS NOT NULL "
-        "  AND EXISTS (SELECT 1 FROM actions x WHERE x.id = a.waiting_action AND x.aborted = 0) "
-        "  AND EXISTS (SELECT 1 FROM events e WHERE e.action = a.waiting_action AND e.outcome = 0)) "
-        // <launched> waits until the drone's script has finished (no resume
-        // queued): a released script loads in full before launched runs
-        "AND NOT (c.code = '%s' AND EXISTS (SELECT 1 FROM commands r "
-        "  WHERE r.agent_id = c.agent_id AND r.id <> c.id AND r.code LIKE '%s%%')) "
-        "ORDER BY c.id LIMIT 1",
-        game_time_now_seconds(),
-        engine_get_vm_resume_command(),
-        META_COMMAND_LAUNCHED,
-        engine_get_vm_resume_command());
+        "WHERE %s ORDER BY c.id LIMIT 1",
+        where);
 
     // run it
     if (mysql_query(connection->hndl, query_text))
@@ -3061,7 +3144,7 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
             }
             else if(!(rowsNum=mysql_num_rows(db_result))) {
                 engine_trace(TRACE_LEVEL_ALWAYS,
-                    "ERROR: No entries found for query [%s]",
+                    "No entries found for query [%s]",
                     queryInfo->finalQuery);
 
                 result = ENGINE_DB_QUERY_ERROR;

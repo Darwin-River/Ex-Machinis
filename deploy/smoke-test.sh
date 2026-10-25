@@ -34,7 +34,8 @@ PLAYER=player@outside.test
 [ -f .env ] && { echo "deploy/.env already exists; run this on a clean checkout." >&2; exit 1; }
 # A fast game clock (1 real second = 1 game hour) so the trip to the Moon
 # and the light-speed delays take seconds
-SITE_ADDRESS=http://localhost GAME_TIME_SCALE=3600 ./setup.sh "$DOMAIN" "admin@$DOMAIN"
+# Full engine logs (ENGINE_TRACE_LEVEL=2): the checks below read them
+SITE_ADDRESS=http://localhost GAME_TIME_SCALE=3600 ENGINE_TRACE_LEVEL=2 ./setup.sh "$DOMAIN" "admin@$DOMAIN"
 
 fail() {
     echo "FAILED: $*" >&2
@@ -194,9 +195,17 @@ crash_launched() { # redefine launched to divide by zero, then restart it
 crash_launched 1
 crashed() { [ "$(sql "select count(*) from drone_crashes where drone=$NEW_ID and code=-10 and restart_at is not null")" = 1 ]; }
 wait_for 60 "a crash in launched is caught (-10) and a restart is scheduled" crashed
-[ "$(sql "select count(*) from commands where agent_id=$NEW_ID and code='<launched>' and deliver_at > (select min(restart_at) - 1 from drone_crashes where drone=$NEW_ID)")" = 1 ] || fail "no restart queued"
-[ "$(sql "select vm = release_vm from agents where agent_id=$NEW_ID")" = 1 ] || fail "the program was not put back to its clean copy"
-echo "ok: the program went back to its clean copy and a restart is queued"
+# The restart comes a real second later on this clock, and the engine runs
+# it as soon as it is due (#324 step 20): either it is still queued, with
+# the clean copy in place, or it has already run the clean launched word
+restart_queued() { [ "$(sql "select count(*) from commands where agent_id=$NEW_ID and code='<launched>' and deliver_at > (select min(restart_at) - 1 from drone_crashes where drone=$NEW_ID)")" = 1 ]; }
+restarted_clean() { [ "$(docker compose logs game-engine | grep -c "Drone \[$NEW_ID\] finished its launched word")" -ge 2 ]; }
+if restart_queued; then
+    [ "$(sql "select vm = release_vm from agents where agent_id=$NEW_ID")" = 1 ] || fail "the program was not put back to its clean copy"
+    echo "ok: the program went back to its clean copy and a restart is queued"
+else
+    wait_for 30 "the restart ran the clean copy's launched word" restarted_clean
+fi
 # The restart queued above isn't needed (this world's clock is fast): drop it,
 # then make the next crash the 5th in a row
 sql "delete from commands where agent_id=$NEW_ID and code='<launched>'"

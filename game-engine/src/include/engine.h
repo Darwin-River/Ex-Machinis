@@ -70,6 +70,11 @@ enum
     GAME_TIME_SCALE_ID,
     TRAVEL_ACCELERATION_ID,
 
+    // The clock floor (#324 step 20)
+    GAME_TIME_FLOOR_ID,
+    CLOCK_LAG_HIGH_ID,
+    CLOCK_LAG_LOW_ID,
+
     // Max configured parameters
     MAX_CONFIG_PARAM
 };

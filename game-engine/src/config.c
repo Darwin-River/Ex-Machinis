@@ -69,6 +69,11 @@ char conf_param_names[MAX_CONFIG_PARAM+1][MAX_CONF_PARAM_LEN] =
     // GAME TIME configuration
     "GAME_TIME_SCALE",
     "TRAVEL_ACCELERATION",
+
+    // The clock floor
+    "GAME_TIME_FLOOR",
+    "CLOCK_LAG_HIGH",
+    "CLOCK_LAG_LOW",
 };
 
 /******************************* LOCAL FUNCTIONS *****************************/

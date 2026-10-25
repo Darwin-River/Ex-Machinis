@@ -116,11 +116,29 @@ void trace_stop(TraceHndl_t hdnl)
 /*******************************************************************************/
 
 
+/* Lines a quiet log keeps */
+static int trace_is_notable(const char *msg)
+{
+	return strstr(msg, "ERROR") || strstr(msg, "WARNING") || strstr(msg, "NOTICE");
+}
+
+/* Rotated logs are kept for a week, then removed */
+#define TRACE_KEEP_DAYS 7
+
+static void trace_remove_old(const char *path, time_t now)
+{
+	char old_name[PATH_MAX*2+1];
+	time_t then = now - (time_t)TRACE_KEEP_DAYS * 24 * 3600;
+	struct tm *t = localtime(&then);
+	snprintf(old_name, sizeof(old_name), "%s.%02d%02d%04d", path, t->tm_mday, t->tm_mon+1, t->tm_year+1900);
+	remove(old_name);
+}
+
 void trace_write(TraceHndl_t hdnl, TraceLevel_t level, const char *trace, va_list valist)
 {
 	TraceInfo_t* trace_info = (TraceInfo_t*)hdnl;
 
-	if(trace_info && trace_info->fp && (level <= trace_info->conf.level))
+	if(trace_info && trace_info->fp && (level <= trace_info->conf.level || trace_info->conf.level == TRACE_LEVEL_QUIET))
 	{
 		static char trace_msg[TRACE_MAXLENGTH+1];
 
@@ -128,6 +146,11 @@ void trace_write(TraceHndl_t hdnl, TraceLevel_t level, const char *trace, va_lis
 		memset(trace_msg, 0, TRACE_MAXLENGTH+1);
 
 	    vsnprintf(trace_msg, TRACE_MAXLENGTH, trace, valist);
+
+		// Quiet (#324 step 20): a busy engine writes dozens of lines a
+		// slice, gigabytes a day; keep only what an operator needs
+		if(level > trace_info->conf.level && !trace_is_notable(trace_msg))
+			return;
 
 	    time_t now;
 		struct tm* lnow;
@@ -155,6 +178,7 @@ void trace_write(TraceHndl_t hdnl, TraceLevel_t level, const char *trace, va_lis
 				lnow->tm_year+1900); // years since 1900
 
 			rename(trace_info->conf.log_file_path, new_name);
+			trace_remove_old(trace_info->conf.log_file_path, now);
 
 			trace_info->current_day = lnow->tm_mday;
 
@@ -204,7 +228,7 @@ void trace_append(TraceHndl_t hdnl, TraceLevel_t level, const char *trace, va_li
 {
 	TraceInfo_t* trace_info = (TraceInfo_t*)hdnl;
 
-	if(trace_info && trace_info->fp && (level <= trace_info->conf.level))
+	if(trace_info && trace_info->fp && (level <= trace_info->conf.level || trace_info->conf.level == TRACE_LEVEL_QUIET))
 	{
 		static char trace_msg[TRACE_MAXLENGTH+1];
 
@@ -212,6 +236,11 @@ void trace_append(TraceHndl_t hdnl, TraceLevel_t level, const char *trace, va_li
 		memset(trace_msg, 0, TRACE_MAXLENGTH+1);
 
 	    vsnprintf(trace_msg, TRACE_MAXLENGTH, trace, valist);
+
+		// Quiet (#324 step 20): a busy engine writes dozens of lines a
+		// slice, gigabytes a day; keep only what an operator needs
+		if(level > trace_info->conf.level && !trace_is_notable(trace_msg))
+			return;
 
 		// write parital text in current line
 		fprintf(trace_info->fp, "%s", trace_msg);

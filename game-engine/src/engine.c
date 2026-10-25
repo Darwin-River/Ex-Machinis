@@ -28,6 +28,7 @@
 #include "db_launch.h"
 #include "protocol.h"
 #include "config.h"
+#include "clock_floor.h"
 #include "db.h"
 
 // The current command ran on the drone's VM (not refused, not a meta command)
@@ -1036,6 +1037,55 @@ ErrorCode_t engine_apply_max_cycle_lines()
   @return     Execution result code (ErrorCode_t)
 
 *******************************************************************************/
+/* The clock floor (#324 step 20): slices run since the last load check */
+static time_t g_load_since = 0;
+static long g_load_slices = 0;
+static int g_world_full = 0;
+
+/* Once every CLOCK_CHECK_SECONDS: how far behind the engines run, and the
+   clock's scale from it (see clock_floor.h) */
+static void engine_check_load(void)
+{
+    time_t now = time(NULL);
+    if(!g_load_since) {
+        g_load_since = now;
+        return;
+    }
+    double seconds = difftime(now, g_load_since);
+    if(seconds < CLOCK_CHECK_SECONDS)
+        return;
+
+    long runnable = 0;
+    double oldest_event = 0;
+    int has_event = 0;
+    if(db_load_backlog(&engine.db_connection, &runnable, &oldest_event, &has_event) != ENGINE_OK)
+        return;   // try again next pass
+
+    double scale = game_time_scale();
+    double event_late = has_event ? (game_time_now() - oldest_event) / scale : 0;
+    double lag = clock_floor_lag(runnable, g_load_slices, seconds, event_late);
+    ClockRule_t rule = {
+        atof(engine.config.params[GAME_TIME_SCALE_ID]),
+        atof(engine.config.params[GAME_TIME_FLOOR_ID]),
+        atof(engine.config.params[CLOCK_LAG_HIGH_ID]),
+        atof(engine.config.params[CLOCK_LAG_LOW_ID])
+    };
+    int was_full = g_world_full;
+    double next = clock_floor_next(scale, lag, &rule, &g_world_full);
+    long per_minute = lround(g_load_slices * 60.0 / seconds);
+
+    if(fabs(next - scale) > 1e-9 || g_world_full != was_full)
+        engine_trace(TRACE_LEVEL_ALWAYS, "NOTICE: load check: %ld commands waiting, %ld slices a minute, "
+            "events %.0f s late: %.0f s behind; clock %.3f -> %.3f%s", runnable, per_minute, event_late, lag,
+            scale, next, g_world_full ? " (the world is full: releases queue)" : "");
+    if(fabs(next - scale) > 1e-9)
+        game_time_set_scale(next);
+    db_record_load(&engine.db_connection, rule.target, rule.floor, lag, per_minute, g_world_full, (long long)now);
+
+    g_load_since = now;
+    g_load_slices = 0;
+}
+
 ErrorCode_t engine_run()
 {
   ErrorCode_t result = ENGINE_OK;
@@ -1057,8 +1107,10 @@ ErrorCode_t engine_run()
 
 		engine_trace(TRACE_LEVEL_ALWAYS, "Running engine logic");
 
-        // Read the game clock (shared with the events engine)
+        // Read the game clock (shared with the events engine), and once a
+        // minute set its pace from how far behind the engines run
         game_time_load();
+        engine_check_load();
 
         // Signals travel at the speed of light: time when new commands reach
         // their drones, and send the replies that have reached Earth
@@ -1150,6 +1202,11 @@ ErrorCode_t engine_run()
                 result = db_restore_release_vm(&engine.db_connection, engine.last_command.agent_id);
         }
 
+        // Did this pass run a command? Then look for the next one at once
+        Bool_t worked = engine.last_command.code[0] ? ENGINE_TRUE : ENGINE_FALSE;
+        if(worked)
+            g_load_slices++;
+
         // Delete command always to avoid spam when error
         if(engine.last_command.code[0]) {
             result = db_delete_command(&engine.db_connection, &engine.last_command);
@@ -1172,7 +1229,10 @@ ErrorCode_t engine_run()
             engine.last_command.email_content = NULL;
         }
 
-		sleep(atoi(engine.config.params[DB_READ_TIME_ID]));
+		// Rest only when there was nothing to run (#324 step 20): sleeping
+		// after every command held the engine to one slice per DB_READ_TIME
+		if(!worked)
+			sleep(atoi(engine.config.params[DB_READ_TIME_ID]));
 	}
 
 	// deallocate resources/Stop modules

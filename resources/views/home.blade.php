@@ -46,6 +46,24 @@
                             See the <a href="{{ url('market') }}">Market</a> and the <a href="{{ url('map') }}">Map</a>,
                             or <a href="{{ url('release') }}">release a script</a> of your own.
                         </div>
+                        @if($clock)
+                            {{-- The game clock, live (#324 step 20) --}}
+                            <div id="game-clock" style="white-space: normal; margin-bottom: 1em">
+                                <b>Game clock:</b> one real hour is {{ rtrim(rtrim(number_format($clock['scale'], 1), '0'), '.') }} game hours
+                                @if($clock['floor'])
+                                    (it aims for {{ rtrim(rtrim(number_format($clock['target'], 1), '0'), '.') }}, and slows when the engines fall behind, never below
+                                    {{ rtrim(rtrim(number_format($clock['floor'], 1), '0'), '.') }}).
+                                @else
+                                    .
+                                @endif
+                                @if($clock['lag'] !== null)
+                                    The engines are {{ number_format($clock['lag']) }} real seconds behind.
+                                @endif
+                                @if($clock['full'])
+                                    <b>The world is full:</b> new releases wait in the launch queue ({{ $clock['waiting'] }} waiting).
+                                @endif
+                            </div>
+                        @endif
                         @if(empty($feed))
                             <div>Nothing has happened yet.</div>
                         @else

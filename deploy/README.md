@@ -115,6 +115,8 @@ rm -rf .env mail/config
 - `SITE_ADDRESS`: the names Caddy serves. For example, `SITE_ADDRESS=example.com, www.example.com` also serves `www`, which needs its own DNS record.
 - `APP_URL`: the site's public URL, if it isn't `https://<domain>`.
 - `GAME_TIME_SCALE`: how fast game time passes, in game seconds per real second (default 60: one real minute is one game hour). It governs orbits, action and travel durations, and the light-speed delay of emails. Changing it re-anchors the game clock, so nothing jumps.
+- `GAME_TIME_FLOOR`: the clock floor (default 0: the clock never floats). The clock aims for `GAME_TIME_SCALE`, slows by a quarter each minute while the engines run more than `CLOCK_LAG_HIGH` (60) real seconds behind, never below this, and speeds back up once they are less than `CLOCK_LAG_LOW` (15) behind. Behind at the floor, the world is full: new releases wait in a launch queue. The Home page shows the clock.
+- `ENGINE_TRACE_LEVEL`: the engines' log detail (default -1: errors, warnings and clock changes only). 0 to 3 log every step, which at full load is gigabytes a day; rotated logs are kept 7 days.
 - `TRAVEL_ACCELERATION`: drones' acceleration in m/s² (default 1). Trips take 2·√(distance ÷ acceleration) in game time.
 - `GAME_EMAIL=0`: the Public Forge world. Email is off; players open an account and release scripts on the website's Release page.
 - `INVITE_ONLY=1`: opening an account needs an invitation code. Create codes with `docker compose exec app php artisan forge:invite 5`.
@@ -125,6 +127,24 @@ Apply changes with `docker compose up -d`.
 All other settings are in `docker-compose.yml`. The engines' settings come from `game-engine/conf/*.conf`. You can override any of them by adding an environment variable of the same name to the engine services.
 
 The mail accounts depend on the domain. To move to another domain, start over with the new one, or edit `mail/config/postfix-accounts.cf` and `postfix-virtual.cf` by hand.
+
+## Opening Public Forge
+
+The first release of Public Forge is invite-only, with email off. In `deploy/.env`:
+
+```
+GAME_EMAIL=0
+INVITE_ONLY=1
+GAME_TIME_SCALE=24      # aims for one game day per real hour
+GAME_TIME_FLOOR=8       # never slower than 8 game hours per real hour
+TEST_WORLD=1            # optional: the Release page's Test button
+```
+
+Then `docker compose up -d` (and `docker compose --profile testworld up -d` for the test world).
+
+1. **Load test first**, on a copy, never the live database: `docker compose exec app php artisan forge:load-test 1000 --database=exmachinis_test` releases a thousand starter drones into the test world; `... forge:load-test --report --database=exmachinis_test` shows how the engines keep up, and the test engines' clock floats the same way if you give them a floor. See the design manual's [Throughput](../documents/design-manual.md#Engine-Throughput) for what to look for.
+2. **Invite players**: `docker compose exec app php artisan forge:invite 20 --note="first wave"` prints 20 codes. Send each player one; they open an account at `/register` with it.
+3. **Watch** the Home page's clock line: if the clock sits at the floor and the world is full, releases queue until there is room. A faster server, or a lower floor, makes room.
 
 ## Troubleshooting
 

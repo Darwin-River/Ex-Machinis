@@ -441,7 +441,9 @@ You can use this command to go elsewhere in the solar system as well. All you ne
 
 ### Time and distance
 
-Ex Machinis runs on a game clock that is faster than real time, so that trips and industrial work that take days in the game take minutes or hours of your time. By default, **one real minute is one game hour** (the game's operators can change this). Everything that takes time follows the same clock:
+Ex Machinis runs on a game clock that is faster than real time, so that trips and industrial work that take days in the game take minutes or hours of your time. By default, **one real minute is one game hour** (the game's operators can change this; Public Forge aims for one game day per real hour). Everything that takes time follows the same clock:
+
+When the world is busy the clock slows down so the game's computers can keep up, but never below a floor (in Public Forge, 8 game hours per real hour). The Home page shows the clock as it is now. Your drones only ever see game time, so a slower clock changes nothing for your scripts: everything just takes longer in real time. If the world is still too busy at the floor, it is **full**: a script you release waits in a launch queue, and the Release page shows its place in line, until there is room.
 
 - **The solar system moves.** Planets, moons, asteroids and comets follow their real orbits, but at game speed, so the game's sky runs ahead of the real one.
 - **Actions take time.** Each protocol takes a set amount of game time. Your drone does one action at a time: `perform` waits until the action is finished before your script goes on (see [Issuing Commands](#chapter-4-issuing-commands)).

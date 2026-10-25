@@ -56,6 +56,14 @@ ${SITE_ADDRESS:+SITE_ADDRESS=$SITE_ADDRESS}
 #GAME_TIME_SCALE=60
 #TRAVEL_ACCELERATION=1
 ${GAME_TIME_SCALE:+GAME_TIME_SCALE=$GAME_TIME_SCALE}
+# The clock floor: the clock slows when the engines fall behind, never below
+# this; behind at the floor, new releases queue. Public Forge: 24 and 8.
+#GAME_TIME_FLOOR=0
+${GAME_TIME_FLOOR:+GAME_TIME_FLOOR=$GAME_TIME_FLOOR}
+# The engines' log detail: -1 (default) errors, warnings and clock changes
+# only; 0 to 3 every step (gigabytes a day under load)
+#ENGINE_TRACE_LEVEL=-1
+${ENGINE_TRACE_LEVEL:+ENGINE_TRACE_LEVEL=$ENGINE_TRACE_LEVEL}
 EOF
     umask 022
     echo "Wrote deploy/.env"
