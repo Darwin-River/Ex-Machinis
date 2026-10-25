@@ -13,6 +13,8 @@
 #   - money past 32,767 comes back as a double, and the double words work,
 #   - House drop stations buy goods and sell fuel when their batches clear,
 #   - a mined-out deposit yields nothing until it refills over game time,
+#   - another player's wreck can be plundered (not one's own), and a company
+#     that can't pay its tax is eliminated,
 #   - the Test button runs a script in the test world, not the live one,
 #   - it launches a new drone from a ship kit with a copy of its program.
 # Needs ports 80, 443 and 25 free. Leaves the stack running; remove it with
@@ -59,6 +61,10 @@ PY
 }
 
 wait_for 120 "website answers" curl -fsS -o /dev/null http://localhost/
+# No taxes until the taxes step (#324 step 12): a game day lasts 24 seconds
+# here, and the checks below count credits exactly
+no_tax() { sql "update house_rules set tax_flat = 0, tax_permille = 0"; }
+no_tax
 # The image must carry the players' manual (Getting Started renders it)
 wait_for 60 "Getting Started shows the players' manual" sh -c "curl -fsS http://localhost/getting-started | grep -q 'chapter-4-issuing-commands'"
 wait_for 120 "mail check succeeds" sh -c "docker compose logs app | grep -q 'GET /get-mails/[^ ]* HTTP/1.1\" 200'"
@@ -248,6 +254,7 @@ echo "ok: no service restarted"
 # on the website. The drone runs it, and its replies are kept for the
 # website instead of being emailed.
 GAME_EMAIL=0 INVITE_ONLY=1 docker compose up -d app game-engine events-engine >/dev/null 2>&1
+no_tax   # in case the restart reloaded the game data
 wait_for 120 "sign-up page asks for an invitation" sh -c "curl -fsS http://localhost/register | grep -q 'Invitation code'"
 CODE=$(docker compose exec -T app php artisan forge:invite 1 --note=smoke | tr -d '\r' | tail -1)
 [ -n "$CODE" ] || fail "no invitation code"
@@ -290,6 +297,39 @@ sql "insert into events (event_type, action, logged, outcome, drone, resource, i
      values (2, 0, 1, 1, $DRY, 2061, 0, 0, 1, $KIT + 1)"
 dry() { [ "$(sql "select wreck_cause from agents where agent_id=$DRY")" = fuel ]; }
 wait_for 120 "a drone that runs out of fuel becomes a wreck" dry
+
+# Plunder (#324 step 12): the released drone, at Earth like the wreck, may
+# not plunder it: both belong to the same player
+sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('$DRY 34 perform .', $FORGE_DRONE, NOW(), NOW(), 'plunder', '')"
+own_wreck() { [ "$(sql "select outcome from actions where drone=$FORGE_DRONE and protocol=34 order by id desc limit 1")" = -13 ]; }
+wait_for 60 "plundering the player's own wreck is refused (-13)" own_wreck
+# Another player's drone may: put the wreck on the Moon, where the first
+# drone is, with 10 kunspar aboard; the plunderer gets half and the wreck is
+# left empty
+sql "update agents set object_id = 10 where agent_id = $DRY"
+sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo)
+     values (1, 0, 1, 1, $DRY, 1100, 0, 0, 10, $KIT + 10)"
+KUNSPAR=$(kunspar)
+send_mail "$DRONE@$DOMAIN" "plunder" "<run>$DRY 34 perform . cr</run>"
+plundered() { [ "$(sql "select IFNULL(plundered_by, 0) from agents where agent_id=$DRY")" = "$DRONE_ID" ] &&
+              [ "$(sql "select IFNULL(SUM(units), 0) from sqInventory where drone=$DRY")" = 0 ]; }
+wait_for 90 "another player's drone plundered the wreck, leaving it empty" plundered
+got_half() { [ "$(kunspar)" -ge "$((KUNSPAR + 5))" ]; }
+wait_for 60 "the plunderer got half the wreck's kunspar" got_half
+wait_for 60 "drone finished plundering" idle
+
+# Taxes (#324 step 12): a company that can't pay its tax is eliminated: its
+# credits vanish and its drones become wrecks. Charge 20 a game day, and
+# leave the Smoke Forge company 10 credits, past its grace period.
+FORGE_COMPANY=$(sql "select company_id from agents where agent_id=$FORGE_DRONE")
+sql "update companies set credits = 10, founded_t = 0, taxed_t = 0 where company_id = $FORGE_COMPANY"
+sql "update house_rules set tax_flat = 20"
+eliminated() { [ "$(sql "select eliminated_at is not null and credits = 0 from companies where company_id=$FORGE_COMPANY")" = 1 ] &&
+               [ "$(sql "select wreck_cause from agents where agent_id=$FORGE_DRONE")" = tax ]; }
+wait_for 60 "a company that can't pay its tax is eliminated and its drones wrecked" eliminated
+paid_tax() { [ "$(sql "select count(*) from company_taxes where company_id=$COMPANY and amount=20 and eliminated=0")" -ge 1 ]; }
+wait_for 60 "a company with credits pays its tax" paid_tax
+no_tax
 
 # Test world (#324 step 7): start its engines and turn on the Test button,
 # then test a script. It runs in the test world's own database, with a faster

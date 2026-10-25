@@ -14,6 +14,7 @@
 
 #include "event.h"
 #include "db_station.h"
+#include "db_wreck.h"
 #include "engine_e.h"
 #include "db.h"
 #include "orbits.h"
@@ -1068,6 +1069,23 @@ static ErrorCode_t event_apply(Event_t *event)
     if(result == ENGINE_OK && (event->event_type == STATION_OFFER_EVENT_TYPE ||
                                event->event_type == STATION_ORDER_EVENT_TYPE)) {
         result = db_station_record(event);
+        if(result != ENGINE_OK)
+            return result;   // the caller records the outcome and aborts the action
+
+        event->outcome = OUTCOME_OK;
+        event->logged = 1;
+        event->new_cargo = NULL_VALUE;
+        event->new_credits = NULL_VALUE;
+
+        result = db_update_event(event);
+        if(result == ENGINE_OK) result = event_update_observations(event);
+        return result;
+    }
+
+    // A drone plunders a wreck (#324 step 12): its share of the wreck's
+    // goods and parts arrives as actions of protocol 35
+    if(result == ENGINE_OK && event->event_type == PLUNDER_EVENT_TYPE) {
+        result = db_plunder(event);
         if(result != ENGINE_OK)
             return result;   // the caller records the outcome and aborts the action
 
