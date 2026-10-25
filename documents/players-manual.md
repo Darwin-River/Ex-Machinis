@@ -708,7 +708,7 @@ The interpreter reads at most 79 characters of a line at a time. The game splits
 
 As with most programming languages, FORTH offers some convenient mechanisms for commenting on your code. These techniques can be very handy in reminding yourself and others of the intent and function of your definitions. There are two primary ways to add comments to your script that will be ignored by the interpreter:
 
-- When you start a comment with a backslash (`\`) the interpreter will ignore everything else on that line.
+- When you start a comment with a backslash (`\`) the interpreter will ignore everything else on that line, up to the line's 80th character: anything past that is read as code. Keep lines that end in a comment to 80 characters.
 - The interpreter will also ignore any text enclosed between parentheses, regardless of where they occur in the line or whether they enclose multiple lines.
 
 Remember that the interpreter uses white space to delineate words. Therefore, backslashes and parentheses will only be recognized as such by the interpreter if there are spaces between them and other characters.

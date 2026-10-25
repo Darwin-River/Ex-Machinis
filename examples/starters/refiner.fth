@@ -10,7 +10,7 @@
 
 30 constant reserve      \ fuel it keeps for itself
 4 constant fuel-price    \ what it asks a unit
-90 constant fuel-cap     \ stops brewing at this much (the kit fills most of the hold)
+90 constant fuel-cap     \ stops brewing at this much (the kit fills the hold)
 240 constant rest        \ game minutes to wait when every site is mined out
 
 \ The site it works: 0 the Moon, 1 Phobos, 2 Deimos
@@ -48,5 +48,6 @@ variable site#   variable misses
 
 : launched ( -- )
   unpack drop me 3 mod site# ! site go drop
-  fuel-price reserve fuel sell-order drop   \ buyers pull what's above the reserve
+  \ Buyers pull what's above the reserve
+  fuel-price reserve fuel sell-order drop
   begin work again ;
