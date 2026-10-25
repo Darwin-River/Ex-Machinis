@@ -623,6 +623,17 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
 
       if(result == ENGINE_OK) {
         newEvent.new_quantity *= abundancies.multiplier;
+
+        // Mining takes from the place's deposit (#324 step 11): at most
+        // what is left, so a mined-out deposit yields nothing until it refills
+        if(effect->abundancies && newEvent.event_type == 1 && newEvent.new_quantity > 0) {
+          int objectId = 0;
+          long long taken = newEvent.new_quantity;
+          if(db_get_event_object_id(&newEvent, &objectId) == ENGINE_OK &&
+             db_take_deposit(objectId, newEvent.resource_id, newEvent.new_quantity, &taken) == ENGINE_OK)
+            newEvent.new_quantity = (int)taken;
+        }
+
         newEvent.new_cargo = (newEvent.new_quantity * resource.resource_mass); // here we reflect the change in mass units
         // A launch carries drone D's ID in new_quantity, not an amount
         if(newEvent.event_type == LAUNCH_EVENT_TYPE)

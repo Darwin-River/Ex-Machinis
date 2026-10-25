@@ -457,6 +457,10 @@ ErrorCode_t db_insert_action(Action_t* action);
 *******************************************************************************/
 ErrorCode_t db_abort_action(int action_id);
 
+/** Gives back to their deposits what a failed mining action took (#324
+    step 11; events engine) */
+ErrorCode_t db_refund_deposits(int action_id);
+
 /** ****************************************************************************
 
     @brief      Gets all the resource effects configured for a given protocol ID
@@ -898,6 +902,12 @@ ErrorCode_t db_set_action_outcome(int action_id, int outcome);
 
 /** The latest game time of these drones' events, done or to come (0: none) */
 ErrorCode_t db_get_latest_processed_game_t(const int* drones, int count, long long* game_t);
+
+/** Takes up to `wanted` units from the mining deposit of a resource at a
+    place (#324 step 11), refilled first for the game time since it was last
+    worked out; sets *taken to what it gives (all of it when the place has
+    no deposit of it) */
+ErrorCode_t db_take_deposit(int object_id, int resource, long long wanted, long long* taken);
 
 /** Makes a drone a wreck (e.g. it ran out of fuel) */
 ErrorCode_t db_wreck_drone(int drone_id, const char* cause);

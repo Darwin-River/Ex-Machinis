@@ -408,6 +408,24 @@ To mine a particular mineral, send your drone to a location that contains the mi
 
 Mining takes 1 hour of game time (1 minute with the default clock). The mining module is locked while it works, and the mineral arrives at the end. How much you get depends on how plentiful the mineral is at the location.
 
+#### Deposits run out
+
+Minerals don't last forever. Each mineral at each place is a deposit that holds 40 mining runs' worth of units, and it refills by 8 runs' worth every game day. On the Moon, for example, a kunspar deposit holds 200 units and regains 40 a day. Every drone mining there, yours or anyone else's, takes from the same deposit.
+
+When a deposit runs low, mining gets only what is left. When it is empty, mining still succeeds but brings in nothing (`perform` leaves 0, the same as a full run, so check your hold). Move on to another place, or come back later.
+
+To see how much is left before you mine, use query 640. It lists the deposits where the drone is: for each one, the resource ID (1 cell), the units left now (2 cells), the capacity (2 cells) and the units it regains per game day (1 cell). That's 12 bytes a row, and a place has up to 4 rows:
+
+```
+<run>
+  create deposits 48 allot
+  deposits 48 640 query .            \ how many deposits are here
+  deposits @ . deposits 2 + 2@ d.    \ the first one's resource and units left
+</run>
+```
+
+If a mining action fails, for example because your hold is full, what it would have mined goes back to the deposit.
+
 ### Reprocessing minerals
 
 Minerals can be reprocessed to extract the purified metallic, organic, and inorganic components that are required for the manufacturing process. Since reprocessing essentially breaks down the minerals into their constituent parts, the IDs for protocols associated with reprocessing minerals are derived by adding 20000 to the mineral's resource ID. For example, protocol 21000 produces 1 unit of Metals (A1), 2 units of Inorganics (A1) and 1 unit of Organics (A1) from 20 units of magmite. It needs the Smelter (A1) from your starter kit and takes 2 hours of game time.

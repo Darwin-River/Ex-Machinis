@@ -3824,3 +3824,68 @@ ErrorCode_t db_get_latest_processed_game_t(const int* drones, int count, long lo
         mysql_free_result(db_result);
     return ENGINE_OK;
 }
+
+/** ****************************************************************************
+
+    @brief          Takes units from a mining deposit (#324 step 11)
+
+    A deposit with no state yet is full. The amount is refilled lazily, by
+    refill_per_day for the game time since it was last worked out (a
+    fraction of a unit carries over), up to its capacity.
+
+*******************************************************************************/
+ErrorCode_t db_take_deposit(int object_id, int resource, long long wanted, long long* taken)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+    ErrorCode_t result = db_reconnect(connection);
+    long long now = game_time_now_seconds();
+
+    *taken = wanted;
+    if(result != ENGINE_OK)
+        return result;
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT d.capacity, d.refill_per_day, s.amount, s.refilled_t FROM deposits d "
+        "LEFT JOIN deposit_state s ON s.object_id = d.object_id AND s.resource = d.resource "
+        "WHERE d.object_id = %d AND d.resource = %d", object_id, resource);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+    if(!row) {
+        if(res) mysql_free_result(res);
+        return ENGINE_OK;   // no deposit here: as much as the abundance gives
+    }
+    double capacity = row[0] ? atof(row[0]) : 0;
+    double refill = row[1] ? atof(row[1]) : 0;
+    double amount = row[2] ? atof(row[2]) : capacity;
+    long long since = row[3] ? now - atoll(row[3]) : 0;
+    mysql_free_result(res);
+
+    if(since > 0)
+        amount += refill * (double)since / 86400.0;
+    if(amount > capacity)
+        amount = capacity;
+    if(amount < 0)
+        amount = 0;
+
+    long long available = (long long)amount;   // whole units
+    *taken = wanted < available ? wanted : available;
+    amount -= (double)*taken;
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "INSERT INTO deposit_state (object_id, resource, amount, refilled_t) VALUES (%d, %d, %.6f, %lld) "
+        "ON DUPLICATE KEY UPDATE amount = VALUES(amount), refilled_t = VALUES(refilled_t)",
+        object_id, resource, amount, now);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Deposit of resource [%d] at [%d]: [%lld] of [%lld] wanted taken, [%.1f] left",
+        resource, object_id, *taken, wanted, amount);
+    return ENGINE_OK;
+}

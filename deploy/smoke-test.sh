@@ -12,6 +12,7 @@
 #   - actions and computing burn fuel; a drone that runs dry becomes a wreck,
 #   - money past 32,767 comes back as a double, and the double words work,
 #   - House drop stations buy goods and sell fuel when their batches clear,
+#   - a mined-out deposit yields nothing until it refills over game time,
 #   - the Test button runs a script in the test world, not the live one,
 #   - it launches a new drone from a ship kit with a copy of its program.
 # Needs ports 80, 443 and 25 free. Leaves the stack running; remove it with
@@ -213,6 +214,25 @@ wait_for 180 "the Moon Depot bought the drone's metal when its batch cleared" so
 [ "$(sql "select count(*) from station_batches where side=1")" -ge 1 ] || fail "no cleared batch recorded"
 echo "ok: the batch was recorded once"
 wait_for 60 "drone finished the station script" idle
+
+# Mining deposits (#324 step 11): mining takes from the place's deposit. Empty
+# the Moon's kunspar deposit and stop it refilling: mining there yields
+# nothing. Let it refill again, and a few game hours later mining yields again.
+kunspar() { sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRONE_ID and resource=1100"; }
+sql "update deposits set refill_per_day = 0 where object_id = 10 and resource = 1100"
+sql "insert into deposit_state (object_id, resource, amount, refilled_t) values (10, 1100, 0, 0) on duplicate key update amount = 0"
+KUNSPAR=$(kunspar)
+send_mail "$DRONE@$DOMAIN" "mine dry" "<run>11100 perform . cr</run>"
+wait_for 90 "drone mined the empty deposit" sh -c "docker compose logs game-engine | grep -q 'Deposit of resource \[1100\] at \[10\]: \[0\] of'"
+wait_for 60 "drone finished mining the empty deposit" idle
+[ "$(kunspar)" = "$KUNSPAR" ] || fail "a mined-out deposit still yielded kunspar"
+echo "ok: a mined-out deposit yields nothing"
+sql "update deposits set refill_per_day = 40 where object_id = 10 and resource = 1100"
+sleep 5
+send_mail "$DRONE@$DOMAIN" "mine again" "<run>11100 perform . cr</run>"
+more_kunspar() { [ "$(kunspar)" -gt "$KUNSPAR" ]; }
+wait_for 90 "the deposit refilled over game time and yields again" more_kunspar
+wait_for 60 "drone finished mining again" idle
 
 [ -z "$(sql "select id from actions where drone=$DRONE_ID and aborted=1 and id <> $REFUSED_ACTION")" ] || fail "an action was aborted"
 echo "ok: no action aborted"
