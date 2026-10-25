@@ -229,6 +229,11 @@ Bool_t event_no_cargo_condition(Event_t *event)
     if(event->new_cargo == NULL_VALUE)
       return ENGINE_FALSE;
 
+    // Taking something out of the hold can't overfill it (#324 step 8: a
+    // drone already over capacity must still be able to burn fuel)
+    if(event->event_type == DECREMENT_INVENTORY_EVENT_TYPE)
+      return ENGINE_FALSE;
+
     if(db_get_max_drone_cargo(event->drone_id, &capacity) == ENGINE_OK) {
         // Compare current cargo vs. max capacity
         engine_trace(TRACE_LEVEL_ALWAYS,
@@ -1175,11 +1180,13 @@ static void event_record_failure(Event_t *event, int outcome)
         db_set_action_outcome(event->action_id, outcome);
 
     // A drone that can't pay for its power has run dry: it becomes a wreck
-    // (#324 step 8)
+    // (#324 step 8). Only a lack of fuel does that: a power burn that fails
+    // for another reason just leaves the bill unpaid this time.
     Action_t action;
     memset(&action, 0, sizeof(action));
     action.action_id = event->action_id;
-    if(db_get_action(&action) == ENGINE_OK && action.protocol_id == POWER_PROTOCOL_ID)
+    if(outcome == OUTCOME_NO_RESOURCES &&
+       db_get_action(&action) == ENGINE_OK && action.protocol_id == POWER_PROTOCOL_ID)
         db_wreck_drone(event->drone_id, "fuel");
 }
 
