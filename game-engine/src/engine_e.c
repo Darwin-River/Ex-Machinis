@@ -292,6 +292,7 @@ ErrorCode_t engine_run()
     {
         // reset VM
         engine.last_agent.vm = NULL;
+        int found = 0;
 
         // Read the game clock (the game engine may have changed its scale)
         game_time_load();
@@ -302,7 +303,7 @@ ErrorCode_t engine_run()
         // process outcome events passing callback
         if(result == ENGINE_OK)
         {
-            result = db_get_outcome_events(engine_process_outcome);
+            result = db_get_outcome_events(engine_process_outcome, &found);
         }
 
         // commit or rollback current transaction
@@ -336,8 +337,11 @@ ErrorCode_t engine_run()
                 db_rollback_transaction(&engine.db_connection);
         }
 
-        // Wait till next engine execution
-        sleep(atoi(engine.config.params[ENGINE_CHECK_TIME]));
+        // Wait till next engine execution, unless that batch was full: then
+        // more events are due, so go on at once (#324 step 20; one batch per
+        // ENGINE_CHECK_TIME held the engine to a couple of events a second)
+        if(found < engine_get_outcome_events_batch_size())
+            sleep(atoi(engine.config.params[ENGINE_CHECK_TIME]));
     }
 
     // deallocate resources/Stop modules

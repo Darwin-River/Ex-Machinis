@@ -358,16 +358,11 @@ VirtualMachine_t* vm_from_bytes(int agent_id, char* vm_bytes, size_t size)
             vm_engine_options.param = vm_ext;
             embed_opt_set(vm, &vm_engine_options);
 
-            // The callback setup below runs FORTH too: the engine's own code, unmetered
-            vm_meter_start(0);
-
-            // Add all callbacks
-            if(vm_add_callbacks(vm, true, vm_ext->callbacks, vm_ext->callbacks_length) < 0) 
-            {
-              engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: unable to add VM callbacks"); 
-              vm_free(vm);
-              vm = NULL;
-            }
+            // No FORTH setup here (#324 step 20): the saved core loaded
+            // below already holds the callback words, the word library and
+            // the game words, and replaces the whole of this VM's memory.
+            // Running the setup first cost millions of instructions a slice
+            // for nothing.
           }
         }
 

@@ -355,7 +355,7 @@ static void db_row_to_event(MYSQL_ROW row, Event_t* event)
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
+ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -440,6 +440,9 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
 
     if(db_result)
         mysql_free_result(db_result);
+
+    if(found)
+        *found = (result == ENGINE_OK) ? rowsNum : 0;
 
     return result;
 }
@@ -1419,95 +1422,44 @@ ErrorCode_t db_delete_event_observations(int event_id)
 ErrorCode_t db_insert_local_observations(Event_t *event)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char timestamp_buffer[80];
+    time_t now = time(NULL);   // they are at the same object: no light delay
 
     DbConnection_t* connection =  engine_get_db_connection();
+
+    // Sanity check
+    if(!event)
+        return ENGINE_INTERNAL_ERROR;
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
 
     if(result == ENGINE_OK)
     {
-        // Sanity check
-        if(!event)
-            return ENGINE_INTERNAL_ERROR;
-    }
-
-
-    if(result == ENGINE_OK)
-    {
+        // Every other working drone where the event's drone is sees it, in
+        // one statement (#324 step 20): one insert per drone took most of
+        // the events engine's time with a thousand drones in one place.
+        // The event's own drone has its observation already; wrecks see
+        // nothing.
+        strftime(timestamp_buffer, sizeof(timestamp_buffer), "%F %T", localtime(&now));
         snprintf(query_text,
                 DB_MAX_SQL_QUERY_LEN,
-                "SELECT agent_id FROM agents WHERE object_id = (SELECT object_id FROM agents where agent_id = %d);",
+                "INSERT INTO observations (drone, event, time, game_t) "
+                "SELECT a.agent_id, %d, '%s', %lld FROM agents a "
+                "WHERE a.object_id = (SELECT object_id FROM agents WHERE agent_id = %d) "
+                "AND a.agent_id <> %d AND a.wrecked_at IS NULL",
+                event->event_id,
+                timestamp_buffer,
+                game_time_now_seconds(),
+                event->drone_id,
                 event->drone_id);
 
-        // run it
         if (mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
             result = ENGINE_DB_QUERY_ERROR;
         }
     }
-
-    MYSQL_RES* db_result = NULL;
-    int rowsNum = 0;
-
-    if(result == ENGINE_OK)
-    {
-        // retrieve the results and delete one by one
-        db_result = mysql_store_result(connection->hndl);
-
-        if(db_result == NULL)
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS,
-                "ERROR: Unable to get local drones for drone_id [%d] (invalid result for query [%s])",
-                event->drone_id,
-                query_text);
-
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-        else if((rowsNum=mysql_num_rows(db_result)) <= 0)
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "None local drone found for drone_id [%d]", event->drone_id);
-        }
-    }
-
-    if((result == ENGINE_OK) && rowsNum)
-    {
-        // iterate results and insert observations entry for each one
-        for(int droneId=0; droneId < rowsNum; droneId++)
-        {
-            MYSQL_ROW row = mysql_fetch_row(db_result);
-            if(row)
-            {
-                Observation_t observation;
-                memset(&observation, 0, sizeof(observation));
-
-                // Fill observation fields
-                observation.event_id = event->event_id;
-                observation.drone_id = row[0]?atoi(row[0]):0;
-                observation.timestamp = time(NULL); // They are at the same object
-                observation.game_t = game_time_now_seconds();
-                if(observation.drone_id != event->drone_id) {
-                    db_insert_observation(&observation);
-                }
-            }
-            else
-            {
-                // unexpected error - abort
-                engine_trace(TRACE_LEVEL_ALWAYS,
-                    "ERROR: Unable to get row for query [%s] with [%d] rows",
-                    query_text,
-                    rowsNum);
-
-                result = ENGINE_DB_QUERY_ERROR;
-
-                break; // stop for
-            }
-        }
-    }
-
-    if(db_result)
-        mysql_free_result(db_result);
 
     return result;
 }

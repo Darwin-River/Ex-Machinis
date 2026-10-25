@@ -47,7 +47,9 @@ class HomeController extends Controller
     {
         // What's happening in the world (#324 step 17)
         $feed = \App\Services\World::feed();
-        return view('home', compact('feed'));
+        // The game clock, live (#324 step 20)
+        $clock = \App\Services\LaunchQueue::clock();
+        return view('home', compact('feed', 'clock'));
     }
 
     /**
@@ -66,6 +68,10 @@ class HomeController extends Controller
         // The scheduler calls this every few seconds: the leaderboard's
         // hourly wealth snapshot rides along (#324 step 18)
         \App\Services\Leaderboard::snapshotIfDue();
+
+        // ...and the launch queue (#324 step 20): releases that waited for
+        // room launch once the world isn't full
+        \App\Services\LaunchQueue::drain();
 
         // Email switched off (#324 step 6): no mail is read
         if (!config('forge.email')) {

@@ -14,6 +14,14 @@
                 restarts it from the copy you released, waiting longer after each crash; five crashes in a row make
                 it a wreck. A drone can't be changed once released: test your words first.</p>
 
+            @if($clock && $clock['full'])
+                <div class="alert alert-warning mt-3" style="white-space: normal">
+                    The world is full right now: the engines are behind even with the game clock at its slowest. A
+                    script you release now waits in the launch queue ({{ $clock['waiting'] }} waiting) and launches as
+                    soon as there is room.
+                </div>
+            @endif
+
             @if(count($errors))
                 <div class="alert alert-danger mt-3">
                     <ul class="mb-0">
@@ -109,6 +117,18 @@
                         @endif
                     </div>
                 @endforeach
+            @endif
+
+            @if($queued->isNotEmpty())
+                {{-- The launch queue (#324 step 20) --}}
+                <h3 class="mt-5" id="launch-queue">Waiting to launch</h3>
+                <div style="white-space: normal">The world was full when you released these: they launch in order as
+                    soon as there is room.</div>
+                <ul>
+                    @foreach($queued as $wait)
+                        <li>{{ $wait->company_name }}: number {{ $wait->place }} in line, waiting since {{ $wait->queued_at }}</li>
+                    @endforeach
+                </ul>
             @endif
 
             <h3 class="mt-5">Your drones</h3>

@@ -1,0 +1,123 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Agent;
+use App\Company;
+use App\Services\LaunchQueue;
+use App\User;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Tests\TestCase;
+
+/**
+ * The clock floor and the launch queue (#324 step 20): when the game engine
+ * marks the world full, releases wait in line and launch in order once
+ * there is room; the Home page shows the clock.
+ */
+class LaunchQueueTest extends TestCase
+{
+    use DatabaseTransactions;
+
+    private const SCRIPT = ": launched 1 2 + drop ;";
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Mail::fake();
+        config(['forge.email' => false, 'forge.invite_only' => true]);
+    }
+
+    private function player(string $email = 'queue@example.com'): User
+    {
+        return User::create(['name' => 'Queue Player', 'email' => $email, 'password' => bcrypt('secret-password')]);
+    }
+
+    /** The game clock as the game engine leaves it after a load check */
+    private function clock(bool $full, int $checkedAgo = 10, float $scale = 8): void
+    {
+        $now = time();
+        DB::table('game_clock')->updateOrInsert(['id' => 1], [
+            'real_anchor' => $now, 'game_anchor' => $now, 'scale' => $scale, 'epoch' => $now - 86400,
+            'target_scale' => 24, 'floor_scale' => 8, 'lag_seconds' => $full ? 120 : 3,
+            'slices_per_minute' => 900, 'is_full' => $full ? 1 : 0, 'load_checked_at' => $now - $checkedAgo,
+        ]);
+    }
+
+    public function testReleaseLaunchesAtOnceWhenTheWorldIsNotFull()
+    {
+        $this->clock(false);
+        $user = $this->player();
+        $this->actingAs($user)->post('/release', ['company_name' => 'Room Enough', 'script' => self::SCRIPT])
+            ->assertRedirect('/release')->assertSessionHas('success');
+        $this->assertTrue(Company::where('name', 'Room Enough')->exists());
+        $this->assertSame(0, LaunchQueue::waiting());
+    }
+
+    public function testReleaseWaitsInLineWhenTheWorldIsFull()
+    {
+        $this->clock(true);
+        $first = $this->player();
+        $second = $this->player('second@example.com');
+
+        $this->actingAs($first)->post('/release', ['company_name' => 'First Waiting', 'script' => self::SCRIPT])
+            ->assertRedirect('/release');
+        $this->assertStringContainsString('number 1 in line', session('success'));
+        $this->actingAs($second)->post('/release', ['company_name' => 'Second Waiting', 'script' => self::SCRIPT]);
+        $this->assertStringContainsString('number 2 in line', session('success'));
+
+        $this->assertFalse(Company::where('name', 'First Waiting')->exists(), 'nothing launches while full');
+        $this->assertSame(2, LaunchQueue::waiting());
+        $this->actingAs($second)->get('/release')->assertOk()
+            ->assertSee('The world is full right now')
+            ->assertSee('Second Waiting: number 2 in line');
+
+        // A waiting release keeps its company name
+        $this->actingAs($second)->from('/release')
+            ->post('/release', ['company_name' => 'First Waiting', 'script' => self::SCRIPT])
+            ->assertSessionHasErrors('company_name');
+
+        // Still full: nothing launches
+        $this->assertSame(0, LaunchQueue::drain());
+
+        // Room again: they launch in order, a few at a time
+        $this->clock(false);
+        $this->assertSame(2, LaunchQueue::drain());
+        $this->assertSame(0, LaunchQueue::waiting());
+        $company = Company::where('name', 'First Waiting')->first();
+        $this->assertNotNull($company);
+        $this->assertSame($first->user_id, (int) $company->user_id);
+        $agent = Agent::where('company_id', $company->company_id)->first();
+        $this->assertSame($agent->agent_id, (int) DB::table('launch_queue')->where('company_name', 'First Waiting')->value('agent_id'));
+        $this->assertTrue(Company::where('name', 'Second Waiting')->exists());
+    }
+
+    public function testAStaleCheckIsNotFull()
+    {
+        // The engine stopped checking: don't hold releases back on old news
+        $this->clock(true, LaunchQueue::STALE_SECONDS + 60);
+        $this->assertFalse(LaunchQueue::full());
+        $this->actingAs($this->player())->post('/release', ['company_name' => 'Stale Check', 'script' => self::SCRIPT]);
+        $this->assertTrue(Company::where('name', 'Stale Check')->exists());
+    }
+
+    public function testTheSchedulerDrainsTheQueue()
+    {
+        $this->clock(true);
+        $this->actingAs($this->player())->post('/release', ['company_name' => 'Drained Later', 'script' => self::SCRIPT]);
+        $this->clock(false);
+        config(['app.cron_key' => 'test-cron-key']);
+        $this->get('/get-mails/test-cron-key')->assertOk();
+        $this->assertTrue(Company::where('name', 'Drained Later')->exists());
+    }
+
+    public function testHomeShowsTheGameClock()
+    {
+        $this->clock(true, 10, 8);
+        $this->get('/')->assertOk()
+            ->assertSee('one real hour is 8 game hours')
+            ->assertSee('never below')
+            ->assertSee('The world is full');
+    }
+}

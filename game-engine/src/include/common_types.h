@@ -11,6 +11,7 @@
 
 /******************************* INCLUDES ************************************/
 
+#include <time.h>
 #include <mysql.h>
 #include <linux/limits.h>
 
@@ -189,6 +190,7 @@ typedef struct
 	char* user;
 	char* password;
 	char* db_name;
+	time_t checked_at;   // when the connection was last found alive (db_reconnect)
 
 } DbConnection_t;
 

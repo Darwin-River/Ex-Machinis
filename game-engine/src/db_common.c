@@ -39,13 +39,27 @@
   @return         void
 
 *******************************************************************************/
+/* How often db_reconnect checks the connection is alive */
+#define DB_CHECK_SECONDS 5
+
 ErrorCode_t db_reconnect(DbConnection_t* connection)
 {
 	ErrorCode_t result = ENGINE_OK;
 
 	if(connection && connection->hndl) {
-		// Check connection status & reconnect if required
-		if(mysql_stat(connection->hndl) == NULL) 
+		// Check connection status & reconnect if required. Not before every
+		// query (#324 step 20): the check is a round trip to the server, and
+		// a busy engine makes dozens of queries a slice. Once every
+		// DB_CHECK_SECONDS is enough to find a lost connection.
+		time_t now = time(NULL);
+		if(connection->checked_at && now - connection->checked_at < DB_CHECK_SECONDS)
+			return ENGINE_OK;
+
+		if(mysql_stat(connection->hndl) != NULL)
+		{
+			connection->checked_at = now;
+		}
+		else
 		{
 			engine_trace(TRACE_LEVEL_ALWAYS,
         		"WARNING: Connection lost with [%s] database, reconnecting...",

@@ -175,6 +175,16 @@ The clock is kept in the `game_clock` table so both engines share it: *game time
 
 Everything the engines schedule or compare is stored in game time (game seconds, counted like unix seconds) and compared with the game clock, never with the computer's clock, so it stays right if the scale changes while it waits. Both engines reload the clock every cycle.
 
+<a name="The-Clock-Floor"></a>**The clock floor (#324 step 20).** The clock aims for `GAME_TIME_SCALE` but slows when the engines can't keep up, never below `GAME_TIME_FLOOR` (Public Forge: 24 and 8; `0`, the default, means it never floats). A slower clock makes every action take longer in real time, so drones ask for fewer slices and events a real second; computing doesn't slow, but it costs fuel. Once every real minute (`CLOCK_CHECK_SECONDS`) the Game Engine measures how far behind the engines run, in real seconds: the commands that may run now, at the rate it ran them over the minute, or the oldest due event the Event Engine hasn't done, whichever is later (`clock_floor_lag`). Then (`clock_floor_next`, in `clock_floor.c`):
+
+* more than `CLOCK_LAG_HIGH` behind (60 s): the scale drops by a quarter, to no less than the floor;
+* less than `CLOCK_LAG_LOW` behind (15 s): it rises by a quarter, to no more than the target;
+* in between: it holds.
+
+Each change re-anchors the clock as above (and is written to `game_clock_history`). Behind by more than `CLOCK_LAG_HIGH` already at the floor, the world is **full** (`game_clock.is_full`), until it is less than `CLOCK_LAG_LOW` behind. The check is recorded in `game_clock` (`target_scale`, `floor_scale`, `lag_seconds`, `slices_per_minute`, `is_full`, `load_checked_at`; migration 0015), and the Home page shows the clock live.
+
+While the world is full, the Release page puts new releases in `launch_queue` instead of launching them, and tells the player their place in line; a waiting release keeps its company name. The scheduler's mail check (every few seconds) launches waiting releases in order, at most 5 a time (`LaunchQueue::drain`), while the world isn't full. A load check more than 5 real minutes old (the Game Engine stopped) doesn't count, so releases aren't held on old news.
+
 **Travel time.** Drones travel with constant acceleration, speeding up to the midpoint and slowing down after, so a trip of distance *d* takes *t = 2·√(d ÷ a)* game seconds. *d* is the distance between the two bodies when the drone leaves (at game time), and *a* is `TRAVEL_ACCELERATION` (m/s², default 1). Every effect of the travel protocol at or after its move (the location effect) is delayed by the trip time, so the engine stays locked until arrival.
 
 Since actions are short and only one runs at a time (see [The Game Engine cycles through player-run virtual machines](#The-Game-Engine-cycles-through-player-run-virtual-machines)), events of one action that land in the same real second at a high scale are still processed in game-time order: the Game Engine inserts an action's events sorted by game time (depletions first at equal times), and the Event Engine processes an action's same-second events in that order.
@@ -272,6 +282,15 @@ A drone is always in one of these states:
 * **Waiting:** the script called `perform` and the action it started has not finished. The script stays paused, with `agents.waiting_action` set to the action's ID, until every event of that action has been processed by the Event Engine (or the action is aborted). Only then is the drone's resume taken from the queue: `perform` leaves its result on the stack (see [Returned Value](#Returned-Value)) and the script carries on. The GE doesn't load a waiting drone's VM to check on it; the queue simply skips its resume until the action is done.
 
 So a drone performs one in-game action at a time, and its script always knows how the last one went before deciding what to do next. While a drone is running or waiting, a new script emailed to it is refused with "Another command is running, retry later"; `<abort>` still works (see [Meta Commands](#Meta-Commands)).
+
+<a name="Engine-Throughput"></a>**Throughput (#324 step 20).** The load generator (`php artisan forge:load-test N --database=...`, never the live database) releases N drones running the starters in turn, through the same path as the Release page, and `--report` shows how the engines keep up. It found four limits, now gone:
+
+* The Game Engine slept `DB_READ_TIME` (5 s) after every command, so it ran one slice per 5 seconds. It now sleeps only when there was nothing to run.
+* Loading a drone's saved VM first set up a fresh one (callback words, word library, game words: millions of instructions) and then overwrote all of it with the saved core. It now just loads the core.
+* The Event Engine did one batch of `OUTCOME_EVENT_BATCH_SIZE` (10) events per `ENGINE_CHECK_TIME` (5 s). It now runs the next batch at once while batches come back full.
+* Every observable event got one insert per drone where it happened, so a thousand drones in one place meant a thousand inserts an event. It is now one `INSERT ... SELECT` (the acting drone's own observation apart; wrecks see nothing).
+
+Also: `db_reconnect` checks the connection at most every 5 seconds instead of before every query; the engines' logs are quiet at `APP_TRACE_LEVEL -1` (only lines with ERROR, WARNING or NOTICE; Docker's default), since every step logged at level 0 is gigabytes a day at full load, and rotated logs are removed after 7 days; and the Docker database runs without a binary log and flushes its log once a second (`--disable-log-bin --innodb-flush-log-at-trx-commit=2`): a thousand drones saving their 64 KB VMs wrote gigabytes of binary log an hour.
 
 **Instruction metering.** A slice is measured in FORTH instructions, not seconds: the VM counts every instruction it runs, and the slice ends when the count reaches `MAX_CYCLE_INSTRUCTIONS`. Each `query` costs a flat `QUERY_INSTRUCTIONS` (1,000 by default) and each `perform` a flat `ACTION_INSTRUCTIONS` (1,000), since their real cost is database work. So the same script always runs the same instructions per slice, however fast the server is, and test runs match live ones. Each drone's running total is kept in `agents.instructions`. The engine's own set-up code (loading the callback words, checking for a word) isn't metered.
 

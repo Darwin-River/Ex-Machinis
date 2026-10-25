@@ -557,7 +557,15 @@ ErrorCode_t db_delete_event(Event_t* event);
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e));
+/* The clock floor (#324 step 20): the commands that may run now, and the
+   game time of the oldest event that is due and not done */
+ErrorCode_t db_load_backlog(DbConnection_t* connection, long* runnable, double* oldest_event_game_t, int* has_event);
+
+/* Records the last load check in game_clock, for the website */
+ErrorCode_t db_record_load(DbConnection_t* connection, double target, double floor, double lag,
+                           long slices_per_minute, int full, long long checked_at);
+
+ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found);
 
 /** ****************************************************************************
 

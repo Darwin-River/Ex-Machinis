@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Agent;
 use App\Company;
+use App\Services\LaunchQueue;
 use App\Services\Provenance;
 use App\Services\Release;
 use App\Services\TestWorld;
@@ -58,7 +59,11 @@ class ReleaseController extends Controller
             }
         }
 
-        return view('release', compact('companies', 'drones', 'messages', 'testWorld', 'testRuns', 'starters', 'starter', 'copiedFrom', 'copiedWord'));
+        $queued = LaunchQueue::of($user);
+        $clock = LaunchQueue::clock();
+
+        return view('release', compact('companies', 'drones', 'messages', 'testWorld', 'testRuns', 'starters', 'starter', 'copiedFrom', 'copiedWord',
+            'queued', 'clock'));
     }
 
     /**
@@ -92,7 +97,12 @@ class ReleaseController extends Controller
     {
         $rules = ['script' => 'required|string|max:' . config('forge.max_script_length')];
         if ($needsCompanyName) {
-            $rules['company_name'] = 'required|string|min:3|max:45|unique:companies,name';
+            $rules['company_name'] = ['required', 'string', 'min:3', 'max:45', 'unique:companies,name',
+                function ($attribute, $value, $fail) {
+                    if (LaunchQueue::nameWaiting((string) $value)) {
+                        $fail('A company of that name is waiting in the launch queue.');
+                    }
+                }];
         }
         $request->validate($rules);
 
@@ -130,6 +140,13 @@ class ReleaseController extends Controller
         }
         $copiedWord = $copiedFrom !== null && $request->filled('copied_word')
             ? mb_substr((string) $request->input('copied_word'), 0, 64) : null;
+
+        // The world is full (#324 step 20): the release waits its turn
+        if (LaunchQueue::full()) {
+            $place = LaunchQueue::enqueue(Auth::user(), $request->input('company_name'), $script, $copiedFrom, $copiedWord);
+            return redirect('/release')->withSuccess('The world is full right now, so ' . $request->input('company_name')
+                . ' waits in the launch queue: it is number ' . $place . ' in line, and launches as soon as there is room.');
+        }
 
         $agent = Release::release(Auth::user(), $request->input('company_name'), $script, null, $copiedFrom, $copiedWord);
 

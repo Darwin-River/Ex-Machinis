@@ -118,7 +118,7 @@ ErrorCode_t game_time_set_scale(double scale)
 
     if(result == ENGINE_OK)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Game time scale changed from [%f] to [%f]", g_scale, scale);
+        engine_trace(TRACE_LEVEL_ALWAYS, "NOTICE: game time scale changed from [%f] to [%f]", g_scale, scale);
         g_real_anchor = now;
         g_game_anchor = game_now;
         g_scale = scale;
