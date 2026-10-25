@@ -68,6 +68,8 @@ Route::get('/events/search', 'HomeController@InGameEventsSearch');
 
 
 //releasing a script (#324 step 6)
+Route::get('/market', 'WorldController@market');
+Route::get('/map', 'WorldController@map');
 Route::get('/release', 'ReleaseController@show');
 Route::post('/release', 'ReleaseController@store');
 Route::post('/release/test', 'ReleaseController@test');

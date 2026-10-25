@@ -39,6 +39,32 @@
                             </div>
                         @endif
 
+                        {{-- What's happening (#324 step 17) --}}
+                        <h3 class="mt-4">What's happening</h3>
+                        <div style="white-space: normal; margin-bottom: 1em">
+                            Drones run on their own: they mine, refine, trade, clone and die.
+                            See the <a href="{{ url('market') }}">Market</a> and the <a href="{{ url('map') }}">Map</a>,
+                            or <a href="{{ url('release') }}">release a script</a> of your own.
+                        </div>
+                        @if(empty($feed))
+                            <div>Nothing has happened yet.</div>
+                        @else
+                            <table class="table-ticket" id="feed">
+                                @foreach($feed as $item)
+                                    <tr>
+                                        <td style="white-space: nowrap">{{ $item['when'] }}</td>
+                                        <td style="white-space: normal">
+                                            @if($item['link'])
+                                                <a href="{{ url($item['link']) }}">{{ $item['text'] }}</a>
+                                            @else
+                                                {{ $item['text'] }}
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </table>
+                        @endif
+
 
                     </div>
                 </div>

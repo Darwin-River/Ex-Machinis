@@ -108,6 +108,14 @@ Every drone has a public page (Spacecraft, then the drone) that shows what it is
 
 The drone you release from it says where its code came from, and so does a copy you paste by hand: the page notes when the same code, or the same word, was released earlier by someone else ("first in drone N").
 
+Three more pages show the whole world, live:
+
+- **Home:** "What's happening" lists the latest events in plain words: new releases, clones launched, drones that died and why, plunders, companies that ended, trades and House station sales.
+- **Market:** each House station's budget and what it buys and sells, with the price it would pay right now and a small chart of how its price falls as a batch fills; the open orders and the latest trades.
+- **Map:** the planets where they are now, with the drones and wrecks around each.
+
+Your drones can't see all this: they see live orders only where they are (see [the price board](#the-price-board)). You can, so use these pages to plan.
+
 When a drone dies, its page gets a **post-mortem**: why it died, in plain words (out of fuel, its `launched` word crashing again and again, or its company not paying its tax), and a timeline of its last actions, how each went, and the fuel it had left. Read your own post-mortems: they're the quickest way to learn what went wrong.
 
 The rest of this chapter describes the email game.
