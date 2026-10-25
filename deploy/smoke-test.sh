@@ -3,13 +3,13 @@
 # End-to-end check of the Docker deployment (used by CI). Starts the stack
 # for the fake domain example.test over plain HTTP, then checks that:
 #   - the website answers, and Getting Started shows the players' manual,
-#   - the scheduler's mail checks succeed,
-#   - emailing registrar@ with subject "register" registers a player,
-#   - a drone runs an emailed FORTH command and the engine emails the reply,
+#   - the scheduler's ticks succeed, and there are no accounts or email,
+#   - a script released on the website runs, and so do commands queued for
+#     its drone; their replies are kept for the website (#367 step 5),
 #   - it unpacks its starter kit, flies to the Moon, mines and refines kunspar,
 #   - companies of one player may trade with each other,
-#   - with email off, a script released on the website runs (no email), the
-#     Release page offers starter scripts, and drones know the game words,
+#   - a released script in several pieces runs, the Release page offers
+#     starter scripts, and drones know the game words,
 #   - actions and computing burn fuel; a drone that runs dry becomes a wreck,
 #   - money past 32,767 comes back as a double, and the double words work,
 #   - House drop stations buy goods and sell fuel when their batches clear,
@@ -23,13 +23,12 @@
 #   - the Test button runs a script in the test world, not the live one,
 #   - it launches a new drone (a clone) from a ship kit with a copy of its
 #     program, some of its fuel and a record of its parent,
-# Needs ports 80, 443 and 25 free. Leaves the stack running; remove it with
-#   docker compose down -v && rm -rf .env mail/config
+# Needs ports 80 and 443 free. Leaves the stack running; remove it with
+#   docker compose down -v && rm -rf .env
 set -euo pipefail
 cd "$(dirname "$0")"
 
 DOMAIN=example.test
-PLAYER=player@outside.test
 
 [ -f .env ] && { echo "deploy/.env already exists; run this on a clean checkout." >&2; exit 1; }
 # A fast game clock (1 real second = 1 game hour) so the trip to the Moon
@@ -55,17 +54,21 @@ wait_for() {
 sql() {
     docker compose exec -T db sh -c 'mysql -N -uexmachinis -p"$MYSQL_PASSWORD" exmachinis 2>/dev/null' <<<"$1"
 }
-send_mail() { # to subject body
-    python3 - "$PLAYER" "$@" <<'PY'
-import smtplib, sys
-from email.message import EmailMessage
-m = EmailMessage()
-m['From'], m['To'], m['Subject'] = sys.argv[1], sys.argv[2], sys.argv[3]
-m.set_content(sys.argv[4])
-with smtplib.SMTP('127.0.0.1', 25, timeout=30) as s:
-    s.send_message(m)
-PY
+# run <drone id> <subject> <FORTH code>: queue a command for a drone, as the
+# website and the engine do (there is no email, #367 step 5)
+run() {
+    local code=${3//\'/\'\'}
+    sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('$code', $1, NOW(), NOW(), '$2', '')"
 }
+JAR=$(mktemp)
+token() { curl -fsS -c "$JAR" -b "$JAR" "http://localhost$1" | grep -o 'name="_token" value="[^"]*"' | head -1 | sed -e 's/.*value="//' -e 's/"$//'; }
+# release <company name> <script>: release a script on the website, with no
+# account (#367 step 4: there are none)
+release() {
+    curl -fsS -c "$JAR" -b "$JAR" -o /dev/null -X POST http://localhost/release --data-urlencode "_token=$(token /release)" \
+        --data-urlencode "company_name=$1" --data-urlencode "script=$2"
+}
+company_drone() { sql "select a.agent_id from agents a join companies c on c.company_id = a.company_id where c.name='$1'"; }
 
 wait_for 120 "website answers" curl -fsS -o /dev/null http://localhost/
 # No taxes until the taxes step (#324 step 12): a game day lasts 24 seconds
@@ -74,38 +77,42 @@ no_tax() { sql "update house_rules set tax_flat = 0, tax_permille = 0"; }
 no_tax
 # The image must carry the players' manual (Getting Started renders it)
 wait_for 60 "Getting Started shows the players' manual" sh -c "curl -fsS http://localhost/getting-started | grep -q 'chapter-4-issuing-commands'"
-wait_for 120 "mail check succeeds" sh -c "docker compose logs app | grep -q 'GET /get-mails/[^ ]* HTTP/1.1\" 200'"
-wait_for 60 "mail server accepts connections" python3 -c "import smtplib; smtplib.SMTP('127.0.0.1', 25, timeout=5).quit()"
+wait_for 120 "the scheduler's tick succeeds" sh -c "docker compose logs app | grep -q 'GET /tick/[^ ]* HTTP/1.1\" 200'"
+wait_for 60 "the Release page answers" sh -c "curl -fsS http://localhost/release | grep -q 'no account needed'"
+for page in register login get-mails/x web-register; do
+    [ "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost/$page")" = 404 ] || fail "/$page still answers"
+done
+[ -z "$(docker compose ps -a -q mail 2>/dev/null)" ] || fail "there is still a mail server"
+echo "ok: no accounts, no sign-up page, no email"
 
-send_mail "registrar@$DOMAIN" register "sign me up"
-registered() { [ -n "$(sql "select user_id from users where email='$PLAYER'")" ]; }
-wait_for 60 "player registered by email" registered
-
-DRONE=$(sql "select a.name from agents a join users u on u.user_id = a.user_id where u.email='$PLAYER' order by a.agent_id limit 1")
-[ -n "$DRONE" ] || fail "no drone created for the player"
-send_mail "$DRONE@$DOMAIN" "smoke test" "<run>2 3 + . cr</run>"
+# The first drone: released on the website with an empty launched word,
+# then driven by commands queued for it
+release "Smoke Miner" ": launched ;"
+DRONE_ID=$(company_drone "Smoke Miner")
+[ -n "$DRONE_ID" ] || fail "release did not create a company and drone"
+DRONE=$(sql "select name from agents where agent_id=$DRONE_ID")
+# perform holds a script until its whole action is done; until then the
+# drone refuses new scripts, so wait for it to be idle before sending one
+idle() { [ "$(sql "select count(*) from commands where agent_id=$DRONE_ID") $(sql "select IFNULL(waiting_action, 0) from agents where agent_id=$DRONE_ID")" = "0 0" ]; }
+wait_for 90 "drone $DRONE loaded its released script" idle
+run $DRONE_ID "smoke test" "2 3 + . cr"
 wait_for 90 "drone $DRONE ran the command" sh -c "docker compose logs game-engine | grep -q 'Command succesfully evaluated'"
-wait_for 30 "engine emailed the reply" sh -c "docker compose logs mail | grep -q 'from=<$DRONE@$DOMAIN>'"
+replied() { [ -n "$(sql "select id from drone_messages where agent_id=$DRONE_ID and subject='smoke test' and body like '%5%'")" ]; }
+wait_for 30 "the reply is kept for the website" replied
 
 # The starting sequence from the game data: unpack the starter kit, fly to
 # the Moon (10), mine kunspar (1100) with the kit's mining module, and check a
 # multi-line program at the same time.
-DRONE_ID=$(sql "select agent_id from agents where name='$DRONE'")
 has() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRONE_ID and resource=$1")" -ge "${2:-1}" ]; }
 wait_for 30 "drone got the starter kit" has 5901
-# perform holds a script until its whole action is done; until then the
-# drone refuses new scripts, so wait for it to be idle before sending one
-idle() { [ "$(sql "select count(*) from commands where agent_id=$DRONE_ID") $(sql "select IFNULL(waiting_action, 0) from agents where agent_id=$DRONE_ID")" = "0 0" ]; }
-send_mail "$DRONE@$DOMAIN" "unpack" "<run>25901 perform . cr</run>"
+run $DRONE_ID "unpack" "25901 perform . cr"
 wait_for 90 "starter kit unpacked (engine in cargo)" has 5001
 wait_for 60 "drone finished the unpack script" idle
 
-send_mail "$DRONE@$DOMAIN" "to the moon" "<run>
-  : sq dup * ;
+run $DRONE_ID "to the moon" "  : sq dup * ;
   7 sq . cr
   10 5001 perform . cr
-  6 sq . cr
-</run>"
+  6 sq . cr"
 wait_for 90 "drone ran a multi-line program" sh -c "docker compose logs game-engine | grep -q 'result \[ 49'"
 at_moon() { [ "$(sql "select object_id from agents where agent_id=$DRONE_ID")" = 10 ]; }
 wait_for 120 "drone flew to the Moon" at_moon
@@ -113,7 +120,7 @@ wait_for 60 "drone finished the trip script" idle
 # perform paused the script for the trip: the line after it must still run
 wait_for 30 "script carried on after the trip" sh -c "docker compose logs game-engine | grep -qE '[|] +36[[:space:]]*\$'"
 
-send_mail "$DRONE@$DOMAIN" "mine" "<run>11100 perform . cr</run>"
+run $DRONE_ID "mine" "11100 perform . cr"
 wait_for 120 "drone mined kunspar on the Moon" has 1100
 wait_for 60 "drone finished the mining script" idle
 
@@ -127,17 +134,15 @@ sql "insert into agents (user_id, company_id, name, object_id, hull_type) values
 SISTER=$(sql "select agent_id from agents where name='sister1'")
 sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_credits)
      values (5, 0, 1, 1, $SISTER, 1100, 0, 0, 50, 1)"
-send_mail "$DRONE@$DOMAIN" "sell to my other company" "<run>1 1100 $SISTER 10 perform . cr</run>"
+run $DRONE_ID "sell to my other company" "1 1100 $SISTER 10 perform . cr"
 sister_bought() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$SISTER and resource=1100")" = 1 ]; }
 wait_for 90 "a sale to the player's other company goes through" sister_bought
 wait_for 60 "drone finished the sale script" idle
 
 # Refining needs 20 kunspar (each mining run gives 5 here) and the starter
 # kit's Smelter (A1); each perform waits for its action
-send_mail "$DRONE@$DOMAIN" "refine" "<run>
-  11100 perform drop 11100 perform drop 11100 perform drop 11100 perform drop
-  21100 perform . cr
-</run>"
+run $DRONE_ID "refine" "  11100 perform drop 11100 perform drop 11100 perform drop 11100 perform drop
+  21100 perform . cr"
 wait_for 180 "drone refined kunspar into metals" has 2011
 wait_for 60 "drone finished the refining script" idle
 
@@ -148,15 +153,15 @@ wait_for 60 "drone finished the refining script" idle
 sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo)
      values (1, 0, 1, 1, $DRONE_ID, 6001, 0, 0, 1, 224)"
 wait_for 10 "drone got a ship kit" has 6001
-send_mail "$DRONE@$DOMAIN" "launch" "<run>
-  : launched .\" launched-word-ran\" cr ;
-  $DRONE_ID 6001 12 perform . cr
-</run>"
+run $DRONE_ID "launch" "  : launched .\" launched-word-ran\" cr ;
+  $DRONE_ID 6001 12 perform . cr"
 launched() { [ -n "$(sql "select agent_id from agents where user_id=(select user_id from agents where agent_id=$DRONE_ID) and hull_type=6001 and vm is not null")" ]; }
 wait_for 120 "drone launched a Mining Cruiser" launched
 NEW=$(sql "select name from agents where hull_type=6001 order by agent_id desc limit 1")
 wait_for 60 "launched drone $NEW ran its launched word" sh -c "docker compose logs game-engine | grep -q 'result \[launched-word-ran'"
-wait_for 60 "launched drone emailed its owner" sh -c "docker compose logs mail | grep -q 'from=<$NEW@$DOMAIN>'"
+NEW_ID=$(sql "select agent_id from agents where name='$NEW'")
+new_replied() { [ -n "$(sql "select id from drone_messages where agent_id=$NEW_ID and body like '%launched-word-ran%'")" ]; }
+wait_for 60 "launched drone's reply is kept for the website" new_replied
 wait_for 60 "drone finished the launch script" idle
 [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRONE_ID and resource=6001")" = 0 ] || fail "the kit was not used up"
 echo "ok: the kit was used up"
@@ -165,7 +170,6 @@ echo "ok: the kit was used up"
 # catch and saved a clean copy of the program at launch. A launched word that
 # crashes restarts from the clean copy after a wait; 5 crashes in a row make a
 # wreck.
-NEW_ID=$(sql "select agent_id from agents where name='$NEW'")
 # Cloning (#324 step 13): the launcher is the clone's parent, one generation
 # on, and the clone got its program and 20 of its fuel
 [ "$(sql "select concat(parent_id, ' ', generation, ' ', code_from) from agents where agent_id=$NEW_ID")" = "$DRONE_ID 1 $DRONE_ID" ] || fail "the clone's lineage was not recorded"
@@ -182,13 +186,13 @@ echo "ok: clean copy saved at launch"
 idle_new() { [ "$(sql "select count(*) from commands where agent_id=$NEW_ID")" = 0 ]; }
 crash_launched() { # redefine launched to divide by zero, then restart it
     # The restart is queued only once this round's definition has run: the
-    # engine has read the round's mail and the drone has nothing left to do
+    # engine has taken the round's command and the drone has nothing left to do
     # (compiling may take more than one instruction slice, so its output can
     # come in pieces: don't match on it)
-    send_mail "$NEW@$DOMAIN" "crash $1" "<run>: launched 1 0 / ;</run>"
+    run $NEW_ID "crash $1" ": launched 1 0 / ;"
     wait_for 60 "launched drone $NEW got the crashing word ($1)" sh -c "docker compose logs game-engine | grep -q 'SUBJECT=\[crash $1\]'"
     wait_for 60 "launched drone $NEW took the crashing word ($1)" idle_new
-    sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('<launched>', $NEW_ID, NOW(), NOW(), 'Restart', '')"
+    run $NEW_ID "Restart" "<launched>"
 }
 crash_launched 1
 crashed() { [ "$(sql "select count(*) from drone_crashes where drone=$NEW_ID and code=-10 and restart_at is not null")" = 1 ]; }
@@ -227,8 +231,8 @@ echo "ok: actions and computing burn fuel, and a fuelled drone keeps going"
 # (query 101, read with 2@), and m* multiplies without overflowing
 COMPANY=$(sql "select company_id from agents where agent_id=$DRONE_ID")
 sql "update companies set credits = 70000 where company_id = $COMPANY"
-send_mail "$DRONE@$DOMAIN" "doubles" "<run>create bank 8 allot
-  $COMPANY bank 8 101 query drop bank 2@ d. 300 300 m* d.</run>"
+run $DRONE_ID "doubles" "create bank 8 allot
+  $COMPANY bank 8 101 query drop bank 2@ d. 300 300 m* d."
 # (match the whole reply, ignoring all whitespace, CR included: if the script
 # pauses, its output comes in pieces)
 wait_for 60 "a balance of 70,000 and 300 x 300 come out right as doubles" sh -c "docker compose logs --no-log-prefix game-engine | tr -d '[:space:]' | grep -q 'msg\[7000090000'"
@@ -237,7 +241,7 @@ wait_for 60 "drone finished the doubles script" idle
 # House drop stations (#324 step 10): the drone, on the Moon, offers a unit of
 # the metal it refined to the Moon Depot; when the game hour's batch clears,
 # the station pays for it
-send_mail "$DRONE@$DOMAIN" "station" "<run>1 2011 31 perform . cr</run>"
+run $DRONE_ID "station" "1 2011 31 perform . cr"
 sold() { [ "$(sql "select count(*) from station_offers where drone=$DRONE_ID and side=1 and filled=1 and paid>0")" = 1 ]; }
 wait_for 180 "the Moon Depot bought the drone's metal when its batch cleared" sold
 [ "$(sql "select count(*) from station_batches where side=1")" -ge 1 ] || fail "no cleared batch recorded"
@@ -251,14 +255,14 @@ kunspar() { sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRON
 sql "update deposits set refill_per_day = 0 where object_id = 10 and resource = 1100"
 sql "insert into deposit_state (object_id, resource, amount, refilled_t) values (10, 1100, 0, 0) on duplicate key update amount = 0"
 KUNSPAR=$(kunspar)
-send_mail "$DRONE@$DOMAIN" "mine dry" "<run>11100 perform . cr</run>"
+run $DRONE_ID "mine dry" "11100 perform . cr"
 wait_for 90 "drone mined the empty deposit" sh -c "docker compose logs game-engine | grep -q 'Deposit of resource \[1100\] at \[10\]: \[0\] of'"
 wait_for 60 "drone finished mining the empty deposit" idle
 [ "$(kunspar)" = "$KUNSPAR" ] || fail "a mined-out deposit still yielded kunspar"
 echo "ok: a mined-out deposit yields nothing"
 sql "update deposits set refill_per_day = 40 where object_id = 10 and resource = 1100"
 sleep 5
-send_mail "$DRONE@$DOMAIN" "mine again" "<run>11100 perform . cr</run>"
+run $DRONE_ID "mine again" "11100 perform . cr"
 more_kunspar() { [ "$(kunspar)" -gt "$KUNSPAR" ]; }
 wait_for 90 "the deposit refilled over game time and yields again" more_kunspar
 wait_for 60 "drone finished mining again" idle
@@ -272,24 +276,14 @@ for svc in game-engine events-engine app; do
 done
 echo "ok: no service restarted"
 
-# Public Forge (#324 step 6): switch email off and release a script on the
-# website, with no account (#367 step 4: there are none). The drone runs it,
-# and its replies are kept for the website instead of being emailed.
-GAME_EMAIL=0 docker compose up -d app game-engine events-engine >/dev/null 2>&1
-no_tax   # in case the restart reloaded the game data
-wait_for 120 "the Release page answers" sh -c "curl -fsS http://localhost/release | grep -q 'no account needed'"
-[ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost/register)" = 404 ] || fail "there is still a sign-up page"
-echo "ok: no accounts, no sign-up page"
-JAR=$(mktemp)
-token() { curl -fsS -c "$JAR" -b "$JAR" "http://localhost$1" | grep -o 'name="_token" value="[^"]*"' | head -1 | sed -e 's/.*value="//' -e 's/"$//'; }
-# Longer than one 2,048-character command, so it is released in pieces that
+# Public Forge (#324 step 6): release a script on the website. It is
+# longer than one 2,048-character command, so it is released in pieces that
 # must all load, one after the other, before launched runs (#367)
 PADDING=$(for i in $(seq 1 40); do echo "\\ padding line $i: a released script may be as long as it likes"; done)
-curl -fsS -c "$JAR" -b "$JAR" -o /dev/null -X POST http://localhost/release --data-urlencode "_token=$(token /release)" \
-    --data-urlencode "company_name=Smoke Forge" --data-urlencode "script=: hello  .\" forge-release-\" ;
+release "Smoke Forge" ": hello  .\" forge-release-\" ;
 $PADDING
 : launched  hello .\" ok7\" ;"
-FORGE_DRONE=$(sql "select a.agent_id from agents a join companies c on c.company_id = a.company_id where c.name='Smoke Forge'")
+FORGE_DRONE=$(company_drone "Smoke Forge")
 [ -n "$FORGE_DRONE" ] || fail "release did not create a company and drone"
 echo "ok: release created a company with a drone"
 released() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and body like '%forge-release-ok7%' and body like '%has finished%'")" ]; }
@@ -304,13 +298,13 @@ wait_for 30 "the drone's page shows the reply" sh -c "curl -fsS http://localhost
 fetch() { curl -fsS "$@" || echo "fetch failed: $*"; }
 grep -qF "kunspar 20 dig" <<<"$(fetch -b "$JAR" "http://localhost/release?starter=miner")" || fail "the Release page did not offer the miner starter"
 echo "ok: the Release page offers the starter scripts"
-sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('stdlib . moon . kunspar . fuel units 0> .', $FORGE_DRONE, NOW(), NOW(), 'game words', '')"
+run $FORGE_DRONE "game words" "stdlib . moon . kunspar . fuel units 0> ."
 knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%2101100-1'")" ]; }
 wait_for 60 "a drone knows the game words" knows_words
 
 # The House fuel seller (#324 step 10): the released drone, at Earth, orders
 # 10 fuel from the Earth Exchange; at the batch it pays 5 a unit and gets it
-sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('10 2061 32 perform .', $FORGE_DRONE, NOW(), NOW(), 'fuel', '')"
+run $FORGE_DRONE "fuel" "10 2061 32 perform ."
 bought() { [ "$(sql "select count(*) from station_offers where drone=$FORGE_DRONE and side=2 and filled=10 and paid=50")" = 1 ]; }
 wait_for 180 "a drone bought 10 fuel from the House at 5 a unit" bought
 # Delivered: the station's delivery action (protocol 33) added the fuel.
@@ -319,14 +313,11 @@ more_fuel() { [ "$(sql "select count(*) from events e join actions x on x.id = e
                        where x.protocol = 33 and e.drone = $FORGE_DRONE and e.resource = 2061
                        and e.event_type = 1 and e.outcome = 1")" -ge 1 ]; }
 wait_for 60 "the fuel arrived in its hold" more_fuel
-! docker compose logs mail | grep -q "from=<$FORGE_NAME@" || fail "the released drone sent email"
-echo "ok: no email from the released drone"
 
 # A drone that never refuels dies (#324 step 8): release one that only
 # computes, leave it 1 unit of fuel, and it runs dry and becomes a wreck
-curl -fsS -c "$JAR" -b "$JAR" -o /dev/null -X POST http://localhost/release --data-urlencode "_token=$(token /release)" \
-    --data-urlencode "company_name=Dry Forge" --data-urlencode 'script=: launched  begin 0 until ;'
-DRY=$(sql "select a.agent_id from agents a join companies c on c.company_id = a.company_id where c.name='Dry Forge'")
+release "Dry Forge" ": launched  begin 0 until ;"
+DRY=$(company_drone "Dry Forge")
 [ -n "$DRY" ] || fail "release did not create the dry drone"
 KIT=$(sql "select mass from resources where id=5901")
 sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo)
@@ -344,8 +335,7 @@ sql "update agents set object_id = 10 where agent_id = $DRY"
 sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo)
      values (1, 0, 1, 1, $DRY, 1100, 0, 0, 10, $KIT + 10)"
 KUNSPAR=$(kunspar)
-# (email is off by now: queue the command directly)
-sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('$DRY 34 perform .', $DRONE_ID, NOW(), NOW(), 'plunder', '')"
+run $DRONE_ID "plunder" "$DRY 34 perform ."
 plundered() { [ "$(sql "select IFNULL(plundered_by, 0) from agents where agent_id=$DRY")" = "$DRONE_ID" ] &&
               [ "$(sql "select IFNULL(SUM(units), 0) from sqInventory where drone=$DRY")" = 0 ]; }
 wait_for 90 "another player's drone plundered the wreck, leaving it empty" plundered
@@ -357,16 +347,15 @@ wait_for 60 "drone finished plundering" idle
 # Earth, posts a sell order for fuel, checks it sees it there, and waits
 # 600 game minutes (10 seconds here). While it waits it runs no
 # instructions, yet it still sells: a buyer pulls from it.
-# (replies are kept, as email is off: match their end without spaces,
-# newlines or carriage returns)
+# (match the replies' end without spaces, newlines or carriage returns)
 reply_ends() { [ "$(sql "select count(*) from drone_messages where agent_id=$1 and subject='$2' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%$3'")" -ge 1 ]; }
-sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('9 1 2061 7 perform . create o 40 allot 2061 o 40 610 query . 600 3 perform .', $FORGE_DRONE, NOW(), NOW(), 'sell and wait', '')"
+run $FORGE_DRONE "sell and wait" "9 1 2061 7 perform . create o 40 allot 2061 o 40 610 query . 600 3 perform ."
 forge_waits() { [ "$(sql "select a.protocol from agents g join actions a on a.id = g.waiting_action where g.agent_id=$FORGE_DRONE")" = 3 ]; }
 wait_for 60 "a drone with a sell order is waiting" forge_waits
 BEFORE=$(sql "select instructions from agents where agent_id=$FORGE_DRONE")
 # The first drone (another player's) comes to Earth and buys 2 fuel from it
 sql "update agents set object_id = 3 where agent_id = $DRONE_ID"
-sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('2 2061 $FORGE_DRONE 11 perform .', $DRONE_ID, NOW(), NOW(), 'buy from a waiting drone', '')"
+run $DRONE_ID "buy from a waiting drone" "2 2061 $FORGE_DRONE 11 perform ."
 sold_waiting() { [ "$(sql "select count(*) from trades where seller=$FORGE_DRONE and buyer=$DRONE_ID and resource=2061 and units=2")" = 1 ]; }
 wait_for 30 "a waiting drone still sells (the buyer pulls from it)" sold_waiting
 forge_waits || fail "the seller stopped waiting before its wait was up"
@@ -376,7 +365,7 @@ wait_for 60 "drone finished buying" idle
 # Back on the Moon, the first drone can't see Earth's live orders (query
 # 611 used to list orders anywhere); the seller, at Earth, saw its own
 sql "update agents set object_id = 10 where agent_id = $DRONE_ID"
-sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('create o 40 allot 2061 o 40 611 query . cr', $DRONE_ID, NOW(), NOW(), 'orders far', '')"
+run $DRONE_ID "orders far" "create o 40 allot 2061 o 40 611 query . cr"
 blind_far() { reply_ends $DRONE_ID 'orders far' -2; }
 wait_for 60 "a drone on the Moon can't see Earth's live orders" blind_far
 wait_for 60 "drone finished asking" idle
@@ -428,7 +417,7 @@ echo "ok: the leaderboard ranks the companies, and wealth snapshots are taken"
 # Test world (#324 step 7): start its engines and turn on the Test button,
 # then test a script. It runs in the test world's own database, with a faster
 # clock, and the live world gets nothing.
-TEST_WORLD=1 GAME_EMAIL=0 docker compose --profile testworld up -d app test-game-engine test-events-engine >/dev/null 2>&1
+TEST_WORLD=1 docker compose --profile testworld up -d app test-game-engine test-events-engine >/dev/null 2>&1
 wait_for 120 "the Release page has a Test button" sh -c "curl -fsS -b '$JAR' http://localhost/release | grep -q 'release/test'"
 # Each test run has its own page (#367 step 3): the Test button leads there
 TEST_PAGE=$(curl -fsS -c "$JAR" -b "$JAR" -o /dev/null -w '%{redirect_url}' -X POST http://localhost/release/test --data-urlencode "_token=$(token /release)" \

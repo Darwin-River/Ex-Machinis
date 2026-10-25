@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Agent;
-use App\CommandTooLongException;
 use App\Company;
 use App\Query;
 use App\Resource;
@@ -14,12 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
-use App\Services\Mail\Inbox;
-use App\Services\Mail\IncomingMail;
-use App\Services\Mail\InboxFactory;
-use Html2Text\Html2Text;
 use Illuminate\Support\Facades\Cache;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
@@ -54,189 +48,17 @@ class HomeController extends Controller
     }
 
     /**
-     * Download mails from the server and process them. Called by the cron
-     * email handler (game-engine/scripts/start_email_handler.sh).
-     *
-     * - registrar inbox: a mail with subject "register" (or "magica") registers the sender.
-     * - catch-all inbox: a mail to <drone name>@MAIL_DOMAIN from the drone
-     *   owner's address is queued as commands for that drone.
-     * Every processed mail is deleted.
+     * The scheduler's tick, every few seconds (#367 step 5: it read the
+     * game's mailboxes before email was removed): the leaderboard's hourly
+     * wealth snapshot (#324 step 18), and launching releases that waited
+     * for room (#324 step 20).
      */
-    public function getMails($key, InboxFactory $inboxes)
+    public function tick($key)
     {
         $this->requireCronKey($key);
-
-        // The scheduler calls this every few seconds: the leaderboard's
-        // hourly wealth snapshot rides along (#324 step 18)
         \App\Services\Leaderboard::snapshotIfDue();
-
-        // ...and the launch queue (#324 step 20): releases that waited for
-        // room launch once the world isn't full
         \App\Services\LaunchQueue::drain();
-
-        // Email switched off (#324 step 6): no mail is read
-        if (!config('forge.email')) {
-            return response('Email is switched off');
-        }
-
-        $log = [];
-
-        $inbox = $inboxes->open(getenv('MAIL_REGISTRATION_ACCOUNT'), getenv('MAIL_REGISTRATION_PASSWORD'));
-        $mails = $inbox->messages();
-        if (!$mails) {
-            $log[] = 'Mailbox registrar is empty';
-        }
-        foreach ($mails as $mail) {
-            $log[] = 'received mail with subject <b>' . e(strtolower(trim($mail->subject))) . '</b>';
-            $this->processMail($inbox, $mail, $log, function () use ($mail) {
-                // "register" is what the player's manual tells players to use
-                if (in_array(strtolower(trim($mail->subject)), ['register', 'magica'], true)) {
-                    $name = $mail->fromName;
-                    if (!$name) {
-                        $name = explode('@', $mail->fromAddress)[0];
-                    }
-                    // Use the fallback name (before, the sender's possibly empty
-                    // display name was passed, and registration then failed).
-                    User::registerUser(strtolower($mail->fromAddress), $name);
-                }
-            });
-        }
-
-        // Now check catch-all mails
-        $inbox = $inboxes->open(getenv('MAIL_CATCHALL_ACCOUNT'), getenv('MAIL_CATCHALL_PASSWORD'));
-        $mails = $inbox->messages();
-        if (!$mails) {
-            $log[] = 'Mailbox catchall is empty';
-        }
-        foreach ($mails as $mail) {
-            $log[] = 'received mail with subject <b>' . e(strtolower(trim($mail->subject))) . '</b>';
-            $this->processMail($inbox, $mail, $log, function () use ($mail, &$log) {
-                foreach ($mail->to as $address => $name) {
-                    $this->processCommandMail($mail, $address, $log);
-                }
-            });
-        }
-
-        return response(implode("<br/>\n", $log) . "<br/>\n");
-    }
-
-    /**
-     * Run $handle for one mail, then delete the mail. If it fails, log the
-     * error and keep the mail for the next run, but carry on with the other
-     * mails: one bad mail must not hold up everyone else's.
-     */
-    private function processMail(Inbox $inbox, IncomingMail $mail, array &$log, \Closure $handle): void
-    {
-        try {
-            $handle();
-        } catch (\Throwable $e) {
-            report($e);
-            $log[] = 'error processing mail from <b>' . e($mail->fromAddress) . '</b>, kept for retry';
-            return;
-        }
-        $inbox->delete($mail);
-    }
-
-    /**
-     * Handle one recipient of a catch-all mail: queue its commands for the
-     * drone named by the address, if the sender owns that drone.
-     */
-    private function processCommandMail(IncomingMail $mail, string $address, array &$log): void
-    {
-        $mailAddressParts = explode('@', $address);
-        if (count($mailAddressParts) != 2 || strtolower($mailAddressParts[1]) != strtolower(config('mail.domain'))) {
-            return; // this address is for another domain
-        }
-        $localAddress = $mailAddressParts[0];
-        $log[] = 'received mail for <b>' . e($localAddress) . '</b>';
-
-        $agent = Agent::where(['name' => $localAddress])->first();
-        if ($agent == null) {
-            $this->replyUnknownDrone($mail, $address);
-            return;
-        }
-
-        $agent_user = User::where(['user_id' => $agent->user_id])->first();
-
-        // The sender must be the drone owner's registered address
-        if (trim(strtolower($mail->fromAddress)) != trim(strtolower($agent_user->email))) {
-            Mail::raw("Your email address doesn't have access to the agent associated with " . $address . ". Please use the address you have registered with.", function ($message) use ($mail) {
-                $message->to($mail->fromAddress, $mail->fromName)
-                    ->from("services@" . config('mail.domain'), getenv("APP_NAME"))
-                    ->subject("[" . getenv("APP_NAME") . "] Forbidden access");
-            });
-            return;
-        }
-
-        $mail_content = self::commandText($mail);
-
-        $log[] = 'Inserting command ' . e($mail_content);
-        try {
-            if ($agent->insertCommandInfo($mail_content, $mail->subject)) {
-                return;
-            }
-        } catch (CommandTooLongException $e) {
-            $log[] = 'Command too long';
-            Mail::raw("Your program for " . $address . " is " . $e->length . " characters long; the limit is " . $e->max . ". Split it across several emails: words you define stay defined in the drone.", function ($message) use ($mail, $address) {
-                $message->to($mail->fromAddress, $mail->fromName)
-                    ->from($address, getenv("APP_NAME"))
-                    ->subject('Re: ' . $mail->subject);
-            });
-            return;
-        }
-
-        $log[] = 'Invalid content received';
-        $data = [
-            'from' => $mail->fromAddress,
-            'to' => $address,
-            'subject' => $mail->subject,
-            'sent' => $mail->date,
-            'input_content' => $mail_content,
-        ];
-        Mail::send(['email.wrong_email_html', 'email.wrong_email_text'], $data, function ($message) use ($mail, $address) {
-            // Reply from the drone's own address
-            $message->to($mail->fromAddress, $mail->fromName)->from($address, getenv("APP_NAME"))->subject('Re: ' . $mail->subject);
-        });
-    }
-
-    /**
-     * The mail's text for the drone. Plain text, unless it holds no
-     * meta-command and the HTML part does: some mail clients send an HTML
-     * part with a plain part that lacks what the player typed.
-     */
-    public static function commandText(IncomingMail $mail): string
-    {
-        $hasCommand = fn (?string $text) => $text !== null && preg_match('/<(run|abort|reset|rename|rebrand)>/i', $text) === 1;
-
-        if ($hasCommand($mail->textPlain) || $mail->textHtml === null) {
-            return (string) $mail->textPlain;
-        }
-
-        $fromHtml = Html2Text::convert($mail->textHtml);
-        return ($hasCommand($fromHtml) || $mail->textPlain === null) ? $fromHtml : $mail->textPlain;
-    }
-
-    /**
-     * Mail to a drone name that doesn't exist (a typo, or a drone that has
-     * been renamed). A registered player is told their drones' addresses;
-     * anyone else gets no reply, so spam to the catch-all isn't answered.
-     */
-    private function replyUnknownDrone(IncomingMail $mail, string $address): void
-    {
-        $user = User::where('email', strtolower(trim($mail->fromAddress)))->first();
-        if ($user == null) {
-            return;
-        }
-
-        $domain = config('mail.domain');
-        $drones = Agent::where('user_id', $user->user_id)->orderBy('agent_id')->pluck('name')
-            ->map(fn ($name) => $name . '@' . $domain)->implode("\n");
-
-        Mail::raw("There is no drone called " . $address . ". It may have been renamed.\n\nYour drones are:\n" . $drones . "\n", function ($message) use ($mail) {
-            $message->to($mail->fromAddress, $mail->fromName)
-                ->from("services@" . config('mail.domain'), getenv("APP_NAME"))
-                ->subject('Re: ' . $mail->subject);
-        });
+        return response('ok');
     }
 
     /**

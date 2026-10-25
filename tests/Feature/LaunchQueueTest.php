@@ -8,7 +8,6 @@ use App\Services\LaunchQueue;
 use App\Services\Release;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /**
@@ -25,8 +24,6 @@ class LaunchQueueTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Mail::fake();
-        config(['forge.email' => false]);
     }
 
     /** The game clock as the game engine leaves it after a load check */
@@ -101,7 +98,7 @@ class LaunchQueueTest extends TestCase
         $this->post('/release', ['company_name' => 'Drained Later', 'script' => self::SCRIPT]);
         $this->clock(false);
         config(['app.cron_key' => 'test-cron-key']);
-        $this->get('/get-mails/test-cron-key')->assertOk();
+        $this->get('/tick/test-cron-key')->assertOk();
         $this->assertTrue(Company::where('name', 'Drained Later')->exists());
     }
 

@@ -1,12 +1,7 @@
 <?php
 
-// Public Forge world settings (#324 step 6)
+// Public Forge world settings (#324 step 6; no email since #367 step 5)
 return [
-    // false switches the email game off: no mail is read or sent; anyone
-    // releases scripts on the Release page (no accounts since #367 step 4)
-    // and reads a drone's replies on its page
-    'email' => filter_var(env('GAME_EMAIL', true), FILTER_VALIDATE_BOOLEAN),
-
     // true shows the Release page's Test button, which runs a script in the
     // test world (its own database and engines, with a faster clock)
     'test_world' => filter_var(env('TEST_WORLD', false), FILTER_VALIDATE_BOOLEAN),

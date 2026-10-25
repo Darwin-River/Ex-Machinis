@@ -14,10 +14,8 @@ RUN make clean all
 
 FROM ubuntu:24.04
 ARG DEBIAN_FRONTEND=noninteractive
-# msmtp-mta provides the sendmail command email.sh uses, relaying to the
-# mail container.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends libconfig9 libmysqlclient21 msmtp-mta ca-certificates curl procps \
+ && apt-get install -y --no-install-recommends libconfig9 libmysqlclient21 ca-certificates curl procps \
  && rm -rf /var/lib/apt/lists/* \
  && useradd --system --create-home --home-dir /opt/exmachinis forth
 
@@ -26,11 +24,10 @@ WORKDIR /opt/exmachinis
 COPY --from=build /src/bin/ bin/
 COPY game-engine/conf conf/
 COPY game-engine/scripts/email bin/scripts/email/
-COPY deploy/engine/msmtprc /etc/msmtprc
 COPY deploy/engine/run-engine.sh deploy/engine/scheduler.sh bin/
 RUN chmod +x bin/scripts/email/*.sh && mkdir -p log tmp && chown -R forth:forth log tmp
 
-# Paths inside this image; DB and mail settings come from docker-compose.yml.
+# Paths inside this image; DB settings come from docker-compose.yml.
 # Any conf/*.conf parameter can be overridden by an environment variable.
 ENV SEND_EMAIL_SCRIPT=/opt/exmachinis/bin/scripts/email/email.sh \
     FORTH_IMAGE_PATH=/opt/exmachinis/bin/eforth.blk \

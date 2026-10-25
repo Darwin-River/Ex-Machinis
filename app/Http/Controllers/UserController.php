@@ -10,60 +10,12 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator;
 use Illuminate\View\View;
 
 class UserController extends Controller
 {
-
-    /**
-     * Sends a mail with a list of all current users
-     * @param int $key validation key
-     */
-    public function reportCurrentUsersByMail($key)
-    {
-        $this->requireCronKey($key);
-
-        $currentUsers = User::with('agents')
-            ->orderBy('user_id', 'desc')
-            ->get();
-        try {
-            Mail::send('email.users_report', ['currentUsers' => $currentUsers], function ($message)/* use ($user, $mail)*/ {
-                $message->to(getenv('REPORTS_DESTINATION'))->from("notifitacions@" . config('mail.domain'), getenv("APP_NAME"))->subject("[" . getenv("APP_NAME") . "] Users Report");
-            });
-
-            return response("Notification sent");
-        } catch (\Exception $e) {
-            report($e);
-            return response("There was an error sending the report.", 500);
-        }
-    }
-
-    /**
-     * Creates user and shipcraft from submitted form
-     * @param $request Request object
-     * @return RedirectResponse
-     * @throws ValidationException
-     */
-    public function webRegistration(Request $request)
-    {
-        // With email switched off, anyone releases scripts instead (#324
-        // step 6; no accounts since #367 step 4)
-        if (!config('forge.email')) {
-            return redirect('/release');
-        }
-        $this->validate(request(), [
-            'email' => 'required|email|unique:users|max:255',
-            'name' => 'required|unique:users',
-        ]);
-        $name = $request->post('name');
-        $email = $request->post('email');
-        User::registerUser($email, $name);
-
-        return redirect('/message')->withSuccess('Thank you for joining ' . getenv("APP_NAME") . '! Please check your e-mail inbox to continue.');
-    }
 
     /**
      * Displays companies search engine

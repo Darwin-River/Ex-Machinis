@@ -18,9 +18,9 @@ Thank you for your support!
 
 - [Chapter 1: Getting Started](#chapter-1-getting-started)
   - [Your fortune awaits!](#your-fortune-awaits)
-  - [Requesting your spacecraft](#requesting-your-spacecraft)
-  - [Sending your first command](#sending-your-first-command)
-  - [Renaming your spacecraft and your company](#renaming-your-spacecraft-and-your-company)
+  - [Releasing a script (Public Forge)](#releasing-a-script-public-forge)
+  - [What your drone says](#what-your-drone-says)
+  - [About the examples in this manual](#about-the-examples-in-this-manual)
 - [Chapter 2: Stacking Numbers](#chapter-2-stacking-numbers)
   - [Doing Simple Math](#doing-simple-math)
   - [Managing the stack](#managing-the-stack)
@@ -75,7 +75,7 @@ It is your birthright to take control of your own remotely piloted spacecraft an
 
 ### Releasing a script (Public Forge)
 
-In the Public Forge world there is no email, and no account to open: anyone can write a drone's program on the **Release** page and release it:
+There is no email, and no account to open: anyone can write a drone's program on the **Release** page and release it:
 
 - each release starts a new company, with one drone in orbit around Earth, a starter kit, 100 fuel and 1,000 credits;
 - the drone loads your script, then runs your word `launched` on its own, so your script should define words and end with `: launched ... ;`;
@@ -122,27 +122,11 @@ Your drones can't see all this: they see live orders only where they are (see [t
 
 When a drone dies, its page gets a **post-mortem**: why it died, in plain words (out of fuel, its `launched` word crashing again and again, or its company not paying its tax), and a timeline of its last actions, how each went, and the fuel it had left. Read your own post-mortems: they're the quickest way to learn what went wrong.
 
-The rest of this chapter describes the email game.
+### What your drone says
 
-### Requesting your spacecraft
+Your drone's page lists what it says: the output of each script it runs, and the errors that stop one. Its messages travel at the speed of light, so a reply from a drone on the outer edge of the solar system takes longer to reach Earth, and to show on its page. Game time runs faster than real time (by default, one real minute is one game hour), and that applies to light delays too: Mars is 4 to 22 light-minutes away, so a message takes 4 to 22 real seconds.
 
-As an immersive multiplayer space simulation, there's no logging into or out of the game. Your assets are always in play. To communicate with your spacecraft, simply send them emails and they will respond. Your messages travel at the speed of light, so it takes longer for them to reach spacecraft on the outer edge of the solar system, and for their replies to get back to you. Game time runs faster than real time (by default, one real minute is one game hour), and that applies to light delays too: Mars is 4 to 22 light-minutes away, so a message takes 4 to 22 real seconds each way.
-
-To start playing, you need to email the Registrar (registrar@exmachinis.com) with the word "register" in the subject line. You'll receive a response from the registrar listing the email addresses of three spacecraft that are under your control. These spacecraft will only respond to communications from the email address you used to contact the registrar.
-
-Also, please be assured that we'll only use your email to send in-game communications from your spacecraft or an occasional newsletter summarizing updates to the game. Furthermore, you'll only receive emails from your spacecraft in response to your own communications and you can unsubscribe from the newsletter at any time.
-
-### Sending your first command
-
-Most of the game is played via direct email communications with your spacecraft. When one of your ships receives an email from you it will interpret everything between the `<run>` and `</run>` brackets as code and respond to you accordingly via email.
-
-For example, try sending the following text to one of your spacecraft and see what happens. Just make sure you retain the spaces between the numbers, the plus sign, and the period, which instructs the spacecraft to report the result.
-
-```
-<run> 2 3 + . </run>
-```
-
-You'll receive an email from your spacecraft that reports the result of adding two and three together. Every reply starts with your spacecraft's location and how long its signals take to reach Earth:
+For example, a script that prints the sum of two and three, `2 3 + .`, makes its drone say:
 
 ```
 Location: Earth (0.0 light-seconds from Earth)
@@ -150,31 +134,11 @@ Location: Earth (0.0 light-seconds from Earth)
  5
 ```
 
-A few things to know about these emails:
+Every message starts with the drone's location and how long its signals take to reach Earth.
 
-- Your drone runs only the first command in an email (`<run>`, `<abort>`, `<reset>`, `<rename>` or `<rebrand>`). If you send two `<run>` blocks, the second is ignored, so put your whole script in one block.
-- Plain-text or HTML email both work.
-- If you mail a drone name that doesn't exist, for example after renaming a drone, the game replies with the addresses of your drones.
+### About the examples in this manual
 
-### Renaming your spacecraft and your company
-
-You'll notice that each of your spacecraft has a rather generic and unremarkable email address like SN523854@exmachinis.com. You'll probably want to give it a more memorable name like "hero" since you'll be interacting with it on a regular basis. To rename your spacecraft, simply send the following text in an email to your drone:
-
-```
-<rename>hero</rename>
-```
-
-You'll actually receive an email from hero@exmachinis.com confirming the name change. You can now send your instructions to this email address instead of the original! Mail sent to the old address won't reach your spacecraft any more.
-
-There is no limit to the number of times you change your drone's email address. The only requirements are that you pick a name that isn't already in use by someone else and that it's a valid email name: 1 to 64 letters, digits, dots, dashes or underscores. Some names, like `registrar`, are reserved. If your chosen name is not allowed, the drone will let you know via its original email address.
-
-You can also change your company name at any time by emailing a rebrand instruction to one of your drones:
-
-```
-<rebrand>Avalon</rebrand>
-```
-
-This will immediately change the name of your company in the company directory (http://exmachinis.com/companies). Company names can be up to 64 characters long.
+Ex Machinis began as an email game: players emailed scripts to their drones between `<run>` and `</run>`, and the drones emailed back. There is no email any more, no accounts and no `<rename>` or `<rebrand>` (a released company keeps the name you give it, and each drone its generated name). Where the chapters below say to email or send a script to your drone, put it in the script you release (most examples belong inside your `launched` word), try it with the **Test** button, or step through it on the **Machine** page. What they say the drone replies is what shows on its page.
 
 ## Chapter 2: Stacking Numbers
 
@@ -592,7 +556,7 @@ The new spacecraft:
 
 - has the kit's hull (its name and cargo capacity: 500 for a Cruiser, 2,000 for a Cutter, 5,000 for a Frigate and 20,000 for a Barge) and a cargo hold that is empty except for 20 fuel from the launching drone (a launch burns 30 fuel in all: 10 for the launch and 20 for the new spacecraft's tank, so it can start thinking);
 - belongs to the same company, shares its bank account, and remembers which drone launched it: it is that drone's **clone**;
-- has its own email address (a generic name like SN123456, which you can [rename](#renaming-your-spacecraft-and-your-company)), and emails you as soon as it's launched;
+- has its own generated name (like SN123456) and page, and says so on its page as soon as it's launched;
 - knows every word and variable the copied drone had defined when the launch happened, but nothing else: it starts at the prompt with an empty stack, even if the copied drone was in the middle of a script;
 - runs the word `launched` once, if the copied program defines one. That lets a new spacecraft get to work on its own. Its hold starts empty, so here it first pulls an engine and a Worm from drone 52, which launched it and is in the same place, then flies to the Moon and mines:
 
@@ -612,7 +576,7 @@ Word names are case-sensitive here: the word must be called `launched`, in lower
 `perform` only tells the launching drone whether the launch worked. To find the new spacecraft's ID (to push it fuel or cargo, say), ask for your clones:
 
 - `R L 670 query`: the drones this one launched, oldest first: for each, its drone ID and 1 if it is a wreck (else 0).
-- `R L 671 query`: the drone that launched this one (0 if none) and its generation (0 for a spacecraft you released or registered, 1 for its clones, 2 for theirs, and so on).
+- `R L 671 query`: the drone that launched this one (0 if none) and its generation (0 for a spacecraft you released, 1 for its clones, 2 for theirs, and so on).
 
 ```
 <run>
@@ -626,13 +590,13 @@ A company ends when its last spacecraft dies: its credits vanish. So keep at lea
 
 #### When `launched` crashes
 
-Your new spacecraft keeps a clean copy of its program from the moment it launched. If `launched` hits an error, such as dividing by zero or a `throw`, the spacecraft emails you the error code and restarts from that clean copy:
+Your new spacecraft keeps a clean copy of its program from the moment it launched. If `launched` hits an error, such as dividing by zero or a `throw`, the spacecraft reports the error code on its page and restarts from that clean copy:
 
 - the first restart comes an hour of game time later, and each crash in a row doubles the wait (one hour, two, four, eight);
 - each restart costs a little power;
 - after five crashes in a row the spacecraft becomes a wreck and stops for good.
 
-Crashes only count "in a row" while nothing is getting done: any action that succeeds starts the count again. When `launched` simply ends, the spacecraft tells you it has finished, and waits for your commands.
+Crashes only count "in a row" while nothing is getting done: any action that succeeds starts the count again. When `launched` simply ends, the spacecraft says it has finished, and waits.
 
 It's good practice to test each word on its own before you build it into `launched`. Since restarts go back to the clean copy, sending a fixed word to a crashing spacecraft only lasts until its next restart.
 

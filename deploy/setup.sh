@@ -5,10 +5,9 @@
 #   deploy/setup.sh                      # asks for the domain and admin email
 #   deploy/setup.sh example.com you@example.com
 #
-# It writes deploy/.env (random passwords and keys), creates the game's mail
-# accounts, starts everything with Docker Compose, creates the DKIM key and
-# prints the DNS records to add. Running it again keeps the existing .env,
-# accounts and keys, and just rebuilds and restarts.
+# It writes deploy/.env (random passwords and keys), starts everything with
+# Docker Compose and prints the DNS record to add. Running it again keeps the
+# existing .env and just rebuilds and restarts. There is no email (#367).
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -27,7 +26,7 @@ else
     DOMAIN="${1:-${DOMAIN:-}}"
     ADMIN_EMAIL="${2:-${ADMIN_EMAIL:-}}"
     [ -n "$DOMAIN" ] || read -rp "Game domain (e.g. exmachinis.com): " DOMAIN
-    [ -n "$ADMIN_EMAIL" ] || read -rp "Your email (Let's Encrypt notices, user reports): " ADMIN_EMAIL
+    [ -n "$ADMIN_EMAIL" ] || read -rp "Your email (Let's Encrypt notices): " ADMIN_EMAIL
     [[ "$DOMAIN" =~ ^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] || die "'$DOMAIN' doesn't look like a domain."
     [[ "$ADMIN_EMAIL" == *@*.* ]] || die "'$ADMIN_EMAIL' doesn't look like an email address."
 
@@ -43,8 +42,6 @@ APP_KEY=base64:$(openssl rand -base64 32)
 CRON_KEY=$(secret)
 DB_ROOT_PASSWORD=$(secret)
 DB_PASSWORD=$(secret)
-MAIL_REGISTRATION_PASSWORD=$(secret)
-MAIL_CATCHALL_PASSWORD=$(secret)
 
 # Optional overrides
 #SITE_ADDRESS=$DOMAIN, www.$DOMAIN   # extra names Caddy should serve
@@ -70,71 +67,19 @@ EOF
     set -a; . ./.env; set +a
 fi
 
-# --- Mail server accounts, aliases and certificate --------------------------
-
-CONF=mail/config
-mkdir -p "$CONF/ssl"
-
-if [ ! -f "$CONF/postfix-accounts.cf" ]; then
-    hash() { openssl passwd -6 "$1"; }
-    umask 077
-    {
-        echo "registrar@$DOMAIN|{SHA512-CRYPT}$(hash "$MAIL_REGISTRATION_PASSWORD")"
-        echo "catchall@$DOMAIN|{SHA512-CRYPT}$(hash "$MAIL_CATCHALL_PASSWORD")"
-    } > "$CONF/postfix-accounts.cf"
-    umask 022
-    # Every other address (each drone's name@domain) lands in the catch-all
-    # mailbox, which the website reads and hands to the game.
-    cat > "$CONF/postfix-virtual.cf" <<EOF
-registrar@$DOMAIN registrar@$DOMAIN
-catchall@$DOMAIN catchall@$DOMAIN
-@$DOMAIN catchall@$DOMAIN
-EOF
-    echo "Created the registrar@$DOMAIN and catchall@$DOMAIN mailboxes"
-fi
-
-if [ ! -f "$CONF/ssl/cert.pem" ]; then
-    # Self-signed is fine here: other mail servers use TLS on port 25 without
-    # checking the certificate, and nothing else connects from outside.
-    openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -subj "/CN=mail.$DOMAIN" \
-        -keyout "$CONF/ssl/key.pem" -out "$CONF/ssl/cert.pem" 2>/dev/null
-    chmod 600 "$CONF/ssl/key.pem"
-fi
-
 # --- Start ------------------------------------------------------------------
 
 docker compose up -d --build
 
-DKIM_TXT="$CONF/opendkim/keys/$DOMAIN/mail.txt"
-if [ ! -f "$DKIM_TXT" ]; then
-    echo "Creating the DKIM key..."
-    for _ in $(seq 1 60); do
-        docker compose exec -T mail true 2>/dev/null && break
-        sleep 2
-    done
-    docker compose exec -T mail setup config dkim domain "$DOMAIN" >/dev/null
-    docker compose restart mail >/dev/null
-fi
-
-# --- DNS records ------------------------------------------------------------
-
-DKIM_VALUE=$(tr -d '\n\t' < "$DKIM_TXT" 2>/dev/null | sed -e 's/^[^(]*(//' -e 's/).*$//' -e 's/" *"//g' -e 's/"//g' -e 's/  */ /g' -e 's/^ //' -e 's/ *$//' || true)
+# --- DNS record -------------------------------------------------------------
 
 cat <<EOF
 
 Ex-Machinis is starting. Follow progress with:  cd deploy && docker compose logs -f
 
-Add these DNS records for $DOMAIN (SERVER_IP = this server's public IP):
+Add this DNS record for $DOMAIN (SERVER_IP = this server's public IP):
 
   $DOMAIN.                A     SERVER_IP
-  mail.$DOMAIN.           A     SERVER_IP
-  $DOMAIN.                MX    10 mail.$DOMAIN.
-  $DOMAIN.                TXT   "v=spf1 mx ~all"
-  mail._domainkey.$DOMAIN. TXT  "${DKIM_VALUE:-<see $DKIM_TXT>}"
-  _dmarc.$DOMAIN.         TXT   "v=DMARC1; p=none; rua=mailto:$ADMIN_EMAIL"
-
-Also ask your hosting provider to set the server's reverse DNS (PTR) to
-mail.$DOMAIN, and to allow outgoing traffic on port 25.
 
 The website is https://$DOMAIN once DNS points here (Caddy gets the
 certificate automatically). Secrets are in deploy/.env; back it up.

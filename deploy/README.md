@@ -1,6 +1,6 @@
 # Running Ex-Machinis with Docker
 
-This folder runs the whole game on one server with Docker Compose. One script sets it up. You only add DNS records.
+This folder runs the whole game on one server with Docker Compose. One script sets it up. You only add a DNS record.
 
 | Service | What it does |
 |---|---|
@@ -8,25 +8,19 @@ This folder runs the whole game on one server with Docker Compose. One script se
 | `app` | The Laravel website (PHP 8.3 and Apache) |
 | `db` | MySQL 8.4, loaded with the game's base schema when its volume is first created |
 | `migrate` | Runs on every start, before the website and engines: applies new schema migrations (`game-engine/sql/migrations/`), then loads the game data (`game-engine/sql/game_data.sql`: resources, protocols, queries, where minerals are found), then exits |
-| `game-engine` | Runs the drones' FORTH programs and emails their output to players |
+| `game-engine` | Runs the drones' FORTH programs and keeps their output for the website |
 | `events-engine` | Processes game events |
-| `scheduler` | Checks the game's mailboxes every 5 seconds, which replaces the old cron jobs, and clears engine logs older than 7 days |
-| `mail` | [docker-mailserver](https://docker-mailserver.github.io/docker-mailserver/latest/) (Postfix and Dovecot) receives players' mail on port 25 and sends the game's mail |
+| `scheduler` | Calls the website's tick every 5 seconds (leaderboard snapshots and the launch queue), which replaces the old cron jobs, and clears engine logs older than 7 days |
 
-## How mail flows
+## How the game is played
 
-- **Joining:** a player emails `registrar@<domain>` with the subject `magica`, or signs up on the website.
-- **Commands:** a player emails `<drone name>@<domain>`. Every address other than `registrar@` lands in a catch-all mailbox.
-- **Processing:** the website reads both mailboxes (it's called by `scheduler`), registers players and queues the commands.
-- **Replies:** `game-engine` runs the commands and emails the output back through `mail`.
+There are no player accounts and no email (#367). Anyone releases a FORTH script on the website's Release page; it becomes a company with one drone. The engines run it, and everything the drone says shows on its public page.
 
 ## Requirements
 
 - A Linux server, such as Ubuntu 24.04 or Debian 12, with at least 2 GB of RAM and 20 GB of disk.
 - A domain name you can add DNS records to.
-- Inbound ports **25**, **80** and **443** open.
-- **Outbound port 25 allowed.** Many cloud providers block it by default (AWS, Google Cloud, Azure, and DigitalOcean for new accounts). Ask them to unblock it, or pick a provider that allows it.
-- Reverse DNS (PTR) for the server's IP, set to `mail.<domain>`. Your hosting provider sets this.
+- Inbound ports **80** and **443** open.
 
 ## Install
 
@@ -45,23 +39,16 @@ This folder runs the whole game on one server with Docker Compose. One script se
    ```
    The script does the following:
    - Writes `deploy/.env` with random passwords and keys.
-   - Creates the `registrar@` and catch-all mailboxes.
    - Builds and starts everything.
-   - Creates a DKIM key.
-   - Prints the DNS records to add.
+   - Prints the DNS record to add.
 
    The first build takes a few minutes.
-4. Add the printed DNS records at your DNS provider. They are:
-   - A records for `<domain>` and `mail.<domain>`
-   - MX
-   - SPF
-   - DKIM
-   - DMARC
+4. Add the printed DNS record at your DNS provider: an A record for `<domain>`.
 
    Once DNS points at the server, Caddy gets the HTTPS certificate on its own. Until then it retries, and its logs show certificate errors.
 5. Check that it works:
    - Open `https://<domain>`.
-   - Email `registrar@<domain>` with the subject `magica`. A welcome email with your drones' addresses should arrive within a minute.
+   - Release a starter script on the Release page. The drone's page should show what it says within a minute.
 
 **Back up `deploy/.env`.** It holds the app key and every password.
 
@@ -85,13 +72,13 @@ Run these from the `deploy/` folder.
 
 ### Backups
 
-The data lives in Docker volumes: the database, the mailboxes, and Caddy's certificates. To back up the database:
+The data lives in Docker volumes: the database and Caddy's certificates. To back up the database:
 
 ```sh
 docker compose exec -T db sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" exmachinis' > exmachinis-$(date +%F).sql
 ```
 
-Also keep a copy of `deploy/.env` and `deploy/mail/config/`, which holds the mail accounts and the DKIM key.
+Also keep a copy of `deploy/.env`.
 
 To restore a dump:
 
@@ -101,11 +88,11 @@ docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" exmachini
 
 ### Starting over
 
-This **deletes all game data, mail and certificates**:
+This **deletes all game data and certificates**:
 
 ```sh
 docker compose down -v
-rm -rf .env mail/config
+rm -f .env
 ```
 
 ## Settings
@@ -114,25 +101,23 @@ rm -rf .env mail/config
 
 - `SITE_ADDRESS`: the names Caddy serves. For example, `SITE_ADDRESS=example.com, www.example.com` also serves `www`, which needs its own DNS record.
 - `APP_URL`: the site's public URL, if it isn't `https://<domain>`.
-- `GAME_TIME_SCALE`: how fast game time passes, in game seconds per real second (default 60: one real minute is one game hour). It governs orbits, action and travel durations, and the light-speed delay of emails. Changing it re-anchors the game clock, so nothing jumps.
+- `GAME_TIME_SCALE`: how fast game time passes, in game seconds per real second (default 60: one real minute is one game hour). It governs orbits, action and travel durations, and the light-speed delay of commands and replies. Changing it re-anchors the game clock, so nothing jumps.
 - `GAME_TIME_FLOOR`: the clock floor (default 0: the clock never floats). The clock aims for `GAME_TIME_SCALE`, slows by a quarter each minute while the engines run more than `CLOCK_LAG_HIGH` (60) real seconds behind, never below this, and speeds back up once they are less than `CLOCK_LAG_LOW` (15) behind. Behind at the floor, the world is full: new releases wait in a launch queue. The Home page shows the clock.
 - `ENGINE_TRACE_LEVEL`: the engines' log detail (default -1: errors, warnings and clock changes only). 0 to 3 log every step, which at full load is gigabytes a day; rotated logs are kept 7 days.
 - `TRAVEL_ACCELERATION`: drones' acceleration in m/s² (default 1). Trips take 2·√(distance ÷ acceleration) in game time.
-- `GAME_EMAIL=0`: the Public Forge world. Email is off; players open an account and release scripts on the website's Release page.
 - `TEST_WORLD=1`: shows the Release page's Test button, which runs a script in the test world (database `exmachinis_test`, which `migrate` keeps up to date). Its engines run in the `testworld` profile: start them with `docker compose --profile testworld up -d`. `TEST_GAME_TIME_SCALE` sets its clock (default 600: ten times the live world's default).
 
 Apply changes with `docker compose up -d`.
 
 All other settings are in `docker-compose.yml`. The engines' settings come from `game-engine/conf/*.conf`. You can override any of them by adding an environment variable of the same name to the engine services.
 
-The mail accounts depend on the domain. To move to another domain, start over with the new one, or edit `mail/config/postfix-accounts.cf` and `postfix-virtual.cf` by hand.
+To move to another domain, change `DOMAIN` in `deploy/.env` and the DNS record, then `docker compose up -d`.
 
 ## Opening Public Forge
 
-The first release of Public Forge has email off and no accounts: anyone can release a script on the website. In `deploy/.env`:
+Public Forge has no email and no accounts: anyone can release a script on the website. In `deploy/.env`:
 
 ```
-GAME_EMAIL=0
 GAME_TIME_SCALE=24      # aims for one game day per real hour
 GAME_TIME_FLOOR=8       # never slower than 8 game hours per real hour
 TEST_WORLD=1            # optional: the Release page's Test button
@@ -147,16 +132,9 @@ Then `docker compose up -d` (and `docker compose --profile testworld up -d` for 
 ## Troubleshooting
 
 - **The site shows a certificate error.** DNS doesn't point at the server yet, or port 80 or 443 is closed. Run `docker compose logs caddy`.
-- **Mail from players never arrives.** Check:
-  - the MX record
-  - that inbound port 25 is open: `nc -vz <server-ip> 25` from another machine
-  - `docker compose logs mail`
-- **Players don't get replies, or replies land in spam.** Check:
-  - that outbound port 25 is allowed
-  - the SPF, DKIM and PTR records
-  - `docker compose logs mail`, which shows each delivery attempt
-- **The scheduler logs "mail check failed".** Run `docker compose logs app` to see the website's error.
+- **The scheduler logs "tick failed".** Run `docker compose logs app` to see the website's error.
+- **A drone says nothing.** Its page lists what it said; the engines' logs (`docker compose logs game-engine`) show errors.
 
 ## Testing
 
-`deploy/smoke-test.sh` starts the stack for the fake domain `example.test` and checks the whole loop: website, mail check, registration by email, and a drone running an emailed command. CI runs it on every pull request. To run it yourself, use a machine where ports 25, 80 and 443 are free.
+`deploy/smoke-test.sh` starts the stack for the fake domain `example.test` and checks the whole loop: the website, the scheduler's tick, releasing a script, and drones running it and the commands queued for them. CI runs it on every pull request. To run it yourself, use a machine where ports 80 and 443 are free.

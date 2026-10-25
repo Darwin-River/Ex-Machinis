@@ -40,7 +40,7 @@ You need **PHP 8.3** (with `pdo_mysql`), **Composer**, **MySQL 5.7+** and **Node
 
 ```bash
 composer install
-cp .env.example .env           # then set DB_* (and MAIL_* / CRON_KEY if you need them)
+cp .env.example .env           # then set DB_* (and CRON_KEY if you need it)
 php artisan key:generate
 
 # Create the database (drops and recreates the tables, so use a fresh database)
@@ -62,11 +62,10 @@ npm run build                  # writes html/build/; commit the result
 
 CI fails if the committed `html/build/` doesn't match a fresh `npm run build`.
 
-### Mail settings
+### The scheduler's tick
 
-- **`/get-mails/{key}`** reads the registrar and catch-all inboxes over IMAP using the `MAIL_*` settings in `.env`. It uses [`webklex/php-imap`](https://github.com/Webklex/php-imap), so PHP's `imap` extension isn't needed.
-  - `MAIL_ENCRYPTION=tls` means STARTTLS on `MAIL_INCOMING_PORT`; `ssl` means implicit TLS.
-- **`/get-mails/{key}`** and **`/user/send-report/{key}`** only work with the correct `CRON_KEY`, and are refused while it's empty.
+- **`/tick/{key}`** takes the leaderboard's wealth snapshots and lets queued releases in. The Docker `scheduler` calls it every 5 seconds; a manual install calls it from cron. (`/get-mails/{key}`, its old name, still works.)
+- It only works with the correct `CRON_KEY`, and is refused while that's empty. There is no email (#367 step 5): no accounts, and drones' replies show on their pages.
 
 ### Build and configure the game engines
 
@@ -104,24 +103,17 @@ mysql -u root -p < tests/database/fixtures.sql
 DB_HOST=127.0.0.1 DB_PASSWORD=... vendor/bin/phpunit
 ```
 
-`ImapInboxTest` also needs a [GreenMail](https://greenmail-mail-test.github.io/greenmail/) test mail server, and is skipped without one:
-
-```bash
-java -Dgreenmail.setup.test.all -Dgreenmail.auth.disabled -jar greenmail-standalone.jar &
-IMAP_TEST_HOST=127.0.0.1 vendor/bin/phpunit
-```
-
 ### Continuous integration
 
 `.github/workflows/tests.yml` runs on every pull request and every push to `main`:
-- **phpunit:** PHP 8.3 with MySQL 5.7 and GreenMail
+- **phpunit:** PHP 8.3 with MySQL 5.7
 - **frontend:** builds with Vite and checks `html/build/` is up to date
 - **engine:** checks the generated game data is up to date, then builds both C engines
-- **docker:** builds the Docker images and runs `deploy/smoke-test.sh`, which signs up a player and plays the starting sequence: unpack the starter kit, fly to the Moon, mine
+- **docker:** builds the Docker images and runs `deploy/smoke-test.sh`, which releases a drone on the website and plays the starting sequence: unpack the starter kit, fly to the Moon, mine
 
 ### Deploying
 
-The easiest way to set up a server is Docker: [deploy/README.md](deploy/README.md). One script starts the website, database, both engines and the mail server, then prints the DNS records to add.
+The easiest way to set up a server is Docker: [deploy/README.md](deploy/README.md). One script starts the website, database and both engines, then prints the DNS record to add.
 
-For a manual install (Apache with `html/` as the web root, Postfix/Dovecot, and cron), see [documents/install.md](documents/install.md).
+For a manual install (Apache with `html/` as the web root, and cron), see [documents/install.md](documents/install.md). Its mail server sections are only for the old email game.
 
