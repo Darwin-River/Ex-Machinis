@@ -121,6 +121,9 @@
 #define STATION_ORDER_EVENT_TYPE      10   // an order to buy from a House station
 #define STATION_DELIVERY_PROTOCOL_ID  33   // actions that deliver or return station goods
 #define PLUNDER_EVENT_TYPE            11   // a drone plunders a wreck (#324 step 12)
+#define WAIT_EVENT_TYPE               12   // the end of a wait (#324 step 14)
+#define WAIT_PROTOCOL_ID               3   // [M 3 perform]: wait M game minutes
+#define MAX_WAIT_MINUTES           10080   // a week
 #define PLUNDER_HAUL_PROTOCOL_ID      35   // actions that move plunder out of a wreck and into the plunderer
 
 // Protocols that move goods between drones (decrement here, increment there)
@@ -327,6 +330,7 @@ typedef struct
 	int travel_from_time; // travel: effects at or after this time (game s)...
 	int travel_shift;     // ...are delayed by this much, to last the trip
 	int launch_delay;     // launch: the program's light time from drone D (game s)
+	int wait_delay;       // wait: how long the drone waits (game s, #324 step 14)
 
 } ProtocolInfo_t;
 

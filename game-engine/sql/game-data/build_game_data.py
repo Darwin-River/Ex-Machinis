@@ -440,6 +440,18 @@ protocols['33'] = ['33', 'Station delivery', '0', '100',
                    'Goods a House station delivers or returns when a batch clears. Not performed by drones.',
                    '1', '1', '0']
 
+# Waiting (#324 step 14): [M 3 perform] pauses the script for M game
+# minutes. Its one effect is a wait event (type 12) that the game engine
+# puts M minutes ahead; perform returns when it is processed. A waiting
+# drone runs no instructions, so it burns no power, and waiting is free.
+WAIT_PROTOCOL, WAIT_EVENT = '3', 12
+protocols[WAIT_PROTOCOL] = [WAIT_PROTOCOL, 'Wait', '1', '100',
+                            '[M 3 perform]: Waits M game minutes (1 to 10,080: a week) doing nothing. The script pauses '
+                            'and runs no instructions until then, so waiting costs no fuel.', '1', '1', '0']
+add_effects(WAIT_PROTOCOL, [
+    {'time': 0, 'drone': 0, 'resource': FUEL, 'event_type': WAIT_EVENT, 'local': 1, 'installed': 0,
+     'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': 0}])
+
 # Wrecks and plunder (#324 step 12): a drone plunders the wreck W at the
 # place where it is (34). The plunder event (type 11) carries W; the events
 # engine checks it and moves the plunderer's share of the wreck's goods and
@@ -461,7 +473,7 @@ protocols['35'] = ['35', 'Plunder haul', '0', '100',
 # is free. Each protocol's description says what it burns.
 def fuel_cost(pid):
     p = int(pid)
-    if p in (25901, int(POWER_PROTOCOL), 33, 35):
+    if p in (25901, int(POWER_PROTOCOL), 33, 35, int(WAIT_PROTOCOL)):
         return 0
     if p == int(LAUNCH_PROTOCOL):
         return 10 + LAUNCH_FUEL           # 10 burned, 20 for the clone's tank
@@ -846,6 +858,35 @@ queries.append((640, 'Deposits here',
                 "d.refill_per_day FROM deposits d LEFT JOIN deposit_state s ON s.object_id = d.object_id "
                 f"AND s.resource = d.resource WHERE d.object_id = {HERE_} ORDER BY d.resource;"))
 
+# Local information (#324 step 14): a drone sees live market orders only
+# where it is. The solar order lists (601, 611, 612) now list the orders at
+# the drone's location, like 600 and 610; elsewhere, the public price board
+# (680) and solar volume (621) give trades as they stood an hour ago.
+BOARD_LAG = HOUR
+LOCAL_NOTE = ' Only where the drone is: for elsewhere, see the price board (680).'
+local_queries = {
+    601: ('List buy orders here', '[N R L 601 query]: Lists buy orders for resource N where the drone is (like 600): price, '
+          'wanted maximum, units held, spacecraft ID.' + LOCAL_NOTE, 1, orders(5, True)),
+    611: ('List sell orders here', '[N R L 611 query]: Lists sell orders for resource N where the drone is (like 610): price, '
+          'kept minimum, units held, spacecraft ID.' + LOCAL_NOTE, 1, orders(4, True)),
+    612: ('Sell orders here up to a price',
+          '[N P R L 612 query]: Sell orders for resource N where the drone is at a price of at most P (a double, e.g. '
+          '7 10000 um* for 70,000), cheapest first: price (2 cells), kept minimum, stock, drone.', 3,
+          orders(4, True, resource='[value_3]', extra=' AND o.new_credits <= [dvalue_1]')),
+    621: ('Solar market volume, an hour old',
+          '[N H R L 621 query]: Units of resource N traded anywhere in the solar system in the H game hours up to one '
+          'game hour ago, credits paid for them, and number of trades.', 2,
+          "SELECT IFNULL(SUM(units),0) AS d_units, IFNULL(SUM(credits),0) AS d_credits, COUNT(*) FROM trades "
+          f"WHERE resource=[value_2] AND game_t<=[game_now]-{BOARD_LAG} AND [game_now]-{BOARD_LAG}-game_t<=[value_1]*3600;"),
+}
+queries = [(q[0],) + local_queries[q[0]] if q[0] in local_queries else q for q in queries]
+queries.append((680, 'Price board',
+                '[N R L 680 query]: The public price board for resource N: for each place where it traded in the game '
+                'day up to one game hour ago, the place, units (2 cells), credits paid (2 cells) and trades.', 1,
+                "SELECT location, IFNULL(SUM(units),0) AS d_units, IFNULL(SUM(credits),0) AS d_credits, COUNT(*) "
+                f"FROM trades WHERE resource=[value_1] AND location IS NOT NULL AND game_t<=[game_now]-{BOARD_LAG} "
+                f"AND game_t>[game_now]-{BOARD_LAG}-{DAY} GROUP BY location ORDER BY location;"))
+
 # Queries whose money or volume columns are double cells: say so
 DOUBLE_QUERIES = {101, 600, 601, 610, 611, 612, 620, 621, 841}  # 630-632 say so themselves
 queries = [(q[0], q[1], (q[2] if q[0] == 612 else q[2].rstrip() + ' Money and volumes are double cells (2@).')[:255],
@@ -932,6 +973,8 @@ lines.append('-- Event types the engines handle (8: launch a drone, #238)')
 lines.append("INSERT INTO `event_types` (id, name) VALUES (8, 'Launch drone') "
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')
 lines.append("INSERT INTO `event_types` (id, name) VALUES (9, 'Offer to station'), (10, 'Order from station') "
+             'ON DUPLICATE KEY UPDATE name = VALUES(name);')
+lines.append("INSERT INTO `event_types` (id, name) VALUES (12, 'Wait') "
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')
 lines.append("INSERT INTO `event_types` (id, name) VALUES (11, 'Plunder wreck') "
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')
