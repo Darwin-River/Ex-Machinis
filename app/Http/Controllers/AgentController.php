@@ -6,6 +6,7 @@ use App\Agent;
 use App\Event;
 use App\EventType;
 use App\Protocol;
+use App\Services\DronePage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
@@ -79,7 +80,13 @@ class AgentController extends Controller
               ->leftJoin('event_types', 'events.event_type', '=', 'event_types.id')
               ->join(DB::raw('(SELECT MAX(events.id) AS id FROM events  WHERE drone = ' . $id . ' AND events.outcome = 1 AND (event_type = ' . EventType::TYPE_INCREMENT_INVENTORY . ' OR event_type = ' . EventType::TYPE_DECREMENT_INVENTORY . ')   GROUP BY events.resource ORDER BY id DESC) AS events_latest '), "events_latest.id", '=', 'events.id')//aggregation join
   ->orderBy('new_quantity', 'desc')->havingRaw('new_quantity > 0')->toSql();*/
-        return view('spacecraft.view', compact('agent', 'cargoManifest', 'totalWeight'));
+        // The Drone page (#324 step 16): live state, its line, its code and,
+        // for a wreck, a post-mortem
+        $state = DronePage::state($agent);
+        $code = DronePage::code($agent);
+        $postMortem = DronePage::postMortem($agent);
+
+        return view('spacecraft.view', compact('agent', 'cargoManifest', 'totalWeight', 'state', 'code', 'postMortem'));
     }
 
 

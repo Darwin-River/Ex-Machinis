@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Agent;
 use App\Company;
+use App\Services\Provenance;
 use App\Services\Release;
 use App\Services\TestWorld;
 use Illuminate\Http\Request;
@@ -39,11 +40,25 @@ class ReleaseController extends Controller
         $testWorld = TestWorld::available();
         $testRuns = $testWorld ? TestWorld::runs($user) : collect();
 
-        // A starter script (#324 step 15) fills the form when asked for
+        // A starter script (#324 step 15) fills the form when asked for, or
+        // a drone's code or one of its words (#324 step 16: "Copy this code")
         $starters = Release::STARTERS;
         $starter = Release::starter((string) request('starter'));
+        $copiedFrom = null;
+        $copiedWord = null;
+        if (request()->filled('copy')) {
+            $release = Provenance::releaseOf((int) request('copy'));
+            if ($release) {
+                $copiedFrom = (int) request('copy');
+                $copiedWord = request()->filled('word') ? (string) request('word') : null;
+                $starter = $copiedWord !== null ? Provenance::wordSource($release->source, $copiedWord) : $release->source;
+                if ($starter === null) {
+                    $copiedWord = null;
+                }
+            }
+        }
 
-        return view('release', compact('companies', 'drones', 'messages', 'testWorld', 'testRuns', 'starters', 'starter'));
+        return view('release', compact('companies', 'drones', 'messages', 'testWorld', 'testRuns', 'starters', 'starter', 'copiedFrom', 'copiedWord'));
     }
 
     /**
@@ -108,7 +123,15 @@ class ReleaseController extends Controller
             return $script;
         }
 
-        $agent = Release::release(Auth::user(), $request->input('company_name'), $script);
+        // "Copy this code" or "Copy this word" on a Drone page (#324 step 16)
+        $copiedFrom = $request->filled('copied_from') ? (int) $request->input('copied_from') : null;
+        if ($copiedFrom !== null && !Agent::where('agent_id', $copiedFrom)->exists()) {
+            $copiedFrom = null;
+        }
+        $copiedWord = $copiedFrom !== null && $request->filled('copied_word')
+            ? mb_substr((string) $request->input('copied_word'), 0, 64) : null;
+
+        $agent = Release::release(Auth::user(), $request->input('company_name'), $script, null, $copiedFrom, $copiedWord);
 
         return redirect('/release')->withSuccess('Released! Drone ' . $agent->name . ' of ' . $request->input('company_name')
             . ' is loading your script and will run its launched word.');
