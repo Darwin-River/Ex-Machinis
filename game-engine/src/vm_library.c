@@ -39,7 +39,7 @@ const char* vm_library_source =
    Every action word leaves perform's result (0 when it worked). They need
    the perform and query callbacks, which the VM gets first. */
 const char* vm_library_game_source =
-    "3 constant earth 10 constant moon 4 constant mars\n"
+    "3 constant earth 10 constant moon 4 constant mars 11 constant phobos 12 constant deimos\n"
     "2061 constant fuel 1000 constant magmite 1100 constant kunspar\n"
     "1110 constant yalspar 1120 constant vladnium 1130 constant wolfite\n"
     "2011 constant metals-a1 2012 constant metals-a2 2013 constant metals-a3\n"
@@ -68,6 +68,7 @@ const char* vm_library_game_source =
     ": deposit ( mineral -- n ) 640 ask 0 max begin dup while 1- dup 12 * answer +\n"
     "  dup @ 3 pick = if 2 + 2@ drop nip nip exit then drop repeat 2drop 0 ;\n"
     ": sell-all ( resource -- ) dup units ?dup if swap sell-to-station drop else drop then ;\n"
+    ": go ( place -- ior ) dup location = if drop 0 else travel then ;\n"
     ": stdlib ( -- version ) 2 ;\n";
 
 int vm_library_load(embed_t* vm)
