@@ -1051,6 +1051,26 @@ static ErrorCode_t event_apply(Event_t *event)
 
         result = db_launch_drone(event->drone_id, source_id, event->resource_id, &new_id);
 
+        // Its tank (#324 step 13): the fuel the launcher paid for it when
+        // the launch started arrives in the clone's hold, so it can pay for
+        // its first thinking
+        if(result == ENGINE_OK) {
+            Event_t fuel;
+            memset(&fuel, 0, sizeof(fuel));
+            fuel.event_type = INCREMENT_INVENTORY_EVENT_TYPE;
+            fuel.action_id = event->action_id;
+            fuel.logged = 1;
+            fuel.outcome = OUTCOME_NO_OUTCOME;
+            fuel.drone_id = new_id;
+            fuel.resource_id = FUEL_RESOURCE_ID;
+            fuel.new_quantity = LAUNCH_FUEL;     // the change: the events engine works out the total
+            fuel.new_credits = NULL_VALUE;
+            fuel.new_location = NULL_VALUE;
+            fuel.new_transmission = NULL_VALUE;
+            fuel.new_cargo = LAUNCH_FUEL;        // fuel has mass 1
+            result = db_insert_event_e(&fuel);
+        }
+
         event->outcome = (result == ENGINE_OK) ? OUTCOME_OK : OUTCOME_ACTION_ABORTED;
         event->logged = 1;
         event->new_quantity = (result == ENGINE_OK) ? new_id : NULL_VALUE;

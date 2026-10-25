@@ -350,10 +350,14 @@ for pid, p in econ_prot.items():
 # parameter 1 (-1), D parameter 2 (-2). The launch event (type 8) carries D in
 # its quantity; the events engine creates the drone.
 LAUNCH_PROTOCOL, LAUNCH_EVENT, LAUNCH_TIME = '12', 8, 1 * HOUR
+# Cloning (#324 step 13): the new drone gets LAUNCH_FUEL of the launcher's
+# fuel (the events engine puts it in its hold), so it can pay for its first
+# thinking; keep in step with LAUNCH_FUEL in common_types.h
+LAUNCH_FUEL = 20
 protocols[LAUNCH_PROTOCOL] = [
     LAUNCH_PROTOCOL, 'Launch drone', '2', '100',
-    '[D K 12 perform]: Builds a new drone from ship kit K in the cargo bay, with a copy of drone D\'s '
-    'program; it runs its launched word if it has one. Takes 1 hour of game time plus the light time from D.',
+    '[D K 12 perform]: Builds a new drone (a clone) from ship kit K in the cargo bay, beside this one, with a copy '
+    'of drone D\'s program and 20 of this drone\'s fuel; it runs its launched word. Takes 1 hour plus the light time from D.',
     '1', '1', '0']
 add_effects(LAUNCH_PROTOCOL, [
     {'time': 0, 'drone': 0, 'resource': -1, 'event_type': 2, 'local': 1, 'installed': 0, 'locked': 0,
@@ -460,7 +464,7 @@ def fuel_cost(pid):
     if p in (25901, int(POWER_PROTOCOL), 33, 35):
         return 0
     if p == int(LAUNCH_PROTOCOL):
-        return 10
+        return 10 + LAUNCH_FUEL           # 10 burned, 20 for the clone's tank
     if p == 5001:
         return 5                      # travel
     if 11000 <= p < 12000:
@@ -824,6 +828,15 @@ queries.append((661, 'Wreck hold',
                 "SELECT i.resource, i.units FROM sqInventory i JOIN agents w ON w.agent_id = i.drone "
                 f"WHERE i.drone = [value_1] AND w.wrecked_at IS NOT NULL AND w.object_id = {HERE_} AND i.units > 0 "
                 "ORDER BY i.resource;"))
+
+# Cloning (#324 step 13): a drone's clones and its own line
+queries.append((670, 'My clones',
+                '[R L 670 query]: The drones this drone launched, oldest first: drone ID, 1 if it is a wreck (else 0).', 0,
+                "SELECT agent_id, wrecked_at IS NOT NULL FROM agents WHERE parent_id = [drone_id] ORDER BY agent_id;"))
+queries.append((671, 'My lineage',
+                '[R L 671 query]: The drone that launched this one (0 if none), and its generation (0 for a drone '
+                'released or registered, 1 for its clones, and so on).', 0,
+                "SELECT IFNULL(parent_id, 0), generation FROM agents WHERE agent_id = [drone_id];"))
 
 queries.append((640, 'Deposits here',
                 '[R L 640 query]: The mining deposits where the drone is: resource, units left now (2 cells), '

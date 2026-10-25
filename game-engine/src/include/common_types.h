@@ -68,6 +68,7 @@
 // Fuel (#324 step 8): the fuel resource, and the protocol that burns it for
 // power ([N 2 perform], run by the game engine itself)
 #define FUEL_RESOURCE_ID      2061
+#define LAUNCH_FUEL             20   // fuel a clone gets from its launcher (#324 step 13; game data LAUNCH_FUEL)
 #define POWER_PROTOCOL_ID     2
 
 // Special query tags

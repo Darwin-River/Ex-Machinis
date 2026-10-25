@@ -533,7 +533,8 @@ The kit is used up at once, and the new spacecraft appears an hour of game time 
 
 The new spacecraft:
 
-- has the kit's hull (its name and cargo capacity: 500 for a Cruiser, 2,000 for a Cutter, 5,000 for a Frigate and 20,000 for a Barge) and an empty cargo hold;
+- has the kit's hull (its name and cargo capacity: 500 for a Cruiser, 2,000 for a Cutter, 5,000 for a Frigate and 20,000 for a Barge) and a cargo hold that is empty except for 20 fuel from the launching drone (a launch burns 30 fuel in all: 10 for the launch and 20 for the new spacecraft's tank, so it can start thinking);
+- belongs to the same company, shares its bank account, and remembers which drone launched it: it is that drone's **clone**;
 - has its own email address (a generic name like SN123456, which you can [rename](#renaming-your-spacecraft-and-your-company)), and emails you as soon as it's launched;
 - knows every word and variable the copied drone had defined when the launch happened, but nothing else: it starts at the prompt with an empty stack, even if the copied drone was in the middle of a script;
 - runs the word `launched` once, if the copied program defines one. That lets a new spacecraft get to work on its own. Its hold starts empty, so here it first pulls an engine and a Worm from drone 52, which launched it and is in the same place, then flies to the Moon and mines:
@@ -550,6 +551,21 @@ The new spacecraft:
 ```
 
 Word names are case-sensitive here: the word must be called `launched`, in lower case.
+
+`perform` only tells the launching drone whether the launch worked. To find the new spacecraft's ID (to push it fuel or cargo, say), ask for your clones:
+
+- `R L 670 query`: the drones this one launched, oldest first: for each, its drone ID and 1 if it is a wreck (else 0).
+- `R L 671 query`: the drone that launched this one (0 if none) and its generation (0 for a spacecraft you released or registered, 1 for its clones, 2 for theirs, and so on).
+
+```
+<run>
+  create clones 40 allot
+  clones 40 670 query     ( how many clones )
+  1- 4 * clones + @ .     \ the newest clone's ID
+</run>
+```
+
+A company ends when its last spacecraft dies: its credits vanish. So keep at least one of them working, or move what you want to keep first.
 
 #### When `launched` crashes
 

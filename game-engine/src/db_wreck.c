@@ -201,7 +201,7 @@ ErrorCode_t db_plunder(Event_t* event)
    drones become wrecks */
 static ErrorCode_t wr_eliminate(int company, long long now)
 {
-    ErrorCode_t result = wr_exec("UPDATE companies SET credits = 0, eliminated_at = %lld WHERE company_id = %d", now, company);
+    ErrorCode_t result = wr_exec("UPDATE companies SET credits = 0, eliminated_at = %lld, end_cause = 'tax' WHERE company_id = %d", now, company);
 
     int drones[MAX_WRECK_ROWS];
     int n = 0;
