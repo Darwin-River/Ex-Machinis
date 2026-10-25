@@ -380,7 +380,9 @@ A script that needs to wait, for a price to move, a deposit to refill or a batch
 </run>
 ```
 
-`M 3 perform` pauses your script for M game minutes (1 to 10,080, a week). Your spacecraft runs no instructions while it waits, and waiting burns no fuel, so a patient spacecraft is cheap to run. `perform` leaves 0 when the time is up, or -12 if M is out of range. For example, this word checks a deposit every game hour until it has at least 20 units:
+`M 3 perform` pauses your script for M game minutes (1 to 10,080, a week). Your spacecraft runs no instructions while it waits, and waiting burns no fuel, so a patient spacecraft is cheap to run. `perform` leaves 0 when the time is up, or -12 if M is out of range.
+
+A waiting spacecraft still trades. A sale is the buyer's doing: the buyer pulls the goods from your sell order (or pushes them to your buy order), so your spacecraft's script doesn't need to run, and it uses no power. Post your orders, then wait, and buyers can still buy from you while you sleep. For example, this word checks a deposit every game hour until it has at least 20 units:
 
 ```
 <run>

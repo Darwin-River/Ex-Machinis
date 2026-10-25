@@ -15,8 +15,8 @@
 #   - a mined-out deposit yields nothing until it refills over game time,
 #   - another player's wreck can be plundered (not one's own), and a company
 #     that can't pay its tax is eliminated,
-#   - a waiting drone runs no instructions, and a drone sees live orders only
-#     where it is,
+#   - a waiting drone runs no instructions but still sells, and a drone sees
+#     live orders only where it is,
 #   - the Test button runs a script in the test world, not the live one,
 #   - it launches a new drone (a clone) from a ship kit with a copy of its
 #     program, some of its fuel and a record of its parent,
@@ -331,30 +331,35 @@ got_half() { [ "$(kunspar)" -ge "$((KUNSPAR + 5))" ]; }
 wait_for 60 "the plunderer got half the wreck's kunspar" got_half
 wait_for 60 "drone finished plundering" idle
 
-# Waiting (#324 step 14): the first drone waits 600 game minutes (10 seconds
-# here); while it waits it runs no instructions
-sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('600 3 perform .', $DRONE_ID, NOW(), NOW(), 'wait', '')"
-waiting() { [ "$(sql "select IFNULL(waiting_action, 0) from agents where agent_id=$DRONE_ID")" != 0 ]; }
-wait_for 30 "drone is waiting" waiting
-BEFORE=$(sql "select instructions from agents where agent_id=$DRONE_ID")
-sleep 3
-[ "$(sql "select instructions from agents where agent_id=$DRONE_ID")" = "$BEFORE" ] || fail "a waiting drone ran instructions"
-echo "ok: a waiting drone runs no instructions"
-wait_for 60 "drone finished waiting" idle
-
-# Local information (#324 step 14): the released drone, at Earth, posts a
-# sell order for fuel; it sees it there, and the first drone, on the Moon,
-# doesn't (query 611 used to list orders anywhere)
+# Waiting and local information (#324 step 14). The released drone, at
+# Earth, posts a sell order for fuel, checks it sees it there, and waits
+# 600 game minutes (10 seconds here). While it waits it runs no
+# instructions, yet it still sells: a buyer pulls from it.
 # (replies are kept, as email is off: match their end without spaces,
 # newlines or carriage returns)
 reply_ends() { [ "$(sql "select count(*) from drone_messages where agent_id=$1 and subject='$2' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%$3'")" -ge 1 ]; }
-sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('9 1 2061 7 perform . create o 40 allot 2061 o 40 610 query . cr', $FORGE_DRONE, NOW(), NOW(), 'orders here', '')"
-sees_here() { reply_ends $FORGE_DRONE 'orders here' 01; }
-wait_for 60 "a drone at Earth sees its sell order there" sees_here
+sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('9 1 2061 7 perform . create o 40 allot 2061 o 40 610 query . 600 3 perform .', $FORGE_DRONE, NOW(), NOW(), 'sell and wait', '')"
+forge_waits() { [ "$(sql "select a.protocol from agents g join actions a on a.id = g.waiting_action where g.agent_id=$FORGE_DRONE")" = 3 ]; }
+wait_for 60 "a drone with a sell order is waiting" forge_waits
+BEFORE=$(sql "select instructions from agents where agent_id=$FORGE_DRONE")
+# The first drone (another player's) comes to Earth and buys 2 fuel from it
+sql "update agents set object_id = 3 where agent_id = $DRONE_ID"
+sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('2 2061 $FORGE_DRONE 11 perform .', $DRONE_ID, NOW(), NOW(), 'buy from a waiting drone', '')"
+sold_waiting() { [ "$(sql "select count(*) from trades where seller=$FORGE_DRONE and buyer=$DRONE_ID and resource=2061 and units=2")" = 1 ]; }
+wait_for 30 "a waiting drone still sells (the buyer pulls from it)" sold_waiting
+forge_waits || fail "the seller stopped waiting before its wait was up"
+[ "$(sql "select instructions from agents where agent_id=$FORGE_DRONE")" = "$BEFORE" ] || fail "a waiting drone ran instructions"
+echo "ok: a waiting drone runs no instructions"
+wait_for 60 "drone finished buying" idle
+# Back on the Moon, the first drone can't see Earth's live orders (query
+# 611 used to list orders anywhere); the seller, at Earth, saw its own
+sql "update agents set object_id = 10 where agent_id = $DRONE_ID"
 sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('create o 40 allot 2061 o 40 611 query . cr', $DRONE_ID, NOW(), NOW(), 'orders far', '')"
 blind_far() { reply_ends $DRONE_ID 'orders far' -2; }
 wait_for 60 "a drone on the Moon can't see Earth's live orders" blind_far
 wait_for 60 "drone finished asking" idle
+sees_here() { reply_ends $FORGE_DRONE 'sell and wait' 010; }
+wait_for 60 "the seller saw its order at Earth and its wait ended" sees_here
 
 # Taxes (#324 step 12): a company that can't pay its tax is eliminated: its
 # credits vanish and its drones become wrecks. Charge 20 a game day, and
