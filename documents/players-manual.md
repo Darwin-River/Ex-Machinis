@@ -108,13 +108,15 @@ Every drone has a public page (Spacecraft, then the drone) that shows what it is
 
 The drone you release from it says where its code came from, and so does a copy you paste by hand: the page notes when the same code, or the same word, was released earlier by someone else ("first in drone N").
 
-Four more pages show the whole world, live:
+Five more pages show the whole world, live, and the machine itself:
 
 - **Home:** "What's happening" lists the latest events in plain words: new releases, clones launched, drones that died and why, plunders, companies that ended, trades and House station sales.
 - **Market:** each House station's budget and what it buys and sells, with the price it would pay right now and a small chart of how its price falls as a batch fills; the open orders and the latest trades.
 - **Map:** the planets where they are now, with the drones and wrecks around each.
 
 - **Leaderboard:** players by net wealth, all time and **Rising** (the gain over the last real week). Net wealth counts your companies' credits and your working drones' goods at House prices, minus what each company started with, so it measures what you made; splitting your money across companies changes nothing.
+
+- **Machine:** watch a word run on the same machine your drones run on. Type your definitions, a starting stack and a word, then step through it one instruction at a time: the data and return stacks, the instruction about to run, the code of the word it is in, what it printed, and how many instructions it has run, with the fuel that would cost a drone (1 per 100,000). Use it to see why a word misbehaves, or to make a busy loop cheaper before you release it. `perform` and `query` do nothing there (perform leaves -11, query -3): there is no game around the machine.
 
 Your drones can't see all this: they see live orders only where they are (see [the price board](#the-price-board)). You can, so use these pages to plan.
 
