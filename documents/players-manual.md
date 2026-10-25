@@ -320,7 +320,6 @@ Protocols are invoked by sending your drone a FORTH script that calls upon the `
 | -6 | the buyer's order doesn't allow buying that many |
 | -9 | the action was stopped |
 | -10 | the other drone has no matching buy or sell order |
-| -13 | the other drone belongs to another of your own companies: you can't trade with or plunder your own companies |
 | -14 | no House station where you are trades that resource that way |
 | -15 | no wreck of that ID where you are, or it has already been plundered |
 | -11 | there is no such protocol |
@@ -372,7 +371,7 @@ A spacecraft becomes a **wreck** for good when it runs out of fuel, crashes five
 </run>
 ```
 
-Plundering takes 1 game hour and burns 1 fuel. Your spacecraft gets half of everything aboard: half of each resource, rounded down (and for an odd unit, such as a single engine, a 50/50 chance). The rest is destroyed. Make room in your hold first: what doesn't fit is lost too. A wreck is plundered once, so be quick. You can't plunder the wrecks of your own companies (`perform` leaves -13). If there's no such wreck where you are, or it was already plundered, `perform` leaves -15.
+Plundering takes 1 game hour and burns 1 fuel. Your spacecraft gets half of everything aboard: half of each resource, rounded down (and for an odd unit, such as a single engine, a 50/50 chance). The rest is destroyed. Make room in your hold first: what doesn't fit is lost too. A wreck is plundered once, so be quick. Any wreck will do, your own companies' included. If there's no such wreck where you are, or it was already plundered, `perform` leaves -15.
 
 Two queries find wrecks:
 
@@ -389,7 +388,7 @@ Two queries find wrecks:
 
 ### Taxes
 
-Each of your companies pays a tax every game day: 20 credits, plus 0.5% of the credits of all your companies together. A new company pays nothing for its first 3 game days. A company that can't pay is **eliminated**: its credits vanish, and its spacecraft become wrecks that other players can plunder. So keep enough credits in every company you run.
+Each company pays a tax every game day: 20 credits, plus 0.5% of its credits. A new company pays nothing for its first 3 game days. A company that can't pay is **eliminated**: its credits vanish, and its spacecraft become wrecks that other players can plunder. So keep enough credits in every company you run.
 
 `R L 650 query` tells you where your spacecraft's company stands: its next tax bill (2 cells), the game hours until it is due, and the game hours of grace it has left.
 
@@ -462,7 +461,7 @@ With the default clock:
 A few consequences are worth planning for:
 
 - **Program distant drones.** A drone around Neptune is minutes away by message, and a trip there takes most of a day, so give it a script that decides for itself what to do next, rather than steering it one command at a time.
-- **Busy drones refuse new scripts.** While a drone is carrying out an action, it answers new scripts with "Another command is running, retry later". `<abort>` still gets through (after the light delay) and stops the script, but not the action itself: a drone that has set off still arrives.
+- **Busy drones finish first.** While a drone is running a script or carrying out an action, a new script waits until it has finished, then runs. `<abort>` still gets through (after the light delay) and stops the script, but not the action itself: a drone that has set off still arrives.
 - **Replies arrive late.** You get a script's output when the script ends, after the action it waited for and the light delay home.
 
 ### Understanding how protocols are organized and numbered
@@ -709,7 +708,7 @@ The interpreter reads at most 79 characters of a line at a time. The game splits
 
 As with most programming languages, FORTH offers some convenient mechanisms for commenting on your code. These techniques can be very handy in reminding yourself and others of the intent and function of your definitions. There are two primary ways to add comments to your script that will be ignored by the interpreter:
 
-- When you start a comment with a backslash (`\`) the interpreter will ignore everything else on that line.
+- When you start a comment with a backslash (`\`) the interpreter will ignore everything else on that line, up to the line's 80th character: anything past that is read as code. Keep lines that end in a comment to 80 characters.
 - The interpreter will also ignore any text enclosed between parentheses, regardless of where they occur in the line or whether they enclose multiple lines.
 
 Remember that the interpreter uses white space to delineate words. Therefore, backslashes and parentheses will only be recognized as such by the interpreter if there are spaces between them and other characters.
@@ -847,7 +846,7 @@ In the following example, a drone is instructed to push 5 units of kunspar into 
 </run>
 ```
 
-Both drones must be orbiting the same body. If the acting and affected drones are owned by the same player, these actions can be performed without referring to active market bids.
+Both drones must be orbiting the same body. If the acting and affected drones belong to the same company, these actions can be performed without referring to active market bids.
 
 However, if the affected spacecraft is owned by a different player, the push and pull commands will only be allowed to take place if the affected drone has posted buy and sell orders for these resources. In that case, the transaction will be constrained to the limits set by the market order and the total appropriate number of credits will be transferred from the buyer's to the seller's bank account. The buyer must have enough credits for the whole order.
 

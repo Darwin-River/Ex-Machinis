@@ -1142,17 +1142,9 @@ static ErrorCode_t event_apply(Event_t *event)
         market_transaction = event_is_market_transaction(&action, event, &user_info, &peer_user_info);
     }
 
-    // A trade between two companies of the same player is blocked (#324
-    // step 4): it would let a player move money or goods between companies
-    if((result == ENGINE_OK) && (market_transaction == ENGINE_TRUE) &&
-       (user_info.player_id == peer_user_info.player_id))
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS,
-            "Event [%d] blocked: companies [%d] and [%d] belong to the same player [%d]",
-            event->event_id, user_info.user_id, peer_user_info.user_id, user_info.player_id);
-        event->outcome = OUTCOME_SAME_PLAYER;
-        result = ENGINE_LOGIC_ERROR;
-    }
+    // Any two companies may trade (#367 step 1): companies working together
+    // is a legitimate gain, so trades between one player's companies, once
+    // blocked with OUTCOME_SAME_PLAYER (#324 step 4), go through
 
     if((result == ENGINE_OK) && (market_transaction == ENGINE_TRUE))
     {
