@@ -13,8 +13,9 @@ return [
     // test world (its own database and engines, with a faster clock)
     'test_world' => filter_var(env('TEST_WORLD', false), FILTER_VALIDATE_BOOLEAN),
 
-    // Test runs a player keeps: starting another stops and removes the oldest
-    'test_runs_kept' => 3,
+    // Test runs the test world keeps (#367 step 3: there are no accounts, so
+    // all together): starting another stops and removes the oldest
+    'test_runs_kept' => 100,
 
     // Fuel in a new drone's hold (#324 step 8): actions and computing burn it
     'starting_fuel' => 100,

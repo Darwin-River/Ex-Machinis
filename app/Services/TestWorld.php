@@ -2,9 +2,6 @@
 
 namespace App\Services;
 
-use App\Agent;
-use App\User;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -36,26 +33,23 @@ class TestWorld
         }
     }
 
-    /** Starts a test run of the script; returns the test drone */
-    public static function run(User $user, string $script): Agent
+    /**
+     * Starts a test run of the script (#367 step 3: anyone may, no account
+     * needed); returns its token, the link to its results
+     */
+    public static function run(string $script): string
     {
-        // The player's account, as the test world's drones need an owner
-        self::db()->table('users')->updateOrInsert(
-            ['user_id' => $user->user_id],
-            ['name' => $user->name, 'email' => $user->email]
-        );
-
-        self::prune($user, config('forge.test_runs_kept') - 1);
-
-        $name = 'Test ' . $user->user_id . '-' . substr(md5(uniqid('', true)), 0, 6);
-
-        return Release::release($user, $name, $script, self::CONNECTION);
+        $owner = Release::owner(self::CONNECTION);
+        self::prune(config('forge.test_runs_kept') - 1);
+        $token = bin2hex(random_bytes(8));
+        Release::release($owner, 'Test ' . $token, $script, self::CONNECTION);
+        return $token;
     }
 
-    /** Stops and removes the player's oldest test runs, keeping $keep */
-    public static function prune(User $user, int $keep): void
+    /** Stops and removes the oldest test runs, keeping $keep */
+    public static function prune(int $keep): void
     {
-        $old = self::db()->table('companies')->where('user_id', $user->user_id)
+        $old = self::db()->table('companies')->where('name', 'like', 'Test %')
             ->orderBy('company_id', 'desc')->skip(max(0, $keep))->take(1000)->pluck('company_id');
         if ($old->isEmpty()) {
             return;
@@ -71,40 +65,39 @@ class TestWorld
     }
 
     /**
-     * The player's test runs, newest first: each drone with what it has
-     * printed, its latest events (actions, cargo, credits) and its trades
+     * A test run by its token: the drone with what it has printed, its latest
+     * events (actions, cargo, credits) and its trades; null if there is none
+     * (a wrong link, or pruned)
      */
-    public static function runs(User $user): Collection
+    public static function runOf(string $token): ?object
     {
-        $companies = self::db()->table('companies')->where('user_id', $user->user_id)
-            ->orderBy('company_id', 'desc')->get()->keyBy('company_id');
-        if ($companies->isEmpty()) {
-            return collect();
+        if (!preg_match('/^[0-9a-f]{16}$/', $token)) {
+            return null;
         }
-        $drones = self::db()->table('agents')->whereIn('company_id', $companies->keys())
-            ->orderBy('agent_id', 'desc')->get();
-
-        return $drones->map(function ($drone) use ($companies) {
-            $company = $companies[$drone->company_id];
-            return (object) [
-                'drone' => $drone,
-                'credits' => $company->credits,
-                'messages' => self::db()->table('drone_messages')->where('agent_id', $drone->agent_id)
-                    ->orderBy('id')->get(),
-                'events' => self::db()->table('events')
-                    ->leftJoin('resources', 'resources.id', '=', 'events.resource')
-                    ->leftJoin('event_types', 'event_types.id', '=', 'events.event_type')
-                    ->where('events.drone', $drone->agent_id)
-                    ->orderBy('events.id', 'desc')->limit(20)
-                    ->get(['events.id', 'events.event_type', 'events.action', 'events.outcome',
-                        'events.new_quantity', 'events.new_credits', 'resources.name AS resource_name',
-                        'event_types.name AS type_name']),
-                'trades' => self::db()->table('trades')
-                    ->where(function ($q) use ($drone) {
-                        $q->where('seller', $drone->agent_id)->orWhere('buyer', $drone->agent_id);
-                    })->orderBy('id', 'desc')->limit(20)->get(),
-                'crashes' => self::db()->table('drone_crashes')->where('drone', $drone->agent_id)->count(),
-            ];
-        });
+        $company = self::db()->table('companies')->where('name', 'Test ' . $token)->first();
+        $drone = $company ? self::db()->table('agents')->where('company_id', $company->company_id)
+            ->orderBy('agent_id')->first() : null;
+        if (!$drone) {
+            return null;
+        }
+        return (object) [
+            'drone' => $drone,
+            'credits' => $company->credits,
+            'messages' => self::db()->table('drone_messages')->where('agent_id', $drone->agent_id)
+                ->orderBy('id')->get(),
+            'events' => self::db()->table('events')
+                ->leftJoin('resources', 'resources.id', '=', 'events.resource')
+                ->leftJoin('event_types', 'event_types.id', '=', 'events.event_type')
+                ->where('events.drone', $drone->agent_id)
+                ->orderBy('events.id', 'desc')->limit(20)
+                ->get(['events.id', 'events.event_type', 'events.action', 'events.outcome',
+                    'events.new_quantity', 'events.new_credits', 'resources.name AS resource_name',
+                    'event_types.name AS type_name']),
+            'trades' => self::db()->table('trades')
+                ->where(function ($q) use ($drone) {
+                    $q->where('seller', $drone->agent_id)->orWhere('buyer', $drone->agent_id);
+                })->orderBy('id', 'desc')->limit(20)->get(),
+            'crashes' => self::db()->table('drone_crashes')->where('drone', $drone->agent_id)->count(),
+        ];
     }
 }

@@ -15,6 +15,29 @@ use Illuminate\Support\Facades\DB;
  */
 class Release
 {
+    /** The account that owns every release now there are no player accounts (#367 step 3) */
+    public const OWNER_EMAIL = 'public-forge@forge.invalid';
+    public const OWNER_NAME = 'Public Forge';
+
+    /**
+     * The owner of anonymous releases: one built-in account, so the engines
+     * (which expect every company and drone to have an owner) work as before.
+     * $connection picks the world.
+     */
+    public static function owner(?string $connection = null): User
+    {
+        $db = $connection === null ? DB::connection() : DB::connection($connection);
+        $id = $db->table('users')->where('email', self::OWNER_EMAIL)->value('user_id');
+        if ($id === null) {
+            $id = $db->table('users')->insertGetId(['name' => self::OWNER_NAME, 'email' => self::OWNER_EMAIL,
+                'password' => bcrypt(bin2hex(random_bytes(16)))]);
+        }
+        $owner = new User();
+        $owner->forceFill(['user_id' => (int) $id, 'name' => self::OWNER_NAME, 'email' => self::OWNER_EMAIL]);
+        $owner->exists = true;
+        return $owner;
+    }
+
     /**
      * The starter scripts (#324 step 15), in examples/starters: a name and
      * what it does
