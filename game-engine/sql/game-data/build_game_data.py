@@ -395,6 +395,20 @@ if '5221' in resources and not any(e['resource'] == 5221 for _, e in effects):
     notes[:] = [n for n in notes if not n.startswith('resource 5221 ')]
     note('resource 5221 "Smelter I" dropped: the starter kit gives Smelter (A1) 5201, which refining needs')
 
+# Double-cell prices (#324 step 9): like sell (7) and buy (8), but the price
+# P is a double (two cells), so orders can go past 65,535 credits a unit.
+# double_params marks the parameters taken as doubles (bit 0 = parameter 1;
+# the price is parameter 3, the third taken off the stack).
+DOUBLE_PARAMS = {}
+for old, new, verb in (('7', '17', 'sell'), ('8', '18', 'buy')):
+    p7 = protocols[old]
+    keep = 'min' if verb == 'sell' else 'max'
+    protocols[new] = [new, f'{verb.capitalize()} resource (double price)', '3', p7[3],
+                      f'[P M R {new} perform]: Places order to {verb} resource R at price P, a double (two cells), '
+                      f'keeping {keep} M units at drone\'s cargo hold.', p7[5], p7[6], p7[7]]
+    DOUBLE_PARAMS[new] = 1 << 2
+    add_effects(new, [dict(e) for q, e in effects if q == int(old) and e['resource'] != FUEL])
+
 # Fuel burned by each action (#324 step 8), by the size of the job: 1 to 10
 # units, once per action whatever its multiplier. Unpacking the starter kit
 # is free. Each protocol's description says what it burns.
@@ -446,6 +460,12 @@ add_effects(POWER_PROTOCOL, [{'time': 0, 'drone': 0, 'resource': FUEL, 'event_ty
 # Location and market effects: only for protocols we keep
 loc_eff = [r for r in econ['Location Effects'][1:] if r and num(r[1]) in protocols]
 mkt_eff = [r for r in econ['Market Effects'][1:] if r and num(r[1]) in protocols]
+# The double-price orders (17, 18) have the same market effects as 7 and 8
+next_id = max(int(num(r[0])) for r in mkt_eff) + 1
+for old, new in (('7', '17'), ('8', '18')):
+    for r in [r for r in mkt_eff if num(r[1]) == old]:
+        mkt_eff.append([str(next_id), new] + list(r[2:]))
+        next_id += 1
 
 # --- the map: asteroids, comets, rings, and corrected planet orbits ----------------
 
@@ -520,24 +540,27 @@ for r in econ['Queries'][1:]:
 
 LATEST_ORDER = ("SELECT MAX(id) AS id FROM events WHERE outcome = 1 AND event_type = {t} "
                 "AND resource = [value_1] GROUP BY drone")
-ORDER_COLS = "o.new_credits, o.new_quantity, i.units, o.drone"
+# Double-cell money (#324 step 9): a column whose name starts with d_ comes
+# back as two cells (high cell first, so 2@ reads it); others as one
+ORDER_COLS = "o.new_credits AS d_price, o.new_quantity, i.units, o.drone"
 HERE_ = "(SELECT object_id FROM agents WHERE agent_id = [drone_id])"
 
 
-def orders(event_type, local):
+def orders(event_type, local, resource='[value_1]', extra=''):
     # Sell orders (4) are open while stock is above the kept minimum; buy
     # orders (5) while stock is below the wanted maximum.
     cmp, order = ('>', 'ASC') if event_type == 4 else ('<', 'DESC')
     where = f"i.units {cmp} o.new_quantity"
     join_here = f" INNER JOIN agents AS a ON a.agent_id = o.drone AND a.object_id = {HERE_}" if local else ''
-    stock = "LEFT JOIN sqInventory AS i ON i.drone = o.drone AND i.resource = [value_1]"
+    stock = f"LEFT JOIN sqInventory AS i ON i.drone = o.drone AND i.resource = {resource}"
     if event_type == 5:
         where = "IFNULL(i.units, 0) < o.new_quantity"
         cols = ORDER_COLS.replace('i.units', 'IFNULL(i.units, 0)')
     else:
         cols = ORDER_COLS
-    return (f"SELECT {cols} FROM events AS o INNER JOIN ({LATEST_ORDER.format(t=event_type)}) AS l ON l.id = o.id"
-            f"{join_here} {stock} WHERE {where} ORDER BY o.new_credits {order};")
+    latest = LATEST_ORDER.format(t=event_type).replace('[value_1]', resource)
+    return (f"SELECT {cols} FROM events AS o INNER JOIN ({latest}) AS l ON l.id = o.id"
+            f"{join_here} {stock} WHERE {where}{extra} ORDER BY o.new_credits {order};")
 
 
 EVENT_COL = "SELECT {c} FROM events WHERE outcome = 1 AND id = [value_1];"
@@ -554,7 +577,7 @@ QUERY_SQL = {
     # Companies (#324 step 4): a player can own many companies, each with its
     # own bank account; agents.company_id is a drone's company
     '100': (1, "SELECT name FROM companies WHERE company_id = [value_1];"),
-    '101': (1, "SELECT credits FROM companies WHERE company_id = [value_1];"),
+    '101': (1, "SELECT credits AS d_credits FROM companies WHERE company_id = [value_1];"),
     '110': (1, "SELECT agent_id FROM agents WHERE company_id = [value_1] ORDER BY agent_id;"),
     '201': (1, "SELECT company_id FROM agents WHERE agent_id = [value_1];"),
     '600': (1, orders(5, True)), '601': (1, orders(5, False)),
@@ -571,7 +594,7 @@ QUERY_SQL = {
                "WHERE e.outcome = 1 AND e.id = [value_1];"),
     '832': (1, EVENT_COL.format(c='resource')),
     '840': (1, EVENT_COL.format(c='new_quantity')),
-    '841': (1, EVENT_COL.format(c='new_credits')),
+    '841': (1, EVENT_COL.format(c='new_credits AS d_credits')),
     '842': (1, EVENT_COL.format(c='new_location')),
     '843': (1, EVENT_COL.format(c='FROM_UNIXTIME(game_t)')),
 }
@@ -658,7 +681,8 @@ queries.append((803, 'Search observed events',
 # Market volume (#249): units and credits that changed hands in trades of
 # resource N over the last H game hours, and how many trades, from the trades
 # table the events engine fills. [value_1] is H (pushed last), [value_2] N.
-VOLUME = ("SELECT IFNULL(SUM(units),0), IFNULL(SUM(credits),0), COUNT(*) FROM trades WHERE resource=[value_2] "
+VOLUME = ("SELECT IFNULL(SUM(units),0) AS d_units, IFNULL(SUM(credits),0) AS d_credits, COUNT(*) FROM trades "
+          "WHERE resource=[value_2] "
           "AND [game_now]-game_t<=[value_1]*3600{where};")
 queries.append((620, 'Local market volume',
                 '[N H R L 620 query]: Units of resource N traded at the requesting spacecraft\'s location in the last '
@@ -667,6 +691,18 @@ queries.append((620, 'Local market volume',
 queries.append((621, 'Solar market volume',
                 '[N H R L 621 query]: Units of resource N traded anywhere in the solar system in the last H game hours, '
                 'credits paid for them, and number of trades.', 2, VOLUME.format(where='')))
+
+# A double-cell input (#324 step 9): [dvalue_1] is the double pushed last
+# (its high cell is parameter 1, its low cell parameter 2); N is parameter 3
+queries.append((612, 'Solar sell orders up to a price',
+                '[N P R L 612 query]: Sell orders for resource N anywhere in the solar system at a price of at most P '
+                '(a double, e.g. 7 10000 um* for 70,000), cheapest first: price (2 cells), kept minimum, stock, drone.', 3,
+                orders(4, False, resource='[value_3]', extra=' AND o.new_credits <= [dvalue_1]')))
+
+# Queries whose money or volume columns are double cells: say so
+DOUBLE_QUERIES = {101, 600, 601, 610, 611, 612, 620, 621, 841}
+queries = [(q[0], q[1], (q[2] if q[0] == 612 else q[2].rstrip() + ' Money and volumes are double cells (2@).')[:255],
+            q[3], q[4]) if q[0] in DOUBLE_QUERIES else q for q in queries]
 
 queries.sort()
 for q in queries:
@@ -719,9 +755,10 @@ def table(name, cols, rows):
 table('resources', ['id', 'name', 'description', 'mass', 'capacity', 'slot_size'],
       [(r['id'], r['name'], r['description'], r['mass'], r['capacity'], r['slot_size'])
        for r in sorted(resources.values(), key=lambda r: r['id'])])
-table('protocols', ['id', 'name', 'parameters', 'bulk_modifier', 'description', 'observable', 'reportable', 'multiplier'],
+table('protocols', ['id', 'name', 'parameters', 'bulk_modifier', 'description', 'observable', 'reportable', 'multiplier',
+                    'double_params'],
       [(int(p[0]), p[1][:45], int(num(p[2]) or 0), int(num(p[3]) or 100), p[4][:255],
-        int(num(p[5]) or 0), int(num(p[6]) or 0), int(num(p[7]) or 0))
+        int(num(p[5]) or 0), int(num(p[6]) or 0), int(num(p[7]) or 0), DOUBLE_PARAMS.get(str(p[0]), 0))
        for p in sorted(protocols.values(), key=lambda p: int(p[0]))])
 effect_rows = []
 for n, (pid, e) in enumerate(sorted(effects, key=lambda pe: (pe[0], pe[1]['time'], pe[1]['event_type'])), start=1):

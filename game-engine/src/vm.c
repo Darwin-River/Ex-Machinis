@@ -18,6 +18,7 @@
 #include "game_time.h"
 #include "vm_meter.h"
 #include "crash.h"
+#include "vm_library.h"
 #include "engine.h"
 #include "trace.h"
 #include "vm_extension.h"
@@ -135,6 +136,9 @@ static int vm_add_callbacks(VirtualMachine_t* const vm, const bool optimize,  Vm
   static const char *preamble = "only forth definitions system +order\n";
   int r = 0;
 
+  // Setting a VM up isn't the drone's computing: don't meter it
+  vm_meter_start(0);
+
   if((r = embed_eval(vm, preamble)) < 0) {
     engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: evaluation of preamble (%s) returned %d", preamble, r); 
     return r;
@@ -156,6 +160,16 @@ static int vm_add_callbacks(VirtualMachine_t* const vm, const bool optimize,  Vm
     }
 
     engine_trace(TRACE_LEVEL_ALWAYS, "Callback (%s) added to VM", cb[i].name); 
+  }
+
+  // The standard word library (#324 step 9): double-cell words. Added once:
+  // a VM saved with it keeps it
+  if(!vm_word_defined(vm, VM_LIBRARY_MARKER)) {
+    if((r = vm_library_load(vm)) < 0) {
+      engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: loading the word library returned %d", r);
+      return r;
+    }
+    engine_trace(TRACE_LEVEL_ALWAYS, "Word library added to VM");
   }
   embed_reset(vm);
   return 0;
