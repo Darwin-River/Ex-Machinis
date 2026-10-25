@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 use App\Services\Mail\Inbox;
@@ -335,11 +336,28 @@ class HomeController extends Controller
     public function InGameEventsSearch(Request $request)
     {
         $resultsPerPage = Config::get('constants.options.results_per_page');
+
+        // What the drone has seen (the Central Database, drone 0, by default):
+        // its observation rows (acting or affected, or once the light got
+        // there) and, worked out here, the events where it is since it
+        // arrived (#324 step 20: no longer a row per drone)
+        $observer = (int) ($request->get('observing_agent') ?? 0);
+        $seen = DB::table('observations')->select('event', 'time', 'drone')->where('drone', $observer);
+        if ($observer > 0 && Schema::hasColumn('events', 'place')) {
+            $seen->union(DB::table('events as le')
+                ->join('agents as me', function ($join) use ($observer) {
+                    $join->on('le.place', '=', 'me.object_id')->where('me.agent_id', '=', $observer);
+                })
+                ->whereColumn('le.game_t', '>=', 'me.arrived_t')
+                ->where('le.game_t', '<=', \App\Services\World::gameNow())
+                ->select('le.id as event', 'le.timestamp as time', DB::raw($observer . ' as drone')));
+        }
+
         $query = DB::table('events')->select('events.timestamp', 'acting_agents.name as acting_agent_name', 'acting_agents.company_id as acting_company_id', 'acting_companies.name as acting_company_name',
             'acting_agents.agent_id as acting_agent_id', 'acting_agents.name as acting_agent_name', 'protocols.name as protocol_name', 'affected_companies.name as affected_company_name', 'affected_companies.company_id as affected_company_id',
             'event_types.name as event_type_name', 'affected_agents.agent_id as affected_agent_id', 'affected_agents.name as affected_agent_name', 'resources.id as resource_id',
             'resources.name as resource_name', 'events.locked', 'events.new_quantity', 'events.new_credits', 'events.new_location', 'objects.object_id', 'objects.object_name', 'observations.drone as observing_drone')
-            ->join('observations', 'events.id', '=', 'observations.event') //obligatory to be observed
+            ->joinSub($seen, 'observations', 'events.id', '=', 'observations.event') //obligatory to be observed
             ->leftJoin('actions', 'events.action', '=', 'actions.id')
             ->leftJoin('agents as acting_agents', 'actions.drone', '=', 'acting_agents.agent_id')
             ->leftJoin('companies as acting_companies', 'acting_agents.company_id', '=', 'acting_companies.company_id')
@@ -361,11 +379,6 @@ class HomeController extends Controller
                     ->orWhere('event_types.name', 'LIKE', "%" . $request->get('keyword') . "%")
                     ->orWhere('object_name', 'LIKE', "%" . $request->get('keyword') . "%");
             });
-
-        if ($request->get('observing_agent') !== null) {
-            $query->where('observations.drone', '=', $request->get('observing_agent'));
-        } else
-            $query->where('observations.drone', '=', 0);
 
         if ($request->get('sort')) {
             $sortParts = explode('|', $request->get('sort'));

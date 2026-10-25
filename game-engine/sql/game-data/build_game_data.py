@@ -726,9 +726,9 @@ for qid in sorted(set(econ_q) - set(sheet_ids), key=int):
     queries.append((int(qid), econ_q[qid]['name'][:45],
                     f'[{"N " * params}R L {qid} query]: {desc}'[:255], params, script.replace('exmachinis.', '')))
     note(f'query {qid} "{econ_q[qid]["name"]}" is only in economy.xlsx: kept')
-# The advanced events query (#149): events this spacecraft has observed (the
-# observations table: as acting/affected drone, locally, or once their light
-# has reached it), filtered by up to nine conditions; a negative value means
+# The advanced events query (#149): events this spacecraft has observed (as
+# acting/affected drone or once their light has reached it: the observations
+# table; locally: where it is, since it arrived), filtered by up to nine conditions; a negative value means
 # "any". Pushed in this order, so the last one pushed is [value_1].
 EVENT_FILTERS = [  # (letter, meaning, SQL condition on [value_n])
     ('A', 'acting spacecraft', 'a.drone={v}'),
@@ -743,9 +743,14 @@ EVENT_FILTERS = [  # (letter, meaning, SQL condition on [value_n])
 ]
 conditions = ' '.join(f'AND ({{v}}<0 OR {c})'.format(v=f'[value_{len(EVENT_FILTERS) - i}]')
                       for i, (_, _, c) in enumerate(EVENT_FILTERS))
+# Seen: an observation row (the acting or affected drone, or the light has
+# reached it), or the event happened where the drone is, since it arrived
+# (#324 step 20: local sightings are worked out here, not stored per drone)
 script = ('SELECT e.id FROM events e LEFT JOIN actions a ON a.id=e.action LEFT JOIN agents g ON g.agent_id=e.drone '
-          'WHERE e.outcome=1 AND EXISTS(SELECT 1 FROM observations o WHERE o.event=e.id AND o.drone=[drone_id] '
-          f'AND o.game_t<=[game_now]) {conditions} ORDER BY e.game_t DESC,e.id DESC;')
+          'WHERE e.outcome=1 AND (EXISTS(SELECT 1 FROM observations o WHERE o.event=e.id AND o.drone=[drone_id] '
+          'AND o.game_t<=[game_now]) OR EXISTS(SELECT 1 FROM agents me WHERE me.agent_id=[drone_id] '
+          'AND e.place=me.object_id AND e.game_t>=me.arrived_t AND e.game_t<=[game_now])) '
+          f'{conditions} ORDER BY e.game_t DESC,e.id DESC;')
 usage = ' '.join(letter for letter, _, _ in EVENT_FILTERS) + ' R L 803 query'
 queries.append((803, 'Search observed events',
                 f'[{usage}]: Lists the events this spacecraft has observed, newest first, that match A P T M D N X K O '
