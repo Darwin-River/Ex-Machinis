@@ -62,6 +62,13 @@ class TestWorldTest extends TestCase
             'the test world needs the player as the owner');
         $this->assertNotNull($this->test()->table('events')->where('drone', $drone->agent_id)->where('resource', 5901)->first(),
             'the test drone gets the same starter kit');
+
+        // and its first fuel in the hold (#324 step 8), on top of the kit
+        $fuel = $this->test()->table('events')->where('drone', $drone->agent_id)->where('resource', 2061)->first();
+        $this->assertNotNull($fuel, 'a new drone starts with fuel');
+        $this->assertEquals(config('forge.starting_fuel'), $fuel->new_quantity);
+        $kitMass = $this->test()->table('resources')->where('id', 5901)->value('mass');
+        $this->assertEquals($kitMass + config('forge.starting_fuel'), $fuel->new_cargo, 'the hold counts the kit and the fuel');
     }
 
     public function testTestRunNeedsNoCompanyNameButALaunchedWord()

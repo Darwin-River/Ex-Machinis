@@ -45,4 +45,8 @@ ErrorCode_t db_clear_crashes_in_row(DbConnection_t* connection, int agent_id);
 ErrorCode_t db_add_drone_message(DbConnection_t* connection, int agent_id, long long game_t,
                                  const char* subject, const char* body);
 
+/** Power (#324 step 8): the whole units of fuel a drone owes for its
+    instructions, marked as paid (the rest carries over) */
+ErrorCode_t db_take_power_due(DbConnection_t* connection, int agent_id, long long per_fuel, long long* units);
+
 #endif

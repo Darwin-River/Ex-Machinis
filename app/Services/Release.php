@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\DB;
  */
 class Release
 {
+    /** Fuel (A1), which actions and computing burn (#324 step 8) */
+    public const FUEL = 2061;
+
     /** A script must define the word launched (case matters) */
     public static function definesLaunched(string $script): bool
     {
@@ -77,7 +80,8 @@ class Release
             $agent->hull_type = Company::DEFAULT_DRONE_HULL_TYPE;
             $agent->save();
             $agent->agent_id = $agent->id; // the key the save filled in
-            $agent->addCargo(5901); // Starter Kit I
+            $cargo = $agent->addCargo(5901);                                    // Starter Kit I
+            $agent->addCargo(self::FUEL, config('forge.starting_fuel'), $cargo);   // its first fuel
 
             foreach (self::chunks($script) as $chunk) {
                 Command::create([

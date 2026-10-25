@@ -40,6 +40,9 @@
 *******************************************************************************/
 ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt);
 
+/** Burns fuel for the current drone's computer (#324 step 8) */
+ErrorCode_t protocol_burn_power(int units);
+
 /** ****************************************************************************
 
   @brief      Gets protocol execution message with result information

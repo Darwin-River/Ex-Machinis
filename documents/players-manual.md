@@ -30,6 +30,7 @@ Thank you for your support!
   - [Browsing the Resource Catalog](#browsing-the-resource-catalog)
 - [Chapter 4: Issuing Commands](#chapter-4-issuing-commands)
   - [Unpacking your starter kit](#unpacking-your-starter-kit)
+  - [Fuel](#fuel)
   - [Traveling between locations](#traveling-between-locations)
   - [Time and distance](#time-and-distance)
   - [Understanding how protocols are organized and numbered](#understanding-how-protocols-are-organized-and-numbered)
@@ -71,7 +72,7 @@ It is your birthright to take control of your own remotely piloted spacecraft an
 
 In the Public Forge world there is no email. You open an account on the website (you need an invitation code for now), write your drone's program on the **Release** page, and release it:
 
-- each release starts a new company of yours, with one drone in orbit around Earth, a starter kit and 1,000 credits;
+- each release starts a new company of yours, with one drone in orbit around Earth, a starter kit, 100 fuel and 1,000 credits;
 - the drone loads your script, then runs your word `launched` on its own, so your script should define words and end with `: launched ... ;`;
 - what the drone prints appears on the Release page once its signal has reached Earth;
 - if `launched` crashes, the drone restarts it from the script you released (see [When `launched` crashes](#when-launched-crashes)).
@@ -285,6 +286,17 @@ Each of your spacecraft starts with a Starter Kit I (resource 5901) in its cargo
 ```
 
 The drone replies with 0 once the kit is unpacked.
+
+### Fuel
+
+Everything your spacecraft does burns fuel, Fuel (A1) (resource 2061):
+
+- **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (a transfer or an order) to 10 (launching a spacecraft). The protocol's description says how much. Unpacking the starter kit is free. Without the fuel, `perform` leaves -2 and nothing happens.
+- **Thinking.** Running your program burns power: 1 fuel for every 100,000 FORTH instructions your spacecraft runs. Words that do less work cost less to run.
+
+A new spacecraft starts with 100 fuel. When it runs out and can't pay for its thinking, it becomes a **wreck** for good. So keep an eye on your fuel (query your inventory) and make or buy more before you run dry.
+
+To make fuel, use a Chemical Reactor: `12061 perform` turns 1 Organics (A1) and 2 Inorganics (A1) into 30 Fuel (A1) in 2 game hours. Refining 20 magmite (`21000 perform`) gives exactly those inputs. Fuel can also be traded like any other resource, and pushed to another of your spacecraft. A spacecraft you launch starts with an empty hold, so push it some fuel first.
 
 ### Traveling between locations
 

@@ -65,6 +65,11 @@
 // Word a launched drone runs once, if its copied program defines it
 #define LAUNCHED_WORD         "launched"
 
+// Fuel (#324 step 8): the fuel resource, and the protocol that burns it for
+// power ([N 2 perform], run by the game engine itself)
+#define FUEL_RESOURCE_ID      2061
+#define POWER_PROTOCOL_ID     2
+
 // Special query tags
 #define MAX_QUERY_TAG_LEN      32
 #define MAX_QUERY_TAGS_NUM     16

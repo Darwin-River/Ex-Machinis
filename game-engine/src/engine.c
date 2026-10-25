@@ -26,6 +26,7 @@
 #include "vm_meter.h"
 #include "crash.h"
 #include "db_launch.h"
+#include "protocol.h"
 #include "config.h"
 #include "db.h"
 
@@ -510,6 +511,12 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
 
     // Instruction metering: add what this slice used to the drone's total
     db_add_agent_instructions(&engine.db_connection, engine.last_command.agent_id, vm_meter_used());
+
+    // Power (#324 step 8): burn the fuel those instructions cost
+    long long fuel_due = 0;
+    if(db_take_power_due(&engine.db_connection, engine.last_command.agent_id,
+                         engine_get_power_instructions(), &fuel_due) == ENGINE_OK && fuel_due > 0)
+        protocol_burn_power((int)fuel_due);
 
     // Keep the unread rest of a paused script (NULL clears it)
     db_set_agent_pending_input(&engine.db_connection, engine.last_command.agent_id, pending_input);
@@ -1485,6 +1492,11 @@ long long engine_get_action_instructions()
 bool engine_email_enabled()
 {
     return atoi((const char*)engine.config.params[EMAIL_ENABLED]) != 0;
+}
+
+long long engine_get_power_instructions()
+{
+    return atoll((const char*)engine.config.params[POWER_INSTRUCTIONS]);
 }
 
 int engine_get_crash_limit()

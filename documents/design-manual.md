@@ -273,7 +273,29 @@ A drone is always in one of these states:
 
 So a drone performs one in-game action at a time, and its script always knows how the last one went before deciding what to do next. While a drone is running or waiting, a new script emailed to it is refused with "Another command is running, retry later"; `<abort>` still works (see [Meta Commands](#Meta-Commands)).
 
-**Instruction metering.** A slice is measured in FORTH instructions, not seconds: the VM counts every instruction it runs, and the slice ends when the count reaches `MAX_CYCLE_INSTRUCTIONS`. Each `query` costs a flat `QUERY_INSTRUCTIONS` (1,000 by default) and each `perform` a flat `ACTION_INSTRUCTIONS` (1,000), since their real cost is database work. So the same script always runs the same instructions per slice, however fast the server is, and test runs match live ones. Each drone's running total is kept in `agents.instructions`; power (fuel) will be charged on it. The engine's own set-up code (loading the callback words, checking for a word) isn't metered.
+**Instruction metering.** A slice is measured in FORTH instructions, not seconds: the VM counts every instruction it runs, and the slice ends when the count reaches `MAX_CYCLE_INSTRUCTIONS`. Each `query` costs a flat `QUERY_INSTRUCTIONS` (1,000 by default) and each `perform` a flat `ACTION_INSTRUCTIONS` (1,000), since their real cost is database work. So the same script always runs the same instructions per slice, however fast the server is, and test runs match live ones. Each drone's running total is kept in `agents.instructions`. The engine's own set-up code (loading the callback words, checking for a word) isn't metered.
+
+<a name="Fuel"></a>**Fuel (#324 step 8).** Fuel (A1), resource 2061 (mass 1), is burned two ways:
+
+* **By actions.** Every protocol's game data has a resource effect at time 0 that uses up fuel from the drone's hold. If the fuel isn't there, the action fails like any missing input (`perform` leaves -2). The cost is per action, whatever the multiplier: pushing 50 units burns as much as pushing 1 (`protocol_process_resource_effect` doesn't multiply fuel effects). Each protocol's description ends "Burns N fuel."
+
+  | Actions | Fuel |
+  |:--|--:|
+  | Unpack Starter Kit I (25901) | 0 |
+  | Dump, sell and buy orders, push, pull, import, export | 1 |
+  | Mining (11xxx); refining, alloys, organics, polymers, fuel (21xxx, 12xxx) | 2 |
+  | Parts (13xxx) | 3 |
+  | Systems (14xxx) | 4 |
+  | Travel (5001) | 5 |
+  | Modules (15xxx) | 6 |
+  | Ship kits (16xxx) | 8 |
+  | Launch (12) | 10 |
+
+* **By computing (power).** After each slice the Game Engine works out the whole units of fuel the drone owes: (`agents.instructions` − `agents.power_paid`) ÷ `POWER_INSTRUCTIONS` (game-engine.conf, 100,000; 0 makes computing free; `vm_meter_fuel_due`). It marks them paid and burns them with protocol 2, "Burn power" (`[N 2 perform]`, one effect using up N fuel). The engine plans that action itself (`protocol_burn_power`), and the script doesn't wait for it. The rest of the instructions carry over to the next bill. If the burn fails for lack of fuel, the events engine makes the drone a wreck (`db_wreck_drone`: `agents.wrecked_at`, `wreck_cause` = `fuel`), and a wreck runs no more commands.
+
+Fuel is made from Organics and Inorganics with protocol 12061, "Make Fuel (A1)": 1 Organics (A1) and 2 Inorganics (A1) make 30 Fuel (A1) with a Chemical Reactor in 2 game hours. Refining 20 magmite gives exactly those inputs. A new drone (registration, release, test run) starts with `forge.starting_fuel` (100) in its hold, next to the packed starter kit (375 of hull 1's 500 cargo). It is loose in the hold, because a released script needs power while it loads, before the kit can be unpacked. A launched drone's hold starts empty: its owner must push it fuel before its computing bill comes due.
+
+**Event order.** The Game Engine reads the game clock once per loop, so on a fast clock the events engine can be ahead of it. An event stamped earlier than one already processed would be worked out from older state and undo it. Also, `sqInventory` takes a drone's highest event ID as its current state, so IDs must keep game-time order. So `protocol_flush_events` reloads the clock and starts each new action a game second after the drones' latest event, done or still to come (`db_get_latest_processed_game_t`). A script waits for its own action anyway, so in practice this mostly delays a power bill until the current action ends.
 
 When the GE runs a `perform`, it computes the times and resource requirements of the in-game activity (change orbits, mine ores, transfer cargo, etc.) and logs the events that will happen, which the Event Engine processes when they are due.
 
@@ -343,7 +365,9 @@ This table stores basic information on the ingame drones.  Most information abou
 * launched_running [TINYINT] - 1 while the drone's `launched` word runs.
 * crashes_in_row [INT] - Crashes since the drone's last action that succeeded.
 * crashes_total [INT] - All the drone's crashes.
-* wrecked_at [BIGINT] - Game time the drone became a wreck (too many crashes in a row), NULL while it works.
+* wrecked_at [BIGINT] - Game time the drone became a wreck (too many crashes in a row, or out of fuel), NULL while it works.
+* wreck_cause [VARCHAR(16)] - Why: `crashes` or `fuel`.
+* power_paid [BIGINT] - Instructions already paid for in fuel ([Fuel](#Fuel)). The migration set it to `instructions`, so what ran before fuel existed is free.
 
 #### Table: drone_crashes
 

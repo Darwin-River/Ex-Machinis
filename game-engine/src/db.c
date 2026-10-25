@@ -3763,3 +3763,41 @@ ErrorCode_t db_set_agent_pending_input(DbConnection_t* connection, int agent_id,
     free(query_text); free(safe);
     return result;
 }
+
+/** ****************************************************************************
+
+    @brief          The latest game time of some drones' events, processed or
+                    still to come (not failed): a new action starts after it,
+                    so each drone's events keep game-time order by ID
+
+*******************************************************************************/
+ErrorCode_t db_get_latest_processed_game_t(const int* drones, int count, long long* game_t)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char list[256] = "";
+    ErrorCode_t result = db_reconnect(engine_get_db_connection());
+
+    *game_t = 0;
+    if(result != ENGINE_OK || count <= 0)
+        return result;
+
+    for(int i = 0; i < count; i++) {
+        size_t len = strlen(list);
+        snprintf(list + len, sizeof(list) - len, "%s%d", i ? "," : "", drones[i]);
+    }
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT IFNULL(MAX(game_t), 0) FROM events WHERE drone IN (%s) AND outcome >= %d", list, OUTCOME_NO_OUTCOME);
+
+    DbConnection_t* connection = engine_get_db_connection();
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+    if(row && row[0])
+        *game_t = atoll(row[0]);
+    if(db_result)
+        mysql_free_result(db_result);
+    return ENGINE_OK;
+}

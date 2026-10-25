@@ -14,6 +14,7 @@
 #include <string.h>
 
 #include "db.h"
+#include "game_time.h"
 #include "trace.h"
 #include "engine.h"
 #include "vm.h"
@@ -191,6 +192,31 @@ ErrorCode_t db_set_action_outcome(int action_id, int outcome)
 
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
         "UPDATE actions SET outcome = %d WHERE id = %d AND outcome IS NULL", outcome, action_id);
+
+    return db_exec(engine_get_db_connection(), query_text);
+}
+
+/** ****************************************************************************
+
+    @brief          Makes a drone a wreck (#324 step 8: it ran out of fuel), if
+                    it isn't one already. A wreck runs no more commands.
+
+    @param[in]      drone_id  The drone
+    @param[in]      cause     Why (agents.wreck_cause), e.g. "fuel"
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_wreck_drone(int drone_id, const char* cause)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "UPDATE agents SET wrecked_at = %lld, wreck_cause = '%s', launched_running = 0 "
+        "WHERE agent_id = %d AND wrecked_at IS NULL",
+        game_time_now_seconds(), cause, drone_id);
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] becomes a wreck (%s)", drone_id, cause);
 
     return db_exec(engine_get_db_connection(), query_text);
 }

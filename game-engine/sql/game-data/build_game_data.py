@@ -142,6 +142,17 @@ for r in design['Resources'][1:]:
     if r[5].strip() == 'Mineral':
         mineral_tags[rid] = r[7].strip()
 
+# Fuel (#324 step 8): every action burns some, and so does running a drone's
+# computer (power). It is made from Organics and Inorganics (recipe 12061 in
+# recipes-extra.csv), so it joins the production chain.
+FUEL = 2061
+POWER_PROTOCOL = '2'
+POWER_INSTRUCTIONS = 100000     # instructions per unit of fuel (game-engine.conf)
+resources[str(FUEL)] = {
+    'id': FUEL, 'name': 'Fuel (A1)', 'mass': 1, 'capacity': 0, 'slot_size': 0,
+    'description': 'Rocket fuel. Every action burns some, and running the drone\'s computer burns '
+                   f'1 unit per {POWER_INSTRUCTIONS:,} instructions. A drone that runs dry becomes a wreck.'}
+
 # --- recipes from the design workbook ------------------------------------------
 
 recipes = {}  # protocol id -> {'inputs': {res: qty}, 'outputs': {res: qty}, 'sheet', 'product'}
@@ -383,6 +394,54 @@ if '5221' in resources and not any(e['resource'] == 5221 for _, e in effects):
     del resources['5221']
     notes[:] = [n for n in notes if not n.startswith('resource 5221 ')]
     note('resource 5221 "Smelter I" dropped: the starter kit gives Smelter (A1) 5201, which refining needs')
+
+# Fuel burned by each action (#324 step 8), by the size of the job: 1 to 10
+# units, once per action whatever its multiplier. Unpacking the starter kit
+# is free. Each protocol's description says what it burns.
+def fuel_cost(pid):
+    p = int(pid)
+    if p in (25901, int(POWER_PROTOCOL)):
+        return 0
+    if p == int(LAUNCH_PROTOCOL):
+        return 10
+    if p == 5001:
+        return 5                      # travel
+    if 11000 <= p < 12000:
+        return 2                      # mining
+    if 21000 <= p < 22000 or 12000 <= p < 13000:
+        return 2                      # refining, alloys, organics, polymers, fuel
+    if 13000 <= p < 14000:
+        return 3                      # parts
+    if 14000 <= p < 15000:
+        return 4                      # systems
+    if 15000 <= p < 16000:
+        return 6                      # modules
+    if 16000 <= p < 17000:
+        return 8                      # ship kits
+    return 1                          # dump, orders, push, pull, import, export
+
+
+for pid in sorted(protocols, key=int):
+    cost = fuel_cost(pid)
+    if cost == 0:
+        continue
+    add_effects(pid, [{'time': 0, 'drone': 0, 'resource': FUEL, 'event_type': 2, 'local': 1, 'installed': 0,
+                       'locked': 0, 'deplete': 1, 'abundancies': 0, 'quantity': cost}])
+    p = protocols[pid]
+    tail = f' Burns {cost} fuel.'
+    if len(p[4]) + len(tail) <= 255:
+        protocols[pid] = p[:4] + [p[4] + tail] + p[5:]
+
+# Power (#324 step 8): the game engine performs [N 2 perform] itself to burn
+# 1 fuel per POWER_INSTRUCTIONS instructions a drone has run. If the fuel
+# isn't there, the drone becomes a wreck.
+protocols[POWER_PROTOCOL] = [
+    POWER_PROTOCOL, 'Burn power', '1', '100',
+    f'[N 2 perform]: Burns N fuel to power the drone\'s computer. The engine does this for every drone, '
+    f'1 fuel per {POWER_INSTRUCTIONS:,} instructions; a drone that can\'t pay becomes a wreck.',
+    '0', '0', '0']
+add_effects(POWER_PROTOCOL, [{'time': 0, 'drone': 0, 'resource': FUEL, 'event_type': 2, 'local': 1,
+                              'installed': 0, 'locked': 0, 'deplete': 1, 'abundancies': 0, 'quantity': -1}])
 
 # Location and market effects: only for protocols we keep
 loc_eff = [r for r in econ['Location Effects'][1:] if r and num(r[1]) in protocols]

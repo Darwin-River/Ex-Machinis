@@ -79,6 +79,32 @@ static ErrorCode_t protocol_flush_events(Bool_t insert)
 
   qsort(g_pending_events, g_pending_count, sizeof(Event_t), protocol_event_order);
 
+  // Never before the drones' other events (#324 step 8). An event stamped
+  // earlier than one already processed would be worked out from older state
+  // and undo it (this engine reads the clock once per loop, and on a fast
+  // clock the events engine can be ahead of that reading). And the inventory
+  // takes a drone's highest event ID as its latest state, so IDs must keep
+  // game-time order. So the action starts a game second after the drones'
+  // latest event, done or still to come. (A script waits for its own action
+  // anyway; this mostly delays power bills until the current action ends.)
+  if(insert && g_pending_count > 0) {
+    game_time_load();
+    int drones[2 * 8];
+    int n = 0;
+    for(int i = 0; i < g_pending_count && n < (int)(sizeof(drones) / sizeof(drones[0])); i++) {
+      int d = g_pending_events[i].drone_id, seen = 0;
+      for(int j = 0; j < n; j++) seen |= (drones[j] == d);
+      if(!seen) drones[n++] = d;
+    }
+    long long latest = 0, now = game_time_now_seconds();
+    if(db_get_latest_processed_game_t(drones, n, &latest) == ENGINE_OK && latest >= now) {
+      long long shift = latest + 1 - now;
+      engine_trace(TRACE_LEVEL_ALWAYS, "Action starts [%lld] game s later, after the drones' latest event", shift);
+      for(int i = 0; i < g_pending_count; i++)
+        g_pending_events[i].delay += shift;
+    }
+  }
+
   // Inserted in this order, events that land in the same real second (at
   // a high game time scale) are still processed in game-time order: the
   // events engine runs an action's same-second events by ID
@@ -564,8 +590,10 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
         newEvent.new_quantity *= -1;
       }
 
-      // Apply multiplier
-      newEvent.new_quantity *= protocol->process_multiplier;
+      // Apply multiplier. Fuel burned is per action, not per unit moved
+      // or made (#324 step 8)
+      if(effect->resource_id != FUEL_RESOURCE_ID)
+        newEvent.new_quantity *= protocol->process_multiplier;
 
       // Apply abundancies when enabled and event type => increases cargo
       if(effect->abundancies  &&  (newEvent.event_type == 1)) {
@@ -1026,6 +1054,54 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
     // processed, then perform leaves its result (see vm_wait_for_action)
     vm_wait_for_action(action.action_id);
   }
+
+  return result;
+}
+
+/** ****************************************************************************
+
+  @brief      Burns fuel for the current drone's computer (#324 step 8): plans
+              the power protocol, [units 2 perform], as an action of its own.
+              The script doesn't wait for it. If the fuel isn't there, the
+              events engine fails the action and the drone becomes a wreck.
+
+  @param[in]  units  Fuel to burn
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t protocol_burn_power(int units)
+{
+  ProtocolInfo_t protocol;
+  Action_t action;
+
+  if(units <= 0)
+    return ENGINE_OK;
+
+  memset(&protocol, 0, sizeof(protocol));
+  memset(&action, 0, sizeof(action));
+  protocol.protocol_id = POWER_PROTOCOL_ID;
+  protocol.process_multiplier = 1;
+  protocol.optional_location = -1;
+
+  ErrorCode_t result = db_get_prococol_info(&protocol);
+  if(result == ENGINE_OK)
+    result = protocol_generate_action(&protocol, &action);
+
+  if(result == ENGINE_OK) {
+    protocol.parameters[0] = units;
+    g_pending_count = 0;
+    result = protocol_process_effects(&protocol, action.action_id);
+    ErrorCode_t flushed = protocol_flush_events(result == ENGINE_OK ? ENGINE_TRUE : ENGINE_FALSE);
+    if(result == ENGINE_OK) result = flushed;
+    if(result != ENGINE_OK) {
+      db_delete_action_events(action.action_id);
+      db_abort_action(action.action_id);
+    }
+  }
+
+  engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] burns [%d] fuel for power (action [%d], result [%d])",
+    engine_get_current_drone_id(), units, action.action_id, result);
 
   return result;
 }

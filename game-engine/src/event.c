@@ -1173,6 +1173,14 @@ static void event_record_failure(Event_t *event, int outcome)
     // (not when it was aborted for another reason, such as by the player)
     if(outcome != OUTCOME_ACTION_ABORTED)
         db_set_action_outcome(event->action_id, outcome);
+
+    // A drone that can't pay for its power has run dry: it becomes a wreck
+    // (#324 step 8)
+    Action_t action;
+    memset(&action, 0, sizeof(action));
+    action.action_id = event->action_id;
+    if(db_get_action(&action) == ENGINE_OK && action.protocol_id == POWER_PROTOCOL_ID)
+        db_wreck_drone(event->drone_id, "fuel");
 }
 
 /** ****************************************************************************
