@@ -2,14 +2,16 @@
 \ It mines kunspar, refines it and sells the metals to the House. Copies
 \ spread out: a third work the Moon and sell at the Moon Depot; the rest
 \ work Phobos and Deimos (Mars's moons), moving between them as deposits run
-\ low, and sell at the Mars Exchange, which pays half as much again. For
-\ fuel it buys from another drone's sell order when one is cheap, and
-\ otherwise brews its own from yalspar and vladnium. Change the numbers to
-\ make it your own.
+\ low, and sell at the Mars Exchange, which pays half as much again. At the
+\ Moon it first offers its metals to other drones (traders, who haul them to
+\ Mars) a little over the Depot's price. For fuel it buys from another
+\ drone's sell order when one is cheap, and otherwise brews its own from
+\ yalspar and vladnium. Change the numbers to make it your own.
 
 25 constant low-fuel     \ get fuel when below this
 4 constant fuel-price    \ most it pays a unit for fuel
 240 constant rest        \ game minutes to rest when both Mars moons are dry
+16 constant hold-cap     \ at the Moon, metals it keeps on offer to traders
 
 \ The site it works: 0 the Moon, 1 Phobos, 2 Deimos. A third of the copies
 \ (by drone number) work the Moon; the rest make the long trip to Mars (about
@@ -50,8 +52,18 @@ variable site#   variable misses
   fuel-seller fuel-price > over 0= or if drop brew-fuel exit then
   >r 30 fuel r> pull if brew-fuel then ;
 
-\ Sell the metals at the market, then go back to the site
+: metals ( -- n ) metals-a1 units metals-a2 units + metals-a3 units + ;
+
+\ At the Moon, standing sell orders offer its metals to traders at 5 over
+\ the Depot's price (25, 35 and 45); orders stay open as the hold changes
+: offer ( -- )
+  25 0 metals-a1 sell-order drop  35 0 metals-a2 sell-order drop
+  45 0 metals-a3 sell-order drop ;
+
+\ Sell the metals at the market, then go back to the site. At the Moon,
+\ only once hold-cap are aboard: until then traders may buy them
 : sell-metals ( -- )
+  site# @ 0= if metals hold-cap < if exit then then
   market go drop
   metals-a1 sell-all metals-a2 sell-all metals-a3 sell-all
   site go drop ;
@@ -60,4 +72,6 @@ variable site#   variable misses
   fuel units low-fuel < if refuel then
   kunspar 20 dig kunspar refine drop sell-metals ;
 
-: launched ( -- ) unpack drop me 3 mod site# ! site go drop begin work again ;
+: launched ( -- )
+  unpack drop me 3 mod site# ! site go drop
+  site# @ 0= if offer then begin work again ;

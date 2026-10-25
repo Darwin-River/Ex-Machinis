@@ -243,8 +243,9 @@ ErrorCode_t db_tax_due(void)
     int n = 0;
     res = wr_select(
         "SELECT c.company_id, c.credits, c.founded_t, c.taxed_t, "
-        /* the company's assessed wealth: credits and goods (#367) */
-        "(SELECT w.assessed FROM company_assessed w WHERE w.company_id = c.company_id) "
+        /* what the company made: its assessed wealth (credits and goods)
+           less its starter package (#367) */
+        "(SELECT w.taxable FROM company_taxable w WHERE w.company_id = c.company_id) "
         "FROM companies c WHERE c.eliminated_at IS NULL AND c.taxed_t + %d <= %lld ORDER BY c.company_id LIMIT %d",
         period, now, MAX_TAX_COMPANIES);
     while(res && n < MAX_TAX_COMPANIES && (row = mysql_fetch_row(res))) {

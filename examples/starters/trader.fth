@@ -1,61 +1,51 @@
-\ Trader: a starter script for Public Forge (#324 step 15).
-\ It gathers metals and hauls them to Mars, where the House (the Mars
-\ Exchange) pays half as much again as at the Moon. It buys metals from
-\ other drones' sell orders where it is when they are cheaper than the Mars
-\ price, and otherwise mines and refines kunspar itself. Copies spread out:
-\ a third work the Moon, the rest Phobos and Deimos (Mars's moons). It brews the
-\ fuel for the trip from yalspar and vladnium.
+\ Trader: a starter script for Public Forge (#324 step 15; #367).
+\ It works the Moon, where the Miner offers its metals to other drones a
+\ little over the Moon Depot's price. It buys them, hauls a load to Mars,
+\ where the Mars Exchange pays half as much again, sells it and comes back.
+\ Its fuel it buys from the House at the exchanges. Copies compete for the
+\ miners' metals: the first to buy gets them.
 
-40 constant cargo-goal   \ metals it gathers before setting off
-60 constant trip-fuel    \ fuel it wants aboard to go there and back
-30 constant max-price    \ most it pays a unit for metals
-240 constant rest        \ game minutes to rest when both Mars moons are dry
+60 constant cargo-goal   \ metals it gathers before setting off
+20 constant min-load     \ ...or this many, after waiting a long time
+48 constant patience     \ game hours it waits for sellers before going
+20 constant trip-fuel    \ fuel it wants aboard before a trip
+60 constant nap          \ game minutes between looks at the market
 
-\ The site it works: 0 the Moon, 1 Phobos, 2 Deimos. A third of the copies
-\ (by drone number) work the Moon; the rest make the long trip to Mars (about
-\ 10 game days) once, then work Phobos and Deimos, which are close together.
-variable site#   variable misses
-: site ( -- place )
-  site# @ dup 0= if drop moon exit then 1 = if phobos else deimos then ;
-
-\ A low deposit: at the Moon, wait for it to refill; at Mars, try the other
-\ moon, and rest after both are mined out
-: move-on ( -- )
-  site# @ 0= if 60 wait drop exit then
-  site# @ 3 xor site# !  1 misses +!
-  misses @ 2 mod 0= if rest wait drop then
-  site go drop ;
-
-: dig ( mineral n -- )
-  begin over units over < while
-    over deposit 5 < if move-on else over mine drop 0 misses ! then
-  repeat 2drop ;
-
-: brew-fuel ( -- )
-  yalspar 16 dig yalspar refine drop
-  vladnium 12 dig vladnium refine drop
-  fuel make drop ;
+\ The most it pays a unit: the Mars Exchange's price less 5
+: max-price ( metal -- price )
+  dup metals-a1 = if drop 25 exit then metals-a2 = if 40 else 55 then ;
 
 : metals ( -- n ) metals-a1 units metals-a2 units + metals-a3 units + ;
 
-\ Buy what another drone here sells of one metal, at max-price or less
+\ Buy what the cheapest seller here offers of one metal, if the price is
+\ right and there is room in this load
+variable got   variable waited
 : buy ( metal -- )
   dup 610 ask 0> 0= if drop exit then
-  answer 2@ drop max-price > if drop exit then
-  answer 6 + @ answer 4 + @ - ( metal n ) 0 max ?dup 0= if drop exit then
-  swap answer 8 + @ pull drop ;
+  answer 2@ drop over max-price > if drop exit then
+  answer 6 + @ answer 4 + @ - 0 max cargo-goal metals - min
+  ?dup 0= if drop exit then
+  swap answer 8 + @ pull 0= if 1 got ! then ;
 
-: gather ( -- )
-  metals-a1 buy metals-a2 buy metals-a3 buy
-  metals cargo-goal < if kunspar 20 dig kunspar refine drop then ;
+\ Look for sellers; rest a while when nobody sells
+: shop ( -- )
+  0 got !  metals-a1 buy metals-a2 buy metals-a3 buy
+  got @ if 0 waited ! else nap wait drop 1 waited +! then ;
+
+\ Top up the tank from the House here; it arrives when the batch clears
+: fuel-up ( -- )
+  fuel units trip-fuel < if trip-fuel fuel buy-from-station drop
+  120 wait drop then ;
 
 : sell-metals ( -- ) metals-a1 sell-all metals-a2 sell-all metals-a3 sell-all ;
 
-: haul ( -- ) mars go drop sell-metals site go drop ;
+: haul ( -- ) fuel-up mars go drop sell-metals fuel-up moon go drop 0 waited ! ;
 
-: work ( -- )
-  fuel units trip-fuel < if brew-fuel exit then
-  metals cargo-goal < if gather exit then
-  haul ;
+\ A full load, or a smaller one after waiting long enough
+: ready? ( -- f )
+  metals cargo-goal < 0=
+  metals min-load < 0= waited @ patience < 0= and or ;
 
-: launched ( -- ) unpack drop me 3 mod site# ! site go drop begin work again ;
+: work ( -- ) ready? if haul else shop then ;
+
+: launched ( -- ) unpack drop moon go drop begin work again ;
