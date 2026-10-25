@@ -11,9 +11,9 @@ use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /**
- * The leaderboard (#324 step 18; drones since #367 step 2): each released
- * drone by its company's net wealth, clones included, all time and Rising
- * over the last real week.
+ * The leaderboard (#324 step 18; companies since #367 step 2): companies by
+ * net wealth, their launched drones included, all time and Rising over the
+ * last real week.
  */
 class LeaderboardTest extends TestCase
 {
@@ -86,14 +86,14 @@ class LeaderboardTest extends TestCase
         $this->assertGreaterThan(0, DB::table('wealth_snapshots')->count());
     }
 
-    public function testLeaderboardPageRanksDrones()
+    public function testLeaderboardPageRanksCompanies()
     {
         $player = $this->player('rich@example.com', 'Rich Player');
         $rich = Release::release($player, 'Rich Co', ': launched ;');
         DB::table('companies')->where('company_id', $rich->company_id)->increment('credits', 9000);
         $poor = Release::release($player, 'Poor Co', ': launched ;');
         $this->get('/leaderboard')->assertOk()->assertSee('Rising this week')
-            ->assertSee('spacecraft/' . $rich->agent_id, false)
-            ->assertSeeInOrder([$rich->name, 'Rich Co', '9,000', $poor->name, 'Poor Co']);
+            ->assertSeeInOrder(['Rich Co', '9,000', 'Poor Co'])
+            ->assertDontSee($rich->name);
     }
 }

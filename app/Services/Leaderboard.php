@@ -6,9 +6,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * The leaderboard (#324 step 18; drones since #367 step 2): every released
- * drone, by its company's net wealth. Clones belong to the company, so they
- * count toward the drone that started it.
+ * The leaderboard (#324 step 18; companies since #367 step 2): every company
+ * still trading, by net wealth. The drones a company launches belong to it,
+ * so their goods count too.
  *
  * Net wealth = the company's credits
  * + the goods aboard its working drones, at the House price
@@ -51,9 +51,9 @@ class Leaderboard
     }
 
     /**
-     * Every company still trading, as the drone it was released with:
-     * company_id => [drone, name, company, drones, wealth]. Its clones are
-     * its other working drones, and their goods count too.
+     * Every company still trading: company_id => [company, drones, wealth]
+     * (and drone, name: the drone it was released with). Its launched
+     * drones' goods count too.
      */
     public static function wealth(): array
     {
