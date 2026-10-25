@@ -198,9 +198,9 @@ COMPANY=$(sql "select company_id from agents where agent_id=$DRONE_ID")
 sql "update companies set credits = 70000 where company_id = $COMPANY"
 send_mail "$DRONE@$DOMAIN" "doubles" "<run>create bank 8 allot
   $COMPANY bank 8 101 query drop bank 2@ d. 300 300 m* d.</run>"
-# (match the whole reply, ignoring line breaks and spaces: if the script
+# (match the whole reply, ignoring all whitespace, CR included: if the script
 # pauses, its output comes in pieces)
-wait_for 60 "a balance of 70,000 and 300 x 300 come out right as doubles" sh -c "docker compose logs --no-log-prefix game-engine | tr -d ' \n' | grep -q 'msg\[7000090000'"
+wait_for 60 "a balance of 70,000 and 300 x 300 come out right as doubles" sh -c "docker compose logs --no-log-prefix game-engine | tr -d '[:space:]' | grep -q 'msg\[7000090000'"
 wait_for 60 "drone finished the doubles script" idle
 
 [ -z "$(sql "select id from actions where drone=$DRONE_ID and aborted=1 and id <> $REFUSED_ACTION")" ] || fail "an action was aborted"
