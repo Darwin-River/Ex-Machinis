@@ -311,11 +311,14 @@ wait_for 60 "a drone knows the game words" knows_words
 
 # The House fuel seller (#324 step 10): the released drone, at Earth, orders
 # 10 fuel from the Earth Exchange; at the batch it pays 5 a unit and gets it
-FUEL_BEFORE=$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$FORGE_DRONE and resource=2061")
 sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('10 2061 32 perform .', $FORGE_DRONE, NOW(), NOW(), 'fuel', '')"
 bought() { [ "$(sql "select count(*) from station_offers where drone=$FORGE_DRONE and side=2 and filled=10 and paid=50")" = 1 ]; }
 wait_for 180 "a drone bought 10 fuel from the House at 5 a unit" bought
-more_fuel() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$FORGE_DRONE and resource=2061")" -gt "$FUEL_BEFORE" ]; }
+# Delivered: the station's delivery action (protocol 33) added the fuel.
+# (Its total can still fall: the drone's computing is billed in fuel too)
+more_fuel() { [ "$(sql "select count(*) from events e join actions x on x.id = e.action
+                       where x.protocol = 33 and e.drone = $FORGE_DRONE and e.resource = 2061
+                       and e.event_type = 1 and e.outcome = 1")" -ge 1 ]; }
 wait_for 60 "the fuel arrived in its hold" more_fuel
 ! docker compose logs mail | grep -q "from=<$FORGE_NAME@" || fail "the released drone sent email"
 echo "ok: no email from the released drone"
