@@ -31,11 +31,16 @@
                     <input class="form-control" id="company_name" name="company_name" type="text" maxlength="45"
                            value="{{ old('company_name') }}" required>
                 </div>
+                <p><small>Start from a starter script:
+                    @foreach($starters as $name => $what)
+                        <a href="{{ url('release?starter=' . $name) }}" title="{{ $what }}">{{ ucfirst($name) }}</a>@if(!$loop->last) · @endif
+                    @endforeach
+                    (each is explained in its comments; change it to make it your own)</small></p>
                 <div class="form-group">
                     <label for="script">Script</label>
                     <textarea class="form-control" id="script" name="script" rows="16" spellcheck="false"
                               style="font-family: monospace"
-                              maxlength="{{ config('forge.max_script_length') }}" required>{{ old('script', ": launched  ( -- )\n  .\" Hello from orbit\" cr ;") }}</textarea>
+                              maxlength="{{ config('forge.max_script_length') }}" required>{{ old('script', $starter ?? ": launched  ( -- )\n  .\" Hello from orbit\" cr ;") }}</textarea>
                 </div>
                 <button class="button button-primary" type="submit">Release</button>
                 @if($testWorld)

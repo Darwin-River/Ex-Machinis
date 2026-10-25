@@ -15,6 +15,26 @@ use Illuminate\Support\Facades\DB;
  */
 class Release
 {
+    /**
+     * The starter scripts (#324 step 15), in examples/starters: a name and
+     * what it does
+     */
+    public const STARTERS = [
+        'miner' => 'Mines kunspar on the Moon, refines it and sells the metals to the Moon Depot.',
+        'refiner' => 'Brews fuel on the Moon from yalspar and vladnium, and sells what it doesn\'t need to other drones.',
+        'trader' => 'Gathers metals on the Moon and hauls them to Mars, where the House pays more.',
+    ];
+
+    /** A starter script's source, or null for an unknown name */
+    public static function starter(string $name): ?string
+    {
+        if (!array_key_exists($name, self::STARTERS)) {
+            return null;
+        }
+        $path = base_path("examples/starters/{$name}.fth");
+        return is_readable($path) ? file_get_contents($path) : null;
+    }
+
     /** Fuel (A1), which actions and computing burn (#324 step 8) */
     public const FUEL = 2061;
 

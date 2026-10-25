@@ -63,6 +63,20 @@ class ReleasePageTest extends TestCase
         $this->get('/register')->assertOk()->assertSee('Invitation code')->assertSee('Password');
     }
 
+    public function testStarterScriptsFillTheForm()
+    {
+        $user = $this->player();
+        $this->actingAs($user)->get('/release')->assertOk()
+            ->assertSee('release?starter=miner', false)->assertSee('release?starter=trader', false);
+        foreach (array_keys(Release::STARTERS) as $name) {
+            $script = Release::starter($name);
+            $this->assertNotNull($script, "starter $name is missing");
+            $this->assertTrue(Release::definesLaunched($script), "starter $name defines launched");
+            $this->actingAs($user)->get('/release?starter=' . $name)->assertOk()->assertSee(': launched', false);
+        }
+        $this->assertNull(Release::starter('../../.env'), 'only the listed starters can be read');
+    }
+
     public function testReleasePageNeedsLogin()
     {
         $this->get('/release')->assertRedirect('/login');

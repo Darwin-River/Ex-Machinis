@@ -39,7 +39,11 @@ class ReleaseController extends Controller
         $testWorld = TestWorld::available();
         $testRuns = $testWorld ? TestWorld::runs($user) : collect();
 
-        return view('release', compact('companies', 'drones', 'messages', 'testWorld', 'testRuns'));
+        // A starter script (#324 step 15) fills the form when asked for
+        $starters = Release::STARTERS;
+        $starter = Release::starter((string) request('starter'));
+
+        return view('release', compact('companies', 'drones', 'messages', 'testWorld', 'testRuns', 'starters', 'starter'));
     }
 
     /**

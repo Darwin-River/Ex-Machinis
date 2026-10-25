@@ -282,6 +282,23 @@ So a drone performs one in-game action at a time, and its script always knows ho
 * **Protocol parameters.** `protocols.double_params` is a bit mask (bit 0 = parameter 1) of the parameters taken off the stack as doubles: high cell first, then low (`protocol_read_parameters`). Sell (17) and buy (18) "double price" are protocols 7 and 8 with the price, parameter 3, a double (mask 4), for prices past 65,535. Migration 0008 adds the column. The protocols loader names its columns now, rather than `SELECT *`.
 * **Tests.** `test_double.c` checks the words past 32,767 and 65,535.
 
+<a name="Game-Words"></a>**Game words and starter scripts (#324 step 15).** After the double-cell words, every new drone's VM gets the game words (`vm_library_game_source` in `vm_library.c`, loaded by `vm_add_callbacks` once, when the word `stdlib` is missing, after the `perform` and `query` callbacks they use). They are ordinary definitions, so the language doesn't change; they make scripts readable:
+
+* **Constants** for places (`earth` 3, `moon` 10, `mars` 4) and resources (`fuel`, `magmite`, `kunspar`, `yalspar`, `vladnium`, `wolfite`, `metals-a1` to `metals-a3`, `inorganics-a1`, `organics-a1`).
+* **Actions**, each leaving `perform`'s result: `unpack`, `travel ( place )`, `mine ( mineral )` (protocol mineral + 10000), `refine ( mineral )` (+ 20000), `make ( resource )` (+ 10000), `wait ( minutes )`, `sell-to-station ( n resource )` (31), `buy-from-station ( n resource )` (32), `sell-order ( price keep resource )` (7), `buy-order ( price want resource )` (8), `push ( n resource drone )` (10), `pull ( n resource drone )` (11), `launch ( drone kit )` (12), `plunder ( wreck )` (34).
+* **Queries**, through a 120-byte buffer `answer`: `ask ( [n] id -- rows )`, `me` (205), `location` (202), `units ( resource -- n )` (212), `company` (201), `credits ( -- d )` (101), `deposit ( mineral -- n )` (640: units left here, 0 if none), and `sell-all ( resource -- )`, which offers all of it to the station here.
+* `stdlib` leaves the library's version, 2.
+
+Three **starter scripts** in `examples/starters/` (miner, refiner, trader; the Release page offers them with `?starter=name`, `Release::STARTERS`) use these words, each with comments that explain it:
+
+* **Miner:** flies to the Moon, mines kunspar 20 units at a time, refines it and sells the metals to the Moon Depot. For fuel it buys from another drone's sell order on the Moon when one is at 4 or less, and otherwise brews its own (yalspar for organics, vladnium for inorganics, then Make Fuel). It waits while a deposit refills.
+* **Refiner:** brews fuel on the Moon the same way, keeps a reserve and sells the rest through a standing sell order at 4 a unit; the metals from refining go to the Moon Depot.
+* **Trader:** gathers 40 metals on the Moon, buying them from other drones' sell orders at 30 or less when there are any, otherwise mining and refining kunspar itself, then hauls them to Mars and sells them to the Mars Exchange.
+
+Each one can earn alone, and the miner and refiner trade fuel when both are on the Moon. Found while running them: Mine yalspar (11110) yielded kunspar (from `economy.xlsx`); `build_game_data.py` now makes every mining protocol yield its own mineral.
+
+**Loading a script costs fuel.** The VM reads text slowly: each word it reads (a name, a number, a comment's `\`) costs about 20,000 instructions, most of them looking the name up in the dictionary, and a comment line about 30,000. Compiled code then runs fast. At `POWER_INSTRUCTIONS` (1 fuel per 100,000 instructions), loading a starter script costs 13 to 25 fuel, once; a clone gets the compiled program and pays nothing. Step 20 should weigh a faster dictionary lookup or a cheaper power price.
+
 <a name="Fuel"></a>**Fuel (#324 step 8).** Fuel (A1), resource 2061 (mass 1), is burned two ways:
 
 * **By actions.** Every protocol's game data has a resource effect at time 0 that uses up fuel from the drone's hold. If the fuel isn't there, the action fails like any missing input (`perform` leaves -2). The cost is per action, whatever the multiplier: pushing 50 units burns as much as pushing 1 (`protocol_process_resource_effect` doesn't multiply fuel effects). Each protocol's description ends "Burns N fuel."
@@ -289,14 +306,16 @@ So a drone performs one in-game action at a time, and its script always knows ho
   | Actions | Fuel |
   |:--|--:|
   | Unpack Starter Kit I (25901) | 0 |
-  | Dump, sell and buy orders, push, pull, import, export | 1 |
-  | Mining (11xxx); refining, alloys, organics, polymers, fuel (21xxx, 12xxx) | 2 |
+  | Dump, sell and buy orders, push, pull, import, export, plunder, station offers and orders | 1 |
+  | Mining (11xxx) (2 until #324 step 15) | 1 |
+  | Refining, alloys, organics, polymers, fuel (21xxx, 12xxx) | 2 |
   | Parts (13xxx) | 3 |
   | Systems (14xxx) | 4 |
   | Travel (5001) | 5 |
   | Modules (15xxx) | 6 |
   | Ship kits (16xxx) | 8 |
-  | Launch (12) | 10 |
+  | Launch (12): 10 burned and 20 for the clone ([Cloning](#Cloning)) | 30 |
+  | Wait (3) | 0 |
 
 * **By computing (power).** After each slice the Game Engine works out the whole units of fuel the drone owes: (`agents.instructions` − `agents.power_paid`) ÷ `POWER_INSTRUCTIONS` (game-engine.conf, 100,000; 0 makes computing free; `vm_meter_fuel_due`). It marks them paid and burns them with protocol 2, "Burn power" (`[N 2 perform]`, one effect using up N fuel). The engine plans that action itself (`protocol_burn_power`), and the script doesn't wait for it. The rest of the instructions carry over to the next bill. If the burn fails for lack of fuel (outcome -2), the events engine makes the drone a wreck (`db_wreck_drone`: `agents.wrecked_at`, `wreck_cause` = `fuel`), and a wreck runs no more commands. A burn that fails for any other reason only leaves that bill unpaid. Taking something out of the hold never fails the cargo-space check (`event_no_cargo_condition`), so a drone over its capacity can still burn fuel.
 
@@ -1093,6 +1112,7 @@ Since evidence of each in-game event travels between distant points at the speed
   * Side 2 means it sells: `price` is the price and `daily_units` its daily supply.
   * `from_day` is the game day, counted from the world's first, on which it starts trading that good. Stations buy refined goods from day 0, parts from day 3 and systems from day 7, so demand steps up the production chain.
   * Placeholders: the Earth Exchange (3), the Moon Depot (10) and the Mars Exchange (4), each with a 5,000-credit budget refilling 5,000 a game day. The Earth Exchange is the House fuel seller: 5 credits a unit, 2,000 a day.
+  * Refined metals (#324 step 15): the Earth Exchange and the Moon Depot pay 20, 30 and 40 for Metals (A1), (A2) and (A3) (they paid 10, 15 and 20, which left a simple Moon miner losing money), and the Mars Exchange, far away, pays half as much again (30, 45, 60), so hauling metals there pays.
 * **State.** `station_state` holds each station's budget and last refill. It starts full (`INSERT IGNORE`) and is kept across game-data reloads.
 * **Offers and orders.**
   * Protocol 31 (`[N R 31 perform]`) has two effects. At time 0 an event of type 9 (Offer to station) records the offer. A second later, a decrement takes the goods out of the hold (escrow).

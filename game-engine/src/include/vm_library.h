@@ -19,4 +19,11 @@ extern const char* vm_library_source;
     include the system words: um* um+). Returns embed_eval's result. */
 int vm_library_load(embed_t* vm);
 
+/** The game words (#324 step 15): constants for places and resources, a word
+    for each action and the common queries. Needs the perform and query
+    callbacks. */
+extern const char* vm_library_game_source;
+#define VM_LIBRARY_GAME_MARKER "stdlib"
+int vm_library_load_game(embed_t* vm);
+
 #endif

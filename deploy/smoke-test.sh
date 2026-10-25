@@ -8,7 +8,8 @@
 #   - a drone runs an emailed FORTH command and the engine emails the reply,
 #   - it unpacks its starter kit, flies to the Moon, mines and refines kunspar,
 #   - a sale between two companies of the same player is refused,
-#   - with email off, a script released on the website runs (no email),
+#   - with email off, a script released on the website runs (no email), the
+#     Release page offers starter scripts, and drones know the game words,
 #   - actions and computing burn fuel; a drone that runs dry becomes a wreck,
 #   - money past 32,767 comes back as a double, and the double words work,
 #   - House drop stations buy goods and sell fuel when their batches clear,
@@ -283,6 +284,13 @@ released() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DR
 wait_for 90 "released drone ran launched; its reply is kept for the website" released
 FORGE_NAME=$(sql "select name from agents where agent_id=$FORGE_DRONE")
 wait_for 30 "the Release page shows the reply" sh -c "curl -fsS -b '$JAR' http://localhost/release | grep -q 'forge-release-ok7'"
+# Starter scripts and game words (#324 step 15): the Release page fills in
+# a starter, and a drone knows the game words
+curl -fsS -b "$JAR" "http://localhost/release?starter=miner" | grep -q "kunspar 20 dig" || fail "the Release page did not offer the miner starter"
+echo "ok: the Release page offers the starter scripts"
+sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('stdlib . moon . kunspar . fuel units 0> .', $FORGE_DRONE, NOW(), NOW(), 'game words', '')"
+knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%2101100-1'")" ]; }
+wait_for 60 "a drone knows the game words" knows_words
 
 # The House fuel seller (#324 step 10): the released drone, at Earth, orders
 # 10 fuel from the Earth Exchange; at the batch it pays 5 a unit and gets it

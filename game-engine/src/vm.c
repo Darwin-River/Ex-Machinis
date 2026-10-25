@@ -171,6 +171,15 @@ static int vm_add_callbacks(VirtualMachine_t* const vm, const bool optimize,  Vm
     }
     engine_trace(TRACE_LEVEL_ALWAYS, "Word library added to VM");
   }
+
+  // The game words (#324 step 15), once, after the callbacks they use
+  if(!vm_word_defined(vm, VM_LIBRARY_GAME_MARKER)) {
+    if((r = vm_library_load_game(vm)) < 0) {
+      engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: loading the game words returned %d", r);
+      return r;
+    }
+    engine_trace(TRACE_LEVEL_ALWAYS, "Game words added to VM");
+  }
   embed_reset(vm);
   return 0;
 }
