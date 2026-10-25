@@ -34,7 +34,8 @@ PLAYER=player@outside.test
 [ -f .env ] && { echo "deploy/.env already exists; run this on a clean checkout." >&2; exit 1; }
 # A fast game clock (1 real second = 1 game hour) so the trip to the Moon
 # and the light-speed delays take seconds
-SITE_ADDRESS=http://localhost GAME_TIME_SCALE=3600 ./setup.sh "$DOMAIN" "admin@$DOMAIN"
+# Full engine logs (ENGINE_TRACE_LEVEL=2): the checks below read them
+SITE_ADDRESS=http://localhost GAME_TIME_SCALE=3600 ENGINE_TRACE_LEVEL=2 ./setup.sh "$DOMAIN" "admin@$DOMAIN"
 
 fail() {
     echo "FAILED: $*" >&2
