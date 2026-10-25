@@ -2,25 +2,28 @@
 \ It gathers metals and hauls them to Mars, where the House (the Mars
 \ Exchange) pays half as much again as at the Moon. It buys metals from
 \ other drones' sell orders where it is when they are cheaper than the Mars
-\ price, and otherwise mines and refines kunspar itself. It works three
-\ sites, the Moon, Phobos and Deimos: each copy starts at a different one
-\ (by its drone number) and moves on when a deposit runs low. It brews the
+\ price, and otherwise mines and refines kunspar itself. Copies spread out:
+\ a third work the Moon, the rest Phobos and Deimos (Mars's moons). It brews the
 \ fuel for the trip from yalspar and vladnium.
 
 40 constant cargo-goal   \ metals it gathers before setting off
 60 constant trip-fuel    \ fuel it wants aboard to go there and back
 30 constant max-price    \ most it pays a unit for metals
-240 constant rest        \ game minutes to wait when every site is mined out
+240 constant rest        \ game minutes to rest when both Mars moons are dry
 
-\ The site it works: 0 the Moon, 1 Phobos, 2 Deimos
+\ The site it works: 0 the Moon, 1 Phobos, 2 Deimos. A third of the copies
+\ (by drone number) work the Moon; the rest make the long trip to Mars (about
+\ 10 game days) once, then work Phobos and Deimos, which are close together.
 variable site#   variable misses
 : site ( -- place )
-  site# @ 3 mod dup 0= if drop moon exit then 1 = if phobos else deimos then ;
+  site# @ dup 0= if drop moon exit then 1 = if phobos else deimos then ;
 
-\ On to the next site; after a whole round with nothing to mine, rest
+\ A low deposit: at the Moon, wait for it to refill; at Mars, try the other
+\ moon, and rest after both are mined out
 : move-on ( -- )
-  1 site# +! 1 misses +!
-  misses @ 3 mod 0= if rest wait drop then
+  site# @ 0= if 60 wait drop exit then
+  site# @ 3 xor site# !  1 misses +!
+  misses @ 2 mod 0= if rest wait drop then
   site go drop ;
 
 : dig ( mineral n -- )
