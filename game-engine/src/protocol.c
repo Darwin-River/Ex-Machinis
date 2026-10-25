@@ -211,6 +211,35 @@ static ErrorCode_t protocol_plan_launch(ProtocolInfo_t *protocol)
   return ENGINE_OK;
 }
 
+/** ****************************************************************************
+
+  @brief      Checks a wait ([M 3 perform], #324 step 14) and times it: its
+              wait event lands M game minutes from now, so perform returns
+              then. The script pauses meanwhile and runs no instructions.
+
+  @param[in|out]  protocol  Protocol being performed
+
+  @return     ENGINE_OK, or an error when M is out of range (perform is
+              refused)
+
+*******************************************************************************/
+static ErrorCode_t protocol_plan_wait(ProtocolInfo_t *protocol)
+{
+  protocol->wait_delay = 0;
+
+  if(protocol->protocol_id != WAIT_PROTOCOL_ID)
+    return ENGINE_OK;
+
+  int minutes = protocol->parameters[0];
+  if(minutes < 1 || minutes > MAX_WAIT_MINUTES) {
+    engine_trace(TRACE_LEVEL_ALWAYS, "Wait refused: [%d] game minutes (1 to %d)", minutes, MAX_WAIT_MINUTES);
+    return ENGINE_LOGIC_ERROR;
+  }
+  protocol->wait_delay = minutes * 60;
+  engine_trace(TRACE_LEVEL_ALWAYS, "Drone waits [%d] game minutes", minutes);
+  return ENGINE_OK;
+}
+
 /** True when the protocol moves the drone to a location given on the stack */
 static Bool_t protocol_takes_location(ProtocolInfo_t *protocol)
 {
@@ -521,6 +550,8 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
       newEvent.delay = protocol_effect_delay(protocol, effect->time);
       if(effect->event_type == LAUNCH_EVENT_TYPE)
         newEvent.delay += protocol->launch_delay;
+      if(effect->event_type == WAIT_EVENT_TYPE)
+        newEvent.delay += protocol->wait_delay;
 
       newEvent.drone_id = engine_get_current_drone_id();
       // Take into account negative parameters that mean => retrieve it from stack
@@ -1046,6 +1077,9 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
 
   if(result == ENGINE_OK)
     result = protocol_plan_launch(&protocol);
+
+  if(result == ENGINE_OK)
+    result = protocol_plan_wait(&protocol);
 
   if(result == ENGINE_OK) {
     protocol_plan_travel(&protocol);

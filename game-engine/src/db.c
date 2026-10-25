@@ -3793,6 +3793,10 @@ ErrorCode_t db_set_agent_pending_input(DbConnection_t* connection, int agent_id,
                     still to come (not failed): a new action starts after it,
                     so each drone's events keep game-time order by ID
 
+    The end of a wait (#324 step 14) doesn't count: it changes nothing, and a
+    waiting drone must still be able to sell, its buyers pulling from it now
+    rather than when it wakes up.
+
 *******************************************************************************/
 ErrorCode_t db_get_latest_processed_game_t(const int* drones, int count, long long* game_t)
 {
@@ -3809,7 +3813,8 @@ ErrorCode_t db_get_latest_processed_game_t(const int* drones, int count, long lo
         snprintf(list + len, sizeof(list) - len, "%s%d", i ? "," : "", drones[i]);
     }
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "SELECT IFNULL(MAX(game_t), 0) FROM events WHERE drone IN (%s) AND outcome >= %d", list, OUTCOME_NO_OUTCOME);
+        "SELECT IFNULL(MAX(game_t), 0) FROM events WHERE drone IN (%s) AND outcome >= %d AND event_type <> %d",
+        list, OUTCOME_NO_OUTCOME, WAIT_EVENT_TYPE);
 
     DbConnection_t* connection = engine_get_db_connection();
     if(mysql_query(connection->hndl, query_text)) {

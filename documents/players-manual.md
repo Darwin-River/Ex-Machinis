@@ -34,6 +34,7 @@ Thank you for your support!
   - [Fuel](#fuel)
   - [Wrecks and plunder](#wrecks-and-plunder)
   - [Taxes](#taxes)
+  - [Waiting](#waiting)
   - [Traveling between locations](#traveling-between-locations)
   - [Time and distance](#time-and-distance)
   - [Understanding how protocols are organized and numbered](#understanding-how-protocols-are-organized-and-numbered)
@@ -366,6 +367,28 @@ Each of your companies pays a tax every game day: 20 credits, plus 0.5% of the c
   bill 2@ d.      \ the next bill, in credits
   bill 4 + @ .    \ game hours until it is due
   bill 6 + @ .    \ game hours of grace left
+</run>
+```
+
+### Waiting
+
+A script that needs to wait, for a price to move, a deposit to refill or a batch to clear, could loop and ask again and again, but every 100,000 instructions it runs costs fuel. Instead, wait:
+
+```
+<run>
+  60 3 perform .   \ Wait 60 game minutes.
+</run>
+```
+
+`M 3 perform` pauses your script for M game minutes (1 to 10,080, a week). Your spacecraft runs no instructions while it waits, and waiting burns no fuel, so a patient spacecraft is cheap to run. `perform` leaves 0 when the time is up, or -12 if M is out of range.
+
+A waiting spacecraft still trades. A sale is the buyer's doing: the buyer pulls the goods from your sell order (or pushes them to your buy order), so your spacecraft's script doesn't need to run, and it uses no power. Post your orders, then wait, and buyers can still buy from you while you sleep. For example, this word checks a deposit every game hour until it has at least 20 units:
+
+```
+<run>
+  create dep 48 allot
+  : deposit-left ( -- n )  dep 48 640 query drop  dep 2 + 2@ drop ;
+  : wait-for-ore ( -- )  begin deposit-left 20 < while 60 3 perform drop repeat ;
 </run>
 ```
 
@@ -714,7 +737,9 @@ A price in a sell (7) or buy (8) order is one cell, so it can't go past 65,535 c
 </run>
 ```
 
-The order lists (queries 600, 601, 610 and 611) give each order's price as a double too: a row is the price (4 bytes, `2@`), the order's limit, the stock and the drone. Query 612 lists the sell orders anywhere at or under a price you give as a double: `1100 7500 10 um* buf 40 612 query` finds kunspar for at most 75,000 a unit.
+The order lists (queries 600, 601, 610 and 611) give each order's price as a double too: a row is the price (4 bytes, `2@`), the order's limit, the stock and the drone. Query 612 lists the sell orders where you are at or under a price you give as a double: `1100 7500 10 um* buf 40 612 query` finds kunspar for at most 75,000 a unit.
+
+Your spacecraft sees live orders only where it is: queries 601, 611 and 612 used to list orders anywhere in the solar system, and now list the ones at your location, like 600 and 610. To find out what's happening elsewhere, read the [price board](#the-price-board), or go there.
 
 #### Adjusting your orders
 
@@ -773,7 +798,7 @@ You can find a current list of active buy orders (http://exmachinis.com/buys) an
 
 #### Measuring market volume
 
-Two queries tell how busy a market is: how many units of a resource changed hands over the last H hours of game time, the credits paid for them, and how many trades there were. Query 620 counts trades where your drone is; query 621 counts them anywhere in the solar system. The units and the credits are [doubles](#big-numbers-double-cells), 4 bytes each, read with `2@`; the number of trades is a single cell.
+Two queries tell how busy a market is: how many units of a resource changed hands over the last H hours of game time, the credits paid for them, and how many trades there were. Query 620 counts trades where your drone is; query 621 counts them anywhere in the solar system, in the H hours up to one game hour ago (news from elsewhere takes time). The units and the credits are [doubles](#big-numbers-double-cells), 4 bytes each, read with `2@`; the number of trades is a single cell.
 
 ```
 <run>
@@ -787,6 +812,18 @@ Two queries tell how busy a market is: how many units of a resource changed hand
 ```
 
 Dividing the credits by the units gives the average price paid.
+
+#### The price board
+
+The price board is public news from every market, an hour old: `N R L 680 query` lists, for resource N, each place where it traded in the game day up to one game hour ago, with the place's location ID, the units (a double), the credits paid (a double) and the number of trades. That's 12 bytes a row.
+
+```
+<run>
+  create board 120 allot
+  1100 board 120 680 query .        \ how many places traded kunspar
+  board @ . board 2 + 2@ d. board 6 + 2@ d.   \ the first place, its units and credits
+</run>
+```
 
 ## Chapter 7: Stringing Variables
 
