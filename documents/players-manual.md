@@ -99,6 +99,17 @@ Not sure where to begin? The Release page offers three starter scripts: click **
 
 Loading a script costs a little fuel: your drone reads it word by word, and reading a long, well-commented script uses up to about 25 fuel, once.
 
+#### Drone pages: learning from other drones
+
+Every drone has a public page (Spacecraft, then the drone) that shows what it is doing, its fuel, cargo and company, the drone that launched it and its clones, and the code it runs. Two buttons make learning by copying one click:
+
+- **Copy this code** opens the Release page with the drone's whole script filled in;
+- **copy** next to one of its words fills in just that word.
+
+The drone you release from it says where its code came from, and so does a copy you paste by hand: the page notes when the same code, or the same word, was released earlier by someone else ("first in drone N").
+
+When a drone dies, its page gets a **post-mortem**: why it died, in plain words (out of fuel, its `launched` word crashing again and again, or its company not paying its tax), and a timeline of its last actions, how each went, and the fuel it had left. Read your own post-mortems: they're the quickest way to learn what went wrong.
+
 The rest of this chapter describes the email game.
 
 ### Requesting your spacecraft

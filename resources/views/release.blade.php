@@ -26,6 +26,12 @@
 
             <form method="POST" action="{{ url('release') }}" class="mt-3">
                 {{ csrf_field() }}
+                @if($copiedFrom)
+                    {{-- Where this code comes from (#324 step 16) --}}
+                    <input type="hidden" name="copied_from" value="{{ $copiedFrom }}">
+                    @if($copiedWord)<input type="hidden" name="copied_word" value="{{ $copiedWord }}">@endif
+                    <p><small>Copied from <a href="{{ url('spacecraft/' . $copiedFrom) }}">drone {{ $copiedFrom }}</a>{{ $copiedWord ? ' (the word ' . $copiedWord . ')' : '' }}: the new drone's page will say so.</small></p>
+                @endif
                 <div class="form-group">
                     <label for="company_name">Company name</label>
                     <input class="form-control" id="company_name" name="company_name" type="text" maxlength="45"

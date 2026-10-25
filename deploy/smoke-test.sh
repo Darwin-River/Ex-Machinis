@@ -18,6 +18,7 @@
 #     that can't pay its tax is eliminated,
 #   - a waiting drone runs no instructions but still sells, and a drone sees
 #     live orders only where it is,
+#   - a drone's page shows its code, and a wreck's page has a post-mortem,
 #   - the Test button runs a script in the test world, not the live one,
 #   - it launches a new drone (a clone) from a ship kit with a copy of its
 #     program, some of its fuel and a record of its parent,
@@ -381,6 +382,16 @@ wait_for 60 "a company that can't pay its tax is eliminated and its drones wreck
 paid_tax() { [ "$(sql "select count(*) from company_taxes where company_id=$COMPANY and amount=20 and eliminated=0")" -ge 1 ]; }
 wait_for 60 "a company with credits pays its tax" paid_tax
 no_tax
+
+# The Drone page (#324 step 16): a released drone shows its code and a Copy
+# button; a wreck has a post-mortem in plain words
+page() { curl -fsS "http://localhost/spacecraft/$1"; }
+page "$FORGE_DRONE" | grep -q "forge-release-" || fail "the drone page doesn't show the released code"
+page "$FORGE_DRONE" | grep -q "release?copy=$FORGE_DRONE" || fail "the drone page has no Copy this code link"
+echo "ok: the drone page shows its code, with a Copy this code link"
+page "$DRY" | grep -q "It ran out of fuel" || fail "no post-mortem for the drone that ran out of fuel"
+page "$FORGE_DRONE" | grep -q "pay its tax bill" || fail "no post-mortem for the drone whose company couldn't pay its tax"
+echo "ok: wrecks have post-mortems"
 
 # Test world (#324 step 7): start its engines and turn on the Test button,
 # then test a script. It runs in the test world's own database, with a faster

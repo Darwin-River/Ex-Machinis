@@ -72,20 +72,21 @@ class Release
      * $connection picks the world: null for the live one, 'testworld' for a
      * test run (#324 step 7).
      */
-    public static function release(User $user, string $companyName, string $script, ?string $connection = null): Agent
+    public static function release(User $user, string $companyName, string $script, ?string $connection = null,
+                                   ?int $copiedFrom = null, ?string $copiedWord = null): Agent
     {
         if ($connection !== null) {
             // The models use the default connection: point it at that world
             $previous = DB::getDefaultConnection();
             DB::setDefaultConnection($connection);
             try {
-                return self::release($user, $companyName, $script);
+                return self::release($user, $companyName, $script, null, $copiedFrom, $copiedWord);
             } finally {
                 DB::setDefaultConnection($previous);
             }
         }
 
-        return DB::transaction(function () use ($user, $companyName, $script) {
+        return DB::transaction(function () use ($user, $companyName, $script, $copiedFrom, $copiedWord) {
             $company = Company::create([
                 'user_id' => $user->user_id,
                 'name' => $companyName,
@@ -117,6 +118,9 @@ class Release
                 'subject' => 'Release',
                 'email_content' => '',
             ]);
+
+            // Where its code comes from (#324 step 16)
+            Provenance::record($agent->agent_id, $company->company_id, $user->user_id, $script, $copiedFrom, $copiedWord);
 
             return $agent;
         });
