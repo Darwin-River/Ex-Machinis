@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Agent;
 use App\Command;
 use App\Company;
-use App\Invite;
 use App\Services\Release;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -26,7 +25,7 @@ class ReleasePageTest extends TestCase
         parent::setUp();
 
         Mail::fake();
-        config(['forge.email' => false, 'forge.invite_only' => true]);
+        config(['forge.email' => false]);
     }
 
     private function player(): User
@@ -34,33 +33,13 @@ class ReleasePageTest extends TestCase
         return User::create(['name' => 'Forge Player', 'email' => 'forge@example.com', 'password' => bcrypt('secret-password')]);
     }
 
-    public function testAccountNeedsAnUnusedInvitation()
+    public function testThereAreNoAccounts()
     {
-        $form = ['name' => 'Ada', 'email' => 'ada@example.com', 'password' => 'secret-password',
-            'password_confirmation' => 'secret-password'];
-
-        $this->from('/register')->post('/register', $form + ['invite_code' => 'NOPE'])
-            ->assertRedirect('/register')->assertSessionHasErrors('invite_code');
-        $this->assertNull(User::where('email', 'ada@example.com')->first());
-
-        $invite = Invite::generate('test');
-        $this->post('/register', $form + ['invite_code' => strtolower($invite->code)])->assertRedirect('/release');
-
-        $user = User::where('email', 'ada@example.com')->first();
-        $this->assertNotNull($user);
-        $this->assertEquals($user->user_id, $invite->fresh()->used_by);
-        $this->assertCount(0, Company::where('user_id', $user->user_id)->get(), 'an account starts with no company');
-        Mail::assertNothingSent();
-
-        // The code can't be used twice
-        $this->post('/logout');
-        $this->from('/register')->post('/register', ['email' => 'bob@example.com', 'name' => 'Bob'] + $form + ['invite_code' => $invite->code])
-            ->assertSessionHasErrors('invite_code');
-    }
-
-    public function testSignUpPageShowsTheAccountForm()
-    {
-        $this->get('/register')->assertOk()->assertSee('Invitation code')->assertSee('Password');
+        // Public Forge has no accounts (#367 step 4): no sign-up or login
+        $this->get('/register')->assertNotFound();
+        $this->get('/login')->assertNotFound();
+        $this->post('/login', ['email' => 'a@example.com', 'password' => 'x'])->assertNotFound();
+        $this->assertArrayNotHasKey('forge:invite', \Illuminate\Support\Facades\Artisan::all());
     }
 
     public function testStarterScriptsFillTheForm()

@@ -104,10 +104,8 @@ services:
       CRON_KEY: ${CRON_KEY:?run setup.sh first}
       REPORTS_DESTINATION: ${ADMIN_EMAIL}
       # Public Forge world (#324 step 6): GAME_EMAIL=0 switches email off
-      # (players release scripts on the website); INVITE_ONLY=1 needs an
-      # invitation code (php artisan forge:invite) to open an account
+      # (anyone releases scripts on the website; there are no accounts)
       GAME_EMAIL: ${GAME_EMAIL:-1}
-      INVITE_ONLY: ${INVITE_ONLY:-0}
       # TEST_WORLD=1 shows the Release page's Test button; start the test
       # world's engines with: docker compose --profile testworld up -d
       TEST_WORLD: ${TEST_WORLD:-0}

@@ -16,7 +16,7 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Auth::routes();
+// No player accounts in Public Forge (#367 step 4): no login or registration
 
 Route::get('/', 'HomeController@index')->name('Ex-Machinis');
 Route::get('/home', 'HomeController@index')->name('home');

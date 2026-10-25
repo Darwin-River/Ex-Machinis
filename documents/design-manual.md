@@ -478,7 +478,7 @@ One row per crash of a `launched` word, for post-mortems.
 
 #### Table: invites
 
-Invitation codes for an invite-only world ([The Release Page](#The-Release-Page)).
+No longer used (#367 step 4: there are no accounts to invite to); the table is left in place. It held invitation codes for an invite-only world.
 
 * id [INT] - Table index.
 * code [VARCHAR(32)] - The code (12 capital letters and digits).
@@ -496,12 +496,11 @@ A drone's replies when email is switched off. The Game Engine writes one where i
 * subject [VARCHAR(2048)] - The subject of the command it answers ("Release" for a released script).
 * body [LONGTEXT] - The reply, as it would have been emailed.
 
-<a name="The-Release-Page"></a>**The Release Page (#324 step 6).** The Public Forge world switches the email game off and lets players release scripts on the website instead. Two settings (environment variables, passed to the website and the engines by `deploy/docker-compose.yml`) control it:
+<a name="The-Release-Page"></a>**The Release Page (#324 step 6).** The Public Forge world switches the email game off and lets anyone release scripts on the website instead. A setting (an environment variable, passed to the website and the engines by `deploy/docker-compose.yml`) controls it:
 
-* `GAME_EMAIL` (default 1). 0 switches email off. The website's `/get-mails` reads no mail and `/web-register` sends players to `/register`. The engines get it as `EMAIL_ENABLED` (game-engine.conf), and the Game Engine writes replies to `drone_messages` instead of emailing them.
-* `INVITE_ONLY` (default 0). 1 means an account can only be opened with an unused invitation code. An operator creates codes with `php artisan forge:invite [count] [--note=...]`.
+* `GAME_EMAIL` (default 1). 0 switches email off. The website's `/get-mails` reads no mail and `/web-register` sends players to `/release`. The engines get it as `EMAIL_ENABLED` (game-engine.conf), and the Game Engine writes replies to `drone_messages` instead of emailing them.
 
-With email off, `/register` opens an account with a name, an email address and a password (plus the code when invite-only), and `/login` signs in. An account has no company or drones of its own. Since #367 step 3 nobody needs one to play: `/release` (open to anyone) posts a company name and a script:
+There are no player accounts (#367 step 4: login, sign-up, password resets, invitation codes, `INVITE_ONLY` and `php artisan forge:invite` are gone; the `users` and `invites` tables stay, for the built-in owner and the email game). `/release`, open to anyone, posts a company name and a script:
 
 * The script must define `launched` (a `: launched` definition, case-sensitive) and be at most 16,000 characters, with no line longer than a command (2,048).
 * It creates a company (owned by the built-in account `Release::owner()`, "Public Forge", made on first use, so the engines, which expect every company and drone to have an owner, work as before; with 1,000 credits) and one drone in orbit around Earth (object 3, hull 1) with Starter Kit I. It then queues the script as one or more commands, split at line ends to fit the commands table, followed by `<launched>`. All of this happens in one transaction (`App\Services\Release`).
