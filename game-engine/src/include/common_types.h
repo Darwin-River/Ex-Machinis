@@ -116,6 +116,9 @@
 #define INCREMENT_CREDITS_EVENT_TYPE   6
 #define DECREMENT_CREDITS_EVENT_TYPE   7
 #define LAUNCH_EVENT_TYPE              8
+#define STATION_OFFER_EVENT_TYPE       9   // an offer to sell to a House station (#324 step 10)
+#define STATION_ORDER_EVENT_TYPE      10   // an order to buy from a House station
+#define STATION_DELIVERY_PROTOCOL_ID  33   // actions that deliver or return station goods
 
 // Protocols that move goods between drones (decrement here, increment there)
 #define PUSH_PROTOCOL_ID 10
@@ -567,6 +570,7 @@ typedef enum
 	OUTCOME_NO_MARKET_ORDER = -10,
 	// -11 and -12 are perform's own codes (below)
 	OUTCOME_SAME_PLAYER = -13,   // a trade between two companies of one player is blocked
+	OUTCOME_NO_STATION = -14,    // no House station here trades that resource that way (#324 step 10)
 
 } Outcome_t;
 

@@ -11,6 +11,7 @@
 #   - with email off, a script released on the website runs (no email),
 #   - actions and computing burn fuel; a drone that runs dry becomes a wreck,
 #   - money past 32,767 comes back as a double, and the double words work,
+#   - House drop stations buy goods and sell fuel when their batches clear,
 #   - the Test button runs a script in the test world, not the live one,
 #   - it launches a new drone from a ship kit with a copy of its program.
 # Needs ports 80, 443 and 25 free. Leaves the stack running; remove it with
@@ -203,6 +204,16 @@ send_mail "$DRONE@$DOMAIN" "doubles" "<run>create bank 8 allot
 wait_for 60 "a balance of 70,000 and 300 x 300 come out right as doubles" sh -c "docker compose logs --no-log-prefix game-engine | tr -d '[:space:]' | grep -q 'msg\[7000090000'"
 wait_for 60 "drone finished the doubles script" idle
 
+# House drop stations (#324 step 10): the drone, on the Moon, offers a unit of
+# the metal it refined to the Moon Depot; when the game hour's batch clears,
+# the station pays for it
+send_mail "$DRONE@$DOMAIN" "station" "<run>1 2011 31 perform . cr</run>"
+sold() { [ "$(sql "select count(*) from station_offers where drone=$DRONE_ID and side=1 and filled=1 and paid>0")" = 1 ]; }
+wait_for 180 "the Moon Depot bought the drone's metal when its batch cleared" sold
+[ "$(sql "select count(*) from station_batches where side=1")" -ge 1 ] || fail "no cleared batch recorded"
+echo "ok: the batch was recorded once"
+wait_for 60 "drone finished the station script" idle
+
 [ -z "$(sql "select id from actions where drone=$DRONE_ID and aborted=1 and id <> $REFUSED_ACTION")" ] || fail "an action was aborted"
 echo "ok: no action aborted"
 
@@ -236,6 +247,15 @@ released() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DR
 wait_for 90 "released drone ran launched; its reply is kept for the website" released
 FORGE_NAME=$(sql "select name from agents where agent_id=$FORGE_DRONE")
 wait_for 30 "the Release page shows the reply" sh -c "curl -fsS -b '$JAR' http://localhost/release | grep -q 'forge-release-ok7'"
+
+# The House fuel seller (#324 step 10): the released drone, at Earth, orders
+# 10 fuel from the Earth Exchange; at the batch it pays 5 a unit and gets it
+FUEL_BEFORE=$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$FORGE_DRONE and resource=2061")
+sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('10 2061 32 perform .', $FORGE_DRONE, NOW(), NOW(), 'fuel', '')"
+bought() { [ "$(sql "select count(*) from station_offers where drone=$FORGE_DRONE and side=2 and filled=10 and paid=50")" = 1 ]; }
+wait_for 180 "a drone bought 10 fuel from the House at 5 a unit" bought
+more_fuel() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$FORGE_DRONE and resource=2061")" -gt "$FUEL_BEFORE" ]; }
+wait_for 60 "the fuel arrived in its hold" more_fuel
 ! docker compose logs mail | grep -q "from=<$FORGE_NAME@" || fail "the released drone sent email"
 echo "ok: no email from the released drone"
 
