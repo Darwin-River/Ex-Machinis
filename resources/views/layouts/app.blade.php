@@ -192,6 +192,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown">
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('market')}}">Market</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('map')}}">Map</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('buys')}}">Buy Orders</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('sells')}}">Sell Orders</a></li>
@@ -251,6 +255,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                             class="rd-navbar-submenu-toggle"></span>
                                     <!-- RD Navbar Dropdown-->
                                     <ul class="rd-menu rd-navbar-dropdown oriented-down">
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('market')}}">Market</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('map')}}">Map</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('buys')}}">Buy Orders</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"

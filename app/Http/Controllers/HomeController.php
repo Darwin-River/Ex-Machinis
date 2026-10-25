@@ -45,7 +45,9 @@ class HomeController extends Controller
      */
     public function index()
     {
-        return view('home');
+        // What's happening in the world (#324 step 17)
+        $feed = \App\Services\World::feed();
+        return view('home', compact('feed'));
     }
 
     /**
