@@ -218,5 +218,18 @@ ErrorCode_t db_wreck_drone(int drone_id, const char* cause)
 
     engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] becomes a wreck (%s)", drone_id, cause);
 
-    return db_exec(engine_get_db_connection(), query_text);
+    ErrorCode_t result = db_exec(engine_get_db_connection(), query_text);
+
+    // A company ends when its last drone dies (#324 step 13): its credits
+    // vanish, as when it can't pay its tax
+    if(result == ENGINE_OK) {
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "UPDATE companies c SET c.credits = 0, c.eliminated_at = %lld, c.end_cause = 'drones' "
+            "WHERE c.company_id = (SELECT a.company_id FROM agents a WHERE a.agent_id = %d) "
+            "AND c.eliminated_at IS NULL "
+            "AND NOT EXISTS (SELECT 1 FROM agents w WHERE w.company_id = c.company_id AND w.wrecked_at IS NULL)",
+            game_time_now_seconds(), drone_id);
+        result = db_exec(engine_get_db_connection(), query_text);
+    }
+    return result;
 }

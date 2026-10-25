@@ -2561,15 +2561,19 @@ ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* ne
 
     // The copy is taken now, when the launch happens. Drone D must still
     // belong to the company; if it doesn't, the new drone gets a fresh VM.
-    // The new drone joins the launcher's company (and player).
+    // The new drone joins the launcher's company (and player), beside it.
+    // Its lineage (#324 step 13): the launcher is its parent, one generation
+    // on, and code_from is the drone whose program it got.
     if(result == ENGINE_OK)
     {
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-            "INSERT INTO agents (user_id, company_id, name, vm, object_id, hull_type) "
+            "INSERT INTO agents (user_id, company_id, name, vm, object_id, hull_type, parent_id, generation, code_from) "
             "SELECT l.user_id, l.company_id, '%s', "
             "(SELECT d.vm FROM agents d WHERE d.agent_id = %d AND d.company_id = l.company_id), "
-            "l.object_id, %d FROM agents l WHERE l.agent_id = %d",
-            name, source_id, hull_id, launcher_id);
+            "l.object_id, %d, l.agent_id, l.generation + 1, "
+            "(SELECT d.agent_id FROM agents d WHERE d.agent_id = %d AND d.company_id = l.company_id AND d.vm IS NOT NULL) "
+            "FROM agents l WHERE l.agent_id = %d",
+            name, source_id, hull_id, source_id, launcher_id);
         result = db_launch_exec(connection, query_text);
     }
 

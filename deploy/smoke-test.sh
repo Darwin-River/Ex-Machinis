@@ -16,7 +16,8 @@
 #   - another player's wreck can be plundered (not one's own), and a company
 #     that can't pay its tax is eliminated,
 #   - the Test button runs a script in the test world, not the live one,
-#   - it launches a new drone from a ship kit with a copy of its program.
+#   - it launches a new drone (a clone) from a ship kit with a copy of its
+#     program, some of its fuel and a record of its parent,
 # Needs ports 80, 443 and 25 free. Leaves the stack running; remove it with
 #   docker compose down -v && rm -rf .env mail/config
 set -euo pipefail
@@ -161,7 +162,13 @@ echo "ok: the kit was used up"
 # crashes restarts from the clean copy after a wait; 5 crashes in a row make a
 # wreck.
 NEW_ID=$(sql "select agent_id from agents where name='$NEW'")
-# A launched drone's hold starts empty: give it fuel for the rounds below,
+# Cloning (#324 step 13): the launcher is the clone's parent, one generation
+# on, and the clone got its program and 20 of its fuel
+[ "$(sql "select concat(parent_id, ' ', generation, ' ', code_from) from agents where agent_id=$NEW_ID")" = "$DRONE_ID 1 $DRONE_ID" ] || fail "the clone's lineage was not recorded"
+echo "ok: the clone's parent, generation and program source are recorded"
+clone_fuel() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$NEW_ID and resource=2061")" -ge 1 ]; }
+wait_for 30 "the clone got fuel from its launcher" clone_fuel
+# Give it more fuel for the rounds below,
 # as its owner would by pushing some over (#324 step 8)
 sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo)
      values (1, 0, 1, 1, $NEW_ID, 2061, 0, 0, 200, 200)"
@@ -297,6 +304,9 @@ sql "insert into events (event_type, action, logged, outcome, drone, resource, i
      values (2, 0, 1, 1, $DRY, 2061, 0, 0, 1, $KIT + 1)"
 dry() { [ "$(sql "select wreck_cause from agents where agent_id=$DRY")" = fuel ]; }
 wait_for 120 "a drone that runs out of fuel becomes a wreck" dry
+# A company ends when its last drone dies (#324 step 13): its credits vanish
+[ "$(sql "select concat(end_cause, ' ', credits) from companies where name='Dry Forge'")" = "drones 0" ] || fail "the company whose last drone died did not end"
+echo "ok: a company whose last drone died has ended"
 
 # Plunder (#324 step 12): the released drone, at Earth like the wreck, may
 # not plunder it: both belong to the same player
