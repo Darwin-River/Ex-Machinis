@@ -421,7 +421,9 @@ grep -qF ">Moon<" <<<"$(fetch http://localhost/map)" || fail "the map doesn't li
 echo "ok: the home feed, market and map show the world"
 # The leaderboard (#324 step 18, drones since #367 step 2) ranks each
 # released drone by its company's wealth
-grep -qF "spacecraft/$FORGE_DRONE" <<<"$(fetch http://localhost/leaderboard)" || fail "the leaderboard doesn't list the released drone"
+# (the first drone's company is still trading; the released one's ended at
+# the tax check above, and ended companies are left off)
+grep -qF "spacecraft/$DRONE_ID\"" <<<"$(fetch http://localhost/leaderboard)" || fail "the leaderboard doesn't list the first drone"
 [ "$(sql "select count(*) from wealth_snapshots where company_id is not null")" -ge 1 ] || fail "no wealth snapshot was taken"
 echo "ok: the leaderboard ranks the drones, and wealth snapshots are taken"
 
