@@ -1198,6 +1198,9 @@ static void event_record_failure(Event_t *event, int outcome)
     if(outcome != OUTCOME_ACTION_ABORTED)
         db_set_action_outcome(event->action_id, outcome);
 
+    // What a failed mining action took from its deposit goes back (#324 step 11)
+    db_refund_deposits(event->action_id);
+
     // A drone that can't pay for its power has run dry: it becomes a wreck
     // (#324 step 8). Only a lack of fuel does that: a power burn that fails
     // for another reason just leaves the bill unpaid this time.

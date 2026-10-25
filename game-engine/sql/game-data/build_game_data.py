@@ -556,6 +556,13 @@ for rid, tag in sorted(mineral_tags.items(), key=lambda kv: int(kv[0])):
     for obj in targets:
         abundances.append((obj, int(rid), DEFAULT_ABUNDANCE))
 
+# Mining deposits (#324 step 11): every place a mineral is found holds a
+# deposit of it, which runs out and refills slowly. Placeholders, to tune in
+# step 20: a mining run yields its abundance (5 units), a deposit holds 40
+# runs' worth and regains 8 runs' worth a game day.
+DEPOSIT_RUNS, REFILL_RUNS_PER_DAY = 40, 8
+deposits = [(obj, rid, mult * DEPOSIT_RUNS, mult * REFILL_RUNS_PER_DAY) for obj, rid, mult in abundances]
+
 # --- queries ----------------------------------------------------------------------
 
 econ_q = {}
@@ -776,6 +783,16 @@ queries.append((632, 'Station budget here',
                 "SELECT IFNULL(t.budget, s.budget_cap) AS d_budget FROM stations s LEFT JOIN station_state t "
                 f"ON t.station_id = s.id WHERE s.object_id = {HERE_};"))
 
+# Mining deposits here (#324 step 11): left now (refilled for the time since
+# it was last worked out), and capacity
+queries.append((640, 'Deposits here',
+                '[R L 640 query]: The mining deposits where the drone is: resource, units left now (2 cells), '
+                'capacity (2 cells), units regained per game day. A mined-out deposit yields nothing until it refills.', 0,
+                "SELECT d.resource, FLOOR(LEAST(d.capacity, IFNULL(s.amount, d.capacity) + d.refill_per_day * "
+                "([game_now] - IFNULL(s.refilled_t, [game_now])) / 86400)) AS d_units, d.capacity AS d_capacity, "
+                "d.refill_per_day FROM deposits d LEFT JOIN deposit_state s ON s.object_id = d.object_id "
+                f"AND s.resource = d.resource WHERE d.object_id = {HERE_} ORDER BY d.resource;"))
+
 # Queries whose money or volume columns are double cells: say so
 DOUBLE_QUERIES = {101, 600, 601, 610, 611, 612, 620, 621, 841}  # 630-632 say so themselves
 queries = [(q[0], q[1], (q[2] if q[0] == 612 else q[2].rstrip() + ' Money and volumes are double cells (2@).')[:255],
@@ -899,6 +916,9 @@ for pid, name, a_km, w, M, n in planet_updates:
                  f'mean_angular_motion = {n} WHERE object_id = {pid}; -- {name}')
 lines.append('')
 table('abundancies', ['location', 'resource', 'multiplier'], abundances)
+lines.append('-- Mining deposits (#324 step 11): what each holds; how much is left')
+lines.append('-- (deposit_state) is kept. A deposit with no state yet is full.')
+table('deposits', ['object_id', 'resource', 'capacity', 'refill_per_day'], deposits)
 table('queries', ['id', 'name', 'description', 'parameters', 'script'], queries)
 lines += ['COMMIT;', 'SET FOREIGN_KEY_CHECKS = 1;', '']
 

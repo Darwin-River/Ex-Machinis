@@ -2630,3 +2630,74 @@ ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, in
 
     return db_launch_exec(connection, query_text);
 }
+
+/** ****************************************************************************
+
+    @brief          Gives back to their deposits what a failed mining action
+                    took (#324 step 11)
+
+    Mining takes its units from the place's deposit when it is scheduled. When
+    the action fails, its mining yields (increments of a mined resource that
+    were not applied) go back, and are zeroed so they are given back only once.
+
+    @param[in]      action_id Failed action
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_refund_deposits(int action_id)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK)
+        return result;
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT e.id, e.resource, e.new_quantity, g.object_id FROM events e "
+        "JOIN actions a ON a.id = e.action "
+        "JOIN agents g ON g.agent_id = e.drone "
+        "JOIN resource_effects r ON r.protocol = a.protocol AND r.resource = e.resource "
+        "AND r.event_type = 1 AND r.abundancies = 1 "
+        "WHERE e.action = %d AND e.event_type = 1 AND e.new_quantity > 0 AND e.outcome <> %d",
+        action_id, OUTCOME_OK);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    if(!res)
+        return ENGINE_OK;
+
+    int count = 0;
+    int ids[16], resources[16], quantities[16], objects[16];
+    MYSQL_ROW row;
+    while(count < 16 && (row = mysql_fetch_row(res))) {
+        ids[count] = atoi(row[0]);
+        resources[count] = atoi(row[1]);
+        quantities[count] = atoi(row[2]);
+        objects[count] = row[3] ? atoi(row[3]) : 0;
+        count++;
+    }
+    mysql_free_result(res);
+
+    for(int i = 0; i < count; i++) {
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "UPDATE deposit_state s JOIN deposits d ON d.object_id = s.object_id AND d.resource = s.resource "
+            "SET s.amount = LEAST(d.capacity, s.amount + %d) WHERE s.object_id = %d AND s.resource = %d",
+            quantities[i], objects[i], resources[i]);
+        if(mysql_query(connection->hndl, query_text)) {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+            return ENGINE_DB_QUERY_ERROR;
+        }
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "UPDATE events SET new_quantity = 0, new_cargo = 0 WHERE id = %d", ids[i]);
+        if(mysql_query(connection->hndl, query_text)) {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+            return ENGINE_DB_QUERY_ERROR;
+        }
+        engine_trace(TRACE_LEVEL_ALWAYS, "Deposit of resource [%d] at [%d]: [%d] given back by failed action [%d]",
+            resources[i], objects[i], quantities[i], action_id);
+    }
+    return ENGINE_OK;
+}

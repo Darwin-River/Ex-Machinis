@@ -541,6 +541,20 @@ The following fields are contained in the abundancies table:
 * resource [INT(5)] - This is the resource to which the abundancies.multiplier applies.
 * multiplier [INT(2)] - This is the amount that the harvested resource is multiplied by.
 
+##### Tables: deposits and deposit_state
+Minerals are not endless (#324 step 11). Each mineral at each place is a deposit with a capacity, and mining takes from it. A mined-out deposit yields nothing until it refills, which it does slowly over game time. This stops one drone from mining a spot forever and makes busy places worth fighting over.
+
+* **deposits** (game data, from `build_game_data.py`): `object_id`, `resource`, `capacity` (units) and `refill_per_day` (units regained per game day). Every abundance gets one: capacity is 40 mining runs and the refill is 8 runs a day, so a mineral of abundance 5 holds 200 units and regains 40 a day. A place and mineral with no deposit row is unlimited.
+* **deposit_state** (live): `object_id`, `resource`, `amount` (units left, a DOUBLE so part-units of refill carry over) and `refilled_t` (the game time the amount was worked out). No row means the deposit is full.
+
+How it works:
+1. When the game engine schedules a mining increment (an effect with `abundancies` set and event type 1), it works out the yield as before (quantity × abundance multiplier × process multiplier). Then `db_take_deposit` refills the deposit lazily (`amount + refill_per_day × elapsed game seconds / 86400`, capped at `capacity`), takes the whole units it can, up to the yield, and writes back what is left with `refilled_t` = now. The event's quantity becomes what was taken.
+2. A deposit that is empty gives 0 units. The action still succeeds; the drone just gets nothing.
+3. Mining is taken from the deposit when it is scheduled, but the events engine may still fail the action later (no module, no cargo space, no fuel). Then `db_refund_deposits` (called from `event_record_failure`) gives the unapplied mining increments of that action back to the deposit and zeroes them, so they are refunded only once.
+4. Query 640 ("Deposits here") lists the deposits where the drone is: resource, units left now (2 cells), capacity (2 cells) and refill per day. It works out the refill the same way, without changing anything.
+
+The engine logs `Deposit of resource [R] at [O]: [taken] of [wanted] wanted taken, [left] left` for every mining run, and `... given back by failed action [A]` for every refund.
+
 [Return to the TOC](#Table-of-Contents)
 
 ### The Orbits of Planets and Moons
@@ -1261,6 +1275,7 @@ This appendix lists the in-game queries loaded into the game, organized by the d
 | Spacecraft | 630 | Station trades here | [R L 630 query]: What the House station where the drone is trades now: resource, side (1: it buys, 2: it sells), price (2 cells; buying: for an empty batch, halving per daily units), daily units, units waiting in this batch (2 cells). | 0 | `SELECT g.resource, g.side, g.price AS d_price, g.daily_units, IFNULL((SELECT SUM(o.units) FROM station_offers o WHERE o.station_id = g.station_id AND o.resource = g.resource AND o.side = g.side AND o.cleared_t IS NULL), 0) AS d_units FROM station_goods g WHERE g.station_id IN (SELECT id FROM stations WHERE object_id = (SELECT object_id FROM agents WHERE agent_id = [drone_id])) AND g.from_day <= FLOOR(([game_now] - (SELECT epoch FROM game_clock WHERE id = 1)) / 86400) ORDER BY g.side, g.resource;` |
 | Spacecraft | 631 | My station offers | [R L 631 query]: This drone's station offers and orders, newest first: resource, side (1: offer, 2: order), units, units filled (-1 until its batch clears), credits (2 cells). | 0 | `SELECT resource, side, units, IFNULL(filled, -1), IFNULL(paid, 0) AS d_paid FROM station_offers WHERE drone = [drone_id] ORDER BY id DESC;` |
 | Spacecraft | 632 | Station budget here | [R L 632 query]: The credits the House station where the drone is has left for buying (2 cells). | 0 | `SELECT IFNULL(t.budget, s.budget_cap) AS d_budget FROM stations s LEFT JOIN station_state t ON t.station_id = s.id WHERE s.object_id = (SELECT object_id FROM agents WHERE agent_id = [drone_id]);` |
+| Spacecraft | 640 | Deposits here | [R L 640 query]: The mining deposits where the drone is: resource, units left now (2 cells), capacity (2 cells), units regained per game day. A mined-out deposit yields nothing until it refills. | 0 | `SELECT d.resource, FLOOR(LEAST(d.capacity, IFNULL(s.amount, d.capacity) + d.refill_per_day * ([game_now] - IFNULL(s.refilled_t, [game_now])) / 86400)) AS d_units, d.capacity AS d_capacity, d.refill_per_day FROM deposits d LEFT JOIN deposit_state s ON s.object_id = d.object_id AND s.resource = d.resource WHERE d.object_id = (SELECT object_id FROM agents WHERE agent_id = [drone_id]) ORDER BY d.resource;` |
 | Locations | 700 | Get location name | [N R L 700 query]: Returns the name of location ID N. | 1 | `SELECT object_name FROM objects WHERE object_id=[value_1];` |
 | Locations | 701 | Get location type | [N R L 701 query]: Returns the location type of location N. | 1 | `SELECT object_type FROM objects WHERE object_id=[value_1];` |
 | Locations | 702 | Get central body | [N R L 702 query]: Retuns the location ID for the body around which N is orbiting. | 1 | `SELECT central_body_object_id FROM objects WHERE object_id=[value_1];` |
