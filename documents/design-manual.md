@@ -501,22 +501,22 @@ A drone's replies when email is switched off. The Game Engine writes one where i
 * `GAME_EMAIL` (default 1). 0 switches email off. The website's `/get-mails` reads no mail and `/web-register` sends players to `/register`. The engines get it as `EMAIL_ENABLED` (game-engine.conf), and the Game Engine writes replies to `drone_messages` instead of emailing them.
 * `INVITE_ONLY` (default 0). 1 means an account can only be opened with an unused invitation code. An operator creates codes with `php artisan forge:invite [count] [--note=...]`.
 
-With email off, `/register` opens an account with a name, an email address and a password (plus the code when invite-only), and `/login` signs in. An account has no company or drones of its own. `/release` (signed in) posts a company name and a script:
+With email off, `/register` opens an account with a name, an email address and a password (plus the code when invite-only), and `/login` signs in. An account has no company or drones of its own. Since #367 step 3 nobody needs one to play: `/release` (open to anyone) posts a company name and a script:
 
 * The script must define `launched` (a `: launched` definition, case-sensitive) and be at most 16,000 characters, with no line longer than a command (2,048).
-* It creates a company (the player's, with 1,000 credits) and one drone in orbit around Earth (object 3, hull 1) with Starter Kit I. It then queues the script as one or more commands, split at line ends to fit the commands table, followed by `<launched>`. All of this happens in one transaction (`App\Services\Release`).
+* It creates a company (owned by the built-in account `Release::owner()`, "Public Forge", made on first use, so the engines, which expect every company and drone to have an owner, work as before; with 1,000 credits) and one drone in orbit around Earth (object 3, hull 1) with Starter Kit I. It then queues the script as one or more commands, split at line ends to fit the commands table, followed by `<launched>`. All of this happens in one transaction (`App\Services\Release`).
 * The drone loads the script, then runs `launched` with crash handling ([Crashes](#Crashes)). `<launched>` waits until the script has finished loading.
-* The page lists the player's drones with their state (crashes in a row, wreck) and, with email off, the replies in `drone_messages` that have reached Earth.
+* The player goes to the new drone's page, which shows, publicly like its code, the replies in `drone_messages` that have reached Earth ("What it said", the latest 20). The Release page itself lists nothing: there are no accounts to list drones by.
 
 <a name="The-Test-World"></a>**The test world (#324 step 7).** The Release page's **Test** button runs a script in a separate world before the player releases it:
 
 * **Database.** It has its own database, `exmachinis_test`, on the same MySQL server. On every start, the `migrate` service runs `game-engine/sql/init_test_world.sh` after the live migrations. A new test database starts from the same base schema (`create_db.sql`, pointed at the test database, and `exmachinis_tables.sql`). Each start then applies the migrations, loads the current game data and grants the game's MySQL user access. So the test world always has the live world's schema, rules and game data.
 * **Engines.** `test-game-engine` and `test-events-engine` are the same engines with `DB_NAME=exmachinis_test`, email off (`EMAIL_ENABLED=0`) and a faster clock (`TEST_GAME_TIME_SCALE`, default 600). They are in the Compose profile `testworld`. The website shows the Test button when `TEST_WORLD=1` and the test database answers (connection `testworld`, database `DB_TEST_DATABASE`).
 * **A test run** (`POST /release/test`, `App\Services\TestWorld`):
-  * It copies the player's account row into the test world, since drones need an owner.
-  * It releases the script there exactly as a live release does: a company with 1,000 credits and a drone in Earth orbit with Starter Kit I. It needs no company name (the run is named `Test <user>-<random>`).
-  * It keeps the player's latest 3 test runs (`forge.test_runs_kept`). Starting another removes the oldest: its commands, replies, crashes, drone (its events cascade) and company.
-* **Results.** The Release page shows each test run's output (`drone_messages`), crashes, company credits, latest 20 events (named by `event_types`) and trades.
+  * Anyone may (#367 step 3). The test world's built-in owner (`Release::owner('testworld')`) owns the run.
+  * It releases the script there exactly as a live release does: a company with 1,000 credits and a drone in Earth orbit with Starter Kit I. It needs no company name: the run is named `Test <token>`, a random 16-hex-digit token.
+  * The test world keeps the latest 100 test runs, all together (`forge.test_runs_kept`). Starting another removes the oldest: its commands, replies, crashes, drone (its events cascade) and company.
+* **Results.** Each run has its own page, `/release/test/<token>`, which the Test button leads to: the test drone's output (`drone_messages`), crashes, company credits, latest 20 events (named by `event_types`) and trades. A wrong or pruned token is a 404.
 * **Not yet.** The test world doesn't copy the live world's market. Its order book holds only test runs' orders. When drop stations arrive (step 10) they will be game data, so both worlds will follow the same station rules.
 
 <a name="The-Drone-Page"></a>**The Drone page (#324 step 16).** `/spacecraft/{id}` is public. Besides the location, hull and cargo it had, it shows (`App\Services\DronePage`):

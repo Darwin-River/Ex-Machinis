@@ -301,7 +301,8 @@ echo "ok: release created a company with a drone"
 released() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and body like '%forge-release-ok7%' and body like '%has finished%'")" ]; }
 wait_for 90 "released drone ran launched; its reply is kept for the website" released
 FORGE_NAME=$(sql "select name from agents where agent_id=$FORGE_DRONE")
-wait_for 30 "the Release page shows the reply" sh -c "curl -fsS -b '$JAR' http://localhost/release | grep -q 'forge-release-ok7'"
+# Public, on the drone's page (#367 step 3)
+wait_for 30 "the drone's page shows the reply" sh -c "curl -fsS http://localhost/spacecraft/$FORGE_DRONE | grep -q 'forge-release-ok7'"
 # Starter scripts and game words (#324 step 15): the Release page fills in
 # a starter, and a drone knows the game words
 # (fetch a page, then search it: with pipefail, "curl | grep -q" can fail
@@ -435,8 +436,9 @@ echo "ok: the leaderboard ranks the companies, and wealth snapshots are taken"
 # clock, and the live world gets nothing.
 TEST_WORLD=1 GAME_EMAIL=0 INVITE_ONLY=1 docker compose --profile testworld up -d app test-game-engine test-events-engine >/dev/null 2>&1
 wait_for 120 "the Release page has a Test button" sh -c "curl -fsS -b '$JAR' http://localhost/release | grep -q 'release/test'"
-curl -fsS -c "$JAR" -b "$JAR" -o /dev/null -X POST http://localhost/release/test --data-urlencode "_token=$(token /release)" \
-    --data-urlencode $'script=: hello  ." test-world-" ;\n: launched  hello ." ok8" ;'
+# Each test run has its own page (#367 step 3): the Test button leads there
+TEST_PAGE=$(curl -fsS -c "$JAR" -b "$JAR" -o /dev/null -w '%{redirect_url}' -X POST http://localhost/release/test --data-urlencode "_token=$(token /release)" \
+    --data-urlencode $'script=: hello  ." test-world-" ;\n: launched  hello ." ok8" ;')
 sqltest() {
     docker compose exec -T db sh -c 'mysql -N -uexmachinis -p"$MYSQL_PASSWORD" exmachinis_test 2>/dev/null' <<<"$1"
 }
@@ -444,6 +446,7 @@ tested() { [ -n "$(sqltest "select id from drone_messages where body like '%test
 wait_for 90 "a test run runs in the test world" tested
 [ -z "$(sql "select company_id from companies where name like 'Test %'")" ] || fail "a test run reached the live world"
 echo "ok: the live world is untouched"
-wait_for 30 "the Release page shows the test run" sh -c "curl -fsS -b '$JAR' http://localhost/release | grep -q 'test-world-ok8'"
+grep -q "/release/test/[0-9a-f]\{16\}$" <<<"$TEST_PAGE" || fail "the Test button didn't lead to the test run's page ($TEST_PAGE)"
+wait_for 30 "the test run's page shows it" sh -c "curl -fsS '$TEST_PAGE' | grep -q 'test-world-ok8'"
 
 echo "Smoke test passed."

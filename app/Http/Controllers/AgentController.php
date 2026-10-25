@@ -85,8 +85,9 @@ class AgentController extends Controller
         $state = DronePage::state($agent);
         $code = DronePage::code($agent);
         $postMortem = DronePage::postMortem($agent);
+        $messages = DronePage::messages($agent);
 
-        return view('spacecraft.view', compact('agent', 'cargoManifest', 'totalWeight', 'state', 'code', 'postMortem'));
+        return view('spacecraft.view', compact('agent', 'cargoManifest', 'totalWeight', 'state', 'code', 'postMortem', 'messages'));
     }
 
 

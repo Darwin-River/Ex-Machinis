@@ -109,6 +109,18 @@ class DronePage
      * For a wreck: the cause in plain words, and a timeline of its last
      * actions and crashes, newest first
      */
+    /**
+     * What the drone has said (#367 step 3: public, like its code): its
+     * messages that have reached Earth (game time, at the speed of light),
+     * newest first
+     */
+    public static function messages(Agent $agent, int $limit = 20)
+    {
+        return DB::table('drone_messages')->where('agent_id', $agent->agent_id)
+            ->where('game_t', '<=', World::gameNow())
+            ->orderBy('id', 'desc')->limit($limit)->get(['subject', 'body', 'game_t']);
+    }
+
     public static function postMortem(Agent $agent): ?array
     {
         if (!$agent->wrecked_at) {

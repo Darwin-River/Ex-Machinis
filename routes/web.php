@@ -75,6 +75,7 @@ Route::get('/machine', 'WorldController@machine');
 Route::get('/release', 'ReleaseController@show');
 Route::post('/release', 'ReleaseController@store');
 Route::post('/release/test', 'ReleaseController@test');
+Route::get('/release/test/{token}', 'ReleaseController@testRun');
 
 Route::get('/get-mails/{key}', 'HomeController@getMails');
 Route::get('/user/send-report/{key}', 'UserController@reportCurrentUsersByMail');

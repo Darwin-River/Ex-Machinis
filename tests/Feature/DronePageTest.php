@@ -53,16 +53,14 @@ class DronePageTest extends TestCase
     public function testCopyThisCodeRecordsWhereItCameFrom()
     {
         $original = Release::release($this->player('a@example.com'), 'Diggers', self::SCRIPT);
-        $copier = $this->player('b@example.com');
-
-        $this->actingAs($copier)->get('/release?copy=' . $original->agent_id)->assertOk()
+        $this->get('/release?copy=' . $original->agent_id)->assertOk()
             ->assertSee('name="copied_from" value="' . $original->agent_id . '"', false)
             ->assertSee(': launched ( -- )  5 dig ;', false);
-        $this->actingAs($copier)->get('/release?copy=' . $original->agent_id . '&word=dig')->assertOk()
+        $this->get('/release?copy=' . $original->agent_id . '&word=dig')->assertOk()
             ->assertSee('name="copied_word" value="dig"', false);
 
-        $this->actingAs($copier)->post('/release', ['company_name' => 'Copycats', 'script' => self::SCRIPT,
-            'copied_from' => $original->agent_id])->assertRedirect('/release');
+        $this->post('/release', ['company_name' => 'Copycats', 'script' => self::SCRIPT,
+            'copied_from' => $original->agent_id]);
         $copy = DB::table('releases')->orderBy('id', 'desc')->first();
         $this->assertSame($original->agent_id, (int) $copy->copied_from);
         $this->get('/spacecraft/' . $copy->agent_id)->assertSee('Copied from');

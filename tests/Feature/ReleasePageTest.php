@@ -65,39 +65,41 @@ class ReleasePageTest extends TestCase
 
     public function testStarterScriptsFillTheForm()
     {
-        $user = $this->player();
-        $this->actingAs($user)->get('/release')->assertOk()
+        $this->get('/release')->assertOk()
             ->assertSee('release?starter=miner', false)->assertSee('release?starter=trader', false);
         foreach (array_keys(Release::STARTERS) as $name) {
             $script = Release::starter($name);
             $this->assertNotNull($script, "starter $name is missing");
             $this->assertTrue(Release::definesLaunched($script), "starter $name defines launched");
-            $this->actingAs($user)->get('/release?starter=' . $name)->assertOk()->assertSee(': launched', false);
+            $this->get('/release?starter=' . $name)->assertOk()->assertSee(': launched', false);
         }
         $this->assertNull(Release::starter('../../.env'), 'only the listed starters can be read');
     }
 
-    public function testReleasePageNeedsLogin()
+    public function testAnyoneMayRelease()
     {
-        $this->get('/release')->assertRedirect('/login');
+        // No account needed (#367 step 3)
+        $this->get('/release')->assertOk()->assertSee('no account needed');
     }
 
     public function testReleasingAScriptStartsACompanyWithADroneThatRunsIt()
     {
-        $user = $this->player();
         $script = ": greet  .\" hello\" cr ;\n: launched  greet ;";
 
-        $this->actingAs($user)->post('/release', ['company_name' => 'Forge Works', 'script' => $script])
-            ->assertRedirect('/release');
+        $response = $this->post('/release', ['company_name' => 'Forge Works', 'script' => $script]);
 
         $company = Company::where('name', 'Forge Works')->first();
         $this->assertNotNull($company);
-        $this->assertEquals($user->user_id, $company->user_id);
+        // Owned by the built-in account (#367 step 3: no player accounts)
+        $this->assertEquals(Release::owner()->user_id, $company->user_id);
         $this->assertEquals(config('forge.starting_credits'), $company->credits);
 
         $drones = Agent::where('company_id', $company->company_id)->get();
         $this->assertCount(1, $drones);
         $this->assertEquals(Company::EARTH_OBJECT_ID, $drones[0]->object_id);
+        // The new drone's page is where to follow it
+        $response->assertRedirect('/spacecraft/' . $drones[0]->agent_id);
+        $this->get('/spacecraft/' . $drones[0]->agent_id)->assertOk()->assertSee('Released!');
 
         // The script, then <launched>, in order
         $codes = Command::where('agent_id', $drones[0]->agent_id)->orderBy('id')->pluck('code')->all();
@@ -107,7 +109,7 @@ class ReleasePageTest extends TestCase
 
     public function testScriptMustDefineLaunched()
     {
-        $this->actingAs($this->player())->from('/release')
+        $this->from('/release')
             ->post('/release', ['company_name' => 'No Entry', 'script' => ': go 1 2 + ;'])
             ->assertRedirect('/release')->assertSessionHasErrors('script');
         $this->assertNull(Company::where('name', 'No Entry')->first());
@@ -135,18 +137,18 @@ class ReleasePageTest extends TestCase
         $this->assertEquals($script, implode("\n", $chunks));
     }
 
-    public function testReleasePageShowsRepliesThatHaveReachedEarth()
+    public function testDronePageShowsRepliesThatHaveReachedEarth()
     {
-        $user = $this->player();
-        $agent = Release::release($user, 'Reply Co', ": launched ;");
+        $agent = Release::release(Release::owner(), 'Reply Co', ": launched ;");
         $now = \App\Http\Controllers\ReleaseController::gameNow();
         DB::table('drone_messages')->insert([
             ['agent_id' => $agent->agent_id, 'game_t' => $now - 5, 'subject' => 'Release', 'body' => 'arrived-reply'],
             ['agent_id' => $agent->agent_id, 'game_t' => $now + 100000, 'subject' => 'Release', 'body' => 'still-in-transit'],
         ]);
 
-        $this->actingAs($user)->get('/release')->assertOk()
-            ->assertSee($agent->name)->assertSee('arrived-reply')->assertDontSee('still-in-transit');
+        // Public, like its code (#367 step 3)
+        $this->get('/spacecraft/' . $agent->agent_id)->assertOk()
+            ->assertSee('What it said')->assertSee('arrived-reply')->assertDontSee('still-in-transit');
     }
 
     public function testMailIsNotReadWhenEmailIsOff()

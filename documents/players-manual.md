@@ -75,18 +75,18 @@ It is your birthright to take control of your own remotely piloted spacecraft an
 
 ### Releasing a script (Public Forge)
 
-In the Public Forge world there is no email. You open an account on the website (you need an invitation code for now), write your drone's program on the **Release** page, and release it:
+In the Public Forge world there is no email, and no account to open: anyone can write a drone's program on the **Release** page and release it:
 
-- each release starts a new company of yours, with one drone in orbit around Earth, a starter kit, 100 fuel and 1,000 credits;
+- each release starts a new company, with one drone in orbit around Earth, a starter kit, 100 fuel and 1,000 credits;
 - the drone loads your script, then runs your word `launched` on its own, so your script should define words and end with `: launched ... ;`;
-- what the drone prints appears on the Release page once its signal has reached Earth;
+- you go to the drone's page, which shows everything it does and what it prints (once its signal has reached Earth). It's public, like the drone's code: keep its link to follow it;
 - if `launched` crashes, the drone restarts it from the script you released (see [When `launched` crashes](#when-launched-crashes)).
 
 A released drone can't be sent new commands from the Release page, so test your script before you release it. The **Test** button (when the test world is running) does that:
 
 - your script runs in the test world, a separate copy of the game with the same rules, data and starting company, and a clock that runs ten times faster;
-- the Release page shows what the test drone prints, its latest events (what it did, its cargo and credits), its trades and any crashes;
-- nothing in the test world affects the live one, and you can test as often as you like (your latest three test runs are kept);
+- you go to the test run's own page, which shows what the test drone prints, its latest events (what it did, its cargo and credits), its trades and any crashes: keep its link to come back to it;
+- nothing in the test world affects the live one, and you can test as often as you like (the latest hundred test runs are kept);
 - the test world has its own market, so trades there are only with other test runs.
 
 #### Starter scripts

@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Agent;
 use App\Company;
 use App\Services\LaunchQueue;
-use App\User;
+use App\Services\Release;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -29,11 +29,6 @@ class LaunchQueueTest extends TestCase
         config(['forge.email' => false, 'forge.invite_only' => true]);
     }
 
-    private function player(string $email = 'queue@example.com'): User
-    {
-        return User::create(['name' => 'Queue Player', 'email' => $email, 'password' => bcrypt('secret-password')]);
-    }
-
     /** The game clock as the game engine leaves it after a load check */
     private function clock(bool $full, int $checkedAgo = 10, float $scale = 8): void
     {
@@ -48,33 +43,31 @@ class LaunchQueueTest extends TestCase
     public function testReleaseLaunchesAtOnceWhenTheWorldIsNotFull()
     {
         $this->clock(false);
-        $user = $this->player();
-        $this->actingAs($user)->post('/release', ['company_name' => 'Room Enough', 'script' => self::SCRIPT])
-            ->assertRedirect('/release')->assertSessionHas('success');
-        $this->assertTrue(Company::where('name', 'Room Enough')->exists());
+        $response = $this->post('/release', ['company_name' => 'Room Enough', 'script' => self::SCRIPT]);
+        $company = Company::where('name', 'Room Enough')->first();
+        $this->assertNotNull($company);
+        $response->assertRedirect('/spacecraft/' . Agent::where('company_id', $company->company_id)->value('agent_id'))
+            ->assertSessionHas('success');
         $this->assertSame(0, LaunchQueue::waiting());
     }
 
     public function testReleaseWaitsInLineWhenTheWorldIsFull()
     {
         $this->clock(true);
-        $first = $this->player();
-        $second = $this->player('second@example.com');
-
-        $this->actingAs($first)->post('/release', ['company_name' => 'First Waiting', 'script' => self::SCRIPT])
+        $this->post('/release', ['company_name' => 'First Waiting', 'script' => self::SCRIPT])
             ->assertRedirect('/release');
         $this->assertStringContainsString('number 1 in line', session('success'));
-        $this->actingAs($second)->post('/release', ['company_name' => 'Second Waiting', 'script' => self::SCRIPT]);
+        $this->post('/release', ['company_name' => 'Second Waiting', 'script' => self::SCRIPT]);
         $this->assertStringContainsString('number 2 in line', session('success'));
 
         $this->assertFalse(Company::where('name', 'First Waiting')->exists(), 'nothing launches while full');
         $this->assertSame(2, LaunchQueue::waiting());
-        $this->actingAs($second)->get('/release')->assertOk()
+        $this->get('/release')->assertOk()
             ->assertSee('The world is full right now')
-            ->assertSee('Second Waiting: number 2 in line');
+            ->assertSee('2 release(s) waiting to launch');
 
         // A waiting release keeps its company name
-        $this->actingAs($second)->from('/release')
+        $this->from('/release')
             ->post('/release', ['company_name' => 'First Waiting', 'script' => self::SCRIPT])
             ->assertSessionHasErrors('company_name');
 
@@ -87,7 +80,7 @@ class LaunchQueueTest extends TestCase
         $this->assertSame(0, LaunchQueue::waiting());
         $company = Company::where('name', 'First Waiting')->first();
         $this->assertNotNull($company);
-        $this->assertSame($first->user_id, (int) $company->user_id);
+        $this->assertSame(Release::owner()->user_id, (int) $company->user_id);
         $agent = Agent::where('company_id', $company->company_id)->first();
         $this->assertSame($agent->agent_id, (int) DB::table('launch_queue')->where('company_name', 'First Waiting')->value('agent_id'));
         $this->assertTrue(Company::where('name', 'Second Waiting')->exists());
@@ -98,14 +91,14 @@ class LaunchQueueTest extends TestCase
         // The engine stopped checking: don't hold releases back on old news
         $this->clock(true, LaunchQueue::STALE_SECONDS + 60);
         $this->assertFalse(LaunchQueue::full());
-        $this->actingAs($this->player())->post('/release', ['company_name' => 'Stale Check', 'script' => self::SCRIPT]);
+        $this->post('/release', ['company_name' => 'Stale Check', 'script' => self::SCRIPT]);
         $this->assertTrue(Company::where('name', 'Stale Check')->exists());
     }
 
     public function testTheSchedulerDrainsTheQueue()
     {
         $this->clock(true);
-        $this->actingAs($this->player())->post('/release', ['company_name' => 'Drained Later', 'script' => self::SCRIPT]);
+        $this->post('/release', ['company_name' => 'Drained Later', 'script' => self::SCRIPT]);
         $this->clock(false);
         config(['app.cron_key' => 'test-cron-key']);
         $this->get('/get-mails/test-cron-key')->assertOk();

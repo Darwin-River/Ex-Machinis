@@ -20,6 +20,7 @@
 
     <section class="section section-xs section-first bg-default text-md-left">
         <div class="container grid-demonstration" id="container">
+            @include('_flash_message')
             <div class="description-fields">
                 <div class="row row-xxl row-30 row-md-60 ">
                     <div class="col-12 col-sm-6 col mb-0">
@@ -71,6 +72,19 @@
                     </table>
                 </div>
             @endif
+
+            {{-- What it has said (#367 step 3: public, like its code) --}}
+            <div class="row row-xxl row-30 row-md-60">
+                <div class="col" id="messages">
+                    <h2 class="wow fadeInLeft">What it said</h2>
+                    @forelse($messages as $message)
+                        <div><small>{{ \App\Services\DronePage::when($message->game_t) }}{{ $message->subject ? ' · ' . $message->subject : '' }}</small></div>
+                        <pre class="p-2" style="white-space: pre-wrap">{{ $message->body }}</pre>
+                    @empty
+                        <p>Nothing yet. What it prints shows here once it reaches Earth.</p>
+                    @endforelse
+                </div>
+            </div>
 
             {{-- Its code and where it comes from (#324 step 16) --}}
             <div class="row row-xxl row-30 row-md-60">

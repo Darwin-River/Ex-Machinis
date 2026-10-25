@@ -3,44 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Agent;
-use App\Company;
 use App\Services\LaunchQueue;
 use App\Services\Provenance;
 use App\Services\Release;
 use App\Services\TestWorld;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The Release page (#324 step 6): a player posts a script, which becomes a
- * new company with one drone that runs the script's launched word. The page
- * also shows the player's drones and, with email switched off, their replies.
+ * The Release page (#324 step 6): anyone posts a script (#367 step 3: no
+ * accounts), which becomes a new company with one drone that runs the
+ * script's launched word. The drone's page follows it from there.
  */
 class ReleaseController extends Controller
 {
     public function show()
     {
-        if (!Auth::check()) {
-            return redirect('/login');
-        }
-        $user = Auth::user();
-        $companies = Company::where('user_id', $user->user_id)->orderBy('company_id', 'desc')->get();
-        $drones = Agent::whereIn('company_id', $companies->pluck('company_id'))->orderBy('agent_id', 'desc')->get();
-
-        // Replies that have reached Earth (game time, at the speed of light)
-        $messages = collect();
-        if ($drones->isNotEmpty()) {
-            $messages = DB::table('drone_messages')
-                ->whereIn('agent_id', $drones->pluck('agent_id'))
-                ->where('game_t', '<=', self::gameNow())
-                ->orderBy('id', 'desc')->limit(100)->get()
-                ->groupBy('agent_id');
-        }
-
-        $testWorld = TestWorld::available();
-        $testRuns = $testWorld ? TestWorld::runs($user) : collect();
-
         // A starter script (#324 step 15) fills the form when asked for, or
         // a drone's code or one of its words (#324 step 16: "Copy this code")
         $starters = Release::STARTERS;
@@ -59,22 +37,19 @@ class ReleaseController extends Controller
             }
         }
 
-        $queued = LaunchQueue::of($user);
+        $testWorld = TestWorld::available();
         $clock = LaunchQueue::clock();
 
-        return view('release', compact('companies', 'drones', 'messages', 'testWorld', 'testRuns', 'starters', 'starter', 'copiedFrom', 'copiedWord',
-            'queued', 'clock'));
+        return view('release', compact('testWorld', 'starters', 'starter', 'copiedFrom', 'copiedWord', 'clock'));
     }
 
     /**
      * The Test button (#324 step 7): runs the script in the test world, with
-     * the same rules and a faster clock, and nothing in the live world
+     * the same rules and a faster clock, and nothing in the live world. Its
+     * results have their own page (#367 step 3: no accounts, so a link)
      */
     public function test(Request $request)
     {
-        if (!Auth::check()) {
-            return redirect('/login');
-        }
         if (!TestWorld::available()) {
             return back()->withErrors(['script' => 'The test world is not running right now.'])->withInput();
         }
@@ -83,10 +58,20 @@ class ReleaseController extends Controller
             return $script;
         }
 
-        $agent = TestWorld::run(Auth::user(), $script);
+        $token = TestWorld::run($script);
 
-        return redirect('/release#test-runs')->withInput()->withSuccess('Test run started: drone ' . $agent->name
-            . ' in the test world is loading your script. Its results appear below as it runs.');
+        return redirect('/release/test/' . $token)->withSuccess('Test run started: the test drone is loading your script. '
+            . 'Its results appear below as it runs; keep this page\'s link to come back to them.');
+    }
+
+    /** A test run's results (#367 step 3) */
+    public function testRun(string $token)
+    {
+        $run = TestWorld::available() ? TestWorld::runOf($token) : null;
+        if (!$run) {
+            abort(404);
+        }
+        return view('release-test', compact('run', 'token'));
     }
 
     /**
@@ -125,9 +110,6 @@ class ReleaseController extends Controller
 
     public function store(Request $request)
     {
-        if (!Auth::check()) {
-            return redirect('/login');
-        }
         $script = $this->validScript($request, true);
         if (!is_string($script)) {
             return $script;
@@ -143,15 +125,17 @@ class ReleaseController extends Controller
 
         // The world is full (#324 step 20): the release waits its turn
         if (LaunchQueue::full()) {
-            $place = LaunchQueue::enqueue(Auth::user(), $request->input('company_name'), $script, $copiedFrom, $copiedWord);
+            $place = LaunchQueue::enqueue(Release::owner(), $request->input('company_name'), $script, $copiedFrom, $copiedWord);
             return redirect('/release')->withSuccess('The world is full right now, so ' . $request->input('company_name')
                 . ' waits in the launch queue: it is number ' . $place . ' in line, and launches as soon as there is room.');
         }
 
-        $agent = Release::release(Auth::user(), $request->input('company_name'), $script, null, $copiedFrom, $copiedWord);
+        // Anyone may release (#367 step 3): the drone's page is where to follow it
+        $agent = Release::release(Release::owner(), $request->input('company_name'), $script, null, $copiedFrom, $copiedWord);
 
-        return redirect('/release')->withSuccess('Released! Drone ' . $agent->name . ' of ' . $request->input('company_name')
-            . ' is loading your script and will run its launched word.');
+        return redirect('/spacecraft/' . $agent->agent_id)->withSuccess('Released! Drone ' . $agent->name . ' of '
+            . $request->input('company_name') . ' is loading your script and will run its launched word. '
+            . 'Keep this page\'s link to follow it.');
     }
 
     /** The game clock's current game time (game seconds) */
