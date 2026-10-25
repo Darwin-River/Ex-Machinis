@@ -1081,7 +1081,7 @@ The first row is the most important one (query 210 lists the largest holdings fi
 
 #### Searching the events you've seen
 
-Query 803 lists the events your drone has observed, newest first, filtered by up to nine conditions. Information travels at the speed of light, so a drone only knows about events that affected it, events it could see where it orbits, and events whose light has reached it. Push the nine conditions in this order, using -1 for "any":
+Query 803 lists the events your drone has observed, newest first, filtered by up to nine conditions. Information travels at the speed of light, so a drone only knows about events that affected it, events at the place where it is now since it got there (it forgets what it saw at places it has left), and events whose light has reached it. Push the nine conditions in this order, using -1 for "any":
 
 | | Condition |
 |:--|:--|

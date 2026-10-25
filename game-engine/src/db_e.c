@@ -1411,8 +1411,8 @@ ErrorCode_t db_delete_event_observations(int event_id)
 
 /** ****************************************************************************
 
-    @brief          Generates observations for any drone at the same orbit than current
-                    drone (event drone)
+    @brief          Records where an observable event happened, so the drones
+                    there see it (no row per drone)
 
     @param[in]      Input event ID
 
@@ -1422,8 +1422,6 @@ ErrorCode_t db_delete_event_observations(int event_id)
 ErrorCode_t db_insert_local_observations(Event_t *event)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    char timestamp_buffer[80];
-    time_t now = time(NULL);   // they are at the same object: no light delay
 
     DbConnection_t* connection =  engine_get_db_connection();
 
@@ -1436,23 +1434,16 @@ ErrorCode_t db_insert_local_observations(Event_t *event)
 
     if(result == ENGINE_OK)
     {
-        // Every other working drone where the event's drone is sees it, in
-        // one statement (#324 step 20): one insert per drone took most of
-        // the events engine's time with a thousand drones in one place.
-        // The event's own drone has its observation already; wrecks see
-        // nothing.
-        strftime(timestamp_buffer, sizeof(timestamp_buffer), "%F %T", localtime(&now));
+        // Every drone where the event's drone is sees it (#324 step 20).
+        // No row per drone: the event records its place, and a drone sees
+        // the events at its current place since it arrived there
+        // (agents.arrived_t), worked out when it asks (query 803, the
+        // website). A row per drone grew as events x drones.
         snprintf(query_text,
                 DB_MAX_SQL_QUERY_LEN,
-                "INSERT INTO observations (drone, event, time, game_t) "
-                "SELECT a.agent_id, %d, '%s', %lld FROM agents a "
-                "WHERE a.object_id = (SELECT object_id FROM agents WHERE agent_id = %d) "
-                "AND a.agent_id <> %d AND a.wrecked_at IS NULL",
-                event->event_id,
-                timestamp_buffer,
-                game_time_now_seconds(),
+                "UPDATE events SET place = (SELECT object_id FROM agents WHERE agent_id = %d) WHERE id = %d",
                 event->drone_id,
-                event->drone_id);
+                event->event_id);
 
         if (mysql_query(connection->hndl, query_text))
         {
