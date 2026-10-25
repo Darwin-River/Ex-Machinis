@@ -12,7 +12,7 @@
 long long wreck_share(long long units, int percent, int wreck, int resource);
 
 /* One tax bill: flat, plus permille thousandths of the company's
-   credits (never less than flat) */
+   assessed wealth (never less than flat) */
 long long tax_bill(int flat, int permille, long long combined_credits);
 
 /* How many whole tax periods have passed since a company's period started */
