@@ -107,9 +107,10 @@ ErrorCode_t db_plunder(Event_t* event)
     int wreck = abs(event->new_quantity);
     long long now = game_time_now_seconds();
 
-    // Is it a wreck, here, not yet plundered, and another player's?
+    // Is it a wreck, here, not yet plundered? Whose it is doesn't matter
+    // (#367 step 1: own-player wrecks were refused before)
     MYSQL_RES* res = wr_select(
-        "SELECT w.plundered_at IS NULL, w.object_id = p.object_id, w.user_id = p.user_id "
+        "SELECT w.plundered_at IS NULL, w.object_id = p.object_id "
         "FROM agents w JOIN agents p ON p.agent_id = %d "
         "WHERE w.agent_id = %d AND w.agent_id <> p.agent_id AND w.wrecked_at IS NOT NULL",
         plunderer, wreck);
@@ -117,17 +118,11 @@ ErrorCode_t db_plunder(Event_t* event)
     int found = row != NULL;
     int unplundered = found && row[0] && atoi(row[0]);
     int here = found && row[1] && atoi(row[1]);
-    int same_player = found && row[2] && atoi(row[2]);
     if(res) mysql_free_result(res);
 
     if(!found || !unplundered || !here) {
         engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d]: no unplundered wreck [%d] here", plunderer, wreck);
         event->outcome = OUTCOME_NO_WRECK;
-        return ENGINE_LOGIC_ERROR;
-    }
-    if(same_player) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d]: wreck [%d] is its own player's, plunder refused", plunderer, wreck);
-        event->outcome = OUTCOME_SAME_PLAYER;
         return ENGINE_LOGIC_ERROR;
     }
 
@@ -248,8 +243,7 @@ ErrorCode_t db_tax_due(void)
     int n = 0;
     res = wr_select(
         "SELECT c.company_id, c.credits, c.founded_t, c.taxed_t, "
-        "IF(c.user_id IS NULL, c.credits, (SELECT SUM(o.credits) FROM companies o WHERE o.user_id = c.user_id "
-        "AND o.eliminated_at IS NULL)) "
+        "c.credits "   /* each company on its own credits (#367 step 1) */
         "FROM companies c WHERE c.eliminated_at IS NULL AND c.taxed_t + %d <= %lld ORDER BY c.company_id LIMIT %d",
         period, now, MAX_TAX_COMPANIES);
     while(res && n < MAX_TAX_COMPANIES && (row = mysql_fetch_row(res))) {

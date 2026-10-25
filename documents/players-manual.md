@@ -320,7 +320,6 @@ Protocols are invoked by sending your drone a FORTH script that calls upon the `
 | -6 | the buyer's order doesn't allow buying that many |
 | -9 | the action was stopped |
 | -10 | the other drone has no matching buy or sell order |
-| -13 | the other drone belongs to another of your own companies: you can't trade with or plunder your own companies |
 | -14 | no House station where you are trades that resource that way |
 | -15 | no wreck of that ID where you are, or it has already been plundered |
 | -11 | there is no such protocol |
@@ -372,7 +371,7 @@ A spacecraft becomes a **wreck** for good when it runs out of fuel, crashes five
 </run>
 ```
 
-Plundering takes 1 game hour and burns 1 fuel. Your spacecraft gets half of everything aboard: half of each resource, rounded down (and for an odd unit, such as a single engine, a 50/50 chance). The rest is destroyed. Make room in your hold first: what doesn't fit is lost too. A wreck is plundered once, so be quick. You can't plunder the wrecks of your own companies (`perform` leaves -13). If there's no such wreck where you are, or it was already plundered, `perform` leaves -15.
+Plundering takes 1 game hour and burns 1 fuel. Your spacecraft gets half of everything aboard: half of each resource, rounded down (and for an odd unit, such as a single engine, a 50/50 chance). The rest is destroyed. Make room in your hold first: what doesn't fit is lost too. A wreck is plundered once, so be quick. Any wreck will do, your own companies' included. If there's no such wreck where you are, or it was already plundered, `perform` leaves -15.
 
 Two queries find wrecks:
 
@@ -389,7 +388,7 @@ Two queries find wrecks:
 
 ### Taxes
 
-Each of your companies pays a tax every game day: 20 credits, plus 0.5% of the credits of all your companies together. A new company pays nothing for its first 3 game days. A company that can't pay is **eliminated**: its credits vanish, and its spacecraft become wrecks that other players can plunder. So keep enough credits in every company you run.
+Each company pays a tax every game day: 20 credits, plus 0.5% of its credits. A new company pays nothing for its first 3 game days. A company that can't pay is **eliminated**: its credits vanish, and its spacecraft become wrecks that other players can plunder. So keep enough credits in every company you run.
 
 `R L 650 query` tells you where your spacecraft's company stands: its next tax bill (2 cells), the game hours until it is due, and the game hours of grace it has left.
 
@@ -847,7 +846,7 @@ In the following example, a drone is instructed to push 5 units of kunspar into 
 </run>
 ```
 
-Both drones must be orbiting the same body. If the acting and affected drones are owned by the same player, these actions can be performed without referring to active market bids.
+Both drones must be orbiting the same body. If the acting and affected drones belong to the same company, these actions can be performed without referring to active market bids.
 
 However, if the affected spacecraft is owned by a different player, the push and pull commands will only be allowed to take place if the affected drone has posted buy and sell orders for these resources. In that case, the transaction will be constrained to the limits set by the market order and the total appropriate number of credits will be transferred from the buyer's to the seller's bank account. The buyer must have enough credits for the whole order.
 

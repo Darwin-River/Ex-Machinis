@@ -347,12 +347,12 @@ Fuel is made from Organics and Inorganics with protocol 12061, "Make Fuel (A1)":
 <a name="Wrecks"></a>**Wrecks and plunder (#324 step 12).** A drone becomes a wreck for good when it runs out of fuel, crashes too often in a row, or its company is eliminated for not paying its tax (`agents.wrecked_at`, `wreck_cause`). A wreck refuses commands and does nothing more, but everything aboard it stays there: its hold and its installed and locked parts. Another player's drone at the same place can plunder it once:
 
 * **Protocol 34, "Plunder wreck":** `W 34 perform`, where W is the wreck's drone ID. It burns 1 fuel and takes 1 game hour; its resource effect is a plunder event (type 11) that carries W in `new_quantity`.
-* **The events engine** (`db_plunder`, `db_wreck.c`) checks the event when its time comes: W must be a wreck, at the plunderer's `object_id`, not plundered yet (else outcome -15, `OUTCOME_NO_WRECK`), and another player's (`agents.user_id` differs; else -13, as for trades between one player's companies). It then marks the wreck plundered (`plundered_at`, `plundered_by`), so a wreck is plundered once even if two drones try.
+* **The events engine** (`db_plunder`, `db_wreck.c`) checks the event when its time comes: W must be a wreck, at the plunderer's `object_id`, not plundered yet (else outcome -15, `OUTCOME_NO_WRECK`). Whose wreck it is doesn't matter (#367 step 1; own-player wrecks were refused with -13 before). It then marks the wreck plundered (`plundered_at`, `plundered_by`), so a wreck is plundered once even if two drones try.
 * **Everything leaves the wreck:** one action of protocol 35, "Plunder haul" (which nobody performs), with a decrement event for each resource in the hold and among the installed and locked parts (the latest totals, as `sqInventory` reads them).
 * **The plunderer gets its share** (`house_rules.plunder_share`, 50%) of each resource's total, rounded down; the odd part-unit comes too with the matching chance, fixed for each wreck and resource (`wreck_share`, `wreck.c`), so a single part comes away whole from about half of the wrecks. Each resource arrives as its own protocol 35 action with an increment event, which the events engine checks like any other: what doesn't fit in the hold fails with -3 and is lost. What the plunderer doesn't get is destroyed, so wrecks are a sink.
 * Queries 660 ("Wrecks here") and 661 ("Wreck hold") show the wrecks where the drone is and what is aboard one.
 
-<a name="Taxes"></a>**Taxes and company end (#324 step 12).** Every company pays a tax bill each `tax_period` (a game day): `tax_flat` (20) plus `tax_permille` thousandths (0.5%) of the **player's** combined credits, the sum over all their companies that are still trading. Basing the rate on the player's combined credits, and billing each company, means splitting money across several companies doesn't lower the tax. The events engine charges it (`db_tax_due`, `db_wreck.c`) after the station batches, in its own transaction:
+<a name="Taxes"></a>**Taxes and company end (#324 step 12).** Every company pays a tax bill each `tax_period` (a game day): `tax_flat` (20) plus `tax_permille` thousandths (0.5%) of the company's credits. (Until #367 step 1 the rate was on the player's combined credits, so that splitting money across companies wouldn't lower it; companies now stand on their own.) The events engine charges it (`db_tax_due`, `db_wreck.c`) after the station batches, in its own transaction:
 
 1. A company it hasn't seen yet gets `founded_t` and `taxed_t` = now: its grace period (`tax_grace`, 3 game days) and its first tax period start.
 2. When a company's period has passed, it gets one bill. Periods missed while the engine was down are skipped, not charged all at once. In its grace period the company pays nothing.
@@ -415,14 +415,14 @@ A player can own many companies; each has its own bank account and drones (Publi
 * eliminated_at [BIGINT] - Game time the company ended, NULL while it trades.
 * end_cause [VARCHAR(16)] - Why it ended: `tax` (it couldn't pay its tax) or `drones` (its last drone died).
 
-Trades (push and pull against a market order) between two companies of the same player are blocked: the event fails with outcome -13 and the action is aborted, so a player can't move money or goods between their own companies. Queries 100, 101, 110 and 201 read companies: a company's name, its credits, its drones, and a drone's company.
+Any two companies may trade (push and pull against a market order), including two of one player's (#367 step 1): companies working together is a legitimate gain. Until then such trades failed with outcome -13 (`OUTCOME_SAME_PLAYER`), which no longer happens. Queries 100, 101, 110 and 201 read companies: a company's name, its credits, its drones, and a drone's company.
 
 #### Table: house_rules
 The numbers of taxes and plunder (#324 step 12), one row (id 1). Game data: `build_game_data.py` writes it, and every start reloads it.
 * tax_period [INT] - Game seconds between tax bills (86,400: a game day).
 * tax_grace [INT] - Game seconds a new company pays no tax (3 game days).
 * tax_flat [INT] - Credits each company pays per bill (20).
-* tax_permille [INT] - Plus this many thousandths of the player's combined credits (5, so 0.5%).
+* tax_permille [INT] - Plus this many thousandths of the company's credits (5, so 0.5%).
 * plunder_share [INT] - Percent of a wreck's goods and parts a plunderer gets (50).
 
 #### Table: company_taxes
@@ -838,7 +838,7 @@ Protocols often require parameters to further define their operations. These par
 | -7, -8 | Wrong depletion or accumulation price (outcomes -7, -8) |
 | -9 | The action was aborted |
 | -10 | The other drone has no matching buy or sell order (outcome -10) |
-| -13 | The other drone belongs to another company of the same player: trades and plunder between one player's companies are blocked (outcome -13) |
+| -13 | No longer used (#367 step 1): it refused trades and plunder between one player's companies |
 | -14 | No House station where the drone is trades that resource that way (outcome -14) |
 | -15 | No unplundered wreck of that ID where the drone is (outcome -15) |
 | -11 | Unknown protocol (no action was started, no wait) |

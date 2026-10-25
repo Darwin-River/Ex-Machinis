@@ -28,7 +28,7 @@ int main(void)
         whole += (int)wreck_share(1, 50, w, 5001);
     check("a single part comes away from about half of 1,000 wrecks", whole > 400 && whole < 600);
 
-    check("a bill is the flat tax plus thousandths of combined credits", tax_bill(20, 5, 10000) == 70);
+    check("a bill is the flat tax plus thousandths of the credits", tax_bill(20, 5, 10000) == 70);
     check("no credits: just the flat tax", tax_bill(20, 5, 0) == 20);
     check("debt doesn't lower the bill", tax_bill(20, 5, -5000) == 20);
 

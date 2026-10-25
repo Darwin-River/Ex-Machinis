@@ -11,7 +11,7 @@
    say) comes away whole from about half of the wrecks. */
 long long wreck_share(long long units, int percent, int wreck, int resource);
 
-/* One tax bill: flat, plus permille thousandths of the player's combined
+/* One tax bill: flat, plus permille thousandths of the company's
    credits (never less than flat) */
 long long tax_bill(int flat, int permille, long long combined_credits);
 

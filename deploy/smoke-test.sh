@@ -7,7 +7,7 @@
 #   - emailing registrar@ with subject "register" registers a player,
 #   - a drone runs an emailed FORTH command and the engine emails the reply,
 #   - it unpacks its starter kit, flies to the Moon, mines and refines kunspar,
-#   - a sale between two companies of the same player is refused,
+#   - companies of one player may trade with each other,
 #   - with email off, a script released on the website runs (no email), the
 #     Release page offers starter scripts, and drones know the game words,
 #   - actions and computing burn fuel; a drone that runs dry becomes a wreck,
@@ -118,8 +118,8 @@ wait_for 120 "drone mined kunspar on the Moon" has 1100
 wait_for 60 "drone finished the mining script" idle
 
 # Companies (#324 step 4): the player gets a second company with a drone at
-# the Moon and a buy order for kunspar. Selling to it is refused: a trade
-# between two companies of the same player leaves -13 and moves nothing.
+# the Moon and a buy order for kunspar. Selling to it goes through: the
+# same player's companies may trade with each other (#367 step 1).
 PLAYER_ID=$(sql "select user_id from agents where agent_id=$DRONE_ID")
 sql "insert into companies (user_id, name, credits) values ($PLAYER_ID, 'Sister Company', 1000)"
 SISTER_CO=$(sql "select max(company_id) from companies where user_id=$PLAYER_ID")
@@ -128,16 +128,14 @@ SISTER=$(sql "select agent_id from agents where name='sister1'")
 sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_credits)
      values (5, 0, 1, 1, $SISTER, 1100, 0, 0, 50, 1)"
 send_mail "$DRONE@$DOMAIN" "sell to my other company" "<run>1 1100 $SISTER 10 perform . cr</run>"
-wait_for 90 "a sale to the player's other company is refused (-13)" sh -c "docker compose logs game-engine | grep -q 'perform leaves \[-13\]'"
-wait_for 60 "drone finished the refused-sale script" idle
-[ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$SISTER and resource=1100")" = 0 ] || fail "kunspar reached the other company"
-# The refused sale is the one action this test expects to be aborted
-REFUSED_ACTION=$(sql "select IFNULL(MAX(id), 0) from actions where drone=$DRONE_ID and aborted=1")
+sister_bought() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$SISTER and resource=1100")" = 1 ]; }
+wait_for 90 "a sale to the player's other company goes through" sister_bought
+wait_for 60 "drone finished the sale script" idle
 
 # Refining needs 20 kunspar (each mining run gives 5 here) and the starter
 # kit's Smelter (A1); each perform waits for its action
 send_mail "$DRONE@$DOMAIN" "refine" "<run>
-  11100 perform drop 11100 perform drop 11100 perform drop
+  11100 perform drop 11100 perform drop 11100 perform drop 11100 perform drop
   21100 perform . cr
 </run>"
 wait_for 180 "drone refined kunspar into metals" has 2011
@@ -261,7 +259,7 @@ more_kunspar() { [ "$(kunspar)" -gt "$KUNSPAR" ]; }
 wait_for 90 "the deposit refilled over game time and yields again" more_kunspar
 wait_for 60 "drone finished mining again" idle
 
-[ -z "$(sql "select id from actions where drone=$DRONE_ID and aborted=1 and id <> $REFUSED_ACTION")" ] || fail "an action was aborted"
+[ -z "$(sql "select id from actions where drone=$DRONE_ID and aborted=1")" ] || fail "an action was aborted"
 echo "ok: no action aborted"
 
 for svc in game-engine events-engine app; do
@@ -332,14 +330,9 @@ wait_for 120 "a drone that runs out of fuel becomes a wreck" dry
 [ "$(sql "select concat(end_cause, ' ', credits) from companies where name='Dry Forge'")" = "drones 0" ] || fail "the company whose last drone died did not end"
 echo "ok: a company whose last drone died has ended"
 
-# Plunder (#324 step 12): the released drone, at Earth like the wreck, may
-# not plunder it: both belong to the same player
-sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('$DRY 34 perform .', $FORGE_DRONE, NOW(), NOW(), 'plunder', '')"
-own_wreck() { [ "$(sql "select outcome from actions where drone=$FORGE_DRONE and protocol=34 order by id desc limit 1")" = -13 ]; }
-wait_for 60 "plundering the player's own wreck is refused (-13)" own_wreck
-# Another player's drone may: put the wreck on the Moon, where the first
-# drone is, with 10 kunspar aboard; the plunderer gets half and the wreck is
-# left empty
+# Plunder (#324 step 12): a drone where the wreck is may plunder it, whoever
+# owns it (#367 step 1). Put the wreck on the Moon, where the first drone is,
+# with 10 kunspar aboard; the plunderer gets half and the wreck is left empty
 sql "update agents set object_id = 10 where agent_id = $DRY"
 sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo)
      values (1, 0, 1, 1, $DRY, 1100, 0, 0, 10, $KIT + 10)"
