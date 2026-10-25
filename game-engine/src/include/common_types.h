@@ -72,7 +72,7 @@
 
 // Special query tags
 #define MAX_QUERY_TAG_LEN      32
-#define MAX_QUERY_TAGS_NUM     16
+#define MAX_QUERY_TAGS_NUM     20
 // Query buffers
 #define MAX_QUERY_VALUE_BUF_LEN  32
 // values
@@ -94,6 +94,12 @@
 #define QUERY_TAG_DRONE_ID     "[drone_id]"
 #define QUERY_TAG_TIME_DELAY   "[time_delay]"
 #define QUERY_TAG_GAME_NOW     "[game_now]"   // current game time, game seconds (#327)
+// Double-cell inputs (#324 step 9): [dvalue_N] is a double whose high cell is
+// parameter N (the top of the stack) and low cell parameter N+1
+#define QUERY_TAG_DVALUE_1     "[dvalue_1]"
+#define QUERY_TAG_DVALUE_2     "[dvalue_2]"
+#define QUERY_TAG_DVALUE_3     "[dvalue_3]"
+#define QUERY_TAG_DVALUE_4     "[dvalue_4]"
 // !!! modify MAX_QUERY_TAGS_NUM if more added
 
 
@@ -311,6 +317,7 @@ typedef struct
 	unsigned char observable;
 	unsigned char reportable;
 	unsigned char multiplier; // new field to use when none parameters, can receive and optional multiplier
+	int double_params;    // bit mask: parameters taken off the stack as doubles (bit 0 = parameter 1)
 	int travel_from_time; // travel: effects at or after this time (game s)...
 	int travel_shift;     // ...are delayed by this much, to last the trip
 	int launch_delay;     // launch: the program's light time from drone D (game s)
@@ -328,6 +335,7 @@ typedef enum
 	PROTOCOL_OBSERVABLE_IDX,
 	PROTOCOL_REPORTABLE_IDX,
 	PROTOCOL_MULTIPLIER_IDX,
+	PROTOCOL_DOUBLE_PARAMS_IDX,   // parameters taken as doubles (#324 step 9)
 
 	// Max fields expected
 	MAX_PROTOCOL_FIELDS

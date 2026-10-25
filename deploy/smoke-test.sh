@@ -10,6 +10,7 @@
 #   - a sale between two companies of the same player is refused,
 #   - with email off, a script released on the website runs (no email),
 #   - actions and computing burn fuel; a drone that runs dry becomes a wreck,
+#   - money past 32,767 comes back as a double, and the double words work,
 #   - the Test button runs a script in the test world, not the live one,
 #   - it launches a new drone from a ship kit with a copy of its program.
 # Needs ports 80, 443 and 25 free. Leaves the stack running; remove it with
@@ -189,6 +190,15 @@ wait_for 60 "the 5th crash in a row makes the drone a wreck" wrecked
 [ -n "$(sql "select id from actions where drone=$DRONE_ID and protocol=2 and aborted=0")" ] || fail "no power was burned for computing"
 [ "$(sql "select wrecked_at is null from agents where agent_id=$DRONE_ID")" = 1 ] || fail "the drone with fuel became a wreck"
 echo "ok: actions and computing burn fuel, and a fuelled drone keeps going"
+
+# Double cells (#324 step 9): a balance past 32,767 comes back as a double
+# (query 101, read with 2@), and m* multiplies without overflowing
+COMPANY=$(sql "select company_id from agents where agent_id=$DRONE_ID")
+sql "update companies set credits = 70000 where company_id = $COMPANY"
+send_mail "$DRONE@$DOMAIN" "doubles" "<run>create bank 8 allot
+  $COMPANY bank 8 101 query drop bank 2@ d. 300 300 m* d.</run>"
+wait_for 60 "a balance of 70,000 and 300 x 300 come out right as doubles" sh -c "docker compose logs game-engine | grep -q 'result \[70000 90000'"
+wait_for 60 "drone finished the doubles script" idle
 
 [ -z "$(sql "select id from actions where drone=$DRONE_ID and aborted=1 and id <> $REFUSED_ACTION")" ] || fail "an action was aborted"
 echo "ok: no action aborted"

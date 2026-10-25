@@ -1575,7 +1575,8 @@ ErrorCode_t db_get_prococol_info(ProtocolInfo_t* protocol)
     {
         snprintf(query_text,
             DB_MAX_SQL_QUERY_LEN,
-            "SELECT * FROM protocols WHERE id = %d", protocol->protocol_id);
+            "SELECT id, name, parameters, bulk_modifier, description, observable, reportable, multiplier, "
+            "double_params FROM protocols WHERE id = %d", protocol->protocol_id);
 
         // run it
         if (mysql_query(connection->hndl, query_text))
@@ -1612,6 +1613,7 @@ ErrorCode_t db_get_prococol_info(ProtocolInfo_t* protocol)
                     protocol->observable = row[PROTOCOL_OBSERVABLE_IDX]?atoi(row[PROTOCOL_OBSERVABLE_IDX]):0;
                     protocol->reportable = row[PROTOCOL_REPORTABLE_IDX]?atoi(row[PROTOCOL_REPORTABLE_IDX]):0;
                     protocol->multiplier = row[PROTOCOL_MULTIPLIER_IDX]?atoi(row[PROTOCOL_MULTIPLIER_IDX]):0;
+                    protocol->double_params = row[PROTOCOL_DOUBLE_PARAMS_IDX]?atoi(row[PROTOCOL_DOUBLE_PARAMS_IDX]):0;
 
                     engine_trace(TRACE_LEVEL_ALWAYS,
                         "NAME [%s] DESCRIPTION [%s] BULK_MODIFIER [%d] OBSERVABLE [%d] REPORTABLE [%d] MULTIPLIER [%d] "
@@ -2978,8 +2980,15 @@ static Bool_t db_vm_field_is_date(int type)
             type == MYSQL_TYPE_DATE) ? ENGINE_TRUE : ENGINE_FALSE;
 }
 
+/** Double-cell columns (#324 step 9): a number column whose name starts with
+    d_ (money, volumes) is stored in two cells, high cell first, so 2@ reads it */
+static Bool_t db_vm_field_is_double(const char* name)
+{
+    return (name && (name[0] == 'd' || name[0] == 'D') && name[1] == '_') ? ENGINE_TRUE : ENGINE_FALSE;
+}
+
 /** Bytes a query result field takes in VM memory (0: not stored) */
-static int db_vm_field_size(int type, const char* value)
+static int db_vm_field_size(int type, const char* value, Bool_t is_double)
 {
     if(db_vm_field_is_text(type)) {
         size_t len = value ? strlen(value) : 0;
@@ -2993,7 +3002,7 @@ static int db_vm_field_size(int type, const char* value)
         case MYSQL_TYPE_INT24: case MYSQL_TYPE_LONGLONG: case MYSQL_TYPE_DECIMAL:
         case MYSQL_TYPE_NEWDECIMAL: case MYSQL_TYPE_FLOAT: case MYSQL_TYPE_DOUBLE:
         case MYSQL_TYPE_YEAR: case MYSQL_TYPE_BIT:
-            return 2;
+            return is_double ? 4 : 2;
         default:
             engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: query field type [%d] not stored in VM memory", type);
             return 0;
@@ -3061,11 +3070,13 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
             {
                 int fieldsNum = mysql_num_fields(db_result);
                 int* fieldTypes = (int*) engine_malloc(fieldsNum * sizeof(int));
+                Bool_t* fieldDouble = (Bool_t*) engine_malloc(fieldsNum * sizeof(Bool_t));
 
                 for(int fieldId=0; fieldId < fieldsNum; fieldId++) {
                     // check the field type and serialize it into VM memory
                     MYSQL_FIELD *field = mysql_fetch_field(db_result);
                     fieldTypes[fieldId] = (int) field->type;
+                    fieldDouble[fieldId] = db_vm_field_is_double(field->name);
 
                     engine_trace(TRACE_LEVEL_ALWAYS,
                         "Query [%s] field[%d] type [%d]",
@@ -3079,7 +3090,8 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
                     fieldsNum);
 
                 // Rows are stored one after another, each field in turn:
-                // numbers as 2-byte cells, dates as 4 bytes, text as a counted
+                // numbers as 2-byte cells (4 bytes for d_ columns: doubles),
+                // dates as 4 bytes, text as a counted
                 // string (a length byte and the characters). Only whole rows
                 // are stored: when the next row doesn't fit, it stops.
                 int currentAddr = queryInfo->resultsArrayAddr;
@@ -3093,7 +3105,7 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
                     // How many bytes this row needs
                     int rowSize = 0;
                     for(int fieldId=0; fieldId < fieldsNum; fieldId++)
-                        rowSize += db_vm_field_size(fieldTypes[fieldId], row[fieldId]);
+                        rowSize += db_vm_field_size(fieldTypes[fieldId], row[fieldId], fieldDouble[fieldId]);
 
                     if(rowSize > remainingOffset) {
                         engine_trace(TRACE_LEVEL_ALWAYS,
@@ -3105,7 +3117,7 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
 
                     for(int fieldId=0; fieldId < fieldsNum && result == ENGINE_OK; fieldId++) {
                         const char* text = row[fieldId] ? row[fieldId] : "";
-                        int size = db_vm_field_size(fieldTypes[fieldId], row[fieldId]);
+                        int size = db_vm_field_size(fieldTypes[fieldId], row[fieldId], fieldDouble[fieldId]);
 
                         if(size == 0)
                             continue; // a type we don't store
@@ -3119,6 +3131,16 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
                         } else if(db_vm_field_is_date(fieldTypes[fieldId])) {
                             result = vm_write_integer(vm, currentAddr, 0);
                             if(result == ENGINE_OK) result = vm_write_integer(vm, currentAddr + 2, 0);
+                        } else if(fieldDouble[fieldId]) {
+                            // Money and volumes: a 32-bit double, high cell
+                            // first (as 2! stores it), clamped to its range
+                            double d = llround(strtod(text, NULL));
+                            if(d > 2147483647.0) d = 2147483647.0;
+                            if(d < -2147483648.0) d = -2147483648.0;
+                            uint32_t bits = (uint32_t)(int32_t)(long long)d;
+                            result = vm_write_integer(vm, currentAddr, (uint16_t)(bits >> 16));
+                            if(result == ENGINE_OK)
+                                result = vm_write_integer(vm, currentAddr + 2, (uint16_t)(bits & 0xFFFF));
                         } else {
                             // Any number (also COUNT, SUM, decimals): rounded
                             // to an integer in one 16-bit cell
@@ -3136,6 +3158,7 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
                 }
 
                 if(fieldTypes) engine_free(fieldTypes, fieldsNum * sizeof(int));
+                if(fieldDouble) engine_free(fieldDouble, fieldsNum * sizeof(Bool_t));
             }
 
             if(db_result) mysql_free_result(db_result);

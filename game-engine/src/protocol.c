@@ -250,9 +250,16 @@ ErrorCode_t protocol_read_parameters(ProtocolInfo_t *protocol, VmExtension_t* vm
   ErrorCode_t result = ENGINE_OK;
 
   if(protocol && vmExt) {
-    // Store them at array
+    // Store them at array. A parameter marked as a double (#324 step 9)
+    // takes two cells: its high cell (on top of the stack), then its low cell
     for(int i=0; i < protocol->parameters_num; i++) {
       result = vm_extension_pop(vmExt, &protocol->parameters[i]);
+      if(result == ENGINE_OK && (protocol->double_params & (1 << i))) {
+        int low = 0;
+        result = vm_extension_pop(vmExt, &low);
+        protocol->parameters[i] = (int)(int32_t)(((uint32_t)(protocol->parameters[i] & 0xFFFF) << 16) |
+                                                 (uint32_t)(low & 0xFFFF));
+      }
       if(result != ENGINE_OK) {
         engine_trace(TRACE_LEVEL_ALWAYS,
           "ERROR: Unable to retrieve [%d] parameters from stack for protocol ID [%d]",

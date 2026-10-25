@@ -24,6 +24,7 @@ Thank you for your support!
 - [Chapter 2: Stacking Numbers](#chapter-2-stacking-numbers)
   - [Doing Simple Math](#doing-simple-math)
   - [Managing the stack](#managing-the-stack)
+  - [Big numbers: double cells](#big-numbers-double-cells)
 - [Chapter 3: Working with Resources](#chapter-3-working-with-resources)
   - [Distinguishing resource sizes and technology levels](#distinguishing-resource-sizes-and-technology-levels)
   - [Organizing resources by Resource ID](#organizing-resources-by-resource-id)
@@ -193,6 +194,30 @@ Try applying each of the following commands to manipulate the contents of the da
 \* The three dots in each of these examples instruct the interpreter to print the first three items on the stack. It's important that you place a space between each of the periods and the word that precedes them.
 
 When trying the above examples, remember that FORTH words are case sensitive and it is important that you include spaces between the numbers, words, and periods. It's also important that you include all FORTH scripts between `<run>` and `</run>`. Otherwise the interpreter won't process the code.
+
+### Big numbers: double cells
+
+Each item on the stack is a 16-bit cell. As a signed number it goes from -32,768 to 32,767, and past that it wraps: `32767 1 + .` prints `-32768`. That's too small for money, so bank balances, prices and market volumes come as **doubles**: one number held in two cells, the low cell first and the high cell on top. A double's value is low + high × 65,536, so `4464 1` is 70,000.
+
+Your spacecraft knows the standard FORTH words for doubles:
+
+| Word | Stack | Action |
+|---|---|---|
+| `d+` `d-` | `d1 d2 -- d` | Add, subtract |
+| `m*` | `n1 n2 -- d` | Multiply two cells into a double: it can't overflow, so use it for price × units |
+| `um*` | `u1 u2 -- ud` | The same for unsigned cells (0 to 65,535): `7 10000 um*` is 70,000 |
+| `um+` | `u1 u2 -- ud` | Add two unsigned cells into a double |
+| `m+` | `d n -- d` | Add a cell to a double |
+| `s>d` | `n -- d` | Turn a cell into a double |
+| `d.` `ud.` | `d --` | Print a double (signed or unsigned) |
+| `dnegate` `dabs` | `d -- d` | Change the sign, drop the sign |
+| `d<` `d>` `du<` `d=` | `d1 d2 -- flag` | Compare |
+| `d0=` `d0<` | `d -- flag` | Zero? Negative? |
+| `dmax` `dmin` | `d1 d2 -- d` | The larger, the smaller |
+| `2dup` `2drop` `2swap` `2over` | | Like `dup` `drop` `swap` `over`, for doubles |
+| `2@` `2!` | `addr -- d`, `d addr --` | Fetch and store a double |
+
+For example, `300 300 m* d.` prints `90000`, and `40000 0 40000 0 d+ d.` prints `80000`.
 
 ## Chapter 3: Working with Resources
 
@@ -595,6 +620,22 @@ The following code will place a bid to sell kunspar at 12 credits each. The sale
 </run>
 ```
 
+#### Prices past 65,535
+
+A price in a sell (7) or buy (8) order is one cell, so it can't go past 65,535 credits a unit. For more, use the double-price orders: sell (17) and buy (18) take the price as a [double](#big-numbers-double-cells). Everything else is the same. To sell kunspar at 75,000 credits each, keeping no minimum:
+
+```
+<run>
+  7500 10 um* ( 75,000 credits per unit, a double )
+  0 ( unit cut off )
+  1100 ( kunspar ID )
+  17 ( sell order with a double price )
+  perform
+</run>
+```
+
+The order lists (queries 600, 601, 610 and 611) give each order's price as a double too: a row is the price (4 bytes, `2@`), the order's limit, the stock and the drone. Query 612 lists the sell orders anywhere at or under a price you give as a double: `1100 7500 10 um* buf 40 612 query` finds kunspar for at most 75,000 a unit.
+
 #### Adjusting your orders
 
 It's possible for a drone to simultaneously have a buy and sell order in place for the same resource. Furthermore, the volumes of these orders will automatically adjust themselves based on the order limits and the amount of resource currently in the drone's cargo hold. Once these limits are reached, the saturated order will go dormant until a change in the ship's cargo manifest makes them relevant again.
@@ -630,14 +671,14 @@ You can find a current list of active buy orders (http://exmachinis.com/buys) an
 
 #### Measuring market volume
 
-Two queries tell how busy a market is: how many units of a resource changed hands over the last H hours of game time, the credits paid for them, and how many trades there were. Query 620 counts trades where your drone is; query 621 counts them anywhere in the solar system.
+Two queries tell how busy a market is: how many units of a resource changed hands over the last H hours of game time, the credits paid for them, and how many trades there were. Query 620 counts trades where your drone is; query 621 counts them anywhere in the solar system. The units and the credits are [doubles](#big-numbers-double-cells), 4 bytes each, read with `2@`; the number of trades is a single cell.
 
 ```
 <run>
-  create volume 6 allot
+  create volume 10 allot
   : .volume ( -- )
-    volume @ . ."  units for "  volume 2 + @ . ."  credits in "
-    volume 4 + @ . ."  trades" cr ;
+    volume 2@ d. ."  units for "  volume 4 + 2@ d. ."  credits in "
+    volume 8 + @ . ."  trades" cr ;
   \ Magmite (1000) traded here in the last 24 game hours
   1000 24 volume 6 620 query drop  .volume
 </run>
@@ -806,12 +847,14 @@ The following script shows how you would use this query to report the object typ
 </run>
 ```
 
-Your drone will reply with `1` and `Moon`: one row was stored. `query` leaves the number of rows it stored when it worked, -2 if the database query failed or found nothing, or -3 if there is no query with that ID (its other arguments then stay on the stack). It stores only whole rows, so if the array is too small for all of them it stores as many as fit, and 0 if not even one fits. Numeric results are read with fetch. For example, query 205 returns the ID of the drone that asks, and query 101 returns a company's credits:
+Your drone will reply with `1` and `Moon`: one row was stored. `query` leaves the number of rows it stored when it worked, -2 if the database query failed or found nothing, or -3 if there is no query with that ID (its other arguments then stay on the stack). It stores only whole rows, so if the array is too small for all of them it stores as many as fit, and 0 if not even one fits. Numeric results are read with fetch, `@`. Money and volumes (a company's credits from query 101, order prices, market volumes, an event's credits from query 841) are [doubles](#big-numbers-double-cells): they take 4 bytes and are read with `2@`. For example, query 205 returns the ID of the drone that asks, and query 101 returns a company's credits:
 
 ```
 <run>
   results_array 100 205 query drop
   results_array @ . \ prints this drone's ID
+  52 results_array 100 101 query drop   \ company 52's bank account
+  results_array 2@ d. \ prints its credits, even past 32,767
 </run>
 ```
 

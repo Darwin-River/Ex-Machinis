@@ -12,7 +12,7 @@ LDFLAGS=-lmysqlclient -lconfig -lm
 #---------------------------------------------------------------------------
 # Program sources and name
 #---------------------------------------------------------------------------
-GAME_ENGINE_SRCS=config.c db.c db_common.c email.c embed.c embed_image.c embed_util.c engine.c main.c orbits.c protocol.c trace.c vm.c vm_extension.c vm_meter.c wrap.c game_time.c crash.c db_launch.c
+GAME_ENGINE_SRCS=config.c db.c db_common.c email.c embed.c embed_image.c embed_util.c engine.c main.c orbits.c protocol.c trace.c vm.c vm_extension.c vm_meter.c wrap.c game_time.c crash.c db_launch.c vm_library.c
 EVENTS_ENGINE_SRCS=main_e.c engine_e.c config_e.c db_e.c db_common.c trace.c event.c orbits.c game_time.c
 OBJS_PATH=objs
 GAME_ENGINE_OBJS=$(patsubst %.c,$(OBJS_PATH)/%.o,$(GAME_ENGINE_SRCS))
@@ -53,7 +53,7 @@ $(EXE_PATH)/eforth.blk: dump_image.c embed_image.c
 
 # Orbit maths checked against real positions, long-line wrapping checked on
 # the FORTH VM, VM memory bounds, the game clock, instruction metering and crash handling (need no database)
-test: test_orbits.c orbits.c test_wrap.c wrap.c test_vm_bounds.c embed.c test_game_time.c game_time.c test_vm_meter.c vm_meter.c test_crash.c crash.c
+test: test_orbits.c orbits.c test_wrap.c wrap.c test_vm_bounds.c embed.c test_game_time.c game_time.c test_vm_meter.c vm_meter.c test_crash.c crash.c test_double.c vm_library.c
 	@mkdir -p $(OBJS_PATH)
 	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/test_orbits test_orbits.c -lm
 	$(OBJS_PATH)/test_orbits
@@ -67,6 +67,8 @@ test: test_orbits.c orbits.c test_wrap.c wrap.c test_vm_bounds.c embed.c test_ga
 	$(OBJS_PATH)/test_vm_meter
 	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/test_crash test_crash.c crash.c vm_meter.c embed.c embed_image.c embed_util.c
 	$(OBJS_PATH)/test_crash
+	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/test_double test_double.c vm_library.c embed.c embed_image.c embed_util.c
+	$(OBJS_PATH)/test_double
 
 clean:
 	$(RM) -rf $(OBJS_PATH) $(GAME_ENGINE_EXE_NAME) $(EVENTS_ENGINE_EXE_NAME) $(EXE_PATH)/eforth.blk

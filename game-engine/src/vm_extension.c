@@ -209,7 +209,21 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryIn
         // Get value from stack parameters
         value = (cell_t)queryInfo->parameterValues[paramId];
 
-        if(!strncmp(tag, "[value_", strlen("[value_")))    {
+        if(!strncmp(tag, "[dvalue_", strlen("[dvalue_")))    {
+
+            // A double (#324 step 9): this parameter is its high cell (it
+            // was on top of the stack), the next one its low cell
+            if(paramId + 1 >= queryInfo->parametersNum) {
+                engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Tag %s needs two parameters from [%d]", tag, paramId + 1);
+                return NULL;
+            }
+            uint32_t bits = ((uint32_t)(queryInfo->parameterValues[paramId] & 0xFFFF) << 16) |
+                            (uint32_t)(queryInfo->parameterValues[paramId + 1] & 0xFFFF);
+            result = (char*) engine_malloc(MAX_QUERY_VALUE_BUF_LEN);
+            snprintf(result, MAX_QUERY_VALUE_BUF_LEN, "%ld", (long)(int32_t)bits);
+            engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s double value [%s]", tag, result);
+
+        } else if(!strncmp(tag, "[value_", strlen("[value_")))    {
 
             // we use directly the value got from stack, as a signed number:
             // a negative value can mean "any" (query 803)
@@ -450,7 +464,11 @@ static void vm_ext_process_query
         QUERY_TAG_STRING_4,
         QUERY_TAG_DRONE_ID,
         QUERY_TAG_TIME_DELAY,
-        QUERY_TAG_GAME_NOW
+        QUERY_TAG_GAME_NOW,
+        QUERY_TAG_DVALUE_1,
+        QUERY_TAG_DVALUE_2,
+        QUERY_TAG_DVALUE_3,
+        QUERY_TAG_DVALUE_4
     };
 
     for(int i=0; i < MAX_QUERY_TAGS_NUM; i++) {
