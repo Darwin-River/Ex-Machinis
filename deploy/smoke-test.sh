@@ -310,7 +310,8 @@ sql "update agents set object_id = 10 where agent_id = $DRY"
 sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo)
      values (1, 0, 1, 1, $DRY, 1100, 0, 0, 10, $KIT + 10)"
 KUNSPAR=$(kunspar)
-send_mail "$DRONE@$DOMAIN" "plunder" "<run>$DRY 34 perform . cr</run>"
+# (email is off by now: queue the command directly)
+sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('$DRY 34 perform .', $DRONE_ID, NOW(), NOW(), 'plunder', '')"
 plundered() { [ "$(sql "select IFNULL(plundered_by, 0) from agents where agent_id=$DRY")" = "$DRONE_ID" ] &&
               [ "$(sql "select IFNULL(SUM(units), 0) from sqInventory where drone=$DRY")" = 0 ]; }
 wait_for 90 "another player's drone plundered the wreck, leaving it empty" plundered
