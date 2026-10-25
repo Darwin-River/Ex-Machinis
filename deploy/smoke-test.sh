@@ -196,10 +196,14 @@ wait_for 60 "a crash in launched is caught (-10) and a restart is scheduled" cra
 # The restart comes a real second later on this clock, and the engine runs
 # it as soon as it is due (#324 step 20): either it is still queued, with
 # the clean copy in place, or it has already run the clean launched word
-restart_queued() { [ "$(sql "select count(*) from commands where agent_id=$NEW_ID and code='<launched>' and deliver_at > (select min(restart_at) - 1 from drone_crashes where drone=$NEW_ID)")" = 1 ]; }
+# (one query, so the restart can't run between looking at the queue and at
+# the program)
+RESTART_STATE=$(sql "select concat((select count(*) from commands where agent_id=$NEW_ID and code='<launched>'
+                     and deliver_at > (select min(restart_at) - 1 from drone_crashes where drone=$NEW_ID)),
+                     ' ', vm = release_vm) from agents where agent_id=$NEW_ID")
 restarted_clean() { [ "$(docker compose logs game-engine | grep -c "Drone \[$NEW_ID\] finished its launched word")" -ge 2 ]; }
-if restart_queued; then
-    [ "$(sql "select vm = release_vm from agents where agent_id=$NEW_ID")" = 1 ] || fail "the program was not put back to its clean copy"
+if [ "${RESTART_STATE% *}" = 1 ]; then
+    [ "${RESTART_STATE#* }" = 1 ] || fail "the program was not put back to its clean copy"
     echo "ok: the program went back to its clean copy and a restart is queued"
 else
     wait_for 30 "the restart ran the clean copy's launched word" restarted_clean
@@ -385,15 +389,18 @@ sees_here() { reply_ends $FORGE_DRONE 'sell and wait' 010; }
 wait_for 60 "the seller saw its order at Earth and its wait ended" sees_here
 
 # Taxes (#324 step 12): a company that can't pay its tax is eliminated: its
-# credits vanish and its drones become wrecks. Charge 20 a game day, and
-# leave the Smoke Forge company 10 credits, past its grace period.
+# credits vanish and its drones become wrecks. The tax is a share of the
+# company's assessed wealth, its goods included (#367): charge 10% a game
+# day, and leave the Smoke Forge company 10 credits (and its goods), past
+# its grace period, so its bill is more than its credits.
 FORGE_COMPANY=$(sql "select company_id from agents where agent_id=$FORGE_DRONE")
 sql "update companies set credits = 10, founded_t = 0, taxed_t = 0 where company_id = $FORGE_COMPANY"
-sql "update house_rules set tax_flat = 20"
+[ "$(sql "select assessed > 100 from company_assessed where company_id = $FORGE_COMPANY")" = 1 ] || fail "the company's goods are not assessed"
+sql "update house_rules set tax_flat = 0, tax_permille = 100"
 eliminated() { [ "$(sql "select eliminated_at is not null and credits = 0 from companies where company_id=$FORGE_COMPANY")" = 1 ] &&
                [ "$(sql "select wreck_cause from agents where agent_id=$FORGE_DRONE")" = tax ]; }
 wait_for 60 "a company that can't pay its tax is eliminated and its drones wrecked" eliminated
-paid_tax() { [ "$(sql "select count(*) from company_taxes where company_id=$COMPANY and amount=20 and eliminated=0")" -ge 1 ]; }
+paid_tax() { [ "$(sql "select count(*) from company_taxes where company_id=$COMPANY and amount > 0 and eliminated=0")" -ge 1 ]; }
 wait_for 60 "a company with credits pays its tax" paid_tax
 no_tax
 
@@ -415,10 +422,13 @@ grep -qF "Moon Depot" <<<"$MARKET_PAGE" || fail "the market page doesn't show th
 grep -qF "spacecraft/$FORGE_DRONE" <<<"$MARKET_PAGE" || fail "the market page doesn't show the trades"
 grep -qF ">Moon<" <<<"$(fetch http://localhost/map)" || fail "the map doesn't list the Moon among the places with drones"
 echo "ok: the home feed, market and map show the world"
-# The leaderboard (#324 step 18) ranks the players
-grep -qF "Forger" <<<"$(fetch http://localhost/leaderboard)" || fail "the leaderboard doesn't list the players"
-[ "$(sql "select count(*) from wealth_snapshots")" -ge 1 ] || fail "no wealth snapshot was taken"
-echo "ok: the leaderboard ranks the players, and wealth snapshots are taken"
+# The leaderboard (#324 step 18, companies since #367 step 2) ranks the
+# companies by wealth (the first drone's company is still trading; the
+# released one's ended at the tax check above, and ended companies are left
+# off)
+grep -qF "$(sql "select name from companies where company_id=$COMPANY")" <<<"$(fetch http://localhost/leaderboard)" || fail "the leaderboard doesn't list the first company"
+[ "$(sql "select count(*) from wealth_snapshots where company_id is not null")" -ge 1 ] || fail "no wealth snapshot was taken"
+echo "ok: the leaderboard ranks the companies, and wealth snapshots are taken"
 
 # Test world (#324 step 7): start its engines and turn on the Test button,
 # then test a script. It runs in the test world's own database, with a faster

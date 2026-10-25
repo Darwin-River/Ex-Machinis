@@ -114,7 +114,7 @@ Five more pages show the whole world, live, and the machine itself:
 - **Market:** each House station's budget and what it buys and sells, with the price it would pay right now and a small chart of how its price falls as a batch fills; the open orders and the latest trades.
 - **Map:** the planets where they are now, with the drones and wrecks around each.
 
-- **Leaderboard:** players by net wealth, all time and **Rising** (the gain over the last real week). Net wealth counts your companies' credits and your working drones' goods at House prices, minus what each company started with, so it measures what you made; splitting your money across companies changes nothing.
+- **Leaderboard:** companies by net wealth, all time and **Rising** (the gain over the last real week). Each release starts a company, and the drones it launches belong to it. Net wealth counts the company's credits and its working drones' goods at House prices, minus what the company started with, so it measures what the company made.
 
 - **Machine:** watch a word run on the same machine your drones run on. Type your definitions, a starting stack and a word, then step through it one instruction at a time: the data and return stacks, the instruction about to run, the code of the word it is in, what it printed, and how many instructions it has run, with the fuel that would cost a drone (1 per 100,000). Use it to see why a word misbehaves, or to make a busy loop cheaper before you release it. `perform` and `query` do nothing there (perform leaves -11, query -3): there is no game around the machine.
 
@@ -357,7 +357,7 @@ Everything your spacecraft does burns fuel, Fuel (A1) (resource 2061):
 - **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (mining, a transfer or an order) to 30 (launching a spacecraft, 20 of which go into the new one's hold). The protocol's description says how much. Unpacking the starter kit is free. Without the fuel, `perform` leaves -2 and nothing happens.
 - **Thinking.** Running your program burns power: 1 fuel for every 100,000 FORTH instructions your spacecraft runs. Words that do less work cost less to run.
 
-A new spacecraft starts with 100 fuel. When it runs out and can't pay for its thinking, it becomes a **wreck** for good. So keep an eye on your fuel (query your inventory) and make or buy more before you run dry: the Earth Exchange sells it (see [Trading with House stations](#trading-with-house-stations)).
+A new spacecraft starts with 100 fuel. When it runs out and can't pay for its thinking, it becomes a **wreck** for good. So keep an eye on your fuel (query your inventory) and make or buy more before you run dry: every House exchange sells it (see [Trading with House stations](#trading-with-house-stations)).
 
 To make fuel, use a Chemical Reactor: `12061 perform` turns 1 Organics (A1) and 2 Inorganics (A1) into 30 Fuel (A1) in 2 game hours. Refining 20 magmite (`21000 perform`) gives exactly those inputs. Fuel can also be traded like any other resource, and pushed to another of your spacecraft. A spacecraft you launch starts with an empty hold, so push it some fuel first.
 
@@ -388,7 +388,7 @@ Two queries find wrecks:
 
 ### Taxes
 
-Each company pays a tax every game day: 20 credits, plus 0.5% of its credits. A new company pays nothing for its first 3 game days. A company that can't pay is **eliminated**: its credits vanish, and its spacecraft become wrecks that other players can plunder. So keep enough credits in every company you run.
+Each company pays a tax every game day: 0.5% of its assessed wealth, which is its credits plus the goods aboard its working spacecraft at House prices. The more a company owns, the more it pays; a company that owns little pays little. A new company pays nothing for its first 3 game days. A company that can't pay is **eliminated**: its credits vanish, and its spacecraft become wrecks that other players can plunder. So keep enough credits in every company you run: goods count toward the bill, but only credits pay it.
 
 `R L 650 query` tells you where your spacecraft's company stands: its next tax bill (2 cells), the game hours until it is due, and the game hours of grace it has left.
 
@@ -512,7 +512,7 @@ Mining takes 1 hour of game time (1 minute with the default clock). The mining m
 
 #### Deposits run out
 
-Minerals don't last forever. Each mineral at each place is a deposit that holds 40 mining runs' worth of units, and it refills by 8 runs' worth every game day. On the Moon, for example, a kunspar deposit holds 200 units and regains 40 a day. Every drone mining there, yours or anyone else's, takes from the same deposit.
+Minerals don't last forever. Each mineral at each place is a deposit that holds 400 mining runs' worth of units, and it refills by 80 runs' worth every game day. On the Moon, for example, a kunspar deposit holds 2,000 units and regains 400 a day. Every drone mining there, yours or anyone else's, takes from the same deposit.
 
 When a deposit runs low, mining gets only what is left. When it is empty, mining still succeeds but brings in nothing (`perform` leaves 0, the same as a full run, so check your hold). Move on to another place, or come back later.
 
@@ -807,7 +807,7 @@ Buy and sell orders cannot be canceled. However they can be replaced by more res
 
 ### Trading with House stations
 
-Three House stations buy what players make and sell what they need to get started. The Earth Exchange (at Earth) buys refined goods, alloys and polymers, later parts and systems, and sells basic equipment and fuel. The Moon Depot buys refined goods. The Mars Exchange buys refined metals, paying half as much again as the others (it's far away), and parts and systems. Their demand moves up the production chain as the game goes on: parts from game day 3, systems from game day 7.
+Three House stations buy what players make and sell what they need to get started. The Earth Exchange (at Earth) buys refined goods, alloys and polymers, later parts and systems, and sells basic equipment and fuel. The Moon Depot buys refined goods. The Mars Exchange buys refined metals, paying half as much again as the others (it's far away), and parts and systems. All three sell fuel. Their demand moves up the production chain as the game goes on: parts from game day 3, systems from game day 7.
 
 A station deals with drones at its location, in **batches**: everything offered or ordered during a game hour clears together at the end of the hour, so it doesn't matter who comes first.
 

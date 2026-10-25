@@ -598,8 +598,9 @@ for rid, tag in sorted(mineral_tags.items(), key=lambda kv: int(kv[0])):
 # Mining deposits (#324 step 11): every place a mineral is found holds a
 # deposit of it, which runs out and refills slowly. Placeholders, to tune in
 # step 20: a mining run yields its abundance (5 units), a deposit holds 40
-# runs' worth and regains 8 runs' worth a game day.
-DEPOSIT_RUNS, REFILL_RUNS_PER_DAY = 40, 8
+# runs' worth and regains 8 runs' worth a game day. #367 made them ten times
+# bigger: at 40 and 8, three moons fed only a few dozen drones.
+DEPOSIT_RUNS, REFILL_RUNS_PER_DAY = 400, 80
 deposits = [(obj, rid, mult * DEPOSIT_RUNS, mult * REFILL_RUNS_PER_DAY) for obj, rid, mult in abundances]
 
 # --- queries ----------------------------------------------------------------------
@@ -809,6 +810,9 @@ for st in (1, 3):
 for rid, price, supply in ((FUEL, 5, 2000), (5001, 400, 10), (5131, 300, 10), (5201, 500, 10),
                            (5211, 600, 10), (5501, 900, 5)):
     STATION_GOODS.append((1, rid, SELLS, price, supply, 0))
+# Fuel at every House exchange (#367), not only on Earth
+for st in (2, 3):
+    STATION_GOODS.append((st, FUEL, SELLS, 5, 2000, 0))
 for st, rid, _, _, _, _ in STATION_GOODS:
     if str(rid) not in resources:
         note(f'station {st}: unknown resource {rid}')
@@ -835,17 +839,18 @@ queries.append((632, 'Station budget here',
 
 # Mining deposits here (#324 step 11): left now (refilled for the time since
 # it was last worked out), and capacity
-# Taxes (#324 step 12): a company pays tax_flat plus tax_permille thousandths
-# of its player's combined credits every tax_period, after a grace period.
-# Placeholders: 20 credits plus 0.5% a game day, after 3 game days; a
-# plunderer gets half a wreck.
-HOUSE_RULES = [(1, DAY, 3 * DAY, 20, 5, 50)]
+# Taxes (#324 step 12; #367): a company pays tax_flat plus tax_permille
+# thousandths of its assessed wealth (credits, and goods aboard its working
+# drones at the House price: the company_assessed view) every tax_period,
+# after a grace period. Placeholders: 0.5% a game day and no flat part,
+# after 3 game days; a plunderer gets half a wreck.
+HOUSE_RULES = [(1, DAY, 3 * DAY, 0, 5, 50)]
 MY_COMPANY = "(SELECT company_id FROM agents WHERE agent_id = [drone_id])"
 queries.append((650, 'My taxes',
                 '[R L 650 query]: The drone\'s company\'s next tax bill (2 cells), game hours until it is due, and '
                 'game hours of grace left (no tax until then). A company that can\'t pay is eliminated.', 0,
-                "SELECT h.tax_flat + FLOOR(h.tax_permille * (SELECT IFNULL(SUM(o.credits), 0) FROM companies o "
-                "WHERE o.user_id = c.user_id AND o.eliminated_at IS NULL) / 1000) AS d_tax, "
+                "SELECT h.tax_flat + FLOOR(h.tax_permille * (SELECT IFNULL(w.assessed, 0) FROM company_assessed w "
+                "WHERE w.company_id = c.company_id) / 1000) AS d_tax, "
                 "GREATEST(0, CEIL((IFNULL(c.taxed_t, [game_now]) + h.tax_period - [game_now]) / 3600)), "
                 "GREATEST(0, CEIL((IFNULL(c.founded_t, [game_now]) + h.tax_grace - [game_now]) / 3600)) "
                 f"FROM companies c JOIN house_rules h ON h.id = 1 WHERE c.company_id = {MY_COMPANY};"))
