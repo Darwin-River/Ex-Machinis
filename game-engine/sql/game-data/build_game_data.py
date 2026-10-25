@@ -331,6 +331,13 @@ for pid, p in econ_prot.items():
         # Mining: lock the module at 0, unlock it a second before the end,
         # the mineral arrives at the end
         old_end = max(e['time'] for e in effs)
+        # The mineral is the protocol's own (economy.xlsx has Mine yalspar,
+        # 11110, yield kunspar: found by the starter scripts, #324 step 15)
+        mineral = int(pid) - 10000
+        for e in effs:
+            if e.get('abundancies') and e['resource'] != mineral:
+                note(f'protocol {pid} ({p[1]}): yielded resource {e["resource"]}, fixed to {mineral}')
+        effs = [dict(e, resource=mineral) if e.get('abundancies') else e for e in effs]
         effs = [dict(e, time=MINING_TIME if e['time'] == old_end else
                      MINING_TIME - 1 if e['time'] == old_end - 1 else e['time']) for e in effs]
         # "Uses a Worm I mining module": the modules are named (A1); say how long
@@ -480,7 +487,7 @@ def fuel_cost(pid):
     if p == 5001:
         return 5                      # travel
     if 11000 <= p < 12000:
-        return 2                      # mining
+        return 1                      # mining (#324 step 15: 2 made a simple miner lose money)
     if 21000 <= p < 22000 or 12000 <= p < 13000:
         return 2                      # refining, alloys, organics, polymers, fuel
     if 13000 <= p < 14000:
@@ -776,13 +783,19 @@ BUYS, SELLS = 1, 2
 # (station, resource, side, price, daily units, from game day): stations buy
 # refined goods from day 0, parts from day 3 and systems from day 7, so their
 # demand steps up the production chain; they sell basic equipment, and the
-# Earth Exchange is the House fuel seller (5 credits, 2,000 units a day)
+# Earth Exchange is the House fuel seller (5 credits, 2,000 units a day).
+# Step 15 doubled the refined metals (10, 15, 20 left a simple Moon miner
+# losing money) and has the far Mars Exchange pay half as much again for
+# them, so hauling metals there pays.
+METALS = ((2011, 20, 200), (2012, 30, 150), (2013, 40, 100))
 STATION_GOODS = []
 for st in (1, 2):
-    for rid, price, demand in ((2011, 10, 200), (2012, 15, 150), (2013, 20, 100), (2031, 8, 200),
+    for rid, price, demand in METALS + ((2031, 8, 200),
                                (2041, 12, 200), (2021, 30, 100), (2022, 40, 80), (2023, 50, 60),
                                (2051, 30, 100)):
         STATION_GOODS.append((st, rid, BUYS, price, demand, 0))
+for rid, price, demand in METALS:
+    STATION_GOODS.append((3, rid, BUYS, price * 3 // 2, demand, 0))
 for st in (1, 3):
     for rid, price in ((3001, 60), (3011, 60), (3031, 50), (3311, 70)):
         STATION_GOODS.append((st, rid, BUYS, price, 50, 3))

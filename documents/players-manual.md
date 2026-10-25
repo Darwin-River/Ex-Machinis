@@ -89,6 +89,16 @@ A released drone can't be sent new commands from the Release page, so test your 
 - nothing in the test world affects the live one, and you can test as often as you like (your latest three test runs are kept);
 - the test world has its own market, so trades there are only with other test runs.
 
+#### Starter scripts
+
+Not sure where to begin? The Release page offers three starter scripts: click **Miner**, **Refiner** or **Trader** above the script box and it fills in. Each is short, explained in its comments, and makes money on its own; change its numbers, or its plan, to make it yours.
+
+- **Miner:** flies to the Moon, mines kunspar, refines it and sells the metals to the Moon Depot. It buys fuel cheaply from other drones on the Moon when it can, and otherwise brews its own.
+- **Refiner:** brews fuel on the Moon from yalspar and vladnium, and sells what it doesn't need to other drones there.
+- **Trader:** gathers metals on the Moon and hauls them to Mars, where the House pays half as much again.
+
+Loading a script costs a little fuel: your drone reads it word by word, and reading a long, well-commented script uses up to about 25 fuel, once.
+
 The rest of this chapter describes the email game.
 
 ### Requesting your spacecraft
@@ -322,7 +332,7 @@ The drone replies with 0 once the kit is unpacked.
 
 Everything your spacecraft does burns fuel, Fuel (A1) (resource 2061):
 
-- **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (a transfer or an order) to 10 (launching a spacecraft). The protocol's description says how much. Unpacking the starter kit is free. Without the fuel, `perform` leaves -2 and nothing happens.
+- **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (mining, a transfer or an order) to 30 (launching a spacecraft, 20 of which go into the new one's hold). The protocol's description says how much. Unpacking the starter kit is free. Without the fuel, `perform` leaves -2 and nothing happens.
 - **Thinking.** Running your program burns power: 1 fuel for every 100,000 FORTH instructions your spacecraft runs. Words that do less work cost less to run.
 
 A new spacecraft starts with 100 fuel. When it runs out and can't pay for its thinking, it becomes a **wreck** for good. So keep an eye on your fuel (query your inventory) and make or buy more before you run dry: the Earth Exchange sells it (see [Trading with House stations](#trading-with-house-stations)).
@@ -604,6 +614,30 @@ It's good practice to test each word on its own before you build it into `launch
 
 ## Chapter 5: Building A Vocabulary
 
+### The game words
+
+Every drone comes with a vocabulary for the game, so you can write `kunspar mine` rather than `11100 perform`:
+
+| Kind | Words |
+|---|---|
+| Places | `earth` `moon` `mars` (their location IDs) |
+| Resources | `fuel` `magmite` `kunspar` `yalspar` `vladnium` `wolfite` `metals-a1` `metals-a2` `metals-a3` `inorganics-a1` `organics-a1` |
+| Actions (each leaves what `perform` leaves) | `unpack`, `travel ( place )`, `mine ( mineral )`, `refine ( mineral )`, `make ( resource )`, `wait ( minutes )`, `sell-to-station ( n resource )`, `buy-from-station ( n resource )`, `sell-order ( price keep resource )`, `buy-order ( price want resource )`, `push ( n resource drone )`, `pull ( n resource drone )`, `launch ( drone kit )`, `plunder ( wreck )` |
+| Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `ask ( [n] id -- rows )` (any query, answers in the buffer `answer`) |
+| Helpers | `sell-all ( resource )` offers all of it to the station here |
+
+For example:
+
+```
+<run>
+  moon travel .            \ fly to the Moon
+  kunspar deposit .        \ how much kunspar is left here
+  kunspar mine .           \ mine some
+  kunspar units .          \ how much is aboard now
+  credits d.               \ your company's credits
+</run>
+```
+
 ### Creating your own words
 
 FORTH is a very simple language. Most of the heavy lifting is done using the data stack and a dictionary of user-defined functions.
@@ -749,7 +783,7 @@ Buy and sell orders cannot be canceled. However they can be replaced by more res
 
 ### Trading with House stations
 
-Three House stations buy what players make and sell what they need to get started. The Earth Exchange (at Earth) buys refined goods, alloys and polymers, later parts and systems, and sells basic equipment and fuel. The Moon Depot buys refined goods. The Mars Exchange buys parts and systems. Their demand moves up the production chain as the game goes on: parts from game day 3, systems from game day 7.
+Three House stations buy what players make and sell what they need to get started. The Earth Exchange (at Earth) buys refined goods, alloys and polymers, later parts and systems, and sells basic equipment and fuel. The Moon Depot buys refined goods. The Mars Exchange buys refined metals, paying half as much again as the others (it's far away), and parts and systems. Their demand moves up the production chain as the game goes on: parts from game day 3, systems from game day 7.
 
 A station deals with drones at its location, in **batches**: everything offered or ordered during a game hour clears together at the end of the hour, so it doesn't matter who comes first.
 
