@@ -103,6 +103,11 @@ jobs:
       - name: Check the orbit maths against real positions
         run: make -C game-engine/src test
 
+      - name: Check the Machine view's WebAssembly matches the engine's VM
+        # The committed html/wasm/machine.wasm against a native build of
+        # the same VM, step by step (touch: test it as committed)
+        run: touch html/wasm/machine.wasm && make -C game-engine/machine test
+
   docker:
     runs-on: ubuntu-latest
     steps:

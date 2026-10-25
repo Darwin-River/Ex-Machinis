@@ -30,6 +30,15 @@ class WorldController extends Controller
         return view('world.leaderboard', compact('allTime', 'rising', 'kit'));
     }
 
+    /** The Machine view (#324 step 19): the VM, stepped in the browser */
+    public function machine(\Illuminate\Http\Request $request)
+    {
+        $defs = (string)$request->query('defs', ": square ( n -- n*n ) dup * ;\n: cube ( n -- n*n*n ) dup square * ;");
+        $start = (string)$request->query('stack', '3');
+        $word = (string)$request->query('word', 'cube');
+        return view('world.machine', compact('defs', 'start', 'word'));
+    }
+
     public function map()
     {
         $planets = World::map();

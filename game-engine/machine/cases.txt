@@ -1,0 +1,30 @@
+square
+: square ( n -- n*n ) dup * ;
+7
+--
+cube
+: square ( n -- n*n ) dup * ;
+: cube ( n -- n^3 ) dup square * ;
+3
+--
+greet
+: greet ( -- ) ." hi" 42 . ;
+--
+d+
+70000. 1. 
+--
+kunspar
+--
+countdown
+: countdown ( n -- ) begin dup . 1- dup 0= until drop ;
+3
+--
+dsum
+: dsum ( d1 d2 -- d ) d+ ;
+70000. 5000.
+--
+oops
+: oops ( -- n ) 1 0 / ;
+--
+missing
+--

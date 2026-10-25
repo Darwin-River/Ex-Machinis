@@ -71,6 +71,7 @@ Route::get('/events/search', 'HomeController@InGameEventsSearch');
 Route::get('/market', 'WorldController@market');
 Route::get('/map', 'WorldController@map');
 Route::get('/leaderboard', 'WorldController@leaderboard');
+Route::get('/machine', 'WorldController@machine');
 Route::get('/release', 'ReleaseController@show');
 Route::post('/release', 'ReleaseController@store');
 Route::post('/release/test', 'ReleaseController@test');
