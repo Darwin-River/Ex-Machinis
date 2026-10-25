@@ -1013,6 +1013,39 @@ Since evidence of each in-game event travels between distant points at the speed
 
 ## Markets and Trade
 
+<a name="Drop-Stations"></a>**House drop stations (#324 step 10).** House stations bring credits and basic equipment into the game and take finished goods out of it.
+
+* **Game data** (`build_game_data.py`, replaced on every start). `stations` (id, name, `object_id`, `budget_cap`, `refill_per_day`) and `station_goods` (station, resource, side, price, `daily_units`, `from_day`).
+  * Side 1 means the station buys: `price` is its price for an empty batch and `daily_units` its daily demand.
+  * Side 2 means it sells: `price` is the price and `daily_units` its daily supply.
+  * `from_day` is the game day, counted from the world's first, on which it starts trading that good. Stations buy refined goods from day 0, parts from day 3 and systems from day 7, so demand steps up the production chain.
+  * Placeholders: the Earth Exchange (3), the Moon Depot (10) and the Mars Exchange (4), each with a 5,000-credit budget refilling 5,000 a game day. The Earth Exchange is the House fuel seller: 5 credits a unit, 2,000 a day.
+* **State.** `station_state` holds each station's budget and last refill. It starts full (`INSERT IGNORE`) and is kept across game-data reloads.
+* **Offers and orders.**
+  * Protocol 31 (`[N R 31 perform]`) has two effects. At time 0 an event of type 9 (Offer to station) records the offer. A second later, a decrement takes the goods out of the hold (escrow).
+  * Protocol 32 (`[N R 32 perform]`) has an event of type 10 (Order from station).
+  * The events engine records either in `station_offers` (`db_station_record`), in the batch open now: `batch_t` is the end of the game hour (`STATION_BATCH_SECONDS`).
+  * If no station at the drone's location trades the resource that way (yet), the action fails with -14 (`OUTCOME_NO_STATION`).
+* **Clearing** (`db_station_clear_due`, every events-engine loop, in its own transaction). A batch clears once its time has passed and its offers' events have all settled.
+  * **Buying:**
+    * The budget is refilled for the time since its last refill, up to the cap.
+    * One price is set for the batch: `station_buy_price` gives the price for an empty batch × 2^(−offered ÷ daily demand), never below 1.
+    * As many units as the budget pays for are shared out (`station_share`): everyone in full if there is enough. Otherwise each company gets a share pro rata to what it offered, capped at `STATION_COMPANY_CAP_PCT` (50%) of the batch, and what that leaves over goes to those still wanting more.
+    * Sellers are paid: `companies.credits` rises, recorded as a type 6 credit event.
+    * What isn't bought goes back to the hold: a protocol 33 "Station delivery" action with an increment event, which the events engine processes like any other.
+    * Only offers whose action went through count. For an offer to sell, that means its escrow event succeeded.
+  * **Selling:**
+    * The batch's supply is `daily_units` ÷ 24, and the price is fixed.
+    * Each order is limited by its company's credits and its drone's free cargo space, then shared out the same way.
+    * Buyers pay (a type 7 credit event) and get a delivery.
+* **Once only.** Each cleared batch is recorded in `station_batches` (primary key: station, resource, side, batch), in the same transaction as its payments. A crash before the commit undoes everything. A batch already recorded is never cleared again; its offers are only marked cleared.
+* **Queries.** 630 (what the station here trades), 631 (a drone's offers and orders) and 632 (the station's budget).
+* **Tests.** `test_station.c` covers the price curve and the shares.
+* **Not yet:**
+  * Budgets that grow with activity (a fixed cap for now).
+  * The House fuel ceiling floating with the price of fuel traded between players (fixed at 5).
+  * Equipment and fuel sold anywhere but Earth.
+
 In Ex Machinis, spacecraft can use scripted protocols to add or remove materials from the cargo hold of other spacecraft via the resource_effects table. Other than the obvious inventory and cargo hold constraints, there are no limits on how much material can be transferred between two spacecraft that are owned by the same player.  However, if a drone attempts to access the cargo hold of another player’s spacecraft, the interaction will be governed by market orders, which the targeted spacecraft places against specific resources that can be added to or removed from its hold.
 
 [Return to the TOC](#Table-of-Contents)
@@ -1225,6 +1258,9 @@ This appendix lists the in-game queries loaded into the game, organized by the d
 | Spacecraft | 612 | Solar sell orders up to a price | [N P R L 612 query]: Sell orders for resource N anywhere in the solar system at a price of at most P (a double, e.g. 7 10000 um* for 70,000), cheapest first: price (2 cells), kept minimum, stock, drone. | 3 | `SELECT o.new_credits AS d_price, o.new_quantity, i.units, o.drone FROM events AS o INNER JOIN (SELECT MAX(id) AS id FROM events WHERE outcome = 1 AND event_type = 4 AND resource = [value_3] GROUP BY drone) AS l ON l.id = o.id LEFT JOIN sqInventory AS i ON i.drone = o.drone AND i.resource = [value_3] WHERE i.units > o.new_quantity AND o.new_credits <= [dvalue_1] ORDER BY o.new_credits ASC;` |
 | Spacecraft | 620 | Local market volume | [N H R L 620 query]: Units of resource N traded at the requesting spacecraft's location in the last H game hours, credits paid for them, and number of trades. Money and volumes are double cells (2@). | 2 | `SELECT IFNULL(SUM(units),0) AS d_units, IFNULL(SUM(credits),0) AS d_credits, COUNT(*) FROM trades WHERE resource=[value_2] AND [game_now]-game_t<=[value_1]*3600 AND location=(SELECT object_id FROM agents WHERE agent_id = [drone_id]);` |
 | Spacecraft | 621 | Solar market volume | [N H R L 621 query]: Units of resource N traded anywhere in the solar system in the last H game hours, credits paid for them, and number of trades. Money and volumes are double cells (2@). | 2 | `SELECT IFNULL(SUM(units),0) AS d_units, IFNULL(SUM(credits),0) AS d_credits, COUNT(*) FROM trades WHERE resource=[value_2] AND [game_now]-game_t<=[value_1]*3600;` |
+| Spacecraft | 630 | Station trades here | [R L 630 query]: What the House station where the drone is trades now: resource, side (1: it buys, 2: it sells), price (2 cells; buying: for an empty batch, halving per daily units), daily units, units waiting in this batch (2 cells). | 0 | `SELECT g.resource, g.side, g.price AS d_price, g.daily_units, IFNULL((SELECT SUM(o.units) FROM station_offers o WHERE o.station_id = g.station_id AND o.resource = g.resource AND o.side = g.side AND o.cleared_t IS NULL), 0) AS d_units FROM station_goods g WHERE g.station_id IN (SELECT id FROM stations WHERE object_id = (SELECT object_id FROM agents WHERE agent_id = [drone_id])) AND g.from_day <= FLOOR(([game_now] - (SELECT epoch FROM game_clock WHERE id = 1)) / 86400) ORDER BY g.side, g.resource;` |
+| Spacecraft | 631 | My station offers | [R L 631 query]: This drone's station offers and orders, newest first: resource, side (1: offer, 2: order), units, units filled (-1 until its batch clears), credits (2 cells). | 0 | `SELECT resource, side, units, IFNULL(filled, -1), IFNULL(paid, 0) AS d_paid FROM station_offers WHERE drone = [drone_id] ORDER BY id DESC;` |
+| Spacecraft | 632 | Station budget here | [R L 632 query]: The credits the House station where the drone is has left for buying (2 cells). | 0 | `SELECT IFNULL(t.budget, s.budget_cap) AS d_budget FROM stations s LEFT JOIN station_state t ON t.station_id = s.id WHERE s.object_id = (SELECT object_id FROM agents WHERE agent_id = [drone_id]);` |
 | Locations | 700 | Get location name | [N R L 700 query]: Returns the name of location ID N. | 1 | `SELECT object_name FROM objects WHERE object_id=[value_1];` |
 | Locations | 701 | Get location type | [N R L 701 query]: Returns the location type of location N. | 1 | `SELECT object_type FROM objects WHERE object_id=[value_1];` |
 | Locations | 702 | Get central body | [N R L 702 query]: Retuns the location ID for the body around which N is orbiting. | 1 | `SELECT central_body_object_id FROM objects WHERE object_id=[value_1];` |

@@ -18,6 +18,7 @@
 
 #include "event.h"
 #include "engine_e.h"
+#include "db_station.h"
 #include "game_time.h"
 #include "db.h"
 
@@ -312,6 +313,17 @@ ErrorCode_t engine_run()
         {
             result = db_rollback_transaction(&engine.db_connection);
         }  
+
+        // House drop stations (#324 step 10): clear the batches that have
+        // ended. All of it in one transaction, so a batch is paid once or
+        // not at all (a restart picks up what wasn't committed)
+        if(db_start_transaction(&engine.db_connection) == ENGINE_OK)
+        {
+            if(db_station_clear_due() == ENGINE_OK)
+                db_commit_transaction(&engine.db_connection);
+            else
+                db_rollback_transaction(&engine.db_connection);
+        }
 
         // Wait till next engine execution
         sleep(atoi(engine.config.params[ENGINE_CHECK_TIME]));

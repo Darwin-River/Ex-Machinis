@@ -409,12 +409,39 @@ for old, new, verb in (('7', '17', 'sell'), ('8', '18', 'buy')):
     DOUBLE_PARAMS[new] = 1 << 2
     add_effects(new, [dict(e) for q, e in effects if q == int(old) and e['resource'] != FUEL])
 
+# House drop stations (#324 step 10): offer goods to the station where the
+# drone is (31) or order goods from it (32). Offers and orders wait for the
+# hour's batch; the events engine clears it (db_station.c). The offer
+# (event type 9) is recorded at time 0 and the goods leave the hold a second
+# later; an order (event type 10) is paid for and delivered at clearing.
+# Deliveries and returns are actions of protocol 33, which nobody performs.
+STATION_OFFER_EVENT, STATION_ORDER_EVENT = 9, 10
+protocols['31'] = ['31', 'Offer to station', '2', '100',
+                   '[N R 31 perform]: Offers N units of resource R to the House station where the drone is. They leave '
+                   'the hold now; when the hour\'s batch clears, the station pays one price for the batch and returns '
+                   'what it doesn\'t buy.', '1', '1', '0']
+add_effects('31', [
+    {'time': 0, 'drone': 0, 'resource': -1, 'event_type': STATION_OFFER_EVENT, 'local': 1, 'installed': 0,
+     'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': -2},
+    {'time': 1, 'drone': 0, 'resource': -1, 'event_type': 2, 'local': 1, 'installed': 0, 'locked': 0,
+     'deplete': 1, 'abundancies': 0, 'quantity': -2}])
+protocols['32'] = ['32', 'Order from station', '2', '100',
+                   '[N R 32 perform]: Orders N units of resource R from the House station where the drone is. When the '
+                   'hour\'s batch clears, the company pays the station\'s price for what it gets (as many as its credits '
+                   'and cargo space allow) and the goods arrive.', '1', '1', '0']
+add_effects('32', [
+    {'time': 0, 'drone': 0, 'resource': -1, 'event_type': STATION_ORDER_EVENT, 'local': 1, 'installed': 0,
+     'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': -2}])
+protocols['33'] = ['33', 'Station delivery', '0', '100',
+                   'Goods a House station delivers or returns when a batch clears. Not performed by drones.',
+                   '1', '1', '0']
+
 # Fuel burned by each action (#324 step 8), by the size of the job: 1 to 10
 # units, once per action whatever its multiplier. Unpacking the starter kit
 # is free. Each protocol's description says what it burns.
 def fuel_cost(pid):
     p = int(pid)
-    if p in (25901, int(POWER_PROTOCOL)):
+    if p in (25901, int(POWER_PROTOCOL), 33):
         return 0
     if p == int(LAUNCH_PROTOCOL):
         return 10
@@ -699,8 +726,58 @@ queries.append((612, 'Solar sell orders up to a price',
                 '(a double, e.g. 7 10000 um* for 70,000), cheapest first: price (2 cells), kept minimum, stock, drone.', 3,
                 orders(4, False, resource='[value_3]', extra=' AND o.new_credits <= [dvalue_1]')))
 
+# House drop stations (#324 step 10), placeholders to tune in step 20.
+# (id, name, object, budget cap, refill per game day)
+STATIONS = [
+    (1, 'Earth Exchange', 3, 5000, 5000),
+    (2, 'Moon Depot', 10, 5000, 5000),
+    (3, 'Mars Exchange', 4, 5000, 5000),
+]
+BUYS, SELLS = 1, 2
+# (station, resource, side, price, daily units, from game day): stations buy
+# refined goods from day 0, parts from day 3 and systems from day 7, so their
+# demand steps up the production chain; they sell basic equipment, and the
+# Earth Exchange is the House fuel seller (5 credits, 2,000 units a day)
+STATION_GOODS = []
+for st in (1, 2):
+    for rid, price, demand in ((2011, 10, 200), (2012, 15, 150), (2013, 20, 100), (2031, 8, 200),
+                               (2041, 12, 200), (2021, 30, 100), (2022, 40, 80), (2023, 50, 60),
+                               (2051, 30, 100)):
+        STATION_GOODS.append((st, rid, BUYS, price, demand, 0))
+for st in (1, 3):
+    for rid, price in ((3001, 60), (3011, 60), (3031, 50), (3311, 70)):
+        STATION_GOODS.append((st, rid, BUYS, price, 50, 3))
+    for rid in (4111, 4281, 4311):
+        STATION_GOODS.append((st, rid, BUYS, 300, 10, 7))
+for rid, price, supply in ((FUEL, 5, 2000), (5001, 400, 10), (5131, 300, 10), (5201, 500, 10),
+                           (5211, 600, 10), (5501, 900, 5)):
+    STATION_GOODS.append((1, rid, SELLS, price, supply, 0))
+for st, rid, _, _, _, _ in STATION_GOODS:
+    if str(rid) not in resources:
+        note(f'station {st}: unknown resource {rid}')
+
+HERE_STATION = f"(SELECT id FROM stations WHERE object_id = {HERE_})"
+TODAY = "FLOOR(([game_now] - (SELECT epoch FROM game_clock WHERE id = 1)) / 86400)"
+queries.append((630, 'Station trades here',
+                '[R L 630 query]: What the House station where the drone is trades now: resource, side (1: it buys, '
+                '2: it sells), price (2 cells; buying: for an empty batch, halving per daily units), daily units, '
+                'units waiting in this batch (2 cells).', 0,
+                "SELECT g.resource, g.side, g.price AS d_price, g.daily_units, IFNULL((SELECT SUM(o.units) "
+                "FROM station_offers o WHERE o.station_id = g.station_id AND o.resource = g.resource AND o.side = g.side "
+                "AND o.cleared_t IS NULL), 0) AS d_units FROM station_goods g WHERE g.station_id IN "
+                f"{HERE_STATION} AND g.from_day <= {TODAY} ORDER BY g.side, g.resource;"))
+queries.append((631, 'My station offers',
+                '[R L 631 query]: This drone\'s station offers and orders, newest first: resource, side (1: offer, '
+                '2: order), units, units filled (-1 until its batch clears), credits (2 cells).', 0,
+                "SELECT resource, side, units, IFNULL(filled, -1), IFNULL(paid, 0) AS d_paid FROM station_offers "
+                "WHERE drone = [drone_id] ORDER BY id DESC;"))
+queries.append((632, 'Station budget here',
+                '[R L 632 query]: The credits the House station where the drone is has left for buying (2 cells).', 0,
+                "SELECT IFNULL(t.budget, s.budget_cap) AS d_budget FROM stations s LEFT JOIN station_state t "
+                f"ON t.station_id = s.id WHERE s.object_id = {HERE_};"))
+
 # Queries whose money or volume columns are double cells: say so
-DOUBLE_QUERIES = {101, 600, 601, 610, 611, 612, 620, 621, 841}
+DOUBLE_QUERIES = {101, 600, 601, 610, 611, 612, 620, 621, 841}  # 630-632 say so themselves
 queries = [(q[0], q[1], (q[2] if q[0] == 612 else q[2].rstrip() + ' Money and volumes are double cells (2@).')[:255],
             q[3], q[4]) if q[0] in DOUBLE_QUERIES else q for q in queries]
 
@@ -784,6 +861,15 @@ for pid, rec in sorted(recipes.items(), key=lambda kv: int(kv[0])):
 lines.append('-- Event types the engines handle (8: launch a drone, #238)')
 lines.append("INSERT INTO `event_types` (id, name) VALUES (8, 'Launch drone') "
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')
+lines.append("INSERT INTO `event_types` (id, name) VALUES (9, 'Offer to station'), (10, 'Order from station') "
+             'ON DUPLICATE KEY UPDATE name = VALUES(name);')
+lines.append('')
+lines.append('-- House drop stations (#324 step 10): what they trade. Their budgets')
+lines.append('-- (station_state) are kept: a new station starts with a full budget.')
+table('stations', ['id', 'name', 'object_id', 'budget_cap', 'refill_per_day'], STATIONS)
+table('station_goods', ['station_id', 'resource', 'side', 'price', 'daily_units', 'from_day'], STATION_GOODS)
+lines.append('INSERT IGNORE INTO `station_state` (station_id, budget, refilled_t) '
+             'SELECT id, budget_cap, 0 FROM `stations`;')
 lines.append('')
 lines.append('-- Hulls of drones launched from ship kits (same ID as the kit)')
 lines.append('INSERT INTO `hulls` (id, name, description, cargo_capacity, a_slots, b_slots, c_slots, d_slots, '

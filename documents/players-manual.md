@@ -46,6 +46,7 @@ Thank you for your support!
   - [Sending greetings](#sending-greetings)
 - [Chapter 6: Going to Market](#chapter-6-going-to-market)
   - [Placing and adjusting market orders](#placing-and-adjusting-market-orders)
+  - [Trading with House stations](#trading-with-house-stations)
   - [Transferring resources between drones](#transferring-resources-between-drones)
 - [Chapter 7: Stringing Variables](#chapter-7-stringing-variables)
   - [Using variables when programming your drones](#using-variables-when-programming-your-drones)
@@ -319,7 +320,7 @@ Everything your spacecraft does burns fuel, Fuel (A1) (resource 2061):
 - **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (a transfer or an order) to 10 (launching a spacecraft). The protocol's description says how much. Unpacking the starter kit is free. Without the fuel, `perform` leaves -2 and nothing happens.
 - **Thinking.** Running your program burns power: 1 fuel for every 100,000 FORTH instructions your spacecraft runs. Words that do less work cost less to run.
 
-A new spacecraft starts with 100 fuel. When it runs out and can't pay for its thinking, it becomes a **wreck** for good. So keep an eye on your fuel (query your inventory) and make or buy more before you run dry.
+A new spacecraft starts with 100 fuel. When it runs out and can't pay for its thinking, it becomes a **wreck** for good. So keep an eye on your fuel (query your inventory) and make or buy more before you run dry: the Earth Exchange sells it (see [Trading with House stations](#trading-with-house-stations)).
 
 To make fuel, use a Chemical Reactor: `12061 perform` turns 1 Organics (A1) and 2 Inorganics (A1) into 30 Fuel (A1) in 2 game hours. Refining 20 magmite (`21000 perform`) gives exactly those inputs. Fuel can also be traded like any other resource, and pushed to another of your spacecraft. A spacecraft you launch starts with an empty hold, so push it some fuel first.
 
@@ -641,6 +642,28 @@ The order lists (queries 600, 601, 610 and 611) give each order's price as a dou
 It's possible for a drone to simultaneously have a buy and sell order in place for the same resource. Furthermore, the volumes of these orders will automatically adjust themselves based on the order limits and the amount of resource currently in the drone's cargo hold. Once these limits are reached, the saturated order will go dormant until a change in the ship's cargo manifest makes them relevant again.
 
 Buy and sell orders cannot be canceled. However they can be replaced by more restrictive orders. Whenever a drone posts a buy order for a specific resource, it replaces the previous buy order for the resource, if one exists. The same rule applies for sell orders. Basically, there can only be one buy order and one sell order posted for the same resource at once.
+
+### Trading with House stations
+
+Three House stations buy what players make and sell what they need to get started. The Earth Exchange (at Earth) buys refined goods, alloys and polymers, later parts and systems, and sells basic equipment and fuel. The Moon Depot buys refined goods. The Mars Exchange buys parts and systems. Their demand moves up the production chain as the game goes on: parts from game day 3, systems from game day 7.
+
+A station deals with drones at its location, in **batches**: everything offered or ordered during a game hour clears together at the end of the hour, so it doesn't matter who comes first.
+
+- **Selling to a station:** `N R 31 perform` offers N units of resource R. They leave your hold at once. When the batch clears, the station pays **one price for the whole batch**, taken from its published curve: its price for an empty batch, halving each time the batch's total reaches the station's daily demand. If the station's budget can't pay for everything offered, it buys a share from each seller, in proportion to what they offered, and no company gets more than half. What it doesn't buy comes back to your hold. A station's budget refills every game day.
+- **Buying from a station:** `N R 32 perform` orders N units. When the batch clears, you get as many as the station's supply for that hour, your company's credits and your free cargo space allow, at the station's price. The Earth Exchange is the **House fuel seller**: 5 credits a unit, up to 2,000 units a game day.
+
+`perform` leaves -14 if no station where you are trades that resource that way. Three queries tell you more:
+
+- `R L 630 query`: what the station here trades now: resource, side (1: it buys, 2: it sells), price (a double: for buying, the price for an empty batch), daily units (demand or supply), and the units waiting in the current batch (a double).
+- `R L 631 query`: your drone's offers and orders, newest first: resource, side, units, units filled (-1 until the batch clears) and credits (a double).
+- `R L 632 query`: the credits the station here has left for buying (a double).
+
+```
+<run>
+  20 2011 31 perform .   \ offer 20 Metals (A1) to the station here
+  50 2061 32 perform .   \ and order 50 fuel
+</run>
+```
 
 ### Transferring resources between drones
 

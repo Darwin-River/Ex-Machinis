@@ -13,6 +13,7 @@
 #include <time.h>
 
 #include "event.h"
+#include "db_station.h"
 #include "engine_e.h"
 #include "db.h"
 #include "orbits.h"
@@ -1059,6 +1060,24 @@ static ErrorCode_t event_apply(Event_t *event)
 
         if(result == ENGINE_OK) result = event_update_observations(event);
 
+        return result;
+    }
+
+    // An offer to or order from a House station (#324 step 10): recorded for
+    // the hour's batch, which db_station_clear_due clears
+    if(result == ENGINE_OK && (event->event_type == STATION_OFFER_EVENT_TYPE ||
+                               event->event_type == STATION_ORDER_EVENT_TYPE)) {
+        result = db_station_record(event);
+        if(result != ENGINE_OK)
+            return result;   // the caller records the outcome and aborts the action
+
+        event->outcome = OUTCOME_OK;
+        event->logged = 1;
+        event->new_cargo = NULL_VALUE;
+        event->new_credits = NULL_VALUE;
+
+        result = db_update_event(event);
+        if(result == ENGINE_OK) result = event_update_observations(event);
         return result;
     }
 
