@@ -415,10 +415,11 @@ grep -qF "Moon Depot" <<<"$MARKET_PAGE" || fail "the market page doesn't show th
 grep -qF "spacecraft/$FORGE_DRONE" <<<"$MARKET_PAGE" || fail "the market page doesn't show the trades"
 grep -qF ">Moon<" <<<"$(fetch http://localhost/map)" || fail "the map doesn't list the Moon among the places with drones"
 echo "ok: the home feed, market and map show the world"
-# The leaderboard (#324 step 18) ranks the players
-grep -qF "Forger" <<<"$(fetch http://localhost/leaderboard)" || fail "the leaderboard doesn't list the players"
-[ "$(sql "select count(*) from wealth_snapshots")" -ge 1 ] || fail "no wealth snapshot was taken"
-echo "ok: the leaderboard ranks the players, and wealth snapshots are taken"
+# The leaderboard (#324 step 18, drones since #367 step 2) ranks each
+# released drone by its company's wealth
+grep -qF "spacecraft/$FORGE_DRONE" <<<"$(fetch http://localhost/leaderboard)" || fail "the leaderboard doesn't list the released drone"
+[ "$(sql "select count(*) from wealth_snapshots where company_id is not null")" -ge 1 ] || fail "no wealth snapshot was taken"
+echo "ok: the leaderboard ranks the drones, and wealth snapshots are taken"
 
 # Test world (#324 step 7): start its engines and turn on the Test button,
 # then test a script. It runs in the test world's own database, with a faster

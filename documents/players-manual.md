@@ -114,7 +114,7 @@ Five more pages show the whole world, live, and the machine itself:
 - **Market:** each House station's budget and what it buys and sells, with the price it would pay right now and a small chart of how its price falls as a batch fills; the open orders and the latest trades.
 - **Map:** the planets where they are now, with the drones and wrecks around each.
 
-- **Leaderboard:** players by net wealth, all time and **Rising** (the gain over the last real week). Net wealth counts your companies' credits and your working drones' goods at House prices, minus what each company started with, so it measures what you made; splitting your money across companies changes nothing.
+- **Leaderboard:** drones by net wealth, all time and **Rising** (the gain over the last real week). Each drone you release stands for its company, and its clones count toward it. Net wealth counts the company's credits and its working drones' goods at House prices, minus what the company started with, so it measures what the drone and its clones made.
 
 - **Machine:** watch a word run on the same machine your drones run on. Type your definitions, a starting stack and a word, then step through it one instruction at a time: the data and return stacks, the instruction about to run, the code of the word it is in, what it printed, and how many instructions it has run, with the fuel that would cost a drone (1 per 100,000). Use it to see why a word misbehaves, or to make a busy loop cheaper before you release it. `perform` and `query` do nothing there (perform leaves -11, query -3): there is no game around the machine.
 
