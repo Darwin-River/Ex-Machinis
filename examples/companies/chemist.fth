@@ -1,10 +1,13 @@
-\ Chemist: a company design for Public Forge (economy round 1).
+\ Chemist: a company design for Public Forge (economy rounds 1 and 4).
 \ It works the Moon's yalspar and vladnium, which the starters hardly touch
 \ while kunspar runs dry. It refines them, makes polymers from the organics
 \ and inorganics, and sells metals, polymers and spare inorganics to the
 \ Moon Depot. When low on fuel it brews its own from the same minerals.
+\ It sells every by-product too, Inorganics (A2) included: a hold that
+\ fills up can't brew fuel (round 3 lost drones that way). The Moon's
+\ yalspar supports about 14 Chemists; more just wait for it to refill.
 
-2051 constant polymers
+2051 constant polymers   2032 constant inorganics-a2
 40 constant low-fuel     \ brew fuel below this
 
 \ Mine until n units of a mineral are aboard; wait while its deposit refills
@@ -21,7 +24,7 @@
 
 : sell-goods ( -- )
   metals-a1 sell-all metals-a2 sell-all
-  polymers sell-all inorganics-a1 sell-all ;
+  polymers sell-all inorganics-a1 sell-all inorganics-a2 sell-all ;
 
 \ Fuel takes 1 organics and 2 inorganics; a polymer 1 of each
 : work ( -- )

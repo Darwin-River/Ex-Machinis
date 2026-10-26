@@ -315,7 +315,7 @@ INSERT INTO `house_rules` (id, tax_period, tax_grace, tax_flat, tax_permille, pl
 DELETE FROM `stations`;
 INSERT INTO `stations` (id, name, object_id, budget_cap, refill_per_day) VALUES
   (1, 'Earth Exchange', 3, 5000, 5000),
-  (2, 'Moon Depot', 10, 5000, 5000),
+  (2, 'Moon Depot', 10, 10000, 10000),
   (3, 'Mars Exchange', 4, 15000, 15000);
 
 DELETE FROM `station_goods`;
@@ -341,6 +341,14 @@ INSERT INTO `station_goods` (station_id, resource, side, price, daily_units, fro
   (3, 2011, 1, 30, 200, 0),
   (3, 2012, 1, 45, 150, 0),
   (3, 2013, 1, 60, 100, 0),
+  (1, 2032, 1, 10, 200, 0),
+  (1, 2033, 1, 12, 200, 0),
+  (1, 2042, 1, 15, 200, 0),
+  (1, 2043, 1, 18, 200, 0),
+  (2, 2032, 1, 10, 200, 0),
+  (2, 2033, 1, 12, 200, 0),
+  (2, 2042, 1, 15, 200, 0),
+  (2, 2043, 1, 18, 200, 0),
   (1, 3001, 1, 60, 50, 3),
   (1, 3011, 1, 60, 50, 3),
   (1, 3031, 1, 50, 50, 3),

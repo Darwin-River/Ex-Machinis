@@ -784,7 +784,7 @@ queries.append((612, 'Solar sell orders up to a price',
 # refiners sell there, and every trader.
 STATIONS = [
     (1, 'Earth Exchange', 3, 5000, 5000),
-    (2, 'Moon Depot', 10, 5000, 5000),
+    (2, 'Moon Depot', 10, 10000, 10000),
     (3, 'Mars Exchange', 4, 15000, 15000),
 ]
 BUYS, SELLS = 1, 2
@@ -804,6 +804,12 @@ for st in (1, 2):
         STATION_GOODS.append((st, rid, BUYS, price, demand, 0))
 for rid, price, demand in METALS:
     STATION_GOODS.append((3, rid, BUYS, price * 3 // 2, demand, 0))
+# By-products nobody else wants (#380): refining vladnium leaves Inorganics
+# (A2), and a hold that fills up with it can't brew fuel. Earth and the Moon
+# take them for a little, so every product has a buyer.
+for st in (1, 2):
+    for rid, price in ((2032, 10), (2033, 12), (2042, 15), (2043, 18)):
+        STATION_GOODS.append((st, rid, BUYS, price, 200, 0))
 for st in (1, 3):
     for rid, price in ((3001, 60), (3011, 60), (3031, 50), (3311, 70)):
         STATION_GOODS.append((st, rid, BUYS, price, 50, 3))

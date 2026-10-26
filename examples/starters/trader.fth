@@ -27,13 +27,6 @@ variable got   variable looks
   ?dup 0= if drop exit then
   swap answer 8 + @ pull 0= if 1 got ! then ;
 
-\ Look for sellers; rest a while when nobody sells. Each look counts
-\ toward going with a smaller load, so a trader that buys a little at a
-\ time still sets off
-: shop ( -- )
-  0 got !  metals-a1 buy metals-a2 buy metals-a3 buy
-  1 looks +!  got @ 0= if nap wait drop then ;
-
 \ Top up the tank from the House here; it arrives when the batch clears
 : fuel-up ( -- )
   fuel units trip-fuel < if trip-fuel fuel buy-from-station drop
@@ -44,6 +37,16 @@ variable got   variable looks
 : portion ( metal -- )
   dup units 15 min ?dup if swap sell-to-station drop else drop then ;
 variable rounds
+
+\ Look for sellers; rest a while when nobody sells. Each look counts
+\ toward going with a smaller load, so a trader that buys a little at a
+\ time still sets off. Shopping burns fuel too (computing): keep the tank
+\ up from the House here
+: shop ( -- )
+  fuel-up
+  0 got !  metals-a1 buy metals-a2 buy metals-a3 buy
+  1 looks +!  got @ 0= if nap wait drop then ;
+
 : sell-metals ( -- )
   0 rounds !
   begin metals 0> rounds @ 6 < and while
