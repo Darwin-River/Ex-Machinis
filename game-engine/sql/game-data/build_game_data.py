@@ -779,11 +779,13 @@ queries.append((612, 'Solar sell orders up to a price',
                 orders(4, False, resource='[value_3]', extra=' AND o.new_credits <= [dvalue_1]')))
 
 # House drop stations (#324 step 10), placeholders to tune in step 20.
-# (id, name, object, budget cap, refill per game day)
+# (id, name, object, budget cap, refill per game day). The Mars Exchange
+# has three times the others' (#378): two thirds of the starter miners and
+# refiners sell there, and every trader.
 STATIONS = [
     (1, 'Earth Exchange', 3, 5000, 5000),
     (2, 'Moon Depot', 10, 5000, 5000),
-    (3, 'Mars Exchange', 4, 5000, 5000),
+    (3, 'Mars Exchange', 4, 15000, 15000),
 ]
 BUYS, SELLS = 1, 2
 # (station, resource, side, price, daily units, from game day): stations buy
@@ -810,9 +812,10 @@ for st in (1, 3):
 for rid, price, supply in ((FUEL, 5, 2000), (5001, 400, 10), (5131, 300, 10), (5201, 500, 10),
                            (5211, 600, 10), (5501, 900, 5)):
     STATION_GOODS.append((1, rid, SELLS, price, supply, 0))
-# Fuel at every House exchange (#367), not only on Earth
-for st in (2, 3):
-    STATION_GOODS.append((st, FUEL, SELLS, 5, 2000, 0))
+# Fuel at every House exchange (#367), not only on Earth; the busy Mars
+# Exchange sells 6,000 a day (#378)
+for st, supply in ((2, 2000), (3, 6000)):
+    STATION_GOODS.append((st, FUEL, SELLS, 5, supply, 0))
 for st, rid, _, _, _, _ in STATION_GOODS:
     if str(rid) not in resources:
         note(f'station {st}: unknown resource {rid}')
@@ -840,16 +843,18 @@ queries.append((632, 'Station budget here',
 # Mining deposits here (#324 step 11): left now (refilled for the time since
 # it was last worked out), and capacity
 # Taxes (#324 step 12; #367): a company pays tax_flat plus tax_permille
-# thousandths of its assessed wealth (credits, and goods aboard its working
-# drones at the House price: the company_assessed view) every tax_period,
-# after a grace period. Placeholders: 0.5% a game day and no flat part,
-# after 3 game days; a plunderer gets half a wreck.
-HOUSE_RULES = [(1, DAY, 3 * DAY, 0, 5, 50)]
+# thousandths of what it made (its assessed wealth, credits and goods aboard
+# its working drones at the House price, less its starter package: the
+# company_taxable view) every tax_period, after a grace period. Placeholders:
+# 0.5% a game day and no flat part, after 3 game days; a plunderer gets half
+# a wreck. The starter package (1,000 credits and 100 fuel, and the kit)
+# must match config/forge.php.
+HOUSE_RULES = [(1, DAY, 3 * DAY, 0, 5, 50, 1000, 100)]
 MY_COMPANY = "(SELECT company_id FROM agents WHERE agent_id = [drone_id])"
 queries.append((650, 'My taxes',
                 '[R L 650 query]: The drone\'s company\'s next tax bill (2 cells), game hours until it is due, and '
                 'game hours of grace left (no tax until then). A company that can\'t pay is eliminated.', 0,
-                "SELECT h.tax_flat + FLOOR(h.tax_permille * (SELECT IFNULL(w.assessed, 0) FROM company_assessed w "
+                "SELECT h.tax_flat + FLOOR(h.tax_permille * (SELECT IFNULL(w.taxable, 0) FROM company_taxable w "
                 "WHERE w.company_id = c.company_id) / 1000) AS d_tax, "
                 "GREATEST(0, CEIL((IFNULL(c.taxed_t, [game_now]) + h.tax_period - [game_now]) / 3600)), "
                 "GREATEST(0, CEIL((IFNULL(c.founded_t, [game_now]) + h.tax_grace - [game_now]) / 3600)) "
@@ -1003,7 +1008,8 @@ lines.append("INSERT INTO `event_types` (id, name) VALUES (11, 'Plunder wreck') 
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')
 lines.append('')
 lines.append('-- Taxes and plunder (#324 step 12), placeholders to tune in step 20')
-table('house_rules', ['id', 'tax_period', 'tax_grace', 'tax_flat', 'tax_permille', 'plunder_share'], HOUSE_RULES)
+table('house_rules', ['id', 'tax_period', 'tax_grace', 'tax_flat', 'tax_permille', 'plunder_share',
+                      'start_credits', 'start_fuel'], HOUSE_RULES)
 lines.append('')
 lines.append('-- House drop stations (#324 step 10): what they trade. Their budgets')
 lines.append('-- (station_state) are kept: a new station starts with a full budget.')

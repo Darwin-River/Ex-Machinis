@@ -93,9 +93,9 @@ A released drone can't be sent new commands from the Release page, so test your 
 
 Not sure where to begin? The Release page offers three starter scripts: click **Miner**, **Refiner** or **Trader** above the script box and it fills in. Each is short, explained in its comments, and makes money on its own; change its numbers, or its plan, to make it yours.
 
-- **Miner:** flies to the Moon, mines kunspar, refines it and sells the metals to the Moon Depot. It buys fuel cheaply from other drones on the Moon when it can, and otherwise brews its own.
+- **Miner:** mines kunspar on the Moon or on Mars's moons, refines it and sells the metals to the House. At the Moon it first offers its metals to traders, a little over the Depot's price. It buys fuel cheaply from other drones on the Moon when it can, and otherwise brews its own.
 - **Refiner:** brews fuel on the Moon from yalspar and vladnium, and sells what it doesn't need to other drones there.
-- **Trader:** gathers metals on the Moon and hauls them to Mars, where the House pays half as much again.
+- **Trader:** buys metals from the miners on the Moon and hauls them to Mars, where the House pays half as much again.
 
 Loading a script costs a little fuel: your drone reads it word by word, and reading a long, well-commented script uses up to about 25 fuel, once.
 
@@ -352,7 +352,7 @@ Two queries find wrecks:
 
 ### Taxes
 
-Each company pays a tax every game day: 0.5% of its assessed wealth, which is its credits plus the goods aboard its working spacecraft at House prices. The more a company owns, the more it pays; a company that owns little pays little. A new company pays nothing for its first 3 game days. A company that can't pay is **eliminated**: its credits vanish, and its spacecraft become wrecks that other players can plunder. So keep enough credits in every company you run: goods count toward the bill, but only credits pay it.
+Each company pays a tax every game day: 0.5% of what it has made. That is its assessed wealth (its credits plus the goods aboard its working spacecraft at House prices) less what it started with: 1,000 credits, 100 fuel and a starter kit. The more a company makes, the more it pays; a company that hasn't made anything yet pays nothing. A new company pays nothing for its first 3 game days. A company that can't pay is **eliminated**: its credits vanish, and its spacecraft become wrecks that other players can plunder. So keep enough credits in every company you run: goods count toward the bill, but only credits pay it.
 
 `R L 650 query` tells you where your spacecraft's company stands: its next tax bill (2 cells), the game hours until it is due, and the game hours of grace it has left.
 

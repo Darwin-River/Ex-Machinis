@@ -45,7 +45,7 @@ class Release
     public const STARTERS = [
         'miner' => 'Mines kunspar on the Moon, refines it and sells the metals to the Moon Depot.',
         'refiner' => 'Brews fuel on the Moon from yalspar and vladnium, and sells what it doesn\'t need to other drones.',
-        'trader' => 'Gathers metals on the Moon and hauls them to Mars, where the House pays more.',
+        'trader' => 'Buys metals from miners on the Moon and hauls them to Mars, where the House pays more.',
     ];
 
     /** A starter script's source, or null for an unknown name */

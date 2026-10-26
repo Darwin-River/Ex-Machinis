@@ -373,20 +373,26 @@ sees_here() { reply_ends $FORGE_DRONE 'sell and wait' 010; }
 wait_for 60 "the seller saw its order at Earth and its wait ended" sees_here
 
 # Taxes (#324 step 12): a company that can't pay its tax is eliminated: its
-# credits vanish and its drones become wrecks. The tax is a share of the
-# company's assessed wealth, its goods included (#367): charge 10% a game
-# day, and leave the Smoke Forge company 10 credits (and its goods), past
+# credits vanish and its drones become wrecks. The tax is a share of what
+# the company made: its assessed wealth, goods included, less its starter
+# package (#367). A company that made nothing owes nothing, so count no
+# starting credits or fuel here (the kit still counts), charge 10% a game
+# day, and leave the Smoke Forge company 10 credits (and its fuel), past
 # its grace period, so its bill is more than its credits.
 FORGE_COMPANY=$(sql "select company_id from agents where agent_id=$FORGE_DRONE")
 sql "update companies set credits = 10, founded_t = 0, taxed_t = 0 where company_id = $FORGE_COMPANY"
 [ "$(sql "select assessed > 100 from company_assessed where company_id = $FORGE_COMPANY")" = 1 ] || fail "the company's goods are not assessed"
-sql "update house_rules set tax_flat = 0, tax_permille = 100"
+[ "$(sql "select taxable from company_taxable where company_id = $FORGE_COMPANY")" = 0 ] || fail "a company that made nothing is taxed"
+echo "ok: a company that made nothing is taxed on nothing"
+sql "update house_rules set tax_flat = 0, tax_permille = 100, start_credits = 0, start_fuel = 0"
+[ "$(sql "select taxable > 100 from company_taxable where company_id = $FORGE_COMPANY")" = 1 ] || fail "the company's goods are not taxed"
 eliminated() { [ "$(sql "select eliminated_at is not null and credits = 0 from companies where company_id=$FORGE_COMPANY")" = 1 ] &&
                [ "$(sql "select wreck_cause from agents where agent_id=$FORGE_DRONE")" = tax ]; }
 wait_for 60 "a company that can't pay its tax is eliminated and its drones wrecked" eliminated
 paid_tax() { [ "$(sql "select count(*) from company_taxes where company_id=$COMPANY and amount > 0 and eliminated=0")" -ge 1 ]; }
 wait_for 60 "a company with credits pays its tax" paid_tax
 no_tax
+sql "update house_rules set start_credits = 1000, start_fuel = 100"
 
 # The Drone page (#324 step 16): a released drone shows its code and a Copy
 # button; a wreck has a post-mortem in plain words

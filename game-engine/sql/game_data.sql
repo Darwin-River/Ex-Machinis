@@ -306,8 +306,8 @@ INSERT INTO `event_types` (id, name) VALUES (11, 'Plunder wreck') ON DUPLICATE K
 
 -- Taxes and plunder (#324 step 12), placeholders to tune in step 20
 DELETE FROM `house_rules`;
-INSERT INTO `house_rules` (id, tax_period, tax_grace, tax_flat, tax_permille, plunder_share) VALUES
-  (1, 86400, 259200, 0, 5, 50);
+INSERT INTO `house_rules` (id, tax_period, tax_grace, tax_flat, tax_permille, plunder_share, start_credits, start_fuel) VALUES
+  (1, 86400, 259200, 0, 5, 50, 1000, 100);
 
 
 -- House drop stations (#324 step 10): what they trade. Their budgets
@@ -316,7 +316,7 @@ DELETE FROM `stations`;
 INSERT INTO `stations` (id, name, object_id, budget_cap, refill_per_day) VALUES
   (1, 'Earth Exchange', 3, 5000, 5000),
   (2, 'Moon Depot', 10, 5000, 5000),
-  (3, 'Mars Exchange', 4, 5000, 5000);
+  (3, 'Mars Exchange', 4, 15000, 15000);
 
 DELETE FROM `station_goods`;
 INSERT INTO `station_goods` (station_id, resource, side, price, daily_units, from_day) VALUES
@@ -362,7 +362,7 @@ INSERT INTO `station_goods` (station_id, resource, side, price, daily_units, fro
   (1, 5211, 2, 600, 10, 0),
   (1, 5501, 2, 900, 5, 0),
   (2, 2061, 2, 5, 2000, 0),
-  (3, 2061, 2, 5, 2000, 0);
+  (3, 2061, 2, 5, 6000, 0);
 
 INSERT IGNORE INTO `station_state` (station_id, budget, refilled_t) SELECT id, budget_cap, 0 FROM `stations`;
 
@@ -3587,7 +3587,7 @@ INSERT INTO `queries` (id, name, description, parameters, script) VALUES
   (631, 'My station offers', '[R L 631 query]: This drone''s station offers and orders, newest first: resource, side (1: offer, 2: order), units, units filled (-1 until its batch clears), credits (2 cells).', 0, 'SELECT resource, side, units, IFNULL(filled, -1), IFNULL(paid, 0) AS d_paid FROM station_offers WHERE drone = [drone_id] ORDER BY id DESC;'),
   (632, 'Station budget here', '[R L 632 query]: The credits the House station where the drone is has left for buying (2 cells).', 0, 'SELECT IFNULL(t.budget, s.budget_cap) AS d_budget FROM stations s LEFT JOIN station_state t ON t.station_id = s.id WHERE s.object_id = (SELECT object_id FROM agents WHERE agent_id = [drone_id]);'),
   (640, 'Deposits here', '[R L 640 query]: The mining deposits where the drone is: resource, units left now (2 cells), capacity (2 cells), units regained per game day. A mined-out deposit yields nothing until it refills.', 0, 'SELECT d.resource, FLOOR(LEAST(d.capacity, IFNULL(s.amount, d.capacity) + d.refill_per_day * ([game_now] - IFNULL(s.refilled_t, [game_now])) / 86400)) AS d_units, d.capacity AS d_capacity, d.refill_per_day FROM deposits d LEFT JOIN deposit_state s ON s.object_id = d.object_id AND s.resource = d.resource WHERE d.object_id = (SELECT object_id FROM agents WHERE agent_id = [drone_id]) ORDER BY d.resource;'),
-  (650, 'My taxes', '[R L 650 query]: The drone''s company''s next tax bill (2 cells), game hours until it is due, and game hours of grace left (no tax until then). A company that can''t pay is eliminated.', 0, 'SELECT h.tax_flat + FLOOR(h.tax_permille * (SELECT IFNULL(w.assessed, 0) FROM company_assessed w WHERE w.company_id = c.company_id) / 1000) AS d_tax, GREATEST(0, CEIL((IFNULL(c.taxed_t, [game_now]) + h.tax_period - [game_now]) / 3600)), GREATEST(0, CEIL((IFNULL(c.founded_t, [game_now]) + h.tax_grace - [game_now]) / 3600)) FROM companies c JOIN house_rules h ON h.id = 1 WHERE c.company_id = (SELECT company_id FROM agents WHERE agent_id = [drone_id]);'),
+  (650, 'My taxes', '[R L 650 query]: The drone''s company''s next tax bill (2 cells), game hours until it is due, and game hours of grace left (no tax until then). A company that can''t pay is eliminated.', 0, 'SELECT h.tax_flat + FLOOR(h.tax_permille * (SELECT IFNULL(w.taxable, 0) FROM company_taxable w WHERE w.company_id = c.company_id) / 1000) AS d_tax, GREATEST(0, CEIL((IFNULL(c.taxed_t, [game_now]) + h.tax_period - [game_now]) / 3600)), GREATEST(0, CEIL((IFNULL(c.founded_t, [game_now]) + h.tax_grace - [game_now]) / 3600)) FROM companies c JOIN house_rules h ON h.id = 1 WHERE c.company_id = (SELECT company_id FROM agents WHERE agent_id = [drone_id]);'),
   (660, 'Wrecks here', '[R L 660 query]: The wrecks where the drone is: drone ID, 1 if it has been plundered (else 0).', 0, 'SELECT agent_id, plundered_at IS NOT NULL FROM agents WHERE wrecked_at IS NOT NULL AND object_id = (SELECT object_id FROM agents WHERE agent_id = [drone_id]) AND agent_id <> [drone_id] ORDER BY agent_id;'),
   (661, 'Wreck hold', '[W R L 661 query]: What is aboard the wreck W where the drone is: resource, units.', 1, 'SELECT i.resource, i.units FROM sqInventory i JOIN agents w ON w.agent_id = i.drone WHERE i.drone = [value_1] AND w.wrecked_at IS NOT NULL AND w.object_id = (SELECT object_id FROM agents WHERE agent_id = [drone_id]) AND i.units > 0 ORDER BY i.resource;'),
   (670, 'My clones', '[R L 670 query]: The drones this drone launched, oldest first: drone ID, 1 if it is a wreck (else 0).', 0, 'SELECT agent_id, wrecked_at IS NOT NULL FROM agents WHERE parent_id = [drone_id] ORDER BY agent_id;'),
