@@ -8,7 +8,7 @@
 \ drone's sell order when one is cheap, and otherwise brews its own from
 \ yalspar and vladnium. Change the numbers to make it your own.
 
-25 constant low-fuel     \ get fuel when below this
+40 constant low-fuel     \ get fuel when below this (brewing burns ~15)
 4 constant fuel-price    \ most it pays a unit for fuel
 240 constant rest        \ game minutes to rest when both Mars moons are dry
 16 constant hold-cap     \ at the Moon, metals it keeps on offer to traders
@@ -23,12 +23,9 @@ variable site#   variable misses
 : market ( -- place ) site moon = if moon else mars then ;
 
 \ A low deposit: at the Moon, wait for it to refill; at Mars, try the other
-\ moon, and rest after both are mined out. Moving burns fuel: low on it,
-\ first buy some from the House at the Mars Exchange
+\ moon, and rest after both are mined out
 : move-on ( -- )
   site# @ 0= if 60 wait drop exit then
-  fuel units low-fuel < if
-    market go drop 30 fuel buy-from-station drop 120 wait drop then
   site# @ 3 xor site# !  1 misses +!
   misses @ 2 mod 0= if rest wait drop then
   site go drop ;

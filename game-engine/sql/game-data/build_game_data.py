@@ -779,11 +779,13 @@ queries.append((612, 'Solar sell orders up to a price',
                 orders(4, False, resource='[value_3]', extra=' AND o.new_credits <= [dvalue_1]')))
 
 # House drop stations (#324 step 10), placeholders to tune in step 20.
-# (id, name, object, budget cap, refill per game day)
+# (id, name, object, budget cap, refill per game day). The Mars Exchange
+# has three times the others' (#378): two thirds of the starter miners and
+# refiners sell there, and every trader.
 STATIONS = [
     (1, 'Earth Exchange', 3, 5000, 5000),
     (2, 'Moon Depot', 10, 5000, 5000),
-    (3, 'Mars Exchange', 4, 5000, 5000),
+    (3, 'Mars Exchange', 4, 15000, 15000),
 ]
 BUYS, SELLS = 1, 2
 # (station, resource, side, price, daily units, from game day): stations buy
@@ -810,9 +812,10 @@ for st in (1, 3):
 for rid, price, supply in ((FUEL, 5, 2000), (5001, 400, 10), (5131, 300, 10), (5201, 500, 10),
                            (5211, 600, 10), (5501, 900, 5)):
     STATION_GOODS.append((1, rid, SELLS, price, supply, 0))
-# Fuel at every House exchange (#367), not only on Earth
-for st in (2, 3):
-    STATION_GOODS.append((st, FUEL, SELLS, 5, 2000, 0))
+# Fuel at every House exchange (#367), not only on Earth; the busy Mars
+# Exchange sells 6,000 a day (#378)
+for st, supply in ((2, 2000), (3, 6000)):
+    STATION_GOODS.append((st, FUEL, SELLS, 5, supply, 0))
 for st, rid, _, _, _, _ in STATION_GOODS:
     if str(rid) not in resources:
         note(f'station {st}: unknown resource {rid}')

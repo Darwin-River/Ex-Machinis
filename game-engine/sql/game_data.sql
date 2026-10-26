@@ -316,7 +316,7 @@ DELETE FROM `stations`;
 INSERT INTO `stations` (id, name, object_id, budget_cap, refill_per_day) VALUES
   (1, 'Earth Exchange', 3, 5000, 5000),
   (2, 'Moon Depot', 10, 5000, 5000),
-  (3, 'Mars Exchange', 4, 5000, 5000);
+  (3, 'Mars Exchange', 4, 15000, 15000);
 
 DELETE FROM `station_goods`;
 INSERT INTO `station_goods` (station_id, resource, side, price, daily_units, from_day) VALUES
@@ -362,7 +362,7 @@ INSERT INTO `station_goods` (station_id, resource, side, price, daily_units, fro
   (1, 5211, 2, 600, 10, 0),
   (1, 5501, 2, 900, 5, 0),
   (2, 2061, 2, 5, 2000, 0),
-  (3, 2061, 2, 5, 2000, 0);
+  (3, 2061, 2, 5, 6000, 0);
 
 INSERT IGNORE INTO `station_state` (station_id, budget, refilled_t) SELECT id, budget_cap, 0 FROM `stations`;
 
