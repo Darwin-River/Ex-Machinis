@@ -71,6 +71,23 @@ A world of 108 starter companies (54 miners, 36 refiners, 18 traders); 12 Chemis
 - The Moon's yalspar and vladnium deposits stayed at about 97% full: room for many more Chemists. Moon kunspar stayed mined out.
 - Drone-to-drone trade fell to almost nothing in the last 5 days: the traders had filled up and gone to Mars.
 
+### Round 2: Smith (#380)
+
+12 Smiths released at game day 21.1, measured at day 31.8.
+
+| Design | Companies | Avg credits | Avg gain | Gaining | Ended |
+|---|---|---|---|---|---|
+| Chemist | 12 | 2,904 | +1,626 | 12 | 0 |
+| Miner | 54 | 3,171 | +1,957 | 54 | 0 |
+| Refiner | 36 | 1,654 | +611 | 36 | 0 |
+| Trader | 18 | 586 | 0 | 0 | 0 |
+| Smith | 12 | 990 | +710 | 12 | 0 |
+
+- Smiths gain about 67 a game day on paper (rods at House prices), but at day 10 they held 10 rods each and had not yet made a trip to Earth: an alloy and a rod take 6 game hours per rod.
+- Chemists kept their pace: about 78 a game day between rounds.
+- Drone-to-drone trade came back (about 200 trades in 5 days) once traders returned from Mars.
+- House stations are far from their budgets: the Moon Depot spent about 1,800 a game day of its 5,000, at 97% of its base prices.
+
 ### Baseline (before #380)
 
 From the four 300-company runs in #378, each with miners, refiners and traders in equal numbers:
