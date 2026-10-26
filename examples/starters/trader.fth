@@ -11,9 +11,9 @@
 20 constant trip-fuel    \ fuel it wants aboard before a trip
 120 constant nap         \ game minutes to rest when nobody sells
 
-\ The most it pays a unit: the Mars Exchange's price less 5
+\ The most it pays a unit: the Mars Exchange's price less 7
 : max-price ( metal -- price )
-  dup metals-a1 = if drop 25 exit then metals-a2 = if 40 else 55 then ;
+  dup metals-a1 = if drop 23 exit then metals-a2 = if 38 else 53 then ;
 
 : metals ( -- n ) metals-a1 units metals-a2 units + metals-a3 units + ;
 
@@ -39,7 +39,17 @@ variable got   variable looks
   fuel units trip-fuel < if trip-fuel fuel buy-from-station drop
   120 wait drop then ;
 
-: sell-metals ( -- ) metals-a1 sell-all metals-a2 sell-all metals-a3 sell-all ;
+\ Sell at most 15 of each metal an hour: the more a batch holds, the less
+\ the Exchange pays. What is left after 6 hours goes on the next trip
+: portion ( metal -- )
+  dup units 15 min ?dup if swap sell-to-station drop else drop then ;
+variable rounds
+: sell-metals ( -- )
+  0 rounds !
+  begin metals 0> rounds @ 6 < and while
+    metals-a1 portion metals-a2 portion metals-a3 portion
+    60 wait drop 1 rounds +!
+  repeat ;
 
 : haul ( -- ) fuel-up mars go drop sell-metals fuel-up moon go drop 0 looks ! ;
 

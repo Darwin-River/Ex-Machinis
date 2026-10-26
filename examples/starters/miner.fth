@@ -23,9 +23,12 @@ variable site#   variable misses
 : market ( -- place ) site moon = if moon else mars then ;
 
 \ A low deposit: at the Moon, wait for it to refill; at Mars, try the other
-\ moon, and rest after both are mined out
+\ moon, and rest after both are mined out. Moving burns fuel: low on it,
+\ first buy some from the House at the Mars Exchange
 : move-on ( -- )
   site# @ 0= if 60 wait drop exit then
+  fuel units low-fuel < if
+    market go drop 30 fuel buy-from-station drop 120 wait drop then
   site# @ 3 xor site# !  1 misses +!
   misses @ 2 mod 0= if rest wait drop then
   site go drop ;
@@ -54,11 +57,11 @@ variable site#   variable misses
 
 : metals ( -- n ) metals-a1 units metals-a2 units + metals-a3 units + ;
 
-\ At the Moon, standing sell orders offer its metals to traders at 5 over
-\ the Depot's price (25, 35 and 45); orders stay open as the hold changes
+\ At the Moon, standing sell orders offer its metals to traders at 3 over
+\ the Depot's price (23, 33 and 43); orders stay open as the hold changes
 : offer ( -- )
-  25 0 metals-a1 sell-order drop  35 0 metals-a2 sell-order drop
-  45 0 metals-a3 sell-order drop ;
+  23 0 metals-a1 sell-order drop  33 0 metals-a2 sell-order drop
+  43 0 metals-a3 sell-order drop ;
 
 \ Sell the metals at the market, top up the tank from the House there (5 a
 \ unit, delivered when its batch clears), then go back to the site. At the
