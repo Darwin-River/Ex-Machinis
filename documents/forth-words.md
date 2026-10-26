@@ -64,8 +64,7 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 ## Patterns and pitfalls
 
 - **Sell every by-product.** Equipment takes 310 of a drone's 500 cargo. Anything you make and keep (Inorganics (A2) from vladnium, for one) piles up until there is no room to brew fuel, and the drone dies. Sell it all each round.
-- **Refuel wherever you wait.** A drone waiting weeks for a trade still burns fuel computing. Call `top-up` in the waiting loop, not only before trips.
-
+- **Refuel wherever you wait.** `wait` itself is free, but a drone that wakes every few hours to look for a trade burns fuel computing each time it looks, and over weeks that empties the tank. Call `top-up` in the waiting loop, not only before trips.
 - **Count attempts, not quiet time.** A wait that resets whenever something happens may never end. Count how many times you have looked instead.
 - **Every action costs fuel.** Mining 1, refining 2, making 2 to 4, travel 5. Computing costs too: 1 fuel per 100,000 instructions.
 - **Keep comment lines under 80 characters.** The drone reads at most 80 characters of a line, and a `\` comment longer than that leaks into your code.
