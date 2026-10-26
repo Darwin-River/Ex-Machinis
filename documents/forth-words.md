@@ -12,6 +12,7 @@ The game's built-in words (`mine`, `refine`, `make`, `units`, `deposit`, `sell-a
 | `polymers` | 2051 |
 | `rods` | 3011 |
 | `sheets` | 3001 |
+| `inorganics-a2` `organics-a2` | 2032, 2042: refining by-products; Earth and the Moon buy them |
 
 Define more the same way: `3311 constant pipes`. The Resources page lists every ID.
 
@@ -61,6 +62,9 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 - The pattern works for any chain: make each step, `if exit then` on failure, and loop while the inputs last.
 
 ## Patterns and pitfalls
+
+- **Sell every by-product.** Equipment takes 310 of a drone's 500 cargo. Anything you make and keep (Inorganics (A2) from vladnium, for one) piles up until there is no room to brew fuel, and the drone dies. Sell it all each round.
+- **Refuel wherever you wait.** A drone waiting weeks for a trade still burns fuel computing. Call `top-up` in the waiting loop, not only before trips.
 
 - **Count attempts, not quiet time.** A wait that resets whenever something happens may never end. Count how many times you have looked instead.
 - **Every action costs fuel.** Mining 1, refining 2, making 2 to 4, travel 5. Computing costs too: 1 fuel per 100,000 instructions.
