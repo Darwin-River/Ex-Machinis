@@ -11,6 +11,7 @@ Ranked by average gain: what a company made beyond its starter package (credits 
 
 | Design | File | Where | Avg gain | Gaining | Notes |
 |---|---|---|---|---|---|
+| Chemist | `examples/companies/chemist.fth` | Moon | +786 in 10.5 game days (about 75 a day) | 12 of 12 | Works the Moon's yalspar and vladnium, which nobody else mines; sells metals, polymers and inorganics to the Moon Depot. The best earner per day so far; 12 copies left the deposits nearly full. |
 | Miner (Moon copies) | `examples/starters/miner.fth` | Moon | about +2,600 by day 38 | all | Sells metals to traders through sell orders, the rest to the Moon Depot. Best of the starters, but Moon kunspar is limited (see lessons). |
 | Miner (Mars copies) | `examples/starters/miner.fth` | Phobos, Deimos | about +1,000 by day 38 | all | Needs the Mars Exchange's bigger budget. |
 | Refiner | `examples/starters/refiner.fth` | Moon, Phobos, Deimos | about +400 by day 38 | all | Idles once its tank is full: little upside. |
@@ -54,6 +55,21 @@ Levers not yet tried: House prices for parts and systems (lesson 9), deposit ref
 10. **Give every design an outlet.** The Refiner stops when its tank is full and waits. A design with nothing to do while it waits earns nothing.
 
 ## Round log
+
+### Round 1: Chemist (#380)
+
+A world of 108 starter companies (54 miners, 36 refiners, 18 traders); 12 Chemists released at game day 10.5, measured at day 21.1.
+
+| Design | Companies | Avg credits | Avg gain | Gaining | Ended |
+|---|---|---|---|---|---|
+| Chemist | 12 | 1,991 | +786 | 12 | 0 |
+| Miner | 54 | 2,328 | +1,168 | 54 | 0 |
+| Refiner | 36 | 1,471 | +431 | 36 | 0 |
+| Trader | 18 | 1,187 | 0 | 0 | 0 |
+
+- The House now buys polymers and inorganics as well as metals: 5 goods instead of 3.
+- The Moon's yalspar and vladnium deposits stayed at about 97% full: room for many more Chemists. Moon kunspar stayed mined out.
+- Drone-to-drone trade fell to almost nothing in the last 5 days: the traders had filled up and gone to Mars.
 
 ### Baseline (before #380)
 
