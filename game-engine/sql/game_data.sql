@@ -3581,6 +3581,7 @@ INSERT INTO `queries` (id, name, description, parameters, script) VALUES
   (203, 'Get spacecraft hull type', '[N R L 203 query]: Retuns the hull type of spacecraft N.', 1, 'SELECT hull_type FROM agents WHERE agent_id=[value_1];'),
   (204, 'Get cargo mass', '[N R L 204 query]: Returns the total cargo mass in kg of spacecraft N.', 1, 'SELECT IFNULL(SUM(i.units * r.mass), 0) FROM sqInventory AS i INNER JOIN resources AS r ON r.id = i.resource WHERE i.drone = [value_1];'),
   (205, 'Get my spacecraft ID', '[R L 205 query]: Returns the spacecraft ID of the requesting spacecraft.', 0, 'SELECT agent_id FROM agents WHERE agent_id = [drone_id];'),
+  (207, 'Game time now', '[R L 207 query]: The game time now: the game day (day 0 is the world''s first) and the minutes into it (0 to 1,439).', 0, 'SELECT FLOOR(([game_now] - epoch) / 86400) AS day, FLOOR(MOD([game_now] - epoch, 86400) / 60) AS minute FROM game_clock WHERE id = 1;'),
   (210, 'List spacecraft inventory', '[N R L 210 query]: Lists the resources and quantities in the cargo hold of spacecraft N.', 1, 'SELECT resource, units FROM sqInventory WHERE drone = [value_1] AND units > 0 ORDER BY units DESC;'),
   (212, 'Get resource quantity', '[N R L 212 query]: Returns how many units of resource N are in the requesting spacecraft''s cargo hold.', 1, 'SELECT IFNULL(MAX(units), 0) FROM sqInventory WHERE drone = [drone_id] AND resource = [value_1];'),
   (300, 'Get hull type name', '[N R L 300 query]: Returns the name of hull type N.', 1, 'SELECT name FROM hulls WHERE id=[value_1];'),

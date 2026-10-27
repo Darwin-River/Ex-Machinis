@@ -71,7 +71,8 @@ const char* vm_library_game_source =
     "  dup @ 3 pick = if 2 + 2@ drop nip nip exit then drop repeat 2drop 0 ;\n"
     ": sell-all ( resource -- ) dup units ?dup if swap sell-to-station drop else drop then ;\n"
     ": go ( place -- ior ) dup location = if drop 0 else travel then ;\n"
-    ": stdlib ( -- version ) 2 ;\n";
+    ": today ( -- day ) 207 ask drop answer @ ;\n"
+    ": stdlib ( -- version ) 3 ;\n";
 
 int vm_library_load(embed_t* vm)
 {

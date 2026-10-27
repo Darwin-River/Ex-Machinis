@@ -891,6 +891,14 @@ for st, rid, _, _, _, _ in STATION_GOODS:
 
 HERE_STATION = f"(SELECT id FROM stations WHERE object_id = {HERE_})"
 TODAY = "FLOOR(([game_now] - (SELECT epoch FROM game_clock WHERE id = 1)) / 86400)"
+# The game time now (#380): a drone couldn't tell what day it was, so it
+# couldn't plan a late selling trip or a deadline (a newcomer built a day
+# counter out of the tax query)
+queries.append((207, 'Game time now',
+                '[R L 207 query]: The game time now: the game day (day 0 is the world\'s first) and the minutes into '
+                'it (0 to 1,439).', 0,
+                "SELECT FLOOR(([game_now] - epoch) / 86400) AS day, FLOOR(MOD([game_now] - epoch, 86400) / 60) AS minute "
+                "FROM game_clock WHERE id = 1;"))
 queries.append((630, 'Station trades here',
                 '[R L 630 query]: What the House station where the drone is trades now: resource, side (1: it buys, '
                 '2: it sells), price (2 cells; buying: for an empty batch, halving per daily units), daily units, '

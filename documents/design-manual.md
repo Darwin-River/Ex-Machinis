@@ -320,8 +320,8 @@ Also: `db_reconnect` checks the connection at most every 5 seconds instead of be
 
 * **Constants** for places (`earth` 3, `moon` 10, `mars` 4) and resources (`fuel`, `magmite`, `kunspar`, `yalspar`, `vladnium`, `wolfite`, `metals-a1` to `metals-a3`, `inorganics-a1`, `organics-a1`).
 * **Actions**, each leaving `perform`'s result: `unpack`, `travel ( place )`, `mine ( mineral )` (protocol mineral + 10000), `refine ( mineral )` (+ 20000), `make ( resource )` (+ 10000), `wait ( minutes )`, `sell-to-station ( n resource )` (31), `buy-from-station ( n resource )` (32), `sell-order ( price keep resource )` (7), `buy-order ( price want resource )` (8), `push ( n resource drone )` (10), `pull ( n resource drone )` (11), `launch ( drone kit )` (12), `plunder ( wreck )` (34), `jettison ( n resource )` (1: Dump resource, which takes a quantity since #380, n units for 1 fuel, like push and pull; it is not called `dump` because eForth's `dump` prints memory).
-* **Queries**, through a 120-byte buffer `answer`: `ask ( [n] id -- rows )`, `me` (205), `location` (202), `units ( resource -- n )` (212), `company` (201), `credits ( -- d )` (101), `deposit ( mineral -- n )` (640: units left here, 0 if none), and `sell-all ( resource -- )`, which offers all of it to the station here.
-* `stdlib` leaves the library's version, 2.
+* **Queries**, through a 120-byte buffer `answer`: `ask ( [n] id -- rows )`, `me` (205), `location` (202), `units ( resource -- n )` (212), `company` (201), `credits ( -- d )` (101), `deposit ( mineral -- n )` (640: units left here, 0 if none), `today ( -- day )` (207: the game day now, #380), and `sell-all ( resource -- )`, which offers all of it to the station here.
+* `stdlib` leaves the library's version, 3 (2 before `today`; a drone keeps the library it was released with).
 
 Three **starter scripts** in `examples/starters/` (miner, refiner, trader; the Release page offers them with `?starter=name`, `Release::STARTERS`) use these words, each with comments that explain it:
 
@@ -1394,6 +1394,7 @@ This appendix lists the in-game queries loaded into the game, organized by the d
 | Spacecraft | 203 | Get spacecraft hull type | [N R L 203 query]: Retuns the hull type of spacecraft N. | 1 | `SELECT hull_type FROM agents WHERE agent_id=[value_1];` |
 | Spacecraft | 204 | Get cargo mass | [N R L 204 query]: Returns the total cargo mass in kg of spacecraft N. | 1 | `SELECT IFNULL(SUM(i.units * r.mass), 0) FROM sqInventory AS i INNER JOIN resources AS r ON r.id = i.resource WHERE i.drone = [value_1];` |
 | Spacecraft | 205 | Get my spacecraft ID | [R L 205 query]: Returns the spacecraft ID of the requesting spacecraft. | 0 | `SELECT agent_id FROM agents WHERE agent_id = [drone_id];` |
+| Spacecraft | 207 | Game time now | [R L 207 query]: The game time now: the game day (day 0 is the world's first) and the minutes into it (0 to 1,439). | 0 | `SELECT FLOOR(([game_now] - epoch) / 86400) AS day, FLOOR(MOD([game_now] - epoch, 86400) / 60) AS minute FROM game_clock WHERE id = 1;` |
 | Spacecraft | 210 | List spacecraft inventory | [N R L 210 query]: Lists the resources and quantities in the cargo hold of spacecraft N. | 1 | `SELECT resource, units FROM sqInventory WHERE drone = [value_1] AND units > 0 ORDER BY units DESC;` |
 | Spacecraft | 212 | Get resource quantity | [N R L 212 query]: Returns how many units of resource N are in the requesting spacecraft's cargo hold. | 1 | `SELECT IFNULL(MAX(units), 0) FROM sqInventory WHERE drone = [drone_id] AND resource = [value_1];` |
 | Hulls | 300 | Get hull type name | [N R L 300 query]: Returns the name of hull type N. | 1 | `SELECT name FROM hulls WHERE id=[value_1];` |
