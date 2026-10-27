@@ -33,6 +33,13 @@ for (const file of process.argv.slice(3)) {
             console.log(`${file}:${i + 1}: ${out.trim() || r}`);
             failed++;
         }
+        // Redefining a word the drone already knows (report, load, hold...)
+        // replaces it for everything compiled after: almost always a mistake
+        const redefined = out.match(/(\S+) redefined/);
+        if (redefined) {
+            console.log(`${file}:${i + 1}: ${redefined[1]}: the drone (or your script) already has a word of that name; pick another`);
+            failed++;
+        }
     });
     // It must define launched
     if (m.machine_eval(put("' launched drop\n")) < 0 || /\?/.test(str(m.machine_output()))) {

@@ -61,6 +61,46 @@ class Release
     /** Fuel (A1), which actions and computing burn (#324 step 8) */
     public const FUEL = 2061;
 
+    /**
+     * The words a script defines that a drone already knows (#380): the
+     * game words, report, and eForth's own (resources/drone-words.txt, kept
+     * in step with the VM by make -C game-engine/machine test). A script may
+     * redefine them, but it is almost always a mistake: three newcomers'
+     * scripts named a word report, which silenced their drones.
+     */
+    public static function redefinedWords(string $script): array
+    {
+        static $known = null;
+        if ($known === null) {
+            $path = base_path('resources/drone-words.txt');
+            $known = is_readable($path) ? array_flip(preg_split('/\s+/', trim(file_get_contents($path)))) : [];
+        }
+        // Comments out: \ to the end of the line, ( ... ) inside it
+        $text = preg_replace(['/(^|\s)\\\\(\s[^\n]*)?$/m', '/(^|\s)\(\s[^)]*\)/'], ' ', $script);
+        $tokens = preg_split('/\s+/', trim($text));
+        $found = [];
+        foreach ($tokens as $i => $token) {
+            if (in_array(strtolower($token), [':', 'variable', 'constant', 'create', '2variable', '2constant'], true)
+                && isset($tokens[$i + 1]) && isset($known[$tokens[$i + 1]])) {
+                $found[$tokens[$i + 1]] = true;
+            }
+        }
+        return array_keys($found);
+    }
+
+    /** The warning to show for a script that redefines known words, or null */
+    public static function redefinedWarning(string $script): ?string
+    {
+        $words = self::redefinedWords($script);
+        if (!$words) {
+            return null;
+        }
+        return 'Your script redefines ' . implode(', ', $words) . ': ' . (count($words) > 1 ? 'words' : 'a word')
+            . ' your drone already knows. Words written after it use yours instead'
+            . (in_array('report', $words, true) ? ' (report is how a looping drone sends you what it printed)' : '')
+            . '. If you didn\'t mean to, rename yours.';
+    }
+
     /** A script must define the word launched (case matters) */
     public static function definesLaunched(string $script): bool
     {

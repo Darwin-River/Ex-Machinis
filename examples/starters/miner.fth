@@ -13,10 +13,14 @@
 240 constant rest        \ game minutes to rest when both Mars moons are dry
 16 constant hold-cap     \ at the Moon, metals it keeps on offer to traders
 
-\ The site it works: 0 the Moon, 1 Phobos, 2 Deimos. A third of the copies
-\ (by drone number) work the Moon; the rest make the long trip to Mars (about
-\ 10 game days) once, then work Phobos and Deimos, which are close together.
+\ The site it works: 0 the Moon, 1 Phobos, 2 Deimos. The drone you release
+\ works the Moon. A third of its copies (by drone number) work the Moon too;
+\ the rest make the long trip to Mars (about 10 game days) once, then work
+\ Phobos and Deimos, which are close together.
 variable site#   variable misses
+\ 0 in the drone you release, which works the Moon so it earns from the
+\ start; it is 1 by the time it launches a copy, so copies spread out
+variable copy
 : site ( -- place )
   site# @ dup 0= if drop moon exit then 1 = if phobos else deimos then ;
 \ Where it sells: the Moon Depot at the Moon, else the Mars Exchange
@@ -124,5 +128,6 @@ variable tells
   kunspar 20 dig kunspar refine drop sell-metals tell ;
 
 : launched ( -- )
-  await-kit unpack drop me 3 mod site# ! site go drop
+  await-kit unpack drop
+  copy @ if me 3 mod else 0 then site# !  1 copy !  site go drop
   site# @ 0= if offer then begin work again ;

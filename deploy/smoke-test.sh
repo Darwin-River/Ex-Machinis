@@ -139,8 +139,8 @@ sql "insert into companies (user_id, name, credits) values ($PLAYER_ID, 'Sister 
 SISTER_CO=$(sql "select max(company_id) from companies where user_id=$PLAYER_ID")
 sql "insert into agents (user_id, company_id, name, object_id, hull_type) values ($PLAYER_ID, $SISTER_CO, 'sister1', 10, 1)"
 SISTER=$(sql "select agent_id from agents where name='sister1'")
-sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_credits)
-     values (5, 0, 1, 1, $SISTER, 1100, 0, 0, 50, 1)"
+sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_credits, game_t)
+     select 5, 0, 1, 1, $SISTER, 1100, 0, 0, 50, 1, IFNULL(MAX(game_t), 0) + 1 from events where drone = $SISTER"
 run $DRONE_ID "sell to my other company" "1 1100 $SISTER 10 perform . cr"
 sister_bought() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$SISTER and resource=1100")" = 1 ]; }
 wait_for 90 "a sale to the player's other company goes through" sister_bought
@@ -157,8 +157,8 @@ wait_for 60 "drone finished the refining script" idle
 # days), then launch a drone with a copy of its own program. The copy is
 # taken while this script is paused in perform: the new drone starts at the
 # prompt and runs its launched word.
-sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo)
-     values (1, 0, 1, 1, $DRONE_ID, 6001, 0, 0, 1, 224)"
+sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
+     select 1, 0, 1, 1, $DRONE_ID, 6001, 0, 0, 1, 224, IFNULL(MAX(game_t), 0) + 1 from events where drone = $DRONE_ID"
 wait_for 10 "drone got a ship kit" has 6001
 run $DRONE_ID "launch" "  : launched .\" launched-word-ran\" cr ;
   $DRONE_ID 6001 12 perform . cr"
@@ -185,8 +185,8 @@ clone_fuel() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where dro
 wait_for 30 "the clone got fuel from its launcher" clone_fuel
 # Give it more fuel for the rounds below,
 # as its owner would by pushing some over (#324 step 8)
-sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo)
-     values (1, 0, 1, 1, $NEW_ID, 2061, 0, 0, 200, 200)"
+sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
+     select 1, 0, 1, 1, $NEW_ID, 2061, 0, 0, 200, 200, IFNULL(MAX(game_t), 0) + 1 from events where drone = $NEW_ID"
 wait_for 60 "launched drone's launched word returned normally" sh -c "docker compose logs game-engine | grep -q 'Drone \[$NEW_ID\] finished its launched word'"
 [ "$(sql "select release_vm is not null from agents where agent_id=$NEW_ID")" = 1 ] || fail "no clean copy saved at launch"
 echo "ok: clean copy saved at launch"
@@ -327,8 +327,11 @@ release "Dry Forge" ": launched  begin 0 until ;"
 DRY=$(company_drone "Dry Forge")
 [ -n "$DRY" ] || fail "release did not create the dry drone"
 KIT=$(sql "select mass from resources where id=5901")
-sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo)
-     values (2, 0, 1, 1, $DRY, 2061, 0, 0, 1, $KIT + 1)"
+# (Stamped after the drone's latest event: the engines read a drone's stock
+# from its latest event in game time, so an event without one is ignored,
+# and the plunder below once failed on fuel the engine said wasn't there)
+sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
+     select 2, 0, 1, 1, $DRY, 2061, 0, 0, 1, $KIT + 1, IFNULL(MAX(game_t), 0) + 1 from events where drone = $DRY"
 dry() { [ "$(sql "select wreck_cause from agents where agent_id=$DRY")" = fuel ]; }
 wait_for 120 "a drone that runs out of fuel becomes a wreck" dry
 # A company ends when its last drone dies (#324 step 13): its credits vanish
@@ -339,8 +342,8 @@ echo "ok: a company whose last drone died has ended"
 # owns it (#367 step 1). Put the wreck on the Moon, where the first drone is,
 # with 10 kunspar aboard; the plunderer gets half and the wreck is left empty
 sql "update agents set object_id = 10 where agent_id = $DRY"
-sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo)
-     values (1, 0, 1, 1, $DRY, 1100, 0, 0, 10, $KIT + 10)"
+sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
+     select 1, 0, 1, 1, $DRY, 1100, 0, 0, 10, $KIT + 10, IFNULL(MAX(game_t), 0) + 1 from events where drone = $DRY"
 KUNSPAR=$(kunspar)
 run $DRONE_ID "plunder" "$DRY 34 perform ."
 plundered() { [ "$(sql "select IFNULL(plundered_by, 0) from agents where agent_id=$DRY")" = "$DRONE_ID" ] &&
