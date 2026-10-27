@@ -62,9 +62,11 @@ Levers not yet tried: House prices for parts and systems (lesson 9), deposit ref
 10. **Every product needs a buyer, or holds clog.** A drone's installed equipment takes 310 of its 500 cargo, leaving about 190. Refining vladnium leaves Inorganics (A2), which nobody bought, so it piled up until there was no room to brew fuel, and the drone died. Round 3 lost every Smith this way, and the Chemists were close behind. Sell every by-product, and have the House buy them.
 11. **Waiting drones still burn fuel.** A trader shopping for weeks on the Moon ran its tank dry through computing alone: 16 of 18 died. Top up fuel wherever you wait.
 12. **A deposit supports a fixed number of drones.** The Moon's yalspar refills 400 units a game day; a Chemist uses about 16 units every 13 game hours, so about 14 Chemists use it all. Beyond that, more drones add nothing.
-13. **Small markets crash when everyone sells at once.** The Earth Exchange wants about 50 rods a day; round 5's Smiths sold 144 in one batch and got about 33 a rod, not 60. Size each sale to the market's daily units.
-14. **House-price arbitrage is thin.** The Mars Exchange pays half as much again as the Moon, but after the miners' markup, batch price drops and a 20-day round trip, a trader clears about 5 a unit. Arbitrage needs a bigger gap or a shorter trip.
-15. **Give every design an outlet.** The Refiner stops when its tank is full and waits. A design with nothing to do while it waits earns nothing.
+13. **The engines set a ceiling too.** Past about 200 drones on one machine, the clock floor slows game time and every drone does less per game day. Watch the clock's lag before adding drones.
+14. **Small markets crash when everyone sells at once.** The Earth Exchange wants about 50 rods a day; round 5's Smiths sold 144 in one batch and got about 33 a rod, not 60. Size each sale to the market's daily units.
+15. **House-price arbitrage is thin.** The Mars Exchange pays half as much again as the Moon, but after the miners' markup, batch price drops and a 20-day round trip, a trader clears about 5 a unit. Arbitrage needs a bigger gap or a shorter trip.
+16. **Don't name your constants after FORTH words.** Smith v3's `load` constant shadowed the standard `load` (the drone printed "load redefined"). Pick names like `rod-load`.
+17. **Give every design an outlet.** The Refiner stops when its tank is full and waits. A design with nothing to do while it waits earns nothing.
 
 ## Round log
 
@@ -159,6 +161,27 @@ A world of 108 starter companies (54 miners, 36 refiners, 18 traders); 12 Chemis
 - Smiths reached Earth, but sold 144 rods in one batch at about 33 each: the Exchange wants about 50 a day. Smith v3 (round 6) sells 4 an hour.
 - Trader v2: 7 at Mars selling, 5 on the Moon holding 30 metals with 9 credits. They sold 150 metals at about 36 after buying at about 31.
 - No company has died since round 3.
+
+### Round 6: Smith v3 (#380)
+
+12 Smith v3 (rods sold 4 an hour) released at game day 80.5, measured at day 96.6. The container restarted part way: the engines were down a few real minutes while the game clock ran on.
+
+| Design | Companies | Avg credits | Avg gain | Gaining | Ended |
+|---|---|---|---|---|---|
+| Chemist (v1) | 36 | 3,733 | +2,791 | 36 | 0 |
+| Chemist v2 | 12 | 2,598 | +1,374 | 12 | 0 |
+| Chemist v3 | 12 | 2,044 | +746 | 12 | 0 |
+| Smith v2 | 12 | 1,822 | +1,024 | 12 | 0 |
+| Smith v3 | 12 | 1,076 | 0 | 0 | 0 |
+| Trader v2 | 12 | 368 | 0 | 0 | 0 |
+| Miner | 54 | 5,138 | +3,963 | 54 | 0 |
+| Refiner | 36 | 1,755 | +808 | 36 | 0 |
+
+- Smith v3 is inconclusive: released just before the restart, it had made only one round of rods by day 96.6.
+- Chemist v3 gained about 32 a game day this round, Smith v2 about 29.
+- The engines are at capacity with about 200 drones on this machine: the clock floated down to 450 game seconds a second (from 600), with about 45 real seconds of lag. Each drone then does less per game day.
+- House purchases in the last 5 days fell (Metals (A2) 165 units, from 441 in round 5) while every deposit stayed full: output is now limited by the engines, not by minerals.
+- **Round 7 (a lever):** House prices for parts and systems up 50% (rods 60 to 90, sheets 90, fasteners 75, pipes 105, systems 450).
 
 ### Baseline (before #380)
 

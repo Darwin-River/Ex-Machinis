@@ -11,7 +11,7 @@
 
 2051 constant polymers   2021 constant alloys-a1   3011 constant rods
 2032 constant inorganics-a2
-12 constant load         \ rods it hauls to Earth (4 cargo each)
+12 constant rod-load     \ rods it hauls to Earth (4 cargo each)
 40 constant low-fuel     \ brew fuel below this
 30 constant trip-fuel    \ fuel it buys at Earth
 
@@ -49,6 +49,6 @@
   harvest
   fuel units low-fuel < if fuel make drop else polymers make drop then
   forge-rods sell-goods
-  rods units load < 0= if haul then ;
+  rods units rod-load < 0= if haul then ;
 
 : launched ( -- ) unpack drop moon go drop begin work again ;
