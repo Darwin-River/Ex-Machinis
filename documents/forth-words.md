@@ -68,6 +68,15 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 
 - The pattern works for any chain: make each step, `if exit then` on failure, and loop while the inputs last.
 
+**`build ( -- )`** (Machinist): one gear box from 8 Metals (A1) and 2 Metals (A2): three Alloys (A1), two Alloys (A2), then a rod, a gear and a spring, then the gear box (it needs the starter kit's Spider). Nine actions and about 23 fuel. Used by: Machinist.
+
+- Check every input before the first step (`metals-a1 units 8 < ... if exit then`), so a half-built chain doesn't strand alloys in the hold.
+- A long chain needs a bigger fuel margin: start brewing at 60, not 40.
+
+## Buying from other drones, with a cash floor
+
+**`buy ( n metal price -- )`** (Machinist): like `buy-cheap`, but it buys nothing while the company has less than `cash-floor` credits, so it never spends the money it needs for fuel. Used by: Machinist, Smith v4 (as `buy-metals`).
+
 ## Patterns and pitfalls
 
 - **Sell every by-product.** Equipment takes 310 of a drone's 500 cargo. Anything you make and keep (Inorganics (A2) from vladnium, for one) piles up until there is no room to brew fuel, and the drone dies. Sell it all each round.
