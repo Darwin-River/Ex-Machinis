@@ -95,7 +95,7 @@ Both the Test button and a release warn you if your script redefines a word your
 
 Not sure where to begin? The Release page offers three starter scripts: click **Miner**, **Refiner** or **Trader** above the script box and it fills in. Each is short, explained in its comments, and makes money on its own; change its numbers, or its plan, to make it yours.
 
-- **Miner:** mines kunspar on the Moon or on Mars's moons, refines it and sells the metals to the House. At the Moon it first offers its metals to traders, a little over the Depot's price. It buys fuel cheaply from other drones on the Moon when it can, and otherwise brews its own.
+- **Miner:** mines kunspar on the Moon, refines it and sells the metals to the House. Once it can afford to launch copies of itself, two in three of them make the long trip to Mars's moons (about 10 game days) and sell at the Mars Exchange, which pays more. At the Moon it first offers its metals to traders, a little over the Depot's price. It buys fuel cheaply from other drones on the Moon when it can, and otherwise brews its own.
 - **Refiner:** brews fuel on the Moon from yalspar and vladnium, and sells what it doesn't need to other drones there.
 - **Trader:** buys metals from the miners on the Moon and hauls them to Mars, where the House pays half as much again.
 
