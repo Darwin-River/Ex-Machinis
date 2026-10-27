@@ -1,4 +1,7 @@
-\ Smith: a company design for Public Forge (economy rounds 2, 4, 6 and 9).
+\ Smith: a company design for Public Forge (economy rounds 2, 4, 6, 9, 12).
+\ Copies spread out: a third work the Moon and sell rods at Earth; the rest
+\ work Phobos and Deimos and sell rods (and by-products) at the Mars
+\ Exchange, a short hop away. Below, "Earth" means the rod market.
 \ It works the Moon's yalspar and vladnium like the Chemist, but turns its
 \ Metals (A1) into rods (2 metals make an alloy, an alloy makes a rod):
 \ two metals the Moon Depot pays 40 for become a rod the Earth Exchange
@@ -18,6 +21,12 @@
 23 constant metal-price  \ most it pays other drones for a Metals (A1)
 200 constant cash-floor  \ credits it keeps (for fuel at Earth)
 30 constant trip-fuel    \ fuel it buys at Earth
+
+\ The site: 0 the Moon, 1 Phobos, 2 Deimos (by drone number); its markets
+variable site#
+: site ( -- place )
+  site# @ dup 0= if drop moon exit then 1 = if phobos else deimos then ;
+: rod-market ( -- place ) site moon = if earth else mars then ;
 
 : dig ( mineral n -- )
   begin over units over < while
@@ -44,6 +53,7 @@
   repeat ;
 
 : sell-goods ( -- )
+  site moon = 0= if exit then   \ Mars-side copies sell them on the haul
   polymers sell-all metals-a2 sell-all
   inorganics-a1 sell-all inorganics-a2 sell-all ;
 
@@ -53,10 +63,16 @@
     rods units 4 min rods sell-to-station drop 60 wait drop 1-
   repeat drop ;
 
+\ Fuel first: every action at the market burns a unit
 : haul ( -- )
-  earth go drop sell-rods
+  rod-market go drop
   fuel units 60 < if trip-fuel fuel buy-from-station drop 120 wait drop then
-  moon go drop ;
+  sell-rods
+  site moon = 0= if
+    polymers sell-all metals-a2 sell-all
+    inorganics-a1 sell-all inorganics-a2 sell-all
+  then
+  site go drop ;
 
 : work ( -- )
   harvest
@@ -64,4 +80,5 @@
   buy-metals forge-rods sell-goods
   rods units rod-load < 0= if haul then ;
 
-: launched ( -- ) unpack drop moon go drop begin work again ;
+: launched ( -- )
+  unpack drop me 3 mod site# ! site go drop begin work again ;
