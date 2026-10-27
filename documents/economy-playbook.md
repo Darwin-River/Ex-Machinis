@@ -115,6 +115,11 @@ From round 21, four naive agents join each round as new players would: they get 
 | 22 | Gus (logistics) | Gear boxes from bought metals; still in the hold at the end | 6 | 6 | 7 | 5 | 7 | 5 | 6 |
 | 22 | Hana (competitive) | Ranked the ores, mined wolfite; 2 companies, +1,745 avg | 6 | 6 | 7 | 4 | 6 | 6 | 6 |
 | 22 | **Average** | | 5.8 | 6.3 | 6.8 | 4.8 | 6.0 | 6.0 | 6.0 |
+| 23 | Ivy (manufacturer) | Gear boxes from wolfite, +3,995 avg; her motor company ran dry with 2 motors aboard | 7 | 7 | 6 | 8 | 6 | 7 | 7 |
+| 23 | Jon (quant) | Planned from live data; alloys from uncontested wolfite, +4,457 avg | 6 | 6 | 5 | 8 | 6 | 7 | 6.5 |
+| 23 | Kai (empire) | A queen buys hulls, workers make alloys; 2 clones | 7 | 6 | 6 | 7 | 6 | 7 | 7 |
+| 23 | Lea (casual competitor) | Rods and fasteners, +7,541 avg: the best newcomer yet | 7 | 6 | 6 | 8 | 7 | 7 | 7 |
+| 23 | **Average** | | 6.8 | 6.3 | 5.8 | 7.8 | 6.3 | 7.0 | 6.9 |
 
 **Round 21 findings, and what changed:**
 - *They couldn't see their drones.* A drone's output arrives when its script ends, and `launched` never ends. The engine has a `report` word that sends it at once, but the manual never mentioned it (three of the four even redefined it). Now the manual documents it and the starters call it every 8th round.
@@ -130,7 +135,9 @@ From round 21, four naive agents join each round as new players would: they get 
 - *They wanted to try analysis words on real data*: the Machine page can now run queries on the live world as a chosen drone.
 - *Still open:* contracts and events with deadlines (seven of eight asked), reachable growth, leaderboards by category, and visible rivals.
 
-**What they liked best** (both rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
+**Round 23 findings:** with made goods priced from their recipes, every newcomer made things, and the overall rating rose to 6.9. Debugging rose to 7.8: the drone page's activity, the post-mortems and the live Machine (Jon rated it 9: "I made a real decision from live data before risking a credit"). Fixed during the round: `fill-to` waited for its target rather than the delivery and idled six game hours a refuel; a drone with an empty tank docked at a station couldn't order fuel (ordering is now free); the live Machine's `perform` left its arguments on the stack; the test world had filled up with old test runs and never started new ones (it now prunes them, and its clock slows when it lags). Still open, asked by most: the world doesn't push back (prices and demand that move with what players sell, events, contracts), visible rivals and rank, reachable growth (Kai's first clone took two game weeks), and a few script updates for a released drone.
+
+**What they liked best** (all three rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
 ## Round log
 
@@ -477,6 +484,23 @@ The same world, measured at game day 89.7, with 217 working drones. The clock fe
 - **Newcomers:** Eve +1,864 and Hana +1,745 a company, both mining wolfite, which no starter touched; Finn +627 with a Miner kept at the Moon; Gus's gear boxes were still in the hold when the round ended. Cleo, from round 21, reached +2,602.
 - **Five Miner clones died** at Mars's moons: about 35 Miners crowded them, the kunspar ran out, and they spent their last fuel flying between Phobos and Deimos. The starters now rest instead of flying when short of fuel.
 - **Wolfite was the best ore**, about 17 credits a game hour, and the newcomers found it in their first hour; the starters mine kunspar.
+
+### Round 23: made goods pay (#380)
+
+A fresh world (the round 20 mix: 36 Miners, 12 Refiners, 36 Chemists, 9 Smiths, 6 Machinists) with made goods priced from their recipes, and four newcomers. Measured at game day 38; the clock stayed at 600 with 122 working drones.
+
+| Design | Round 20, day 58 | Round 23, day 38 | Clones |
+|---|---|---|---|
+| Machinist | +3,010 (3 of 6 alive) | **+10,703** (6 of 6) | 4 |
+| Smith | +5,550 | +6,076 | 7 |
+| Chemist | +5,321 | +4,601 | 3 |
+| Miner | +4,867 | +1,953 | 0 |
+| Refiner | +1,751 | +928 | 0 |
+
+- **Making things now pays most:** the Machinist, the weakest design for twenty rounds, earned the most, in two thirds of the time. The House spent 77,844 on rods, 62,784 on gear boxes and 35,085 on polymers, more than on any raw metal.
+- **Newcomers chose to make things, and did best when they did:** Lea's rods and fasteners +7,541 a company, Jon's alloys +4,457, Ivy's gear boxes +3,995; Kai's company launched 2 clones.
+- **Raw producers fell behind:** Miners +1,953 and Refiners +928 by day 38, and no Miner clones yet. Watch whether they recover, or need a market of their own (makers buying their metals).
+- Two newcomer drones died of fuel (both fixed since: `fill-to`, free station orders).
 
 ### Baseline (before #380)
 
