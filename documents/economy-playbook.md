@@ -261,6 +261,25 @@ A new world with the game data so far plus parts prices up 50%: 36 Miners, 12 Re
 - Two Machinists died at Earth: they left the Moon nearly out of fuel, and at Earth every offer and even the fuel order failed for lack of the 1 fuel each action burns. Machinist v2 (round 11) brews before leaving if below 30, and buys fuel first on arrival.
 - Drone-to-drone trade grew: Smith v4 and Machinists bought 186 metals from miners in 122 trades; refiners sold 1,140 fuel to miners.
 
+### Round 11: Machinist v2 (#380)
+
+6 Machinist v2 released at game day 57.4, measured at day 72.3.
+
+| Design | Companies | Avg credits | Avg gain | Gaining | Ended |
+|---|---|---|---|---|---|
+| Smith v3 | 6 | 5,160 | +4,826 | 6 | 0 |
+| Chemist v3 | 36 | 6,038 | +4,812 | 36 | 0 |
+| Miner | 36 | 5,710 | +4,618 | 36 | 0 |
+| Smith v4 | 6 | 3,816 | +3,340 | 6 | 0 |
+| Refiner | 12 | 2,289 | +1,362 | 12 | 0 |
+| Machinist v2 | 6 | 950 | +387 | 6 | 0 |
+| Machinist (v1) | 6 | 697 | +583 | 2 | 4 |
+
+- No Machinist v2 died; none had made its first Earth trip yet. It gains about 26 a game day so far: the gear box chain burns a lot of fuel. Not yet a seed design.
+- Two more version 1 Machinists died at Earth the same way.
+- Rods: 525 sold at about 79. The Smith is the steadiest new design.
+- **Round 12:** Smith v5 spreads over the Moon, Phobos and Deimos; the Mars-side copies sell rods at the Mars Exchange (a short hop) instead of Earth.
+
 ### Baseline (before #380)
 
 From the four 300-company runs in #378, each with miners, refiners and traders in equal numbers:
