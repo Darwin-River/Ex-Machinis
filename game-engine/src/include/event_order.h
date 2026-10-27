@@ -7,7 +7,9 @@
  * the increment never runs, so the equipment is lost. Round 20 lost every
  * Machinist's Spider that way: the fuel burn sat between the two halves.
  *
- * So, at each game time: fuel burns first, then each equipment check with its
+ * So, at each game time: the action's fuel cost first (not fuel a transfer
+ * moves: a pull of fuel processed its transfer, which runs both halves at
+ * once, before the cost, which then undid it), then each equipment check with its
  * two halves together, then the other decrements, then everything else. Ties
  * keep the order the effects were worked out in.
  */
@@ -23,6 +25,7 @@ typedef struct
     int installed;
     int locked;
     int quantity;      // the change (negative for a decrement)
+    int burn;          // 1 for the action's own fuel cost
 } EventKey_t;
 
 // Fills order[0..n-1] with the indices of keys in the order to insert them

@@ -609,6 +609,7 @@ typedef struct
 	time_t timestamp;   // real time (for the website)
 	long long game_t;   // game time (game seconds): what the engines compare
   int delay; // The delay imposed on the event by the resource effects table.
+  unsigned char burn; // the action's own fuel cost (#380): ordered first at its time
 
 } Event_t;
 
