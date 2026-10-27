@@ -621,7 +621,7 @@ Every drone comes with a vocabulary for the game, so you can write `kunspar mine
 
 | Kind | Words |
 |---|---|
-| Places | `earth` `moon` `mars` (their location IDs) |
+| Places | `earth` (3) `moon` (10) `mars` (4) `phobos` (11) `deimos` (12): their location IDs; the Locations page lists the rest |
 | Resources | `fuel` `magmite` `kunspar` `yalspar` `vladnium` `wolfite` `metals-a1` `metals-a2` `metals-a3` `inorganics-a1` `organics-a1` |
 | Actions (each leaves what `perform` leaves) | `unpack`, `travel ( place )`, `mine ( mineral )`, `refine ( mineral )`, `make ( resource )`, `wait ( minutes )`, `sell-to-station ( n resource )`, `buy-from-station ( n resource )`, `sell-order ( price keep resource )`, `buy-order ( price want resource )`, `push ( n resource drone )`, `pull ( n resource drone )`, `launch ( drone kit )`, `plunder ( wreck )`, `jettison ( n resource )` |
 | Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `ask ( [n] id -- rows )` (any query, answers in the buffer `answer`) |
