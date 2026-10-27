@@ -21,7 +21,11 @@ variable site#
 \ Mine until n units of a mineral are aboard; wait while its deposit refills
 : dig ( mineral n -- )
   begin over units over < while
-    over deposit 5 < if 60 wait drop else over mine drop then
+    over deposit 5 < if 60 wait drop else
+      \ A run that brings nothing (others took it first) still burns fuel:
+      \ wait as if the deposit were dry
+      over units >r  over mine drop  over units r> = if 60 wait drop then
+    then
   repeat 2drop ;
 
 \ One round: 16 yalspar and 12 vladnium give 3 Metals (A1), 1 Metals (A2),

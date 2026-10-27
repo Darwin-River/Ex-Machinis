@@ -19,7 +19,11 @@
 
 : dig ( mineral n -- )
   begin over units over < while
-    over deposit 5 < if 60 wait drop else over mine drop then
+    over deposit 5 < if 60 wait drop else
+      \ A run that brings nothing (others took it first) still burns fuel:
+      \ wait as if the deposit were dry
+      over units >r  over mine drop  over units r> = if 60 wait drop then
+    then
   repeat 2drop ;
 
 \ Buy up to n of a metal from the cheapest seller here at price or less

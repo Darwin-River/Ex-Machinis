@@ -11,6 +11,8 @@ Ranked by average gain: what a company made beyond its starter package (credits 
 
 | Design | File | Where | Avg gain (round 8, fresh world) | Gaining | Notes |
 |---|---|---|---|---|---|
+| Smith v5 | `examples/companies/smith.fth` | Moon, Phobos, Deimos | about 105 a game day (round 16) | 9 of 9 | Spreads like the Chemist; Mars-side copies sell rods at the Mars Exchange, a short hop. The best earner per day. |
+| Machinist v3 | `examples/companies/machinist.fth` | Moon, Earth | about 84 a game day (round 16) | 6 of 6 | Gear boxes (450) from metals bought from miners; brews until its tank is full. |
 | Smith v3 | `examples/companies/smith.fth` | Moon, Earth | +1,513 by day 19 (about 80 a day) | 6 of 6 | Mines yalspar and vladnium, turns its metals into rods and sells them at the Earth Exchange 4 an hour. Needs rods at 90 (parts lever) and an Earth budget to match. |
 | Miner (Moon copies) | `examples/starters/miner.fth` | Moon | +2,496 by day 19 | all | Kunspar to metals; offers them to other drones, the rest to the Moon Depot. Moon kunspar supports about 12. |
 | Chemist v3 (Moon copies) | `examples/companies/chemist.fth` | Moon | +1,771 by day 19 | all | Yalspar and vladnium to metals, polymers and inorganics. Moon yalspar supports about 14 (Smiths share it). |
@@ -83,7 +85,8 @@ Levers not yet tried: House prices for parts and systems (lesson 9), deposit ref
 18. **Brew enough fuel for the whole cycle.** A brew makes 30 fuel but spends about 15 doing it, so it nets about 15. A Machinist's gear box burns about 40. Brewing once a cycle left it short every time, until it couldn't afford a brew and died. Brew until the tank is back above your threshold, and buy fuel when it is too low to brew.
 19. **An aging world slows down unless its database keeps up.** Several queries read every event ever recorded, so each turn got slower as the world aged (136 ms for "how many units do I hold", 630 ms for the order book at day 90). Migration 0020 indexes them. Watch the clock's lag on a live server as it ages.
 20. **Profile before blaming load.** The engines looked overloaded, but were idle 99% of the time: their fixed pauses between turns were the lag. And the game engine was leaking about 7 MB a minute (1.9 GB after 3 hours), which a live server would have hit within a day. Check CPU, query times and memory before adding hardware.
-21. **Give every design an outlet.** The Refiner stops when its tank is full and waits. A design with nothing to do while it waits earns nothing.
+21. **An empty mining run still costs fuel.** A deposit can report enough and still yield nothing when other drones take it first. A mining loop that only checks the deposit before each run can burn a whole tank on empty runs (a Refiner died that way in round 16). Compare what you hold before and after a run, and wait when nothing came.
+22. **Give every design an outlet.** The Refiner stops when its tank is full and waits. A design with nothing to do while it waits earns nothing.
 
 ## Round log
 
@@ -323,6 +326,25 @@ Round 13 set the test world's clock floor to slow the clock at 10 real seconds o
 - Smith v5: all 9 gaining, Moon copies +950, Mars-side copies +621.
 - One Machinist v2 ran dry of fuel slowly (lesson 18); Machinist v3 brews until its tank is full.
 - The cost: with about 110 drones on this machine the clock runs at about 40 to 60, so a round now needs about 90 real minutes.
+
+### Rounds 15 and 16: engine fixes (#380)
+
+Round 15 (to game day 96.2) released nothing new; the clock had sunk to 26 game seconds a second. Profiling found the engines idle but pausing up to 5 seconds per turn and leaking memory; round 16 ran the fixed engines (1-second pauses, no leaks, more indexes) and reached game day 118 in 35 minutes (22 game days, against 2.4 in round 15), with the game engine at 16 MB instead of 1.9 GB.
+
+| Design | Companies | Avg credits | Avg gain (day 118) | Gaining | Ended |
+|---|---|---|---|---|---|
+| Chemist v3 | 36 | 9,236 | +7,955 | 36 | 0 |
+| Miner | 36 | 8,843 | +7,740 | 36 | 0 |
+| Smith v3 | 6 | 7,590 | +7,207 | 6 | 0 |
+| Smith v4 | 6 | 6,394 | +5,727 | 6 | 0 |
+| Smith v5 | 9 | 3,318 | +3,022 | 9 | 0 |
+| Machinist v3 | 6 | 2,328 | +2,089 | 6 | 0 |
+| Machinist v2 | 6 | 2,539 | +2,330 | 4 | 2 |
+| Refiner | 12 | 2,083 | +1,222 | 11 | 1 |
+
+- Smith v5 gained about 105 a game day this round (the best), Machinist v3 about 84: both are seed designs now. Smith v5's Mars-side copies sold rods at the Mars Exchange (144, at about 76).
+- Gear boxes: 84 sold at about 387. Rods: 1,081 at Earth at about 81.
+- The first Refiner died: it burned its tank on empty mining runs at the Moon's contested yalspar (lesson 21). Every design's `dig` now waits when a run brings nothing.
 
 ### Baseline (before #380)
 
