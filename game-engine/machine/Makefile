@@ -6,7 +6,8 @@ VM=$(SRC)/embed.c $(SRC)/embed_image.c $(SRC)/vm_library.c machine.c
 WASM_OUT=../../html/wasm/machine.wasm
 EXPORTS=machine_init machine_eval machine_prepare machine_step machine_done machine_count \
         machine_pc machine_instruction machine_depth machine_stack machine_rdepth machine_rstack \
-        machine_output machine_input machine_cell
+        machine_output machine_input machine_cell machine_set_live machine_query_pending machine_query_answer \
+        machine_pop machine_read_byte machine_write_byte
 
 all: trace_machine wasm
 

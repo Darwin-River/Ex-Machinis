@@ -19,6 +19,13 @@ static int output_len;
 static long steps_left;
 static long count;
 static m_t halt_cell;
+/* Live data (#380): with live on, a query while stepping pauses the word
+   with its id taken off the stack; the page runs it on the game's data,
+   writes the rows into memory and answers (machine_query_answer) */
+static int live;
+static int stepping;
+static int pending_query;
+#define QUERY_INSTRUCTIONS 1000
 
 /* What a word prints */
 static int put_cb(int ch, void *file)
@@ -55,6 +62,14 @@ static int callback_cb(embed_t *h, void *param)
         embed_pop(h, &ignored);
         embed_push(h, (m_t)-11);
     } else if(which == 1) {     /* query: R L id -- n */
+        if(live && stepping) {
+            m_t id = 0;
+            embed_pop(h, &id);
+            pending_query = (int)id ? (int)id : -1;
+            count += QUERY_INSTRUCTIONS - 1;   /* as the engine meters it */
+            steps_left = 1;                     /* stop after this one */
+            return 0;
+        }
         embed_pop(h, &ignored);
         embed_pop(h, &ignored);
         embed_pop(h, &ignored);
@@ -125,6 +140,7 @@ int machine_eval(const char *text)
 
 int machine_prepare(const char *word)
 {
+    pending_query = 0;
     char line[96];
     if(strlen(word) > 64)
         return -13;
@@ -162,12 +178,45 @@ int machine_step(int n)
     /* One instruction at a time, so the count stops when the word returns
        (at the halt cell, which would otherwise spin) */
     long before = count;
-    while(n-- > 0 && !machine_done()) {
+    stepping = 1;
+    while(n-- > 0 && !machine_done() && !pending_query) {
         steps_left = 2;
         embed_vm(&vm);
     }
+    stepping = 0;
     steps_left = 0;
     return (int)(count - before);
+}
+
+void machine_set_live(int on)  { live = on; }
+int machine_query_pending(void) { return pending_query; }
+
+void machine_query_answer(int code)
+{
+    pending_query = 0;
+    embed_push(&vm, (m_t)code);
+}
+
+int machine_pop(void)
+{
+    m_t value = 0;
+    embed_pop(&vm, &value);
+    return (s_t)value;
+}
+
+/* Bytes as the engine reads and writes them (embed_read_byte, embed.c):
+   the even byte of a cell is its low half */
+int machine_read_byte(int addr)
+{
+    m_t cell = mr((m_t)(addr >> 1));
+    return (addr & 1) ? cell >> 8 : cell & 0xFF;
+}
+
+void machine_write_byte(int addr, int value)
+{
+    m_t cell = mr((m_t)(addr >> 1));
+    cell = (addr & 1) ? (m_t)((cell & 0x00FF) | ((value & 0xFF) << 8)) : (m_t)((cell & 0xFF00) | (value & 0xFF));
+    vm.o.write(&vm, (m_t)(addr >> 1), cell);
 }
 
 int machine_done(void)        { return mr(0) == halt_cell; }

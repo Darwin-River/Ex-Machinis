@@ -36,6 +36,19 @@ int machine_stack(int i);          /* data stack, 0 = top */
 int machine_rdepth(void);          /* return stack depth */
 int machine_rstack(int i);         /* return stack, 0 = top */
 const char *machine_output(void);  /* what the word printed */
+
+/* Live data (#380). With live on, a query while stepping stops the word:
+   machine_query_pending() is then the query's id (-1 for id 0), taken off
+   the stack, and the rest of its arguments are still there. The page takes
+   them (machine_pop), runs the query on the game's data, writes the rows
+   (machine_write_byte) and leaves the result (machine_query_answer), as the
+   engine does; then stepping goes on. Off (the default), query leaves -3. */
+void machine_set_live(int on);
+int machine_query_pending(void);
+void machine_query_answer(int code);
+int machine_pop(void);
+int machine_read_byte(int addr);
+void machine_write_byte(int addr, int value);
 char *machine_input(void);         /* a buffer for the text to pass in */
 
 #endif
