@@ -15,7 +15,8 @@ Ranked by average gain: what a company made beyond its starter package (credits 
 | Miner (Moon copies) | `examples/starters/miner.fth` | Moon | about +2,600 by day 38 | all | Sells metals to traders through sell orders, the rest to the Moon Depot. Best of the starters, but Moon kunspar is limited (see lessons). |
 | Miner (Mars copies) | `examples/starters/miner.fth` | Phobos, Deimos | about +1,000 by day 38 | all | Needs the Mars Exchange's bigger budget. |
 | Refiner | `examples/starters/refiner.fth` | Moon, Phobos, Deimos | about +400 by day 38 | all | Idles once its tank is full: little upside. |
-| Trader | `examples/starters/trader.fth` | Moon to Mars | about -200 by day 38 | none | Short of supply when traders are as many as Moon miners; about one trip in 38 days. |
+| Smith v2 | `examples/companies/smith.fth` | Moon, Earth | +552 in 27 game days (about 20 a day) | 12 of 12 | Rods from its own metals, sold at the Earth Exchange. Version 3 (round 6) sells rods 4 an hour: version 2 crashed the Exchange's price. |
+| Trader | `examples/starters/trader.fth` | Moon to Mars | 0 (none gaining) | none | Survives since round 4, but its margin is thin: it buys at about 31 and sells at about 36 at Mars after a 20-day round trip. Not worth seeding. |
 
 The round log below has the numbers behind each entry.
 
@@ -42,7 +43,8 @@ The game data a world's owner can change (`game-engine/sql/game-data/build_game_
 | Moon Depot budget | `stations` | 5,000 a day | 10,000 a day | Round 3: 36 Chemists and the Moon miners had brought its budget down to about 500. (Round 4 measures the effect.) |
 | By-product buyers | `station_goods` | none | Earth and the Moon buy Inorganics (A2), (A3) and Organics (A2), (A3) at 10 to 18 | Gives every refining by-product a buyer, so holds don't clog. (Round 4 measures the effect.) |
 
-| Mars Exchange buys chemists' goods | `station_goods` | metals only | also polymers, Inorganics (A1)-(A3), Organics (A1)-(A3) | Lets Chemists work Phobos and Deimos instead of crowding the Moon. (Round 5 measures the effect.) |
+| Mars Exchange buys chemists' goods | `station_goods` | metals only | also polymers, Inorganics (A1)-(A3), Organics (A1)-(A3) | Chemist v3 copies at Phobos and Deimos gained about 150 in their first 12 days (10 of them travelling); Moon copies about 380. |
+| Dump takes a quantity | `protocols` (1) | 1 unit an action, 1 fuel each | n units, 1 fuel an action; game word `jettison` | A drone can clear goods nobody buys, cheaply. |
 
 Levers not yet tried: House prices for parts and systems (lesson 9), deposit refill per mineral, station budgets at Earth and the Moon, the tax rate and grace period.
 
@@ -60,7 +62,9 @@ Levers not yet tried: House prices for parts and systems (lesson 9), deposit ref
 10. **Every product needs a buyer, or holds clog.** A drone's installed equipment takes 310 of its 500 cargo, leaving about 190. Refining vladnium leaves Inorganics (A2), which nobody bought, so it piled up until there was no room to brew fuel, and the drone died. Round 3 lost every Smith this way, and the Chemists were close behind. Sell every by-product, and have the House buy them.
 11. **Waiting drones still burn fuel.** A trader shopping for weeks on the Moon ran its tank dry through computing alone: 16 of 18 died. Top up fuel wherever you wait.
 12. **A deposit supports a fixed number of drones.** The Moon's yalspar refills 400 units a game day; a Chemist uses about 16 units every 13 game hours, so about 14 Chemists use it all. Beyond that, more drones add nothing.
-13. **Give every design an outlet.** The Refiner stops when its tank is full and waits. A design with nothing to do while it waits earns nothing.
+13. **Small markets crash when everyone sells at once.** The Earth Exchange wants about 50 rods a day; round 5's Smiths sold 144 in one batch and got about 33 a rod, not 60. Size each sale to the market's daily units.
+14. **House-price arbitrage is thin.** The Mars Exchange pays half as much again as the Moon, but after the miners' markup, batch price drops and a 20-day round trip, a trader clears about 5 a unit. Arbitrage needs a bigger gap or a shorter trip.
+15. **Give every design an outlet.** The Refiner stops when its tank is full and waits. A design with nothing to do while it waits earns nothing.
 
 ## Round log
 
@@ -135,6 +139,26 @@ A world of 108 starter companies (54 miners, 36 refiners, 18 traders); 12 Chemis
 - Newcomers earn little: 48 Chemists and 12 Smiths share Moon yalspar that supports about 14 (426 of 2,000 left). Late arrivals at a full site make almost nothing; spread them out.
 - The Moon Depot's budget is no longer short (9,872 of 10,000 left).
 - **Round 5:** Chemist v3 spreads over the Moon, Phobos and Deimos by drone number, and the Mars Exchange buys polymers, inorganics and organics too.
+
+### Round 5: Chemist v3 spreads out (#380)
+
+12 Chemist v3 released at game day 53.7, measured at day 80.5. Jettison was added along the way (game data reloaded at about day 70, which refilled every deposit).
+
+| Design | Companies | Avg credits | Avg gain | Gaining | Ended |
+|---|---|---|---|---|---|
+| Chemist (v1) | 36 | 3,453 | +2,491 | 36 | 0 |
+| Chemist v2 | 12 | 2,221 | +1,017 | 12 | 0 |
+| Chemist v3 | 12 | 1,562 | +232 | 12 | 0 |
+| Smith v2 | 12 | 1,722 | +552 | 12 | 0 |
+| Trader v2 | 12 | 247 | 0 | 0 | 0 |
+| Miner | 54 | 4,868 | +3,744 | 54 | 0 |
+| Refiner | 36 | 1,714 | +747 | 36 | 0 |
+
+- The House now buys 7 goods, rods included (from 3 at the start).
+- Chemist v3 copies split 4, 4 and 4 over the Moon, Phobos and Deimos. The Moon copies gained about 380; the Mars-side copies about 150, after a 10-day trip.
+- Smiths reached Earth, but sold 144 rods in one batch at about 33 each: the Exchange wants about 50 a day. Smith v3 (round 6) sells 4 an hour.
+- Trader v2: 7 at Mars selling, 5 on the Moon holding 30 metals with 9 credits. They sold 150 metals at about 36 after buying at about 31.
+- No company has died since round 3.
 
 ### Baseline (before #380)
 
