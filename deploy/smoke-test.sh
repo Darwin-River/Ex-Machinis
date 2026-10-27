@@ -400,8 +400,11 @@ sql "update companies set credits = 10, founded_t = 0, taxed_t = 0 where company
 [ "$(sql "select assessed > 100 from company_assessed where company_id = $FORGE_COMPANY")" = 1 ] || fail "the company's goods are not assessed"
 [ "$(sql "select taxable from company_taxable where company_id = $FORGE_COMPANY")" = 0 ] || fail "a company that made nothing is taxed"
 echo "ok: a company that made nothing is taxed on nothing"
-sql "update house_rules set tax_flat = 0, tax_permille = 100, start_credits = 0, start_fuel = 0"
+# (check what it would be taxed on before the tax: the events engine may
+# eliminate the company within a second of the rate going up)
+sql "update house_rules set start_credits = 0, start_fuel = 0"
 [ "$(sql "select taxable > 100 from company_taxable where company_id = $FORGE_COMPANY")" = 1 ] || fail "the company's goods are not taxed"
+sql "update house_rules set tax_flat = 0, tax_permille = 100"
 eliminated() { [ "$(sql "select eliminated_at is not null and credits = 0 from companies where company_id=$FORGE_COMPANY")" = 1 ] &&
                [ "$(sql "select wreck_cause from agents where agent_id=$FORGE_DRONE")" = tax ]; }
 wait_for 60 "a company that can't pay its tax is eliminated and its drones wrecked" eliminated
