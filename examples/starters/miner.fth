@@ -112,9 +112,16 @@ variable site#   variable misses
   fuel units 50 < if 30 fuel buy-from-station drop then
   reinvest site go drop ;
 
+\ Every 8th round, send a line home. What a drone prints reaches you only
+\ when its script ends or calls report, and launched never ends
+variable tells
+: tell ( -- )
+  1 tells +!  tells @ 8 mod if exit then
+  ." credits " credits d. ." fuel " fuel units . report ;
+
 : work ( -- )
   fuel units low-fuel < if refuel then
-  kunspar 20 dig kunspar refine drop sell-metals ;
+  kunspar 20 dig kunspar refine drop sell-metals tell ;
 
 : launched ( -- )
   await-kit unpack drop me 3 mod site# ! site go drop

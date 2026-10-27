@@ -94,6 +94,26 @@ Levers not yet tried: House prices for parts and systems (lesson 9), deposit ref
 25. **Wait for deliveries, don't guess.** The House delivers when a batch clears, sometimes hours after the order. A fixed 2-hour wait missed kits; wait in steps until the goods arrive, with a limit.
 26. **Give every design an outlet.** The Refiner stops when its tank is full and waits. A design with nothing to do while it waits earns nothing.
 27. **When a design dies, read its last actions before changing its script.** Three Machinists looked like a fuel-planning mistake; their events showed the engine had destroyed a module. Trace a death back to the first thing that went wrong.
+28. **Let newcomers play it.** Twenty rounds of designs written by someone who knew the engine never found that loading a script could kill a drone, or that a looping drone's output never arrives. Four newcomers found both within an hour. Invite fresh players every round, and give them the same tools a real player has.
+
+## Newcomer playtests
+
+From round 21, four naive agents join each round as new players would: they get the players' manual, the starter scripts, a checker, the Test button and their companies' status pages, and nothing else, each with a different playstyle. At the end they rate the game (1 to 10).
+
+| Round | Player (style) | Result | Fun | Manual | FORTH | Debugging | Depth | Fairness | Overall |
+|---|---|---|---|---|---|---|---|---|---|
+| 21 | Ada (manufacturer) | Gear boxes; 3rd company +62, after selling 2 for 900 | 7 | 5 | 7 | 3 | 8 | 6 | 6 |
+| 21 | Bram (trader) | Earth-Moon broker; 2 died loading, 3rd never traded | 5 | 4 | 5 | 2 | 5 | 4 | 4 |
+| 21 | Cleo (expansion) | Best-ore miner; +1,611 at the Moon, no clone yet | 6 | 4 | 6 | 3 | 6 | 5 | 5 |
+| 21 | Dax (salvager) | Plunder and rods; 2 died loading, 3rd +621 | 6 | 5 | 6 | 3 | 7 | 6 | 6 |
+| 21 | **Average** | | 6.0 | 4.5 | 6.0 | 2.8 | 6.5 | 5.3 | 5.3 |
+
+**Round 21 findings, and what changed:**
+- *They couldn't see their drones.* A drone's output arrives when its script ends, and `launched` never ends. The engine has a `report` word that sends it at once, but the manual never mentioned it (three of the four even redefined it). Now the manual documents it and the starters call it every 8th round.
+- *Loading a script killed their drones* before `launched` ran (above). Fixed in the engine.
+- *The manual didn't match the drone:* no `do ... loop` (now a section on loops), `go`, `phobos` and `deimos` missing, the hold space (364 of 500 taken by equipment) only in a starter's comment, stack effects left out, trip times contradictory. All fixed.
+- *They wanted to test before releasing:* the website has a Test button; their tool lacked it until mid-round, and they all called it the best help they had.
+- *Still open:* a post-mortem saying why a drone died, a checker warning when a script redefines a game word, and growth that a newcomer can reach in a short round (a clone costs 5,000; they start with 1,000).
 
 ## Round log
 
@@ -372,6 +392,23 @@ A fresh world with the seed mix (36 Miners, 36 Chemists, 12 Refiners, 9 Smiths, 
 - Every company gaining; the Machinist earned fastest (about 103 a game day).
 - No clones yet: a company reinvests at 7,000 credits, so the first are expected around game day 50 to 60.
 
+### Round 19: the first clones (#380)
+
+Same world, measured at game day 54.5.
+
+| Design | Companies | Avg credits | Avg gain | Gaining | Clones | Ended |
+|---|---|---|---|---|---|---|
+| Machinist | 6 | 6,083 | +5,407 | 6 | 0 | 0 |
+| Smith | 9 | 5,614 | +5,362 | 9 | 0 | 0 |
+| Chemist | 36 | 5,240 | +4,975 | 36 | 13 | 0 |
+| Miner | 36 | 5,264 | +4,425 | 36 | 3 | 0 |
+| Refiner | 12 | 2,401 | +1,479 | 12 | 0 | 0 |
+
+- **Growth works:** 16 clones launched (13 Chemists, 3 Miners), all alive, 15 equipped, spread over the Moon, Phobos, Deimos and Mars.
+- **But every parent that launched died:** launching (30 fuel) and equipping (40) left it about 20, and it ran dry brewing at its site. Eight parents were lost; their companies live on through their clones.
+- **And kits sat idle:** 31 hulls were bought for 16 launches. The House delivered some after the 2-hour wait, the fuel top-up fell short, and having paid 3,000 the company was below 7,000 again, so `reinvest` stopped trying.
+- **Fix (reinvest v2):** a hull already bought is launched whenever the fuel allows; purchases wait for delivery (up to 6 game hours); the parent refills its tank after equipping the clone. Tested on a scratch world: the parent left with 59 fuel, the clone with 60 and its equipment.
+
 ### Round 20: reinvest v2, from a fresh world (#380)
 
 A fresh world (36 Miners, 12 Refiners, 36 Chemists, 9 Smiths, 6 Machinists) running reinvest v2, measured at game day 58.
@@ -390,22 +427,22 @@ A fresh world (36 Miners, 12 Refiners, 36 Chemists, 9 Smiths, 6 Machinists) runn
 - **Fix:** the engine now burns fuel first, and puts each checked module straight back before anything else runs (#380). The Machinist also won't start a gear box with less than 30 fuel.
 - **Engine memory:** the game engine grew from 18 MB to 31 MB as the drone count went from 99 to 135.
 
-### Round 19: the first clones (#380)
+### Round 21: the same world, a fixed engine, and four newcomers (#380)
 
-Same world, measured at game day 54.5.
+Round 20's world with the module fix (#384), three Machinist v2s for the three lost, and four newcomer agents (below), measured at game day 80. The clock fell to 208x as the world grew to 205 working drones.
 
 | Design | Companies | Avg credits | Avg gain | Gaining | Clones | Ended |
 |---|---|---|---|---|---|---|
-| Machinist | 6 | 6,083 | +5,407 | 6 | 0 | 0 |
-| Smith | 9 | 5,614 | +5,362 | 9 | 0 | 0 |
-| Chemist | 36 | 5,240 | +4,975 | 36 | 13 | 0 |
-| Miner | 36 | 5,264 | +4,425 | 36 | 3 | 0 |
-| Refiner | 12 | 2,401 | +1,479 | 12 | 0 | 0 |
+| Chemist | 36 | 4,561 | +7,542 | 36 | 55 | 0 |
+| Smith | 9 | 2,681 | +5,921 | 9 | 8 | 0 |
+| Miner | 36 | 3,776 | +5,536 | 36 | 35 | 0 |
+| Machinist | 6 | 1,860 | +3,090 | 3 | 2 | 3 |
+| Refiner | 12 | 2,382 | +1,528 | 11 | 0 | 1 |
+| Machinist v2 | 3 | 2,254 | +1,140 | 3 | 0 | 0 |
 
-- **Growth works:** 16 clones launched (13 Chemists, 3 Miners), all alive, 15 equipped, spread over the Moon, Phobos, Deimos and Mars.
-- **But every parent that launched died:** launching (30 fuel) and equipping (40) left it about 20, and it ran dry brewing at its site. Eight parents were lost; their companies live on through their clones.
-- **And kits sat idle:** 31 hulls were bought for 16 launches. The House delivered some after the 2-hour wait, the fuel top-up fell short, and having paid 3,000 the company was below 7,000 again, so `reinvest` stopped trying.
-- **Fix (reinvest v2):** a hull already bought is launched whenever the fuel allows; purchases wait for delivery (up to 6 game hours); the parent refills its tank after equipping the clone. Tested on a scratch world: the parent left with 59 fuel, the clone with 60 and its equipment.
+- **Growth took hold:** 100 clones (36 at the end of round 20), every one alive, and still no parent lost. 104 hulls and 92 starter kits were bought in all; Smiths and Machinists launched their first clones.
+- **No more lost modules:** the only working drone without a Spider is a newcomer's that kept its kit packed on purpose.
+- **Loading a script was killing drones:** the engine billed the instructions a drone spends reading its released script, about 20,000 a word. The Machinist v2 paid 86 of its 100 starting fuel; every newcomer's longer script paid more than 100, and four drones died before `launched` ran. Loading is now free (#380).
 
 ### Baseline (before #380)
 
