@@ -98,6 +98,7 @@ Levers not yet tried: House prices for parts and systems (lesson 9), deposit ref
 28. **Let newcomers play it.** Twenty rounds of designs written by someone who knew the engine never found that loading a script could kill a drone, or that a looping drone's output never arrives. Four newcomers found both within an hour. Invite fresh players every round, and give them the same tools a real player has.
 29. **Price made goods from their recipes.** A good the House buys should pay for its inputs, its fuel and the time it takes, and pay more per hour the further up the chain it is. Otherwise players who do the arithmetic only mine, and the tech tree is decoration.
 30. **Watch the starters crowd.** Every newcomer's first design is a starter; a hundred copies of one mine the same ore at the same places. Spread the starters out, or make them choose by what's left.
+31. **Fix one imbalance and look for the next.** Pricing made goods from their recipes made making things pay; within two rounds the raw producers were the ones left behind, and testers moved on to "every chain pays the same per hour". Each lever moves the problem; measure after each one.
 
 ## Newcomer playtests
 
@@ -120,6 +121,11 @@ From round 21, four naive agents join each round as new players would: they get 
 | 23 | Kai (empire) | A queen buys hulls, workers make alloys; 2 clones | 7 | 6 | 6 | 7 | 6 | 7 | 7 |
 | 23 | Lea (casual competitor) | Rods and fasteners, +7,541 avg: the best newcomer yet | 7 | 6 | 6 | 8 | 7 | 7 | 7 |
 | 23 | **Average** | | 6.8 | 6.3 | 5.8 | 7.8 | 6.3 | 7.0 | 6.9 |
+| 24 | Max (middleman) | Bought miners' metals, made rods and fasteners; one company taxed out with 3,700 of stock aboard | 7 | 6 | 5 | 7 | 6 | 5 | 6 |
+| 24 | Nia (frontier) | Wolfite at Phobos, sold at Mars, with a Moon control: Mars broke even over 26 days | 6 | 6 | 7 | 8 | 6 | 7 | 6.5 |
+| 24 | Oto (opportunist) | Plundered wrecks, made rods and fasteners from bought metals, +5,221 avg | 7 | 7 | 6 | 7 | 6 | 7 | 7 |
+| 24 | Pia (optimiser) | Wolfite into alloys and parts, priced the chains, +6,448 avg | 6 | 7 | 7 | 6 | 5 | 7 | 6 |
+| 24 | **Average** | | 6.5 | 6.5 | 6.3 | 7.0 | 5.8 | 6.5 | 6.4 |
 
 **Round 21 findings, and what changed:**
 - *They couldn't see their drones.* A drone's output arrives when its script ends, and `launched` never ends. The engine has a `report` word that sends it at once, but the manual never mentioned it (three of the four even redefined it). Now the manual documents it and the starters call it every 8th round.
@@ -137,7 +143,9 @@ From round 21, four naive agents join each round as new players would: they get 
 
 **Round 23 findings:** with made goods priced from their recipes, every newcomer made things, and the overall rating rose to 6.9. Debugging rose to 7.8: the drone page's activity, the post-mortems and the live Machine (Jon rated it 9: "I made a real decision from live data before risking a credit"). Fixed during the round: `fill-to` waited for its target rather than the delivery and idled six game hours a refuel; a drone with an empty tank docked at a station couldn't order fuel (ordering is now free); the live Machine's `perform` left its arguments on the stack; the test world had filled up with old test runs and never started new ones (it now prunes them, and its clock slows when it lags). Still open, asked by most: the world doesn't push back (prices and demand that move with what players sell, events, contracts), visible rivals and rank, reachable growth (Kai's first clone took two game weeks), and a few script updates for a released drone.
 
-**What they liked best** (all three rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
+**Round 24 findings:** with making things paying, the complaint moved up a level: every chain pays about the same per hour (the wage is flat by tier), so depth scored 5.8 and "optimising comes down to cutting idle time" (Pia). Fixed during the round: the checker and the Machine now wrap long lines as the engine does; a drone can ask the game day (`today`, query 207); the activity log's fuel column; and pulls and pushes no longer wait for the other drone's unrelated actions (a pull from a seller one second into a two-hour batch went through at once), which also fixed a pull of fuel that never charged the buyer its fuel. Open: the House taxes goods but takes only credits, so a trader holding stock can be eliminated with thousands aboard (Max); a drone can't learn distances or trip times (query 703's coordinates are never stored) or use event IDs (past a cell's range); there are no buy orders or contracts between players for a middleman to serve.
+
+**What they liked best** (all four rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
 ## Round log
 
@@ -501,6 +509,22 @@ A fresh world (the round 20 mix: 36 Miners, 12 Refiners, 36 Chemists, 9 Smiths, 
 - **Newcomers chose to make things, and did best when they did:** Lea's rods and fasteners +7,541 a company, Jon's alloys +4,457, Ivy's gear boxes +3,995; Kai's company launched 2 clones.
 - **Raw producers fell behind:** Miners +1,953 and Refiners +928 by day 38, and no Miner clones yet. Watch whether they recover, or need a market of their own (makers buying their metals).
 - Two newcomer drones died of fuel (both fixed since: `fill-to`, free station orders).
+
+### Round 24: the makers pull ahead (#380)
+
+Round 23's world, carried on to game day 71.4 with four more newcomers and, from day 65, pulls that don't wait for the seller. The clock fell to 297 with 210 working drones; a container restart stopped the world for about a game day.
+
+| Design | Avg gain | Clones |
+|---|---|---|
+| Machinist | +19,093 | 13 |
+| Smith | +16,330 | 31 |
+| Chemist | +7,194 | 43 |
+| Miner | +3,563 | 0 |
+| Refiner | +1,689 | 0 |
+
+- **Makers now lead by far**, and their clones compound it. The House has bought 225,000 credits of rods and 156,000 of gear boxes.
+- **Raw producers fall behind:** no Miner has launched a clone in 71 days (they reinvest at 7,000; they average 4,481). Making things pays more than raw goods, as intended, but nothing yet makes raw goods worth more to the makers: most makers mine their own.
+- **Newcomers:** round 23's Lea reached +12,843 and Ivy +10,402 (4 clones); Kai's queen made 8 clones; this round Pia +6,448, Nia +5,617, Oto +5,221, Max +2,286.
 
 ### Baseline (before #380)
 
