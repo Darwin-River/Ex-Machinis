@@ -300,7 +300,7 @@ get-kunspar
 </run>
 ```
 
-Failures are not emailed to you: a drone running on its own should check and respond. You only get email for what your scripts print, and for errors that stop a script. While a script is running or waiting, the drone answers new scripts with "Another command is running, retry later"; `<abort>` stops the script (the action itself still happens).
+Failures are not emailed to you: a drone running on its own should check and respond. You only get a message for what your scripts print, when the script ends, and for errors that stop a script. A `launched` word that loops forever never ends, so call `report` in its loop to send what it has printed so far. While a script is running or waiting, the drone answers new scripts with "Another command is running, retry later"; `<abort>` stops the script (the action itself still happens).
 
 ### Unpacking your starter kit
 
@@ -625,6 +625,7 @@ Every drone comes with a vocabulary for the game, so you can write `kunspar mine
 | Resources | `fuel` `magmite` `kunspar` `yalspar` `vladnium` `wolfite` `metals-a1` `metals-a2` `metals-a3` `inorganics-a1` `organics-a1` |
 | Actions (each leaves what `perform` leaves) | `unpack`, `travel ( place )`, `mine ( mineral )`, `refine ( mineral )`, `make ( resource )`, `wait ( minutes )`, `sell-to-station ( n resource )`, `buy-from-station ( n resource )`, `sell-order ( price keep resource )`, `buy-order ( price want resource )`, `push ( n resource drone )`, `pull ( n resource drone )`, `launch ( drone kit )`, `plunder ( wreck )`, `jettison ( n resource )` |
 | Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `ask ( [n] id -- rows )` (any query, answers in the buffer `answer`) |
+| Messages | `report` sends what the drone has printed so far, at once: without it you see nothing until the script ends, and a `launched` word that loops forever never ends. Call it once a round: `begin ... ." fuel " fuel units . report 60 wait drop again` |
 | Helpers | `sell-all ( resource )` offers all of it to the station here; `go ( place -- ior )` travels there unless the drone is already there (then it leaves 0 at once) |
 
 `jettison` throws n units of a resource out of the hold into space, for 1 fuel whatever the amount. Use it for goods nobody buys where you are: a hold that fills up leaves no room for the fuel you make, and a drone without fuel dies. `10 2032 jettison drop` throws away 10 Inorganics (A2).
