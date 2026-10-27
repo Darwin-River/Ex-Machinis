@@ -73,6 +73,37 @@
                 </div>
             @endif
 
+            @if($activity)
+                {{-- What a working drone is doing (#380) --}}
+                <div class="row row-xxl row-30 row-md-60">
+                    <div class="col" id="activity">
+                        <h2 class="wow fadeInLeft">Activity</h2>
+                        <p><b>Now</b>: {{ $activity['now'] ?? $state['status'] }}</p>
+                    </div>
+                </div>
+                @if($activity['timeline'])
+                    <div class="table-custom-responsive">
+                        <table class="table-ticket">
+                            <tr><th>When</th><th>What</th><th>Result</th><th>Fuel after</th></tr>
+                            @foreach($activity['timeline'] as $row)
+                                <tr><td>{{ $row['when'] }}</td><td>{{ $row['what'] }}</td><td>{{ $row['result'] }}</td><td>{{ $row['fuel'] }}</td></tr>
+                            @endforeach
+                        </table>
+                    </div>
+                @endif
+                @if($activity['deals'])
+                    <h4 class="mt-3">Sales and purchases</h4>
+                    <div class="table-custom-responsive">
+                        <table class="table-ticket">
+                            <tr><th>When</th><th>What</th><th>With</th><th>Credits</th></tr>
+                            @foreach($activity['deals'] as $row)
+                                <tr><td>{{ $row['when'] }}</td><td>{{ $row['what'] }}</td><td>{{ $row['with'] }}</td><td>{{ $row['credits'] }}</td></tr>
+                            @endforeach
+                        </table>
+                    </div>
+                @endif
+            @endif
+
             {{-- What it has said (#367 step 3: public, like its code) --}}
             <div class="row row-xxl row-30 row-md-60">
                 <div class="col" id="messages">

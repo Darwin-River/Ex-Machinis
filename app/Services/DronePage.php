@@ -124,6 +124,97 @@ class DronePage
             ->orderBy('id', 'desc')->limit($limit)->get(['subject', 'body', 'game_t']);
     }
 
+    /**
+     * The drone's last actions (power bills left out), newest first: when
+     * each started, what it was, how it went (or when it will finish) and
+     * the fuel left after it. Actions planned for later aren't shown.
+     */
+    public static function timeline(int $id, int $limit = 10): array
+    {
+        $now = World::gameNow();
+        $timeline = [];
+        $actions = DB::table('actions as a')->where('a.drone', $id)->where('a.protocol', '<>', 2)
+            ->orderBy('a.id', 'desc')->limit($limit + 5)->get();
+        foreach ($actions as $action) {
+            $span = DB::table('events')->where('action', $action->id)
+                ->selectRaw('MIN(game_t) AS start, MAX(game_t) AS end, SUM(outcome = 0) AS pending')->first();
+            if (!$span || $span->start === null || (int) $span->start > $now) {
+                continue;
+            }
+            $fuel = DB::table('events')->where('action', $action->id)->where('drone', $id)->where('resource', self::FUEL)
+                ->where('outcome', 1)->orderBy('id', 'desc')->value('new_quantity');
+            $failed = $action->aborted || ($action->outcome !== null && (int) $action->outcome < 0);
+            if ($failed) {
+                $result = 'failed: ' . (self::OUTCOMES[(int) $action->outcome] ?? 'it was stopped');
+            } elseif ((int) $span->pending > 0) {
+                $result = 'under way, until ' . self::when((int) $span->end);
+            } else {
+                $result = 'done';
+            }
+            $timeline[] = [
+                'game_t' => (int) $span->start,
+                'when' => self::when((int) $span->start),
+                'what' => self::protocolName((int) $action->protocol),
+                'result' => $result,
+                'fuel' => $fuel,
+            ];
+            if (count($timeline) >= $limit) {
+                break;
+            }
+        }
+        return $timeline;
+    }
+
+    /**
+     * What a working drone is doing (#380): its action under way and when
+     * it ends, its last actions, and its last sales and purchases with whom.
+     * Newcomers couldn't tell a busy drone from a stuck one.
+     */
+    public static function activity(Agent $agent): ?array
+    {
+        if ($agent->wrecked_at) {
+            return null;
+        }
+        $id = (int) $agent->agent_id;
+        $now = null;
+        if ($agent->waiting_action) {
+            $action = DB::table('actions')->where('id', $agent->waiting_action)->first();
+            $end = DB::table('events')->where('action', $agent->waiting_action)->max('game_t');
+            if ($action) {
+                $hours = $end ? max(0, ((int) $end - World::gameNow()) / 3600) : null;
+                $now = self::protocolName((int) $action->protocol)
+                    . ($end ? ', until ' . self::when((int) $end) . sprintf(' (%s game hours from now)', number_format($hours, 1)) : '');
+            }
+        }
+
+        // Its trades: with the House stations (when the batch cleared) and
+        // with other drones
+        $deals = [];
+        $offers = DB::table('station_offers as o')->join('stations as s', 's.id', '=', 'o.station_id')
+            ->join('resources as r', 'r.id', '=', 'o.resource')->where('o.drone', $id)->whereNotNull('o.cleared_t')
+            ->orderBy('o.id', 'desc')->limit(10)->get(['o.side', 'o.units', 'o.filled', 'o.paid', 'o.cleared_t', 's.name as station', 'r.name']);
+        foreach ($offers as $o) {
+            $sold = (int) $o->side === 1;
+            $deals[] = ['game_t' => (int) $o->cleared_t, 'when' => self::when((int) $o->cleared_t),
+                'what' => ($sold ? 'Sold ' : 'Bought ') . (int) $o->filled . ' of ' . (int) $o->units . ' ' . $o->name,
+                'with' => $o->station, 'credits' => ($sold ? '+' : '-') . number_format((int) $o->paid)];
+        }
+        $trades = DB::table('trades as t')->join('resources as r', 'r.id', '=', 't.resource')
+            ->where(fn ($q) => $q->where('t.seller', $id)->orWhere('t.buyer', $id))
+            ->orderBy('t.id', 'desc')->limit(10)->get(['t.seller', 't.buyer', 't.units', 't.credits', 't.game_t', 'r.name']);
+        foreach ($trades as $t) {
+            $sold = (int) $t->seller === $id;
+            $other = Agent::where('agent_id', $sold ? $t->buyer : $t->seller)->first();
+            $deals[] = ['game_t' => (int) $t->game_t, 'when' => self::when((int) $t->game_t),
+                'what' => ($sold ? 'Sold ' : 'Bought ') . (int) $t->units . ' ' . $t->name,
+                'with' => $other ? $other->name : 'drone ' . ($sold ? $t->buyer : $t->seller),
+                'credits' => ($sold ? '+' : '-') . number_format((int) $t->credits)];
+        }
+        usort($deals, fn ($a, $b) => $b['game_t'] <=> $a['game_t']);
+
+        return ['now' => $now, 'timeline' => self::timeline($id, 10), 'deals' => array_slice($deals, 0, 10)];
+    }
+
     public static function postMortem(Agent $agent): ?array
     {
         if (!$agent->wrecked_at) {
@@ -169,23 +260,7 @@ class DronePage
             $cause .= ' On ' . self::when((int) $agent->plundered_at) . ' it was plundered by ' . ($by ? $by->name : 'another drone') . '.';
         }
 
-        // Its last actions (power bills left out), with the fuel left after each
-        $timeline = [];
-        $actions = DB::table('actions as a')->where('a.drone', $id)->where('a.protocol', '<>', 2)
-            ->orderBy('a.id', 'desc')->limit(15)->get();
-        foreach ($actions as $action) {
-            $start = DB::table('events')->where('action', $action->id)->min('game_t');
-            $fuel = DB::table('events')->where('action', $action->id)->where('drone', $id)->where('resource', self::FUEL)
-                ->where('outcome', 1)->orderBy('id', 'desc')->value('new_quantity');
-            $failed = $action->aborted || ($action->outcome !== null && (int) $action->outcome < 0);
-            $timeline[] = [
-                'game_t' => (int) $start,
-                'when' => self::when((int) $start),
-                'what' => self::protocolName((int) $action->protocol),
-                'result' => $failed ? 'failed: ' . (self::OUTCOMES[(int) $action->outcome] ?? 'it was stopped') : 'done',
-                'fuel' => $fuel,
-            ];
-        }
+        $timeline = self::timeline($id, 15);
         foreach (DB::table('drone_crashes')->where('drone', $id)->orderBy('id', 'desc')->limit(5)->get() as $crash) {
             $timeline[] = [
                 'game_t' => (int) $crash->game_t,

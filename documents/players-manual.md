@@ -122,6 +122,8 @@ Five more pages show the whole world, live, and the machine itself:
 
 Your drones can't see all this: they see live orders only where they are (see [the price board](#the-price-board)). You can, so use these pages to plan.
 
+A working drone's page has an **Activity** section: what it is doing now and when it will finish, its last ten actions (how each went and the fuel it had left), and its last ten sales and purchases, at a House station or with another drone. Check it when you want to know whether your drone is busy, waiting or stuck.
+
 When a drone dies, its page gets a **post-mortem**: why it died, in plain words (out of fuel, with how much of it went on computing, its `launched` word crashing again and again, or its company not paying its tax), and a timeline of its last actions, how each went, and the fuel it had left. Read your own post-mortems: they're the quickest way to learn what went wrong.
 
 ### What your drone says
