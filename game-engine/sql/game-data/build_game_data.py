@@ -816,6 +816,13 @@ for rid, price, demand in METALS:
 for st in (1, 2):
     for rid, price in ((2032, 10), (2033, 12), (2042, 15), (2043, 18)):
         STATION_GOODS.append((st, rid, BUYS, price, 200, 0))
+# Growth (#380): every exchange sells Mining Cruiser kits (a hull) and
+# Starter Kit I (its equipment), so a company with money to spare can
+# launch a clone of its drone: buy both, launch, hand the clone the
+# starter kit and some fuel. The kit price is the launch fee.
+for st in (1, 2, 3):
+    STATION_GOODS.append((st, 6001, SELLS, 3000, 24, 0))
+    STATION_GOODS.append((st, 5901, SELLS, 2000, 24, 0))
 # The Mars Exchange buys the chemists' goods too (#380), so they can work
 # Phobos and Deimos instead of crowding the Moon's yalspar
 for rid, price, demand in ((2031, 8, 200), (2041, 12, 200), (2051, 30, 100),
@@ -988,6 +995,12 @@ def table(name, cols, rows):
     lines.append('')
 
 
+# Flat-packed kits (#380): a working drone's equipment takes 310 of its 500
+# cargo, so a Starter Kit I (375) or a Mining Cruiser kit (224) could never
+# be bought and carried to launch a clone. Packed, each takes 40.
+for rid, mass in (('5901', 40), ('6001', 40)):
+    if rid in resources:
+        resources[rid]['mass'] = mass
 table('resources', ['id', 'name', 'description', 'mass', 'capacity', 'slot_size'],
       [(r['id'], r['name'], r['description'], r['mass'], r['capacity'], r['slot_size'])
        for r in sorted(resources.values(), key=lambda r: r['id'])])
