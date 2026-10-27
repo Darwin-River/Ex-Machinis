@@ -226,6 +226,23 @@ A new world with the game data so far plus parts prices up 50%: 36 Miners, 12 Re
 - The House bought 7 goods; Smiths sold 72 rods at about 72 each (base 90).
 - Weak spot: hardly any drone-to-drone trade (5 fuel sales in 5 days). With no traders, nobody buys the Moon miners' sell orders. **Round 9:** Smith v4 buys Metals (A1) from them to make more rods (two metals at 23 make a rod worth 90).
 
+### Round 9: Smith v4 buys metals from miners (#380)
+
+6 Smith v4 released at game day 18.8, measured at day 31.7.
+
+| Design | Companies | Avg credits | Avg gain | Gaining | Ended |
+|---|---|---|---|---|---|
+| Smith v3 | 6 | 3,259 | +2,455 | 6 | 0 |
+| Smith v4 | 6 | 1,646 | +897 | 6 | 0 |
+| Miner | 36 | 3,395 | +2,252 | 36 | 0 |
+| Chemist v3 | 36 | 3,486 | +2,188 | 36 | 0 |
+| Refiner | 12 | 1,968 | +1,010 | 12 | 0 |
+
+- Smith v4 gains about 69 a game day in its first 13 days, Smith v3 about 77 over 32: buying metals costs about what mining them does, but it is trade.
+- Drone-to-drone trade: Smith v4 bought 45 metals in 24 trades, refiners sold fuel to miners. Still small: Moon miners sell most metals to the Depot before anyone buys.
+- Rods: 187 sold at about 74 each; the Earth Exchange's budget is no longer short (9,660 of 10,000).
+- **Round 10:** a new design, the Machinist, builds gear boxes (450 at Earth and Mars) from metals bought from the miners.
+
 ### Baseline (before #380)
 
 From the four 300-company runs in #378, each with miners, refiners and traders in equal numbers:
