@@ -62,6 +62,7 @@ The game data a world's owner can change (`game-engine/sql/game-data/build_game_
 | Engine pauses | `game-engine.conf`, `events-engine.conf` | `DB_READ_TIME` and `ENGINE_CHECK_TIME` 5 seconds | 1 second | Every action waited up to 10 real seconds on the engines' idle pauses. In the 96-day world the clock went from about 36 game seconds a second (lag 11 to 15 seconds) back to 600 (lag 6 to 10). |
 
 | Ship kits for sale | `station_goods`, `resources` | none sold; kits 224 and 375 cargo | Mining Cruiser kit 3,000 and Starter Kit I 2,000 at every exchange, 24 a day; flat-packed to 40 | Companies can reinvest: launch a clone and equip it (about 5,000 credits). (Round 18 measures growth.) |
+| Made goods' prices | `station_goods` (`made_value`) | alloys 30-50, polymers 30, parts 75-105, systems 450: an alloy sold for less than its metals | inputs + fuel + a wage per game hour (20 alloys, 25 parts, 30 systems): alloys 70-100, polymers 70, parts 205-385, systems 790-1,400 | Each step up the chain pays more per hour than mining (17). Round 23 measures it. |
 
 Levers not yet tried: House prices for parts and systems (lesson 9), deposit refill per mineral, station budgets at Earth and the Moon, the tax rate and grace period.
 
@@ -95,6 +96,8 @@ Levers not yet tried: House prices for parts and systems (lesson 9), deposit ref
 26. **Give every design an outlet.** The Refiner stops when its tank is full and waits. A design with nothing to do while it waits earns nothing.
 27. **When a design dies, read its last actions before changing its script.** Three Machinists looked like a fuel-planning mistake; their events showed the engine had destroyed a module. Trace a death back to the first thing that went wrong.
 28. **Let newcomers play it.** Twenty rounds of designs written by someone who knew the engine never found that loading a script could kill a drone, or that a looping drone's output never arrives. Four newcomers found both within an hour. Invite fresh players every round, and give them the same tools a real player has.
+29. **Price made goods from their recipes.** A good the House buys should pay for its inputs, its fuel and the time it takes, and pay more per hour the further up the chain it is. Otherwise players who do the arithmetic only mine, and the tech tree is decoration.
+30. **Watch the starters crowd.** Every newcomer's first design is a starter; a hundred copies of one mine the same ore at the same places. Spread the starters out, or make them choose by what's left.
 
 ## Newcomer playtests
 
@@ -107,6 +110,11 @@ From round 21, four naive agents join each round as new players would: they get 
 | 21 | Cleo (expansion) | Best-ore miner; +1,611 at the Moon, no clone yet | 6 | 4 | 6 | 3 | 6 | 5 | 5 |
 | 21 | Dax (salvager) | Plunder and rods; 2 died loading, 3rd +621 | 6 | 5 | 6 | 3 | 7 | 6 | 6 |
 | 21 | **Average** | | 6.0 | 4.5 | 6.0 | 2.8 | 6.5 | 5.3 | 5.3 |
+| 22 | Eve (engineer) | Wolfite miner with priced sell orders; 2 companies, +1,864 avg | 6 | 7 | 7 | 6 | 4 | 7 | 6 |
+| 22 | Finn (casual) | Miner starter kept at the Moon; +627 | 5 | 6 | 6 | 4 | 7 | 6 | 6 |
+| 22 | Gus (logistics) | Gear boxes from bought metals; still in the hold at the end | 6 | 6 | 7 | 5 | 7 | 5 | 6 |
+| 22 | Hana (competitive) | Ranked the ores, mined wolfite; 2 companies, +1,745 avg | 6 | 6 | 7 | 4 | 6 | 6 | 6 |
+| 22 | **Average** | | 5.8 | 6.3 | 6.8 | 4.8 | 6.0 | 6.0 | 6.0 |
 
 **Round 21 findings, and what changed:**
 - *They couldn't see their drones.* A drone's output arrives when its script ends, and `launched` never ends. The engine has a `report` word that sends it at once, but the manual never mentioned it (three of the four even redefined it). Now the manual documents it and the starters call it every 8th round.
@@ -114,6 +122,15 @@ From round 21, four naive agents join each round as new players would: they get 
 - *The manual didn't match the drone:* no `do ... loop` (now a section on loops), `go`, `phobos` and `deimos` missing, the hold space (364 of 500 taken by equipment) only in a starter's comment, stack effects left out, trip times contradictory. All fixed.
 - *They wanted to test before releasing:* the website has a Test button; their tool lacked it until mid-round, and they all called it the best help they had.
 - *Still open:* a post-mortem saying why a drone died, a checker warning when a script redefines a game word, and growth that a newcomer can reach in a short round (a clone costs 5,000; they start with 1,000).
+
+**Round 22 findings, and what changed:** the manual and debugging scores rose (4.5 to 6.3, 2.8 to 4.8) after round 21's fixes; fun didn't, because what held it back was now the game.
+- *The Miner starter sent two drones in three on a 10-day trip to Mars.* The drone you release now works the Moon; its copies spread out.
+- *Mining beat every made good* (six of eight testers worked it out): an alloy sold for less than its metals, a rod or gear box earned about 4 credits a game hour against 17 for wolfite. Made goods are now priced from their recipes (see Economic levers).
+- *They still couldn't see a working drone* until it died: the drone page now shows its action under way, its last actions and its trades with whom.
+- *They wanted to try analysis words on real data*: the Machine page can now run queries on the live world as a chosen drone.
+- *Still open:* contracts and events with deadlines (seven of eight asked), reachable growth, leaderboards by category, and visible rivals.
+
+**What they liked best** (both rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
 ## Round log
 
@@ -443,6 +460,23 @@ Round 20's world with the module fix (#384), three Machinist v2s for the three l
 - **Growth took hold:** 100 clones (36 at the end of round 20), every one alive, and still no parent lost. 104 hulls and 92 starter kits were bought in all; Smiths and Machinists launched their first clones.
 - **No more lost modules:** the only working drone without a Spider is a newcomer's that kept its kit packed on purpose.
 - **Loading a script was killing drones:** the engine billed the instructions a drone spends reading its released script, about 20,000 a word. The Machinist v2 paid 86 of its 100 starting fuel; every newcomer's longer script paid more than 100, and four drones died before `launched` ran. Loading is now free (#380).
+
+### Round 22: four more newcomers, and the world fills up (#380)
+
+The same world, measured at game day 89.7, with 217 working drones. The clock fell to 74x: the engines could no longer keep up at 600.
+
+| Design | Companies | Avg gain | Clones | Ended |
+|---|---|---|---|---|
+| Chemist | 36 | +8,820 | 68 | 0 |
+| Smith | 9 | +5,782 | 8 | 1 |
+| Miner | 36 | +5,542 | 35 (30 alive) | 1 |
+| Machinist | 6 | +3,657 | 2 | 3 |
+| Machinist v2 | 3 | +2,403 | 0 | 0 |
+| Refiner | 12 | +1,623 | 0 | 1 |
+
+- **Newcomers:** Eve +1,864 and Hana +1,745 a company, both mining wolfite, which no starter touched; Finn +627 with a Miner kept at the Moon; Gus's gear boxes were still in the hold when the round ended. Cleo, from round 21, reached +2,602.
+- **Five Miner clones died** at Mars's moons: about 35 Miners crowded them, the kunspar ran out, and they spent their last fuel flying between Phobos and Deimos. The starters now rest instead of flying when short of fuel.
+- **Wolfite was the best ore**, about 17 credits a game hour, and the newcomers found it in their first hour; the starters mine kunspar.
 
 ### Baseline (before #380)
 
