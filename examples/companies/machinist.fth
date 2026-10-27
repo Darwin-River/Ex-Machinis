@@ -54,9 +54,11 @@
     brew-fuel
   repeat ;
 
-\ One gear box from 8 Metals (A1) and 2 Metals (A2); stops at a failure
+\ One gear box from 8 Metals (A1) and 2 Metals (A2); stops at a failure.
+\ It burns about 23 fuel: never start one with less than 30 (round 20)
 : build ( -- )
   metals-a1 units 8 < metals-a2 units 2 < or if exit then
+  fuel units 30 < if exit then
   alloys-a1 make if exit then  alloys-a1 make if exit then
   alloys-a1 make if exit then
   alloys-a2 make if exit then  alloys-a2 make if exit then

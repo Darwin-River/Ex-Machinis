@@ -93,6 +93,7 @@ Levers not yet tried: House prices for parts and systems (lesson 9), deposit ref
 24. **Count the whole cost of an action, in fuel too.** Launching a clone costs 30 fuel and equipping it 40 more: parents that did it on an ordinary tank all died on the way home. Refill after anything that spends a lot of fuel at once.
 25. **Wait for deliveries, don't guess.** The House delivers when a batch clears, sometimes hours after the order. A fixed 2-hour wait missed kits; wait in steps until the goods arrive, with a limit.
 26. **Give every design an outlet.** The Refiner stops when its tank is full and waits. A design with nothing to do while it waits earns nothing.
+27. **When a design dies, read its last actions before changing its script.** Three Machinists looked like a fuel-planning mistake; their events showed the engine had destroyed a module. Trace a death back to the first thing that went wrong.
 
 ## Round log
 
@@ -370,6 +371,24 @@ A fresh world with the seed mix (36 Miners, 36 Chemists, 12 Refiners, 9 Smiths, 
 
 - Every company gaining; the Machinist earned fastest (about 103 a game day).
 - No clones yet: a company reinvests at 7,000 credits, so the first are expected around game day 50 to 60.
+
+### Round 20: reinvest v2, from a fresh world (#380)
+
+A fresh world (36 Miners, 12 Refiners, 36 Chemists, 9 Smiths, 6 Machinists) running reinvest v2, measured at game day 58.
+
+| Design | Companies | Avg credits | Avg gain | Gaining | Clones | Ended |
+|---|---|---|---|---|---|---|
+| Smith | 9 | 6,573 | +5,550 | 9 | 0 | 0 |
+| Chemist | 36 | 4,489 | +5,321 | 36 | 24 | 0 |
+| Miner | 36 | 5,060 | +4,867 | 36 | 12 | 0 |
+| Machinist | 6 | 2,823 | +3,010 | 3 | 0 | 3 |
+| Refiner | 12 | 2,444 | +1,751 | 12 | 0 | 0 |
+
+- **Reinvest v2 works:** 36 clones (24 Chemists, 12 Miners), all alive, 34 equipped, and no parent died. 39 hulls were bought for 36 launches; the other 3 are aboard, waiting for fuel.
+- **Growth is slow to start:** no company reached 7,000 credits before day 21. Avg credits stay below the launch threshold because each launch spends 5,000.
+- **Three Machinists died, and an engine bug did it:** each lost its Spider the first time it tried a gear box short of fuel. The engine took the Spider out to check it was aboard, the fuel burn failed, and the action was aborted before the Spider went back. Without a Spider every gear box failed after making its rod, gear and spring; those filled the hold, mining failed for lack of space, and the drones ran dry.
+- **Fix:** the engine now burns fuel first, and puts each checked module straight back before anything else runs (#380). The Machinist also won't start a gear box with less than 30 fuel.
+- **Engine memory:** the game engine grew from 18 MB to 31 MB as the drone count went from 99 to 135.
 
 ### Round 19: the first clones (#380)
 
