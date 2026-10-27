@@ -3,7 +3,7 @@
 How to seed a Public Forge world so that its economy thrives, learned by running a world, releasing company designs into it and measuring the result (#378, #380). Use it to seed a live server.
 
 - **Designs** are FORTH scripts released like any player's: the starters in `examples/starters/` and the company designs in `examples/companies/`.
-- **Numbers** come from a local test world at 600 game seconds a real second (one game day in 2.4 real minutes), with the engines' clock floor on.
+- **Numbers** come from a local test world at 600 game seconds a real second (one game day in 2.4 real minutes), with the engines' clock floor on. Until round 12 the clock slowed only when the engines ran 60 real seconds behind; at 600 that let drones wait hours of game time for their turn, so output per game day is understated (see lesson 13). From round 13 it slows at 10 seconds behind.
 
 ## Best performers
 
@@ -73,7 +73,7 @@ Levers not yet tried: House prices for parts and systems (lesson 9), deposit ref
 10. **Every product needs a buyer, or holds clog.** A drone's installed equipment takes 310 of its 500 cargo, leaving about 190. Refining vladnium leaves Inorganics (A2), which nobody bought, so it piled up until there was no room to brew fuel, and the drone died. Round 3 lost every Smith this way, and the Chemists were close behind. Sell every by-product, and have the House buy them.
 11. **Waiting drones still burn fuel.** A trader shopping for weeks on the Moon ran its tank dry through computing alone: 16 of 18 died. Top up fuel wherever you wait.
 12. **A deposit supports a fixed number of drones.** The Moon's yalspar refills 400 units a game day; a Chemist uses about 16 units every 13 game hours, so about 14 Chemists use it all. Beyond that, more drones add nothing.
-13. **The engines set a ceiling too.** Past about 200 drones on one machine, the clock floor slows game time and every drone does less per game day. Watch the clock's lag before adding drones.
+13. **The engines set a ceiling too.** Drones take turns on the engines, so a slow turn is game time lost. At a fast test clock (600) even 26 real seconds of lag cost a drone about 4 game hours a turn, and output per game day fell by 60% over five rounds while every deposit stayed full. On a live server at 24 game seconds a second the same lag is about 10 game minutes. Set the clock floor's lag threshold (`CLOCK_LAG_HIGH`) to match: low enough that a turn's wait is small next to an action's game time.
 14. **Small markets crash when everyone sells at once.** The Earth Exchange wants about 50 rods a day; round 5's Smiths sold 144 in one batch and got about 33 a rod, not 60. Size each sale to the market's daily units.
 15. **House-price arbitrage is thin.** The Mars Exchange pays half as much again as the Moon, but after the miners' markup, batch price drops and a 20-day round trip, a trader clears about 5 a unit. Arbitrage needs a bigger gap or a shorter trip.
 16. **Don't name your constants after FORTH words.** Smith v3's `load` constant shadowed the standard `load` (the drone printed "load redefined"). Pick names like `rod-load`.
@@ -279,6 +279,24 @@ A new world with the game data so far plus parts prices up 50%: 36 Miners, 12 Re
 - Two more version 1 Machinists died at Earth the same way.
 - Rods: 525 sold at about 79. The Smith is the steadiest new design.
 - **Round 12:** Smith v5 spreads over the Moon, Phobos and Deimos; the Mars-side copies sell rods at the Mars Exchange (a short hop) instead of Earth.
+
+### Round 12: Smith v5 spreads out (#380)
+
+9 Smith v5 released at game day 72.3, measured at day 87.3.
+
+| Design | Companies | Avg credits | Avg gain | Gaining | Ended |
+|---|---|---|---|---|---|
+| Chemist v3 | 36 | 6,534 | +5,320 | 36 | 0 |
+| Smith v3 | 6 | 5,903 | +5,118 | 6 | 0 |
+| Miner | 36 | 6,172 | +5,057 | 36 | 0 |
+| Smith v4 | 6 | 4,526 | +3,758 | 6 | 0 |
+| Refiner | 12 | 2,290 | +1,330 | 12 | 0 |
+| Machinist v2 | 6 | 1,683 | +1,015 | 5 | 0 |
+| Smith v5 | 9 | 1,036 | +16 | 3 | 0 |
+
+- Machinist v2 reached Earth and sold 16 gear boxes (32 in all, about 379 each), with no deaths. All six version 1 Machinists have died.
+- Smith v5 is inconclusive: the Mars-side copies were still arriving.
+- **House purchases kept falling while deposits stayed full** (Metals (A1) per 5 game days: 791, 686, 529, 379, 322 over rounds 8 to 12). The engines, not the minerals, were the limit: commands ran about 26 real seconds late, which at 600 is about 4 game hours per turn. Each miner managed about 13 mining runs in 5 game days.
 
 ### Baseline (before #380)
 
