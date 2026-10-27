@@ -1,12 +1,14 @@
-\ Machinist: a company design for Public Forge (economy rounds 10 and 11).
+\ Machinist: a company design for Public Forge (economy rounds 10, 11, 14).
 \ It builds gear boxes, which the Earth and Mars Exchanges buy for 450 (about
 \ 10 a day each). A gear box takes a rod, a gear and a spring: 8 Metals (A1)
 \ and 2 Metals (A2) through 5 alloys. It buys the metals from the Moon
 \ miners' sell orders when it can, and otherwise mines yalspar (Metals (A1))
 \ and vladnium (Metals (A2)) itself. With a few gear boxes it flies to
 \ Earth, buys fuel there first, sells them 2 an hour and comes back. It
-\ never leaves with less than trip-fuel: every action at Earth, even
+\ never leaves with less than low-fuel: every action at Earth, even
 \ ordering fuel, burns a unit (round 10 lost two that arrived empty).
+\ A gear box burns about 40 fuel and a brew nets only about 15, so it
+\ brews until the tank is full again, and buys fuel if it runs low.
 
 2021 constant alloys-a1  2022 constant alloys-a2  3011 constant rods
 3101 constant springs    3111 constant gears      4111 constant gear-boxes
@@ -14,7 +16,6 @@
 4 constant box-load      \ gear boxes it takes to Earth
 60 constant low-fuel     \ brew below this: a box burns about 23, a brew 15
 300 constant cash-floor  \ credits it keeps for fuel
-30 constant trip-fuel    \ fuel it leaves with, at least
 
 : dig ( mineral n -- )
   begin over units over < while
@@ -41,6 +42,14 @@
   vladnium 12 dig vladnium refine drop
   fuel make drop ;
 
+\ Brew until the tank is back to low-fuel; too low to brew safely, buy 30
+\ from the House here instead (it arrives when the batch clears)
+: refuel ( -- )
+  begin fuel units low-fuel < while
+    fuel units 20 < if 30 fuel buy-from-station drop 120 wait drop exit then
+    brew-fuel
+  repeat ;
+
 \ One gear box from 8 Metals (A1) and 2 Metals (A2); stops at a failure
 : build ( -- )
   metals-a1 units 8 < metals-a2 units 2 < or if exit then
@@ -63,13 +72,13 @@
   repeat drop ;
 
 : haul ( -- )
-  fuel units trip-fuel < if brew-fuel then
+  refuel
   earth go drop
   fuel units 60 < if 30 fuel buy-from-station drop 120 wait drop then
   sell-boxes moon go drop ;
 
 : work ( -- )
-  fuel units low-fuel < if brew-fuel then
+  refuel
   stock-up build tidy
   gear-boxes units box-load < 0= if haul then ;
 

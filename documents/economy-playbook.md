@@ -78,7 +78,9 @@ Levers not yet tried: House prices for parts and systems (lesson 9), deposit ref
 15. **House-price arbitrage is thin.** The Mars Exchange pays half as much again as the Moon, but after the miners' markup, batch price drops and a 20-day round trip, a trader clears about 5 a unit. Arbitrage needs a bigger gap or a shorter trip.
 16. **Don't name your constants after FORTH words.** Smith v3's `load` constant shadowed the standard `load` (the drone printed "load redefined"). Pick names like `rod-load`.
 17. **Arrive with fuel to spare.** Every action burns fuel, even offering goods to a station or ordering fuel from it. A drone that arrives somewhere with an empty tank can't sell, can't buy fuel and can't leave. Check fuel before every trip, and buy fuel first on arrival.
-18. **Give every design an outlet.** The Refiner stops when its tank is full and waits. A design with nothing to do while it waits earns nothing.
+18. **Brew enough fuel for the whole cycle.** A brew makes 30 fuel but spends about 15 doing it, so it nets about 15. A Machinist's gear box burns about 40. Brewing once a cycle left it short every time, until it couldn't afford a brew and died. Brew until the tank is back above your threshold, and buy fuel when it is too low to brew.
+19. **An aging world slows down unless its database keeps up.** Two queries read every event ever recorded, so each turn got slower as the world aged (136 ms for "how many units do I hold" at day 90). Migration 0020 indexes them. Watch the clock's lag on a live server as it ages.
+20. **Give every design an outlet.** The Refiner stops when its tank is full and waits. A design with nothing to do while it waits earns nothing.
 
 ## Round log
 
