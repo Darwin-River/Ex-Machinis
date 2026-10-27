@@ -9,25 +9,33 @@ How to seed a Public Forge world so that its economy thrives, learned by running
 
 Ranked by average gain: what a company made beyond its starter package (credits plus goods at House prices, less 1,000 credits, 100 fuel and the kit), the amount it is taxed on. A design earns a place here only after at least 20 game days in a mixed world.
 
-| Design | File | Where | Avg gain | Gaining | Notes |
+| Design | File | Where | Avg gain (round 8, fresh world) | Gaining | Notes |
 |---|---|---|---|---|---|
-| Chemist | `examples/companies/chemist.fth` | Moon | about 75 a game day | all | Works the Moon's yalspar and vladnium; sells metals, polymers and inorganics to the Moon Depot. The best earner per day so far. The Moon supports about 14; version 1 died of a full hold after about 30 days (fixed in version 2, round 4). |
-| Miner (Moon copies) | `examples/starters/miner.fth` | Moon | about +2,600 by day 38 | all | Sells metals to traders through sell orders, the rest to the Moon Depot. Best of the starters, but Moon kunspar is limited (see lessons). |
-| Miner (Mars copies) | `examples/starters/miner.fth` | Phobos, Deimos | about +1,000 by day 38 | all | Needs the Mars Exchange's bigger budget. |
-| Refiner | `examples/starters/refiner.fth` | Moon, Phobos, Deimos | about +400 by day 38 | all | Idles once its tank is full: little upside. |
-| Smith v2 | `examples/companies/smith.fth` | Moon, Earth | +552 in 27 game days (about 20 a day) | 12 of 12 | Rods from its own metals, sold at the Earth Exchange. Version 3 (round 6) sells rods 4 an hour: version 2 crashed the Exchange's price. |
-| Trader | `examples/starters/trader.fth` | Moon to Mars | 0 (none gaining) | none | Survives since round 4, but its margin is thin: it buys at about 31 and sells at about 36 at Mars after a 20-day round trip. Not worth seeding. |
+| Smith v3 | `examples/companies/smith.fth` | Moon, Earth | +1,513 by day 19 (about 80 a day) | 6 of 6 | Mines yalspar and vladnium, turns its metals into rods and sells them at the Earth Exchange 4 an hour. Needs rods at 90 (parts lever) and an Earth budget to match. |
+| Miner (Moon copies) | `examples/starters/miner.fth` | Moon | +2,496 by day 19 | all | Kunspar to metals; offers them to other drones, the rest to the Moon Depot. Moon kunspar supports about 12. |
+| Chemist v3 (Moon copies) | `examples/companies/chemist.fth` | Moon | +1,771 by day 19 | all | Yalspar and vladnium to metals, polymers and inorganics. Moon yalspar supports about 14 (Smiths share it). |
+| Chemist v3 (Mars-side copies) | `examples/companies/chemist.fth` | Phobos, Deimos | +553 by day 19 | all | Same, selling at the Mars Exchange; loses its first 10 game days to the trip. |
+| Refiner | `examples/starters/refiner.fth` | Moon, Phobos, Deimos | +662 by day 19 | all | Idles once its tank is full: little upside, but sells fuel to other drones. |
+| Miner (Mars-side copies) | `examples/starters/miner.fth` | Phobos, Deimos | +309 by day 19 | all | Slow start (the trip), then steady. |
+| Trader | `examples/starters/trader.fth` | Moon to Mars | 0 (none gaining in round 5) | none | Survives, but clears about 5 a unit after a 20-day round trip. Not worth seeding. |
 
 The round log below has the numbers behind each entry.
 
 ## Recommended seed mix
 
-For an empty world, before players arrive (to be refined round by round):
+For an empty world, before players arrive. Round 8 seeded a fresh world with this mix, and all 90 companies were gaining by game day 19, with the engines at full speed:
 
-- Moon miners and Mars-side miners in about a 1 to 2 ratio (the Miner spreads itself by drone number).
-- About one trader for every two Moon miners.
-- A few refiners, so that drones can buy fuel cheaper than the House's 5.
-- Company designs from the table above as they prove themselves.
+| Design | Companies | Spread |
+|---|---|---|
+| Miner | 36 | 12 Moon, 24 Phobos and Deimos (by drone number) |
+| Chemist v3 | 36 | 12 Moon, 24 Phobos and Deimos |
+| Refiner | 12 | 4 Moon, 8 Phobos and Deimos |
+| Smith | 6 | Moon, selling at Earth |
+| Trader | 0 | not worth seeding |
+
+- Release them in that order of numbers (the Load Test does it: `--starters=miner,miner,miner,refiner`, then the company designs), so each design's copies spread evenly by drone number.
+- Keep each Moon deposit's users near what it supports: about 12 kunspar miners, and about 14 yalspar users (Chemists and Smiths).
+- The game data must carry the levers below (tax on gains, station budgets, by-product buyers, parts prices, jettison).
 
 ## Economic levers
 
@@ -45,6 +53,9 @@ The game data a world's owner can change (`game-engine/sql/game-data/build_game_
 
 | Mars Exchange buys chemists' goods | `station_goods` | metals only | also polymers, Inorganics (A1)-(A3), Organics (A1)-(A3) | Chemist v3 copies at Phobos and Deimos gained about 150 in their first 12 days (10 of them travelling); Moon copies about 380. |
 | Dump takes a quantity | `protocols` (1) | 1 unit an action, 1 fuel each | n units, 1 fuel an action; game word `jettison` | A drone can clear goods nobody buys, cheaply. |
+
+| Parts and systems prices | `station_goods` | rods 60, sheets 60, fasteners 50, pipes 70, systems 300 | half as much again (rods 90, systems 450) | Smiths sold rods at about 72 on average (33 before, when they sold in bulk), and the Smith became the best earner per game day. Adopted in the game data. |
+| Earth Exchange budget | `stations` | 5,000 a day | 10,000 a day | Six Smiths' rod sales brought it down to about 1,100; raised with the parts prices. |
 
 Levers not yet tried: House prices for parts and systems (lesson 9), deposit refill per mineral, station budgets at Earth and the Moon, the tax rate and grace period.
 
@@ -199,6 +210,21 @@ Measured at game day 104.7, only 8 game days later: the clock had floated down t
 
 - Inconclusive: no Smith sold rods in these 8 days. Smiths' gains jumped only on paper (rods held are valued at the new price); Smith v2's cash rose 78, from by-products sold at the Moon.
 - The world had slowed to about half speed after 105 game days, so the rounds moved to a fresh world seeded with the recommended mix (round 8).
+
+### Round 8: a fresh world, seeded with the recommended mix (#380)
+
+A new world with the game data so far plus parts prices up 50%: 36 Miners, 12 Refiners, 36 Chemist v3 and 6 Smith v3, released at once, measured at game day 18.8.
+
+| Design | Companies | Avg credits | Avg gain | Gaining | Moon copies | Mars-side copies |
+|---|---|---|---|---|---|---|
+| Smith v3 | 6 | 2,264 | +1,513 | 6 | +1,552 | +1,528 |
+| Miner | 36 | 2,166 | +1,039 | 36 | +2,496 | +309 |
+| Chemist v3 | 36 | 2,227 | +947 | 36 | +1,771 | +553 |
+| Refiner | 12 | 1,687 | +662 | 12 | +996 | +487 |
+
+- Every company gaining, none ended; the clock at full speed (600) with 4 seconds of lag.
+- The House bought 7 goods; Smiths sold 72 rods at about 72 each (base 90).
+- Weak spot: hardly any drone-to-drone trade (5 fuel sales in 5 days). With no traders, nobody buys the Moon miners' sell orders. **Round 9:** Smith v4 buys Metals (A1) from them to make more rods (two metals at 23 make a rod worth 90).
 
 ### Baseline (before #380)
 
