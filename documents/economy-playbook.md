@@ -300,6 +300,27 @@ A new world with the game data so far plus parts prices up 50%: 36 Miners, 12 Re
 - Smith v5 is inconclusive: the Mars-side copies were still arriving.
 - **House purchases kept falling while deposits stayed full** (Metals (A1) per 5 game days: 791, 686, 529, 379, 322 over rounds 8 to 12). The engines, not the minerals, were the limit: commands ran about 26 real seconds late, which at 600 is about 4 game hours per turn. Each miner managed about 13 mining runs in 5 game days.
 
+### Rounds 13 and 14: a prompter clock, faster queries, Machinist v3 (#380)
+
+Round 13 set the test world's clock floor to slow the clock at 10 real seconds of lag; round 14 added migration 0020's indexes and released 6 Machinist v3. Measured at game days 92.5 and 93.8 (the clock settled at about 40 to 60 game seconds a second).
+
+| Design | Companies | Avg gain (day 93.8) | Gaining | Ended |
+|---|---|---|---|---|
+| Chemist v3 | 36 | +6,060 | 36 | 0 |
+| Miner | 36 | +5,794 | 36 | 0 |
+| Smith v3 | 6 | +5,483 | 6 | 0 |
+| Smith v4 | 6 | +4,230 | 6 | 0 |
+| Machinist v2 | 6 | +1,589 | 5 | 1 |
+| Refiner | 12 | +1,562 | 12 | 0 |
+| Smith v5 | 9 | +731 | 9 | 0 |
+| Machinist v3 | 6 | 0 (just released) | 0 | 0 |
+
+- **Output per game day recovered:** Metals (A1) bought per 5 game days went from 322 (round 12) to 806 (round 13) and 1,009 (round 14), the most in any round.
+- Drone-to-drone trade per 5 game days was the highest yet: 42 trades, about 2,100 credits.
+- Smith v5: all 9 gaining, Moon copies +950, Mars-side copies +621.
+- One Machinist v2 ran dry of fuel slowly (lesson 18); Machinist v3 brews until its tank is full.
+- The cost: with about 110 drones on this machine the clock runs at about 40 to 60, so a round now needs about 90 real minutes.
+
 ### Baseline (before #380)
 
 From the four 300-company runs in #378, each with miners, refiners and traders in equal numbers:
