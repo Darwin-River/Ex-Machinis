@@ -24,6 +24,7 @@
     let rbase = 0;         // return stack depth under the word: the interpreter's
     let halt = -1;         // the return address that ends the word
     let catalog = {};      // query id -> {name, parameters, strings} (#380)
+    let protocols = {};    // protocol id -> {name, parameters}
     let asking = false;    // a live query is on its way
 
     const mem = () => new Uint8Array(m.memory.buffer);
@@ -220,13 +221,13 @@
     }
 
     // Each live query, newest first, with the rows it stored
-    function logQuery(id, result, rows, values) {
-        const meta = catalog[id] || { name: 'unknown' };
+    function logQuery(id, result, rows, values, name) {
+        const meta = name ? { name } : (catalog[id] || { name: 'unknown' });
         const box = $('m-queries');
         const item = document.createElement('div');
         item.style.marginBottom = '0.75em';
         const head = document.createElement('div');
-        head.textContent = 'query ' + id + ' (' + meta.name + ')' + (values && values.length ? ' with ' + values.join(' ') : '') + ': ' + result;
+        head.textContent = (String(id).startsWith('perform') ? '' : 'query ') + id + ' (' + meta.name + ')' + (values && values.length ? ' with ' + values.join(' ') : '') + ': ' + result;
         item.appendChild(head);
         if (rows && rows.length) {
             const table = document.createElement('table');
@@ -246,10 +247,28 @@
         box.prepend(item);
     }
 
+    // perform, live: take the protocol's arguments as the engine does and
+    // leave -11 (nothing acts in the game from here)
+    function answerPerform() {
+        let id = m.machine_perform_pending();
+        if (id === -1) id = 0;
+        const meta = protocols[id];
+        const n = meta ? meta.parameters : 0;
+        const values = [];
+        for (let i = 0; i < n && m.machine_depth() > 0; i++) values.push(m.machine_pop());
+        m.machine_query_answer(-11);
+        logQuery('perform ' + id, 'not done here (-11)', [], values, meta ? meta.name : 'no such protocol');
+    }
+
+    async function answerPending() {
+        if (m.machine_perform_pending()) answerPerform();
+        else if (m.machine_query_pending()) await answerQuery();
+    }
+
     async function step(n) {
         if (asking) return;
         m.machine_step(n);
-        if (m.machine_query_pending()) await answerQuery();
+        await answerPending();
         show();
     }
 
@@ -303,7 +322,7 @@
                 return;
             }
             m.machine_step(Math.min(5000, limit - m.machine_count()));
-            if (m.machine_query_pending()) await answerQuery();
+            await answerPending();
             show();
             requestAnimationFrame(tick);
         };
@@ -320,6 +339,7 @@
         // The game's queries, for live data (#380)
         try {
             catalog = await (await fetch($('machine').dataset.queries, { headers: { Accept: 'application/json' } })).json();
+            protocols = await (await fetch($('machine').dataset.protocols, { headers: { Accept: 'application/json' } })).json();
         } catch (e) {
             $('m-live').checked = false;
             $('m-live').disabled = true;

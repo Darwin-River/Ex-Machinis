@@ -93,11 +93,13 @@
   1- 4 * answer + @ >r
   1 starter-kit r@ push drop  40 fuel r> push drop ;
 \ Top the tank up to n from the House here, waiting (up to 6 game hours)
+\ (Waits for the delivery, not for n: computing burns a unit or two just
+\ after it arrives, and waiting for n then sat out all 6 hours)
 : fill-to ( n -- )
-  dup fuel units > if
-    dup fuel units - fuel buy-from-station drop
-    6 begin over fuel units > over 0> and while 60 wait drop 1- repeat drop
-  then drop ;
+  fuel units tuck - dup 0> if
+    fuel buy-from-station drop
+    6 begin over fuel units < 0= over 0> and while 60 wait drop 1- repeat
+  then 2drop ;
 \ One kit at a time: equipment fills 364 of the 500 cargo. A hull already
 \ bought is launched whenever the fuel allows; after equipping the clone
 \ the tank is refilled (round 19 lost 8 parents that left with 20 fuel)

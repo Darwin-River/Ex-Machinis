@@ -54,6 +54,12 @@ class WorldController extends Controller
         return response()->json(\App\Services\LiveQuery::catalog());
     }
 
+    /** The game's protocols: how many parameters each takes (#380) */
+    public function machineProtocols()
+    {
+        return response()->json(\App\Services\LiveQuery::protocols());
+    }
+
     /**
      * Runs one of the game's queries as a drone would, for the Machine
      * page's live data (#380): the rows as the bytes a drone's memory gets

@@ -488,6 +488,9 @@ def fuel_cost(pid):
     p = int(pid)
     if p in (25901, int(POWER_PROTOCOL), 33, 35, int(WAIT_PROTOCOL)):
         return 0
+    if p == 32:
+        return 0                      # ordering from a House station (#380): a drone with no fuel
+                                      # docked at a station could not order any, and died there
     if p == int(LAUNCH_PROTOCOL):
         return 10 + LAUNCH_FUEL           # 10 burned, 20 for the clone's tank
     if p == 5001:

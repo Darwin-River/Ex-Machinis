@@ -25,7 +25,9 @@ static m_t halt_cell;
 static int live;
 static int stepping;
 static int pending_query;
+static int pending_perform;
 #define QUERY_INSTRUCTIONS 1000
+#define ACTION_INSTRUCTIONS 1000
 
 /* What a word prints */
 static int put_cb(int ch, void *file)
@@ -59,6 +61,16 @@ static int callback_cb(embed_t *h, void *param)
     m_t which = 0, ignored = 0;
     embed_pop(h, &which);
     if(which == 0) {            /* perform: protocol -- ior */
+        if(live && stepping) {
+            /* The page takes the protocol's arguments, as the engine
+               does, and leaves -11: nothing acts in the game here */
+            m_t id = 0;
+            embed_pop(h, &id);
+            pending_perform = (int)id ? (int)id : -1;
+            count += ACTION_INSTRUCTIONS - 1;
+            steps_left = 1;
+            return 0;
+        }
         embed_pop(h, &ignored);
         embed_push(h, (m_t)-11);
     } else if(which == 1) {     /* query: R L id -- n */
@@ -141,6 +153,7 @@ int machine_eval(const char *text)
 int machine_prepare(const char *word)
 {
     pending_query = 0;
+    pending_perform = 0;
     char line[96];
     if(strlen(word) > 64)
         return -13;
@@ -179,7 +192,7 @@ int machine_step(int n)
        (at the halt cell, which would otherwise spin) */
     long before = count;
     stepping = 1;
-    while(n-- > 0 && !machine_done() && !pending_query) {
+    while(n-- > 0 && !machine_done() && !pending_query && !pending_perform) {
         steps_left = 2;
         embed_vm(&vm);
     }
@@ -190,10 +203,12 @@ int machine_step(int n)
 
 void machine_set_live(int on)  { live = on; }
 int machine_query_pending(void) { return pending_query; }
+int machine_perform_pending(void) { return pending_perform; }
 
 void machine_query_answer(int code)
 {
     pending_query = 0;
+    pending_perform = 0;
     embed_push(&vm, (m_t)code);
 }
 

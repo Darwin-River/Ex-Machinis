@@ -45,6 +45,9 @@ const char *machine_output(void);  /* what the word printed */
    engine does; then stepping goes on. Off (the default), query leaves -3. */
 void machine_set_live(int on);
 int machine_query_pending(void);
+/* Likewise perform (live on, while stepping): the protocol id, taken off
+   the stack; the page takes its arguments and answers -11 */
+int machine_perform_pending(void);
 void machine_query_answer(int code);
 int machine_pop(void);
 int machine_read_byte(int addr);

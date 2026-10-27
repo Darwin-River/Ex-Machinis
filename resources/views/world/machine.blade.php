@@ -4,13 +4,13 @@
     {{-- The Machine view (#324 step 19): the engine's VM, in the browser --}}
     <section class="section section-xs section-first bg-default text-md-left">
         <div class="container" id="machine" data-wasm="{{ asset('wasm/machine.wasm') }}"
-             data-queries="{{ url('machine/queries') }}" data-query="{{ url('machine/query') }}">
+             data-queries="{{ url('machine/queries') }}" data-protocols="{{ url('machine/protocols') }}" data-query="{{ url('machine/query') }}">
             <h2>Machine</h2>
             <div style="white-space: normal; margin-bottom: 1em">
                 Watch a word run on the same machine your drones run on: the engine's FORTH virtual machine, built
                 for your browser, set up as a drone's is, with the game words loaded. Type definitions, a starting
                 stack and a word, then step through it one instruction at a time and see the stacks change.
-                <code>perform</code> does nothing here (it leaves -11): nothing you run here acts in the game. With
+                <code>perform</code> does nothing here (it leaves -11; with live data on, it first takes the protocol's arguments, as a drone would): nothing you run here acts in the game. With
                 <b>live game data</b> on, <code>query</code> asks the game, now, as the drone you choose would: the
                 same rows land in memory as in a drone's, so a word that sizes up the market here works the same in
                 a company design. Off, query leaves -3. Every instruction counts: a drone burns 1 fuel for each

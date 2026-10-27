@@ -69,6 +69,7 @@ Route::get('/map', 'WorldController@map');
 Route::get('/leaderboard', 'WorldController@leaderboard');
 Route::get('/machine', 'WorldController@machine');
 Route::get('/machine/queries', 'WorldController@machineQueries');
+Route::get('/machine/protocols', 'WorldController@machineProtocols');
 Route::get('/machine/query', 'WorldController@machineQuery')->middleware('throttle:240,1');
 Route::get('/release', 'ReleaseController@show');
 Route::post('/release', 'ReleaseController@store');

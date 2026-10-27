@@ -33,6 +33,16 @@ class LiveQuery
         return $out;
     }
 
+    /** Every protocol's parameter count, so the page takes perform's arguments as the engine does */
+    public static function protocols(): array
+    {
+        $out = [];
+        foreach (DB::table('protocols')->orderBy('id')->get(['id', 'name', 'parameters']) as $p) {
+            $out[(int) $p->id] = ['name' => $p->name, 'parameters' => (int) $p->parameters];
+        }
+        return $out;
+    }
+
     /**
      * Runs query $id as drone $drone would, with its parameters in the order
      * the engine takes them off the stack (the first is [value_1]) and

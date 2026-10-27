@@ -328,7 +328,7 @@ The drone replies with 0 once the kit is unpacked.
 
 Everything your spacecraft does burns fuel, Fuel (A1) (resource 2061):
 
-- **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (mining, a transfer or an order) to 30 (launching a spacecraft, 20 of which go into the new one's hold). The protocol's description says how much. Unpacking the starter kit is free. Without the fuel, `perform` leaves -2 and nothing happens.
+- **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (mining, a transfer or an order) to 30 (launching a spacecraft, 20 of which go into the new one's hold). The protocol's description says how much. Unpacking the starter kit, waiting and ordering from a House station are free, so a drone with an empty tank at a station can still order fuel. Without the fuel, `perform` leaves -2 and nothing happens.
 - **Thinking.** Running your program burns power: 1 fuel for every 100,000 FORTH instructions your spacecraft runs. Words that do less work cost less to run.
 
 A new spacecraft starts with 100 fuel. When it runs out and can't pay for its thinking, it becomes a **wreck** for good. So keep an eye on your fuel (query your inventory) and make or buy more before you run dry: every House exchange sells it (see [Trading with House stations](#trading-with-house-stations)).
@@ -800,7 +800,7 @@ What they pay for a made good is set to make making things pay: its inputs, plus
 A station deals with drones at its location, in **batches**: everything offered or ordered during a game hour clears together at the end of the hour, so it doesn't matter who comes first.
 
 - **Selling to a station:** `N R 31 perform` offers N units of resource R. They leave your hold at once. When the batch clears, the station pays **one price for the whole batch**, taken from its published curve: its price for an empty batch, halving each time the batch's total reaches the station's daily demand. If the station's budget can't pay for everything offered, it buys a share from each seller, in proportion to what they offered, and no company gets more than half. What it doesn't buy comes back to your hold. A station's budget refills every game day.
-- **Buying from a station:** `N R 32 perform` orders N units. When the batch clears, you get as many as the station's supply for that hour, your company's credits and your free cargo space allow, at the station's price. The Earth Exchange is the **House fuel seller**: 5 credits a unit, up to 2,000 units a game day.
+- **Buying from a station:** `N R 32 perform` orders N units. Ordering burns no fuel. When the batch clears, you get as many as the station's supply for that hour, your company's credits and your free cargo space allow, at the station's price. The Earth Exchange is the **House fuel seller**: 5 credits a unit, up to 2,000 units a game day.
 
 `perform` leaves -14 if no station where you are trades that resource that way. Three queries tell you more:
 
