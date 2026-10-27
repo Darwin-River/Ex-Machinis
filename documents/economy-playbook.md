@@ -90,7 +90,9 @@ Levers not yet tried: House prices for parts and systems (lesson 9), deposit ref
 21. **An empty mining run still costs fuel.** A deposit can report enough and still yield nothing when other drones take it first. A mining loop that only checks the deposit before each run can burn a whole tank on empty runs (a Refiner died that way in round 16). Compare what you hold before and after a run, and wait when nothing came.
 22. **Check what a hold can carry before selling something.** A working drone's equipment takes 364 of its 500 cargo; with a tank of fuel, about 50 is free. Neither ship kit fit until it was flat-packed, and even then a drone can carry only one kit at a time: buy the hull, launch, then buy the equipment.
 23. **A station's hourly batch must sell at least one.** A station sells `daily_units` ÷ 24 a batch, rounded down: 4 a day sold nothing.
-24. **Give every design an outlet.** The Refiner stops when its tank is full and waits. A design with nothing to do while it waits earns nothing.
+24. **Count the whole cost of an action, in fuel too.** Launching a clone costs 30 fuel and equipping it 40 more: parents that did it on an ordinary tank all died on the way home. Refill after anything that spends a lot of fuel at once.
+25. **Wait for deliveries, don't guess.** The House delivers when a batch clears, sometimes hours after the order. A fixed 2-hour wait missed kits; wait in steps until the goods arrive, with a limit.
+26. **Give every design an outlet.** The Refiner stops when its tank is full and waits. A design with nothing to do while it waits earns nothing.
 
 ## Round log
 
@@ -368,6 +370,23 @@ A fresh world with the seed mix (36 Miners, 36 Chemists, 12 Refiners, 9 Smiths, 
 
 - Every company gaining; the Machinist earned fastest (about 103 a game day).
 - No clones yet: a company reinvests at 7,000 credits, so the first are expected around game day 50 to 60.
+
+### Round 19: the first clones (#380)
+
+Same world, measured at game day 54.5.
+
+| Design | Companies | Avg credits | Avg gain | Gaining | Clones | Ended |
+|---|---|---|---|---|---|---|
+| Machinist | 6 | 6,083 | +5,407 | 6 | 0 | 0 |
+| Smith | 9 | 5,614 | +5,362 | 9 | 0 | 0 |
+| Chemist | 36 | 5,240 | +4,975 | 36 | 13 | 0 |
+| Miner | 36 | 5,264 | +4,425 | 36 | 3 | 0 |
+| Refiner | 12 | 2,401 | +1,479 | 12 | 0 | 0 |
+
+- **Growth works:** 16 clones launched (13 Chemists, 3 Miners), all alive, 15 equipped, spread over the Moon, Phobos, Deimos and Mars.
+- **But every parent that launched died:** launching (30 fuel) and equipping (40) left it about 20, and it ran dry brewing at its site. Eight parents were lost; their companies live on through their clones.
+- **And kits sat idle:** 31 hulls were bought for 16 launches. The House delivered some after the 2-hour wait, the fuel top-up fell short, and having paid 3,000 the company was below 7,000 again, so `reinvest` stopped trying.
+- **Fix (reinvest v2):** a hull already bought is launched whenever the fuel allows; purchases wait for delivery (up to 6 game hours); the parent refills its tank after equipping the clone. Tested on a scratch world: the parent left with 59 fuel, the clone with 60 and its equipment.
 
 ### Baseline (before #380)
 

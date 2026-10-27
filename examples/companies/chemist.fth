@@ -38,23 +38,36 @@ variable site#
 \ Cruiser kit and a Starter Kit I, launch a clone of this drone (it runs
 \ this same program), and hand it the starter kit and 40 fuel
 6001 constant cruiser-kit   5901 constant starter-kit
+\ Buy one of a good here unless one is aboard, and wait (up to 6 game
+\ hours) for it: the House delivers when the batch clears
 : get-one ( resource -- )
-  dup units if drop exit then 1 swap buy-from-station drop ;
+  dup units if drop exit then
+  dup 1 swap buy-from-station drop
+  6 begin over units 0= over 0> and while 60 wait drop 1- repeat 2drop ;
 \ Hand the newest clone a starter kit and 40 fuel
 : equip-clone ( -- )
   670 ask ?dup 0= if exit then
   1- 4 * answer + @ >r
   1 starter-kit r@ push drop  40 fuel r> push drop ;
-\ One kit at a time: equipment fills 364 of the 500 cargo
+\ Top the tank up to n from the House here, waiting (up to 6 game hours)
+: fill-to ( n -- )
+  dup fuel units > if
+    dup fuel units - fuel buy-from-station drop
+    6 begin over fuel units > over 0> and while 60 wait drop 1- repeat drop
+  then drop ;
+\ One kit at a time: equipment fills 364 of the 500 cargo. A hull already
+\ bought is launched whenever the fuel allows; after equipping the clone
+\ the tank is refilled (round 19 lost 8 parents that left with 20 fuel)
 : reinvest ( -- )
-  starter-kit units if equip-clone exit then  \ a kit left from last time
-  credits 7000 0 d< if exit then
-  fuel units 90 < if 90 fuel units - fuel buy-from-station drop then
-  cruiser-kit get-one  120 wait drop
-  cruiser-kit units 0= fuel units 80 < or if exit then
+  starter-kit units if equip-clone 60 fill-to exit then
+  cruiser-kit units 0= if
+    credits 7000 0 d< if exit then
+    cruiser-kit get-one  cruiser-kit units 0= if exit then
+  then
+  90 fill-to  fuel units 80 < if exit then
   me cruiser-kit launch if exit then
-  starter-kit get-one  120 wait drop
-  starter-kit units if equip-clone then ;
+  starter-kit get-one  starter-kit units if equip-clone then
+  60 fill-to ;
 \ A clone starts with no equipment: wait for the starter kit
 : await-kit ( -- ) begin starter-kit units 0= while 60 wait drop repeat ;
 

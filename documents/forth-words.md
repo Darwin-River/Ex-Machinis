@@ -83,7 +83,12 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 **`reinvest ( -- )`**: at a House exchange, with 7,000 credits or more, buy a Mining Cruiser kit (3,000), launch a clone of this drone, buy a Starter Kit I (2,000) and hand it to the clone with 40 fuel. Used by: every starter and design since #380.
 
 - One kit at a time: equipment fills 364 of a drone's 500 cargo, so both kits (40 each) don't fit at once with a tank of fuel.
-- If a Starter Kit I is still aboard from a launch whose hand-over failed, `reinvest` hands it over first.
+- If a Starter Kit I is still aboard from a launch whose hand-over failed, `reinvest` hands it over first. A hull already bought is launched whenever the fuel allows, without checking credits again.
+- Launching (30 fuel) and equipping the clone (40) empty the tank: `reinvest` refills it to 60 afterwards. Without that, every parent in round 19 died on its way home.
+
+**`get-one ( resource -- )`**: buy one of a good here unless one is aboard, and wait for it in game-hour steps (up to 6): the House delivers when the batch clears, sometimes hours later.
+
+**`fill-to ( n -- )`**: buy fuel here up to n and wait for it the same way.
 
 **`equip-clone ( -- )`**: push a starter kit and 40 fuel to this drone's newest clone (the last row of `670 ask`).
 
