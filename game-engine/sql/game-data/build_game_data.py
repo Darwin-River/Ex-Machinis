@@ -324,6 +324,12 @@ for pid, p in econ_prot.items():
         # is the process multiplier, so these protocols take one.
         p = p[:7] + ['1']
         note(f'protocol {pid} ({p[1]}): multiplier enabled, so "N R D {pid} perform" moves N units as the manual says')
+    if pid == '1':
+        # Dump (#380): N units for one action and 1 fuel, like push and pull;
+        # one unit at a time cost a fuel a unit, so nobody dumped and holds
+        # clogged with goods nobody buys
+        p = (p[:4] + ['[N R 1 perform]: Dumps N units of resource R into space. N is required (1 for one unit).']
+             + p[5:7] + ['1'])
     if pid == '25901':
         # The kit's Smelter I (5221) can't refine: refining needs Smelter (A1)
         effs = [dict(e, resource=SMELTER if e['resource'] == 5221 else e['resource']) for e in effs]

@@ -149,7 +149,7 @@ INSERT INTO `resources` (id, name, description, mass, capacity, slot_size) VALUE
 
 DELETE FROM `protocols`;
 INSERT INTO `protocols` (id, name, parameters, bulk_modifier, description, observable, reportable, multiplier, double_params) VALUES
-  (1, 'Dump resource', 1, 100, '[R 1 perform]: Dump one unit of resource R into space. Burns 1 fuel.', 1, 1, 0, 0),
+  (1, 'Dump resource', 1, 100, '[N R 1 perform]: Dumps N units of resource R into space. N is required (1 for one unit). Burns 1 fuel.', 1, 1, 1, 0),
   (2, 'Burn power', 1, 100, '[N 2 perform]: Burns N fuel to power the drone''s computer. The engine does this for every drone, 1 fuel per 100,000 instructions; a drone that can''t pay becomes a wreck.', 0, 0, 0, 0),
   (3, 'Wait', 1, 100, '[M 3 perform]: Waits M game minutes (1 to 10,080: a week) doing nothing. The script pauses and runs no instructions until then, so waiting costs no fuel.', 1, 1, 0, 0),
   (7, 'Sell resource', 3, 100, '[P M R 7 perform]: Places order to sell resource R at price P, keeping min M units at drone''s cargo hold. Burns 1 fuel.', 1, 1, 0, 0),

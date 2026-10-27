@@ -37,6 +37,13 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 
 - The station hands out its hourly supply among everyone who orders, so at a busy exchange you may get less than you asked for. Check the tank again afterwards.
 
+## Getting rid of goods
+
+**`jettison ( n resource -- ior )`** (a game word): throw n units of a resource into space, for 1 fuel whatever the amount. Example: `10 inorganics-a2 jettison drop`.
+
+- Use it for goods nobody buys where you are. A full hold leaves no room for the fuel you make, and a drone without fuel dies.
+- Selling is better where a station buys the good: Earth, the Moon and Mars buy refining by-products for 10 to 18.
+
 ## Selling
 
 **`portion ( resource -- )`**: sell at most 15 of a good to the House station here. Used by: Trader.

@@ -59,6 +59,7 @@ const char* vm_library_game_source =
     ": pull ( n resource drone -- ior ) 11 perform ;\n"
     ": launch ( drone kit -- ior ) 12 perform ;\n"
     ": plunder ( wreck -- ior ) 34 perform ;\n"
+    ": jettison ( n resource -- ior ) 1 perform ;\n"
     "create answer 120 allot\n"
     ": ask ( [n] id -- rows ) >r answer 120 r> query ;\n"
     ": me ( -- drone ) 205 ask drop answer @ ;\n"
