@@ -1,0 +1,88 @@
+\ Smith: a company design for Public Forge (economy rounds 2, 4, 6, 9, 12).
+\ Copies spread out: a third work the Moon and sell rods at Earth; the rest
+\ work Phobos and Deimos and sell rods (and by-products) at the Mars
+\ Exchange, a short hop away. Below, "Earth" means the rod market.
+\ It works the Moon's yalspar and vladnium like the Chemist, but turns its
+\ Metals (A1) into rods (2 metals make an alloy, an alloy makes a rod):
+\ two metals the Moon Depot pays 40 for become a rod the Earth Exchange
+\ pays 60 for. Everything else it sells to the Moon Depot as it goes, so
+\ its hold never fills (round 3 lost every Smith to a full hold: no room
+\ to brew fuel). With a load of rods it flies to Earth, sells them 4 an
+\ hour (the Exchange wants about 50 a day, and a fuller batch pays less:
+\ round 5's Smiths sold 144 at once for about 33 each, not 60), buys fuel
+\ and comes back. It also buys Metals (A1) from other drones' sell orders
+\ at the Moon (the Miner offers them at 23): two metals make a rod worth
+\ 90 at Earth.
+
+2051 constant polymers   2021 constant alloys-a1   3011 constant rods
+2032 constant inorganics-a2
+12 constant rod-load     \ rods it hauls to Earth (4 cargo each)
+40 constant low-fuel     \ brew fuel below this
+23 constant metal-price  \ most it pays other drones for a Metals (A1)
+200 constant cash-floor  \ credits it keeps (for fuel at Earth)
+30 constant trip-fuel    \ fuel it buys at Earth
+
+\ The site: 0 the Moon, 1 Phobos, 2 Deimos (by drone number); its markets
+variable site#
+: site ( -- place )
+  site# @ dup 0= if drop moon exit then 1 = if phobos else deimos then ;
+: rod-market ( -- place ) site moon = if earth else mars then ;
+
+: dig ( mineral n -- )
+  begin over units over < while
+    over deposit 5 < if 60 wait drop else
+      \ A run that brings nothing (others took it first) still burns fuel:
+      \ wait as if the deposit were dry
+      over units >r  over mine drop  over units r> = if 60 wait drop then
+    then
+  repeat 2drop ;
+
+: harvest ( -- )
+  yalspar 16 dig yalspar refine drop
+  vladnium 12 dig vladnium refine drop ;
+
+\ Buy up to 10 Metals (A1) from the cheapest seller here, at metal-price
+\ or less, keeping cash-floor credits
+: buy-metals ( -- )
+  credits cash-floor 0 d< if exit then
+  metals-a1 610 ask 0> 0= if exit then
+  answer 2@ drop metal-price > if exit then
+  answer 6 + @ answer 4 + @ - 0 max 10 min ?dup 0= if exit then
+  metals-a1 answer 8 + @ pull drop ;
+
+\ Metals (A1) into rods, two at a time; stop at the first failure
+: forge-rods ( -- )
+  begin metals-a1 units 1 > while
+    alloys-a1 make if exit then  rods make if exit then
+  repeat ;
+
+: sell-goods ( -- )
+  site moon = 0= if exit then   \ Mars-side copies sell them on the haul
+  polymers sell-all metals-a2 sell-all
+  inorganics-a1 sell-all inorganics-a2 sell-all ;
+
+\ Sell at most 4 rods an hour, for up to 6 hours; the rest go next time
+: sell-rods ( -- )
+  6 begin dup 0> rods units 0> and while
+    rods units 4 min rods sell-to-station drop 60 wait drop 1-
+  repeat drop ;
+
+\ Fuel first: every action at the market burns a unit
+: haul ( -- )
+  rod-market go drop
+  fuel units 60 < if trip-fuel fuel buy-from-station drop 120 wait drop then
+  sell-rods
+  site moon = 0= if
+    polymers sell-all metals-a2 sell-all
+    inorganics-a1 sell-all inorganics-a2 sell-all
+  then
+  site go drop ;
+
+: work ( -- )
+  harvest
+  fuel units low-fuel < if fuel make drop else polymers make drop then
+  buy-metals forge-rods sell-goods
+  rods units rod-load < 0= if haul then ;
+
+: launched ( -- )
+  unpack drop me 3 mod site# ! site go drop begin work again ;

@@ -529,6 +529,7 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
         db_set_agent_waiting_action(&engine.db_connection, engine.last_command.agent_id, vm_waiting_action());
 
     AgentInfo_t info;
+    memset(&info, 0, sizeof(info));
     // Update drone info (just in case, we executed a location change)
     if(result == ENGINE_OK)
     {
@@ -549,6 +550,8 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
         // Update object ID to use it when calculating distances and sending email
         engine.last_agent.object_id = info.object_id;
     }
+    // Only the location was wanted: free the VM the lookup loaded (#380)
+    if(info.vm) vm_free(info.vm);
 
     // A run of the launched word that has ended: it returned or crashed
     // (after the refresh above, which loads a VM and may print)
@@ -624,6 +627,7 @@ ErrorCode_t engine_process_meta_rename(char* out_buf, size_t out_buf_size)
         }
         // Update agent name to keep the emails chain
         AgentInfo_t info;
+        memset(&info, 0, sizeof(info));
         if(result == ENGINE_OK)
         {
             // Get current values
@@ -642,6 +646,7 @@ ErrorCode_t engine_process_meta_rename(char* out_buf, size_t out_buf_size)
             // Update name to answer using this new one
             sprintf(engine.last_agent.agent_name, "%s", info.agent_name);
         }
+        if(info.vm) vm_free(info.vm);
     }
 
     if(name) engine_free(name, (strlen(name)+1));

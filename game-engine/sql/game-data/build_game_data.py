@@ -324,6 +324,12 @@ for pid, p in econ_prot.items():
         # is the process multiplier, so these protocols take one.
         p = p[:7] + ['1']
         note(f'protocol {pid} ({p[1]}): multiplier enabled, so "N R D {pid} perform" moves N units as the manual says')
+    if pid == '1':
+        # Dump (#380): N units for one action and 1 fuel, like push and pull;
+        # one unit at a time cost a fuel a unit, so nobody dumped and holds
+        # clogged with goods nobody buys
+        p = (p[:4] + ['[N R 1 perform]: Dumps N units of resource R into space. N is required (1 for one unit).']
+             + p[5:7] + ['1'])
     if pid == '25901':
         # The kit's Smelter I (5221) can't refine: refining needs Smelter (A1)
         effs = [dict(e, resource=SMELTER if e['resource'] == 5221 else e['resource']) for e in effs]
@@ -783,8 +789,8 @@ queries.append((612, 'Solar sell orders up to a price',
 # has three times the others' (#378): two thirds of the starter miners and
 # refiners sell there, and every trader.
 STATIONS = [
-    (1, 'Earth Exchange', 3, 5000, 5000),
-    (2, 'Moon Depot', 10, 5000, 5000),
+    (1, 'Earth Exchange', 3, 10000, 10000),
+    (2, 'Moon Depot', 10, 10000, 10000),
     (3, 'Mars Exchange', 4, 15000, 15000),
 ]
 BUYS, SELLS = 1, 2
@@ -804,11 +810,25 @@ for st in (1, 2):
         STATION_GOODS.append((st, rid, BUYS, price, demand, 0))
 for rid, price, demand in METALS:
     STATION_GOODS.append((3, rid, BUYS, price * 3 // 2, demand, 0))
+# By-products nobody else wants (#380): refining vladnium leaves Inorganics
+# (A2), and a hold that fills up with it can't brew fuel. Earth and the Moon
+# take them for a little, so every product has a buyer.
+for st in (1, 2):
+    for rid, price in ((2032, 10), (2033, 12), (2042, 15), (2043, 18)):
+        STATION_GOODS.append((st, rid, BUYS, price, 200, 0))
+# The Mars Exchange buys the chemists' goods too (#380), so they can work
+# Phobos and Deimos instead of crowding the Moon's yalspar
+for rid, price, demand in ((2031, 8, 200), (2041, 12, 200), (2051, 30, 100),
+                           (2032, 10, 200), (2033, 12, 200), (2042, 15, 200), (2043, 18, 200)):
+    STATION_GOODS.append((3, rid, BUYS, price, demand, 0))
+# Parts and systems pay half as much again as they did (#380): at 60 a
+# rod, making one from two metals and 5 fuel barely paid, and nobody made
+# any. At 90 the Smith design became the best earner per game day.
 for st in (1, 3):
-    for rid, price in ((3001, 60), (3011, 60), (3031, 50), (3311, 70)):
+    for rid, price in ((3001, 90), (3011, 90), (3031, 75), (3311, 105)):
         STATION_GOODS.append((st, rid, BUYS, price, 50, 3))
     for rid in (4111, 4281, 4311):
-        STATION_GOODS.append((st, rid, BUYS, 300, 10, 7))
+        STATION_GOODS.append((st, rid, BUYS, 450, 10, 7))
 for rid, price, supply in ((FUEL, 5, 2000), (5001, 400, 10), (5131, 300, 10), (5201, 500, 10),
                            (5211, 600, 10), (5501, 900, 5)):
     STATION_GOODS.append((1, rid, SELLS, price, supply, 0))

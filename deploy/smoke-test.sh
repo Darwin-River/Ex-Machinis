@@ -51,6 +51,13 @@ wait_for() {
     done
     fail "$desc"
 }
+# wait_quietly <seconds> <command...>: like wait_for, but leaves the
+# failing to the caller
+wait_quietly() {
+    local secs=$1; shift
+    for _ in $(seq 1 "$secs"); do "$@" >/dev/null 2>&1 && return 0; sleep 1; done
+    return 1
+}
 sql() {
     docker compose exec -T db sh -c 'mysql -N -uexmachinis -p"$MYSQL_PASSWORD" exmachinis 2>/dev/null' <<<"$1"
 }
@@ -338,7 +345,16 @@ KUNSPAR=$(kunspar)
 run $DRONE_ID "plunder" "$DRY 34 perform ."
 plundered() { [ "$(sql "select IFNULL(plundered_by, 0) from agents where agent_id=$DRY")" = "$DRONE_ID" ] &&
               [ "$(sql "select IFNULL(SUM(units), 0) from sqInventory where drone=$DRY")" = 0 ]; }
-wait_for 90 "another player's drone plundered the wreck, leaving it empty" plundered
+if ! wait_quietly 90 plundered; then
+    # Say what state it got to (#380: a CI run once timed out here)
+    echo "plunderer $DRONE_ID, wreck $DRY:" >&2
+    sql "select agent_id, object_id, wrecked_at, plundered_at, plundered_by from agents where agent_id in ($DRONE_ID, $DRY)" >&2
+    sql "select drone, resource, units from sqInventory where drone=$DRY and units <> 0" >&2
+    sql "select id, action, event_type, resource, outcome, new_quantity, game_t from events where drone=$DRY order by id desc limit 15" >&2
+    sql "select id, protocol, outcome, aborted from actions where drone in ($DRONE_ID, $DRY) order by id desc limit 10" >&2
+    fail "another player's drone plundered the wreck, leaving it empty"
+fi
+echo "ok: another player's drone plundered the wreck, leaving it empty"
 got_half() { [ "$(kunspar)" -ge "$((KUNSPAR + 5))" ]; }
 wait_for 60 "the plunderer got half the wreck's kunspar" got_half
 wait_for 60 "drone finished plundering" idle

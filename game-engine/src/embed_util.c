@@ -89,8 +89,11 @@ void embed_free(embed_t *h)  {
 		h->o.param = 0;
 	}
 
+	// Keep the core's address: clearing the struct first lost it, and
+	// every VM leaked its 64 KB core (#380)
+	void *m = h->m;
 	memset(h, 0, sizeof(*h));
-	free(h->m);
+	free(m);
 	free(h);
 }
 

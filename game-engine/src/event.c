@@ -115,6 +115,9 @@ ErrorCode_t event_update_new_cargo_and_quantity
 
         event->new_cargo += total_cargo;
     }
+    // db_get_drone_resources mallocs the list; it leaked once per inventory
+    // event, about 450 MB a game day's worth at full load (#380)
+    free(resources);
 
     event_trace(event);
 

@@ -34,7 +34,12 @@ variable site#   variable misses
 \ here runs low
 : dig ( mineral n -- )
   begin over units over < while
-    over deposit 5 < if move-on else over mine drop 0 misses ! then
+    over deposit 5 < if move-on else
+      \ A run that brings nothing (others took it first) still burns fuel:
+      \ treat the deposit as dry
+      over units >r  over mine drop  over units r> = if move-on
+      else 0 misses ! then
+    then
   repeat 2drop ;
 
 \ Fuel from yalspar (organics) and vladnium (inorganics): 30 units
