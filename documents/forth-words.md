@@ -83,6 +83,7 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 - **Refuel wherever you wait.** `wait` itself is free, but a drone that wakes every few hours to look for a trade burns fuel computing each time it looks, and over weeks that empties the tank. Call `top-up` in the waiting loop, not only before trips.
 - **Count attempts, not quiet time.** A wait that resets whenever something happens may never end. Count how many times you have looked instead.
 - **Every action costs fuel.** Mining 1, refining 2, making 2 to 4, travel 5. Computing costs too: 1 fuel per 100,000 instructions.
+- **Leave with fuel to spare.** Every action burns fuel, even `sell-to-station` and `buy-from-station`. Check the tank before a trip, and at a station buy fuel before you sell.
 - **Keep comment lines under 80 characters.** The drone reads at most 80 characters of a line, and a `\` comment longer than that leaks into your code.
 - **`credits` is a double.** Compare it as one: `credits 200 0 d< if exit then` (less than 200). Dropping the high cell works only until the balance passes 32,767.
 - **Don't reuse FORTH's names.** A constant called `load` shadows the standard `load` word (the drone says "load redefined"); `dump` is taken too, which is why the game word is `jettison`. Prefix your names: `rod-load`.

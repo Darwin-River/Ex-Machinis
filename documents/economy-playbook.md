@@ -77,7 +77,8 @@ Levers not yet tried: House prices for parts and systems (lesson 9), deposit ref
 14. **Small markets crash when everyone sells at once.** The Earth Exchange wants about 50 rods a day; round 5's Smiths sold 144 in one batch and got about 33 a rod, not 60. Size each sale to the market's daily units.
 15. **House-price arbitrage is thin.** The Mars Exchange pays half as much again as the Moon, but after the miners' markup, batch price drops and a 20-day round trip, a trader clears about 5 a unit. Arbitrage needs a bigger gap or a shorter trip.
 16. **Don't name your constants after FORTH words.** Smith v3's `load` constant shadowed the standard `load` (the drone printed "load redefined"). Pick names like `rod-load`.
-17. **Give every design an outlet.** The Refiner stops when its tank is full and waits. A design with nothing to do while it waits earns nothing.
+17. **Arrive with fuel to spare.** Every action burns fuel, even offering goods to a station or ordering fuel from it. A drone that arrives somewhere with an empty tank can't sell, can't buy fuel and can't leave. Check fuel before every trip, and buy fuel first on arrival.
+18. **Give every design an outlet.** The Refiner stops when its tank is full and waits. A design with nothing to do while it waits earns nothing.
 
 ## Round log
 
@@ -242,6 +243,23 @@ A new world with the game data so far plus parts prices up 50%: 36 Miners, 12 Re
 - Drone-to-drone trade: Smith v4 bought 45 metals in 24 trades, refiners sold fuel to miners. Still small: Moon miners sell most metals to the Depot before anyone buys.
 - Rods: 187 sold at about 74 each; the Earth Exchange's budget is no longer short (9,660 of 10,000).
 - **Round 10:** a new design, the Machinist, builds gear boxes (450 at Earth and Mars) from metals bought from the miners.
+
+### Round 10: the Machinist (#380)
+
+6 Machinists released at game day 31.7, measured at day 57.4.
+
+| Design | Companies | Avg credits | Avg gain | Gaining | Ended |
+|---|---|---|---|---|---|
+| Chemist v3 | 36 | 5,400 | +4,147 | 36 | 0 |
+| Miner | 36 | 5,122 | +3,996 | 36 | 0 |
+| Smith v3 | 6 | 5,131 | +3,915 | 6 | 0 |
+| Smith v4 | 6 | 2,971 | +2,738 | 6 | 0 |
+| Refiner | 12 | 2,212 | +1,273 | 12 | 0 |
+| Machinist | 6 | 1,500 | +1,144 | 4 | 2 |
+
+- Machinists built gear boxes without a single failed step and sold 16 at Earth at about 392 each (base 450). The House now buys 9 goods (gear boxes and organics added).
+- Two Machinists died at Earth: they left the Moon nearly out of fuel, and at Earth every offer and even the fuel order failed for lack of the 1 fuel each action burns. Machinist v2 (round 11) brews before leaving if below 30, and buys fuel first on arrival.
+- Drone-to-drone trade grew: Smith v4 and Machinists bought 186 metals from miners in 122 trades; refiners sold 1,140 fuel to miners.
 
 ### Baseline (before #380)
 

@@ -1,10 +1,12 @@
-\ Machinist: a company design for Public Forge (economy round 10).
+\ Machinist: a company design for Public Forge (economy rounds 10 and 11).
 \ It builds gear boxes, which the Earth and Mars Exchanges buy for 450 (about
 \ 10 a day each). A gear box takes a rod, a gear and a spring: 8 Metals (A1)
 \ and 2 Metals (A2) through 5 alloys. It buys the metals from the Moon
 \ miners' sell orders when it can, and otherwise mines yalspar (Metals (A1))
 \ and vladnium (Metals (A2)) itself. With a few gear boxes it flies to
-\ Earth, sells them 2 an hour, buys fuel and comes back.
+\ Earth, buys fuel there first, sells them 2 an hour and comes back. It
+\ never leaves with less than trip-fuel: every action at Earth, even
+\ ordering fuel, burns a unit (round 10 lost two that arrived empty).
 
 2021 constant alloys-a1  2022 constant alloys-a2  3011 constant rods
 3101 constant springs    3111 constant gears      4111 constant gear-boxes
@@ -12,6 +14,7 @@
 4 constant box-load      \ gear boxes it takes to Earth
 60 constant low-fuel     \ brew below this: a box burns about 23, a brew 15
 300 constant cash-floor  \ credits it keeps for fuel
+30 constant trip-fuel    \ fuel it leaves with, at least
 
 : dig ( mineral n -- )
   begin over units over < while
@@ -60,9 +63,10 @@
   repeat drop ;
 
 : haul ( -- )
-  earth go drop sell-boxes
+  fuel units trip-fuel < if brew-fuel then
+  earth go drop
   fuel units 60 < if 30 fuel buy-from-station drop 120 wait drop then
-  moon go drop ;
+  sell-boxes moon go drop ;
 
 : work ( -- )
   fuel units low-fuel < if brew-fuel then
