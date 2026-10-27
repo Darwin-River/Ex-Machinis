@@ -804,9 +804,7 @@ BUYS, SELLS = 1, 2
 METALS = ((2011, 20, 200), (2012, 30, 150), (2013, 40, 100))
 STATION_GOODS = []
 for st in (1, 2):
-    for rid, price, demand in METALS + ((2031, 8, 200),
-                               (2041, 12, 200), (2021, 30, 100), (2022, 40, 80), (2023, 50, 60),
-                               (2051, 30, 100)):
+    for rid, price, demand in METALS + ((2031, 8, 200), (2041, 12, 200)):
         STATION_GOODS.append((st, rid, BUYS, price, demand, 0))
 for rid, price, demand in METALS:
     STATION_GOODS.append((3, rid, BUYS, price * 3 // 2, demand, 0))
@@ -825,17 +823,58 @@ for st in (1, 2, 3):
     STATION_GOODS.append((st, 5901, SELLS, 2000, 24, 0))
 # The Mars Exchange buys the chemists' goods too (#380), so they can work
 # Phobos and Deimos instead of crowding the Moon's yalspar
-for rid, price, demand in ((2031, 8, 200), (2041, 12, 200), (2051, 30, 100),
+for rid, price, demand in ((2031, 8, 200), (2041, 12, 200),
                            (2032, 10, 200), (2033, 12, 200), (2042, 15, 200), (2043, 18, 200)):
     STATION_GOODS.append((3, rid, BUYS, price, demand, 0))
-# Parts and systems pay half as much again as they did (#380): at 60 a
-# rod, making one from two metals and 5 fuel barely paid, and nobody made
-# any. At 90 the Smith design became the best earner per game day.
+# Making things pays (#380): a made good is worth its inputs, plus the fuel
+# its recipe burns, plus a wage for each game hour its tool works, and the
+# wage rises a tier at a time. Mining and refining wolfite, the best ore,
+# earns about 17 credits a game hour; alloys and polymers earn 20, parts 25,
+# systems 30, so each step up the chain pays more than the one below. Until
+# round 22 an alloy sold for less than its two metals and a gear box earned
+# about 4 an hour: newcomers worked that out and only mined.
+WAGE = {2: 20, 3: 25, 4: 30}   # credits a game hour, by tier (first digit)
+FUEL_PRICE = 5                 # what the House sells fuel for
+RAW_VALUE = {'2011': 20, '2012': 30, '2013': 40, '2031': 8, '2032': 10, '2033': 12,
+             '2041': 12, '2042': 15, '2043': 18}
+
+
+def made_value(rid, seen=()):
+    """The House's price for a made good: its inputs, fuel and a wage for
+    the time it takes, per unit made (None when no recipe makes it alone)"""
+    rid = str(rid)
+    if rid in RAW_VALUE:
+        return RAW_VALUE[rid]
+    for pid, rec in recipes.items():
+        if list(rec['outputs']) != [rid] or rid in seen:
+            continue
+        made = rec['outputs'][rid]
+        stage = production_stage(pid)
+        if not stage:
+            continue
+        inputs = 0
+        for i, q in rec['inputs'].items():
+            v = made_value(i, seen + (rid,))
+            if v is None:
+                break
+            inputs += v * q
+        else:
+            return round((inputs + fuel_cost(pid) * FUEL_PRICE + stage[1] / HOUR * WAGE.get(int(rid[0]), 30)) / made)
+    return None
+
+
+# Alloys and polymers at Earth and the Moon, from day 0
+for st in (1, 2):
+    for rid, demand in ((2021, 100), (2022, 80), (2023, 60), (2051, 100)):
+        STATION_GOODS.append((st, rid, BUYS, made_value(rid), demand, 0))
+# Mars buys polymers too, like the chemists' other goods
+STATION_GOODS.append((3, 2051, BUYS, made_value(2051), 100, 0))
+# Parts from day 3 and systems from day 7, at Earth and Mars
 for st in (1, 3):
-    for rid, price in ((3001, 90), (3011, 90), (3031, 75), (3311, 105)):
-        STATION_GOODS.append((st, rid, BUYS, price, 50, 3))
+    for rid in (3001, 3011, 3031, 3311):
+        STATION_GOODS.append((st, rid, BUYS, made_value(rid), 50, 3))
     for rid in (4111, 4281, 4311):
-        STATION_GOODS.append((st, rid, BUYS, 450, 10, 7))
+        STATION_GOODS.append((st, rid, BUYS, made_value(rid), 10, 7))
 for rid, price, supply in ((FUEL, 5, 2000), (5001, 400, 10), (5131, 300, 10), (5201, 500, 10),
                            (5211, 600, 10), (5501, 900, 5)):
     STATION_GOODS.append((1, rid, SELLS, price, supply, 0))

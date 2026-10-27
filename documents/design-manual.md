@@ -1169,7 +1169,7 @@ Since evidence of each in-game event travels between distant points at the speed
 
 <a name="Drop-Stations"></a>**House drop stations (#324 step 10).** House stations bring credits and basic equipment into the game and take finished goods out of it.
 
-* **Game data** (`build_game_data.py`, replaced on every start). `stations` (id, name, `object_id`, `budget_cap`, `refill_per_day`) and `station_goods` (station, resource, side, price, `daily_units`, `from_day`).
+* **Game data** (`build_game_data.py`, replaced on every start). `stations` (id, name, `object_id`, `budget_cap`, `refill_per_day`) and `station_goods` (station, resource, side, price, `daily_units`, `from_day`). A made good's buying price is `made_value` (#380): the value of its inputs, plus its recipe's fuel at 5 a unit, plus a wage for each game hour its tool works (`WAGE`: 20 for alloys and polymers, 25 for parts, 30 for systems), divided by the units the recipe makes. Raw goods keep fixed prices (`RAW_VALUE`); mining and refining the best ore earns about 17 a game hour. Until round 22 an alloy sold for less than its metals and a gear box earned about 4 a game hour, so playtesters only mined.
   * Side 1 means the station buys: `price` is its price for an empty batch and `daily_units` its daily demand.
   * Side 2 means it sells: `price` is the price and `daily_units` its daily supply.
   * `from_day` is the game day, counted from the world's first, on which it starts trading that good. Stations buy refined goods from day 0, parts from day 3 and systems from day 7, so demand steps up the production chain.

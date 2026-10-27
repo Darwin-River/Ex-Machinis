@@ -1,5 +1,5 @@
 \ Machinist: a company design for Public Forge (economy rounds 10, 11, 14).
-\ It builds gear boxes, which the Earth and Mars Exchanges buy for 450 (about
+\ It builds gear boxes, which the Earth and Mars Exchanges buy for 1,075 (about
 \ 10 a day each). A gear box takes a rod, a gear and a spring: 8 Metals (A1)
 \ and 2 Metals (A2) through 5 alloys. It buys the metals from the Moon
 \ miners' sell orders when it can, and otherwise mines yalspar (Metals (A1))
