@@ -350,6 +350,25 @@ Round 15 (to game day 96.2) released nothing new; the clock had sunk to 26 game 
 - Gear boxes: 84 sold at about 387. Rods: 1,081 at Earth at about 81.
 - The first Refiner died: it burned its tank on empty mining runs at the Moon's contested yalspar (lesson 21). Every design's `dig` now waits when a run brings nothing.
 
+### Round 17 (#380)
+
+To game day 126.6 in the 96-day world: no new deaths; Miner and Refiner v2 (the `dig` fix) released, mostly still travelling. Companies were piling up credits (Chemists about 9,900 each) with nothing to spend them on, which led to ship kits for sale and the `reinvest` step (#382).
+
+### Round 18: a fresh world that can grow (#380)
+
+A fresh world with the seed mix (36 Miners, 36 Chemists, 12 Refiners, 9 Smiths, 6 Machinists), every script with `reinvest`, kits for sale. Measured at game day 16.8; the clock at full speed (600), 2 seconds of lag.
+
+| Design | Companies | Avg credits | Avg gain | Gaining | Ended |
+|---|---|---|---|---|---|
+| Machinist | 6 | 2,311 | +1,735 | 6 | 0 |
+| Chemist | 36 | 2,476 | +1,232 | 36 | 0 |
+| Miner | 36 | 2,323 | +1,193 | 36 | 0 |
+| Smith | 9 | 1,514 | +1,028 | 9 | 0 |
+| Refiner | 12 | 1,935 | +939 | 12 | 0 |
+
+- Every company gaining; the Machinist earned fastest (about 103 a game day).
+- No clones yet: a company reinvests at 7,000 credits, so the first are expected around game day 50 to 60.
+
 ### Baseline (before #380)
 
 From the four 300-company runs in #378, each with miners, refiners and traders in equal numbers:
