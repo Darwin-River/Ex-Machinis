@@ -102,7 +102,10 @@ void db_scape_string(
     unsigned long to_len;
 
     to_len = mysql_real_escape_string(connection->hndl, out, value, strlen(value));
-    out[to_len+1] = '\0';
+    // mysql_real_escape_string ends the string at out[to_len] itself; the
+    // old out[to_len+1] wrote a byte past the buffer for empty input (#380)
+    if(to_len < out_len)
+        out[to_len] = '\0';
 
    engine_trace(TRACE_LEVEL_DEBUG, "Value [%s] scaped now is [%s]", value, out);
 }

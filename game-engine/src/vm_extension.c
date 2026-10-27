@@ -174,8 +174,11 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryIn
         char drone_position[MAX_OBJECT_NAME_SIZE];
         double distance;
         AgentInfo_t agent_info;
+        memset(&agent_info, 0, sizeof(agent_info));
         agent_info.agent_id = engine_get_current_drone_id();
         ErrorCode_t error = db_get_agent_engine_info(engine_get_db_connection(), agent_info.agent_id, &agent_info);
+        // Only the location is wanted: free the VM the lookup loaded (#380)
+        if(agent_info.vm) { vm_free(agent_info.vm); agent_info.vm = NULL; }
         if(error != ENGINE_OK) {
             engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Tag %s could not be replaced, unable to get agent info", tag);
             return NULL;
