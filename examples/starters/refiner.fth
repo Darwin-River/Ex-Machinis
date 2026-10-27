@@ -88,8 +88,16 @@ variable site#   variable misses
   metals-a1 sell-all metals-a2 sell-all metals-a3 sell-all
   reinvest site go drop ;
 
+\ Every 8th round, send a line home. What a drone prints reaches you only
+\ when its script ends or calls report, and launched never ends
+variable tells
+: tell ( -- )
+  1 tells +!  tells @ 8 mod if exit then
+  ." credits " credits d. ." fuel " fuel units . report ;
+
 : work ( -- )
-  fuel units fuel-cap < if brew-fuel sell-metals else 120 wait drop then ;
+  fuel units fuel-cap < if brew-fuel sell-metals else 120 wait drop then
+  tell ;
 
 : launched ( -- )
   await-kit unpack drop me 3 mod site# ! site go drop

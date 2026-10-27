@@ -97,7 +97,7 @@ Not sure where to begin? The Release page offers three starter scripts: click **
 - **Refiner:** brews fuel on the Moon from yalspar and vladnium, and sells what it doesn't need to other drones there.
 - **Trader:** buys metals from the miners on the Moon and hauls them to Mars, where the House pays half as much again.
 
-Loading a script costs a little fuel: your drone reads it word by word, and reading a long, well-commented script uses up to about 25 fuel, once.
+Loading a script is free: your drone reads it word by word before it starts, and the fuel bill starts when `launched` runs. Long, well-commented scripts are fine.
 
 #### Drone pages: learning from other drones
 
@@ -120,7 +120,7 @@ Five more pages show the whole world, live, and the machine itself:
 
 Your drones can't see all this: they see live orders only where they are (see [the price board](#the-price-board)). You can, so use these pages to plan.
 
-When a drone dies, its page gets a **post-mortem**: why it died, in plain words (out of fuel, its `launched` word crashing again and again, or its company not paying its tax), and a timeline of its last actions, how each went, and the fuel it had left. Read your own post-mortems: they're the quickest way to learn what went wrong.
+When a drone dies, its page gets a **post-mortem**: why it died, in plain words (out of fuel, with how much of it went on computing, its `launched` word crashing again and again, or its company not paying its tax), and a timeline of its last actions, how each went, and the fuel it had left. Read your own post-mortems: they're the quickest way to learn what went wrong.
 
 ### What your drone says
 
@@ -300,11 +300,15 @@ get-kunspar
 </run>
 ```
 
-Failures are not emailed to you: a drone running on its own should check and respond. You only get email for what your scripts print, and for errors that stop a script. While a script is running or waiting, the drone answers new scripts with "Another command is running, retry later"; `<abort>` stops the script (the action itself still happens).
+Failures are not emailed to you: a drone running on its own should check and respond. You only get a message for what your scripts print, when the script ends, and for errors that stop a script. A `launched` word that loops forever never ends, so call `report` in its loop to send what it has printed so far. While a script is running or waiting, the drone answers new scripts with "Another command is running, retry later"; `<abort>` stops the script (the action itself still happens).
 
 ### Unpacking your starter kit
 
-Each of your spacecraft starts with a Starter Kit I (resource 5901) in its cargo hold. It contains the modules you need to get going: an Engine (A1) for travel, a Worm (A1) for mining moons, a Shuttle (A1), a Chemical Reactor (A1), a Smelter (A1) and a Spider (A1). The Smelter, Chemical Reactor and Spider are the tools for everything you make up to systems (see [Producing more complex spacecraft components](#producing-more-complex-spacecraft-components)). Unpack it by performing protocol 25901:
+Each of your spacecraft starts with a Starter Kit I (resource 5901) in its cargo hold. It contains the modules you need to get going: an Engine (A1) for travel, a Worm (A1) for mining moons, a Shuttle (A1), a Chemical Reactor (A1), a Smelter (A1) and a Spider (A1). The Smelter, Chemical Reactor and Spider are the tools for everything you make up to systems (see [Producing more complex spacecraft components](#producing-more-complex-spacecraft-components)).
+
+Mind the hold: it carries 500 units of mass. Unpacked, the six modules take 364 of it, and 100 fuel another 100, so a working drone has about 36 free. Packed, the kit takes 40, but a drone can't travel, mine or make anything without its modules (an Engine (A1) alone, from the Earth Exchange, lets it travel). Plan loads around that: a hauler carries few goods at a time.
+
+Unpack it by performing protocol 25901:
 
 ```
 <run>
@@ -398,7 +402,7 @@ Travel is a protocol that uses your engine (Protocol ID 5001, the same as the En
 </run>
 ```
 
-Give it a try and see what happens. `perform` waits for the trip, so your drone replies once it has arrived, printing 0 (done). How long a trip takes depends on how far the destination is when you leave: drones accelerate to the midpoint and slow down after. With the default game clock the Moon is about 11 minutes away, Mars 3 to 6 hours and Neptune about 20 hours. Your drones report their current location at the top of every email they send you, so this one will indicate Saturn.
+Give it a try and see what happens. `perform` waits for the trip, so your drone replies once it has arrived, printing 0 (done). How long a trip takes depends on how far the destination is when you leave: drones accelerate to the midpoint and slow down after. The Moon is about 11 game hours away, Mars 6.5 to 15 game days and Neptune about 49 (see the table below for real time). Your drones report their current location at the top of every message they print, so this one will indicate Saturn.
 
 You can use this command to go elsewhere in the solar system as well. All you need is the Location ID for your destination. This can be found in the Space Objects table (http://exmachinis.com/locations), which lists the planets and their moons, the space stations, and the asteroids, comets and planetary rings.
 
@@ -411,7 +415,7 @@ When the world is busy the clock slows down so the game's computers can keep up,
 - **The solar system moves.** Planets, moons, asteroids and comets follow their real orbits, but at game speed, so the game's sky runs ahead of the real one.
 - **Actions take time.** Each protocol takes a set amount of game time. Your drone does one action at a time: `perform` waits until the action is finished before your script goes on (see [Issuing Commands](#chapter-4-issuing-commands)).
 - **Travel takes time.** Drones speed up to the halfway point and slow down after, so a trip takes 2 × √(distance ÷ acceleration). The distance is measured when the drone leaves, so the planets' positions decide how long a trip takes.
-- **Messages travel at the speed of light.** You are on Earth. Your email reaches a drone only after light has crossed the distance to it, and its reply takes as long to come back. The first line of every reply says how far the drone is, in light-minutes.
+- **Messages travel at the speed of light.** You are on Earth. A script reaches a drone only after light has crossed the distance to it, and its reply takes as long to come back. The first line of every reply says how far the drone is, in light-minutes.
 
 With the default clock:
 
@@ -617,11 +621,12 @@ Every drone comes with a vocabulary for the game, so you can write `kunspar mine
 
 | Kind | Words |
 |---|---|
-| Places | `earth` `moon` `mars` (their location IDs) |
+| Places | `earth` (3) `moon` (10) `mars` (4) `phobos` (11) `deimos` (12): their location IDs; the Locations page lists the rest |
 | Resources | `fuel` `magmite` `kunspar` `yalspar` `vladnium` `wolfite` `metals-a1` `metals-a2` `metals-a3` `inorganics-a1` `organics-a1` |
-| Actions (each leaves what `perform` leaves) | `unpack`, `travel ( place )`, `mine ( mineral )`, `refine ( mineral )`, `make ( resource )`, `wait ( minutes )`, `sell-to-station ( n resource )`, `buy-from-station ( n resource )`, `sell-order ( price keep resource )`, `buy-order ( price want resource )`, `push ( n resource drone )`, `pull ( n resource drone )`, `launch ( drone kit )`, `plunder ( wreck )`, `jettison ( n resource )` |
+| Actions: each takes its arguments off the stack and leaves one result, the ior (0 done, negative failed; see [Issuing Commands](#chapter-4-issuing-commands)), so `kunspar mine drop` and `kunspar mine if ... then` | `unpack ( -- ior )`, `travel ( place -- ior )`, `mine ( mineral -- ior )`, `refine ( mineral -- ior )`, `make ( resource -- ior )`, `wait ( minutes -- ior )`, `sell-to-station ( n resource -- ior )`, `buy-from-station ( n resource -- ior )`, `sell-order ( price keep resource -- ior )`, `buy-order ( price want resource -- ior )`, `push ( n resource drone -- ior )`, `pull ( n resource drone -- ior )`, `launch ( drone kit -- ior )`, `plunder ( wreck -- ior )`, `jettison ( n resource -- ior )` |
 | Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `ask ( [n] id -- rows )` (any query, answers in the buffer `answer`) |
-| Helpers | `sell-all ( resource )` offers all of it to the station here |
+| Messages | `report` sends what the drone has printed so far, at once: without it you see nothing until the script ends, and a `launched` word that loops forever never ends. Call it once a round: `begin ... ." fuel " fuel units . report 60 wait drop again` |
+| Helpers | `sell-all ( resource )` offers all of it to the station here; `go ( place -- ior )` travels there unless the drone is already there (then it leaves 0 at once) |
 
 `jettison` throws n units of a resource out of the hold into space, for 1 fuel whatever the amount. Use it for goods nobody buys where you are: a hold that fills up leaves no room for the fuel you make, and a drone without fuel dies. `10 2032 jettison drop` throws away 10 Inorganics (A2).
 
@@ -1164,6 +1169,22 @@ You may have noticed that there is one very important operator that is missing f
 ```
 
 Try sending the above code to your spacecraft to see how it works.
+
+### Repeating yourself: loops
+
+Your drone's FORTH has no counted `do ... loop` (nor `?do`, `i` or `leave`): use one of these instead.
+
+- `begin ... until` repeats until the flag on top is true: `: countdown ( n -- ) begin dup . 1- dup 0= until drop ;`
+- `begin ... while ... repeat` tests first, so the body may run no times: `: walk ( n -- ) begin dup 0> while dup . 1- repeat drop ;`
+- `begin ... again` runs forever. Put a `wait` in it, or the drone burns fuel thinking: `: forever ( -- ) begin 60 wait drop again ;`
+- To count up, keep the counter in a variable:
+
+```
+variable i
+: times ( n -- ) 0 i ! begin i @ over < while i @ . 1 i +! repeat drop ;
+```
+
+`3 times` prints `0 1 2`. Pick distinct names for your variables: a variable called `i` in one word and another `i` later replaces it for the words that follow.
 
 ## Appendix A: FORTH Error Codes
 

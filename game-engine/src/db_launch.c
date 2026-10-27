@@ -179,7 +179,7 @@ ErrorCode_t db_take_power_due(DbConnection_t* connection, int agent_id, long lon
         return ENGINE_OK;
 
     ErrorCode_t result = db_launch_query(connection,
-        "SELECT instructions, power_paid FROM agents WHERE agent_id = %d", agent_id);
+        "SELECT instructions, power_paid, release_vm IS NULL FROM agents WHERE agent_id = %d", agent_id);
     if(result != ENGINE_OK)
         return result;
 
@@ -187,8 +187,17 @@ ErrorCode_t db_take_power_due(DbConnection_t* connection, int agent_id, long lon
     MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
     long long instructions = (row && row[0]) ? atoll(row[0]) : 0;
     long long paid = (row && row[1]) ? atoll(row[1]) : 0;
+    int loading = (row && row[2]) ? atoi(row[2]) : 0;
     if(db_result)
         mysql_free_result(db_result);
+
+    // Loading a released script is free (#380): until the drone first runs
+    // launched (which saves release_vm) it is only reading its program, about
+    // 20,000 instructions a word. Billed, a 150-line script cost more than
+    // the 100 fuel a drone starts with, and the drone died before it ran.
+    if(loading)
+        return db_launch_query(connection,
+            "UPDATE agents SET power_paid = instructions WHERE agent_id = %d", agent_id);
 
     *units = vm_meter_fuel_due(instructions, paid, per_fuel);
     if(*units > 0)

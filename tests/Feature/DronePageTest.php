@@ -92,9 +92,13 @@ class DronePageTest extends TestCase
         $id = DB::table('actions')->insertGetId(['drone' => $agent->agent_id, 'protocol' => 11100, 'multiplier' => 1, 'aborted' => 1, 'outcome' => -2]);
         DB::table('events')->insert(['event_type' => 2, 'action' => $id, 'logged' => 1, 'outcome' => 1, 'drone' => $agent->agent_id,
             'resource' => 2061, 'installed' => 0, 'locked' => 0, 'new_quantity' => 0, 'new_cargo' => 0, 'game_t' => 1000]);
-        DB::table('agents')->where('agent_id', $agent->agent_id)->update(['wrecked_at' => 2000, 'wreck_cause' => 'fuel']);
+        // Plundered after it died: that haul isn't its last action
+        DB::table('actions')->insert(['drone' => $agent->agent_id, 'protocol' => 35, 'multiplier' => 1, 'aborted' => 0]);
+        DB::table('agents')->where('agent_id', $agent->agent_id)->update(['wrecked_at' => 2000, 'wreck_cause' => 'fuel',
+            'instructions' => 15700000]);
         $this->get('/spacecraft/' . $agent->agent_id)->assertOk()->assertSee('Post-mortem')
-            ->assertSee('It ran out of fuel')->assertSee('Its last action was')
+            ->assertSee('It ran out of fuel')->assertSee('Its last action was protocol 11100')
+            ->assertSee('15,700,000 instructions in all, about 157 fuel of computing')
             ->assertSee('failed: not enough of a resource (or fuel) in the hold');
 
         DB::table('drone_crashes')->insert(['drone' => $agent->agent_id, 'game_t' => 1500, 'code' => -10, 'in_row' => 5]);

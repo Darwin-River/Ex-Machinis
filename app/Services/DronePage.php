@@ -14,6 +14,9 @@ class DronePage
 {
     public const FUEL = 2061;
 
+    /** Moving plunder out of a wreck: done to the wreck after it died, not by it */
+    public const PLUNDER_HAUL = 35;
+
     /** What perform leaves, in plain words */
     public const OUTCOMES = [
         -1 => 'the other drone was somewhere else',
@@ -129,12 +132,22 @@ class DronePage
         $when = self::when((int) $agent->wrecked_at);
         $id = (int) $agent->agent_id;
 
-        $lastAction = DB::table('actions')->where('drone', $id)->where('protocol', '<>', 2)->orderBy('id', 'desc')->first();
+        $lastAction = DB::table('actions')->where('drone', $id)->whereNotIn('protocol', [2, self::PLUNDER_HAUL])
+            ->orderBy('id', 'desc')->first();
         $last = $lastAction ? ' Its last action was ' . self::protocolName((int) $lastAction->protocol) . '.' : '';
         switch ($agent->wreck_cause) {
             case 'fuel':
                 $cause = "It ran out of fuel on $when: it had none left to pay for its computing "
                     . '(1 fuel for every 100,000 instructions its program runs) or its next action.' . $last;
+                // How much went on thinking: a loop without a wait burns a tank this way (#380)
+                $ran = (int) $agent->instructions;
+                if ($ran >= 100000) {
+                    $cause .= ' Its program ran ' . number_format($ran) . ' instructions in all, about '
+                        . number_format(intdiv($ran, 100000)) . ' fuel of computing.';
+                }
+                if ($agent->release_vm === null && $agent->parent_id === null) {
+                    $cause .= ' It never started its launched word.';
+                }
                 break;
             case 'crashes':
                 $crash = DB::table('drone_crashes')->where('drone', $id)->orderBy('id', 'desc')->first();
