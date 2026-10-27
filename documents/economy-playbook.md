@@ -183,6 +183,23 @@ A world of 108 starter companies (54 miners, 36 refiners, 18 traders); 12 Chemis
 - House purchases in the last 5 days fell (Metals (A2) 165 units, from 441 in round 5) while every deposit stayed full: output is now limited by the engines, not by minerals.
 - **Round 7 (a lever):** House prices for parts and systems up 50% (rods 60 to 90, sheets 90, fasteners 75, pipes 105, systems 450).
 
+### Round 7: parts and systems prices up 50% (#380)
+
+Measured at game day 104.7, only 8 game days later: the clock had floated down to 337 game seconds a second.
+
+| Design | Companies | Avg credits | Avg gain | Gaining | Ended |
+|---|---|---|---|---|---|
+| Chemist (v1) | 36 | 3,900 | +2,959 | 36 | 0 |
+| Chemist v2 | 12 | 2,850 | +1,674 | 12 | 0 |
+| Chemist v3 | 12 | 2,305 | +977 | 12 | 0 |
+| Smith v2 | 12 | 1,900 | +1,535 | 12 | 0 |
+| Smith v3 | 12 | 1,186 | +309 | 12 | 0 |
+| Miner | 54 | 5,256 | +4,141 | 54 | 0 |
+| Refiner | 36 | 1,751 | +798 | 36 | 0 |
+
+- Inconclusive: no Smith sold rods in these 8 days. Smiths' gains jumped only on paper (rods held are valued at the new price); Smith v2's cash rose 78, from by-products sold at the Moon.
+- The world had slowed to about half speed after 105 game days, so the rounds moved to a fresh world seeded with the recommended mix (round 8).
+
 ### Baseline (before #380)
 
 From the four 300-company runs in #378, each with miners, refiners and traders in equal numbers:
