@@ -78,6 +78,17 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 
 **`buy ( n metal price -- )`** (Machinist): like `buy-cheap`, but it buys nothing while the company has less than `cash-floor` credits, so it never spends the money it needs for fuel. Used by: Machinist, Smith v4 (as `buy-metals`).
 
+## Growing: launching clones
+
+**`reinvest ( -- )`**: at a House exchange, with 7,000 credits or more, buy a Mining Cruiser kit (3,000), launch a clone of this drone, buy a Starter Kit I (2,000) and hand it to the clone with 40 fuel. Used by: every starter and design since #380.
+
+- One kit at a time: equipment fills 364 of a drone's 500 cargo, so both kits (40 each) don't fit at once with a tank of fuel.
+- If a Starter Kit I is still aboard from a launch whose hand-over failed, `reinvest` hands it over first.
+
+**`equip-clone ( -- )`**: push a starter kit and 40 fuel to this drone's newest clone (the last row of `670 ask`).
+
+**`await-kit ( -- )`**: wait, an hour at a time, until a starter kit is aboard. Put it first in `launched`: a clone starts with an empty hold and runs `launched` at once.
+
 ## Patterns and pitfalls
 
 - **Sell every by-product.** Equipment takes 310 of a drone's 500 cargo. Anything you make and keep (Inorganics (A2) from vladnium, for one) piles up until there is no room to brew fuel, and the drone dies. Sell it all each round.

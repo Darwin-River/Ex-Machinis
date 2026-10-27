@@ -541,6 +541,15 @@ Your starter kit's Smelter, Chemical Reactor and Spider take you as far as syste
 
 ### Launching new spacecraft
 
+**Growing your company.** Every House exchange (Earth, the Moon Depot and Mars) sells Mining Cruiser (A1) kits for 3,000 credits and Starter Kit I for 2,000, about one of each an hour. Both come flat-packed (40 cargo each), because your equipment already fills most of your hold. A Mining Cruiser kit gives a hull; a Starter Kit I gives the equipment, which a new spacecraft doesn't have. So, with money to spare:
+
+1. buy a Mining Cruiser kit (`1 6001 buy-from-station`) and wait for it to arrive;
+2. launch a copy of yourself (`me 6001 launch`): it costs 30 fuel, 20 of which go to the new spacecraft;
+3. buy a Starter Kit I and push it to the new spacecraft with some fuel;
+4. have your `launched` word wait until a starter kit is aboard before it unpacks: a new spacecraft starts with an empty hold.
+
+Every starter script and company design does this once its company has 7,000 credits (the `reinvest` word); `documents/forth-words.md` explains it.
+
 A ship kit becomes a new spacecraft with the launch protocol, 12. It takes two parameters: the ID of a drone whose program the new spacecraft should get (any of your drones, including the one doing the launch), and the ship kit's resource ID. The kit must be in the launching drone's cargo hold.
 
 ```

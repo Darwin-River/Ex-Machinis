@@ -34,11 +34,35 @@ variable site#
   yalspar 16 dig yalspar refine drop
   vladnium 12 dig vladnium refine drop ;
 
+\ Growth (#380): with 7,000 credits or more, at an exchange, buy a Mining
+\ Cruiser kit and a Starter Kit I, launch a clone of this drone (it runs
+\ this same program), and hand it the starter kit and 40 fuel
+6001 constant cruiser-kit   5901 constant starter-kit
+: get-one ( resource -- )
+  dup units if drop exit then 1 swap buy-from-station drop ;
+\ Hand the newest clone a starter kit and 40 fuel
+: equip-clone ( -- )
+  670 ask ?dup 0= if exit then
+  1- 4 * answer + @ >r
+  1 starter-kit r@ push drop  40 fuel r> push drop ;
+\ One kit at a time: equipment fills 364 of the 500 cargo
+: reinvest ( -- )
+  starter-kit units if equip-clone exit then  \ a kit left from last time
+  credits 7000 0 d< if exit then
+  fuel units 90 < if 90 fuel units - fuel buy-from-station drop then
+  cruiser-kit get-one  120 wait drop
+  cruiser-kit units 0= fuel units 80 < or if exit then
+  me cruiser-kit launch if exit then
+  starter-kit get-one  120 wait drop
+  starter-kit units if equip-clone then ;
+\ A clone starts with no equipment: wait for the starter kit
+: await-kit ( -- ) begin starter-kit units 0= while 60 wait drop repeat ;
+
 : sell-goods ( -- )
   market go drop
   metals-a1 sell-all metals-a2 sell-all
   polymers sell-all inorganics-a1 sell-all inorganics-a2 sell-all
-  site go drop ;
+  reinvest site go drop ;
 
 \ Fuel takes 1 organics and 2 inorganics; a polymer 1 of each
 : work ( -- )
@@ -47,4 +71,4 @@ variable site#
   sell-goods ;
 
 : launched ( -- )
-  unpack drop me 3 mod site# ! site go drop begin work again ;
+  await-kit unpack drop me 3 mod site# ! site go drop begin work again ;

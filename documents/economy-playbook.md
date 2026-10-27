@@ -61,6 +61,8 @@ The game data a world's owner can change (`game-engine/sql/game-data/build_game_
 
 | Engine pauses | `game-engine.conf`, `events-engine.conf` | `DB_READ_TIME` and `ENGINE_CHECK_TIME` 5 seconds | 1 second | Every action waited up to 10 real seconds on the engines' idle pauses. In the 96-day world the clock went from about 36 game seconds a second (lag 11 to 15 seconds) back to 600 (lag 6 to 10). |
 
+| Ship kits for sale | `station_goods`, `resources` | none sold; kits 224 and 375 cargo | Mining Cruiser kit 3,000 and Starter Kit I 2,000 at every exchange, 24 a day; flat-packed to 40 | Companies can reinvest: launch a clone and equip it (about 5,000 credits). (Round 18 measures growth.) |
+
 Levers not yet tried: House prices for parts and systems (lesson 9), deposit refill per mineral, station budgets at Earth and the Moon, the tax rate and grace period.
 
 ## Lessons learned
@@ -86,7 +88,9 @@ Levers not yet tried: House prices for parts and systems (lesson 9), deposit ref
 19. **An aging world slows down unless its database keeps up.** Several queries read every event ever recorded, so each turn got slower as the world aged (136 ms for "how many units do I hold", 630 ms for the order book at day 90). Migration 0020 indexes them. Watch the clock's lag on a live server as it ages.
 20. **Profile before blaming load.** The engines looked overloaded, but were idle 99% of the time: their fixed pauses between turns were the lag. And the game engine was leaking about 7 MB a minute (1.9 GB after 3 hours), which a live server would have hit within a day. Check CPU, query times and memory before adding hardware.
 21. **An empty mining run still costs fuel.** A deposit can report enough and still yield nothing when other drones take it first. A mining loop that only checks the deposit before each run can burn a whole tank on empty runs (a Refiner died that way in round 16). Compare what you hold before and after a run, and wait when nothing came.
-22. **Give every design an outlet.** The Refiner stops when its tank is full and waits. A design with nothing to do while it waits earns nothing.
+22. **Check what a hold can carry before selling something.** A working drone's equipment takes 364 of its 500 cargo; with a tank of fuel, about 50 is free. Neither ship kit fit until it was flat-packed, and even then a drone can carry only one kit at a time: buy the hull, launch, then buy the equipment.
+23. **A station's hourly batch must sell at least one.** A station sells `daily_units` ÷ 24 a batch, rounded down: 4 a day sold nothing.
+24. **Give every design an outlet.** The Refiner stops when its tank is full and waits. A design with nothing to do while it waits earns nothing.
 
 ## Round log
 
