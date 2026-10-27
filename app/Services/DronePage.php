@@ -141,8 +141,9 @@ class DronePage
             if (!$span || $span->start === null || (int) $span->start > $now) {
                 continue;
             }
+            // Inventory events only: a wait's event names fuel too, with 0
             $fuel = DB::table('events')->where('action', $action->id)->where('drone', $id)->where('resource', self::FUEL)
-                ->where('outcome', 1)->orderBy('id', 'desc')->value('new_quantity');
+                ->whereIn('event_type', [1, 2])->where('outcome', 1)->orderBy('id', 'desc')->value('new_quantity');
             $failed = $action->aborted || ($action->outcome !== null && (int) $action->outcome < 0);
             if ($failed) {
                 $result = 'failed: ' . (self::OUTCOMES[(int) $action->outcome] ?? 'it was stopped');

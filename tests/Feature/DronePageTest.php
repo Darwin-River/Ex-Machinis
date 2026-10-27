@@ -103,6 +103,10 @@ class DronePageTest extends TestCase
             ['event_type' => 1, 'action' => $busy, 'logged' => 1, 'outcome' => 0, 'drone' => $agent->agent_id, 'resource' => 1,
              'installed' => 0, 'locked' => 0, 'new_quantity' => 5, 'new_cargo' => 5, 'game_t' => $now + 7200],
         ]);
+        // A wait: its event names fuel with 0, which isn't the tank
+        $wait = DB::table('actions')->insertGetId(['drone' => $agent->agent_id, 'protocol' => 3, 'multiplier' => 1, 'aborted' => 0]);
+        DB::table('events')->insert(['event_type' => 12, 'action' => $wait, 'logged' => 1, 'outcome' => 1, 'drone' => $agent->agent_id,
+            'resource' => 2061, 'installed' => 0, 'locked' => 0, 'new_quantity' => 0, 'new_cargo' => 0, 'game_t' => $now - 3000]);
         DB::table('agents')->where('agent_id', $agent->agent_id)->update(['waiting_action' => $busy]);
         // A sale to a House station and one to another drone
         $station = 99;
@@ -117,6 +121,8 @@ class DronePageTest extends TestCase
             ->assertSee('game hours from now')->assertSee('under way, until')->assertSee('done')
             ->assertSee('Sold 5 of 6 Pellets, Iron')->assertSee('Test Depot')->assertSee('+100')
             ->assertSee('Sold 3 Ore, Iron')->assertSee($buyer->name)->assertSee('+45');
+        $wait = collect(\App\Services\DronePage::timeline($agent->agent_id))->firstWhere('game_t', $now - 3000);
+        $this->assertNull($wait['fuel']);
 
         // A wreck has a post-mortem instead
         DB::table('agents')->where('agent_id', $agent->agent_id)->update(['wrecked_at' => $now, 'wreck_cause' => 'fuel']);

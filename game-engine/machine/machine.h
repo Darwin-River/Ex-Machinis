@@ -54,4 +54,8 @@ int machine_read_byte(int addr);
 void machine_write_byte(int addr, int value);
 char *machine_input(void);         /* a buffer for the text to pass in */
 
+/* A line as the engine passes it to a drone: longer than 79 characters,
+   re-wrapped at spaces (wrap.c). 0 when a string can't be split to fit. */
+char *machine_wrap(const char *line);
+
 #endif

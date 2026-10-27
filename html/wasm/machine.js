@@ -35,6 +35,18 @@
         mem()[at + Math.min(bytes.length, 16000)] = 0;
         return at;
     }
+    // Text as the engine passes it to a drone: each line over 79
+    // characters re-wrapped at spaces (wrap.c, #380). null when a string
+    // can't be split to fit.
+    function wrapText(text) {
+        const out = [];
+        for (const line of text.split('\n')) {
+            const at = m.machine_wrap(put(line));
+            if (!at) return null;
+            out.push(str(at));
+        }
+        return out.join('\n');
+    }
     function str(at) {
         const b = mem();
         let end = at;
@@ -205,7 +217,14 @@
         asking = true;
         show('Asking query ' + id + ' (' + meta.name + ') as drone ' + $('m-drone').value + '...');
         try {
-            const response = await fetch($('machine').dataset.query + '?' + params, { headers: { Accept: 'application/json' } });
+            // Too many queries a minute (the website limits them): wait and ask again
+            let response;
+            for (let tries = 0; ; tries++) {
+                response = await fetch($('machine').dataset.query + '?' + params, { headers: { Accept: 'application/json' } });
+                if (response.status !== 429 || tries >= 5) break;
+                show('Many queries this minute: waiting a few seconds before asking again...');
+                await new Promise((resolve) => setTimeout(resolve, 5000));
+            }
             const answer = await response.json();
             if (!response.ok) throw new Error(answer.error || answer.message || response.status);
             const bytes = atob(answer.bytes || '');
@@ -285,13 +304,15 @@
         prepared = false;
         listed = -1;
         m.machine_init();
-        let r = m.machine_eval(put($('m-defs').value + '\n'));
+        const wrapped = wrapText($('m-defs').value);
+        if (wrapped === null) { fail('A string in your definitions is too long to fit a line (79 characters): split it.'); return; }
+        let r = m.machine_eval(put(wrapped + '\n'));
         if (r < 0) { fail('Your definitions stopped with error ' + r + '. ' + str(m.machine_output())); return; }
         learnNames();
         m.machine_init();
         m.machine_set_live($('m-live').checked ? 1 : 0);
         $('m-queries').innerHTML = '';
-        m.machine_eval(put($('m-defs').value + '\n'));
+        m.machine_eval(put(wrapped + '\n'));
         r = m.machine_eval(put($('m-start').value + '\n'));
         if (r < 0) { fail('The starting stack stopped with error ' + r + '.'); return; }
         const word = $('m-word').value.trim();

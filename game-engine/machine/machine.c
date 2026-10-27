@@ -6,6 +6,7 @@
 #include "embed.h"
 #include "machine.h"
 #include "vm_library.h"
+#include "wrap.h"
 
 #define SHADOW 7
 #define INPUT_SIZE 16384
@@ -259,4 +260,20 @@ int machine_rstack(int i)
     if(i < 0 || i >= machine_rdepth())
         return 0;
     return mr(mr(2) + i);
+}
+
+/* A line as the engine passes it to a drone (#380): over FORTH_MAX_LINE
+   characters, re-wrapped at spaces by the engine's own forth_wrap_line, so
+   the checker and the Machine read what a drone reads. Writes into the
+   input buffer, after the text; returns its address, or 0 when a string
+   or word can't be split to fit (the engine refuses the script) */
+char *machine_wrap(const char *line)
+{
+    static char wrapped[INPUT_SIZE];
+    int r = forth_wrap_line(line, FORTH_MAX_LINE, wrapped, sizeof(wrapped));
+    if(r == WRAP_TOO_LONG)
+        return 0;
+    if(r != WRAP_OK)
+        return (char *)line;
+    return wrapped;
 }

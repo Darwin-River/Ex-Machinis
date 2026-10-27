@@ -688,13 +688,13 @@ In this example, the word `AddFive` really doesn't offer much advantage over sim
 
 Give this a try with your own spacecraft! I'm sure you can come up with more useful definitions than the one provided here.
 
-The interpreter reads at most 79 characters of a line at a time. The game splits longer lines for you, between words, and keeps each string (`." ..."`, `s" ..."`, `.( ...)`) and each defining word with its name (`: name`) on one line. Comments are dropped from a line it splits. A single string longer than 79 characters can't be split: the drone replies with an error and runs nothing, so break such a string into shorter ones.
+The interpreter reads at most 79 characters of a line at a time. The game splits longer lines for you, between words, and keeps each string (`." ..."`, `s" ..."`, `.( ...)`) and each defining word with its name (`: name`) on one line. Comments are dropped from a line it splits. A single string longer than 79 characters can't be split: the drone replies with an error and runs nothing, so break such a string into shorter ones. The Test button, the checker and the Machine split lines the same way, with the same code.
 
 ### Commenting on your code
 
 As with most programming languages, FORTH offers some convenient mechanisms for commenting on your code. These techniques can be very handy in reminding yourself and others of the intent and function of your definitions. There are two primary ways to add comments to your script that will be ignored by the interpreter:
 
-- When you start a comment with a backslash (`\`) the interpreter will ignore everything else on that line, up to the line's 80th character: anything past that is read as code. Keep lines that end in a comment to 80 characters.
+- When you start a comment with a backslash (`\`) the interpreter will ignore everything else on that line. (A line longer than 79 characters is split by the game first, and the comment dropped, so a long comment never leaks into your code.)
 - The interpreter will also ignore any text enclosed between parentheses, regardless of where they occur in the line or whether they enclose multiple lines.
 
 Remember that the interpreter uses white space to delineate words. Therefore, backslashes and parentheses will only be recognized as such by the interpreter if there are spaces between them and other characters.
