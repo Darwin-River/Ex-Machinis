@@ -490,7 +490,7 @@ To see how much is left before you mine, use query 640. It lists the deposits wh
 </run>
 ```
 
-If a mining action fails, for example because your hold is full, what it would have mined goes back to the deposit.
+If a mining action fails, for example because your hold is full, what it would have mined goes back to the deposit. An action that can't pay its fuel does nothing else: your modules and goods stay in the hold.
 
 ### Reprocessing minerals
 

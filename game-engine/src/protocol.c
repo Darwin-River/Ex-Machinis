@@ -20,6 +20,7 @@
 #include "engine.h"
 #include "vm.h"
 #include "game_time.h"
+#include "event_order.h"
 
 /******************************* DEFINES *************************************/
 
@@ -54,30 +55,33 @@ static ErrorCode_t protocol_queue_event(Event_t* event)
   return ENGINE_OK;
 }
 
-/* Game-time order; at the same game time, depletions first. Ties keep the
-   order the effects were worked out in (index). */
-static int protocol_event_order(const void* a, const void* b)
-{
-  const Event_t* x = (const Event_t*)a;
-  const Event_t* y = (const Event_t*)b;
-  int rx = (x->event_type == DECREMENT_INVENTORY_EVENT_TYPE) ? 0 : 1;
-  int ry = (y->event_type == DECREMENT_INVENTORY_EVENT_TYPE) ? 0 : 1;
-
-  if(x->delay != y->delay) return (x->delay < y->delay) ? -1 : 1;
-  if(rx != ry) return rx - ry;
-  return (x->event_id < y->event_id) ? -1 : (x->event_id > y->event_id);
-}
-
 /* Inserts the queued events in game-time order (or drops them) */
 static ErrorCode_t protocol_flush_events(Bool_t insert)
 {
   ErrorCode_t result = ENGINE_OK;
 
-  // event_id isn't set yet: use it to remember the original order
-  for(int i = 0; i < g_pending_count; i++)
-    g_pending_events[i].event_id = i;
-
-  qsort(g_pending_events, g_pending_count, sizeof(Event_t), protocol_event_order);
+  // Game-time order; at the same game time, fuel burns first and each
+  // equipment check's two halves stay together (event_order.h, #380)
+  if(g_pending_count > 1) {
+    EventKey_t* keys = malloc(sizeof(EventKey_t) * g_pending_count);
+    int* order = malloc(sizeof(int) * g_pending_count);
+    Event_t* sorted = malloc(sizeof(Event_t) * g_pending_count);
+    if(!keys || !order || !sorted) {
+      free(keys); free(order); free(sorted);
+      g_pending_count = 0;
+      return ENGINE_MEMORY_ALLOC_ERROR;
+    }
+    for(int i = 0; i < g_pending_count; i++) {
+      Event_t* e = &g_pending_events[i];
+      keys[i] = (EventKey_t){ e->delay, e->event_type, e->drone_id, e->resource_id,
+                              e->installed, e->locked, e->new_quantity };
+    }
+    event_order(keys, g_pending_count, order);
+    for(int i = 0; i < g_pending_count; i++)
+      sorted[i] = g_pending_events[order[i]];
+    memcpy(g_pending_events, sorted, sizeof(Event_t) * g_pending_count);
+    free(keys); free(order); free(sorted);
+  }
 
   // Never before the drones' other events (#324 step 8). An event stamped
   // earlier than one already processed would be worked out from older state

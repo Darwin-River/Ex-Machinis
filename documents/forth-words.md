@@ -71,7 +71,7 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 
 **`build ( -- )`** (Machinist): one gear box from 8 Metals (A1) and 2 Metals (A2): three Alloys (A1), two Alloys (A2), then a rod, a gear and a spring, then the gear box (it needs the starter kit's Spider). Nine actions and about 23 fuel. Used by: Machinist.
 
-- Check every input before the first step (`metals-a1 units 8 < ... if exit then`), so a half-built chain doesn't strand alloys in the hold.
+- Check every input before the first step (`metals-a1 units 8 < ... if exit then`), so a half-built chain doesn't strand alloys in the hold. Check the fuel too: `fuel units 30 < if exit then`.
 - A long chain needs a bigger fuel margin: start brewing at 60, not 40.
 
 ## Buying from other drones, with a cash floor
