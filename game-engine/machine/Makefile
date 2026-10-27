@@ -27,6 +27,7 @@ test: trace_machine $(WASM_OUT)
 	node compare.mjs $(WASM_OUT) > wasm.trace
 	diff native.trace wasm.trace && echo "machine: the WebAssembly build matches the engine's VM, step by step"
 	node check_starters.mjs $(WASM_OUT) ../../examples/starters/*.fth ../../examples/companies/*.fth
+	node words.mjs $(WASM_OUT) | diff - ../../resources/drone-words.txt && echo "machine: resources/drone-words.txt lists every word a drone knows"
 
 clean:
 	rm -f trace_machine native.trace wasm.trace

@@ -89,6 +89,8 @@ A released drone can't be sent new commands from the Release page, so test your 
 - nothing in the test world affects the live one, and you can test as often as you like (the latest hundred test runs are kept);
 - the test world has its own market, so trades there are only with other test runs.
 
+Both the Test button and a release warn you if your script redefines a word your drone already knows, such as `report`, `load` or `pick`. Your word then replaces the drone's for everything written after it, which is rarely what you want: rename yours.
+
 #### Starter scripts
 
 Not sure where to begin? The Release page offers three starter scripts: click **Miner**, **Refiner** or **Trader** above the script box and it fills in. Each is short, explained in its comments, and makes money on its own; change its numbers, or its plan, to make it yours.
@@ -1172,12 +1174,13 @@ Try sending the above code to your spacecraft to see how it works.
 
 ### Repeating yourself: loops
 
-Your drone's FORTH has no counted `do ... loop` (nor `?do`, `i` or `leave`): use one of these instead.
+Your drone's FORTH is eForth: it has no `do ... loop` (nor `?do`, `i` or `leave`). Its counted loop is `for ... next`, and there are three others.
 
+- `n for ... next` runs n+1 times, counting down: `r@` is the count, from n to 0. `: t 3 for r@ . next ;` prints `3 2 1 0`. For exactly n times, put the body after `aft`: `3 for aft r@ . then next` prints `2 1 0`. Don't leave anything on the return stack (`>r`) inside it.
 - `begin ... until` repeats until the flag on top is true: `: countdown ( n -- ) begin dup . 1- dup 0= until drop ;`
 - `begin ... while ... repeat` tests first, so the body may run no times: `: walk ( n -- ) begin dup 0> while dup . 1- repeat drop ;`
 - `begin ... again` runs forever. Put a `wait` in it, or the drone burns fuel thinking: `: forever ( -- ) begin 60 wait drop again ;`
-- To count up, keep the counter in a variable:
+- To count up, keep the counter in a variable (or use `for` and subtract `r@` from n):
 
 ```
 variable i

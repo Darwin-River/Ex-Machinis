@@ -61,7 +61,8 @@ class ReleaseController extends Controller
         $token = TestWorld::run($script);
 
         return redirect('/release/test/' . $token)->withSuccess('Test run started: the test drone is loading your script. '
-            . 'Its results appear below as it runs; keep this page\'s link to come back to them.');
+            . 'Its results appear below as it runs; keep this page\'s link to come back to them.')
+            ->with('warning', Release::redefinedWarning($script));
     }
 
     /** A test run's results (#367 step 3) */
@@ -135,7 +136,8 @@ class ReleaseController extends Controller
 
         return redirect('/spacecraft/' . $agent->agent_id)->withSuccess('Released! Drone ' . $agent->name . ' of '
             . $request->input('company_name') . ' is loading your script and will run its launched word. '
-            . 'Keep this page\'s link to follow it.');
+            . 'Keep this page\'s link to follow it.')
+            ->with('warning', Release::redefinedWarning($script));
     }
 
     /** The game clock's current game time (game seconds) */

@@ -90,6 +90,22 @@ class ReleasePageTest extends TestCase
         $this->assertNull(Company::where('name', 'No Entry')->first());
     }
 
+    public function testRedefiningAWordTheDroneKnowsIsWarnedAbout()
+    {
+        // report, pick and fuel are the drone's; comments don't count
+        $script = ": report ( -- ) .\" here\" ;\nvariable pick ( : hold )\n\\ : load is only a comment\n"
+            . "40 constant fuel-cap\n: launched report ;";
+        $this->assertEquals(['report', 'pick'], Release::redefinedWords($script));
+        $this->assertEquals([], Release::redefinedWords(file_get_contents(base_path('examples/starters/miner.fth'))));
+
+        $response = $this->post('/release', ['company_name' => 'Shadows', 'script' => $script]);
+        $response->assertSessionHas('warning');
+        $this->assertStringContainsString('report, pick', session('warning'));
+
+        $this->post('/release', ['company_name' => 'Clean', 'script' => ': launched 1 drop ;'])
+            ->assertSessionMissing('warning');
+    }
+
     public function testLaunchedIsFoundOnlyAsADefinition()
     {
         $this->assertTrue(Release::definesLaunched(": launched ;"));
