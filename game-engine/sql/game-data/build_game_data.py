@@ -810,6 +810,11 @@ for rid, price, demand in METALS:
 for st in (1, 2):
     for rid, price in ((2032, 10), (2033, 12), (2042, 15), (2043, 18)):
         STATION_GOODS.append((st, rid, BUYS, price, 200, 0))
+# The Mars Exchange buys the chemists' goods too (#380), so they can work
+# Phobos and Deimos instead of crowding the Moon's yalspar
+for rid, price, demand in ((2031, 8, 200), (2041, 12, 200), (2051, 30, 100),
+                           (2032, 10, 200), (2033, 12, 200), (2042, 15, 200), (2043, 18, 200)):
+    STATION_GOODS.append((3, rid, BUYS, price, demand, 0))
 for st in (1, 3):
     for rid, price in ((3001, 60), (3011, 60), (3031, 50), (3311, 70)):
         STATION_GOODS.append((st, rid, BUYS, price, 50, 3))

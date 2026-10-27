@@ -42,6 +42,8 @@ The game data a world's owner can change (`game-engine/sql/game-data/build_game_
 | Moon Depot budget | `stations` | 5,000 a day | 10,000 a day | Round 3: 36 Chemists and the Moon miners had brought its budget down to about 500. (Round 4 measures the effect.) |
 | By-product buyers | `station_goods` | none | Earth and the Moon buy Inorganics (A2), (A3) and Organics (A2), (A3) at 10 to 18 | Gives every refining by-product a buyer, so holds don't clog. (Round 4 measures the effect.) |
 
+| Mars Exchange buys chemists' goods | `station_goods` | metals only | also polymers, Inorganics (A1)-(A3), Organics (A1)-(A3) | Lets Chemists work Phobos and Deimos instead of crowding the Moon. (Round 5 measures the effect.) |
+
 Levers not yet tried: House prices for parts and systems (lesson 9), deposit refill per mineral, station budgets at Earth and the Moon, the tax rate and grace period.
 
 ## Lessons learned
@@ -114,6 +116,25 @@ A world of 108 starter companies (54 miners, 36 refiners, 18 traders); 12 Chemis
   - Chemist and Smith version 2 sell every by-product; the Smith sells everything but rods at the Moon as it goes, and hauls 12 rods instead of 20.
   - The Trader tops up fuel while it shops.
   - Levers: the Moon Depot's budget goes to 10,000, and Earth and the Moon buy the by-products.
+
+### Round 4: fixed designs (#380)
+
+12 each of Chemist v2, Smith v2 and Trader v2 released at game day 42.5, measured at day 53.7.
+
+| Design | Companies | Avg credits | Avg gain | Gaining | Ended |
+|---|---|---|---|---|---|
+| Chemist (v1) | 36 | 2,764 | +1,699 | 36 | 0 |
+| Chemist v2 | 12 | 1,350 | +165 | 12 | 0 |
+| Smith v2 | 12 | 1,153 | +4 | 9 | 0 |
+| Trader v2 | 12 | 481 | 0 | 0 | 0 |
+| Miner | 54 | 4,348 | +3,205 | 54 | 0 |
+| Refiner | 36 | 1,726 | +734 | 36 | 0 |
+
+- No new design died: selling by-products and refuelling while shopping work. The Moon Depot bought 37 Inorganics (A2) in 5 days.
+- The House now buys 6 goods (from 3 at the start).
+- Newcomers earn little: 48 Chemists and 12 Smiths share Moon yalspar that supports about 14 (426 of 2,000 left). Late arrivals at a full site make almost nothing; spread them out.
+- The Moon Depot's budget is no longer short (9,872 of 10,000 left).
+- **Round 5:** Chemist v3 spreads over the Moon, Phobos and Deimos by drone number, and the Mars Exchange buys polymers, inorganics and organics too.
 
 ### Baseline (before #380)
 
