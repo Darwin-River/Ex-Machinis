@@ -27,9 +27,12 @@ variable copy
 : market ( -- place ) site moon = if moon else mars then ;
 
 \ A low deposit: at the Moon, wait for it to refill; at Mars, try the other
-\ moon, and rest after both are mined out
+\ moon, and rest after both are mined out. Short of fuel, rest instead of
+\ flying: in round 22 crowded Mars moons ran dry and five miners spent their
+\ last fuel flying between them
 : move-on ( -- )
   site# @ 0= if 60 wait drop exit then
+  fuel units 15 < if rest wait drop exit then
   site# @ 3 xor site# !  1 misses +!
   misses @ 2 mod 0= if rest wait drop then
   site go drop ;
