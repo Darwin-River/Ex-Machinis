@@ -331,7 +331,7 @@ Three **starter scripts** in `examples/starters/` (miner, refiner, trader; the R
 
 Each one can earn alone, and the miner and refiner trade fuel when both are on the Moon. Found while running them: Mine yalspar (11110) yielded kunspar (from `economy.xlsx`); `build_game_data.py` now makes every mining protocol yield its own mineral.
 
-**Loading a script costs fuel.** The VM reads text slowly: each word it reads (a name, a number, a comment's `\`) costs about 20,000 instructions, most of them looking the name up in the dictionary, and a comment line about 30,000. Compiled code then runs fast. At `POWER_INSTRUCTIONS` (1 fuel per 100,000 instructions), loading a starter script costs 13 to 25 fuel, once; a clone gets the compiled program and pays nothing. Step 20 should weigh a faster dictionary lookup or a cheaper power price.
+**Loading a script is free (#380).** The VM reads text slowly: each word it reads (a name, a number, a comment's `\`) costs about 20,000 instructions, most of them looking the name up in the dictionary, and a comment line about 30,000. Compiled code then runs fast. Until a released drone first runs `launched` (when `release_vm` is saved) it is only reading its program, so `db_take_power_due` marks those instructions paid instead of billing them; `agents.instructions` still counts them. Billed at `POWER_INSTRUCTIONS`, a starter script cost 13 to 25 fuel to load, but a 150-line script cost more than the 100 fuel a drone starts with: in round 21 four newcomers' drones died before their `launched` ran. A clone gets the compiled program and reads nothing.
 
 <a name="Fuel"></a>**Fuel (#324 step 8).** Fuel (A1), resource 2061 (mass 1), is burned two ways:
 

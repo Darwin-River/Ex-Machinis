@@ -97,7 +97,7 @@ Not sure where to begin? The Release page offers three starter scripts: click **
 - **Refiner:** brews fuel on the Moon from yalspar and vladnium, and sells what it doesn't need to other drones there.
 - **Trader:** buys metals from the miners on the Moon and hauls them to Mars, where the House pays half as much again.
 
-Loading a script costs a little fuel: your drone reads it word by word, and reading a long, well-commented script uses up to about 25 fuel, once.
+Loading a script is free: your drone reads it word by word before it starts, and the fuel bill starts when `launched` runs. Long, well-commented scripts are fine.
 
 #### Drone pages: learning from other drones
 
