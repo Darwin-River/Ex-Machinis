@@ -1,6 +1,7 @@
-\ Trader: a starter script for Public Forge (#324 step 15; #367).
-\ It works the Moon, where the Miner offers its metals to other drones a
-\ little over the Moon Depot's price. It buys them, hauls a load to Mars,
+\ Trader: a starter script for Public Forge (#324 step 15; #367). Release
+\ it with the Mining Kit (it only uses the Engine).
+\ It works the Moon, where the Miner offers its metals to other drones
+\ between what the Moon Depot pays and what it asks (#380). It buys them, hauls a load to Mars,
 \ where the Mars Exchange pays half as much again, sells it and comes back.
 \ Its fuel it buys from the House at the exchanges. Copies compete for the
 \ miners' metals: the first to buy gets them.
@@ -11,21 +12,34 @@
 20 constant trip-fuel    \ fuel it wants aboard before a trip
 120 constant nap         \ game minutes to rest when nobody sells
 
-\ The most it pays a unit: the Mars Exchange's price less 7
+\ The most it pays a unit: the Mars Exchange's price less 5 (the Miner asks
+\ 25, 37 and 50 at the Moon)
 : max-price ( metal -- price )
-  dup metals-a1 = if drop 23 exit then metals-a2 = if 38 else 53 then ;
+  dup metals-a1 = if drop 25 exit then metals-a2 = if 40 else 55 then ;
 
 : metals ( -- n ) metals-a1 units metals-a2 units + metals-a3 units + ;
 
+\ Credits above cash-floor, at most 32,000 (credits are a double). It
+\ keeps cash-floor for fuel: round 25's traders spent every credit on
+\ metals, couldn't buy fuel at the Moon, and died there (#380)
+200 constant cash-floor
+: spare ( -- n )
+  credits cash-floor 0 d- dup 0< if 2drop 0 exit then
+  if drop 32000 exit then  dup 0< if drop 32000 then ;
+
 \ Buy what the cheapest seller here offers of one metal, if the price is
-\ right and there is room in this load
+\ right, there is room in this load and the spare credits pay for it. It
+\ reads the seller's row first: metals and spare ask the game too, and
+\ every question reuses the one answer buffer
 variable got   variable looks
 : buy ( metal -- )
   dup 610 ask 0> 0= if drop exit then
-  answer 2@ drop over max-price > if drop exit then
-  answer 6 + @ answer 4 + @ - 0 max cargo-goal metals - min
-  ?dup 0= if drop exit then
-  swap answer 8 + @ pull 0= if 1 got ! then ;
+  answer 2@ drop  answer 8 + @  answer 6 + @ answer 4 + @ - 0 max
+  ( metal price seller avail )
+  3 pick max-price 3 pick < if 2drop 2drop exit then
+  cargo-goal metals - min  spare 3 pick / min
+  rot drop  ?dup 0= if 2drop exit then
+  rot rot pull 0= if 1 got ! then ;
 
 \ Top up the tank from the House here; it arrives when the batch clears
 : fuel-up ( -- )
@@ -56,10 +70,12 @@ variable rounds
 
 : haul ( -- ) fuel-up mars go drop sell-metals fuel-up moon go drop 0 looks ! ;
 
-\ A full load, or a smaller one after waiting long enough
+\ A full load, or a smaller one after waiting long enough, or whatever it
+\ has once its money is spent
 : ready? ( -- f )
   metals cargo-goal < 0=
-  metals min-load < 0= looks @ patience < 0= and or ;
+  metals min-load < 0= looks @ patience < 0= and or
+  metals 0> spare 20 < and or ;
 
 \ Every 8th round, send a line home. What a drone prints reaches you only
 \ when its script ends or calls report, and launched never ends

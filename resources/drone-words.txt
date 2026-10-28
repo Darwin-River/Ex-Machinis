@@ -2,11 +2,13 @@
 #
 #>
 #s
+#ticks
 $"
 '
 (
 )
 *
+*/
 +
 +!
 +order
@@ -30,6 +32,8 @@ $"
 1-
 1-!
 2!
+2*
+2/
 2@
 2drop
 2dup
@@ -68,12 +72,16 @@ answer
 ask
 b/buf
 base
+become
 begin
+best-bid
+best-offer
 bl
 blk
 block
 buy-from-station
 buy-order
+buy-price
 bye
 c!
 c,
@@ -126,6 +134,7 @@ evaluate
 execute
 exit
 expect
+factory-kit
 fill
 find
 flush
@@ -139,8 +148,10 @@ here
 hex
 hld
 hold
+house-price
 if
 immediate
+in?
 inorganics-a1
 interpret
 invert
@@ -165,7 +176,9 @@ metals-a2
 metals-a3
 min
 mine
+mining-kit
 mod
+mode
 moon
 negate
 next
@@ -199,6 +212,7 @@ search-wordlist
 see
 sell-all
 sell-order
+sell-price
 sell-to-station
 set-order
 sign
@@ -212,6 +226,8 @@ swap
 system
 then
 throw
+tick
+ticks
 today
 travel
 trip

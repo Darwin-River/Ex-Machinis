@@ -72,7 +72,7 @@ The following script defines a set of descriptive words that place the protocol 
 ```
 I also improve readability here by using descriptive camel-case phrases to describe each newly-defined action and prefix the compound word with a lower-case v for verb. The parentheses that follow each word enclose uncompiled comments that describe the values that must be placed on the stack before invoking the word, which is represented by the two hyphens.  The values the word leaves on the stack are listed after the two hyphens.  FORTH programmers use this notation to help themselves and other users with stack management.
 
-Every one of these words leaves one value, which FORTH programmers call an *ior* (an input/output result): `perform` waits until the action is finished, then leaves 0 if it worked or a negative code saying why it didn't (see [Issuing Commands](players-manual.md#chapter-4-issuing-commands) in the player's manual). Travelling uses your engine (protocol 5001), so unpack your starter kit first. Pushes and pulls take the quantity first: `5 nKunspar 52 vPushResource` delivers 5 kunspar to drone 52.
+Every one of these words leaves one value, which FORTH programmers call an *ior* (an input/output result): `perform` waits until the action is finished, then leaves 0 if it worked or a negative code saying why it didn't (see [Issuing Commands](players-manual.md#chapter-4-issuing-commands) in the player's manual). Travelling uses your engine (protocol 5001), so unpack your kit first (a Mining or a Factory Kit; both have an engine). Pushes and pulls take the quantity first: `5 nKunspar 52 vPushResource` delivers 5 kunspar to drone 52.
 
 The definitions can be used in conjunction with the previously-defined favorites to vastly improve the readability of your script.  For example, the following code places a buy order for up to 10 units of magmite and then moves the spacecraft to the Moon, printing the result of each (0 when it worked):
 
@@ -127,7 +127,7 @@ The following script creates a definition for `vMineResource`, which retrieves t
 </run>
 ```
 
-Each mineral needs the right mining module and a location where it's found (see [Extracting minerals](players-manual.md#extracting-minerals) in the player's manual). The Worm in your starter kit mines minerals on moons, so the following code mines kunspar on the Moon and prints the result:
+Each mineral needs the right mining module and a location where it's found (see [Extracting minerals](players-manual.md#extracting-minerals) in the player's manual). The Worm in the Mining Kit mines minerals on moons, so the following code mines kunspar on the Moon and prints the result:
 
 ```
 <run>

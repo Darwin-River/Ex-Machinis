@@ -82,6 +82,28 @@ class ReleasePageTest extends TestCase
         $this->assertEquals([$script, '<launched>'], $codes);
     }
 
+    public function testTheReleaseGetsTheKitItsPlayerChose()
+    {
+        // #380: a Mining Kit unless the player asks for a Factory Kit
+        $this->get('/release')->assertOk()->assertSee('name="kit"', false)->assertSee('Factory Kit');
+        $this->get('/release?starter=maker')->assertOk()->assertSee('value="factory" checked', false);
+        foreach (Release::KITS as $name => $id) {
+            DB::table('resources')->insertOrIgnore(['id' => $id, 'name' => ucfirst($name) . ' Kit I', 'mass' => 40,
+                'capacity' => 0, 'slot_size' => 0]);
+        }
+        $kits = [];
+        foreach (['mining' => 'Diggers', 'factory' => 'Makers'] as $kit => $name) {
+            $this->post('/release', ['company_name' => $name, 'script' => ': launched ;', 'kit' => $kit]);
+            $company = Company::where('name', $name)->first();
+            $drone = Agent::where('company_id', $company->company_id)->first();
+            $kits[$kit] = [(int) $company->start_kit, DB::table('events')->where('drone', $drone->agent_id)
+                ->where('resource', Release::kit($kit))->count()];
+        }
+        $this->assertEquals(['mining' => [5901, 1], 'factory' => [5902, 1]], $kits);
+        $this->post('/release', ['company_name' => 'Nope', 'script' => ': launched ;', 'kit' => 'yacht'])
+            ->assertSessionHasErrors('kit');
+    }
+
     public function testScriptMustDefineLaunched()
     {
         $this->from('/release')

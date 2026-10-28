@@ -37,12 +37,12 @@ class TestWorld
      * Starts a test run of the script (#367 step 3: anyone may, no account
      * needed); returns its token, the link to its results
      */
-    public static function run(string $script): string
+    public static function run(string $script, ?string $kit = null): string
     {
         $owner = Release::owner(self::CONNECTION);
         self::prune(config('forge.test_runs_kept') - 1);
         $token = bin2hex(random_bytes(8));
-        Release::release($owner, 'Test ' . $token, $script, self::CONNECTION);
+        Release::release($owner, 'Test ' . $token, $script, self::CONNECTION, null, null, $kit);
         return $token;
     }
 

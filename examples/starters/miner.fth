@@ -1,17 +1,19 @@
-\ Miner: a starter script for Public Forge (#324 step 15).
-\ It mines kunspar, refines it and sells the metals to the House. Copies
-\ spread out: a third work the Moon and sell at the Moon Depot; the rest
-\ work Phobos and Deimos (Mars's moons), moving between them as deposits run
-\ low, and sell at the Mars Exchange, which pays half as much again. At the
-\ Moon it first offers its metals to other drones (traders, who haul them to
-\ Mars) a little over the Depot's price. For fuel it buys from another
-\ drone's sell order when one is cheap, and otherwise brews its own from
-\ yalspar and vladnium. Change the numbers to make it your own.
+\ Miner: a starter script for Public Forge (#324 step 15). Release it with
+\ the Mining Kit (Engine, Worm and Refinery).
+\ It mines kunspar, refines it and sells the metals. Copies spread out: a
+\ third work the Moon and sell at the Moon Depot; the rest work Phobos and
+\ Deimos (Mars's moons), moving between them as deposits run low, and sell
+\ at the Mars Exchange, which pays half as much again. It offers its metals
+\ to other drones first (#380): the makers, whose factory kit can't mine,
+\ buy their metals from miners or from the House, which asks half as much
+\ again as it pays. So it asks halfway between what the House pays and what
+\ it asks, under the House, and sells to the House only what nobody bought.
+\ Its kit has no Chemical Reactor to brew fuel: it buys fuel wherever it is
+\ cheapest. Change the numbers to make it your own.
 
-40 constant low-fuel     \ get fuel when below this (brewing burns ~15)
-4 constant fuel-price    \ most it pays a unit for fuel
+40 constant low-fuel     \ get fuel when below this
 240 constant rest        \ game minutes to rest when both Mars moons are dry
-16 constant hold-cap     \ at the Moon, metals it keeps on offer to traders
+16 constant hold-cap     \ metals it keeps on offer to other drones
 
 \ The site it works: 0 the Moon, 1 Phobos, 2 Deimos. The drone you release
 \ works the Moon. A third of its copies (by drone number) work the Moon too;
@@ -25,6 +27,25 @@ variable copy
   site# @ dup 0= if drop moon exit then 1 = if phobos else deimos then ;
 \ Where it sells: the Moon Depot at the Moon, else the Mars Exchange
 : market ( -- place ) site moon = if moon else mars then ;
+
+\ Buy up to n of a resource here where it is cheapest: another drone's sell
+\ order (best-offer) or the House station (house-price, side 2: what it
+\ asks). The House delivers when its batch clears, within the game hour
+: buy-cheapest ( n resource -- )
+  >r  r@ 2 house-price  r@ best-offer         ( n house price drone avail )
+  dup 0> 3 pick 0> and  3 pick 5 pick <  5 pick 0= or  and if
+    rot drop rot drop rot min  r> rot pull drop exit
+  then
+  2drop drop  if r> buy-from-station drop else r> 2drop then ;
+
+\ Fuel when low, from whoever sells it cheapest here; where nobody does
+\ (Phobos and Deimos have no House station), at the market
+: refuel ( -- )
+  fuel units low-fuel < 0= if exit then
+  30 fuel buy-cheapest  60 wait drop
+  fuel units low-fuel < if
+    market go drop  30 fuel buy-from-station drop  120 wait drop  site go drop
+  then ;
 
 \ A low deposit: at the Moon, wait for it to refill; at Mars, try the other
 \ moon, and rest after both are mined out. Short of fuel, rest instead of
@@ -49,44 +70,33 @@ variable copy
     then
   repeat 2drop ;
 
-\ Fuel from yalspar (organics) and vladnium (inorganics): 30 units
-: brew-fuel ( -- )
-  yalspar 16 dig yalspar refine drop
-  vladnium 12 dig vladnium refine drop
-  fuel make drop ;
-
-\ The cheapest fuel for sale here: the seller and its price (0 0 if none)
-: fuel-seller ( -- drone price )
-  fuel 610 ask 0> if answer 8 + @ answer 2@ drop else 0 0 then ;
-
-\ Buy 30 fuel if someone here sells it cheaply, else brew it
-: refuel ( -- )
-  fuel-seller fuel-price > over 0= or if drop brew-fuel exit then
-  >r 30 fuel r> pull if brew-fuel then ;
-
 : metals ( -- n ) metals-a1 units metals-a2 units + metals-a3 units + ;
 
-\ At the Moon, standing sell orders offer its metals to traders at 3 over
-\ the Depot's price (23, 33 and 43); orders stay open as the hold changes
-: offer ( -- )
-  23 0 metals-a1 sell-order drop  33 0 metals-a2 sell-order drop
-  43 0 metals-a3 sell-order drop ;
+\ Its asking price: halfway between what the House here pays and what it
+\ asks (0 where there is no House station)
+: ask-price ( metal -- price ) dup 1 house-price swap 2 house-price + 2 / ;
+\ Standing sell orders for its metals, set where there is a House to price
+\ them by (the Moon, Mars); they stay open as the hold changes, and go with
+\ the drone: at the Moon 25, 37 and 50 (the Depot pays 20, 30, 40 and asks
+\ 30, 45, 60)
+: offer-one ( metal -- ) dup ask-price ?dup if 0 rot sell-order drop else drop then ;
+: offer ( -- ) metals-a1 offer-one metals-a2 offer-one metals-a3 offer-one ;
 
 \ Growth (#380): with 7,000 credits or more, at an exchange, buy a Mining
-\ Cruiser kit and a Starter Kit I, launch a clone of this drone (it runs
-\ this same program), and hand it the starter kit and 40 fuel
-6001 constant cruiser-kit   5901 constant starter-kit
+\ Cruiser kit and a Mining Kit I, launch a clone of this drone (it runs
+\ this same program), and hand it the kit and 40 fuel
+6001 constant cruiser-kit
 \ Buy one of a good here unless one is aboard, and wait (up to 6 game
 \ hours) for it: the House delivers when the batch clears
 : get-one ( resource -- )
   dup units if drop exit then
   dup 1 swap buy-from-station drop
   6 begin over units 0= over 0> and while 60 wait drop 1- repeat 2drop ;
-\ Hand the newest clone a starter kit and 40 fuel
+\ Hand the newest clone a mining kit and 40 fuel
 : equip-clone ( -- )
   670 ask ?dup 0= if exit then
   1- 4 * answer + @ >r
-  1 starter-kit r@ push drop  40 fuel r> push drop ;
+  1 mining-kit r@ push drop  40 fuel r> push drop ;
 \ Top the tank up to n from the House here, waiting (up to 6 game hours)
 \ (Waits for the delivery, not for n: computing burns a unit or two just
 \ after it arrives, and waiting for n then sat out all 6 hours)
@@ -95,28 +105,28 @@ variable copy
     fuel buy-from-station drop
     6 begin over fuel units < 0= over 0> and while 60 wait drop 1- repeat
   then 2drop ;
-\ One kit at a time: equipment fills 364 of the 500 cargo. A hull already
-\ bought is launched whenever the fuel allows; after equipping the clone
-\ the tank is refilled (round 19 lost 8 parents that left with 20 fuel)
+\ One kit at a time. A hull already bought is launched whenever the fuel
+\ allows; after equipping the clone the tank is refilled (round 19 lost 8
+\ parents that left with 20 fuel)
 : reinvest ( -- )
-  starter-kit units if equip-clone 60 fill-to exit then
+  mining-kit units if equip-clone 60 fill-to exit then
   cruiser-kit units 0= if
     credits 7000 0 d< if exit then
     cruiser-kit get-one  cruiser-kit units 0= if exit then
   then
   90 fill-to  fuel units 80 < if exit then
   me cruiser-kit launch if exit then
-  starter-kit get-one  starter-kit units if equip-clone then
+  mining-kit get-one  mining-kit units if equip-clone then
   60 fill-to ;
-\ A clone starts with no equipment: wait for the starter kit
-: await-kit ( -- ) begin starter-kit units 0= while 60 wait drop repeat ;
+\ A clone starts with no equipment: wait for the kit
+: await-kit ( -- ) begin mining-kit units 0= while 60 wait drop repeat ;
 
 \ Sell the metals at the market, top up the tank from the House there (5 a
-\ unit, delivered when its batch clears), then go back to the site. At the
-\ Moon, only once hold-cap are aboard: until then traders may buy them
+\ unit, delivered when its batch clears), then go back to the site, only
+\ once hold-cap are aboard: until then other drones may buy them
 : sell-metals ( -- )
-  site# @ 0= if metals hold-cap < if exit then then
-  market go drop
+  metals hold-cap < if exit then
+  market go drop  offer
   metals-a1 sell-all metals-a2 sell-all metals-a3 sell-all
   fuel units 50 < if 30 fuel buy-from-station drop then
   reinvest site go drop ;
@@ -129,10 +139,10 @@ variable tells
   ." credits " credits d. ." fuel " fuel units . report ;
 
 : work ( -- )
-  fuel units low-fuel < if refuel then
+  refuel
   kunspar 20 dig kunspar refine drop sell-metals tell ;
 
 : launched ( -- )
   await-kit unpack drop
   copy @ if me 3 mod else 0 then site# !  1 copy !  site go drop
-  site# @ 0= if offer then begin work again ;
+  offer begin work again ;

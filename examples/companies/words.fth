@@ -25,11 +25,9 @@
   repeat 2drop ;
 
 \ --- Fuel ---------------------------------------------------------------
-\ Brew 30 fuel from the Moon's yalspar and vladnium (burns about 15)
-: brew-fuel ( -- )
-  yalspar 16 dig yalspar refine drop
-  vladnium 12 dig vladnium refine drop
-  fuel make drop ;
+\ Brew 30 fuel from 1 Organics (A1) and 2 Inorganics (A1) (a Factory Kit's
+\ Chemical Reactor; a Mining Kit can't brew). Leaves the ior
+: brew-fuel ( -- ior ) fuel make ;
 
 \ Below n fuel, buy m from the House here; it arrives when the hour's
 \ batch clears, so wait for it
@@ -45,6 +43,75 @@
 \ Offer a good to other drones here at a price, keeping none; the order
 \ stays open as the hold changes
 : offer ( price resource -- ) 0 swap sell-order drop ;
+
+\ --- Buying where it is cheapest (#380) ---------------------------------
+\ Buy up to n of a resource here where it is cheapest: another drone's sell
+\ order (best-offer) or the House station (house-price, side 2: what it
+\ asks). The House delivers when its batch clears, within the game hour
+: buy-cheapest ( n resource -- )
+  >r  r@ 2 house-price  r@ best-offer         ( n house price drone avail )
+  dup 0> 3 pick 0> and  3 pick 5 pick <  5 pick 0= or  and if
+    rot drop rot drop rot min  r> rot pull drop exit
+  then
+  2drop drop  if r> buy-from-station drop else r> 2drop then ;
+
+\ Offer a good to other drones under the House: halfway between what the
+\ House here pays and what it asks (nothing where there is no House)
+: offer-under-house ( resource -- )
+  dup 1 house-price over 2 house-price + 2 /
+  ?dup if 0 rot sell-order drop else drop then ;
+
+\ --- Reading the market (#380) ------------------------------------------
+\ What the House paid a unit for a resource at a place over the last game
+\ day (query 681, the House's price board: place, units, credits,
+\ batches); 0 when it bought none there. Query 680, the players' board,
+\ has the same layout
+: board-price ( resource place -- price )
+  swap 681 ask 0 max begin dup while 1- dup 12 * answer +
+    dup @ 3 pick = if
+      dup 6 + 2@ drop swap 2 + 2@ drop  ?dup if / else drop 0 then
+      nip nip exit
+    then drop
+  repeat 2drop 0 ;
+
+\ Credits above cash-floor, at most 32,000 (credits are a double). Define
+\ cash-floor first: 300 constant cash-floor
+300 constant cash-floor
+: spare ( -- n )
+  credits cash-floor 0 d- dup 0< if 2drop 0 exit then
+  if drop 32000 exit then  dup 0< if drop 32000 then ;
+
+\ Of two minerals, the one with more left in the deposit here
+: richer ( mineral mineral -- mineral ) over deposit over deposit < if nip else drop then ;
+
+\ Profit from making one product: what it sells for here less what its
+\ inputs cost here (n units of one input). Example, an alloy from 2 metals:
+\ alloys-a1 metals-a1 2 profit
+: profit ( product input n -- credits ) swap buy-price * swap sell-price swap - ;
+
+\ Adaptive pricing: where there is a House to price by, ask a unit under
+\ what the House asks while the stock sells out (fewer than 4 aboard), a
+\ unit over what it pays while stock piles up (more than 16), and halfway
+\ between otherwise; 0 where there is no House station. Call reoffer every
+\ round, so a standing sell order follows its own sales (round 25's miners
+\ priced once, too low, and demand outran them)
+: smart-ask ( resource -- price )
+  dup 2 house-price ?dup 0= if drop 0 exit then      ( resource ask )
+  over 1 house-price  ?dup 0= if dup 2 / then        ( resource ask pay )
+  rot units  dup 4 < if 2drop 1- exit then
+  16 > if nip 1+ exit then
+  + 2 / ;
+: reoffer ( resource -- ) dup smart-ask ?dup if 0 rot sell-order drop else drop then ;
+
+\ --- State machines (#380) ----------------------------------------------
+\ The game words become, in?, tick and ticks keep a drone's mode. A
+\ skeleton: number the modes, one word per mode, and a step that picks one.
+\   0 constant mining  1 constant selling
+\   : mine-step ... selling become ... ;   : sell-step ... mining become ... ;
+\   : step ( -- ) mining in? if mine-step exit then sell-step ;
+\   : launched ( -- ) unpack drop mining become begin step tick again ;
+\ Give up on a mode that takes too long: ticks counts its rounds
+: stuck-for? ( n -- f ) ticks < ;
 
 \ --- Buying from other drones -------------------------------------------
 \ Buy up to n of a good from the cheapest seller here at price or less;
@@ -67,19 +134,20 @@
 \ --- Growing ------------------------------------------------------------
 \ Growth (#380): with 7,000 credits or more, at an exchange, buy a Mining
 \ Cruiser kit and a Starter Kit I, launch a clone of this drone (it runs
-\ this same program), and hand it the starter kit and 40 fuel
-6001 constant cruiser-kit   5901 constant starter-kit
+\ this same program), and hand it a kit and 40 fuel. my-kit is the kit this
+\ design needs: mining-kit or factory-kit (#380)
+6001 constant cruiser-kit   mining-kit constant my-kit
 \ Buy one of a good here unless one is aboard, and wait (up to 6 game
 \ hours) for it: the House delivers when the batch clears
 : get-one ( resource -- )
   dup units if drop exit then
   dup 1 swap buy-from-station drop
   6 begin over units 0= over 0> and while 60 wait drop 1- repeat 2drop ;
-\ Hand the newest clone a starter kit and 40 fuel
+\ Hand the newest clone a kit and 40 fuel
 : equip-clone ( -- )
   670 ask ?dup 0= if exit then
   1- 4 * answer + @ >r
-  1 starter-kit r@ push drop  40 fuel r> push drop ;
+  1 my-kit r@ push drop  40 fuel r> push drop ;
 \ Top the tank up to n from the House here, waiting (up to 6 game hours)
 \ (Waits for the delivery, not for n: computing burns a unit or two just
 \ after it arrives, and waiting for n then sat out all 6 hours)
@@ -88,21 +156,21 @@
     fuel buy-from-station drop
     6 begin over fuel units < 0= over 0> and while 60 wait drop 1- repeat
   then 2drop ;
-\ One kit at a time: equipment fills 364 of the 500 cargo. A hull already
+\ One kit at a time. A hull already
 \ bought is launched whenever the fuel allows; after equipping the clone
 \ the tank is refilled (round 19 lost 8 parents that left with 20 fuel)
 : reinvest ( -- )
-  starter-kit units if equip-clone 60 fill-to exit then
+  my-kit units if equip-clone 60 fill-to exit then
   cruiser-kit units 0= if
     credits 7000 0 d< if exit then
     cruiser-kit get-one  cruiser-kit units 0= if exit then
   then
   90 fill-to  fuel units 80 < if exit then
   me cruiser-kit launch if exit then
-  starter-kit get-one  starter-kit units if equip-clone then
+  my-kit get-one  my-kit units if equip-clone then
   60 fill-to ;
-\ A clone starts with no equipment: wait for the starter kit
-: await-kit ( -- ) begin starter-kit units 0= while 60 wait drop repeat ;
+\ A clone starts with no equipment: wait for its kit
+: await-kit ( -- ) begin my-kit units 0= while 60 wait drop repeat ;
 
 \ So that this file can also be released as it is (it does nothing)
 : launched ( -- ) ;

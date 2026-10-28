@@ -200,6 +200,24 @@ for pid, sheet in sorted(empty_columns.items()):
     if pid not in recipes:
         note(f'recipe {pid} ({sheet}): no product or no components in the sheet or recipes-extra.csv, skipped')
 
+# --- specialised kits (#380) ----------------------------------------------------
+# Mining and refining gear is big: a Worm (A1) and a Refinery (A1) take 120
+# cargo each, so a 500-cargo drone carries either the mining set (Engine,
+# Worm, Refinery: 296) or the factory set (Engine, Smelter, Chemical Reactor,
+# Spider: 267), not both (563). Refining has its own module, the Refinery,
+# instead of the Smelter. A company chooses its kit at release: a Mining Kit I
+# (5901) or a Factory Kit I (5902); the House sells both. So makers buy what
+# miners produce instead of mining it themselves.
+ENGINE, WORM, REFINERY = 5001, 5131, 5221
+MINING_KIT, FACTORY_KIT = 5901, 5902
+BIG_GEAR_MASS = 120
+KITS = {MINING_KIT: ('25901', 'Unpack Mining Kit I', (ENGINE, WORM, REFINERY)),
+        FACTORY_KIT: ('25902', 'Unpack Factory Kit I', (ENGINE, 5201, 5211, 5501))}
+# The Welder makes a Refinery from what a Smelter takes
+if '15201' in recipes:
+    recipes['15221'] = {'inputs': dict(recipes['15201']['inputs']), 'outputs': {str(REFINERY): 1},
+                        'sheet': recipes['15201']['sheet'], 'product': str(REFINERY)}
+
 # --- production: tools and timing (#298) ---------------------------------------
 # Every recipe locks one tool module while it runs and takes game time
 # (seconds), doubling at each stage. The starter kit holds the Smelter (A1),
@@ -215,7 +233,7 @@ def production_stage(pid):
     """(tool resource, game seconds) for a recipe protocol"""
     p = int(pid)
     if 21000 <= p < 22000:
-        return SMELTER, 2 * HOUR                       # refining ore
+        return REFINERY, 2 * HOUR                      # refining ore (#380: its own module)
     if p in (12021, 12022, 12023):
         return SMELTER, 2 * HOUR                       # alloys
     if 12000 <= p < 13000:
@@ -288,6 +306,16 @@ for rid in sorted(needed - set(resources), key=int):
         note(f'resource {rid} "{e[1]}" is not in resources.xlsx but core protocols need it '
              f'(e.g. the starter kit): kept from economy.xlsx')
 
+# The kits' gear (#380; see "specialised kits" above)
+resources[str(WORM)]['mass'] = BIG_GEAR_MASS
+resources[str(REFINERY)] = {'id': REFINERY, 'name': 'Refinery (A1)', 'mass': BIG_GEAR_MASS, 'capacity': 0, 'slot_size': 0,
+                            'description': 'A heavy refining module: refines ore into metals, organics and inorganics.'}
+resources[str(MINING_KIT)] = dict(resources[str(MINING_KIT)], name='Mining Kit I',
+    description='A packed mining set: Engine (A1), Worm (A1) and Refinery (A1). Unpack it with 25901 perform.')
+resources[str(FACTORY_KIT)] = {'id': FACTORY_KIT, 'name': 'Factory Kit I', 'mass': 40, 'capacity': 0, 'slot_size': 0,
+    'description': 'A packed factory set: Engine (A1), Smelter (A1), Chemical Reactor (A1) and Spider (A1). '
+                   'Unpack it with 25902 perform.'}
+
 protocols = {}   # id -> row
 effects = []     # (protocol, effect dict)
 
@@ -330,9 +358,6 @@ for pid, p in econ_prot.items():
         # clogged with goods nobody buys
         p = (p[:4] + ['[N R 1 perform]: Dumps N units of resource R into space. N is required (1 for one unit).']
              + p[5:7] + ['1'])
-    if pid == '25901':
-        # The kit's Smelter I (5221) can't refine: refining needs Smelter (A1)
-        effs = [dict(e, resource=SMELTER if e['resource'] == 5221 else e['resource']) for e in effs]
     if pid.startswith('11') and len(pid) == 5 and effs:
         # Mining: lock the module at 0, unlock it a second before the end,
         # the mineral arrives at the end
@@ -406,11 +431,16 @@ for pid, rec in sorted(recipes.items(), key=lambda kv: int(kv[0])):
     protocols[pid] = [pid, name[:45], '0', '100', desc[:255]] + list(flags)
     add_effects(pid, production_effects(tool, total, rec))
 
-# Smelter I (5221) was only kept for the starter kit, which now gives Smelter (A1)
-if '5221' in resources and not any(e['resource'] == 5221 for _, e in effects):
-    del resources['5221']
-    notes[:] = [n for n in notes if not n.startswith('resource 5221 ')]
-    note('resource 5221 "Smelter I" dropped: the starter kit gives Smelter (A1) 5201, which refining needs')
+# The two kits (#380): unpacking one uses it up and puts its modules aboard
+for kit, (pid, name, parts) in KITS.items():
+    words_ = ', '.join(resources[str(r)]['name'] for r in parts)
+    protocols[pid] = [pid, name, '0', '100', f'[{pid} perform]: Unpacks a {resources[str(kit)]["name"]}: {words_}.',
+                      '1', '1', '0']
+    effects[:] = [(q, e) for q, e in effects if q != int(pid)]
+    add_effects(pid, [{'time': 0, 'drone': 0, 'resource': r, 'event_type': 1, 'local': 1, 'installed': 0, 'locked': 0,
+                       'deplete': 0, 'abundancies': 0, 'quantity': 1} for r in parts] +
+                     [{'time': 0, 'drone': 0, 'resource': kit, 'event_type': 2, 'local': 1, 'installed': 0, 'locked': 0,
+                       'deplete': 1, 'abundancies': 0, 'quantity': 1}])
 
 # Double-cell prices (#324 step 9): like sell (7) and buy (8), but the price
 # P is a double (two cells), so orders can go past 65,535 credits a unit.
@@ -486,7 +516,7 @@ protocols['35'] = ['35', 'Plunder haul', '0', '100',
 # is free. Each protocol's description says what it burns.
 def fuel_cost(pid):
     p = int(pid)
-    if p in (25901, int(POWER_PROTOCOL), 33, 35, int(WAIT_PROTOCOL)):
+    if p in (25901, 25902, int(POWER_PROTOCOL), 33, 35, int(WAIT_PROTOCOL)):
         return 0
     if p == 32:
         return 0                      # ordering from a House station (#380): a drone with no fuel
@@ -637,7 +667,10 @@ def orders(event_type, local, resource='[value_1]', extra=''):
     join_here = f" INNER JOIN agents AS a ON a.agent_id = o.drone AND a.object_id = {HERE_}" if local else ''
     stock = f"LEFT JOIN sqInventory AS i ON i.drone = o.drone AND i.resource = {resource}"
     if event_type == 5:
-        where = "IFNULL(i.units, 0) < o.new_quantity"
+        # ...and only buyers who can pay for a unit (#380: round 25's sellers
+        # burned fuel pushing into orders whose buyers were broke)
+        where = ("IFNULL(i.units, 0) < o.new_quantity AND (SELECT c.credits FROM companies AS c "
+                 "INNER JOIN agents AS b ON b.company_id = c.company_id WHERE b.agent_id = o.drone) >= o.new_credits")
         cols = ORDER_COLS.replace('i.units', 'IFNULL(i.units, 0)')
     else:
         cols = ORDER_COLS
@@ -823,7 +856,8 @@ for st in (1, 2):
 # starter kit and some fuel. The kit price is the launch fee.
 for st in (1, 2, 3):
     STATION_GOODS.append((st, 6001, SELLS, 3000, 24, 0))
-    STATION_GOODS.append((st, 5901, SELLS, 2000, 24, 0))
+    STATION_GOODS.append((st, MINING_KIT, SELLS, 2000, 24, 0))
+    STATION_GOODS.append((st, FACTORY_KIT, SELLS, 2000, 24, 0))
 # The Mars Exchange buys the chemists' goods too (#380), so they can work
 # Phobos and Deimos instead of crowding the Moon's yalspar
 for rid, price, demand in ((2031, 8, 200), (2041, 12, 200),
@@ -836,7 +870,7 @@ for rid, price, demand in ((2031, 8, 200), (2041, 12, 200),
 # systems 30, so each step up the chain pays more than the one below. Until
 # round 22 an alloy sold for less than its two metals and a gear box earned
 # about 4 an hour: newcomers worked that out and only mined.
-WAGE = {2: 20, 3: 25, 4: 30}   # credits a game hour, by tier (first digit)
+WAGE = {2: 20, 3: 30, 4: 45}   # credits a game hour, by tier (first digit): half as much again a step up (#380)
 FUEL_PRICE = 5                 # what the House sells fuel for
 RAW_VALUE = {'2011': 20, '2012': 30, '2013': 40, '2031': 8, '2032': 10, '2033': 12,
              '2041': 12, '2042': 15, '2043': 18}
@@ -878,13 +912,39 @@ for st in (1, 3):
         STATION_GOODS.append((st, rid, BUYS, made_value(rid), 50, 3))
     for rid in (4111, 4281, 4311):
         STATION_GOODS.append((st, rid, BUYS, made_value(rid), 10, 7))
-for rid, price, supply in ((FUEL, 5, 2000), (5001, 400, 10), (5131, 300, 10), (5201, 500, 10),
-                           (5211, 600, 10), (5501, 900, 5)):
+# The big mining gear costs more (#380): each kit's modules are worth 2,400
+for rid, price, supply in ((FUEL, 5, 2000), (5001, 400, 10), (WORM, 1000, 10), (REFINERY, 1000, 10),
+                           (5201, 500, 10), (5211, 600, 10), (5501, 900, 5)):
     STATION_GOODS.append((1, rid, SELLS, price, supply, 0))
 # Fuel at every House exchange (#367), not only on Earth; the busy Mars
-# Exchange sells 6,000 a day (#378)
-for st, supply in ((2, 2000), (3, 6000)):
+# Exchange sells 6,000 a day (#378), and so does the Moon Depot since the
+# kits (#380): miners can't brew, and round 25's makers often got no fuel
+# there because every miner shared its 2,000
+for st, supply in ((2, 6000), (3, 6000)):
     STATION_GOODS.append((st, FUEL, SELLS, 5, supply, 0))
+# The House sells raw goods too, dear (#380): ores, metals, organics and
+# inorganics at half as much again as it pays for them at that station (an
+# ore at half as much again as what it refines to, less the fuel: so buying
+# ore to refine never beats buying the refined goods). A maker can always
+# buy its inputs, but a miner who asks less sells first: the House's price
+# is a ceiling to undercut.
+HOUSE_MARKUP = 1.5
+ORES = (1100, 1110, 1120, 1130)
+def ore_value(ore):
+    for pid, rec in recipes.items():
+        if pid.startswith('21') and list(rec['inputs']) == [str(ore)]:
+            out = sum(RAW_VALUE.get(r, 0) * q for r, q in rec['outputs'].items())
+            return max(1, round((out - fuel_cost(pid) * FUEL_PRICE) / rec['inputs'][str(ore)]))
+    return None
+for st in (1, 2, 3):
+    bought = {rid: price for s_, rid, side, price, _, _ in STATION_GOODS if s_ == st and side == BUYS}
+    for rid in (2011, 2012, 2013, 2031, 2032, 2033, 2041, 2042, 2043):
+        if rid in bought:
+            STATION_GOODS.append((st, rid, SELLS, -(-bought[rid] * 3 // 2), 200, 0))
+    for ore in ORES:
+        value = ore_value(ore)
+        if value:
+            STATION_GOODS.append((st, ore, SELLS, -(-value * 3 // 2), 400, 0))
 for st, rid, _, _, _, _ in STATION_GOODS:
     if str(rid) not in resources:
         note(f'station {st}: unknown resource {rid}')
@@ -912,6 +972,15 @@ queries.append((631, 'My station offers',
                 '2: order), units, units filled (-1 until its batch clears), credits (2 cells).', 0,
                 "SELECT resource, side, units, IFNULL(filled, -1), IFNULL(paid, 0) AS d_paid FROM station_offers "
                 "WHERE drone = [drone_id] ORDER BY id DESC;"))
+# One House price (#380): what the station here pays for resource N (S = 1)
+# or asks for it (S = 2), now; nothing if it doesn't trade it. Makers compare
+# it with other drones' sell orders, and miners price under it.
+queries.append((633, 'House price here',
+                '[N S R L 633 query]: The price the House station where the drone is pays for resource N (S = 1) or '
+                'asks for it (S = 2), now (2 cells); no row if it doesn\'t trade it that way.', 2,
+                "SELECT g.price AS d_price FROM station_goods g WHERE g.resource = [value_2] AND g.side = [value_1] "
+                f"AND g.station_id IN {HERE_STATION} "
+                "AND g.from_day <= FLOOR(([game_now] - (SELECT epoch FROM game_clock WHERE id = 1)) / 86400);"))
 queries.append((632, 'Station budget here',
                 '[R L 632 query]: The credits the House station where the drone is has left for buying (2 cells).', 0,
                 "SELECT IFNULL(t.budget, s.budget_cap) AS d_budget FROM stations s LEFT JOIN station_state t "
@@ -1041,6 +1110,18 @@ def double_event_ids(q):
     return q
 queries = [double_event_ids(q) for q in queries]
 
+# The House's price board (#380): what the House stations actually paid for
+# resource N in the game day up to an hour ago, by place: units bought,
+# credits paid and batches. A batch pays less the more it holds, so this
+# shows where a market is crowded (the listed price is for an empty batch).
+queries.append((681, 'House price board',
+                '[N R L 681 query]: What the House stations paid for resource N in the game day up to one game hour ago, '
+                'for each place: the place, units bought (2 cells), credits paid (2 cells) and batches.', 1,
+                "SELECT s.object_id AS location, IFNULL(SUM(b.filled),0) AS d_units, IFNULL(SUM(b.filled*b.price),0) AS d_credits, "
+                "COUNT(*) FROM station_batches b INNER JOIN stations s ON s.id = b.station_id WHERE b.resource=[value_1] "
+                f"AND b.side=1 AND b.filled>0 AND b.cleared_t<=[game_now]-{BOARD_LAG} AND b.cleared_t>[game_now]-{BOARD_LAG}-{DAY} "
+                "GROUP BY s.object_id ORDER BY s.object_id;"))
+
 # Queries whose money or volume columns are double cells: say so
 DOUBLE_QUERIES = {101, 600, 601, 610, 611, 612, 620, 621, 841}  # 630-632 say so themselves
 queries = [(q[0], q[1], (q[2] if q[0] == 612 else q[2].rstrip() + ' Money and volumes are double cells (2@).')[:255],
@@ -1097,7 +1178,7 @@ def table(name, cols, rows):
 # Flat-packed kits (#380): a working drone's equipment takes 310 of its 500
 # cargo, so a Starter Kit I (375) or a Mining Cruiser kit (224) could never
 # be bought and carried to launch a clone. Packed, each takes 40.
-for rid, mass in (('5901', 40), ('6001', 40)):
+for rid, mass in (('5901', 40), ('5902', 40), ('6001', 40)):
     if rid in resources:
         resources[rid]['mass'] = mass
 table('resources', ['id', 'name', 'description', 'mass', 'capacity', 'slot_size'],
@@ -1145,6 +1226,16 @@ table('house_rules', ['id', 'tax_period', 'tax_grace', 'tax_flat', 'tax_permille
 lines.append('')
 lines.append('-- House drop stations (#324 step 10): what they trade. Their budgets')
 lines.append('-- (station_state) are kept: a new station starts with a full budget.')
+# Budgets that cover the demand (#380): each station's daily budget is what
+# its whole daily demand costs at its listed prices, so the price curve (a
+# fuller batch pays less), not the budget, limits what it buys. With a fixed
+# 10,000, round 26's starter makers flooded the Earth Exchange with rods at
+# about 25 each, the budget ran out, and a pump or a motor got a share of 0:
+# climbing the production chain was punished.
+def demand_budget(st):
+    return sum(price * daily for s_, rid, side, price, daily, _ in STATION_GOODS if s_ == st and side == BUYS)
+STATIONS = [(sid, name, obj, max(cap, demand_budget(sid)), max(refill, demand_budget(sid)))
+            for sid, name, obj, cap, refill in STATIONS]
 table('stations', ['id', 'name', 'object_id', 'budget_cap', 'refill_per_day'], STATIONS)
 table('station_goods', ['station_id', 'resource', 'side', 'price', 'daily_units', 'from_day'], STATION_GOODS)
 lines.append('INSERT IGNORE INTO `station_state` (station_id, budget, refilled_t) '

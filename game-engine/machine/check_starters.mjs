@@ -55,7 +55,7 @@ for (const file of process.argv.slice(3)) {
     }
 }
 if (failed) {
-    console.log(`starters: ${failed} problem(s)`);
+    console.log(`scripts: ${failed} problem(s)`);
     process.exit(1);
 }
-console.log(`starters: all ${process.argv.length - 3} load cleanly on the drone VM`);
+console.log(`scripts: all ${process.argv.length - 3} load cleanly on the drone VM`);

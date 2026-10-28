@@ -34,12 +34,16 @@ class Leaderboard
                      ->select('resource', DB::raw('MIN(price) AS price'))->pluck('price', 'resource')->all() as $r => $p) {
             $prices[$r] = $p;   // what a station pays wins over what one charges
         }
-        $kit = 0;
-        foreach (DB::table('resource_effects')->where('protocol', self::UNPACK_PROTOCOL)->where('event_type', 1)
-                     ->get(['resource', 'quantity']) as $part) {
-            $kit += ($prices[$part->resource] ?? 0) * max(1, (int) $part->quantity);
+        // A packed kit counts as its contents (#380: two kits, each unpacked by
+        // the protocol 20000 above its ID)
+        foreach (Release::KITS as $kitId) {
+            $kit = 0;
+            foreach (DB::table('resource_effects')->where('protocol', $kitId + 20000)->where('event_type', 1)
+                         ->get(['resource', 'quantity']) as $part) {
+                $kit += ($prices[$part->resource] ?? 0) * max(1, (int) $part->quantity);
+            }
+            $prices[$kitId] = $kit;
         }
-        $prices[self::STARTER_KIT] = $kit;
         return array_map('intval', $prices);
     }
 

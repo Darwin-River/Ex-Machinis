@@ -17,7 +17,7 @@ class GettingStartedTest extends TestCase
             ->assertSee('<title>Getting Started - Ex-Machinis</title>', false)
             ->assertSee('id="chapter-4-issuing-commands"', false)
             ->assertSee('href="#chapter-4-issuing-commands"', false)
-            ->assertSee('Unpacking your starter kit')
+            ->assertSee('Unpacking your kit')
             ->assertSee('src="/getting-started/images/stack-robot.png"', false)
             ->assertDontSee('Keep this manual current');
     }

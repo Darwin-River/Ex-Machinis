@@ -1,16 +1,19 @@
-\ Refiner: a starter script for Public Forge (#324 step 15).
-\ It brews fuel: it mines yalspar (for organics) and vladnium (for
-\ inorganics), refines them and makes fuel from the two. It keeps a reserve
-\ and sells the rest to the drones around it through a standing sell order,
-\ cheaper than hauling fuel from Earth. Copies spread out: a third work the
-\ Moon, the rest Phobos and Deimos (Mars's moons), and the sell order goes
-\ with the drone. The metals that refining gives too go to the
-\ House: the Moon Depot from the Moon, the Mars Exchange from Mars's moons.
+\ Refiner: a starter script for Public Forge (#324 step 15). Release it with
+\ the Mining Kit (Engine, Worm and Refinery).
+\ It mines yalspar and vladnium and refines them into what the factories
+\ need to brew fuel and make polymers: Organics (A1) and Inorganics (A1),
+\ with Metals (A1), Metals (A2) and Inorganics (A2) besides. Copies spread
+\ out: a third work the Moon, the rest Phobos and Deimos (Mars's moons),
+\ selling at the Mars Exchange. Like the Miner, it offers its goods to other
+\ drones first (#380), halfway between what the House pays and what it
+\ asks, and sells to the House only what nobody bought. Its kit has no
+\ Chemical Reactor: it buys fuel wherever it is cheapest. Change the
+\ numbers to make it your own.
 
-30 constant reserve      \ fuel it keeps for itself
-4 constant fuel-price    \ what it asks a unit
-90 constant fuel-cap     \ stops brewing at this much (the kit fills the hold)
+40 constant low-fuel     \ get fuel when below this
 240 constant rest        \ game minutes to rest when both Mars moons are dry
+16 constant hold-cap     \ goods it keeps on offer to other drones
+2032 constant inorganics-a2
 
 \ The site it works: 0 the Moon, 1 Phobos, 2 Deimos. The drone you release
 \ works the Moon. A third of its copies (by drone number) work the Moon too;
@@ -22,7 +25,27 @@ variable site#   variable misses
 variable copy
 : site ( -- place )
   site# @ dup 0= if drop moon exit then 1 = if phobos else deimos then ;
+\ Where it sells: the Moon Depot at the Moon, else the Mars Exchange
 : market ( -- place ) site moon = if moon else mars then ;
+
+\ Buy up to n of a resource here where it is cheapest: another drone's sell
+\ order (best-offer) or the House station (house-price, side 2: what it
+\ asks). The House delivers when its batch clears, within the game hour
+: buy-cheapest ( n resource -- )
+  >r  r@ 2 house-price  r@ best-offer         ( n house price drone avail )
+  dup 0> 3 pick 0> and  3 pick 5 pick <  5 pick 0= or  and if
+    rot drop rot drop rot min  r> rot pull drop exit
+  then
+  2drop drop  if r> buy-from-station drop else r> 2drop then ;
+
+\ Fuel when low, from whoever sells it cheapest here; where nobody does
+\ (Phobos and Deimos have no House station), at the market
+: refuel ( -- )
+  fuel units low-fuel < 0= if exit then
+  30 fuel buy-cheapest  60 wait drop
+  fuel units low-fuel < if
+    market go drop  30 fuel buy-from-station drop  120 wait drop  site go drop
+  then ;
 
 \ A low deposit: at the Moon, wait for it to refill; at Mars, try the other
 \ moon, and rest after both are mined out. Short of fuel, rest instead of
@@ -47,26 +70,35 @@ variable copy
     then
   repeat 2drop ;
 
-: brew-fuel ( -- )
-  yalspar 16 dig yalspar refine drop
-  vladnium 12 dig vladnium refine drop
-  fuel make drop ;
+: goods ( -- n ) metals-a1 units metals-a2 units + organics-a1 units +
+  inorganics-a1 units + inorganics-a2 units + ;
+
+\ Its asking price: halfway between what the House here pays and what it
+\ asks (0 where there is no House station)
+: ask-price ( good -- price ) dup 1 house-price swap 2 house-price + 2 / ;
+\ Standing sell orders for its goods, set where there is a House to price
+\ them by (the Moon, Mars); they stay open as the hold changes, and go with
+\ the drone: at the Moon organics 15 and inorganics 10 (the Depot pays 12
+\ and 8, and asks 18 and 12)
+: offer-one ( good -- ) dup ask-price ?dup if 0 rot sell-order drop else drop then ;
+: offer ( -- ) metals-a1 offer-one metals-a2 offer-one organics-a1 offer-one
+  inorganics-a1 offer-one inorganics-a2 offer-one ;
 
 \ Growth (#380): with 7,000 credits or more, at an exchange, buy a Mining
-\ Cruiser kit and a Starter Kit I, launch a clone of this drone (it runs
-\ this same program), and hand it the starter kit and 40 fuel
-6001 constant cruiser-kit   5901 constant starter-kit
+\ Cruiser kit and a Mining Kit I, launch a clone of this drone (it runs
+\ this same program), and hand it the kit and 40 fuel
+6001 constant cruiser-kit
 \ Buy one of a good here unless one is aboard, and wait (up to 6 game
 \ hours) for it: the House delivers when the batch clears
 : get-one ( resource -- )
   dup units if drop exit then
   dup 1 swap buy-from-station drop
   6 begin over units 0= over 0> and while 60 wait drop 1- repeat 2drop ;
-\ Hand the newest clone a starter kit and 40 fuel
+\ Hand the newest clone a mining kit and 40 fuel
 : equip-clone ( -- )
   670 ask ?dup 0= if exit then
   1- 4 * answer + @ >r
-  1 starter-kit r@ push drop  40 fuel r> push drop ;
+  1 mining-kit r@ push drop  40 fuel r> push drop ;
 \ Top the tank up to n from the House here, waiting (up to 6 game hours)
 \ (Waits for the delivery, not for n: computing burns a unit or two just
 \ after it arrives, and waiting for n then sat out all 6 hours)
@@ -75,26 +107,31 @@ variable copy
     fuel buy-from-station drop
     6 begin over fuel units < 0= over 0> and while 60 wait drop 1- repeat
   then 2drop ;
-\ One kit at a time: equipment fills 364 of the 500 cargo. A hull already
-\ bought is launched whenever the fuel allows; after equipping the clone
-\ the tank is refilled (round 19 lost 8 parents that left with 20 fuel)
+\ One kit at a time. A hull already bought is launched whenever the fuel
+\ allows; after equipping the clone the tank is refilled (round 19 lost 8
+\ parents that left with 20 fuel)
 : reinvest ( -- )
-  starter-kit units if equip-clone 60 fill-to exit then
+  mining-kit units if equip-clone 60 fill-to exit then
   cruiser-kit units 0= if
     credits 7000 0 d< if exit then
     cruiser-kit get-one  cruiser-kit units 0= if exit then
   then
   90 fill-to  fuel units 80 < if exit then
   me cruiser-kit launch if exit then
-  starter-kit get-one  starter-kit units if equip-clone then
+  mining-kit get-one  mining-kit units if equip-clone then
   60 fill-to ;
-\ A clone starts with no equipment: wait for the starter kit
-: await-kit ( -- ) begin starter-kit units 0= while 60 wait drop repeat ;
+\ A clone starts with no equipment: wait for the kit
+: await-kit ( -- ) begin mining-kit units 0= while 60 wait drop repeat ;
 
-\ Sell the metals at the market, then go back to the site
-: sell-metals ( -- )
-  market go drop
-  metals-a1 sell-all metals-a2 sell-all metals-a3 sell-all
+\ Sell the goods at the market, top up the tank from the House there (5 a
+\ unit, delivered when its batch clears), then go back to the site, only
+\ once hold-cap are aboard: until then other drones may buy them
+: sell-goods ( -- )
+  goods hold-cap < if exit then
+  market go drop  offer
+  metals-a1 sell-all metals-a2 sell-all organics-a1 sell-all
+  inorganics-a1 sell-all inorganics-a2 sell-all
+  fuel units 50 < if 30 fuel buy-from-station drop then
   reinvest site go drop ;
 
 \ Every 8th round, send a line home. What a drone prints reaches you only
@@ -105,12 +142,11 @@ variable tells
   ." credits " credits d. ." fuel " fuel units . report ;
 
 : work ( -- )
-  fuel units fuel-cap < if brew-fuel sell-metals else 120 wait drop then
-  tell ;
+  refuel
+  yalspar 16 dig yalspar refine drop
+  vladnium 12 dig vladnium refine drop  sell-goods tell ;
 
 : launched ( -- )
   await-kit unpack drop
   copy @ if me 3 mod else 0 then site# !  1 copy !  site go drop
-  \ Buyers pull what's above the reserve
-  fuel-price reserve fuel sell-order drop
-  begin work again ;
+  offer begin work again ;
