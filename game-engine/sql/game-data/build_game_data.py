@@ -914,8 +914,10 @@ for rid, price, supply in ((FUEL, 5, 2000), (5001, 400, 10), (WORM, 1000, 10), (
                            (5201, 500, 10), (5211, 600, 10), (5501, 900, 5)):
     STATION_GOODS.append((1, rid, SELLS, price, supply, 0))
 # Fuel at every House exchange (#367), not only on Earth; the busy Mars
-# Exchange sells 6,000 a day (#378)
-for st, supply in ((2, 2000), (3, 6000)):
+# Exchange sells 6,000 a day (#378), and so does the Moon Depot since the
+# kits (#380): miners can't brew, and round 25's makers often got no fuel
+# there because every miner shared its 2,000
+for st, supply in ((2, 6000), (3, 6000)):
     STATION_GOODS.append((st, FUEL, SELLS, 5, supply, 0))
 # The House sells raw goods too, dear (#380): ores, metals, organics and
 # inorganics at half as much again as it pays for them at that station (an
