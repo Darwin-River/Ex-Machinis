@@ -131,6 +131,11 @@ From round 21, four naive agents join each round as new players would: they get 
 | 25 | Sol (manufacturer) | Gear boxes from bought metals; credits +10,766, the best newcomer yet; first company went broke through its buy orders | 7 | 6 | – | 8 | 7 | – | 7 |
 | 25 | Tia (casual) | Miner starter switched to wolfite; 7 drones from 2 companies, 5 clones | 7 | 6 | – | 7 | 6 | – | 7 |
 | 25 | **Average** | | 7.0 | 6.0 | – | 7.3 | 6.8 | – | 7.0 |
+| 26 | Uma (state machine) | Factory at Earth choosing rods, pumps or gear boxes each round from live prices; +11,163 avg | 7 | 6 | – | 8 | 7 | – | 7 |
+| 26 | Vic (raw supplier) | Wolfite at the Moon, priced 1 under the cheapest rival; every Metals (A1) sold to players; 2 clones; +8,942 avg | 7 | 6 | – | 8 | 6 | – | 7 |
+| 26 | Wren (manufacturer) | Factory at Earth scoring products per tool-hour; +11,146 avg, 1 clone | 7 | 5 | – | 7 | 6 | – | 6.5 |
+| 26 | Xan (casual) | Miner switched to wolfite; Maker that brews its own fuel; +8,245 avg, 1 clone | 7 | 6 | – | 7 | 7 | – | 7 |
+| 26 | **Average** | | 7.0 | 5.8 | – | 7.5 | 6.5 | – | 6.9 |
 
 **Round 21 findings, and what changed:**
 - *They couldn't see their drones.* A drone's output arrives when its script ends, and `launched` never ends. The engine has a `report` word that sends it at once, but the manual never mentioned it (three of the four even redefined it). Now the manual documents it and the starters call it every 8th round.
@@ -152,9 +157,31 @@ From round 21, four naive agents join each round as new players would: they get 
 
 **Round 25 findings:** the ratings were asked as fun, clarity (the Manual column), economic depth, feedback (Debugging) and overall; every tester rated the game 7, the best yet. All four found the same edge: the starter Miners empty the Moon's kunspar by day 3, and wolfite, which none of them mine, stays full. Makers did buy from miners (Rex sold to at least 13 drones), but the premium the starters asked moved few metals: 775 Metals (A1) between players over 40 days. Miners and Refiners launched no clones, while makers grew (Machinist +11,807). Fixed during the round: buy-order lists now leave out buyers who can't pay (Rex burned fuel pushing to a broke buyer); the manual says trading needs no module, warns that standing buy orders spend credits unasked, explains why a batch pays less than the listed price, and lists the loop words with the game words; the Moon Depot sells 6,000 fuel a day. Asked for by most: a way to adapt a released drone (prices it can't change; two releases and no updates), a test world whose clock matches a new world, visible crowding, and reasons for makers to diversify. Next: the kits (the mining gear too big to carry with the factory tools; the House sells raw goods dear) and market-aware drones written as state machines, in round 26.
 
-**What they liked best** (all five rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
+**Round 26 findings:** with the kits, every newcomer gained (+8,245 to +11,163 avg, against +2,000 to +6,000 before) and players traded for real: 3,326 Metals (A1), 1,350 Inorganics (A1) and 830 Organics (A1) between players. Found and fixed during the round: the House station budgets ran out (Earth's 10,000 a day went on a flood of rods at about 25), so a pump or a motor got a share of 0 and climbing the chain was punished (now each station's budget is what its daily demand costs); `best-offer` returned the drone's own order, so Vic's prices flipped every round (now it skips them); the Miner ordered fuel twice; `*/`, `2*`, `2/`, `inorganics-a2` and `organics-a2` were missing (now game words); query row layouts weren't documented (now a table in the manual); and a query for sales on a day (682, `sold`) lets a drone check how fast a product sells before making more. Asked for by most, again: a way to change a released drone, a test world whose clock matches a new world, demand for more than Metals (A1) (the A2, A3 and inorganics mostly still go to the House), contracts, and a station budget a drone can read.
+
+**What they liked best** (all six rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
 ## Round log
+
+### Round 26: miners and makers trade (#380)
+
+The two kits (a drone mines or makes, not both), the House selling raw goods at half as much again as it pays, and market-aware drones, in a fresh world: 48 Mining Kit companies and 51 Factory Kit ones, to game day 40.1. Four newcomers joined.
+
+| Design | Kit | Avg gain | Clones |
+|---|---|---|---|
+| Maker (starter) | Factory | +8,088 | 0 |
+| Machinist | Factory | +5,621 | 0 |
+| Smith | Factory | +5,239 | 7 |
+| Chemist | Factory | +4,569 | 5 |
+| Refiner | Mining | +4,230 | 6 |
+| Miner | Mining | +2,798 | 0 |
+| Adaptive | Factory | +2,337 | 0 |
+| Trader | Mining | 0 | 0 |
+
+- **Players trade.** 3,326 Metals (A1) at 24.8, 1,350 Inorganics (A1), 830 Organics (A1) and 612 fuel moved between players (round 25: 775 Metals (A1) in all). No company ended and no drone was wrecked.
+- **Raw producers keep up.** Refiners gained +4,230 and launched 6 clones; Miners +2,798. Makers still lead: the Maker starter, which buys metals and sells rods at Earth, gained +8,088.
+- **The House budgets were the wall.** 53 Motor batches at Earth bought nothing and pumps and gear boxes mostly came back unsold: the rods spent the Earth Exchange's 10,000 a day. Fixed for the next world (budgets cover the daily demand).
+- **Traders** made one trip to Mars each (10 game days a way) and barely broke even in 40 days; the Adaptive design rested often while Earth's budget was spent.
 
 ### Round 25: makers buy from miners, a little (#380)
 
