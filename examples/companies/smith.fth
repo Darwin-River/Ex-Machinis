@@ -10,15 +10,15 @@
 \ to brew fuel). With a load of rods it flies to Earth, sells them 4 an
 \ hour (the Exchange wants about 50 a day, and a fuller batch pays less:
 \ round 5's Smiths sold 144 at once for about 33 each, not 60), buys fuel
-\ and comes back. It also buys Metals (A1) from other drones' sell orders
-\ at the Moon (the Miner offers them at 23): two metals make a rod worth
-\ 90 at Earth.
+\ and comes back. It buys Metals (A1) from other drones' sell orders
+\ before mining its own (#380): up to 30 at the Moon (the Miner asks 25)
+\ and 40 at Mars's moons (it asks 36). Two metals make a rod, and every
+\ hour not spent mining is an hour making.
 
 2051 constant polymers   2021 constant alloys-a1   3011 constant rods
 2032 constant inorganics-a2
 12 constant rod-load     \ rods it hauls to Earth (4 cargo each)
 40 constant low-fuel     \ brew fuel below this
-23 constant metal-price  \ most it pays other drones for a Metals (A1)
 200 constant cash-floor  \ credits it keeps (for fuel at Earth)
 30 constant trip-fuel    \ fuel it buys at Earth
 
@@ -27,6 +27,8 @@ variable site#
 : site ( -- place )
   site# @ dup 0= if drop moon exit then 1 = if phobos else deimos then ;
 : rod-market ( -- place ) site moon = if earth else mars then ;
+\ The most it pays other drones for a Metals (A1) where it works
+: metal-price ( -- price ) site moon = if 30 else 40 then ;
 
 : dig ( mineral n -- )
   begin over units over < while
@@ -41,13 +43,13 @@ variable site#
   yalspar 16 dig yalspar refine drop
   vladnium 12 dig vladnium refine drop ;
 
-\ Buy up to 10 Metals (A1) from the cheapest seller here, at metal-price
+\ Buy up to 20 Metals (A1) from the cheapest seller here, at metal-price
 \ or less, keeping cash-floor credits
 : buy-metals ( -- )
   credits cash-floor 0 d< if exit then
   metals-a1 610 ask 0> 0= if exit then
   answer 2@ drop metal-price > if exit then
-  answer 6 + @ answer 4 + @ - 0 max 10 min ?dup 0= if exit then
+  answer 6 + @ answer 4 + @ - 0 max 20 min ?dup 0= if exit then
   metals-a1 answer 8 + @ pull drop ;
 
 \ Metals (A1) into rods, two at a time; stop at the first failure
@@ -118,9 +120,10 @@ variable site#
   reinvest site go drop ;
 
 : work ( -- )
-  harvest
+  \ Mine only when short of metals, or of the minerals that brew fuel
+  buy-metals  metals-a1 units 10 <  fuel units low-fuel < or if harvest then
   fuel units low-fuel < if fuel make drop else polymers make drop then
-  buy-metals forge-rods sell-goods
+  forge-rods sell-goods
   rods units rod-load < 0= if haul then ;
 
 : launched ( -- )

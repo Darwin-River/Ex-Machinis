@@ -62,7 +62,7 @@ The game data a world's owner can change (`game-engine/sql/game-data/build_game_
 | Engine pauses | `game-engine.conf`, `events-engine.conf` | `DB_READ_TIME` and `ENGINE_CHECK_TIME` 5 seconds | 1 second | Every action waited up to 10 real seconds on the engines' idle pauses. In the 96-day world the clock went from about 36 game seconds a second (lag 11 to 15 seconds) back to 600 (lag 6 to 10). |
 
 | Ship kits for sale | `station_goods`, `resources` | none sold; kits 224 and 375 cargo | Mining Cruiser kit 3,000 and Starter Kit I 2,000 at every exchange, 24 a day; flat-packed to 40 | Companies can reinvest: launch a clone and equip it (about 5,000 credits). (Round 18 measures growth.) |
-| Made goods' prices | `station_goods` (`made_value`) | alloys 30-50, polymers 30, parts 75-105, systems 450: an alloy sold for less than its metals | inputs + fuel + a wage per game hour (20 alloys, 25 parts, 30 systems): alloys 70-100, polymers 70, parts 205-385, systems 790-1,400 | Each step up the chain pays more per hour than mining (17). Round 23 measures it. |
+| Made goods' prices | `station_goods` (`made_value`) | alloys 30-50, polymers 30, parts 75-105, systems 450: an alloy sold for less than its metals | inputs + fuel + a wage per game hour (20 alloys, 25 parts, 30 systems): alloys 70-100, polymers 70, parts 205-385, systems 790-1,400 | Each step up the chain pays more per hour than mining (17). Round 23 measures it. Round 25 (#380): 20 alloys, 30 parts, 45 systems (rods 225, gear boxes 1,255). |
 
 Levers not yet tried: House prices for parts and systems (lesson 9), deposit refill per mineral, station budgets at Earth and the Moon, the tax rate and grace period.
 

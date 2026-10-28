@@ -836,7 +836,7 @@ for rid, price, demand in ((2031, 8, 200), (2041, 12, 200),
 # systems 30, so each step up the chain pays more than the one below. Until
 # round 22 an alloy sold for less than its two metals and a gear box earned
 # about 4 an hour: newcomers worked that out and only mined.
-WAGE = {2: 20, 3: 25, 4: 30}   # credits a game hour, by tier (first digit)
+WAGE = {2: 20, 3: 30, 4: 45}   # credits a game hour, by tier (first digit): half as much again a step up (#380)
 FUEL_PRICE = 5                 # what the House sells fuel for
 RAW_VALUE = {'2011': 20, '2012': 30, '2013': 40, '2031': 8, '2032': 10, '2033': 12,
              '2041': 12, '2042': 15, '2043': 18}

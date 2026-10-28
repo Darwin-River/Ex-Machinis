@@ -11,9 +11,10 @@
 20 constant trip-fuel    \ fuel it wants aboard before a trip
 120 constant nap         \ game minutes to rest when nobody sells
 
-\ The most it pays a unit: the Mars Exchange's price less 7
+\ The most it pays a unit: the Mars Exchange's price less 5 (the Miner asks
+\ 25, 37 and 50 at the Moon)
 : max-price ( metal -- price )
-  dup metals-a1 = if drop 23 exit then metals-a2 = if 38 else 53 then ;
+  dup metals-a1 = if drop 25 exit then metals-a2 = if 40 else 55 then ;
 
 : metals ( -- n ) metals-a1 units metals-a2 units + metals-a3 units + ;
 

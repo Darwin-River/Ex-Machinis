@@ -3,15 +3,17 @@
 \ spread out: a third work the Moon and sell at the Moon Depot; the rest
 \ work Phobos and Deimos (Mars's moons), moving between them as deposits run
 \ low, and sell at the Mars Exchange, which pays half as much again. At the
-\ Moon it first offers its metals to other drones (traders, who haul them to
-\ Mars) a little over the Depot's price. For fuel it buys from another
-\ drone's sell order when one is cheap, and otherwise brews its own from
-\ yalspar and vladnium. Change the numbers to make it your own.
+\ Moon it first offers its metals to other drones (makers and traders) a
+\ quarter over the Depot's price, and at Mars's moons a fifth over the Mars
+\ Exchange's (#380: makers pay more to save their own mining time). For
+\ fuel it buys from another drone's sell order when one is cheap, and
+\ otherwise brews its own from yalspar and vladnium. Change the numbers to
+\ make it your own.
 
 40 constant low-fuel     \ get fuel when below this (brewing burns ~15)
 4 constant fuel-price    \ most it pays a unit for fuel
 240 constant rest        \ game minutes to rest when both Mars moons are dry
-16 constant hold-cap     \ at the Moon, metals it keeps on offer to traders
+16 constant hold-cap     \ metals it keeps on offer to other drones
 
 \ The site it works: 0 the Moon, 1 Phobos, 2 Deimos. The drone you release
 \ works the Moon. A third of its copies (by drone number) work the Moon too;
@@ -66,11 +68,14 @@ variable copy
 
 : metals ( -- n ) metals-a1 units metals-a2 units + metals-a3 units + ;
 
-\ At the Moon, standing sell orders offer its metals to traders at 3 over
-\ the Depot's price (23, 33 and 43); orders stay open as the hold changes
+\ Standing sell orders offer its metals to other drones where it works:
+\ at the Moon a quarter over the Depot's price (25, 37 and 50), at Mars's
+\ moons a fifth over the Mars Exchange's (36, 54 and 72). Orders stay open
+\ as the hold changes, and go with the drone
 : offer ( -- )
-  23 0 metals-a1 sell-order drop  33 0 metals-a2 sell-order drop
-  43 0 metals-a3 sell-order drop ;
+  site moon = if 25 37 50 else 36 54 72 then
+  0 metals-a3 sell-order drop  0 metals-a2 sell-order drop
+  0 metals-a1 sell-order drop ;
 
 \ Growth (#380): with 7,000 credits or more, at an exchange, buy a Mining
 \ Cruiser kit and a Starter Kit I, launch a clone of this drone (it runs
@@ -112,10 +117,10 @@ variable copy
 : await-kit ( -- ) begin starter-kit units 0= while 60 wait drop repeat ;
 
 \ Sell the metals at the market, top up the tank from the House there (5 a
-\ unit, delivered when its batch clears), then go back to the site. At the
-\ Moon, only once hold-cap are aboard: until then traders may buy them
+\ unit, delivered when its batch clears), then go back to the site,
+\ only once hold-cap are aboard: until then other drones may buy them
 : sell-metals ( -- )
-  site# @ 0= if metals hold-cap < if exit then then
+  metals hold-cap < if exit then
   market go drop
   metals-a1 sell-all metals-a2 sell-all metals-a3 sell-all
   fuel units 50 < if 30 fuel buy-from-station drop then
@@ -135,4 +140,4 @@ variable tells
 : launched ( -- )
   await-kit unpack drop
   copy @ if me 3 mod else 0 then site# !  1 copy !  site go drop
-  site# @ 0= if offer then begin work again ;
+  offer begin work again ;

@@ -2,8 +2,9 @@
 \ It builds gear boxes, which the Earth and Mars Exchanges buy for 1,075 (about
 \ 10 a day each). A gear box takes a rod, a gear and a spring: 8 Metals (A1)
 \ and 2 Metals (A2) through 5 alloys. It buys the metals from the Moon
-\ miners' sell orders when it can, and otherwise mines yalspar (Metals (A1))
-\ and vladnium (Metals (A2)) itself. With a few gear boxes it flies to
+\ miners' sell orders when it can (#380: up to 30 and 45, over the Miner's
+\ asks of 25 and 37), and otherwise mines yalspar (Metals (A1)) and
+\ vladnium (Metals (A2)) itself. With a few gear boxes it flies to
 \ Earth, buys fuel there first, sells them 2 an hour and comes back. It
 \ never leaves with less than low-fuel: every action at Earth, even
 \ ordering fuel, burns a unit (round 10 lost two that arrived empty).
@@ -36,8 +37,8 @@
 
 \ Get the metals for one gear box: buy them, else mine them
 : stock-up ( -- )
-  8 metals-a1 units - 0 max ?dup if metals-a1 23 buy then
-  2 metals-a2 units - 0 max ?dup if metals-a2 33 buy then
+  16 metals-a1 units - 0 max ?dup if metals-a1 30 buy then
+  4 metals-a2 units - 0 max ?dup if metals-a2 45 buy then
   metals-a1 units 8 < if yalspar 16 dig yalspar refine drop then
   metals-a2 units 2 < if vladnium 12 dig vladnium refine drop then ;
 
