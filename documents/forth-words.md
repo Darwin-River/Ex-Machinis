@@ -12,9 +12,8 @@ The game's built-in words (`mine`, `refine`, `make`, `units`, `deposit`, `sell-a
 | `polymers` | 2051 |
 | `rods` | 3011 |
 | `sheets` | 3001 |
-| `inorganics-a2` `organics-a2` | 2032, 2042: refining by-products; Earth and the Moon buy them |
 
-Define more the same way: `3311 constant pipes`. The Resources page lists every ID.
+Define more the same way: `3311 constant pipes`. The Resources page lists every ID. (`inorganics-a2` and `organics-a2` are game words since #380.)
 
 ## Inventory
 
@@ -71,6 +70,8 @@ Every drone also knows `buy-price`, `sell-price`, `best-offer`, `best-bid` and `
 **`board-price ( resource place -- price )`** (#380): what the House paid a unit for a good at a place over the last game day (query 681, the House's price board); 0 if it bought none there. Example: `rods earth board-price`. Used by: Adaptive.
 
 - A station's listed price is for an empty batch. When many drones sell into the same hour, all of them get less, and this shows by how much. Query 680, the players' board, has the same layout.
+
+**`overstocked? ( product -- f )`** (#380): true when the drone holds more than half of what sold at Earth yesterday (`sold`, query 682). Check it before making more of a product, and sell first or make something else. Change `earth` to the place where you sell.
 
 **`spare ( -- n )`**: credits above `cash-floor`, at most 32,000. Spend only `spare`, so the drone always keeps money for fuel. Used by: Maker, Smith, Machinist, Trader, Adaptive.
 

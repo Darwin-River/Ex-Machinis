@@ -642,9 +642,9 @@ Every drone comes with a vocabulary for the game, so you can write `kunspar mine
 | Kind | Words |
 |---|---|
 | Places | `earth` (3) `moon` (10) `mars` (4) `phobos` (11) `deimos` (12): their location IDs; the Locations page lists the rest |
-| Resources | `fuel` `magmite` `kunspar` `yalspar` `vladnium` `wolfite` `metals-a1` `metals-a2` `metals-a3` `inorganics-a1` `organics-a1` `mining-kit` `factory-kit` |
+| Resources | `fuel` `magmite` `kunspar` `yalspar` `vladnium` `wolfite` `metals-a1` `metals-a2` `metals-a3` `inorganics-a1` `inorganics-a2` `organics-a1` `organics-a2` `mining-kit` `factory-kit` |
 | Actions: each takes its arguments off the stack and leaves one result, the ior (0 done, negative failed; see [Issuing Commands](#chapter-4-issuing-commands)), so `kunspar mine drop` and `kunspar mine if ... then` | `unpack ( -- ior )` (whichever kit is aboard), `travel ( place -- ior )`, `mine ( mineral -- ior )`, `refine ( mineral -- ior )`, `make ( resource -- ior )`, `wait ( minutes -- ior )`, `sell-to-station ( n resource -- ior )`, `buy-from-station ( n resource -- ior )`, `sell-order ( price keep resource -- ior )`, `buy-order ( price want resource -- ior )`, `push ( n resource drone -- ior )`, `pull ( n resource drone -- ior )`, `launch ( drone kit -- ior )`, `plunder ( wreck -- ior )`, `jettison ( n resource -- ior )` |
-| Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `today ( -- day )` (the game day now: plan a late selling trip or a deadline), `trip ( place -- hours )` (game hours to fly there from here, rounded up; -1 if unknown), `house-price ( resource side -- price )` (what the House station here pays for it, side 1, or asks, side 2; 0 if it doesn't), `best-offer ( resource -- price drone n )` (the cheapest other drone's sell order here: its price, the seller and how many it will sell; 0 0 0 if none), `best-bid ( resource -- price drone n )` (the highest buy order here, from a buyer who can pay), `buy-price ( resource -- price )` and `sell-price ( resource -- price )` (the best price to buy or sell one here, drone or House; see [Market-aware drones](#market-aware-drones)), `ask ( [n] id -- rows )` (any query, answers in the 120-byte buffer `answer`, which `units`, `credits` and the other questions reuse: copy what you need before asking again; for more rows, `query` into your own array) |
+| Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `today ( -- day )` (the game day now: plan a late selling trip or a deadline), `trip ( place -- hours )` (game hours to fly there from here, rounded up; -1 if unknown), `house-price ( resource side -- price )` (what the House station here pays for it, side 1, or asks, side 2; 0 if it doesn't), `best-offer ( resource -- price drone n )` (the cheapest other drone's sell order here: its price, the seller and how many it will sell; 0 0 0 if none), `best-bid ( resource -- price drone n )` (the highest buy order here, from a buyer who can pay), `sold ( resource days-ago place -- units )` (how many sold at a place on a game day, an hour old), `buy-price ( resource -- price )` and `sell-price ( resource -- price )` (the best price to buy or sell one here, drone or House; see [Market-aware drones](#market-aware-drones)), `ask ( [n] id -- rows )` (any query, answers in the 120-byte buffer `answer`, which `units`, `credits` and the other questions reuse: copy what you need before asking again; for more rows, `query` into your own array) |
 | Messages | `report` sends what the drone has printed so far, at once: without it you see nothing until the script ends, and a `launched` word that loops forever never ends. Call it once a round: `begin ... ." fuel " fuel units . report 60 wait drop again` |
 | State machines | `become ( mode -- )`, `in? ( mode -- f )`, `tick ( -- )`, `ticks ( -- n )` and the variable `mode`: a drone that changes what it does as the market changes (see [Market-aware drones](#market-aware-drones)) |
 | Arithmetic | `2* ( n -- n*2 )`, `2/ ( n -- n/2 )` and `*/ ( a b c -- a*b/c )`, which keeps the product as a double so it can't overflow: `qty price 95 100 */` is 95% of qty × price. Words you may know from other FORTHs and won't find here: `do`, `?do`, `loop`, `i`, `leave`, `m/mod` |
@@ -1096,6 +1096,21 @@ Some queries return a list: several rows, one after another in the results array
 
 The first row is the most important one (query 210 lists the largest holdings first), and reading the array keeps that order, which moving the list onto the stack would reverse. Rows with text don't have a fixed size: step through them field by field with `count` (it leaves the address after the text).
 
+**Row layouts.** A plain number takes 2 bytes, a double (money, volumes, event IDs) 4, read with `2@`. Rows are stored back to back, so row r of query q starts at `answer r size * +`. The common ones:
+
+| Queries | Each row | Size | Read with |
+|---|---|---|---|
+| 600, 601 (buy orders), 610, 611 (sell orders) | price (double), the order's wanted maximum or kept minimum, units held, drone | 10 | `2@ drop`, `4 + @`, `6 + @`, `8 + @` |
+| 630 (station trades here) | resource, side, price (double), daily units, units in this batch (double) | 14 | `@`, `2 + @`, `4 + 2@`, `8 + @`, `10 + 2@` |
+| 640 (deposits here) | resource, units left (double), capacity (double), refill per day | 12 | `@`, `2 + 2@`, `6 + 2@`, `10 + @` |
+| 680, 681 (price boards) | place, units (double), credits (double), trades or batches | 12 | `@`, `2 + 2@`, `6 + 2@`, `10 + @` |
+| 682 (sales on a day) | place, House units (double), player units (double), average price | 12 | `@`, `2 + 2@`, `6 + 2@`, `10 + @` |
+| 210 (a hold), 661 (a wreck's hold) | resource, units | 4 | `@`, `2 + @` |
+| 670 (my clones), 660 (wrecks here) | drone, 1 if a wreck or plundered | 4 | `@`, `2 + @` |
+| 720 (drones at a place), 800-803 (events) | drone; an event ID (double) | 2; 4 | `@`; `2@` |
+
+The `answer` buffer holds 120 bytes: 12 rows of 10 bytes, for example. For more, `query` into an array of your own (`create rows 400 allot`).
+
 #### Searching the events you've seen
 
 Query 803 lists the events your drone has observed, newest first, filtered by up to nine conditions. Information travels at the speed of light, so a drone only knows about events that affected it, events at the place where it is now since it got there (it forgets what it saw at places it has left), and events whose light has reached it. Push the nine conditions in this order, using -1 for "any":
@@ -1240,8 +1255,9 @@ You can't change a drone once it's released, but its market will change: deposit
 | `best-bid ( resource -- price drone n )` | The highest drone's buy order: its price, the buyer, how many it wants (only buyers who can pay) |
 | `house-price ( resource side -- price )` | What the House station here pays (side 1) or asks (side 2) |
 | `deposit ( mineral -- n )` | Units left in the deposit here |
+| `sold ( resource days-ago place -- units )` | How many sold at a place on a game day (0: today so far, 1: yesterday...), to the House and between players, an hour old: how fast a product sells there |
 
-For other places, two public price boards report the game day up to an hour ago: query 680 for trades between players, and query 681 for what the House stations actually paid. A station's listed price is for an empty batch: when many drones sell into the same hour, they all get less. Query 681 shows that. Query 620 gives the volume traded here, and 704 how long a trip takes.
+Query 682 gives `sold`'s numbers for every place at once, with the day's average price. For other places, two public price boards report the game day up to an hour ago: query 680 for trades between players, and query 681 for what the House stations actually paid. A station's listed price is for an empty batch: when many drones sell into the same hour, they all get less. Query 681 shows that. Query 620 gives the volume traded here, and 704 how long a trip takes.
 
 **Decide with arithmetic.** Most good decisions compare two numbers:
 
@@ -1254,6 +1270,13 @@ For other places, two public price boards report the game day up to an hour ago:
 ```
 
 Try such words on the **Machine page with live game data** before you release: it runs them on today's market, as one of the drones there would see it.
+
+**Don't make more than sells.** A product that sells for 1,600 but only twice a day is worth less to you than one that sells for 300 fifty times a day, once your hold is full of the first. Compare what you hold, and what you're about to make, with what sold yesterday:
+
+```
+\ Over half a day's sales at Earth aboard? Sell first, or make another
+: overstocked? ( product -- f ) dup units 2 *  swap 1 earth sold  > ;
+```
 
 **Keep it in a state machine.** A drone that reacts to the market needs a plan that can change. A state machine is the simplest way to write one. The drone is always in one **mode** (shopping, making, hauling, resting...). Each round it does one step of its mode's work. Then it either stays in that mode or moves to another, depending on what it saw. Every drone knows four words for this:
 

@@ -50,6 +50,7 @@ const char* vm_library_game_source =
     "5901 constant mining-kit 5902 constant factory-kit\n"
     "2011 constant metals-a1 2012 constant metals-a2 2013 constant metals-a3\n"
     "2031 constant inorganics-a1 2041 constant organics-a1\n"
+    "2032 constant inorganics-a2 2042 constant organics-a2\n"
     ": travel ( place -- ior ) 5001 perform ;\n"
     ": mine ( mineral -- ior ) 10000 + perform ;\n"
     ": refine ( mineral -- ior ) 20000 + perform ;\n"
@@ -80,10 +81,14 @@ const char* vm_library_game_source =
     ": trip ( place -- hours ) 704 ask 0> if answer 8 + @ else -1 then ;\n"
     ": house-price ( resource side -- price )\n"
     "  633 ask 0> if answer 2@ drop else 0 then ;\n"
-    ": best-offer ( resource -- price drone n ) 610 ask 0> if answer 2@ drop answer 8 + @\n"
-    "  answer 6 + @ answer 4 + @ - 0 max else 0 0 0 then ;\n"
-    ": best-bid ( resource -- price drone n ) 600 ask 0> if answer 2@ drop answer 8 + @\n"
-    "  answer 4 + @ answer 6 + @ - 0 max else 0 0 0 then ;\n"
+    ": best-offer ( resource -- price drone n ) me >r 610 ask 0 max 0\n"
+    "  begin 2dup > while dup 10 * answer + dup 8 + @ r@ <> if\n"
+    "  nip nip dup 2@ drop over 8 + @ rot dup 6 + @ swap 4 + @ - 0 max\n"
+    "  r> drop exit then drop 1+ repeat 2drop r> drop 0 0 0 ;\n"
+    ": best-bid ( resource -- price drone n ) me >r 600 ask 0 max 0\n"
+    "  begin 2dup > while dup 10 * answer + dup 8 + @ r@ <> if\n"
+    "  nip nip dup 2@ drop over 8 + @ rot dup 4 + @ swap 6 + @ - 0 max\n"
+    "  r> drop exit then drop 1+ repeat 2drop r> drop 0 0 0 ;\n"
     ": sell-price ( resource -- price )\n"
     "  dup 1 house-price swap best-bid 0= if 2drop 0 else drop then max ;\n"
     ": buy-price ( resource -- price )\n"
@@ -94,7 +99,11 @@ const char* vm_library_game_source =
     ": in? ( mode -- f ) mode @ = ;\n"
     ": tick ( -- ) 1 #ticks +! ;\n"
     ": ticks ( -- n ) #ticks @ ;\n"
-    ": stdlib ( -- version ) 7 ;\n";
+    ": sold ( resource days-ago place -- units ) >r 682 ask 0 max\n"
+    "  begin dup while 1- dup 12 * answer + dup @ r@ = if\n"
+    "  dup 2 + 2@ drop swap 6 + 2@ drop + nip r> drop exit then drop\n"
+    "  repeat r> 2drop 0 ;\n"
+    ": stdlib ( -- version ) 10 ;\n";
 
 int vm_library_load(embed_t* vm)
 {

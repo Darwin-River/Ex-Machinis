@@ -6,7 +6,6 @@
 \ --- Goods the game words don't name ----------------------------------
 2021 constant alloys-a1   2022 constant alloys-a2   2023 constant alloys-a3
 2051 constant polymers    3011 constant rods        3001 constant sheets
-2032 constant inorganics-a2   2042 constant organics-a2
 
 \ --- Inventory ----------------------------------------------------------
 \ Total metals aboard
@@ -73,6 +72,10 @@
       nip nip exit
     then drop
   repeat 2drop 0 ;
+
+\ Holding more than half of what sold at Earth yesterday (query 682)?
+\ Sell first, or make something else
+: overstocked? ( product -- f ) dup units 2 *  swap 1 earth sold  > ;
 
 \ Credits above cash-floor, at most 32,000 (credits are a double). Define
 \ cash-floor first: 300 constant cash-floor
