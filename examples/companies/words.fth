@@ -89,6 +89,20 @@
 \ alloys-a1 metals-a1 2 profit
 : profit ( product input n -- credits ) swap buy-price * swap sell-price swap - ;
 
+\ Adaptive pricing: where there is a House to price by, ask a unit under
+\ what the House asks while the stock sells out (fewer than 4 aboard), a
+\ unit over what it pays while stock piles up (more than 16), and halfway
+\ between otherwise; 0 where there is no House station. Call reoffer every
+\ round, so a standing sell order follows its own sales (round 25's miners
+\ priced once, too low, and demand outran them)
+: smart-ask ( resource -- price )
+  dup 2 house-price ?dup 0= if drop 0 exit then      ( resource ask )
+  over 1 house-price  ?dup 0= if dup 2 / then        ( resource ask pay )
+  rot units  dup 4 < if 2drop 1- exit then
+  16 > if nip 1+ exit then
+  + 2 / ;
+: reoffer ( resource -- ) dup smart-ask ?dup if 0 rot sell-order drop else drop then ;
+
 \ --- State machines (#380) ----------------------------------------------
 \ The game words become, in?, tick and ticks keep a drone's mode. A
 \ skeleton: number the modes, one word per mode, and a step that picks one.

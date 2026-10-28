@@ -76,6 +76,10 @@ Every drone also knows `buy-price`, `sell-price`, `best-offer`, `best-bid` and `
 
 - Round 25's traders and makers spent every credit on goods, then couldn't buy fuel and died.
 
+**`smart-ask ( resource -- price )`** and **`reoffer ( resource -- )`**: adaptive pricing for a seller. Where there is a House station, it asks a unit under what the House asks while its stock sells out (fewer than 4 aboard), a unit over what the House pays while stock piles up (more than 16), and halfway otherwise. `reoffer` posts that as a standing sell order: call it every round, and the order follows the drone's own sales. Example: `metals-a1 reoffer metals-a2 reoffer`.
+
+- A released script can't be changed, so a fixed price is a one-shot bet. In round 25 a miner priced at 23 when makers would pay 27, and demand outran it.
+
 **`richer ( mineral mineral -- mineral )`**: of two minerals, the one with more left in the deposit here. Example: `kunspar wolfite richer 20 dig`.
 
 **`profit ( product input n -- credits )`**: what one product sells for here, less what n of its input cost here. Example: `alloys-a1 metals-a1 2 profit` (an alloy from two metals). Negative: buying to make it loses money.

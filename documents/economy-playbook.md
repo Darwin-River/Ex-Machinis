@@ -126,6 +126,11 @@ From round 21, four naive agents join each round as new players would: they get 
 | 24 | Oto (opportunist) | Plundered wrecks, made rods and fasteners from bought metals, +5,221 avg | 7 | 7 | 6 | 7 | 6 | 7 | 7 |
 | 24 | Pia (optimiser) | Wolfite into alloys and parts, priced the chains, +6,448 avg | 6 | 7 | 7 | 6 | 5 | 7 | 6 |
 | 24 | **Average** | | 6.5 | 6.5 | 6.3 | 7.0 | 5.8 | 6.5 | 6.4 |
+| 25 | Quin (optimiser) | Wolfite to fasteners and gear boxes at the Moon; credits +6,235 and +1,647, 2 clones | 7 | 6 | – | 6 | 7 | – | 7 |
+| 25 | Rex (raw supplier) | Wolfite miner selling to makers first; Moon +1,146 (3 drones), Mars +3,549 | 7 | 6 | – | 8 | 7 | – | 7 |
+| 25 | Sol (manufacturer) | Gear boxes from bought metals; credits +10,766, the best newcomer yet; first company went broke through its buy orders | 7 | 6 | – | 8 | 7 | – | 7 |
+| 25 | Tia (casual) | Miner starter switched to wolfite; 7 drones from 2 companies, 5 clones | 7 | 6 | – | 7 | 6 | – | 7 |
+| 25 | **Average** | | 7.0 | 6.0 | – | 7.3 | 6.8 | – | 7.0 |
 
 **Round 21 findings, and what changed:**
 - *They couldn't see their drones.* A drone's output arrives when its script ends, and `launched` never ends. The engine has a `report` word that sends it at once, but the manual never mentioned it (three of the four even redefined it). Now the manual documents it and the starters call it every 8th round.
@@ -145,9 +150,27 @@ From round 21, four naive agents join each round as new players would: they get 
 
 **Round 24 findings:** with making things paying, the complaint moved up a level: every chain pays about the same per hour (the wage is flat by tier), so depth scored 5.8 and "optimising comes down to cutting idle time" (Pia). Fixed during the round: the checker and the Machine now wrap long lines as the engine does; a drone can ask the game day (`today`, query 207); the activity log's fuel column; and pulls and pushes no longer wait for the other drone's unrelated actions (a pull from a seller one second into a two-hour batch went through at once), which also fixed a pull of fuel that never charged the buyer its fuel. Open: the House taxes goods but takes only credits, so a trader holding stock can be eliminated with thousands aboard (Max); a drone can't learn distances or trip times (query 703's coordinates are never stored) or use event IDs (past a cell's range); there are no buy orders or contracts between players for a middleman to serve. After the round: the engine stores every body's position, so `trip` and queries 704/705 give a trip's time before leaving (Earth to the Moon: 38,236 s predicted, 38,242 flown), and event IDs are doubles in the event queries. The daily tax is gone: the seller pays a 5% sales tax out of every sale (to players and stations), so holding goods costs nothing and nobody is eliminated by a tax bill.
 
-**What they liked best** (all four rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
+**Round 25 findings:** the ratings were asked as fun, clarity (the Manual column), economic depth, feedback (Debugging) and overall; every tester rated the game 7, the best yet. All four found the same edge: the starter Miners empty the Moon's kunspar by day 3, and wolfite, which none of them mine, stays full. Makers did buy from miners (Rex sold to at least 13 drones), but the premium the starters asked moved few metals: 775 Metals (A1) between players over 40 days. Miners and Refiners launched no clones, while makers grew (Machinist +11,807). Fixed during the round: buy-order lists now leave out buyers who can't pay (Rex burned fuel pushing to a broke buyer); the manual says trading needs no module, warns that standing buy orders spend credits unasked, explains why a batch pays less than the listed price, and lists the loop words with the game words; the Moon Depot sells 6,000 fuel a day. Asked for by most: a way to adapt a released drone (prices it can't change; two releases and no updates), a test world whose clock matches a new world, visible crowding, and reasons for makers to diversify. Next: the kits (the mining gear too big to carry with the factory tools; the House sells raw goods dear) and market-aware drones written as state machines, in round 26.
+
+**What they liked best** (all five rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
 ## Round log
+
+### Round 25: makers buy from miners, a little (#380)
+
+A fresh world (game data with the steeper wages: 20, 30 and 45 a game hour by tier) with the miners asking a quarter over the House and the makers buying from them first, to game day 40.2. Four newcomers joined.
+
+| Design | Avg gain | Clones |
+|---|---|---|
+| Machinist | +11,807 | 5 |
+| Smith | +4,965 | 7 |
+| Chemist | +4,055 | 11 |
+| Miner | +2,287 | 0 |
+| Refiner | +1,287 | 0 |
+
+- **Makers still lead, raw producers still don't grow.** 775 Metals (A1) and 187 Metals (A2) moved between players in 40 days (round 24: 966 in 71); the House bought 762 Metals (A1) in the last five days alone. A premium on the miners' price doesn't make makers stop mining while they carry every module.
+- **A 68-day scratch run with the kits** (the next change: mining gear too big to carry with the factory tools, the House selling raw goods at half as much again as it pays): Miners grew from 6 drones to 20, every design but the Trader survived, and 1,343 Metals (A1) moved between players. The traders spent every credit on metals and died for want of fuel; they now keep 200, and read a seller's row before asking anything else.
+
 
 ### Round 1: Chemist (#380)
 
