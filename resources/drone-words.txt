@@ -2,6 +2,7 @@
 #
 #>
 #s
+#ticks
 $"
 '
 (
@@ -68,13 +69,16 @@ answer
 ask
 b/buf
 base
+become
 begin
+best-bid
 best-offer
 bl
 blk
 block
 buy-from-station
 buy-order
+buy-price
 bye
 c!
 c,
@@ -144,6 +148,7 @@ hold
 house-price
 if
 immediate
+in?
 inorganics-a1
 interpret
 invert
@@ -170,6 +175,7 @@ min
 mine
 mining-kit
 mod
+mode
 moon
 negate
 next
@@ -203,6 +209,7 @@ search-wordlist
 see
 sell-all
 sell-order
+sell-price
 sell-to-station
 set-order
 sign
@@ -216,6 +223,8 @@ swap
 system
 then
 throw
+tick
+ticks
 today
 travel
 trip

@@ -64,6 +64,39 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 
 - The House always sells, at half as much again as it pays, so a maker never runs out of inputs, but a miner asking less sells first.
 
+## Reading the market
+
+Every drone also knows `buy-price`, `sell-price`, `best-offer`, `best-bid` and `house-price` (game words; see the players' manual, "Market-aware drones"). These build on them:
+
+**`board-price ( resource place -- price )`** (#380): what the House paid a unit for a good at a place over the last game day (query 681, the House's price board); 0 if it bought none there. Example: `rods earth board-price`. Used by: Adaptive.
+
+- A station's listed price is for an empty batch. When many drones sell into the same hour, all of them get less, and this shows by how much. Query 680, the players' board, has the same layout.
+
+**`spare ( -- n )`**: credits above `cash-floor`, at most 32,000. Spend only `spare`, so the drone always keeps money for fuel. Used by: Maker, Smith, Machinist, Trader, Adaptive.
+
+- Round 25's traders and makers spent every credit on goods, then couldn't buy fuel and died.
+
+**`richer ( mineral mineral -- mineral )`**: of two minerals, the one with more left in the deposit here. Example: `kunspar wolfite richer 20 dig`.
+
+**`profit ( product input n -- credits )`**: what one product sells for here, less what n of its input cost here. Example: `alloys-a1 metals-a1 2 profit` (an alloy from two metals). Negative: buying to make it loses money.
+
+## State machines
+
+A drone that changes what it does as the market changes is easiest to write as a state machine (see the players' manual, "Market-aware drones"). The drone is always in one **mode**. Each round it does one step of that mode's work, then stays in the mode or moves to another. The game words `become ( mode -- )`, `in? ( mode -- f )`, `tick ( -- )` and `ticks ( -- n )` keep track:
+
+```
+0 constant mining   1 constant selling
+: mine-step ( -- ) kunspar mine drop  kunspar units 19 > if selling become then ;
+: sell-step ( -- ) kunspar refine drop  metals-a1 sell-all  mining become ;
+: step ( -- ) mining in? if mine-step exit then sell-step ;
+: launched ( -- ) unpack drop moon go drop  mining become  begin step tick again ;
+```
+
+**`stuck-for? ( n -- f )`**: true once the drone has spent more than n rounds in its current mode. Give every mode a way out: `rest-step` might go back to work when prices recover, or after `6 stuck-for?` sell what it has anyway. Used by: Adaptive (as `ticks 5 >`).
+
+- Keep each step small: one action, or one product. The drone reads the market again before the next.
+- Don't pass execution tokens around: `'` works only outside a definition. Numbered modes and `in?` need nothing else.
+
 ## Buying from other drones
 
 **`buy-cheap ( n resource price -- ior )`**: buy up to n of a good from the cheapest seller at this place, if it asks price or less. It leaves 0 when it bought, otherwise nonzero. Example: `20 metals-a2 38 buy-cheap`. Used by: Trader (as `buy`).

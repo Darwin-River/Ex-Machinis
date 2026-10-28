@@ -1110,6 +1110,18 @@ def double_event_ids(q):
     return q
 queries = [double_event_ids(q) for q in queries]
 
+# The House's price board (#380): what the House stations actually paid for
+# resource N in the game day up to an hour ago, by place: units bought,
+# credits paid and batches. A batch pays less the more it holds, so this
+# shows where a market is crowded (the listed price is for an empty batch).
+queries.append((681, 'House price board',
+                '[N R L 681 query]: What the House stations paid for resource N in the game day up to one game hour ago, '
+                'for each place: the place, units bought (2 cells), credits paid (2 cells) and batches.', 1,
+                "SELECT s.object_id AS location, IFNULL(SUM(b.filled),0) AS d_units, IFNULL(SUM(b.filled*b.price),0) AS d_credits, "
+                "COUNT(*) FROM station_batches b INNER JOIN stations s ON s.id = b.station_id WHERE b.resource=[value_1] "
+                f"AND b.side=1 AND b.filled>0 AND b.cleared_t<=[game_now]-{BOARD_LAG} AND b.cleared_t>[game_now]-{BOARD_LAG}-{DAY} "
+                "GROUP BY s.object_id ORDER BY s.object_id;"))
+
 # Queries whose money or volume columns are double cells: say so
 DOUBLE_QUERIES = {101, 600, 601, 610, 611, 612, 620, 621, 841}  # 630-632 say so themselves
 queries = [(q[0], q[1], (q[2] if q[0] == 612 else q[2].rstrip() + ' Money and volumes are double cells (2@).')[:255],

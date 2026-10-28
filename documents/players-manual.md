@@ -61,6 +61,8 @@ Thank you for your support!
 - [Chapter 9: Making Decisions](#chapter-9-making-decisions)
   - [Finding the truth in numbers](#finding-the-truth-in-numbers)
   - [Experimenting with logical operators](#experimenting-with-logical-operators)
+  - [Repeating yourself: loops](#repeating-yourself-loops)
+  - [Market-aware drones](#market-aware-drones)
 - [Appendix A: FORTH Error Codes](#appendix-a-forth-error-codes)
 
 ## Chapter 1: Getting Started
@@ -642,8 +644,9 @@ Every drone comes with a vocabulary for the game, so you can write `kunspar mine
 | Places | `earth` (3) `moon` (10) `mars` (4) `phobos` (11) `deimos` (12): their location IDs; the Locations page lists the rest |
 | Resources | `fuel` `magmite` `kunspar` `yalspar` `vladnium` `wolfite` `metals-a1` `metals-a2` `metals-a3` `inorganics-a1` `organics-a1` `mining-kit` `factory-kit` |
 | Actions: each takes its arguments off the stack and leaves one result, the ior (0 done, negative failed; see [Issuing Commands](#chapter-4-issuing-commands)), so `kunspar mine drop` and `kunspar mine if ... then` | `unpack ( -- ior )` (whichever kit is aboard), `travel ( place -- ior )`, `mine ( mineral -- ior )`, `refine ( mineral -- ior )`, `make ( resource -- ior )`, `wait ( minutes -- ior )`, `sell-to-station ( n resource -- ior )`, `buy-from-station ( n resource -- ior )`, `sell-order ( price keep resource -- ior )`, `buy-order ( price want resource -- ior )`, `push ( n resource drone -- ior )`, `pull ( n resource drone -- ior )`, `launch ( drone kit -- ior )`, `plunder ( wreck -- ior )`, `jettison ( n resource -- ior )` |
-| Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `today ( -- day )` (the game day now: plan a late selling trip or a deadline), `trip ( place -- hours )` (game hours to fly there from here, rounded up; -1 if unknown), `house-price ( resource side -- price )` (what the House station here pays for it, side 1, or asks, side 2; 0 if it doesn't), `best-offer ( resource -- price drone n )` (the cheapest other drone's sell order here: its price, the seller and how many it will sell; 0 0 0 if none), `ask ( [n] id -- rows )` (any query, answers in the 120-byte buffer `answer`, which `units`, `credits` and the other questions reuse: copy what you need before asking again; for more rows, `query` into your own array) |
+| Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `today ( -- day )` (the game day now: plan a late selling trip or a deadline), `trip ( place -- hours )` (game hours to fly there from here, rounded up; -1 if unknown), `house-price ( resource side -- price )` (what the House station here pays for it, side 1, or asks, side 2; 0 if it doesn't), `best-offer ( resource -- price drone n )` (the cheapest other drone's sell order here: its price, the seller and how many it will sell; 0 0 0 if none), `best-bid ( resource -- price drone n )` (the highest buy order here, from a buyer who can pay), `buy-price ( resource -- price )` and `sell-price ( resource -- price )` (the best price to buy or sell one here, drone or House; see [Market-aware drones](#market-aware-drones)), `ask ( [n] id -- rows )` (any query, answers in the 120-byte buffer `answer`, which `units`, `credits` and the other questions reuse: copy what you need before asking again; for more rows, `query` into your own array) |
 | Messages | `report` sends what the drone has printed so far, at once: without it you see nothing until the script ends, and a `launched` word that loops forever never ends. Call it once a round: `begin ... ." fuel " fuel units . report 60 wait drop again` |
+| State machines | `become ( mode -- )`, `in? ( mode -- f )`, `tick ( -- )`, `ticks ( -- n )` and the variable `mode`: a drone that changes what it does as the market changes (see [Market-aware drones](#market-aware-drones)) |
 | Loops | This FORTH has no `do ... loop` (nor `?do`, `i`): use `n for ... next` (runs n+1 times, `r@` counts down) or `begin ... until`, `begin ... while ... repeat`, `begin ... again`. See [Loops](#chapter-9-making-decisions). |
 | Helpers | `sell-all ( resource )` offers all of it to the station here; `go ( place -- ior )` travels there unless the drone is already there (then it leaves 0 at once) |
 
@@ -1221,6 +1224,71 @@ variable i
 ```
 
 `3 times` prints `0 1 2`. Pick distinct names for your variables: a variable called `i` in one word and another `i` later replaces it for the words that follow.
+
+### Market-aware drones
+
+You can't change a drone once it's released, but its market will change: deposits run dry, other players crowd the stations you sell to, miners undercut each other, and new makers start buying what you sell. A drone that follows a fixed plan does well until the market moves, then keeps doing the wrong thing. The drones that last read the market every round and decide for themselves what to make, where to buy and where to sell. Build yours that way.
+
+**Read the market.** These game words answer the questions most decisions start from, about the place where the drone is:
+
+| Word | What it tells you |
+|---|---|
+| `buy-price ( resource -- price )` | The cheapest price to buy one here: another drone's sell order or the House, whichever is lower (0 if nobody sells) |
+| `sell-price ( resource -- price )` | The best price to sell one here: another drone's buy order or the House, whichever is higher (0 if nobody buys) |
+| `best-offer ( resource -- price drone n )` | The cheapest drone's sell order: its price, the seller, how many it will sell |
+| `best-bid ( resource -- price drone n )` | The highest drone's buy order: its price, the buyer, how many it wants (only buyers who can pay) |
+| `house-price ( resource side -- price )` | What the House station here pays (side 1) or asks (side 2) |
+| `deposit ( mineral -- n )` | Units left in the deposit here |
+
+For other places, two public price boards report the game day up to an hour ago: query 680 for trades between players, and query 681 for what the House stations actually paid. A station's listed price is for an empty batch: when many drones sell into the same hour, they all get less. Query 681 shows that. Query 620 gives the volume traded here, and 704 how long a trip takes.
+
+**Decide with arithmetic.** Most good decisions compare two numbers:
+
+```
+\ Is making rods worth it? Two metals make a rod: compare what they cost
+\ here with what a rod fetches, less about 40 for fuel and the trip
+: rods-pay? ( -- f ) metals-a1 buy-price 2 * 40 +  225 < ;
+\ Which ore is worth mining? The one with more left here
+: richer ( -- mineral ) kunspar deposit wolfite deposit > if kunspar else wolfite then ;
+```
+
+Try such words on the **Machine page with live game data** before you release: it runs them on today's market, as one of the drones there would see it.
+
+**Keep it in a state machine.** A drone that reacts to the market needs a plan that can change. A state machine is the simplest way to write one. The drone is always in one **mode** (shopping, making, hauling, resting...). Each round it does one step of its mode's work. Then it either stays in that mode or moves to another, depending on what it saw. Every drone knows four words for this:
+
+| Word | What it does |
+|---|---|
+| `become ( mode -- )` | Switch to a mode, and start counting rounds in it again |
+| `in? ( mode -- f )` | True if the drone is in that mode |
+| `tick ( -- )` | Count a round: call it once each time round your loop |
+| `ticks ( -- n )` | Rounds since the last `become`: give up on a mode that takes too long |
+
+Number your modes with constants, write one word for each mode's step, and let a `step` word pick the one to run:
+
+```
+0 constant shopping   1 constant making   2 constant hauling   3 constant resting
+
+: shop ( -- )
+  rods-pay? 0= if resting become exit then
+  20 metals-a1 buy-cheapest  60 wait drop  making become ;
+: rest ( -- )
+  120 wait drop
+  ticks 5 > if hauling become exit then     \ waited long enough: sell what we have
+  rods-pay? if shopping become then ;
+
+: step ( -- )
+  shopping in? if shop exit then
+  making in? if make-one exit then
+  hauling in? if haul exit then
+  rest ;
+: launched ( -- ) unpack drop moon go drop  shopping become  begin step tick again ;
+```
+
+Small steps keep the drone responsive. A word that makes one alloy and then returns lets the drone look at prices again before the next one; a word that makes twenty commits it for two game days, whatever happens to the market. Each mode also needs a way out. Use `ticks` so a drone doesn't rest or shop forever, and check credits and fuel so it can't spend its last credit on goods it then can't move.
+
+The Adaptive design (`examples/companies/adaptive.fth`, released with the Factory Kit) puts all of this together. It buys metals only while they cost well under what rods fetched at Earth yesterday, from whoever sells them cheapest. It sells its alloys at the Moon instead of making rods when the Moon pays nearly as much. And when nothing pays, it rests. Read it, then make your own.
+
+**Watch the `answer` buffer.** `ask` and every question word that uses it (`units`, `credits`, `deposit`, `house-price`, `best-offer`...) write into the same 120-byte buffer. Read everything you need from one answer before you ask anything else. A round 25 trader read a seller's ID after calling `units`, got the wrong drone, and its pulls failed.
 
 ## Appendix A: FORTH Error Codes
 

@@ -61,6 +61,44 @@
   dup 1 house-price over 2 house-price + 2 /
   ?dup if 0 rot sell-order drop else drop then ;
 
+\ --- Reading the market (#380) ------------------------------------------
+\ What the House paid a unit for a resource at a place over the last game
+\ day (query 681, the House's price board: place, units, credits,
+\ batches); 0 when it bought none there. Query 680, the players' board,
+\ has the same layout
+: board-price ( resource place -- price )
+  swap 681 ask 0 max begin dup while 1- dup 12 * answer +
+    dup @ 3 pick = if
+      dup 6 + 2@ drop swap 2 + 2@ drop  ?dup if / else drop 0 then
+      nip nip exit
+    then drop
+  repeat 2drop 0 ;
+
+\ Credits above cash-floor, at most 32,000 (credits are a double). Define
+\ cash-floor first: 300 constant cash-floor
+300 constant cash-floor
+: spare ( -- n )
+  credits cash-floor 0 d- dup 0< if 2drop 0 exit then
+  if drop 32000 exit then  dup 0< if drop 32000 then ;
+
+\ Of two minerals, the one with more left in the deposit here
+: richer ( mineral mineral -- mineral ) over deposit over deposit < if nip else drop then ;
+
+\ Profit from making one product: what it sells for here less what its
+\ inputs cost here (n units of one input). Example, an alloy from 2 metals:
+\ alloys-a1 metals-a1 2 profit
+: profit ( product input n -- credits ) swap buy-price * swap sell-price swap - ;
+
+\ --- State machines (#380) ----------------------------------------------
+\ The game words become, in?, tick and ticks keep a drone's mode. A
+\ skeleton: number the modes, one word per mode, and a step that picks one.
+\   0 constant mining  1 constant selling
+\   : mine-step ... selling become ... ;   : sell-step ... mining become ... ;
+\   : step ( -- ) mining in? if mine-step exit then sell-step ;
+\   : launched ( -- ) unpack drop mining become begin step tick again ;
+\ Give up on a mode that takes too long: ticks counts its rounds
+: stuck-for? ( n -- f ) ticks < ;
+
 \ --- Buying from other drones -------------------------------------------
 \ Buy up to n of a good from the cheapest seller here at price or less;
 \ leaves 0 when it bought, else nonzero

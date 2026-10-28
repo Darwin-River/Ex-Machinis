@@ -78,7 +78,19 @@ const char* vm_library_game_source =
     "  633 ask 0> if answer 2@ drop else 0 then ;\n"
     ": best-offer ( resource -- price drone n ) 610 ask 0> if answer 2@ drop answer 8 + @\n"
     "  answer 6 + @ answer 4 + @ - 0 max else 0 0 0 then ;\n"
-    ": stdlib ( -- version ) 5 ;\n";
+    ": best-bid ( resource -- price drone n ) 600 ask 0> if answer 2@ drop answer 8 + @\n"
+    "  answer 4 + @ answer 6 + @ - 0 max else 0 0 0 then ;\n"
+    ": sell-price ( resource -- price )\n"
+    "  dup 1 house-price swap best-bid 0= if 2drop 0 else drop then max ;\n"
+    ": buy-price ( resource -- price )\n"
+    "  dup 2 house-price swap best-offer 0= if 2drop 0 else drop then\n"
+    "  2dup 0<> swap 0<> and if min else max then ;\n"
+    "variable mode variable #ticks\n"
+    ": become ( mode -- ) mode ! 0 #ticks ! ;\n"
+    ": in? ( mode -- f ) mode @ = ;\n"
+    ": tick ( -- ) 1 #ticks +! ;\n"
+    ": ticks ( -- n ) #ticks @ ;\n"
+    ": stdlib ( -- version ) 6 ;\n";
 
 int vm_library_load(embed_t* vm)
 {
