@@ -1226,6 +1226,16 @@ table('house_rules', ['id', 'tax_period', 'tax_grace', 'tax_flat', 'tax_permille
 lines.append('')
 lines.append('-- House drop stations (#324 step 10): what they trade. Their budgets')
 lines.append('-- (station_state) are kept: a new station starts with a full budget.')
+# Budgets that cover the demand (#380): each station's daily budget is what
+# its whole daily demand costs at its listed prices, so the price curve (a
+# fuller batch pays less), not the budget, limits what it buys. With a fixed
+# 10,000, round 26's starter makers flooded the Earth Exchange with rods at
+# about 25 each, the budget ran out, and a pump or a motor got a share of 0:
+# climbing the production chain was punished.
+def demand_budget(st):
+    return sum(price * daily for s_, rid, side, price, daily, _ in STATION_GOODS if s_ == st and side == BUYS)
+STATIONS = [(sid, name, obj, max(cap, demand_budget(sid)), max(refill, demand_budget(sid)))
+            for sid, name, obj, cap, refill in STATIONS]
 table('stations', ['id', 'name', 'object_id', 'budget_cap', 'refill_per_day'], STATIONS)
 table('station_goods', ['station_id', 'resource', 'side', 'price', 'daily_units', 'from_day'], STATION_GOODS)
 lines.append('INSERT IGNORE INTO `station_state` (station_id, budget, refilled_t) '

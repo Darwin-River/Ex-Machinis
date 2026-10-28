@@ -318,9 +318,9 @@ INSERT INTO `house_rules` (id, tax_period, tax_grace, tax_flat, tax_permille, pl
 -- (station_state) are kept: a new station starts with a full budget.
 DELETE FROM `stations`;
 INSERT INTO `stations` (id, name, object_id, budget_cap, refill_per_day) VALUES
-  (1, 'Earth Exchange', 3, 10000, 10000),
-  (2, 'Moon Depot', 10, 10000, 10000),
-  (3, 'Mars Exchange', 4, 15000, 15000);
+  (1, 'Earth Exchange', 3, 157750, 157750),
+  (2, 'Moon Depot', 10, 55700, 55700),
+  (3, 'Mars Exchange', 4, 142800, 142800);
 
 DELETE FROM `station_goods`;
 INSERT INTO `station_goods` (station_id, resource, side, price, daily_units, from_day) VALUES
