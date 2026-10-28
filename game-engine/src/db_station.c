@@ -13,6 +13,8 @@
 #include "game_time.h"
 #include "station.h"
 #include "trace.h"
+#include "db_wreck.h"
+#include "wreck.h"
 
 #define MAX_BATCH_OFFERS 200
 
@@ -234,16 +236,22 @@ static ErrorCode_t st_clear_batch(int station, int resource, int side, long long
         long long affordable = price > 0 ? budget / price : 0;
         filled = station_share(units, companies, n, affordable, fill);
 
+        // The seller pays the sales tax out of each sale (#380)
+        int permille = db_sales_tax_permille();
         long long spent = 0;
         for(int i = 0; i < n && result == ENGINE_OK; i++) {
             long long paid = fill[i] * price;
+            long long tax = sales_tax(paid, permille);
             spent += paid;
-            result = st_credit(companies[i], drones[i], actions[i], resource, paid);
+            result = st_credit(companies[i], drones[i], actions[i], resource, paid - tax);
+            if(result == ENGINE_OK && tax > 0)
+                result = db_record_sales_tax(companies[i], tax,
+                    st_value(0, "SELECT credits FROM companies WHERE company_id = %d", companies[i]));
             if(result == ENGINE_OK)
                 result = st_deliver(drones[i], resource, (int)(units[i] - fill[i]), mass);   // what it didn't buy
             if(result == ENGINE_OK)
-                result = st_exec("UPDATE station_offers SET filled = %lld, price = %d, paid = %lld, cleared_t = %lld WHERE id = %d",
-                                 fill[i], price, paid, now, ids[i]);
+                result = st_exec("UPDATE station_offers SET filled = %lld, price = %d, paid = %lld, tax = %lld, cleared_t = %lld WHERE id = %d",
+                                 fill[i], price, paid, tax, now, ids[i]);
         }
         if(result == ENGINE_OK)
             result = st_exec("INSERT INTO station_state (station_id, budget, refilled_t) VALUES (%d, %lld, %lld) "

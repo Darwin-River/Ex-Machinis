@@ -327,16 +327,6 @@ ErrorCode_t engine_run()
                 db_rollback_transaction(&engine.db_connection);
         }
 
-        // Taxes (#324 step 12): charge the bills that are due, and
-        // eliminate the companies that can't pay, in one transaction
-        if(db_start_transaction(&engine.db_connection) == ENGINE_OK)
-        {
-            if(db_tax_due() == ENGINE_OK)
-                db_commit_transaction(&engine.db_connection);
-            else
-                db_rollback_transaction(&engine.db_connection);
-        }
-
         // Wait till next engine execution, unless that batch was full: then
         // more events are due, so go on at once (#324 step 20; one batch per
         // ENGINE_CHECK_TIME held the engine to a couple of events a second)

@@ -38,3 +38,23 @@ char *strcat(char *d, const char *s)
 }
 
 void engine_trace(int level, const char *trace, ...) { (void)level; (void)trace; }
+
+/* For the engine's line wrapping (wrap.c, #380) */
+char *strchr(const char *s, int c)
+{
+    for(;; s++) {
+        if(*s == (char)c) return (char *)s;
+        if(!*s) return 0;
+    }
+}
+
+static int lower(int c) { return (c >= 'A' && c <= 'Z') ? c + 32 : c; }
+
+int strncasecmp(const char *a, const char *b, size_t n)
+{
+    for(; n; n--, a++, b++) {
+        int d = lower((unsigned char)*a) - lower((unsigned char)*b);
+        if(d || !*a) return d;
+    }
+    return 0;
+}

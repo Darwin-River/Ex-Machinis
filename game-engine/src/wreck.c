@@ -1,5 +1,5 @@
 /*
- * Wrecks, plunder and taxes (#324 step 12): the arithmetic. See wreck.h.
+ * Wrecks, plunder (#324 step 12) and the sales tax (#380): the arithmetic. See wreck.h.
  */
 #include "wreck.h"
 
@@ -19,17 +19,11 @@ long long wreck_share(long long units, int percent, int wreck, int resource)
     return share;
 }
 
-long long tax_bill(int flat, int permille, long long combined_credits)
+long long sales_tax(long long gross, int permille)
 {
-    long long bill = flat > 0 ? flat : 0;
-    if(permille > 0 && combined_credits > 0)
-        bill += combined_credits * permille / 1000;
-    return bill;
-}
-
-long long tax_periods_due(long long now, long long taxed_t, int period)
-{
-    if(period <= 0 || now <= taxed_t)
+    if(gross <= 0 || permille <= 0)
         return 0;
-    return (now - taxed_t) / period;
+    if(permille >= 1000)
+        return gross;
+    return (gross * permille + 500) / 1000;     // to the nearest credit
 }

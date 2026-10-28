@@ -74,7 +74,7 @@ static ErrorCode_t protocol_flush_events(Bool_t insert)
     for(int i = 0; i < g_pending_count; i++) {
       Event_t* e = &g_pending_events[i];
       keys[i] = (EventKey_t){ e->delay, e->event_type, e->drone_id, e->resource_id,
-                              e->installed, e->locked, e->new_quantity };
+                              e->installed, e->locked, e->new_quantity, e->burn };
     }
     event_order(keys, g_pending_count, order);
     for(int i = 0; i < g_pending_count; i++)
@@ -87,12 +87,18 @@ static ErrorCode_t protocol_flush_events(Bool_t insert)
   // earlier than one already processed would be worked out from older state
   // and undo it (this engine reads the clock once per loop, and on a fast
   // clock the events engine can be ahead of that reading). And the inventory
-  // takes a drone's highest event ID as its latest state, so IDs must keep
-  // game-time order. So the action starts a game second after the drones'
-  // latest event, done or still to come. (A script waits for its own action
-  // anyway; this mostly delays power bills until the current action ends.)
+  // takes the highest event ID of each of a drone's stock entries (resource,
+  // installed, locked) as its latest state, so within an entry IDs must keep
+  // game-time order. So the action starts a game second after the acting
+  // drone's latest event, done or still to come (its script waits for its
+  // own action anyway; this mostly delays power bills until the current
+  // action ends). Another drone it touches, the seller in a pull or the
+  // buyer in a push, only holds it back by events on the entries this action
+  // changes (#380): a pull buys from a drone that is busy mining or
+  // travelling at once, as long as both are at the same place.
   if(insert && g_pending_count > 0) {
     game_time_load();
+    int acting = engine_get_current_drone_id();
     int drones[2 * 8];
     int n = 0;
     for(int i = 0; i < g_pending_count && n < (int)(sizeof(drones) / sizeof(drones[0])); i++) {
@@ -101,7 +107,27 @@ static ErrorCode_t protocol_flush_events(Bool_t insert)
       if(!seen) drones[n++] = d;
     }
     long long latest = 0, now = game_time_now_seconds();
-    if(db_get_latest_processed_game_t(drones, n, &latest) == ENGINE_OK && latest >= now) {
+    for(int j = 0; j < n; j++) {
+      long long t = 0;
+      if(drones[j] == acting || acting <= 0) {
+        db_get_latest_processed_game_t(&drones[j], 1, &t);
+      } else {
+        // The other drone's stock entries this action changes
+        int res[16], inst[16], lock[16], m = 0;
+        for(int i = 0; i < g_pending_count && m < 16; i++) {
+          Event_t* e = &g_pending_events[i];
+          if(e->drone_id != drones[j] ||
+             (e->event_type != INCREMENT_INVENTORY_EVENT_TYPE && e->event_type != DECREMENT_INVENTORY_EVENT_TYPE))
+            continue;
+          res[m] = e->resource_id; inst[m] = e->installed; lock[m] = e->locked; m++;
+        }
+        if(m > 0)
+          db_get_latest_entry_game_t(drones[j], res, inst, lock, m, &t);
+      }
+      if(t > latest)
+        latest = t;
+    }
+    if(latest >= now) {
       long long shift = latest + 1 - now;
       engine_trace(TRACE_LEVEL_ALWAYS, "Action starts [%lld] game s later, after the drones' latest event", shift);
       for(int i = 0; i < g_pending_count; i++)
@@ -603,6 +629,11 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
       // newEvent.processed = 0; // Default memset()
       newEvent.installed = effect->installed;
       newEvent.locked = effect->locked;
+      // The action's own fuel cost: fuel, a fixed amount, from the acting
+      // drone (a transfer's fuel names its amount, and the other drone, on
+      // the stack)
+      newEvent.burn = (effect->resource_id == FUEL_RESOURCE_ID && effect->deplete &&
+                       effect->quantity > 0 && effect->drone_id == 0) ? 1 : 0;
       newEvent.outcome = OUTCOME_NO_OUTCOME;
 
       newEvent.new_quantity = NULL_VALUE;

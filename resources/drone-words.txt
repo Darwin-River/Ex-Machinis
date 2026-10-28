@@ -212,7 +212,9 @@ swap
 system
 then
 throw
+today
 travel
+trip
 tuck
 type
 u.

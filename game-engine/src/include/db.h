@@ -903,13 +903,17 @@ ErrorCode_t db_savepoint(const char* statement);
 /* The game_clock, outbox and trades tables are created by database
    migrations (game-engine/sql/migrations/) */
 
-ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, int buyer, int location);
+ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, int buyer, int location, int tax);
 
 /** Records why an action failed (first reason only) */
 ErrorCode_t db_set_action_outcome(int action_id, int outcome);
 
 /** The latest game time of these drones' events, done or to come (0: none) */
 ErrorCode_t db_get_latest_processed_game_t(const int* drones, int count, long long* game_t);
+ErrorCode_t db_store_positions(DbConnection_t* connection, double acceleration, long long game_t,
+                               ErrorCode_t (*position)(int, CartesianInfo_t*, char*));
+ErrorCode_t db_get_latest_entry_game_t(int drone, const int* resources, const int* installed,
+                                       const int* locked, int count, long long* game_t);
 
 /** Takes up to `wanted` units from the mining deposit of a resource at a
     place (#324 step 11), refilled first for the game time since it was last

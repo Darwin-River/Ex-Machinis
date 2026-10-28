@@ -16,9 +16,10 @@
     The rest is destroyed. */
 ErrorCode_t db_plunder(Event_t* event);
 
-/** Charges the tax bills that are due. A company in its grace period pays
-    nothing; one that can't pay is eliminated: its credits vanish and its
-    drones become wrecks. Run inside a transaction. */
-ErrorCode_t db_tax_due(void);
+/** The sales tax rate (#380), in thousandths of a sale: house_rules.sales_tax_permille */
+int db_sales_tax_permille(void);
+
+/** Records the sales tax a company paid on a sale, with its credits after */
+ErrorCode_t db_record_sales_tax(int company, long long amount, long long credits_after);
 
 #endif

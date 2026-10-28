@@ -28,14 +28,11 @@ int main(void)
         whole += (int)wreck_share(1, 50, w, 5001);
     check("a single part comes away from about half of 1,000 wrecks", whole > 400 && whole < 600);
 
-    check("a bill is the flat tax plus thousandths of the credits", tax_bill(20, 5, 10000) == 70);
-    check("no credits: just the flat tax", tax_bill(20, 5, 0) == 20);
-    check("debt doesn't lower the bill", tax_bill(20, 5, -5000) == 20);
-
-    check("no period has passed yet", tax_periods_due(1000, 900, 86400) == 0);
-    check("one period has passed", tax_periods_due(86400 + 900, 900, 86400) == 1);
-    check("three periods passed while the engine was down", tax_periods_due(3 * 86400 + 950, 900, 86400) == 3);
-    check("no period length, no bills", tax_periods_due(100000, 0, 0) == 0);
+    check("sales tax: 5% of 1,000 is 50", sales_tax(1000, 50) == 50);
+    check("sales tax rounds to the nearest credit", sales_tax(30, 50) == 2 && sales_tax(29, 50) == 1);
+    check("a sale of 9 at 5% pays nothing", sales_tax(9, 50) == 0);
+    check("no rate, no sales tax", sales_tax(1000, 0) == 0);
+    check("nothing paid, no sales tax", sales_tax(0, 50) == 0 && sales_tax(-100, 50) == 0);
 
     printf("%s\n", failures ? "test_wreck: FAILED" : "test_wreck: all passed");
     return failures ? 1 : 0;

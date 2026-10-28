@@ -15,6 +15,7 @@
 #include "event.h"
 #include "db_station.h"
 #include "db_wreck.h"
+#include "wreck.h"
 #include "engine_e.h"
 #include "db.h"
 #include "orbits.h"
@@ -876,13 +877,23 @@ ErrorCode_t event_process_market_transaction
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* peer_user, int amount)
+ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* peer_user, int amount, int* tax)
 {
     ErrorCode_t result = ENGINE_OK;
 
-    // Update bank accounts: amount is what user gains (negative when user buys)
+    // Update bank accounts: amount is what user gains (negative when user
+    // buys). The seller pays the sales tax out of the sale (#380): the buyer
+    // pays the full price, the seller gets it less the tax, which goes to
+    // the House
+    User_t* seller = (amount >= 0) ? user : peer_user;
+    *tax = (int)sales_tax(abs(amount), db_sales_tax_permille());
     user->credits += amount;
     peer_user->credits -= amount;
+    seller->credits -= *tax;
+    if(*tax > 0) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Sales tax: user [%d] pays [%d] of [%d] credits", seller->user_id, *tax, abs(amount));
+        db_record_sales_tax(seller->user_id, *tax, seller->credits);
+    }
 
     engine_trace(TRACE_LEVEL_ALWAYS,
         "Completing market transaction at event [%d], "
@@ -1198,7 +1209,8 @@ static ErrorCode_t event_apply(Event_t *event)
     {
         // Do credits transaction and generate events
         if(market_transaction == ENGINE_TRUE) {
-            event_do_market_transaction(event, &user_info, &peer_user_info, transactionAmount);
+            int tax = 0;
+            event_do_market_transaction(event, &user_info, &peer_user_info, transactionAmount, &tax);
 
             // Record the trade for the market volume queries (#249). The
             // amount is what user gains: positive when user's drone sold.
@@ -1208,7 +1220,7 @@ static ErrorCode_t event_apply(Event_t *event)
             db_insert_trade(event->resource_id, tradedUnits, abs(transactionAmount),
                 user_sold ? user_info.current_drone_id : peer_user_info.current_drone_id,
                 user_sold ? peer_user_info.current_drone_id : user_info.current_drone_id,
-                location);
+                location, tax);
         }
         // Update observation entries
         result = event_update_observations(event);

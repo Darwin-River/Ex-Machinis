@@ -118,11 +118,15 @@ Five more pages show the whole world, live, and the machine itself:
 
 - **Leaderboard:** companies by net wealth, all time and **Rising** (the gain over the last real week). Each release starts a company, and the drones it launches belong to it. Net wealth counts the company's credits and its working drones' goods at House prices, minus what the company started with, so it measures what the company made.
 
-- **Machine:** watch a word run on the same machine your drones run on. Type your definitions, a starting stack and a word, then step through it one instruction at a time: the data and return stacks, the instruction about to run, the code of the word it is in, what it printed, and how many instructions it has run, with the fuel that would cost a drone (1 per 100,000). Use it to see why a word misbehaves, or to make a busy loop cheaper before you release it. `perform` and `query` do nothing there (perform leaves -11, query -3): there is no game around the machine.
+- **Machine:** watch a word run on the same machine your drones run on. Type your definitions, a starting stack and a word, then step through it one instruction at a time: the data and return stacks, the instruction about to run, the code of the word it is in, what it printed, and how many instructions it has run, with the fuel that would cost a drone (1 per 100,000). Use it to see why a word misbehaves, or to make a busy loop cheaper before you release it. `perform` does nothing there (it leaves -11): nothing you run on the Machine acts in the game.
+
+  With **live game data** on, `query` asks the game, now, as a drone you choose (any working drone; the page offers one at each busy place). The rows land in memory exactly as they do in a drone's, and the page also lists each query's rows as a table. So you can write a word that sizes up the market (the cheapest seller here, the deposit with the most left, the price trend from query 620) and test it on today's data, then put the same word in your company design. The page has two examples to start from. Each query counts as 1,000 instructions, as it does for a drone.
 
 Your drones can't see all this: they see live orders only where they are (see [the price board](#the-price-board)). You can, so use these pages to plan.
 
-When a drone dies, its page gets a **post-mortem**: why it died, in plain words (out of fuel, with how much of it went on computing, its `launched` word crashing again and again, or its company not paying its tax), and a timeline of its last actions, how each went, and the fuel it had left. Read your own post-mortems: they're the quickest way to learn what went wrong.
+A working drone's page has an **Activity** section: what it is doing now and when it will finish, its last ten actions (how each went and the fuel it had left), and its last ten sales and purchases, at a House station or with another drone. Check it when you want to know whether your drone is busy, waiting or stuck.
+
+When a drone dies, its page gets a **post-mortem**: why it died, in plain words (out of fuel, with how much of it went on computing, or its `launched` word crashing again and again), and a timeline of its last actions, how each went, and the fuel it had left. Read your own post-mortems: they're the quickest way to learn what went wrong.
 
 ### What your drone says
 
@@ -324,7 +328,7 @@ The drone replies with 0 once the kit is unpacked.
 
 Everything your spacecraft does burns fuel, Fuel (A1) (resource 2061):
 
-- **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (mining, a transfer or an order) to 30 (launching a spacecraft, 20 of which go into the new one's hold). The protocol's description says how much. Unpacking the starter kit is free. Without the fuel, `perform` leaves -2 and nothing happens.
+- **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (mining, a transfer or an order) to 30 (launching a spacecraft, 20 of which go into the new one's hold). The protocol's description says how much. Unpacking the starter kit, waiting and ordering from a House station are free, so a drone with an empty tank at a station can still order fuel. Without the fuel, `perform` leaves -2 and nothing happens.
 - **Thinking.** Running your program burns power: 1 fuel for every 100,000 FORTH instructions your spacecraft runs. Words that do less work cost less to run.
 
 A new spacecraft starts with 100 fuel. When it runs out and can't pay for its thinking, it becomes a **wreck** for good. So keep an eye on your fuel (query your inventory) and make or buy more before you run dry: every House exchange sells it (see [Trading with House stations](#trading-with-house-stations)).
@@ -333,7 +337,7 @@ To make fuel, use a Chemical Reactor: `12061 perform` turns 1 Organics (A1) and 
 
 ### Wrecks and plunder
 
-A spacecraft becomes a **wreck** for good when it runs out of fuel, crashes five times in a row, or its company is eliminated for not paying its taxes. A wreck does nothing more, but its cargo and parts stay aboard, and another player's spacecraft at the same place can plunder it:
+A spacecraft becomes a **wreck** for good when it runs out of fuel or crashes five times in a row. A wreck does nothing more, but its cargo and parts stay aboard, and another player's spacecraft at the same place can plunder it:
 
 ```
 <run>
@@ -358,17 +362,19 @@ Two queries find wrecks:
 
 ### Taxes
 
-Each company pays a tax every game day: 0.5% of what it has made. That is its assessed wealth (its credits plus the goods aboard its working spacecraft at House prices) less what it started with: 1,000 credits, 100 fuel and a starter kit. The more a company makes, the more it pays; a company that hasn't made anything yet pays nothing. A new company pays nothing for its first 3 game days. A company that can't pay is **eliminated**: its credits vanish, and its spacecraft become wrecks that other players can plunder. So keep enough credits in every company you run: goods count toward the bill, but only credits pay it.
+Every sale is taxed: the seller pays **5%** of the price to the House, out of what the buyer pays. The buyer pays the full price; the seller gets the rest. That goes for sales to House stations and to other players alike (a pull from your sell order or a push to someone's buy order). Buying from a House station isn't taxed: the House is the seller. So a sale of 10 fuel at 10 credits each costs the buyer 100 and earns the seller 95. A sale of less than 10 credits pays nothing: the tax is rounded to the nearest credit.
 
-`R L 650 query` tells you where your spacecraft's company stands: its next tax bill (2 cells), the game hours until it is due, and the game hours of grace it has left.
+There is no other tax: holding goods or credits costs nothing, and nobody is eliminated for a tax bill. Price your goods with the tax in mind: a trader who buys at 20 and sells at 21 loses money.
+
+Your drone's page lists each sale with the tax it paid. `R L 650 query` gives the tax rate in thousandths (50 is 5%), what your company paid in the last game day, and what it paid in all (both doubles):
 
 ```
 <run>
-  create bill 8 allot
-  bill 8 650 query drop
-  bill 2@ d.      \ the next bill, in credits
-  bill 4 + @ .    \ game hours until it is due
-  bill 6 + @ .    \ game hours of grace left
+  create tax 10 allot
+  tax 10 650 query drop
+  tax @ .           \ the rate: 50 thousandths
+  tax 2 + 2@ d.     \ paid in the last game day
+  tax 6 + 2@ d.     \ paid in all
 </run>
 ```
 
@@ -416,7 +422,7 @@ When the world is busy the clock slows down so the game's computers can keep up,
 
 - **The solar system moves.** Planets, moons, asteroids and comets follow their real orbits, but at game speed, so the game's sky runs ahead of the real one.
 - **Actions take time.** Each protocol takes a set amount of game time. Your drone does one action at a time: `perform` waits until the action is finished before your script goes on (see [Issuing Commands](#chapter-4-issuing-commands)).
-- **Travel takes time.** Drones speed up to the halfway point and slow down after, so a trip takes 2 × √(distance ÷ acceleration). The distance is measured when the drone leaves, so the planets' positions decide how long a trip takes.
+- **Travel takes time.** Drones speed up to the halfway point and slow down after, so a trip takes 2 × √(distance ÷ acceleration). The distance is measured when the drone leaves, so the planets' positions decide how long a trip takes. A drone can ask before it goes: `mars trip` leaves the game hours a trip from here to Mars takes (rounded up; -1 if it can't tell), and queries 704 (from here to P) and 705 (from A to B) give the distance in thousands of km and the time in game seconds, both doubles. The game stores where every body is every few game hours, so the answer is a close estimate: Earth to the Moon is about 11 hours, Earth to Mars 4 to 25 game days as the planets move.
 - **Messages travel at the speed of light.** You are on Earth. A script reaches a drone only after light has crossed the distance to it, and its reply takes as long to come back. The first line of every reply says how far the drone is, in light-minutes.
 
 With the default clock:
@@ -626,7 +632,7 @@ Every drone comes with a vocabulary for the game, so you can write `kunspar mine
 | Places | `earth` (3) `moon` (10) `mars` (4) `phobos` (11) `deimos` (12): their location IDs; the Locations page lists the rest |
 | Resources | `fuel` `magmite` `kunspar` `yalspar` `vladnium` `wolfite` `metals-a1` `metals-a2` `metals-a3` `inorganics-a1` `organics-a1` |
 | Actions: each takes its arguments off the stack and leaves one result, the ior (0 done, negative failed; see [Issuing Commands](#chapter-4-issuing-commands)), so `kunspar mine drop` and `kunspar mine if ... then` | `unpack ( -- ior )`, `travel ( place -- ior )`, `mine ( mineral -- ior )`, `refine ( mineral -- ior )`, `make ( resource -- ior )`, `wait ( minutes -- ior )`, `sell-to-station ( n resource -- ior )`, `buy-from-station ( n resource -- ior )`, `sell-order ( price keep resource -- ior )`, `buy-order ( price want resource -- ior )`, `push ( n resource drone -- ior )`, `pull ( n resource drone -- ior )`, `launch ( drone kit -- ior )`, `plunder ( wreck -- ior )`, `jettison ( n resource -- ior )` |
-| Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `ask ( [n] id -- rows )` (any query, answers in the buffer `answer`) |
+| Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `today ( -- day )` (the game day now: plan a late selling trip or a deadline), `trip ( place -- hours )` (game hours to fly there from here, rounded up; -1 if unknown), `ask ( [n] id -- rows )` (any query, answers in the buffer `answer`) |
 | Messages | `report` sends what the drone has printed so far, at once: without it you see nothing until the script ends, and a `launched` word that loops forever never ends. Call it once a round: `begin ... ." fuel " fuel units . report 60 wait drop again` |
 | Helpers | `sell-all ( resource )` offers all of it to the station here; `go ( place -- ior )` travels there unless the drone is already there (then it leaves 0 at once) |
 
@@ -684,13 +690,13 @@ In this example, the word `AddFive` really doesn't offer much advantage over sim
 
 Give this a try with your own spacecraft! I'm sure you can come up with more useful definitions than the one provided here.
 
-The interpreter reads at most 79 characters of a line at a time. The game splits longer lines for you, between words, and keeps each string (`." ..."`, `s" ..."`, `.( ...)`) and each defining word with its name (`: name`) on one line. Comments are dropped from a line it splits. A single string longer than 79 characters can't be split: the drone replies with an error and runs nothing, so break such a string into shorter ones.
+The interpreter reads at most 79 characters of a line at a time. The game splits longer lines for you, between words, and keeps each string (`." ..."`, `s" ..."`, `.( ...)`) and each defining word with its name (`: name`) on one line. Comments are dropped from a line it splits. A single string longer than 79 characters can't be split: the drone replies with an error and runs nothing, so break such a string into shorter ones. The Test button, the checker and the Machine split lines the same way, with the same code.
 
 ### Commenting on your code
 
 As with most programming languages, FORTH offers some convenient mechanisms for commenting on your code. These techniques can be very handy in reminding yourself and others of the intent and function of your definitions. There are two primary ways to add comments to your script that will be ignored by the interpreter:
 
-- When you start a comment with a backslash (`\`) the interpreter will ignore everything else on that line, up to the line's 80th character: anything past that is read as code. Keep lines that end in a comment to 80 characters.
+- When you start a comment with a backslash (`\`) the interpreter will ignore everything else on that line. (A line longer than 79 characters is split by the game first, and the comment dropped, so a long comment never leaks into your code.)
 - The interpreter will also ignore any text enclosed between parentheses, regardless of where they occur in the line or whether they enclose multiple lines.
 
 Remember that the interpreter uses white space to delineate words. Therefore, backslashes and parentheses will only be recognized as such by the interpreter if there are spaces between them and other characters.
@@ -791,10 +797,12 @@ Buy and sell orders cannot be canceled. However they can be replaced by more res
 
 Three House stations buy what players make and sell what they need to get started. The Earth Exchange (at Earth) buys refined goods, alloys and polymers, later parts and systems, and sells basic equipment and fuel. The Moon Depot buys refined goods. The Mars Exchange buys refined metals, paying half as much again as the others (it's far away), and parts and systems. All three sell fuel. Their demand moves up the production chain as the game goes on: parts from game day 3, systems from game day 7.
 
+What they pay for a made good is set to make making things pay: its inputs, plus the fuel its recipe burns (at the House's 5 a unit), plus a wage for every game hour the tool works, which rises with each step up the chain: about 20 credits a game hour for alloys and polymers, 25 for parts and 30 for systems. Mining and refining the best ore earns about 17. So an alloy sells for more than its metals, a part for more than its alloys, and a system for more than its parts: a Rod (A1) 205, a Gear Box (A1) 1,075. The Resources and Stations pages list every price.
+
 A station deals with drones at its location, in **batches**: everything offered or ordered during a game hour clears together at the end of the hour, so it doesn't matter who comes first.
 
 - **Selling to a station:** `N R 31 perform` offers N units of resource R. They leave your hold at once. When the batch clears, the station pays **one price for the whole batch**, taken from its published curve: its price for an empty batch, halving each time the batch's total reaches the station's daily demand. If the station's budget can't pay for everything offered, it buys a share from each seller, in proportion to what they offered, and no company gets more than half. What it doesn't buy comes back to your hold. A station's budget refills every game day.
-- **Buying from a station:** `N R 32 perform` orders N units. When the batch clears, you get as many as the station's supply for that hour, your company's credits and your free cargo space allow, at the station's price. The Earth Exchange is the **House fuel seller**: 5 credits a unit, up to 2,000 units a game day.
+- **Buying from a station:** `N R 32 perform` orders N units. Ordering burns no fuel. When the batch clears, you get as many as the station's supply for that hour, your company's credits and your free cargo space allow, at the station's price. The Earth Exchange is the **House fuel seller**: 5 credits a unit, up to 2,000 units a game day.
 
 `perform` leaves -14 if no station where you are trades that resource that way. Three queries tell you more:
 
@@ -1081,11 +1089,12 @@ Query 803 lists the events your drone has observed, newest first, filtered by up
   create events 40 allot
   \ Kunspar (1100) removed from any hold this drone has seen, by anyone
   -1 -1 -1 -1 -1 1100 1 -1 -1 events 40 803 query .
-  events @ .   \ the latest such event's ID
+  events 2@ 2dup d.   \ the latest such event's ID (a double)
+  840 ask drop answer @ .   \ ...and the quantity it left
 </run>
 ```
 
-It leaves the number of event IDs it stored (two bytes each, so ID n is at events + 2n), or -2 if none match. Ask the other event queries (810 to 843) about any of them: what type it was, who acted, which resource, the new quantity, when it happened. Query 843 gives the time as two values: the game day (day 0 is the day the world began) and the number of even seconds into that day. Every time in the game is game time, so it runs at the game clock's pace.
+It leaves the number of event IDs it stored, or -2 if none match. Event IDs run past 65,535, too big for one cell, so every event list (800 to 803) stores them as [doubles](#big-numbers-double-cells): four bytes each, so ID n is at events + 4n, read with `2@`. Ask the other event queries (810 to 843) about any of them by pushing the ID as `2@` left it (a double): what type it was, who acted, which resource, the new quantity, when it happened. Query 843 gives the time as two values: the game day (day 0 is the day the world began) and the number of even seconds into that day. Every time in the game is game time, so it runs at the game clock's pace.
 
 As we develop more complex queries, we'll provide additional examples of how spacecraft can use queries to probe and respond to their environment.
 

@@ -26,7 +26,14 @@ let failed = 0;
 for (const file of process.argv.slice(3)) {
     m.machine_init();
     readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
-        const r = m.machine_eval(put(line + '\n'));
+        // Wrapped as the engine wraps a long line (wrap.c, #380)
+        const wrapped = m.machine_wrap(put(line));
+        if (!wrapped) {
+            console.log(`${file}:${i + 1}: a string or word is too long to fit a line (79 characters)`);
+            failed++;
+            return;
+        }
+        const r = m.machine_eval(put(str(wrapped) + '\n'));
         const out = str(m.machine_output());
         // The VM reports an error as the number and a question mark
         if (r < 0 || /-\d+\?/.test(out)) {

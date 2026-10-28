@@ -488,6 +488,9 @@ def fuel_cost(pid):
     p = int(pid)
     if p in (25901, int(POWER_PROTOCOL), 33, 35, int(WAIT_PROTOCOL)):
         return 0
+    if p == 32:
+        return 0                      # ordering from a House station (#380): a drone with no fuel
+                                      # docked at a station could not order any, and died there
     if p == int(LAUNCH_PROTOCOL):
         return 10 + LAUNCH_FUEL           # 10 burned, 20 for the clone's tank
     if p == 5001:
@@ -804,9 +807,7 @@ BUYS, SELLS = 1, 2
 METALS = ((2011, 20, 200), (2012, 30, 150), (2013, 40, 100))
 STATION_GOODS = []
 for st in (1, 2):
-    for rid, price, demand in METALS + ((2031, 8, 200),
-                               (2041, 12, 200), (2021, 30, 100), (2022, 40, 80), (2023, 50, 60),
-                               (2051, 30, 100)):
+    for rid, price, demand in METALS + ((2031, 8, 200), (2041, 12, 200)):
         STATION_GOODS.append((st, rid, BUYS, price, demand, 0))
 for rid, price, demand in METALS:
     STATION_GOODS.append((3, rid, BUYS, price * 3 // 2, demand, 0))
@@ -825,17 +826,58 @@ for st in (1, 2, 3):
     STATION_GOODS.append((st, 5901, SELLS, 2000, 24, 0))
 # The Mars Exchange buys the chemists' goods too (#380), so they can work
 # Phobos and Deimos instead of crowding the Moon's yalspar
-for rid, price, demand in ((2031, 8, 200), (2041, 12, 200), (2051, 30, 100),
+for rid, price, demand in ((2031, 8, 200), (2041, 12, 200),
                            (2032, 10, 200), (2033, 12, 200), (2042, 15, 200), (2043, 18, 200)):
     STATION_GOODS.append((3, rid, BUYS, price, demand, 0))
-# Parts and systems pay half as much again as they did (#380): at 60 a
-# rod, making one from two metals and 5 fuel barely paid, and nobody made
-# any. At 90 the Smith design became the best earner per game day.
+# Making things pays (#380): a made good is worth its inputs, plus the fuel
+# its recipe burns, plus a wage for each game hour its tool works, and the
+# wage rises a tier at a time. Mining and refining wolfite, the best ore,
+# earns about 17 credits a game hour; alloys and polymers earn 20, parts 25,
+# systems 30, so each step up the chain pays more than the one below. Until
+# round 22 an alloy sold for less than its two metals and a gear box earned
+# about 4 an hour: newcomers worked that out and only mined.
+WAGE = {2: 20, 3: 25, 4: 30}   # credits a game hour, by tier (first digit)
+FUEL_PRICE = 5                 # what the House sells fuel for
+RAW_VALUE = {'2011': 20, '2012': 30, '2013': 40, '2031': 8, '2032': 10, '2033': 12,
+             '2041': 12, '2042': 15, '2043': 18}
+
+
+def made_value(rid, seen=()):
+    """The House's price for a made good: its inputs, fuel and a wage for
+    the time it takes, per unit made (None when no recipe makes it alone)"""
+    rid = str(rid)
+    if rid in RAW_VALUE:
+        return RAW_VALUE[rid]
+    for pid, rec in recipes.items():
+        if list(rec['outputs']) != [rid] or rid in seen:
+            continue
+        made = rec['outputs'][rid]
+        stage = production_stage(pid)
+        if not stage:
+            continue
+        inputs = 0
+        for i, q in rec['inputs'].items():
+            v = made_value(i, seen + (rid,))
+            if v is None:
+                break
+            inputs += v * q
+        else:
+            return round((inputs + fuel_cost(pid) * FUEL_PRICE + stage[1] / HOUR * WAGE.get(int(rid[0]), 30)) / made)
+    return None
+
+
+# Alloys and polymers at Earth and the Moon, from day 0
+for st in (1, 2):
+    for rid, demand in ((2021, 100), (2022, 80), (2023, 60), (2051, 100)):
+        STATION_GOODS.append((st, rid, BUYS, made_value(rid), demand, 0))
+# Mars buys polymers too, like the chemists' other goods
+STATION_GOODS.append((3, 2051, BUYS, made_value(2051), 100, 0))
+# Parts from day 3 and systems from day 7, at Earth and Mars
 for st in (1, 3):
-    for rid, price in ((3001, 90), (3011, 90), (3031, 75), (3311, 105)):
-        STATION_GOODS.append((st, rid, BUYS, price, 50, 3))
+    for rid in (3001, 3011, 3031, 3311):
+        STATION_GOODS.append((st, rid, BUYS, made_value(rid), 50, 3))
     for rid in (4111, 4281, 4311):
-        STATION_GOODS.append((st, rid, BUYS, 450, 10, 7))
+        STATION_GOODS.append((st, rid, BUYS, made_value(rid), 10, 7))
 for rid, price, supply in ((FUEL, 5, 2000), (5001, 400, 10), (5131, 300, 10), (5201, 500, 10),
                            (5211, 600, 10), (5501, 900, 5)):
     STATION_GOODS.append((1, rid, SELLS, price, supply, 0))
@@ -849,6 +891,14 @@ for st, rid, _, _, _, _ in STATION_GOODS:
 
 HERE_STATION = f"(SELECT id FROM stations WHERE object_id = {HERE_})"
 TODAY = "FLOOR(([game_now] - (SELECT epoch FROM game_clock WHERE id = 1)) / 86400)"
+# The game time now (#380): a drone couldn't tell what day it was, so it
+# couldn't plan a late selling trip or a deadline (a newcomer built a day
+# counter out of the tax query)
+queries.append((207, 'Game time now',
+                '[R L 207 query]: The game time now: the game day (day 0 is the world\'s first) and the minutes into '
+                'it (0 to 1,439).', 0,
+                "SELECT FLOOR(([game_now] - epoch) / 86400) AS day, FLOOR(MOD([game_now] - epoch, 86400) / 60) AS minute "
+                "FROM game_clock WHERE id = 1;"))
 queries.append((630, 'Station trades here',
                 '[R L 630 query]: What the House station where the drone is trades now: resource, side (1: it buys, '
                 '2: it sells), price (2 cells; buying: for an empty batch, halving per daily units), daily units, '
@@ -876,15 +926,22 @@ queries.append((632, 'Station budget here',
 # 0.5% a game day and no flat part, after 3 game days; a plunderer gets half
 # a wreck. The starter package (1,000 credits and 100 fuel, and the kit)
 # must match config/forge.php.
-HOUSE_RULES = [(1, DAY, 3 * DAY, 0, 5, 50, 1000, 100)]
+# A sales tax instead (#380): the daily tax took a share of goods too, but
+# only credits paid it, so a trader holding stock could be eliminated with
+# thousands aboard. Now the seller pays SALES_TAX_PERMILLE thousandths of
+# every sale (to a player or a station) out of what the buyer pays, and the
+# daily tax is off (tax_period 0).
+SALES_TAX_PERMILLE = 50
+HOUSE_RULES = [(1, 0, 3 * DAY, 0, 5, 50, 1000, 100, SALES_TAX_PERMILLE)]
 MY_COMPANY = "(SELECT company_id FROM agents WHERE agent_id = [drone_id])"
 queries.append((650, 'My taxes',
-                '[R L 650 query]: The drone\'s company\'s next tax bill (2 cells), game hours until it is due, and '
-                'game hours of grace left (no tax until then). A company that can\'t pay is eliminated.', 0,
-                "SELECT h.tax_flat + FLOOR(h.tax_permille * (SELECT IFNULL(w.taxable, 0) FROM company_taxable w "
-                "WHERE w.company_id = c.company_id) / 1000) AS d_tax, "
-                "GREATEST(0, CEIL((IFNULL(c.taxed_t, [game_now]) + h.tax_period - [game_now]) / 3600)), "
-                "GREATEST(0, CEIL((IFNULL(c.founded_t, [game_now]) + h.tax_grace - [game_now]) / 3600)) "
+                '[R L 650 query]: The sales tax: the share of each sale the seller pays, in thousandths (50 is 5%); '
+                'what the drone\'s company paid in the last game day (2 cells), and in all (2 cells).', 0,
+                "SELECT h.sales_tax_permille, "
+                "(SELECT IFNULL(SUM(t.amount), 0) FROM company_taxes t WHERE t.company_id = c.company_id "
+                "AND t.eliminated = 0 AND t.charged_t > [game_now] - 86400) AS d_day, "
+                "(SELECT IFNULL(SUM(t.amount), 0) FROM company_taxes t WHERE t.company_id = c.company_id "
+                "AND t.eliminated = 0) AS d_all "
                 f"FROM companies c JOIN house_rules h ON h.id = 1 WHERE c.company_id = {MY_COMPANY};"))
 queries.append((660, 'Wrecks here',
                 '[R L 660 query]: The wrecks where the drone is: drone ID, 1 if it has been plundered (else 0).', 0,
@@ -941,6 +998,48 @@ queries.append((680, 'Price board',
                 "SELECT location, IFNULL(SUM(units),0) AS d_units, IFNULL(SUM(credits),0) AS d_credits, COUNT(*) "
                 f"FROM trades WHERE resource=[value_1] AND location IS NOT NULL AND game_t<=[game_now]-{BOARD_LAG} "
                 f"AND game_t>[game_now]-{BOARD_LAG}-{DAY} GROUP BY location ORDER BY location;"))
+
+# Planning trips (#380): the Game Engine stores every body's position each
+# minute (objects.x_coord ...) and its travel acceleration (game_clock), so a
+# drone can work out a trip's length and time before it goes. A trip takes
+# 2 * sqrt(distance / acceleration), as protocol_plan_travel times it.
+# Distances are in thousands of km and seconds are doubles: Neptune is 4.5
+# million thousand-km away, and the trip there takes about 4 million seconds.
+def trip(a, b):
+    km = (f"SQRT(POW({a}.x_coord-{b}.x_coord,2)+POW({a}.y_coord-{b}.y_coord,2)+POW({a}.z_coord-{b}.z_coord,2))")
+    secs = f"GREATEST(1, 2*SQRT({km}*1000/(SELECT travel_acceleration FROM game_clock WHERE id = 1)))"
+    return (f"SELECT ROUND({km}/1000) AS d_thousand_km, ROUND({secs}) AS d_seconds, CEIL({secs}/3600) AS hours "
+            f"FROM objects {a}, objects {b} WHERE {a}.x_coord IS NOT NULL AND {b}.x_coord IS NOT NULL")
+TRIP_COLUMNS = ('the distance in thousands of km (2 cells), the trip time in game seconds (2 cells) and in game '
+                'hours, rounded up')
+queries = [q for q in queries if q[0] not in (703, 704, 705)]
+queries.append((703, 'Get location coordinates',
+                '[N R L 703 query]: Where location N is now: x, y and z from the Sun, in thousands of km (each 2 '
+                'cells, 2@). Updated every few game hours.', 1,
+                "SELECT ROUND(x_coord/1000) AS d_x, ROUND(y_coord/1000) AS d_y, ROUND(z_coord/1000) AS d_z "
+                "FROM objects WHERE object_id=[value_1] AND x_coord IS NOT NULL;"))
+queries.append((704, 'Trip from here',
+                f'[P R L 704 query]: A trip from where the drone is to location P: {TRIP_COLUMNS}.', 1,
+                trip('a', 'b') + f" AND a.object_id={HERE_} AND b.object_id=[value_1];"))
+queries.append((705, 'Trip between places',
+                f'[A B R L 705 query]: A trip from location A to location B: {TRIP_COLUMNS}.', 2,
+                trip('a', 'b') + " AND a.object_id=[value_2] AND b.object_id=[value_1];"))
+
+# Event IDs pass 65,535 (#380), too big for a cell: the event lists return
+# doubles (read with 2@) and the event lookups take one (an event ID's two
+# cells, as 2@ leaves them: [dvalue_1])
+EVENT_ID_NOTE = ' Event IDs are doubles (2 cells, 2@).'
+def double_event_ids(q):
+    qid, name, desc, params, script = q
+    if qid in (800, 801, 802, 803):
+        script = re.sub(r'^SELECT (e\.)?id ', lambda m: f'SELECT {m.group(1) or ""}id AS d_id ', script)
+        return (qid, name, (desc.rstrip() + EVENT_ID_NOTE)[:255], params, script)
+    if 810 <= qid <= 849 and '[value_1]' in script:
+        script = script.replace('[value_1]', '[dvalue_1]')
+        desc = desc.rstrip() + ' N is an event ID, a double (2 cells) as an event list (800-803) leaves it with 2@.'
+        return (qid, name, desc[:255], 2, script)
+    return q
+queries = [double_event_ids(q) for q in queries]
 
 # Queries whose money or volume columns are double cells: say so
 DOUBLE_QUERIES = {101, 600, 601, 610, 611, 612, 620, 621, 841}  # 630-632 say so themselves
@@ -1042,7 +1141,7 @@ lines.append("INSERT INTO `event_types` (id, name) VALUES (11, 'Plunder wreck') 
 lines.append('')
 lines.append('-- Taxes and plunder (#324 step 12), placeholders to tune in step 20')
 table('house_rules', ['id', 'tax_period', 'tax_grace', 'tax_flat', 'tax_permille', 'plunder_share',
-                      'start_credits', 'start_fuel'], HOUSE_RULES)
+                      'start_credits', 'start_fuel', 'sales_tax_permille'], HOUSE_RULES)
 lines.append('')
 lines.append('-- House drop stations (#324 step 10): what they trade. Their budgets')
 lines.append('-- (station_state) are kept: a new station starts with a full budget.')

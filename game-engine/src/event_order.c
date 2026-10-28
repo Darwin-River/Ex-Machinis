@@ -8,7 +8,6 @@
 
 #define ORDER_INCREMENT 1
 #define ORDER_DECREMENT 2
-#define ORDER_FUEL      2061
 
 typedef struct
 {
@@ -52,7 +51,7 @@ void event_order(const EventKey_t *keys, int n, int *order)
         k[i].half = 0;
         k[i].rank = 3;
         if(keys[i].event_type == ORDER_DECREMENT)
-            k[i].rank = keys[i].resource_id == ORDER_FUEL ? 0 : 2;
+            k[i].rank = keys[i].burn ? 0 : 2;
     }
 
     // Pair each other decrement with the first unpaired increment that puts

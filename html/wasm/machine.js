@@ -23,6 +23,9 @@
     let prepared = false;
     let rbase = 0;         // return stack depth under the word: the interpreter's
     let halt = -1;         // the return address that ends the word
+    let catalog = {};      // query id -> {name, parameters, strings} (#380)
+    let protocols = {};    // protocol id -> {name, parameters}
+    let asking = false;    // a live query is on its way
 
     const mem = () => new Uint8Array(m.memory.buffer);
     function put(text) {
@@ -31,6 +34,18 @@
         mem().set(bytes.subarray(0, 16000), at);
         mem()[at + Math.min(bytes.length, 16000)] = 0;
         return at;
+    }
+    // Text as the engine passes it to a drone: each line over 79
+    // characters re-wrapped at spaces (wrap.c, #380). null when a string
+    // can't be split to fit.
+    function wrapText(text) {
+        const out = [];
+        for (const line of text.split('\n')) {
+            const at = m.machine_wrap(put(line));
+            if (!at) return null;
+            out.push(str(at));
+        }
+        return out.join('\n');
     }
     function str(at) {
         const b = mem();
@@ -173,6 +188,109 @@
         return best < 0 ? cell : starts[best];
     }
 
+    // Live data (#380): the word called query. Take its arguments off the
+    // stack as the engine does, run it on the game's data as the chosen
+    // drone, write the rows into memory and leave what query leaves.
+    async function answerQuery() {
+        let id = m.machine_query_pending();
+        if (id === -1) id = 0;
+        const meta = catalog[id];
+        if (!meta) { m.machine_query_answer(-3); logQuery(id, 'no such query: -3, its other arguments stay'); return; }
+        if (m.machine_depth() < 2 + meta.parameters) {
+            while (m.machine_depth() > 0) m.machine_pop();
+            m.machine_query_answer(-1);
+            logQuery(id, 'not enough on the stack: -1');
+            return;
+        }
+        const size = m.machine_pop() & 0xffff;
+        const addr = m.machine_pop() & 0xffff;
+        const values = [];
+        for (let i = 0; i < meta.parameters; i++) values.push(m.machine_pop());
+        const params = new URLSearchParams({ id, drone: $('m-drone').value, size });
+        values.forEach((v) => params.append('v[]', v));
+        for (const k of meta.strings) {
+            const at = values[k - 1] & 0xffff;
+            let text = '';
+            for (let i = 0, n = m.machine_read_byte(at); i < n; i++) text += String.fromCharCode(m.machine_read_byte(at + 1 + i));
+            params.append('s[' + k + ']', text);
+        }
+        asking = true;
+        show('Asking query ' + id + ' (' + meta.name + ') as drone ' + $('m-drone').value + '...');
+        try {
+            // Too many queries a minute (the website limits them): wait and ask again
+            let response;
+            for (let tries = 0; ; tries++) {
+                response = await fetch($('machine').dataset.query + '?' + params, { headers: { Accept: 'application/json' } });
+                if (response.status !== 429 || tries >= 5) break;
+                show('Many queries this minute: waiting a few seconds before asking again...');
+                await new Promise((resolve) => setTimeout(resolve, 5000));
+            }
+            const answer = await response.json();
+            if (!response.ok) throw new Error(answer.error || answer.message || response.status);
+            const bytes = atob(answer.bytes || '');
+            for (let i = 0; i < bytes.length; i++) m.machine_write_byte(addr + i, bytes.charCodeAt(i));
+            m.machine_query_answer(answer.code);
+            logQuery(id, (answer.code >= 0 ? answer.code + ' rows' : 'failed or found nothing: ' + answer.code), answer.rows, values);
+        } catch (e) {
+            m.machine_query_answer(-2);
+            logQuery(id, 'the website could not run it (' + e.message + '): -2', [], values);
+        } finally {
+            asking = false;
+        }
+    }
+
+    // Each live query, newest first, with the rows it stored
+    function logQuery(id, result, rows, values, name) {
+        const meta = name ? { name } : (catalog[id] || { name: 'unknown' });
+        const box = $('m-queries');
+        const item = document.createElement('div');
+        item.style.marginBottom = '0.75em';
+        const head = document.createElement('div');
+        head.textContent = (String(id).startsWith('perform') ? '' : 'query ') + id + ' (' + meta.name + ')' + (values && values.length ? ' with ' + values.join(' ') : '') + ': ' + result;
+        item.appendChild(head);
+        if (rows && rows.length) {
+            const table = document.createElement('table');
+            table.className = 'table-ticket';
+            table.style.fontFamily = 'monospace';
+            const cols = Object.keys(rows[0]);
+            const tr = document.createElement('tr');
+            for (const c of cols) { const th = document.createElement('th'); th.textContent = c; tr.appendChild(th); }
+            table.appendChild(tr);
+            for (const row of rows.slice(0, 20)) {
+                const r = document.createElement('tr');
+                for (const c of cols) { const td = document.createElement('td'); td.textContent = row[c] === null ? '' : row[c]; r.appendChild(td); }
+                table.appendChild(r);
+            }
+            item.appendChild(table);
+        }
+        box.prepend(item);
+    }
+
+    // perform, live: take the protocol's arguments as the engine does and
+    // leave -11 (nothing acts in the game from here)
+    function answerPerform() {
+        let id = m.machine_perform_pending();
+        if (id === -1) id = 0;
+        const meta = protocols[id];
+        const n = meta ? meta.parameters : 0;
+        const values = [];
+        for (let i = 0; i < n && m.machine_depth() > 0; i++) values.push(m.machine_pop());
+        m.machine_query_answer(-11);
+        logQuery('perform ' + id, 'not done here (-11)', [], values, meta ? meta.name : 'no such protocol');
+    }
+
+    async function answerPending() {
+        if (m.machine_perform_pending()) answerPerform();
+        else if (m.machine_query_pending()) await answerQuery();
+    }
+
+    async function step(n) {
+        if (asking) return;
+        m.machine_step(n);
+        await answerPending();
+        show();
+    }
+
     function doneMessage() {
         const error = m.machine_depth() ? m.machine_stack(0) : 0;
         return error === 0
@@ -186,11 +304,15 @@
         prepared = false;
         listed = -1;
         m.machine_init();
-        let r = m.machine_eval(put($('m-defs').value + '\n'));
+        const wrapped = wrapText($('m-defs').value);
+        if (wrapped === null) { fail('A string in your definitions is too long to fit a line (79 characters): split it.'); return; }
+        let r = m.machine_eval(put(wrapped + '\n'));
         if (r < 0) { fail('Your definitions stopped with error ' + r + '. ' + str(m.machine_output())); return; }
         learnNames();
         m.machine_init();
-        m.machine_eval(put($('m-defs').value + '\n'));
+        m.machine_set_live($('m-live').checked ? 1 : 0);
+        $('m-queries').innerHTML = '';
+        m.machine_eval(put(wrapped + '\n'));
         r = m.machine_eval(put($('m-start').value + '\n'));
         if (r < 0) { fail('The starting stack stopped with error ' + r + '.'); return; }
         const word = $('m-word').value.trim();
@@ -213,7 +335,7 @@
         running = true;
         $('m-run').textContent = 'Stop';
         const limit = Number($('m-limit').value) || 1000000;
-        const tick = () => {
+        const tick = async () => {
             if (!running || m.machine_done() || m.machine_count() >= limit) {
                 running = false;
                 $('m-run').textContent = 'Run';
@@ -221,6 +343,7 @@
                 return;
             }
             m.machine_step(Math.min(5000, limit - m.machine_count()));
+            await answerPending();
             show();
             requestAnimationFrame(tick);
         };
@@ -232,8 +355,18 @@
         const wasm = await WebAssembly.instantiate(await response.arrayBuffer(), {});
         m = wasm.instance.exports;
         $('m-load').addEventListener('click', load);
-        $('m-step').addEventListener('click', () => { m.machine_step(1); show(); });
-        $('m-step10').addEventListener('click', () => { m.machine_step(10); show(); });
+        $('m-step').addEventListener('click', () => step(1));
+        $('m-step10').addEventListener('click', () => step(10));
+        // The game's queries, for live data (#380)
+        try {
+            catalog = await (await fetch($('machine').dataset.queries, { headers: { Accept: 'application/json' } })).json();
+            protocols = await (await fetch($('machine').dataset.protocols, { headers: { Accept: 'application/json' } })).json();
+        } catch (e) {
+            $('m-live').checked = false;
+            $('m-live').disabled = true;
+        }
+        $('m-vantage').addEventListener('change', () => { if ($('m-vantage').value) $('m-drone').value = $('m-vantage').value; });
+        $('m-live').addEventListener('change', load);
         $('m-run').addEventListener('click', run);
         load();
     }
