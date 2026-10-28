@@ -74,6 +74,10 @@
     then drop
   repeat 2drop 0 ;
 
+\ Holding more than half of what sold at Earth yesterday (query 682)?
+\ Sell first, or make something else
+: overstocked? ( product -- f ) dup units 2 *  swap 1 earth sold  > ;
+
 \ Credits above cash-floor, at most 32,000 (credits are a double). Define
 \ cash-floor first: 300 constant cash-floor
 300 constant cash-floor

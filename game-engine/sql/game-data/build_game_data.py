@@ -1122,6 +1122,26 @@ queries.append((681, 'House price board',
                 f"AND b.side=1 AND b.filled>0 AND b.cleared_t<=[game_now]-{BOARD_LAG} AND b.cleared_t>[game_now]-{BOARD_LAG}-{DAY} "
                 "GROUP BY s.object_id ORDER BY s.object_id;"))
 
+# Sales on a day (#380): how much of resource N sold on a game day, D days
+# ago (0 today so far), by place: units the House stations bought, units
+# sold between players, and the average price, an hour old like the price
+# boards. A seller compares its stock with a day's sales before making more.
+DAY_START = ("((SELECT epoch FROM game_clock WHERE id = 1) + (FLOOR(([game_now] - (SELECT epoch FROM game_clock "
+             "WHERE id = 1)) / 86400) - [value_1]) * 86400)")
+def in_day(col):
+    return (f"{col} >= {DAY_START} AND {col} < {DAY_START} + 86400 AND {col} <= [game_now] - {BOARD_LAG}")
+queries.append((682, 'Sales on a day',
+                '[N D R L 682 query]: How much of resource N sold on the game day D days ago (0: today so far), an hour '
+                'old, for each place: the place, units the House bought (2 cells), units sold between players (2 cells), '
+                'average price.', 2,
+                "SELECT location, SUM(house) AS d_house, SUM(players) AS d_players, "
+                "ROUND(SUM(credits) / (SUM(house) + SUM(players))) AS price FROM ("
+                "SELECT s.object_id AS location, b.filled AS house, 0 AS players, b.filled * b.price AS credits "
+                "FROM station_batches b INNER JOIN stations s ON s.id = b.station_id WHERE b.resource = [value_2] "
+                f"AND b.side = 1 AND b.filled > 0 AND {in_day('b.cleared_t')} "
+                "UNION ALL SELECT t.location, 0, t.units, t.credits FROM trades t WHERE t.resource = [value_2] "
+                f"AND t.location IS NOT NULL AND {in_day('t.game_t')}) x GROUP BY location ORDER BY location;"))
+
 # Queries whose money or volume columns are double cells: say so
 DOUBLE_QUERIES = {101, 600, 601, 610, 611, 612, 620, 621, 841}  # 630-632 say so themselves
 queries = [(q[0], q[1], (q[2] if q[0] == 612 else q[2].rstrip() + ' Money and volumes are double cells (2@).')[:255],

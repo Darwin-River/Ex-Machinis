@@ -216,6 +216,7 @@ sell-price
 sell-to-station
 set-order
 sign
+sold
 source
 source-id
 space

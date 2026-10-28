@@ -72,6 +72,8 @@ Every drone also knows `buy-price`, `sell-price`, `best-offer`, `best-bid` and `
 
 - A station's listed price is for an empty batch. When many drones sell into the same hour, all of them get less, and this shows by how much. Query 680, the players' board, has the same layout.
 
+**`overstocked? ( product -- f )`** (#380): true when the drone holds more than half of what sold at Earth yesterday (`sold`, query 682). Check it before making more of a product, and sell first or make something else. Change `earth` to the place where you sell.
+
 **`spare ( -- n )`**: credits above `cash-floor`, at most 32,000. Spend only `spare`, so the drone always keeps money for fuel. Used by: Maker, Smith, Machinist, Trader, Adaptive.
 
 - Round 25's traders and makers spent every credit on goods, then couldn't buy fuel and died.

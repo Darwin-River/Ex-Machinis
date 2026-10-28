@@ -94,7 +94,11 @@ const char* vm_library_game_source =
     ": in? ( mode -- f ) mode @ = ;\n"
     ": tick ( -- ) 1 #ticks +! ;\n"
     ": ticks ( -- n ) #ticks @ ;\n"
-    ": stdlib ( -- version ) 7 ;\n";
+    ": sold ( resource days-ago place -- units ) >r 682 ask 0 max\n"
+    "  begin dup while 1- dup 12 * answer + dup @ r@ = if\n"
+    "  dup 2 + 2@ drop swap 6 + 2@ drop + nip r> drop exit then drop\n"
+    "  repeat r> 2drop 0 ;\n"
+    ": stdlib ( -- version ) 8 ;\n";
 
 int vm_library_load(embed_t* vm)
 {
