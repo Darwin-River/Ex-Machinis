@@ -649,7 +649,7 @@ Every drone comes with a vocabulary for the game, so you can write `kunspar mine
 | State machines | `become ( mode -- )`, `in? ( mode -- f )`, `tick ( -- )`, `ticks ( -- n )` and the variable `mode`: a drone that changes what it does as the market changes (see [Market-aware drones](#market-aware-drones)) |
 | Arithmetic | `2* ( n -- n*2 )`, `2/ ( n -- n/2 )` and `*/ ( a b c -- a*b/c )`, which keeps the product as a double so it can't overflow: `qty price 95 100 */` is 95% of qty × price. Words you may know from other FORTHs and won't find here: `do`, `?do`, `loop`, `i`, `leave`, `m/mod` |
 | Loops | This FORTH has no `do ... loop` (nor `?do`, `i`): use `n for ... next` (runs n+1 times, `r@` counts down) or `begin ... until`, `begin ... while ... repeat`, `begin ... again`. See [Loops](#chapter-9-making-decisions). |
-| Helpers | `sell-all ( resource )` offers all of it to the station here; `go ( place -- ior )` travels there unless the drone is already there (then it leaves 0 at once) |
+| Helpers | `sell-all ( resource )` sells all of it here: first to the best buy order, when it pays at least what the House station pays (a player's, or a House station drone's), then the rest to the station; `go ( place -- ior )` travels there unless the drone is already there (then it leaves 0 at once) |
 
 `jettison` throws n units of a resource out of the hold into space, for 1 fuel whatever the amount. Use it for goods nobody buys where you are: a hold that fills up leaves no room for the fuel you make, and a drone without fuel dies. `10 2032 jettison drop` throws away 10 Inorganics (A2).
 
@@ -826,6 +826,8 @@ What they pay for a made good is set to make making things pay: its inputs, plus
 ```
 
 Every starter and design that buys has a word, `buy-cheapest ( n resource -- )`, that buys from whichever is cheaper.
+
+**House station drones (being tried).** In some worlds the House also trades as a drone at each exchange: a station drone named after it ("Earth Exchange", "Moon Depot", "Mars Exchange"), with a huge hold. It trades by your rules: its sell orders and buy orders show in the order books like any drone's (`best-offer`, `best-bid`, queries 600 and 610), you buy by pulling from it and sell by pushing into its buy orders, at once rather than when the hour's batch clears, and the sales tax applies as between players. It sells at the listed price and buys at the listed price while its stock is low, less as it fills (half the listed price at a full day's demand). It brings goods up from the planet surface and sends what it bought down once a game day, with modules no player can get. Words like `buy-cheapest` and `sell-price` find it with no change.
 
 A station deals with drones at its location, in **batches**: everything offered or ordered during a game hour clears together at the end of the hour, so it doesn't matter who comes first.
 

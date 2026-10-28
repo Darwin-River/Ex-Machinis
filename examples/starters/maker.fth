@@ -19,7 +19,7 @@
 \ asks). The House delivers when its batch clears, within the game hour
 : buy-cheapest ( n resource -- )
   >r  r@ 2 house-price  r@ best-offer         ( n house price drone avail )
-  dup 0> 3 pick 0> and  3 pick 5 pick <  5 pick 0= or  and if
+  dup 0> 3 pick 0> and  3 pick 5 pick > 0=  5 pick 0= or  and if
     rot drop rot drop rot min  r> rot pull drop exit
   then
   2drop drop  if r> buy-from-station drop else r> 2drop then ;

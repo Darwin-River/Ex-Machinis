@@ -61,6 +61,13 @@ wait_quietly() {
 sql() {
     docker compose exec -T db sh -c 'mysql -N -uexmachinis -p"$MYSQL_PASSWORD" exmachinis 2>/dev/null' <<<"$1"
 }
+# sqlw <statement>: a write the checks rely on. The engines write the same
+# tables, so a write can meet a lock or a deadlock: try it again, then fail
+# out loud (a failing sql under set -e ended the test with no message)
+sqlw() {
+    for _ in 1 2 3; do sql "$1" && return 0; sleep 1; done
+    fail "this write failed three times: $1"
+}
 # run <drone id> <subject> <FORTH code>: queue a command for a drone, as the
 # website and the engine do (there is no email, #367 step 5)
 run() {
@@ -158,7 +165,7 @@ wait_for 60 "drone finished the refining script" idle
 # days), then launch a drone with a copy of its own program. The copy is
 # taken while this script is paused in perform: the new drone starts at the
 # prompt and runs its launched word.
-sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
+sqlw "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
      select 1, 0, 1, 1, $DRONE_ID, 6001, 0, 0, 1, 224, IFNULL(MAX(game_t), 0) + 1 from events where drone = $DRONE_ID"
 wait_for 10 "drone got a ship kit" has 6001
 run $DRONE_ID "launch" "  : launched .\" launched-word-ran\" cr ;
@@ -186,7 +193,7 @@ clone_fuel() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where dro
 wait_for 30 "the clone got fuel from its launcher" clone_fuel
 # Give it more fuel for the rounds below,
 # as its owner would by pushing some over (#324 step 8)
-sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
+sqlw "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
      select 1, 0, 1, 1, $NEW_ID, 2061, 0, 0, 200, 200, IFNULL(MAX(game_t), 0) + 1 from events where drone = $NEW_ID"
 wait_for 60 "launched drone's launched word returned normally" sh -c "docker compose logs game-engine | grep -q 'Drone \[$NEW_ID\] finished its launched word'"
 [ "$(sql "select release_vm is not null from agents where agent_id=$NEW_ID")" = 1 ] || fail "no clean copy saved at launch"
@@ -318,7 +325,7 @@ fetch() { curl -fsS "$@" || echo "fetch failed: $*"; }
 grep -qF "kunspar 20 dig" <<<"$(fetch -b "$JAR" "http://localhost/release?starter=miner")" || fail "the Release page did not offer the miner starter"
 echo "ok: the Release page offers the starter scripts"
 run $FORGE_DRONE "game words" "stdlib . moon . kunspar . fuel units 0> . 3 trip 0> . metals-a1 2 house-price ."
-knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%10101100-1-130'")" ]; }
+knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%11101100-1-130'")" ]; }
 wait_for 60 "a drone knows the game words" knows_words
 
 # The House fuel seller (#324 step 10): the released drone, at Earth, orders
@@ -342,7 +349,7 @@ KIT=$(sql "select mass from resources where id=5901")
 # (Stamped after the drone's latest event: the engines read a drone's stock
 # from its latest event in game time, so an event without one is ignored,
 # and the plunder below once failed on fuel the engine said wasn't there)
-sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
+sqlw "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
      select 2, 0, 1, 1, $DRY, 2061, 0, 0, 1, $KIT + 1, IFNULL(MAX(game_t), 0) + 1 from events where drone = $DRY"
 dry() { [ "$(sql "select wreck_cause from agents where agent_id=$DRY")" = fuel ]; }
 wait_for 120 "a drone that runs out of fuel becomes a wreck" dry
@@ -354,7 +361,7 @@ echo "ok: a company whose last drone died has ended"
 # owns it (#367 step 1). Put the wreck on the Moon, where the first drone is,
 # with 10 kunspar aboard; the plunderer gets half and the wreck is left empty
 sql "update agents set object_id = 10 where agent_id = $DRY"
-sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
+sqlw "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
      select 1, 0, 1, 1, $DRY, 1100, 0, 0, 10, $KIT + 10, IFNULL(MAX(game_t), 0) + 1 from events where drone = $DRY"
 KUNSPAR=$(kunspar)
 run $DRONE_ID "plunder" "$DRY 34 perform ."
@@ -443,5 +450,17 @@ wait_for 90 "a test run runs in the test world" tested
 echo "ok: the live world is untouched"
 grep -q "/release/test/[0-9a-f]\{16\}$" <<<"$TEST_PAGE" || fail "the Test button didn't lead to the test run's page ($TEST_PAGE)"
 wait_for 30 "the test run's page shows it" sh -c "curl -fsS '$TEST_PAGE' | grep -q 'test-world-ok8'"
+
+# House station drones (#380, step 1): forge:stations makes the House's
+# trading drone at each exchange, once, and each posts orders by the players'
+# rules (a sell order is event type 4, a buy order 5)
+docker compose exec -T app php artisan forge:stations >/dev/null || fail "forge:stations failed"
+[ "$(sql "select count(*) from agents a join companies c on c.company_id = a.company_id where c.house = 1 and a.station_id is not null")" = "$(sql "select count(*) from stations")" ] ||
+    fail "the House station drones weren't made"
+docker compose exec -T app php artisan forge:stations | grep -q "^0 station drone" || fail "forge:stations made a station drone twice"
+echo "ok: each exchange has one House station drone"
+posted() { [ "$(sql "select count(*) from events e join agents a on a.agent_id = e.drone join companies c on c.company_id = a.company_id
+                     where c.house = 1 and e.event_type in (4, 5) and e.outcome = 1")" -ge 1 ]; }
+wait_for 180 "a House station drone posts its orders" posted
 
 echo "Smoke test passed."

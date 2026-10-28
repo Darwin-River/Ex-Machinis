@@ -431,6 +431,37 @@ for pid, rec in sorted(recipes.items(), key=lambda kv: int(kv[0])):
     protocols[pid] = [pid, name[:45], '0', '100', desc[:255]] + list(flags)
     add_effects(pid, production_effects(tool, total, rec))
 
+# House station drones (#380): the House trades as a drone, by the same
+# rules as the players, from a Drop Station hull at each exchange. Two NPC
+# modules nobody can make or buy let it bring goods up from the planet's
+# surface and send them down: N R 5911 perform imports N units of R, N R
+# 5921 perform exports them. They burn no fuel and take the quantity as a
+# parameter (like 31), not the multiplier, which would scale the module
+# check too.
+IMPORT_STATION, EXPORT_STATION, DROP_STATION_HULL = 5911, 5921, 9001
+resources[str(IMPORT_STATION)] = {'id': IMPORT_STATION, 'name': 'Import Station', 'mass': 0, 'capacity': 0,
+    'slot_size': 0, 'description': 'A House module that brings goods up from the planet surface. Only House '
+                                   'station drones have one: it is not made, sold or traded.'}
+resources[str(EXPORT_STATION)] = {'id': EXPORT_STATION, 'name': 'Export Station', 'mass': 0, 'capacity': 0,
+    'slot_size': 0, 'description': 'A House module that sends goods down to the planet surface. Only House '
+                                   'station drones have one: it is not made, sold or traded.'}
+for pid, module, name, verb, event_type in (('5911', IMPORT_STATION, 'Import resource', 'Brings N units of resource R up '
+                                             'from the planet surface', 1),
+                                            ('5921', EXPORT_STATION, 'Export resource', 'Sends N units of resource R '
+                                             'down to the planet surface', 2)):
+    protocols[pid] = [pid, name, '2', '100', f'[N R {pid} perform]: {verb}. House station drones only: it needs an '
+                      f'{resources[str(module)]["name"]}, which players can never get. Takes 1 game second.',
+                      '1', '1', '0']
+    effects[:] = [(q, e) for q, e in effects if q != int(pid)]
+    add_effects(pid, [
+        {'time': 0, 'drone': 0, 'resource': module, 'event_type': 1, 'local': 1, 'installed': 0, 'locked': 0,
+         'deplete': 0, 'abundancies': 0, 'quantity': 1},
+        {'time': 0, 'drone': 0, 'resource': module, 'event_type': 2, 'local': 1, 'installed': 0, 'locked': 0,
+         'deplete': 1, 'abundancies': 0, 'quantity': 1},
+        {'time': 1, 'drone': 0, 'resource': -1, 'event_type': event_type, 'local': 1, 'installed': 0, 'locked': 0,
+         'deplete': 1 if event_type == 2 else 0, 'abundancies': 0, 'quantity': -2},
+    ])
+
 # The two kits (#380): unpacking one uses it up and puts its modules aboard
 for kit, (pid, name, parts) in KITS.items():
     words_ = ', '.join(resources[str(r)]['name'] for r in parts)
@@ -516,7 +547,7 @@ protocols['35'] = ['35', 'Plunder haul', '0', '100',
 # is free. Each protocol's description says what it burns.
 def fuel_cost(pid):
     p = int(pid)
-    if p in (25901, 25902, int(POWER_PROTOCOL), 33, 35, int(WAIT_PROTOCOL)):
+    if p in (25901, 25902, 5911, 5921, int(POWER_PROTOCOL), 33, 35, int(WAIT_PROTOCOL)):
         return 0
     if p == 32:
         return 0                      # ordering from a House station (#380): a drone with no fuel
@@ -1221,7 +1252,8 @@ HULL_SIZES = {  # cargo capacity, A-E slots
     'Frigate': (5000, 4, 3, 2, 1, 0),
     'Barge': (20000, 6, 4, 3, 2, 1),
 }
-hulls = []
+hulls = [(DROP_STATION_HULL, 'Drop Station', 'A House trading station (#380): a huge hold that no player can '
+          'build or buy.', 1000000, 0, 0, 0, 0, 0)]
 for pid, rec in sorted(recipes.items(), key=lambda kv: int(kv[0])):
     if pid.startswith('16') and rec['product'] in resources:
         kit = resources[rec['product']]
