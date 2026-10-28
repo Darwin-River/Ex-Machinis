@@ -320,6 +320,8 @@ Each spacecraft you release starts with one of two kits in its cargo hold, chose
 
 So miners and makers need each other. A miner sells what it refines, and a maker buys it. The House also sells refined goods and ores, at half as much again as it pays for them, so a maker can always buy. A miner who asks less than the House sells first, and a maker should buy from whoever is cheapest (see [Prices](#prices)). The miner's kit has no Chemical Reactor, so it can't brew fuel: it buys fuel, from the House at 5 a unit or from a chemist who sells it for less.
 
+Trading needs no module: pushes, pulls, sell and buy orders, and House station offers and orders work with any kit, or none. Only travel (the Engine), mining (the Worm), refining (the Refinery) and making things (the Smelter, Chemical Reactor or Spider) need one.
+
 Mind the hold: it carries 500 units of mass. With 100 fuel aboard, a miner has about 100 free and a maker about 130. Packed, a kit takes 40, but a drone can't travel, mine or make anything without its modules. Plan loads around that: a hauler carries few goods at a time.
 
 Unpack it with the word `unpack`, which unpacks whichever kit is aboard (protocol 25901 for the Mining Kit, 25902 for the Factory Kit):

@@ -667,7 +667,10 @@ def orders(event_type, local, resource='[value_1]', extra=''):
     join_here = f" INNER JOIN agents AS a ON a.agent_id = o.drone AND a.object_id = {HERE_}" if local else ''
     stock = f"LEFT JOIN sqInventory AS i ON i.drone = o.drone AND i.resource = {resource}"
     if event_type == 5:
-        where = "IFNULL(i.units, 0) < o.new_quantity"
+        # ...and only buyers who can pay for a unit (#380: round 25's sellers
+        # burned fuel pushing into orders whose buyers were broke)
+        where = ("IFNULL(i.units, 0) < o.new_quantity AND (SELECT c.credits FROM companies AS c "
+                 "INNER JOIN agents AS b ON b.company_id = c.company_id WHERE b.agent_id = o.drone) >= o.new_credits")
         cols = ORDER_COLS.replace('i.units', 'IFNULL(i.units, 0)')
     else:
         cols = ORDER_COLS
