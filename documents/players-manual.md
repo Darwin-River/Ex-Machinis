@@ -1096,6 +1096,21 @@ Some queries return a list: several rows, one after another in the results array
 
 The first row is the most important one (query 210 lists the largest holdings first), and reading the array keeps that order, which moving the list onto the stack would reverse. Rows with text don't have a fixed size: step through them field by field with `count` (it leaves the address after the text).
 
+**Row layouts.** A plain number takes 2 bytes, a double (money, volumes, event IDs) 4, read with `2@`. Rows are stored back to back, so row r of query q starts at `answer r size * +`. The common ones:
+
+| Queries | Each row | Size | Read with |
+|---|---|---|---|
+| 600, 601 (buy orders), 610, 611 (sell orders) | price (double), the order's wanted maximum or kept minimum, units held, drone | 10 | `2@ drop`, `4 + @`, `6 + @`, `8 + @` |
+| 630 (station trades here) | resource, side, price (double), daily units, units in this batch (double) | 14 | `@`, `2 + @`, `4 + 2@`, `8 + @`, `10 + 2@` |
+| 640 (deposits here) | resource, units left (double), capacity (double), refill per day | 12 | `@`, `2 + 2@`, `6 + 2@`, `10 + @` |
+| 680, 681 (price boards) | place, units (double), credits (double), trades or batches | 12 | `@`, `2 + 2@`, `6 + 2@`, `10 + @` |
+| 682 (sales on a day) | place, House units (double), player units (double), average price | 12 | `@`, `2 + 2@`, `6 + 2@`, `10 + @` |
+| 210 (a hold), 661 (a wreck's hold) | resource, units | 4 | `@`, `2 + @` |
+| 670 (my clones), 660 (wrecks here) | drone, 1 if a wreck or plundered | 4 | `@`, `2 + @` |
+| 720 (drones at a place), 800-803 (events) | drone; an event ID (double) | 2; 4 | `@`; `2@` |
+
+The `answer` buffer holds 120 bytes: 12 rows of 10 bytes, for example. For more, `query` into an array of your own (`create rows 400 allot`).
+
 #### Searching the events you've seen
 
 Query 803 lists the events your drone has observed, newest first, filtered by up to nine conditions. Information travels at the speed of light, so a drone only knows about events that affected it, events at the place where it is now since it got there (it forgets what it saw at places it has left), and events whose light has reached it. Push the nine conditions in this order, using -1 for "any":
