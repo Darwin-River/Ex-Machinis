@@ -1,6 +1,7 @@
-\ Trader: a starter script for Public Forge (#324 step 15; #367).
-\ It works the Moon, where the Miner offers its metals to other drones a
-\ little over the Moon Depot's price. It buys them, hauls a load to Mars,
+\ Trader: a starter script for Public Forge (#324 step 15; #367). Release
+\ it with the Mining Kit (it only uses the Engine).
+\ It works the Moon, where the Miner offers its metals to other drones
+\ between what the Moon Depot pays and what it asks (#380). It buys them, hauls a load to Mars,
 \ where the Mars Exchange pays half as much again, sells it and comes back.
 \ Its fuel it buys from the House at the exchanges. Copies compete for the
 \ miners' metals: the first to buy gets them.

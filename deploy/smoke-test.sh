@@ -69,11 +69,12 @@ run() {
 }
 JAR=$(mktemp)
 token() { curl -fsS -c "$JAR" -b "$JAR" "http://localhost$1" | grep -o 'name="_token" value="[^"]*"' | head -1 | sed -e 's/.*value="//' -e 's/"$//'; }
-# release <company name> <script>: release a script on the website, with no
-# account (#367 step 4: there are none)
+# release <company name> <script> [kit]: release a script on the website,
+# with no account (#367 step 4: there are none), with the mining kit unless
+# the third argument says factory (#380)
 release() {
     curl -fsS -c "$JAR" -b "$JAR" -o /dev/null -X POST http://localhost/release --data-urlencode "_token=$(token /release)" \
-        --data-urlencode "company_name=$1" --data-urlencode "script=$2"
+        --data-urlencode "company_name=$1" --data-urlencode "script=$2" --data-urlencode "kit=${3:-mining}"
 }
 company_drone() { sql "select a.agent_id from agents a join companies c on c.company_id = a.company_id where c.name='$1'"; }
 
@@ -146,8 +147,8 @@ sister_bought() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where 
 wait_for 90 "a sale to the player's other company goes through" sister_bought
 wait_for 60 "drone finished the sale script" idle
 
-# Refining needs 20 kunspar (each mining run gives 5 here) and the starter
-# kit's Smelter (A1); each perform waits for its action
+# Refining needs 20 kunspar (each mining run gives 5 here) and the Mining
+# Kit's Refinery (A1); each perform waits for its action
 run $DRONE_ID "refine" "  11100 perform drop 11100 perform drop 11100 perform drop 11100 perform drop
   21100 perform . cr"
 wait_for 180 "drone refined kunspar into metals" has 2011
@@ -296,9 +297,13 @@ echo "ok: no service restarted"
 PADDING=$(for i in $(seq 1 40); do echo "\\ padding line $i: a released script may be as long as it likes"; done)
 release "Smoke Forge" ": hello  .\" forge-release-\" ;
 $PADDING
-: launched  hello .\" ok7\" ;"
+: launched  hello .\" ok7\" ;" factory
 FORGE_DRONE=$(company_drone "Smoke Forge")
 [ -n "$FORGE_DRONE" ] || fail "release did not create a company and drone"
+# The kit the player chose (#380): this one asked for the Factory Kit
+[ "$(sql "select count(*) from sqInventory where drone=$FORGE_DRONE and resource=5902 and units=1")" = 1 ] ||
+    fail "the factory release didn't get a Factory Kit"
+echo "ok: a release gets the kit its player chose"
 echo "ok: release created a company with a drone"
 released() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and body like '%forge-release-ok7%' and body like '%has finished%'")" ]; }
 wait_for 90 "released drone ran launched; its reply is kept for the website" released
@@ -312,8 +317,8 @@ wait_for 30 "the drone's page shows the reply" sh -c "curl -fsS http://localhost
 fetch() { curl -fsS "$@" || echo "fetch failed: $*"; }
 grep -qF "kunspar 20 dig" <<<"$(fetch -b "$JAR" "http://localhost/release?starter=miner")" || fail "the Release page did not offer the miner starter"
 echo "ok: the Release page offers the starter scripts"
-run $FORGE_DRONE "game words" "stdlib . moon . kunspar . fuel units 0> . 3 trip 0> ."
-knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%4101100-1-1'")" ]; }
+run $FORGE_DRONE "game words" "stdlib . moon . kunspar . fuel units 0> . 3 trip 0> . metals-a1 2 house-price ."
+knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%5101100-1-130'")" ]; }
 wait_for 60 "a drone knows the game words" knows_words
 
 # The House fuel seller (#324 step 10): the released drone, at Earth, orders

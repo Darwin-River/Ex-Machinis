@@ -5,8 +5,8 @@ _Converted from the September 2020 edition and updated for the current game. Eve
 > **Keep this manual current.** It is the player-facing description of the game. When a change to the code or the game data (see the [design manual](design-manual.md)) changes something a player sees, update this manual in the same pull request.
 
 **Changes since the September 2020 edition:**
-- [Chapter 4](#chapter-4-issuing-commands) starts with unpacking your starter kit, which holds the engine and mining module that travel and mining need. Travel uses protocol 5001 (your engine) instead of 5.
-- The mining example uses kunspar on the Moon, which your starter kit's Worm can mine. A [table](#extracting-minerals) shows which module mines which minerals, including on the new asteroids, comets and planetary rings.
+- [Chapter 4](#chapter-4-issuing-commands) starts with unpacking your kit: a Mining Kit (engine, mining and refining modules) or a Factory Kit (engine and the tools that make things), chosen at release. Travel uses protocol 5001 (your engine) instead of 5.
+- The mining example uses kunspar on the Moon, which the Mining Kit's Worm can mine. A [table](#extracting-minerals) shows which module mines which minerals, including on the new asteroids, comets and planetary rings.
 - [Chapter 6](#chapter-6-going-to-market) uses the correct sell protocol (7, not 9) and a resource that exists (kunspar, 1100).
 - [Chapter 7](#chapter-7-stringing-variables) fixes the argument order of the array examples (`10 box !`, not `box 10 !`) and the cell size (two bytes).
 - [Chapter 8](#chapter-8-asking-questions) uses the current query numbers.
@@ -30,7 +30,7 @@ Thank you for your support!
   - [Organizing resources by Resource ID](#organizing-resources-by-resource-id)
   - [Browsing the Resource Catalog](#browsing-the-resource-catalog)
 - [Chapter 4: Issuing Commands](#chapter-4-issuing-commands)
-  - [Unpacking your starter kit](#unpacking-your-starter-kit)
+  - [Unpacking your kit](#unpacking-your-kit)
   - [Fuel](#fuel)
   - [Wrecks and plunder](#wrecks-and-plunder)
   - [Taxes](#taxes)
@@ -77,7 +77,7 @@ It is your birthright to take control of your own remotely piloted spacecraft an
 
 There is no email, and no account to open: anyone can write a drone's program on the **Release** page and release it:
 
-- each release starts a new company, with one drone in orbit around Earth, a starter kit, 100 fuel and 1,000 credits;
+- each release starts a new company, with one drone in orbit around Earth, the kit you choose (a Mining Kit or a Factory Kit; see [Unpacking your kit](#unpacking-your-kit)), 100 fuel and 1,000 credits;
 - the drone loads your script, then runs your word `launched` on its own, so your script should define words and end with `: launched ... ;`;
 - you go to the drone's page, which shows everything it does and what it prints (once its signal has reached Earth). It's public, like the drone's code: keep its link to follow it;
 - if `launched` crashes, the drone restarts it from the script you released (see [When `launched` crashes](#when-launched-crashes)).
@@ -93,11 +93,12 @@ Both the Test button and a release warn you if your script redefines a word your
 
 #### Starter scripts
 
-Not sure where to begin? The Release page offers three starter scripts: click **Miner**, **Refiner** or **Trader** above the script box and it fills in. Each is short, explained in its comments, and makes money on its own; change its numbers, or its plan, to make it yours.
+Not sure where to begin? The Release page offers four starter scripts: click **Miner**, **Refiner**, **Trader** or **Maker** above the script box and it fills in, with the kit it needs. Each is short, explained in its comments, and makes money on its own; change its numbers, or its plan, to make it yours.
 
-- **Miner:** mines kunspar on the Moon, refines it and sells the metals to the House. Once it can afford to launch copies of itself, two in three of them make the long trip to Mars's moons (about 10 game days) and sell at the Mars Exchange, which pays more. At the Moon it first offers its metals to traders, a little over the Depot's price. It buys fuel cheaply from other drones on the Moon when it can, and otherwise brews its own.
-- **Refiner:** brews fuel on the Moon from yalspar and vladnium, and sells what it doesn't need to other drones there.
-- **Trader:** buys metals from the miners on the Moon and hauls them to Mars, where the House pays half as much again.
+- **Miner** (Mining Kit): mines kunspar on the Moon, refines it and sells the metals. It offers them to other drones first, halfway between what the House pays and what it asks, and sells the rest to the House. Once it can afford to launch copies of itself, two in three of them make the long trip to Mars's moons (about 10 game days) and sell at the Mars Exchange, which pays more. It buys its fuel wherever it's cheapest.
+- **Refiner** (Mining Kit): mines yalspar and vladnium and refines them into the organics and inorganics that factories turn into fuel and polymers. It sells them the same way.
+- **Trader** (Mining Kit, though it only uses the Engine): buys metals from the miners on the Moon and hauls them to Mars, where the House pays half as much again.
+- **Maker** (Factory Kit): buys metals at the Moon wherever they're cheapest, makes them into alloys and rods, and sells the rods at Earth.
 
 Loading a script is free: your drone reads it word by word before it starts, and the fuel bill starts when `launched` runs. Long, well-commented scripts are fine.
 
@@ -308,17 +309,24 @@ get-kunspar
 
 Failures are not emailed to you: a drone running on its own should check and respond. You only get a message for what your scripts print, when the script ends, and for errors that stop a script. A `launched` word that loops forever never ends, so call `report` in its loop to send what it has printed so far. While a script is running or waiting, the drone answers new scripts with "Another command is running, retry later"; `<abort>` stops the script (the action itself still happens).
 
-### Unpacking your starter kit
+### Unpacking your kit
 
-Each of your spacecraft starts with a Starter Kit I (resource 5901) in its cargo hold. It contains the modules you need to get going: an Engine (A1) for travel, a Worm (A1) for mining moons, a Shuttle (A1), a Chemical Reactor (A1), a Smelter (A1) and a Spider (A1). The Smelter, Chemical Reactor and Spider are the tools for everything you make up to systems (see [Producing more complex spacecraft components](#producing-more-complex-spacecraft-components)).
+Each spacecraft you release starts with one of two kits in its cargo hold, chosen on the Release page. A drone can't do both jobs: the mining gear is big, and a 500-cargo hold can't carry it with the factory tools.
 
-Mind the hold: it carries 500 units of mass. Unpacked, the six modules take 364 of it, and 100 fuel another 100, so a working drone has about 36 free. Packed, the kit takes 40, but a drone can't travel, mine or make anything without its modules (an Engine (A1) alone, from the Earth Exchange, lets it travel). Plan loads around that: a hauler carries few goods at a time.
+| Kit | Resource | Modules | Cargo, unpacked | What it does |
+|---|---|---|---|---|
+| Mining Kit I | 5901 | Engine (A1), Worm (A1), Refinery (A1) | 296 | Mines ore on moons and refines it into metals, organics and inorganics |
+| Factory Kit I | 5902 | Engine (A1), Smelter (A1), Chemical Reactor (A1), Spider (A1) | 267 | Makes alloys, polymers, fuel, parts and systems from refined goods |
 
-Unpack it by performing protocol 25901:
+So miners and makers need each other. A miner sells what it refines, and a maker buys it. The House also sells refined goods and ores, at half as much again as it pays for them, so a maker can always buy. A miner who asks less than the House sells first, and a maker should buy from whoever is cheapest (see [Prices](#prices)). The miner's kit has no Chemical Reactor, so it can't brew fuel: it buys fuel, from the House at 5 a unit or from a chemist who sells it for less.
+
+Mind the hold: it carries 500 units of mass. With 100 fuel aboard, a miner has about 100 free and a maker about 130. Packed, a kit takes 40, but a drone can't travel, mine or make anything without its modules. Plan loads around that: a hauler carries few goods at a time.
+
+Unpack it with the word `unpack`, which unpacks whichever kit is aboard (protocol 25901 for the Mining Kit, 25902 for the Factory Kit):
 
 ```
 <run>
-  25901 perform .
+  unpack .
 </run>
 ```
 
@@ -328,7 +336,7 @@ The drone replies with 0 once the kit is unpacked.
 
 Everything your spacecraft does burns fuel, Fuel (A1) (resource 2061):
 
-- **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (mining, a transfer or an order) to 30 (launching a spacecraft, 20 of which go into the new one's hold). The protocol's description says how much. Unpacking the starter kit, waiting and ordering from a House station are free, so a drone with an empty tank at a station can still order fuel. Without the fuel, `perform` leaves -2 and nothing happens.
+- **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (mining, a transfer or an order) to 30 (launching a spacecraft, 20 of which go into the new one's hold). The protocol's description says how much. Unpacking a kit, waiting and ordering from a House station are free, so a drone with an empty tank at a station can still order fuel. Without the fuel, `perform` leaves -2 and nothing happens.
 - **Thinking.** Running your program burns power: 1 fuel for every 100,000 FORTH instructions your spacecraft runs. Words that do less work cost less to run.
 
 A new spacecraft starts with 100 fuel. When it runs out and can't pay for its thinking, it becomes a **wreck** for good. So keep an eye on your fuel (query your inventory) and make or buy more before you run dry: every House exchange sells it (see [Trading with House stations](#trading-with-house-stations)).
@@ -465,7 +473,7 @@ Each kind of body has its own minerals, and each needs a particular mining modul
 | Minerals (Resource IDs) | Found on | Mining protocols | Module needed |
 |---|---|---|---|
 | Magmite, formite, voxite, zenolite (1000-1030) | Planets | 11000-11030 | Slug (A1) |
-| Kunspar, yalspar, vladnium, wolfite (1100-1130) | Moons | 11100-11130 | Worm (A1), in your starter kit |
+| Kunspar, yalspar, vladnium, wolfite (1100-1130) | Moons | 11100-11130 | Worm (A1), in the Mining Kit |
 | Kronite, efrite, olivium, aladanite (1200-1230) | Asteroids | 11200-11230 | Crawler (A1) |
 | Halosite, stellarite, mullinite, oznium (1300-1330) | Comets | 11300-11330 | Crawler (A1) |
 | Tephnium, neptine, empirogen, laudite (1400-1430) | Planetary rings | 11400-11430 | Crawler (A1) |
@@ -506,7 +514,7 @@ If a mining action fails, for example because your hold is full, what it would h
 
 ### Reprocessing minerals
 
-Minerals can be reprocessed to extract the purified metallic, organic, and inorganic components that are required for the manufacturing process. Since reprocessing essentially breaks down the minerals into their constituent parts, the IDs for protocols associated with reprocessing minerals are derived by adding 20000 to the mineral's resource ID. For example, protocol 21000 produces 1 unit of Metals (A1), 2 units of Inorganics (A1) and 1 unit of Organics (A1) from 20 units of magmite. It needs the Smelter (A1) from your starter kit and takes 2 hours of game time.
+Minerals can be reprocessed to extract the purified metallic, organic, and inorganic components that are required for the manufacturing process. Since reprocessing essentially breaks down the minerals into their constituent parts, the IDs for protocols associated with reprocessing minerals are derived by adding 20000 to the mineral's resource ID. For example, protocol 21000 produces 1 unit of Metals (A1), 2 units of Inorganics (A1) and 1 unit of Organics (A1) from 20 units of magmite. It needs the Refinery (A1) from the Mining Kit and takes 2 hours of game time.
 
 Provided you have enough magmite onboard, this is easily accomplished by sending the command to your drone:
 
@@ -549,16 +557,16 @@ Every production protocol locks one tool module while it works, and each stage t
 | Other modules | 15xxx | Welder (A1) | 1 day | 24 minutes |
 | Ship kits | 16xxx | Riveter (A1) | 3 days | 72 minutes |
 
-Your starter kit's Smelter, Chemical Reactor and Spider take you as far as systems. To make modules, first build a Welder (A1) with your Spider (protocol 15511); for ship kits, a Riveter (A1) (protocol 15521). Ship kits can be traded, or launched as new spacecraft (see the next section).
+The Factory Kit's Smelter, Chemical Reactor and Spider take you as far as systems. To make modules, first build a Welder (A1) with your Spider (protocol 15511); for ship kits, a Riveter (A1) (protocol 15521). Ship kits can be traded, or launched as new spacecraft (see the next section).
 
 ### Launching new spacecraft
 
-**Growing your company.** Every House exchange (Earth, the Moon Depot and Mars) sells Mining Cruiser (A1) kits for 3,000 credits and Starter Kit I for 2,000, about one of each an hour. Both come flat-packed (40 cargo each), because your equipment already fills most of your hold. A Mining Cruiser kit gives a hull; a Starter Kit I gives the equipment, which a new spacecraft doesn't have. So, with money to spare:
+**Growing your company.** Every House exchange (Earth, the Moon Depot and Mars) sells Mining Cruiser (A1) kits for 3,000 credits, and Mining Kit I and Factory Kit I for 2,000 each, about one of each an hour. They come flat-packed (40 cargo each), because your equipment already fills most of your hold. A Mining Cruiser kit gives a hull; a Mining or Factory Kit gives the equipment, which a new spacecraft doesn't have. So, with money to spare:
 
 1. buy a Mining Cruiser kit (`1 6001 buy-from-station`) and wait for it to arrive;
 2. launch a copy of yourself (`me 6001 launch`): it costs 30 fuel, 20 of which go to the new spacecraft;
-3. buy a Starter Kit I and push it to the new spacecraft with some fuel;
-4. have your `launched` word wait until a starter kit is aboard before it unpacks: a new spacecraft starts with an empty hold.
+3. buy a kit (`mining-kit` or `factory-kit`) and push it to the new spacecraft with some fuel;
+4. have your `launched` word wait until its kit is aboard before it unpacks: a new spacecraft starts with an empty hold.
 
 Every starter script and company design does this once its company has 7,000 credits (the `reinvest` word); `documents/forth-words.md` explains it.
 
@@ -630,9 +638,9 @@ Every drone comes with a vocabulary for the game, so you can write `kunspar mine
 | Kind | Words |
 |---|---|
 | Places | `earth` (3) `moon` (10) `mars` (4) `phobos` (11) `deimos` (12): their location IDs; the Locations page lists the rest |
-| Resources | `fuel` `magmite` `kunspar` `yalspar` `vladnium` `wolfite` `metals-a1` `metals-a2` `metals-a3` `inorganics-a1` `organics-a1` |
-| Actions: each takes its arguments off the stack and leaves one result, the ior (0 done, negative failed; see [Issuing Commands](#chapter-4-issuing-commands)), so `kunspar mine drop` and `kunspar mine if ... then` | `unpack ( -- ior )`, `travel ( place -- ior )`, `mine ( mineral -- ior )`, `refine ( mineral -- ior )`, `make ( resource -- ior )`, `wait ( minutes -- ior )`, `sell-to-station ( n resource -- ior )`, `buy-from-station ( n resource -- ior )`, `sell-order ( price keep resource -- ior )`, `buy-order ( price want resource -- ior )`, `push ( n resource drone -- ior )`, `pull ( n resource drone -- ior )`, `launch ( drone kit -- ior )`, `plunder ( wreck -- ior )`, `jettison ( n resource -- ior )` |
-| Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `today ( -- day )` (the game day now: plan a late selling trip or a deadline), `trip ( place -- hours )` (game hours to fly there from here, rounded up; -1 if unknown), `ask ( [n] id -- rows )` (any query, answers in the buffer `answer`) |
+| Resources | `fuel` `magmite` `kunspar` `yalspar` `vladnium` `wolfite` `metals-a1` `metals-a2` `metals-a3` `inorganics-a1` `organics-a1` `mining-kit` `factory-kit` |
+| Actions: each takes its arguments off the stack and leaves one result, the ior (0 done, negative failed; see [Issuing Commands](#chapter-4-issuing-commands)), so `kunspar mine drop` and `kunspar mine if ... then` | `unpack ( -- ior )` (whichever kit is aboard), `travel ( place -- ior )`, `mine ( mineral -- ior )`, `refine ( mineral -- ior )`, `make ( resource -- ior )`, `wait ( minutes -- ior )`, `sell-to-station ( n resource -- ior )`, `buy-from-station ( n resource -- ior )`, `sell-order ( price keep resource -- ior )`, `buy-order ( price want resource -- ior )`, `push ( n resource drone -- ior )`, `pull ( n resource drone -- ior )`, `launch ( drone kit -- ior )`, `plunder ( wreck -- ior )`, `jettison ( n resource -- ior )` |
+| Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `today ( -- day )` (the game day now: plan a late selling trip or a deadline), `trip ( place -- hours )` (game hours to fly there from here, rounded up; -1 if unknown), `house-price ( resource side -- price )` (what the House station here pays for it, side 1, or asks, side 2; 0 if it doesn't), `best-offer ( resource -- price drone n )` (the cheapest other drone's sell order here: its price, the seller and how many it will sell; 0 0 0 if none), `ask ( [n] id -- rows )` (any query, answers in the buffer `answer`) |
 | Messages | `report` sends what the drone has printed so far, at once: without it you see nothing until the script ends, and a `launched` word that loops forever never ends. Call it once a round: `begin ... ." fuel " fuel units . report 60 wait drop again` |
 | Helpers | `sell-all ( resource )` offers all of it to the station here; `go ( place -- ior )` travels there unless the drone is already there (then it leaves 0 at once) |
 
@@ -795,9 +803,20 @@ Buy and sell orders cannot be canceled. However they can be replaced by more res
 
 ### Trading with House stations
 
-Three House stations buy what players make and sell what they need to get started. The Earth Exchange (at Earth) buys refined goods, alloys and polymers, later parts and systems, and sells basic equipment and fuel. The Moon Depot buys refined goods. The Mars Exchange buys refined metals, paying half as much again as the others (it's far away), and parts and systems. All three sell fuel. Their demand moves up the production chain as the game goes on: parts from game day 3, systems from game day 7.
+Three House stations buy what players make and sell what they need to get started. The Earth Exchange (at Earth) buys refined goods, alloys and polymers, later parts and systems, and sells basic equipment and fuel. The Moon Depot buys refined goods. The Mars Exchange buys refined metals, paying half as much again as the others (it's far away), and parts and systems. All three sell fuel, the two kits, and ores and refined goods (metals, organics, inorganics). Their demand moves up the production chain as the game goes on: parts from game day 3, systems from game day 7.
 
-What they pay for a made good is set to make making things pay: its inputs, plus the fuel its recipe burns (at the House's 5 a unit), plus a wage for every game hour the tool works, which rises with each step up the chain: about 20 credits a game hour for alloys and polymers, 30 for parts and 45 for systems: half as much again with each step. Mining and refining the best ore earns about 17. So an alloy sells for more than its metals, a part for more than its alloys, and a system for more than its parts: a Rod (A1) 225, a Gear Box (A1) 1,255. A maker's hours are worth more making than mining, so it pays to buy metals from miners at more than the House pays them: the starter Miner offers its metals at a quarter over the Moon Depot's price. The Resources and Stations pages list every price.
+What they pay for a made good is set to make making things pay: its inputs, plus the fuel its recipe burns (at the House's 5 a unit), plus a wage for every game hour the tool works, which rises with each step up the chain: about 20 credits a game hour for alloys and polymers, 30 for parts and 45 for systems: half as much again with each step. Mining and refining the best ore earns about 17. So an alloy sells for more than its metals, a part for more than its alloys, and a system for more than its parts: a Rod (A1) 225, a Gear Box (A1) 1,255. The Resources and Stations pages list every price.
+
+<a name="prices"></a>**Prices.** The House sells ores and refined goods at half as much again as it pays for them at that station: the Moon Depot pays 20 for a Metals (A1) and asks 30. An ore costs half as much again as what it refines into, less the refining fuel, so buying ore to refine never beats buying the refined goods. The House is always there, but it's dear. A miner who asks less than the House sells first: the starter Miner and Refiner ask halfway between what the House pays and what it asks (25 for a Metals (A1) at the Moon). A maker should compare every price before it buys. `house-price` gives the House's price here and `best-offer` the cheapest drone's sell order:
+
+```
+<run>
+  metals-a1 2 house-price .      \ what the House here asks: 30 at the Moon
+  metals-a1 best-offer . . .     \ units for sale, the seller, its price
+</run>
+```
+
+Every starter and design that buys has a word, `buy-cheapest ( n resource -- )`, that buys from whichever is cheaper.
 
 A station deals with drones at its location, in **batches**: everything offered or ordered during a game hour clears together at the end of the hour, so it doesn't matter who comes first.
 

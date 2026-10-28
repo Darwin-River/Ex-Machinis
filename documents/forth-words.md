@@ -22,7 +22,7 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 
 ## Mining
 
-**`dig ( mineral n -- )`**: mine until n units of the mineral are aboard. When the deposit here has fewer than 5 runs left, it waits a game hour for it to refill instead of mining nothing. Used by: every design.
+**`dig ( mineral n -- )`**: mine until n units of the mineral are aboard. When the deposit here has fewer than 5 runs left, it waits a game hour for it to refill instead of mining nothing. It needs the Mining Kit's Worm (since #380, a factory drone can't mine). Used by: Miner, Refiner.
 
 - A run that brings nothing still burns a fuel. On a busy deposit, other drones can take what `deposit` reported before your run lands, so `dig` compares the units before and after each run and waits when nothing came. Without that check, a drone can burn its whole tank on empty runs (a Refiner died that way in round 16).
 - Mining takes from a deposit shared by every drone there. Moon kunspar is usually mined out, while the Moon's yalspar and vladnium are not.
@@ -30,7 +30,7 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 
 ## Fuel
 
-**`brew-fuel ( -- )`**: brew 30 fuel from 16 yalspar and 12 vladnium (one Organics (A1) and two Inorganics (A1)). It burns about 15 fuel along the way. Used by: Miner, Refiner.
+**`brew-fuel ( -- ior )`**: brew 30 fuel from one Organics (A1) and two Inorganics (A1) with the Factory Kit's Chemical Reactor. It burns 2. Used by: Chemist. (Before #380 every drone mined and refined the inputs itself; the Mining Kit has no Chemical Reactor, so miners buy their fuel.)
 
 - Start brewing well before you run out: below 40, not 25. A drone that starts brewing with too little fuel dies halfway through.
 
@@ -51,10 +51,18 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 
 - A station pays less the more its hourly batch holds. Selling 15 an hour, over several hours, earns more than selling a whole load at once.
 
-**`offer ( price resource -- )`**: post a standing sell order for a good at a price, keeping none back. Example: `23 metals-a1 offer`. Used by: Miner (at the Moon).
+**`offer ( price resource -- )`**: post a standing sell order for a good at a price, keeping none back. Example: `25 metals-a1 offer`.
 
 - The order stays open as the hold changes, so post it once. Another drone at the same place buys by pulling from it, even while yours is busy or waiting.
-- Price it above what the House pays, or nobody gains by selling to drones.
+- Price it above what the House pays, or nobody gains by selling to drones, and under what the House asks, or nobody buys from you: the House sells ores and refined goods too, at half as much again as it pays (#380).
+
+**`offer-under-house ( resource -- )`**: post a standing sell order halfway between what the House station here pays and what it asks (nothing where there is no station). Used by: Miner and Refiner (as `offer`).
+
+## Buying where it is cheapest
+
+**`buy-cheapest ( n resource -- )`** (#380): buy up to n of a good here from whoever sells it cheapest: another drone's sell order (`best-offer`) or the House station (`house-price`, side 2). From a drone it pulls at once; from the House the goods come when the hour's batch clears, so wait for them. Used by: every design that buys (Maker, Smith, Machinist, Chemist, Miner and Refiner for fuel).
+
+- The House always sells, at half as much again as it pays, so a maker never runs out of inputs, but a miner asking less sells first.
 
 ## Buying from other drones
 
@@ -69,7 +77,7 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 
 - The pattern works for any chain: make each step, `if exit then` on failure, and loop while the inputs last.
 
-**`build ( -- )`** (Machinist): one gear box from 8 Metals (A1) and 2 Metals (A2): three Alloys (A1), two Alloys (A2), then a rod, a gear and a spring, then the gear box (it needs the starter kit's Spider). Nine actions and about 23 fuel. Used by: Machinist.
+**`build ( -- )`** (Machinist): one gear box from 8 Metals (A1) and 2 Metals (A2): three Alloys (A1), two Alloys (A2), then a rod, a gear and a spring, then the gear box (it needs the Factory Kit's Spider). Nine actions and about 23 fuel. Used by: Machinist.
 
 - Check every input before the first step (`metals-a1 units 8 < ... if exit then`), so a half-built chain doesn't strand alloys in the hold. Check the fuel too: `fuel units 30 < if exit then`.
 - A long chain needs a bigger fuel margin: start brewing at 60, not 40.
@@ -80,19 +88,19 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 
 ## Growing: launching clones
 
-**`reinvest ( -- )`**: at a House exchange, with 7,000 credits or more, buy a Mining Cruiser kit (3,000), launch a clone of this drone, buy a Starter Kit I (2,000) and hand it to the clone with 40 fuel. Used by: every starter and design since #380.
+**`reinvest ( -- )`**: at a House exchange, with 7,000 credits or more, buy a Mining Cruiser kit (3,000), launch a clone of this drone, buy the design's kit, `my-kit` (a Mining or Factory Kit, 2,000), and hand it to the clone with 40 fuel. Used by: every starter and design since #380.
 
 - One kit at a time: equipment fills 364 of a drone's 500 cargo, so both kits (40 each) don't fit at once with a tank of fuel.
-- If a Starter Kit I is still aboard from a launch whose hand-over failed, `reinvest` hands it over first. A hull already bought is launched whenever the fuel allows, without checking credits again.
+- If a kit is still aboard from a launch whose hand-over failed, `reinvest` hands it over first. A hull already bought is launched whenever the fuel allows, without checking credits again.
 - Launching (30 fuel) and equipping the clone (40) empty the tank: `reinvest` refills it to 60 afterwards. Without that, every parent in round 19 died on its way home.
 
 **`get-one ( resource -- )`**: buy one of a good here unless one is aboard, and wait for it in game-hour steps (up to 6): the House delivers when the batch clears, sometimes hours later.
 
 **`fill-to ( n -- )`**: buy fuel here up to n and wait for the delivery the same way. It waits for the fuel to arrive, not to reach n: computing burns a unit or two just after the delivery, and waiting for n then sat out all six game hours (round 23).
 
-**`equip-clone ( -- )`**: push a starter kit and 40 fuel to this drone's newest clone (the last row of `670 ask`).
+**`equip-clone ( -- )`**: push a kit and 40 fuel to this drone's newest clone (the last row of `670 ask`).
 
-**`await-kit ( -- )`**: wait, an hour at a time, until a starter kit is aboard. Put it first in `launched`: a clone starts with an empty hold and runs `launched` at once.
+**`await-kit ( -- )`**: wait, an hour at a time, until its kit is aboard. Put it first in `launched`: a clone starts with an empty hold and runs `launched` at once.
 
 ## Patterns and pitfalls
 

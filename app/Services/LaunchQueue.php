@@ -56,7 +56,8 @@ class LaunchQueue
     }
 
     /** Puts a release in the queue; returns its place in line (1 = next) */
-    public static function enqueue(User $user, string $companyName, string $script, ?int $copiedFrom, ?string $copiedWord): int
+    public static function enqueue(User $user, string $companyName, string $script, ?int $copiedFrom, ?string $copiedWord,
+                                   ?string $kit = null): int
     {
         $id = DB::table('launch_queue')->insertGetId([
             'user_id' => $user->user_id,
@@ -64,6 +65,7 @@ class LaunchQueue
             'script' => $script,
             'copied_from' => $copiedFrom,
             'copied_word' => $copiedWord,
+            'kit' => $kit,
             'queued_at' => now(),
         ]);
         return self::place($id);
@@ -119,7 +121,8 @@ class LaunchQueue
             if (!$user) {
                 continue;
             }
-            $agent = Release::release($user, $row->company_name, $row->script, null, $row->copied_from, $row->copied_word);
+            $agent = Release::release($user, $row->company_name, $row->script, null, $row->copied_from, $row->copied_word,
+                $row->kit ?? null);
             DB::table('launch_queue')->where('id', $row->id)->update(['agent_id' => $agent->agent_id]);
             $launched++;
         }

@@ -43,9 +43,9 @@ const char* vm_library_game_source =
     "11 constant phobos 12 constant deimos\n"
     "2061 constant fuel 1000 constant magmite 1100 constant kunspar\n"
     "1110 constant yalspar 1120 constant vladnium 1130 constant wolfite\n"
+    "5901 constant mining-kit 5902 constant factory-kit\n"
     "2011 constant metals-a1 2012 constant metals-a2 2013 constant metals-a3\n"
     "2031 constant inorganics-a1 2041 constant organics-a1\n"
-    ": unpack ( -- ior ) 25901 perform ;\n"
     ": travel ( place -- ior ) 5001 perform ;\n"
     ": mine ( mineral -- ior ) 10000 + perform ;\n"
     ": refine ( mineral -- ior ) 20000 + perform ;\n"
@@ -65,6 +65,7 @@ const char* vm_library_game_source =
     ": me ( -- drone ) 205 ask drop answer @ ;\n"
     ": location ( -- place ) me 202 ask drop answer @ ;\n"
     ": units ( resource -- n ) 212 ask drop answer @ ;\n"
+    ": unpack ( -- ior ) 5902 units if 25902 else 25901 then perform ;\n"
     ": company ( -- id ) me 201 ask drop answer @ ;\n"
     ": credits ( -- d ) company 101 ask drop answer 2@ ;\n"
     ": deposit ( mineral -- n ) 640 ask 0 max begin dup while 1- dup 12 * answer +\n"
@@ -73,7 +74,11 @@ const char* vm_library_game_source =
     ": go ( place -- ior ) dup location = if drop 0 else travel then ;\n"
     ": today ( -- day ) 207 ask drop answer @ ;\n"
     ": trip ( place -- hours ) 704 ask 0> if answer 8 + @ else -1 then ;\n"
-    ": stdlib ( -- version ) 4 ;\n";
+    ": house-price ( resource side -- price )\n"
+    "  633 ask 0> if answer 2@ drop else 0 then ;\n"
+    ": best-offer ( resource -- price drone n ) 610 ask 0> if answer 2@ drop answer 8 + @\n"
+    "  answer 6 + @ answer 4 + @ - 0 max else 0 0 0 then ;\n"
+    ": stdlib ( -- version ) 5 ;\n";
 
 int vm_library_load(embed_t* vm)
 {

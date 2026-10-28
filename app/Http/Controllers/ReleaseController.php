@@ -23,12 +23,17 @@ class ReleaseController extends Controller
         // a drone's code or one of its words (#324 step 16: "Copy this code")
         $starters = Release::STARTERS;
         $starter = Release::starter((string) request('starter'));
+        $kit = Release::STARTER_KITS[(string) request('starter')] ?? 'mining';
         $copiedFrom = null;
         $copiedWord = null;
         if (request()->filled('copy')) {
             $release = Provenance::releaseOf((int) request('copy'));
             if ($release) {
                 $copiedFrom = (int) request('copy');
+                // The kit the copied drone's company started with
+                $started = \Illuminate\Support\Facades\DB::table('agents as a')->join('companies as c', 'c.company_id', '=', 'a.company_id')
+                    ->where('a.agent_id', $copiedFrom)->value('c.start_kit');
+                $kit = array_search((int) $started, Release::KITS, true) ?: $kit;
                 $copiedWord = request()->filled('word') ? (string) request('word') : null;
                 $starter = $copiedWord !== null ? Provenance::wordSource($release->source, $copiedWord) : $release->source;
                 if ($starter === null) {
@@ -40,7 +45,9 @@ class ReleaseController extends Controller
         $testWorld = TestWorld::available();
         $clock = LaunchQueue::clock();
 
-        return view('release', compact('testWorld', 'starters', 'starter', 'copiedFrom', 'copiedWord', 'clock'));
+        $kits = Release::KIT_NAMES;
+
+        return view('release', compact('testWorld', 'starters', 'starter', 'copiedFrom', 'copiedWord', 'clock', 'kits', 'kit'));
     }
 
     /**
@@ -58,7 +65,7 @@ class ReleaseController extends Controller
             return $script;
         }
 
-        $token = TestWorld::run($script);
+        $token = TestWorld::run($script, $request->input('kit'));
 
         return redirect('/release/test/' . $token)->withSuccess('Test run started: the test drone is loading your script. '
             . 'Its results appear below as it runs; keep this page\'s link to come back to them.')
@@ -81,7 +88,8 @@ class ReleaseController extends Controller
      */
     private function validScript(Request $request, bool $needsCompanyName)
     {
-        $rules = ['script' => 'required|string|max:' . config('forge.max_script_length')];
+        $rules = ['script' => 'required|string|max:' . config('forge.max_script_length'),
+                  'kit' => 'nullable|in:' . implode(',', array_keys(Release::KITS))];
         if ($needsCompanyName) {
             $rules['company_name'] = ['required', 'string', 'min:3', 'max:45', 'unique:companies,name',
                 function ($attribute, $value, $fail) {
@@ -126,13 +134,15 @@ class ReleaseController extends Controller
 
         // The world is full (#324 step 20): the release waits its turn
         if (LaunchQueue::full()) {
-            $place = LaunchQueue::enqueue(Release::owner(), $request->input('company_name'), $script, $copiedFrom, $copiedWord);
+            $place = LaunchQueue::enqueue(Release::owner(), $request->input('company_name'), $script, $copiedFrom, $copiedWord,
+                $request->input('kit'));
             return redirect('/release')->withSuccess('The world is full right now, so ' . $request->input('company_name')
                 . ' waits in the launch queue: it is number ' . $place . ' in line, and launches as soon as there is room.');
         }
 
         // Anyone may release (#367 step 3): the drone's page is where to follow it
-        $agent = Release::release(Release::owner(), $request->input('company_name'), $script, null, $copiedFrom, $copiedWord);
+        $agent = Release::release(Release::owner(), $request->input('company_name'), $script, null, $copiedFrom, $copiedWord,
+            $request->input('kit'));
 
         return redirect('/spacecraft/' . $agent->agent_id)->withSuccess('Released! Drone ' . $agent->name . ' of '
             . $request->input('company_name') . ' is loading your script and will run its launched word. '

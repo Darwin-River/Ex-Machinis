@@ -42,10 +42,27 @@ class Release
      * The starter scripts (#324 step 15), in examples/starters: a name and
      * what it does
      */
+    /** The kits a company can start with (#380): mining and refining, or making */
+    public const KITS = ['mining' => 5901, 'factory' => 5902];
+    public const KIT_NAMES = [
+        'mining' => 'Mining Kit: Engine, Worm and Refinery, to mine ore and refine it',
+        'factory' => 'Factory Kit: Engine, Smelter, Chemical Reactor and Spider, to make alloys, parts and systems',
+    ];
+
+    /** A kit's resource ID: the mining kit unless 'factory' */
+    public static function kit(?string $name): int
+    {
+        return self::KITS[$name] ?? self::KITS['mining'];
+    }
+
+    /** The kit each starter script needs */
+    public const STARTER_KITS = ['miner' => 'mining', 'refiner' => 'mining', 'trader' => 'mining', 'maker' => 'factory'];
+
     public const STARTERS = [
         'miner' => 'Mines kunspar on the Moon, refines it and sells the metals to the Moon Depot.',
         'refiner' => 'Brews fuel on the Moon from yalspar and vladnium, and sells what it doesn\'t need to other drones.',
         'trader' => 'Buys metals from miners on the Moon and hauls them to Mars, where the House pays more.',
+        'maker' => 'Buys metals on the Moon where they are cheapest, makes alloys and rods, and sells them at Earth.',
     ];
 
     /** A starter script's source, or null for an unknown name */
@@ -136,20 +153,20 @@ class Release
      * test run (#324 step 7).
      */
     public static function release(User $user, string $companyName, string $script, ?string $connection = null,
-                                   ?int $copiedFrom = null, ?string $copiedWord = null): Agent
+                                   ?int $copiedFrom = null, ?string $copiedWord = null, ?string $kit = null): Agent
     {
         if ($connection !== null) {
             // The models use the default connection: point it at that world
             $previous = DB::getDefaultConnection();
             DB::setDefaultConnection($connection);
             try {
-                return self::release($user, $companyName, $script, null, $copiedFrom, $copiedWord);
+                return self::release($user, $companyName, $script, null, $copiedFrom, $copiedWord, $kit);
             } finally {
                 DB::setDefaultConnection($previous);
             }
         }
 
-        return DB::transaction(function () use ($user, $companyName, $script, $copiedFrom, $copiedWord) {
+        return DB::transaction(function () use ($user, $companyName, $script, $copiedFrom, $copiedWord, $kit) {
             $company = Company::create([
                 'user_id' => $user->user_id,
                 'name' => $companyName,
@@ -164,7 +181,8 @@ class Release
             $agent->hull_type = Company::DEFAULT_DRONE_HULL_TYPE;
             $agent->save();
             $agent->agent_id = $agent->id; // the key the save filled in
-            $cargo = $agent->addCargo(5901);                                    // Starter Kit I
+            $cargo = $agent->addCargo(self::kit($kit));                          // its kit (#380)
+            DB::table('companies')->where('company_id', $company->company_id)->update(['start_kit' => self::kit($kit)]);
             $agent->addCargo(self::FUEL, config('forge.starting_fuel'), $cargo);   // its first fuel
 
             foreach (self::chunks($script) as $chunk) {

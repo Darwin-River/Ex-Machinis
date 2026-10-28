@@ -1,59 +1,52 @@
-\ Machinist: a company design for Public Forge (economy rounds 10, 11, 14).
-\ It builds gear boxes, which the Earth and Mars Exchanges buy for 1,075 (about
-\ 10 a day each). A gear box takes a rod, a gear and a spring: 8 Metals (A1)
-\ and 2 Metals (A2) through 5 alloys. It buys the metals from the Moon
-\ miners' sell orders when it can (#380: up to 30 and 45, over the Miner's
-\ asks of 25 and 37), and otherwise mines yalspar (Metals (A1)) and
-\ vladnium (Metals (A2)) itself. With a few gear boxes it flies to
-\ Earth, buys fuel there first, sells them 2 an hour and comes back. It
-\ never leaves with less than low-fuel: every action at Earth, even
-\ ordering fuel, burns a unit (round 10 lost two that arrived empty).
-\ A gear box burns about 40 fuel and a brew nets only about 15, so it
-\ brews until the tank is full again, and buys fuel if it runs low.
+\ Machinist: a company design for Public Forge (economy rounds 10, 11, 14;
+\ #380). Release it with the Factory Kit (Engine, Smelter, Chemical Reactor
+\ and Spider).
+\ It builds gear boxes, which the Earth and Mars Exchanges buy for 1,255
+\ (about 10 a day each). A gear box takes a rod, a gear and a spring: 8
+\ Metals (A1) and 2 Metals (A2) through 5 alloys. It can't mine (#380: the
+\ mining gear is too big to carry with the factory tools): it buys the
+\ metals at the Moon, and its fuel, wherever they are cheapest, from the
+\ miners' sell orders or the Moon Depot, which asks half as much again as
+\ it pays. With a few gear boxes it flies to Earth, sells them 2 an hour
+\ and comes back. A gear box burns about 23 fuel: it never starts one with
+\ less than 30, and never leaves with less than low-fuel.
 
 2021 constant alloys-a1  2022 constant alloys-a2  3011 constant rods
 3101 constant springs    3111 constant gears      4111 constant gear-boxes
-2051 constant polymers   2032 constant inorganics-a2
 4 constant box-load      \ gear boxes it takes to Earth
-60 constant low-fuel     \ brew below this: a box burns about 23, a brew 15
+60 constant low-fuel     \ buy fuel below this
 300 constant cash-floor  \ credits it keeps for fuel
 
-: dig ( mineral n -- )
-  begin over units over < while
-    over deposit 5 < if 60 wait drop else
-      \ A run that brings nothing (others took it first) still burns fuel:
-      \ wait as if the deposit were dry
-      over units >r  over mine drop  over units r> = if 60 wait drop then
-    then
-  repeat 2drop ;
+\ Buy up to n of a resource here where it is cheapest: another drone's sell
+\ order (best-offer) or the House station (house-price, side 2: what it
+\ asks). The House delivers when its batch clears, within the game hour
+: buy-cheapest ( n resource -- )
+  >r  r@ 2 house-price  r@ best-offer         ( n house price drone avail )
+  dup 0> 3 pick 0> and  3 pick 5 pick <  5 pick 0= or  and if
+    rot drop rot drop rot min  r> rot pull drop exit
+  then
+  2drop drop  if r> buy-from-station drop else r> 2drop then ;
 
-\ Buy up to n of a metal from the cheapest seller here at price or less
-: buy ( n metal price -- )
-  credits cash-floor 0 d< if 2drop drop exit then
-  >r dup 610 ask 0> 0= if 2drop r> drop exit then
-  answer 2@ drop r> > if 2drop exit then
-  answer 6 + @ answer 4 + @ - 0 max rot min ?dup 0= if drop exit then
-  swap answer 8 + @ pull drop ;
-
-\ Get the metals for one gear box: buy them, else mine them
-: stock-up ( -- )
-  16 metals-a1 units - 0 max ?dup if metals-a1 30 buy then
-  4 metals-a2 units - 0 max ?dup if metals-a2 45 buy then
-  metals-a1 units 8 < if yalspar 16 dig yalspar refine drop then
-  metals-a2 units 2 < if vladnium 12 dig vladnium refine drop then ;
-
-: brew-fuel ( -- )
-  yalspar 16 dig yalspar refine drop
-  vladnium 12 dig vladnium refine drop
-  fuel make drop ;
-
-\ Brew until the tank is back to low-fuel; too low to brew safely, buy 30
-\ from the House here instead (it arrives when the batch clears)
 : refuel ( -- )
-  begin fuel units low-fuel < while
-    fuel units 20 < if 30 fuel buy-from-station drop 120 wait drop exit then
-    brew-fuel
-  repeat ;
+  fuel units low-fuel < if 30 fuel buy-cheapest 60 wait drop then ;
+
+\ Credits above cash-floor, at most 32,000 (credits are a double)
+: spare ( -- n )
+  credits cash-floor 0 d- dup 0< if 2drop 0 exit then
+  if drop 32000 exit then  dup 0< if drop 32000 then ;
+
+\ The metals for two gear boxes, as many as the spare credits pay for (at
+\ up to 30 and 45 a unit); wait for the House's delivery
+: short? ( -- f ) metals-a1 units 8 < metals-a2 units 2 < or ;
+: stock-up ( -- )
+  short? 0= if exit then
+  16 metals-a1 units - 0 max spare 30 / min ?dup if metals-a1 buy-cheapest then
+  4 metals-a2 units - 0 max spare 45 / min ?dup if metals-a2 buy-cheapest then
+  60 wait drop ;
+
+\ Short of metals and of money to buy them, with gear boxes aboard: go and
+\ sell them, however few (else it would wait for a full load for ever)
+: stuck? ( -- f ) short? spare 400 < and gear-boxes units 0> and ;
 
 \ One gear box from 8 Metals (A1) and 2 Metals (A2); stops at a failure.
 \ It burns about 23 fuel: never start one with less than 30 (round 20)
@@ -66,12 +59,6 @@
   rods make if exit then  gears make if exit then
   springs make if exit then  gear-boxes make drop ;
 
-\ By-products to the Moon Depot, so the hold never fills
-: tidy ( -- )
-  polymers sell-all inorganics-a1 sell-all inorganics-a2 sell-all
-  organics-a1 units 4 > if organics-a1 sell-all then
-  metals-a3 sell-all ;
-
 : sell-boxes ( -- )
   6 begin dup 0> gear-boxes units 0> and while
     gear-boxes units 2 min gear-boxes sell-to-station drop
@@ -79,20 +66,20 @@
   repeat drop ;
 
 \ Growth (#380): with 7,000 credits or more, at an exchange, buy a Mining
-\ Cruiser kit and a Starter Kit I, launch a clone of this drone (it runs
-\ this same program), and hand it the starter kit and 40 fuel
-6001 constant cruiser-kit   5901 constant starter-kit
+\ Cruiser kit and a Factory Kit I, launch a clone of this drone (it runs
+\ this same program), and hand it the kit and 40 fuel
+6001 constant cruiser-kit
 \ Buy one of a good here unless one is aboard, and wait (up to 6 game
 \ hours) for it: the House delivers when the batch clears
 : get-one ( resource -- )
   dup units if drop exit then
   dup 1 swap buy-from-station drop
   6 begin over units 0= over 0> and while 60 wait drop 1- repeat 2drop ;
-\ Hand the newest clone a starter kit and 40 fuel
+\ Hand the newest clone a factory kit and 40 fuel
 : equip-clone ( -- )
   670 ask ?dup 0= if exit then
   1- 4 * answer + @ >r
-  1 starter-kit r@ push drop  40 fuel r> push drop ;
+  1 factory-kit r@ push drop  40 fuel r> push drop ;
 \ Top the tank up to n from the House here, waiting (up to 6 game hours)
 \ (Waits for the delivery, not for n: computing burns a unit or two just
 \ after it arrives, and waiting for n then sat out all 6 hours)
@@ -101,21 +88,21 @@
     fuel buy-from-station drop
     6 begin over fuel units < 0= over 0> and while 60 wait drop 1- repeat
   then 2drop ;
-\ One kit at a time: equipment fills 364 of the 500 cargo. A hull already
-\ bought is launched whenever the fuel allows; after equipping the clone
-\ the tank is refilled (round 19 lost 8 parents that left with 20 fuel)
+\ One kit at a time. A hull already bought is launched whenever the fuel
+\ allows; after equipping the clone the tank is refilled (round 19 lost 8
+\ parents that left with 20 fuel)
 : reinvest ( -- )
-  starter-kit units if equip-clone 60 fill-to exit then
+  factory-kit units if equip-clone 60 fill-to exit then
   cruiser-kit units 0= if
     credits 7000 0 d< if exit then
     cruiser-kit get-one  cruiser-kit units 0= if exit then
   then
   90 fill-to  fuel units 80 < if exit then
   me cruiser-kit launch if exit then
-  starter-kit get-one  starter-kit units if equip-clone then
+  factory-kit get-one  factory-kit units if equip-clone then
   60 fill-to ;
-\ A clone starts with no equipment: wait for the starter kit
-: await-kit ( -- ) begin starter-kit units 0= while 60 wait drop repeat ;
+\ A clone starts with no equipment: wait for the kit
+: await-kit ( -- ) begin factory-kit units 0= while 60 wait drop repeat ;
 
 : haul ( -- )
   refuel
@@ -124,8 +111,7 @@
   sell-boxes reinvest moon go drop ;
 
 : work ( -- )
-  refuel
-  stock-up build tidy
-  gear-boxes units box-load < 0= if haul then ;
+  refuel stock-up build
+  gear-boxes units box-load < 0=  stuck? or if haul then ;
 
 : launched ( -- ) await-kit unpack drop moon go drop begin work again ;

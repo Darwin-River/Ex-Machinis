@@ -8,7 +8,7 @@
             @include('_flash_message')
 
             <p>Write your drone's program and release it: anyone can, no account needed. Each release starts a new
-                company with one drone in orbit around Earth, a starter kit and
+                company with one drone in orbit around Earth, the kit you choose and
                 {{ number_format(config('forge.starting_credits')) }} credits. The drone loads your script, then runs
                 your <code>launched</code> word on its own. You go to its page, where everything it does and says is
                 public: keep the link to follow it.</p>
@@ -52,6 +52,18 @@
                         <a href="{{ url('release?starter=' . $name) }}" title="{{ $what }}">{{ ucfirst($name) }}</a>@if(!$loop->last) · @endif
                     @endforeach
                     (each is explained in its comments; change it to make it your own)</small></p>
+                <div class="form-group">
+                    <label>Kit</label>
+                    @foreach($kits as $name => $what)
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="kit" id="kit-{{ $name }}"
+                                   value="{{ $name }}"{{ old('kit', $kit) === $name ? ' checked' : '' }}>
+                            <label class="form-check-label" for="kit-{{ $name }}">{{ $what }}</label>
+                        </div>
+                    @endforeach
+                    <small>The mining gear is too big to carry with the factory tools: a drone mines and refines, or
+                        it makes things. Choose the kit your script needs (each starter says which).</small>
+                </div>
                 <div class="form-group">
                     <label for="script">Script</label>
                     <textarea class="form-control" id="script" name="script" rows="16" spellcheck="false"

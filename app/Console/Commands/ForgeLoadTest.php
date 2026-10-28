@@ -62,7 +62,8 @@ class ForgeLoadTest extends Command
             $name = $starters[intdiv($i, 3) % count($starters)];
             $user = User::create(['name' => "Load $i", 'email' => "load$i@" . self::DOMAIN,
                 'password' => bcrypt('load-test-' . $i, ['rounds' => 4])]);
-            Release::release($user, "Load $i " . ucfirst($name), $sources[$name]);
+            Release::release($user, "Load $i " . ucfirst($name), $sources[$name], null, null, null,
+                Release::STARTER_KITS[$name] ?? null);
         }
         $this->info(sprintf('Released %d drones in %.1f s (%d load drones in all).', $count,
             microtime(true) - $started, $first + $count));

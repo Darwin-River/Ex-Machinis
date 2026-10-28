@@ -69,6 +69,7 @@ ask
 b/buf
 base
 begin
+best-offer
 bl
 blk
 block
@@ -126,6 +127,7 @@ evaluate
 execute
 exit
 expect
+factory-kit
 fill
 find
 flush
@@ -139,6 +141,7 @@ here
 hex
 hld
 hold
+house-price
 if
 immediate
 inorganics-a1
@@ -165,6 +168,7 @@ metals-a2
 metals-a3
 min
 mine
+mining-kit
 mod
 moon
 negate
