@@ -247,3 +247,41 @@ ErrorCode_t db_wreck_drone(int drone_id, const char* cause)
     }
     return result;
 }
+
+/** ****************************************************************************
+
+  @brief      Whether a drone is on a trip at a game time (#380): its move
+              event (event type 3) is still pending after that time. A drone
+              keeps the place it left until it arrives, so without this check
+              other drones could trade with it all the way to Mars.
+
+  @param[in]  drone_id  The drone
+  @param[in]  game_t    The game time to check
+
+  @return     ENGINE_TRUE when it is in flight (ENGINE_FALSE on a DB error)
+
+*******************************************************************************/
+Bool_t db_drone_in_transit(int drone_id, long long game_t)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+    Bool_t in_transit = ENGINE_FALSE;
+
+    if(db_reconnect(connection) != ENGINE_OK) return ENGINE_FALSE;
+
+    snprintf(query_text, sizeof(query_text),
+        "SELECT 1 FROM events WHERE drone = %d AND event_type = 3 "
+        "AND outcome = 0 AND game_t > %lld LIMIT 1", drone_id, game_t);
+
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return ENGINE_FALSE;
+    }
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    if(db_result) {
+        if(mysql_num_rows(db_result) > 0) in_transit = ENGINE_TRUE;
+        mysql_free_result(db_result);
+    }
+    return in_transit;
+}

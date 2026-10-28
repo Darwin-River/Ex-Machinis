@@ -494,6 +494,13 @@ for old, new, verb in (('7', '17', 'sell'), ('8', '18', 'buy')):
 # later; an order (event type 10) is paid for and delivered at clearing.
 # Deliveries and returns are actions of protocol 33, which nobody performs.
 STATION_OFFER_EVENT, STATION_ORDER_EVENT = 9, 10
+# Posting an order isn't a sale or a purchase (#380 round 27: players read
+# "Buy resource" in the activity list as a purchase): name them for what
+# they do
+for pid, name in (('7', 'Post sell order'), ('8', 'Post buy order'),
+                  ('17', 'Post sell order (double price)'), ('18', 'Post buy order (double price)')):
+    if pid in protocols:
+        protocols[pid][1] = name
 protocols['31'] = ['31', 'Offer to station', '2', '100',
                    '[N R 31 perform]: Offers N units of resource R to the House station where the drone is. They leave '
                    'the hold now; when the hour\'s batch clears, the station pays one price for the batch and returns '

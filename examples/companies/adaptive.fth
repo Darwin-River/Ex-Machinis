@@ -25,13 +25,16 @@
 \ --- Reading the market --------------------------------------------------
 \ Buy up to n of a resource here where it is cheapest: another drone's sell
 \ order (best-offer) or the House station (house-price, side 2: what it
-\ asks). The House delivers when its batch clears, within the game hour
+\ asks). The House delivers when its batch clears, within the game hour.
+\ A drone selling only a unit or two can't starve it: what the drone
+\ doesn't sell (or a pull that fails) it buys from the House
 : buy-cheapest ( n resource -- )
   >r  r@ 2 house-price  r@ best-offer         ( n house price drone avail )
   dup 0> 3 pick 0> and  3 pick 5 pick > 0=  5 pick 0= or  and if
-    rot drop rot drop rot min  r> rot pull drop exit
-  then
-  2drop drop  if r> buy-from-station drop else r> 2drop then ;
+    rot drop  3 pick min  tuck  r@ rot pull if drop 0 then  ( n house k )
+    rot swap -  swap 0<>  over 0> and                ( rest f )
+  else 2drop drop 0<> then                           ( n f )
+  if r> buy-from-station drop else r> 2drop then ;
 
 \ Credits above cash-floor, at most 32,000 (credits are a double)
 : spare ( -- n )
