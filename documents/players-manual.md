@@ -420,7 +420,7 @@ When the world is busy the clock slows down so the game's computers can keep up,
 
 - **The solar system moves.** Planets, moons, asteroids and comets follow their real orbits, but at game speed, so the game's sky runs ahead of the real one.
 - **Actions take time.** Each protocol takes a set amount of game time. Your drone does one action at a time: `perform` waits until the action is finished before your script goes on (see [Issuing Commands](#chapter-4-issuing-commands)).
-- **Travel takes time.** Drones speed up to the halfway point and slow down after, so a trip takes 2 × √(distance ÷ acceleration). The distance is measured when the drone leaves, so the planets' positions decide how long a trip takes.
+- **Travel takes time.** Drones speed up to the halfway point and slow down after, so a trip takes 2 × √(distance ÷ acceleration). The distance is measured when the drone leaves, so the planets' positions decide how long a trip takes. A drone can ask before it goes: `mars trip` leaves the game hours a trip from here to Mars takes (rounded up; -1 if it can't tell), and queries 704 (from here to P) and 705 (from A to B) give the distance in thousands of km and the time in game seconds, both doubles. The game stores where every body is every few game hours, so the answer is a close estimate: Earth to the Moon is about 11 hours, Earth to Mars 4 to 25 game days as the planets move.
 - **Messages travel at the speed of light.** You are on Earth. A script reaches a drone only after light has crossed the distance to it, and its reply takes as long to come back. The first line of every reply says how far the drone is, in light-minutes.
 
 With the default clock:
@@ -630,7 +630,7 @@ Every drone comes with a vocabulary for the game, so you can write `kunspar mine
 | Places | `earth` (3) `moon` (10) `mars` (4) `phobos` (11) `deimos` (12): their location IDs; the Locations page lists the rest |
 | Resources | `fuel` `magmite` `kunspar` `yalspar` `vladnium` `wolfite` `metals-a1` `metals-a2` `metals-a3` `inorganics-a1` `organics-a1` |
 | Actions: each takes its arguments off the stack and leaves one result, the ior (0 done, negative failed; see [Issuing Commands](#chapter-4-issuing-commands)), so `kunspar mine drop` and `kunspar mine if ... then` | `unpack ( -- ior )`, `travel ( place -- ior )`, `mine ( mineral -- ior )`, `refine ( mineral -- ior )`, `make ( resource -- ior )`, `wait ( minutes -- ior )`, `sell-to-station ( n resource -- ior )`, `buy-from-station ( n resource -- ior )`, `sell-order ( price keep resource -- ior )`, `buy-order ( price want resource -- ior )`, `push ( n resource drone -- ior )`, `pull ( n resource drone -- ior )`, `launch ( drone kit -- ior )`, `plunder ( wreck -- ior )`, `jettison ( n resource -- ior )` |
-| Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `today ( -- day )` (the game day now: plan a late selling trip or a deadline), `ask ( [n] id -- rows )` (any query, answers in the buffer `answer`) |
+| Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `today ( -- day )` (the game day now: plan a late selling trip or a deadline), `trip ( place -- hours )` (game hours to fly there from here, rounded up; -1 if unknown), `ask ( [n] id -- rows )` (any query, answers in the buffer `answer`) |
 | Messages | `report` sends what the drone has printed so far, at once: without it you see nothing until the script ends, and a `launched` word that loops forever never ends. Call it once a round: `begin ... ." fuel " fuel units . report 60 wait drop again` |
 | Helpers | `sell-all ( resource )` offers all of it to the station here; `go ( place -- ior )` travels there unless the drone is already there (then it leaves 0 at once) |
 
@@ -1087,11 +1087,12 @@ Query 803 lists the events your drone has observed, newest first, filtered by up
   create events 40 allot
   \ Kunspar (1100) removed from any hold this drone has seen, by anyone
   -1 -1 -1 -1 -1 1100 1 -1 -1 events 40 803 query .
-  events @ .   \ the latest such event's ID
+  events 2@ 2dup d.   \ the latest such event's ID (a double)
+  840 ask drop answer @ .   \ ...and the quantity it left
 </run>
 ```
 
-It leaves the number of event IDs it stored (two bytes each, so ID n is at events + 2n), or -2 if none match. Ask the other event queries (810 to 843) about any of them: what type it was, who acted, which resource, the new quantity, when it happened. Query 843 gives the time as two values: the game day (day 0 is the day the world began) and the number of even seconds into that day. Every time in the game is game time, so it runs at the game clock's pace.
+It leaves the number of event IDs it stored, or -2 if none match. Event IDs run past 65,535, too big for one cell, so every event list (800 to 803) stores them as [doubles](#big-numbers-double-cells): four bytes each, so ID n is at events + 4n, read with `2@`. Ask the other event queries (810 to 843) about any of them by pushing the ID as `2@` left it (a double): what type it was, who acted, which resource, the new quantity, when it happened. Query 843 gives the time as two values: the game day (day 0 is the day the world began) and the number of even seconds into that day. Every time in the game is game time, so it runs at the game clock's pace.
 
 As we develop more complex queries, we'll provide additional examples of how spacecraft can use queries to probe and respond to their environment.
 

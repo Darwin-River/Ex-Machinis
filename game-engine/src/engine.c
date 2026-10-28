@@ -1091,6 +1091,20 @@ static void engine_check_load(void)
     g_load_slices = 0;
 }
 
+/* Every body's position, stored once a minute (#380): a drone's trip-time
+   queries (704, 705) read them. Before, nothing stored them and a drone
+   couldn't learn how far anything was. */
+static time_t g_positions_at = 0;
+static void engine_store_positions(void)
+{
+    time_t now = time(NULL);
+    if(g_positions_at && difftime(now, g_positions_at) < CLOCK_CHECK_SECONDS)
+        return;
+    g_positions_at = now;
+    db_store_positions(&engine.db_connection, engine_get_travel_acceleration(),
+                       (long long)game_time_now_seconds(), engine_get_object_position);
+}
+
 ErrorCode_t engine_run()
 {
   ErrorCode_t result = ENGINE_OK;
@@ -1116,6 +1130,7 @@ ErrorCode_t engine_run()
         // minute set its pace from how far behind the engines run
         game_time_load();
         engine_check_load();
+        engine_store_positions();
 
         // Signals travel at the speed of light: time when new commands reach
         // their drones, and send the replies that have reached Earth

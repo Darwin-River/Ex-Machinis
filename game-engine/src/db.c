@@ -3925,6 +3925,54 @@ ErrorCode_t db_get_latest_processed_game_t(const int* drones, int count, long lo
 
 /** ****************************************************************************
 
+    @brief          Stores where every body is now (#380), and the travel
+                    acceleration: drones' trip-time queries (704, 705) read
+                    them. position(id, out) works a body's position out.
+
+*******************************************************************************/
+ErrorCode_t db_store_positions(DbConnection_t* connection, double acceleration, long long game_t,
+                               ErrorCode_t (*position)(int, CartesianInfo_t*, char*))
+{
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK)
+        return result;
+
+    if(mysql_query(connection->hndl, "SELECT object_id FROM objects WHERE object_id > 0"))
+        return ENGINE_DB_QUERY_ERROR;
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    if(!db_result)
+        return ENGINE_DB_QUERY_ERROR;
+    int count = (int)mysql_num_rows(db_result);
+    int* ids = malloc(sizeof(int) * (count > 0 ? count : 1));
+    MYSQL_ROW row;
+    int n = 0;
+    while(ids && (row = mysql_fetch_row(db_result)))
+        ids[n++] = row[0] ? atoi(row[0]) : 0;
+    mysql_free_result(db_result);
+    if(!ids)
+        return ENGINE_MEMORY_ALLOC_ERROR;
+
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    for(int i = 0; i < n; i++) {
+        CartesianInfo_t at;
+        if(position(ids[i], &at, NULL) != ENGINE_OK)
+            continue;
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "UPDATE objects SET x_coord = %.3f, y_coord = %.3f, z_coord = %.3f, computed_on = FROM_UNIXTIME(%lld) "
+            "WHERE object_id = %d", at.x, at.y, at.z, game_t, ids[i]);
+        if(mysql_query(connection->hndl, query_text))
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+    }
+    free(ids);
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "UPDATE game_clock SET travel_acceleration = %f WHERE id = 1", acceleration);
+    if(mysql_query(connection->hndl, query_text))
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+    return ENGINE_OK;
+}
+
+/** ****************************************************************************
+
     @brief          The latest game time, done or still to come, of a drone's
                     events on some of its stock entries (resource, installed,
                     locked): what holds back an action that changes those

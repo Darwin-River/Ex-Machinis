@@ -992,6 +992,48 @@ queries.append((680, 'Price board',
                 f"FROM trades WHERE resource=[value_1] AND location IS NOT NULL AND game_t<=[game_now]-{BOARD_LAG} "
                 f"AND game_t>[game_now]-{BOARD_LAG}-{DAY} GROUP BY location ORDER BY location;"))
 
+# Planning trips (#380): the Game Engine stores every body's position each
+# minute (objects.x_coord ...) and its travel acceleration (game_clock), so a
+# drone can work out a trip's length and time before it goes. A trip takes
+# 2 * sqrt(distance / acceleration), as protocol_plan_travel times it.
+# Distances are in thousands of km and seconds are doubles: Neptune is 4.5
+# million thousand-km away, and the trip there takes about 4 million seconds.
+def trip(a, b):
+    km = (f"SQRT(POW({a}.x_coord-{b}.x_coord,2)+POW({a}.y_coord-{b}.y_coord,2)+POW({a}.z_coord-{b}.z_coord,2))")
+    secs = f"GREATEST(1, 2*SQRT({km}*1000/(SELECT travel_acceleration FROM game_clock WHERE id = 1)))"
+    return (f"SELECT ROUND({km}/1000) AS d_thousand_km, ROUND({secs}) AS d_seconds, CEIL({secs}/3600) AS hours "
+            f"FROM objects {a}, objects {b} WHERE {a}.x_coord IS NOT NULL AND {b}.x_coord IS NOT NULL")
+TRIP_COLUMNS = ('the distance in thousands of km (2 cells), the trip time in game seconds (2 cells) and in game '
+                'hours, rounded up')
+queries = [q for q in queries if q[0] not in (703, 704, 705)]
+queries.append((703, 'Get location coordinates',
+                '[N R L 703 query]: Where location N is now: x, y and z from the Sun, in thousands of km (each 2 '
+                'cells, 2@). Updated every few game hours.', 1,
+                "SELECT ROUND(x_coord/1000) AS d_x, ROUND(y_coord/1000) AS d_y, ROUND(z_coord/1000) AS d_z "
+                "FROM objects WHERE object_id=[value_1] AND x_coord IS NOT NULL;"))
+queries.append((704, 'Trip from here',
+                f'[P R L 704 query]: A trip from where the drone is to location P: {TRIP_COLUMNS}.', 1,
+                trip('a', 'b') + f" AND a.object_id={HERE_} AND b.object_id=[value_1];"))
+queries.append((705, 'Trip between places',
+                f'[A B R L 705 query]: A trip from location A to location B: {TRIP_COLUMNS}.', 2,
+                trip('a', 'b') + " AND a.object_id=[value_2] AND b.object_id=[value_1];"))
+
+# Event IDs pass 65,535 (#380), too big for a cell: the event lists return
+# doubles (read with 2@) and the event lookups take one (an event ID's two
+# cells, as 2@ leaves them: [dvalue_1])
+EVENT_ID_NOTE = ' Event IDs are doubles (2 cells, 2@).'
+def double_event_ids(q):
+    qid, name, desc, params, script = q
+    if qid in (800, 801, 802, 803):
+        script = re.sub(r'^SELECT (e\.)?id ', lambda m: f'SELECT {m.group(1) or ""}id AS d_id ', script)
+        return (qid, name, (desc.rstrip() + EVENT_ID_NOTE)[:255], params, script)
+    if 810 <= qid <= 849 and '[value_1]' in script:
+        script = script.replace('[value_1]', '[dvalue_1]')
+        desc = desc.rstrip() + ' N is an event ID, a double (2 cells) as an event list (800-803) leaves it with 2@.'
+        return (qid, name, desc[:255], 2, script)
+    return q
+queries = [double_event_ids(q) for q in queries]
+
 # Queries whose money or volume columns are double cells: say so
 DOUBLE_QUERIES = {101, 600, 601, 610, 611, 612, 620, 621, 841}  # 630-632 say so themselves
 queries = [(q[0], q[1], (q[2] if q[0] == 612 else q[2].rstrip() + ' Money and volumes are double cells (2@).')[:255],

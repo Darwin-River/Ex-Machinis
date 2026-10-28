@@ -910,6 +910,8 @@ ErrorCode_t db_set_action_outcome(int action_id, int outcome);
 
 /** The latest game time of these drones' events, done or to come (0: none) */
 ErrorCode_t db_get_latest_processed_game_t(const int* drones, int count, long long* game_t);
+ErrorCode_t db_store_positions(DbConnection_t* connection, double acceleration, long long game_t,
+                               ErrorCode_t (*position)(int, CartesianInfo_t*, char*));
 ErrorCode_t db_get_latest_entry_game_t(int drone, const int* resources, const int* installed,
                                        const int* locked, int count, long long* game_t);
 
