@@ -7,7 +7,8 @@
 \ exchange's game data (query 630, the station_goods table).
 \ - What the exchange buys: a buy order for up to a day's demand. Its price
 \   falls from the listed price to half as the stock fills, and once a game
-\   day the stock goes down to the surface.
+\   day the stock goes down to the surface (but for what it keeps to sell,
+\   when the exchange sells the same good).
 \ - What the exchange sells: stock brought up to a quarter of a day's
 \   supply, on a sell order at the listed price.
 
@@ -33,16 +34,25 @@ create posted 200 allot
 
 500 constant reserve     \ fuel it keeps for itself (orders and thinking)
 
-\ Buying: from the listed price at no stock to half of it at a full day's
-\ stock; the order stays open for up to a day's demand
-: bid ( i -- price ) dup listed  over good units over *  rot daily 2 * /  - 1 max ;
-: post-bid ( i -- )
-  dup bid over changed? 0= if drop exit then
-  dup bid  over daily  rot good  buy-order drop ;
-
 \ Selling: a quarter of a day's supply in stock, at the listed price (fuel
 \ keeps the reserve back)
 : stock ( i -- n ) daily 4 / 1 max ;
+
+\ The stock it keeps for selling a resource it also buys (metals at the
+\ Moon, say): 0 when it doesn't sell it. Only what is above that counts as
+\ bought, for its price and for shipping down
+: keep-of ( resource -- n )
+  #goods @ begin dup while 1-
+    2dup good = over buys? 0= and if nip stock exit then
+  repeat 2drop 0 ;
+: excess ( i -- n ) dup good units swap good keep-of - 0 max ;
+
+\ Buying: from the listed price at no stock bought to half of it at a full
+\ day's demand; the order stays open for up to a day's demand
+: bid ( i -- price ) dup listed  over excess over *  rot daily 2 * /  - 1 max ;
+: post-bid ( i -- )
+  dup bid over changed? 0= if drop exit then
+  dup bid  over daily  2 pick good keep-of +  rot good  buy-order drop ;
 : restock ( i -- ) dup stock over good units - swap good import ;
 : post-ask ( i -- )
   dup listed over changed? 0= if drop exit then
@@ -54,7 +64,7 @@ create posted 200 allot
 variable shipped
 : ship ( -- )
   today shipped @ = if exit then  today shipped !
-  #goods @ begin dup while 1- dup buys? if dup good units over good export then
+  #goods @ begin dup while 1- dup buys? if dup excess over good export then
   repeat drop ;
 
 \ Its own fuel
