@@ -39,6 +39,10 @@ const char* vm_library_source =
    Every action word leaves perform's result (0 when it worked). They need
    the perform and query callbacks, which the VM gets first. */
 const char* vm_library_game_source =
+    ": 2* ( n -- n*2 ) 1 lshift ;\n"
+    ": 2/ ( n -- n/2 ) 2 / ;\n"
+    ": */ ( n1 n2 n3 -- n1*n2/n3 ) 2dup xor 3 pick xor >r\n"
+    "  abs >r abs swap abs um* r> um/mod nip r> 0< if negate then ;\n"
     "3 constant earth 10 constant moon 4 constant mars\n"
     "11 constant phobos 12 constant deimos\n"
     "2061 constant fuel 1000 constant magmite 1100 constant kunspar\n"
@@ -90,7 +94,7 @@ const char* vm_library_game_source =
     ": in? ( mode -- f ) mode @ = ;\n"
     ": tick ( -- ) 1 #ticks +! ;\n"
     ": ticks ( -- n ) #ticks @ ;\n"
-    ": stdlib ( -- version ) 6 ;\n";
+    ": stdlib ( -- version ) 7 ;\n";
 
 int vm_library_load(embed_t* vm)
 {
