@@ -50,6 +50,7 @@ const char* vm_library_game_source =
     "5901 constant mining-kit 5902 constant factory-kit\n"
     "2011 constant metals-a1 2012 constant metals-a2 2013 constant metals-a3\n"
     "2031 constant inorganics-a1 2041 constant organics-a1\n"
+    "2032 constant inorganics-a2 2042 constant organics-a2\n"
     ": travel ( place -- ior ) 5001 perform ;\n"
     ": mine ( mineral -- ior ) 10000 + perform ;\n"
     ": refine ( mineral -- ior ) 20000 + perform ;\n"
@@ -98,7 +99,7 @@ const char* vm_library_game_source =
     "  begin dup while 1- dup 12 * answer + dup @ r@ = if\n"
     "  dup 2 + 2@ drop swap 6 + 2@ drop + nip r> drop exit then drop\n"
     "  repeat r> 2drop 0 ;\n"
-    ": stdlib ( -- version ) 8 ;\n";
+    ": stdlib ( -- version ) 9 ;\n";
 
 int vm_library_load(embed_t* vm)
 {

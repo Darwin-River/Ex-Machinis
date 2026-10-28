@@ -12,9 +12,8 @@ The game's built-in words (`mine`, `refine`, `make`, `units`, `deposit`, `sell-a
 | `polymers` | 2051 |
 | `rods` | 3011 |
 | `sheets` | 3001 |
-| `inorganics-a2` `organics-a2` | 2032, 2042: refining by-products; Earth and the Moon buy them |
 
-Define more the same way: `3311 constant pipes`. The Resources page lists every ID.
+Define more the same way: `3311 constant pipes`. The Resources page lists every ID. (`inorganics-a2` and `organics-a2` are game words since #380.)
 
 ## Inventory
 

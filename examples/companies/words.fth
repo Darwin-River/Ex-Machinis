@@ -6,7 +6,6 @@
 \ --- Goods the game words don't name ----------------------------------
 2021 constant alloys-a1   2022 constant alloys-a2   2023 constant alloys-a3
 2051 constant polymers    3011 constant rods        3001 constant sheets
-2032 constant inorganics-a2   2042 constant organics-a2
 
 \ --- Inventory ----------------------------------------------------------
 \ Total metals aboard

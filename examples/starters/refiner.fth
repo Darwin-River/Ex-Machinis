@@ -13,7 +13,6 @@
 40 constant low-fuel     \ get fuel when below this
 240 constant rest        \ game minutes to rest when both Mars moons are dry
 16 constant hold-cap     \ goods it keeps on offer to other drones
-2032 constant inorganics-a2
 
 \ The site it works: 0 the Moon, 1 Phobos, 2 Deimos. The drone you release
 \ works the Moon. A third of its copies (by drone number) work the Moon too;
@@ -131,7 +130,8 @@ variable copy
   market go drop  offer
   metals-a1 sell-all metals-a2 sell-all organics-a1 sell-all
   inorganics-a1 sell-all inorganics-a2 sell-all
-  fuel units 50 < if 30 fuel buy-from-station drop then
+  \ Waits for the delivery: refuel, next round, would order it again
+  fuel units 50 < if 80 fill-to then
   reinvest site go drop ;
 
 \ Every 8th round, send a line home. What a drone prints reaches you only

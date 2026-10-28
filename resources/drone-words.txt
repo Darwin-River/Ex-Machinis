@@ -153,6 +153,7 @@ if
 immediate
 in?
 inorganics-a1
+inorganics-a2
 interpret
 invert
 jettison
@@ -186,6 +187,7 @@ nip
 only
 or
 organics-a1
+organics-a2
 over
 pad
 parse

@@ -128,7 +128,8 @@ variable copy
   metals hold-cap < if exit then
   market go drop  offer
   metals-a1 sell-all metals-a2 sell-all metals-a3 sell-all
-  fuel units 50 < if 30 fuel buy-from-station drop then
+  \ Waits for the delivery: refuel, next round, would order it again
+  fuel units 50 < if 80 fill-to then
   reinvest site go drop ;
 
 \ Every 8th round, send a line home. What a drone prints reaches you only
