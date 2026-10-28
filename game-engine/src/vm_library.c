@@ -75,7 +75,7 @@ const char* vm_library_game_source =
     ": credits ( -- d ) company 101 ask drop answer 2@ ;\n"
     ": deposit ( mineral -- n ) 640 ask 0 max begin dup while 1- dup 12 * answer +\n"
     "  dup @ 3 pick = if 2 + 2@ drop nip nip exit then drop repeat 2drop 0 ;\n"
-    ": sell-all ( resource -- ) dup units ?dup if swap sell-to-station drop else drop then ;\n"
+
     ": go ( place -- ior ) dup location = if drop 0 else travel then ;\n"
     ": today ( -- day ) 207 ask drop answer @ ;\n"
     ": trip ( place -- hours ) 704 ask 0> if answer 8 + @ else -1 then ;\n"
@@ -103,7 +103,11 @@ const char* vm_library_game_source =
     "  begin dup while 1- dup 12 * answer + dup @ r@ = if\n"
     "  dup 2 + 2@ drop swap 6 + 2@ drop + nip r> drop exit then drop\n"
     "  repeat r> 2drop 0 ;\n"
-    ": stdlib ( -- version ) 10 ;\n";
+    ": sell-all ( resource -- ) dup units ?dup 0= if drop exit then over best-bid\n"
+    "  dup 0> 3 pick 6 pick 1 house-price < 0= and if rot drop rot min swap >r\n"
+    "  over r> push drop dup units ?dup if swap sell-to-station drop else drop then\n"
+    "  exit then 2drop drop swap sell-to-station drop ;\n"
+    ": stdlib ( -- version ) 11 ;\n";
 
 int vm_library_load(embed_t* vm)
 {

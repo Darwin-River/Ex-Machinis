@@ -104,6 +104,8 @@ services:
       # TEST_WORLD=1 shows the Release page's Test button; start the test
       # world's engines with: docker compose --profile testworld up -d
       TEST_WORLD: ${TEST_WORLD:-0}
+      # FORGE_STATION_DRONES=1 makes the House station drones (#380) at start-up
+      FORGE_STATION_DRONES: ${FORGE_STATION_DRONES:-0}
       DB_TEST_DATABASE: exmachinis_test
     volumes:
       - app-storage:/var/www/storage

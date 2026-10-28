@@ -64,7 +64,8 @@ class Leaderboard
         $prices = self::prices();
         $kit = self::kitValue($prices);
         $rows = [];
-        foreach (DB::table('companies')->whereNull('eliminated_at')->get(['company_id', 'name', 'credits']) as $c) {
+        // The House (#380: its station drones' company) isn't a player
+        foreach (DB::table('companies')->whereNull('eliminated_at')->where('house', 0)->get(['company_id', 'name', 'credits']) as $c) {
             $rows[$c->company_id] = ['company_id' => (int) $c->company_id, 'company' => $c->name, 'drone' => null,
                 'name' => null, 'drones' => 0, 'wealth' => (int) $c->credits - $kit];
         }
