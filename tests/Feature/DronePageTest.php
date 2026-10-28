@@ -113,13 +113,13 @@ class DronePageTest extends TestCase
         DB::table('stations')->insert(['id' => $station, 'name' => 'Test Depot', 'object_id' => 3, 'budget_cap' => 1000, 'refill_per_day' => 1000]);
         DB::table('station_offers')->insert(['station_id' => $station, 'side' => 1, 'resource' => 2, 'units' => 6, 'drone' => $agent->agent_id,
             'company_id' => $agent->company_id, 'action_id' => $done, 'batch_t' => $now - 3600, 'filled' => 5, 'price' => 20, 'paid' => 100,
-            'cleared_t' => $now - 3600]);
+            'tax' => 5, 'cleared_t' => $now - 3600]);
         DB::table('trades')->insert(['resource' => 1, 'units' => 3, 'credits' => 45, 'seller' => $agent->agent_id,
             'buyer' => $buyer->agent_id, 'location' => 3, 'game_t' => $now - 1800]);
 
         $this->get('/spacecraft/' . $agent->agent_id)->assertOk()->assertSee('Activity')
             ->assertSee('game hours from now')->assertSee('under way, until')->assertSee('done')
-            ->assertSee('Sold 5 of 6 Pellets, Iron')->assertSee('Test Depot')->assertSee('+100')
+            ->assertSee('Sold 5 of 6 Pellets, Iron')->assertSee('Test Depot')->assertSee('+95 (100 less 5 tax)')
             ->assertSee('Sold 3 Ore, Iron')->assertSee($buyer->name)->assertSee('+45');
         $wait = collect(\App\Services\DronePage::timeline($agent->agent_id))->firstWhere('game_t', $now - 3000);
         $this->assertNull($wait['fuel']);

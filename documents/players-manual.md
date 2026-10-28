@@ -126,7 +126,7 @@ Your drones can't see all this: they see live orders only where they are (see [t
 
 A working drone's page has an **Activity** section: what it is doing now and when it will finish, its last ten actions (how each went and the fuel it had left), and its last ten sales and purchases, at a House station or with another drone. Check it when you want to know whether your drone is busy, waiting or stuck.
 
-When a drone dies, its page gets a **post-mortem**: why it died, in plain words (out of fuel, with how much of it went on computing, its `launched` word crashing again and again, or its company not paying its tax), and a timeline of its last actions, how each went, and the fuel it had left. Read your own post-mortems: they're the quickest way to learn what went wrong.
+When a drone dies, its page gets a **post-mortem**: why it died, in plain words (out of fuel, with how much of it went on computing, or its `launched` word crashing again and again), and a timeline of its last actions, how each went, and the fuel it had left. Read your own post-mortems: they're the quickest way to learn what went wrong.
 
 ### What your drone says
 
@@ -337,7 +337,7 @@ To make fuel, use a Chemical Reactor: `12061 perform` turns 1 Organics (A1) and 
 
 ### Wrecks and plunder
 
-A spacecraft becomes a **wreck** for good when it runs out of fuel, crashes five times in a row, or its company is eliminated for not paying its taxes. A wreck does nothing more, but its cargo and parts stay aboard, and another player's spacecraft at the same place can plunder it:
+A spacecraft becomes a **wreck** for good when it runs out of fuel or crashes five times in a row. A wreck does nothing more, but its cargo and parts stay aboard, and another player's spacecraft at the same place can plunder it:
 
 ```
 <run>
@@ -362,17 +362,19 @@ Two queries find wrecks:
 
 ### Taxes
 
-Each company pays a tax every game day: 0.5% of what it has made. That is its assessed wealth (its credits plus the goods aboard its working spacecraft at House prices) less what it started with: 1,000 credits, 100 fuel and a starter kit. The more a company makes, the more it pays; a company that hasn't made anything yet pays nothing. A new company pays nothing for its first 3 game days. A company that can't pay is **eliminated**: its credits vanish, and its spacecraft become wrecks that other players can plunder. So keep enough credits in every company you run: goods count toward the bill, but only credits pay it.
+Every sale is taxed: the seller pays **5%** of the price to the House, out of what the buyer pays. The buyer pays the full price; the seller gets the rest. That goes for sales to House stations and to other players alike (a pull from your sell order or a push to someone's buy order). Buying from a House station isn't taxed: the House is the seller. So a sale of 10 fuel at 10 credits each costs the buyer 100 and earns the seller 95. A sale of less than 10 credits pays nothing: the tax is rounded to the nearest credit.
 
-`R L 650 query` tells you where your spacecraft's company stands: its next tax bill (2 cells), the game hours until it is due, and the game hours of grace it has left.
+There is no other tax: holding goods or credits costs nothing, and nobody is eliminated for a tax bill. Price your goods with the tax in mind: a trader who buys at 20 and sells at 21 loses money.
+
+Your drone's page lists each sale with the tax it paid. `R L 650 query` gives the tax rate in thousandths (50 is 5%), what your company paid in the last game day, and what it paid in all (both doubles):
 
 ```
 <run>
-  create bill 8 allot
-  bill 8 650 query drop
-  bill 2@ d.      \ the next bill, in credits
-  bill 4 + @ .    \ game hours until it is due
-  bill 6 + @ .    \ game hours of grace left
+  create tax 10 allot
+  tax 10 650 query drop
+  tax @ .           \ the rate: 50 thousandths
+  tax 2 + 2@ d.     \ paid in the last game day
+  tax 6 + 2@ d.     \ paid in all
 </run>
 ```
 

@@ -926,15 +926,22 @@ queries.append((632, 'Station budget here',
 # 0.5% a game day and no flat part, after 3 game days; a plunderer gets half
 # a wreck. The starter package (1,000 credits and 100 fuel, and the kit)
 # must match config/forge.php.
-HOUSE_RULES = [(1, DAY, 3 * DAY, 0, 5, 50, 1000, 100)]
+# A sales tax instead (#380): the daily tax took a share of goods too, but
+# only credits paid it, so a trader holding stock could be eliminated with
+# thousands aboard. Now the seller pays SALES_TAX_PERMILLE thousandths of
+# every sale (to a player or a station) out of what the buyer pays, and the
+# daily tax is off (tax_period 0).
+SALES_TAX_PERMILLE = 50
+HOUSE_RULES = [(1, 0, 3 * DAY, 0, 5, 50, 1000, 100, SALES_TAX_PERMILLE)]
 MY_COMPANY = "(SELECT company_id FROM agents WHERE agent_id = [drone_id])"
 queries.append((650, 'My taxes',
-                '[R L 650 query]: The drone\'s company\'s next tax bill (2 cells), game hours until it is due, and '
-                'game hours of grace left (no tax until then). A company that can\'t pay is eliminated.', 0,
-                "SELECT h.tax_flat + FLOOR(h.tax_permille * (SELECT IFNULL(w.taxable, 0) FROM company_taxable w "
-                "WHERE w.company_id = c.company_id) / 1000) AS d_tax, "
-                "GREATEST(0, CEIL((IFNULL(c.taxed_t, [game_now]) + h.tax_period - [game_now]) / 3600)), "
-                "GREATEST(0, CEIL((IFNULL(c.founded_t, [game_now]) + h.tax_grace - [game_now]) / 3600)) "
+                '[R L 650 query]: The sales tax: the share of each sale the seller pays, in thousandths (50 is 5%); '
+                'what the drone\'s company paid in the last game day (2 cells), and in all (2 cells).', 0,
+                "SELECT h.sales_tax_permille, "
+                "(SELECT IFNULL(SUM(t.amount), 0) FROM company_taxes t WHERE t.company_id = c.company_id "
+                "AND t.eliminated = 0 AND t.charged_t > [game_now] - 86400) AS d_day, "
+                "(SELECT IFNULL(SUM(t.amount), 0) FROM company_taxes t WHERE t.company_id = c.company_id "
+                "AND t.eliminated = 0) AS d_all "
                 f"FROM companies c JOIN house_rules h ON h.id = 1 WHERE c.company_id = {MY_COMPANY};"))
 queries.append((660, 'Wrecks here',
                 '[R L 660 query]: The wrecks where the drone is: drone ID, 1 if it has been plundered (else 0).', 0,
@@ -1134,7 +1141,7 @@ lines.append("INSERT INTO `event_types` (id, name) VALUES (11, 'Plunder wreck') 
 lines.append('')
 lines.append('-- Taxes and plunder (#324 step 12), placeholders to tune in step 20')
 table('house_rules', ['id', 'tax_period', 'tax_grace', 'tax_flat', 'tax_permille', 'plunder_share',
-                      'start_credits', 'start_fuel'], HOUSE_RULES)
+                      'start_credits', 'start_fuel', 'sales_tax_permille'], HOUSE_RULES)
 lines.append('')
 lines.append('-- House drop stations (#324 step 10): what they trade. Their budgets')
 lines.append('-- (station_state) are kept: a new station starts with a full budget.')

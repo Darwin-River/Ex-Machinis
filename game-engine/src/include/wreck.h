@@ -1,5 +1,5 @@
 /*
- * Wrecks, plunder and taxes (#324 step 12): the arithmetic. No database:
+ * Wrecks, plunder (#324 step 12) and the sales tax (#380): the arithmetic. No database:
  * db_wreck.c does the rest.
  */
 #ifndef __WRECK_H__
@@ -11,11 +11,8 @@
    say) comes away whole from about half of the wrecks. */
 long long wreck_share(long long units, int percent, int wreck, int resource);
 
-/* One tax bill: flat, plus permille thousandths of the company's
-   assessed wealth (never less than flat) */
-long long tax_bill(int flat, int permille, long long combined_credits);
-
-/* How many whole tax periods have passed since a company's period started */
-long long tax_periods_due(long long now, long long taxed_t, int period);
+/* The sales tax on a sale (#380): permille thousandths of what the buyer
+   pays, to the nearest credit. The seller pays it out of the sale. */
+long long sales_tax(long long gross, int permille);
 
 #endif

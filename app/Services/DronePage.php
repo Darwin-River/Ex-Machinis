@@ -193,27 +193,33 @@ class DronePage
         $deals = [];
         $offers = DB::table('station_offers as o')->join('stations as s', 's.id', '=', 'o.station_id')
             ->join('resources as r', 'r.id', '=', 'o.resource')->where('o.drone', $id)->whereNotNull('o.cleared_t')
-            ->orderBy('o.id', 'desc')->limit(10)->get(['o.side', 'o.units', 'o.filled', 'o.paid', 'o.cleared_t', 's.name as station', 'r.name']);
+            ->orderBy('o.id', 'desc')->limit(10)->get(['o.side', 'o.units', 'o.filled', 'o.paid', 'o.tax', 'o.cleared_t', 's.name as station', 'r.name']);
         foreach ($offers as $o) {
             $sold = (int) $o->side === 1;
             $deals[] = ['game_t' => (int) $o->cleared_t, 'when' => self::when((int) $o->cleared_t),
                 'what' => ($sold ? 'Sold ' : 'Bought ') . (int) $o->filled . ' of ' . (int) $o->units . ' ' . $o->name,
-                'with' => $o->station, 'credits' => ($sold ? '+' : '-') . number_format((int) $o->paid)];
+                'with' => $o->station, 'credits' => $sold ? self::netOfTax((int) $o->paid, (int) $o->tax) : '-' . number_format((int) $o->paid)];
         }
         $trades = DB::table('trades as t')->join('resources as r', 'r.id', '=', 't.resource')
             ->where(fn ($q) => $q->where('t.seller', $id)->orWhere('t.buyer', $id))
-            ->orderBy('t.id', 'desc')->limit(10)->get(['t.seller', 't.buyer', 't.units', 't.credits', 't.game_t', 'r.name']);
+            ->orderBy('t.id', 'desc')->limit(10)->get(['t.seller', 't.buyer', 't.units', 't.credits', 't.tax', 't.game_t', 'r.name']);
         foreach ($trades as $t) {
             $sold = (int) $t->seller === $id;
             $other = Agent::where('agent_id', $sold ? $t->buyer : $t->seller)->first();
             $deals[] = ['game_t' => (int) $t->game_t, 'when' => self::when((int) $t->game_t),
                 'what' => ($sold ? 'Sold ' : 'Bought ') . (int) $t->units . ' ' . $t->name,
                 'with' => $other ? $other->name : 'drone ' . ($sold ? $t->buyer : $t->seller),
-                'credits' => ($sold ? '+' : '-') . number_format((int) $t->credits)];
+                'credits' => $sold ? self::netOfTax((int) $t->credits, (int) $t->tax) : '-' . number_format((int) $t->credits)];
         }
         usort($deals, fn ($a, $b) => $b['game_t'] <=> $a['game_t']);
 
         return ['now' => $now, 'timeline' => self::timeline($id, 10), 'deals' => array_slice($deals, 0, 10)];
+    }
+
+    /** What a seller got for a sale: the price less the sales tax it paid (#380) */
+    private static function netOfTax(int $paid, int $tax): string
+    {
+        return '+' . number_format($paid - $tax) . ($tax > 0 ? ' (' . number_format($paid) . ' less ' . number_format($tax) . ' tax)' : '');
     }
 
     public static function postMortem(Agent $agent): ?array

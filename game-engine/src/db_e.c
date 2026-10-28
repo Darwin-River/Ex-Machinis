@@ -2549,7 +2549,8 @@ ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* ne
 
     @param[in]      resource  Resource traded
     @param[in]      units     Units that changed hands
-    @param[in]      credits   Credits paid for them
+    @param[in]      credits   Credits paid for them (by the buyer)
+    @param[in]      tax       Sales tax the seller paid out of them (#380)
     @param[in]      seller    Drone that gave the goods
     @param[in]      buyer     Drone that received them
     @param[in]      location  Where it happened (object ID, -1 if unknown)
@@ -2557,7 +2558,7 @@ ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* ne
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, int buyer, int location)
+ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, int buyer, int location, int tax)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
     DbConnection_t* connection = engine_get_db_connection();
@@ -2568,12 +2569,12 @@ ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, in
 
     if(location >= 0)
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-            "INSERT INTO trades (resource, units, credits, seller, buyer, location, game_t) VALUES (%d, %d, %d, %d, %d, %d, %lld)",
-            resource, units, credits, seller, buyer, location, game_time_now_seconds());
+            "INSERT INTO trades (resource, units, credits, seller, buyer, location, game_t, tax) VALUES (%d, %d, %d, %d, %d, %d, %lld, %d)",
+            resource, units, credits, seller, buyer, location, game_time_now_seconds(), tax);
     else
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-            "INSERT INTO trades (resource, units, credits, seller, buyer, game_t) VALUES (%d, %d, %d, %d, %d, %lld)",
-            resource, units, credits, seller, buyer, game_time_now_seconds());
+            "INSERT INTO trades (resource, units, credits, seller, buyer, game_t, tax) VALUES (%d, %d, %d, %d, %d, %lld, %d)",
+            resource, units, credits, seller, buyer, game_time_now_seconds(), tax);
 
     return db_launch_exec(connection, query_text);
 }

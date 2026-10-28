@@ -903,7 +903,7 @@ ErrorCode_t db_savepoint(const char* statement);
 /* The game_clock, outbox and trades tables are created by database
    migrations (game-engine/sql/migrations/) */
 
-ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, int buyer, int location);
+ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, int buyer, int location, int tax);
 
 /** Records why an action failed (first reason only) */
 ErrorCode_t db_set_action_outcome(int action_id, int outcome);

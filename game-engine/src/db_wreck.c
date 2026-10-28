@@ -14,7 +14,6 @@
 #include "wreck.h"
 
 #define MAX_WRECK_ROWS     100
-#define MAX_TAX_COMPANIES  200
 
 /* Runs one statement */
 static ErrorCode_t wr_exec(const char* fmt, ...)
@@ -192,104 +191,15 @@ ErrorCode_t db_plunder(Event_t* event)
     return result;
 }
 
-/* Eliminates a company that can't pay its tax: its credits vanish and its
-   drones become wrecks */
-static ErrorCode_t wr_eliminate(int company, long long now)
+int db_sales_tax_permille(void)
 {
-    ErrorCode_t result = wr_exec("UPDATE companies SET credits = 0, eliminated_at = %lld, end_cause = 'tax' WHERE company_id = %d", now, company);
-
-    int drones[MAX_WRECK_ROWS];
-    int n = 0;
-    MYSQL_RES* res = wr_select("SELECT agent_id FROM agents WHERE company_id = %d AND wrecked_at IS NULL LIMIT %d",
-                               company, MAX_WRECK_ROWS);
-    MYSQL_ROW row;
-    while(res && n < MAX_WRECK_ROWS && (row = mysql_fetch_row(res)))
-        drones[n++] = atoi(row[0]);
-    if(res) mysql_free_result(res);
-
-    for(int i = 0; i < n && result == ENGINE_OK; i++)
-        result = db_wreck_drone(drones[i], "tax");
-
-    engine_trace(TRACE_LEVEL_ALWAYS, "Company [%d] can't pay its tax: eliminated, [%d] drones wrecked", company, n);
-    return result;
+    return (int)wr_value(0, "SELECT sales_tax_permille FROM house_rules WHERE id = 1");
 }
 
-ErrorCode_t db_tax_due(void)
+ErrorCode_t db_record_sales_tax(int company, long long amount, long long credits_after)
 {
-    long long now = game_time_now_seconds();
-
-    MYSQL_RES* res = wr_select("SELECT tax_period, tax_grace, tax_flat, tax_permille FROM house_rules WHERE id = 1");
-    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
-    if(!row) {
-        if(res) mysql_free_result(res);
-        return ENGINE_OK;   // no rules, no taxes
-    }
-    int period = atoi(row[0]), grace = atoi(row[1]), flat = atoi(row[2]), permille = atoi(row[3]);
-    mysql_free_result(res);
-    if(period <= 0)
+    if(amount <= 0)
         return ENGINE_OK;
-
-    // A company the tax office hasn't seen yet starts its grace period and
-    // its first tax period now
-    ErrorCode_t result = wr_exec("UPDATE companies SET founded_t = %lld WHERE founded_t IS NULL", now);
-    if(result == ENGINE_OK)
-        result = wr_exec("UPDATE companies SET taxed_t = %lld WHERE taxed_t IS NULL AND eliminated_at IS NULL", now);
-    if(result != ENGINE_OK)
-        return result;
-
-    int companies[MAX_TAX_COMPANIES];
-    long long credits[MAX_TAX_COMPANIES], founded[MAX_TAX_COMPANIES], taxed[MAX_TAX_COMPANIES];
-    long long combined[MAX_TAX_COMPANIES];
-    int n = 0;
-    res = wr_select(
-        "SELECT c.company_id, c.credits, c.founded_t, c.taxed_t, "
-        /* what the company made: its assessed wealth (credits and goods)
-           less its starter package (#367) */
-        "(SELECT w.taxable FROM company_taxable w WHERE w.company_id = c.company_id) "
-        "FROM companies c WHERE c.eliminated_at IS NULL AND c.taxed_t + %d <= %lld ORDER BY c.company_id LIMIT %d",
-        period, now, MAX_TAX_COMPANIES);
-    while(res && n < MAX_TAX_COMPANIES && (row = mysql_fetch_row(res))) {
-        companies[n] = atoi(row[0]);
-        credits[n] = row[1] ? atoll(row[1]) : 0;
-        founded[n] = row[2] ? atoll(row[2]) : now;
-        taxed[n] = row[3] ? atoll(row[3]) : now;
-        combined[n] = row[4] ? atoll(row[4]) : credits[n];
-        n++;
-    }
-    if(res) mysql_free_result(res);
-
-    for(int i = 0; i < n && result == ENGINE_OK; i++) {
-        long long periods = tax_periods_due(now, taxed[i], period);
-        if(periods <= 0)
-            continue;
-        long long next = taxed[i] + periods * period;
-
-        // In its grace period: nothing to pay yet
-        if(founded[i] + grace > now) {
-            result = wr_exec("UPDATE companies SET taxed_t = %lld WHERE company_id = %d", next, companies[i]);
-            continue;
-        }
-
-        // One bill however many periods have passed: periods missed while
-        // the engine was down (or after the period was shortened) are
-        // skipped, not charged all at once
-        long long bill = tax_bill(flat, permille, combined[i]);
-        if(credits[i] >= bill) {
-            result = wr_exec("UPDATE companies SET credits = credits - %lld, taxed_t = %lld WHERE company_id = %d",
-                             bill, next, companies[i]);
-            if(result == ENGINE_OK)
-                result = wr_exec("INSERT INTO company_taxes (company_id, charged_t, amount, credits_after, eliminated) "
-                                 "VALUES (%d, %lld, %lld, %lld, 0)", companies[i], now, bill, credits[i] - bill);
-            engine_trace(TRACE_LEVEL_ALWAYS, "Company [%d] pays [%lld] tax, [%lld] credits left",
-                companies[i], bill, credits[i] - bill);
-        } else {
-            result = wr_exec("UPDATE companies SET taxed_t = %lld WHERE company_id = %d", next, companies[i]);
-            if(result == ENGINE_OK)
-                result = wr_exec("INSERT INTO company_taxes (company_id, charged_t, amount, credits_after, eliminated) "
-                                 "VALUES (%d, %lld, %lld, 0, 1)", companies[i], now, credits[i] > 0 ? credits[i] : 0);
-            if(result == ENGINE_OK)
-                result = wr_eliminate(companies[i], now);
-        }
-    }
-    return result;
+    return wr_exec("INSERT INTO company_taxes (company_id, charged_t, amount, credits_after, eliminated) "
+                   "VALUES (%d, %lld, %lld, %lld, 0)", company, game_time_now_seconds(), amount, credits_after);
 }

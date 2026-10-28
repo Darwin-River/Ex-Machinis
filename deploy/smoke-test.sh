@@ -14,8 +14,8 @@
 #   - money past 32,767 comes back as a double, and the double words work,
 #   - House drop stations buy goods and sell fuel when their batches clear,
 #   - a mined-out deposit yields nothing until it refills over game time,
-#   - another player's wreck can be plundered (not one's own), and a company
-#     that can't pay its tax is eliminated,
+#   - another player's wreck can be plundered (not one's own), and a seller
+#     pays the sales tax out of a sale,
 #   - a waiting drone runs no instructions but still sells, and a drone sees
 #     live orders only where it is,
 #   - a drone's page shows its code, and a wreck's page has a post-mortem,
@@ -78,9 +78,9 @@ release() {
 company_drone() { sql "select a.agent_id from agents a join companies c on c.company_id = a.company_id where c.name='$1'"; }
 
 wait_for 120 "website answers" curl -fsS -o /dev/null http://localhost/
-# No taxes until the taxes step (#324 step 12): a game day lasts 24 seconds
-# here, and the checks below count credits exactly
-no_tax() { sql "update house_rules set tax_flat = 0, tax_permille = 0"; }
+# No sales tax (#380) but where a check asks for it: the checks below count
+# credits exactly
+no_tax() { sql "update house_rules set sales_tax_permille = 0"; }
 no_tax
 # The image must carry the players' manual (Getting Started renders it)
 wait_for 60 "Getting Started shows the players' manual" sh -c "curl -fsS http://localhost/getting-started | grep -q 'chapter-4-issuing-commands'"
@@ -247,10 +247,17 @@ wait_for 60 "drone finished the doubles script" idle
 
 # House drop stations (#324 step 10): the drone, on the Moon, offers a unit of
 # the metal it refined to the Moon Depot; when the game hour's batch clears,
-# the station pays for it
+# the station pays for it, less the sales tax (#380), here 50%
+sql "update house_rules set sales_tax_permille = 500"
 run $DRONE_ID "station" "1 2011 31 perform . cr"
 sold() { [ "$(sql "select count(*) from station_offers where drone=$DRONE_ID and side=1 and filled=1 and paid>0")" = 1 ]; }
 wait_for 180 "the Moon Depot bought the drone's metal when its batch cleared" sold
+[ "$(sql "select tax = FLOOR((paid * 500 + 500) / 1000) and tax > 0 from station_offers where drone=$DRONE_ID and side=1 and filled=1")" = 1 ] ||
+    fail "the seller didn't pay the sales tax on its station sale"
+[ "$(sql "select count(*) from company_taxes t join station_offers o on o.company_id = t.company_id and o.tax = t.amount
+          where o.drone=$DRONE_ID and o.side=1 and t.eliminated = 0")" -ge 1 ] || fail "the sales tax wasn't recorded"
+echo "ok: the seller paid the sales tax out of the sale"
+no_tax
 [ "$(sql "select count(*) from station_batches where side=1")" -ge 1 ] || fail "no cleared batch recorded"
 echo "ok: the batch was recorded once"
 wait_for 60 "drone finished the station script" idle
@@ -391,31 +398,6 @@ wait_for 60 "drone finished asking" idle
 sees_here() { reply_ends $FORGE_DRONE 'sell and wait' 010; }
 wait_for 60 "the seller saw its order at Earth and its wait ended" sees_here
 
-# Taxes (#324 step 12): a company that can't pay its tax is eliminated: its
-# credits vanish and its drones become wrecks. The tax is a share of what
-# the company made: its assessed wealth, goods included, less its starter
-# package (#367). A company that made nothing owes nothing, so count no
-# starting credits or fuel here (the kit still counts), charge 10% a game
-# day, and leave the Smoke Forge company 10 credits (and its fuel), past
-# its grace period, so its bill is more than its credits.
-FORGE_COMPANY=$(sql "select company_id from agents where agent_id=$FORGE_DRONE")
-sql "update companies set credits = 10, founded_t = 0, taxed_t = 0 where company_id = $FORGE_COMPANY"
-[ "$(sql "select assessed > 100 from company_assessed where company_id = $FORGE_COMPANY")" = 1 ] || fail "the company's goods are not assessed"
-[ "$(sql "select taxable from company_taxable where company_id = $FORGE_COMPANY")" = 0 ] || fail "a company that made nothing is taxed"
-echo "ok: a company that made nothing is taxed on nothing"
-# (check what it would be taxed on before the tax: the events engine may
-# eliminate the company within a second of the rate going up)
-sql "update house_rules set start_credits = 0, start_fuel = 0"
-[ "$(sql "select taxable > 100 from company_taxable where company_id = $FORGE_COMPANY")" = 1 ] || fail "the company's goods are not taxed"
-sql "update house_rules set tax_flat = 0, tax_permille = 100"
-eliminated() { [ "$(sql "select eliminated_at is not null and credits = 0 from companies where company_id=$FORGE_COMPANY")" = 1 ] &&
-               [ "$(sql "select wreck_cause from agents where agent_id=$FORGE_DRONE")" = tax ]; }
-wait_for 60 "a company that can't pay its tax is eliminated and its drones wrecked" eliminated
-paid_tax() { [ "$(sql "select count(*) from company_taxes where company_id=$COMPANY and amount > 0 and eliminated=0")" -ge 1 ]; }
-wait_for 60 "a company with credits pays its tax" paid_tax
-no_tax
-sql "update house_rules set start_credits = 1000, start_fuel = 100"
-
 # The Drone page (#324 step 16): a released drone shows its code and a Copy
 # button; a wreck has a post-mortem in plain words
 FORGE_PAGE=$(fetch "http://localhost/spacecraft/$FORGE_DRONE")
@@ -423,7 +405,6 @@ grep -qF "forge-release-" <<<"$FORGE_PAGE" || fail "the drone page doesn't show 
 grep -qF "release?copy=$FORGE_DRONE" <<<"$FORGE_PAGE" || fail "the drone page has no Copy this code link"
 echo "ok: the drone page shows its code, with a Copy this code link"
 grep -qF "It ran out of fuel" <<<"$(fetch "http://localhost/spacecraft/$DRY")" || fail "no post-mortem for the drone that ran out of fuel"
-grep -qF "pay its tax bill" <<<"$FORGE_PAGE" || fail "no post-mortem for the drone whose company couldn't pay its tax"
 echo "ok: wrecks have post-mortems"
 
 # Home, Market and Map (#324 step 17): the feed tells what happened, the
@@ -435,9 +416,7 @@ grep -qF "spacecraft/$FORGE_DRONE" <<<"$MARKET_PAGE" || fail "the market page do
 grep -qF ">Moon<" <<<"$(fetch http://localhost/map)" || fail "the map doesn't list the Moon among the places with drones"
 echo "ok: the home feed, market and map show the world"
 # The leaderboard (#324 step 18, companies since #367 step 2) ranks the
-# companies by wealth (the first drone's company is still trading; the
-# released one's ended at the tax check above, and ended companies are left
-# off)
+# companies by wealth (ended companies are left off)
 grep -qF "$(sql "select name from companies where company_id=$COMPANY")" <<<"$(fetch http://localhost/leaderboard)" || fail "the leaderboard doesn't list the first company"
 [ "$(sql "select count(*) from wealth_snapshots where company_id is not null")" -ge 1 ] || fail "no wealth snapshot was taken"
 echo "ok: the leaderboard ranks the companies, and wealth snapshots are taken"
