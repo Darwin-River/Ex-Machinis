@@ -3,12 +3,11 @@
 \ It mines kunspar, refines it and sells the metals. Copies spread out: a
 \ third work the Moon and sell at the Moon Depot; the rest work Phobos and
 \ Deimos (Mars's moons), moving between them as deposits run low, and sell
-\ at the Mars Exchange, which pays half as much again. It offers its metals
+\ at the Mars Exchange, where buyers have paid more. It offers its metals
 \ to other drones first (#380): the makers, whose factory kit can't mine,
-\ buy their metals from miners or from the House's station drone, which
-\ asks half as much again as it bids. So it asks halfway between the best
-\ bid and the cheapest other seller here, and sells what nobody bought into
-\ the best buy orders when it goes to market.
+\ buy their metals from whoever sells them cheapest. So it asks halfway
+\ between the best bid and the cheapest other seller here, and sells what
+\ nobody bought into the best buy orders when it goes to market.
 \ Its kit has no Chemical Reactor to brew fuel: it buys fuel wherever it is
 \ cheapest. Change the numbers to make it your own.
 
@@ -30,19 +29,19 @@ variable copy
 : market ( -- place ) site moon = if moon else mars then ;
 
 \ Buy up to n of a resource here, cheapest first: buy-here pulls from the
-\ cheapest sell orders here (other drones', the House's station drone's),
+\ cheapest sell orders here (any drone's, the station drone's too),
 \ one after another until it has n or nobody sells more
 : buy-cheapest ( n resource -- ) buy-here drop ;
 
 \ Sell up to n of a resource here, best price first: sell-here pushes into
-\ the best buy orders here (other drones', the House's station drone's)
+\ the best buy orders here (any drone's, the station drone's too)
 : sell-best ( n resource -- ) sell-here drop ;
 
 \ Sell all of a resource aboard, the same way
 : sell-out ( resource -- ) dup units ?dup if swap sell-best else drop then ;
 
 \ Fuel when low, from whoever sells it cheapest here; where nobody does
-\ (Phobos and Deimos have no House station), at the market
+\ (Phobos and Deimos have no exchange), at the market
 : refuel ( -- )
   fuel units low-fuel < 0= if exit then
   30 fuel buy-cheapest  60 wait drop
@@ -85,9 +84,7 @@ variable copy
   dup 0= if drop dup 2/ + exit then
   + 2/ ;
 \ Standing sell orders for its metals, set where the market has prices (the
-\ Moon, Mars); they stay open as the hold changes, and go with the drone:
-\ at the Moon about 25, 37 and 50 (the Moon Depot's drone bids 20, 30, 40
-\ and asks 30, 45, 60)
+\ Moon, Mars); they stay open as the hold changes, and go with the drone
 : offer-one ( metal -- ) dup ask-price ?dup if 0 rot sell-order drop else drop then ;
 : offer ( -- ) metals-a1 offer-one metals-a2 offer-one metals-a3 offer-one ;
 
@@ -96,7 +93,7 @@ variable copy
 \ this same program), and hand it the kit and 40 fuel
 6001 constant cruiser-kit
 \ Buy one of a good here unless one is aboard, and wait (up to 6 game
-\ hours) for it, in case the House's station drone has none in stock yet
+\ hours) for it, in case nobody here has one for sale yet
 : get-one ( resource -- )
   dup units if drop exit then
   dup 1 swap buy-from-station drop
@@ -106,8 +103,8 @@ variable copy
   670 ask ?dup 0= if exit then
   1- 4 * answer + @ >r
   1 mining-kit r@ push drop  40 fuel r> push drop ;
-\ Top the tank up to n from the House here, waiting (up to 6 game hours)
-\ (Waits for the delivery, not for n: computing burns a unit or two just
+\ Top the tank up to n here, cheapest first, waiting (up to 6 game hours)
+\ (Waits for the fuel, not for n: computing burns a unit or two just
 \ after it arrives, and waiting for n then sat out all 6 hours)
 : fill-to ( n -- )
   fuel units tuck - dup 0> if
@@ -130,14 +127,14 @@ variable copy
 \ A clone starts with no equipment: wait for the kit
 : await-kit ( -- ) begin mining-kit units 0= while 60 wait drop repeat ;
 
-\ Sell the metals at the market, top up the tank from the House there (5 a
-\ unit, at once), then go back to the site, only
+\ Sell the metals at the market, top up the tank there (cheapest first),
+\ then go back to the site, only
 \ once hold-cap are aboard: until then other drones may buy them
 : sell-metals ( -- )
   metals hold-cap < if exit then
   market go drop  offer
   metals-a1 sell-out metals-a2 sell-out metals-a3 sell-out
-  \ Waits for the delivery: refuel, next round, would order it again
+  \ Waits for the fuel: refuel, next round, would buy it again
   fuel units 50 < if 80 fill-to then
   reinvest site go drop ;
 

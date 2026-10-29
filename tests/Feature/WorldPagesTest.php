@@ -37,23 +37,19 @@ class WorldPagesTest extends TestCase
             ->assertSee($agent->name . ' became a wreck: it ran out of fuel.');
     }
 
-    public function testMarketShowsStationsOrdersAndTrades()
+    public function testMarketShowsOrdersAndTradesButNoHouseInformation()
     {
         $seller = $this->release('a@example.com', 'Sellers');
         $buyer = $this->release('b@example.com', 'Buyers');
+        // A station whose price list players must not see (#380): the House
+        // trades through station drones, like any other drone
         DB::table('stations')->insert(['id' => 901, 'name' => 'Test Depot', 'object_id' => 3, 'budget_cap' => 5000, 'refill_per_day' => 5000]);
         $resource = (int) DB::table('resources')->value('id');   // any resource the test data has
         DB::table('station_goods')->insert(['station_id' => 901, 'resource' => $resource, 'side' => 1, 'price' => 20, 'daily_units' => 200, 'from_day' => 0]);
         DB::table('trades')->insert(['resource' => $resource, 'units' => 10, 'credits' => 90, 'seller' => $seller->agent_id,
             'buyer' => $buyer->agent_id, 'location' => 3, 'game_t' => World::gameNow()]);
-        // The station drone's buy order: 18 a unit, for up to 50 (it holds none)
-        DB::table('agents')->where('agent_id', $buyer->agent_id)->update(['station_id' => 901]);
-        DB::table('events')->insert(['event_type' => 5, 'outcome' => 1, 'drone' => $buyer->agent_id, 'resource' => $resource,
-            'new_quantity' => 50, 'new_credits' => 18, 'game_t' => World::gameNow()]);
-        $this->get('/market')->assertOk()->assertSee('Test Depot')->assertSee('Price now')
-            ->assertSee($seller->name)->assertSee($buyer->name);
-        $good = collect(World::stations())->firstWhere('name', 'Test Depot')['goods'][0];
-        $this->assertSame([18, 20, 50], [$good['price'], $good['listed'], $good['room']]);
+        $this->get('/market')->assertOk()->assertSee('Order book')->assertSee($seller->name)->assertSee($buyer->name)
+            ->assertDontSee('Test Depot')->assertDontSee('House stations');
     }
 
     public function testMapShowsWhereTheDronesAre()

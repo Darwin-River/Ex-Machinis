@@ -2,14 +2,14 @@
 \ #380). Release it with the Factory Kit (Engine, Smelter, Chemical Reactor
 \ and Spider).
 \ It turns Metals (A1) into rods (two metals make an alloy, an alloy makes
-\ a rod the House pays 225 for). It can't mine (#380: the mining gear is
-\ too big to carry with the factory tools): it buys its metals, and its
-\ fuel, wherever they are cheapest, from the miners' sell orders or from
-\ the House, which asks half as much again as it pays. Copies spread out:
-\ a third work the Moon and sell their rods at Earth, a short hop away; the
-\ rest work Mars orbit, where the Mars Exchange sells metals and buys rods.
-\ It sells rods 4 an hour: the Exchanges want about 50 a day each, and a
-\ station drone pays less the more it holds.
+\ a rod, which has sold for several times its metals). It can't mine
+\ (#380: the mining gear is too big to carry with the factory tools): it
+\ buys its metals, and its fuel, wherever they are cheapest, from any
+\ drone's sell orders (the miners', the station drone's). Copies spread
+\ out: a third work the Moon and sell their rods at Earth, a short hop
+\ away; the rest work Mars orbit, where metals and rods both trade at the
+\ Mars Exchange. It sells rods 4 an hour: buyers tend to bid less as they
+\ stock up.
 
 2021 constant alloys-a1   3011 constant rods
 12 constant rod-load     \ rods it takes to market (4 cargo each)
@@ -23,12 +23,12 @@ variable site#
 : rod-market ( -- place ) site moon = if earth else mars then ;
 
 \ Buy up to n of a resource here, cheapest first: buy-here pulls from the
-\ cheapest sell orders here (other drones', the House's station drone's),
+\ cheapest sell orders here (any drone's, the station drone's too),
 \ one after another until it has n or nobody sells more
 : buy-cheapest ( n resource -- ) buy-here drop ;
 
 \ Sell up to n of a resource here, best price first: sell-here pushes into
-\ the best buy orders here (other drones', the House's station drone's)
+\ the best buy orders here (any drone's, the station drone's too)
 : sell-best ( n resource -- ) sell-here drop ;
 
 : refuel ( -- )
@@ -39,8 +39,8 @@ variable site#
   credits cash-floor 0 d- dup 0< if 2drop 0 exit then
   if drop 32000 exit then  dup 0< if drop 32000 then ;
 
-\ Metals for a batch, as many as the spare credits pay for (at up to 30 a
-\ unit); wait for the House's delivery
+\ Metals for a batch, as many as the spare credits pay for (at most 30 a
+\ unit), from the cheapest sellers here
 : stock-up ( -- )
   metals-a1 units 2 < 0= if exit then
   batch spare 30 / min ?dup if metals-a1 buy-cheapest 60 wait drop then ;
@@ -55,8 +55,8 @@ variable site#
     alloys-a1 make if exit then  rods make if exit then
   repeat ;
 
-\ Sell at most 4 rods an hour, for up to 6 hours (the station drone pays
-\ less as its stock fills, and bids again each hour); the rest go next time
+\ Sell at most 4 rods an hour, for up to 6 hours (buyers here tend to bid
+\ less as they stock up, and bid again later); the rest go next time
 : sell-rods ( -- )
   6 begin dup 0> rods units 0> and while
     rods units 4 min rods sell-best 60 wait drop 1-
@@ -67,7 +67,7 @@ variable site#
 \ this same program), and hand it the kit and 40 fuel
 6001 constant cruiser-kit
 \ Buy one of a good here unless one is aboard, and wait (up to 6 game
-\ hours) for it, in case the House's station drone has none in stock yet
+\ hours) for it, in case nobody here has one for sale yet
 : get-one ( resource -- )
   dup units if drop exit then
   dup 1 swap buy-from-station drop
@@ -77,8 +77,8 @@ variable site#
   670 ask ?dup 0= if exit then
   1- 4 * answer + @ >r
   1 factory-kit r@ push drop  40 fuel r> push drop ;
-\ Top the tank up to n from the House here, waiting (up to 6 game hours)
-\ (Waits for the delivery, not for n: computing burns a unit or two just
+\ Top the tank up to n here, cheapest first, waiting (up to 6 game hours)
+\ (Waits for the fuel, not for n: computing burns a unit or two just
 \ after it arrives, and waiting for n then sat out all 6 hours)
 : fill-to ( n -- )
   fuel units tuck - dup 0> if

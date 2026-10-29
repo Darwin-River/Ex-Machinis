@@ -1,13 +1,13 @@
 \ Machinist: a company design for Public Forge (economy rounds 10, 11, 14;
 \ #380). Release it with the Factory Kit (Engine, Smelter, Chemical Reactor
 \ and Spider).
-\ It builds gear boxes, which the Earth and Mars Exchanges buy for 1,255
-\ (about 10 a day each). A gear box takes a rod, a gear and a spring: 8
-\ Metals (A1) and 2 Metals (A2) through 5 alloys. It can't mine (#380: the
-\ mining gear is too big to carry with the factory tools): it buys the
-\ metals at the Moon, and its fuel, wherever they are cheapest, from the
-\ miners' sell orders or the Moon Depot, which asks half as much again as
-\ it pays. With a few gear boxes it flies to Earth, sells them 2 an hour
+\ It builds gear boxes, which station drones at Earth and Mars buy (check
+\ the price board, query 680, for what they fetch). A gear box takes a
+\ rod, a gear and a spring: 8 Metals (A1) and 2 Metals (A2) through 5
+\ alloys. It can't mine (#380: the mining gear is too big to carry with
+\ the factory tools): it buys the metals at the Moon, and its fuel,
+\ wherever they are cheapest, from the miners' sell orders or the Moon
+\ Depot's. With a few gear boxes it flies to Earth, sells them 2 an hour
 \ and comes back. A gear box burns about 23 fuel: it never starts one with
 \ less than 30, and never leaves with less than low-fuel.
 
@@ -18,12 +18,12 @@
 300 constant cash-floor  \ credits it keeps for fuel
 
 \ Buy up to n of a resource here, cheapest first: buy-here pulls from the
-\ cheapest sell orders here (other drones', the House's station drone's),
+\ cheapest sell orders here (any drone's, the station drone's too),
 \ one after another until it has n or nobody sells more
 : buy-cheapest ( n resource -- ) buy-here drop ;
 
 \ Sell up to n of a resource here, best price first: sell-here pushes into
-\ the best buy orders here (other drones', the House's station drone's)
+\ the best buy orders here (any drone's, the station drone's too)
 : sell-best ( n resource -- ) sell-here drop ;
 
 : refuel ( -- )
@@ -35,7 +35,7 @@
   if drop 32000 exit then  dup 0< if drop 32000 then ;
 
 \ The metals for two gear boxes, as many as the spare credits pay for (at
-\ up to 30 and 45 a unit); wait for the House's delivery
+\ most 30 and 45 a unit), from the cheapest sellers here; then wait an hour
 : short? ( -- f ) metals-a1 units 8 < metals-a2 units 2 < or ;
 : stock-up ( -- )
   short? 0= if exit then
@@ -69,7 +69,7 @@
 \ this same program), and hand it the kit and 40 fuel
 6001 constant cruiser-kit
 \ Buy one of a good here unless one is aboard, and wait (up to 6 game
-\ hours) for it, in case the House's station drone has none in stock yet
+\ hours) for it, in case nobody here has one for sale yet
 : get-one ( resource -- )
   dup units if drop exit then
   dup 1 swap buy-from-station drop
@@ -79,8 +79,8 @@
   670 ask ?dup 0= if exit then
   1- 4 * answer + @ >r
   1 factory-kit r@ push drop  40 fuel r> push drop ;
-\ Top the tank up to n from the House here, waiting (up to 6 game hours)
-\ (Waits for the delivery, not for n: computing burns a unit or two just
+\ Top the tank up to n here, cheapest first, waiting (up to 6 game hours)
+\ (Waits for the fuel, not for n: computing burns a unit or two just
 \ after it arrives, and waiting for n then sat out all 6 hours)
 : fill-to ( n -- )
   fuel units tuck - dup 0> if

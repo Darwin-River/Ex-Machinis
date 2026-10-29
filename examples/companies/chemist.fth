@@ -3,14 +3,13 @@
 \ and Spider).
 \ It can't mine (#380: the mining gear is too big to carry with the
 \ factory tools). It buys Organics (A1) and Inorganics (A1) wherever they
-\ are cheapest (the refiners' sell orders, or the House, which asks half as
-\ much again as it pays), makes polymers from them (one of each makes a
-\ polymer the House pays 70 for) and sells them to the House. It brews its
-\ own fuel from the same goods (one organics and two inorganics make 30)
-\ and offers what it doesn't need to other drones a little under the
-\ House's 5, so the miners, who can't brew, buy from it. Copies spread
-\ out: a third work the Moon, the rest Mars orbit (the Mars Exchange buys
-\ polymers too).
+\ are cheapest (any drone's sell orders: the refiners', the station
+\ drone's), makes polymers from them (one of each makes a polymer) and
+\ sells them into the best buy orders here. It brews its own fuel from the
+\ same goods (one organics and two inorganics make 30) and offers what it
+\ doesn't need to other drones cheaply, so the miners, who can't brew, buy
+\ from it. Copies spread out: a third work the Moon, the rest Mars orbit
+\ (polymers sell at the Mars Exchange too).
 
 2051 constant polymers
 40 constant low-fuel     \ brew fuel below this
@@ -24,16 +23,16 @@ variable site#
 : site ( -- place ) site# @ 0= if moon else mars then ;
 
 \ Buy up to n of a resource here, cheapest first: buy-here pulls from the
-\ cheapest sell orders here (other drones', the House's station drone's),
+\ cheapest sell orders here (any drone's, the station drone's too),
 \ one after another until it has n or nobody sells more
 : buy-cheapest ( n resource -- ) buy-here drop ;
 
 \ Sell up to n of a resource here, best price first: sell-here pushes into
-\ the best buy orders here (other drones', the House's station drone's)
+\ the best buy orders here (any drone's, the station drone's too)
 : sell-best ( n resource -- ) sell-here drop ;
 
-\ The goods for a batch of polymers, and for fuel when low; wait for the
-\ House's delivery
+\ The goods for a batch of polymers, and for fuel when low, from the
+\ cheapest sellers here; then wait an hour
 : stock-up ( -- )
   credits cash-floor 0 d< if exit then
   organics-a1 units 2 < if batch organics-a1 buy-cheapest then
@@ -47,8 +46,8 @@ variable site#
     polymers make if exit then
   repeat ;
 
-\ Polymers to the House, at most 15 an hour: its station drone pays less as
-\ its stock fills
+\ Sell polymers here, at most 15 an hour: buyers here tend to bid less as
+\ they stock up
 : sell-polymers ( -- )
   polymers units 15 min ?dup if polymers sell-best then ;
 
@@ -57,7 +56,7 @@ variable site#
 \ this same program), and hand it the kit and 40 fuel
 6001 constant cruiser-kit
 \ Buy one of a good here unless one is aboard, and wait (up to 6 game
-\ hours) for it, in case the House's station drone has none in stock yet
+\ hours) for it, in case nobody here has one for sale yet
 : get-one ( resource -- )
   dup units if drop exit then
   dup 1 swap buy-from-station drop
@@ -67,7 +66,7 @@ variable site#
   670 ask ?dup 0= if exit then
   1- 4 * answer + @ >r
   1 factory-kit r@ push drop  40 fuel r> push drop ;
-\ Top the tank up to n from the House here, waiting (up to 6 game hours)
+\ Top the tank up to n here, cheapest first, waiting (up to 6 game hours)
 : fill-to ( n -- )
   fuel units tuck - dup 0> if
     fuel buy-from-station drop

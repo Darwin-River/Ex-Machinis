@@ -4,8 +4,8 @@
 \ It turns Metals (A1) into rods at the Moon, like the Smith, but it reads
 \ the market every round and decides what to do:
 \ - it buys metals only while two of them cost well under what a rod
-\   fetched at Earth yesterday (the House's price board), and from whoever
-\   sells them cheapest, a miner or the House;
+\   fetched at Earth yesterday (the price board, query 680), and from
+\   whoever sells them cheapest;
 \ - it sells alloys at the Moon instead of making rods when the Moon pays
 \   nearly as much for an alloy as Earth pays for a rod;
 \ - when nothing pays, it rests, and after a while it sells what it has.
@@ -24,12 +24,12 @@
 
 \ --- Reading the market --------------------------------------------------
 \ Buy up to n of a resource here, cheapest first: buy-here pulls from the
-\ cheapest sell orders here (other drones', the House's station drone's),
+\ cheapest sell orders here (any drone's, the station drone's too),
 \ one after another until it has n or nobody sells more
 : buy-cheapest ( n resource -- ) buy-here drop ;
 
 \ Sell up to n of a resource here, best price first: sell-here pushes into
-\ the best buy orders here (other drones', the House's station drone's)
+\ the best buy orders here (any drone's, the station drone's too)
 : sell-best ( n resource -- ) sell-here drop ;
 
 \ Sell all of a resource aboard, the same way
@@ -40,20 +40,19 @@
   credits cash-floor 0 d- dup 0< if 2drop 0 exit then
   if drop 32000 exit then  dup 0< if drop 32000 then ;
 
-\ What the House paid a unit for a resource at a place over the last game
-\ day (query 681, the House's price board: place, units, credits,
-\ trades); 0 when it bought none there. Query 680, the players' board,
-\ has the same layout
+\ What a resource traded for a unit at a place over the last game day,
+\ all trades (query 680, the price board: place, units, credits, trades;
+\ 12 bytes a row); 0 when none traded there
 : board-price ( resource place -- price )
-  swap 681 ask 0 max begin dup while 1- dup 12 * answer +
+  swap 680 ask 0 max begin dup while 1- dup 12 * answer +
     dup @ 3 pick = if
       dup 6 + 2@ drop swap 2 + 2@ drop  ?dup if / else drop 0 then
       nip nip exit
     then drop
   repeat 2drop 0 ;
 
-\ What a rod fetched at Earth over the last game day, or the listed 225
-\ when the Earth Exchange bought none
+\ What a rod fetched at Earth over the last game day, or a guess of 225
+\ when none traded there
 : rod-price ( -- price ) rods earth board-price ?dup 0= if 225 then ;
 
 \ Worth buying metals? Two make a rod: only while two, plus overheads, cost
@@ -62,7 +61,7 @@
   metals-a1 buy-price ?dup if 2 * overheads + rod-price < else 0 then ;
 
 \ Does a rod pay more than selling its alloy at the Moon (sell-price: the
-\ best of the House and other drones' buy orders here)?
+\ best buy order here, whoever placed it)?
 : rods-pay? ( -- f ) rod-price  alloys-a1 sell-price overheads +  > ;
 
 \ --- The modes -----------------------------------------------------------
@@ -85,8 +84,8 @@
   rods units rod-load < 0= if hauling become exit then
   shopping become ;
 
-\ Sell at most 4 rods an hour, for up to 6 hours: the station drone pays
-\ less as its stock fills, and bids again each hour
+\ Sell at most 4 rods an hour, for up to 6 hours: buyers here tend to
+\ bid less as they stock up, and bid again later
 : sell-rods ( -- )
   6 begin dup 0> rods units 0> and while
     rods units 4 min rods sell-best 60 wait drop 1-

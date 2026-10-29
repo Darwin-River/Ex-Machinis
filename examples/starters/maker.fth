@@ -1,11 +1,11 @@
 \ Maker: a starter script for Public Forge (#380). Release it with the
 \ Factory Kit (Engine, Smelter, Chemical Reactor and Spider).
 \ It can't mine: it buys Metals (A1) at the Moon, wherever they are
-\ cheapest (the miners' sell orders, or the Moon Depot, which asks half as
-\ much again as it pays), makes them into alloys and the alloys into rods,
-\ and flies a load of rods to Earth, where the Earth Exchange buys them.
-\ Two metals make an alloy and an alloy makes a rod: about 50 credits of
-\ metals become a rod the Exchange pays 225 for. It buys its fuel wherever
+\ cheapest (any drone's sell orders there: the miners', the Moon Depot's),
+\ makes them into alloys and the alloys into rods, and flies a load of
+\ rods to Earth, where the Earth Exchange's drone buys them. Two metals
+\ make an alloy and an alloy makes a rod, which has sold for several times
+\ its metals (check the price board, query 680). It buys its fuel wherever
 \ it is cheapest too. Change the numbers to make it your own.
 
 12 constant rod-load     \ rods it takes to Earth (4 cargo each)
@@ -15,15 +15,15 @@
 3011 constant rods   2021 constant alloys-a1
 
 \ Buy up to n of a resource here, cheapest first: buy-here pulls from the
-\ cheapest sell orders here (other drones', the House's station drone's),
+\ cheapest sell orders here (any drone's, the station drone's too),
 \ one after another until it has n or nobody sells more
 : buy-cheapest ( n resource -- ) buy-here drop ;
 
 \ Sell up to n of a resource here, best price first: sell-here pushes into
-\ the best buy orders here (other drones', the House's station drone's)
+\ the best buy orders here (any drone's, the station drone's too)
 : sell-best ( n resource -- ) sell-here drop ;
 
-\ Fuel when low; it arrives within the hour from the House
+\ Fuel when low, from whoever sells it cheapest here
 : refuel ( -- )
   fuel units low-fuel < if 30 fuel buy-cheapest 60 wait drop then ;
 
@@ -32,8 +32,8 @@
   credits cash-floor 0 d- dup 0< if 2drop 0 exit then
   if drop 32000 exit then  dup 0< if drop 32000 then ;
 
-\ Metals for a batch, as many as the spare credits pay for (at up to 30 a
-\ unit); wait for the House's delivery when it bought from the House
+\ Metals for a batch, as many as the spare credits pay for (at most 30 a
+\ unit), from the cheapest sellers here
 : stock-up ( -- )
   metals-a1 units 2 < 0= if exit then
   batch spare 30 / min ?dup if metals-a1 buy-cheapest 60 wait drop then ;
@@ -48,8 +48,8 @@
     alloys-a1 make if exit then  rods make if exit then
   repeat ;
 
-\ Sell at most 4 rods an hour, for up to 6 hours: the station drone pays
-\ less as its stock fills, and bids again each hour.
+\ Sell at most 4 rods an hour, for up to 6 hours: buyers here tend to
+\ bid less as they stock up, and bid again later.
 \ The rest go next time
 : sell-rods ( -- )
   6 begin dup 0> rods units 0> and while

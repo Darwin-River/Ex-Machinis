@@ -30,7 +30,6 @@ class DronePage
         -9 => 'it was stopped',
         -10 => 'the other drone had no matching order',
         -13 => "the other drone belongs to one of the same player's companies",
-        -14 => 'no House station here trades that',
         -15 => 'no such wreck here (or already plundered)',
     ];
 
@@ -188,18 +187,8 @@ class DronePage
             }
         }
 
-        // Its trades: with the House stations (when the batch cleared) and
-        // with other drones
+        // Its trades with other drones (the House's station drones included)
         $deals = [];
-        $offers = DB::table('station_offers as o')->join('stations as s', 's.id', '=', 'o.station_id')
-            ->join('resources as r', 'r.id', '=', 'o.resource')->where('o.drone', $id)->whereNotNull('o.cleared_t')
-            ->orderBy('o.id', 'desc')->limit(10)->get(['o.side', 'o.units', 'o.filled', 'o.paid', 'o.tax', 'o.cleared_t', 's.name as station', 'r.name']);
-        foreach ($offers as $o) {
-            $sold = (int) $o->side === 1;
-            $deals[] = ['game_t' => (int) $o->cleared_t, 'when' => self::when((int) $o->cleared_t),
-                'what' => ($sold ? 'Sold ' : 'Bought ') . (int) $o->filled . ' of ' . (int) $o->units . ' ' . $o->name,
-                'with' => $o->station, 'credits' => $sold ? self::netOfTax((int) $o->paid, (int) $o->tax) : '-' . number_format((int) $o->paid)];
-        }
         $trades = DB::table('trades as t')->join('resources as r', 'r.id', '=', 't.resource')
             ->where(fn ($q) => $q->where('t.seller', $id)->orWhere('t.buyer', $id))
             ->orderBy('t.id', 'desc')->limit(10)->get(['t.seller', 't.buyer', 't.units', 't.credits', 't.tax', 't.game_t', 'r.name']);
