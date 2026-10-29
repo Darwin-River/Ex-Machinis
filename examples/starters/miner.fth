@@ -1,6 +1,7 @@
 \ Miner: a starter script for Public Forge (#324 step 15). Release it with
 \ the Mining Kit (Engine, Worm and Refinery).
-\ It mines kunspar, refines it and sells the metals. Copies spread out: a
+\ It mines kunspar or wolfite, whichever has more left where it works,
+\ refines it and sells the metals (and wolfite's Inorganics A2). Copies spread out: a
 \ third work the Moon and sell at the Moon Depot; the rest work Phobos and
 \ Deimos (Mars's moons), moving between them as deposits run low, and sell
 \ at the Mars Exchange, where buyers have paid more. It offers its metals
@@ -77,7 +78,8 @@ variable copy
     then
   repeat 2drop ;
 
-: metals ( -- n ) metals-a1 units metals-a2 units + metals-a3 units + ;
+: metals ( -- n )
+  metals-a1 units metals-a2 units + metals-a3 units + inorganics-a2 units + ;
 
 \ Its asking price, from the market here: halfway between the best buy
 \ order (sell-price) and the cheapest other sell order (buy-price); with
@@ -91,7 +93,8 @@ variable copy
 \ Standing sell orders for its metals, set where the market has prices (the
 \ Moon, Mars); they stay open as the hold changes, and go with the drone
 : offer-one ( metal -- ) dup ask-price ?dup if 0 rot sell-order drop else drop then ;
-: offer ( -- ) metals-a1 offer-one metals-a2 offer-one metals-a3 offer-one ;
+: offer ( -- )
+  metals-a1 offer-one metals-a2 offer-one metals-a3 offer-one inorganics-a2 offer-one ;
 
 \ Growth (#380): with 7,000 credits or more, at an exchange, buy a Mining
 \ Cruiser kit and a Mining Kit I, launch a clone of this drone (it runs
@@ -138,7 +141,7 @@ variable copy
 : sell-metals ( -- )
   metals hold-cap < if exit then
   market go drop  offer
-  metals-a1 sell-out metals-a2 sell-out metals-a3 sell-out
+  metals-a1 sell-out metals-a2 sell-out metals-a3 sell-out inorganics-a2 sell-out
   \ Waits for the fuel: refuel, next round, would buy it again
   fuel units 50 < if 80 fill-to then
   reinvest site go drop ;
@@ -150,9 +153,14 @@ variable tells
   1 tells +!  tells @ 8 mod if exit then
   ." credits " credits d. ." fuel " fuel units . report ;
 
+\ Of two minerals, the one with more left in the deposit here. Round 29:
+\ copies all mined kunspar while wolfite (18 makes 6 units, against 4 from
+\ 20 kunspar) sat untouched
+: richer ( mineral mineral -- mineral ) over deposit over deposit < if nip else drop then ;
+
 : work ( -- )
   refuel
-  kunspar 20 dig kunspar refine drop sell-metals tell ;
+  kunspar wolfite richer  dup 20 dig refine drop sell-metals tell ;
 
 : launched ( -- )
   await-kit unpack drop

@@ -146,6 +146,11 @@ From round 21, four naive agents join each round as new players would: they get 
 | 28 | Eve (manufacturer) | Factory scoring eight one-step recipes on live prices; polymers at Earth, alloys at the Moon, fuel sold to players; +8,280 avg | 7 | 7 | – | 8 | 5 | – | 7 |
 | 28 | Finn (casual) | Starter Miner (stalled on the crowded Moon) and starter Maker (rods at Earth, bid sank from 225 to 113); +5,871 avg | 6 | 7 | – | 5 | 7 | – | 6 |
 | 28 | **Average** | | 7.0 | 7.0 | – | 6.75 | 6.25 | – | 7.0 |
+| 29 | Gia (entrepreneur) | Fuel brewers at the Moon and Mars's moons, selling fuel under the exchanges to other drones, advertising it by broadcast and placing clones by crowd count; 3 drones, +14,459 avg | 7 | 7 | – | 6 | 6 | – | 7 |
+| 29 | Hal (raw supplier) | The Moon's only wolfite miner (start site by crowd count), and a hauler buying cheap metals at the Moon for the Mars Exchange; +8,490 avg | 8 | 7 | – | 7 | 7 | – | 8 |
+| 29 | Ines (manufacturer) | Moon factory picking the best recipe per hour from live prices (polymers, alloys), brewing its own fuel; +10,370 avg | 7 | 6 | – | 7 | 6 | – | 7 |
+| 29 | Jude (casual) | Stock Miner, then one tweaked to mine the richer of kunspar and wolfite, sell Inorganics (A2) and wait out 30 dry tries; +7,163 avg | 7 | 6 | – | 7 | 7 | – | 7 |
+| 29 | **Average** | | 7.25 | 6.5 | – | 6.75 | 6.5 | – | 7.25 |
 
 **Round 21 findings, and what changed:**
 - *They couldn't see their drones.* A drone's output arrives when its script ends, and `launched` never ends. The engine has a `report` word that sends it at once, but the manual never mentioned it (three of the four even redefined it). Now the manual documents it and the starters call it every 8th round.
@@ -173,9 +178,36 @@ From round 21, four naive agents join each round as new players would: they get 
 
 **Round 28 findings:** the first round where the House trades only as drones and players get no House information: no price list, no House price board, no station table, no rescue for an empty tank. Nobody missed them: every tester read prices off the order book and the price board, and clarity rose to 7.0 (from 6.0). Players traded with each other more than ever (29,482 units, two and a half times the station drones' purchases): fuel above all (21,876 units at 3.2, under the exchanges' 5), sold by drones that brew it. The newcomers did best of any round (+5,871 to +12,957 avg, 9 clones between Cleo and Dax). What they found: copies of the same starter crowd the same place (the Miner's first drone waited on the Moon's dry kunspar all round: it now tries Phobos after six dry tries) and the same buyer (Earth's rod bid fell from 225 to 113, then recovered); going where nobody sells pays (Dax's Mars bet, Cleo's fuel depot); a standing fuel sell order can drain the tank a launch needs, and clones bought near the end don't pay back (now in the dictionary). No drone got stranded, so the fuel couriers the manual suggests had no customers. Asked for by most: a way to steer a released drone (a signal it can read; broadcasts, added after the round, are a start), how crowded a place is, demand beyond rods and polymers that changes over time, and a faster test clock.
 
-**What they liked best** (all eight rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
+**Round 29 findings:** with broadcasts and crowd counts, would play again reached 7.5 and the overall rating 7.25, the best yet. The crowd count (`crowd`, query 721) was the most used new word: Hal and Gia chose their sites by it, though Hal's hauler picked an empty Phobos at launch and found 7 drones there 10 days later. Broadcasts worked (58 messages) but only Gia's drones sent any and nobody listened; with one fuel wreck in 108 companies there were no stranded customers for a fuel courier, and Gia earned by selling fuel cheaply instead. Players traded 24,701 units with each other (fuel 17,050 at 3.6). Fixed during the round: order lists showed drones that had already left, so pushes and pulls reached for a seller in flight (lists now leave out a drone with a pending move); the Machine's `perform` left a push or pull's amount on the stack; the starter Miner mined only kunspar while wolfite, which makes 6 units from 18 against kunspar's 4 from 20, sat untouched (it now mines the richer of the two and sells Inorganics (A2), as Jude's tweak did); the manual now gives `$"`'s 63-character limit, says the price words ask the game every call, and advises deciding a drone's next job on arrival. Open: the Miner's six dry tries still send it on a 10-day trip early, a `-13?` error doesn't name the undefined word, and testers asked for announced demand, a deposits view and starters that broadcast and listen.
+
+**What they liked best** (all nine rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
 ## Round log
+
+### Round 29: messages and crowd counts (#380)
+
+A fresh world with broadcasts (protocol 40, read as events) and the crowd count (query 721): 60 starters, plus 18 Chemists, 9 Smiths, 6 Machinists and 6 Adaptive, to game day 40. Four newcomers joined.
+
+| Design | Kit | Avg gain | Clones |
+|---|---|---|---|
+| Machinist | Factory | +12,454 | 13 |
+| Maker (starter) | Factory | +8,118 | 0 |
+| Smith | Factory | +6,979 | 7 |
+| Refiner | Mining | +5,585 | 1 |
+| Miner | Mining | +4,985 | 22 |
+| Chemist | Factory | +4,023 | 6 |
+| Adaptive | Factory | +3,809 | 0 |
+| Trader | Mining | +58 | 0 |
+
+| Trades | Units |
+|---|---|
+| Station drones selling | 35,880 |
+| Station drones buying | 15,463 |
+| Player to player | 24,701 |
+
+- **Broadcasts**: 58, all from Gia's drones. Nobody else listened for them, so the starters should broadcast and listen next.
+- **One wreck** (fuel) and one company ended, out of 108.
+- **Miners grew** (22 clones, against none in round 28): the six-dry-tries move to Phobos spread them out, though it costs a 10-day trip.
 
 ### Round 28: no House information (#380)
 
