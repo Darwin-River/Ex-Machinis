@@ -36,6 +36,18 @@ variable site#
   else 2drop drop 0<> then                           ( n f )
   if r> buy-from-station drop else r> 2drop then ;
 
+\ Sell up to n of a resource here: into the best buy order (a House
+\ station drone's, or another player's), at once, when it pays at least
+\ half what the House lists (a station drone bids less as its stock fills,
+\ down to half). What that order doesn't take goes to the station's hourly
+\ batch, while there is one
+: sell-best ( n resource -- )
+  >r  r@ best-bid                               ( n price drone avail )
+  dup 0>  3 pick  r@ 1 house-price 2 /  < 0=  and if
+    rot drop  2 pick min  tuck  r@ rot push if drop 0 then  -   ( rest )
+  else 2drop drop then
+  ?dup if r> sell-to-station drop else r> drop then ;
+
 \ The goods for a batch of polymers, and for fuel when low; wait for the
 \ House's delivery
 : stock-up ( -- )
@@ -51,9 +63,10 @@ variable site#
     polymers make if exit then
   repeat ;
 
-\ Polymers to the House, at most 15 an hour: a fuller batch pays less
+\ Polymers to the House, at most 15 an hour: its station drone pays less as
+\ its stock fills
 : sell-polymers ( -- )
-  polymers units 15 min ?dup if polymers sell-to-station drop then ;
+  polymers units 15 min ?dup if polymers sell-best then ;
 
 \ Growth (#380): with 7,000 credits or more, at an exchange, buy a Mining
 \ Cruiser kit and a Factory Kit I, launch a clone of this drone (it runs

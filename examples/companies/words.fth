@@ -35,9 +35,22 @@
   else drop then ;
 
 \ --- Selling ------------------------------------------------------------
-\ Sell at most 15 of a good this hour: a fuller batch pays less
+
+\ Sell up to n of a resource here: into the best buy order (a House
+\ station drone's, or another player's), at once, when it pays at least
+\ half what the House lists (a station drone bids less as its stock fills,
+\ down to half). What that order doesn't take goes to the station's hourly
+\ batch, while there is one
+: sell-best ( n resource -- )
+  >r  r@ best-bid                               ( n price drone avail )
+  dup 0>  3 pick  r@ 1 house-price 2 /  < 0=  and if
+    rot drop  2 pick min  tuck  r@ rot push if drop 0 then  -   ( rest )
+  else 2drop drop then
+  ?dup if r> sell-to-station drop else r> drop then ;
+\ Sell at most 15 of a good this hour: a station drone pays less as its
+\ stock fills
 : portion ( resource -- )
-  dup units 15 min ?dup if swap sell-to-station drop else drop then ;
+  dup units 15 min ?dup if swap sell-best else drop then ;
 
 \ Offer a good to other drones here at a price, keeping none; the order
 \ stays open as the hold changes

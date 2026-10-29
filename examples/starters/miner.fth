@@ -41,6 +41,21 @@ variable copy
   else 2drop drop 0<> then                           ( n f )
   if r> buy-from-station drop else r> 2drop then ;
 
+\ Sell up to n of a resource here: into the best buy order (a House
+\ station drone's, or another player's), at once, when it pays at least
+\ half what the House lists (a station drone bids less as its stock fills,
+\ down to half). What that order doesn't take goes to the station's hourly
+\ batch, while there is one
+: sell-best ( n resource -- )
+  >r  r@ best-bid                               ( n price drone avail )
+  dup 0>  3 pick  r@ 1 house-price 2 /  < 0=  and if
+    rot drop  2 pick min  tuck  r@ rot push if drop 0 then  -   ( rest )
+  else 2drop drop then
+  ?dup if r> sell-to-station drop else r> drop then ;
+
+\ Sell all of a resource aboard, the same way
+: sell-out ( resource -- ) dup units ?dup if swap sell-best else drop then ;
+
 \ Fuel when low, from whoever sells it cheapest here; where nobody does
 \ (Phobos and Deimos have no House station), at the market
 : refuel ( -- )
@@ -130,7 +145,7 @@ variable copy
 : sell-metals ( -- )
   metals hold-cap < if exit then
   market go drop  offer
-  metals-a1 sell-all metals-a2 sell-all metals-a3 sell-all
+  metals-a1 sell-out metals-a2 sell-out metals-a3 sell-out
   \ Waits for the delivery: refuel, next round, would order it again
   fuel units 50 < if 80 fill-to then
   reinvest site go drop ;
