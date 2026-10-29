@@ -113,8 +113,8 @@
 \ Every 8th round, send a line home: the mode and what it sees
 : tell ( -- )
   ticks 8 mod if exit then
-  ." mode " mode @ . ." credits " credits d. ." rod price " rod-price .
-  ." metal " metals-a1 buy-price . report ;
+  ." mode " mode @ . ."  credits " credits d. ." rod price " rod-price .
+  ."  metal " metals-a1 buy-price . report ;
 
 : launched ( -- )
   unpack drop moon go drop

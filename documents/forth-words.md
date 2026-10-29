@@ -139,6 +139,8 @@ A drone that changes what it does as the market changes is easiest to write as a
 - One kit at a time: equipment fills 364 of a drone's 500 cargo, so both kits (40 each) don't fit at once with a tank of fuel.
 - If a kit is still aboard from a launch whose hand-over failed, `reinvest` hands it over first. A hull already bought is launched whenever the fuel allows, without checking credits again.
 - Launching (30 fuel) and equipping the clone (40) empty the tank: `reinvest` refills it to 60 afterwards. Without that, every parent in round 19 died on its way home.
+- A standing sell order for fuel keeps back only its limit: other drones buy everything above it, even while yours is busy. If the drone sells fuel and also launches clones, set the order's limit above what launching needs (80), or the tank never holds enough to launch (round 28: a factory's 3,000-credit hull sat unlaunched all round).
+- A clone takes days to pay back its 5,000 credits. Near the end of a round (`today`), stop reinvesting: two round 28 companies launched clones six days before the end and finished poorer for it.
 
 **`get-one ( resource -- )`**: buy one of a good here unless one is aboard, and wait for it in game-hour steps (up to 6). Sellers sell at once; the wait covers a seller that has none in stock until it brings more up.
 
