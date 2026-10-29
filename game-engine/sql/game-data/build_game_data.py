@@ -519,15 +519,16 @@ add_effects(WAIT_PROTOCOL, [
      'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': 0}])
 
 # Broadcasts (#380): [A 40 perform] posts the counted string at address A
-# (1 to 80 printable characters, e.g. from $" ...") as a message every drone
-# can read once light has carried it from where it was sent (queries 690 and
-# 691). The game engine reads the message and records it (broadcasts); the
-# broadcast event (type 13) finishes the action. It burns a unit of fuel.
+# (1 to 80 printable characters, e.g. from $" ...") as a Broadcast event
+# (type 13), observed like any event: by drones where it happens (803) and
+# by the Earth database (804), at the speed of light. The game engine reads
+# the message and keeps its text (broadcasts; query 844 by event). It burns
+# a unit of fuel.
 BROADCAST_PROTOCOL, BROADCAST_EVENT = '40', 13
 protocols[BROADCAST_PROTOCOL] = [BROADCAST_PROTOCOL, 'Broadcast', '1', '100',
                                  '[A 40 perform]: Broadcasts the counted string at address A (1 to 80 printable '
-                                 'characters) to every drone: each hears it once light has carried it from here '
-                                 '(queries 690 and 691).', '1', '1', '0']
+                                 'characters) as an event, seen locally (query 803) and by the Earth database '
+                                 '(804); its text: query 844.', '1', '1', '0']
 add_effects(BROADCAST_PROTOCOL, [
     {'time': 0, 'drone': 0, 'resource': FUEL, 'event_type': BROADCAST_EVENT, 'local': 1, 'installed': 0,
      'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': 0}])
@@ -832,6 +833,33 @@ usage = ' '.join(letter for letter, _, _ in EVENT_FILTERS) + ' R L 803 query'
 queries.append((803, 'Search observed events',
                 f'[{usage}]: Lists the events this spacecraft has observed, newest first, that match A P T M D N X K O '
                 '(see the manual); -1 means any.', len(EVENT_FILTERS), script))
+# The Earth database (#380): events reported to the Earth Based Central
+# Database (an observation for drone 0, at the event's time plus the light
+# time from where it happened to Earth), seen by a drone once light has
+# carried them from Earth to where the drone is now. Same filters as 803.
+# Broadcasts (event type 13) are read this way, or locally with 803.
+EARTH_LIGHT = ("(SELECT IFNULL(SQRT(POW(x.x_coord-h.x_coord,2)+POW(x.y_coord-h.y_coord,2)+POW(x.z_coord-h.z_coord,2))"
+               "/299792.458,0) FROM objects x, objects h WHERE x.object_id=3 AND h.object_id="
+               "(SELECT object_id FROM agents WHERE agent_id=[drone_id]))")
+earth = ('SELECT e.id FROM events e LEFT JOIN actions a ON a.id=e.action LEFT JOIN agents g ON g.agent_id=e.drone '
+         'WHERE e.outcome=1 AND EXISTS(SELECT 1 FROM observations o WHERE o.event=e.id AND o.drone=0 '
+         f'AND o.game_t+{EARTH_LIGHT}<=[game_now]) {conditions} ORDER BY e.game_t DESC,e.id DESC;')
+queries.append((804, 'Search Earth database',
+                f'[{usage.replace("803", "804")}]: Lists the events reported to the Earth database that this '
+                'spacecraft can know of (light from Earth has reached it), newest first, filtered like 803.',
+                len(EVENT_FILTERS), earth))
+# An event's message (#380): the text of a broadcast (event type 13), a
+# counted string; no row for other events
+queries.append((844, 'Get event message',
+                '[N R L 844 query]: The message of event N, a broadcast (event type 13), as a counted string '
+                '(answer count type); no row for other events.', 1,
+                "SELECT b.body FROM broadcasts b INNER JOIN events e ON e.action = b.action_id "
+                "WHERE e.id = [value_1] AND e.event_type = 13;"))
+# How crowded a place is (#380): the drones there now, working and wrecked
+queries.append((721, 'Drones at a place',
+                '[P R L 721 query]: How many drones are at location P now: working drones, wrecks.', 1,
+                "SELECT IFNULL(SUM(wrecked_at IS NULL),0), IFNULL(SUM(wrecked_at IS NOT NULL),0) FROM agents "
+                "WHERE object_id = [value_1];"))
 
 # Market volume (#249): units and credits that changed hands in trades of
 # resource N over the last H game hours, and how many trades, from the trades
@@ -1122,12 +1150,12 @@ queries.append((705, 'Trip between places',
 EVENT_ID_NOTE = ' Event IDs are doubles (2 cells, 2@).'
 def double_event_ids(q):
     qid, name, desc, params, script = q
-    if qid in (800, 801, 802, 803):
+    if qid in (800, 801, 802, 803, 804):
         script = re.sub(r'^SELECT (e\.)?id ', lambda m: f'SELECT {m.group(1) or ""}id AS d_id ', script)
         return (qid, name, (desc.rstrip() + EVENT_ID_NOTE)[:255], params, script)
     if 810 <= qid <= 849 and '[value_1]' in script:
         script = script.replace('[value_1]', '[dvalue_1]')
-        desc = desc.rstrip() + ' N is an event ID, a double (2 cells) as an event list (800-803) leaves it with 2@.'
+        desc = desc.rstrip() + ' N is an event ID, a double (2 cells) as an event list (800-804) leaves it with 2@.'
         return (qid, name, desc[:255], 2, script)
     return q
 queries = [double_event_ids(q) for q in queries]
@@ -1150,29 +1178,6 @@ queries.append((682, 'Sales on a day',
                 "SELECT t.location, SUM(t.units) AS d_units, ROUND(SUM(t.credits) / SUM(t.units)) AS price "
                 "FROM trades t WHERE t.resource = [value_2] AND t.location IS NOT NULL "
                 f"AND {in_day('t.game_t')} GROUP BY t.location ORDER BY t.location;"))
-
-# Broadcasts heard (#380): the Nth newest message (1 = the newest) that has
-# reached the asking drone: light carries it from the place it was sent to
-# the place the drone is now (game seconds = km / c, from the stored
-# positions). 691 hears only the drone's own company. Columns: the sender,
-# its company, the place it was sent from, its age in game minutes, the text
-# (a counted string: answer 8 + count type).
-def heard(extra=''):
-    here = "(SELECT object_id FROM agents WHERE agent_id = [drone_id])"
-    light = ("IFNULL(SQRT(POW(f.x_coord - h.x_coord, 2) + POW(f.y_coord - h.y_coord, 2) + "
-             "POW(f.z_coord - h.z_coord, 2)) / 299792.458, 0)")
-    return ("SELECT drone, company, place, age, body FROM (SELECT b.drone, b.company_id AS company, "
-            "b.object_id AS place, LEAST(32767, FLOOR(([game_now] - b.game_t) / 60)) AS age, b.body, "
-            "ROW_NUMBER() OVER (ORDER BY b.game_t DESC, b.id DESC) AS n FROM broadcasts b "
-            f"LEFT JOIN objects f ON f.object_id = b.object_id LEFT JOIN objects h ON h.object_id = {here} "
-            f"WHERE b.game_t + {light} <= [game_now]{extra}) x WHERE n = [value_1];")
-queries.append((690, 'Broadcasts heard',
-                '[N R L 690 query]: The Nth newest broadcast (1: the newest) that has reached this drone at the '
-                'speed of light: sender, its company, place sent from, age in game minutes, text (a counted '
-                'string: answer 8 + count type). No row if fewer.', 1, heard()))
-queries.append((691, 'Company broadcasts heard',
-                '[N R L 691 query]: Like 690, for broadcasts from this drone\'s own company only.', 1,
-                heard(" AND b.company_id = (SELECT company_id FROM agents WHERE agent_id = [drone_id])")))
 
 # Queries whose money or volume columns are double cells: say so
 DOUBLE_QUERIES = {101, 600, 601, 610, 611, 612, 620, 621, 841}  # 630 says so itself

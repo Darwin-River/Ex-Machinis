@@ -40,7 +40,7 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 **`call-for-fuel ( price want -- )`**: stranded with little fuel and nobody selling it here, post a buy order for up to `want` fuel at `price` a unit and wait, two game hours at a time, until some has come. Waiting burns no fuel. Example: `15 60 call-for-fuel`.
 
 - Nothing in the game rescues a drone that runs dry: only the market does. Pay enough to make the trip worth a courier's while: well above what fuel sells for at the exchanges (see the price board, query 680), more the farther you are from one.
-- Tell the drones around you: `broadcast` a message ("Fuel wanted at Phobos, paying 15") so a courier listening with `heard` knows where to go.
+- Tell the drones around you: `broadcast` a message ("Fuel wanted at Phobos, paying 15") so a courier reading the messages (`message-event events-earth`) knows where to go.
 - **Fuel couriers** are the other side of this trade: drones that carry fuel to where others work and run low, look for fuel buy orders there (`fuel best-bid`) and push fuel into them for profit. Every stranded drone is a customer.
 
 ## Getting rid of goods

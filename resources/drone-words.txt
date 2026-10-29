@@ -104,6 +104,7 @@ count
 cr
 create
 credits
+crowd
 current
 d+
 d-
@@ -133,6 +134,10 @@ editor
 else
 emit
 evaluate
+event-drone
+event-id
+events-earth
+events-here
 execute
 exit
 expect
@@ -146,10 +151,6 @@ forth-wordlist
 fuel
 get-order
 go
-heard
-heard-company
-heard-from
-heard-text
 here
 hex
 hld
@@ -177,6 +178,8 @@ make
 mars
 max
 me
+message
+message-event
 metals-a1
 metals-a2
 metals-a3

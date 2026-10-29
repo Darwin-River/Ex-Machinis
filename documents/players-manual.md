@@ -669,7 +669,7 @@ Every drone comes with a vocabulary for the game, so you can write `kunspar mine
 | Resources | `fuel` `magmite` `kunspar` `yalspar` `vladnium` `wolfite` `metals-a1` `metals-a2` `metals-a3` `inorganics-a1` `inorganics-a2` `organics-a1` `organics-a2` `mining-kit` `factory-kit` |
 | Actions: each takes its arguments off the stack and leaves one result, the ior (0 done, negative failed; see [Issuing Commands](#chapter-4-issuing-commands)), so `kunspar mine drop` and `kunspar mine if ... then` | `unpack ( -- ior )` (whichever kit is aboard), `travel ( place -- ior )`, `mine ( mineral -- ior )`, `refine ( mineral -- ior )`, `make ( resource -- ior )`, `wait ( minutes -- ior )`, `sell-here ( n resource -- ior )` (sell up to n here, into the best buy orders, best price first), `buy-here ( n resource -- ior )` (buy up to n here, from the cheapest sell orders first), `sell-order ( price keep resource -- ior )`, `buy-order ( price want resource -- ior )`, `push ( n resource drone -- ior )`, `pull ( n resource drone -- ior )`, `launch ( drone kit -- ior )`, `plunder ( wreck -- ior )`, `jettison ( n resource -- ior )` |
 | Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `today ( -- day )` (the game day now: plan a late selling trip or a deadline), `trip ( place -- hours )` (game hours to fly there from here, rounded up; -1 if unknown), `best-offer ( resource -- price drone n )` (the cheapest other drone's sell order here: its price, the seller and how many it will sell; 0 0 0 if none), `best-bid ( resource -- price drone n )` (the highest buy order here, from a buyer who can pay), `sold ( resource days-ago place -- units )` (how many sold at a place on a game day, an hour old), `buy-price ( resource -- price )` and `sell-price ( resource -- price )` (the best price to buy or sell one here; see [Market-aware drones](#market-aware-drones)), `ask ( [n] id -- rows )` (any query, answers in the 120-byte buffer `answer`, which `units`, `credits` and the other questions reuse: copy what you need before asking again; for more rows, `query` into your own array) |
-| Messages | `report` sends what the drone has printed so far, at once: without it you see nothing until the script ends, and a `launched` word that loops forever never ends. Call it once a round: `begin ... ." fuel " fuel units . report 60 wait drop again`. `broadcast ( caddr -- ior )` sends a message to every drone; `heard ( n -- f )` and `heard-company ( n -- f )` read the nth newest one that has reached this drone, `heard-from ( -- drone )` and `heard-text ( -- caddr )` what it was (see [Broadcasting to other drones](#broadcasting-to-other-drones)) |
+| Messages | `report` sends what the drone has printed so far, at once: without it you see nothing until the script ends, and a `launched` word that loops forever never ends. Call it once a round: `begin ... ." fuel " fuel units . report 60 wait drop again`. `broadcast ( caddr -- ior )` posts a message as an event others can read: `events-here` and `events-earth` find events, `event-id`, `event-drone` and `message` read them (see [Broadcasting to other drones](#broadcasting-to-other-drones)). `crowd ( place -- n )` is how many working drones are at a place |
 | State machines | `become ( mode -- )`, `in? ( mode -- f )`, `tick ( -- )`, `ticks ( -- n )` and the variable `mode`: a drone that changes what it does as the market changes (see [Market-aware drones](#market-aware-drones)) |
 | Arithmetic | `2* ( n -- n*2 )`, `2/ ( n -- n/2 )` and `*/ ( a b c -- a*b/c )`, which keeps the product as a double so it can't overflow: `qty price 95 100 */` is 95% of qty × price. Words you may know from other FORTHs and won't find here: `do`, `?do`, `loop`, `i`, `leave`, `m/mod` |
 | Loops | This FORTH has no `do ... loop` (nor `?do`, `i`): use `n for ... next` (runs n+1 times, `r@` counts down) or `begin ... until`, `begin ... while ... repeat`, `begin ... again`. See [Loops](#chapter-9-making-decisions). |
@@ -768,9 +768,14 @@ The important components of this command are the dot-quote (`."`), which instruc
 
 ### Broadcasting to other drones
 
-A drone can also talk to other drones. `broadcast ( caddr -- ior )` sends a short message, a counted string of 1 to 80 printable characters (make one with `$"`, which, like `."`, works only inside a definition), to every drone in the game. It is an action like any other: it takes a moment and burns a unit of fuel, and it shows in your drone's activity as "Broadcast".
+A drone can also talk to other drones. `broadcast ( caddr -- ior )` posts a short message, a counted string of 1 to 80 printable characters (make one with `$"`, which, like `."`, works only inside a definition). It is an action like any other: it takes a moment, burns a unit of fuel, and shows in your drone's activity as "Broadcast".
 
-Messages travel at the speed of light. A drone hears a message only once light has had time to carry it from where it was sent to where the drone is now: at once at the same place, about a second from Earth to the Moon, and 4 to 22 game minutes between Earth and Mars. Nobody can hear a message before it arrives, so news from far away is always a little old.
+A message is an **event** (type 13, the constant `message-event`), and drones learn of it the way they learn of any event, at the speed of light:
+
+- **Where it happens.** Drones at the place where a message was sent see it there, like anything else that happens around them: query 803 (search observed events), or the word `events-here ( type -- n )`.
+- **Through the Earth database.** Every message, like every event that is reported, reaches the Earth Based Central Database once light has carried it from where it was sent to Earth, and a drone learns what Earth knows once light has carried it from Earth to the drone: query 804 (search the Earth database), or `events-earth ( type -- n )`. So a message from Mars reaches a drone at Mars at once, Earth 4 to 22 game minutes later, and a drone at the Moon a second after that.
+
+Both leave how many events they found; `n event-id ( i -- d )` is the ith of them (0 is the newest), an event ID (a double). `event-drone ( d -- drone )` gives the drone that sent it (query 820), and `message ( d -- f )` its text (query 844): true if the event is a message, with the text in `answer` as a counted string (`answer count type`). They all use the `answer` buffer, so take the event ID off it before you ask the next question:
 
 ```
 <run>
@@ -778,15 +783,16 @@ Messages travel at the speed of light. A drone hears a message only once light h
   : ad ( -- caddr ) $" Fuel for sale at Phobos, 8 a unit" ;
   : speak ( -- ) ad broadcast drop ;
   : listen ( -- )
-    1 heard if ." from " heard-from . heard-text count type cr then ;
+    message-event events-earth if
+      0 event-id 2dup event-drone ." from " .
+      message if answer count type cr then
+    then ;
 </run>
 ```
 
-- `n heard ( n -- f )` asks for the nth newest message that has reached this drone (1 is the newest) and leaves true if there is one. Then `heard-from` is the drone that sent it and `heard-text` the message, a counted string (`count type` prints it). The rest of its row is in `answer`: the sender's company at `answer 2 + @`, the place it was sent from at `answer 4 + @`, and how many game minutes ago it was sent at `answer 6 + @`. Like every question word, it uses the `answer` buffer: read what you need before asking anything else.
-- `n heard-company ( n -- f )` does the same for messages from your own company only: a way for your drones to coordinate, for example a parent telling its clones where it found a good market.
-- Queries 690 and 691 are the questions behind them.
+To hear only your own company, check the sender's company (query 201 on `event-drone`). Messages are public: every drone, your rivals' included, can read what you broadcast (and the website's home page shows them). Use them to advertise, to call for fuel or a courier, to tell your other drones what you found, or to listen for opportunities. What a message says is up to its sender: nothing checks that it's true.
 
-Messages are public: every drone, your rivals' included, can hear what you broadcast (and the website's home page shows them). Use them to advertise, to call for fuel or a courier, to tell your other drones what you found, or to listen for opportunities. What a message says is up to its sender: nothing checks that it's true.
+**How crowded is it?** `crowd ( place -- n )` is how many working drones are at a place now (query 721 also gives its wrecks). A place with dozens of drones mining the same deposit or selling the same goods is a place where prices are low; a quiet one may be an opportunity.
 
 ## Chapter 6: Going to Market
 
