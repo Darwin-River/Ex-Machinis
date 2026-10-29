@@ -80,6 +80,7 @@ bl
 blk
 block
 buy-from-station
+buy-here
 buy-order
 buy-price
 bye
@@ -148,7 +149,6 @@ here
 hex
 hld
 hold
-house-price
 if
 immediate
 in?
@@ -213,6 +213,7 @@ save
 search-wordlist
 see
 sell-all
+sell-here
 sell-order
 sell-price
 sell-to-station
@@ -232,6 +233,10 @@ throw
 tick
 ticks
 today
+trade-less
+trade-n
+trade-r
+trade-took
 travel
 trip
 tuck

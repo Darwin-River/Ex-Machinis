@@ -12,7 +12,7 @@
 #     starter scripts, and drones know the game words,
 #   - actions and computing burn fuel; a drone that runs dry becomes a wreck,
 #   - money past 32,767 comes back as a double, and the double words work,
-#   - House drop stations buy goods and sell fuel when their batches clear,
+#   - House station drones buy goods and sell fuel at once (31 and 32),
 #   - a mined-out deposit yields nothing until it refills over game time,
 #   - another player's wreck can be plundered (not one's own), and a seller
 #     pays the sales tax out of a sale,
@@ -253,21 +253,25 @@ run $DRONE_ID "doubles" "create bank 8 allot
 wait_for 60 "a balance of 70,000 and 300 x 300 come out right as doubles" sh -c "docker compose logs --no-log-prefix game-engine | tr -d '[:space:]' | grep -q 'msg\[7000090000'"
 wait_for 60 "drone finished the doubles script" idle
 
-# House drop stations (#324 step 10): the drone, on the Moon, offers a unit of
-# the metal it refined to the Moon Depot; when the game hour's batch clears,
-# the station pays for it, less the sales tax (#380), here 50%
+# House stations (#324 step 10; #380): the drone, on the Moon, sells a unit of
+# the metal it refined to the Moon Depot's station drone like to any drone: a
+# push into its buy order, at once, and the seller pays the sales tax out of
+# the sale (#380), here 50%
 sql "update house_rules set sales_tax_permille = 500"
-run $DRONE_ID "station" "1 2011 31 perform . cr"
-sold() { [ "$(sql "select count(*) from station_offers where drone=$DRONE_ID and side=1 and filled=1 and paid>0")" = 1 ]; }
-wait_for 180 "the Moon Depot bought the drone's metal when its batch cleared" sold
-[ "$(sql "select tax = FLOOR((paid * 500 + 500) / 1000) and tax > 0 from station_offers where drone=$DRONE_ID and side=1 and filled=1")" = 1 ] ||
+MOON_STATION=$(sql "select agent_id from agents where station_id is not null and object_id = 10")
+[ -n "$MOON_STATION" ] || fail "the Moon has no House station drone"
+bid() { [ "$(sql "select count(*) from events where drone=$MOON_STATION and event_type=5 and resource=2011 and outcome=1")" -ge 1 ]; }
+wait_for 180 "the Moon Depot's station drone posts its buy order for metals" bid
+run $DRONE_ID "station" "1 2011 $MOON_STATION 10 perform . cr"
+sold() { [ "$(sql "select count(*) from trades where seller=$DRONE_ID and buyer=$MOON_STATION and resource=2011 and units=1 and credits>0")" = 1 ]; }
+wait_for 90 "the Moon Depot's station drone bought the drone's metal" sold
+[ "$(sql "select tax = FLOOR((credits * 500 + 500) / 1000) and tax > 0 from trades where seller=$DRONE_ID and buyer=$MOON_STATION")" = 1 ] ||
     fail "the seller didn't pay the sales tax on its station sale"
-[ "$(sql "select count(*) from company_taxes t join station_offers o on o.company_id = t.company_id and o.tax = t.amount
-          where o.drone=$DRONE_ID and o.side=1 and t.eliminated = 0")" -ge 1 ] || fail "the sales tax wasn't recorded"
-echo "ok: the seller paid the sales tax out of the sale"
+[ "$(sql "select count(*) from company_taxes t join trades d on d.tax = t.amount join agents a on a.agent_id = d.seller
+          where d.seller=$DRONE_ID and d.buyer=$MOON_STATION and t.company_id = a.company_id and t.eliminated = 0")" -ge 1 ] ||
+    fail "the sales tax wasn't recorded"
+echo "ok: a drone sold to the House station drone at once, and paid the sales tax out of the sale"
 no_tax
-[ "$(sql "select count(*) from station_batches where side=1")" -ge 1 ] || fail "no cleared batch recorded"
-echo "ok: the batch was recorded once"
 wait_for 60 "drone finished the station script" idle
 
 # Mining deposits (#324 step 11): mining takes from the place's deposit. Empty
@@ -324,19 +328,24 @@ wait_for 30 "the drone's page shows the reply" sh -c "curl -fsS http://localhost
 fetch() { curl -fsS "$@" || echo "fetch failed: $*"; }
 grep -qF "kunspar 20 dig" <<<"$(fetch -b "$JAR" "http://localhost/release?starter=miner")" || fail "the Release page did not offer the miner starter"
 echo "ok: the Release page offers the starter scripts"
-run $FORGE_DRONE "game words" "stdlib . moon . kunspar . fuel units 0> . 3 trip 0> . metals-a1 2 house-price ."
-knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%11101100-1-130'")" ]; }
+run $FORGE_DRONE "game words" "stdlib . moon . kunspar . fuel units 0> . 3 trip 0> ."
+knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%13101100-1-1'")" ]; }
 wait_for 60 "a drone knows the game words" knows_words
 
-# The House fuel seller (#324 step 10): the released drone, at Earth, orders
-# 10 fuel from the Earth Exchange; at the batch it pays 5 a unit and gets it
-run $FORGE_DRONE "fuel" "10 2061 32 perform ."
-bought() { [ "$(sql "select count(*) from station_offers where drone=$FORGE_DRONE and side=2 and filled=10 and paid=50")" = 1 ]; }
-wait_for 180 "a drone bought 10 fuel from the House at 5 a unit" bought
-# Delivered: the station's delivery action (protocol 33) added the fuel.
-# (Its total can still fall: the drone's computing is billed in fuel too)
+# The House fuel seller (#324 step 10; #380): the released drone, at Earth,
+# buys 10 fuel from the Earth Exchange's station drone like from any drone: a
+# pull from its sell order, at once, at 5 a unit
+EARTH_STATION=$(sql "select agent_id from agents where station_id is not null and object_id = 3")
+[ -n "$EARTH_STATION" ] || fail "Earth has no House station drone"
+fuel_ask() { [ "$(sql "select count(*) from events where drone=$EARTH_STATION and event_type=4 and resource=2061 and outcome=1")" -ge 1 ]; }
+wait_for 180 "the Earth Exchange's station drone posts its fuel for sale" fuel_ask
+run $FORGE_DRONE "fuel" "10 2061 $EARTH_STATION 11 perform ."
+bought() { [ "$(sql "select count(*) from trades where seller=$EARTH_STATION and buyer=$FORGE_DRONE and resource=2061 and units=10 and credits=50")" = 1 ]; }
+wait_for 90 "a drone bought 10 fuel from the House at 5 a unit" bought
+# In its hold: the pull's increment event. (Its total can still fall: the
+# drone's computing is billed in fuel too)
 more_fuel() { [ "$(sql "select count(*) from events e join actions x on x.id = e.action
-                       where x.protocol = 33 and e.drone = $FORGE_DRONE and e.resource = 2061
+                       where x.protocol = 11 and e.drone = $FORGE_DRONE and e.resource = 2061
                        and e.event_type = 1 and e.outcome = 1")" -ge 1 ]; }
 wait_for 60 "the fuel arrived in its hold" more_fuel
 
@@ -387,7 +396,9 @@ wait_for 60 "drone finished plundering" idle
 # instructions, yet it still sells: a buyer pulls from it.
 # (match the replies' end without spaces, newlines or carriage returns)
 reply_ends() { [ "$(sql "select count(*) from drone_messages where agent_id=$1 and subject='$2' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%$3'")" -ge 1 ]; }
-run $FORGE_DRONE "sell and wait" "9 1 2061 7 perform . create o 40 allot 2061 o 40 610 query . 600 3 perform ."
+# (at 1 a unit its order is the cheapest here, so the first row: the Earth
+# Exchange's station drone sells fuel too, at 5; a row's drone is at +8)
+run $FORGE_DRONE "sell and wait" "1 1 2061 7 perform . create o 40 allot 2061 o 40 610 query drop o 8 + @ . 600 3 perform ."
 forge_waits() { [ "$(sql "select a.protocol from agents g join actions a on a.id = g.waiting_action where g.agent_id=$FORGE_DRONE")" = 3 ]; }
 wait_for 60 "a drone with a sell order is waiting" forge_waits
 BEFORE=$(sql "select instructions from agents where agent_id=$FORGE_DRONE")
@@ -403,11 +414,15 @@ wait_for 60 "drone finished buying" idle
 # Back on the Moon, the first drone can't see Earth's live orders (query
 # 611 used to list orders anywhere); the seller, at Earth, saw its own
 sql "update agents set object_id = 10 where agent_id = $DRONE_ID"
-run $DRONE_ID "orders far" "create o 40 allot 2061 o 40 611 query . cr"
-blind_far() { reply_ends $DRONE_ID 'orders far' -2; }
+# (the Moon Depot's station drone sells fuel there: the seller's order at 1
+# a unit would be the cheapest, so the first row, if the drone saw it)
+run $DRONE_ID "orders far" "create o 40 allot 2061 o 40 611 query 0> if .\" far:\" o 8 + @ . else .\" far:none\" then cr"
+blind_far() { [ "$(sql "select count(*) from drone_messages where agent_id=$DRONE_ID and subject='orders far'
+                       and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%far:%'
+                       and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') not like '%far:${FORGE_DRONE}'")" -ge 1 ]; }
 wait_for 60 "a drone on the Moon can't see Earth's live orders" blind_far
 wait_for 60 "drone finished asking" idle
-sees_here() { reply_ends $FORGE_DRONE 'sell and wait' 010; }
+sees_here() { reply_ends $FORGE_DRONE 'sell and wait' "0${FORGE_DRONE}0"; }
 wait_for 60 "the seller saw its order at Earth and its wait ended" sees_here
 
 # The Drone page (#324 step 16): a released drone shows its code and a Copy
@@ -451,10 +466,9 @@ echo "ok: the live world is untouched"
 grep -q "/release/test/[0-9a-f]\{16\}$" <<<"$TEST_PAGE" || fail "the Test button didn't lead to the test run's page ($TEST_PAGE)"
 wait_for 30 "the test run's page shows it" sh -c "curl -fsS '$TEST_PAGE' | grep -q 'test-world-ok8'"
 
-# House station drones (#380, step 1): forge:stations makes the House's
-# trading drone at each exchange, once, and each posts orders by the players'
-# rules (a sell order is event type 4, a buy order 5)
-docker compose exec -T app php artisan forge:stations >/dev/null || fail "forge:stations failed"
+# House station drones (#380): the app made the House's trading drone at
+# each exchange on start-up; forge:stations makes none twice, and each posts
+# orders by the players' rules (a sell order is event type 4, a buy order 5)
 [ "$(sql "select count(*) from agents a join companies c on c.company_id = a.company_id where c.house = 1 and a.station_id is not null")" = "$(sql "select count(*) from stations")" ] ||
     fail "the House station drones weren't made"
 docker compose exec -T app php artisan forge:stations | grep -q "^0 station drone" || fail "forge:stations made a station drone twice"

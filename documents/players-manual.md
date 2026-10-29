@@ -18,6 +18,7 @@ Thank you for your support!
 
 - [Chapter 1: Getting Started](#chapter-1-getting-started)
   - [Your fortune awaits!](#your-fortune-awaits)
+  - [Every company is an experiment](#every-company-is-an-experiment)
   - [Releasing a script (Public Forge)](#releasing-a-script-public-forge)
   - [What your drone says](#what-your-drone-says)
   - [About the examples in this manual](#about-the-examples-in-this-manual)
@@ -75,6 +76,15 @@ As part of the international agreement that drove the colonization of space at t
 
 It is your birthright to take control of your own remotely piloted spacecraft and build a thriving stellar industry. But this can only be accomplished by programming your spacecraft to efficiently mine, manufacture, and trade materials on the interplanetary economy.
 
+### Every company is an experiment
+
+Once you release a drone, it runs on its own: you can't steer it, and nobody will rescue it. Sooner or later every company meets something its program didn't foresee (a market that moves, a deposit that runs dry, a rival that undercuts it, a bug) and dies. That is how the game is meant to be played. Treat each company as an experiment:
+
+- **Release, watch, learn.** Read your drone's reports, its page's activity and trades, and its post-mortem when it becomes a wreck. Each one tells you something about your program or the market.
+- **Iterate.** Fix the flaw, try a different idea, and release the next version as a new company. A good player has a lineage of companies, each better than the last, not one company kept alive at all costs.
+- **Expect the unexpected.** The game has no safety nets for a drone that runs out of fuel, overspends or gets stuck. If a drone should survive something, its program must handle it, or the market must: other players' drones buy, sell and deliver whatever pays (see [Running low on fuel](#running-low-on-fuel)).
+- **Use the Test button** to try a script in a test world first, and the Machine page to check a word against live data. They are cheap; a released company is the real experiment.
+
 ### Releasing a script (Public Forge)
 
 There is no email, and no account to open: anyone can write a drone's program on the **Release** page and release it:
@@ -116,7 +126,7 @@ The drone you release from it says where its code came from, and so does a copy 
 Five more pages show the whole world, live, and the machine itself:
 
 - **Home:** "What's happening" lists the latest events in plain words: new releases, clones launched, drones that died and why, plunders, companies that ended, trades and House station sales.
-- **Market:** each House station's budget and what it buys and sells, with the price it would pay right now and a small chart of how its price falls as a batch fills; the open orders and the latest trades.
+- **Market:** what each House station drone buys and sells, at what price now, its stock and how many it takes; the open orders and the latest trades.
 - **Map:** the planets where they are now, with the drones and wrecks around each.
 
 - **Leaderboard:** companies by net wealth, all time and **Rising** (the gain over the last real week). Each release starts a company, and the drones it launches belong to it. Net wealth counts the company's credits and its working drones' goods at House prices, minus what the company started with, so it measures what the company made.
@@ -340,10 +350,24 @@ The drone replies with 0 once the kit is unpacked.
 
 Everything your spacecraft does burns fuel, Fuel (A1) (resource 2061):
 
-- **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (mining, a transfer or an order) to 30 (launching a spacecraft, 20 of which go into the new one's hold). The protocol's description says how much. Unpacking a kit, waiting and ordering from a House station are free, so a drone with an empty tank at a station can still order fuel. Without the fuel, `perform` leaves -2 and nothing happens.
+- **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (mining, a transfer or an order) to 30 (launching a spacecraft, 20 of which go into the new one's hold). The protocol's description says how much. Unpacking a kit and waiting are free; everything else costs fuel, buying fuel included. Without the fuel, `perform` leaves -2 and nothing happens.
 - **Thinking.** Running your program burns power: 1 fuel for every 100,000 FORTH instructions your spacecraft runs. Words that do less work cost less to run.
 
 A new spacecraft starts with 100 fuel. When it runs out and can't pay for its thinking, it becomes a **wreck** for good. So keep an eye on your fuel (query your inventory) and make or buy more before you run dry: every House exchange sells it (see [Trading with House stations](#trading-with-house-stations)).
+
+<a name="running-low-on-fuel"></a>**Running low on fuel.** Nothing in the game rescues a drone with an empty tank: a drone that runs dry is a wreck, and its company may die with it. Plan for it in your program. And when a drone gets stranded anyway, far from fuel or too poor to fly, the market can save it: post a **buy order for fuel at a price high enough to bring a seller to you**, and wait. Waiting runs no instructions, so it burns no fuel, and another drone that pushes fuel into your order is paid at once:
+
+```
+<run>
+  \ Low on fuel: pay 15 a unit (three times the House's 5) for up to 60,
+  \ then wait, two game hours at a time, until some has come
+  : call-for-fuel ( -- )
+    15 60 fuel buy-order drop
+    begin fuel units 20 < while 120 wait drop repeat ;
+</run>
+```
+
+That is also a business. A **fuel courier** carries fuel to where drones work and run low (mining sites, Phobos and Deimos, the far side of a long trip), looks for buy orders for fuel there (`fuel best-bid`) and pushes fuel into them for profit. The more drones run low, the more a courier earns.
 
 To make fuel, use a Chemical Reactor: `12061 perform` turns 1 Organics (A1) and 2 Inorganics (A1) into 30 Fuel (A1) in 2 game hours. Refining 20 magmite (`21000 perform`) gives exactly those inputs. Fuel can also be traded like any other resource, and pushed to another of your spacecraft. A spacecraft you launch starts with an empty hold, so push it some fuel first.
 
@@ -392,7 +416,7 @@ Your drone's page lists each sale with the tax it paid. `R L 650 query` gives th
 
 ### Waiting
 
-A script that needs to wait, for a price to move, a deposit to refill or a batch to clear, could loop and ask again and again, but every 100,000 instructions it runs costs fuel. Instead, wait:
+A script that needs to wait, for a price to move, a deposit to refill or an order to fill, could loop and ask again and again, but every 100,000 instructions it runs costs fuel. Instead, wait:
 
 ```
 <run>
@@ -567,7 +591,7 @@ The Factory Kit's Smelter, Chemical Reactor and Spider take you as far as system
 
 **Growing your company.** Every House exchange (Earth, the Moon Depot and Mars) sells Mining Cruiser (A1) kits for 3,000 credits, and Mining Kit I and Factory Kit I for 2,000 each, about one of each an hour. They come flat-packed (40 cargo each), because your equipment already fills most of your hold. A Mining Cruiser kit gives a hull; a Mining or Factory Kit gives the equipment, which a new spacecraft doesn't have. So, with money to spare:
 
-1. buy a Mining Cruiser kit (`1 6001 buy-from-station`) and wait for it to arrive;
+1. buy a Mining Cruiser kit (`1 6001 buy-here`);
 2. launch a copy of yourself (`me 6001 launch`): it costs 30 fuel, 20 of which go to the new spacecraft;
 3. buy a kit (`mining-kit` or `factory-kit`) and push it to the new spacecraft with some fuel;
 4. have your `launched` word wait until its kit is aboard before it unpacks: a new spacecraft starts with an empty hold.
@@ -643,13 +667,13 @@ Every drone comes with a vocabulary for the game, so you can write `kunspar mine
 |---|---|
 | Places | `earth` (3) `moon` (10) `mars` (4) `phobos` (11) `deimos` (12): their location IDs; the Locations page lists the rest |
 | Resources | `fuel` `magmite` `kunspar` `yalspar` `vladnium` `wolfite` `metals-a1` `metals-a2` `metals-a3` `inorganics-a1` `inorganics-a2` `organics-a1` `organics-a2` `mining-kit` `factory-kit` |
-| Actions: each takes its arguments off the stack and leaves one result, the ior (0 done, negative failed; see [Issuing Commands](#chapter-4-issuing-commands)), so `kunspar mine drop` and `kunspar mine if ... then` | `unpack ( -- ior )` (whichever kit is aboard), `travel ( place -- ior )`, `mine ( mineral -- ior )`, `refine ( mineral -- ior )`, `make ( resource -- ior )`, `wait ( minutes -- ior )`, `sell-to-station ( n resource -- ior )`, `buy-from-station ( n resource -- ior )`, `sell-order ( price keep resource -- ior )`, `buy-order ( price want resource -- ior )`, `push ( n resource drone -- ior )`, `pull ( n resource drone -- ior )`, `launch ( drone kit -- ior )`, `plunder ( wreck -- ior )`, `jettison ( n resource -- ior )` |
-| Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `today ( -- day )` (the game day now: plan a late selling trip or a deadline), `trip ( place -- hours )` (game hours to fly there from here, rounded up; -1 if unknown), `house-price ( resource side -- price )` (what the House station here pays for it, side 1, or asks, side 2; 0 if it doesn't), `best-offer ( resource -- price drone n )` (the cheapest other drone's sell order here: its price, the seller and how many it will sell; 0 0 0 if none), `best-bid ( resource -- price drone n )` (the highest buy order here, from a buyer who can pay), `sold ( resource days-ago place -- units )` (how many sold at a place on a game day, an hour old), `buy-price ( resource -- price )` and `sell-price ( resource -- price )` (the best price to buy or sell one here, drone or House; see [Market-aware drones](#market-aware-drones)), `ask ( [n] id -- rows )` (any query, answers in the 120-byte buffer `answer`, which `units`, `credits` and the other questions reuse: copy what you need before asking again; for more rows, `query` into your own array) |
+| Actions: each takes its arguments off the stack and leaves one result, the ior (0 done, negative failed; see [Issuing Commands](#chapter-4-issuing-commands)), so `kunspar mine drop` and `kunspar mine if ... then` | `unpack ( -- ior )` (whichever kit is aboard), `travel ( place -- ior )`, `mine ( mineral -- ior )`, `refine ( mineral -- ior )`, `make ( resource -- ior )`, `wait ( minutes -- ior )`, `sell-here ( n resource -- ior )` (sell up to n here, into the best buy orders, best price first), `buy-here ( n resource -- ior )` (buy up to n here, from the cheapest sell orders first), `sell-order ( price keep resource -- ior )`, `buy-order ( price want resource -- ior )`, `push ( n resource drone -- ior )`, `pull ( n resource drone -- ior )`, `launch ( drone kit -- ior )`, `plunder ( wreck -- ior )`, `jettison ( n resource -- ior )` |
+| Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `today ( -- day )` (the game day now: plan a late selling trip or a deadline), `trip ( place -- hours )` (game hours to fly there from here, rounded up; -1 if unknown), `best-offer ( resource -- price drone n )` (the cheapest other drone's sell order here: its price, the seller and how many it will sell; 0 0 0 if none), `best-bid ( resource -- price drone n )` (the highest buy order here, from a buyer who can pay), `sold ( resource days-ago place -- units )` (how many sold at a place on a game day, an hour old), `buy-price ( resource -- price )` and `sell-price ( resource -- price )` (the best price to buy or sell one here, drone or House; see [Market-aware drones](#market-aware-drones)), `ask ( [n] id -- rows )` (any query, answers in the 120-byte buffer `answer`, which `units`, `credits` and the other questions reuse: copy what you need before asking again; for more rows, `query` into your own array) |
 | Messages | `report` sends what the drone has printed so far, at once: without it you see nothing until the script ends, and a `launched` word that loops forever never ends. Call it once a round: `begin ... ." fuel " fuel units . report 60 wait drop again` |
 | State machines | `become ( mode -- )`, `in? ( mode -- f )`, `tick ( -- )`, `ticks ( -- n )` and the variable `mode`: a drone that changes what it does as the market changes (see [Market-aware drones](#market-aware-drones)) |
 | Arithmetic | `2* ( n -- n*2 )`, `2/ ( n -- n/2 )` and `*/ ( a b c -- a*b/c )`, which keeps the product as a double so it can't overflow: `qty price 95 100 */` is 95% of qty × price. Words you may know from other FORTHs and won't find here: `do`, `?do`, `loop`, `i`, `leave`, `m/mod` |
 | Loops | This FORTH has no `do ... loop` (nor `?do`, `i`): use `n for ... next` (runs n+1 times, `r@` counts down) or `begin ... until`, `begin ... while ... repeat`, `begin ... again`. See [Loops](#chapter-9-making-decisions). |
-| Helpers | `sell-all ( resource )` sells all of it here: first to the best buy order, when it pays at least what the House station pays (a player's, or a House station drone's), then the rest to the station; `go ( place -- ior )` travels there unless the drone is already there (then it leaves 0 at once) |
+| Helpers | `sell-all ( resource )` sells all of it here with `sell-here`; `sell-to-station` and `buy-from-station` are older names for `sell-here` and `buy-here`; `go ( place -- ior )` travels there unless the drone is already there (then it leaves 0 at once) |
 
 `jettison` throws n units of a resource out of the hold into space, for 1 fuel whatever the amount. Use it for goods nobody buys where you are: a hold that fills up leaves no room for the fuel you make, and a drone without fuel dies. `10 2032 jettison drop` throws away 10 Inorganics (A2).
 
@@ -825,36 +849,36 @@ So to stop an order, post one that can't fill. A buy order wants up to its limit
 
 Three House stations buy what players make and sell what they need to get started. The Earth Exchange (at Earth) buys refined goods, alloys and polymers, later parts and systems, and sells basic equipment and fuel. The Moon Depot buys refined goods. The Mars Exchange buys refined metals, paying half as much again as the others (it's far away), and parts and systems. All three sell fuel, the two kits, and ores and refined goods (metals, organics, inorganics). Their demand moves up the production chain as the game goes on: parts from game day 3, systems from game day 7.
 
-What they pay for a made good is set to make making things pay: its inputs, plus the fuel its recipe burns (at the House's 5 a unit), plus a wage for every game hour the tool works, which rises with each step up the chain: about 20 credits a game hour for alloys and polymers, 30 for parts and 45 for systems: half as much again with each step. Mining and refining the best ore earns about 17. So an alloy sells for more than its metals, a part for more than its alloys, and a system for more than its parts: a Rod (A1) 225, a Gear Box (A1) 1,255. The Resources and Stations pages list every price. A listed buying price is what the station pays for a batch nobody else sells into; when other drones sell the same good in the same game hour, everyone in the batch gets less (see Selling to a station, below): a gear box listed at 1,255 often fetches 1,000 to 1,200.
+What they pay for a made good is set to make making things pay: its inputs, plus the fuel its recipe burns (at the House's 5 a unit), plus a wage for every game hour the tool works, which rises with each step up the chain: about 20 credits a game hour for alloys and polymers, 30 for parts and 45 for systems: half as much again with each step. Mining and refining the best ore earns about 17. So an alloy sells for more than its metals, a part for more than its alloys, and a system for more than its parts: a Rod (A1) 225, a Gear Box (A1) 1,255. The Resources and Stations pages list every price. A listed buying price is what the station pays while its stock is low; it pays less as other drones fill it (see Selling to a station, below): a gear box listed at 1,255 often fetches 1,000 to 1,200.
 
-<a name="prices"></a>**Prices.** The House sells ores and refined goods at half as much again as it pays for them at that station: the Moon Depot pays 20 for a Metals (A1) and asks 30. An ore costs half as much again as what it refines into, less the refining fuel, so buying ore to refine never beats buying the refined goods. The House is always there, but it's dear. A miner who asks less than the House sells first: the starter Miner and Refiner ask halfway between what the House pays and what it asks (25 for a Metals (A1) at the Moon). A maker should compare every price before it buys. `house-price` gives the House's price here and `best-offer` the cheapest drone's sell order:
+<a name="prices"></a>**Prices.** The House sells ores and refined goods at half as much again as it pays for them at that station: the Moon Depot pays 20 for a Metals (A1) and asks 30. An ore costs half as much again as what it refines into, less the refining fuel, so buying ore to refine never beats buying the refined goods. The House is always there, but it's dear. A miner who asks less than the House sells first: the starter Miner and Refiner ask halfway between the best buy order and the cheapest other sell order here (about 25 for a Metals (A1) at the Moon). There is no special way to ask the House its prices: its station drone's orders are in the order book like everyone's. `best-offer` gives the cheapest other drone's sell order here and `best-bid` the highest buy order, whoever posted them:
 
 ```
 <run>
-  metals-a1 2 house-price .      \ what the House here asks: 30 at the Moon
   metals-a1 best-offer . . .     \ units for sale, the seller, its price
+  metals-a1 best-bid . . .       \ units wanted, the buyer, its price
 </run>
 ```
 
-Every starter and design that buys has a word, `buy-cheapest ( n resource -- )`, that buys from whichever is cheaper. When the cheapest drone sells fewer than you want (fuel sellers often offer a unit or two), it buys the rest from the House: buying only what the cheapest seller had once left a drone stranded at Mars with no fuel.
+Every starter and design that buys does it with `buy-here`, as a word `buy-cheapest ( n resource -- )`: it pulls from the cheapest sell order here, the House's station drone's or another drone's, then the next, so a seller with only a unit or two can't leave you short (buying only what the cheapest seller had once left a drone stranded at Mars with no fuel).
 
-**House station drones (being tried).** In some worlds the House also trades as a drone at each exchange: a station drone named after it ("Earth Exchange", "Moon Depot", "Mars Exchange"), with a huge hold. It trades by your rules: its sell orders and buy orders show in the order books like any drone's (`best-offer`, `best-bid`, queries 600 and 610), you buy by pulling from it and sell by pushing into its buy orders, at once rather than when the hour's batch clears, and the sales tax applies as between players. It sells at the listed price and buys at the listed price while its stock is low, less as it fills (half the listed price at a full day's demand). It brings goods up from the planet surface and sends what it bought down once a game day, with modules no player can get. Words like `buy-cheapest` and `sell-price` find it with no change. The starters and designs sell with a word, `sell-best ( n resource -- )`: it pushes into the best buy order here (a station drone's, or another player's) when it pays at least half what the House lists, and sends what that order won't take to the station's hourly batch. A station drone buys up to a day's demand at a time (50 rods at Earth), so a crowd of makers fills it, and the rest still sells by batch.
+**The House trades as drones.** At each exchange the House trades through a **station drone** named after it ("Earth Exchange", "Moon Depot", "Mars Exchange"), with a huge hold. On the market it is a drone like any other: its sell orders and buy orders are in the order books (`best-offer`, `best-bid`, queries 600 and 610), you buy from it by pulling from its sell order and sell to it by pushing into its buy order, and the sales tax applies as between players. It sells at the listed price. It buys at the listed price while its stock is low and pays less as it fills, down to half the listed price at a full day's demand; its buy order takes up to a day's demand (50 rods at Earth). It posts a new price once a game hour. The only thing it does that you can't: it brings what it sells up from the planet surface and sends what it bought down, with modules no player can get.
 
-A station deals with drones at its location, in **batches**: everything offered or ordered during a game hour clears together at the end of the hour, so it doesn't matter who comes first.
+Two game words trade with whoever has the best order here, a station drone or another player's drone:
 
-- **Selling to a station:** `N R 31 perform` offers N units of resource R. They leave your hold at once. When the batch clears, the station pays **one price for the whole batch**, taken from its published curve: its price for an empty batch, halving each time the batch's total reaches the station's daily demand. A station's daily budget covers its whole daily demand at its listed prices, so it is the price that falls when a good is oversupplied, not the budget that runs out. If the budget ever can't pay for everything offered, it buys a share from each seller, in proportion to what they offered, and no company gets more than half. What it doesn't buy comes back to your hold. A station's budget refills every game day.
-- **Buying from a station:** `N R 32 perform` orders N units. Ordering burns no fuel. When the batch clears, you get as many as the station's supply for that hour, your company's credits and your free cargo space allow, at the station's price. The Earth Exchange is the **House fuel seller**: 5 credits a unit, up to 2,000 units a game day.
+- `sell-here ( n resource -- ior )` sells up to n: it pushes into the highest buy order here, then the next, until it has sold n, has none left, or nobody buys more.
+- `buy-here ( n resource -- ior )` buys up to n: it pulls from the cheapest sell order here, then the next, until it has n or nobody sells more.
 
-`perform` leaves -14 if no station where you are trades that resource that way. Three queries tell you more:
+When a trade fails because you can't pay for that many or your hold can't take them, they try again with half as many. Each push or pull is an action and burns a unit of fuel, buying fuel included: buy fuel before you run dry, or call for it (see [Running low on fuel](#running-low-on-fuel)). They leave 0 when they traded something, else -12 (or the failed action's code); check `units` to see how many moved. Every station sells fuel at 5 credits a unit.
 
-- `R L 630 query`: what the station here trades now: resource, side (1: it buys, 2: it sells), price (a double: for buying, the price for an empty batch), daily units (demand or supply), and the units waiting in the current batch (a double).
-- `R L 631 query`: your drone's offers and orders, newest first: resource, side, units, units filled (-1 until the batch clears) and credits (a double).
-- `R L 632 query`: the credits the station here has left for buying (a double).
+The starters and designs use them as `buy-cheapest` and `sell-best`. The stations used to trade in hourly **batches**, everything offered in a game hour paid one price when the hour ended; they don't any more, and queries 631 and 632 only show old batch offers and budgets. Query 630 tells you what the station here trades:
+
+- `R L 630 query`: resource, side (1: it buys, 2: it sells), listed price (a double), daily units (demand or supply), and the units its station drone holds (a double).
 
 ```
 <run>
-  20 2011 31 perform .   \ offer 20 Metals (A1) to the station here
-  50 2061 32 perform .   \ and order 50 fuel
+  20 metals-a1 sell-here .   \ sell 20 Metals (A1) here, best price first
+  50 fuel buy-here .         \ and buy 50 fuel, cheapest first
 </run>
 ```
 
@@ -1114,9 +1138,9 @@ The first row is the most important one (query 210 lists the largest holdings fi
 | Queries | Each row | Size | Read with |
 |---|---|---|---|
 | 600, 601 (buy orders), 610, 611 (sell orders) | price (double), the order's wanted maximum or kept minimum, units held, drone | 10 | `2@ drop`, `4 + @`, `6 + @`, `8 + @` |
-| 630 (station trades here) | resource, side, price (double), daily units, units in this batch (double) | 14 | `@`, `2 + @`, `4 + 2@`, `8 + @`, `10 + 2@` |
+| 630 (station trades here) | resource, side, listed price (double), daily units, units the station drone holds (double) | 14 | `@`, `2 + @`, `4 + 2@`, `8 + @`, `10 + 2@` |
 | 640 (deposits here) | resource, units left (double), capacity (double), refill per day | 12 | `@`, `2 + 2@`, `6 + 2@`, `10 + @` |
-| 680, 681 (price boards) | place, units (double), credits (double), trades or batches | 12 | `@`, `2 + 2@`, `6 + 2@`, `10 + @` |
+| 680, 681 (price boards) | place, units (double), credits (double), trades | 12 | `@`, `2 + 2@`, `6 + 2@`, `10 + @` |
 | 682 (sales on a day) | place, House units (double), player units (double), average price | 12 | `@`, `2 + 2@`, `6 + 2@`, `10 + @` |
 | 210 (a hold), 661 (a wreck's hold) | resource, units | 4 | `@`, `2 + @` |
 | 670 (my clones), 660 (wrecks here) | drone, 1 if a wreck or plundered | 4 | `@`, `2 + @` |
@@ -1262,15 +1286,14 @@ You can't change a drone once it's released, but its market will change: deposit
 
 | Word | What it tells you |
 |---|---|
-| `buy-price ( resource -- price )` | The cheapest price to buy one here: another drone's sell order or the House, whichever is lower (0 if nobody sells) |
-| `sell-price ( resource -- price )` | The best price to sell one here: another drone's buy order or the House, whichever is higher (0 if nobody buys) |
+| `buy-price ( resource -- price )` | The cheapest price to buy one here: the cheapest other drone's sell order, the House's station drone's included (0 if nobody sells) |
+| `sell-price ( resource -- price )` | The best price to sell one here: the highest buy order, the House's station drone's included (0 if nobody buys) |
 | `best-offer ( resource -- price drone n )` | The cheapest drone's sell order: its price, the seller, how many it will sell |
 | `best-bid ( resource -- price drone n )` | The highest drone's buy order: its price, the buyer, how many it wants (only buyers who can pay) |
-| `house-price ( resource side -- price )` | What the House station here pays (side 1) or asks (side 2) |
 | `deposit ( mineral -- n )` | Units left in the deposit here |
 | `sold ( resource days-ago place -- units )` | How many sold at a place on a game day (0: today so far, 1: yesterday...), to the House and between players, an hour old: how fast a product sells there |
 
-Query 682 gives `sold`'s numbers for every place at once, with the day's average price. For other places, two public price boards report the game day up to an hour ago: query 680 for trades between players, and query 681 for what the House stations actually paid. A station's listed price is for an empty batch: when many drones sell into the same hour, they all get less. Query 681 shows that. Query 620 gives the volume traded here, and 704 how long a trip takes.
+Query 682 gives `sold`'s numbers for every place at once, with the day's average price. For other places, two public price boards report the game day up to an hour ago: query 680 for trades between players, and query 681 for what the House station drones actually paid. A station drone's listed price is what it pays with no stock: when many drones sell to it, it pays less. Query 681 shows that. Query 620 gives the volume traded here, and 704 how long a trip takes.
 
 **Decide with arithmetic.** Most good decisions compare two numbers:
 
@@ -1325,7 +1348,7 @@ Small steps keep the drone responsive. A word that makes one alloy and then retu
 
 The Adaptive design (`examples/companies/adaptive.fth`, released with the Factory Kit) puts all of this together. It buys metals only while they cost well under what rods fetched at Earth yesterday, from whoever sells them cheapest. It sells its alloys at the Moon instead of making rods when the Moon pays nearly as much. And when nothing pays, it rests. Read it, then make your own.
 
-**Watch the `answer` buffer.** `ask` and every question word that uses it (`units`, `credits`, `deposit`, `house-price`, `best-offer`...) write into the same 120-byte buffer. Read everything you need from one answer before you ask anything else. A round 25 trader read a seller's ID after calling `units`, got the wrong drone, and its pulls failed.
+**Watch the `answer` buffer.** `ask` and every question word that uses it (`units`, `credits`, `deposit`, `best-offer`, `best-bid`...) write into the same 120-byte buffer. Read everything you need from one answer before you ask anything else. A round 25 trader read a seller's ID after calling `units`, got the wrong drone, and its pulls failed.
 
 ## Appendix A: FORTH Error Codes
 

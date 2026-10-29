@@ -5,9 +5,10 @@
 \ Deimos (Mars's moons), moving between them as deposits run low, and sell
 \ at the Mars Exchange, which pays half as much again. It offers its metals
 \ to other drones first (#380): the makers, whose factory kit can't mine,
-\ buy their metals from miners or from the House, which asks half as much
-\ again as it pays. So it asks halfway between what the House pays and what
-\ it asks, under the House, and sells to the House only what nobody bought.
+\ buy their metals from miners or from the House's station drone, which
+\ asks half as much again as it bids. So it asks halfway between the best
+\ bid and the cheapest other seller here, and sells what nobody bought into
+\ the best buy orders when it goes to market.
 \ Its kit has no Chemical Reactor to brew fuel: it buys fuel wherever it is
 \ cheapest. Change the numbers to make it your own.
 
@@ -28,30 +29,14 @@ variable copy
 \ Where it sells: the Moon Depot at the Moon, else the Mars Exchange
 : market ( -- place ) site moon = if moon else mars then ;
 
-\ Buy up to n of a resource here where it is cheapest: another drone's sell
-\ order (best-offer) or the House station (house-price, side 2: what it
-\ asks). The House delivers when its batch clears, within the game hour.
-\ A drone selling only a unit or two can't starve it: what the drone
-\ doesn't sell (or a pull that fails) it buys from the House
-: buy-cheapest ( n resource -- )
-  >r  r@ 2 house-price  r@ best-offer         ( n house price drone avail )
-  dup 0> 3 pick 0> and  3 pick 5 pick > 0=  5 pick 0= or  and if
-    rot drop  3 pick min  tuck  r@ rot pull if drop 0 then  ( n house k )
-    rot swap -  swap 0<>  over 0> and                ( rest f )
-  else 2drop drop 0<> then                           ( n f )
-  if r> buy-from-station drop else r> 2drop then ;
+\ Buy up to n of a resource here, cheapest first: buy-here pulls from the
+\ cheapest sell orders here (other drones', the House's station drone's),
+\ one after another until it has n or nobody sells more
+: buy-cheapest ( n resource -- ) buy-here drop ;
 
-\ Sell up to n of a resource here: into the best buy order (a House
-\ station drone's, or another player's), at once, when it pays at least
-\ half what the House lists (a station drone bids less as its stock fills,
-\ down to half). What that order doesn't take goes to the station's hourly
-\ batch, while there is one
-: sell-best ( n resource -- )
-  >r  r@ best-bid                               ( n price drone avail )
-  dup 0>  3 pick  r@ 1 house-price 2 /  < 0=  and if
-    rot drop  2 pick min  tuck  r@ rot push if drop 0 then  -   ( rest )
-  else 2drop drop then
-  ?dup if r> sell-to-station drop else r> drop then ;
+\ Sell up to n of a resource here, best price first: sell-here pushes into
+\ the best buy orders here (other drones', the House's station drone's)
+: sell-best ( n resource -- ) sell-here drop ;
 
 \ Sell all of a resource aboard, the same way
 : sell-out ( resource -- ) dup units ?dup if swap sell-best else drop then ;
@@ -90,13 +75,19 @@ variable copy
 
 : metals ( -- n ) metals-a1 units metals-a2 units + metals-a3 units + ;
 
-\ Its asking price: halfway between what the House here pays and what it
-\ asks (0 where there is no House station)
-: ask-price ( metal -- price ) dup 1 house-price swap 2 house-price + 2 / ;
-\ Standing sell orders for its metals, set where there is a House to price
-\ them by (the Moon, Mars); they stay open as the hold changes, and go with
-\ the drone: at the Moon 25, 37 and 50 (the Depot pays 20, 30, 40 and asks
-\ 30, 45, 60)
+\ Its asking price, from the market here: halfway between the best buy
+\ order (sell-price) and the cheapest other sell order (buy-price); with
+\ no buy order, a unit under the cheapest sell order; with no sell order,
+\ half as much again as the best buy order; 0 where nobody trades it
+: ask-price ( metal -- price )
+  dup sell-price swap buy-price                ( bid offer )
+  over 0= if nip 1- 0 max exit then
+  dup 0= if drop dup 2/ + exit then
+  + 2/ ;
+\ Standing sell orders for its metals, set where the market has prices (the
+\ Moon, Mars); they stay open as the hold changes, and go with the drone:
+\ at the Moon about 25, 37 and 50 (the Moon Depot's drone bids 20, 30, 40
+\ and asks 30, 45, 60)
 : offer-one ( metal -- ) dup ask-price ?dup if 0 rot sell-order drop else drop then ;
 : offer ( -- ) metals-a1 offer-one metals-a2 offer-one metals-a3 offer-one ;
 
@@ -105,7 +96,7 @@ variable copy
 \ this same program), and hand it the kit and 40 fuel
 6001 constant cruiser-kit
 \ Buy one of a good here unless one is aboard, and wait (up to 6 game
-\ hours) for it: the House delivers when the batch clears
+\ hours) for it, in case the House's station drone has none in stock yet
 : get-one ( resource -- )
   dup units if drop exit then
   dup 1 swap buy-from-station drop
@@ -140,7 +131,7 @@ variable copy
 : await-kit ( -- ) begin mining-kit units 0= while 60 wait drop repeat ;
 
 \ Sell the metals at the market, top up the tank from the House there (5 a
-\ unit, delivered when its batch clears), then go back to the site, only
+\ unit, at once), then go back to the site, only
 \ once hold-cap are aboard: until then other drones may buy them
 : sell-metals ( -- )
   metals hold-cap < if exit then

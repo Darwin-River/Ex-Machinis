@@ -33,9 +33,14 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 
 - Start brewing well before you run out: below 40, not 25. A drone that starts brewing with too little fuel dies halfway through.
 
-**`top-up ( n m -- )`**: with less than n fuel, buy m from the House station here (5 a unit) and wait two game hours for it to arrive. Example: `40 30 top-up`. Used by: Smith, Trader (as `fuel-up`).
+**`top-up ( n m -- )`**: with less than n fuel, buy m here, cheapest first (`buy-here`: other drones' sell orders or the House's station drone's, 5 a unit). Example: `40 30 top-up`. Used by: Smith, Trader (as `fuel-up`).
 
-- The station hands out its hourly supply among everyone who orders, so at a busy exchange you may get less than you asked for. Check the tank again afterwards.
+- Check the tank again afterwards: where few sell fuel you may get less than you asked for.
+
+**`call-for-fuel ( price want -- )`**: stranded with little fuel and nobody selling it here, post a buy order for up to `want` fuel at `price` a unit and wait, two game hours at a time, until some has come. Waiting burns no fuel. Example: `15 60 call-for-fuel`.
+
+- Nothing in the game rescues a drone that runs dry: only the market does. Pay enough to make the trip worth a courier's while: three times the House's 5 or more, more the farther you are from an exchange.
+- **Fuel couriers** are the other side of this trade: drones that carry fuel to where others work and run low, look for fuel buy orders there (`fuel best-bid`) and push fuel into them for profit. Every stranded drone is a customer.
 
 ## Getting rid of goods
 
@@ -48,28 +53,30 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 
 **`portion ( resource -- )`**: sell at most 15 of a good to the House station here. Used by: Trader.
 
-- A station pays less the more its hourly batch holds. Selling 15 an hour, over several hours, earns more than selling a whole load at once.
+- A station drone pays less the more it holds, and posts a new price once a game hour. Selling 15 an hour, over several hours, earns more than selling a whole load at once.
 
 **`offer ( price resource -- )`**: post a standing sell order for a good at a price, keeping none back. Example: `25 metals-a1 offer`.
 
 - The order stays open as the hold changes, so post it once. Another drone at the same place buys by pulling from it, even while yours is busy or waiting.
 - Price it above what the House pays, or nobody gains by selling to drones, and under what the House asks, or nobody buys from you: the House sells ores and refined goods too, at half as much again as it pays (#380).
 
-**`offer-under-house ( resource -- )`**: post a standing sell order halfway between what the House station here pays and what it asks (nothing where there is no station). Used by: Miner and Refiner (as `offer`).
+**`offer-midway ( resource -- )`**: post a standing sell order halfway between the best buy order here and the cheapest other sell order (nothing where either is missing). Used by: Miner and Refiner (as `offer`).
 
 ## Buying where it is cheapest
 
-**`buy-cheapest ( n resource -- )`** (#380): buy up to n of a good here from whoever sells it cheapest: another drone's sell order (`best-offer`) or the House station (`house-price`, side 2). From a drone it pulls at once; from the House the goods come when the hour's batch clears, so wait for them. Used by: every design that buys (Maker, Smith, Machinist, Chemist, Miner and Refiner for fuel).
+**`buy-cheapest ( n resource -- )`** (#380): buy up to n of a good here, cheapest first: the game word `buy-here`, which pulls from the cheapest sell order here (another drone's or the House's station drone's), then the next, until it has n. Used by: every design that buys (Maker, Smith, Machinist, Chemist, Miner and Refiner for fuel).
+
+**`sell-best ( n resource -- )`** (#380): sell up to n of a good here, best price first: the game word `sell-here`, which pushes into the highest buy orders here. Used by: every design that sells.
 
 - The House always sells, at half as much again as it pays, so a maker never runs out of inputs, but a miner asking less sells first.
 
 ## Reading the market
 
-Every drone also knows `buy-price`, `sell-price`, `best-offer`, `best-bid` and `house-price` (game words; see the players' manual, "Market-aware drones"). These build on them:
+Every drone also knows `buy-price`, `sell-price`, `best-offer` and `best-bid` (game words; see the players' manual, "Market-aware drones"). These build on them:
 
 **`board-price ( resource place -- price )`** (#380): what the House paid a unit for a good at a place over the last game day (query 681, the House's price board); 0 if it bought none there. Example: `rods earth board-price`. Used by: Adaptive.
 
-- A station's listed price is for an empty batch. When many drones sell into the same hour, all of them get less, and this shows by how much. Query 680, the players' board, has the same layout.
+- A station drone's listed price is what it pays with no stock. When many drones sell to it, it pays less, and this shows by how much. Query 680, the players' board, has the same layout.
 
 **`overstocked? ( product -- f )`** (#380): true when the drone holds more than half of what sold at Earth yesterday (`sold`, query 682). Check it before making more of a product, and sell first or make something else. Change `earth` to the place where you sell.
 
@@ -77,7 +84,7 @@ Every drone also knows `buy-price`, `sell-price`, `best-offer`, `best-bid` and `
 
 - Round 25's traders and makers spent every credit on goods, then couldn't buy fuel and died.
 
-**`smart-ask ( resource -- price )`** and **`reoffer ( resource -- )`**: adaptive pricing for a seller. Where there is a House station, it asks a unit under what the House asks while its stock sells out (fewer than 4 aboard), a unit over what the House pays while stock piles up (more than 16), and halfway otherwise. `reoffer` posts that as a standing sell order: call it every round, and the order follows the drone's own sales. Example: `metals-a1 reoffer metals-a2 reoffer`.
+**`smart-ask ( resource -- price )`** and **`reoffer ( resource -- )`**: adaptive pricing for a seller. From the market here: it asks a unit under the cheapest other seller while its stock sells out (fewer than 4 aboard), a unit over the best bid while stock piles up (more than 16), and halfway otherwise. `reoffer` posts that as a standing sell order: call it every round, and the order follows the drone's own sales. Example: `metals-a1 reoffer metals-a2 reoffer`.
 
 - A released script can't be changed, so a fixed price is a one-shot bet. In round 25 a miner priced at 23 when makers would pay 27, and demand outran it.
 
@@ -132,9 +139,9 @@ A drone that changes what it does as the market changes is easiest to write as a
 - If a kit is still aboard from a launch whose hand-over failed, `reinvest` hands it over first. A hull already bought is launched whenever the fuel allows, without checking credits again.
 - Launching (30 fuel) and equipping the clone (40) empty the tank: `reinvest` refills it to 60 afterwards. Without that, every parent in round 19 died on its way home.
 
-**`get-one ( resource -- )`**: buy one of a good here unless one is aboard, and wait for it in game-hour steps (up to 6): the House delivers when the batch clears, sometimes hours later.
+**`get-one ( resource -- )`**: buy one of a good here from the House unless one is aboard, and wait for it in game-hour steps (up to 6). The House's station drone sells at once; the wait covers a station drone that has none in stock until it brings more up.
 
-**`fill-to ( n -- )`**: buy fuel here up to n and wait for the delivery the same way. It waits for the fuel to arrive, not to reach n: computing burns a unit or two just after the delivery, and waiting for n then sat out all six game hours (round 23).
+**`fill-to ( n -- )`**: buy fuel here up to n from the House and wait for it the same way. It waits for the fuel to arrive, not to reach n: computing burns a unit or two just after the delivery, and waiting for n then sat out all six game hours (round 23).
 
 **`equip-clone ( -- )`**: push a kit and 40 fuel to this drone's newest clone (the last row of `670 ask`).
 
@@ -146,7 +153,7 @@ A drone that changes what it does as the market changes is easiest to write as a
 - **Refuel wherever you wait.** `wait` itself is free, but a drone that wakes every few hours to look for a trade burns fuel computing each time it looks, and over weeks that empties the tank. Call `top-up` in the waiting loop, not only before trips.
 - **Count attempts, not quiet time.** A wait that resets whenever something happens may never end. Count how many times you have looked instead.
 - **Every action costs fuel.** Mining 1, refining 2, making 2 to 4, travel 5. Computing costs too: 1 fuel per 100,000 instructions.
-- **Leave with fuel to spare.** Nearly every action burns fuel, even `sell-to-station`; ordering with `buy-from-station` is free, so a drone with an empty tank at a station can still buy fuel. Check the tank before a trip, and at a station buy fuel before you sell.
+- **Leave with fuel to spare.** Nearly every action burns fuel, buying fuel included, and nothing rescues a drone that runs dry. Check the tank before a trip, and at a station buy fuel before you sell. Stranded anyway? `call-for-fuel` posts a buy order a courier can profit from and waits for it.
 - **Long lines are fine, long strings aren't.** The game splits a line over 79 characters between words (dropping its comment) before the drone reads it, but a single string (`." ..."`) longer than that can't be split. The checker and the Machine split lines the same way.
 - **`credits` is a double.** Compare it as one: `credits 200 0 d< if exit then` (less than 200). Dropping the high cell works only until the balance passes 32,767.
 - **Don't reuse FORTH's names.** A constant called `load` shadows the standard `load` word (the drone says "load redefined"); `dump` is taken too, which is why the game word is `jettison`, and so is `report`. Prefix your names: `rod-load`.
