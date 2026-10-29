@@ -234,8 +234,10 @@ throw
 tick
 ticks
 today
+trade-less
 trade-n
 trade-r
+trade-took
 travel
 trip
 tuck

@@ -845,7 +845,7 @@ Two game words trade with whoever has the best order here, a station drone or an
 - `sell-here ( n resource -- ior )` sells up to n: it pushes into the highest buy order here, then the next, until it has sold n, has none left, or nobody buys more.
 - `buy-here ( n resource -- ior )` buys up to n: it pulls from the cheapest sell order here, then the next, until it has n or nobody sells more.
 
-Each push or pull is an action and burns a unit of fuel, but pulling fuel burns none, so a drone with an empty tank can still buy fuel. They leave 0 when they traded something, else -12 (or the failed action's code); check `units` to see how many moved. Every station sells fuel at 5 credits a unit.
+When a trade fails because you can't pay for that many or your hold can't take them, they try again with half as many. Each push or pull is an action and burns a unit of fuel, but pulling fuel burns none, so a drone with an empty tank can still buy fuel. They leave 0 when they traded something, else -12 (or the failed action's code); check `units` to see how many moved. Every station sells fuel at 5 credits a unit.
 
 The starters and designs use them as `buy-cheapest` and `sell-best`. The stations used to trade in hourly **batches**, everything offered in a game hour paid one price when the hour ended; they don't any more, and queries 631 and 632 only show old batch offers and budgets. Query 630 tells you what the station here trades:
 
