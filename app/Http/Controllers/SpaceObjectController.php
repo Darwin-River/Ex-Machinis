@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Agent;
+use App\Services\World;
 use App\SpaceObject;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -69,7 +70,9 @@ class SpaceObjectController extends Controller
         $orbitingBodies = DB::table('objects')->select('objects.object_id', 'objects.object_name','object_type',DB::raw('COUNT(agents.agent_id) as local_spacecraft'))->leftJoin('agents', 'objects.object_id', '=', 'agents.object_id')
             ->where('objects.central_body_object_id', '=', $id)->groupBy('objects.object_id')->get();
 
-        return view('space-objects.view', compact('object', 'localSpacecraft', 'orbitingBodies'));
+        $deposits = World::deposits((int) $id);
+
+        return view('space-objects.view', compact('object', 'localSpacecraft', 'orbitingBodies', 'deposits'));
     }
 
 }

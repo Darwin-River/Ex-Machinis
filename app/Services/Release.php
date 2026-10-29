@@ -105,8 +105,29 @@ class Release
         return array_keys($found);
     }
 
-    /** The warning to show for a script that redefines known words, or null */
+    /**
+     * The warning to show for a script that uses words nothing defines or
+     * redefines known ones, or null
+     */
     public static function redefinedWarning(string $script): ?string
+    {
+        $undefined = self::undefinedWords($script);
+        $warnings = [];
+        if ($undefined) {
+            $warnings[] = 'Your script uses ' . implode(', ', $undefined) . ', which '
+                . (count($undefined) > 1 ? 'aren\'t defined' : 'isn\'t defined')
+                . ' before ' . (count($undefined) > 1 ? 'they\'re' : 'it\'s') . ' used: '
+                . 'a line using ' . (count($undefined) > 1 ? 'one' : 'it') . ' fails to load with -13. '
+                . 'Check the spelling (case matters), or define it earlier in the script.';
+        }
+        if ($redefined = self::redefinedText($script)) {
+            $warnings[] = $redefined;
+        }
+        return $warnings ? implode(' ', $warnings) : null;
+    }
+
+    /** The part of the warning about redefined words, or null */
+    private static function redefinedText(string $script): ?string
     {
         $words = self::redefinedWords($script);
         if (!$words) {
@@ -116,6 +137,50 @@ class Release
             . ' your drone already knows. Words written after it use yours instead'
             . (in_array('report', $words, true) ? ' (report is how a looping drone sends you what it printed)' : '')
             . '. If you didn\'t mean to, rename yours.';
+    }
+
+    /**
+     * The words a script uses before anything defines them (#380): neither
+     * a word the drone knows nor one the script defined on an earlier line
+     * or earlier on the same line. Loading such a line fails with -13 (the
+     * VM's "undefined word"), and round 29's testers couldn't tell which word
+     * it was. Case matters, as on the drone. Comments and strings are skipped.
+     */
+    public static function undefinedWords(string $script): array
+    {
+        static $known = null;
+        if ($known === null) {
+            $path = base_path('resources/drone-words.txt');
+            $known = is_readable($path) ? array_flip(preg_split('/\s+/', trim(file_get_contents($path)))) : [];
+        }
+        $text = preg_replace([
+            '/(^|\s)\\\\(\s[^\n]*)?$/m',               // \ to the end of the line
+            '/(^|\s)\.?\(\s[^)]*\)/',                   // ( ... ) and .( ... )
+            '/(^|\s)(\."|\$"|abort")\s[^"]*"/',         // strings
+        ], ' ', $script);
+        $tokens = preg_split('/\s+/', trim($text), -1, PREG_SPLIT_NO_EMPTY);
+        $defined = [];
+        $found = [];
+        $defining = [':', 'variable', 'constant', 'create', '2variable', '2constant'];
+        for ($i = 0; $i < count($tokens); $i++) {
+            $token = $tokens[$i];
+            if (in_array(strtolower($token), $defining, true)) {
+                if (isset($tokens[$i + 1])) {
+                    $defined[$tokens[++$i]] = true;
+                }
+                continue;
+            }
+            if (in_array($token, ['char', '[char]'], true)) {
+                $i++;
+                continue;
+            }
+            if (isset($known[$token]) || isset($defined[$token])
+                || preg_match('/^-?\d+\.?$|^\$-?[0-9a-fA-F]+$/', $token)) {
+                continue;
+            }
+            $found[$token] = true;
+        }
+        return array_keys($found);
     }
 
     /** A script must define the word launched (case matters) */

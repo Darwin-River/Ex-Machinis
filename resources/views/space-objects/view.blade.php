@@ -94,6 +94,27 @@
 
                 @endif
             </div>
+            @if(!empty($deposits))
+            <div class="row row-xxl row-30 row-md-60">
+                <div class="col">
+                    <h2 class="wow fadeInLeft">Deposits</h2>
+                    <p>What is left to mine here now. Each deposit refills every game day, up to its capacity; a drone asks with <code>deposit ( mineral -- n )</code>.</p>
+                    <div class="table-custom-responsive">
+                        <table class="table-custom table-custom-primary table-deposits">
+                            <tr><th>Mineral</th><th>Left</th><th>Capacity</th><th>Refills a day</th></tr>
+                            @foreach($deposits as $d)
+                                <tr>
+                                    <td><a href="{{ url('/resources/' . $d['resource']) }}">{{ $d['name'] }}</a></td>
+                                    <td>{{ number_format($d['left']) }}</td>
+                                    <td>{{ number_format($d['capacity']) }}</td>
+                                    <td>{{ number_format($d['refill_per_day']) }}</td>
+                                </tr>
+                            @endforeach
+                        </table>
+                    </div>
+                </div>
+            </div>
+            @endif
             <div class="row row-xxl row-30 row-md-60">
                 <div class="col">
                     <h2 class="wow fadeInLeft">Local Spacecraft</h2>

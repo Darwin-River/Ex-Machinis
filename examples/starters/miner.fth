@@ -41,13 +41,25 @@ variable copy
 \ Sell all of a resource aboard, the same way
 : sell-out ( resource -- ) dup units ?dup if swap sell-best else drop then ;
 
+\ Where nobody sells fuel, bid for it a little over the exchanges' price
+\ and say so, so a fuel courier can sell to it (round 29: couriers had no
+\ customers to find); the bid stops once the tank is filled at the market
+: ask-for-fuel ( -- )
+  7 60 fuel buy-order drop  $" Need fuel here: buying at 7 a unit" broadcast drop ;
+: stop-fuel-bid ( -- ) 1 0 fuel buy-order drop ;
+
 \ Fuel when low, from whoever sells it cheapest here; where nobody does
-\ (Phobos and Deimos have no exchange), at the market
+\ (Phobos and Deimos have no exchange), call for it, then fetch it from the
+\ market if nobody has come
 : refuel ( -- )
   fuel units low-fuel < 0= if exit then
   30 fuel buy-cheapest  60 wait drop
   fuel units low-fuel < if
-    market go drop  30 fuel buy-from-station drop  120 wait drop  site go drop
+    ask-for-fuel  120 wait drop
+    fuel units low-fuel < if
+      market go drop  30 fuel buy-from-station drop  120 wait drop  site go drop
+    then
+    stop-fuel-bid
   then ;
 
 \ A low deposit: at the Moon, wait for it to refill; at Mars, try the other
@@ -55,10 +67,13 @@ variable copy
 \ flying: in round 22 crowded Mars moons ran dry and five miners spent their
 \ last fuel flying between them
 : move-on ( -- )
-  \ At the Moon, wait for the deposit to refill; after 6 dry tries in a row
-  \ (round 28: crowded by copies of this starter), try Phobos instead
+  \ At the Moon, wait for the deposit to refill. After 12 dry tries in a
+  \ row (round 28: crowded by copies of this starter), try Phobos, if fewer
+  \ drones work there (round 29: six tries sent it on a 10-day trip early)
   site# @ 0= if
-    1 misses +!  misses @ 6 < fuel units 60 < or if 60 wait drop exit then
+    1 misses +!
+    misses @ 12 < fuel units 60 < or phobos crowd moon crowd < 0= or
+    if 60 wait drop exit then
     1 site# !  0 misses !  site go drop exit
   then
   fuel units 15 < if rest wait drop exit then
