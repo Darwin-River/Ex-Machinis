@@ -699,7 +699,12 @@ def orders(event_type, local, resource='[value_1]', extra=''):
     # orders (5) while stock is below the wanted maximum.
     cmp, order = ('>', 'ASC') if event_type == 4 else ('<', 'DESC')
     where = f"i.units {cmp} o.new_quantity"
-    join_here = f" INNER JOIN agents AS a ON a.agent_id = o.drone AND a.object_id = {HERE_}" if local else ''
+    # Here, and not flying away: a drone on a trip keeps the place it left
+    # until it arrives, but nobody can trade with it (#380 round 29: pulls
+    # from listed miners failed with "the other drone was somewhere else")
+    join_here = (f" INNER JOIN agents AS a ON a.agent_id = o.drone AND a.object_id = {HERE_}"
+                 " AND NOT EXISTS (SELECT 1 FROM events AS m WHERE m.drone = o.drone AND m.event_type = 3"
+                 " AND m.outcome = 0 AND m.game_t > [game_now])") if local else ''
     stock = f"LEFT JOIN sqInventory AS i ON i.drone = o.drone AND i.resource = {resource}"
     if event_type == 5:
         # ...and only buyers who can pay for a unit (#380: round 25's sellers
