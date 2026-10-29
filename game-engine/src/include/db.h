@@ -696,6 +696,9 @@ ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protoc
 *******************************************************************************/
 ErrorCode_t db_get_event_object_id(Event_t *event, int *object_id);
 
+/** Whether a drone is on a trip at a game time: its move is still pending (#380) */
+Bool_t db_drone_in_transit(int drone_id, long long game_t);
+
 /** ****************************************************************************
 
     @brief          Deletes a given action

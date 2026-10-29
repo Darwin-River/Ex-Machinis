@@ -46,10 +46,23 @@ variable got   variable looks
   fuel units trip-fuel < if trip-fuel fuel buy-from-station drop
   120 wait drop then ;
 
-\ Sell at most 15 of each metal an hour: the more a batch holds, the less
-\ the Exchange pays. What is left after 6 hours goes on the next trip
+\ Sell up to n of a resource here: into the best buy order (a House
+\ station drone's, or another player's), at once, when it pays at least
+\ half what the House lists (a station drone bids less as its stock fills,
+\ down to half). What that order doesn't take goes to the station's hourly
+\ batch, while there is one
+: sell-best ( n resource -- )
+  >r  r@ best-bid                               ( n price drone avail )
+  dup 0>  3 pick  r@ 1 house-price 2 /  < 0=  and if
+    rot drop  2 pick min  tuck  r@ rot push if drop 0 then  -   ( rest )
+  else 2drop drop then
+  ?dup if r> sell-to-station drop else r> drop then ;
+
+\ Sell at most 15 of each metal an hour: the more the Exchange's station
+\ drone holds, the less it pays. What is left after 6 hours goes on the
+\ next trip
 : portion ( metal -- )
-  dup units 15 min ?dup if swap sell-to-station drop else drop then ;
+  dup units 15 min ?dup if swap sell-best else drop then ;
 variable rounds
 
 \ Look for sellers; rest a while when nobody sells. Each look counts

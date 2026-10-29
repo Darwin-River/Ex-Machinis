@@ -428,7 +428,7 @@ You can use this command to go elsewhere in the solar system as well. All you ne
 
 ### Time and distance
 
-Ex Machinis runs on a game clock that is faster than real time, so that trips and industrial work that take days in the game take minutes or hours of your time. By default, **one real minute is one game hour** (the game's operators can change this; Public Forge aims for one game day per real hour). Everything that takes time follows the same clock:
+Ex Machinis runs on a game clock that is faster than real time, so that trips and industrial work that take days in the game take minutes or hours of your time. By default, **one real minute is one game hour** (the game's operators can change this; Public Forge aims for one game day per real hour, and test worlds often run faster: the Home page shows the clock). Everything that takes time follows the same clock:
 
 When the world is busy the clock slows down so the game's computers can keep up, but never below a floor (in Public Forge, 8 game hours per real hour). The Home page shows the clock as it is now. Your drones only ever see game time, so a slower clock changes nothing for your scripts: everything just takes longer in real time. If the world is still too busy at the floor, it is **full**: a script you release waits in a launch queue, and the Release page shows its place in line, until there is room.
 
@@ -810,6 +810,17 @@ It's possible for a drone to simultaneously have a buy and sell order in place f
 
 Buy and sell orders cannot be canceled. However they can be replaced by more restrictive orders. Whenever a drone posts a buy order for a specific resource, it replaces the previous buy order for the resource, if one exists. The same rule applies for sell orders. Basically, there can only be one buy order and one sell order posted for the same resource at once.
 
+So to stop an order, post one that can't fill. A buy order wants up to its limit, so a limit of 0 stops it; a sell order keeps its limit, so a limit above what the drone can hold stops it:
+
+```
+<run>
+  1 0 metals-a1 buy-order drop        \ buy no more Metals (A1)
+  1 30000 metals-a1 sell-order drop   \ sell no more Metals (A1)
+</run>
+```
+
+**Standing orders spend your credits.** A buy order fills whenever another drone sells into it, while your drone does something else, until it holds the limit or runs out of credits. Credits you were saving for fuel can go that way. Keep a buy order's limit small, or stop it before you need the credits. Your orders go with your drone. While it's on a trip nobody can trade with it, and when it arrives its orders are live where it is.
+
 ### Trading with House stations
 
 Three House stations buy what players make and sell what they need to get started. The Earth Exchange (at Earth) buys refined goods, alloys and polymers, later parts and systems, and sells basic equipment and fuel. The Moon Depot buys refined goods. The Mars Exchange buys refined metals, paying half as much again as the others (it's far away), and parts and systems. All three sell fuel, the two kits, and ores and refined goods (metals, organics, inorganics). Their demand moves up the production chain as the game goes on: parts from game day 3, systems from game day 7.
@@ -825,9 +836,9 @@ What they pay for a made good is set to make making things pay: its inputs, plus
 </run>
 ```
 
-Every starter and design that buys has a word, `buy-cheapest ( n resource -- )`, that buys from whichever is cheaper.
+Every starter and design that buys has a word, `buy-cheapest ( n resource -- )`, that buys from whichever is cheaper. When the cheapest drone sells fewer than you want (fuel sellers often offer a unit or two), it buys the rest from the House: buying only what the cheapest seller had once left a drone stranded at Mars with no fuel.
 
-**House station drones (being tried).** In some worlds the House also trades as a drone at each exchange: a station drone named after it ("Earth Exchange", "Moon Depot", "Mars Exchange"), with a huge hold. It trades by your rules: its sell orders and buy orders show in the order books like any drone's (`best-offer`, `best-bid`, queries 600 and 610), you buy by pulling from it and sell by pushing into its buy orders, at once rather than when the hour's batch clears, and the sales tax applies as between players. It sells at the listed price and buys at the listed price while its stock is low, less as it fills (half the listed price at a full day's demand). It brings goods up from the planet surface and sends what it bought down once a game day, with modules no player can get. Words like `buy-cheapest` and `sell-price` find it with no change.
+**House station drones (being tried).** In some worlds the House also trades as a drone at each exchange: a station drone named after it ("Earth Exchange", "Moon Depot", "Mars Exchange"), with a huge hold. It trades by your rules: its sell orders and buy orders show in the order books like any drone's (`best-offer`, `best-bid`, queries 600 and 610), you buy by pulling from it and sell by pushing into its buy orders, at once rather than when the hour's batch clears, and the sales tax applies as between players. It sells at the listed price and buys at the listed price while its stock is low, less as it fills (half the listed price at a full day's demand). It brings goods up from the planet surface and sends what it bought down once a game day, with modules no player can get. Words like `buy-cheapest` and `sell-price` find it with no change. The starters and designs sell with a word, `sell-best ( n resource -- )`: it pushes into the best buy order here (a station drone's, or another player's) when it pays at least half what the House lists, and sends what that order won't take to the station's hourly batch. A station drone buys up to a day's demand at a time (50 rods at Earth), so a crowd of makers fills it, and the rest still sells by batch.
 
 A station deals with drones at its location, in **batches**: everything offered or ordered during a game hour clears together at the end of the hour, so it doesn't matter who comes first.
 

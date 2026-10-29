@@ -25,13 +25,31 @@
 \ --- Reading the market --------------------------------------------------
 \ Buy up to n of a resource here where it is cheapest: another drone's sell
 \ order (best-offer) or the House station (house-price, side 2: what it
-\ asks). The House delivers when its batch clears, within the game hour
+\ asks). The House delivers when its batch clears, within the game hour.
+\ A drone selling only a unit or two can't starve it: what the drone
+\ doesn't sell (or a pull that fails) it buys from the House
 : buy-cheapest ( n resource -- )
   >r  r@ 2 house-price  r@ best-offer         ( n house price drone avail )
   dup 0> 3 pick 0> and  3 pick 5 pick > 0=  5 pick 0= or  and if
-    rot drop rot drop rot min  r> rot pull drop exit
-  then
-  2drop drop  if r> buy-from-station drop else r> 2drop then ;
+    rot drop  3 pick min  tuck  r@ rot pull if drop 0 then  ( n house k )
+    rot swap -  swap 0<>  over 0> and                ( rest f )
+  else 2drop drop 0<> then                           ( n f )
+  if r> buy-from-station drop else r> 2drop then ;
+
+\ Sell up to n of a resource here: into the best buy order (a House
+\ station drone's, or another player's), at once, when it pays at least
+\ half what the House lists (a station drone bids less as its stock fills,
+\ down to half). What that order doesn't take goes to the station's hourly
+\ batch, while there is one
+: sell-best ( n resource -- )
+  >r  r@ best-bid                               ( n price drone avail )
+  dup 0>  3 pick  r@ 1 house-price 2 /  < 0=  and if
+    rot drop  2 pick min  tuck  r@ rot push if drop 0 then  -   ( rest )
+  else 2drop drop then
+  ?dup if r> sell-to-station drop else r> drop then ;
+
+\ Sell all of a resource aboard, the same way
+: sell-out ( resource -- ) dup units ?dup if swap sell-best else drop then ;
 
 \ Credits above cash-floor, at most 32,000 (credits are a double)
 : spare ( -- n )
@@ -77,16 +95,17 @@
 : make-one ( -- )
   metals-a1 units 1 > fuel units 10 > and if
     alloys-a1 make drop
-    rods-pay? if rods make drop else alloys-a1 sell-all then
+    rods-pay? if rods make drop else alloys-a1 sell-out then
     exit
   then
   rods units rod-load < 0= if hauling become exit then
   shopping become ;
 
-\ Sell at most 4 rods an hour, for up to 6 hours: a fuller batch pays less
+\ Sell at most 4 rods an hour, for up to 6 hours: the station drone pays
+\ less as its stock fills, and bids again each hour
 : sell-rods ( -- )
   6 begin dup 0> rods units 0> and while
-    rods units 4 min rods sell-to-station drop 60 wait drop 1-
+    rods units 4 min rods sell-best 60 wait drop 1-
   repeat drop ;
 
 : haul ( -- )

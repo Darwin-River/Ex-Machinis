@@ -1332,7 +1332,10 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
     int from_object = -1, to_object = -1;
     if((db_get_event_object_id(event, &from_object) != ENGINE_OK) ||
        (db_get_event_object_id(partner, &to_object) != ENGINE_OK) ||
-       (from_object != to_object))
+       (from_object != to_object) ||
+       // A drone on a trip keeps the place it left until it arrives (#380)
+       db_drone_in_transit(event->drone_id, event->game_t) ||
+       db_drone_in_transit(partner->drone_id, partner->game_t))
     {
         engine_trace(TRACE_LEVEL_ALWAYS,
             "Transfer for action [%d] refused: drone [%d] is at [%d], drone [%d] is at [%d]",

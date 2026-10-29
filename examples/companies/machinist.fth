@@ -19,13 +19,28 @@
 
 \ Buy up to n of a resource here where it is cheapest: another drone's sell
 \ order (best-offer) or the House station (house-price, side 2: what it
-\ asks). The House delivers when its batch clears, within the game hour
+\ asks). The House delivers when its batch clears, within the game hour.
+\ A drone selling only a unit or two can't starve it: what the drone
+\ doesn't sell (or a pull that fails) it buys from the House
 : buy-cheapest ( n resource -- )
   >r  r@ 2 house-price  r@ best-offer         ( n house price drone avail )
   dup 0> 3 pick 0> and  3 pick 5 pick > 0=  5 pick 0= or  and if
-    rot drop rot drop rot min  r> rot pull drop exit
-  then
-  2drop drop  if r> buy-from-station drop else r> 2drop then ;
+    rot drop  3 pick min  tuck  r@ rot pull if drop 0 then  ( n house k )
+    rot swap -  swap 0<>  over 0> and                ( rest f )
+  else 2drop drop 0<> then                           ( n f )
+  if r> buy-from-station drop else r> 2drop then ;
+
+\ Sell up to n of a resource here: into the best buy order (a House
+\ station drone's, or another player's), at once, when it pays at least
+\ half what the House lists (a station drone bids less as its stock fills,
+\ down to half). What that order doesn't take goes to the station's hourly
+\ batch, while there is one
+: sell-best ( n resource -- )
+  >r  r@ best-bid                               ( n price drone avail )
+  dup 0>  3 pick  r@ 1 house-price 2 /  < 0=  and if
+    rot drop  2 pick min  tuck  r@ rot push if drop 0 then  -   ( rest )
+  else 2drop drop then
+  ?dup if r> sell-to-station drop else r> drop then ;
 
 : refuel ( -- )
   fuel units low-fuel < if 30 fuel buy-cheapest 60 wait drop then ;
@@ -61,7 +76,7 @@
 
 : sell-boxes ( -- )
   6 begin dup 0> gear-boxes units 0> and while
-    gear-boxes units 2 min gear-boxes sell-to-station drop
+    gear-boxes units 2 min gear-boxes sell-best
     60 wait drop 1-
   repeat drop ;
 

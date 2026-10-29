@@ -136,6 +136,11 @@ From round 21, four naive agents join each round as new players would: they get 
 | 26 | Wren (manufacturer) | Factory at Earth scoring products per tool-hour; +11,146 avg, 1 clone | 7 | 5 | – | 7 | 6 | – | 6.5 |
 | 26 | Xan (casual) | Miner switched to wolfite; Maker that brews its own fuel; +8,245 avg, 1 clone | 7 | 6 | – | 7 | 7 | – | 7 |
 | 26 | **Average** | | 7.0 | 5.8 | – | 7.5 | 6.5 | – | 6.9 |
+| 27 | Yara (trader) | Market maker for the Moon's metals, hauling to Mars; about break-even (its standing bids spent its credits) | 7 | 6 | – | 7 | 7 | – | 7 |
+| 27 | Zed (raw supplier) | Ranked the Moon's ores by live price each batch, priced 1 under rivals; wolfite all game; +9,823 avg | 7 | 7 | – | 7 | 6 | – | 7 |
+| 27 | Arlo (manufacturer) | Factory at Earth scoring 9 products per tool-hour, pumps from day 7; 6 factories; its Mars company was wrecked for fuel | 8 | 6 | – | 6 | 6 | – | 7 |
+| 27 | Bea (casual) | Miner on wolfite (1 clone, late); a Maker that never leaves Earth (+11,398); +9,401 avg | 7 | 5 | – | 6 | 7 | – | 7 |
+| 27 | **Average** | | 7.25 | 6.0 | – | 6.5 | 6.5 | – | 7.0 |
 
 **Round 21 findings, and what changed:**
 - *They couldn't see their drones.* A drone's output arrives when its script ends, and `launched` never ends. The engine has a `report` word that sends it at once, but the manual never mentioned it (three of the four even redefined it). Now the manual documents it and the starters call it every 8th round.
@@ -159,9 +164,39 @@ From round 21, four naive agents join each round as new players would: they get 
 
 **Round 26 findings:** with the kits, every newcomer gained (+8,245 to +11,163 avg, against +2,000 to +6,000 before) and players traded for real: 3,326 Metals (A1), 1,350 Inorganics (A1) and 830 Organics (A1) between players. Found and fixed during the round: the House station budgets ran out (Earth's 10,000 a day went on a flood of rods at about 25), so a pump or a motor got a share of 0 and climbing the chain was punished (now each station's budget is what its daily demand costs); `best-offer` returned the drone's own order, so Vic's prices flipped every round (now it skips them); the Miner ordered fuel twice; `*/`, `2*`, `2/`, `inorganics-a2` and `organics-a2` were missing (now game words); query row layouts weren't documented (now a table in the manual); and a query for sales on a day (682, `sold`) lets a drone check how fast a product sells before making more. Asked for by most, again: a way to change a released drone, a test world whose clock matches a new world, demand for more than Metals (A1) (the A2, A3 and inorganics mostly still go to the House), contracts, and a station budget a drone can read.
 
-**What they liked best** (all six rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
+**Round 27 findings:** the House station drones worked. Every tester traded with them through `best-offer`, `sell-all` and `buy-cheapest` with no change to their code, and called the instant pushes and pulls the best part ("`sell-all` pushed my whole hold into the Mars Exchange drone at list price, with no wait": Yara). Would play again averaged 7.5. Found and fixed during the round: a drone on a trip kept the place it left until it arrived, so other drones went on trading with its orders all the way to Mars (4 trades into Yara's bids; trades now need both drones there, not in flight); `buy-cheapest` pulled only what the cheapest seller had, so a fuel seller with 2 units starved Arlo's Mars drone into a wreck (it now buys the rest from the House, and the rest of all of it when the pull fails); the activity list called posting an order "Buy resource" (now "Post buy order"); the manual didn't say how to stop an order (post one that can't fill) or that standing bids keep spending (Yara's companies ended near 0). Asked for by most: a way to change a released drone (all four), net wealth and rank on the status page, a growth cutoff near the round's end, signs of which trades were instant and which batched, plainer starters for beginners (a short one, no issue numbers in comments), and the undefined word's name in a `-13?` error. Open in the economy: makers need nobody (the House sells every input, Arlo), the ladder stops at systems, and a trader's watching costs more than the Moon's spreads pay.
+
+**What they liked best** (all seven rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
 ## Round log
+
+### Round 27: the House trades as drones (#380)
+
+A fresh world with House station drones at the three exchanges beside the batch stations: the Earth Exchange, Moon Depot and Mars Exchange as drones (huge holds, Import and Export modules), trading by the players' rules. 60 starters, plus 18 Chemists, 9 Smiths, 6 Machinists and 6 Adaptive, to game day 40.2 (the container restarted at day 7.5 and the world came back at day 13.9). Four newcomers joined.
+
+| Design | Kit | Avg gain | Clones |
+|---|---|---|---|
+| Maker (starter) | Factory | +7,627 | 0 |
+| Machinist | Factory | +6,960 | 5 |
+| Smith | Factory | +5,723 | 3 |
+| Refiner | Mining | +4,953 | 0 |
+| Chemist | Factory | +4,886 | 0 |
+| Miner | Mining | +2,802 | 0 |
+| Adaptive | Factory | +1,251 | 0 |
+| Trader | Mining | 0 | 0 |
+
+| Trades | Count | Units | Credits | Tax |
+|---|---|---|---|---|
+| Station drones selling | 1,744 | 23,626 | 244,785 | 12,504 |
+| Station drones buying | 738 | 3,158 | 92,768 | 4,794 |
+| Player to player | 2,906 | 5,929 | 121,619 | 6,376 |
+| Batch stations selling | 645 | 19,745 | 165,795 | – |
+| Batch stations buying | 2,625 | 8,315 | 753,556 | 37,863 |
+
+- **The station drones sold more than the batch stations** (23,626 units, against 19,745): fuel and raw goods, pulled at once. Players traded with each other as much as in round 26 (5,929 units).
+- **The batch stations still bought the made goods** (rods, polymers, gear boxes: 753,556 credits), because the scripts sell them with `sell-to-station`. The station drones bought mostly raw goods pushed by `sell-all`: Inorganics (A2), Metals (A1, A2, A3). Retiring the batch stations means pointing `sell-to-station` and `buy-from-station` at the drones.
+- **The drones start slowly:** their first orders were up 1.3 game days into the world, after bringing up their stock.
+- One wreck (Arlo's Mars company, for fuel: the `buy-cheapest` trap, fixed). No company ended.
 
 ### Round 26: miners and makers trade (#380)
 
