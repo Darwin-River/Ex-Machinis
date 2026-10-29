@@ -60,7 +60,7 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 - The order stays open as the hold changes, so post it once. Another drone at the same place buys by pulling from it, even while yours is busy or waiting.
 - Price it above what the House pays, or nobody gains by selling to drones, and under what the House asks, or nobody buys from you: the House sells ores and refined goods too, at half as much again as it pays (#380).
 
-**`offer-under-house ( resource -- )`**: post a standing sell order halfway between what the House station here pays and what it asks (nothing where there is no station). Used by: Miner and Refiner (as `offer`).
+**`offer-midway ( resource -- )`**: post a standing sell order halfway between the best buy order here and the cheapest other sell order (nothing where either is missing). Used by: Miner and Refiner (as `offer`).
 
 ## Buying where it is cheapest
 
@@ -72,7 +72,7 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 
 ## Reading the market
 
-Every drone also knows `buy-price`, `sell-price`, `best-offer`, `best-bid` and `house-price` (game words; see the players' manual, "Market-aware drones"). These build on them:
+Every drone also knows `buy-price`, `sell-price`, `best-offer` and `best-bid` (game words; see the players' manual, "Market-aware drones"). These build on them:
 
 **`board-price ( resource place -- price )`** (#380): what the House paid a unit for a good at a place over the last game day (query 681, the House's price board); 0 if it bought none there. Example: `rods earth board-price`. Used by: Adaptive.
 
@@ -84,7 +84,7 @@ Every drone also knows `buy-price`, `sell-price`, `best-offer`, `best-bid` and `
 
 - Round 25's traders and makers spent every credit on goods, then couldn't buy fuel and died.
 
-**`smart-ask ( resource -- price )`** and **`reoffer ( resource -- )`**: adaptive pricing for a seller. Where there is a House station, it asks a unit under what the House asks while its stock sells out (fewer than 4 aboard), a unit over what the House pays while stock piles up (more than 16), and halfway otherwise. `reoffer` posts that as a standing sell order: call it every round, and the order follows the drone's own sales. Example: `metals-a1 reoffer metals-a2 reoffer`.
+**`smart-ask ( resource -- price )`** and **`reoffer ( resource -- )`**: adaptive pricing for a seller. From the market here: it asks a unit under the cheapest other seller while its stock sells out (fewer than 4 aboard), a unit over the best bid while stock piles up (more than 16), and halfway otherwise. `reoffer` posts that as a standing sell order: call it every round, and the order follows the drone's own sales. Example: `metals-a1 reoffer metals-a2 reoffer`.
 
 - A released script can't be changed, so a fixed price is a one-shot bet. In round 25 a miner priced at 23 when makers would pay 27, and demand outran it.
 

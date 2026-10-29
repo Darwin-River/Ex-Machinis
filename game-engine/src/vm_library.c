@@ -77,8 +77,6 @@ const char* vm_library_game_source =
     ": go ( place -- ior ) dup location = if drop 0 else travel then ;\n"
     ": today ( -- day ) 207 ask drop answer @ ;\n"
     ": trip ( place -- hours ) 704 ask 0> if answer 8 + @ else -1 then ;\n"
-    ": house-price ( resource side -- price )\n"
-    "  633 ask 0> if answer 2@ drop else 0 then ;\n"
     ": best-offer ( resource -- price drone n ) me >r 610 ask 0 max 0\n"
     "  begin 2dup > while dup 10 * answer + dup 8 + @ r@ <> if\n"
     "  nip nip dup 2@ drop over 8 + @ rot dup 6 + @ swap 4 + @ - 0 max\n"
@@ -87,11 +85,8 @@ const char* vm_library_game_source =
     "  begin 2dup > while dup 10 * answer + dup 8 + @ r@ <> if\n"
     "  nip nip dup 2@ drop over 8 + @ rot dup 4 + @ swap 6 + @ - 0 max\n"
     "  r> drop exit then drop 1+ repeat 2drop r> drop 0 0 0 ;\n"
-    ": sell-price ( resource -- price )\n"
-    "  dup 1 house-price swap best-bid 0= if 2drop 0 else drop then max ;\n"
-    ": buy-price ( resource -- price )\n"
-    "  dup 2 house-price swap best-offer 0= if 2drop 0 else drop then\n"
-    "  2dup 0<> swap 0<> and if min else max then ;\n"
+    ": sell-price ( resource -- price ) best-bid 0= if 2drop 0 else drop then ;\n"
+    ": buy-price ( resource -- price ) best-offer 0= if 2drop 0 else drop then ;\n"
     "variable mode variable #ticks\n"
     ": become ( mode -- ) mode ! 0 #ticks ! ;\n"
     ": in? ( mode -- f ) mode @ = ;\n"
@@ -116,7 +111,7 @@ const char* vm_library_game_source =
     ": buy-from-station ( n resource -- ior ) buy-here ;\n"
     ": sell-to-station ( n resource -- ior ) sell-here ;\n"
     ": sell-all ( resource -- ) dup units ?dup if swap sell-here then drop ;\n"
-    ": stdlib ( -- version ) 12 ;\n";
+    ": stdlib ( -- version ) 13 ;\n";
 
 int vm_library_load(embed_t* vm)
 {

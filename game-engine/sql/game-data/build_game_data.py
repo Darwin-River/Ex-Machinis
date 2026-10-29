@@ -991,15 +991,9 @@ queries.append((631, 'My station offers',
                 'first: resource, side, units, units filled, credits (2 cells). Station trades are trades now.', 0,
                 "SELECT resource, side, units, IFNULL(filled, -1), IFNULL(paid, 0) AS d_paid FROM station_offers "
                 "WHERE drone = [drone_id] ORDER BY id DESC;"))
-# One House price (#380): what the station here pays for resource N (S = 1)
-# or asks for it (S = 2), now; nothing if it doesn't trade it. Makers compare
-# it with other drones' sell orders, and miners price under it.
-queries.append((633, 'House price here',
-                '[N S R L 633 query]: The price the House station where the drone is pays for resource N (S = 1) or '
-                'asks for it (S = 2), now (2 cells); no row if it doesn\'t trade it that way.', 2,
-                "SELECT g.price AS d_price FROM station_goods g WHERE g.resource = [value_2] AND g.side = [value_1] "
-                f"AND g.station_id IN {HERE_STATION} "
-                "AND g.from_day <= FLOOR(([game_now] - (SELECT epoch FROM game_clock WHERE id = 1)) / 86400);"))
+# Query 633 (the House's price here, the game word house-price) is gone
+# (#380): a House station drone's prices are its orders, read like any
+# drone's (best-offer, best-bid)
 queries.append((632, 'Station budget here',
                 '[R L 632 query]: The budget of the batch station retired in #380 (2 cells). A station drone buys up '
                 'to its buy order (query 600).', 0,

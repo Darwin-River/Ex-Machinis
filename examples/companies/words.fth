@@ -61,10 +61,11 @@
 \ one after another until it has n or nobody sells more
 : buy-cheapest ( n resource -- ) buy-here drop ;
 
-\ Offer a good to other drones under the House: halfway between what the
-\ House here pays and what it asks (nothing where there is no House)
-: offer-under-house ( resource -- )
-  dup 1 house-price over 2 house-price + 2 /
+\ Offer a good to other drones halfway between the best buy order here and
+\ the cheapest other sell order (nothing where either is missing)
+: offer-midway ( resource -- )
+  dup sell-price over buy-price  2dup 0<> swap 0<> and
+  if + 2/ else 2drop 0 then
   ?dup if 0 rot sell-order drop else drop then ;
 
 \ --- Reading the market (#380) ------------------------------------------
@@ -99,15 +100,15 @@
 \ alloys-a1 metals-a1 2 profit
 : profit ( product input n -- credits ) swap buy-price * swap sell-price swap - ;
 
-\ Adaptive pricing: where there is a House to price by, ask a unit under
-\ what the House asks while the stock sells out (fewer than 4 aboard), a
-\ unit over what it pays while stock piles up (more than 16), and halfway
-\ between otherwise; 0 where there is no House station. Call reoffer every
+\ Adaptive pricing, from the market here: ask a unit under the cheapest
+\ other seller while the stock sells out (fewer than 4 aboard), a unit over
+\ the best bid while stock piles up (more than 16), and halfway between
+\ otherwise; 0 where nobody sells it. Call reoffer every
 \ round, so a standing sell order follows its own sales (round 25's miners
 \ priced once, too low, and demand outran them)
 : smart-ask ( resource -- price )
-  dup 2 house-price ?dup 0= if drop 0 exit then      ( resource ask )
-  over 1 house-price  ?dup 0= if dup 2 / then        ( resource ask pay )
+  dup buy-price ?dup 0= if drop 0 exit then          ( resource ask )
+  over sell-price  ?dup 0= if dup 2 / then           ( resource ask pay )
   rot units  dup 4 < if 2drop 1- exit then
   16 > if nip 1+ exit then
   + 2 / ;

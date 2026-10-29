@@ -5,9 +5,10 @@
 \ Deimos (Mars's moons), moving between them as deposits run low, and sell
 \ at the Mars Exchange, which pays half as much again. It offers its metals
 \ to other drones first (#380): the makers, whose factory kit can't mine,
-\ buy their metals from miners or from the House, which asks half as much
-\ again as it pays. So it asks halfway between what the House pays and what
-\ it asks, under the House, and sells to the House only what nobody bought.
+\ buy their metals from miners or from the House's station drone, which
+\ asks half as much again as it bids. So it asks halfway between the best
+\ bid and the cheapest other seller here, and sells what nobody bought into
+\ the best buy orders when it goes to market.
 \ Its kit has no Chemical Reactor to brew fuel: it buys fuel wherever it is
 \ cheapest. Change the numbers to make it your own.
 
@@ -74,13 +75,19 @@ variable copy
 
 : metals ( -- n ) metals-a1 units metals-a2 units + metals-a3 units + ;
 
-\ Its asking price: halfway between what the House here pays and what it
-\ asks (0 where there is no House station)
-: ask-price ( metal -- price ) dup 1 house-price swap 2 house-price + 2 / ;
-\ Standing sell orders for its metals, set where there is a House to price
-\ them by (the Moon, Mars); they stay open as the hold changes, and go with
-\ the drone: at the Moon 25, 37 and 50 (the Depot pays 20, 30, 40 and asks
-\ 30, 45, 60)
+\ Its asking price, from the market here: halfway between the best buy
+\ order (sell-price) and the cheapest other sell order (buy-price); with
+\ no buy order, a unit under the cheapest sell order; with no sell order,
+\ half as much again as the best buy order; 0 where nobody trades it
+: ask-price ( metal -- price )
+  dup sell-price swap buy-price                ( bid offer )
+  over 0= if nip 1- 0 max exit then
+  dup 0= if drop dup 2/ + exit then
+  + 2/ ;
+\ Standing sell orders for its metals, set where the market has prices (the
+\ Moon, Mars); they stay open as the hold changes, and go with the drone:
+\ at the Moon about 25, 37 and 50 (the Moon Depot's drone bids 20, 30, 40
+\ and asks 30, 45, 60)
 : offer-one ( metal -- ) dup ask-price ?dup if 0 rot sell-order drop else drop then ;
 : offer ( -- ) metals-a1 offer-one metals-a2 offer-one metals-a3 offer-one ;
 
