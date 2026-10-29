@@ -2,7 +2,9 @@
 // WebAssembly build, set up as a drone's VM is, line by line as the engine
 // reads a released script, and fails on any line that leaves an error: a
 // starter that doesn't load leaves its drones doing nothing.
-// Usage: node check_starters.mjs path/to/machine.wasm starter.fth...
+// A Markdown file (a strategy post, documents/blog) is checked the same way:
+// its ```forth blocks, in order, as one script that needn't define launched.
+// Usage: node check_starters.mjs path/to/machine.wasm starter.fth|post.md...
 import { readFileSync } from 'node:fs';
 
 const wasm = await WebAssembly.instantiate(readFileSync(process.argv[2]), {});
@@ -25,7 +27,11 @@ function str(at) {
 let failed = 0;
 for (const file of process.argv.slice(3)) {
     m.machine_init();
+    const post = file.endsWith('.md');
+    let inCode = !post;
     readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
+        if (post && /^```/.test(line)) { inCode = line.startsWith('```forth'); return; }
+        if (!inCode) return;
         // Wrapped as the engine wraps a long line (wrap.c, #380)
         const wrapped = m.machine_wrap(put(line));
         if (!wrapped) {
@@ -48,8 +54,8 @@ for (const file of process.argv.slice(3)) {
             failed++;
         }
     });
-    // It must define launched
-    if (m.machine_eval(put("' launched drop\n")) < 0 || /\?/.test(str(m.machine_output()))) {
+    // A script must define launched
+    if (!post && (m.machine_eval(put("' launched drop\n")) < 0 || /\?/.test(str(m.machine_output())))) {
         console.log(`${file}: launched is not defined`);
         failed++;
     }

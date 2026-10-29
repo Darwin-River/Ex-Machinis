@@ -15,6 +15,7 @@
         .players-manual h2 { margin-top: 2.5rem; }
         .players-manual h3, .players-manual h4 { margin-top: 1.75rem; }
         .players-manual pre { background: rgba(255, 255, 255, 0.06); padding: 1rem; overflow-x: auto; }
+        .players-manual pre code { background: transparent !important; color: #e8e8f0 !important; padding: 0; white-space: pre; }
         .players-manual table { margin: 1rem 0; border-collapse: collapse; display: block; overflow-x: auto; }
         .players-manual th, .players-manual td { border: 1px solid rgba(255, 255, 255, 0.2); padding: 0.4rem 0.75rem; }
         .players-manual img { max-width: 100%; height: auto; }

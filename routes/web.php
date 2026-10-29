@@ -26,6 +26,8 @@ Route::get('/forth-dictionary', 'HomeController@forthDictionary');
 Route::get('/getting-started', 'HomeController@playersManual');
 Route::get('/getting-started/images/{file}', 'HomeController@playersManualImage')->where('file', '[A-Za-z0-9_-]+\.(png|jpg|jpeg|gif|svg)');
 Route::get('/about-us', 'HomeController@aboutUs');
+Route::get('/blog', 'BlogController@index');
+Route::get('/blog/{slug}', 'BlogController@show')->where('slug', '[a-z0-9-]+');
 
 Route::get('/queries', 'HomeController@queryCommands');
 Route::get('/queries/{id}', 'HomeController@queryCommand')->whereNumber('id');
