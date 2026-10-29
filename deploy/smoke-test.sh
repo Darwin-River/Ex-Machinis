@@ -414,8 +414,12 @@ wait_for 60 "drone finished buying" idle
 # Back on the Moon, the first drone can't see Earth's live orders (query
 # 611 used to list orders anywhere); the seller, at Earth, saw its own
 sql "update agents set object_id = 10 where agent_id = $DRONE_ID"
-run $DRONE_ID "orders far" "create o 40 allot 2061 o 40 611 query . cr"
-blind_far() { reply_ends $DRONE_ID 'orders far' -2; }
+# (the Moon Depot's station drone sells fuel there: the seller's order at 1
+# a unit would be the cheapest, so the first row, if the drone saw it)
+run $DRONE_ID "orders far" "create o 40 allot 2061 o 40 611 query 0> if .\" far:\" o 8 + @ . else .\" far:none\" then cr"
+blind_far() { [ "$(sql "select count(*) from drone_messages where agent_id=$DRONE_ID and subject='orders far'
+                       and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%far:%'
+                       and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') not like '%far:${FORGE_DRONE}'")" -ge 1 ]; }
 wait_for 60 "a drone on the Moon can't see Earth's live orders" blind_far
 wait_for 60 "drone finished asking" idle
 sees_here() { reply_ends $FORGE_DRONE 'sell and wait' "0${FORGE_DRONE}0"; }
