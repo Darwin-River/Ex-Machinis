@@ -109,7 +109,7 @@ Both the Test button and a release warn you if your script redefines a word your
 
 Not sure where to begin? The Release page offers four starter scripts: click **Miner**, **Refiner**, **Trader** or **Maker** above the script box and it fills in, with the kit it needs. Each is short, explained in its comments, and makes money on its own; change its numbers, or its plan, to make it yours.
 
-- **Miner** (Mining Kit): mines kunspar or wolfite on the Moon, whichever has more left there (`richer`), refines it and sells the metals (and wolfite's Inorganics A2). It offers them to other drones first, halfway between the best buy order and the cheapest other sell order, and sells the rest into the best buy orders. If the Moon's deposit stays dry (six tries in a row: other miners got there first), it moves to Mars's moons. Once it can afford to launch copies of itself, two in three of them make the long trip to Mars's moons (about 10 game days) and sell at the Mars Exchange. It buys its fuel wherever it's cheapest.
+- **Miner** (Mining Kit): mines kunspar or wolfite on the Moon, whichever has more left there (`richer`), refines it and sells the metals (and wolfite's Inorganics A2). It offers them to other drones first, halfway between the best buy order and the cheapest other sell order, and sells the rest into the best buy orders. If the Moon's deposit stays dry (twelve tries in a row: other miners got there first) and fewer drones work at Phobos than at the Moon, it moves to Mars's moons. Once it can afford to launch copies of itself, two in three of them make the long trip to Mars's moons (about 10 game days) and sell at the Mars Exchange. It buys its fuel wherever it's cheapest; where nobody sells it (Phobos and Deimos), it posts a fuel buy order at 7 and broadcasts that it needs fuel, waits two game hours for a courier, then flies to the Mars Exchange if none came.
 - **Refiner** (Mining Kit): mines yalspar and vladnium and refines them into the organics and inorganics that factories turn into fuel and polymers. It sells them the same way.
 - **Trader** (Mining Kit, though it only uses the Engine): buys metals from the miners on the Moon and hauls them to Mars, where buyers have paid more (check the price board).
 - **Maker** (Factory Kit): buys metals at the Moon wherever they're cheapest, makes them into alloys and rods, and sells the rods at Earth.
@@ -495,7 +495,7 @@ Of course, some of these protocols, like the transport option, don't exist yet. 
 
 Every production process begins with raw materials, which are available from planets, moons, asteroids, comets, and planetary rings. These resources are generally extracted from orbital bodies in the form of minerals, which contain many of the different elements and compounds required for making construction materials.
 
-If you call up a particular location online, you'll be able to see what minerals are available at that location. For example, the Moon (http://exmachinis.com/locations/10) contains kunspar, yalspar, vladnium, and wolfite. Each of these minerals is accompanied by a value, which indicates the relative abundance of the resource at that location. The higher the number, the more units you'll recover from a single mining run.
+If you call up a particular location online, you'll be able to see what minerals are available at that location. For example, the Moon (http://exmachinis.com/locations/10) contains kunspar, yalspar, vladnium, and wolfite. Each of these minerals is accompanied by a value, which indicates the relative abundance of the resource at that location. The higher the number, the more units you'll recover from a single mining run. The page's **Deposits** table shows how much of each is left there now, the deposit's capacity and how much it refills each game day: the same number a drone gets from `deposit`.
 
 Each kind of body has its own minerals, and each needs a particular mining module in your cargo hold:
 
@@ -1377,6 +1377,8 @@ The Adaptive design (`examples/companies/adaptive.fth`, released with the Factor
 ## Appendix A: FORTH Error Codes
 
 Your drone will occasionally return an error message indicating a fault in the code that it's trying to process. These errors are reported as negative integers followed by a question mark (for example `-13?`), which can be interpreted using the following table.
+
+The most common is `-13?`, an undefined word: the drone prints the line it was reading, then `-13?`. The word is one on that line that the drone doesn't know (a typo, the wrong case: `DUP` isn't `dup`, a word from another FORTH such as `true`, or one of your own used before the line that defines it). The Test button and the Release page name such words for you before your script runs.
 
 | Hex | Dec | Message |
 |---|---|---|

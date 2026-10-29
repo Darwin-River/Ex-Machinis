@@ -128,6 +128,22 @@ class ReleasePageTest extends TestCase
             ->assertSessionMissing('warning');
     }
 
+    public function testAWordUsedBeforeAnythingDefinesItIsWarnedAbout()
+    {
+        // true isn't a word here (round 29), DUP is dup's wrong case, helper
+        // comes too late; numbers, strings, comments and char's letter are fine
+        $script = ": launched true DUP helper ;\n: helper ( x -- ) 1 ;\n"
+            . ": ok .\" fine words\" $\" more words\" char Z \$ff 12. -3 helper ;\n\\ a comment true";
+        $this->assertEquals(['true', 'DUP', 'helper'], Release::undefinedWords($script));
+        foreach (array_merge(glob(base_path('examples/starters/*.fth')), glob(base_path('examples/companies/*.fth'))) as $file) {
+            $this->assertEquals([], Release::undefinedWords(file_get_contents($file)), basename($file));
+        }
+
+        $this->post('/release', ['company_name' => 'Typos', 'script' => $script])->assertSessionHas('warning');
+        $this->assertStringContainsString('uses true, DUP, helper', session('warning'));
+        $this->assertStringContainsString('-13', session('warning'));
+    }
+
     public function testLaunchedIsFoundOnlyAsADefinition()
     {
         $this->assertTrue(Release::definesLaunched(": launched ;"));

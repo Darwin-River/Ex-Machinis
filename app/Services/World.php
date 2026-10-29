@@ -27,6 +27,36 @@ class World
         return $clock ? (int) round($clock->game_anchor + (time() - $clock->real_anchor) * $clock->scale) : time();
     }
 
+    /**
+     * The mineral deposits at a place (#380), as the engine works them out
+     * (db_take_deposit): what is left now, refilled by refill_per_day for
+     * the game time since it was last worked, up to the capacity; a deposit
+     * nobody has worked yet is full. Rows: resource, name, left, capacity,
+     * refill_per_day.
+     */
+    public static function deposits(int $objectId): array
+    {
+        $now = self::gameNow();
+        return DB::table('deposits AS d')
+            ->leftJoin('deposit_state AS s', function ($j) {
+                $j->on('s.object_id', '=', 'd.object_id')->on('s.resource', '=', 'd.resource');
+            })
+            ->leftJoin('resources AS r', 'r.id', '=', 'd.resource')
+            ->where('d.object_id', $objectId)->orderBy('d.resource')
+            ->get(['d.resource', 'r.name', 'd.capacity', 'd.refill_per_day', 's.amount', 's.refilled_t'])
+            ->map(function ($d) use ($now) {
+                $left = $d->amount === null ? (float) $d->capacity
+                    : (float) $d->amount + $d->refill_per_day * max(0, $now - (int) $d->refilled_t) / 86400;
+                return [
+                    'resource' => (int) $d->resource,
+                    'name' => $d->name,
+                    'left' => (int) floor(max(0, min((float) $d->capacity, $left))),
+                    'capacity' => (int) $d->capacity,
+                    'refill_per_day' => (int) $d->refill_per_day,
+                ];
+            })->all();
+    }
+
     /** A real time (a row's created_at) as game time */
     private static function gameTimeOf(string $real): int
     {

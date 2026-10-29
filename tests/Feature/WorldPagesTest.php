@@ -64,4 +64,24 @@ class WorldPagesTest extends TestCase
         $this->assertGreaterThanOrEqual(1, $earth['working']);
         $this->assertTrue($earth['x'] >= 0 && $earth['x'] <= 600 && $earth['y'] >= 0 && $earth['y'] <= 600);
     }
+
+    public function testALocationShowsWhatIsLeftInItsDeposits()
+    {
+        // One deposit worked a game day ago (100 left, refilling 400 a day),
+        // one nobody has worked (full)
+        DB::table('deposits')->where('object_id', 3)->delete();
+        DB::table('deposit_state')->where('object_id', 3)->delete();
+        DB::table('deposits')->insert([
+            ['object_id' => 3, 'resource' => 1100, 'capacity' => 2000, 'refill_per_day' => 400],
+            ['object_id' => 3, 'resource' => 1130, 'capacity' => 2000, 'refill_per_day' => 400],
+        ]);
+        DB::table('deposit_state')->insert(['object_id' => 3, 'resource' => 1100, 'amount' => 100,
+            'refilled_t' => World::gameNow() - 86400]);
+
+        $deposits = collect(World::deposits(3))->keyBy('resource');
+        $this->assertEqualsWithDelta(500, $deposits[1100]['left'], 2);
+        $this->assertSame(2000, $deposits[1130]['left']);
+
+        $this->get('/locations/3')->assertOk()->assertSee('Deposits')->assertSee('Refills a day');
+    }
 }
