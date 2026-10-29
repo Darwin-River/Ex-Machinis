@@ -1294,8 +1294,7 @@ static Bool_t event_get_transfer_partner(Event_t *event, Event_t *partner)
     if(db_get_action(&action) != ENGINE_OK || action.aborted)
         return ENGINE_FALSE;
 
-    if(action.protocol_id != PUSH_PROTOCOL_ID && action.protocol_id != PULL_PROTOCOL_ID &&
-       action.protocol_id != SELL_TO_STATION_PROTOCOL_ID && action.protocol_id != BUY_FROM_STATION_PROTOCOL_ID)
+    if(action.protocol_id != PUSH_PROTOCOL_ID && action.protocol_id != PULL_PROTOCOL_ID)
         return ENGINE_FALSE;
 
     if(db_get_pending_action_event(event->action_id, INCREMENT_INVENTORY_EVENT_TYPE,

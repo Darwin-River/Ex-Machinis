@@ -254,15 +254,15 @@ wait_for 60 "a balance of 70,000 and 300 x 300 come out right as doubles" sh -c 
 wait_for 60 "drone finished the doubles script" idle
 
 # House stations (#324 step 10; #380): the drone, on the Moon, sells a unit of
-# the metal it refined to the Moon Depot: 31 pushes it into the House station
-# drone's buy order there, at once, and the seller pays the sales tax out of
+# the metal it refined to the Moon Depot's station drone like to any drone: a
+# push into its buy order, at once, and the seller pays the sales tax out of
 # the sale (#380), here 50%
 sql "update house_rules set sales_tax_permille = 500"
 MOON_STATION=$(sql "select agent_id from agents where station_id is not null and object_id = 10")
 [ -n "$MOON_STATION" ] || fail "the Moon has no House station drone"
 bid() { [ "$(sql "select count(*) from events where drone=$MOON_STATION and event_type=5 and resource=2011 and outcome=1")" -ge 1 ]; }
 wait_for 180 "the Moon Depot's station drone posts its buy order for metals" bid
-run $DRONE_ID "station" "1 2011 31 perform . cr"
+run $DRONE_ID "station" "1 2011 $MOON_STATION 10 perform . cr"
 sold() { [ "$(sql "select count(*) from trades where seller=$DRONE_ID and buyer=$MOON_STATION and resource=2011 and units=1 and credits>0")" = 1 ]; }
 wait_for 90 "the Moon Depot's station drone bought the drone's metal" sold
 [ "$(sql "select tax = FLOOR((credits * 500 + 500) / 1000) and tax > 0 from trades where seller=$DRONE_ID and buyer=$MOON_STATION")" = 1 ] ||
@@ -329,25 +329,28 @@ fetch() { curl -fsS "$@" || echo "fetch failed: $*"; }
 grep -qF "kunspar 20 dig" <<<"$(fetch -b "$JAR" "http://localhost/release?starter=miner")" || fail "the Release page did not offer the miner starter"
 echo "ok: the Release page offers the starter scripts"
 run $FORGE_DRONE "game words" "stdlib . moon . kunspar . fuel units 0> . 3 trip 0> . metals-a1 2 house-price ."
-knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%11101100-1-130'")" ]; }
+knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%12101100-1-130'")" ]; }
 wait_for 60 "a drone knows the game words" knows_words
 
 # The House fuel seller (#324 step 10; #380): the released drone, at Earth,
-# buys 10 fuel from the Earth Exchange: 32 pulls it from the House station
-# drone's sell order, at once, at 5 a unit
+# buys 10 fuel from the Earth Exchange's station drone like from any drone: a
+# pull from its sell order, at once, at 5 a unit. Pulling fuel burns none
 EARTH_STATION=$(sql "select agent_id from agents where station_id is not null and object_id = 3")
 [ -n "$EARTH_STATION" ] || fail "Earth has no House station drone"
 fuel_ask() { [ "$(sql "select count(*) from events where drone=$EARTH_STATION and event_type=4 and resource=2061 and outcome=1")" -ge 1 ]; }
 wait_for 180 "the Earth Exchange's station drone posts its fuel for sale" fuel_ask
-run $FORGE_DRONE "fuel" "10 2061 32 perform ."
+run $FORGE_DRONE "fuel" "10 2061 $EARTH_STATION 11 perform ."
 bought() { [ "$(sql "select count(*) from trades where seller=$EARTH_STATION and buyer=$FORGE_DRONE and resource=2061 and units=10 and credits=50")" = 1 ]; }
 wait_for 90 "a drone bought 10 fuel from the House at 5 a unit" bought
 # In its hold: the pull's increment event. (Its total can still fall: the
 # drone's computing is billed in fuel too)
 more_fuel() { [ "$(sql "select count(*) from events e join actions x on x.id = e.action
-                       where x.protocol = 32 and e.drone = $FORGE_DRONE and e.resource = 2061
+                       where x.protocol = 11 and e.drone = $FORGE_DRONE and e.resource = 2061
                        and e.event_type = 1 and e.outcome = 1")" -ge 1 ]; }
 wait_for 60 "the fuel arrived in its hold" more_fuel
+[ "$(sql "select count(*) from events e join actions x on x.id = e.action where x.protocol = 11 and e.drone = $FORGE_DRONE
+          and e.resource = 2061 and e.event_type = 2")" = 0 ] || fail "pulling fuel burned fuel"
+echo "ok: pulling fuel burns none"
 
 # A drone that never refuels dies (#324 step 8): release one that only
 # computes, leave it 1 unit of fuel, and it runs dry and becomes a wreck

@@ -56,8 +56,6 @@ const char* vm_library_game_source =
     ": refine ( mineral -- ior ) 20000 + perform ;\n"
     ": make ( resource -- ior ) 10000 + perform ;\n"
     ": wait ( minutes -- ior ) 3 perform ;\n"
-    ": sell-to-station ( n resource -- ior ) 31 perform ;\n"
-    ": buy-from-station ( n resource -- ior ) 32 perform ;\n"
     ": sell-order ( price keep resource -- ior ) 7 perform ;\n"
     ": buy-order ( price want resource -- ior ) 8 perform ;\n"
     ": push ( n resource drone -- ior ) 10 perform ;\n"
@@ -103,11 +101,20 @@ const char* vm_library_game_source =
     "  begin dup while 1- dup 12 * answer + dup @ r@ = if\n"
     "  dup 2 + 2@ drop swap 6 + 2@ drop + nip r> drop exit then drop\n"
     "  repeat r> 2drop 0 ;\n"
-    ": sell-all ( resource -- ) dup units ?dup 0= if drop exit then over best-bid\n"
-    "  dup 0> 3 pick 6 pick 1 house-price < 0= and if rot drop rot min swap >r\n"
-    "  over r> push drop dup units ?dup if swap sell-to-station drop else drop then\n"
-    "  exit then 2drop drop swap sell-to-station drop ;\n"
-    ": stdlib ( -- version ) 11 ;\n";
+    "variable trade-n variable trade-r\n"
+    ": buy-here ( n resource -- ior ) trade-r ! trade-n ! -12 5\n"
+    "  begin dup 0> trade-n @ 0> and while 1- trade-r @ best-offer rot drop\n"
+    "  dup 0= if 2drop drop exit then trade-n @ min tuck trade-r @ rot pull\n"
+    "  if 2drop exit then negate trade-n +! nip 0 swap repeat drop ;\n"
+    ": sell-here ( n resource -- ior ) trade-r ! trade-n ! -12 5\n"
+    "  begin dup 0> trade-n @ 0> and while 1- trade-r @ best-bid rot drop\n"
+    "  trade-n @ min trade-r @ units min dup 0= if 2drop drop exit then\n"
+    "  tuck trade-r @ rot push if 2drop exit then negate trade-n +! nip 0 swap\n"
+    "  repeat drop ;\n"
+    ": buy-from-station ( n resource -- ior ) buy-here ;\n"
+    ": sell-to-station ( n resource -- ior ) sell-here ;\n"
+    ": sell-all ( resource -- ) dup units ?dup if swap sell-here then drop ;\n"
+    ": stdlib ( -- version ) 12 ;\n";
 
 int vm_library_load(embed_t* vm)
 {

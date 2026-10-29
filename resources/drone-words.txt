@@ -80,6 +80,7 @@ bl
 blk
 block
 buy-from-station
+buy-here
 buy-order
 buy-price
 bye
@@ -213,6 +214,7 @@ save
 search-wordlist
 see
 sell-all
+sell-here
 sell-order
 sell-price
 sell-to-station
@@ -232,6 +234,8 @@ throw
 tick
 ticks
 today
+trade-n
+trade-r
 travel
 trip
 tuck

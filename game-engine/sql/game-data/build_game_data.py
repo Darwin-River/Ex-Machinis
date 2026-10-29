@@ -377,7 +377,8 @@ for pid, p in econ_prot.items():
     if pid in ('10', '11'):
         effs = [dict(e, time=TRANSFER_TIME) if e['time'] > 0 else e for e in effs]
         # The multiplier N is required (#315): describe it
-        verb = {'10': 'Delivers N units of resource R to drone D.', '11': 'Pulls N units of resource R from drone D.'}[pid]
+        verb = {'10': 'Delivers N units of resource R to drone D.',
+                '11': 'Pulls N units of resource R from drone D.'}[pid]
         p = p[:4] + [f'[N R D {pid} perform]: {verb} N is required (1 for one unit). It takes one minute of game time.'] + p[5:]
     protocols[pid] = p
     add_effects(pid, effs)
@@ -487,18 +488,13 @@ for old, new, verb in (('7', '17', 'sell'), ('8', '18', 'buy')):
     DOUBLE_PARAMS[new] = 1 << 2
     add_effects(new, [dict(e) for q, e in effects if q == int(old) and e['resource'] != FUEL])
 
-# House stations (#324 step 10; #380): sell goods to the House where the
-# drone is (31) or buy goods from it (32). Until #380 these waited for the
-# hour's batch; now they trade at once with the House station drone there,
-# by the players' rules: a push into its buy order (31) and a pull from its
-# sell order (32), at its prices, with the sales tax. The game engine names
-# that drone as parameter 3 (-3 here); the events engine treats them as a
-# push and a pull. Selling burns a unit of fuel like a push; buying is free,
-# so a drone with an empty tank can still buy fuel. Event types 9 and 10
-# were the batch's offers and orders (db_station.c clears what is left of
-# them).
+# House stations (#324 step 10; #380): until #380 a drone offered goods to
+# the House station where it was (31) or ordered them from it (32), and the
+# hour's batch cleared them (event types 9 and 10; db_station.c clears what
+# is left). Now the House trades through station drones, like any other
+# drone: players push into their buy orders and pull from their sell orders
+# (10 and 11; the game words sell-here and buy-here). 31 and 32 are gone.
 STATION_OFFER_EVENT, STATION_ORDER_EVENT = 9, 10
-STATION_DRONE = -3
 # Posting an order isn't a sale or a purchase (#380 round 27: players read
 # "Buy resource" in the activity list as a purchase): name them for what
 # they do
@@ -506,24 +502,6 @@ for pid, name in (('7', 'Post sell order'), ('8', 'Post buy order'),
                   ('17', 'Post sell order (double price)'), ('18', 'Post buy order (double price)')):
     if pid in protocols:
         protocols[pid][1] = name
-protocols['31'] = ['31', 'Sell to station', '2', '100',
-                   '[N R 31 perform]: Sells N units of resource R to the House station where the drone is: pushes '
-                   'them into its station drone\'s buy order, at once, at its price. Refused where there is no '
-                   'station; fails when its order takes fewer.', '1', '1', '0']
-add_effects('31', [
-    {'time': 0, 'drone': 0, 'resource': -1, 'event_type': 2, 'local': 1, 'installed': 0, 'locked': 0,
-     'deplete': 1, 'abundancies': 0, 'quantity': -2},
-    {'time': TRANSFER_TIME, 'drone': STATION_DRONE, 'resource': -1, 'event_type': 1, 'local': 1, 'installed': 0,
-     'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': -2}])
-protocols['32'] = ['32', 'Buy from station', '2', '100',
-                   '[N R 32 perform]: Buys N units of resource R from the House station where the drone is: pulls them '
-                   'from its station drone\'s sell order, at once, at its price. Refused where there is no station; '
-                   'fails when it sells fewer or the company can\'t pay.', '1', '1', '0']
-add_effects('32', [
-    {'time': 0, 'drone': STATION_DRONE, 'resource': -1, 'event_type': 2, 'local': 1, 'installed': 0, 'locked': 0,
-     'deplete': 1, 'abundancies': 0, 'quantity': -2},
-    {'time': TRANSFER_TIME, 'drone': 0, 'resource': -1, 'event_type': 1, 'local': 1, 'installed': 0,
-     'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': -2}])
 protocols['33'] = ['33', 'Station delivery', '0', '100',
                    'Goods a House station delivers or returns when a batch clears. Not performed by drones.',
                    '1', '1', '0']
@@ -563,9 +541,6 @@ def fuel_cost(pid):
     p = int(pid)
     if p in (25901, 25902, 5911, 5921, int(POWER_PROTOCOL), 33, 35, int(WAIT_PROTOCOL)):
         return 0
-    if p == 32:
-        return 0                      # ordering from a House station (#380): a drone with no fuel
-                                      # docked at a station could not order any, and died there
     if p == int(LAUNCH_PROTOCOL):
         return 10 + LAUNCH_FUEL           # 10 burned, 20 for the clone's tank
     if p == 5001:
@@ -593,6 +568,8 @@ for pid in sorted(protocols, key=int):
                        'locked': 0, 'deplete': 1, 'abundancies': 0, 'quantity': cost}])
     p = protocols[pid]
     tail = f' Burns {cost} fuel.'
+    if pid == '11':
+        tail = f' Burns {cost} fuel, none when R is fuel (#380: an empty tank can still buy fuel).'
     if len(p[4]) + len(tail) <= 255:
         protocols[pid] = p[:4] + [p[4] + tail] + p[5:]
 
