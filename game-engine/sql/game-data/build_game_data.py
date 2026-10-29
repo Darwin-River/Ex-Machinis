@@ -979,26 +979,19 @@ queries.append((207, 'Game time now',
                 'it (0 to 1,439).', 0,
                 "SELECT FLOOR(([game_now] - epoch) / 86400) AS day, FLOOR(MOD([game_now] - epoch, 86400) / 60) AS minute "
                 "FROM game_clock WHERE id = 1;"))
-queries.append((630, 'Station trades here',
-                '[R L 630 query]: What the House station where the drone is trades now: resource, side (1: it buys, '
-                '2: it sells), listed price (2 cells), daily units, units its station drone holds (2 cells).', 0,
+# What a House station drone's exchange trades (#380): its program
+# (resources/house/station.fth) reads it to post its orders. Only station
+# drones get rows: to players a station drone is a drone like any other, so
+# the House's listed prices and demand are not theirs to read. Queries 631
+# and 632 (batch offers and budgets) and 633 (house-price) are gone.
+STATION_ASKING = "EXISTS (SELECT 1 FROM agents WHERE agent_id = [drone_id] AND station_id IS NOT NULL)"
+queries.append((630, 'Station goods',
+                '[R L 630 query]: House station drones only: what the exchange where the drone is trades now: '
+                'resource, side (1: it buys, 2: it sells), listed price (2 cells), daily units, units held (2 cells).', 0,
                 "SELECT g.resource, g.side, g.price AS d_price, g.daily_units, IFNULL((SELECT MAX(i.units) "
                 "FROM sqInventory i INNER JOIN agents a ON a.agent_id = i.drone WHERE a.station_id = g.station_id "
                 "AND i.resource = g.resource), 0) AS d_units FROM station_goods g WHERE g.station_id IN "
-                f"{HERE_STATION} AND g.from_day <= {TODAY} ORDER BY g.side, g.resource;"))
-queries.append((631, 'My station offers',
-                '[R L 631 query]: This drone\'s offers and orders to the batch stations retired in #380, newest '
-                'first: resource, side, units, units filled, credits (2 cells). Station trades are trades now.', 0,
-                "SELECT resource, side, units, IFNULL(filled, -1), IFNULL(paid, 0) AS d_paid FROM station_offers "
-                "WHERE drone = [drone_id] ORDER BY id DESC;"))
-# Query 633 (the House's price here, the game word house-price) is gone
-# (#380): a House station drone's prices are its orders, read like any
-# drone's (best-offer, best-bid)
-queries.append((632, 'Station budget here',
-                '[R L 632 query]: The budget of the batch station retired in #380 (2 cells). A station drone buys up '
-                'to its buy order (query 600).', 0,
-                "SELECT IFNULL(t.budget, s.budget_cap) AS d_budget FROM stations s LEFT JOIN station_state t "
-                f"ON t.station_id = s.id WHERE s.object_id = {HERE_};"))
+                f"{HERE_STATION} AND g.from_day <= {TODAY} AND {STATION_ASKING} ORDER BY g.side, g.resource;"))
 
 # Mining deposits here (#324 step 11): left now (refilled for the time since
 # it was last worked out), and capacity
@@ -1076,13 +1069,10 @@ local_queries = {
 }
 queries = [(q[0],) + local_queries[q[0]] if q[0] in local_queries else q for q in queries]
 queries.append((680, 'Price board',
-                '[N R L 680 query]: The public price board for resource N: for each place where players traded it '
-                'with each other in the game day up to one game hour ago, the place, units (2 cells), credits paid '
-                '(2 cells) and trades. Trades with the House are in 681.', 1,
+                '[N R L 680 query]: The public price board for resource N: for each place where it traded in the game '
+                'day up to one game hour ago, the place, units (2 cells), credits paid (2 cells) and trades.', 1,
                 "SELECT location, IFNULL(SUM(units),0) AS d_units, IFNULL(SUM(credits),0) AS d_credits, COUNT(*) "
                 "FROM trades WHERE resource=[value_1] AND location IS NOT NULL "
-                "AND seller NOT IN (SELECT agent_id FROM agents WHERE station_id IS NOT NULL) "
-                "AND buyer NOT IN (SELECT agent_id FROM agents WHERE station_id IS NOT NULL) "
                 f"AND game_t<=[game_now]-{BOARD_LAG} "
                 f"AND game_t>[game_now]-{BOARD_LAG}-{DAY} GROUP BY location ORDER BY location;"))
 
@@ -1128,40 +1118,27 @@ def double_event_ids(q):
     return q
 queries = [double_event_ids(q) for q in queries]
 
-# The House's price board (#380): what the House station drones actually
-# paid for resource N in the game day up to an hour ago, by place: units
-# bought, credits paid and trades. A station drone pays less the more it
-# holds, so this shows where a market is crowded (the listed price is what
-# it pays with no stock).
-HOUSE_BUYER = "t.buyer IN (SELECT agent_id FROM agents WHERE station_id IS NOT NULL)"
-queries.append((681, 'House price board',
-                '[N R L 681 query]: What the House stations paid for resource N in the game day up to one game hour ago, '
-                'for each place: the place, units bought (2 cells), credits paid (2 cells) and trades.', 1,
-                "SELECT t.location, IFNULL(SUM(t.units),0) AS d_units, IFNULL(SUM(t.credits),0) AS d_credits, "
-                f"COUNT(*) FROM trades t WHERE t.resource=[value_1] AND {HOUSE_BUYER} AND t.location IS NOT NULL "
-                f"AND t.game_t<=[game_now]-{BOARD_LAG} AND t.game_t>[game_now]-{BOARD_LAG}-{DAY} "
-                "GROUP BY t.location ORDER BY t.location;"))
+# Query 681 (the House's price board) is gone (#380): the House's trades
+# are on the public board, 680, like anyone's
 
 # Sales on a day (#380): how much of resource N sold on a game day, D days
-# ago (0 today so far), by place: units the House station drones bought,
-# units sold between players (what the House sold isn't counted), and the average price, an hour old like the price
-# boards. A seller compares its stock with a day's sales before making more.
+# ago (0 today so far), by place: units sold and the average price, an hour
+# old like the price board. A seller compares its stock with a day's sales
+# before making more. (It split the House's purchases from the players'
+# trades until the House was made a drone like any other.)
 DAY_START = ("((SELECT epoch FROM game_clock WHERE id = 1) + (FLOOR(([game_now] - (SELECT epoch FROM game_clock "
              "WHERE id = 1)) / 86400) - [value_1]) * 86400)")
 def in_day(col):
     return (f"{col} >= {DAY_START} AND {col} < {DAY_START} + 86400 AND {col} <= [game_now] - {BOARD_LAG}")
 queries.append((682, 'Sales on a day',
                 '[N D R L 682 query]: How much of resource N sold on the game day D days ago (0: today so far), an hour '
-                'old, for each place: the place, units the House bought (2 cells), units sold between players (2 cells), '
-                'average price.', 2,
-                f"SELECT t.location, SUM(IF({HOUSE_BUYER}, t.units, 0)) AS d_house, "
-                f"SUM(IF({HOUSE_BUYER}, 0, t.units)) AS d_players, ROUND(SUM(t.credits) / SUM(t.units)) AS price "
+                'old, for each place: the place, units sold (2 cells), average price.', 2,
+                "SELECT t.location, SUM(t.units) AS d_units, ROUND(SUM(t.credits) / SUM(t.units)) AS price "
                 "FROM trades t WHERE t.resource = [value_2] AND t.location IS NOT NULL "
-                "AND t.seller NOT IN (SELECT agent_id FROM agents WHERE station_id IS NOT NULL) "
                 f"AND {in_day('t.game_t')} GROUP BY t.location ORDER BY t.location;"))
 
 # Queries whose money or volume columns are double cells: say so
-DOUBLE_QUERIES = {101, 600, 601, 610, 611, 612, 620, 621, 841}  # 630-632 say so themselves
+DOUBLE_QUERIES = {101, 600, 601, 610, 611, 612, 620, 621, 841}  # 630 says so itself
 queries = [(q[0], q[1], (q[2] if q[0] == 612 else q[2].rstrip() + ' Money and volumes are double cells (2@).')[:255],
             q[3], q[4]) if q[0] in DOUBLE_QUERIES else q for q in queries]
 

@@ -329,7 +329,7 @@ fetch() { curl -fsS "$@" || echo "fetch failed: $*"; }
 grep -qF "kunspar 20 dig" <<<"$(fetch -b "$JAR" "http://localhost/release?starter=miner")" || fail "the Release page did not offer the miner starter"
 echo "ok: the Release page offers the starter scripts"
 run $FORGE_DRONE "game words" "stdlib . moon . kunspar . fuel units 0> . 3 trip 0> ."
-knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%13101100-1-1'")" ]; }
+knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%14101100-1-1'")" ]; }
 wait_for 60 "a drone knows the game words" knows_words
 
 # The House fuel seller (#324 step 10; #380): the released drone, at Earth,
@@ -435,10 +435,11 @@ grep -qF "It ran out of fuel" <<<"$(fetch "http://localhost/spacecraft/$DRY")" |
 echo "ok: wrecks have post-mortems"
 
 # Home, Market and Map (#324 step 17): the feed tells what happened, the
-# Market shows the stations and trades, the Map where the drones are
+# Market shows the order book and trades (no House price list), the Map where the drones are
 grep -qF "became a wreck" <<<"$(fetch http://localhost/)" || fail "the home page's feed doesn't report the wrecks"
 MARKET_PAGE=$(fetch http://localhost/market)
-grep -qF "Moon Depot" <<<"$MARKET_PAGE" || fail "the market page doesn't show the House stations"
+grep -qF "Order book" <<<"$MARKET_PAGE" || fail "the market page doesn't show the order book"
+! grep -qF "House stations" <<<"$MARKET_PAGE" || fail "the market page shows the House's price list (#380: players find prices in the order book)"
 grep -qF "spacecraft/$FORGE_DRONE" <<<"$MARKET_PAGE" || fail "the market page doesn't show the trades"
 grep -qF ">Moon<" <<<"$(fetch http://localhost/map)" || fail "the map doesn't list the Moon among the places with drones"
 echo "ok: the home feed, market and map show the world"

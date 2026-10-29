@@ -93,8 +93,8 @@ const char* vm_library_game_source =
     ": tick ( -- ) 1 #ticks +! ;\n"
     ": ticks ( -- n ) #ticks @ ;\n"
     ": sold ( resource days-ago place -- units ) >r 682 ask 0 max\n"
-    "  begin dup while 1- dup 12 * answer + dup @ r@ = if\n"
-    "  dup 2 + 2@ drop swap 6 + 2@ drop + nip r> drop exit then drop\n"
+    "  begin dup while 1- dup 8 * answer + dup @ r@ = if\n"
+    "  2 + 2@ drop nip r> drop exit then drop\n"
     "  repeat r> 2drop 0 ;\n"
     "variable trade-n variable trade-r\n"
     ": trade-took ( ior t k -- 0 t ) negate trade-n +! nip 0 swap ;\n"
@@ -111,7 +111,7 @@ const char* vm_library_game_source =
     ": buy-from-station ( n resource -- ior ) buy-here ;\n"
     ": sell-to-station ( n resource -- ior ) sell-here ;\n"
     ": sell-all ( resource -- ) dup units ?dup if swap sell-here then drop ;\n"
-    ": stdlib ( -- version ) 13 ;\n";
+    ": stdlib ( -- version ) 14 ;\n";
 
 int vm_library_load(embed_t* vm)
 {

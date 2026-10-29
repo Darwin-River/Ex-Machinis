@@ -1,9 +1,10 @@
 \ Trader: a starter script for Public Forge (#324 step 15; #367). Release
 \ it with the Mining Kit (it only uses the Engine).
 \ It works the Moon, where the Miner offers its metals to other drones
-\ between what the Moon Depot pays and what it asks (#380). It buys them, hauls a load to Mars,
-\ where the Mars Exchange pays half as much again, sells it and comes back.
-\ Its fuel it buys from the House at the exchanges. Copies compete for the
+\ between the best bid and the cheapest other seller there (#380). It buys
+\ them, hauls a load to Mars, where buyers have paid more (check the price
+\ board, query 680), sells it and comes back. It buys its fuel at the
+\ exchanges, from whoever sells it cheapest. Copies compete for the
 \ miners' metals: the first to buy gets them.
 
 60 constant cargo-goal   \ metals it gathers before setting off
@@ -12,8 +13,8 @@
 20 constant trip-fuel    \ fuel it wants aboard before a trip
 120 constant nap         \ game minutes to rest when nobody sells
 
-\ The most it pays a unit: the Mars Exchange's price less 5 (the Miner asks
-\ 25, 37 and 50 at the Moon)
+\ The most it pays a unit, under what it expects to get at Mars (the Miner
+\ asks about 25, 37 and 50 at the Moon)
 : max-price ( metal -- price )
   dup metals-a1 = if drop 25 exit then metals-a2 = if 40 else 55 then ;
 
@@ -41,17 +42,17 @@ variable got   variable looks
   rot drop  ?dup 0= if 2drop exit then
   rot rot pull 0= if 1 got ! then ;
 
-\ Top up the tank from the House here
+\ Top up the tank here, from the cheapest seller
 : fuel-up ( -- )
   fuel units trip-fuel < if trip-fuel fuel buy-from-station drop
   120 wait drop then ;
 
 \ Sell up to n of a resource here, best price first: sell-here pushes into
-\ the best buy orders here (other drones', the House's station drone's)
+\ the best buy orders here (any drone's, the station drone's too)
 : sell-best ( n resource -- ) sell-here drop ;
 
-\ Sell at most 15 of each metal an hour: the more the Exchange's station
-\ drone holds, the less it pays. What is left after 6 hours goes on the
+\ Sell at most 15 of each metal an hour: buyers here tend to bid less as
+\ they stock up. What is left after 6 hours goes on the
 \ next trip
 : portion ( metal -- )
   dup units 15 min ?dup if swap sell-best else drop then ;
@@ -60,7 +61,7 @@ variable rounds
 \ Look for sellers; rest a while when nobody sells. Each look counts
 \ toward going with a smaller load, so a trader that buys a little at a
 \ time still sets off. Shopping burns fuel too (computing): keep the tank
-\ up from the House here
+\ up here
 : shop ( -- )
   fuel-up
   0 got !  metals-a1 buy metals-a2 buy metals-a3 buy

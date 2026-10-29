@@ -15,11 +15,10 @@ class WorldController extends Controller
 {
     public function market()
     {
-        $stations = World::stations();
         $trades = World::trades();
         $sells = World::orders(4);
         $buys = World::orders(5);
-        return view('world.market', compact('stations', 'trades', 'sells', 'buys'));
+        return view('world.market', compact('trades', 'sells', 'buys'));
     }
 
     /** The leaderboard (#324 step 18): net wealth, all time and Rising */

@@ -6,14 +6,12 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * The public view of the world (#324 step 17): the Home page's event feed,
- * the Market page (the House station drones' live orders, the order book
- * and recent trades) and the Map (where the planets are now, and
+ * the Market page (the order book and recent trades) and the Map (where the planets are now, and
  * the drones and wrecks around each). Visitors see everything at once; only
  * drones are limited to what is local.
  */
 class World
 {
-    public const STATION_BUYS = 1;
     public const STATION_SELLS = 2;
 
     private static function names(string $table, string $key, string $name, array $ids): array
@@ -87,14 +85,6 @@ class World
                 . ' from ' . ($drones[$t->seller] ?? 'another drone') . ' for ' . number_format($t->credits) . ' credits.');
         }
 
-        $batches = DB::table('station_batches as b')->join('stations as s', 's.id', '=', 'b.station_id')
-            ->where('b.filled', '>', 0)->select('b.*', 's.name as station')->orderBy('b.cleared_t', 'desc')->limit($limit)->get();
-        $resources = self::names('resources', 'id', 'name', $batches->pluck('resource')->all());
-        foreach ($batches as $b) {
-            $verb = (int) $b->side === self::STATION_BUYS ? 'bought' : 'sold';
-            $add((int) $b->cleared_t, "The {$b->station} {$verb} {$b->filled} " . ($resources[$b->resource] ?? 'units') . " at {$b->price} a unit.", 'market');
-        }
-
         usort($items, fn ($a, $b) => $b['game_t'] <=> $a['game_t']);
         $items = array_slice($items, 0, $limit);
         foreach ($items as &$item) {
@@ -103,49 +93,6 @@ class World
         return $items;
     }
 
-    /**
-     * The House stations (#380): each one's station drone and the goods it
-     * trades now, with the price of its order (null until it has posted
-     * one), what it holds, and how many its order takes (buying) or has for
-     * sale (selling)
-     */
-    public static function stations(): array
-    {
-        $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
-        $today = intdiv(max(0, self::gameNow() - $epoch), 86400);
-        $out = [];
-        foreach (DB::table('stations as s')->leftJoin('objects as o', 'o.object_id', '=', 's.object_id')
-                     ->select('s.*', 'o.object_name')->orderBy('s.id')->get() as $s) {
-            $drone = DB::table('agents')->where('station_id', $s->id)->first(['agent_id', 'name']);
-            $goods = [];
-            foreach (DB::table('station_goods as g')->join('resources as r', 'r.id', '=', 'g.resource')
-                         ->where('g.station_id', $s->id)->where('g.from_day', '<=', $today)
-                         ->select('g.*', 'r.name')->orderBy('g.side')->orderBy('g.resource')->get() as $g) {
-                $buys = (int) $g->side === self::STATION_BUYS;
-                $order = null;
-                $stock = 0;
-                if ($drone) {
-                    // Its latest order for the good: buy orders are event type 5, sell orders 4
-                    $order = DB::table('events')->where('drone', $drone->agent_id)->where('resource', $g->resource)
-                        ->where('event_type', $buys ? 5 : 4)->where('outcome', 1)->orderBy('id', 'desc')
-                        ->first(['new_quantity', 'new_credits']);
-                    $stock = (int) DB::table('sqInventory')->where('drone', $drone->agent_id)
-                        ->where('resource', $g->resource)->max('units');
-                }
-                $room = $order ? max(0, $buys ? (int) $order->new_quantity - $stock : $stock - (int) $order->new_quantity) : 0;
-                $goods[] = [
-                    'resource' => (int) $g->resource, 'name' => $g->name, 'buys' => $buys,
-                    'listed' => (int) $g->price, 'daily' => (int) $g->daily_units,
-                    'price' => $order ? (int) $order->new_credits : null, 'stock' => $stock, 'room' => $room,
-                ];
-            }
-            $out[] = ['name' => $s->name, 'place' => $s->object_name, 'object_id' => (int) $s->object_id,
-                'drone' => $drone ? (int) $drone->agent_id : null, 'goods' => $goods];
-        }
-        return $out;
-    }
-
-    /** Recent trades, newest first */
     public static function trades(int $limit = 30): array
     {
         $trades = DB::table('trades')->orderBy('id', 'desc')->limit($limit)->get();
@@ -193,7 +140,6 @@ class World
         $planets = DB::table('objects')->where('object_type', 'Planet')->orderBy('semimajor_axis')->get();
         $min = log10(max(1, (float) $planets->min('semimajor_axis')));
         $max = log10(max(1, (float) $planets->max('semimajor_axis')));
-        $stations = DB::table('stations')->pluck('name', 'object_id')->all();
 
         // Each drone's body: a moon counts for its planet
         $counts = [];
@@ -208,15 +154,11 @@ class World
             $longitude = deg2rad((float) $p->ascending_node_longitude + (float) $p->periapsis_argument
                 + (float) $p->mean_anomaly + (float) $p->mean_angular_motion * $days);
             $radius = 30 + 250 * (log10(max(1, (float) $p->semimajor_axis)) - $min) / max(0.001, $max - $min);
-            $here = $stations[$p->object_id] ?? null;
-            $moonStations = DB::table('stations as s')->join('objects as o', 'o.object_id', '=', 's.object_id')
-                ->where('o.central_body_object_id', $p->object_id)->pluck('s.name')->all();
             $out[] = [
                 'id' => (int) $p->object_id, 'name' => $p->object_name,
                 'x' => round(300 + $radius * cos($longitude), 1), 'y' => round(300 - $radius * sin($longitude), 1),
                 'r' => round($radius, 1),
                 'working' => $counts[$p->object_id]['working'] ?? 0, 'wrecks' => $counts[$p->object_id]['wrecks'] ?? 0,
-                'stations' => array_values(array_filter(array_merge([$here], $moonStations))),
             ];
         }
         return $out;

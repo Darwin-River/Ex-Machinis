@@ -11,12 +11,12 @@ use Illuminate\Support\Facades\Schema;
  * so their goods count too.
  *
  * Net wealth = the company's credits
- * + the goods aboard its working drones, at the House price
+ * + the goods aboard its working drones, at their market price
  * - its starter package (credits, fuel and the kit), so a fresh release is
  *   worth 0 and wealth is what it made.
- * The House price of a good is the least a House station pays for it, or if
- * none buys it, the least one sells it for; a packed starter kit is worth
- * its contents. Rising is the gain over the last real week, from the hourly
+ * The market price of a good is what it sold for, a unit, over the last
+ * three game days (#380: it was the House stations' price); a packed
+ * starter kit is worth its contents. Rising is the gain over the last real week, from the hourly
  * snapshots.
  */
 class Leaderboard
@@ -24,15 +24,27 @@ class Leaderboard
     public const STARTER_KIT = 5901;
     public const UNPACK_PROTOCOL = 25901;
     public const FUEL = 2061;
+    public const MARKET_DAYS = 3;
 
-    /** resource => House price */
+    /**
+     * resource => market price (#380): what it sold for, a unit, over the
+     * last MARKET_DAYS game days, on the public price board. A good that
+     * hasn't traded lately falls back to the exchanges' price list, which
+     * players don't see.
+     */
     public static function prices(): array
     {
         $prices = DB::table('station_goods')->where('side', 2)->groupBy('resource')
             ->select('resource', DB::raw('MIN(price) AS price'))->pluck('price', 'resource')->all();
         foreach (DB::table('station_goods')->where('side', 1)->groupBy('resource')
                      ->select('resource', DB::raw('MIN(price) AS price'))->pluck('price', 'resource')->all() as $r => $p) {
-            $prices[$r] = $p;   // what a station pays wins over what one charges
+            $prices[$r] = $p;
+        }
+        $since = World::gameNow() - self::MARKET_DAYS * 86400;
+        foreach (DB::table('trades')->where('game_t', '>', $since)->where('units', '>', 0)->groupBy('resource')
+                     ->select('resource', DB::raw('ROUND(SUM(credits) / SUM(units)) AS price'))
+                     ->pluck('price', 'resource')->all() as $r => $p) {
+            $prices[$r] = $p;
         }
         // A packed kit counts as its contents (#380: two kits, each unpacked by
         // the protocol 20000 above its ID)

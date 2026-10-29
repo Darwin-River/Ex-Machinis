@@ -7,8 +7,8 @@
             <h2>Leaderboard</h2>
             <div style="white-space: normal; margin-bottom: 1em">
                 Companies by net wealth: each release starts a company, and the drones it launches belong to it.
-                Net wealth is the company's credits, plus the goods aboard its working drones at the House price (what
-                a House station pays, or else what one charges), minus what every company starts with
+                Net wealth is the company's credits, plus the goods aboard its working drones at their market price
+                (what they sold for, a unit, over the last three game days), minus what every company starts with
                 ({{ number_format($kit) }}: its credits, fuel and starter kit). So a new company is worth 0, and
                 wealth is what it made. <b>Rising</b> is the gain over the last real week.
             </div>

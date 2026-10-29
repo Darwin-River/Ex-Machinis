@@ -28,14 +28,13 @@
 \ Chemical Reactor; a Mining Kit can't brew). Leaves the ior
 : brew-fuel ( -- ior ) fuel make ;
 
-\ Below n fuel, buy m here, cheapest first (other drones or the House's
-\ station drone)
+\ Below n fuel, buy m here, cheapest first (from any drone selling it)
 : top-up ( n m -- )
   swap fuel units > if fuel buy-here drop else drop then ;
 
 \ Stranded with little fuel and nobody selling here: post a buy order for
-\ up to want fuel at price a unit (well above the House's 5, to pay a
-\ courier to come), then wait, 2 game hours at a time, until some has come.
+\ up to want fuel at price a unit (well above what fuel sells for, to pay
+\ a courier to come), then wait, 2 game hours at a time, until some has come.
 \ Waiting runs no instructions, so it burns no fuel
 : call-for-fuel ( price want -- )
   fuel buy-order drop
@@ -44,10 +43,10 @@
 \ --- Selling ------------------------------------------------------------
 
 \ Sell up to n of a resource here, best price first: sell-here pushes into
-\ the best buy orders here (other drones', the House's station drone's)
+\ the best buy orders here (any drone's, the station drone's too)
 : sell-best ( n resource -- ) sell-here drop ;
-\ Sell at most 15 of a good this hour: a station drone pays less as its
-\ stock fills
+\ Sell at most 15 of a good this hour: buyers here tend to bid less as
+\ they stock up
 : portion ( resource -- )
   dup units 15 min ?dup if swap sell-best else drop then ;
 
@@ -57,7 +56,7 @@
 
 \ --- Buying where it is cheapest (#380) ---------------------------------
 \ Buy up to n of a resource here, cheapest first: buy-here pulls from the
-\ cheapest sell orders here (other drones', the House's station drone's),
+\ cheapest sell orders here (any drone's, the station drone's too),
 \ one after another until it has n or nobody sells more
 : buy-cheapest ( n resource -- ) buy-here drop ;
 
@@ -69,12 +68,11 @@
   ?dup if 0 rot sell-order drop else drop then ;
 
 \ --- Reading the market (#380) ------------------------------------------
-\ What the House paid a unit for a resource at a place over the last game
-\ day (query 681, the House's price board: place, units, credits,
-\ trades); 0 when it bought none there. Query 680, the players' board,
-\ has the same layout
+\ What a resource traded for a unit at a place over the last game day,
+\ all trades (query 680, the price board: place, units, credits, trades;
+\ 12 bytes a row); 0 when none traded there
 : board-price ( resource place -- price )
-  swap 681 ask 0 max begin dup while 1- dup 12 * answer +
+  swap 680 ask 0 max begin dup while 1- dup 12 * answer +
     dup @ 3 pick = if
       dup 6 + 2@ drop swap 2 + 2@ drop  ?dup if / else drop 0 then
       nip nip exit
@@ -149,7 +147,7 @@
 \ design needs: mining-kit or factory-kit (#380)
 6001 constant cruiser-kit   mining-kit constant my-kit
 \ Buy one of a good here unless one is aboard, and wait (up to 6 game
-\ hours) for it, in case the House's station drone has none in stock yet
+\ hours) for it, in case nobody here has one for sale yet
 : get-one ( resource -- )
   dup units if drop exit then
   dup 1 swap buy-from-station drop
@@ -159,8 +157,8 @@
   670 ask ?dup 0= if exit then
   1- 4 * answer + @ >r
   1 my-kit r@ push drop  40 fuel r> push drop ;
-\ Top the tank up to n from the House here, waiting (up to 6 game hours)
-\ (Waits for the delivery, not for n: computing burns a unit or two just
+\ Top the tank up to n here, cheapest first, waiting (up to 6 game hours)
+\ (Waits for the fuel, not for n: computing burns a unit or two just
 \ after it arrives, and waiting for n then sat out all 6 hours)
 : fill-to ( n -- )
   fuel units tuck - dup 0> if

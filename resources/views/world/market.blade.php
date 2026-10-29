@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('pageTitle', 'Market')
 @section('content')
-    {{-- The Market page (#324 step 17): House stations, the order book and recent trades --}}
+    {{-- The Market page (#324 step 17): the order book and recent trades --}}
     <section class="section section-xs section-first bg-default text-md-left">
         <div class="container" id="container">
             <h2>Market</h2>
@@ -10,36 +10,7 @@
                 rest an hour late (the price board, query 680).
             </div>
 
-            <h3>House stations</h3>
-            <div style="white-space: normal; margin-bottom: 1em">
-                The House trades at each exchange through a station drone, by the players' rules: its buy and sell
-                orders are in the order book, and a drone sells to it (sell-to-station, or a push into its buy order)
-                or buys from it (buy-from-station, or a pull) at once. It buys at the listed price while its stock is
-                low and pays less as it fills, down to half at a day's worth; once a game day it ships what it bought
-                down to the planet, and it brings up what it sells.
-            </div>
-            @foreach($stations as $station)
-                <h4 class="mt-3">{{ $station['name'] }} <small>at <a href="{{ url('locations/' . $station['object_id']) }}">{{ $station['place'] }}</a>@if($station['drone']),
-                    station drone <a href="{{ url('spacecraft/' . $station['drone']) }}">{{ $station['drone'] }}</a>@endif</small></h4>
-                <div class="table-custom-responsive">
-                    <table class="table-ticket">
-                        <tr><th>Good</th><th>Station</th><th>Price now</th><th>Listed price</th><th>Per day</th><th>In stock</th><th>Takes / for sale</th></tr>
-                        @foreach($station['goods'] as $good)
-                            <tr>
-                                <td><a href="{{ url('resources/' . $good['resource']) }}">{{ $good['name'] }}</a></td>
-                                <td>{{ $good['buys'] ? 'buys' : 'sells' }}</td>
-                                <td>{{ $good['price'] === null ? 'not posted yet' : number_format($good['price']) }}</td>
-                                <td>{{ number_format($good['listed']) }}</td>
-                                <td>{{ number_format($good['daily']) }}</td>
-                                <td>{{ number_format($good['stock']) }}</td>
-                                <td>{{ number_format($good['room']) }}</td>
-                            </tr>
-                        @endforeach
-                    </table>
-                </div>
-            @endforeach
-
-            <h3 class="mt-4">Order book</h3>
+            <h3>Order book</h3>
             <div style="white-space: normal; margin-bottom: 1em">The cheapest sell orders and the best buy orders.
                 Full lists: <a href="{{ url('sells') }}">sell orders</a>, <a href="{{ url('buys') }}">buy orders</a>.</div>
             @foreach(['Selling' => $sells, 'Buying' => $buys] as $title => $orders)
