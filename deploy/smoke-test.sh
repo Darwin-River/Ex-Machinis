@@ -396,7 +396,9 @@ wait_for 60 "drone finished plundering" idle
 # instructions, yet it still sells: a buyer pulls from it.
 # (match the replies' end without spaces, newlines or carriage returns)
 reply_ends() { [ "$(sql "select count(*) from drone_messages where agent_id=$1 and subject='$2' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%$3'")" -ge 1 ]; }
-run $FORGE_DRONE "sell and wait" "9 1 2061 7 perform . create o 40 allot 2061 o 40 610 query . 600 3 perform ."
+# (at 1 a unit its order is the cheapest here, so the first row: the Earth
+# Exchange's station drone sells fuel too, at 5; a row's drone is at +8)
+run $FORGE_DRONE "sell and wait" "1 1 2061 7 perform . create o 40 allot 2061 o 40 610 query drop o 8 + @ . 600 3 perform ."
 forge_waits() { [ "$(sql "select a.protocol from agents g join actions a on a.id = g.waiting_action where g.agent_id=$FORGE_DRONE")" = 3 ]; }
 wait_for 60 "a drone with a sell order is waiting" forge_waits
 BEFORE=$(sql "select instructions from agents where agent_id=$FORGE_DRONE")
@@ -416,7 +418,7 @@ run $DRONE_ID "orders far" "create o 40 allot 2061 o 40 611 query . cr"
 blind_far() { reply_ends $DRONE_ID 'orders far' -2; }
 wait_for 60 "a drone on the Moon can't see Earth's live orders" blind_far
 wait_for 60 "drone finished asking" idle
-sees_here() { reply_ends $FORGE_DRONE 'sell and wait' 010; }
+sees_here() { reply_ends $FORGE_DRONE 'sell and wait' "0${FORGE_DRONE}0"; }
 wait_for 60 "the seller saw its order at Earth and its wait ended" sees_here
 
 # The Drone page (#324 step 16): a released drone shows its code and a Copy
