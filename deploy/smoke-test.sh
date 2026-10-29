@@ -327,7 +327,7 @@ wait_for 30 "the drone's page shows the reply" sh -c "curl -fsS http://localhost
 # (fetch a page, then search it: with pipefail, "curl | grep -q" can fail
 # when grep stops reading before curl has written the whole page)
 fetch() { curl -fsS "$@" || echo "fetch failed: $*"; }
-grep -qF "kunspar 20 dig" <<<"$(fetch -b "$JAR" "http://localhost/release?starter=miner")" || fail "the Release page did not offer the miner starter"
+grep -qF "kunspar wolfite richer" <<<"$(fetch -b "$JAR" "http://localhost/release?starter=miner")" || fail "the Release page did not offer the miner starter"
 echo "ok: the Release page offers the starter scripts"
 run $FORGE_DRONE "game words" "stdlib . moon . kunspar . fuel units 0> . 3 trip 0> ."
 knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%16101100-1-1'")" ]; }
