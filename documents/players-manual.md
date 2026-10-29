@@ -18,6 +18,7 @@ Thank you for your support!
 
 - [Chapter 1: Getting Started](#chapter-1-getting-started)
   - [Your fortune awaits!](#your-fortune-awaits)
+  - [Every company is an experiment](#every-company-is-an-experiment)
   - [Releasing a script (Public Forge)](#releasing-a-script-public-forge)
   - [What your drone says](#what-your-drone-says)
   - [About the examples in this manual](#about-the-examples-in-this-manual)
@@ -74,6 +75,15 @@ Ex Machinis is a multiplayer space game, which takes place in a parallel univers
 As part of the international agreement that drove the colonization of space at the end of the second world war, citizens of the signatory nations are guaranteed access to basic spacecraft which can be used to build profitable businesses. This democratization of space has been the biggest driver behind the rapid growth of extraterrestrial industries and technologies.
 
 It is your birthright to take control of your own remotely piloted spacecraft and build a thriving stellar industry. But this can only be accomplished by programming your spacecraft to efficiently mine, manufacture, and trade materials on the interplanetary economy.
+
+### Every company is an experiment
+
+Once you release a drone, it runs on its own: you can't steer it, and nobody will rescue it. Sooner or later every company meets something its program didn't foresee (a market that moves, a deposit that runs dry, a rival that undercuts it, a bug) and dies. That is how the game is meant to be played. Treat each company as an experiment:
+
+- **Release, watch, learn.** Read your drone's reports, its page's activity and trades, and its post-mortem when it becomes a wreck. Each one tells you something about your program or the market.
+- **Iterate.** Fix the flaw, try a different idea, and release the next version as a new company. A good player has a lineage of companies, each better than the last, not one company kept alive at all costs.
+- **Expect the unexpected.** The game has no safety nets for a drone that runs out of fuel, overspends or gets stuck. If a drone should survive something, its program must handle it, or the market must: other players' drones buy, sell and deliver whatever pays (see [Running low on fuel](#running-low-on-fuel)).
+- **Use the Test button** to try a script in a test world first, and the Machine page to check a word against live data. They are cheap; a released company is the real experiment.
 
 ### Releasing a script (Public Forge)
 
@@ -340,10 +350,24 @@ The drone replies with 0 once the kit is unpacked.
 
 Everything your spacecraft does burns fuel, Fuel (A1) (resource 2061):
 
-- **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (mining, a transfer or an order) to 30 (launching a spacecraft, 20 of which go into the new one's hold). The protocol's description says how much. Unpacking a kit, waiting and ordering from a House station are free, so a drone with an empty tank at a station can still order fuel. Without the fuel, `perform` leaves -2 and nothing happens.
+- **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (mining, a transfer or an order) to 30 (launching a spacecraft, 20 of which go into the new one's hold). The protocol's description says how much. Unpacking a kit and waiting are free; everything else costs fuel, buying fuel included. Without the fuel, `perform` leaves -2 and nothing happens.
 - **Thinking.** Running your program burns power: 1 fuel for every 100,000 FORTH instructions your spacecraft runs. Words that do less work cost less to run.
 
 A new spacecraft starts with 100 fuel. When it runs out and can't pay for its thinking, it becomes a **wreck** for good. So keep an eye on your fuel (query your inventory) and make or buy more before you run dry: every House exchange sells it (see [Trading with House stations](#trading-with-house-stations)).
+
+<a name="running-low-on-fuel"></a>**Running low on fuel.** Nothing in the game rescues a drone with an empty tank: a drone that runs dry is a wreck, and its company may die with it. Plan for it in your program. And when a drone gets stranded anyway, far from fuel or too poor to fly, the market can save it: post a **buy order for fuel at a price high enough to bring a seller to you**, and wait. Waiting runs no instructions, so it burns no fuel, and another drone that pushes fuel into your order is paid at once:
+
+```
+<run>
+  \ Low on fuel: pay 15 a unit (three times the House's 5) for up to 60,
+  \ then wait, two game hours at a time, until some has come
+  : call-for-fuel ( -- )
+    15 60 fuel buy-order drop
+    begin fuel units 20 < while 120 wait drop repeat ;
+</run>
+```
+
+That is also a business. A **fuel courier** carries fuel to where drones work and run low (mining sites, Phobos and Deimos, the far side of a long trip), looks for buy orders for fuel there (`fuel best-bid`) and pushes fuel into them for profit. The more drones run low, the more a courier earns.
 
 To make fuel, use a Chemical Reactor: `12061 perform` turns 1 Organics (A1) and 2 Inorganics (A1) into 30 Fuel (A1) in 2 game hours. Refining 20 magmite (`21000 perform`) gives exactly those inputs. Fuel can also be traded like any other resource, and pushed to another of your spacecraft. A spacecraft you launch starts with an empty hold, so push it some fuel first.
 
@@ -845,7 +869,7 @@ Two game words trade with whoever has the best order here, a station drone or an
 - `sell-here ( n resource -- ior )` sells up to n: it pushes into the highest buy order here, then the next, until it has sold n, has none left, or nobody buys more.
 - `buy-here ( n resource -- ior )` buys up to n: it pulls from the cheapest sell order here, then the next, until it has n or nobody sells more.
 
-When a trade fails because you can't pay for that many or your hold can't take them, they try again with half as many. Each push or pull is an action and burns a unit of fuel, but pulling fuel burns none, so a drone with an empty tank can still buy fuel. They leave 0 when they traded something, else -12 (or the failed action's code); check `units` to see how many moved. Every station sells fuel at 5 credits a unit.
+When a trade fails because you can't pay for that many or your hold can't take them, they try again with half as many. Each push or pull is an action and burns a unit of fuel, buying fuel included: buy fuel before you run dry, or call for it (see [Running low on fuel](#running-low-on-fuel)). They leave 0 when they traded something, else -12 (or the failed action's code); check `units` to see how many moved. Every station sells fuel at 5 credits a unit.
 
 The starters and designs use them as `buy-cheapest` and `sell-best`. The stations used to trade in hourly **batches**, everything offered in a game hour paid one price when the hour ended; they don't any more, and queries 631 and 632 only show old batch offers and budgets. Query 630 tells you what the station here trades:
 

@@ -543,16 +543,6 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
   int parameterId = 0;
 
   if(effect) {
-    // Pulling fuel burns no fuel (#380), whoever sells it: a drone with an
-    // empty tank can still buy fuel from another drone (N R D 11 perform: R
-    // is parameter 2)
-    if(protocol->protocol_id == PULL_PROTOCOL_ID && effect->resource_id == FUEL_RESOURCE_ID &&
-       effect->deplete && effect->drone_id == 0 && protocol->parameters_num > 1 &&
-       protocol->parameters[1] == FUEL_RESOURCE_ID) {
-      engine_trace(TRACE_LEVEL_ALWAYS, "Pulling fuel: no fuel burned for it");
-      return ENGINE_OK;
-    }
-
     memset(&abundancies, 0, sizeof(abundancies));
     abundancies.multiplier = 1; // default - no multiplier
 

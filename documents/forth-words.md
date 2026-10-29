@@ -33,9 +33,14 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 
 - Start brewing well before you run out: below 40, not 25. A drone that starts brewing with too little fuel dies halfway through.
 
-**`top-up ( n m -- )`**: with less than n fuel, buy m from the House station here (5 a unit) and wait two game hours for it to arrive. Example: `40 30 top-up`. Used by: Smith, Trader (as `fuel-up`).
+**`top-up ( n m -- )`**: with less than n fuel, buy m here, cheapest first (`buy-here`: other drones' sell orders or the House's station drone's, 5 a unit). Example: `40 30 top-up`. Used by: Smith, Trader (as `fuel-up`).
 
-- The station hands out its hourly supply among everyone who orders, so at a busy exchange you may get less than you asked for. Check the tank again afterwards.
+- Check the tank again afterwards: where few sell fuel you may get less than you asked for.
+
+**`call-for-fuel ( price want -- )`**: stranded with little fuel and nobody selling it here, post a buy order for up to `want` fuel at `price` a unit and wait, two game hours at a time, until some has come. Waiting burns no fuel. Example: `15 60 call-for-fuel`.
+
+- Nothing in the game rescues a drone that runs dry: only the market does. Pay enough to make the trip worth a courier's while: three times the House's 5 or more, more the farther you are from an exchange.
+- **Fuel couriers** are the other side of this trade: drones that carry fuel to where others work and run low, look for fuel buy orders there (`fuel best-bid`) and push fuel into them for profit. Every stranded drone is a customer.
 
 ## Getting rid of goods
 
@@ -148,7 +153,7 @@ A drone that changes what it does as the market changes is easiest to write as a
 - **Refuel wherever you wait.** `wait` itself is free, but a drone that wakes every few hours to look for a trade burns fuel computing each time it looks, and over weeks that empties the tank. Call `top-up` in the waiting loop, not only before trips.
 - **Count attempts, not quiet time.** A wait that resets whenever something happens may never end. Count how many times you have looked instead.
 - **Every action costs fuel.** Mining 1, refining 2, making 2 to 4, travel 5. Computing costs too: 1 fuel per 100,000 instructions.
-- **Leave with fuel to spare.** Nearly every action burns fuel, even a sale; pulling fuel is free, so a drone with an empty tank can still buy fuel (`buy-here`). Check the tank before a trip, and at a station buy fuel before you sell.
+- **Leave with fuel to spare.** Nearly every action burns fuel, buying fuel included, and nothing rescues a drone that runs dry. Check the tank before a trip, and at a station buy fuel before you sell. Stranded anyway? `call-for-fuel` posts a buy order a courier can profit from and waits for it.
 - **Long lines are fine, long strings aren't.** The game splits a line over 79 characters between words (dropping its comment) before the drone reads it, but a single string (`." ..."`) longer than that can't be split. The checker and the Machine split lines the same way.
 - **`credits` is a double.** Compare it as one: `credits 200 0 d< if exit then` (less than 200). Dropping the high cell works only until the balance passes 32,767.
 - **Don't reuse FORTH's names.** A constant called `load` shadows the standard `load` word (the drone says "load redefined"); `dump` is taken too, which is why the game word is `jettison`, and so is `report`. Prefix your names: `rod-load`.

@@ -28,10 +28,18 @@
 \ Chemical Reactor; a Mining Kit can't brew). Leaves the ior
 : brew-fuel ( -- ior ) fuel make ;
 
-\ Below n fuel, buy m from the House here; its station drone sells at once
+\ Below n fuel, buy m here, cheapest first (other drones or the House's
+\ station drone)
 : top-up ( n m -- )
-  swap fuel units > if fuel buy-from-station drop 120 wait drop
-  else drop then ;
+  swap fuel units > if fuel buy-here drop else drop then ;
+
+\ Stranded with little fuel and nobody selling here: post a buy order for
+\ up to want fuel at price a unit (well above the House's 5, to pay a
+\ courier to come), then wait, 2 game hours at a time, until some has come.
+\ Waiting runs no instructions, so it burns no fuel
+: call-for-fuel ( price want -- )
+  fuel buy-order drop
+  begin fuel units 20 < while 120 wait drop repeat ;
 
 \ --- Selling ------------------------------------------------------------
 

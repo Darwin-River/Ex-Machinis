@@ -334,7 +334,7 @@ wait_for 60 "a drone knows the game words" knows_words
 
 # The House fuel seller (#324 step 10; #380): the released drone, at Earth,
 # buys 10 fuel from the Earth Exchange's station drone like from any drone: a
-# pull from its sell order, at once, at 5 a unit. Pulling fuel burns none
+# pull from its sell order, at once, at 5 a unit
 EARTH_STATION=$(sql "select agent_id from agents where station_id is not null and object_id = 3")
 [ -n "$EARTH_STATION" ] || fail "Earth has no House station drone"
 fuel_ask() { [ "$(sql "select count(*) from events where drone=$EARTH_STATION and event_type=4 and resource=2061 and outcome=1")" -ge 1 ]; }
@@ -348,9 +348,6 @@ more_fuel() { [ "$(sql "select count(*) from events e join actions x on x.id = e
                        where x.protocol = 11 and e.drone = $FORGE_DRONE and e.resource = 2061
                        and e.event_type = 1 and e.outcome = 1")" -ge 1 ]; }
 wait_for 60 "the fuel arrived in its hold" more_fuel
-[ "$(sql "select count(*) from events e join actions x on x.id = e.action where x.protocol = 11 and e.drone = $FORGE_DRONE
-          and e.resource = 2061 and e.event_type = 2")" = 0 ] || fail "pulling fuel burned fuel"
-echo "ok: pulling fuel burns none"
 
 # A drone that never refuels dies (#324 step 8): release one that only
 # computes, leave it 1 unit of fuel, and it runs dry and becomes a wreck

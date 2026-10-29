@@ -27,6 +27,7 @@ This document lays out the plans for developing Ex Machinis, an online space sim
   * [All ingame events result from actions taken by drones](#All-ingame-events-result-from-actions-taken-by-drones)
   * [Players use FORTH to control their drones](#Players-use-FORTH-to-control-their-drones)
   * [Players advance by developing more complex codes](#Players-advance-by-developing-more-complex-codes)
+  * [Companies are experiments; the market, not the rules, rescues drones](#Companies-are-experiments)
   * [The Game Engine cycles through player run virtual machines](#The-Game-Engine-cycles-through-player-run-virtual-machines)
   * [Equipment](#Equipment)
 * [Players and Resources](#Players-and-Resources)
@@ -272,6 +273,18 @@ A new player starts by sending simple real-time commands to drone that are opera
 * The need to have drones carry-on activities when the player is not online.
 
 FORTH is well suited for this sort of progressive engagement because the player develops and manages an increasingly complex dictionary of words that she can can use to command her drones. These commands can be very simple at first, requiring constant user intervention to pilot the drone. However, the drone’s vocabulary can quickly expand to include more complex commands as the player becomes a sophisticated operator. In theory, there are no limits to the amount of autonomy and complex decision making the player can off-load onto her drone.
+
+[Return to the TOC](#Table-of-Contents)
+
+<a name="Companies-are-experiments"></a>
+### Companies are experiments; the market, not the rules, rescues drones
+In Public Forge a released company runs on its own, and every company eventually dies of something its program didn't foresee: a market that moves, a dry deposit, a rival, a coding flaw. That is the game, not a failure of it. Players advance by iterating: they read a company's reports, trades and post-mortem, fix or rethink the program, and release the next version as a new company. The manuals should say so plainly, and the game should reward a lineage of better programs over keeping one flawed company alive.
+
+So the rules add **no safety nets** for drones that get themselves into trouble (#380):
+* A drone that runs out of fuel is a wreck. There is no free fuel, no free order and no rescue; buying fuel costs fuel like any trade (round 23's free ordering from the House and a brief free pull of fuel were both taken out).
+* Trouble is a market opportunity instead. A drone running low posts a buy order for fuel at a price that pays a seller to come to it, and waits (waiting costs nothing). Fuel couriers, drones that carry fuel to where others run low and push it into those orders, are a business the market makes possible. The same goes for anything else a stranded drone needs.
+* The House's station drones are market participants like any other: no special trade path, only their Import and Export modules (see [House station drones](#Station-Drones)).
+* When a change is proposed to save drones from a common mistake, prefer documenting the market solution, a word in the example library or a better starter script over a new mechanic.
 
 [Return to the TOC](#Table-of-Contents)
 
@@ -1176,7 +1189,7 @@ Since evidence of each in-game event travels between distant points at the speed
 
 <a name="Station-Drones"></a>**House station drones (#380).** The House trades as drones, by the players' own rules. `php artisan forge:stations` (`App\Services\HouseStations`; run by the app on every start-up, in the live and test worlds) makes, where missing, the House's account and company (`companies.house = 1`: the leaderboard leaves it out; 1,000,000,000 credits) and a station drone at each exchange in `stations` (`agents.station_id`; migration 0025), on a Drop Station hull (9001, cargo 1,000,000) with an Import Station (5911) and an Export Station (5921). Those modules have no recipe and are never sold; `N R 5911 perform` brings N units of R up from the planet surface and `N R 5921 perform` sends them down, in 1 game second, burning no fuel (the quantity is a parameter, like 31's, because the multiplier would scale the module check too). Each drone runs `resources/house/station.fth`: it reads its exchange's goods (query 630) and, each game hour, first keeps a buy order for each good the exchange buys (wanted maximum a day's demand above what it keeps to sell; price from the listed price at no stock to half at a full day's stock), then imports a quarter of a day's supply of each good it sells and keeps a sell order at the listed price (fuel keeps a 500 reserve), posts an order only when its price changed (each is an action), sends down what it bought once a game day, and imports its own fuel. Round 27 ran them beside the batch stations below; they sold more than the batch did and players traded with them unchanged, so the batch stations were retired.
 
-* **Trading with the House.** A station drone is a drone like any other on the market: players push into its buy orders and pull from its sell orders (protocols 10 and 11, the game words `sell-here` and `buy-here`), at its prices, with the sales tax (`trades`). Only its Import and Export modules are its own. Pulling fuel burns no fuel, from any seller (`protocol_process_resource_effect` skips the pull's fuel burn when R is fuel), so a drone with an empty tank can still buy fuel; it used to order fuel from the batch station for free. Protocols 31 and 32 are gone.
+* **Trading with the House.** A station drone is a drone like any other on the market: players push into its buy orders and pull from its sell orders (protocols 10 and 11, the game words `sell-here` and `buy-here`), at its prices, with the sales tax (`trades`), and pay the same fuel as for any trade. Only its Import and Export modules are its own. Protocols 31 and 32 are gone; a drone used to order fuel from the batch station for free, and now buys it like anything else (see [Companies are experiments](#Companies-are-experiments)).
 * **The batch stations** (#324 step 10 to round 27) traded in hourly batches. Event types 9 and 10 recorded offers and orders in `station_offers`; `db_station_clear_due` still clears any left from before, and the Market page's feed and a drone's page still show old batches.
 
 <a name="Drop-Stations"></a>**House drop stations (#324 step 10).** House stations bring credits and basic equipment into the game and take finished goods out of it. What follows was the batch system until #380 (its game data, `stations` and `station_goods`, now sets the station drones' goods, prices and daily units).

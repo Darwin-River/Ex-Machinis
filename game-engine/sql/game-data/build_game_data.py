@@ -568,8 +568,6 @@ for pid in sorted(protocols, key=int):
                        'locked': 0, 'deplete': 1, 'abundancies': 0, 'quantity': cost}])
     p = protocols[pid]
     tail = f' Burns {cost} fuel.'
-    if pid == '11':
-        tail = f' Burns {cost} fuel, none when R is fuel (#380: an empty tank can still buy fuel).'
     if len(p[4]) + len(tail) <= 255:
         protocols[pid] = p[:4] + [p[4] + tail] + p[5:]
 

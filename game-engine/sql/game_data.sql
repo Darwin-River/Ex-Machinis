@@ -158,7 +158,7 @@ INSERT INTO `protocols` (id, name, parameters, bulk_modifier, description, obser
   (7, 'Post sell order', 3, 100, '[P M R 7 perform]: Places order to sell resource R at price P, keeping min M units at drone''s cargo hold. Burns 1 fuel.', 1, 1, 0, 0),
   (8, 'Post buy order', 3, 100, '[P M R 8 perform]: Places order to buy resource R at price P, keeping max M units at drone''s cargo hold. Burns 1 fuel.', 1, 1, 0, 0),
   (10, 'Push resource', 2, 100, '[N R D 10 perform]: Delivers N units of resource R to drone D. N is required (1 for one unit). It takes one minute of game time. Burns 1 fuel.', -1, -1, 1, 0),
-  (11, 'Pull resource', 2, 100, '[N R D 11 perform]: Pulls N units of resource R from drone D. N is required (1 for one unit). It takes one minute of game time. Burns 1 fuel, none when R is fuel (#380: an empty tank can still buy fuel).', -1, -1, 1, 0),
+  (11, 'Pull resource', 2, 100, '[N R D 11 perform]: Pulls N units of resource R from drone D. N is required (1 for one unit). It takes one minute of game time. Burns 1 fuel.', -1, -1, 1, 0),
   (12, 'Launch drone', 2, 100, '[D K 12 perform]: Builds a new drone (a clone) from ship kit K in the cargo bay, beside this one, with a copy of drone D''s program and 20 of this drone''s fuel; it runs its launched word. Takes 1 hour plus the light time from D. Burns 30 fuel.', 1, 1, 0, 0),
   (17, 'Post sell order (double price)', 3, 100, '[P M R 17 perform]: Places order to sell resource R at price P, a double (two cells), keeping min M units at drone''s cargo hold. Burns 1 fuel.', 1, 1, 0, 4),
   (18, 'Post buy order (double price)', 3, 100, '[P M R 18 perform]: Places order to buy resource R at price P, a double (two cells), keeping max M units at drone''s cargo hold. Burns 1 fuel.', 1, 1, 0, 4),
