@@ -78,6 +78,15 @@ class MachinePageTest extends TestCase
         $this->getJson('/machine/queries')->assertOk()->assertJsonPath('9901.parameters', 3);
     }
 
+    public function testPerformTakesAMultiplierProtocolsAmountToo()
+    {
+        // Push and pull take N after their parameters (#380 round 29: the
+        // Machine left it on the stack)
+        DB::table('protocols')->updateOrInsert(['id' => 991], ['name' => 'Test push', 'parameters' => 2, 'bulk_modifier' => 100,
+            'description' => 'test', 'observable' => 1, 'reportable' => 1, 'multiplier' => 1]);
+        $this->getJson('/machine/protocols')->assertOk()->assertJsonPath('991.parameters', 3);
+    }
+
     public function testALiveQueryNeedsARealDroneAndNumbers()
     {
         $this->liveSetup();

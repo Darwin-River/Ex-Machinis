@@ -37,8 +37,10 @@ class LiveQuery
     public static function protocols(): array
     {
         $out = [];
-        foreach (DB::table('protocols')->orderBy('id')->get(['id', 'name', 'parameters']) as $p) {
-            $out[(int) $p->id] = ['name' => $p->name, 'parameters' => (int) $p->parameters];
+        // A protocol with the multiplier flag (push, pull, jettison) takes its
+        // N after its parameters: the Machine takes it off the stack too
+        foreach (DB::table('protocols')->orderBy('id')->get(['id', 'name', 'parameters', 'multiplier']) as $p) {
+            $out[(int) $p->id] = ['name' => $p->name, 'parameters' => (int) $p->parameters + ((int) $p->multiplier ? 1 : 0)];
         }
         return $out;
     }

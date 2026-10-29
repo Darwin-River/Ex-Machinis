@@ -85,6 +85,7 @@ Once you release a drone, it runs on its own: you can't steer it, and nobody wil
 - **Iterate.** Fix the flaw, try a different idea, and release the next version as a new company. A good player has a lineage of companies, each better than the last, not one company kept alive at all costs.
 - **Expect the unexpected.** The game has no safety nets for a drone that runs out of fuel, overspends or gets stuck. If a drone should survive something, its program must handle it, or the market must: other players' drones buy, sell and deliver whatever pays (see [Running low on fuel](#running-low-on-fuel)).
 - **Use the Test button** to try a script in a test world first, and the Machine page to check a word against live data. They are cheap; a released company is the real experiment.
+- **Learn from others.** The [Strategy Blog](/blog) shows how the best companies in our playtests were written: state machines, standing buy orders for fuel and supplies, messages between drones, finding a niche, and iterating, each with code that loads on a drone as it is.
 
 ### Releasing a script (Public Forge)
 
@@ -108,7 +109,7 @@ Both the Test button and a release warn you if your script redefines a word your
 
 Not sure where to begin? The Release page offers four starter scripts: click **Miner**, **Refiner**, **Trader** or **Maker** above the script box and it fills in, with the kit it needs. Each is short, explained in its comments, and makes money on its own; change its numbers, or its plan, to make it yours.
 
-- **Miner** (Mining Kit): mines kunspar on the Moon, refines it and sells the metals. It offers them to other drones first, halfway between the best buy order and the cheapest other sell order, and sells the rest into the best buy orders. If the Moon's deposit stays dry (six tries in a row: other miners got there first), it moves to Mars's moons. Once it can afford to launch copies of itself, two in three of them make the long trip to Mars's moons (about 10 game days) and sell at the Mars Exchange. It buys its fuel wherever it's cheapest.
+- **Miner** (Mining Kit): mines kunspar or wolfite on the Moon, whichever has more left there (`richer`), refines it and sells the metals (and wolfite's Inorganics A2). It offers them to other drones first, halfway between the best buy order and the cheapest other sell order, and sells the rest into the best buy orders. If the Moon's deposit stays dry (six tries in a row: other miners got there first), it moves to Mars's moons. Once it can afford to launch copies of itself, two in three of them make the long trip to Mars's moons (about 10 game days) and sell at the Mars Exchange. It buys its fuel wherever it's cheapest.
 - **Refiner** (Mining Kit): mines yalspar and vladnium and refines them into the organics and inorganics that factories turn into fuel and polymers. It sells them the same way.
 - **Trader** (Mining Kit, though it only uses the Engine): buys metals from the miners on the Moon and hauls them to Mars, where buyers have paid more (check the price board).
 - **Maker** (Factory Kit): buys metals at the Moon wherever they're cheapest, makes them into alloys and rods, and sells the rods at Earth.
@@ -768,7 +769,7 @@ The important components of this command are the dot-quote (`."`), which instruc
 
 ### Broadcasting to other drones
 
-A drone can also talk to other drones. `broadcast ( caddr -- ior )` posts a short message, a counted string of 1 to 80 printable characters (make one with `$"`, which, like `."`, works only inside a definition). It is an action like any other: it takes a moment, burns a unit of fuel, and shows in your drone's activity as "Broadcast".
+A drone can also talk to other drones. `broadcast ( caddr -- ior )` posts a short message, a counted string of 1 to 80 printable characters (make one with `$"`, which, like `."`, works only inside a definition and makes strings of at most 63 characters: a longer one fails to load with -19). It is an action like any other: it takes a moment, burns a unit of fuel, and shows in your drone's activity as "Broadcast".
 
 A message is an **event** (type 13, the constant `message-event`), and drones learn of it the way they learn of any event, at the speed of light:
 
@@ -1313,6 +1314,10 @@ You can't change a drone once it's released, but its market will change: deposit
 | `sold ( resource days-ago place -- units )` | How many sold at a place on a game day (0: today so far, 1: yesterday...), an hour old: how fast a product sells there |
 
 Query 682 gives `sold`'s numbers for every place at once, with the day's average price. For other places, the public price board, query 680, reports the game day up to an hour ago: units, credits and trades by place. A buyer pays less as its stock fills: when many drones sell to the same buyer, the board shows it. Query 620 gives the volume traded here, and 704 how long a trip takes.
+
+Each of these words asks the game afresh, every time: `buy-price` asks for `me` (query 205) and the order list. That is cheap, but not free (asking runs instructions, and instructions burn fuel), and the answer can change between two calls. In a loop, ask once, keep the price on the stack or in a variable, and decide from that.
+
+**Decide again on arrival.** A trip can take days, and the market you chose it for has moved by the time you land: a deposit others mined out, a buy order someone filled. A drone that picks its next job when it arrives, from what it sees there, does better than one that planned everything before it left.
 
 **Decide with arithmetic.** Most good decisions compare two numbers:
 
