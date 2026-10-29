@@ -12,31 +12,27 @@
 
             <h3>House stations</h3>
             <div style="white-space: normal; margin-bottom: 1em">
-                Stations buy and sell in hourly batches: everything offered in a game hour is paid one price, which
-                halves for each day's worth of goods in the batch (the curves below go from an empty batch to two days'
-                worth). Their budgets refill every game day.
+                The House trades at each exchange through a station drone, by the players' rules: its buy and sell
+                orders are in the order book, and a drone sells to it (sell-to-station, or a push into its buy order)
+                or buys from it (buy-from-station, or a pull) at once. It buys at the listed price while its stock is
+                low and pays less as it fills, down to half at a day's worth; once a game day it ships what it bought
+                down to the planet, and it brings up what it sells.
             </div>
             @foreach($stations as $station)
-                <h4 class="mt-3">{{ $station['name'] }} <small>at <a href="{{ url('locations/' . $station['object_id']) }}">{{ $station['place'] }}</a>,
-                    budget {{ number_format($station['budget']) }} of {{ number_format($station['cap']) }} credits</small></h4>
+                <h4 class="mt-3">{{ $station['name'] }} <small>at <a href="{{ url('locations/' . $station['object_id']) }}">{{ $station['place'] }}</a>@if($station['drone']),
+                    station drone <a href="{{ url('spacecraft/' . $station['drone']) }}">{{ $station['drone'] }}</a>@endif</small></h4>
                 <div class="table-custom-responsive">
                     <table class="table-ticket">
-                        <tr><th>Good</th><th>Station</th><th>Price now</th><th>Base price</th><th>Per day</th><th>In this batch</th><th>Price curve</th></tr>
+                        <tr><th>Good</th><th>Station</th><th>Price now</th><th>Listed price</th><th>Per day</th><th>In stock</th><th>Takes / for sale</th></tr>
                         @foreach($station['goods'] as $good)
                             <tr>
                                 <td><a href="{{ url('resources/' . $good['resource']) }}">{{ $good['name'] }}</a></td>
                                 <td>{{ $good['buys'] ? 'buys' : 'sells' }}</td>
-                                <td>{{ $good['price'] }}</td>
-                                <td>{{ $good['base'] }}</td>
+                                <td>{{ $good['price'] === null ? 'not posted yet' : number_format($good['price']) }}</td>
+                                <td>{{ number_format($good['listed']) }}</td>
                                 <td>{{ number_format($good['daily']) }}</td>
-                                <td>{{ number_format($good['waiting']) }}</td>
-                                <td>
-                                    @if($good['curve'])
-                                        <svg width="122" height="32" viewBox="0 0 122 32" role="img" aria-label="price curve">
-                                            <polyline points="{{ $good['curve'] }}" fill="none" stroke="#f5a623" stroke-width="2"/>
-                                        </svg>
-                                    @endif
-                                </td>
+                                <td>{{ number_format($good['stock']) }}</td>
+                                <td>{{ number_format($good['room']) }}</td>
                             </tr>
                         @endforeach
                     </table>

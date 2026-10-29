@@ -130,6 +130,13 @@
 // Protocols that move goods between drones (decrement here, increment there)
 #define PUSH_PROTOCOL_ID 10
 #define PULL_PROTOCOL_ID 11
+// Selling to and buying from the House (#380): N R 31 perform pushes N of R
+// into the House station drone where the drone is, N R 32 perform pulls
+// them from it. The engine names the station drone as their third
+// parameter; the events engine treats them as a push and a pull
+#define SELL_TO_STATION_PROTOCOL_ID   31
+#define BUY_FROM_STATION_PROTOCOL_ID  32
+#define STATION_DRONE_PARAM           2   // parameter 3 (-3 in the effects)
 
 // [D K 12 perform]: builds a drone from ship kit K with a copy of drone D's
 // program. The kit (a resource) and the new drone's hull share an ID.

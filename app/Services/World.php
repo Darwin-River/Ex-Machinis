@@ -6,8 +6,8 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * The public view of the world (#324 step 17): the Home page's event feed,
- * the Market page (House stations with their price curves and budgets, the
- * order book and recent trades) and the Map (where the planets are now, and
+ * the Market page (the House station drones' live orders, the order book
+ * and recent trades) and the Map (where the planets are now, and
  * the drones and wrecks around each). Visitors see everything at once; only
  * drones are limited to what is local.
  */
@@ -103,54 +103,46 @@ class World
         return $items;
     }
 
-    /** What a station pays a unit when a batch offers it this many in all */
-    public static function buyPrice(int $base, int $offered, int $daily): int
-    {
-        if ($daily <= 0) {
-            return $base;
-        }
-        return max(1, (int) round($base * pow(2, -$offered / $daily)));
-    }
-
-    /** The House stations: budget, and each good they trade now with its price */
+    /**
+     * The House stations (#380): each one's station drone and the goods it
+     * trades now, with the price of its order (null until it has posted
+     * one), what it holds, and how many its order takes (buying) or has for
+     * sale (selling)
+     */
     public static function stations(): array
     {
         $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
         $today = intdiv(max(0, self::gameNow() - $epoch), 86400);
         $out = [];
         foreach (DB::table('stations as s')->leftJoin('objects as o', 'o.object_id', '=', 's.object_id')
-                     ->leftJoin('station_state as t', 't.station_id', '=', 's.id')
-                     ->select('s.*', 'o.object_name', 't.budget')->orderBy('s.id')->get() as $s) {
+                     ->select('s.*', 'o.object_name')->orderBy('s.id')->get() as $s) {
+            $drone = DB::table('agents')->where('station_id', $s->id)->first(['agent_id', 'name']);
             $goods = [];
             foreach (DB::table('station_goods as g')->join('resources as r', 'r.id', '=', 'g.resource')
                          ->where('g.station_id', $s->id)->where('g.from_day', '<=', $today)
                          ->select('g.*', 'r.name')->orderBy('g.side')->orderBy('g.resource')->get() as $g) {
-                $waiting = (int) DB::table('station_offers')->where('station_id', $s->id)->where('resource', $g->resource)
-                    ->where('side', $g->side)->whereNull('cleared_t')->sum('units');
                 $buys = (int) $g->side === self::STATION_BUYS;
+                $order = null;
+                $stock = 0;
+                if ($drone) {
+                    // Its latest order for the good: buy orders are event type 5, sell orders 4
+                    $order = DB::table('events')->where('drone', $drone->agent_id)->where('resource', $g->resource)
+                        ->where('event_type', $buys ? 5 : 4)->where('outcome', 1)->orderBy('id', 'desc')
+                        ->first(['new_quantity', 'new_credits']);
+                    $stock = (int) DB::table('sqInventory')->where('drone', $drone->agent_id)
+                        ->where('resource', $g->resource)->max('units');
+                }
+                $room = $order ? max(0, $buys ? (int) $order->new_quantity - $stock : $stock - (int) $order->new_quantity) : 0;
                 $goods[] = [
                     'resource' => (int) $g->resource, 'name' => $g->name, 'buys' => $buys,
-                    'base' => (int) $g->price, 'daily' => (int) $g->daily_units, 'waiting' => $waiting,
-                    'price' => $buys ? self::buyPrice((int) $g->price, $waiting, (int) $g->daily_units) : (int) $g->price,
-                    'curve' => $buys ? self::curve((int) $g->price, (int) $g->daily_units) : null,
+                    'listed' => (int) $g->price, 'daily' => (int) $g->daily_units,
+                    'price' => $order ? (int) $order->new_credits : null, 'stock' => $stock, 'room' => $room,
                 ];
             }
             $out[] = ['name' => $s->name, 'place' => $s->object_name, 'object_id' => (int) $s->object_id,
-                'budget' => (int) ($s->budget ?? $s->budget_cap), 'cap' => (int) $s->budget_cap, 'goods' => $goods];
+                'drone' => $drone ? (int) $drone->agent_id : null, 'goods' => $goods];
         }
         return $out;
-    }
-
-    /** An SVG polyline of a buying price over 0 to 2 days' worth offered */
-    private static function curve(int $base, int $daily): string
-    {
-        $points = [];
-        for ($i = 0; $i <= 20; $i++) {
-            $offered = (int) round($daily * 2 * $i / 20);
-            $price = self::buyPrice($base, $offered, $daily);
-            $points[] = sprintf('%d,%d', $i * 6, 30 - (int) round(28 * $price / max(1, $base)));
-        }
-        return implode(' ', $points);
     }
 
     /** Recent trades, newest first */

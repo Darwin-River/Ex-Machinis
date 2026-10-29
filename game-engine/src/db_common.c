@@ -285,3 +285,227 @@ Bool_t db_drone_in_transit(int drone_id, long long game_t)
     }
     return in_transit;
 }
+
+/** ****************************************************************************
+
+  @brief      The House station drone where a drone is (#380): the drone that
+              sell-to-station and buy-from-station (protocols 31 and 32)
+              trade with. Station drones have agents.station_id set.
+
+  @param[in]  drone_id      The drone
+  @param[out] station_drone The station drone there (0 when there is none)
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_station_drone(int drone_id, int *station_drone)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+
+    if(!station_drone) return ENGINE_INTERNAL_ERROR;
+    *station_drone = 0;
+
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK) return result;
+
+    snprintf(query_text, sizeof(query_text),
+        "SELECT s.agent_id FROM agents s JOIN agents a ON a.object_id = s.object_id "
+        "WHERE a.agent_id = %d AND s.station_id IS NOT NULL AND s.agent_id <> a.agent_id "
+        "AND s.wrecked_at IS NULL ORDER BY s.agent_id LIMIT 1", drone_id);
+
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return ENGINE_DB_QUERY_ERROR;
+    }
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    if(db_result) {
+        MYSQL_ROW row = mysql_fetch_row(db_result);
+        if(row && row[0]) *station_drone = atoi(row[0]);
+        mysql_free_result(db_result);
+    }
+    return ENGINE_OK;
+}
+
+/** ****************************************************************************
+
+  @brief      How many units of a resource a House station drone's order
+              takes (#380): what is left of its buy order (the wanted maximum
+              less what it holds) or of its sell order (what it holds less
+              the kept minimum), and the order's price. 0 when it has no such
+              order.
+
+  @param[in]  station  The station drone
+  @param[in]  resource The resource
+  @param[in]  sells    ENGINE_TRUE for its sell order, else its buy order
+  @param[out] room     Units the order takes now
+  @param[out] price    The order's price a unit
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_station_room(int station, int resource, Bool_t sells, long long *room, long long *price)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+
+    if(!room || !price) return ENGINE_INTERNAL_ERROR;
+    *room = 0;
+    *price = 0;
+
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK) return result;
+
+    // Sell orders are event type 4 (they keep new_quantity), buy orders 5
+    // (they want up to new_quantity): as queries 600 and 610 read them
+    snprintf(query_text, sizeof(query_text),
+        "SELECT %s, o.new_credits FROM events o "
+        "WHERE o.id = (SELECT MAX(id) FROM events WHERE outcome = 1 AND event_type = %d "
+        "AND resource = %d AND drone = %d)",
+        sells ? "IFNULL((SELECT units FROM sqInventory WHERE drone = o.drone AND resource = o.resource), 0) - o.new_quantity"
+              : "o.new_quantity - IFNULL((SELECT units FROM sqInventory WHERE drone = o.drone AND resource = o.resource), 0)",
+        sells ? 4 : 5, resource, station);
+
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return ENGINE_DB_QUERY_ERROR;
+    }
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    if(db_result) {
+        MYSQL_ROW row = mysql_fetch_row(db_result);
+        if(row && row[0] && row[1]) {
+            *room = atoll(row[0]);
+            *price = atoll(row[1]);
+            if(*room < 0) *room = 0;
+        }
+        mysql_free_result(db_result);
+    }
+    return ENGINE_OK;
+}
+
+/** ****************************************************************************
+
+  @brief      A drone's company's credits (#380)
+
+  @param[in]  drone_id The drone
+  @param[out] credits  Its company's credits (0 when not found)
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_drone_credits(int drone_id, long long *credits)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+
+    if(!credits) return ENGINE_INTERNAL_ERROR;
+    *credits = 0;
+
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK) return result;
+
+    snprintf(query_text, sizeof(query_text),
+        "SELECT c.credits FROM companies c JOIN agents a ON a.company_id = c.company_id WHERE a.agent_id = %d",
+        drone_id);
+
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return ENGINE_DB_QUERY_ERROR;
+    }
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    if(db_result) {
+        MYSQL_ROW row = mysql_fetch_row(db_result);
+        if(row && row[0]) *credits = atoll(row[0]);
+        mysql_free_result(db_result);
+    }
+    return ENGINE_OK;
+}
+
+/** ****************************************************************************
+
+  @brief      How many units of a resource fit in a drone's free hold space
+              (#380): its hull's capacity less the cargo its latest processed
+              event left, over the resource's mass
+
+  @param[in]  drone_id The drone
+  @param[in]  resource The resource
+  @param[out] units    Units that fit (0 when none or not found)
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_units_that_fit(int drone_id, int resource, long long *units)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+
+    if(!units) return ENGINE_INTERNAL_ERROR;
+    *units = 0;
+
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK) return result;
+
+    snprintf(query_text, sizeof(query_text),
+        "SELECT (h.cargo_capacity - IFNULL((SELECT e.new_cargo FROM events e WHERE e.drone = a.agent_id "
+        "AND e.outcome = 1 AND e.new_cargo IS NOT NULL ORDER BY e.id DESC LIMIT 1), 0)) "
+        "DIV GREATEST(1, (SELECT r.mass FROM resources r WHERE r.id = %d)) "
+        "FROM agents a JOIN hulls h ON h.id = a.hull_type WHERE a.agent_id = %d",
+        resource, drone_id);
+
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return ENGINE_DB_QUERY_ERROR;
+    }
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    if(db_result) {
+        MYSQL_ROW row = mysql_fetch_row(db_result);
+        if(row && row[0]) *units = atoll(row[0]);
+        if(*units < 0) *units = 0;
+        mysql_free_result(db_result);
+    }
+    return ENGINE_OK;
+}
+
+/** ****************************************************************************
+
+  @brief      Units of a resource in a drone's hold (#380)
+
+  @param[in]  drone_id The drone
+  @param[in]  resource The resource
+  @param[out] units    Units aboard (0 when none)
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_drone_units(int drone_id, int resource, long long *units)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+
+    if(!units) return ENGINE_INTERNAL_ERROR;
+    *units = 0;
+
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK) return result;
+
+    snprintf(query_text, sizeof(query_text),
+        "SELECT IFNULL(MAX(units), 0) FROM sqInventory WHERE drone = %d AND resource = %d",
+        drone_id, resource);
+
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return ENGINE_DB_QUERY_ERROR;
+    }
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    if(db_result) {
+        MYSQL_ROW row = mysql_fetch_row(db_result);
+        if(row && row[0]) *units = atoll(row[0]);
+        mysql_free_result(db_result);
+    }
+    return ENGINE_OK;
+}

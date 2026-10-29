@@ -41,7 +41,7 @@ variable got   variable looks
   rot drop  ?dup 0= if 2drop exit then
   rot rot pull 0= if 1 got ! then ;
 
-\ Top up the tank from the House here; it arrives when the batch clears
+\ Top up the tank from the House here
 : fuel-up ( -- )
   fuel units trip-fuel < if trip-fuel fuel buy-from-station drop
   120 wait drop then ;
@@ -49,8 +49,8 @@ variable got   variable looks
 \ Sell up to n of a resource here: into the best buy order (a House
 \ station drone's, or another player's), at once, when it pays at least
 \ half what the House lists (a station drone bids less as its stock fills,
-\ down to half). What that order doesn't take goes to the station's hourly
-\ batch, while there is one
+\ down to half). What that order doesn't take it offers to the House
+\ station drone here
 : sell-best ( n resource -- )
   >r  r@ best-bid                               ( n price drone avail )
   dup 0>  3 pick  r@ 1 house-price 2 /  < 0=  and if

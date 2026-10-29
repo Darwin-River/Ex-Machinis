@@ -16,7 +16,7 @@
 
 \ Buy up to n of a resource here where it is cheapest: another drone's sell
 \ order (best-offer) or the House station (house-price, side 2: what it
-\ asks). The House delivers when its batch clears, within the game hour.
+\ asks). Either way it pulls at once.
 \ A drone selling only a unit or two can't starve it: what the drone
 \ doesn't sell (or a pull that fails) it buys from the House
 : buy-cheapest ( n resource -- )
@@ -30,8 +30,8 @@
 \ Sell up to n of a resource here: into the best buy order (a House
 \ station drone's, or another player's), at once, when it pays at least
 \ half what the House lists (a station drone bids less as its stock fills,
-\ down to half). What that order doesn't take goes to the station's hourly
-\ batch, while there is one
+\ down to half). What that order doesn't take it offers to the House
+\ station drone here
 : sell-best ( n resource -- )
   >r  r@ best-bid                               ( n price drone avail )
   dup 0>  3 pick  r@ 1 house-price 2 /  < 0=  and if

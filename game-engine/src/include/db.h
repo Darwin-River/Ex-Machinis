@@ -699,6 +699,23 @@ ErrorCode_t db_get_event_object_id(Event_t *event, int *object_id);
 /** Whether a drone is on a trip at a game time: its move is still pending (#380) */
 Bool_t db_drone_in_transit(int drone_id, long long game_t);
 
+/** The House station drone where a drone is (0 when none): what protocols 31
+    and 32 trade with (#380) */
+ErrorCode_t db_get_station_drone(int drone_id, int *station_drone);
+
+/** Units a House station drone's sell order (sells) or buy order takes now, and
+    its price a unit (#380) */
+ErrorCode_t db_get_station_room(int station, int resource, Bool_t sells, long long *room, long long *price);
+
+/** A drone's company's credits (#380) */
+ErrorCode_t db_get_drone_credits(int drone_id, long long *credits);
+
+/** Units of a resource that fit in a drone's free hold space (#380) */
+ErrorCode_t db_get_units_that_fit(int drone_id, int resource, long long *units);
+
+/** Units of a resource in a drone's hold (#380) */
+ErrorCode_t db_get_drone_units(int drone_id, int resource, long long *units);
+
 /** ****************************************************************************
 
     @brief          Deletes a given action

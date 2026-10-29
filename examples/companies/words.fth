@@ -28,8 +28,7 @@
 \ Chemical Reactor; a Mining Kit can't brew). Leaves the ior
 : brew-fuel ( -- ior ) fuel make ;
 
-\ Below n fuel, buy m from the House here; it arrives when the hour's
-\ batch clears, so wait for it
+\ Below n fuel, buy m from the House here; its station drone sells at once
 : top-up ( n m -- )
   swap fuel units > if fuel buy-from-station drop 120 wait drop
   else drop then ;
@@ -39,8 +38,8 @@
 \ Sell up to n of a resource here: into the best buy order (a House
 \ station drone's, or another player's), at once, when it pays at least
 \ half what the House lists (a station drone bids less as its stock fills,
-\ down to half). What that order doesn't take goes to the station's hourly
-\ batch, while there is one
+\ down to half). What that order doesn't take it offers to the House
+\ station drone here
 : sell-best ( n resource -- )
   >r  r@ best-bid                               ( n price drone avail )
   dup 0>  3 pick  r@ 1 house-price 2 /  < 0=  and if
@@ -59,7 +58,7 @@
 \ --- Buying where it is cheapest (#380) ---------------------------------
 \ Buy up to n of a resource here where it is cheapest: another drone's sell
 \ order (best-offer) or the House station (house-price, side 2: what it
-\ asks). The House delivers when its batch clears, within the game hour.
+\ asks). Either way it pulls at once.
 \ A drone selling only a unit or two can't starve it: what the drone
 \ doesn't sell (or a pull that fails) it buys from the House
 : buy-cheapest ( n resource -- )
@@ -79,7 +78,7 @@
 \ --- Reading the market (#380) ------------------------------------------
 \ What the House paid a unit for a resource at a place over the last game
 \ day (query 681, the House's price board: place, units, credits,
-\ batches); 0 when it bought none there. Query 680, the players' board,
+\ trades); 0 when it bought none there. Query 680, the players' board,
 \ has the same layout
 : board-price ( resource place -- price )
   swap 681 ask 0 max begin dup while 1- dup 12 * answer +
@@ -157,7 +156,7 @@
 \ design needs: mining-kit or factory-kit (#380)
 6001 constant cruiser-kit   mining-kit constant my-kit
 \ Buy one of a good here unless one is aboard, and wait (up to 6 game
-\ hours) for it: the House delivers when the batch clears
+\ hours) for it, in case the House's station drone has none in stock yet
 : get-one ( resource -- )
   dup units if drop exit then
   dup 1 swap buy-from-station drop

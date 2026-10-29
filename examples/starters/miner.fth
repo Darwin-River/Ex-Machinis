@@ -30,7 +30,7 @@ variable copy
 
 \ Buy up to n of a resource here where it is cheapest: another drone's sell
 \ order (best-offer) or the House station (house-price, side 2: what it
-\ asks). The House delivers when its batch clears, within the game hour.
+\ asks). Either way it pulls at once.
 \ A drone selling only a unit or two can't starve it: what the drone
 \ doesn't sell (or a pull that fails) it buys from the House
 : buy-cheapest ( n resource -- )
@@ -44,8 +44,8 @@ variable copy
 \ Sell up to n of a resource here: into the best buy order (a House
 \ station drone's, or another player's), at once, when it pays at least
 \ half what the House lists (a station drone bids less as its stock fills,
-\ down to half). What that order doesn't take goes to the station's hourly
-\ batch, while there is one
+\ down to half). What that order doesn't take it offers to the House
+\ station drone here
 : sell-best ( n resource -- )
   >r  r@ best-bid                               ( n price drone avail )
   dup 0>  3 pick  r@ 1 house-price 2 /  < 0=  and if
@@ -105,7 +105,7 @@ variable copy
 \ this same program), and hand it the kit and 40 fuel
 6001 constant cruiser-kit
 \ Buy one of a good here unless one is aboard, and wait (up to 6 game
-\ hours) for it: the House delivers when the batch clears
+\ hours) for it, in case the House's station drone has none in stock yet
 : get-one ( resource -- )
   dup units if drop exit then
   dup 1 swap buy-from-station drop
@@ -140,7 +140,7 @@ variable copy
 : await-kit ( -- ) begin mining-kit units 0= while 60 wait drop repeat ;
 
 \ Sell the metals at the market, top up the tank from the House there (5 a
-\ unit, delivered when its batch clears), then go back to the site, only
+\ unit, at once), then go back to the site, only
 \ once hold-cap are aboard: until then other drones may buy them
 : sell-metals ( -- )
   metals hold-cap < if exit then

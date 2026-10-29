@@ -243,6 +243,78 @@ static ErrorCode_t protocol_plan_launch(ProtocolInfo_t *protocol)
 
 /** ****************************************************************************
 
+  @brief      Selling to and buying from the House (#380): [N R 31 perform]
+              and [N R 32 perform] trade with the House station drone where
+              the drone is, as a push into its buy order and a pull from its
+              sell order. Names that drone as the protocol's third parameter
+              (-3 in the effects), and trades as many as its order takes and,
+              selling, as the drone has (buying: as the company can pay for
+              and the hold can take), up to N. Refused where there
+              is no station drone, for N below 1, or when its order takes none.
+
+  @param[in|out]  protocol  The protocol, its two parameters read
+
+  @return     ENGINE_OK, or ENGINE_LOGIC_ERROR to refuse it
+
+*******************************************************************************/
+static ErrorCode_t protocol_plan_station(ProtocolInfo_t *protocol)
+{
+  if(protocol->protocol_id != SELL_TO_STATION_PROTOCOL_ID &&
+     protocol->protocol_id != BUY_FROM_STATION_PROTOCOL_ID)
+    return ENGINE_OK;
+
+  int units = protocol->parameters[1];
+  int station = 0;
+  if(units < 1) {
+    engine_trace(TRACE_LEVEL_ALWAYS, "Station trade of [%d] units refused: it must be at least 1", units);
+    return ENGINE_LOGIC_ERROR;
+  }
+  if(db_get_station_drone(engine_get_current_drone_id(), &station) != ENGINE_OK || station <= 0) {
+    engine_trace(TRACE_LEVEL_ALWAYS, "Station trade refused: no House station drone where drone [%d] is",
+      engine_get_current_drone_id());
+    return ENGINE_LOGIC_ERROR;
+  }
+  // As many as the station drone's order takes and, selling, as many as
+  // the drone has (buying: as many as the company can pay for and the hold
+  // can take), up to N: a push or pull of more would fail and move nothing
+  Bool_t buying = (protocol->protocol_id == BUY_FROM_STATION_PROTOCOL_ID) ? ENGINE_TRUE : ENGINE_FALSE;
+  long long room = 0, price = 0;
+  db_get_station_room(station, protocol->parameters[0], buying, &room, &price);
+  if(buying && price > 0) {
+    long long credits = 0;
+    db_get_drone_credits(engine_get_current_drone_id(), &credits);
+    if(credits / price < room)
+      room = credits / price;
+  }
+  if(buying) {
+    long long fit = 0;
+    db_get_units_that_fit(engine_get_current_drone_id(), protocol->parameters[0], &fit);
+    if(fit < room)
+      room = fit;
+  } else {
+    long long held = 0;
+    db_get_drone_units(engine_get_current_drone_id(), protocol->parameters[0], &held);
+    if(held < room)
+      room = held;
+  }
+  if(room < 1) {
+    engine_trace(TRACE_LEVEL_ALWAYS, "Station trade refused: the station drone [%d]'s order for resource [%d] "
+      "takes none now", station, protocol->parameters[0]);
+    return ENGINE_LOGIC_ERROR;
+  }
+  if(units > room) {
+    engine_trace(TRACE_LEVEL_ALWAYS, "Station trade: [%d] units asked, [%lld] taken", units, room);
+    protocol->parameters[1] = (int)room;
+  }
+  protocol->parameters[STATION_DRONE_PARAM] = station;
+  if(protocol->parameters_num <= STATION_DRONE_PARAM)
+    protocol->parameters_num = STATION_DRONE_PARAM + 1;
+  engine_trace(TRACE_LEVEL_ALWAYS, "Station trade with the House station drone [%d]", station);
+  return ENGINE_OK;
+}
+
+/** ****************************************************************************
+
   @brief      Checks a wait ([M 3 perform], #324 step 14) and times it: its
               wait event lands M game minutes from now, so perform returns
               then. The script pauses meanwhile and runs no instructions.
@@ -1115,6 +1187,9 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
 
   if(result == ENGINE_OK)
     result = protocol_plan_wait(&protocol);
+
+  if(result == ENGINE_OK)
+    result = protocol_plan_station(&protocol);
 
   if(result == ENGINE_OK) {
     protocol_plan_travel(&protocol);

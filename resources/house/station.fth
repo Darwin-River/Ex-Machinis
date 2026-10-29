@@ -58,7 +58,13 @@ create posted 200 allot
   dup listed over changed? 0= if drop exit then
   dup listed  over good fuel = if reserve else 0 then  rot good  sell-order drop ;
 
-: tend ( i -- ) dup buys? if post-bid else dup restock post-ask then ;
+\ Buy orders first: at the start of a world they are up before the stock
+\ it sells is brought up, one good at a time
+: bids ( -- )
+  #goods @ begin dup while 1- dup buys? if dup post-bid then repeat drop ;
+: asks ( -- )
+  #goods @ begin dup while 1- dup buys? 0= if dup restock dup post-ask then
+  repeat drop ;
 
 \ Once a game day, what it bought goes down to the surface
 variable shipped
@@ -71,8 +77,6 @@ variable shipped
 : fuel-up ( -- ) reserve 2 *  fuel units -  fuel import ;
 
 : round ( -- )
-  fuel-up load-goods
-  #goods @ begin dup while 1- dup tend repeat drop
-  ship ;
+  fuel-up load-goods bids asks ship ;
 
 : launched ( -- ) -1 shipped !  forget-orders  begin round 60 wait drop again ;
