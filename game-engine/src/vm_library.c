@@ -67,10 +67,6 @@ const char* vm_library_game_source =
     ": ask ( [n] id -- rows ) >r answer 120 r> query ;\n"
     ": me ( -- drone ) 205 ask drop answer @ ;\n"
     ": broadcast ( caddr -- ior ) 40 perform ;\n"
-    ": heard ( n -- f ) 690 ask 0> ;\n"
-    ": heard-company ( n -- f ) 691 ask 0> ;\n"
-    ": heard-from ( -- drone ) answer @ ;\n"
-    ": heard-text ( -- caddr ) answer 8 + ;\n"
     ": location ( -- place ) me 202 ask drop answer @ ;\n"
     ": units ( resource -- n ) 212 ask drop answer @ ;\n"
     ": unpack ( -- ior ) 5902 units if 25902 else 25901 then perform ;\n"
@@ -116,7 +112,14 @@ const char* vm_library_game_source =
     ": buy-from-station ( n resource -- ior ) buy-here ;\n"
     ": sell-to-station ( n resource -- ior ) sell-here ;\n"
     ": sell-all ( resource -- ) dup units ?dup if swap sell-here then drop ;\n"
-    ": stdlib ( -- version ) 15 ;\n";
+    "13 constant message-event\n"
+    ": events-here ( type -- n ) >r -1 -1 r> -1 -1 -1 -1 -1 -1 803 ask 0 max ;\n"
+    ": events-earth ( type -- n ) >r -1 -1 r> -1 -1 -1 -1 -1 -1 804 ask 0 max ;\n"
+    ": event-id ( i -- d ) 4 * answer + 2@ ;\n"
+    ": event-drone ( d -- drone ) 820 ask drop answer @ ;\n"
+    ": message ( d -- f ) 844 ask 0> ;\n"
+    ": crowd ( place -- n ) 721 ask drop answer @ ;\n"
+    ": stdlib ( -- version ) 16 ;\n";
 
 int vm_library_load(embed_t* vm)
 {
