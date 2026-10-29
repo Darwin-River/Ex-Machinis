@@ -54,6 +54,13 @@ class World
             $add(self::gameTimeOf($r->created_at), "{$r->company} released a new drone, {$r->name}{$how}.", 'spacecraft/' . $r->agent_id);
         }
 
+        // Broadcasts (#380): what drones said, for all to see
+        $said = DB::table('broadcasts as b')->leftJoin('agents as a', 'a.agent_id', '=', 'b.drone')
+            ->orderBy('b.id', 'desc')->limit($limit)->get(['b.drone', 'b.game_t', 'b.body', 'a.name']);
+        foreach ($said as $b) {
+            $add((int) $b->game_t, ($b->name ?? 'A drone') . ' broadcast: "' . $b->body . '"', 'spacecraft/' . $b->drone);
+        }
+
         $launches = DB::table('events')->where('event_type', 8)->where('outcome', 1)->orderBy('id', 'desc')->limit($limit)->get();
         $names = self::names('agents', 'agent_id', 'name', array_merge($launches->pluck('drone')->all(), $launches->pluck('new_quantity')->all()));
         foreach ($launches as $e) {

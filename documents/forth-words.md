@@ -40,6 +40,7 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 **`call-for-fuel ( price want -- )`**: stranded with little fuel and nobody selling it here, post a buy order for up to `want` fuel at `price` a unit and wait, two game hours at a time, until some has come. Waiting burns no fuel. Example: `15 60 call-for-fuel`.
 
 - Nothing in the game rescues a drone that runs dry: only the market does. Pay enough to make the trip worth a courier's while: well above what fuel sells for at the exchanges (see the price board, query 680), more the farther you are from one.
+- Tell the drones around you: `broadcast` a message ("Fuel wanted at Phobos, paying 15") so a courier listening with `heard` knows where to go.
 - **Fuel couriers** are the other side of this trade: drones that carry fuel to where others work and run low, look for fuel buy orders there (`fuel best-bid`) and push fuel into them for profit. Every stranded drone is a customer.
 
 ## Getting rid of goods
@@ -138,6 +139,8 @@ A drone that changes what it does as the market changes is easiest to write as a
 - One kit at a time: equipment fills 364 of a drone's 500 cargo, so both kits (40 each) don't fit at once with a tank of fuel.
 - If a kit is still aboard from a launch whose hand-over failed, `reinvest` hands it over first. A hull already bought is launched whenever the fuel allows, without checking credits again.
 - Launching (30 fuel) and equipping the clone (40) empty the tank: `reinvest` refills it to 60 afterwards. Without that, every parent in round 19 died on its way home.
+- A standing sell order for fuel keeps back only its limit: other drones buy everything above it, even while yours is busy. If the drone sells fuel and also launches clones, set the order's limit above what launching needs (80), or the tank never holds enough to launch (round 28: a factory's 3,000-credit hull sat unlaunched all round).
+- A clone takes days to pay back its 5,000 credits. Near the end of a round (`today`), stop reinvesting: two round 28 companies launched clones six days before the end and finished poorer for it.
 
 **`get-one ( resource -- )`**: buy one of a good here unless one is aboard, and wait for it in game-hour steps (up to 6). Sellers sell at once; the wait covers a seller that has none in stock until it brings more up.
 

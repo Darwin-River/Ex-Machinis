@@ -18,6 +18,7 @@
 #     pays the sales tax out of a sale,
 #   - a waiting drone runs no instructions but still sells, and a drone sees
 #     live orders only where it is,
+#   - a drone broadcasts a message and another drone hears it,
 #   - a drone's page shows its code, and a wreck's page has a post-mortem,
 #   - the home feed, the market, the map and the leaderboard show the world,
 #   - the Test button runs a script in the test world, not the live one,
@@ -329,8 +330,18 @@ fetch() { curl -fsS "$@" || echo "fetch failed: $*"; }
 grep -qF "kunspar 20 dig" <<<"$(fetch -b "$JAR" "http://localhost/release?starter=miner")" || fail "the Release page did not offer the miner starter"
 echo "ok: the Release page offers the starter scripts"
 run $FORGE_DRONE "game words" "stdlib . moon . kunspar . fuel units 0> . 3 trip 0> ."
-knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%14101100-1-1'")" ]; }
+knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%15101100-1-1'")" ]; }
 wait_for 60 "a drone knows the game words" knows_words
+
+# Broadcasts (#380): the released drone, at Earth, broadcasts a message; the
+# first drone hears it once light has carried it there (query 690)
+run $FORGE_DRONE "broadcast" ": hi \$\" smoke-hello\" ; hi broadcast ."
+said() { [ "$(sql "select count(*) from broadcasts where drone=$FORGE_DRONE and body='smoke-hello'")" = 1 ]; }
+wait_for 60 "a drone broadcast a message" said
+run $DRONE_ID "hear" "1 heard . heard-from . heard-text count type"
+heard() { [ -n "$(sql "select id from drone_messages where agent_id=$DRONE_ID and subject='hear' and body like '%$FORGE_DRONE%smoke-hello%'")" ]; }
+wait_for 60 "another drone heard the broadcast" heard
+echo "ok: drones broadcast messages that others hear"
 
 # The House fuel seller (#324 step 10; #380): the released drone, at Earth,
 # buys 10 fuel from the Earth Exchange's station drone like from any drone: a

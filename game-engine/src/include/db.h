@@ -699,6 +699,9 @@ ErrorCode_t db_get_event_object_id(Event_t *event, int *object_id);
 /** Whether a drone is on a trip at a game time: its move is still pending (#380) */
 Bool_t db_drone_in_transit(int drone_id, long long game_t);
 
+/** Records a broadcast: what a drone said, where it was and when (#380) */
+ErrorCode_t db_insert_broadcast(int action_id, int drone_id, const char* body, long long game_t);
+
 /** ****************************************************************************
 
     @brief          Deletes a given action

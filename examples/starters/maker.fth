@@ -66,7 +66,7 @@
 variable tells
 : tell ( -- )
   1 tells +!  tells @ 8 mod if exit then
-  ." credits " credits d. ." rods " rods units . ." fuel " fuel units . report ;
+  ." credits " credits d. ." rods " rods units . ."  fuel " fuel units . report ;
 
 : work ( -- )
   refuel stock-up forge-rods

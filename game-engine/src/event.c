@@ -1043,6 +1043,18 @@ static ErrorCode_t event_apply(Event_t *event)
         return db_update_event(event);
     }
 
+    // A broadcast (#380): the message is in broadcasts already; the event
+    // finishes the action and is observed like any other
+    if(result == ENGINE_OK && event->event_type == BROADCAST_EVENT_TYPE) {
+        event->outcome = OUTCOME_OK;
+        event->logged = 1;
+        event->new_cargo = NULL_VALUE;
+        event->new_credits = NULL_VALUE;
+        result = db_update_event(event);
+        if(result == ENGINE_OK) result = event_update_observations(event);
+        return result;
+    }
+
     // If move event, update drone location.  No further action required.
     if(result == ENGINE_OK && event->event_type == MOVE_EVENT_TYPE) {
 

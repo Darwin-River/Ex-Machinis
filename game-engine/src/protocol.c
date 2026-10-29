@@ -1074,6 +1074,21 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
 
   int stack_value;
 
+  // A broadcast (#380): read the message from the drone's memory now, while
+  // the address means something; printable characters only
+  char broadcast[BROADCAST_MAX_LEN + 1];
+  broadcast[0] = 0;
+  if(result == ENGINE_OK && protocol.protocol_id == BROADCAST_PROTOCOL_ID) {
+    int len = vm_extension_read_counted(vmExt, protocol.parameters[0], broadcast, BROADCAST_MAX_LEN);
+    for(int i = 0; i < len; i++)
+      if((unsigned char)broadcast[i] < 32 || (unsigned char)broadcast[i] > 126) len = -1;
+    if(len < 1) {
+      engine_trace(TRACE_LEVEL_ALWAYS, "Broadcast refused: no message of 1 to %d printable characters at [%d]",
+        BROADCAST_MAX_LEN, protocol.parameters[0]);
+      result = ENGINE_LOGIC_ERROR;
+    }
+  }
+
   // Protocols with the multiplier flag (push, pull) always take it, after
   // their parameters: N R D 10 perform (#315). Taking it only when the stack
   // had a value made perform eat a script's own values. Missing, it is a
@@ -1122,6 +1137,12 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
     result = protocol_process_effects(&protocol, action.action_id);
     ErrorCode_t flushed = protocol_flush_events(result == ENGINE_OK ? ENGINE_TRUE : ENGINE_FALSE);
     if(result == ENGINE_OK) result = flushed;
+  }
+
+  if(result == ENGINE_OK && protocol.protocol_id == BROADCAST_PROTOCOL_ID) {
+    game_time_load();
+    result = db_insert_broadcast(action.action_id, engine_get_current_drone_id(), broadcast,
+                                 game_time_now_seconds());
   }
 
   // perform leaves 0 on success or a negative code on failure (like an ior)

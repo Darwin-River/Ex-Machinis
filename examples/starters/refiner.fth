@@ -53,7 +53,12 @@ variable copy
 \ flying: in round 22 crowded Mars moons ran dry and five miners spent their
 \ last fuel flying between them
 : move-on ( -- )
-  site# @ 0= if 60 wait drop exit then
+  \ At the Moon, wait for the deposit to refill; after 6 dry tries in a row
+  \ (round 28: crowded by copies of this starter), try Phobos instead
+  site# @ 0= if
+    1 misses +!  misses @ 6 < fuel units 60 < or if 60 wait drop exit then
+    1 site# !  0 misses !  site go drop exit
+  then
   fuel units 15 < if rest wait drop exit then
   site# @ 3 xor site# !  1 misses +!
   misses @ 2 mod 0= if rest wait drop then

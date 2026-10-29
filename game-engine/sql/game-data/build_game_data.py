@@ -518,6 +518,20 @@ add_effects(WAIT_PROTOCOL, [
     {'time': 0, 'drone': 0, 'resource': FUEL, 'event_type': WAIT_EVENT, 'local': 1, 'installed': 0,
      'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': 0}])
 
+# Broadcasts (#380): [A 40 perform] posts the counted string at address A
+# (1 to 80 printable characters, e.g. from $" ...") as a message every drone
+# can read once light has carried it from where it was sent (queries 690 and
+# 691). The game engine reads the message and records it (broadcasts); the
+# broadcast event (type 13) finishes the action. It burns a unit of fuel.
+BROADCAST_PROTOCOL, BROADCAST_EVENT = '40', 13
+protocols[BROADCAST_PROTOCOL] = [BROADCAST_PROTOCOL, 'Broadcast', '1', '100',
+                                 '[A 40 perform]: Broadcasts the counted string at address A (1 to 80 printable '
+                                 'characters) to every drone: each hears it once light has carried it from here '
+                                 '(queries 690 and 691).', '1', '1', '0']
+add_effects(BROADCAST_PROTOCOL, [
+    {'time': 0, 'drone': 0, 'resource': FUEL, 'event_type': BROADCAST_EVENT, 'local': 1, 'installed': 0,
+     'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': 0}])
+
 # Wrecks and plunder (#324 step 12): a drone plunders the wreck W at the
 # place where it is (34). The plunder event (type 11) carries W; the events
 # engine checks it and moves the plunderer's share of the wreck's goods and
@@ -1137,6 +1151,29 @@ queries.append((682, 'Sales on a day',
                 "FROM trades t WHERE t.resource = [value_2] AND t.location IS NOT NULL "
                 f"AND {in_day('t.game_t')} GROUP BY t.location ORDER BY t.location;"))
 
+# Broadcasts heard (#380): the Nth newest message (1 = the newest) that has
+# reached the asking drone: light carries it from the place it was sent to
+# the place the drone is now (game seconds = km / c, from the stored
+# positions). 691 hears only the drone's own company. Columns: the sender,
+# its company, the place it was sent from, its age in game minutes, the text
+# (a counted string: answer 8 + count type).
+def heard(extra=''):
+    here = "(SELECT object_id FROM agents WHERE agent_id = [drone_id])"
+    light = ("IFNULL(SQRT(POW(f.x_coord - h.x_coord, 2) + POW(f.y_coord - h.y_coord, 2) + "
+             "POW(f.z_coord - h.z_coord, 2)) / 299792.458, 0)")
+    return ("SELECT drone, company, place, age, body FROM (SELECT b.drone, b.company_id AS company, "
+            "b.object_id AS place, LEAST(32767, FLOOR(([game_now] - b.game_t) / 60)) AS age, b.body, "
+            "ROW_NUMBER() OVER (ORDER BY b.game_t DESC, b.id DESC) AS n FROM broadcasts b "
+            f"LEFT JOIN objects f ON f.object_id = b.object_id LEFT JOIN objects h ON h.object_id = {here} "
+            f"WHERE b.game_t + {light} <= [game_now]{extra}) x WHERE n = [value_1];")
+queries.append((690, 'Broadcasts heard',
+                '[N R L 690 query]: The Nth newest broadcast (1: the newest) that has reached this drone at the '
+                'speed of light: sender, its company, place sent from, age in game minutes, text (a counted '
+                'string: answer 8 + count type). No row if fewer.', 1, heard()))
+queries.append((691, 'Company broadcasts heard',
+                '[N R L 691 query]: Like 690, for broadcasts from this drone\'s own company only.', 1,
+                heard(" AND b.company_id = (SELECT company_id FROM agents WHERE agent_id = [drone_id])")))
+
 # Queries whose money or volume columns are double cells: say so
 DOUBLE_QUERIES = {101, 600, 601, 610, 611, 612, 620, 621, 841}  # 630 says so itself
 queries = [(q[0], q[1], (q[2] if q[0] == 612 else q[2].rstrip() + ' Money and volumes are double cells (2@).')[:255],
@@ -1230,6 +1267,8 @@ lines.append('-- Event types the engines handle (8: launch a drone, #238)')
 lines.append("INSERT INTO `event_types` (id, name) VALUES (8, 'Launch drone') "
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')
 lines.append("INSERT INTO `event_types` (id, name) VALUES (9, 'Offer to station'), (10, 'Order from station') "
+             'ON DUPLICATE KEY UPDATE name = VALUES(name);')
+lines.append("INSERT INTO `event_types` (id, name) VALUES (13, 'Broadcast') "
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')
 lines.append("INSERT INTO `event_types` (id, name) VALUES (12, 'Wait') "
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')
