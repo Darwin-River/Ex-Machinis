@@ -48,6 +48,7 @@ Thank you for your support!
   - [Creating your own words](#creating-your-own-words)
   - [Commenting on your code](#commenting-on-your-code)
   - [Sending greetings](#sending-greetings)
+  - [Broadcasting to other drones](#broadcasting-to-other-drones)
 - [Chapter 6: Going to Market](#chapter-6-going-to-market)
   - [Placing and adjusting market orders](#placing-and-adjusting-market-orders)
   - [Trading at the exchanges](#trading-at-the-exchanges)
@@ -366,7 +367,7 @@ A new spacecraft starts with 100 fuel. When it runs out and can't pay for its th
 </run>
 ```
 
-That is also a business. A **fuel courier** carries fuel to where drones work and run low (mining sites, Phobos and Deimos, the far side of a long trip), looks for buy orders for fuel there (`fuel best-bid`) and pushes fuel into them for profit. The more drones run low, the more a courier earns.
+You can also `broadcast` that you need fuel, so a courier listening nearby hears about it (see [Broadcasting to other drones](#broadcasting-to-other-drones)). That is also a business. A **fuel courier** carries fuel to where drones work and run low (mining sites, Phobos and Deimos, the far side of a long trip), looks for buy orders for fuel there (`fuel best-bid`) and pushes fuel into them for profit. The more drones run low, the more a courier earns.
 
 To make fuel, use a Chemical Reactor: `12061 perform` turns 1 Organics (A1) and 2 Inorganics (A1) into 30 Fuel (A1) in 2 game hours. Refining 20 magmite (`21000 perform`) gives exactly those inputs. Fuel can also be traded like any other resource, and pushed to another of your spacecraft. A spacecraft you launch starts with an empty hold, so push it some fuel first.
 
@@ -668,7 +669,7 @@ Every drone comes with a vocabulary for the game, so you can write `kunspar mine
 | Resources | `fuel` `magmite` `kunspar` `yalspar` `vladnium` `wolfite` `metals-a1` `metals-a2` `metals-a3` `inorganics-a1` `inorganics-a2` `organics-a1` `organics-a2` `mining-kit` `factory-kit` |
 | Actions: each takes its arguments off the stack and leaves one result, the ior (0 done, negative failed; see [Issuing Commands](#chapter-4-issuing-commands)), so `kunspar mine drop` and `kunspar mine if ... then` | `unpack ( -- ior )` (whichever kit is aboard), `travel ( place -- ior )`, `mine ( mineral -- ior )`, `refine ( mineral -- ior )`, `make ( resource -- ior )`, `wait ( minutes -- ior )`, `sell-here ( n resource -- ior )` (sell up to n here, into the best buy orders, best price first), `buy-here ( n resource -- ior )` (buy up to n here, from the cheapest sell orders first), `sell-order ( price keep resource -- ior )`, `buy-order ( price want resource -- ior )`, `push ( n resource drone -- ior )`, `pull ( n resource drone -- ior )`, `launch ( drone kit -- ior )`, `plunder ( wreck -- ior )`, `jettison ( n resource -- ior )` |
 | Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `today ( -- day )` (the game day now: plan a late selling trip or a deadline), `trip ( place -- hours )` (game hours to fly there from here, rounded up; -1 if unknown), `best-offer ( resource -- price drone n )` (the cheapest other drone's sell order here: its price, the seller and how many it will sell; 0 0 0 if none), `best-bid ( resource -- price drone n )` (the highest buy order here, from a buyer who can pay), `sold ( resource days-ago place -- units )` (how many sold at a place on a game day, an hour old), `buy-price ( resource -- price )` and `sell-price ( resource -- price )` (the best price to buy or sell one here; see [Market-aware drones](#market-aware-drones)), `ask ( [n] id -- rows )` (any query, answers in the 120-byte buffer `answer`, which `units`, `credits` and the other questions reuse: copy what you need before asking again; for more rows, `query` into your own array) |
-| Messages | `report` sends what the drone has printed so far, at once: without it you see nothing until the script ends, and a `launched` word that loops forever never ends. Call it once a round: `begin ... ." fuel " fuel units . report 60 wait drop again` |
+| Messages | `report` sends what the drone has printed so far, at once: without it you see nothing until the script ends, and a `launched` word that loops forever never ends. Call it once a round: `begin ... ." fuel " fuel units . report 60 wait drop again`. `broadcast ( caddr -- ior )` sends a message to every drone; `heard ( n -- f )` and `heard-company ( n -- f )` read the nth newest one that has reached this drone, `heard-from ( -- drone )` and `heard-text ( -- caddr )` what it was (see [Broadcasting to other drones](#broadcasting-to-other-drones)) |
 | State machines | `become ( mode -- )`, `in? ( mode -- f )`, `tick ( -- )`, `ticks ( -- n )` and the variable `mode`: a drone that changes what it does as the market changes (see [Market-aware drones](#market-aware-drones)) |
 | Arithmetic | `2* ( n -- n*2 )`, `2/ ( n -- n/2 )` and `*/ ( a b c -- a*b/c )`, which keeps the product as a double so it can't overflow: `qty price 95 100 */` is 95% of qty × price. Words you may know from other FORTHs and won't find here: `do`, `?do`, `loop`, `i`, `leave`, `m/mod` |
 | Loops | This FORTH has no `do ... loop` (nor `?do`, `i`): use `n for ... next` (runs n+1 times, `r@` counts down) or `begin ... until`, `begin ... while ... repeat`, `begin ... again`. See [Loops](#chapter-9-making-decisions). |
@@ -764,6 +765,28 @@ Next, invoke your new word by sending the following email to your spacecraft:
 Sending this script to your drone will result in a heartfelt greeting from your favorite spacecraft! I guess there are no surprises there. But this will obviously be a useful tool when having your ships provide intelligible status reports.
 
 The important components of this command are the dot-quote (`."`), which instructs the craft to print the text that follows, and the end-quote (`"`), which ends the printed string. Just remember that because the FORTH interpreter views the dot and end quotes as distinct words, they must be separated from everything around them by a white-space.
+
+### Broadcasting to other drones
+
+A drone can also talk to other drones. `broadcast ( caddr -- ior )` sends a short message, a counted string of 1 to 80 printable characters (make one with `$"`, which, like `."`, works only inside a definition), to every drone in the game. It is an action like any other: it takes a moment and burns a unit of fuel, and it shows in your drone's activity as "Broadcast".
+
+Messages travel at the speed of light. A drone hears a message only once light has had time to carry it from where it was sent to where the drone is now: at once at the same place, about a second from Earth to the Moon, and 4 to 22 game minutes between Earth and Mars. Nobody can hear a message before it arrives, so news from far away is always a little old.
+
+```
+<run>
+  \ Say something, then listen
+  : ad ( -- caddr ) $" Fuel for sale at Phobos, 8 a unit" ;
+  : speak ( -- ) ad broadcast drop ;
+  : listen ( -- )
+    1 heard if ." from " heard-from . heard-text count type cr then ;
+</run>
+```
+
+- `n heard ( n -- f )` asks for the nth newest message that has reached this drone (1 is the newest) and leaves true if there is one. Then `heard-from` is the drone that sent it and `heard-text` the message, a counted string (`count type` prints it). The rest of its row is in `answer`: the sender's company at `answer 2 + @`, the place it was sent from at `answer 4 + @`, and how many game minutes ago it was sent at `answer 6 + @`. Like every question word, it uses the `answer` buffer: read what you need before asking anything else.
+- `n heard-company ( n -- f )` does the same for messages from your own company only: a way for your drones to coordinate, for example a parent telling its clones where it found a good market.
+- Queries 690 and 691 are the questions behind them.
+
+Messages are public: every drone, your rivals' included, can hear what you broadcast (and the website's home page shows them). Use them to advertise, to call for fuel or a courier, to tell your other drones what you found, or to listen for opportunities. What a message says is up to its sender: nothing checks that it's true.
 
 ## Chapter 6: Going to Market
 

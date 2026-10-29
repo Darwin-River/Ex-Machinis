@@ -285,3 +285,39 @@ Bool_t db_drone_in_transit(int drone_id, long long game_t)
     }
     return in_transit;
 }
+
+/** ****************************************************************************
+
+  @brief      Records a broadcast (#380): what a drone said, where it was and
+              when. Queries 690 and 691 deliver it at the speed of light.
+
+  @param[in]  action_id The broadcast action
+  @param[in]  drone_id  The drone that broadcast it
+  @param[in]  body      The message (at most BROADCAST_MAX_LEN printable chars)
+  @param[in]  game_t    When it was sent (game seconds)
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t db_insert_broadcast(int action_id, int drone_id, const char* body, long long game_t)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char escaped[2 * BROADCAST_MAX_LEN + 1];
+    DbConnection_t* connection = engine_get_db_connection();
+
+    if(!body) return ENGINE_INTERNAL_ERROR;
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK) return result;
+
+    mysql_real_escape_string(connection->hndl, escaped, body, strlen(body));
+    snprintf(query_text, sizeof(query_text),
+        "INSERT INTO broadcasts (action_id, drone, company_id, object_id, game_t, body) "
+        "SELECT %d, agent_id, company_id, object_id, %lld, '%s' FROM agents WHERE agent_id = %d",
+        action_id, game_t, escaped, drone_id);
+
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    return ENGINE_OK;
+}

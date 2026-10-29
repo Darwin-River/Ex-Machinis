@@ -79,6 +79,7 @@ best-offer
 bl
 blk
 block
+broadcast
 buy-from-station
 buy-here
 buy-order
@@ -145,6 +146,10 @@ forth-wordlist
 fuel
 get-order
 go
+heard
+heard-company
+heard-from
+heard-text
 here
 hex
 hld

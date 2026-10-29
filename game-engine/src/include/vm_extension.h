@@ -28,6 +28,11 @@ typedef int32_t sdc_t;   /**< signed double cell type */
 struct vm_extension_t;
 typedef struct vm_extension_t VmExtension_t;
 
+/** Reads the counted string at a byte address of the drone's memory into out
+    (NUL-terminated, at most max characters; longer strings are refused).
+    Returns its length, or -1 when it can't be read (#380: broadcasts). */
+int vm_extension_read_counted(VmExtension_t* v, int addr, char* out, int max);
+
 typedef int (*embed_callback_extended_t)(VmExtension_t *v);
 
 typedef struct

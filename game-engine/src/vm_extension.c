@@ -773,3 +773,24 @@ ErrorCode_t vm_extension_push(VmExtension_t* vmExt, int inValue)
 
   return ENGINE_FORTH_EVAL_ERROR;
 }
+
+
+/** ****************************************************************************
+
+  @brief      Reads a counted string from the drone's memory (#380: broadcasts)
+
+*******************************************************************************/
+int vm_extension_read_counted(VmExtension_t* v, int addr, char* out, int max)
+{
+    unsigned char len = 0;
+    if(!v || !out || addr < 0 || addr > 0xFFFF) return -1;
+    if(vm_read_byte((VirtualMachine_t*)v->h, (uint16_t)addr, &len) != ENGINE_OK) return -1;
+    if(len > max) return -1;
+    for(int i = 0; i < len; i++) {
+        unsigned char c = 0;
+        if(vm_read_byte((VirtualMachine_t*)v->h, (uint16_t)(addr + 1 + i), &c) != ENGINE_OK) return -1;
+        out[i] = (char)c;
+    }
+    out[len] = 0;
+    return len;
+}
