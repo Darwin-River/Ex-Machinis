@@ -170,6 +170,10 @@ From round 21, four naive agents join each round as new players would: they get 
 
 ## Round log
 
+### After round 27: the batch stations retired (#380)
+
+`sell-to-station` and `buy-from-station` (protocols 31 and 32) now trade at once with the House station drone where the drone is, as a push and a pull: as many as its order takes and the drone has (buying: as the company can pay for and the hold can take). A scratch world of 20 starters and 6 company designs on the new engine, to game day 6: the station drones sold 1,817 units and bought 746 (metals, inorganics, 44 rods), players traded 156 units with each other, nothing was offered to a batch, and no drone was wrecked. The only refused sales were the Machinists' gear boxes before day 7, when the Earth Exchange starts buying them.
+
 ### Round 27: the House trades as drones (#380)
 
 A fresh world with House station drones at the three exchanges beside the batch stations: the Earth Exchange, Moon Depot and Mars Exchange as drones (huge holds, Import and Export modules), trading by the players' rules. 60 starters, plus 18 Chemists, 9 Smiths, 6 Machinists and 6 Adaptive, to game day 40.2 (the container restarted at day 7.5 and the world came back at day 13.9). Four newcomers joined.
