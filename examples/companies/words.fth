@@ -103,14 +103,15 @@
 \ the best bid while stock piles up (more than 16), and halfway between
 \ otherwise; 0 where nobody sells it. Call reoffer every
 \ round, so a standing sell order follows its own sales (round 25's miners
-\ priced once, too low, and demand outran them)
+\ priced once, too low, and demand outran them). ?sell-order posts only
+\ when the price changed: each post costs a fuel
 : smart-ask ( resource -- price )
   dup buy-price ?dup 0= if drop 0 exit then          ( resource ask )
   over sell-price  ?dup 0= if dup 2 / then           ( resource ask pay )
   rot units  dup 4 < if 2drop 1- exit then
   16 > if nip 1+ exit then
   + 2 / ;
-: reoffer ( resource -- ) dup smart-ask ?dup if 0 rot sell-order drop else drop then ;
+: reoffer ( resource -- ) dup smart-ask ?dup if 0 rot ?sell-order drop else drop then ;
 
 \ --- State machines (#380) ----------------------------------------------
 \ The game words become, in?, tick and ticks keep a drone's mode. A
