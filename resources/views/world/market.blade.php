@@ -11,7 +11,7 @@
             </div>
 
             <h3>Order book</h3>
-            <div style="white-space: normal; margin-bottom: 1em">The cheapest sell orders and the best buy orders.
+            <div style="white-space: normal; margin-bottom: 1em">For each resource, the cheapest sell order and the best buy order at each place.
                 Full lists: <a href="{{ url('sells') }}">sell orders</a>, <a href="{{ url('buys') }}">buy orders</a>.</div>
             @foreach(['Selling' => $sells, 'Buying' => $buys] as $title => $orders)
                 <h4>{{ $title }}</h4>

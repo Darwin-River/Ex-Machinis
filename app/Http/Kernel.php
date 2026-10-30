@@ -39,7 +39,7 @@ class Kernel extends HttpKernel
         ],
 
         'api' => [
-            'throttle:60,1',
+            // Each route sets its own limit (routes/api.php)
             'bindings',
         ],
     ];

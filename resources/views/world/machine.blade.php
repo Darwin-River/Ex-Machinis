@@ -33,6 +33,19 @@
                                 <option value="{{ $v->drone }}" {{ (int) $v->drone === $drone ? 'selected' : '' }}>{{ $v->place }} (drone {{ $v->drone }})</option>
                             @endforeach
                         </select>
+                        <div id="m-station-warning" data-stations="{{ json_encode($stations) }}" style="white-space: normal; color: #c0392b; {{ in_array($drone, $stations, true) ? '' : 'display:none' }}">
+                            Drone <span id="m-station-id">{{ $drone }}</span> is a House station drone. A drone doesn't see its own orders, so
+                            asking as it shows its station's buy and sell prices as 0 or missing. Pick a player's drone at the same place.
+                        </div>
+                        <script>
+                            (function () {
+                                var w = document.getElementById('m-station-warning'), ids = JSON.parse(w.dataset.stations);
+                                var check = function (v) { v = parseInt(v, 10); w.style.display = ids.indexOf(v) >= 0 ? '' : 'none';
+                                    document.getElementById('m-station-id').textContent = v; };
+                                document.getElementById('m-drone').addEventListener('input', function () { check(this.value); });
+                                document.getElementById('m-vantage').addEventListener('change', function () { if (this.value) check(this.value); });
+                            })();
+                        </script>
                     </div>
                     <label for="m-limit"><b>Run at most</b> (instructions)</label>
                     <input id="m-limit" type="number" value="1000000" min="1" style="width:100%">

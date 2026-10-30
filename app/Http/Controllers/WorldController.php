@@ -40,11 +40,14 @@ class WorldController extends Controller
         $word = (string)$request->query('word', 'cube');
         // Live data (#380): a working drone at each place to ask as
         $vantages = \Illuminate\Support\Facades\DB::table('agents as a')->join('objects as o', 'o.object_id', '=', 'a.object_id')
-            ->whereNull('a.wrecked_at')->groupBy('a.object_id', 'o.object_name')
+            ->whereNull('a.wrecked_at')->whereNull('a.station_id')->groupBy('a.object_id', 'o.object_name')
             ->orderByRaw('COUNT(*) DESC')->limit(12)
             ->get([DB::raw('MAX(a.agent_id) AS drone'), 'o.object_name AS place']);
         $drone = (int) $request->query('drone', $vantages->first()->drone ?? 0);
-        return view('world.machine', compact('defs', 'start', 'word', 'vantages', 'drone'));
+        // A station drone's own orders are left out of what it sees, so asking
+        // as one shows its station's prices as 0 (round 30): the page warns
+        $stations = DB::table('agents')->whereNotNull('station_id')->pluck('agent_id')->map(fn ($id) => (int) $id)->all();
+        return view('world.machine', compact('defs', 'start', 'word', 'vantages', 'drone', 'stations'));
     }
 
     /** The game's queries: how many parameters each takes (#380) */

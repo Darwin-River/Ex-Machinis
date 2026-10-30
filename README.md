@@ -113,7 +113,7 @@ DB_HOST=127.0.0.1 DB_PASSWORD=... vendor/bin/phpunit
 
 ### Deploying
 
-The easiest way to set up a server is Docker: [deploy/README.md](deploy/README.md). One script starts the website, database and both engines, then prints the DNS record to add.
+The easiest way to set up a server is Docker: [deploy/README.md](deploy/README.md), and [documents/hosting.md](documents/hosting.md) for a step-by-step guide to hosting, updating and backing up the public game. One script starts the website, database and both engines, then prints the DNS record to add.
 
 For a manual install (Apache with `html/` as the web root, and cron), see [documents/install.md](documents/install.md). Its mail server sections are only for the old email game.
 

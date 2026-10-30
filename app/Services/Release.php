@@ -184,6 +184,24 @@ class Release
     }
 
     /** A script must define the word launched (case matters) */
+    /**
+     * Why a script can't be released, or null: it must define launched, and
+     * no line may be longer than the drone reads. The Release page and the
+     * API (#380) both check this.
+     */
+    public static function scriptProblem(string $script): ?string
+    {
+        foreach (explode("\n", $script) as $i => $line) {
+            if (mb_strlen($line) > \App\Command::MAX_CODE_LENGTH) {
+                return 'Line ' . ($i + 1) . ' is too long: split it into shorter lines.';
+            }
+        }
+        if (!self::definesLaunched($script)) {
+            return 'Your script must define the word launched (": launched ... ;"): your drone runs it once it is released.';
+        }
+        return null;
+    }
+
     public static function definesLaunched(string $script): bool
     {
         return preg_match('/(^|\s):\s+launched(\s|$)/', $script) === 1;

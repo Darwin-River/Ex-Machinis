@@ -462,6 +462,10 @@ echo "ok: the home feed, market and map show the world"
 grep -qF "$(sql "select name from companies where company_id=$COMPANY")" <<<"$(fetch http://localhost/leaderboard)" || fail "the leaderboard doesn't list the first company"
 [ "$(sql "select count(*) from wealth_snapshots where company_id is not null")" -ge 1 ] || fail "no wealth snapshot was taken"
 echo "ok: the leaderboard ranks the companies, and wealth snapshots are taken"
+# The JSON API (#380): a drone and the clock, as programs see them
+grep -qF "\"id\":$FORGE_DRONE," <<<"$(fetch "http://localhost/api/v1/drones/$FORGE_DRONE")" || fail "the API doesn't show the drone"
+grep -qF '"game_day"' <<<"$(fetch http://localhost/api/v1/clock)" || fail "the API doesn't give the clock"
+echo "ok: the API shows the drone and the clock"
 
 # Test world (#324 step 7): start its engines and turn on the Test button,
 # then test a script. It runs in the test world's own database, with a faster

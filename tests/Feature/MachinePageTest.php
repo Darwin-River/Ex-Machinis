@@ -33,6 +33,23 @@ class MachinePageTest extends TestCase
             ->assertSee('value="twice"', false);
     }
 
+    public function testMachinePageWarnsWhenAskingAsAStationDrone()
+    {
+        // Round 30: a drone doesn't see its own orders, so asking as a
+        // station drone showed its station's prices as 0 with no warning
+        $user = User::create(['name' => 'Forge Player', 'email' => 'm@example.com', 'password' => bcrypt('secret-password')]);
+        $station = Release::release($user, 'Stand-in Station', ': launched ;');
+        $player = Release::release($user, 'Players', ': launched ;');
+        DB::table('stations')->insert(['id' => 903, 'name' => 'Test Exchange', 'object_id' => 3, 'budget_cap' => 0, 'refill_per_day' => 0]);
+        DB::table('agents')->where('agent_id', $station->agent_id)->update(['station_id' => 903]);
+
+        $page = $this->get('/machine?drone=' . $station->agent_id)->assertOk()->assertSee('is a House station drone')->getContent();
+        $this->assertDoesNotMatchRegularExpression('/id="m-station-warning"[^>]*display:none/', $page, 'shown for a station drone');
+        $page = $this->get('/machine?drone=' . $player->agent_id)->assertOk()->getContent();
+        $this->assertMatchesRegularExpression('/id="m-station-warning"[^>]*display:none/', $page, 'hidden for a player\'s drone');
+        $this->assertStringNotContainsString('value="' . $station->agent_id . '" ', $page, 'not offered as a place to ask from');
+    }
+
     public function testTheVmIsServed()
     {
         $this->assertFileExists(base_path('html/wasm/machine.wasm'));
