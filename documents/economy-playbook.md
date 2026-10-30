@@ -151,6 +151,11 @@ From round 21, four naive agents join each round as new players would: they get 
 | 29 | Ines (manufacturer) | Moon factory picking the best recipe per hour from live prices (polymers, alloys), brewing its own fuel; +10,370 avg | 7 | 6 | – | 7 | 6 | – | 7 |
 | 29 | Jude (casual) | Stock Miner, then one tweaked to mine the richer of kunspar and wolfite, sell Inorganics (A2) and wait out 30 dry tries; +7,163 avg | 7 | 6 | – | 7 | 7 | – | 7 |
 | 29 | **Average** | | 7.25 | 6.5 | – | 6.75 | 6.5 | – | 7.25 |
+| 30 | Kira (strategist) | State machine pricing three recipes from live bids; an Earth factory nobody else stayed at, and a Moon fuel depot asking 4 that cloned to Earth (#2 on the leaderboard); +14,036 avg | 8 | 7 | – | 7 | 7 | – | 8 |
+| 30 | Leo (supplier) | Fuel depots: one at the Moon (14,222 credits), one at Mars's moons that arrived late; +8,121 avg | 7 | 7 | – | 6 | 7 | – | 7 |
+| 30 | Mara (fleet and messages) | Fuel brewers whose clones chose sites from their siblings' broadcasts and answered other companies' fuel calls; the parent wrecked on fuel after its launch; +5,075 avg | 7 | 6 | – | 6 | 7 | – | 7 |
+| 30 | Nico (casual) | The Chemist example at the Moon, then the same script at Earth; +5,401 avg | 7 | 5 | – | 4 | 7 | – | 6 |
+| 30 | **Average** | | 7.25 | 6.25 | – | 5.75 | 7.0 | – | 7.0 |
 
 **Round 21 findings, and what changed:**
 - *They couldn't see their drones.* A drone's output arrives when its script ends, and `launched` never ends. The engine has a `report` word that sends it at once, but the manual never mentioned it (three of the four even redefined it). Now the manual documents it and the starters call it every 8th round.
@@ -180,9 +185,36 @@ From round 21, four naive agents join each round as new players would: they get 
 
 **Round 29 findings:** with broadcasts and crowd counts, would play again reached 7.5 and the overall rating 7.25, the best yet. The crowd count (`crowd`, query 721) was the most used new word: Hal and Gia chose their sites by it, though Hal's hauler picked an empty Phobos at launch and found 7 drones there 10 days later. Broadcasts worked (58 messages) but only Gia's drones sent any and nobody listened; with one fuel wreck in 108 companies there were no stranded customers for a fuel courier, and Gia earned by selling fuel cheaply instead. Players traded 24,701 units with each other (fuel 17,050 at 3.6). Fixed during the round: order lists showed drones that had already left, so pushes and pulls reached for a seller in flight (lists now leave out a drone with a pending move); the Machine's `perform` left a push or pull's amount on the stack; the starter Miner mined only kunspar while wolfite, which makes 6 units from 18 against kunspar's 4 from 20, sat untouched (it now mines the richer of the two and sells Inorganics (A2), as Jude's tweak did); the manual now gives `$"`'s 63-character limit, says the price words ask the game every call, and advises deciding a drone's next job on arrival. Open: the Miner's six dry tries still send it on a 10-day trip early, a `-13?` error doesn't name the undefined word, and testers asked for announced demand, a deposits view and starters that broadcast and listen.
 
-**What they liked best** (all nine rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
+**Round 30 findings:** with the Strategy Blog, every newcomer gained (+5,075 to +14,036 avg) and Kira 2 finished second of 108 companies. Would play again averaged 7.25 and depth rose to 7.0, the best yet; feedback fell to 5.75. The blog shaped every plan: "go where nobody is" sent Kira and Nico to Earth, which the Chemists' script leaves, and Mara 2 to Mars's moons; the state-machine and messages posts gave code they copied. Broadcasts took off (129, against 58): Mara's clones read their siblings' announcements and chose different sites, and her far drone flew between Phobos and Deimos answering other companies' fuel calls, which the starters now send (35). Players traded 32,392 units with each other (fuel 23,938 at 3.6), more than the station drones bought. One wreck: Mara 1's parent, which launched a clone, pushed it 40 fuel, and spent its last unit posting a sell order, with fuel ingredients aboard. Found: no station posted a rod buy order this round, though the Maker starter, the Adaptive design and the blog assume Earth pays about 225; the Machine run as a station drone shows that station's prices as 0 with no warning; the blog's `bid-for` (`sell-price 1+`) raises its own bid every call once it is the best; a variable named `ask` shadows the game word without a warning; one seller can halve a station's bid (Mars polymers 70 to 35) and nothing says how fast it recovers. Asked for by most: starters for beginners with 3 or 4 labelled numbers, reports on a game-hour timer, estimated profit per recipe from live prices, station demand that moves more over a round, a checker warning when a launch or push can leave too little fuel, and drones in transit counted by `crowd`.
+
+**What they liked best** (all ten rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
 ## Round log
+
+### Round 30: the Strategy Blog (#380)
+
+A fresh world with the Strategy Blog, the undefined-word warning, a deposits table and starters that call for fuel: 60 starters, plus 18 Chemists, 9 Smiths, 6 Machinists and 6 Adaptive, to game day 40. Four newcomers joined.
+
+| Design | Kit | Avg gain | Clones |
+|---|---|---|---|
+| Machinist | Factory | +16,979 | 14 |
+| Maker (starter) | Factory | +9,048 | 0 |
+| Adaptive | Factory | +6,541 | 0 |
+| Smith | Factory | +6,221 | 7 |
+| Miner | Mining | +6,094 | 23 |
+| Refiner | Mining | +4,821 | 7 |
+| Chemist | Factory | +3,343 | 6 |
+| Trader | Mining | +143 | 0 |
+
+| Trades | Units |
+|---|---|
+| Station drones selling | 30,699 |
+| Station drones buying | 18,208 |
+| Player to player | 32,392 |
+
+- **Broadcasts**: 129 (Mara 72, Kira 22, the starters' fuel calls 35). Mara's drones listened and answered.
+- **One wreck** (fuel, Mara 1's parent after a launch) and no company ended, out of 108.
+- **No rod buyers**: the Maker starters still gained most of the starters, from polymers and alloys.
 
 ### Round 29: messages and crowd counts (#380)
 

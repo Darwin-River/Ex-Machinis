@@ -368,7 +368,7 @@ A new spacecraft starts with 100 fuel. When it runs out and can't pay for its th
 </run>
 ```
 
-You can also `broadcast` that you need fuel, so a courier listening nearby hears about it (see [Broadcasting to other drones](#broadcasting-to-other-drones)). That is also a business. A **fuel courier** carries fuel to where drones work and run low (mining sites, Phobos and Deimos, the far side of a long trip), looks for buy orders for fuel there (`fuel best-bid`) and pushes fuel into them for profit. The more drones run low, the more a courier earns.
+The buy order is the call: a seller sees it in the market (`fuel best-bid`, the order lists), so there's no need to broadcast as well. Selling into such bids is also a business. A **fuel courier** carries fuel to where drones work and run low (mining sites, Phobos and Deimos, the far side of a long trip), looks for buy orders for fuel there (`fuel best-bid`) and pushes fuel into them for profit. The more drones run low, the more a courier earns.
 
 To make fuel, use a Chemical Reactor: `12061 perform` turns 1 Organics (A1) and 2 Inorganics (A1) into 30 Fuel (A1) in 2 game hours. Refining 20 magmite (`21000 perform`) gives exactly those inputs. Fuel can also be traded like any other resource, and pushed to another of your spacecraft. A spacecraft you launch starts with an empty hold, so push it some fuel first.
 
@@ -791,7 +791,7 @@ Both leave how many events they found; `n event-id ( i -- d )` is the ith of the
 </run>
 ```
 
-To hear only your own company, check the sender's company (query 201 on `event-drone`). Messages are public: every drone, your rivals' included, can read what you broadcast (and the website's home page shows them). Use them to advertise, to call for fuel or a courier, to tell your other drones what you found, or to listen for opportunities. What a message says is up to its sender: nothing checks that it's true.
+To hear only your own company, check the sender's company (query 201 on `event-drone`). Messages are public: every drone, your rivals' included, can read what you broadcast (and the website's home page shows them). Use them to advertise, to tell your other drones what you found, or to listen for opportunities. What a message says is up to its sender: nothing checks that it's true.
 
 **How crowded is it?** `crowd ( place -- n )` is how many working drones are at a place now (query 721 also gives its wrecks). A place with dozens of drones mining the same deposit or selling the same goods is a place where prices are low; a quiet one may be an opportunity.
 
