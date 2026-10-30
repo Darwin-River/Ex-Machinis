@@ -101,18 +101,8 @@ class ReleaseController extends Controller
         $request->validate($rules);
 
         $script = str_replace("\r\n", "\n", $request->input('script'));
-        $errors = [];
-        if (!Release::definesLaunched($script)) {
-            $errors['script'] = 'Your script must define the word launched (": launched ... ;"): your drone runs it once it is released.';
-        }
-        foreach (explode("\n", $script) as $i => $line) {
-            if (mb_strlen($line) > \App\Command::MAX_CODE_LENGTH) {
-                $errors['script'] = 'Line ' . ($i + 1) . ' is too long: split it into shorter lines.';
-                break;
-            }
-        }
-        if ($errors) {
-            return back()->withErrors($errors)->withInput();
+        if ($problem = Release::scriptProblem($script)) {
+            return back()->withErrors(['script' => $problem])->withInput();
         }
         return $script;
     }

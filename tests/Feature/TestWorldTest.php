@@ -35,6 +35,19 @@ class TestWorldTest extends TestCase
         return DB::connection('testworld');
     }
 
+    public function testTheApiStartsATestRunAndReadsItsResults()
+    {
+        // The JSON API (#380) does what the Test button does
+        $liveCompanies = Company::count();
+        $run = $this->postJson('/api/v1/test', ['script' => self::SCRIPT])->assertCreated()
+            ->assertJsonStructure(['token', 'results', 'page'])->json();
+        $this->assertEquals($liveCompanies, Company::count(), 'a test run must not touch the live world');
+        $this->getJson('/api/v1/test/' . $run['token'])->assertOk()
+            ->assertJsonStructure(['drone', 'credits', 'wrecked', 'crashes', 'messages', 'events', 'trades']);
+        $this->getJson('/api/v1/test/0123456789abcdef')->assertNotFound();
+        $this->postJson('/api/v1/test', ['script' => ': nothing ;'])->assertStatus(422);
+    }
+
     public function testTestRunGoesToTheTestWorldOnly()
     {
         $liveCompanies = Company::count();

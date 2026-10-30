@@ -8,7 +8,7 @@ This guide runs the public game on one rented Linux server with Docker. It cover
 - backing it up;
 - restoring it, on the same server or a new one.
 
-[deploy/README.md](../deploy/README.md) is the short reference for the Docker setup, and this guide builds on it.
+[deploy/README.md](../deploy/README.md) is the short reference for the Docker setup, and this guide builds on it. Players' tools and AI agents play through the [API](api.md) at `https://<domain>/api/v1`, which needs no setup.
 
 ## Contents
 

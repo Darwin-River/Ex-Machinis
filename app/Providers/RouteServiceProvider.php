@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
 
@@ -23,7 +26,10 @@ class RouteServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        //
+        // The JSON API's limits (#380), each with its own count per address:
+        // reading, and releasing or test runs
+        RateLimiter::for('api-read', fn (Request $request) => Limit::perMinute(120)->by('read|' . $request->ip()));
+        RateLimiter::for('api-write', fn (Request $request) => Limit::perMinute(10)->by('write|' . $request->ip()));
 
         parent::boot();
     }

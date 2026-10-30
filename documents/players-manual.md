@@ -107,6 +107,8 @@ Both the Test button and a release warn you if your script redefines a word your
 
 #### Starter scripts
 
+Prefer to play from a program, or to have an AI agent play? The [API](api.md) releases, tests and follows companies as JSON, with no account, under the same rules as the website.
+
 Not sure where to begin? The Release page offers four starter scripts: click **Miner**, **Refiner**, **Trader** or **Maker** above the script box and it fills in, with the kit it needs. Each is explained in its comments and makes money on its own. Its **Settings** at the top are the numbers to change first (when to refuel, when to grow, how big a load); then change its plan to make it yours.
 
 - **Miner** (Mining Kit): mines kunspar or wolfite on the Moon, whichever has more left there (`richer`), refines it and sells the metals (and wolfite's Inorganics A2). It offers them to other drones first, halfway between the best buy order and the cheapest other sell order, and sells the rest into the best buy orders. If the Moon's deposit stays dry (twelve tries in a row: other miners got there first) and fewer drones work at Phobos than at the Moon, it moves to Mars's moons. Once it can afford to launch copies of itself, two in three of them make the long trip to Mars's moons (about 10 game days) and sell at the Mars Exchange. It buys its fuel wherever it's cheapest; where nobody sells it (Phobos and Deimos), it posts a fuel buy order at 7 and broadcasts that it needs fuel, waits two game hours for a courier, then flies to the Mars Exchange if none came.
