@@ -148,23 +148,29 @@ class World
 
     /**
      * The open orders (sell: event type 4, stock above the kept minimum; buy:
-     * 5, stock below the wanted maximum), best price first
+     * 5, stock below the wanted maximum): the best one for each resource at
+     * each place, by resource. Round 30: a plain top 25 by resource ID left
+     * out everything past the metals, so nobody saw Earth's rod buyer.
      */
-    public static function orders(int $type, int $limit = 25): array
+    public static function orders(int $type, int $limit = 300): array
     {
         $open = $type === 4 ? 'IFNULL(i.units, 0) - e.new_quantity > 0' : 'e.new_quantity - IFNULL(i.units, 0) > 0';
+        $best = $type === 4 ? 'ASC' : 'DESC';
         $rows = DB::select(
-            "SELECT e.drone, a.name AS drone_name, e.resource, r.name AS resource_name, e.new_credits AS price,
-                    ABS(IFNULL(i.units, 0) - e.new_quantity) AS units, o.object_name AS place
-             FROM events e
-             JOIN (SELECT MAX(id) AS id FROM events WHERE event_type = ? AND outcome = 1 GROUP BY drone, resource) l ON l.id = e.id
-             JOIN agents a ON a.agent_id = e.drone AND a.wrecked_at IS NULL
-             LEFT JOIN resources r ON r.id = e.resource
-             LEFT JOIN objects o ON o.object_id = a.object_id
-             LEFT JOIN sqInventory i ON i.drone = e.drone AND i.resource = e.resource
-             WHERE $open ORDER BY e.resource, e.new_credits " . ($type === 4 ? 'ASC' : 'DESC') . ' LIMIT ' . (int) $limit,
+            "SELECT * FROM (
+               SELECT e.drone, a.name AS drone_name, e.resource, r.name AS resource_name, e.new_credits AS price,
+                      ABS(IFNULL(i.units, 0) - e.new_quantity) AS units, o.object_name AS place,
+                      ROW_NUMBER() OVER (PARTITION BY e.resource, a.object_id ORDER BY e.new_credits $best, e.id) AS n
+               FROM events e
+               JOIN (SELECT MAX(id) AS id FROM events WHERE event_type = ? AND outcome = 1 GROUP BY drone, resource) l ON l.id = e.id
+               JOIN agents a ON a.agent_id = e.drone AND a.wrecked_at IS NULL
+               LEFT JOIN resources r ON r.id = e.resource
+               LEFT JOIN objects o ON o.object_id = a.object_id
+               LEFT JOIN sqInventory i ON i.drone = e.drone AND i.resource = e.resource
+               WHERE $open) b
+             WHERE n = 1 ORDER BY resource, place LIMIT " . (int) $limit,
             [$type]);
-        return array_map(fn ($r) => (array) $r, $rows);
+        return array_map(function ($r) { $r = (array) $r; unset($r['n']); return $r; }, $rows);
     }
 
     /**

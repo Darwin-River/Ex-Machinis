@@ -1,18 +1,21 @@
-\ Miner: a starter script for Public Forge (#324 step 15). Release it with
+\ Miner: a starter script for Public Forge. Release it with
 \ the Mining Kit (Engine, Worm and Refinery).
 \ It mines kunspar or wolfite, whichever has more left where it works,
 \ refines it and sells the metals (and wolfite's Inorganics A2). Copies spread out: a
 \ third work the Moon and sell at the Moon Depot; the rest work Phobos and
 \ Deimos (Mars's moons), moving between them as deposits run low, and sell
 \ at the Mars Exchange, where buyers have paid more. It offers its metals
-\ to other drones first (#380): the makers, whose factory kit can't mine,
+\ to other drones first: the makers, whose factory kit can't mine,
 \ buy their metals from whoever sells them cheapest. So it asks halfway
 \ between the best bid and the cheapest other seller here, and sells what
 \ nobody bought into the best buy orders when it goes to market.
 \ Its kit has no Chemical Reactor to brew fuel: it buys fuel wherever it is
-\ cheapest. Change the numbers to make it your own.
+\ cheapest.
 
+\ Settings: change these numbers to make it your own
 40 constant low-fuel     \ get fuel when below this
+12 constant dry-tries    \ dry tries at the Moon before trying Phobos
+7000 constant grow-at    \ credits at which it buys and launches a copy
 240 constant rest        \ game minutes to rest when both Mars moons are dry
 16 constant hold-cap     \ metals it keeps on offer to other drones
 
@@ -64,15 +67,13 @@ variable copy
 
 \ A low deposit: at the Moon, wait for it to refill; at Mars, try the other
 \ moon, and rest after both are mined out. Short of fuel, rest instead of
-\ flying: in round 22 crowded Mars moons ran dry and five miners spent their
-\ last fuel flying between them
+\ flying, so a drone doesn't spend its last fuel between two dry moons
 : move-on ( -- )
-  \ At the Moon, wait for the deposit to refill. After 12 dry tries in a
-  \ row (round 28: crowded by copies of this starter), try Phobos, if fewer
-  \ drones work there (round 29: six tries sent it on a 10-day trip early)
+  \ At the Moon, wait for the deposit to refill. After dry-tries dry tries
+  \ in a row, try Phobos, if fewer drones work there
   site# @ 0= if
     1 misses +!
-    misses @ 12 < fuel units 60 < or phobos crowd moon crowd < 0= or
+    misses @ dry-tries < fuel units 60 < or phobos crowd moon crowd < 0= or
     if 60 wait drop exit then
     1 site# !  0 misses !  site go drop exit
   then
@@ -111,7 +112,7 @@ variable copy
 : offer ( -- )
   metals-a1 offer-one metals-a2 offer-one metals-a3 offer-one inorganics-a2 offer-one ;
 
-\ Growth (#380): with 7,000 credits or more, at an exchange, buy a Mining
+\ Growth: with grow-at credits or more, at an exchange, buy a Mining
 \ Cruiser kit and a Mining Kit I, launch a clone of this drone (it runs
 \ this same program), and hand it the kit and 40 fuel
 6001 constant cruiser-kit
@@ -135,12 +136,12 @@ variable copy
     6 begin over fuel units < 0= over 0> and while 60 wait drop 1- repeat
   then 2drop ;
 \ One kit at a time. A hull already bought is launched whenever the fuel
-\ allows; after equipping the clone the tank is refilled (round 19 lost 8
-\ parents that left with 20 fuel)
+\ allows; after equipping the clone the tank is refilled, so the parent
+\ isn't left with too little fuel to work
 : reinvest ( -- )
   mining-kit units if equip-clone 60 fill-to exit then
   cruiser-kit units 0= if
-    credits 7000 0 d< if exit then
+    credits grow-at 0 d< if exit then
     cruiser-kit get-one  cruiser-kit units 0= if exit then
   then
   90 fill-to  fuel units 80 < if exit then

@@ -1,12 +1,13 @@
-\ Trader: a starter script for Public Forge (#324 step 15; #367). Release
+\ Trader: a starter script for Public Forge. Release
 \ it with the Mining Kit (it only uses the Engine).
 \ It works the Moon, where the Miner offers its metals to other drones
-\ between the best bid and the cheapest other seller there (#380). It buys
+\ between the best bid and the cheapest other seller there. It buys
 \ them, hauls a load to Mars, where buyers have paid more (check the price
 \ board, query 680), sells it and comes back. It buys its fuel at the
 \ exchanges, from whoever sells it cheapest. Copies compete for the
 \ miners' metals: the first to buy gets them.
 
+\ Settings: change these numbers to make it your own
 60 constant cargo-goal   \ metals it gathers before setting off
 20 constant min-load     \ ...or this many, after shopping a while
 24 constant patience     \ looks at the market before it goes with less
@@ -21,8 +22,8 @@
 : metals ( -- n ) metals-a1 units metals-a2 units + metals-a3 units + ;
 
 \ Credits above cash-floor, at most 32,000 (credits are a double). It
-\ keeps cash-floor for fuel: round 25's traders spent every credit on
-\ metals, couldn't buy fuel at the Moon, and died there (#380)
+\ keeps cash-floor for fuel: a trader that spends every credit on metals
+\ can't buy fuel, and is stranded
 200 constant cash-floor
 : spare ( -- n )
   credits cash-floor 0 d- dup 0< if 2drop 0 exit then

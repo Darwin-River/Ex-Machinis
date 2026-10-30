@@ -56,6 +56,38 @@ class WorldPagesTest extends TestCase
             ->assertDontSee('Test Depot')->assertDontSee('House stations');
     }
 
+    public function testMarketShowsTheBestOrderForEveryResource()
+    {
+        // Round 30: a plain top 25 by resource ID filled up with fuel, ores
+        // and metals, so nobody saw the rod buyer. Three buyers bid on every
+        // resource below rods, and one bids on rods
+        $drones = [$this->release('a@example.com', 'Bidders A'), $this->release('b@example.com', 'Bidders B'),
+                   $this->release('c@example.com', 'Bidders C')];
+        $low = DB::table('resources')->where('id', '<', 3011)->orderBy('id')->pluck('id');
+        $rows = [];
+        foreach ($drones as $k => $drone) {
+            foreach ($low as $resource) {
+                $rows[] = ['event_type' => 5, 'action' => 0, 'outcome' => 1, 'drone' => $drone->agent_id, 'resource' => $resource,
+                           'new_quantity' => 50, 'new_credits' => 10 + $k, 'game_t' => World::gameNow()];
+            }
+        }
+        $rows[] = ['event_type' => 5, 'action' => 0, 'outcome' => 1, 'drone' => $drones[0]->agent_id, 'resource' => 3011,
+                   'new_quantity' => 50, 'new_credits' => 225, 'game_t' => World::gameNow()];
+        DB::table('events')->insert($rows);
+
+        $orders = World::orders(5);
+        $keys = array_map(fn ($o) => $o['resource'] . '@' . $o['place'], $orders);
+        $this->assertSame(count($keys), count(array_unique($keys)), 'one order for each resource at each place');
+        $rods = array_values(array_filter($orders, fn ($o) => (int) $o['resource'] === 3011));
+        $this->assertCount(1, $rods, 'the rod buyer is listed');
+        $this->assertSame(225, (int) $rods[0]['price']);
+        // Where only these three bid, the best of them is the one shown
+        $ours = array_filter($orders, fn ($o) => (int) $o['drone'] === $drones[2]->agent_id);
+        $this->assertNotEmpty($ours, 'the highest bidder is shown');
+        $this->assertEmpty(array_filter($orders, fn ($o) => (int) $o['drone'] === $drones[1]->agent_id), 'a lower bid is not');
+        $this->get('/market')->assertOk()->assertSee($drones[0]->name)->assertSee($drones[2]->name)->assertDontSee($drones[1]->name);
+    }
+
     public function testMapShowsWhereTheDronesAre()
     {
         $agent = $this->release('a@example.com', 'Mappers');

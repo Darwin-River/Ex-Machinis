@@ -1,4 +1,4 @@
-\ Maker: a starter script for Public Forge (#380). Release it with the
+\ Maker: a starter script for Public Forge. Release it with the
 \ Factory Kit (Engine, Smelter, Chemical Reactor and Spider).
 \ It can't mine: it buys Metals (A1) at the Moon, wherever they are
 \ cheapest (any drone's sell orders there: the miners', the Moon Depot's),
@@ -6,8 +6,9 @@
 \ rods to Earth, where the Earth Exchange's drone buys them. Two metals
 \ make an alloy and an alloy makes a rod, which has sold for several times
 \ its metals (check the price board, query 680). It buys its fuel wherever
-\ it is cheapest too. Change the numbers to make it your own.
+\ it is cheapest too.
 
+\ Settings: change these numbers to make it your own
 12 constant rod-load     \ rods it takes to Earth (4 cargo each)
 40 constant low-fuel     \ buy fuel below this
 20 constant batch        \ metals it buys at a time
