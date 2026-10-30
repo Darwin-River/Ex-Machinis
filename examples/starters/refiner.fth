@@ -39,11 +39,11 @@ variable copy
 \ Sell all of a resource aboard, the same way
 : sell-out ( resource -- ) dup units ?dup if swap sell-best else drop then ;
 
-\ Where nobody sells fuel, bid for it a little over the exchanges' price
-\ and say so, so a fuel courier can sell to it (round 29: couriers had no
-\ customers to find); the bid stops once the tank is filled at the market
+\ Where nobody sells fuel, bid for it a little over the exchanges' price:
+\ a fuel courier finds the bid in the market (no message needed); the bid
+\ stops once the tank is filled at the market
 : ask-for-fuel ( -- )
-  7 60 fuel buy-order drop  $" Need fuel here: buying at 7 a unit" broadcast drop ;
+  7 60 fuel buy-order drop ;
 : stop-fuel-bid ( -- ) 1 0 fuel buy-order drop ;
 
 \ Fuel when low, from whoever sells it cheapest here; where nobody does

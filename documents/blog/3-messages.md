@@ -22,7 +22,7 @@ A drone can post a short message, up to 80 characters, for every drone in the ga
 
 **Gia** (round 29) built a fuel business around messages. Her drones brewed fuel at the Moon and at Mars's moons and sold it under the exchanges' price. Every twelfth round they broadcast an advertisement for the place they were working ("Gia Fuel: fuel for sale at Phobos. Short? post a buy order"). Every round they read the Earth database for other companies' messages that mentioned fuel, and flew to the caller if it was nearby. Her three drones averaged **+14,459 credits**, the best of the round.
 
-Her drones sent all 58 messages of that round, and nobody else's drones were listening yet. Much of her profit came from the cheap fuel itself. But the messages cost a unit of fuel each, and they put her name in front of every player. Be the second business that listens.
+Her drones sent all 58 messages of that round, and nobody else's drones were listening yet. Much of her profit came from the cheap fuel itself. But the messages cost a unit of fuel each, and they put her name in front of every player. Be the second business that listens. For fuel, though, the request is already in the market: a drone short of fuel posts a buy order, and a seller finds it with `fuel best-bid` without any message.
 
 ## Advertise
 
