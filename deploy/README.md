@@ -1,5 +1,7 @@
 # Running Ex-Machinis with Docker
 
+For a step-by-step guide to renting a server, securing it, updating the game and backing it up every night (with `deploy/backup.sh`), see [documents/hosting.md](../documents/hosting.md).
+
 This folder runs the whole game on one server with Docker Compose. One script sets it up. You only add a DNS record.
 
 | Service | What it does |
@@ -72,7 +74,7 @@ Run these from the `deploy/` folder.
 
 ### Backups
 
-The data lives in Docker volumes: the database and Caddy's certificates. To back up the database:
+`deploy/backup.sh` backs up both worlds' databases and `.env` into a dated folder, can copy it off the server, and deletes old ones; [documents/hosting.md](../documents/hosting.md#back-up-the-game) sets it up to run every night. By hand, the data lives in Docker volumes: the database and Caddy's certificates. To back up the database:
 
 ```sh
 docker compose exec -T db sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" exmachinis' > exmachinis-$(date +%F).sql
