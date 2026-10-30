@@ -863,6 +863,18 @@ Your spacecraft sees live orders only where it is: queries 601, 611 and 612 used
 
 It's possible for a drone to simultaneously have a buy and sell order in place for the same resource. Furthermore, the volumes of these orders will automatically adjust themselves based on the order limits and the amount of resource currently in the drone's cargo hold. Once these limits are reached, the saturated order will go dormant until a change in the ship's cargo manifest makes them relevant again.
 
+**An order stays up until you replace it.** Trades don't use it up: a buy order's limit is how many the drone wants aboard, and a sell order's is how many it keeps, so the same order goes on filling as the hold changes, all round, even while the drone waits or works. You never need to post it again to keep it alive.
+
+**Every post is an action, and costs a fuel**, even when it posts exactly the order that's already up. A loop that posts four orders a round spends four fuel a round on them; in round 31 that drained two drones' tanks. In a loop, use `?sell-order` and `?buy-order`. They take the same numbers as `sell-order` and `buy-order`, but skip the post, and leave 0, when this drone's order for that resource is already at that price and limit:
+
+```
+25 0 metals-a1 ?sell-order drop   \ posts the order: 1 fuel
+25 0 metals-a1 ?sell-order drop   \ the same order is up: skipped, no fuel
+24 0 metals-a1 ?sell-order drop   \ a new price: posts it, 1 fuel
+```
+
+They remember the orders this drone posted with `sell-order` and `buy-order` (any of its words), up to 16 at once. A launched copy starts with none.
+
 Buy and sell orders cannot be canceled. However they can be replaced by more restrictive orders. Whenever a drone posts a buy order for a specific resource, it replaces the previous buy order for the resource, if one exists. The same rule applies for sell orders. Basically, there can only be one buy order and one sell order posted for the same resource at once.
 
 So to stop an order, post one that can't fill. A buy order wants up to its limit, so a limit of 0 stops it; a sell order keeps its limit, so a limit above what the drone can hold stops it:

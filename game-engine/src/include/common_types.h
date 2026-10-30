@@ -194,6 +194,7 @@ typedef struct
 	char* password;
 	char* db_name;
 	time_t checked_at;   // when the connection was last found alive (db_reconnect)
+	const char* lock;    // the engine's lock on its database (db_claim_engine), or NULL
 
 } DbConnection_t;
 

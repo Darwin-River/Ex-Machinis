@@ -56,8 +56,6 @@ const char* vm_library_game_source =
     ": refine ( mineral -- ior ) 20000 + perform ;\n"
     ": make ( resource -- ior ) 10000 + perform ;\n"
     ": wait ( minutes -- ior ) 3 perform ;\n"
-    ": sell-order ( price keep resource -- ior ) 7 perform ;\n"
-    ": buy-order ( price want resource -- ior ) 8 perform ;\n"
     ": push ( n resource drone -- ior ) 10 perform ;\n"
     ": pull ( n resource drone -- ior ) 11 perform ;\n"
     ": launch ( drone kit -- ior ) 12 perform ;\n"
@@ -66,6 +64,35 @@ const char* vm_library_game_source =
     "create answer 120 allot\n"
     ": ask ( [n] id -- rows ) >r answer 120 r> query ;\n"
     ": me ( -- drone ) 205 ask drop answer @ ;\n"
+    /* Orders (#380 round 31): an order stays up until the drone posts
+       another for the same resource and side, and every post is an action
+       that costs fuel. sell-order and buy-order note what they posted (16
+       slots: resource, or minus it for a buy; limit; price), and ?sell-order
+       and ?buy-order skip a post that would change nothing. A launched copy
+       starts with its parent's memory but none of its orders, so the notes
+       say whose they are. */
+    "create my-orders 96 allot variable my-orders-of 0 my-orders-of !\n"
+    ": orders-forget ( -- ) my-orders 96 + my-orders begin 2dup > while\n"
+    "  0 over ! 2 + repeat 2drop ;\n"
+    "orders-forget\n"
+    ": order-find ( key -- addr|0 ) my-orders 96 + my-orders begin 2dup > while\n"
+    "  dup @ 3 pick = if nip nip exit then 6 + repeat 2drop drop 0 ;\n"
+    ": order-slot ( key -- addr|0 ) dup order-find ?dup if nip exit then\n"
+    "  drop 0 order-find ;\n"
+    ": order-note ( price n key -- ) dup order-slot ?dup if\n"
+    "  tuck ! tuck 2 + ! 4 + ! else 2drop drop then ;\n"
+    ": order-same? ( price n key -- f ) order-find ?dup if\n"
+    "  dup 2 + @ rot = swap 4 + @ rot = and else 2drop 0 then ;\n"
+    ": orders-mine ( -- ) me dup my-orders-of @ = if drop exit then\n"
+    "  my-orders-of ! orders-forget ;\n"
+    ": sell-order ( price keep resource -- ior ) >r 2dup r@ 7 perform ?dup\n"
+    "  if r> drop nip nip else r> order-note 0 then ;\n"
+    ": buy-order ( price want resource -- ior ) >r 2dup r@ 8 perform ?dup\n"
+    "  if r> drop nip nip else r> negate order-note 0 then ;\n"
+    ": ?sell-order ( price keep resource -- ior ) orders-mine >r 2dup r@ order-same?\n"
+    "  if r> drop 2drop 0 else r> sell-order then ;\n"
+    ": ?buy-order ( price want resource -- ior ) orders-mine\n"
+    "  >r 2dup r@ negate order-same? if r> drop 2drop 0 else r> buy-order then ;\n"
     ": broadcast ( caddr -- ior ) 40 perform ;\n"
     ": location ( -- place ) me 202 ask drop answer @ ;\n"
     ": units ( resource -- n ) 212 ask drop answer @ ;\n"

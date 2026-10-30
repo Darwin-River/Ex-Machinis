@@ -9,6 +9,7 @@
 /******************************* INCLUDES ************************************/
 
 #define _XOPEN_SOURCE
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
@@ -66,6 +67,12 @@ ErrorCode_t db_reconnect(DbConnection_t* connection)
         		connection->db_name?connection->db_name:"NULL");
 
 			result = db_init(connection);
+			// A new connection holds no lock: take it again, or stop
+			if(result == ENGINE_OK && connection->lock) {
+				const char* engine = connection->lock;
+				connection->lock = NULL;
+				if(db_claim_engine(connection, engine) != ENGINE_OK) exit(1);
+			}
 		}
 		// else { Connection is alive }
 	}
@@ -77,6 +84,45 @@ ErrorCode_t db_reconnect(DbConnection_t* connection)
 	}
 
 	return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Makes sure only one engine of each kind runs on a database
+
+    Two game engines on one database read the same drone's input at once, and
+    each runs part of it: a script arrives cut up and out of order. That broke
+    the station drones of a whole world (#380, round 31). The engine holds a
+    MySQL named lock for as long as its connection lives; a second engine
+    waits a little for it (the first may be shutting down) and then stops.
+
+    @param[in|out]  connection  An open connection
+    @param[in]      engine      "game-engine" or "events-engine"
+
+    @return         ENGINE_OK when this engine holds the lock
+
+*******************************************************************************/
+ErrorCode_t db_claim_engine(DbConnection_t* connection, const char* engine)
+{
+	if(!connection || !connection->hndl || !engine) return ENGINE_INTERNAL_ERROR;
+
+	char query[256];
+	snprintf(query, sizeof(query), "SELECT GET_LOCK(CONCAT(DATABASE(), '/%s'), 15)", engine);
+	int held = 0;
+	if(mysql_query(connection->hndl, query) == 0) {
+		MYSQL_RES* res = mysql_store_result(connection->hndl);
+		MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+		held = row && row[0] && atoi(row[0]) == 1;
+		if(res) mysql_free_result(res);
+	}
+	if(!held) {
+		engine_trace(TRACE_LEVEL_ALWAYS,
+			"ERROR: another %s is already running on database [%s]: stopping",
+			engine, connection->db_name ? connection->db_name : "NULL");
+		return ENGINE_DB_QUERY_ERROR;
+	}
+	connection->lock = engine;
+	return ENGINE_OK;
 }
 
 /** ****************************************************************************

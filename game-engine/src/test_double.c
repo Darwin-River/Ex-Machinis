@@ -50,6 +50,10 @@ static const char *run(const char *code)
 
     embed_eval(h, "only forth definitions system +order\n");
     vm_library_load(h);
+    /* The game words, with stand-ins for the engine's callbacks */
+    embed_eval(h, ": perform ( id -- ior ) drop -11 ; : query ( a n id -- r ) drop 2drop -3 ;\n"
+                  ": report ( -- ) ; : dummy ( -- ) ;\n");
+    vm_library_load_game(h);
     embed_eval(h, "only forth definitions\n");   /* as players see it */
     out_len = 0;
     out_text[0] = 0;
@@ -93,6 +97,28 @@ int main(void)
     check("2swap and 2over", "1 2 3 4 2swap . . . . 1 2 3 4 2over . . . . . .", " 2 1 4 3 2 1 4 3 2 1");
     check("2@ reads a double stored high cell first", "variable v 0 , 1 v ! 2 v cell+ ! v 2@ d.", "65538 ");
     check("a balance past 32,767 adds up", "20000 0 20000 0 d+ 20000 0 d+ d.", "60000 ");
+
+    /* The VM reads a line of at most 80 characters: a longer library line
+       is cut short without an error (#380: ?buy-order went missing) */
+    {
+        const char *sources[] = { vm_library_source, vm_library_game_source };
+        int longest = 0;
+        for(int i = 0; i < 2; i++) for(const char *line = sources[i]; *line; ) {
+            const char *end = strchr(line, '\n');
+            int n = end ? (int)(end - line) : (int)strlen(line);
+            if(n > longest) longest = n;
+            line += n + (end ? 1 : 0);
+        }
+        int ok = longest < 80;
+        printf("%s every word library line fits the VM's 80 columns (longest %d)\n", ok ? "ok  " : "FAIL", longest);
+        if(!ok) failures++;
+    }
+
+    /* Orders the library remembers (?sell-order, ?buy-order) */
+    check("order-note and order-same?",
+        "50 10 2011 order-note 60 5 2011 negate order-note 52 10 2011 order-note\n"
+        "52 10 2011 order-same? . 50 10 2011 order-same? .\n"
+        "60 5 2011 negate order-same? . 60 5 2011 order-same? .", " -1 0 -1 0");
 
     if(failures) {
         printf("%d check(s) failed\n", failures);

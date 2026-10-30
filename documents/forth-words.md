@@ -58,7 +58,7 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 
 **`offer ( price resource -- )`**: post a standing sell order for a good at a price, keeping none back. Example: `25 metals-a1 offer`.
 
-- The order stays open as the hold changes, so post it once. Another drone at the same place buys by pulling from it, even while yours is busy or waiting.
+- The order stays open as the hold changes, so post it once. Posting the same order again replaces it with itself and still costs a fuel; in a loop, use `?sell-order` and `?buy-order` (game words), which skip a post that would change nothing. Another drone at the same place buys by pulling from it, even while yours is busy or waiting.
 - Price it above the best buy order here, or nobody gains by selling to you, and under the cheapest other sell order, or nobody buys from you.
 
 **`offer-midway ( resource -- )`**: post a standing sell order halfway between the best buy order here and the cheapest other sell order (nothing where either is missing). Used by: Miner and Refiner (as `offer`).
@@ -85,7 +85,7 @@ Every drone also knows `buy-price`, `sell-price`, `best-offer` and `best-bid` (g
 
 - Round 25's traders and makers spent every credit on goods, then couldn't buy fuel and died.
 
-**`smart-ask ( resource -- price )`** and **`reoffer ( resource -- )`**: adaptive pricing for a seller. From the market here: it asks a unit under the cheapest other seller while its stock sells out (fewer than 4 aboard), a unit over the best bid while stock piles up (more than 16), and halfway otherwise. `reoffer` posts that as a standing sell order: call it every round, and the order follows the drone's own sales. Example: `metals-a1 reoffer metals-a2 reoffer`.
+**`smart-ask ( resource -- price )`** and **`reoffer ( resource -- )`**: adaptive pricing for a seller. From the market here: it asks a unit under the cheapest other seller while its stock sells out (fewer than 4 aboard), a unit over the best bid while stock piles up (more than 16), and halfway otherwise. `reoffer` posts that as a standing sell order with `?sell-order`: call it every round, and the order follows the drone's own sales, but a post that would change nothing is skipped, so an unchanged price costs no fuel. Example: `metals-a1 reoffer metals-a2 reoffer`.
 
 - A released script can't be changed, so a fixed price is a one-shot bet. In round 25 a miner priced at 23 when makers would pay 27, and demand outran it.
 

@@ -152,9 +152,14 @@ ErrorCode_t engine_init_db()
     engine.db_connection.user = engine.config.params[DB_USER_ID];
     engine.db_connection.password = engine.config.params[DB_PASSWORD_ID];
     engine.db_connection.db_name = engine.config.params[DB_NAME_ID];
+    engine.db_connection.lock = NULL;
+    engine.db_connection.checked_at = 0;
 
 	// db
 	result = db_init(&engine.db_connection);
+
+	// Only one game-engine per database
+	if(result == ENGINE_OK) result = db_claim_engine(&engine.db_connection, "game-engine");
 
 	// The master game time scale comes from this engine's configuration
 	if(result == ENGINE_OK) game_time_set_scale(atof(engine.config.params[GAME_TIME_SCALE_ID]));

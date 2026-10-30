@@ -156,6 +156,11 @@ From round 21, four naive agents join each round as new players would: they get 
 | 30 | Mara (fleet and messages) | Fuel brewers whose clones chose sites from their siblings' broadcasts and answered other companies' fuel calls; the parent wrecked on fuel after its launch; +5,075 avg | 7 | 6 | – | 6 | 7 | – | 7 |
 | 30 | Nico (casual) | The Chemist example at the Moon, then the same script at Earth; +5,401 avg | 7 | 5 | – | 4 | 7 | – | 6 |
 | 30 | **Average** | | 7.25 | 6.25 | – | 5.75 | 7.0 | – | 7.0 |
+| 31 | Ravi (tool builder) | A Python helper over the API; a Moon fuel depot found by probing the test world's prices, #1 of 105 on day 6, then starved of organics and wrecked on fuel; a second depot wrecked too | 7 | 6 | – | 8 | 8 | – | 7 |
+| 31 | Suki (market analyst) | An Earth parts shop that waited for station bids that never came, and a Moon metals broker that re-posted four orders a round and ran dry; both wrecked on fuel | 5 | 5 | – | 6 | 6 | – | 5 |
+| 31 | Theo (manufacturer) | A 17-recipe factory turned fuel brewer (2,365 credits by day 12) fed organics by his own miner; both wrecked on fuel after a "hop when idle" rule stranded the brewer at Earth | 6 | 6 | – | 8 | 7 | – | 6 |
+| 31 | Vera (casual) | The Miner starter with two Settings changed, then one sent to empty Phobos; both wrecked on fuel by day 23 | 4 | 6 | – | 7 | 5 | – | 5 |
+| 31 | **Average** (a broken world: the station drones never started) | | 5.5 | 5.75 | – | 7.25 | 6.5 | – | 5.75 |
 
 **Round 21 findings, and what changed:**
 - *They couldn't see their drones.* A drone's output arrives when its script ends, and `launched` never ends. The engine has a `report` word that sends it at once, but the manual never mentioned it (three of the four even redefined it). Now the manual documents it and the starters call it every 8th round.
@@ -187,9 +192,28 @@ From round 21, four naive agents join each round as new players would: they get 
 
 **Round 30 findings:** with the Strategy Blog, every newcomer gained (+5,075 to +14,036 avg) and Kira 2 finished second of 108 companies. Would play again averaged 7.25 and depth rose to 7.0, the best yet; feedback fell to 5.75. The blog shaped every plan: "go where nobody is" sent Kira and Nico to Earth, which the Chemists' script leaves, and Mara 2 to Mars's moons; the state-machine and messages posts gave code they copied. Broadcasts took off (129, against 58): Mara's clones read their siblings' announcements and chose different sites, and her far drone flew between Phobos and Deimos answering other companies' fuel calls, which the starters now send (35). Players traded 32,392 units with each other (fuel 23,938 at 3.6), more than the station drones bought. One wreck: Mara 1's parent, which launched a clone, pushed it 40 fuel, and spent its last unit posting a sell order, with fuel ingredients aboard. Found: no station posted a rod buy order this round, though the Maker starter, the Adaptive design and the blog assume Earth pays about 225; the Machine run as a station drone shows that station's prices as 0 with no warning; the blog's `bid-for` (`sell-price 1+`) raises its own bid every call once it is the best; a variable named `ask` shadows the game word without a warning; one seller can halve a station's bid (Mars polymers 70 to 35) and nothing says how fast it recovers. After the round: the Market page's order book showed a plain top 25 by resource ID, which left out every order past the metals, so the rod buyer was there all round (Earth bid 150 to 225 from day 3) but nobody saw it; it now shows the best order for each resource at each place. The Machine page warns when asked as a station drone, the manual says `best-bid` and `sell-price` leave out the drone's own order (so the blog's `bid-for` doesn't raise its own bid), the starters lost their round and issue notes and gained a Settings block (`dry-tries` and `grow-at` besides the old numbers), and fuel calls are now a buy order alone. Asked for by most: starters for beginners with 3 or 4 labelled numbers, reports on a game-hour timer, estimated profit per recipe from live prices, station demand that moves more over a round, a checker warning when a launch or push can leave too little fuel, and drones in transit counted by `crowd`.
 
+**Round 31 findings:** the round doesn't measure the game. The live world's three station drones never started: their script reached them cut up and out of order (dozens of "undefined word" lines, then "no launched word"), because two game engines ran on the database for a few minutes while the world was made, and each took part of every drone's input. With no station orders all round, nothing bought metals or parts and nothing sold hulls or fuel: miners undercut each other to 1 credit, no company cloned, and 89 of 104 player drones wrecked on fuel (58 at the Moon); the 12 Trader starters and 3 Smiths were all that was left. The test world's stations worked, so every newcomer found the difference by probing, and said nothing told them. Rated through the API for the first time: API usability 8 from all four (clean JSON, `/check` and `/test` worked first time, the drone post-mortems "taught me a lot"); would play again 6.5. Also found, true in any world: re-posting an unchanged order every round costs 1 fuel each time and killed two drones; an idle scoring loop costs about 5 fuel a game day; post-mortems count the instructions spent loading the script, which are free; `/trades` names drones but `/drones/{id}` takes a number; a company's credits vanish when its last drone wrecks; with two releases, one bad guard ends a player's round. After the round: each engine now takes a database lock, so a second game or events engine on the same database stops with an error instead of running. The players' manual now says an order stays up until replaced and that posting it again still costs a fuel, and the new game words `?sell-order` and `?buy-order` skip a post that would change nothing (tested in the engine: five calls, three order events, three fuel). The Strategy Blog's sixth post, "Keep a waiting drone cheap", covers posting on a change and waiting longer while nothing changes, and the `reoffer` example word uses `?sell-order`.
+
 **What they liked best** (all ten rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
 ## Round log
+
+### Round 31: through the API, with no station drones (#380)
+
+A fresh world, the same mix as round 30 (60 starters, 18 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive), to game day 40. Four newcomers played only through the JSON API. The station drones never started (see the findings), so this is a world without the House.
+
+| Design | Companies | Ended | Avg net wealth at the end |
+|---|---|---|---|
+| Trader | 12 | 0 | 4,920 |
+| Smith | 9 | 3 | 2,302 |
+| Miner | 24 | 24 | 14 |
+| Refiner | 12 | 12 | 7 |
+| Maker, Chemist, Machinist, Adaptive | 42 | 42 | 0 |
+| Newcomers | 8 | 8 | 0 to 6 |
+
+- **Trades**: 707, all player to player (19,103 credits); the station drones made none.
+- **Wrecks**: 89 of 104 player drones, all out of fuel. No clones.
+- **Fuel**: brewers sold at 3 to 8 while organics lasted; by day 10 nobody at the Moon sold fuel.
 
 ### Round 30: the Strategy Blog (#380)
 

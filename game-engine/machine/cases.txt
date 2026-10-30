@@ -28,3 +28,14 @@ oops
 --
 missing
 --
+order-memory
+: notes ( -- ) 50 10 2011 order-note 60 5 2011 negate order-note ;
+: renote ( -- ) 52 10 2011 order-note ;
+: same1 ( -- ) 52 10 2011 order-same? . 50 10 2011 order-same? . ;
+: same2 ( -- ) 60 5 2011 negate order-same? . 60 5 2011 order-same? . ;
+: same3 ( -- ) 52 9 2011 order-same? . -2011 order-find 0<> . ;
+: order-memory ( -- ) notes renote same1 same2 same3 ;
+--
+order-failed
+: order-failed ( -- ) 50 10 2011 ?sell-order . 2011 order-find . ;
+--

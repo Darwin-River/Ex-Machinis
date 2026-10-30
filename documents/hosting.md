@@ -498,6 +498,8 @@ To keep the downtime short when moving on purpose:
 - old backups: lower `KEEP_DAYS`;
 - the engines' logs, which are cleared after 7 days on their own: `docker compose exec game-engine du -sh /opt/exmachinis/log`.
 
+**Run one engine of each kind per database.** Two game engines on one database would each run part of every drone's input. So an engine takes a lock on its database when it starts. If a second one starts, it stops with "another game-engine is already running on database [...]" in its log (`docker compose logs game-engine`). That means the database is already being served by another server or container: stop one of them. A restarted engine waits up to 15 seconds for the old one's lock.
+
 **If the server is too slow**, resize it from the host's dashboard:
 - **Hetzner:** Rescale, keeping the disk.
 - **DigitalOcean:** Resize, choosing CPU and RAM only.
