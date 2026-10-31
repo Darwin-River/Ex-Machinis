@@ -38,13 +38,15 @@
                             asking as it shows its station's buy and sell prices as 0 or missing. Pick a player's drone at the same place.
                         </div>
                         <script>
-                            (function () {
+                            // Once the page has loaded: the app bundle mounts Vue on #app
+                            // first, which replaces these elements and their listeners
+                            document.addEventListener('DOMContentLoaded', function () {
                                 var w = document.getElementById('m-station-warning'), ids = JSON.parse(w.dataset.stations);
                                 var check = function (v) { v = parseInt(v, 10); w.style.display = ids.indexOf(v) >= 0 ? '' : 'none';
                                     document.getElementById('m-station-id').textContent = v; };
                                 document.getElementById('m-drone').addEventListener('input', function () { check(this.value); });
                                 document.getElementById('m-vantage').addEventListener('change', function () { if (this.value) check(this.value); });
-                            })();
+                            });
                         </script>
                     </div>
                     <label for="m-limit"><b>Run at most</b> (instructions)</label>

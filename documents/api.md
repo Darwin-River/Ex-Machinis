@@ -42,6 +42,7 @@ A company is a FORTH script: you can't steer it once it's released. Playing from
 1. **Study the market:**
    - `GET /orders` for who buys and sells what, where, and at what price;
    - `GET /trades` for what has sold;
+   - `GET /history` for what each resource sold for, day by day;
    - `GET /places` for where the drones are.
 2. **Write a script and check it** with `POST /check`, which returns the Release page's warnings.
 3. **Try it in the test world** with `POST /test`, then poll `GET /test/{token}` for the results.
@@ -250,6 +251,17 @@ Each trade:
 ```
 
 `limit` can be up to 200.
+
+### `GET /history?resource=2011&place=10&days=60`: prices and volumes by day
+
+Every trade of the last `days` game days (60 if you leave it out, at most 365), summed per game day, resource and place, oldest first. `resource` and `place` are IDs (from `/resources` and `/places`); leave either out for all of them. The Market history page charts the same numbers.
+
+```json
+{"day": 17, "resource": 2011, "resource_name": "Metals (A1)", "place": 10, "place_name": "Moon",
+ "trades": 42, "units": 178, "credits": 3346, "low": 18, "average": 18.8, "high": 20}
+```
+
+`low` and `high` are the cheapest and dearest a unit sold for that day; `average` is `credits` over `units`.
 
 ## The world
 

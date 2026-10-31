@@ -30,6 +30,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware('throttle:api-read')->get('drones/{id}', 'ApiController@drone')->whereNumber('id');
     Route::middleware('throttle:api-read')->get('orders', 'ApiController@orders');
     Route::middleware('throttle:api-read')->get('trades', 'ApiController@trades');
+    Route::middleware('throttle:api-read')->get('history', 'ApiController@history');
     Route::middleware('throttle:api-read')->get('leaderboard', 'ApiController@leaderboard');
     Route::middleware('throttle:api-read')->get('places', 'ApiController@places');
     Route::middleware('throttle:api-read')->get('resources', 'ApiController@resources');

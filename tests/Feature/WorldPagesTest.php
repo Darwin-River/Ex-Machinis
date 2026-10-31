@@ -56,6 +56,18 @@ class WorldPagesTest extends TestCase
             ->assertDontSee('Test Depot')->assertDontSee('House stations');
     }
 
+    public function testMarketHistoryChartsTradedResources()
+    {
+        $seller = $this->release('a@example.com', 'Sellers');
+        $buyer = $this->release('b@example.com', 'Buyers');
+        $resource = DB::table('resources')->first();
+        DB::table('trades')->insert(['resource' => $resource->id, 'units' => 10, 'credits' => 90, 'seller' => $seller->agent_id,
+            'buyer' => $buyer->agent_id, 'location' => 3, 'game_t' => World::gameNow()]);
+        $this->get('/market/history')->assertOk()->assertSee('Market history')->assertSee('Price a unit')
+            ->assertSee('<option value="' . $resource->id . '">' . e($resource->name) . '</option>', false);
+        $this->get('/market')->assertOk()->assertSee(url('market/history'));
+    }
+
     public function testMarketShowsTheBestOrderForEveryResource()
     {
         // Round 30: a plain top 25 by resource ID filled up with fuel, ores

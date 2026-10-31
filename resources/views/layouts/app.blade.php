@@ -173,6 +173,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('market')}}">Market</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('market/history')}}">Market history</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('map')}}">Map</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('leaderboard')}}">Leaderboard</a></li>
@@ -242,6 +244,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                     <ul class="rd-menu rd-navbar-dropdown oriented-down">
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('market')}}">Market</a></li>
+                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
+                                                                        href="{{url('market/history')}}">Market history</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('map')}}">Map</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"

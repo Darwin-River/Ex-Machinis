@@ -147,6 +147,37 @@ class World
     }
 
     /**
+     * Market history (#380): every trade of the last $days game days, summed
+     * per game day, resource and place. Players asked for it in round 31:
+     * the recent trades list covers under a game day. Rows: day, resource,
+     * resource_name, place, place_name, trades, units, credits, and the
+     * lowest, average and highest price a unit paid that day.
+     */
+    public static function history(int $days = 60, ?int $resource = null, ?int $place = null): array
+    {
+        $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
+        $now = self::gameNow();
+        $from = max($epoch, $now - $days * 86400);
+        $query = DB::table('trades AS t')
+            ->leftJoin('resources AS r', 'r.id', '=', 't.resource')
+            ->leftJoin('objects AS o', 'o.object_id', '=', 't.location')
+            ->where('t.game_t', '>=', $from)->where('t.units', '>', 0)
+            ->when($resource, fn ($q) => $q->where('t.resource', $resource))
+            ->when($place, fn ($q) => $q->where('t.location', $place))
+            ->groupBy('day', 't.resource', 'r.name', 't.location', 'o.object_name')
+            ->orderBy('day')->orderBy('t.resource')->orderBy('t.location')
+            ->selectRaw('FLOOR((t.game_t - ?) / 86400) AS day, t.resource, r.name AS resource_name,
+                t.location AS place, o.object_name AS place_name, COUNT(*) AS trades, SUM(t.units) AS units,
+                SUM(t.credits) AS credits, MIN(t.credits / t.units) AS low, MAX(t.credits / t.units) AS high', [$epoch]);
+        return $query->get()->map(fn ($r) => [
+            'day' => (int) $r->day, 'resource' => (int) $r->resource, 'resource_name' => $r->resource_name ?? (string) $r->resource,
+            'place' => (int) $r->place, 'place_name' => $r->place_name ?? '',
+            'trades' => (int) $r->trades, 'units' => (int) $r->units, 'credits' => (int) $r->credits,
+            'low' => round((float) $r->low, 1), 'average' => round($r->credits / $r->units, 1), 'high' => round((float) $r->high, 1),
+        ])->all();
+    }
+
+    /**
      * The open orders (sell: event type 4, stock above the kept minimum; buy:
      * 5, stock below the wanted maximum): the best one for each resource at
      * each place, by resource. Round 30: a plain top 25 by resource ID left
