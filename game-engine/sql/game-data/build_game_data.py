@@ -373,6 +373,8 @@ for pid, p in econ_prot.items():
                      MINING_TIME - 1 if e['time'] == old_end - 1 else e['time']) for e in effs]
         # "Uses a Worm I mining module": the modules are named (A1); say how long
         desc = re.sub(r'\b(Slug|Worm|Crawler|Skimmer) I mining module', r'\1 (A1) mining module', ' '.join(p[4].split()))
+        # Its own number (round 31: Mine mullinite's said 11310, Mine stellarite's)
+        desc = re.sub(r'^\[\d+ perform\]', f'[{pid} perform]', desc)
         p = p[:4] + [f'{desc} Takes {game_duration(MINING_TIME)}.'] + p[5:]
     if pid in ('10', '11'):
         effs = [dict(e, time=TRANSFER_TIME) if e['time'] > 0 else e for e in effs]
@@ -973,15 +975,23 @@ for st in (1, 2):
         STATION_GOODS.append((st, rid, BUYS, made_value(rid), demand, 0))
 # Mars buys polymers too, like the chemists' other goods
 STATION_GOODS.append((3, 2051, BUYS, made_value(2051), 100, 0))
-# Parts from day 3 and systems from day 7, at Earth and Mars
+# Parts and systems at Earth and Mars, in larger numbers. They were bought
+# from day 3 and day 7, so demand stepped up the chain; in rounds 31 and 32
+# every newcomer chose products on day 0, saw no bid for them, and asked
+# for a notice. Since every exchange trades every product (below), they
+# are bought from day 0
 for st in (1, 3):
     for rid in (3001, 3011, 3031, 3311):
-        STATION_GOODS.append((st, rid, BUYS, made_value(rid), 50, 3))
+        STATION_GOODS.append((st, rid, BUYS, made_value(rid), 50, 0))
     for rid in (4111, 4281, 4311):
-        STATION_GOODS.append((st, rid, BUYS, made_value(rid), 10, 7))
+        STATION_GOODS.append((st, rid, BUYS, made_value(rid), 10, 0))
 # The big mining gear costs more (#380): each kit's modules are worth 2,400
+# The modules at half as much again as their listed value, like everything
+# else the House sells (below); fuel stays at 5
 for rid, price, supply in ((FUEL, 5, 2000), (5001, 400, 10), (WORM, 1000, 10), (REFINERY, 1000, 10),
                            (5201, 500, 10), (5211, 600, 10), (5501, 900, 5)):
+    if rid != FUEL:
+        price = -(-price * 3 // 2)
     STATION_GOODS.append((1, rid, SELLS, price, supply, 0))
 # Fuel at every House exchange (#367), not only on Earth; the busy Mars
 # Exchange sells 6,000 a day (#378), and so does the Moon Depot since the
@@ -1012,6 +1022,76 @@ for st in (1, 2, 3):
         value = ore_value(ore)
         if value:
             STATION_GOODS.append((st, ore, SELLS, -(-value * 3 // 2), 400, 0))
+# Every product at every exchange (#380): each exchange buys and sells a
+# little of everything a drone can make, mine or refine, so any good can be
+# bought to use or made to sell, wherever a player starts. It buys at the
+# good's value (inputs, fuel and a wage, as above) and sells at half as much
+# again, like the raw goods; tens of units a day of each (fewer of the dear
+# ones), so a player who makes or sells a lot still moves the price. The larger
+# listings above stay as they are. Fuel is left out (its own rows above),
+# and so are the House's own modules and the big ship kits (42,000 credits
+# and up): the station drone and the order words take a price in one cell,
+# under 32,768, and no player could buy one yet.
+HOUSE_ONLY = {FUEL, IMPORT_STATION, EXPORT_STATION, DROP_STATION_HULL}
+MAX_LISTED = 30000
+def every_product_value(rid):
+    value = made_value(rid) if int(rid) not in ORES else ore_value(int(rid))
+    return value if value and value > 0 else None
+def small_daily(value):
+    # a quarter of it on offer: 20, 8 or 4 units (it was 5, 2 and 1, too few
+    # to build on)
+    return 80 if value < 100 else 32 if value < 1000 else 16
+# One value for a good at every exchange: where one already sells it for less
+# than its value (Earth's modules and kits), that price less the markup, or
+# a player could buy it there and sell it to another exchange for more
+cheapest_sale = {}
+for s_, rid, side, price, _, _ in STATION_GOODS:
+    if side == SELLS:
+        cheapest_sale[rid] = min(price, cheapest_sale.get(rid, price))
+for st in (1, 2, 3):
+    listed = {(rid, side): price for s_, rid, side, price, _, _ in STATION_GOODS if s_ == st}
+    for rid in sorted(int(r) for r in resources):
+        if rid in HOUSE_ONLY:
+            continue
+        value = every_product_value(rid)
+        sells = listed.get((rid, SELLS))
+        if rid in cheapest_sale:
+            value = min(value or cheapest_sale[rid], cheapest_sale[rid] * 2 // 3)
+        if value is None:
+            continue
+        if value * 3 // 2 > MAX_LISTED:
+            continue
+        if (rid, BUYS) not in listed:
+            # never more than it sells for here, less the markup
+            buy = min(value, sells * 2 // 3) if sells else value
+            STATION_GOODS.append((st, rid, BUYS, max(1, buy), small_daily(value), 0))
+            listed[(rid, BUYS)] = buy
+        if sells is None:
+            sell = max(-(-value * 3 // 2), listed[(rid, BUYS)] * 3 // 2 + 1)
+            STATION_GOODS.append((st, rid, SELLS, sell, small_daily(value), 0))
+# The House doesn't compete with players (#380): every exchange buys at
+# three quarters of a good's value and sells at half as much again (set
+# above), so a player who buys or sells anywhere between beats it both ways
+# and the exchanges are the market of last resort. Prices above are values;
+# here the buying ones come down. Fuel, the Mining Cruiser hull and the kits
+# keep their prices: they are what a company pays to run and to grow.
+BUY_SHARE = 0.75
+STATION_GOODS = [(st, rid, side, max(1, int(price * BUY_SHARE)) if side == BUYS else price, daily, day)
+                 for st, rid, side, price, daily, day in STATION_GOODS]
+# No exchange buys a good for as much as it sells it for (a free loop for
+# whoever trades both), and every price fits the station drone's one cell
+_sides = {}
+for st, rid, side, price, _, _ in STATION_GOODS:
+    assert 0 < price < 32768, f'station {st}: resource {rid} listed at {price}'
+    _sides.setdefault((st, rid), {})[side] = price
+for (st, rid), p in _sides.items():
+    assert not (BUYS in p and SELLS in p and p[BUYS] >= p[SELLS]), f'station {st}: resource {rid} bought at {p}'
+# ...nor buys it for more than another exchange sells it for (Mars pays as
+# much as Earth and the Moon charge for metals: the tax and the trip eat it)
+for rid in {r for _, r in _sides}:
+    bids = [p[BUYS] for (s_, r), p in _sides.items() if r == rid and BUYS in p]
+    asks = [p[SELLS] for (s_, r), p in _sides.items() if r == rid and SELLS in p]
+    assert not (bids and asks and max(bids) > min(asks)), f'resource {rid}: bought for {max(bids)}, sold for {min(asks)}'
 for st, rid, _, _, _, _ in STATION_GOODS:
     if str(rid) not in resources:
         note(f'station {st}: unknown resource {rid}')
@@ -1030,7 +1110,9 @@ queries.append((207, 'Game time now',
 # (resources/house/station.fth) reads it to post its orders. Only station
 # drones get rows: to players a station drone is a drone like any other, so
 # the House's listed prices and demand are not theirs to read. Queries 631
-# and 632 (batch offers and budgets) and 633 (house-price) are gone.
+# and 632 (batch offers and budgets) and 633 (house-price) are gone. Rows
+# come by resource, then side, so a good the exchange both buys and sells
+# is on two rows together (the program pairs them).
 STATION_ASKING = "EXISTS (SELECT 1 FROM agents WHERE agent_id = [drone_id] AND station_id IS NOT NULL)"
 queries.append((630, 'Station goods',
                 '[R L 630 query]: House station drones only: what the exchange where the drone is trades now: '
@@ -1038,7 +1120,7 @@ queries.append((630, 'Station goods',
                 "SELECT g.resource, g.side, g.price AS d_price, g.daily_units, IFNULL((SELECT MAX(i.units) "
                 "FROM sqInventory i INNER JOIN agents a ON a.agent_id = i.drone WHERE a.station_id = g.station_id "
                 "AND i.resource = g.resource), 0) AS d_units FROM station_goods g WHERE g.station_id IN "
-                f"{HERE_STATION} AND g.from_day <= {TODAY} AND {STATION_ASKING} ORDER BY g.side, g.resource;"))
+                f"{HERE_STATION} AND g.from_day <= {TODAY} AND {STATION_ASKING} ORDER BY g.resource, g.side;"))
 
 # Mining deposits here (#324 step 11): left now (refilled for the time since
 # it was last worked out), and capacity

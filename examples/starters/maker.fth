@@ -3,10 +3,12 @@
 \ It can't mine: it buys Metals (A1) at the Moon, wherever they are
 \ cheapest (any drone's sell orders there: the miners', the Moon Depot's),
 \ makes them into alloys and the alloys into rods, and flies a load of
-\ rods to Earth, where the Earth Exchange's drone buys them. Two metals
-\ make an alloy and an alloy makes a rod, which has sold for several times
-\ its metals (check the price board, query 680). It buys its fuel wherever
-\ it is cheapest too.
+\ rods to Earth to sell to the best buyer there (the Earth Exchange's drone
+\ buys them, and so do the Moon Depot's and the Mars Exchange's, a few a
+\ day). Two metals make an alloy and an alloy makes a rod, which has sold
+\ for several times its metals: check the order book and the price board
+\ (query 680) before you release it. It buys its fuel wherever it is
+\ cheapest too.
 
 \ Settings: change these numbers to make it your own
 12 constant rod-load     \ rods it takes to Earth (4 cargo each)

@@ -10,7 +10,9 @@
                 Net wealth is the company's credits, plus the goods aboard its working drones at their market price
                 (what they sold for, a unit, over the last three game days), minus what every company starts with
                 ({{ number_format($kit) }}: its credits, fuel and starter kit). So a new company is worth 0, and
-                wealth is what it made. <b>Rising</b> is the gain over the last real week.
+                wealth is what it made. The drones themselves don't count, so launching a copy lowers net wealth by
+                about the price of its hull until the copy earns it back (often 10 to 20 game days).
+                <b>Rising</b> is the gain over the last real week.
             </div>
             <div class="row">
                 @foreach(['All time' => ['rows' => $allTime, 'key' => 'wealth', 'id' => 'all-time'],

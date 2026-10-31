@@ -276,6 +276,9 @@ class ApiController extends Controller
             'place_id' => $a->object_id ? (int) $a->object_id : null,
             'place' => $a->object_id ? DB::table('objects')->where('object_id', $a->object_id)->value('object_name') : null,
             'status' => DronePage::status($a),
+            // While it flies, place is where it left from; this says where it is going
+            'flying_to' => ($f = DronePage::flight($a)) ? ['place_id' => $f['to_id'], 'place' => $f['to'],
+                'arrives' => $f['arrives'], 'arrives_game_time' => $f['arrives_game_time']] : null,
             'fuel' => (int) (DB::table('sqInventory')->where('drone', $a->agent_id)->where('resource', DronePage::FUEL)->max('units') ?? 0),
             'wrecked' => $a->wrecked_at !== null,
             'wreck_cause' => $a->wreck_cause,
