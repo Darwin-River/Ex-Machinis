@@ -13,20 +13,22 @@
 \   supply, on a sell order at the listed price.
 
 \ The goods: query 630's rows (resource, side, price 2 cells, daily units,
-\ units waiting 2 cells), 14 bytes each
-create goods 1400 allot
+\ units waiting 2 cells), 14 bytes each, by resource and then side. Every
+\ exchange trades every product, about 205 rows: room for 250
+create goods 3500 allot
 variable #goods
 : row ( i -- addr ) 14 * goods + ;
 : good ( i -- resource ) row @ ;
 : buys? ( i -- f ) row 2 + @ 1 = ;
 : listed ( i -- price ) row 4 + 2@ drop ;
 : daily ( i -- n ) row 8 + @ 1 max ;
-: load-goods ( -- ) goods 1400 630 query 0 max #goods ! ;
+: load-goods ( -- ) goods 3500 630 query 0 max #goods ! ;
 
 \ The price each good's order was last posted at: an order is posted only
 \ when its price changes (each posting is an action, and takes game time)
-create posted 200 allot
-: forget-orders ( -- ) 100 begin dup while 1- 0 over 2 * posted + ! repeat drop ;
+create posted 500 allot
+: forget-orders ( -- )
+  250 begin dup while 1- 0 over 2 * posted + ! repeat drop ;
 : changed? ( price i -- f ) 2 * posted + dup @ rot tuck <> if swap ! -1 else 2drop 0 then ;
 
 : import ( n resource -- ) over 0> if 5911 perform drop else 2drop then ;
@@ -38,21 +40,27 @@ create posted 200 allot
 \ keeps the reserve back)
 : stock ( i -- n ) daily 4 / 1 max ;
 
-\ The stock it keeps for selling a resource it also buys (metals at the
-\ Moon, say): 0 when it doesn't sell it. Only what is above that counts as
-\ bought, for its price and for shipping down
-: keep-of ( resource -- n )
-  #goods @ begin dup while 1-
-    2dup good = over buys? 0= and if nip stock exit then
-  repeat 2drop 0 ;
-: excess ( i -- n ) dup good units swap good keep-of - 0 max ;
+\ The stock it keeps for selling a resource it also buys (most goods): 0
+\ when it doesn't sell it. Only what is above that counts as bought, for its
+\ price and for shipping down. A good's sell row follows its buy row
+: sells-too? ( i -- f )
+  dup 1+ #goods @ < 0= if drop 0 exit then
+  dup 1+ buys? if drop 0 exit then
+  dup good swap 1+ good = ;
+: keep ( i -- n ) dup sells-too? if 1+ stock else drop 0 then ;
+: excess ( i -- n ) dup good units swap keep - 0 max ;
 
 \ Buying: from the listed price at no stock bought to half of it at a full
 \ day's demand; the order stays open for up to a day's demand
-: bid ( i -- price ) dup listed  over excess over *  rot daily 2 * /  - 1 max ;
+\ (*/ keeps the product in two cells: a dear good times its units would
+\ overflow one; what it bought counts up to a day's demand, so the bid
+\ never falls below half)
+: bid ( i -- price )
+  dup listed swap dup excess over daily min swap daily 2 *
+  >r over swap r> */ - 1 max ;
 : post-bid ( i -- )
   dup bid over changed? 0= if drop exit then
-  dup bid  over daily  2 pick good keep-of +  rot good  buy-order drop ;
+  dup bid  over daily  2 pick keep +  rot good  buy-order drop ;
 : restock ( i -- ) dup stock over good units - swap good import ;
 : post-ask ( i -- )
   dup listed over changed? 0= if drop exit then
