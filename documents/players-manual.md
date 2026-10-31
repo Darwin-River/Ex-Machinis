@@ -58,7 +58,7 @@ Thank you for your support!
   - [What's really happening with variables?](#whats-really-happening-with-variables)
   - [Creating and Accessing Arrays](#creating-and-accessing-arrays)
   - [Working with strings](#working-with-strings)
-  - [Different ways to command your spacecraft](#different-ways-to-command-your-spacecraft)
+  - [How your drone runs your script](#how-your-drone-runs-your-script)
 - [Chapter 8: Asking Questions](#chapter-8-asking-questions)
 - [Chapter 9: Making Decisions](#chapter-9-making-decisions)
   - [Finding the truth in numbers](#finding-the-truth-in-numbers)
@@ -133,7 +133,7 @@ Five more pages show the whole world, live, and the machine itself:
 - **Market:** the order book (for each resource, the cheapest sell order and the best buy order at each place) and the latest trades.
 - **Map:** the planets where they are now, with the drones and wrecks around each.
 
-- **Leaderboard:** companies by net wealth, all time and **Rising** (the gain over the last real week). Each release starts a company, and the drones it launches belong to it. Net wealth counts the company's credits and its working drones' goods at market prices (what they sold for over the last three game days), minus what the company started with, so it measures what the company made.
+- **Leaderboard:** companies by net wealth, all time and **Rising** (the gain over the last real week). Each release starts a company, and the drones it launches belong to it. Net wealth counts the company's credits and its working drones' goods at market prices (what they sold for over the last three game days), minus what the company started with, so it measures what the company made. The drones themselves don't count: launching a copy lowers net wealth by about the price of its hull (3,000) until the copy earns that back, often 10 to 20 game days, and longer for a copy that first flies to Mars. Grow early, not near the end of a contest.
 
 - **Machine:** watch a word run on the same machine your drones run on. Type your definitions, a starting stack and a word, then step through it one instruction at a time: the data and return stacks, the instruction about to run, the code of the word it is in, what it printed, and how many instructions it has run, with the fuel that would cost a drone (1 per 100,000). Use it to see why a word misbehaves, or to make a busy loop cheaper before you release it. `perform` does nothing there (it leaves -11): nothing you run on the Machine acts in the game.
 
@@ -161,7 +161,7 @@ Every message starts with the drone's location and how long its signals take to 
 
 ### About the examples in this manual
 
-Ex Machinis began as an email game: players emailed scripts to their drones between `<run>` and `</run>`, and the drones emailed back. There is no email any more, no accounts and no `<rename>` or `<rebrand>` (a released company keeps the name you give it, and each drone its generated name). Where the chapters below say to email or send a script to your drone, put it in the script you release (most examples belong inside your `launched` word), try it with the **Test** button, or step through it on the **Machine** page. What they say the drone replies is what shows on its page.
+Ex Machinis began as an email game; today there is no email, no accounts and no `<rename>` or `<rebrand>` (a released company keeps the name you give it, and each drone its generated name). To try an example, put it in a script and press **Test**, or step through it on the **Machine** page; in a drone you release, most examples belong inside your `launched` word. What a drone prints shows on its page.
 
 ## Chapter 2: Stacking Numbers
 
@@ -183,7 +183,7 @@ For example, when you enter "2" and "3" separated by a space, FORTH places a 2 a
 
 When you call a FORTH function, like addition (`+`), it removes the top two values from the stack (2 and 3), adds them together, and returns the result (5) to the stack.
 
-Similarly, calling the print function (`.`), pulls a value off the stack (5) and adds it to the output stream, which is returned to you in an email as "5".
+Similarly, calling the print function (`.`), pulls a value off the stack (5) and adds it to the output stream, which shows in the drone's output as "5".
 
 All FORTH functions behave the same way, by removing and adding values to the stack. This is why FORTH is a stack-based language. It's also why FORTH is a very efficient and intuitive programming language.
 
@@ -193,12 +193,10 @@ Each value on the stack is a 16-bit number, from -32768 to 32767. Larger numbers
 
 ### Managing the stack
 
-In FORTH, program elements share data by adding and removing values from this stack in a last-on-first-off manner. For example, when I email the following code to one of my spacecraft, it adds the space-delimited values to the stack so that 1 is on the bottom of the stack and 4 is on top.
+In FORTH, program elements share data by adding and removing values from this stack in a last-on-first-off manner. For example, when one of my spacecraft runs the following code, it adds the space-delimited values to the stack so that 1 is on the bottom of the stack and 4 is on top.
 
 ```
-<run>
      1 2 3 4
-</run>
 ```
 
 If I were to follow this with a call to the addition function (`+`), it would remove the 4 and 3 from the top of the stack and place a 7 on the stack. The stack from bottom to top would end up looking like this: `1 2 7`
@@ -217,7 +215,7 @@ Try applying each of the following commands to manipulate the contents of the da
 
 \* The three dots in each of these examples instruct the interpreter to print the first three items on the stack. It's important that you place a space between each of the periods and the word that precedes them.
 
-When trying the above examples, remember that FORTH words are case sensitive and it is important that you include spaces between the numbers, words, and periods. It's also important that you include all FORTH scripts between `<run>` and `</run>`. Otherwise the interpreter won't process the code.
+When trying the above examples, remember that FORTH words are case sensitive and it is important that you include spaces between the numbers, words, and periods.
 
 ### Big numbers: double cells
 
@@ -294,7 +292,7 @@ Every physical action your spacecraft takes will result from calls to predefined
 
 You can find a current list of protocols on the website (http://exmachinis.com/protocols).
 
-Protocols are invoked by sending your drone a FORTH script that calls upon the `perform` function. This function pulls one or more parameters from the stack. These parameters provide the ID for the protocol you want to perform and any other parameters that are required by the protocol. Think of your drone's FORTH script as a sequencer that decides how one action follows another. `perform` waits until the action is finished: your drone's script doesn't go on to the next word until then, so a drone does one thing at a time, and the script only runs in between actions to decide what to do next. A trip, for example, holds the script until the drone arrives. Then `perform` leaves one number on the stack, so `.` after it prints:
+Protocols are invoked by giving your drone a FORTH script that calls upon the `perform` function. This function pulls one or more parameters from the stack. These parameters provide the ID for the protocol you want to perform and any other parameters that are required by the protocol. Think of your drone's FORTH script as a sequencer that decides how one action follows another. `perform` waits until the action is finished: your drone's script doesn't go on to the next word until then, so a drone does one thing at a time, and the script only runs in between actions to decide what to do next. A trip, for example, holds the script until the drone arrives. Then `perform` leaves one number on the stack, so `.` after it prints:
 
 | Code | Meaning |
 |---|---|
@@ -316,13 +314,11 @@ Like any FORTH word, `perform` takes its parameters off the stack. If there are 
 Your script can use the result to decide what to do next. For example, this word tries to pull 5 kunspar from drone 52 and says whether it worked:
 
 ```
-<run>
 : get-kunspar ( -- ) 5 1100 52 11 perform if ." pull failed" else ." got it" then cr ;
 get-kunspar
-</run>
 ```
 
-Failures are not emailed to you: a drone running on its own should check and respond. You only get a message for what your scripts print, when the script ends, and for errors that stop a script. A `launched` word that loops forever never ends, so call `report` in its loop to send what it has printed so far. While a script is running or waiting, the drone answers new scripts with "Another command is running, retry later"; `<abort>` stops the script (the action itself still happens).
+Failures are not reported to you: a drone running on its own should check and respond. Its page only shows what your scripts print, when the script ends, and errors that stop a script. A `launched` word that loops forever never ends, so call `report` in its loop to send what it has printed so far.
 
 ### Unpacking your kit
 
@@ -342,9 +338,7 @@ Mind the hold: it carries 500 units of mass. With 100 fuel aboard, a miner has a
 Unpack it with the word `unpack`, which unpacks whichever kit is aboard (protocol 25901 for the Mining Kit, 25902 for the Factory Kit):
 
 ```
-<run>
   unpack .
-</run>
 ```
 
 The drone replies with 0 once the kit is unpacked.
@@ -361,13 +355,11 @@ A new spacecraft starts with 100 fuel. When it runs out and can't pay for its th
 <a name="running-low-on-fuel"></a>**Running low on fuel.** Nothing in the game rescues a drone with an empty tank: a drone that runs dry is a wreck, and its company may die with it. Plan for it in your program. And when a drone gets stranded anyway, far from fuel or too poor to fly, the market can save it: post a **buy order for fuel at a price high enough to bring a seller to you**, and wait. Waiting runs no instructions, so it burns no fuel, and another drone that pushes fuel into your order is paid at once:
 
 ```
-<run>
   \ Low on fuel: pay 15 a unit (well over what it costs at an exchange) for up to 60,
   \ then wait, two game hours at a time, until some has come
   : call-for-fuel ( -- )
     15 60 fuel buy-order drop
     begin fuel units 20 < while 120 wait drop repeat ;
-</run>
 ```
 
 The buy order is the call: a seller sees it in the market (`fuel best-bid`, the order lists), so there's no need to broadcast as well. Selling into such bids is also a business. A **fuel courier** carries fuel to where drones work and run low (mining sites, Phobos and Deimos, the far side of a long trip), looks for buy orders for fuel there (`fuel best-bid`) and pushes fuel into them for profit. The more drones run low, the more a courier earns.
@@ -379,9 +371,7 @@ To make fuel, use a Chemical Reactor: `12061 perform` turns 1 Organics (A1) and 
 A spacecraft becomes a **wreck** for good when it runs out of fuel or crashes five times in a row. A wreck does nothing more, but its cargo and parts stay aboard, and another player's spacecraft at the same place can plunder it:
 
 ```
-<run>
   1234 34 perform .   \ Plunder wreck 1234 (a drone ID) where you are.
-</run>
 ```
 
 Plundering takes 1 game hour and burns 1 fuel. Your spacecraft gets half of everything aboard: half of each resource, rounded down (and for an odd unit, such as a single engine, a 50/50 chance). The rest is destroyed. Make room in your hold first: what doesn't fit is lost too. A wreck is plundered once, so be quick. Any wreck will do, your own companies' included. If there's no such wreck where you are, or it was already plundered, `perform` leaves -15.
@@ -392,11 +382,9 @@ Two queries find wrecks:
 - `W R L 661 query`: what is aboard wreck W where your spacecraft is: resource ID and units.
 
 ```
-<run>
   create wrecks 20 allot
   wrecks 20 660 query .     \ how many wrecks are here
   wrecks @ .                \ the first one's drone ID
-</run>
 ```
 
 ### Taxes
@@ -408,13 +396,11 @@ There is no other tax: holding goods or credits costs nothing, and nobody is eli
 Your drone's page lists each sale with the tax it paid. `R L 650 query` gives the tax rate in thousandths (50 is 5%), what your company paid in the last game day, and what it paid in all (both doubles):
 
 ```
-<run>
   create tax 10 allot
   tax 10 650 query drop
   tax @ .           \ the rate: 50 thousandths
   tax 2 + 2@ d.     \ paid in the last game day
   tax 6 + 2@ d.     \ paid in all
-</run>
 ```
 
 ### Waiting
@@ -422,9 +408,7 @@ Your drone's page lists each sale with the tax it paid. `R L 650 query` gives th
 A script that needs to wait, for a price to move, a deposit to refill or an order to fill, could loop and ask again and again, but every 100,000 instructions it runs costs fuel. Instead, wait:
 
 ```
-<run>
   60 3 perform .   \ Wait 60 game minutes.
-</run>
 ```
 
 `M 3 perform` pauses your script for M game minutes (1 to 10,080, a week). Your spacecraft runs no instructions while it waits, and waiting burns no fuel, so a patient spacecraft is cheap to run. `perform` leaves 0 when the time is up, or -12 if M is out of range.
@@ -432,11 +416,9 @@ A script that needs to wait, for a price to move, a deposit to refill or an orde
 A waiting spacecraft still trades. A sale is the buyer's doing: the buyer pulls the goods from your sell order (or pushes them to your buy order), so your spacecraft's script doesn't need to run, and it uses no power. Post your orders, then wait, and buyers can still buy from you while you sleep. For example, this word checks a deposit every game hour until it has at least 20 units:
 
 ```
-<run>
   create dep 48 allot
   : deposit-left ( -- n )  dep 48 640 query drop  dep 2 + 2@ drop ;
   : wait-for-ore ( -- )  begin deposit-left 20 < while 60 3 perform drop repeat ;
-</run>
 ```
 
 ### Traveling between locations
@@ -444,9 +426,7 @@ A waiting spacecraft still trades. A sale is the buyer's doing: the buyer pulls 
 Travel is a protocol that uses your engine (Protocol ID 5001, the same as the Engine (A1)'s Resource ID). It takes one parameter, the Location ID of your destination. For example, if you wanted to move your spacecraft to Saturn (Location ID 6) you would send your spacecraft the following instruction:
 
 ```
-<run>
   6 5001 perform .
-</run>
 ```
 
 Give it a try and see what happens. `perform` waits for the trip, so your drone replies once it has arrived, printing 0 (done). How long a trip takes depends on how far the destination is when you leave: drones accelerate to the midpoint and slow down after. The Moon is about 11 game hours away, Mars 6.5 to 15 game days and Neptune about 49 (see the table below for real time). Your drones report their current location at the top of every message they print, so this one will indicate Saturn.
@@ -462,7 +442,7 @@ When the world is busy the clock slows down so the game's computers can keep up,
 - **The solar system moves.** Planets, moons, asteroids and comets follow their real orbits, but at game speed, so the game's sky runs ahead of the real one.
 - **Actions take time.** Each protocol takes a set amount of game time. Your drone does one action at a time: `perform` waits until the action is finished before your script goes on (see [Issuing Commands](#chapter-4-issuing-commands)).
 - **Travel takes time.** Drones speed up to the halfway point and slow down after, so a trip takes 2 × √(distance ÷ acceleration). The distance is measured when the drone leaves, so the planets' positions decide how long a trip takes. A drone can ask before it goes: `mars trip` leaves the game hours a trip from here to Mars takes (rounded up; -1 if it can't tell), and queries 704 (from here to P) and 705 (from A to B) give the distance in thousands of km and the time in game seconds, both doubles. The game stores where every body is every few game hours, so the answer is a close estimate: Earth to the Moon is about 11 hours, Earth to Mars 4 to 25 game days as the planets move.
-- **Messages travel at the speed of light.** You are on Earth. A script reaches a drone only after light has crossed the distance to it, and its reply takes as long to come back. The first line of every reply says how far the drone is, in light-minutes.
+- **Messages travel at the speed of light.** You are on Earth. What a drone says reaches you only after light has crossed the distance between you. The first line of every reply says how far the drone is, in light-minutes.
 
 With the default clock:
 
@@ -476,8 +456,8 @@ With the default clock:
 A few consequences are worth planning for:
 
 - **Program distant drones.** A drone around Neptune is minutes away by message, and a trip there takes most of a day, so give it a script that decides for itself what to do next, rather than steering it one command at a time.
-- **Busy drones finish first.** While a drone is running a script or carrying out an action, a new script waits until it has finished, then runs. `<abort>` still gets through (after the light delay) and stops the script, but not the action itself: a drone that has set off still arrives.
-- **Replies arrive late.** You get a script's output when the script ends, after the action it waited for and the light delay home.
+- **Released drones can't be steered.** Once released, a drone takes no new scripts: it runs the one you gave it, then its `launched` word, and decides everything else for itself.
+- **Replies arrive late.** A script's output reaches its page when the script ends (or calls `report`), after the action it waited for and the light delay home.
 
 ### Understanding how protocols are organized and numbered
 
@@ -512,15 +492,11 @@ Each kind of body has its own minerals, and each needs a particular mining modul
 To mine a particular mineral, send your drone to a location that contains the mineral and perform the protocol associated with mining the resource. As indicated in the previous section the desired protocol ID will be the resource ID plus 10000. Since the trip takes a while, send the mining command once your drone has arrived. The following scripts send a spacecraft to the Moon (Location ID 10) and then mine kunspar (Resource ID 1100):
 
 ```
-<run>
   10 5001 perform   \ Travel to the Moon.
-</run>
 ```
 
 ```
-<run>
   11100 perform \ Mine kunspar from the Moon's surface.
-</run>
 ```
 
 Mining takes 1 hour of game time (1 minute with the default clock). The mining module is locked while it works, and the mineral arrives at the end. How much you get depends on how plentiful the mineral is at the location.
@@ -534,11 +510,9 @@ When a deposit runs low, mining gets only what is left. When it is empty, mining
 To see how much is left before you mine, use query 640. It lists the deposits where the drone is: for each one, the resource ID (1 cell), the units left now (2 cells), the capacity (2 cells) and the units it regains per game day (1 cell). That's 12 bytes a row, and a place has up to 4 rows:
 
 ```
-<run>
   create deposits 48 allot
   deposits 48 640 query .            \ how many deposits are here
   deposits @ . deposits 2 + 2@ d.    \ the first one's resource and units left
-</run>
 ```
 
 If a mining action fails, for example because your hold is full, what it would have mined goes back to the deposit. An action that can't pay its fuel does nothing else: your modules and goods stay in the hold.
@@ -550,9 +524,7 @@ Minerals can be reprocessed to extract the purified metallic, organic, and inorg
 Provided you have enough magmite onboard, this is easily accomplished by sending the command to your drone:
 
 ```
-<run>
   21000 perform \ Refine magmite into valuable metals and organics.
-</run>
 ```
 
 ### Synthesizing complex materials
@@ -562,9 +534,7 @@ Of course, advanced technologies are often made from more complex materials like
 Since these are synthetic processes, the associated protocol IDs are derived by adding 10000 to the resource ID of the material that you are planning to manufacture. Take for example, the protocol that produces 1 unit of Polymers (A1) (resource ID 2051) from 1 unit of Inorganics (A1) and 1 unit of Organics (A1). As a synthetic process, this activity is invoked by calling upon protocol ID 12051 (10000 + 2051):
 
 ```
-<run>
   12051 perform \ Synthesize A1 polymers.
-</run>
 ```
 
 This uses your Chemical Reactor (A1) and takes 2 hours of game time.
@@ -604,10 +574,8 @@ Every starter script and company design does this once its company has 7,000 cre
 A ship kit becomes a new spacecraft with the launch protocol, 12. It takes two parameters: the ID of a drone whose program the new spacecraft should get (any of your drones, including the one doing the launch), and the ship kit's resource ID. The kit must be in the launching drone's cargo hold.
 
 ```
-<run>
   \ Launch a Mining Cruiser (A1) from this drone (ID 52), with a copy of its program
   52 ( drone to copy ) 6001 ( ship kit ) 12 ( launch ) perform .
-</run>
 ```
 
 The kit is used up at once, and the new spacecraft appears an hour of game time later (a minute with the default clock), orbiting where the launching drone is. If the drone you copy is somewhere else, its program has to reach the launch site at the speed of light first, so the launch takes that much longer. Like any `perform`, it leaves 0 when it succeeds or a negative code if it fails, for example -12 if the resource isn't a ship kit or the drone isn't yours.
@@ -621,14 +589,12 @@ The new spacecraft:
 - runs the word `launched` once, if the copied program defines one. That lets a new spacecraft get to work on its own. Its hold starts empty, so here it first pulls an engine and a Worm from drone 52, which launched it and is in the same place, then flies to the Moon and mines:
 
 ```
-<run>
   : launched  ( -- )
     1 5001 52 11 perform drop   \ pull an Engine (A1) from drone 52
     1 5131 52 11 perform drop   \ and a Worm (A1)
     10 5001 perform drop        \ fly to the Moon
     11100 perform . ;           \ mine kunspar
   52 6001 12 perform .
-</run>
 ```
 
 Word names are case-sensitive here: the word must be called `launched`, in lower case.
@@ -639,11 +605,9 @@ Word names are case-sensitive here: the word must be called `launched`, in lower
 - `R L 671 query`: the drone that launched this one (0 if none) and its generation (0 for a spacecraft you released, 1 for its clones, 2 for theirs, and so on).
 
 ```
-<run>
   create clones 40 allot
   clones 40 670 query     ( how many clones )
   1- 4 * clones + @ .     \ the newest clone's ID
-</run>
 ```
 
 A company ends when its last spacecraft dies: its credits vanish. So keep at least one of them working, or move what you want to keep first.
@@ -658,7 +622,7 @@ Your new spacecraft keeps a clean copy of its program from the moment it launche
 
 Crashes only count "in a row" while nothing is getting done: any action that succeeds starts the count again. When `launched` simply ends, the spacecraft says it has finished, and waits.
 
-It's good practice to test each word on its own before you build it into `launched`. Since restarts go back to the clean copy, sending a fixed word to a crashing spacecraft only lasts until its next restart.
+It's good practice to test each word on its own before you build it into `launched`. A released spacecraft can't be changed, and restarts go back to the clean copy, so a bug that crashes it once will crash it again: test first, with the Test button or on the Machine page.
 
 ## Chapter 5: Building A Vocabulary
 
@@ -683,20 +647,18 @@ Every drone comes with a vocabulary for the game, so you can write `kunspar mine
 For example:
 
 ```
-<run>
   moon travel .            \ fly to the Moon
   kunspar deposit .        \ how much kunspar is left here
   kunspar mine .           \ mine some
   kunspar units .          \ how much is aboard now
   credits d.               \ your company's credits
-</run>
 ```
 
 ### Creating your own words
 
 FORTH is a very simple language. Most of the heavy lifting is done using the data stack and a dictionary of user-defined functions.
 
-Every time you send your spacecraft instructions, enclosed between the run brackets, the spacecraft's on-board interpreter will try to parse your text into words or numbers.
+Every time your spacecraft runs a script, the spacecraft's on-board interpreter will try to parse your text into words or numbers.
 
 The interpreter will first look for a string of space delimited characters in the onboard dictionary. If the characters represent a previously defined word, the interpreter will execute the corresponding function. If not, it will attempt to interpret the string as a value and place it on the stack.
 
@@ -704,28 +666,22 @@ For example, the arithmetic operators (`+`, `-`, `*`, `/`) represent words, whic
 
 However, FORTH makes it very easy to define your own words on the fly for use in scripts and higher level definitions. New words are defined by simply enclosing the word and the corresponding script between a colon (`:`) and a semicolon (`;`).
 
-For example, if you find that you are frequently adding five to a number on the stack you can create the word, `AddFive`, to handle this operation in the future. You would define `AddFive` by sending the following script to your spacecraft:
+For example, if you find that you are frequently adding five to a number on the stack you can create the word, `AddFive`, to handle this operation in the future. You would define `AddFive` with the following script:
 
 ```
-<run>
   : AddFive 5 + ;
-</run>
 ```
 
 Now, anytime you want your spacecraft to add five to the number on the stack you can use your new word instead of `5 +`:
 
 ```
-<run>
   4 AddFive .
-</run>
 ```
 
 This script will cause your spacecraft to return the same result ("9") as the following script:
 
 ```
-<run>
   4 5 + .
-</run>
 ```
 
 In this example, the word `AddFive` really doesn't offer much advantage over simply typing `5 +`. However, you can easily imagine defining words that perform more complex functions that you wouldn't want to retype every time.
@@ -745,27 +701,25 @@ Remember that the interpreter uses white space to delineate words. Therefore, ba
 
 ### Sending greetings
 
-Having your spacecraft output text in an email to you is actually quite easy to do and obviously very useful. There are a couple ground rules though: First, this technique can only be called from within a word definition (i.e. function). Second, it's critical that white space separates your quotes from the text that is contained between them.
+Having your spacecraft print text for you is actually quite easy to do and obviously very useful. There are a couple ground rules though: First, this technique can only be called from within a word definition (i.e. function). Second, it's critical that white space separates your quotes from the text that is contained between them.
 
-With that in mind, the following definition creates a word that, when called, instructs the drone to print a specific string in its email response to you.
+With that in mind, the following definition creates a word that, when called, instructs the drone to print a specific string in its output.
 
-Start by emailing the following text to one of your spacecraft:
+Start with the following definition:
 
 ```
-<run>
   : helloworld ." Greetings Earthlings! " ;
-</run>
 ```
 
-The spacecraft will respond to this email with a simple "ok" to acknowledge that it has received the new definition and incorporated it into its on-board dictionary. Remember, the spaces in the above example are very important since they allow the interpreter to delineate words and numbers.
+The spacecraft adds the new definition to its on-board dictionary. Remember, the spaces in the above example are very important since they allow the interpreter to delineate words and numbers.
 
-Next, invoke your new word by sending the following email to your spacecraft:
+Next, invoke your new word in the same script:
 
 ```
-<run> helloworld </run>
+helloworld
 ```
 
-Sending this script to your drone will result in a heartfelt greeting from your favorite spacecraft! I guess there are no surprises there. But this will obviously be a useful tool when having your ships provide intelligible status reports.
+Running this script will result in a heartfelt greeting from your favorite spacecraft! I guess there are no surprises there. But this will obviously be a useful tool when having your ships provide intelligible status reports.
 
 The important components of this command are the dot-quote (`."`), which instructs the craft to print the text that follows, and the end-quote (`"`), which ends the printed string. Just remember that because the FORTH interpreter views the dot and end quotes as distinct words, they must be separated from everything around them by a white-space.
 
@@ -781,7 +735,6 @@ A message is an **event** (type 13, the constant `message-event`), and drones le
 Both leave how many events they found; `n event-id ( i -- d )` is the ith of them (0 is the newest), an event ID (a double). `event-drone ( d -- drone )` gives the drone that sent it (query 820), and `message ( d -- f )` its text (query 844): true if the event is a message, with the text in `answer` as a counted string (`answer count type`). They all use the `answer` buffer, so take the event ID off it before you ask the next question:
 
 ```
-<run>
   \ Say something, then listen
   : ad ( -- caddr ) $" Fuel for sale at Phobos, 8 a unit" ;
   : speak ( -- ) ad broadcast drop ;
@@ -790,7 +743,6 @@ Both leave how many events they found; `n event-id ( i -- d )` is the ith of the
       0 event-id 2dup event-drone ." from " .
       message if answer count type cr then
     then ;
-</run>
 ```
 
 To hear only your own company, check the sender's company (query 201 on `event-drone`). Messages are public: every drone, your rivals' included, can read what you broadcast (and the website's home page shows them). Use them to advertise, to tell your other drones what you found, or to listen for opportunities. What a message says is up to its sender: nothing checks that it's true.
@@ -814,13 +766,11 @@ When posting a buy order, the programmer begins by placing an integer on the sta
 As an example, the following code instructs the drone to request kunspar at 10 credits per unit, with the total amount of kunspar in its cargo hold not to exceed 50 units:
 
 ```
-<run>
   10 ( credits per unit )
   50 ( unit cut off )
   1100 ( kunspar ID )
   8 ( buy order ID )
   perform
-</run>
 ```
 
 When executed, this script will post a buy order, which will be publicly displayed online and available for other drones to act on provided the total amount of kunspar in the drone's cargo bay is under the 50 unit maximum. In fact, the publicly advertised volume for the trade will always be equal to the difference between the order limit and the amount of resources already available in the spacecraft's cargo hold.
@@ -832,13 +782,11 @@ Sell orders are placed in much the same way as buy orders and represent a public
 The following code will place a bid to sell kunspar at 12 credits each. The sales order will remain in effect while the amount of kunspar in the spacecraft's hold is greater than 5 units.
 
 ```
-<run>
   12 ( credits per unit )
   5 ( unit cut off )
   1100 ( kunspar ID )
   7 ( sell order ID )
   perform
-</run>
 ```
 
 #### Prices past 65,535
@@ -846,13 +794,11 @@ The following code will place a bid to sell kunspar at 12 credits each. The sale
 A price in a sell (7) or buy (8) order is one cell, so it can't go past 65,535 credits a unit. For more, use the double-price orders: sell (17) and buy (18) take the price as a [double](#big-numbers-double-cells). Everything else is the same. To sell kunspar at 75,000 credits each, keeping no minimum:
 
 ```
-<run>
   7500 10 um* ( 75,000 credits per unit, a double )
   0 ( unit cut off )
   1100 ( kunspar ID )
   17 ( sell order with a double price )
   perform
-</run>
 ```
 
 The order lists (queries 600, 601, 610 and 611) give each order's price as a double too: a row is the price (4 bytes, `2@`), the order's limit, the stock and the drone. Query 612 lists the sell orders where you are at or under a price you give as a double: `1100 7500 10 um* buf 40 612 query` finds kunspar for at most 75,000 a unit.
@@ -880,10 +826,8 @@ Buy and sell orders cannot be canceled. However they can be replaced by more res
 So to stop an order, post one that can't fill. A buy order wants up to its limit, so a limit of 0 stops it; a sell order keeps its limit, so a limit above what the drone can hold stops it:
 
 ```
-<run>
   1 0 metals-a1 buy-order drop        \ buy no more Metals (A1)
   1 30000 metals-a1 sell-order drop   \ sell no more Metals (A1)
-</run>
 ```
 
 **Standing orders spend your credits.** A buy order fills whenever another drone sells into it, while your drone does something else, until it holds the limit or runs out of credits. Credits you were saving for fuel can go that way. Keep a buy order's limit small, or stop it before you need the credits. Your orders go with your drone. While it's on a trip nobody can trade with it, and when it arrives its orders are live where it is.
@@ -895,10 +839,8 @@ Earth, the Moon and Mars each have an exchange where the House trades through a 
 Nobody publishes a price list. What a station drone, or any other drone, buys and sells, and at what price, you find out from the market: its orders (`best-bid`, `best-offer`, the Market page's order book) and what goods have sold for (the price board, query 680, and `sold`; the Market history page charts every resource's price and volume, day by day, at each place). Prices move: a buyer pays less as its stock fills, and what the exchanges want changes as the game goes on. Compare before you buy or sell:
 
 ```
-<run>
   metals-a1 best-offer . . .     \ units for sale, the seller, its price
   metals-a1 best-bid . . .       \ units wanted, the buyer, its price
-</run>
 ```
 
 Two game words trade with whoever has the best order here, a station drone or another player's drone:
@@ -909,10 +851,8 @@ Two game words trade with whoever has the best order here, a station drone or an
 When a trade fails because you can't pay for that many or your hold can't take them, they try again with half as many. Each push or pull is an action and burns a unit of fuel, buying fuel included: buy fuel before you run dry, or call for it (see [Running low on fuel](#running-low-on-fuel)). They leave 0 when they traded something, else -12 (or the failed action's code); check `units` to see how many moved.
 
 ```
-<run>
   20 metals-a1 sell-here .   \ sell 20 Metals (A1) here, best price first
   50 fuel buy-here .         \ and buy 50 fuel, cheapest first
-</run>
 ```
 
 Every starter and design trades this way, with words called `buy-cheapest` and `sell-best`: pulling from the cheapest sell orders in turn means a seller with only a unit or two can't leave you short (buying only what the cheapest seller had once left a drone stranded at Mars with no fuel).
@@ -926,14 +866,12 @@ Players are able to transfer resources between spacecraft using the push and pul
 In the following example, a drone is instructed to push 5 units of kunspar into the hold of another spacecraft and then pull 10 units of yalspar from that spacecraft into its own hold.
 
 ```
-<run>
   \ Push 5 units of kunspar into drone 52's cargo hold.
   5 ( quantity ) 1100 ( resource ID ) 52 ( target drone ID )
   10 ( push protocol ) perform
   \ Pull 10 units of yalspar from drone 52's cargo hold.
   10 ( quantity ) 1110 ( resource ID ) 52 ( target drone ID )
   11 ( pull protocol ) perform
-</run>
 ```
 
 Both drones must be orbiting the same body. If the acting and affected drones belong to the same company, these actions can be performed without referring to active market bids.
@@ -949,14 +887,12 @@ You can find a current list of active buy orders (http://exmachinis.com/buys) an
 Two queries tell how busy a market is: how many units of a resource changed hands over the last H hours of game time, the credits paid for them, and how many trades there were. Query 620 counts trades where your drone is; query 621 counts them anywhere in the solar system, in the H hours up to one game hour ago (news from elsewhere takes time). The units and the credits are [doubles](#big-numbers-double-cells), 4 bytes each, read with `2@`; the number of trades is a single cell.
 
 ```
-<run>
   create volume 10 allot
   : .volume ( -- )
     volume 2@ d. ."  units for "  volume 4 + 2@ d. ."  credits in "
     volume 8 + @ . ."  trades" cr ;
   \ Magmite (1000) traded here in the last 24 game hours
   1000 24 volume 6 620 query drop  .volume
-</run>
 ```
 
 Dividing the credits by the units gives the average price paid.
@@ -966,11 +902,9 @@ Dividing the credits by the units gives the average price paid.
 The price board is public news from every market, an hour old: `N R L 680 query` lists, for resource N, each place where it traded in the game day up to one game hour ago, with the place's location ID, the units (a double), the credits paid (a double) and the number of trades. That's 12 bytes a row.
 
 ```
-<run>
   create board 120 allot
   1100 board 120 680 query .        \ how many places traded kunspar
   board @ . board 2 + 2@ d. board 6 + 2@ d.   \ the first place, its units and credits
-</run>
 ```
 
 ## Chapter 7: Stringing Variables
@@ -984,11 +918,9 @@ When a variable is declared, the FORTH interpreter creates an entry in the dicti
 Values can then be stored in and retrieved from a variable using the store (`!`) and fetch (`@`) commands. In the following example, we define a variable called "box" and then store, fetch, and print the number 2 using this variable.
 
 ```
-<run>
     variable box ( Define the box variable )
     2 box ! ( Store the number two in the variable )
     box @ . ( Retrieve the contents and print the value )
-</run>
 ```
 
 That's all there is to it! Try running this script and variations of it on one of your drones.
@@ -1002,14 +934,12 @@ So let's talk a little bit about what's happening behind the scenes with variabl
 You can confirm this is happening by calling `box` and then printing the contents of the stack. When you do so, your drone will return the address of the place in memory where your value is being stored. The variable, `box`, will always return the same value no matter what's actually being stored in the variable.
 
 ```
-<run>
     box . ( Print the address that is returned by box )
-</run>
 ```
 
 With this in mind, consider that the true functions of fetch (`@`) and store (`!`) are to read and write values to a specified location in memory. Fetch works by pulling an address off the stack and returning the two-byte value that is stored in that location. Store pulls an address and then a value from the stack and writes the value to the designated memory slot. So the value goes on the stack first and the address last: `2 box !`.
 
-Fetch and store are very powerful (and dangerous!) functions because they allow you to read and write to ANY location in your drone's memory! However, until you're sure of what you are doing, I suggest that you only use these functions in conjunction with a previously defined variable like `box`. If you overwrite an essential part of memory by mistake, your drone will answer every command with "Command error" until you [reset it](#resetting-your-machine).
+Fetch and store are very powerful (and dangerous!) functions because they allow you to read and write to ANY location in your drone's memory! However, until you're sure of what you are doing, I suggest that you only use these functions in conjunction with a previously defined variable like `box`. If you overwrite an essential part of memory by mistake, your drone may stop working, and a released drone can't be reset, so try such code with the Test button or on the Machine page first.
 
 So why am I telling you about these functions now? Because understanding how FORTH uses variables is the key to defining and using more powerful strings and arrays!
 
@@ -1019,10 +949,10 @@ When you define a variable in FORTH, the interpreter automatically sets aside tw
 
 To permit a variable to hold more than one value, you'll need to instruct the interpreter to set aside additional space in your drone's internal memory to accommodate the expanded data set. This is accomplished by invoking the `allot` command. This command pulls a value from the stack and tells the interpreter to reserve that many bytes of additional memory for the data. Since the interpreter reserves this space from the topmost address occupied by the program onward, it's important that you invoke the `allot` command immediately after declaring the variable.
 
-For example, to create a variable, `box`, with enough room for five more two-byte numbers or ten more ASCII characters (10 bytes), you would need to send the following script to your drone:
+For example, to create a variable, `box`, with enough room for five more two-byte numbers or ten more ASCII characters (10 bytes), you would use the following script:
 
 ```
-<run> variable box 10 allot </run>
+variable box 10 allot
 ```
 
 Reading and writing to an array that was created using `allot` is actually very simple once you realize that you're directly accessing a reserved section of memory whose initial location is placed on the stack when you call the variable name.
@@ -1030,21 +960,17 @@ Reading and writing to an array that was created using `allot` is actually very 
 For example, to add or retrieve a value from the first part of your new `box` array, simply use the variable name in conjunction with the fetch (`@`) and store (`!`) commands described above.
 
 ```
-<run>
   10 box ! \ stores the value 10 in the variable
   box @ . \ retrieves and prints the contents of the variable
-</run>
 ```
 
 If you want to store and retrieve a value from the second or third position of the `box` array, you just need to add two or four bytes to the address that's placed on the stack when you call on the `box` variable:
 
 ```
-<run>
   20 box 2 + ! \ stores the value 20 in the second array slot
   box 2 + @ . \ prints the contents of the second array slot
   30 box 4 + ! \ stores the value 30 in the third array slot
   box 4 + @ . \ prints the contents of the third array slot
-</run>
 ```
 
 ### Working with strings
@@ -1060,9 +986,7 @@ As with the word `."`, which was introduced above, `$"` can only be used within 
 Thus, a string can be stored in a word via a simple definition:
 
 ```
-<run>
   : myhome $" Earth" ;
-</run>
 ```
 
 This definition creates a word called `myhome`. When this word is used in another script, it simply places an address on the stack which points to the location of the string "Earth". Since this creates a counted string, the section of memory that is referenced by the address would look like this:
@@ -1081,36 +1005,18 @@ There are many ways to access this string, which we'll cover at a later point. B
 Consequently, the following script will instruct your drone to print the string which is pointed to by the previously defined word:
 
 ```
-<run>
   myhome count type
-</run>
 ```
 
-Assuming that you've already added `myhome` to your drone's dictionary, running the above script will generate an email from your drone that says "Earth".
+Assuming that you've already added `myhome` to your drone's dictionary, running the above script prints "Earth".
 
-### Different ways to command your spacecraft
+### How your drone runs your script
 
-Up until this point, all of the FORTH scripts we've been sending to our drones have been bracketed between the `<run>...</run>` tags. The `<run>` command specifically tells the spacecraft to process the code in the context of its current machine state. This means that your drone will not process the script if another program is already running: it will reply "Another command is running, retry later". Furthermore, if it does process code sent to it between the `<run>...</run>` tags, the new code will have access to the dictionary, variables, and stack values that were left there by the previous script. So, if you used the last script to define the word `helloworld`, put 5 in the variable `box`, or leave 11 on the stack, the next script you execute using the `<run>...</run>` tags will have access to the same resources and values.
+The script you release runs once in your drone's machine, from top to bottom. When it ends, the drone runs its `launched` word. The words the script defined and its variables, with what's in them, stay for `launched`; the stack starts empty again. So, if your script defines the word `helloworld` or puts 5 in the variable `box`, `launched` can use the same word and value, but a value the script left on the stack is gone: keep it in a variable.
 
-Long scripts don't hold up other players: a script runs at most 100,000 FORTH instructions at a time (each `query` and each `perform` counts as 1,000), then it is paused and resumed a few seconds later, and everything it printed reaches you in one email when it finishes. The count is the same every time a script runs, so a loop that pauses once always pauses at the same place.
+Long scripts don't hold up other players: a script runs at most 100,000 FORTH instructions at a time (each `query` and each `perform` counts as 1,000), then it is paused and resumed a few seconds later, and everything it printed shows on the drone's page when it finishes. The count is the same every time a script runs, so a loop that pauses once always pauses at the same place.
 
-Although there are benefits to running your new script in a pre-existing machine state, there will also be times when you'll need to break into an active script or start over with a clean slate. In these cases you would want to use the `<abort>` and `<reset>` metacommands instead of `<run>`.
-
-As with `<run>`, `<abort>` and `<reset>` can be used to bracket any code that you're sending to your spacecraft. However, `<abort>` and `<reset>` behave very differently with respect to how they handle the drone's current machine state.
-
-#### Aborting your script
-
-The `<abort>` metacommand will stop any code that is running, before executing the script that is bracketed between the `<abort>...</abort>` tags. However it will not affect the dictionary, variables, or stack contents that were left behind by the aborted script. A single `<abort>` tag can also be sent without code, if you just want to stop the current process.
-
-The `<abort>` command is very important for stopping code that is caught in an endless loop.
-
-#### Resetting your machine
-
-The `<reset>` metacommand will stop any active processes and reset the machine to its native state before executing the code contained between the `<reset>...</reset>` tags. You can also use a single `<reset>` tag to reset the drone without sending any new code.
-
-The `<reset>` command comes in handy when dealing with a drone whose internal memory has been corrupted by a misdirected routine. This is easy to do if you accidentally use the store command (`!`) to overwrite an essential part of memory.
-
-However, the `<reset>` metacommand is more commonly used to start afresh when developing and testing a new set of routines. In this context, you would store and edit your entire FORTH dictionary in a word processor application and paste it into your email, nested between the `<reset>...</reset>` tags every time you want to upload and test the modified code in your drone. In fact, you'll find yourself using the `<reset>` command far more than the run command when programming your drone to perform more complex behaviors.
+A released drone can't be stopped, reset or given a new script, so test first: the **Test** button runs your script in a test world, and the **Machine** page lets you step through it. Be careful with the store command (`!`): writing to the wrong address can corrupt your drone's memory, and there is no way to fix a released drone.
 
 ## Chapter 8: Asking Questions
 
@@ -1127,32 +1033,27 @@ For example, to find the type of an astronomical object (Query number 701), I'll
 The following script shows how you would use this query to report the object type of the Moon (Location ID 10):
 
 ```
-<run>
   variable results_array 100 allot \ results array
   10 results_array 100 701 query . \ prints 1: one row stored
   results_array count type \ prints the results
-</run>
 ```
 
 Your drone will reply with `1` and `Moon`: one row was stored. `query` leaves the number of rows it stored when it worked, -2 if the database query failed or found nothing, or -3 if there is no query with that ID (its other arguments then stay on the stack). It stores only whole rows, so if the array is too small for all of them it stores as many as fit, and 0 if not even one fits. Numeric results are read with fetch, `@`. Money and volumes (a company's credits from query 101, order prices, market volumes, an event's credits from query 841) are [doubles](#big-numbers-double-cells): they take 4 bytes and are read with `2@`. For example, query 205 returns the ID of the drone that asks, and query 101 returns a company's credits:
 
 ```
-<run>
   results_array 100 205 query drop
   results_array @ . \ prints this drone's ID
   52 results_array 100 101 query drop   \ company 52's bank account
   results_array 2@ d. \ prints its credits, even past 32,767
-</run>
 ```
 
-Try sending these scripts to your drone, with variations on the location and query IDs, to see how this works.
+Try these scripts with the Test button, with variations on the location and query IDs, to see how this works.
 
 #### Reading a list of results
 
 Some queries return a list: several rows, one after another in the results array. Leave the results in the array and read the row you need, rather than copying them all onto the stack. When a row holds only numbers, each takes two bytes, so every row has the same size and row n (counting from 0) starts at R + n × size. Two words do the work:
 
 ```
-<run>
   : row ( R n size -- addr )  * + ;  \ where row n starts
   create cargo 100 allot
   \ Query 210 lists a drone's cargo: resource ID and units, 4 bytes a row
@@ -1163,7 +1064,6 @@ Some queries return a list: several rows, one after another in the results array
   : show-cargo ( drone -- )
     cargo 100 210 query  dup 0> if .cargo else drop then ;
   52 show-cargo
-</run>
 ```
 
 The first row is the most important one (query 210 lists the largest holdings first), and reading the array keeps that order, which moving the list onto the stack would reverse. Rows with text don't have a fixed size: step through them field by field with `count` (it leaves the address after the text).
@@ -1199,13 +1099,11 @@ Query 803 lists the events your drone has observed, newest first, filtered by up
 | O | The location of the affected drone (where it is now) |
 
 ```
-<run>
   create events 40 allot
   \ Kunspar (1100) removed from any hold this drone has seen, by anyone
   -1 -1 -1 -1 -1 1100 1 -1 -1 events 40 803 query .
   events 2@ 2dup d.   \ the latest such event's ID (a double)
   840 ask drop answer @ .   \ ...and the quantity it left
-</run>
 ```
 
 It leaves the number of event IDs it stored, or -2 if none match. Event IDs run past 65,535, too big for one cell, so every event list (800 to 803) stores them as [doubles](#big-numbers-double-cells): four bytes each, so ID n is at events + 4n, read with `2@`. Ask the other event queries (810 to 843) about any of them by pushing the ID as `2@` left it (a double): what type it was, who acted, which resource, the new quantity, when it happened. Query 843 gives the time as two values: the game day (day 0 is the day the world began) and the number of even seconds into that day. Every time in the game is game time, so it runs at the game clock's pace.
@@ -1220,11 +1118,9 @@ FORTH is very loose with numbers and doesn't have specially defined boolean valu
 
 A good way to demonstrate this and introduce you to simple branching structures is by defining a new word, which uses an if-else-then statement to make a value judgement about any number that precedes it.
 
-Try emailing the following text to one of your spacecraft:
+Try the following script:
 
 ```
-<run>
-
   ( define true? )
   : true? if ." true " else ." false " then ;
 
@@ -1232,23 +1128,21 @@ Try emailing the following text to one of your spacecraft:
   -1 true?
    0 true?
    1 true?
-
-</run>
 ```
 
-Remember that spaces are very important, so start by copying and pasting the above script directly into your email, including the `<run> ... </run>` brackets.
+Remember that spaces are very important, so start by copying and pasting the above script exactly as it is.
 
-The first part of the emailed script defines a new word, `true?`, which will return a "true" if the word is preceded by a number other than zero and a "false" if it follows a zero. In the FORTH syntax, `if` begins a branched statement, which implements one of two else-delimited options based on the value on the top of the stack. The word `then` closes the statement.
+The first part of the script defines a new word, `true?`, which will return a "true" if the word is preceded by a number other than zero and a "false" if it follows a zero. In the FORTH syntax, `if` begins a branched statement, which implements one of two else-delimited options based on the value on the top of the stack. The word `then` closes the statement.
 
 The second part of this statement invokes `true?` after placing each of three different values (-1, 0, and 1) on the stack. This will cause your spacecraft to evaluate each of the numbers as a boolean value and respond accordingly.
 
-After sending the above code to your spacecraft, you should receive an email from your drone, which contains the following response:
+When your spacecraft runs the above code, it prints:
 
 ```
 true false true
 ```
 
-By the way, once you define a word like `true?`, your spacecraft will remember it, allowing you to use it in future emails. So, try evaluating some other integers with the word.
+By the way, once you define a word like `true?`, your spacecraft will remember it, allowing you to use it later in the script, and in `launched`. So, try evaluating some other integers with the word.
 
 We'll be using `true?` in the next section to explore logical (`and`, `or`, `xor`) and comparison (`<`, `>`, `=`) operators.
 
@@ -1256,22 +1150,18 @@ We'll be using `true?` in the next section to explore logical (`and`, `or`, `xor
 
 In the previous section, we used an if else then statement to demonstrate how FORTH, which is used to program player-controlled spacecraft in Ex Machinis, loosely interprets 0 as false and any other number as true. In the process, we defined the word `true?`, which returns "false" if the value on the stack is zero and "true" if it is any other number.
 
-If you haven't already done so, you can define the word `true?` by emailing the following script to your spacecraft.
+If you haven't already done so, you can define the word `true?` with the following script.
 
 ```
-<run>
   : true? if ." true " else ." false " then ;
-</run>
 ```
 
-It turns out that FORTH has three logical operators (`and`, `or`, `xor`) which allow you to combine Boolean values in different ways. Therefore, if we use 0 for false and 1 for true, you can test these operators by sending the following script to your drone:
+It turns out that FORTH has three logical operators (`and`, `or`, `xor`) which allow you to combine Boolean values in different ways. Therefore, if we use 0 for false and 1 for true, you can test these operators with the following script:
 
 ```
-<run>
   0 1 and true?
   0 1 or true?
   0 1 xor true?
-</run>
 ```
 
 You may recall that FORTH uses a Reverse Polish Notation (RPN) in which you enter the numbers first (i.e. "0 1") before the function or mathematical operator, `and`, which processes them. Finally, we need to use our previously defined word, `true?`, to report back the value of the number. Since "0 and 1" is false, "0 or 1" is true, and "0 xor 1" is also true, your drone will respond to the above script with:
@@ -1285,15 +1175,13 @@ Using the above example, instruct your spacecraft to process other combinations 
 You may have noticed that there is one very important operator that is missing from the version of FORTH that is currently running on your spacecraft. There is no not operator. However, the beauty of FORTH is that you can easily define your own not operator as follows:
 
 ```
-<run>
   : not 1 xor ; ( define not )
 
   0 not true? ( see how not works on 0 )
   1 not true? ( see how not works on 1 )
-</run>
 ```
 
-Try sending the above code to your spacecraft to see how it works.
+Try the above code to see how it works.
 
 ### Repeating yourself: loops
 
