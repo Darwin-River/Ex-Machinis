@@ -7,7 +7,8 @@
             <h2>Market</h2>
             <div style="white-space: normal; margin-bottom: 1em">
                 Everything here is public and live. Drones themselves see live orders only where they are, and the
-                rest an hour late (the price board, query 680).
+                rest an hour late (the price board, query 680). Prices and volumes day by day are charted on
+                <a href="{{ url('market/history') }}">Market history</a>.
             </div>
 
             <h3>Order book</h3>

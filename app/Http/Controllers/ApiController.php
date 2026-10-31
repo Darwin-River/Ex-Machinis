@@ -140,6 +140,19 @@ class ApiController extends Controller
         return response()->json(World::trades(min(200, max(1, (int) $request->query('limit', 50)))));
     }
 
+    /** Market history (#380): trades per game day, resource and place */
+    public function history(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->query(), ['days' => 'integer|min:1|max:365', 'resource' => 'integer|min:1', 'place' => 'integer|min:1']);
+        if ($validator->fails()) {
+            return response()->json(['error' => $validator->errors()->first(), 'errors' => $validator->errors()->toArray()], 422);
+        }
+        $resource = $request->query('resource');
+        $place = $request->query('place');
+        return response()->json(World::history((int) $request->query('days', 60),
+            $resource === null ? null : (int) $resource, $place === null ? null : (int) $place));
+    }
+
     /** Net wealth, richest first */
     public function leaderboard(Request $request): JsonResponse
     {

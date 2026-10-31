@@ -21,6 +21,20 @@ class WorldController extends Controller
         return view('world.market', compact('trades', 'sells', 'buys'));
     }
 
+    /** Market history (#380): charts of prices and volumes, drawn from /api/v1/history */
+    public function history()
+    {
+        // The resources traded in the last year, most credits first: the choices
+        $resources = DB::table('trades AS t')->join('resources AS r', 'r.id', '=', 't.resource')
+            ->where('t.game_t', '>=', World::gameNow() - 365 * 86400)->groupBy('t.resource', 'r.name')
+            ->orderByRaw('SUM(t.credits) DESC')->get(['t.resource AS id', 'r.name']);
+        // Each place keeps one colour: the places trades happen at, in ID order
+        $places = DB::table('trades')->whereNotNull('location')->distinct()->orderBy('location')->pluck('location')->map(fn ($id) => (int) $id);
+        $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
+        $today = intdiv(max(0, World::gameNow() - $epoch), 86400);
+        return view('world.history', compact('resources', 'places', 'today'));
+    }
+
     /** The leaderboard (#324 step 18): net wealth, all time and Rising */
     public function leaderboard()
     {
