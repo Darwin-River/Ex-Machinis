@@ -25,8 +25,13 @@
                 <div class="row row-xxl row-30 row-md-60 ">
                     <div class="col-12 col-sm-6 col mb-0">
                         <b>Spacecraft Id</b>: {{$agent->agent_id}}<br/>
-                        <b>Location</b>: <a
+                        @if($flight)
+                            <b>Location</b>: flying from <a href="{{url('locations/'.$agent->object_id)}}">{{$agent->location->object_name}}</a>
+                            to <a href="{{url('locations/'.$flight['to_id'])}}">{{ $flight['to'] }}</a>, arriving {{ $flight['arrives'] }}<br/>
+                        @else
+                            <b>Location</b>: <a
                                 href="{{url('locations/'.$agent->object_id)}}">{{$agent->location->object_name}}</a><br/>
+                        @endif
 
                         <b>Company</b>: {{ $state['company']->name ?? '' }}
                             {{ ($state['company'] && $state['company']->eliminated_at) ? '(ended)' : '' }}<br/>

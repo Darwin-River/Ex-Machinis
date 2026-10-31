@@ -183,7 +183,7 @@ INSERT INTO `protocols` (id, name, parameters, bulk_modifier, description, obser
   (11230, 'Mine aladanite', 0, 100, '[11230 perform]: Mine aladanite from an asteroid, if present. Uses a Crawler (A1) mining module. Takes 1 hour. Burns 1 fuel.', -1, -1, 0, 0),
   (11300, 'Mine halosite', 0, 100, '[11300 perform]: Mine halosite from a comet, if present. Uses a Crawler (A1) mining module. Takes 1 hour. Burns 1 fuel.', -1, -1, 0, 0),
   (11310, 'Mine stellarite', 0, 100, '[11310 perform]: Mine stellarite from a comet, if present. Uses a Crawler (A1) mining module. Takes 1 hour. Burns 1 fuel.', -1, -1, 0, 0),
-  (11320, 'Mine mullinite', 0, 100, '[11310 perform]: Mine mullinite from a comet, if present. Uses a Crawler (A1) mining module. Takes 1 hour. Burns 1 fuel.', -1, -1, 0, 0),
+  (11320, 'Mine mullinite', 0, 100, '[11320 perform]: Mine mullinite from a comet, if present. Uses a Crawler (A1) mining module. Takes 1 hour. Burns 1 fuel.', -1, -1, 0, 0),
   (11330, 'Mine oznium', 0, 100, '[11330 perform]: Mine oznium from a comet, if present. Uses a Crawler (A1) mining module. Takes 1 hour. Burns 1 fuel.', -1, -1, 0, 0),
   (11400, 'Mine tephnium', 0, 100, '[11400 perform]: Minetephnium from a planetary ring, if present. Uses a Crawler (A1) mining module. Takes 1 hour. Burns 1 fuel.', -1, -1, 0, 0),
   (11410, 'Mine neptine', 0, 100, '[11410 perform]: Mine neptine from a planetary ring, if present. Uses a Crawler (A1) mining module. Takes 1 hour. Burns 1 fuel.', -1, -1, 0, 0),

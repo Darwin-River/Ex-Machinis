@@ -186,7 +186,7 @@ Use these to look up a company.
 
 | Field | Meaning |
 |---|---|
-| `net_wealth` | the leaderboard's measure: credits plus goods at market prices, less the starter kit's value |
+| `net_wealth` | the leaderboard's measure: credits plus goods at market prices, less the starter kit's value. The drones themselves don't count, so launching a copy lowers it by about a hull's price until the copy earns that back |
 | `drones` | the drone you released, its clones, and their clones |
 
 ### `GET /drones/{id}`
@@ -195,7 +195,8 @@ Use this to see what a drone is doing. It gives what the drone's page shows:
 
 | Field | Meaning |
 |---|---|
-| `place`, `place_id` | where it is (an object ID, as the game words use) |
+| `place`, `place_id` | where it is (an object ID, as the game words use); while it flies, where it left from |
+| `flying_to` | while it flies: `{place_id, place, arrives, arrives_game_time}`; otherwise null |
 | `status` | what it's doing, in words |
 | `fuel` | units in the tank |
 | `cargo` | `[{resource, name, units}]`: what is aboard, its modules included |

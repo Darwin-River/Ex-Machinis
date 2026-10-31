@@ -373,6 +373,8 @@ for pid, p in econ_prot.items():
                      MINING_TIME - 1 if e['time'] == old_end - 1 else e['time']) for e in effs]
         # "Uses a Worm I mining module": the modules are named (A1); say how long
         desc = re.sub(r'\b(Slug|Worm|Crawler|Skimmer) I mining module', r'\1 (A1) mining module', ' '.join(p[4].split()))
+        # Its own number (round 31: Mine mullinite's said 11310, Mine stellarite's)
+        desc = re.sub(r'^\[\d+ perform\]', f'[{pid} perform]', desc)
         p = p[:4] + [f'{desc} Takes {game_duration(MINING_TIME)}.'] + p[5:]
     if pid in ('10', '11'):
         effs = [dict(e, time=TRANSFER_TIME) if e['time'] > 0 else e for e in effs]
