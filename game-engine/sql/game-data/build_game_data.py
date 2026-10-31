@@ -1022,8 +1022,8 @@ for st in (1, 2, 3):
 # little of everything a drone can make, mine or refine, so any good can be
 # bought to use or made to sell, wherever a player starts. It buys at the
 # good's value (inputs, fuel and a wage, as above) and sells at half as much
-# again, like the raw goods; a few units a day of each (fewer of the dear
-# ones), so a player who makes or sells more soon moves the price. The larger
+# again, like the raw goods; tens of units a day of each (fewer of the dear
+# ones), so a player who makes or sells a lot still moves the price. The larger
 # listings above stay as they are. Fuel is left out (its own rows above),
 # and so are the House's own modules and the big ship kits (42,000 credits
 # and up): the station drone and the order words take a price in one cell,
@@ -1034,7 +1034,16 @@ def every_product_value(rid):
     value = made_value(rid) if int(rid) not in ORES else ore_value(int(rid))
     return value if value and value > 0 else None
 def small_daily(value):
-    return 20 if value < 100 else 8 if value < 1000 else 4
+    # a quarter of it on offer: 20, 8 or 4 units (it was 5, 2 and 1, too few
+    # to build on)
+    return 80 if value < 100 else 32 if value < 1000 else 16
+# One value for a good at every exchange: where one already sells it for less
+# than its value (Earth's modules and kits), that price less the markup, or
+# a player could buy it there and sell it to another exchange for more
+cheapest_sale = {}
+for s_, rid, side, price, _, _ in STATION_GOODS:
+    if side == SELLS:
+        cheapest_sale[rid] = min(price, cheapest_sale.get(rid, price))
 for st in (1, 2, 3):
     listed = {(rid, side): price for s_, rid, side, price, _, _ in STATION_GOODS if s_ == st}
     for rid in sorted(int(r) for r in resources):
@@ -1042,10 +1051,10 @@ for st in (1, 2, 3):
             continue
         value = every_product_value(rid)
         sells = listed.get((rid, SELLS))
-        if value is None and sells is None:
-            continue
+        if rid in cheapest_sale:
+            value = min(value or cheapest_sale[rid], cheapest_sale[rid] * 2 // 3)
         if value is None:
-            value = sells * 2 // 3          # a kit: what it sells for, less the markup
+            continue
         if value * 3 // 2 > MAX_LISTED:
             continue
         if (rid, BUYS) not in listed:
@@ -1064,6 +1073,12 @@ for st, rid, side, price, _, _ in STATION_GOODS:
     _sides.setdefault((st, rid), {})[side] = price
 for (st, rid), p in _sides.items():
     assert not (BUYS in p and SELLS in p and p[BUYS] >= p[SELLS]), f'station {st}: resource {rid} bought at {p}'
+# ...nor buys it for more than another exchange sells it for (Mars pays as
+# much as Earth and the Moon charge for metals: the tax and the trip eat it)
+for rid in {r for _, r in _sides}:
+    bids = [p[BUYS] for (s_, r), p in _sides.items() if r == rid and BUYS in p]
+    asks = [p[SELLS] for (s_, r), p in _sides.items() if r == rid and SELLS in p]
+    assert not (bids and asks and max(bids) > min(asks)), f'resource {rid}: bought for {max(bids)}, sold for {min(asks)}'
 for st, rid, _, _, _, _ in STATION_GOODS:
     if str(rid) not in resources:
         note(f'station {st}: unknown resource {rid}')
