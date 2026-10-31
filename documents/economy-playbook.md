@@ -218,9 +218,44 @@ From round 21, four naive agents join each round as new players would: they get 
 - *Testing.* The test world's empty market checks logic, not economics; `/test/{token}` shows 20 raw events; the Machine can only ask as a drone at a place where one is.
 - *Doc slips:* the manual still linked exmachinis.com pages and the design manual (fixed in #402); that `allot` memory isn't zeroed is undocumented.
 
-**What they liked best** (all ten rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
+**Round 33 findings:** with every product listed at every exchange and the House buying at 75% and selling at 150% of a good's value, newcomers took the top four places of 105 (Farid 2, Greta 2, Elif 1, Elif 2) and Hugo 2 7th, all by making parts or systems that only the exchanges bid for (valves, pumps, pistons, semiconductors, transceivers). The House's lower bids roughly halved the starters' gains (Maker +3,479, Miner +3,199, Smith +2,709) and clones fell from 22 to 5, but 23 of 24 Miners still gained, and only two drones of 115 wrecked, both on fuel. Ratings dipped to overall 7.25 (fun 6.75, clarity 7.0, depth 7.75, feedback 6.5, API 8.0, would play again 7.75). What they missed:
+- *An empty market on day 1.* A station posts its ~90 bids before its asks, one timed action each, so metals, organics and fuel only appeared at the exchanges after one to five game days. The manual says they sell a little of everything from day one. Unfiltered `/orders` also stops at 247 rows with no notice.
+- *Loading takes game time.* A 5.5 KB script took 1.4 to 1.7 game days to load on the live server (a comment-stripped 4 KB copy about 2 game hours), with only "running its script" and a climbing instruction count to show for it.
+- *Static demand.* Station bids for systems held (pumps 712, valves 734 to 757) all round, so finding the gap mattered more than outplaying anyone; two asked for bids that fall faster as they fill.
+- *The clock.* `/clock` said scale 600 while the clock ran far slower for stretches, then jumped; nothing says when the round ends.
+- *Starters.* The Maker sells only at Earth (Hugo 2 flew there at 160 while the Moon paid 176) and has no growth step; a crowded Moon left the Miner's `grow-at` out of reach. Hugo asked for strategic Settings (what to make, where to sell).
+- *Own companies compete.* `sell-price` and `best-bid` count a player's other company's orders.
+- *Test runs:* events like "outcome 0/1" are cryptic, and results show no fuel or instruction count.
+
+**What they liked best** (all eleven rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
 ## Round log
+
+### Round 33: every product at every exchange, the House buying low (#380)
+
+A fresh world from #402's code (every exchange buys and sells every product it can list, with deeper stocks, House buys at 75% and sells at 150% of a good's value), the same mix (60 starters, 18 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive), to game day 40. Four newcomers played through the JSON API; Greta reported at day 8, her companies ran on.
+
+| Design | Companies | Avg gain | Clones |
+|---|---|---|---|
+| Machinist | 6 | +6,086 | 3 |
+| Maker (starter) | 12 | +3,479 | 0 |
+| Adaptive | 6 | +3,288 | 0 |
+| Miner | 24 | +3,199 | 0 |
+| Smith | 9 | +2,709 | 0 |
+| Chemist | 18 | +1,681 | 0 |
+| Refiner | 12 | +1,603 | 0 |
+| Trader | 12 | +20 | 0 |
+| Newcomers | 8 | +5,064 to +10,295 (per player) | 2 |
+
+| Trades | Count | Units | Credits |
+|---|---|---|---|
+| Station drones selling | 2,508 | 49,906 | 371,421 |
+| Station drones buying | 3,434 | 12,772 | 697,379 |
+| Player to player | 3,880 | 8,088 | 111,593 |
+
+- **Wrecks**: 2 of 115 drones, both on fuel (a starter Maker and a starter Miner).
+- **Leaderboard**: Farid 2 1st (19,104), Greta 2 2nd, Elif 1 3rd, Elif 2 4th, Hugo 2 7th, Greta 1 8th.
+- **Ratings**: Elif 7, Farid 7.5, Greta 7.5, Hugo 7 overall.
 
 ### Round 32: the round 31 fixes (#380)
 
