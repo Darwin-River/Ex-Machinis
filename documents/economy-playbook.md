@@ -161,6 +161,11 @@ From round 21, four naive agents join each round as new players would: they get 
 | 31 | Theo (manufacturer) | A 17-recipe factory turned fuel brewer (2,365 credits by day 12) fed organics by his own miner; both wrecked on fuel after a "hop when idle" rule stranded the brewer at Earth | 6 | 6 | – | 8 | 7 | – | 6 |
 | 31 | Vera (casual) | The Miner starter with two Settings changed, then one sent to empty Phobos; both wrecked on fuel by day 23 | 4 | 6 | – | 7 | 5 | – | 5 |
 | 31 | **Average** (a broken world: the station drones never started) | | 5.5 | 5.75 | – | 7.25 | 6.5 | – | 5.75 |
+| 31b | Omar (tool builder) | A Python helper over the API; an Earth factory that brewed and sold its own fuel, and a Moon fuel depot found from `/orders` (3rd on day 16) whose clone flew to Mars; +8,876 avg, #5 | 7 | 7 | – | 8 | 7 | – | 7.5 |
+| 31b | Rosa (market analyst) | An Earth polymer and alloy factory with a fuel depot on the side, and the same at the Moon with Alloys (A2); both in the top 7, no wrecks; +10,109 avg | 7 | 7 | – | 8 | 8 | – | 7.5 |
+| 31b | Tomas (manufacturer) | A recipe chooser at Earth, then a parts maker that scored five products by profit per hour and built one unit at a time; #1 of 107; +11,768 avg | 7 | 6 | – | 7 | 7 | – | 7 |
+| 31b | Wanda (casual) | The Miner starter with `grow-at` lowered, and the Maker starter changed to sell alloys at the Moon Depot (5th on day 8.5); +4,204 avg | 6 | 6 | – | 6 | 7 | – | 6.5 |
+| 31b | **Average** (the rerun, with working station drones) | | 6.75 | 6.5 | – | 7.25 | 7.25 | – | 7.1 |
 
 **Round 21 findings, and what changed:**
 - *They couldn't see their drones.* A drone's output arrives when its script ends, and `launched` never ends. The engine has a `report` word that sends it at once, but the manual never mentioned it (three of the four even redefined it). Now the manual documents it and the starters call it every 8th round.
@@ -194,9 +199,41 @@ From round 21, four naive agents join each round as new players would: they get 
 
 **Round 31 findings:** the round doesn't measure the game. The live world's three station drones never started: their script reached them cut up and out of order (dozens of "undefined word" lines, then "no launched word"), because two game engines ran on the database for a few minutes while the world was made, and each took part of every drone's input. With no station orders all round, nothing bought metals or parts and nothing sold hulls or fuel: miners undercut each other to 1 credit, no company cloned, and 89 of 104 player drones wrecked on fuel (58 at the Moon); the 12 Trader starters and 3 Smiths were all that was left. The test world's stations worked, so every newcomer found the difference by probing, and said nothing told them. Rated through the API for the first time: API usability 8 from all four (clean JSON, `/check` and `/test` worked first time, the drone post-mortems "taught me a lot"); would play again 6.5. Also found, true in any world: re-posting an unchanged order every round costs 1 fuel each time and killed two drones; an idle scoring loop costs about 5 fuel a game day; post-mortems count the instructions spent loading the script, which are free; `/trades` names drones but `/drones/{id}` takes a number; a company's credits vanish when its last drone wrecks; with two releases, one bad guard ends a player's round. After the round: each engine now takes a database lock, so a second game or events engine on the same database stops with an error instead of running. The players' manual now says an order stays up until replaced and that posting it again still costs a fuel, and the new game words `?sell-order` and `?buy-order` skip a post that would change nothing (tested in the engine: five calls, three order events, three fuel). The Strategy Blog's sixth post, "Keep a waiting drone cheap", covers posting on a change and waiting longer while nothing changes, and the `reoffer` example word uses `?sell-order`.
 
+**Round 31 rerun findings:** with the engine lock in place the station drones started, and the economy came back: no wreck among 140 drones, 30 clones, and every company but one Trader gained. Every newcomer gained (+4,204 to +11,768 avg); Tomas 2 finished first of 107 and three more newcomer companies finished in the top 7. Would play again averaged 7.75, the best yet, and API usability was 8 from all four. Three found their niche straight from `/orders` (an Earth factory nobody else stayed at, a Moon fuel depot, alloys sold to the Moon Depot), and Tomas saw the parts bids appear and built for them. What they missed:
+- *The stations' wish list grows without notice.* Bids for rods, sheets, fasteners and pipes appeared around day 4 to 6, and gear boxes, motors and pumps by day 10 to 13, paying 5 to 10 times the day-0 margins. Every newcomer had chosen products by day 5 and couldn't change a released drone; three asked for a notice and one for a later release or a parameter update.
+- *Growing late costs net wealth.* A launch drops net wealth by 1,700 to 2,000 (the hull and kit count for less than their price), and a clone launched after day 20 rarely paid it back; Wanda's day-34 clone was still flying when the round ended. A `grow-at` under the hull and kit price (about 5,000) buys a hull and no kit.
+- *A flying drone looks parked.* Its place stays the one it left, with no destination; waits don't say why.
+- *History:* `/trades` returns 200 rows (under a game day here); no company history.
+- *Doc slips:* protocol 11320's description says 11310; the manual still mentions email and `<run>` tags; the Maker starter's comment says rods sell at Earth, but nobody bid for rods on day 0.
+
 **What they liked best** (all ten rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
 ## Round log
+
+### Round 31 rerun: through the API, with working station drones (#380)
+
+The same world mix as round 31 (60 starters, 18 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive), built again with the engine lock, to game day 40. All three station drones launched with no errors. Four new newcomers played only through the JSON API.
+
+| Design | Companies | Avg gain | Clones |
+|---|---|---|---|
+| Machinist | 6 | +9,687 | 6 |
+| Maker (starter) | 12 | +7,521 | 0 |
+| Smith | 9 | +6,051 | 4 |
+| Miner | 24 | +4,639 | 14 |
+| Adaptive | 6 | +4,427 | 0 |
+| Refiner | 12 | +4,115 | 0 |
+| Chemist | 18 | +4,005 | 0 |
+| Trader | 12 | +150 | 0 |
+| Newcomers | 8 | +4,204 to +11,768 | 6 |
+
+| Trades | Count | Units | Credits |
+|---|---|---|---|
+| Station drones selling | 2,993 | 31,481 | 467,221 |
+| Station drones buying | 3,902 | 15,021 | 909,747 |
+| Player to player | 4,557 | 18,316 | 154,753 |
+
+- **Wrecks**: none of 140 drones. No company ended.
+- **Leaderboard**: Tomas 2 1st, Rosa 2 4th, Omar 2 5th, Rosa 1 7th, Tomas 1 9th.
 
 ### Round 31: through the API, with no station drones (#380)
 
