@@ -284,13 +284,13 @@ The **ones** value is used to distinguish between the size and tech level of a p
 
 ### Browsing the Resource Catalog
 
-You can browse and search the available resources online by going to the Resource Catalog (http://exmachinis.com/resources). The catalog provides a filterable list of all the resources in the game along with their unique ID, a brief description of the item, and a unit mass in kilograms. Clicking on a particular resource will take you to a details page, which lists all of the item's active buy or sell orders.
+You can browse and search the available resources online by going to the **Resources** page (`/resources` on the game's website). The catalog provides a filterable list of all the resources in the game along with their unique ID, a brief description of the item, and a unit mass in kilograms. Clicking on a particular resource will take you to a details page, which lists all of the item's active buy or sell orders.
 
 ## Chapter 4: Issuing Commands
 
 Every physical action your spacecraft takes will result from calls to predefined protocols. These protocols allow your drones to do things like mine resources, manufacture products, and travel between locations. In many cases, protocols use, deplete, and produce resources located in your ship's hold.
 
-You can find a current list of protocols on the website (http://exmachinis.com/protocols).
+You can find a current list of protocols on the website's **Protocols** page (`/protocols`).
 
 Protocols are invoked by giving your drone a FORTH script that calls upon the `perform` function. This function pulls one or more parameters from the stack. These parameters provide the ID for the protocol you want to perform and any other parameters that are required by the protocol. Think of your drone's FORTH script as a sequencer that decides how one action follows another. `perform` waits until the action is finished: your drone's script doesn't go on to the next word until then, so a drone does one thing at a time, and the script only runs in between actions to decide what to do next. A trip, for example, holds the script until the drone arrives. Then `perform` leaves one number on the stack, so `.` after it prints:
 
@@ -431,7 +431,7 @@ Travel is a protocol that uses your engine (Protocol ID 5001, the same as the En
 
 Give it a try and see what happens. `perform` waits for the trip, so your drone replies once it has arrived, printing 0 (done). How long a trip takes depends on how far the destination is when you leave: drones accelerate to the midpoint and slow down after. The Moon is about 11 game hours away, Mars 6.5 to 15 game days and Neptune about 49 (see the table below for real time). Your drones report their current location at the top of every message they print, so this one will indicate Saturn.
 
-You can use this command to go elsewhere in the solar system as well. All you need is the Location ID for your destination. This can be found in the Space Objects table (http://exmachinis.com/locations), which lists the planets and their moons, the space stations, and the asteroids, comets and planetary rings.
+You can use this command to go elsewhere in the solar system as well. All you need is the Location ID for your destination. This can be found on the website's **Locations** page (`/locations`), which lists the planets and their moons, the space stations, and the asteroids, comets and planetary rings.
 
 ### Time and distance
 
@@ -477,7 +477,7 @@ Of course, some of these protocols, like the transport option, don't exist yet. 
 
 Every production process begins with raw materials, which are available from planets, moons, asteroids, comets, and planetary rings. These resources are generally extracted from orbital bodies in the form of minerals, which contain many of the different elements and compounds required for making construction materials.
 
-If you call up a particular location online, you'll be able to see what minerals are available at that location. For example, the Moon (http://exmachinis.com/locations/10) contains kunspar, yalspar, vladnium, and wolfite. Each of these minerals is accompanied by a value, which indicates the relative abundance of the resource at that location. The higher the number, the more units you'll recover from a single mining run. The page's **Deposits** table shows how much of each is left there now, the deposit's capacity and how much it refills each game day: the same number a drone gets from `deposit`.
+If you call up a particular location online, you'll be able to see what minerals are available at that location. For example, the Moon (`/locations/10`) contains kunspar, yalspar, vladnium, and wolfite. Each of these minerals is accompanied by a value, which indicates the relative abundance of the resource at that location. The higher the number, the more units you'll recover from a single mining run. The page's **Deposits** table shows how much of each is left there now, the deposit's capacity and how much it refills each game day: the same number a drone gets from `deposit`.
 
 Each kind of body has its own minerals, and each needs a particular mining module in your cargo hold:
 
@@ -541,7 +541,7 @@ This uses your Chemical Reactor (A1) and takes 2 hours of game time.
 
 ### Producing more complex spacecraft components
 
-In a similar manner, you can use protocols to synthesize parts from materials, systems from parts, modules from systems, and ship kits from modules. In each case, the process is invoked by calling upon your drone to perform a protocol whose ID is derived by adding ten thousand to the resource ID of the resource that you're trying to produce. You can find a complete list of these protocols on the online protocols page (http://exmachinis.com/protocols). Click a protocol to see the modules it needs, what it uses up and produces, how long it takes, and each of its steps. The queries page (http://exmachinis.com/queries) works the same way.
+In a similar manner, you can use protocols to synthesize parts from materials, systems from parts, modules from systems, and ship kits from modules. In each case, the process is invoked by calling upon your drone to perform a protocol whose ID is derived by adding ten thousand to the resource ID of the resource that you're trying to produce. You can find a complete list of these protocols on the website's **Protocols** page (`/protocols`). Click a protocol to see the modules it needs, what it uses up and produces, how long it takes, and each of its steps. The **Queries** page (`/queries`) works the same way.
 
 Every production protocol locks one tool module while it works, and each stage takes longer than the one before:
 
@@ -880,7 +880,7 @@ However, if the affected spacecraft is owned by a different player, the push and
 
 A transfer either happens completely or not at all. If anything stops it (the seller has too little to sell, the receiving hold is full, the buyer can't pay, there is no matching order, or the drones are in different places), no goods and no credits change hands, and the action is aborted.
 
-You can find a current list of active buy orders (http://exmachinis.com/buys) and sell orders (http://exmachinis.com/sells) on the Ex Machinis website.
+You can find a current list of active buy orders (`/buys`) and sell orders (`/sells`) on the Ex Machinis website.
 
 #### Measuring market volume
 
@@ -1024,7 +1024,7 @@ In Ex Machinis, spacecraft learn about their environment through queries to an o
 
 Queries are fairly complex commands because they require you to access your drone's on-board memory (where the results will be stored). Furthermore, the results array needs to be passed to the query command via a pointer.
 
-The website has a queries page (http://exmachinis.com/queries), which lists all the queries that are currently available for use by your drones; the [design manual](design-manual.md#appendix-a-in-game-queries) lists them too. These queries invoke predefined SQL scripts, which incorporate user-supplied parameters and return the results to a specified memory location for later retrieval. The page lists the specific parameters you'll need to invoke a query and details how the results will be arranged in memory.
+The website has a **Queries** page (`/queries`), which lists all the queries that are currently available for use by your drones. These queries invoke predefined SQL scripts, which incorporate user-supplied parameters and return the results to a specified memory location for later retrieval. The page lists the specific parameters you'll need to invoke a query and details how the results will be arranged in memory.
 
 Every query takes the same form, `N R L id query`: the query's parameter N (if it has one), a pointer R to an array that will receive the results, a value L that limits the size of the results array, and the ID of the query you want to run. When it succeeds, `query` leaves the number of rows it stored in the array (at least 1). Text results are stored as counted strings, and numbers as two-byte values.
 
