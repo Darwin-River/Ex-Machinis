@@ -986,8 +986,12 @@ for st in (1, 3):
     for rid in (4111, 4281, 4311):
         STATION_GOODS.append((st, rid, BUYS, made_value(rid), 10, 0))
 # The big mining gear costs more (#380): each kit's modules are worth 2,400
+# The modules at half as much again as their listed value, like everything
+# else the House sells (below); fuel stays at 5
 for rid, price, supply in ((FUEL, 5, 2000), (5001, 400, 10), (WORM, 1000, 10), (REFINERY, 1000, 10),
                            (5201, 500, 10), (5211, 600, 10), (5501, 900, 5)):
+    if rid != FUEL:
+        price = -(-price * 3 // 2)
     STATION_GOODS.append((1, rid, SELLS, price, supply, 0))
 # Fuel at every House exchange (#367), not only on Earth; the busy Mars
 # Exchange sells 6,000 a day (#378), and so does the Moon Depot since the
@@ -1065,6 +1069,15 @@ for st in (1, 2, 3):
         if sells is None:
             sell = max(-(-value * 3 // 2), listed[(rid, BUYS)] * 3 // 2 + 1)
             STATION_GOODS.append((st, rid, SELLS, sell, small_daily(value), 0))
+# The House doesn't compete with players (#380): every exchange buys at
+# three quarters of a good's value and sells at half as much again (set
+# above), so a player who buys or sells anywhere between beats it both ways
+# and the exchanges are the market of last resort. Prices above are values;
+# here the buying ones come down. Fuel, the Mining Cruiser hull and the kits
+# keep their prices: they are what a company pays to run and to grow.
+BUY_SHARE = 0.75
+STATION_GOODS = [(st, rid, side, max(1, int(price * BUY_SHARE)) if side == BUYS else price, daily, day)
+                 for st, rid, side, price, daily, day in STATION_GOODS]
 # No exchange buys a good for as much as it sells it for (a free loop for
 # whoever trades both), and every price fits the station drone's one cell
 _sides = {}
