@@ -688,6 +688,19 @@ for r in econ['Queries'][1:]:
         econ_q[num(r[0])] = {'name': r[1], 'description': r[2], 'parameters': int(num(r[3]) or 0),
                              'script': ' '.join(r[4].split())}
 
+# What drone D holds of resource R (#380 race: the sqInventory view works out
+# every drone's holdings before it filters, so each look cost ~15 ms and grew
+# with the game; station drones look hundreds of times a round and the engine
+# fell to under 100 slices a minute). The same sum the view gives (the latest
+# inventory event of each installed/locked kind), for one drone only.
+def holding(drone, resource):
+    return ("(SELECT IFNULL(SUM(h.new_quantity), 0) FROM events AS h WHERE h.drone = " + drone +
+            " AND h.resource = " + resource + " AND h.outcome = 1 AND h.event_type IN (1, 2)"
+            " AND NOT EXISTS (SELECT 1 FROM events AS n WHERE n.drone = h.drone AND n.resource = h.resource"
+            " AND n.installed = h.installed AND n.locked = h.locked AND n.outcome = 1"
+            " AND n.event_type IN (1, 2) AND n.id > h.id))")
+
+
 LATEST_ORDER = ("SELECT MAX(id) AS id FROM events WHERE outcome = 1 AND event_type = {t} "
                 "AND resource = [value_1] GROUP BY drone")
 # Double-cell money (#324 step 9): a column whose name starts with d_ comes
@@ -707,7 +720,7 @@ def orders(event_type, local, resource='[value_1]', extra=''):
     join_here = (f" INNER JOIN agents AS a ON a.agent_id = o.drone AND a.object_id = {HERE_}"
                  " AND NOT EXISTS (SELECT 1 FROM events AS m WHERE m.drone = o.drone AND m.event_type = 3"
                  " AND m.outcome = 0 AND m.game_t > [game_now])") if local else ''
-    stock = f"LEFT JOIN sqInventory AS i ON i.drone = o.drone AND i.resource = {resource}"
+    stock = f"JOIN LATERAL (SELECT {holding('o.drone', resource)} AS units) AS i"
     if event_type == 5:
         # ...and only buyers who can pay for a unit (#380: round 25's sellers
         # burned fuel pushing into orders whose buyers were broke)
@@ -731,7 +744,7 @@ QUERY_SQL = {
                "ON r.id = i.resource WHERE i.drone = [value_1];"),
     '210': (1, "SELECT resource, units FROM sqInventory WHERE drone = [value_1] AND units > 0 ORDER BY units DESC;"),
     # economy.xlsx's version was cut off and didn't filter by drone
-    '212': (1, "SELECT IFNULL(MAX(units), 0) FROM sqInventory WHERE drone = [drone_id] AND resource = [value_1];"),
+    '212': (1, "SELECT " + holding('[drone_id]', '[value_1]') + ";"),
     # Companies (#324 step 4): a player can own many companies, each with its
     # own bank account; agents.company_id is a drone's company
     '100': (1, "SELECT name FROM companies WHERE company_id = [value_1];"),
@@ -1117,9 +1130,9 @@ STATION_ASKING = "EXISTS (SELECT 1 FROM agents WHERE agent_id = [drone_id] AND s
 queries.append((630, 'Station goods',
                 '[R L 630 query]: House station drones only: what the exchange where the drone is trades now: '
                 'resource, side (1: it buys, 2: it sells), listed price (2 cells), daily units, units held (2 cells).', 0,
-                "SELECT g.resource, g.side, g.price AS d_price, g.daily_units, IFNULL((SELECT MAX(i.units) "
-                "FROM sqInventory i INNER JOIN agents a ON a.agent_id = i.drone WHERE a.station_id = g.station_id "
-                "AND i.resource = g.resource), 0) AS d_units FROM station_goods g WHERE g.station_id IN "
+                "SELECT g.resource, g.side, g.price AS d_price, g.daily_units, IFNULL((SELECT MAX("
+                + holding('a.agent_id', 'g.resource') + ") "
+                "FROM agents a WHERE a.station_id = g.station_id), 0) AS d_units FROM station_goods g WHERE g.station_id IN "
                 f"{HERE_STATION} AND g.from_day <= {TODAY} AND {STATION_ASKING} ORDER BY g.resource, g.side;"))
 
 # Mining deposits here (#324 step 11): left now (refilled for the time since
