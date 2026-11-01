@@ -23,7 +23,10 @@
 : spare ( -- n )
   credits cash-floor 0 d- dup 0< if 2drop 0 exit then
   if drop 32000 exit then  dup 0< if drop 32000 then ;
-: cost ( res -- price ) buy-price ?dup 0= if 5000 then ;
+\ No seller: price it out, but small enough that 8 of them fit in a cell
+\ (8 x 5000 wrapped negative and made a product with no inputs look best;
+\ found by Kofi, round 34)
+: cost ( res -- price ) buy-price ?dup 0= if 999 then ;
 variable c-met  variable c-org  variable c-ino
 : read-costs ( -- )
   metals-a1 cost c-met !  organics-a1 cost c-org !  inorganics-a1 cost c-ino ! ;
