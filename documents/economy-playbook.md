@@ -166,6 +166,11 @@ From round 21, four naive agents join each round as new players would: they get 
 | 31b | Tomas (manufacturer) | A recipe chooser at Earth, then a parts maker that scored five products by profit per hour and built one unit at a time; #1 of 107; +11,768 avg | 7 | 6 | – | 7 | 7 | – | 7 |
 | 31b | Wanda (casual) | The Miner starter with `grow-at` lowered, and the Maker starter changed to sell alloys at the Moon Depot (5th on day 8.5); +4,204 avg | 6 | 6 | – | 6 | 7 | – | 6.5 |
 | 31b | **Average** (the rerun, with working station drones) | | 6.75 | 6.5 | – | 7.25 | 7.25 | – | 7.1 |
+| 32 | Amir (tool builder) | A Python market scanner; the same four-recipe scorer at Earth (polymers and fuel at 3, #3 to #5 from day 10) and at the Moon (Alloys A2 from metals crashed to 1 to 6); +9,548 avg | 7 | 7 | – | 8 | 7 | – | 8 |
+| 32 | Bella (market analyst) | An Earth workshop nobody else worked at, and a Moon alloy works bidding 2 over the depot for metals; #7 and #11, one clone; +8,831 avg | 7 | 7 | – | 7 | 8 | – | 7.5 |
+| 32 | Cyrus (manufacturer) | A 23-recipe scorer with two-stage chains: sheets at Earth (#3 of 105), and Alloys A2/A3 at the Moon, which wrecked on fuel on day 27 when organics ran short; +6,443 avg | 8 | 7 | – | 8 | 8 | – | 8 |
+| 32 | Dina (casual) | The Miner starter with three Settings (it left the Moon early for a 10-day trip), and the Maker turned alloy seller at the Moon Depot, alone there all round; +5,218 avg | 7 | 6 | – | 8 | 8 | – | 7.5 |
+| 32 | **Average** | | 7.25 | 6.75 | – | 7.75 | 7.75 | – | 7.75 |
 
 **Round 21 findings, and what changed:**
 - *They couldn't see their drones.* A drone's output arrives when its script ends, and `launched` never ends. The engine has a `report` word that sends it at once, but the manual never mentioned it (three of the four even redefined it). Now the manual documents it and the starters call it every 8th round.
@@ -206,9 +211,76 @@ From round 21, four naive agents join each round as new players would: they get 
 - *History:* `/trades` returns 200 rows (under a game day here); no company history.
 - *Doc slips:* protocol 11320's description says 11310; the manual still mentions email and `<run>` tags; the Maker starter's comment says rods sell at Earth, but nobody bid for rods on day 0.
 
-**What they liked best** (all ten rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
+**Round 32 findings:** with the round 31 fixes (a flying drone's destination, the starters' growth floor, the manual without email, market history), every rating rose: overall 7.75, would play again 8.0 and API usability 8.5, the best yet. All four found their niche from `/orders` and `/history` before writing code (Earth, which none of the starters work; Moon alloy bids that the rod makers leave alone; Moon metals that the miners crashed to 1 to 6), and newcomers took 3rd, 5th, 7th and 9th of 105. Only two drones of 132 wrecked, both on fuel; one was Cyrus 2, whose 23-recipe scan ran 51.6 million instructions (about 20 fuel a game day) and whose brews failed when the Moon ran short of organics. What they missed:
+- *Demand that appears unannounced, again.* Rods at Earth from day 4, gear boxes, motors and pumps by day 10 to 13. All four asked for a notice or a way to discover bids; Cyrus asked for a query listing which resources have any bid at a place.
+- *How the stations behave.* How fast a station drone restocks and how its bid recovers after a sale is undocumented; three inferred it from `/history`.
+- *Thinking costs game time.* A script pauses between 100,000-instruction slices, and at a fast clock the pause is game hours: Amir's 58k-instruction scoring round stretched a 2-hour make to 3.
+- *Testing.* The test world's empty market checks logic, not economics; `/test/{token}` shows 20 raw events; the Machine can only ask as a drone at a place where one is.
+- *Doc slips:* the manual still linked exmachinis.com pages and the design manual (fixed in #402); that `allot` memory isn't zeroed is undocumented.
+
+**Round 33 findings:** with every product listed at every exchange and the House buying at 75% and selling at 150% of a good's value, newcomers took the top four places of 105 (Farid 2, Greta 2, Elif 1, Elif 2) and Hugo 2 7th, all by making parts or systems that only the exchanges bid for (valves, pumps, pistons, semiconductors, transceivers). The House's lower bids roughly halved the starters' gains (Maker +3,479, Miner +3,199, Smith +2,709) and clones fell from 22 to 5, but 23 of 24 Miners still gained, and only two drones of 115 wrecked, both on fuel. Ratings dipped to overall 7.25 (fun 6.75, clarity 7.0, depth 7.75, feedback 6.5, API 8.0, would play again 7.75). What they missed:
+- *An empty market on day 1.* A station posts its ~90 bids before its asks, one timed action each, so metals, organics and fuel only appeared at the exchanges after one to five game days. The manual says they sell a little of everything from day one. Unfiltered `/orders` also stops at 247 rows with no notice.
+- *Loading takes game time.* A 5.5 KB script took 1.4 to 1.7 game days to load on the live server (a comment-stripped 4 KB copy about 2 game hours), with only "running its script" and a climbing instruction count to show for it.
+- *Static demand.* Station bids for systems held (pumps 712, valves 734 to 757) all round, so finding the gap mattered more than outplaying anyone; two asked for bids that fall faster as they fill.
+- *The clock.* `/clock` said scale 600 while the clock ran far slower for stretches, then jumped; nothing says when the round ends.
+- *Starters.* The Maker sells only at Earth (Hugo 2 flew there at 160 while the Moon paid 176) and has no growth step; a crowded Moon left the Miner's `grow-at` out of reach. Hugo asked for strategic Settings (what to make, where to sell).
+- *Own companies compete.* `sell-price` and `best-bid` count a player's other company's orders.
+- *Test runs:* events like "outcome 0/1" are cryptic, and results show no fuel or instruction count.
+
+**What they liked best** (all eleven rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
 ## Round log
+
+### Round 33: every product at every exchange, the House buying low (#380)
+
+A fresh world from #402's code (every exchange buys and sells every product it can list, with deeper stocks, House buys at 75% and sells at 150% of a good's value), the same mix (60 starters, 18 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive), to game day 40. Four newcomers played through the JSON API; Greta reported at day 8, her companies ran on.
+
+| Design | Companies | Avg gain | Clones |
+|---|---|---|---|
+| Machinist | 6 | +6,086 | 3 |
+| Maker (starter) | 12 | +3,479 | 0 |
+| Adaptive | 6 | +3,288 | 0 |
+| Miner | 24 | +3,199 | 0 |
+| Smith | 9 | +2,709 | 0 |
+| Chemist | 18 | +1,681 | 0 |
+| Refiner | 12 | +1,603 | 0 |
+| Trader | 12 | +20 | 0 |
+| Newcomers | 8 | +5,064 to +10,295 (per player) | 2 |
+
+| Trades | Count | Units | Credits |
+|---|---|---|---|
+| Station drones selling | 2,508 | 49,906 | 371,421 |
+| Station drones buying | 3,434 | 12,772 | 697,379 |
+| Player to player | 3,880 | 8,088 | 111,593 |
+
+- **Wrecks**: 2 of 115 drones, both on fuel (a starter Maker and a starter Miner).
+- **Leaderboard**: Farid 2 1st (19,104), Greta 2 2nd, Elif 1 3rd, Elif 2 4th, Hugo 2 7th, Greta 1 8th.
+- **Ratings**: Elif 7, Farid 7.5, Greta 7.5, Hugo 7 overall.
+
+### Round 32: the round 31 fixes (#380)
+
+A fresh world from #402's code (flight destinations, the growth floor, the manual without email, and the Market history page from #401), the same mix (60 starters, 18 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive), to game day 40. Four newcomers played through the JSON API; Cyrus and Dina reported at days 12 and 29, their companies ran on.
+
+| Design | Companies | Avg gain | Clones |
+|---|---|---|---|
+| Machinist | 6 | +10,417 | 6 |
+| Maker (starter) | 12 | +6,703 | 0 |
+| Smith | 9 | +5,818 | 2 |
+| Miner | 24 | +5,017 | 8 |
+| Chemist | 18 | +3,415 | 5 |
+| Refiner | 12 | +3,277 | 0 |
+| Adaptive | 6 | +3,159 | 0 |
+| Trader | 12 | +60 | 0 |
+| Newcomers | 8 | +5,188 to +12,885 (Cyrus 2 ended) | 1 |
+
+| Trades | Count | Units | Credits |
+|---|---|---|---|
+| Station drones selling | 2,865 | 47,216 | 500,107 |
+| Station drones buying | 3,662 | 14,852 | 928,008 |
+| Player to player | 4,526 | 11,722 | 151,868 |
+
+- **Wrecks**: 2 of 132 drones, both on fuel (a starter Maker at Earth on day 25, Cyrus 2 at the Moon on day 27).
+- **Leaderboard**: Machinist 1 first; Cyrus 1 3rd, Amir 1 5th, Bella 1 7th, Amir 2 9th.
 
 ### Round 31 rerun: through the API, with working station drones (#380)
 

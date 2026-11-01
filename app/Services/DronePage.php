@@ -60,6 +60,26 @@ class DronePage
         return (string) (DB::table('protocols')->where('id', $id)->value('name') ?? "protocol $id");
     }
 
+    /**
+     * Where a flying drone is going (round 31: its place stays the one it
+     * left, so it looked parked): the pending move of the action it waits
+     * on. Null unless it is flying.
+     */
+    public static function flight(Agent $agent): ?array
+    {
+        if ($agent->wrecked_at || !$agent->waiting_action) {
+            return null;
+        }
+        $move = DB::table('events')->where('action', $agent->waiting_action)->where('event_type', 3)
+            ->whereNotNull('new_location')->where('game_t', '>', World::gameNow())->orderBy('game_t', 'desc')->first();
+        if (!$move) {
+            return null;
+        }
+        return ['to_id' => (int) $move->new_location,
+            'to' => (string) (DB::table('objects')->where('object_id', $move->new_location)->value('object_name') ?? 'object ' . $move->new_location),
+            'arrives_game_time' => (int) $move->game_t, 'arrives' => self::when((int) $move->game_t)];
+    }
+
     /** What the drone is doing now */
     public static function status(Agent $agent): string
     {
@@ -182,7 +202,8 @@ class DronePage
             $end = DB::table('events')->where('action', $agent->waiting_action)->max('game_t');
             if ($action) {
                 $hours = $end ? max(0, ((int) $end - World::gameNow()) / 3600) : null;
-                $now = self::protocolName((int) $action->protocol)
+                $flight = self::flight($agent);
+                $now = self::protocolName((int) $action->protocol) . ($flight ? ': flying to ' . $flight['to'] : '')
                     . ($end ? ', until ' . self::when((int) $end) . sprintf(' (%s game hours from now)', number_format($hours, 1)) : '');
             }
         }

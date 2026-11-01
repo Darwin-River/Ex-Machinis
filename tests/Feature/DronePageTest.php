@@ -126,6 +126,30 @@ class DronePageTest extends TestCase
         $this->get('/spacecraft/' . $agent->agent_id)->assertDontSee('id="activity"', false);
     }
 
+    public function testAFlyingDroneSaysWhereItIsGoing()
+    {
+        // Round 31: a drone flying from the Moon to Mars showed "Moon" for ten days
+        $agent = Release::release($this->player('a@example.com'), 'Flyers', self::SCRIPT);
+        $from = (int) DB::table('agents')->where('agent_id', $agent->agent_id)->value('object_id');
+        $to = (int) DB::table('objects')->where('object_id', '!=', $from)->orderBy('object_id')->value('object_id');
+        $toName = DB::table('objects')->where('object_id', $to)->value('object_name');
+        $arrives = \App\Services\World::gameNow() + 5 * 86400;
+        $flight = DB::table('actions')->insertGetId(['drone' => $agent->agent_id, 'protocol' => 11100, 'multiplier' => 1, 'aborted' => 0]);
+        DB::table('events')->insert(['event_type' => 3, 'action' => $flight, 'logged' => 1, 'outcome' => 0, 'drone' => $agent->agent_id,
+            'new_location' => $to, 'game_t' => $arrives]);
+        DB::table('agents')->where('agent_id', $agent->agent_id)->update(['waiting_action' => $flight]);
+
+        $when = \App\Services\DronePage::when($arrives);
+        $this->get('/spacecraft/' . $agent->agent_id)->assertOk()
+            ->assertSee('flying from')->assertSee($toName . '</a>, arriving ' . $when, false)->assertSee(': flying to ' . $toName);
+        $this->getJson('/api/v1/drones/' . $agent->agent_id)->assertOk()->assertJsonPath('place_id', $from)
+            ->assertJsonPath('flying_to.place_id', $to)->assertJsonPath('flying_to.arrives', $when);
+
+        // Once there, it isn't flying any more
+        DB::table('agents')->where('agent_id', $agent->agent_id)->update(['waiting_action' => null]);
+        $this->getJson('/api/v1/drones/' . $agent->agent_id)->assertOk()->assertJsonPath('flying_to', null);
+    }
+
     public function testAWreckGetsAPostMortem()
     {
         $agent = Release::release($this->player('a@example.com'), 'Diggers', self::SCRIPT);

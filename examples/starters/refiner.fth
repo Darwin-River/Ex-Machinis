@@ -13,6 +13,7 @@
 40 constant low-fuel     \ get fuel when below this
 12 constant dry-tries    \ dry tries at the Moon before trying Phobos
 7000 constant grow-at    \ credits at which it buys and launches a copy
+                         \ (5500 at least: a hull is 3000, a kit 2000)
 240 constant rest        \ game minutes to rest when both Mars moons are dry
 16 constant hold-cap     \ goods it keeps on offer to other drones
 
@@ -111,8 +112,13 @@ variable copy
 
 \ Growth: with grow-at credits or more, at an exchange, buy a Mining
 \ Cruiser kit and a Mining Kit I, launch a clone of this drone (it runs
-\ this same program), and hand it the kit and 40 fuel
+\ this same program), and hand it the kit and 40 fuel. A copy costs about
+\ 5,000 and takes 10 to 20 game days to earn it back (one sent to Mars
+\ spends 10 of them flying), and the hull and kit count for less than
+\ they cost in net wealth: growing pays early, not in a contest's last
+\ weeks. Below 5500 it would buy a hull and have nothing left for the kit
 6001 constant cruiser-kit
+5500 constant grow-floor
 \ Buy one of a good here unless one is aboard, and wait (up to 6 game
 \ hours) for it, in case nobody here has one for sale yet
 : get-one ( resource -- )
@@ -138,7 +144,7 @@ variable copy
 : reinvest ( -- )
   mining-kit units if equip-clone 60 fill-to exit then
   cruiser-kit units 0= if
-    credits grow-at 0 d< if exit then
+    credits grow-at grow-floor max 0 d< if exit then
     cruiser-kit get-one  cruiser-kit units 0= if exit then
   then
   90 fill-to  fuel units 80 < if exit then
