@@ -11,6 +11,10 @@ Ranked by average gain: what a company made beyond its starter package (credits 
 
 | Design | File | Where | Avg gain (round 8, fresh world) | Gaining | Notes |
 |---|---|---|---|---|---|
+| Systems shop (Farid, round 33) | `examples/companies/systems.fth` | Moon | +14,380 by day 40 (about 360 a game day; starter-library race) | 1 of 1 | Prices pumps, pistons and valves from the live order book, builds the best, sells it, brews its own fuel. The best design yet. |
+| Electronics (Elif, round 33) | `examples/companies/electronics.fth` | Moon | +9,524 by day 40 (race) | 1 of 1 | Transceivers, solenoids and computers; standing bids just over the best other bid for its metals. |
+| Foundry (Ines, round 29) | `examples/companies/foundry.fth` | Moon | +9,516 by day 40 (race) | 1 of 1 | Prices every recipe it knows each round and makes the best per game hour; clones with spare cash. |
+| Machinist v3 (race) | `examples/companies/machinist.fth` | Moon, Earth | +6,425 by day 40 (race) | 6 of 6 | The best library design before the race. |
 | Smith v5 | `examples/companies/smith.fth` | Moon, Phobos, Deimos | about 105 a game day (round 16) | 9 of 9 | Spreads like the Chemist; Mars-side copies sell rods at the Mars Exchange, a short hop. The best earner per day. |
 | Machinist v3 | `examples/companies/machinist.fth` | Moon, Earth | about 84 a game day (round 16) | 6 of 6 | Gear boxes (450) from metals bought from miners; brews until its tank is full. |
 | Smith v3 | `examples/companies/smith.fth` | Moon, Earth | +1,513 by day 19 (about 80 a day) | 6 of 6 | Mines yalspar and vladnium, turns its metals into rods and sells them at the Earth Exchange 4 an hour. Needs rods at 90 (parts lever) and an Earth budget to match. |
@@ -35,6 +39,7 @@ For an empty world, before players arrive. Round 8 seeded a fresh world with thi
 | Smith | 6 | Moon, selling at Earth |
 | Trader | 0 | not worth seeding |
 
+- From the starter-library race (#380): replace some Chemists (+662 in 40 days in the race) with the Systems shop, Electronics and Foundry designs, a few of each. Each race entry ran as a single company, so watch how they do when several copies share a market.
 - Release them in that order of numbers (the Load Test does it: `--starters=miner,miner,miner,refiner`, then the company designs), so each design's copies spread evenly by drone number.
 - Keep each Moon deposit's users near what it supports: about 12 kunspar miners, and about 14 yalspar users (Chemists and Smiths).
 - The game data must carry the levers below (tax on gains, station budgets, by-product buyers, parts prices, jettison).
@@ -231,7 +236,37 @@ After the round: why it was slow. Every drone shares the Game Engine in 100,000-
 
 **What they liked best** (all eleven rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
+### Growing the starter library
+
+After each newcomer round, race the newcomers' best scripts: release each once into a fresh world beside the usual seed mix (60 starters and the library designs), run it to game day 40, and rank by gain over the starter package (the `company_taxable` view). A script that clearly beats the best library design joins `examples/companies/` with a header naming its author and round, and its kit; keep one design per niche (the higher earner when two make the same goods). CI checks every file there loads (`check_starters`, `ReleasePageTest`).
+
 ## Round log
+
+### Starter-library race: rounds 28-33's best scripts (#380)
+
+A fresh world from #403's code with the usual mix (60 starters, 18 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive) and 34 newcomer scripts from rounds 28 to 33, each released once (factory kit, or mining kit for Dax and Hal), to game day 40. Rounds 26 and 27's scripts were left out: they used `house-price`, which is gone.
+
+| Design | Companies | Avg gain by day 40 | Gaining |
+|---|---|---|---|
+| Farid 2 (systems shop) | 1 | 14,380 | 1 |
+| Elif 1 (pistons, pumps, valves) | 1 | 13,327 | 1 |
+| Elif 2 (electronics) | 1 | 9,524 | 1 |
+| Ines 1 (foundry) | 1 | 9,516 | 1 |
+| Farid 1 | 1 | 8,719 | 1 |
+| Hugo 2 | 1 | 8,249 | 1 |
+| Hal 1 (mining kit) | 1 | 6,550 | 1 |
+| Machinist | 6 | 6,425 | 6 |
+| Miner (starter) | 24 | 5,267 | 24 |
+| Refiner (starter) | 12 | 4,881 | 12 |
+| Maker (starter) | 12 | 4,648 | 12 |
+| Adaptive | 6 | 3,600 | 6 |
+| Smith | 9 | 3,178 | 9 |
+| Chemist | 18 | 662 | 18 |
+| Trader (starter) | 12 | 25 | 2 |
+
+The other 27 race scripts gained less than the Machinist; Cyrus 1 and Greta 2 were wrecked. Added to the library: Farid 2 as `systems.fth`, Elif 2 as `electronics.fth` and Ines 1 as `foundry.fth`. Elif 1 makes the same goods as Farid 2 and earned less, so it stays out.
+
+The race first crawled at a tenth of its speed: the `sqInventory` view works out every drone's holdings before it filters, and station drones look up their stock hundreds of times a round. #404 makes those lookups read one drone's events directly (from 88 to 334 engine slices a minute at once; the clock returned to full speed).
 
 ### Round 33: every product at every exchange, the House buying low (#380)
 
