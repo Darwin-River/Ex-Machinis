@@ -59,6 +59,34 @@ class HouseStationsTest extends TestCase
         $this->assertSame(2, DB::table('agents')->where('company_id', $house->company_id)->count());
     }
 
+    public function testAnExchangeOpensWithItsStockAndOrdersUp()
+    {
+        DB::table('resources')->insertOrIgnore(['id' => 2001, 'name' => 'Metals (A1)', 'mass' => 1,
+            'capacity' => 0, 'slot_size' => 0]);
+        DB::table('station_goods')->where('station_id', 1)->delete();
+        DB::table('station_goods')->insert([
+            ['station_id' => 1, 'resource' => 2001, 'side' => 1, 'price' => 15, 'daily_units' => 80, 'from_day' => 0],
+            ['station_id' => 1, 'resource' => 2001, 'side' => 2, 'price' => 30, 'daily_units' => 80, 'from_day' => 0],
+            ['station_id' => 1, 'resource' => 2061, 'side' => 2, 'price' => 5, 'daily_units' => 400, 'from_day' => 0],
+        ]);
+        HouseStations::ensure();
+        $drone = DB::table('agents')->where('station_id', 1)->value('agent_id');
+
+        // A quarter of a day's supply on board, its fuel as before
+        $held = DB::table('sqInventory')->where('drone', $drone)->pluck('units', 'resource')->map(fn ($u) => (int) $u)->all();
+        $this->assertSame(20, $held[2001]);
+        $this->assertSame(HouseStations::START_FUEL, $held[2061]);
+
+        // Its orders: metals sold at 30 (all of the stock), fuel at 5 (its
+        // reserve kept back), metals bought at 15 up to a day's demand on top
+        // of the stock it keeps
+        $orders = DB::table('events')->where('drone', $drone)->whereIn('event_type', [4, 5])->orderBy('id')
+            ->get(['event_type', 'resource', 'new_credits', 'new_quantity', 'place'])
+            ->map(fn ($e) => [(int) $e->event_type, (int) $e->resource, (int) $e->new_credits, (int) $e->new_quantity, (int) $e->place])
+            ->all();
+        $this->assertSame([[5, 2001, 15, 100, 3], [4, 2001, 30, 0, 3], [4, 2061, 5, HouseStations::FUEL_RESERVE, 3]], $orders);
+    }
+
     public function testTheHouseIsNotOnTheLeaderboard()
     {
         HouseStations::ensure();

@@ -31,4 +31,9 @@ int vm_meter_exhausted(void);
     The rest carries over to the next charge. */
 long long vm_meter_fuel_due(long long instructions, long long paid, long long per_fuel);
 
+/** A slice's budget (#380 round 33): a drone still loading its released
+    script may use what is left of load_limit, all in one slice (but never
+    less than a normal slice); any other slice gets the normal budget. */
+long long vm_meter_slice_budget(int loading, long long used_so_far, long long load_limit, long long slice);
+
 #endif

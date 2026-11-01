@@ -65,6 +65,27 @@ ErrorCode_t db_get_launch_state(DbConnection_t* connection, int agent_id, Launch
     return result;
 }
 
+ErrorCode_t db_get_agent_loading(DbConnection_t* connection, int agent_id, int* loading, long long* instructions)
+{
+    *loading = 0;
+    *instructions = 0;
+    ErrorCode_t result = db_launch_query(connection,
+        "SELECT release_vm IS NULL, instructions FROM agents WHERE agent_id = %d", agent_id);
+    if(result != ENGINE_OK)
+        return result;
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+    if(row)
+    {
+        *loading = row[0] ? atoi(row[0]) : 0;
+        *instructions = row[1] ? atoll(row[1]) : 0;
+    }
+    if(db_result)
+        mysql_free_result(db_result);
+    return result;
+}
+
 ErrorCode_t db_save_release_vm(DbConnection_t* connection, int agent_id)
 {
     return db_launch_query(connection,
