@@ -45,6 +45,7 @@ enum
     // Logic configuration
     DB_READ_TIME_ID,
     MAX_CYCLE_INSTRUCTIONS,
+    LOAD_INSTRUCTIONS,
     QUERY_INSTRUCTIONS,
     ACTION_INSTRUCTIONS,
     CRASH_LIMIT,
@@ -303,6 +304,10 @@ const char* engine_get_forth_image_path();
 
 /** Instructions a drone's script may run per slice (instruction metering) */
 long long engine_get_max_cycle_instructions();
+
+/** Instructions the slice about to run may use: a normal slice, or (for a
+    drone still loading its released script) the rest of its load allowance */
+long long engine_get_slice_instructions();
 
 /** Flat instruction cost of a query */
 long long engine_get_query_instructions();

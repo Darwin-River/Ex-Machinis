@@ -227,6 +227,8 @@ From round 21, four naive agents join each round as new players would: they get 
 - *Own companies compete.* `sell-price` and `best-bid` count a player's other company's orders.
 - *Test runs:* events like "outcome 0/1" are cryptic, and results show no fuel or instruction count.
 
+After the round: why it was slow. Every drone shares the Game Engine in 100,000-instruction slices (about 3,000 a minute for 120 drones), and reading a script costs about 80,000 instructions a line, so a 100-line script took about 80 turns: 1.4 to 1.7 game days at 600 game seconds a second. Comments weren't the cause (Elif's stripped copy cost the same 7.7 million). A drone still loading now gets its whole load allowance (`LOAD_INSTRUCTIONS`, 20 million) in one slice: in a fresh world 60 starters released at once all loaded within a real minute, and one release ran `launched` 4 real seconds after it was queued. Each action takes a round trip through both engines, 10 to 20 game minutes; an exchange posted its 182 bids over its first 26 game hours, then imported and offered one good at a time from the highest resource number down, so fuel and metals came last (day 3 to 5). New exchanges now open with their stock and orders already up (`forge:stations`), and each round refreshes sell orders first, from the lowest number up: the fresh world had 32 trades in its first two real minutes.
+
 **What they liked best** (all eleven rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
 ## Round log

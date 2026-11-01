@@ -445,7 +445,7 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
             memset(g_output_buffer, 0, g_current_size); 
 
             // Each command (or resume) gets its own slice of instructions
-            vm_meter_start(engine_get_max_cycle_instructions());
+            vm_meter_start(engine_get_slice_instructions());
             g_vm_yield = 0;
 
             // Check if it is a resume / execute command and also if there are pending commands running

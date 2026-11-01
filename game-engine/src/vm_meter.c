@@ -40,3 +40,11 @@ long long vm_meter_fuel_due(long long instructions, long long paid, long long pe
         return 0;
     return (instructions - paid) / per_fuel;
 }
+
+long long vm_meter_slice_budget(int loading, long long used_so_far, long long load_limit, long long slice)
+{
+    if(!loading || load_limit <= used_so_far)
+        return slice;
+    long long left = load_limit - used_so_far;
+    return left > slice ? left : slice;
+}

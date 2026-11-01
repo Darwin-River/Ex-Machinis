@@ -472,6 +472,9 @@ static void engine_end_launched(void)
     vm_append_output(msg);
 }
 
+/** The budget of the slice about to run (set by engine_process_vm_command) */
+static long long g_slice_instructions = 0;
+
 /** ****************************************************************************
 
   @brief      Processes a VM command (command to be executed on the VM)
@@ -513,7 +516,19 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
     if(strncmp(engine.last_command.code, resume, strlen(resume)) == 0)
         pending_input = db_get_agent_pending_input(&engine.db_connection, engine.last_command.agent_id);
 
+    // A drone still loading its released script reads it in one slice
+    // (#380 round 33): in 100,000-instruction slices a 100-line script took
+    // about 80 turns, a game day or more at a fast clock. Its allowance is
+    // LOAD_INSTRUCTIONS in all, so a script that loops at the top level
+    // goes back to normal slices once it is used.
+    int loading = 0;
+    long long used_so_far = 0;
+    db_get_agent_loading(&engine.db_connection, engine.last_command.agent_id, &loading, &used_so_far);
+    g_slice_instructions = vm_meter_slice_budget(loading, used_so_far,
+        atoll((const char*)engine.config.params[LOAD_INSTRUCTIONS]), engine_get_max_cycle_instructions());
+
     result = vm_run_command(engine.last_agent.vm, &engine.last_command, out_buf, out_buf_size, &pending_input);
+    g_slice_instructions = 0;
 
     // Instruction metering: add what this slice used to the drone's total
     db_add_agent_instructions(&engine.db_connection, engine.last_command.agent_id, vm_meter_used());
@@ -1560,6 +1575,11 @@ const char* engine_get_forth_image_path()
 long long engine_get_max_cycle_instructions()
 {
     return atoll((const char*)engine.config.params[MAX_CYCLE_INSTRUCTIONS]);
+}
+
+long long engine_get_slice_instructions()
+{
+    return g_slice_instructions > 0 ? g_slice_instructions : engine_get_max_cycle_instructions();
 }
 
 /** Flat instruction cost of a query */
