@@ -176,6 +176,11 @@ From round 21, four naive agents join each round as new players would: they get 
 | 32 | Cyrus (manufacturer) | A 23-recipe scorer with two-stage chains: sheets at Earth (#3 of 105), and Alloys A2/A3 at the Moon, which wrecked on fuel on day 27 when organics ran short; +6,443 avg | 8 | 7 | – | 8 | 8 | – | 8 |
 | 32 | Dina (casual) | The Miner starter with three Settings (it left the Moon early for a 10-day trip), and the Maker turned alloy seller at the Moon Depot, alone there all round; +5,218 avg | 7 | 6 | – | 8 | 8 | – | 7.5 |
 | 32 | **Average** | | 7.25 | 6.75 | – | 7.75 | 7.75 | – | 7.75 |
+| 34 | Kofi (expansionist) | The Systems shop widened to six products, cloning at 6,500, at Earth and the Moon; reported at day 18, ran on to #5 (+13,387) and +7,475 | 7 | 7 | – | 8 | 7 | – | 7 |
+| 34 | Iris (engineer) | The Systems shop made table-driven: six systems at Earth, and six others (transceivers, scanners, gyroscopes, heat sinks) nobody made; both cloned; +11,202 and +12,356 | 7 | 7 | – | 4 | 7 | – | 7 |
+| 34 | Jago (trader) | Found no arbitrage (every exchange 2x its bid, the same everywhere), so a 7-system spread engine at Earth and the Systems shop at the Moon; #4 and #6, both cloned; +14,579 and +12,842 | 7 | 7 | – | 7 | 5 | – | 7 |
+| 34 | Lina (casual) | The Maker with two Settings (+3,770), and the Maker selling rods at the Moon Depot for 158 to 168 instead of flying to Earth (+6,271, #17), ending with 4 fuel | 6 | 6 | – | 6 | 7 | – | 7 |
+| 34 | **Average** | | 6.75 | 6.75 | – | 6.25 | 6.5 | – | 7.0 |
 
 **Round 21 findings, and what changed:**
 - *They couldn't see their drones.* A drone's output arrives when its script ends, and `launched` never ends. The engine has a `report` word that sends it at once, but the manual never mentioned it (three of the four even redefined it). Now the manual documents it and the starters call it every 8th round.
@@ -234,13 +239,44 @@ From round 21, four naive agents join each round as new players would: they get 
 
 After the round: why it was slow. Every drone shares the Game Engine in 100,000-instruction slices (about 3,000 a minute for 120 drones), and reading a script costs about 80,000 instructions a line, so a 100-line script took about 80 turns: 1.4 to 1.7 game days at 600 game seconds a second. Comments weren't the cause (Elif's stripped copy cost the same 7.7 million). A drone still loading now gets its whole load allowance (`LOAD_INSTRUCTIONS`, 20 million) in one slice: in a fresh world 60 starters released at once all loaded within a real minute, and one release ran `launched` 4 real seconds after it was queued. Each action takes a round trip through both engines, 10 to 20 game minutes; an exchange posted its 182 bids over its first 26 game hours, then imported and offered one good at a time from the highest resource number down, so fuel and metals came last (day 3 to 5). New exchanges now open with their stock and orders already up (`forge:stations`), and each round refreshes sell orders first, from the lowest number up: the fresh world had 32 trades in its first two real minutes.
 
-**What they liked best** (all eleven rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
+**Round 34 findings:** with the three race winners in the seed mix and fast holdings lookups, the Systems shop took the top three places of 109 (+15,933 avg) and every newcomer company gained (+3,770 to +14,579); seven of eight built on the library designs, three on `systems.fth`. Clones came back (13, from 5), and one drone of 126 wrecked. Ratings held at overall 7.0 (fun 6.75, clarity 6.75, depth 6.5, feedback 6.25, API 7.75, would play again 7.25). What they missed:
+- *The test world.* All four found it too slow to use: a 7 KB script took 10 to 20 real minutes to load, with no progress shown, and Iris spent an hour bisecting a definition limit that didn't exist. The test world keeps the last 100 runs and never stops them, so a new run queues behind every old one (72 drones in it at the end).
+- *One best design.* "Copy the Systems shop and build pumps" won; Jago found no arbitrage, since every exchange asks exactly twice its bid and prices match everywhere. Every system pays about 18 to 22 credits a factory hour, so product choice mattered less than release timing. Electronics, raced alone at +9,524, made +2,897 with three copies sharing its market (1 of 3 gaining).
+- *A library bug.* `systems.fth` priced a missing input at 5,000, and 8 of them wrap a 16-bit cell; Kofi and Jago both caught it. Fixed (999).
+- *Starters.* The Maker still sends everyone to Earth (Lina's Moon seller doubled it), has no growth step, and can run its tank to 10 while forging.
+- *Feedback.* Little to do after release; reports come every N rounds, not per game day; a 429 came back as HTML, not JSON.
+
+**What they liked best** (all twelve rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
 ### Growing the starter library
 
 After each newcomer round, race the newcomers' best scripts: release each once into a fresh world beside the usual seed mix (60 starters and the library designs), run it to game day 40, and rank by gain over the starter package (the `company_taxable` view). A script that clearly beats the best library design joins `examples/companies/` with a header naming its author and round, and its kit; keep one design per niche (the higher earner when two make the same goods). CI checks every file there loads (`check_starters`, `ReleasePageTest`).
 
 ## Round log
+
+### Round 34: the race winners in the mix (#380)
+
+A fresh world from #404's code (fast holdings lookups, the three race winners in the library) with 60 starters, 12 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive, and 3 each of the Systems shop, Electronics and Foundry, to game day 40. Four newcomers played through the JSON API; Kofi reported at day 18 and Iris at day 36, their companies ran on.
+
+| Design | Companies | Avg gain | Gaining |
+|---|---|---|---|
+| Systems shop | 3 | +15,933 | 3 |
+| Foundry | 3 | +8,677 | 3 |
+| Machinist | 6 | +6,306 | 6 |
+| Maker (starter) | 12 | +4,110 | 12 |
+| Miner (starter) | 24 | +3,716 | 24 |
+| Smith | 9 | +3,008 | 9 |
+| Electronics | 3 | +2,897 | 1 |
+| Adaptive | 6 | +2,445 | 5 |
+| Chemist | 12 | +2,136 | 12 |
+| Refiner (starter) | 12 | +1,670 | 12 |
+| Trader (starter) | 12 | 0 | 0 |
+| Newcomers | 8 | +3,770 to +14,579 | 8 |
+
+- **Trades**: 10,249 (station drones selling 2,855, buying 3,392; player to player 4,002).
+- **Clones**: 13. **Wrecks**: 1 of 126 drones.
+- **Leaderboard**: Systems 1, 2 and 3, then Jago 1 4th, Kofi 1 5th, Jago 2 6th, Iris 2 7th.
+- **The engine**: 530 to 690 slices a minute all round, the clock at 560 to 600 (the race before #404 fell to 88 slices and a tenth of the clock).
 
 ### Starter-library race: rounds 28-33's best scripts (#380)
 
