@@ -88,7 +88,7 @@ curl -s -X POST $B/check -H 'Content-Type: application/json' \
 |---|---|
 | `ok` | whether the Release page would take the script |
 | `error` | why not, if it wouldn't. For example: no `launched` word, a line too long, or a Lua script that doesn't compile (`"Line 12: unexpected symbol near '='"`) |
-| `warning` | the Release page's warnings for a FORTH script: words used before anything defines them (the line using one fails to load with `-13`), and game words the script redefines. None for Lua |
+| `warning` | the Release page's warnings: for FORTH, words used before anything defines them (the line using one fails to load with `-13`), and game words the script redefines; for Lua, names of the game's own that the script sets (`best_bid = 30`) |
 | `language` | `forth` or `lua`: how the drone will run it |
 
 ### `POST /release`: release a company

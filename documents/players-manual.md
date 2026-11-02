@@ -1330,6 +1330,8 @@ Underneath them are two functions you can use for anything the library doesn't c
 - `perform(protocol, ...)` runs a protocol. Its arguments come in the order the protocol's description gives them (`[N R D 10 perform]` is `perform(10, n, r, d)`), and it returns 0 or a negative code, as FORTH's `perform` leaves on the stack. A double is one number here: `perform(7, 70000, 5, rods)` posts a sell order at 70,000.
 - `query(id, ...)` asks a question (the queries of [Chapter 8](#chapter-8-asking-questions)), its arguments in the same order (`[N H R L 620 query]` is `query(620, n, h)`). It returns the rows: a list, each row a list of its columns, which you can also read by name (`rows[1][1]` or `rows[1].price`). No rows is an empty list. `ask(id, ...)` is the same, with an empty list if the query fails.
 
+Pick your own names for your variables and functions. If you set one of the game's names (`best_bid = 30`), the game's functions keep working, but your own code gets your value from then on, and calling a number crashes your drone; `/check` and the Release page warn you.
+
 Money and big numbers are plain numbers: `credits()` is your balance, whatever its size, with no double cells, and no 120-byte `answer` buffer to read before the next question overwrites it.
 
 ### launched() may run again
