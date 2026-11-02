@@ -48,6 +48,20 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Throwable $exception)
     {
+        // The JSON API answers errors in its own shape, {"error": "..."},
+        // whatever the request's Accept header (#380 round 35: a server
+        // error came back as an HTML page, or as {"message": ...})
+        if ($request->is('api/*')) {
+            $response = parent::render($request, $exception);
+            $status = $response->getStatusCode();
+            if ($status >= 400 && !($exception instanceof \Illuminate\Validation\ValidationException)) {
+                $message = $status >= 500
+                    ? 'Something went wrong on the server. Try again in a minute; if it keeps happening, tell us.'
+                    : ($exception->getMessage() ?: \Symfony\Component\HttpFoundation\Response::$statusTexts[$status] ?? 'Error');
+                return response()->json(['error' => $message], $status, $response->headers->all());
+            }
+            return $response;
+        }
         return parent::render($request, $exception);
     }
 }

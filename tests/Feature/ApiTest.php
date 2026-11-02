@@ -25,7 +25,35 @@ class ApiTest extends TestCase
 
     public function testClockSaysTheGameDay()
     {
-        $this->getJson('/api/v1/clock')->assertOk()->assertJsonStructure(['game_time', 'game_day', 'when', 'world_full', 'releases_waiting']);
+        $this->getJson('/api/v1/clock')->assertOk()->assertJsonStructure(['game_time', 'game_day', 'when', 'world_full', 'releases_waiting',
+            'real_seconds_per_game_day', 'engine' => ['running', 'last_seen_seconds_ago', 'turns_per_minute', 'behind_seconds']]);
+    }
+
+    public function testErrorsAreJsonWhateverTheRequestAccepts()
+    {
+        // #380 round 35: a server error came back as an HTML page
+        $this->get('/api/v1/companies/999999999')->assertNotFound()->assertJsonStructure(['error']);
+        \Illuminate\Support\Facades\Route::get('/api/v1/boom-test', fn () => throw new \RuntimeException('secret detail'));
+        $this->get('/api/v1/boom-test')->assertStatus(500)->assertJsonStructure(['error'])
+            ->assertDontSee('secret detail')->assertDontSee('<html', false);
+    }
+
+    public function testANewDroneSaysItIsLoading()
+    {
+        // #380 round 35: a drone waiting to load said "running its script"
+        $agent = $this->release('Loading Co', "function launched()\n  wait(60)\nend\n");
+        $this->getJson('/api/v1/drones/' . $agent->agent_id)->assertOk()
+            ->assertJsonPath('status', 'loading its script (1 piece to go)');
+    }
+
+    public function testClockSaysWhenTheEngineHasStopped()
+    {
+        // #380 round 35: the world froze for three game days, and players took it for a slow drone
+        DB::table('game_clock')->updateOrInsert(['id' => 1],
+            ['real_anchor' => time(), 'game_anchor' => time(), 'scale' => 600, 'load_checked_at' => time() - 20]);
+        $this->getJson('/api/v1/clock')->assertJsonPath('engine.running', true);
+        DB::table('game_clock')->where('id', 1)->update(['load_checked_at' => time() - 600]);
+        $this->getJson('/api/v1/clock')->assertJsonPath('engine.running', false)->assertJsonPath('engine.last_seen_seconds_ago', 600);
     }
 
     public function testACompanyAndItsDrones()

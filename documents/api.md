@@ -13,9 +13,10 @@ The API gives programs what the website gives people. It is for your own tools: 
 - **Errors:**
   - `404` when something doesn't exist;
   - `422` when a request breaks a rule;
-  - `503` when the test world is off.
+  - `503` when the test world is off;
+  - `500` when something goes wrong on the server (try again in a minute).
 
-  Each error body is JSON with an `error` message in plain words. A `422` also has `errors`, listing the message for each field.
+  Each error body is JSON, whatever the request's `Accept` header with an `error` message in plain words. A `422` also has `errors`, listing the message for each field.
 
 In the examples below, `B` stands for the base address:
 
@@ -37,7 +38,7 @@ B=https://play.example.com/api/v1
 
 ## Play from a program: the loop
 
-A company is a FORTH script: you can't steer it once it's released. Playing from a program is the same loop a person follows on the website:
+A company is a script, in FORTH or Lua: you can't steer it once it's released. The game clock is fast: at the usual pace a game day passes in about 2.4 real minutes (`/clock` gives `real_seconds_per_game_day`), so a 40-day round takes about an hour and a half; release early. Playing from a program is the same loop a person follows on the website:
 
 1. **Study the market:**
    - `GET /orders` for who buys and sells what, where, and at what price;
@@ -201,7 +202,7 @@ Use this to see what a drone is doing. It gives what the drone's page shows:
 |---|---|
 | `place`, `place_id` | where it is (an object ID, as the game words use); while it flies, where it left from |
 | `flying_to` | while it flies: `{place_id, place, arrives, arrives_game_time}`; otherwise null |
-| `status` | what it's doing, in words |
+| `status` | what it's doing, in words: `loading its script (3 pieces to go)` and `about to launch` before it starts, `running its launched word`, `waiting for its action to finish: ...`, `a wreck` |
 | `fuel` | units in the tank |
 | `cargo` | `[{resource, name, units}]`: what is aboard, its modules included |
 | `now` | the action under way and when it ends, or null |
@@ -272,7 +273,7 @@ Every trade of the last `days` game days (60 if you leave it out, at most 365), 
 
 | Request | What it gives |
 |---|---|
-| `GET /clock` | `game_time` (game seconds), `game_day` (since the world began), `when` (as the website writes it), `scale` (game seconds per real second), `world_full` (releases are queueing), `releases_waiting` |
+| `GET /clock` | `game_time` (game seconds), `game_day` (since the world began), `when` (as the website writes it), `scale` (game seconds per real second), `real_seconds_per_game_day`, `world_full` (releases are queueing), `releases_waiting`, and `engine`: `running` (false when the game engine hasn't reported for 3 real minutes: drones are waiting for it, not slow), `last_seen_seconds_ago`, `turns_per_minute`, `behind_seconds` |
 | `GET /places` | where drones are, busiest first: `{id, name, working, wrecks}` |
 | `GET /leaderboard?limit=50` | net wealth, richest first: `{company_id, company, drones, net_wealth, released_drone}`. `limit` can be up to 500 |
 

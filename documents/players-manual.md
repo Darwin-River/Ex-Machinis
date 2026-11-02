@@ -632,6 +632,8 @@ It's good practice to test each word on its own before you build it into `launch
 
 ## Chapter 5: Building A Vocabulary
 
+
+**Keep money to work with.** A copy costs about 5,000 (a hull and a kit). Launch it only when your company will still have enough left to buy its inputs and fuel: the starters grow at 6,500 or more, leaving 1,500. A company left with less than its own cash floor can't buy anything, and every drone in it stops.
 ### The game words
 
 Every drone comes with a vocabulary for the game, so you can write `kunspar mine` rather than `11100 perform`:
@@ -855,6 +857,7 @@ Two game words trade with whoever has the best order here, a station drone or an
 
 - `sell-here ( n resource -- ior )` sells up to n: it pushes into the highest buy order here, then the next, until it has sold n, has none left, or nobody buys more.
 - `buy-here ( n resource -- ior )` buys up to n: it pulls from the cheapest sell order here, then the next, until it has n or nobody sells more.
+- A seller or buyer that refuses (its stock changed since your drone looked, or its order keeps more back: "the seller's order didn't allow selling that many") is skipped for the next one. Each try is an action and costs a fuel; after 6 tries they stop.
 
 When a trade fails because you can't pay for that many or your hold can't take them, they try again with half as many. Each push or pull is an action and burns a unit of fuel, buying fuel included: buy fuel before you run dry, or call for it (see [Running low on fuel](#running-low-on-fuel)). They leave 0 when they traded something, else -12 (or the failed action's code); check `units` to see how many moved.
 
@@ -1330,7 +1333,9 @@ Underneath them are two functions you can use for anything the library doesn't c
 - `perform(protocol, ...)` runs a protocol. Its arguments come in the order the protocol's description gives them (`[N R D 10 perform]` is `perform(10, n, r, d)`), and it returns 0 or a negative code, as FORTH's `perform` leaves on the stack. A double is one number here: `perform(7, 70000, 5, rods)` posts a sell order at 70,000.
 - `query(id, ...)` asks a question (the queries of [Chapter 8](#chapter-8-asking-questions)), its arguments in the same order (`[N H R L 620 query]` is `query(620, n, h)`). It returns the rows: a list, each row a list of its columns, which you can also read by name (`rows[1][1]` or `rows[1].price`). No rows is an empty list. `ask(id, ...)` is the same, with an empty list if the query fails.
 
-Pick your own names for your variables and functions. If you set one of the game's names (`best_bid = 30`), the game's functions keep working, but your own code gets your value from then on, and calling a number crashes your drone; `/check` and the Release page warn you.
+`/check` and the Release page warn about a name your script uses that nothing defines (`crowed(phobos)` for `crowd`): calling it would crash your drone. Pick your own names for your variables and functions. If you set one of the game's names (`best_bid = 30`), the game's functions keep working, but your own code gets your value from then on, and calling a number crashes your drone; `/check` and the Release page warn you.
+
+A query's rows have their columns by position (`rows[1][1]`) and by the query's own column names (`rows[1].price`; `d_price` loses its `d_`). A column that is an expression (`IFNULL(i.units, 0)`) is easiest read by position: the descriptions on the Protocols and Queries pages list the columns in order.
 
 Money and big numbers are plain numbers: `credits()` is your balance, whatever its size, with no double cells, and no 120-byte `answer` buffer to read before the next question overwrites it.
 

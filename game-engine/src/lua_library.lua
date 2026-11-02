@@ -133,30 +133,37 @@ local function board_price(resource, place)
   return 0
 end
 
--- Buy up to n here, cheapest first, from whoever sells; 0 when it bought any
+-- Buy up to n here, cheapest first, from whoever sells; 0 when it bought
+-- any. A seller that refuses (its stock moved since the look, or its order
+-- keeps more back) is skipped for the next (#380 round 35: buying from the
+-- same small miner lot again and again stalled factories for days); at
+-- most 6 tries, each an action
 local function buy_here(n, resource)
-  local result = -12
-  for _ = 1, 6 do
-    if n <= 0 then break end
-    local price, drone, avail = best_offer(resource)
-    if avail == 0 then break end
-    local take = math.min(n, avail)
-    if pull(take, resource, drone) == 0 then n = n - take; result = 0
-    else n = n // 2; if n == 0 then break end end
+  local result, tries, mine = -12, 0, me()
+  for _, o in ipairs(ask(610, resource)) do
+    if n <= 0 or tries >= 6 then break end
+    local avail = math.max(o[3] - o[2], 0)
+    if o[4] ~= mine and avail > 0 then
+      local take = math.min(n, avail)
+      tries = tries + 1
+      if pull(take, resource, o[4]) == 0 then n = n - take; result = 0 end
+    end
   end
   return result
 end
 
--- Sell up to n here, best price first, to whoever buys; 0 when it sold any
+-- Sell up to n here, best price first, to whoever buys; 0 when it sold
+-- any. A buyer that refuses is skipped for the next; at most 6 tries
 local function sell_here(n, resource)
-  local result = -12
-  for _ = 1, 6 do
-    if n <= 0 then break end
-    local price, drone, want = best_bid(resource)
+  local result, tries, mine = -12, 0, me()
+  for _, o in ipairs(ask(600, resource)) do
+    if n <= 0 or tries >= 6 then break end
+    local want = math.max(o[2] - o[3], 0)
     local take = math.min(n, want, units(resource))
-    if take == 0 then break end
-    if push(take, resource, drone) == 0 then n = n - take; result = 0
-    else n = n // 2; if n == 0 then break end end
+    if o[4] ~= mine and take > 0 then
+      tries = tries + 1
+      if push(take, resource, o[4]) == 0 then n = n - take; result = 0 end
+    end
   end
   return result
 end

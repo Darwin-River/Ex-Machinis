@@ -124,18 +124,35 @@ const char* vm_library_game_source =
     "  begin dup while 1- dup 8 * answer + dup @ r@ = if\n"
     "  2 + 2@ drop nip r> drop exit then drop\n"
     "  repeat r> 2drop 0 ;\n"
-    "variable trade-n variable trade-r\n"
-    ": trade-took ( ior t k -- 0 t ) negate trade-n +! nip 0 swap ;\n"
-    ": trade-less ( ior t k -- ior t ) 2/ dup if trade-n ! else 2drop 0 then ;\n"
-    ": buy-here ( n resource -- ior ) trade-r ! trade-n ! -12 6\n"
-    "  begin dup 0> trade-n @ 0> and while 1- trade-r @ best-offer rot drop\n"
-    "  dup 0= if 2drop drop exit then trade-n @ min tuck trade-r @ rot pull\n"
-    "  if trade-less else trade-took then repeat drop ;\n"
-    ": sell-here ( n resource -- ior ) trade-r ! trade-n ! -12 6\n"
-    "  begin dup 0> trade-n @ 0> and while 1- trade-r @ best-bid rot drop\n"
-    "  trade-n @ min trade-r @ units min dup 0= if 2drop drop exit then\n"
-    "  tuck trade-r @ rot push if trade-less else trade-took then\n"
-    "  repeat drop ;\n"
+    /* buy-here and sell-here go down the order book, skipping a seller
+       or buyer that refuses (its stock moved since the look, or its order
+       keeps more back): at most 6 tries, each an action. They tried the
+       same one again (#380 round 35: factories stalled for days on a small
+       miner lot). The book is read once (answer); units is read first. */
+    "variable trade-n variable trade-r variable trade-me variable trade-ior\n"
+    "variable trade-tries variable trade-have\n"
+    ": trade-row ( i -- addr ) 10 * answer + ;\n"
+    ": trade-start ( n resource -- ) trade-r ! trade-n !\n"
+    "  -12 trade-ior ! 0 trade-tries ! me trade-me ! ;\n"
+    ": trading? ( rows i -- rows i f )\n"
+    "  2dup > trade-n @ 0> and trade-tries @ 6 < and ;\n"
+    ": buy-here ( n resource -- ior ) trade-start  trade-r @ 610 ask 0 max 0\n"
+    "  begin trading? while dup trade-row dup 8 + @ trade-me @ <> if\n"
+    "    dup 6 + @ over 4 + @ - 0 max trade-n @ min\n"
+    "    ?dup if 1 trade-tries +!  dup >r trade-r @ rot 8 + @ pull\n"
+    "      0= if r> negate trade-n +! 0 trade-ior ! else r> drop then\n"
+    "    else drop then else drop then 1+\n"
+    "  repeat 2drop trade-ior @ ;\n"
+    ": sell-here ( n resource -- ior )\n"
+    "  trade-start  trade-r @ units trade-have !\n"
+    "  trade-r @ 600 ask 0 max 0\n"
+    "  begin trading? while dup trade-row dup 8 + @ trade-me @ <> if\n"
+    "    dup 4 + @ over 6 + @ - 0 max trade-n @ min trade-have @ min\n"
+    "    ?dup if 1 trade-tries +!  dup >r trade-r @ rot 8 + @ push\n"
+    "      0= if r> dup negate trade-n +! negate trade-have +! 0 trade-ior !\n"
+    "      else r> drop then\n"
+    "    else drop then else drop then 1+\n"
+    "  repeat 2drop trade-ior @ ;\n"
     ": buy-from-station ( n resource -- ior ) buy-here ;\n"
     ": sell-to-station ( n resource -- ior ) sell-here ;\n"
     ": sell-all ( resource -- ) dup units ?dup if swap sell-here then drop ;\n"
@@ -146,7 +163,7 @@ const char* vm_library_game_source =
     ": event-drone ( d -- drone ) 820 ask drop answer @ ;\n"
     ": message ( d -- f ) 844 ask 0> ;\n"
     ": crowd ( place -- n ) 721 ask drop answer @ ;\n"
-    ": stdlib ( -- version ) 16 ;\n";
+    ": stdlib ( -- version ) 17 ;\n";
 
 int vm_library_load(embed_t* vm)
 {

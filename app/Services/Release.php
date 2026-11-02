@@ -254,13 +254,19 @@ class Release
 
     private static function luaRedefinedWarning(string $script): ?string
     {
-        $names = self::luaRedefinedWords($script);
-        if (!$names) {
-            return null;
+        $warnings = [];
+        if ($undefined = self::luaUndefinedNames($script)) {
+            $list = implode(', ', array_map(fn ($u) => $u['name'] . ' (line ' . $u['line'] . ')', $undefined));
+            $warnings[] = 'Your script uses ' . $list . ', which ' . (count($undefined) > 1 ? 'nothing defines' : 'nothing defines')
+                . ': calling ' . (count($undefined) > 1 ? 'one' : 'it') . ' crashes your drone. Check the spelling'
+                . ' (case matters), or define it.';
         }
-        return 'Your script sets ' . implode(', ', $names) . ': ' . (count($names) > 1 ? 'names' : 'a name')
-            . ' the game already uses. The game\'s own functions keep working, but your code gets yours from'
-            . ' then on (a number where a function was expected crashes your drone). If you didn\'t mean to, rename yours.';
+        if ($names = self::luaRedefinedWords($script)) {
+            $warnings[] = 'Your script sets ' . implode(', ', $names) . ': ' . (count($names) > 1 ? 'names' : 'a name')
+                . ' the game already uses. The game\'s own functions keep working, but your code gets yours from'
+                . ' then on (a number where a function was expected crashes your drone). If you didn\'t mean to, rename yours.';
+        }
+        return $warnings ? implode(' ', $warnings) : null;
     }
 
     /**
@@ -270,24 +276,54 @@ class Release
      */
     public static function luaProblem(string $script): ?string
     {
+        [$code, $out] = self::runLuaCheck($script);
+        if ($code !== 1) {
+            return null;   // compiles, or no checker: the drone reports it when it loads
+        }
+        // "script:12: unexpected symbol near '='" -> "Line 12: unexpected symbol near '='"
+        return preg_replace('/^script:(\d+):\s*/', 'Line $1: ', $out) ?: 'Your Lua script doesn\'t compile.';
+    }
+
+    /**
+     * Global names a Lua script reads that nothing defines (#380 round 35:
+     * a misspelt game word only failed once the drone ran it): lua-check
+     * compares them with the game's library and Lua's own. Each as
+     * ['line' => n, 'name' => s].
+     */
+    public static function luaUndefinedNames(string $script): array
+    {
+        [$code, $out] = self::runLuaCheck($script);
+        if ($code !== 0) {
+            return [];
+        }
+        preg_match_all('/^warning: line (\d+): (\S+) is used but never defined$/m', $out, $m, PREG_SET_ORDER);
+        return array_map(fn ($w) => ['line' => (int) $w[1], 'name' => $w[2]], $m);
+    }
+
+    /** lua-check's exit code and output for a script: [null, ''] without the checker */
+    private static function runLuaCheck(string $script): array
+    {
+        static $cache = [];
+        $key = md5($script);
+        if (isset($cache[$key])) {
+            return $cache[$key];
+        }
         $checker = config('forge.lua_check');
         if (!$checker || !is_executable($checker)) {
-            return null;
+            return [null, ''];
         }
-        $process = proc_open([$checker], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        $library = base_path('game-engine/src/lua_library.lua');
+        $command = is_readable($library) ? [$checker, $library] : [$checker];
+        $process = proc_open($command, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
         if (!is_resource($process)) {
-            return null;
+            return [null, ''];
         }
         fwrite($pipes[0], $script);
         fclose($pipes[0]);
         $out = trim(stream_get_contents($pipes[1]));
         fclose($pipes[1]);
         fclose($pipes[2]);
-        if (proc_close($process) === 0) {
-            return null;
-        }
-        // "script:12: unexpected symbol near '='" -> "Line 12: unexpected symbol near '='"
-        return preg_replace('/^script:(\d+):\s*/', 'Line $1: ', $out) ?: 'Your Lua script doesn\'t compile.';
+        return $cache[$key] = [proc_close($process), $out];
     }
 
     /**

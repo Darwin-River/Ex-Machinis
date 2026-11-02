@@ -90,6 +90,15 @@ class DronePage
             $protocol = DB::table('actions')->where('id', $agent->waiting_action)->value('protocol');
             return 'waiting for its action to finish: ' . ($protocol ? self::protocolName((int) $protocol) : 'an action');
         }
+        // Not launched yet: its script is still arriving or waiting to load
+        // (#380 round 35: "running its script" with 0 instructions looked
+        // like a hung script while the engine was stopped)
+        if (!$agent->launched_running && $agent->release_vm === null
+            && DB::table('commands')->where('agent_id', $agent->agent_id)->where('code', '<launched>')->exists()) {
+            $pieces = DB::table('commands')->where('agent_id', $agent->agent_id)->where('code', '<>', '<launched>')->count();
+            return $pieces ? "loading its script ($pieces " . ($pieces == 1 ? 'piece' : 'pieces') . ' to go)'
+                           : 'about to launch';
+        }
         if (DB::table('commands')->where('agent_id', $agent->agent_id)->exists()) {
             return 'running its script';
         }

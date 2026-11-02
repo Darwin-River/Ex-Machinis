@@ -13,7 +13,8 @@
 40 constant low-fuel     \ get fuel when below this
 12 constant dry-tries    \ dry tries at the Moon before trying Phobos
 7000 constant grow-at    \ credits at which it buys and launches a copy
-                         \ (5500 at least: a hull is 3000, a kit 2000)
+                         \ (6500 at least: a hull is 3000, a kit 2000,
+                         \ and 1500 left to work with)
 240 constant rest        \ game minutes to rest when both Mars moons are dry
 16 constant hold-cap     \ goods it keeps on offer to other drones
 
@@ -116,9 +117,10 @@ variable copy
 \ 5,000 and takes 10 to 20 game days to earn it back (one sent to Mars
 \ spends 10 of them flying), and the hull and kit count for less than
 \ they cost in net wealth: growing pays early, not in a contest's last
-\ weeks. Below 5500 it would buy a hull and have nothing left for the kit
+\ weeks. Below 6500 it would be left too little to work with (round 35: a
+\ copy that left its company 191 credits stopped both drones)
 6001 constant cruiser-kit
-5500 constant grow-floor
+6500 constant grow-floor
 \ Buy one of a good here unless one is aboard, and wait (up to 6 game
 \ hours) for it, in case nobody here has one for sale yet
 : get-one ( resource -- )

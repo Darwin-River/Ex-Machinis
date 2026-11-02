@@ -31,13 +31,26 @@ class ApiController extends Controller
         $now = World::gameNow();
         $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
         $clock = LaunchQueue::clock();
+        $scale = $clock['scale'] ?? null;
+        // The game engine records its pace once a game minute or so
+        // (load_checked_at, real time): a stale record means it has stopped,
+        // and drones are waiting (#380 round 35: a stall looked like a slow drone)
+        $load = DB::table('game_clock')->where('id', 1)->first(['load_checked_at', 'slices_per_minute', 'lag_seconds']);
+        $seen = ($load && $load->load_checked_at) ? max(0, time() - (int) $load->load_checked_at) : null;
         return response()->json([
             'game_time' => $now,
             'game_day' => round(($now - $epoch) / 86400, 3),
             'when' => DronePage::when($now),
-            'scale' => $clock['scale'] ?? null,
+            'scale' => $scale,
+            'real_seconds_per_game_day' => $scale ? (int) round(86400 / $scale) : null,
             'world_full' => $clock['full'] ?? false,
             'releases_waiting' => $clock['waiting'] ?? 0,
+            'engine' => [
+                'running' => $seen !== null && $seen < 180,
+                'last_seen_seconds_ago' => $seen,
+                'turns_per_minute' => $load && $load->slices_per_minute !== null ? (int) $load->slices_per_minute : null,
+                'behind_seconds' => $load && $load->lag_seconds !== null ? (float) $load->lag_seconds : null,
+            ],
         ]);
     }
 

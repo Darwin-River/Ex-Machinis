@@ -14,7 +14,8 @@
 low_fuel = 40      -- get fuel when below this
 dry_tries = 12     -- dry tries at the Moon before trying Phobos
 grow_at = 7000     -- credits at which it buys and launches a copy
-                   -- (5500 at least: a hull is 3000, a kit 2000)
+                   -- (6500 at least: a hull is 3000, a kit 2000,
+                   -- and 1500 left to work with)
 rest = 240         -- game minutes to rest when both Mars moons are dry
 hold_cap = 16      -- goods it keeps on offer to other drones
 
@@ -151,7 +152,7 @@ end
 function reinvest()
   if units(mining_kit) > 0 then equip_clone(); fill_to(60); return end
   if units(cruiser_kit) == 0 then
-    if credits() < math.max(grow_at, 5500) then return end
+    if credits() < math.max(grow_at, 6500) then return end
     get_one(cruiser_kit)
     if units(cruiser_kit) == 0 then return end
   end

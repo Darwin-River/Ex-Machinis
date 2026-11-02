@@ -251,10 +251,15 @@ throw
 tick
 ticks
 today
-trade-less
+trade-have
+trade-ior
+trade-me
 trade-n
 trade-r
-trade-took
+trade-row
+trade-start
+trade-tries
+trading?
 travel
 trip
 tuck
