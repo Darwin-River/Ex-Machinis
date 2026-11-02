@@ -395,14 +395,19 @@ ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
 	// unprocessed events, or aborted): hold its resume back until then.
 	// <launched> is held while the drone's script is still running. Other
 	// commands, such as <abort> or new mail, are never held.
+	// A script still loading (not yet launched: no release_vm) goes first, so
+	// a new release or test run loads at once instead of waiting a turn per
+	// piece behind every running drone (#380 round 34: tests queued behind 70
+	// drones took 10-20 real minutes to load). Its resumes don't: a script
+	// whose top-level code loops while loading takes turns like any other.
 	char where[1024];
 	db_runnable_where(where, sizeof(where));
 	snprintf(query_text,
         DB_MAX_SQL_QUERY_LEN,
         "SELECT c.id, c.code, c.agent_id, c.subject, c.email_content FROM commands c "
         "LEFT JOIN agents a ON a.agent_id = c.agent_id "
-        "WHERE %s ORDER BY c.id LIMIT 1",
-        where);
+        "WHERE %s ORDER BY (a.release_vm IS NULL AND c.code NOT LIKE '%s%%') DESC, c.id LIMIT 1",
+        where, engine_get_vm_resume_command());
 
     // run it
     if (mysql_query(connection->hndl, query_text))

@@ -10,6 +10,11 @@ return [
     // all together): starting another stops and removes the oldest
     'test_runs_kept' => 100,
 
+    // Real minutes a test run keeps running (#380 round 34): starting another
+    // stops the older ones, so a new run doesn't queue behind them. Their
+    // results stay readable. 0 lets them run on.
+    'test_run_minutes' => (int) env('TEST_RUN_MINUTES', 30),
+
     // Fuel in a new drone's hold (#324 step 8): actions and computing burn it
     'starting_fuel' => 100,
 

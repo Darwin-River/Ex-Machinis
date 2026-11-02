@@ -41,9 +41,30 @@ class TestWorld
     {
         $owner = Release::owner(self::CONNECTION);
         self::prune(config('forge.test_runs_kept') - 1);
+        self::stopExpired((int) config('forge.test_run_minutes'));
         $token = bin2hex(random_bytes(8));
         Release::release($owner, 'Test ' . $token, $script, self::CONNECTION, null, null, $kit);
         return $token;
+    }
+
+    /**
+     * Stops the test runs started more than $minutes real minutes ago (#380
+     * round 34: every run kept running, so a new one queued behind dozens and
+     * took 10 to 20 real minutes to load). Their drones' queued commands go,
+     * so their scripts run no more; their pages and results stay.
+     */
+    public static function stopExpired(int $minutes): void
+    {
+        if ($minutes <= 0) {
+            return;
+        }
+        $old = self::db()->table('companies')->where('name', 'like', 'Test %')
+            ->where('created_at', '<', now()->subMinutes($minutes))->pluck('company_id');
+        if ($old->isEmpty()) {
+            return;
+        }
+        $drones = self::db()->table('agents')->whereIn('company_id', $old)->pluck('agent_id');
+        self::db()->table('commands')->whereIn('agent_id', $drones)->delete();
     }
 
     /** Stops and removes the oldest test runs, keeping $keep */

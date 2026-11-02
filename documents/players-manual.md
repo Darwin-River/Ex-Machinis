@@ -101,6 +101,7 @@ A released drone can't be sent new commands from the Release page, so test your 
 - your script runs in the test world, a separate copy of the game with the same rules, data and starting company, and a clock that runs ten times faster;
 - you go to the test run's own page, which shows what the test drone prints, its latest events (what it did, its cargo and credits), its trades and any crashes: keep its link to come back to it;
 - nothing in the test world affects the live one, and you can test as often as you like (the latest hundred test runs are kept);
+- your script starts loading at once, ahead of the drones already running there, and a run keeps going for 30 real minutes: after that the next test stops it, though its results stay readable;
 - the test world has its own market, so trades there are only with other test runs.
 
 Both the Test button and a release warn you if your script redefines a word your drone already knows, such as `report`, `load` or `pick`. Your word then replaces the drone's for everything written after it, which is rarely what you want: rename yours.

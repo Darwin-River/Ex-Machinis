@@ -145,7 +145,7 @@ The script runs in the **test world**. This is a separate world with the same ru
 }
 ```
 
-Test runs are kept for a while, then cleared to make room for others.
+The script starts loading at once. A run keeps going for 30 real minutes; after that, the next test anyone starts stops it, though its results stay readable. Test runs are kept for a while, then cleared to make room for others.
 
 ### `GET /test/{token}`: a test run's results so far
 
