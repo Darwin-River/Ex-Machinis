@@ -261,6 +261,21 @@ After the round: why it was slow. Every drone shares the Game Engine in 100,000-
 - *Liked:* small words that read like sentences (`refuel stock-up forge-rods sell-at-moon`, `1 rodz got 1 pipes got and`), tables with `create ... ,`, `if exit then` early returns, and fuel per instruction making efficiency real.
 - *Asked for:* a stack-effect checker that compares each word's `( -- )` comment with its body (Iris, Jago, Kofi: the top ask); a warning for likely 16-bit overflow in `*` (Jago, Kofi); a dry run of a word against live data that returns the stack (Jago: the Machine page does this, and none of the four used it); named locals (Kofi); a "how to read a line" walk-through showing the stack after each word of a starter line, or pseudo-code comments beside each starter word (Lina).
 
+**FORTH follow-up.** Asked how much FORTH pulled their ratings down, and why they would keep it (and to say if that was politeness):
+
+| Player | Overall (given → if FORTH were effortless) | Fun | Would play again | Keep FORTH without the library? |
+|---|---|---|---|---|
+| Iris | 7 → 7 to 8 | 7 → 8 | 8 → 8 | No: Lua with the same game words, for a wider audience |
+| Jago | 7 → 7 | 7 → 7 | 7 → 7.5 | No: a friendlier language, or FORTH with much stronger tools |
+| Kofi | 7 → 8 | 7 → 8 | 7 → 8 | No: Python or Lua; FORTH kept him from bolder designs |
+| Lina | 7 → 8 | 6 → 7 to 8 | 7 → 8 | No: she couldn't have written a drone from the manual alone |
+| **Average** | 7.0 → about 7.6 | 6.75 → about 7.6 | 7.25 → about 7.9 | 0 of 4 |
+
+- *Their first "keep FORTH" was partly politeness.* All four said so: they guessed it was what the designers wanted, or borrowed the blog's reasoning.
+- *What FORTH costs:* about half a point to a point overall for the less experienced (Kofi, Lina), little for Iris and Jago, whose low marks were the economy and the test world. The cost shows as caution more than effort: Kofi didn't try specialised clones or couriers, and Lina couldn't write the fuel fix or the growth step she wanted, with two releases and no way to fix a drone.
+- *What they would keep of it:* flavour (a tiny probe computer), legible fuel per instruction, and small words that compose. All four added that Lua or Python could keep the instruction metering and the game words, so what is lost is mostly character; 16-bit cells and doubles add friction, not strategy.
+- *Where they agree:* FORTH works here only because the starters, the library and `forth-words.md` carry newcomers. Without them, all four would switch. Lina would keep FORTH and offer a Python-like option, or pseudo-code beside every starter word.
+
 **What they liked best** (all twelve rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
 ### Growing the starter library
