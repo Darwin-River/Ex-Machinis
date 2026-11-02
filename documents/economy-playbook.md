@@ -246,6 +246,21 @@ After the round: why it was slow. Every drone shares the Game Engine in 100,000-
 - *Starters.* The Maker still sends everyone to Earth (Lina's Moon seller doubled it), has no growth step, and can run its tank to 10 while forging.
 - *Feedback.* Little to do after release; reports come every N rounds, not per game day; a 429 came back as HTML, not JSON.
 
+**FORTH survey (after round 34).** The four were asked about the language itself:
+
+| Player | Before | First working word | Hardest | Easy to learn | Enjoyed | Fits the game | Would choose |
+|---|---|---|---|---|---|---|---|
+| Kofi (Python) | by name only | 30 to 45 min, from library code | 16-bit overflow; counting nested `then`s; bitwise `and` as logic | 4 | 5 | 6 | FORTH plus help |
+| Iris (engineer) | by reputation | 30 to 40 min; a 45-word script in 2 h | 3 to 5 values in flight (`2 pick`, `3 pick` traced on paper); redefining `pick` | 5 | 6 | 7 | FORTH plus help |
+| Jago (experienced) | the concepts | 15 to 20 min, from `systems.fth` | stack juggling; silent 16-bit overflow (12 x 5,000) | 6 | 7 | 7 | FORTH plus help |
+| Lina (spreadsheets) | nothing | 10 min, one word copied from the Maker | reading others' code: comparisons, doubles (`spare`), `?dup`, `drop` after words | 4 | 5 | 7 | FORTH plus help |
+| **Average** | | | | 4.75 | 5.75 | 6.75 | 4 of 4 |
+
+- *Keep FORTH.* All four would keep it rather than switch to Lua, Python or blocks: it fits the fiction (a tiny drone computer, fuel per instruction) and the library and examples are built on it. Kofi would have chosen Python without the library; Lina could make only one of the two changes she wanted.
+- *It costs the strategy.* Three of four said they spent more effort on stack order and overflow than on economics. Nobody wrote a full script from a blank page: all started from library or starter code.
+- *Liked:* small words that read like sentences (`refuel stock-up forge-rods sell-at-moon`, `1 rodz got 1 pipes got and`), tables with `create ... ,`, `if exit then` early returns, and fuel per instruction making efficiency real.
+- *Asked for:* a stack-effect checker that compares each word's `( -- )` comment with its body (Iris, Jago, Kofi: the top ask); a warning for likely 16-bit overflow in `*` (Jago, Kofi); a dry run of a word against live data that returns the stack (Jago: the Machine page does this, and none of the four used it); named locals (Kofi); a "how to read a line" walk-through showing the stack after each word of a starter line, or pseudo-code comments beside each starter word (Lina).
+
 **What they liked best** (all twelve rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
 ### Growing the starter library

@@ -1091,6 +1091,28 @@ for st in (1, 2, 3):
 BUY_SHARE = 0.75
 STATION_GOODS = [(st, rid, side, max(1, int(price * BUY_SHARE)) if side == BUYS else price, daily, day)
                  for st, rid, side, price, daily, day in STATION_GOODS]
+# Each exchange is short of different things (#380 round 34: every exchange
+# priced a good the same, asking exactly twice its bid, so there was nothing
+# to carry from one place to another, and every system paid about the same
+# an hour). The Moon Depot, beside the mines, has raw and refined goods to
+# spare and is short of made goods; Earth's industry is short of refined
+# goods and has systems to spare; far Mars is short of parts and systems.
+# Both of a good's prices at an exchange move together (it still asks twice
+# its bid), and each good gets its own twist of up to a tenth either way
+# by exchange, so one system pays more than another, and more in one place.
+# Fuel, the hull and the kits keep their prices.
+PLACE_FACTOR = {   # station: {tier (a resource's first digit): factor}
+    1: {1: 1.10, 2: 1.20, 3: 1.00, 4: 0.90, 5: 1.00},   # Earth Exchange
+    2: {1: 0.85, 2: 0.85, 3: 1.10, 4: 1.20, 5: 1.10},   # Moon Depot
+    3: {1: 1.00, 2: 1.00, 3: 1.25, 4: 1.10, 5: 1.15},   # Mars Exchange
+}
+FIXED_PRICES = {FUEL, 6001, MINING_KIT, FACTORY_KIT}
+def place_factor(st, rid):
+    twist = ((rid * 7919 + st * 104729) % 21 - 10) / 100   # -0.10 to +0.10
+    return PLACE_FACTOR[st].get(int(str(rid)[0]), 1.0) + twist
+STATION_GOODS = [(st, rid, side, price if rid in FIXED_PRICES else
+                  max(1, min(MAX_LISTED, round(price * place_factor(st, rid)))), daily, day)
+                 for st, rid, side, price, daily, day in STATION_GOODS]
 # No exchange buys a good for as much as it sells it for (a free loop for
 # whoever trades both), and every price fits the station drone's one cell
 _sides = {}
