@@ -57,14 +57,15 @@ class Release
 
     /** The kit each starter script needs */
     public const STARTER_KITS = ['miner' => 'mining', 'refiner' => 'mining', 'trader' => 'mining', 'maker' => 'factory',
-                                 'maker.lua' => 'factory'];
+                                 'miner.lua' => 'mining', 'maker.lua' => 'factory'];
 
     public const STARTERS = [
         'miner' => 'Mines kunspar on the Moon, refines it and sells the metals to the Moon Depot.',
         'refiner' => 'Brews fuel on the Moon from yalspar and vladnium, and sells what it doesn\'t need to other drones.',
         'trader' => 'Buys metals from miners on the Moon and hauls them to Mars, where the House pays more.',
         'maker' => 'Buys metals on the Moon where they are cheapest, makes alloys and rods, and sells them where they pay best.',
-        'maker.lua' => 'The Maker in Lua instead of FORTH (#380): the same drone, line for line.',
+        'miner.lua' => 'The Miner in Lua instead of FORTH (#380): the same drone.',
+        'maker.lua' => 'The Maker in Lua instead of FORTH (#380): the same drone.',
     ];
 
     /** A starter script's source, or null for an unknown name */
