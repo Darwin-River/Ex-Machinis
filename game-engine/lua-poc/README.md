@@ -8,6 +8,7 @@ make run    # builds lua54/ (Lua 5.4.8, unchanged, MIT licence), the host and tw
 ./host heavy.lua 100 2     # drones that think hard: slices run out
 ./host runaway.lua 5 1     # an endless loop that eats memory: the cap stops it
 ./bench_lua; ./bench_forth # the same scoring work in Lua and on the engine's FORTH VM
+make clones && ./clones_memory 10000 && ./clones_apart   # clones sharing their script
 ```
 
 ## What a drone needs, and how Lua does it
@@ -34,6 +35,24 @@ The same work in both languages: score 8 products from a price table and a bill 
 | Loading a script | about 80,000 instructions a line (a 100-line script took 80 slices before #403) | 0.1 ms a drone, all of it, in C |
 
 100 Lua Makers for 10 game days: 8,700 slices, 0.6 to 0.9 us each (a Maker thinks for about 11 Lua instructions between actions), 20 KB a drone. 1,000 Makers: 1.6 us a slice, the same 20 KB. 100 drones thinking hard: 654 us a full slice.
+
+## Clones sharing one script
+
+A company's clones run the same script, so they can share one `lua_State`: the script is compiled once, and each clone is a coroutine with its own globals. Every function of a script reaches globals through one shared `_ENV` upvalue, so the host points it at the clone's own table (which falls back to the shared functions and game words) before each resume (`clones_memory.c`, `clones_apart.c`).
+
+| | Memory |
+|---|---|
+| A `lua_State` each (host.c) | 18,900 bytes a Maker |
+| One state a script, a coroutine a clone | 20,070 bytes once, then about 1,500 bytes a Maker |
+
+Interleaved clones keep their own variables (`clones_apart`: one clone counted 5 rounds, the other 3, the shared table 0). What they share: the compiled code, the game words, the memory cap and the garbage collector (so the cap becomes the company's, and grows with its drones), and any `local` at the top of the script, which is one variable for all of them (fine for settings, wrong for a counter: the docs would say so, or the loader could refuse top-level locals that are assigned). Only a company's own drones share a state: two companies never do, even with the same script.
+
+## How many drones fit
+
+- **Memory is not the limit.** A Maker uses 1,500 bytes as a clone and 19 KB on its own: 10,000 drones are 15 to 190 MB. The worst case is set by the cap (10,000 drones at 64 KB each is 640 MB), so the cap should be modest, a drone's or a company's.
+- **Thinking is cheap.** The Maker thinks about 11 instructions between actions. A drone that thinks a full 100,000-instruction slice takes 0.65 ms, about 1,500 such slices a second a core; at 600 game seconds a real second (a game hour every 6 real seconds), a slice a game hour each is about 9,000 drones a core.
+- **The database is the limit.** Today each FORTH slice reads and writes a 64 KB image and runs the queries its words ask; in round 34's race MySQL, not the VM, held the engine to under 100 slices a minute until #404. Lua drones held in memory skip the image, so what is left is the game itself: actions, queries and events. That is where to measure next, with the real game words.
+- **A restart** rebuilds every drone from its script and snapshot: 0.1 to 0.9 ms each, about a second or ten for 10,000.
 
 ## What it means for the game
 

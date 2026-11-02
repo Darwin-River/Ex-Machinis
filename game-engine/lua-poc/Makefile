@@ -18,10 +18,18 @@ VM=$(SRC)/embed.c $(SRC)/embed_image.c $(SRC)/vm_library.c $(SRC)/wrap.c ../mach
 bench_forth: bench_forth.c $(VM)
 	gcc -std=c99 -O2 -DNDEBUG -I$(SRC)/include -I../machine -include ../machine/machine_shim.h -o $@ $(VM) bench_forth.c
 
+clones: clones_memory clones_apart
+
+clones_memory: clones_memory.c $(LUA_SRC)
+	gcc $(CFLAGS) -o $@ clones_memory.c $(LUA_SRC) -lm
+
+clones_apart: clones_apart.c $(LUA_SRC)
+	gcc $(CFLAGS) -o $@ clones_apart.c $(LUA_SRC) -lm
+
 run: all
 	./host maker.lua 100 10
 	./bench_lua
 	./bench_forth
 
 clean:
-	rm -f host bench_lua bench_forth
+	rm -f host bench_lua bench_forth clones_memory clones_apart

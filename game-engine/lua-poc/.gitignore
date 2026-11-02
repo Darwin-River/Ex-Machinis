@@ -1,3 +1,5 @@
 host
 bench_lua
 bench_forth
+clones_memory
+clones_apart
