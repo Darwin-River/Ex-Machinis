@@ -238,7 +238,7 @@ const char* lua_library_source =
 "  return list\n"
 "end\n"
 "\n"
-"local function stdlib() return 16 end\n"
+"local function stdlib() return 17 end\n"
 "\n"
 "-- Every name above, for scripts\n"
 "_G.earth = earth\n"

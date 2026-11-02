@@ -235,7 +235,7 @@ local function my_clones()
   return list
 end
 
-local function stdlib() return 16 end
+local function stdlib() return 17 end
 
 -- Every name above, for scripts
 _G.earth = earth
