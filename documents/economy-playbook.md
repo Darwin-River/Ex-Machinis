@@ -301,6 +301,20 @@ After each newcomer round, race the newcomers' best scripts: release each once i
 
 ## Round log
 
+### Every starter and the Systems shop, Lua beside FORTH (#380)
+
+The same world, carried on: the Makers (from day 0) and Miners (day 2) to game day 38, and three companies each of the Refiner, Trader and Systems shop in both languages from day 26 (12 game days):
+
+| Design | Companies | FORTH avg gain | Lua avg gain | FORTH instructions a drone | Lua | Crashes |
+|---|---|---|---|---|---|---|
+| Maker | 5 + 5 | +5,926 | +6,210 | 12.1 M | 2.2 M | 0 |
+| Miner | 5 + 5 | +2,998 | +2,953 | 15.3 M | 4.2 M | 0 |
+| Systems shop (12 days) | 3 + 3 | +3,087 | +3,102 | 16.3 M | 0.8 M | 0 |
+| Refiner (12 days) | 3 + 3 | +89 | +292 | 13.0 M | 1.3 M | 0 |
+| Trader (12 days) | 3 + 3 | +114 | +188 | 7.1 M | 0.7 M | 0 |
+
+Every Lua port earns what its FORTH twin does (more, for the short-lived Refiner and Trader, which think less and so burn less fuel), and not one drone of 38 crashed in either language.
+
 ### Lua drones beside FORTH ones (#380)
 
 A fresh world from the Lua engine (#404) with 20 starters, five companies each of the FORTH and Lua Maker (`maker.fth`, `maker.lua`, Factory Kit) and, from day 2, of the FORTH and Lua Miner (Mining Kit), to game day 8:

@@ -98,8 +98,8 @@ test: $(EXE_PATH)/lua-check test_orbits.c orbits.c test_wrap.c wrap.c test_vm_bo
 	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/test_event_order test_event_order.c event_order.c
 	$(OBJS_PATH)/test_event_order
 	# The Lua drones' library and the Lua starters compile (#380)
-	for f in lua_library.lua ../../examples/starters/*.lua; do $(EXE_PATH)/lua-check < $$f || { echo "$$f doesn't compile"; exit 1; }; done
-	@echo "lua: the library and the Lua starters compile"
+	for f in lua_library.lua ../../examples/starters/*.lua ../../examples/companies/*.lua; do $(EXE_PATH)/lua-check < $$f || { echo "$$f doesn't compile"; exit 1; }; done
+	@echo "lua: the library, the Lua starters and designs compile"
 
 clean:
 	$(RM) -rf $(OBJS_PATH) $(GAME_ENGINE_EXE_NAME) $(EVENTS_ENGINE_EXE_NAME) $(EXE_PATH)/eforth.blk

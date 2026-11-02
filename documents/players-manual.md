@@ -1309,7 +1309,7 @@ function launched()
 end
 ```
 
-`examples/starters/maker.lua` is the Maker starter in Lua, line for line beside `maker.fth`.
+Every starter comes in Lua too (`examples/starters/miner.lua`, `refiner.lua`, `trader.lua`, `maker.lua`: the same drones as the `.fth` ones, and on the Release page as "Miner (Lua)" and so on), and so does the Systems shop (`examples/companies/systems.lua`), the best company design so far. Reading a starter beside its FORTH twin is a quick way into either language.
 
 ### The game in Lua
 
