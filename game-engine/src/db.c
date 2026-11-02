@@ -3915,7 +3915,11 @@ ErrorCode_t db_get_latest_processed_game_t(const int* drones, int count, long lo
         snprintf(list + len, sizeof(list) - len, "%s%d", i ? "," : "", drones[i]);
     }
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "SELECT IFNULL(MAX(game_t), 0) FROM events WHERE drone IN (%s) AND outcome >= %d AND event_type <> %d",
+        "SELECT IFNULL(MAX(game_t), 0) FROM events WHERE drone IN (%s) AND outcome >= %d AND event_type <> %d"
+        /* An aborted action's events never happen (#380 round 35: an aborted
+           trip's arrival, 159 game hours off, held every later trade with
+           the drone, and with the Moon Depot, which it sold to, till then) */
+        " AND NOT EXISTS (SELECT 1 FROM actions x WHERE x.id = events.action AND x.aborted = 1)",
         list, OUTCOME_NO_OUTCOME, WAIT_EVENT_TYPE);
 
     DbConnection_t* connection = engine_get_db_connection();
@@ -4005,7 +4009,8 @@ ErrorCode_t db_get_latest_entry_game_t(int drone, const int* resources, const in
                  i ? " OR " : "", resources[i], installed[i], locked[i]);
     }
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "SELECT IFNULL(MAX(game_t), 0) FROM events WHERE drone = %d AND outcome >= %d AND event_type IN (%d, %d) AND (%s)",
+        "SELECT IFNULL(MAX(game_t), 0) FROM events WHERE drone = %d AND outcome >= %d AND event_type IN (%d, %d) AND (%s)"
+        " AND NOT EXISTS (SELECT 1 FROM actions x WHERE x.id = events.action AND x.aborted = 1)",
         drone, OUTCOME_NO_OUTCOME, INCREMENT_INVENTORY_EVENT_TYPE, DECREMENT_INVENTORY_EVENT_TYPE, list);
 
     DbConnection_t* connection = engine_get_db_connection();

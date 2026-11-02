@@ -181,6 +181,11 @@ From round 21, four naive agents join each round as new players would: they get 
 | 34 | Jago (trader) | Found no arbitrage (every exchange 2x its bid, the same everywhere), so a 7-system spread engine at Earth and the Systems shop at the Moon; #4 and #6, both cloned; +14,579 and +12,842 | 7 | 7 | – | 7 | 5 | – | 7 |
 | 34 | Lina (casual) | The Maker with two Settings (+3,770), and the Maker selling rods at the Moon Depot for 158 to 168 instead of flying to Earth (+6,271, #17), ending with 4 fuel | 6 | 6 | – | 6 | 7 | – | 7 |
 | 34 | **Average** | | 6.75 | 6.75 | – | 6.25 | 6.5 | – | 7.0 |
+| 35 | Mara (Python developer, Lua) | A recipe-tree planner pricing 41 recipes each round; Mara 1 wrecked when its global best_bid hid the library function (fixed), Mara 2 rotated reactors, solenoids, valves to +7,286 | 7 | 6 | – | 7 | 8 | – | 7 |
+| 35 | Nico (embedded engineer, FORTH and Lua) | A full-catalog systems shop: in FORTH (+9,343, #1 on days 26 to 29 with one drone) and in Lua with earlier growth, which left it 191 credits after a launch and both drones idle (+1,980) | 8 | 7 | – | 6 | 8 | – | 7.5 |
+| 35 | Oona (casual, Lua) | The Lua Miner with two Settings (+2,545), and one that went where nobody was: alone at Deimos, selling at Mars for double (+2,232, after a 13-day trip and the freeze) | 7 | 7 | – | 6 | 7 | – | 7 |
+| 35 | Pablo (trader, Lua) | A 22-system bid hunter with make-or-buy for every part; found no hauling spread, so a maker; #12 and #13 (+9,109, +7,936) | 7 | 7 | – | 5 | 8 | – | 7 |
+| 35 | **Average** | | 7.25 | 6.75 | – | 6.0 | 7.75 | – | 7.1 |
 
 **Round 21 findings, and what changed:**
 - *They couldn't see their drones.* A drone's output arrives when its script ends, and `launched` never ends. The engine has a `report` word that sends it at once, but the manual never mentioned it (three of the four even redefined it). Now the manual documents it and the starters call it every 8th round.
@@ -246,6 +251,13 @@ After the round: why it was slow. Every drone shares the Game Engine in 100,000-
 - *Starters.* The Maker still sends everyone to Earth (Lina's Moon seller doubled it), has no growth step, and can run its tank to 10 while forging.
 - *Feedback.* Little to do after release; reports come every N rounds, not per game day; a 429 came back as HTML, not JSON.
 
+**Round 35 findings:** the first round with Lua. All four newcomers chose Lua (Nico wrote his first company in FORTH, his second in Lua): 7 of 8 companies, and they rated it 8.75 to learn and 7.75 for the game (FORTH, round 34: 4.75 and 6.75; Nico's FORTH this round: 6 and 8). Seven gained; Nico 1 (FORTH) and Pablo's two Lua shops led the newcomers. Would play again 8.0, overall 7.1 (fun 7.25, clarity 6.75, depth 7.75, feedback 6.0, API 7.25). What they ran into:
+- *Three engine bugs, all fixed during the round.* Saving a Lua drone's nested-table variables crashed the game engine, which crashed again on every restart: the world froze from day 5 to day 8. A Lua script's top level had no limit, and one held the test world's engine at full CPU, so `/test` answered 500 for most of the round. A script's global `best_bid` hid the library function the library's own `sell_price` called, and Mara 1 wrecked after five crashes (the library now calls its own copies; `/check` warns). And, in the shared engine, an aborted trip's events still counted as a drone's latest, so a trader's sale to the Moon Depot was scheduled 159 game hours out and every trade with the depot (every fuel purchase there) queued behind it.
+- *Lua can't be checked beyond its syntax.* Nico unit-tested his FORTH at load time with `/check` (assertions, stub words) and it ran right first time; his Lua went out on review alone. All asked for a Lua Machine, or a check that runs the top level and flags unknown names.
+- *Pulls that fail.* "The seller's order didn't allow selling that many" on small miner lots, each costing a fuel; `buy_here` gives up instead of trying the next seller, and Metals (A1) ran out at the Moon from about day 24 to 29, idling the factories.
+- *Growth that strands.* Nico 2 launched a clone at 5,600 and was left 191 credits, under its cash floor: both drones idled for 20 days holding half-built parts.
+- *No sign of a stall.* The clock ran on through the freeze; players asked for a "last tick" on `/clock` and a note in the drone timeline when the engine restarts.
+
 **FORTH survey (after round 34).** The four were asked about the language itself:
 
 | Player | Before | First working word | Hardest | Easy to learn | Enjoyed | Fits the game | Would choose |
@@ -293,13 +305,38 @@ After the round: why it was slow. Every drone shares the Game Engine in 100,000-
 - *Drop:* 16-bit cells and double money; the 120-byte `answer` buffer (queries should return tables with named fields, like the API's JSON); stack juggling and `drop` after every call; manual memory; the 79-character line pieces; numeric error codes (messages with line numbers instead).
 - *Risks they named:* metering that is fair and cheap (charge instructions plus memory, cap memory a drone); server memory for hundreds of paused coroutines; drones burning fuel in easy-to-write loops (show a cost per function); losing the library, blog and playtest knowledge (port the starters and the word library first, same names); Lua quirks (1-based tables, `~=`) for Python players.
 
-**What they liked best** (all twelve rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
+**What they liked best** (all thirteen rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
 ### Growing the starter library
 
 After each newcomer round, race the newcomers' best scripts: release each once into a fresh world beside the usual seed mix (60 starters and the library designs), run it to game day 40, and rank by gain over the starter package (the `company_taxable` view). A script that clearly beats the best library design joins `examples/companies/` with a header naming its author and round, and its kit; keep one design per niche (the higher earner when two make the same goods). CI checks every file there loads (`check_starters`, `ReleasePageTest`).
 
 ## Round log
+
+### Round 35: FORTH or Lua (#380)
+
+A fresh world from #405's code with 60 starters, 12 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive, 3 each of the Systems shop, Electronics and Foundry, and 3 each of the Lua Maker, Lua Miner and Lua Systems shop, to game day 40. Four newcomers could write in either language. The world froze from day 5 to day 8 (a Lua save crashed the engine) and the Moon Depot's trades were held for about 7 game days from day 29 (an aborted trip), both fixed in the round.
+
+| Design | Language | Companies | Avg gain |
+|---|---|---|---|
+| Systems shop | FORTH | 3 | +11,109 |
+| Foundry | FORTH | 3 | +10,768 |
+| Systems shop | Lua | 3 | +9,483 |
+| Electronics | FORTH | 3 | +7,600 |
+| Maker | Lua | 3 | +5,072 |
+| Machinist | FORTH | 6 | +5,031 |
+| Maker (starter) | FORTH | 12 | +4,658 |
+| Adaptive | FORTH | 6 | +3,789 |
+| Smith | FORTH | 9 | +3,776 |
+| Miner (starter) | FORTH | 24 | +2,900 |
+| Miner | Lua | 3 | +2,682 |
+| Chemist | FORTH | 12 | +1,654 |
+| Refiner (starter) | FORTH | 12 | +1,084 |
+| Trader (starter) | FORTH | 12 | +24 |
+| Newcomers | 7 Lua, 1 FORTH | 8 | 0 to +9,343 |
+
+- **Clones**: 16. **Wrecks**: 2 (one Lua newcomer drone, from the library bug).
+- **Leaderboard**: the Systems shops and Foundries first; Nico 1 (FORTH) 11th, Pablo 2 12th, Pablo 1 13th, Mara 2 about 16th.
 
 ### Every starter and the Systems shop, Lua beside FORTH (#380)
 

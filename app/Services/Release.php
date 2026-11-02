@@ -119,7 +119,7 @@ class Release
     public static function redefinedWarning(string $script): ?string
     {
         if (self::isLua($script)) {
-            return null;   // FORTH's words: a Lua script reports its errors when it loads
+            return self::luaRedefinedWarning($script);
         }
         $undefined = self::undefinedWords($script);
         $warnings = [];
@@ -223,6 +223,44 @@ class Release
     public static function definesLaunched(string $script): bool
     {
         return preg_match('/(^|\s):\s+launched(\s|$)/', $script) === 1 || self::isLua($script);
+    }
+
+    /**
+     * The game's Lua names a script sets at its top level (#380 round 35: a
+     * script's best_bid = ... hid the library function). The library keeps
+     * working (it calls its own copies), but the script's own calls get the
+     * script's value.
+     */
+    public static function luaRedefinedWords(string $script): array
+    {
+        static $known = null;
+        if ($known === null) {
+            $path = base_path('game-engine/src/lua_library.lua');
+            preg_match_all('/^_G\.([a-z_][a-z_0-9]*) = /m', is_readable($path) ? file_get_contents($path) : '', $m);
+            $known = array_flip($m[1]);
+        }
+        $found = [];
+        preg_match_all('/^(?:function\s+([a-z_][a-z_0-9]*)\s*\(|([a-z_][a-z_0-9]*(?:\s*,\s*[a-z_][a-z_0-9]*)*)\s*=[^=])/m', $script, $m, PREG_SET_ORDER);
+        foreach ($m as $match) {
+            $names = !empty($match[1]) ? [$match[1]] : preg_split('/\s*,\s*/', $match[2]);
+            foreach ($names as $name) {
+                if (isset($known[$name])) {
+                    $found[$name] = true;
+                }
+            }
+        }
+        return array_keys($found);
+    }
+
+    private static function luaRedefinedWarning(string $script): ?string
+    {
+        $names = self::luaRedefinedWords($script);
+        if (!$names) {
+            return null;
+        }
+        return 'Your script sets ' . implode(', ', $names) . ': ' . (count($names) > 1 ? 'names' : 'a name')
+            . ' the game already uses. The game\'s own functions keep working, but your code gets yours from'
+            . ' then on (a number where a function was expected crashes your drone). If you didn\'t mean to, rename yours.';
     }
 
     /**

@@ -173,6 +173,17 @@ class ReleasePageTest extends TestCase
         $this->assertEquals('forth', DB::table('agents')->where('agent_id', $forth->agent_id)->value('language'));
     }
 
+    public function testALuaScriptThatReusesAGameNameIsWarned()
+    {
+        // #380 round 35: best_bid = ... hid the library function
+        $script = "best_bid = 30\nfunction sell_all(r) end\nmy_price, fuel = 1, 2\nfunction launched() end\n";
+        $this->assertEquals(['best_bid', 'sell_all', 'fuel'], Release::luaRedefinedWords($script));
+        $this->assertStringContainsString('best_bid, sell_all, fuel', Release::redefinedWarning($script));
+        foreach (array_merge(glob(base_path('examples/starters/*.lua')), glob(base_path('examples/companies/*.lua'))) as $file) {
+            $this->assertEquals([], Release::luaRedefinedWords(file_get_contents($file)), basename($file));
+        }
+    }
+
     public function testALuaScriptThatDoesntCompileIsRefused()
     {
         if (!is_executable(config('forge.lua_check'))) {
