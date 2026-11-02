@@ -269,6 +269,27 @@ After each newcomer round, race the newcomers' best scripts: release each once i
 
 ## Round log
 
+### After round 34: a check world with its fixes (#380)
+
+A fresh world from the round 34 fixes (prices by place, the new Maker, test runs that load at once), the round 34 mix, to game day 12:
+
+| Design | Companies | Avg gain by day 12 | Gaining |
+|---|---|---|---|
+| Foundry | 3 | +3,604 | 3 |
+| Systems shop | 3 | +3,293 | 3 |
+| Maker (starter) | 12 | +2,449 | 12 |
+| Electronics | 3 | +2,375 | 2 |
+| Adaptive | 6 | +1,769 | 6 |
+| Machinist | 6 | +1,534 | 6 |
+| Miner (starter) | 24 | +1,053 | 24 |
+| Smith | 9 | +529 | 3 |
+| Refiner (starter) | 12 | +386 | 12 |
+| Chemist | 12 | +335 | 4 |
+
+- The Makers sold all their rods at the Moon (294, at 155 a rod), none at Earth, and the lowest tank among them was 21. In round 34 they averaged +4,110 over 40 days; here +2,449 in 12.
+- Players traded 2,828 units among themselves at the Moon in 1,369 trades.
+- The Smiths and Chemists, which sell refined goods, lost the most: the Moon now pays 0.85 of a refined good's value where it paid 1.0. Watch them in the next round.
+
 ### Round 34: the race winners in the mix (#380)
 
 A fresh world from #404's code (fast holdings lookups, the three race winners in the library) with 60 starters, 12 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive, and 3 each of the Systems shop, Electronics and Foundry, to game day 40. Four newcomers played through the JSON API; Kofi reported at day 18 and Iris at day 36, their companies ran on.
