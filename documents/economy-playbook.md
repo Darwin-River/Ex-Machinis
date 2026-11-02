@@ -301,6 +301,20 @@ After each newcomer round, race the newcomers' best scripts: release each once i
 
 ## Round log
 
+### Lua drones beside FORTH ones (#380)
+
+A fresh world from the Lua engine (#404) with 20 starters, five companies each of the FORTH and Lua Maker (`maker.fth`, `maker.lua`, Factory Kit) and, from day 2, of the FORTH and Lua Miner (Mining Kit), to game day 8:
+
+| Design | Companies | Avg gain | Instructions a drone | Crashes |
+|---|---|---|---|---|
+| Maker, Lua | 5 | +1,811 | 553,579 | 0 |
+| Maker, FORTH | 5 | +1,694 | 10,466,817 | 0 |
+| Miner, Lua (from day 2) | 5 | +384 | 639,812 | 0 |
+| Miner, FORTH (from day 2) | 5 | +352 | 12,522,131 | 0 |
+
+- The two languages earn the same: the Lua drones run the same plan, and sold rods at the Moon at 151 a rod against the FORTH Makers' 144.
+- The Lua drones used about a twentieth of the instructions (each Lua instruction charged as six), so they burn less fuel thinking; most of a FORTH drone's count is reading its script.
+
 ### After round 34: a check world with its fixes (#380)
 
 A fresh world from the round 34 fixes (prices by place, the new Maker, test runs that load at once), the round 34 mix, to game day 12:
