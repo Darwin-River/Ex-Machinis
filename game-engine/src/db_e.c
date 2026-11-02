@@ -2510,13 +2510,19 @@ ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* ne
     if(result == ENGINE_OK)
     {
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-            "INSERT INTO agents (user_id, company_id, name, vm, object_id, hull_type, parent_id, generation, code_from) "
+            "INSERT INTO agents (user_id, company_id, name, vm, object_id, hull_type, parent_id, generation, code_from, "
+            "language, lua_script, lua_state) "
             "SELECT l.user_id, l.company_id, '%s', "
             "(SELECT d.vm FROM agents d WHERE d.agent_id = %d AND d.company_id = l.company_id), "
             "l.object_id, %d, l.agent_id, l.generation + 1, "
-            "(SELECT d.agent_id FROM agents d WHERE d.agent_id = %d AND d.company_id = l.company_id AND d.vm IS NOT NULL) "
+            "(SELECT d.agent_id FROM agents d WHERE d.agent_id = %d AND d.company_id = l.company_id "
+            "AND (d.vm IS NOT NULL OR d.lua_script IS NOT NULL)), "
+            /* A Lua drone's copy gets its script and saved variables (#380) */
+            "IFNULL((SELECT d.language FROM agents d WHERE d.agent_id = %d AND d.company_id = l.company_id), 'forth'), "
+            "(SELECT d.lua_script FROM agents d WHERE d.agent_id = %d AND d.company_id = l.company_id), "
+            "(SELECT d.lua_state FROM agents d WHERE d.agent_id = %d AND d.company_id = l.company_id) "
             "FROM agents l WHERE l.agent_id = %d",
-            name, source_id, hull_id, source_id, launcher_id);
+            name, source_id, hull_id, source_id, source_id, source_id, source_id, launcher_id);
         result = db_launch_exec(connection, query_text);
     }
 

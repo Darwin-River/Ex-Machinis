@@ -7,9 +7,11 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends gcc libc6-dev make libconfig-dev libmysqlclient-dev \
  && rm -rf /var/lib/apt/lists/*
 COPY game-engine/src /src
+# Lua 5.4, for Lua drones (#380): the Makefile finds it at ../lua54
+COPY game-engine/lua54 /lua54
 WORKDIR /src
-# Builds bin/game-engine, bin/events-engine and bin/eforth.blk (the FORTH
-# image each drone's VM starts from).
+# Builds bin/game-engine, bin/events-engine, bin/eforth.blk (the FORTH
+# image each drone's VM starts from) and bin/lua-check.
 RUN make clean all
 
 FROM ubuntu:24.04

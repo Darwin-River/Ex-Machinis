@@ -717,7 +717,7 @@ ErrorCode_t db_get_agent_engine_info(DbConnection_t* connection, int agent_id, A
 
     snprintf(query_text,
         DB_MAX_SQL_QUERY_LEN,
-        "SELECT VM, object_id FROM agents WHERE AGENT_ID = %d", agent_id);
+        "SELECT VM, object_id, language = 'lua' FROM agents WHERE AGENT_ID = %d", agent_id);
 
     // run it
     if (mysql_query(connection->hndl, query_text))
@@ -731,7 +731,7 @@ ErrorCode_t db_get_agent_engine_info(DbConnection_t* connection, int agent_id, A
         MYSQL_RES* db_result = mysql_store_result(connection->hndl);
 
         if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||
-            (mysql_num_fields(db_result) != 2))
+            (mysql_num_fields(db_result) != 3))
         {
             engine_trace(TRACE_LEVEL_ALWAYS,
                 "ERROR: Unable to get info for agent [%d] (invalid result)",
@@ -744,8 +744,12 @@ ErrorCode_t db_get_agent_engine_info(DbConnection_t* connection, int agent_id, A
             MYSQL_ROW row = mysql_fetch_row(db_result);
             if(row)
             {
+                // A Lua drone (#380) has no FORTH VM
+                agent->is_lua = row[2] && atoi(row[2]) == 1;
+                if(agent->is_lua)
+                    agent->vm = NULL;
                 // Check if agent has a VM or new one must be created
-                if(row[0] == NULL)
+                else if(row[0] == NULL)
                 {
                     engine_trace(TRACE_LEVEL_ALWAYS,
                         "WARNING: None VM defined for agent [%d], new one created",
@@ -1253,7 +1257,7 @@ ErrorCode_t db_get_user_info(DbConnection_t* connection, int user_id, char* emai
             MYSQL_RES* db_result = mysql_store_result(connection->hndl);
 
             if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||
-                (mysql_num_fields(db_result) != 2))
+                (mysql_num_fields(db_result) != 3))
             {
                 engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to get EMAIL info for USER_ID [%d] "

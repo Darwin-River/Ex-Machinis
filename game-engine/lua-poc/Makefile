@@ -1,6 +1,6 @@
 # Lua drones: a proof of concept (#380). Not part of the engine build.
 # lua54/ is Lua 5.4.8, unchanged (MIT licence: see lua54/lua.h).
-LUA=lua54
+LUA=../lua54
 LUA_SRC=$(filter-out $(LUA)/lua.c $(LUA)/luac.c,$(wildcard $(LUA)/*.c))
 CFLAGS=-std=c99 -O2 -Wall -DLUA_USE_POSIX -I$(LUA)
 

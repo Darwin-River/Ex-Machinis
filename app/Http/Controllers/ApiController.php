@@ -200,6 +200,7 @@ class ApiController extends Controller
             'ok' => Release::scriptProblem($script) === null,
             'error' => Release::scriptProblem($script),
             'warning' => Release::redefinedWarning($script),
+            'language' => Release::isLua($script) ? 'lua' : 'forth',   // #380
         ]);
     }
 

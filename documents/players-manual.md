@@ -65,6 +65,11 @@ Thank you for your support!
   - [Experimenting with logical operators](#experimenting-with-logical-operators)
   - [Repeating yourself: loops](#repeating-yourself-loops)
   - [Market-aware drones](#market-aware-drones)
+- [Chapter 10: Writing your drone in Lua](#chapter-10-writing-your-drone-in-lua)
+  - [A Lua drone](#a-lua-drone)
+  - [The game in Lua](#the-game-in-lua)
+  - [launched() may run again](#launched-may-run-again)
+  - [Limits and costs](#limits-and-costs)
 - [Appendix A: FORTH Error Codes](#appendix-a-forth-error-codes)
 
 ## Chapter 1: Getting Started
@@ -1278,6 +1283,69 @@ Small steps keep the drone responsive. A word that makes one alloy and then retu
 The Adaptive design (`examples/companies/adaptive.fth`, released with the Factory Kit) puts all of this together. It buys metals only while they cost well under what rods fetched at Earth yesterday, from whoever sells them cheapest. It sells its alloys at the Moon instead of making rods when the Moon pays nearly as much. And when nothing pays, it rests. Read it, then make your own. The other designs in `examples/companies/` are worth reading too: the Systems shop (`systems.fth`), Electronics (`electronics.fth`) and Foundry (`foundry.fth`) were written by newcomers in earlier playtests and earned the most when raced against the rest.
 
 **Watch the `answer` buffer.** `ask` and every question word that uses it (`units`, `credits`, `deposit`, `best-offer`, `best-bid`...) write into the same 120-byte buffer. Read everything you need from one answer before you ask anything else. A round 25 trader read a seller's ID after calling `units`, got the wrong drone, and its pulls failed.
+
+## Chapter 10: Writing your drone in Lua
+
+Your drone's computer also runs [Lua](https://www.lua.org/manual/5.4/), a small language used in many games. Everything in this manual still holds: the same protocols, queries, places and resources, the same game clock and fuel. Only the language differs. Write in whichever you prefer; FORTH and Lua drones share the same world and trade with each other.
+
+### A Lua drone
+
+A script is Lua when it defines a function `launched` (`function launched() ... end`) and no FORTH word `launched`. Release it as you would a FORTH script: on the Release page, or with the API (`/check` tells you which language it found, and reports a Lua script's syntax errors with their line number). Once it is released, your drone loads the whole script, then calls `launched()`. As in FORTH, `launched` usually loops for ever:
+
+```lua
+-- A miner in a dozen lines
+low_fuel = 40   -- Settings first, as in the starters
+
+function launched()
+  await_kit()
+  unpack()
+  go(moon)
+  while true do
+    if units(fuel) < low_fuel then buy_here(30, fuel) end
+    if mine(kunspar) ~= 0 then wait(60) end
+    refine(kunspar)
+    if units(metals_a1) >= 16 then sell_here(units(metals_a1), metals_a1) end
+  end
+end
+```
+
+`examples/starters/maker.lua` is the Maker starter in Lua, line for line beside `maker.fth`.
+
+### The game in Lua
+
+Every game word of the FORTH library has a Lua function of the same meaning, with `_` where FORTH has `-` (`sell-price` is `sell_price`, `?sell-order` is `sell_order_if_changed`, `in?` is `in_mode`):
+
+| Kind | Functions |
+|---|---|
+| Places and resources | `earth`, `moon`, `mars`, `phobos`, `deimos`; `fuel`, `kunspar`, `wolfite`, `yalspar`, `vladnium`, `magmite`, `metals_a1` to `metals_a3`, `alloys_a1` to `alloys_a3`, `organics_a1`, `inorganics_a1`, `rods`, `mining_kit`, `factory_kit`, `cruiser_kit` (any other resource by its number) |
+| Actions (return 0 when they worked, else a negative code) | `travel(place)`, `go(place)`, `mine(mineral)`, `refine(mineral)`, `make(resource)`, `wait(minutes)`, `push(n, resource, drone)`, `pull(n, resource, drone)`, `launch(drone, kit)`, `plunder(wreck)`, `jettison(n, resource)`, `broadcast(text)`, `unpack()`, `sell_order(price, keep, resource)`, `buy_order(price, want, resource)`, `sell_order_if_changed(...)`, `buy_order_if_changed(...)` |
+| Trading | `buy_here(n, resource)`, `sell_here(n, resource)`, `sell_all(resource)`, `best_offer(resource)` and `best_bid(resource)` (each returns price, drone, units), `sell_price(resource)`, `buy_price(resource)`, `board_price(resource, place)`, `sold(resource, days_ago, place)` |
+| Questions | `me()`, `location()`, `units(resource)`, `credits()`, `company()`, `today()`, `deposit(mineral)`, `trip(place)`, `crowd(place)`, `my_clones()` (a list of `{drone =, wrecked =}`) |
+| Messages | `events_here(type)`, `events_earth(type)` (lists of event IDs), `event_drone(event)`, `message(event)` (its text, or nil) |
+| State | `become(mode)`, `in_mode(mode)`, `tick()`, `ticks()`, `await_kit()` |
+| Output | `print(...)` (to your drone's output), `report()` (sends it home) |
+
+Underneath them are two functions you can use for anything the library doesn't cover:
+
+- `perform(protocol, ...)` runs a protocol. Its arguments come in the order the protocol's description gives them (`[N R D 10 perform]` is `perform(10, n, r, d)`), and it returns 0 or a negative code, as FORTH's `perform` leaves on the stack. A double is one number here: `perform(7, 70000, 5, rods)` posts a sell order at 70,000.
+- `query(id, ...)` asks a question (the queries of [Chapter 8](#chapter-8-asking-questions)), its arguments in the same order (`[N H R L 620 query]` is `query(620, n, h)`). It returns the rows: a list, each row a list of its columns, which you can also read by name (`rows[1][1]` or `rows[1].price`). No rows is an empty list. `ask(id, ...)` is the same, with an empty list if the query fails.
+
+Money and big numbers are plain numbers: `credits()` is your balance, whatever its size, with no double cells, and no 120-byte `answer` buffer to read before the next question overwrites it.
+
+### launched() may run again
+
+Your drone's Lua stays in the game engine's memory between turns. Whenever it pauses for an action, the game saves its plain variables: numbers, strings, true and false, and tables of them. Functions and the place in the script it had reached are not saved. If the engine restarts, your drone gets its saved variables back and runs `launched()` again from the top. A crash restarts it too, with fresh variables, as a FORTH drone's does.
+
+So write `launched` to do only what still needs doing. `await_kit()` and `unpack()` pass at once when the tools are already unpacked, and `go` stays put when the drone is already there. Keep what your drone must remember (a mode, a count, the last price it saw) in global variables, not in `local` ones inside a loop.
+
+A copy launched with `launch` gets your script and your saved variables, as a FORTH copy gets your drone's memory. Set a variable before launching (`copy = true`) and the copy can tell it is one.
+
+### Limits and costs
+
+- Thinking costs fuel, as in FORTH. Each Lua instruction counts as six of the FORTH machine's, since it does about six times the work, and a turn is 100,000 of those. A drone that thinks hard pauses mid-thought and carries on at its next turn.
+- Your drone's Lua may hold 256 KB. A script that keeps growing a table stops with "not enough memory", and restarts like any crash.
+- There is no file, system or network access, and no `load` or `require`: a drone runs only its own script. `math.random` works, but `math.randomseed` is gone.
+- What your drone prints with `print` reaches you when `launched` returns or calls `report()`, as in FORTH.
 
 ## Appendix A: FORTH Error Codes
 

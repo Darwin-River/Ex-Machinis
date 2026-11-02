@@ -714,6 +714,7 @@ VmExtension_t* vm_extension_new(void)
   // Allocate extension
   if(!v)
     return NULL;
+  memset(v, 0, sizeof(*v));   /* no Lua cells: a FORTH drone's */
 
   v->callbacks_length = vm_ext_callbacks_num(),
   v->callbacks        = callbacks;
@@ -727,6 +728,8 @@ VmExtension_t* vm_extension_new(void)
 /** Number of values on the VM's data stack. */
 size_t vm_extension_depth(VmExtension_t* vmExt)
 {
+  if(vmExt && vmExt->cells)
+    return (size_t)vmExt->depth;
   return vmExt ? embed_depth((embed_t*)vmExt->h) : 0;
 }
 
@@ -742,6 +745,12 @@ size_t vm_extension_depth(VmExtension_t* vmExt)
 *******************************************************************************/
 ErrorCode_t vm_extension_pop(VmExtension_t* vmExt, int* outValue)
 {
+  if(vmExt && outValue && vmExt->cells) {   /* a Lua drone's arguments */
+    if(vmExt->depth < 1)
+      return ENGINE_FORTH_EVAL_ERROR;
+    *outValue = vmExt->cells[--vmExt->depth];
+    return ENGINE_OK;
+  }
   if(vmExt && outValue) {
     *outValue = pop(vmExt);
     if(!vmExt->error)
@@ -763,6 +772,12 @@ ErrorCode_t vm_extension_pop(VmExtension_t* vmExt, int* outValue)
 *******************************************************************************/
 ErrorCode_t vm_extension_push(VmExtension_t* vmExt, int inValue)
 {
+  if(vmExt && vmExt->cells) {   /* perform's result, for a Lua drone */
+    if(vmExt->depth >= vmExt->max_cells)
+      return ENGINE_FORTH_EVAL_ERROR;
+    vmExt->cells[vmExt->depth++] = inValue;
+    return ENGINE_OK;
+  }
   if(vmExt) {
     push(vmExt, (cell_t)inValue);
     if(!vmExt->error) {
@@ -783,6 +798,13 @@ ErrorCode_t vm_extension_push(VmExtension_t* vmExt, int inValue)
 int vm_extension_read_counted(VmExtension_t* v, int addr, char* out, int max)
 {
     unsigned char len = 0;
+    if(v && v->cells) {   /* a Lua drone passes the string itself */
+        if(!out || addr < 0 || addr >= v->nstrings || !v->strings[addr]) return -1;
+        size_t n = strlen(v->strings[addr]);
+        if(n > (size_t)max) return -1;
+        memcpy(out, v->strings[addr], n + 1);
+        return (int)n;
+    }
     if(!v || !out || addr < 0 || addr > 0xFFFF) return -1;
     if(vm_read_byte((VirtualMachine_t*)v->h, (uint16_t)addr, &len) != ENGINE_OK) return -1;
     if(len > max) return -1;

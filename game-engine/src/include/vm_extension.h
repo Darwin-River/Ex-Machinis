@@ -49,6 +49,14 @@ struct vm_extension_t
   size_t callbacks_length;     /**< length of 'callbacks' field */
   embed_opt_t o;               /**< embed virtual machine options */
   cell_t error;                /**< current error condition */
+  /* A Lua drone's perform (#380): no FORTH VM, so its arguments come on a
+     stack of cells here instead (h is NULL), and a string argument is a
+     cell that indexes strings */
+  int *cells;                  /**< the cells, bottom first; NULL for FORTH */
+  int depth;                   /**< cells on it */
+  int max_cells;
+  const char **strings;        /**< string arguments, by cell value */
+  int nstrings;
 };
 
 /******************************* PROTOTYPES **********************************/

@@ -24,6 +24,7 @@
 #include "wrap.h"
 #include "game_time.h"
 #include "vm_meter.h"
+#include "lua_drone.h"
 #include "crash.h"
 #include "db_launch.h"
 #include "protocol.h"
@@ -408,7 +409,10 @@ static Bool_t engine_finish_perform(void)
 
     engine_trace(TRACE_LEVEL_ALWAYS, "Action [%d] done for drone [%d]: perform leaves [%d]", action_id, agent_id, code);
 
-    vm_push_result(engine.last_agent.vm, code);
+    if(engine.last_agent.is_lua)
+        lua_drone_set_result(agent_id, code);
+    else
+        vm_push_result(engine.last_agent.vm, code);
     db_set_agent_waiting_action(&engine.db_connection, agent_id, 0);
 
     // An action that succeeds ends a run of crashes
@@ -438,7 +442,8 @@ static void engine_end_launched(void)
     if(db_get_launch_state(&engine.db_connection, agent_id, &state) != ENGINE_OK || !state.running)
         return;
 
-    int code = vm_take_launched_result(engine.last_agent.vm);
+    int code = engine.last_agent.is_lua ? lua_drone_take_result(agent_id) :
+                                          vm_take_launched_result(engine.last_agent.vm);
     char msg[256];
 
     if(code == 0)
@@ -467,10 +472,16 @@ static void engine_end_launched(void)
         db_queue_launched(&engine.db_connection, agent_id, restart_at);
         db_add_agent_instructions(&engine.db_connection, agent_id, engine_get_crash_restart_instructions());
         g_restore_release_vm = true;
+        // A Lua drone restarts with fresh variables too (#380)
+        if(engine.last_agent.is_lua)
+            lua_drone_forget_state(agent_id);
         snprintf(msg, sizeof(msg), "\nMy launched word crashed with error %d (%d in a row). Restarting from my clean copy in %lld game seconds.\n", code, in_row, wait);
     }
     vm_append_output(msg);
 }
+
+/** The next VM command is a Lua drone's launch (#380) */
+static bool g_lua_launch = false;
 
 /** The budget of the slice about to run (set by engine_process_vm_command) */
 static long long g_slice_instructions = 0;
@@ -527,7 +538,18 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
     g_slice_instructions = vm_meter_slice_budget(loading, used_so_far,
         atoll((const char*)engine.config.params[LOAD_INSTRUCTIONS]), engine_get_max_cycle_instructions());
 
-    result = vm_run_command(engine.last_agent.vm, &engine.last_command, out_buf, out_buf_size, &pending_input);
+    if(engine.last_agent.is_lua)
+    {
+        // A Lua drone (#380): a piece of its script, its launch, or a resume
+        LuaRun_t kind = g_lua_launch ? LUA_RUN_LAUNCH :
+            strncmp(engine.last_command.code, resume, strlen(resume)) == 0 ? LUA_RUN_RESUME : LUA_RUN_PIECE;
+        g_lua_launch = false;
+        result = lua_drone_command(engine.last_command.agent_id, kind, engine.last_command.code, out_buf, out_buf_size);
+        free(pending_input);
+        pending_input = NULL;
+    }
+    else
+        result = vm_run_command(engine.last_agent.vm, &engine.last_command, out_buf, out_buf_size, &pending_input);
     g_slice_instructions = 0;
 
     // Instruction metering: add what this slice used to the drone's total
@@ -736,6 +758,20 @@ static ErrorCode_t engine_process_meta_launched(char* out_buf, size_t out_buf_si
 {
     int agent_id = engine.last_command.agent_id;
 
+    if(engine.last_agent.is_lua)
+    {
+        // A Lua drone (#380): its script is all here; build it and run
+        // launched() (lua_drone.c says so in its output)
+        lua_drone_mark_released(agent_id);
+        db_delete_resume_commands(&engine.db_connection, agent_id);
+        db_set_agent_waiting_action(&engine.db_connection, agent_id, 0);
+        db_set_agent_pending_input(&engine.db_connection, agent_id, NULL);
+        free(db_take_agent_output(&engine.db_connection, agent_id));
+        db_set_launched_running(&engine.db_connection, agent_id, 1);
+        g_lua_launch = true;
+        return engine_process_vm_command(out_buf, out_buf_size);
+    }
+
     // The program as it is now is the clean copy a crash restarts from
     db_save_release_vm(&engine.db_connection, agent_id);
 
@@ -793,7 +829,10 @@ ErrorCode_t engine_process_meta_command(char* out_buf, size_t out_buf_size)
     if(is_abort) {
         engine_trace(TRACE_LEVEL_ALWAYS, "Running abort command at agent [%d]", engine.last_command.agent_id);
         // abort and delete any pending resume
-        vm_abort(engine.last_agent.vm);
+        if(engine.last_agent.is_lua)
+            lua_drone_drop(engine.last_command.agent_id);
+        else
+            vm_abort(engine.last_agent.vm);
         result = db_delete_resume_commands(&engine.db_connection, engine.last_command.agent_id);
         // The script no longer waits for an action (the action itself goes on)
         db_set_agent_waiting_action(&engine.db_connection, engine.last_command.agent_id, 0);
@@ -801,7 +840,12 @@ ErrorCode_t engine_process_meta_command(char* out_buf, size_t out_buf_size)
         db_set_launched_running(&engine.db_connection, engine.last_command.agent_id, 0);
     } else if (strstr(engine.last_command.code, META_COMMAND_RESET)) {
         engine_trace(TRACE_LEVEL_ALWAYS, "Running reset command at agent [%d]", engine.last_command.agent_id);
-        // reset and start with a fresh VM
+        // reset and start with a fresh VM (a Lua drone: no script)
+        if(engine.last_agent.is_lua)
+        {
+            lua_drone_drop(engine.last_command.agent_id);
+            lua_drone_clear_script(engine.last_command.agent_id);
+        }
         vm_reset(engine.last_agent.vm);
         if(engine.last_agent.vm) vm_free(engine.last_agent.vm);
         engine.last_agent.vm = NULL;
@@ -1168,6 +1212,17 @@ ErrorCode_t engine_run()
 
         if(result == ENGINE_OK)
         {
+            // Get whole info for agent_id
+            result = db_get_agent_engine_info(&engine.db_connection, 
+                engine.last_command.agent_id,
+                &engine.last_agent);
+        }
+
+        // FORTH reads at most so many characters a line: long lines are
+        // re-wrapped. Not Lua's (#380): wrapping would break its strings
+        // and comments.
+        if(result == ENGINE_OK && !engine.last_agent.is_lua)
+        {
             // apply configured max lines per cycle
             result = engine_apply_max_cycle_lines();
 
@@ -1175,15 +1230,6 @@ ErrorCode_t engine_run()
             {
                 engine_send_output("Internal error", false);
             }
-        }
-
-
-        if(result == ENGINE_OK)
-        {
-            // Get whole info for agent_id
-            result = db_get_agent_engine_info(&engine.db_connection, 
-                engine.last_command.agent_id,
-                &engine.last_agent);
         }
 
         if(result == ENGINE_OK)
@@ -1232,10 +1278,11 @@ ErrorCode_t engine_run()
 
         if(result == ENGINE_OK)
         {
-            // Save VM in DB
-            result = db_save_agent_vm(&engine.db_connection, 
-                engine.last_command.agent_id, 
-                engine.last_agent.vm);
+            // Save VM in DB (a Lua drone has none: its Lua stays in memory)
+            if(!engine.last_agent.is_lua)
+                result = db_save_agent_vm(&engine.db_connection, 
+                    engine.last_command.agent_id, 
+                    engine.last_agent.vm);
 
             // After a crash the program goes back to its clean copy
             if(result == ENGINE_OK && g_restore_release_vm)
