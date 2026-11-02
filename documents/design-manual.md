@@ -288,6 +288,8 @@ So the rules add **no safety nets** for drones that get themselves into trouble 
 
 [Return to the TOC](#Table-of-Contents)
 
+**Lua: a proof of concept (#380).** Round 34's newcomers chose Lua over FORTH (economy playbook, "Language survey"). `game-engine/lua-poc/` (not part of the engine) runs drones in Lua 5.4: a `lua_State` each, sandboxed (base, string, table and math; no `load`, `io`, `os` or `debug`), with a memory cap from its own allocator, a count hook that meters instructions and ends a slice at 100,000, game words that yield on actions, and a plain-data snapshot of its globals to survive a restart (a paused coroutine can't be saved). For the same scoring work Lua ran 5.7 times fewer instructions (374 against 2,149 a round) in about a quarter of the time, a Maker held about 20 KB (a FORTH drone is a 64 KB image written to the database every slice) and saved in 187 bytes. Its README has the measurements and what would change: a new fuel rate for thinking, drones held in the engine's memory between slices, and queries that return tables.
+
 ### The Game Engine cycles through player-run virtual machines
 Since there will be a rather large number of drones running FORTH programs at any given time, the Game Engine (GE) cycles through their virtual machines. Work for the GE is queued in the `commands` table: a player's emailed script, or a "resume" entry for a script that has paused. Each cycle (every `DB_READ_TIME` seconds, 5 by default) the GE takes the oldest command it may run, loads that drone's VM from `agents.vm`, runs it, and saves the VM again. The VM holds everything needed to carry on later: the stacks, the dictionary, variables and where the script stopped.
 
