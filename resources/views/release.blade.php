@@ -49,7 +49,7 @@
                 </div>
                 <p><small>Start from a starter script:
                     @foreach($starters as $name => $what)
-                        <a href="{{ url('release?starter=' . $name) }}" title="{{ $what }}">{{ ucfirst($name) }}</a>@if(!$loop->last) · @endif
+                        <a href="{{ url('release?starter=' . $name) }}" title="{{ $what }}">{{ str_ends_with($name, '.lua') ? ucfirst(substr($name, 0, -4)) . ' (Lua)' : ucfirst($name) }}</a>@if(!$loop->last) · @endif
                     @endforeach
                     (each is explained in its comments; change it to make it your own)</small></p>
                 <div class="form-group">

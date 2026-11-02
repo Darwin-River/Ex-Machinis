@@ -56,13 +56,15 @@ class Release
     }
 
     /** The kit each starter script needs */
-    public const STARTER_KITS = ['miner' => 'mining', 'refiner' => 'mining', 'trader' => 'mining', 'maker' => 'factory'];
+    public const STARTER_KITS = ['miner' => 'mining', 'refiner' => 'mining', 'trader' => 'mining', 'maker' => 'factory',
+                                 'maker.lua' => 'factory'];
 
     public const STARTERS = [
         'miner' => 'Mines kunspar on the Moon, refines it and sells the metals to the Moon Depot.',
         'refiner' => 'Brews fuel on the Moon from yalspar and vladnium, and sells what it doesn\'t need to other drones.',
         'trader' => 'Buys metals from miners on the Moon and hauls them to Mars, where the House pays more.',
-        'maker' => 'Buys metals on the Moon where they are cheapest, makes alloys and rods, and sells them at Earth.',
+        'maker' => 'Buys metals on the Moon where they are cheapest, makes alloys and rods, and sells them where they pay best.',
+        'maker.lua' => 'The Maker in Lua instead of FORTH (#380): the same drone, line for line.',
     ];
 
     /** A starter script's source, or null for an unknown name */
@@ -71,7 +73,8 @@ class Release
         if (!array_key_exists($name, self::STARTERS)) {
             return null;
         }
-        $path = base_path("examples/starters/{$name}.fth");
+        // A name with its extension (maker.lua) is that file; else FORTH's .fth
+        $path = base_path('examples/starters/' . (str_contains($name, '.') ? $name : "{$name}.fth"));
         return is_readable($path) ? file_get_contents($path) : null;
     }
 

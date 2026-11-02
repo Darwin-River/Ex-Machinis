@@ -47,7 +47,8 @@ class ReleasePageTest extends TestCase
             $script = Release::starter($name);
             $this->assertNotNull($script, "starter $name is missing");
             $this->assertTrue(Release::definesLaunched($script), "starter $name defines launched");
-            $this->get('/release?starter=' . $name)->assertOk()->assertSee(': launched', false);
+            $this->get('/release?starter=' . $name)->assertOk()
+                ->assertSee(Release::isLua($script) ? 'function launched()' : ': launched', false);
         }
         $this->assertNull(Release::starter('../../.env'), 'only the listed starters can be read');
     }
