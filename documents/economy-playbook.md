@@ -276,6 +276,23 @@ After the round: why it was slow. Every drone shares the Game Engine in 100,000-
 - *What they would keep of it:* flavour (a tiny probe computer), legible fuel per instruction, and small words that compose. All four added that Lua or Python could keep the instruction metering and the game words, so what is lost is mostly character; 16-bit cells and doubles add friction, not strategy.
 - *Where they agree:* FORTH works here only because the starters, the library and `forth-words.md` carry newcomers. Without them, all four would switch. Lina would keep FORTH and offer a Python-like option, or pseudo-code beside every starter word.
 
+**Language survey: if the game moves on from FORTH.** The designers' priorities: education (skills that carry over), ease of use, code sharing, and efficiency (hundreds of drones metered per instruction, sandboxed, pausing mid-script and resuming). Each newcomer ranked a top three, scored 1 to 10 on those four:
+
+| Player | Weighting | 1st | 2nd | 3rd |
+|---|---|---|---|---|
+| Iris | equal; efficiency a must | Lua (7, 8, 8, 9) | Python subset (10, 9, 9, 6) | FORTH with better tools (4, 5, 5, 10) |
+| Kofi | ease first, then education and sharing | Lua (7, 8, 8, 9) | Python subset (10, 9, 9, 5) | JavaScript, QuickJS (9, 7, 8, 6) |
+| Jago | ease and sharing; efficiency a filter | Lua (7, 8, 8, 9) | Python subset (9, 9, 9, 5) | FORTH with better tools (4, 5, 6, 10) |
+| Lina | ease and education 30% each; efficiency a gate | Lua (7, 8, 8, 9) | Python subset (10, 8, 9, 5) | Blockly compiling to Lua (5, 9, 6, 9) |
+
+- *Lua, 4 of 4.* It is built to be embedded: an instruction-count hook meters fuel, a stripped standard library sandboxes it, and a coroutine pauses on `wait` or `perform` and resumes, as a drone needs. Real numbers end the 16-bit money bugs.
+- *Python would win on education and readability* (9 to 10) but loses on efficiency (5 to 6): metering, sandboxing and suspending hundreds of scripts is harder and heavier, and a subset frustrates people who know Python. Lina's weighted total put Python ahead (8.2 against Lua's 7.9) only if efficiency isn't a gate.
+- *Also ranked:* JavaScript (more footguns, async is harder than coroutines); Blockly only as an optional on-ramp that shows the Lua it generates (clumsy for table-driven scoring and for sharing); Wren (few know it); WebAssembly (too hard, unreadable to share). FORTH with better tools stays the cheapest to run but scored 4 to 5 on education and ease.
+- *What it would have changed:* Iris a working script in 30 minutes, not 2 hours, and a release on day 3 instead of 5.75; Kofi his own design, with specialised clones or a parts courier; Jago a recipe table as data in a third of the time, and his market maker; Lina the fuel fix and a growth step she couldn't write.
+- *Keep from FORTH:* fuel per instruction and free waits; 1 fuel an action; the game words as a library, with the same names; the shared library, the example designs and the word dictionary; a Settings block at the top; `launched` as the one entry point; state-machine helpers; `?sell-order`'s post-only-if-changed; drones fixed at release; `/check`, the test world and the Machine page.
+- *Drop:* 16-bit cells and double money; the 120-byte `answer` buffer (queries should return tables with named fields, like the API's JSON); stack juggling and `drop` after every call; manual memory; the 79-character line pieces; numeric error codes (messages with line numbers instead).
+- *Risks they named:* metering that is fair and cheap (charge instructions plus memory, cap memory a drone); server memory for hundreds of paused coroutines; drones burning fuel in easy-to-write loops (show a cost per function); losing the library, blog and playtest knowledge (port the starters and the word library first, same names); Lua quirks (1-based tables, `~=`) for Python players.
+
 **What they liked best** (all twelve rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
 
 ### Growing the starter library
