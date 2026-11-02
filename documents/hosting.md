@@ -277,6 +277,8 @@ Then open the site and check a drone page, as in step 4 of the install.
 
 **Pick a quiet time.** The rebuild takes a few minutes, but the site stays up until the new containers replace the old ones.
 
+**Lua drones lose their place in their script when the engine restarts.** A Lua drone's program lives in the game engine's memory: after an update (or any restart of the `game-engine` container) each Lua drone gets its saved variables back and runs its `launched` function again from the top. FORTH drones carry on where they were. Players are told so (players' manual, Chapter 10), but updating when few are playing is kinder.
+
 **Clean up old images** every few updates. Unused images take several gigabytes:
 
 ```sh

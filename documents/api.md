@@ -62,7 +62,9 @@ The [players' manual](players-manual.md) explains the game and the FORTH words. 
 
 | Field | Required | Meaning |
 |---|---|---|
-| `script` | yes | the FORTH script |
+| `script` | yes | the script, in FORTH or Lua |
+
+A script is Lua when it defines a function `launched` (`function launched() ... end`) and no FORTH word `launched` (see the players' manual, [Chapter 10](players-manual.md#chapter-10-writing-your-drone-in-lua)). The release and test calls take either language the same way.
 
 **Example:**
 
@@ -77,15 +79,17 @@ curl -s -X POST $B/check -H 'Content-Type: application/json' \
 {
   "ok": true,
   "error": null,
-  "warning": "Your script uses frobnicate, which isn't defined before it's used: ... Your script redefines ask: ..."
+  "warning": "Your script uses frobnicate, which isn't defined before it's used: ... Your script redefines ask: ...",
+  "language": "forth"
 }
 ```
 
 | Field | Meaning |
 |---|---|
 | `ok` | whether the Release page would take the script |
-| `error` | why not, if it wouldn't. For example: no `launched` word, or a line too long |
-| `warning` | the Release page's warnings: words used before anything defines them (the line using one fails to load with `-13`), and game words the script redefines |
+| `error` | why not, if it wouldn't. For example: no `launched` word, a line too long, or a Lua script that doesn't compile (`"Line 12: unexpected symbol near '='"`) |
+| `warning` | the Release page's warnings for a FORTH script: words used before anything defines them (the line using one fails to load with `-13`), and game words the script redefines. None for Lua |
+| `language` | `forth` or `lua`: how the drone will run it |
 
 ### `POST /release`: release a company
 
@@ -145,7 +149,7 @@ The script runs in the **test world**. This is a separate world with the same ru
 }
 ```
 
-Test runs are kept for a while, then cleared to make room for others.
+The script starts loading at once. A run keeps going for 30 real minutes; after that, the next test anyone starts stops it, though its results stay readable. Test runs are kept for a while, then cleared to make room for others.
 
 ### `GET /test/{token}`: a test run's results so far
 

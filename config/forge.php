@@ -10,6 +10,16 @@ return [
     // all together): starting another stops and removes the oldest
     'test_runs_kept' => 100,
 
+    // Real minutes a test run keeps running (#380 round 34): starting another
+    // stops the older ones, so a new run doesn't queue behind them. Their
+    // results stay readable. 0 lets them run on.
+    'test_run_minutes' => (int) env('TEST_RUN_MINUTES', 30),
+
+    // The Lua syntax checker (#380: game-engine/src/bin/lua-check, built
+    // with the engine): when it is there, a Lua script's syntax errors are
+    // reported by the check, the Release page and the API before release
+    'lua_check' => env('LUA_CHECK', base_path('game-engine/src/bin/lua-check')),
+
     // Fuel in a new drone's hold (#324 step 8): actions and computing burn it
     'starting_fuel' => 100,
 

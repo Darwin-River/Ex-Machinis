@@ -606,6 +606,36 @@ int vm_is_yield()
   return g_vm_yield || g_vm_wait_action;
 }
 
+/** Starts a command's output in out_buffer, as vm_run_command does (#380:
+    a Lua drone's run, which has no FORTH VM) */
+void vm_output_begin(char* out_buffer, size_t out_size)
+{
+  g_output_buffer = out_buffer;
+  g_last_command_output = g_output_buffer;
+  g_current_size = out_size;
+  g_output_len = 0;
+  if(g_output_buffer && g_current_size)
+    memset(g_output_buffer, 0, g_current_size);
+}
+
+/** Marks the running script paused because its slice is used up (#380: a
+    Lua drone, whose count hook ends the slice) */
+void vm_slice_yield(void)
+{
+  g_vm_yield = 1;
+}
+
+/** Sends what the script has printed so far and starts afresh (report) */
+void vm_report_output(void)
+{
+  if(g_output_buffer)
+  {
+    engine_vm_output_cb(g_output_buffer);
+    memset(g_output_buffer, 0, g_current_size);
+    g_output_len = 0;
+  }
+}
+
 /** Pauses the running script until the action is done (called by perform). */
 void vm_wait_for_action(int action_id)
 {

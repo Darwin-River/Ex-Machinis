@@ -56,13 +56,16 @@ class Release
     }
 
     /** The kit each starter script needs */
-    public const STARTER_KITS = ['miner' => 'mining', 'refiner' => 'mining', 'trader' => 'mining', 'maker' => 'factory'];
+    public const STARTER_KITS = ['miner' => 'mining', 'refiner' => 'mining', 'trader' => 'mining', 'maker' => 'factory',
+                                 'miner.lua' => 'mining', 'maker.lua' => 'factory'];
 
     public const STARTERS = [
         'miner' => 'Mines kunspar on the Moon, refines it and sells the metals to the Moon Depot.',
         'refiner' => 'Brews fuel on the Moon from yalspar and vladnium, and sells what it doesn\'t need to other drones.',
         'trader' => 'Buys metals from miners on the Moon and hauls them to Mars, where the House pays more.',
-        'maker' => 'Buys metals on the Moon where they are cheapest, makes alloys and rods, and sells them at Earth.',
+        'maker' => 'Buys metals on the Moon where they are cheapest, makes alloys and rods, and sells them where they pay best.',
+        'miner.lua' => 'The Miner in Lua instead of FORTH (#380): the same drone.',
+        'maker.lua' => 'The Maker in Lua instead of FORTH (#380): the same drone.',
     ];
 
     /** A starter script's source, or null for an unknown name */
@@ -71,7 +74,8 @@ class Release
         if (!array_key_exists($name, self::STARTERS)) {
             return null;
         }
-        $path = base_path("examples/starters/{$name}.fth");
+        // A name with its extension (maker.lua) is that file; else FORTH's .fth
+        $path = base_path('examples/starters/' . (str_contains($name, '.') ? $name : "{$name}.fth"));
         return is_readable($path) ? file_get_contents($path) : null;
     }
 
@@ -111,6 +115,9 @@ class Release
      */
     public static function redefinedWarning(string $script): ?string
     {
+        if (self::isLua($script)) {
+            return null;   // FORTH's words: a Lua script reports its errors when it loads
+        }
         $undefined = self::undefinedWords($script);
         $warnings = [];
         if ($undefined) {
@@ -191,6 +198,14 @@ class Release
      */
     public static function scriptProblem(string $script): ?string
     {
+        if (self::isLua($script)) {
+            foreach (explode("\n", $script) as $i => $line) {
+                if (mb_strlen($line) > \App\Command::MAX_CODE_LENGTH) {
+                    return 'Line ' . ($i + 1) . ' is too long: split it into shorter lines.';
+                }
+            }
+            return self::luaProblem($script);   // isLua found its launched function
+        }
         foreach (explode("\n", $script) as $i => $line) {
             if (mb_strlen($line) > \App\Command::MAX_CODE_LENGTH) {
                 return 'Line ' . ($i + 1) . ' is too long: split it into shorter lines.';
@@ -204,7 +219,47 @@ class Release
 
     public static function definesLaunched(string $script): bool
     {
-        return preg_match('/(^|\s):\s+launched(\s|$)/', $script) === 1;
+        return preg_match('/(^|\s):\s+launched(\s|$)/', $script) === 1 || self::isLua($script);
+    }
+
+    /**
+     * A Lua script's syntax error, or null (#380): game-engine's lua-check
+     * compiles it without running it. Null too when the checker isn't
+     * installed: the drone reports the error when it loads.
+     */
+    public static function luaProblem(string $script): ?string
+    {
+        $checker = config('forge.lua_check');
+        if (!$checker || !is_executable($checker)) {
+            return null;
+        }
+        $process = proc_open([$checker], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        if (!is_resource($process)) {
+            return null;
+        }
+        fwrite($pipes[0], $script);
+        fclose($pipes[0]);
+        $out = trim(stream_get_contents($pipes[1]));
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        if (proc_close($process) === 0) {
+            return null;
+        }
+        // "script:12: unexpected symbol near '='" -> "Line 12: unexpected symbol near '='"
+        return preg_replace('/^script:(\d+):\s*/', 'Line $1: ', $out) ?: 'Your Lua script doesn\'t compile.';
+    }
+
+    /**
+     * A Lua script (#380): it defines the function launched ("function
+     * launched()" or "launched = function"), and no FORTH word launched.
+     * A drone runs it in Lua instead of FORTH.
+     */
+    public static function isLua(string $script): bool
+    {
+        if (preg_match('/(^|\s):\s+launched(\s|$)/', $script) === 1) {
+            return false;
+        }
+        return preg_match('/^\s*(local\s+)?function\s+launched\s*\(|^\s*launched\s*=\s*function\s*\(/m', $script) === 1;
     }
 
     /**
@@ -262,6 +317,7 @@ class Release
             $agent->company_id = $company->company_id;
             $agent->object_id = Company::EARTH_OBJECT_ID;
             $agent->hull_type = Company::DEFAULT_DRONE_HULL_TYPE;
+            $agent->language = self::isLua($script) ? 'lua' : 'forth';   // #380
             $agent->save();
             $agent->agent_id = $agent->id; // the key the save filled in
             $cargo = $agent->addCargo(self::kit($kit));                          // its kit (#380)

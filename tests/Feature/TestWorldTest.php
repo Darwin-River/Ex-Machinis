@@ -99,6 +99,24 @@ class TestWorldTest extends TestCase
         $this->assertNotNull(TestWorld::runOf($last), 'the latest run is kept');
     }
 
+    public function testOldTestRunsStopButKeepTheirResults()
+    {
+        // #380 round 34: every run kept running, and new ones queued behind them
+        config(['forge.test_run_minutes' => 30]);
+        $old = TestWorld::run(self::SCRIPT);
+        $oldDrone = TestWorld::runOf($old)->drone->agent_id;
+        $this->test()->table('companies')->where('name', 'Test ' . $old)
+            ->update(['created_at' => now()->subMinutes(31)]);
+        $new = TestWorld::run(self::SCRIPT);
+        $newDrone = TestWorld::runOf($new)->drone->agent_id;
+
+        $this->assertEquals(0, $this->test()->table('commands')->where('agent_id', $oldDrone)->count(),
+            'the old run stopped');
+        $this->assertGreaterThan(0, $this->test()->table('commands')->where('agent_id', $newDrone)->count(),
+            'the new run is queued');
+        $this->assertNotNull(TestWorld::runOf($old), 'the old run\'s results stay');
+    }
+
     public function testATestRunHasItsOwnPage()
     {
         $token = TestWorld::run(self::SCRIPT);

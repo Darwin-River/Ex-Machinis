@@ -47,7 +47,8 @@ class ReleasePageTest extends TestCase
             $script = Release::starter($name);
             $this->assertNotNull($script, "starter $name is missing");
             $this->assertTrue(Release::definesLaunched($script), "starter $name defines launched");
-            $this->get('/release?starter=' . $name)->assertOk()->assertSee(': launched', false);
+            $this->get('/release?starter=' . $name)->assertOk()
+                ->assertSee(Release::isLua($script) ? 'function launched()' : ': launched', false);
         }
         $this->assertNull(Release::starter('../../.env'), 'only the listed starters can be read');
     }
@@ -151,6 +152,37 @@ class ReleasePageTest extends TestCase
         $this->assertFalse(Release::definesLaunched(": Launched ;"));
         $this->assertFalse(Release::definesLaunched(": launched-later ;"));
         $this->assertFalse(Release::definesLaunched("launched"));
+    }
+
+    public function testALuaScriptIsReleasedAsLua()
+    {
+        // #380: a script that defines the function launched (and no FORTH
+        // word launched) is Lua; its drone runs it in Lua
+        $this->assertTrue(Release::isLua("function launched()\n  wait(60)\nend\n"));
+        $this->assertTrue(Release::isLua("local x = 1\nlaunched = function() end"));
+        $this->assertFalse(Release::isLua(": launched 60 wait drop ;"));
+        $this->assertFalse(Release::isLua("\\ function launched()\n: launched ;"));
+        $this->assertTrue(Release::definesLaunched(file_get_contents(base_path('examples/starters/maker.lua'))));
+        $this->assertNull(Release::redefinedWarning("function launched() wait(60) end"), 'no FORTH word warnings');
+
+        $agent = Release::release(Release::owner(), 'Lua Co', file_get_contents(base_path('examples/starters/maker.lua')));
+        $this->assertEquals('lua', DB::table('agents')->where('agent_id', $agent->agent_id)->value('language'));
+        $this->assertEquals('<launched>', Command::where('agent_id', $agent->agent_id)->orderBy('id', 'desc')->value('code'));
+
+        $forth = Release::release(Release::owner(), 'Forth Co', ": launched ;");
+        $this->assertEquals('forth', DB::table('agents')->where('agent_id', $forth->agent_id)->value('language'));
+    }
+
+    public function testALuaScriptThatDoesntCompileIsRefused()
+    {
+        if (!is_executable(config('forge.lua_check'))) {
+            $this->markTestSkipped('lua-check is built with the engine (make -C game-engine/src)');
+        }
+        $this->assertNull(Release::scriptProblem(file_get_contents(base_path('examples/starters/maker.lua'))));
+        $this->assertEquals("Line 2: unexpected symbol near '='",
+            Release::scriptProblem("function launched()\n  x = = 1\nend\n"));
+        $this->postJson('/api/v1/check', ['script' => "function launched()\n  x = = 1\nend\n"])
+            ->assertOk()->assertJson(['ok' => false, 'language' => 'lua']);
     }
 
     public function testLongScriptsAreSplitAtLineEnds()

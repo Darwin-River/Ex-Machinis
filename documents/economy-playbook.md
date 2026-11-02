@@ -11,6 +11,10 @@ Ranked by average gain: what a company made beyond its starter package (credits 
 
 | Design | File | Where | Avg gain (round 8, fresh world) | Gaining | Notes |
 |---|---|---|---|---|---|
+| Systems shop (Farid, round 33) | `examples/companies/systems.fth` | Moon | +14,380 by day 40 (about 360 a game day; starter-library race) | 1 of 1 | Prices pumps, pistons and valves from the live order book, builds the best, sells it, brews its own fuel. The best design yet. |
+| Electronics (Elif, round 33) | `examples/companies/electronics.fth` | Moon | +9,524 by day 40 (race) | 1 of 1 | Transceivers, solenoids and computers; standing bids just over the best other bid for its metals. |
+| Foundry (Ines, round 29) | `examples/companies/foundry.fth` | Moon | +9,516 by day 40 (race) | 1 of 1 | Prices every recipe it knows each round and makes the best per game hour; clones with spare cash. |
+| Machinist v3 (race) | `examples/companies/machinist.fth` | Moon, Earth | +6,425 by day 40 (race) | 6 of 6 | The best library design before the race. |
 | Smith v5 | `examples/companies/smith.fth` | Moon, Phobos, Deimos | about 105 a game day (round 16) | 9 of 9 | Spreads like the Chemist; Mars-side copies sell rods at the Mars Exchange, a short hop. The best earner per day. |
 | Machinist v3 | `examples/companies/machinist.fth` | Moon, Earth | about 84 a game day (round 16) | 6 of 6 | Gear boxes (450) from metals bought from miners; brews until its tank is full. |
 | Smith v3 | `examples/companies/smith.fth` | Moon, Earth | +1,513 by day 19 (about 80 a day) | 6 of 6 | Mines yalspar and vladnium, turns its metals into rods and sells them at the Earth Exchange 4 an hour. Needs rods at 90 (parts lever) and an Earth budget to match. |
@@ -35,6 +39,7 @@ For an empty world, before players arrive. Round 8 seeded a fresh world with thi
 | Smith | 6 | Moon, selling at Earth |
 | Trader | 0 | not worth seeding |
 
+- From the starter-library race (#380): replace some Chemists (+662 in 40 days in the race) with the Systems shop, Electronics and Foundry designs, a few of each. Each race entry ran as a single company, so watch how they do when several copies share a market.
 - Release them in that order of numbers (the Load Test does it: `--starters=miner,miner,miner,refiner`, then the company designs), so each design's copies spread evenly by drone number.
 - Keep each Moon deposit's users near what it supports: about 12 kunspar miners, and about 14 yalspar users (Chemists and Smiths).
 - The game data must carry the levers below (tax on gains, station budgets, by-product buyers, parts prices, jettison).
@@ -171,6 +176,11 @@ From round 21, four naive agents join each round as new players would: they get 
 | 32 | Cyrus (manufacturer) | A 23-recipe scorer with two-stage chains: sheets at Earth (#3 of 105), and Alloys A2/A3 at the Moon, which wrecked on fuel on day 27 when organics ran short; +6,443 avg | 8 | 7 | – | 8 | 8 | – | 8 |
 | 32 | Dina (casual) | The Miner starter with three Settings (it left the Moon early for a 10-day trip), and the Maker turned alloy seller at the Moon Depot, alone there all round; +5,218 avg | 7 | 6 | – | 8 | 8 | – | 7.5 |
 | 32 | **Average** | | 7.25 | 6.75 | – | 7.75 | 7.75 | – | 7.75 |
+| 34 | Kofi (expansionist) | The Systems shop widened to six products, cloning at 6,500, at Earth and the Moon; reported at day 18, ran on to #5 (+13,387) and +7,475 | 7 | 7 | – | 8 | 7 | – | 7 |
+| 34 | Iris (engineer) | The Systems shop made table-driven: six systems at Earth, and six others (transceivers, scanners, gyroscopes, heat sinks) nobody made; both cloned; +11,202 and +12,356 | 7 | 7 | – | 4 | 7 | – | 7 |
+| 34 | Jago (trader) | Found no arbitrage (every exchange 2x its bid, the same everywhere), so a 7-system spread engine at Earth and the Systems shop at the Moon; #4 and #6, both cloned; +14,579 and +12,842 | 7 | 7 | – | 7 | 5 | – | 7 |
+| 34 | Lina (casual) | The Maker with two Settings (+3,770), and the Maker selling rods at the Moon Depot for 158 to 168 instead of flying to Earth (+6,271, #17), ending with 4 fuel | 6 | 6 | – | 6 | 7 | – | 7 |
+| 34 | **Average** | | 6.75 | 6.75 | – | 6.25 | 6.5 | – | 7.0 |
 
 **Round 21 findings, and what changed:**
 - *They couldn't see their drones.* A drone's output arrives when its script ends, and `launched` never ends. The engine has a `report` word that sends it at once, but the manual never mentioned it (three of the four even redefined it). Now the manual documents it and the starters call it every 8th round.
@@ -229,9 +239,152 @@ From round 21, four naive agents join each round as new players would: they get 
 
 After the round: why it was slow. Every drone shares the Game Engine in 100,000-instruction slices (about 3,000 a minute for 120 drones), and reading a script costs about 80,000 instructions a line, so a 100-line script took about 80 turns: 1.4 to 1.7 game days at 600 game seconds a second. Comments weren't the cause (Elif's stripped copy cost the same 7.7 million). A drone still loading now gets its whole load allowance (`LOAD_INSTRUCTIONS`, 20 million) in one slice: in a fresh world 60 starters released at once all loaded within a real minute, and one release ran `launched` 4 real seconds after it was queued. Each action takes a round trip through both engines, 10 to 20 game minutes; an exchange posted its 182 bids over its first 26 game hours, then imported and offered one good at a time from the highest resource number down, so fuel and metals came last (day 3 to 5). New exchanges now open with their stock and orders already up (`forge:stations`), and each round refreshes sell orders first, from the lowest number up: the fresh world had 32 trades in its first two real minutes.
 
-**What they liked best** (all eleven rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
+**Round 34 findings:** with the three race winners in the seed mix and fast holdings lookups, the Systems shop took the top three places of 109 (+15,933 avg) and every newcomer company gained (+3,770 to +14,579); seven of eight built on the library designs, three on `systems.fth`. Clones came back (13, from 5), and one drone of 126 wrecked. Ratings held at overall 7.0 (fun 6.75, clarity 6.75, depth 6.5, feedback 6.25, API 7.75, would play again 7.25). What they missed:
+- *The test world.* All four found it too slow to use: a 7 KB script took 10 to 20 real minutes to load, with no progress shown, and Iris spent an hour bisecting a definition limit that didn't exist. The test world keeps the last 100 runs and never stops them, so a new run queues behind every old one (72 drones in it at the end).
+- *One best design.* "Copy the Systems shop and build pumps" won; Jago found no arbitrage, since every exchange asks exactly twice its bid and prices match everywhere. Every system pays about 18 to 22 credits a factory hour, so product choice mattered less than release timing. Electronics, raced alone at +9,524, made +2,897 with three copies sharing its market (1 of 3 gaining).
+- *A library bug.* `systems.fth` priced a missing input at 5,000, and 8 of them wrap a 16-bit cell; Kofi and Jago both caught it. Fixed (999).
+- *Starters.* The Maker still sends everyone to Earth (Lina's Moon seller doubled it), has no growth step, and can run its tank to 10 while forging.
+- *Feedback.* Little to do after release; reports come every N rounds, not per game day; a 429 came back as HTML, not JSON.
+
+**FORTH survey (after round 34).** The four were asked about the language itself:
+
+| Player | Before | First working word | Hardest | Easy to learn | Enjoyed | Fits the game | Would choose |
+|---|---|---|---|---|---|---|---|
+| Kofi (Python) | by name only | 30 to 45 min, from library code | 16-bit overflow; counting nested `then`s; bitwise `and` as logic | 4 | 5 | 6 | FORTH plus help |
+| Iris (engineer) | by reputation | 30 to 40 min; a 45-word script in 2 h | 3 to 5 values in flight (`2 pick`, `3 pick` traced on paper); redefining `pick` | 5 | 6 | 7 | FORTH plus help |
+| Jago (experienced) | the concepts | 15 to 20 min, from `systems.fth` | stack juggling; silent 16-bit overflow (12 x 5,000) | 6 | 7 | 7 | FORTH plus help |
+| Lina (spreadsheets) | nothing | 10 min, one word copied from the Maker | reading others' code: comparisons, doubles (`spare`), `?dup`, `drop` after words | 4 | 5 | 7 | FORTH plus help |
+| **Average** | | | | 4.75 | 5.75 | 6.75 | 4 of 4 |
+
+- *Keep FORTH.* All four would keep it rather than switch to Lua, Python or blocks: it fits the fiction (a tiny drone computer, fuel per instruction) and the library and examples are built on it. Kofi would have chosen Python without the library; Lina could make only one of the two changes she wanted.
+- *It costs the strategy.* Three of four said they spent more effort on stack order and overflow than on economics. Nobody wrote a full script from a blank page: all started from library or starter code.
+- *Liked:* small words that read like sentences (`refuel stock-up forge-rods sell-at-moon`, `1 rodz got 1 pipes got and`), tables with `create ... ,`, `if exit then` early returns, and fuel per instruction making efficiency real.
+- *Asked for:* a stack-effect checker that compares each word's `( -- )` comment with its body (Iris, Jago, Kofi: the top ask); a warning for likely 16-bit overflow in `*` (Jago, Kofi); a dry run of a word against live data that returns the stack (Jago: the Machine page does this, and none of the four used it); named locals (Kofi); a "how to read a line" walk-through showing the stack after each word of a starter line, or pseudo-code comments beside each starter word (Lina).
+
+**FORTH follow-up.** Asked how much FORTH pulled their ratings down, and why they would keep it (and to say if that was politeness):
+
+| Player | Overall (given → if FORTH were effortless) | Fun | Would play again | Keep FORTH without the library? |
+|---|---|---|---|---|
+| Iris | 7 → 7 to 8 | 7 → 8 | 8 → 8 | No: Lua with the same game words, for a wider audience |
+| Jago | 7 → 7 | 7 → 7 | 7 → 7.5 | No: a friendlier language, or FORTH with much stronger tools |
+| Kofi | 7 → 8 | 7 → 8 | 7 → 8 | No: Python or Lua; FORTH kept him from bolder designs |
+| Lina | 7 → 8 | 6 → 7 to 8 | 7 → 8 | No: she couldn't have written a drone from the manual alone |
+| **Average** | 7.0 → about 7.6 | 6.75 → about 7.6 | 7.25 → about 7.9 | 0 of 4 |
+
+- *Their first "keep FORTH" was partly politeness.* All four said so: they guessed it was what the designers wanted, or borrowed the blog's reasoning.
+- *What FORTH costs:* about half a point to a point overall for the less experienced (Kofi, Lina), little for Iris and Jago, whose low marks were the economy and the test world. The cost shows as caution more than effort: Kofi didn't try specialised clones or couriers, and Lina couldn't write the fuel fix or the growth step she wanted, with two releases and no way to fix a drone.
+- *What they would keep of it:* flavour (a tiny probe computer), legible fuel per instruction, and small words that compose. All four added that Lua or Python could keep the instruction metering and the game words, so what is lost is mostly character; 16-bit cells and doubles add friction, not strategy.
+- *Where they agree:* FORTH works here only because the starters, the library and `forth-words.md` carry newcomers. Without them, all four would switch. Lina would keep FORTH and offer a Python-like option, or pseudo-code beside every starter word.
+
+**Language survey: if the game moves on from FORTH.** The designers' priorities: education (skills that carry over), ease of use, code sharing, and efficiency (hundreds of drones metered per instruction, sandboxed, pausing mid-script and resuming). Each newcomer ranked a top three, scored 1 to 10 on those four:
+
+| Player | Weighting | 1st | 2nd | 3rd |
+|---|---|---|---|---|
+| Iris | equal; efficiency a must | Lua (7, 8, 8, 9) | Python subset (10, 9, 9, 6) | FORTH with better tools (4, 5, 5, 10) |
+| Kofi | ease first, then education and sharing | Lua (7, 8, 8, 9) | Python subset (10, 9, 9, 5) | JavaScript, QuickJS (9, 7, 8, 6) |
+| Jago | ease and sharing; efficiency a filter | Lua (7, 8, 8, 9) | Python subset (9, 9, 9, 5) | FORTH with better tools (4, 5, 6, 10) |
+| Lina | ease and education 30% each; efficiency a gate | Lua (7, 8, 8, 9) | Python subset (10, 8, 9, 5) | Blockly compiling to Lua (5, 9, 6, 9) |
+
+- *Lua, 4 of 4.* It is built to be embedded: an instruction-count hook meters fuel, a stripped standard library sandboxes it, and a coroutine pauses on `wait` or `perform` and resumes, as a drone needs. Real numbers end the 16-bit money bugs.
+- *Python would win on education and readability* (9 to 10) but loses on efficiency (5 to 6): metering, sandboxing and suspending hundreds of scripts is harder and heavier, and a subset frustrates people who know Python. Lina's weighted total put Python ahead (8.2 against Lua's 7.9) only if efficiency isn't a gate.
+- *Also ranked:* JavaScript (more footguns, async is harder than coroutines); Blockly only as an optional on-ramp that shows the Lua it generates (clumsy for table-driven scoring and for sharing); Wren (few know it); WebAssembly (too hard, unreadable to share). FORTH with better tools stays the cheapest to run but scored 4 to 5 on education and ease.
+- *What it would have changed:* Iris a working script in 30 minutes, not 2 hours, and a release on day 3 instead of 5.75; Kofi his own design, with specialised clones or a parts courier; Jago a recipe table as data in a third of the time, and his market maker; Lina the fuel fix and a growth step she couldn't write.
+- *Keep from FORTH:* fuel per instruction and free waits; 1 fuel an action; the game words as a library, with the same names; the shared library, the example designs and the word dictionary; a Settings block at the top; `launched` as the one entry point; state-machine helpers; `?sell-order`'s post-only-if-changed; drones fixed at release; `/check`, the test world and the Machine page.
+- *Drop:* 16-bit cells and double money; the 120-byte `answer` buffer (queries should return tables with named fields, like the API's JSON); stack juggling and `drop` after every call; manual memory; the 79-character line pieces; numeric error codes (messages with line numbers instead).
+- *Risks they named:* metering that is fair and cheap (charge instructions plus memory, cap memory a drone); server memory for hundreds of paused coroutines; drones burning fuel in easy-to-write loops (show a cost per function); losing the library, blog and playtest knowledge (port the starters and the word library first, same names); Lua quirks (1-based tables, `~=`) for Python players.
+
+**What they liked best** (all twelve rounds): finding a niche by working it out (wolfite nobody mined, parts nobody made, salvage nobody took), the first full loop paying out, undercutting other sellers by a credit, and the Test button.
+
+### Growing the starter library
+
+After each newcomer round, race the newcomers' best scripts: release each once into a fresh world beside the usual seed mix (60 starters and the library designs), run it to game day 40, and rank by gain over the starter package (the `company_taxable` view). A script that clearly beats the best library design joins `examples/companies/` with a header naming its author and round, and its kit; keep one design per niche (the higher earner when two make the same goods). CI checks every file there loads (`check_starters`, `ReleasePageTest`).
 
 ## Round log
+
+### Lua drones beside FORTH ones (#380)
+
+A fresh world from the Lua engine (#404) with 20 starters, five companies each of the FORTH and Lua Maker (`maker.fth`, `maker.lua`, Factory Kit) and, from day 2, of the FORTH and Lua Miner (Mining Kit), to game day 8:
+
+| Design | Companies | Avg gain | Instructions a drone | Crashes |
+|---|---|---|---|---|
+| Maker, Lua | 5 | +1,811 | 553,579 | 0 |
+| Maker, FORTH | 5 | +1,694 | 10,466,817 | 0 |
+| Miner, Lua (from day 2) | 5 | +384 | 639,812 | 0 |
+| Miner, FORTH (from day 2) | 5 | +352 | 12,522,131 | 0 |
+
+- The two languages earn the same: the Lua drones run the same plan, and sold rods at the Moon at 151 a rod against the FORTH Makers' 144.
+- The Lua drones used about a twentieth of the instructions (each Lua instruction charged as six), so they burn less fuel thinking; most of a FORTH drone's count is reading its script.
+
+### After round 34: a check world with its fixes (#380)
+
+A fresh world from the round 34 fixes (prices by place, the new Maker, test runs that load at once), the round 34 mix, to game day 12:
+
+| Design | Companies | Avg gain by day 12 | Gaining |
+|---|---|---|---|
+| Foundry | 3 | +3,604 | 3 |
+| Systems shop | 3 | +3,293 | 3 |
+| Maker (starter) | 12 | +2,449 | 12 |
+| Electronics | 3 | +2,375 | 2 |
+| Adaptive | 6 | +1,769 | 6 |
+| Machinist | 6 | +1,534 | 6 |
+| Miner (starter) | 24 | +1,053 | 24 |
+| Smith | 9 | +529 | 3 |
+| Refiner (starter) | 12 | +386 | 12 |
+| Chemist | 12 | +335 | 4 |
+
+- The Makers sold all their rods at the Moon (294, at 155 a rod), none at Earth, and the lowest tank among them was 21. In round 34 they averaged +4,110 over 40 days; here +2,449 in 12.
+- Players traded 2,828 units among themselves at the Moon in 1,369 trades.
+- The Smiths and Chemists, which sell refined goods, lost the most: the Moon now pays 0.85 of a refined good's value where it paid 1.0. Watch them in the next round.
+
+### Round 34: the race winners in the mix (#380)
+
+A fresh world from #404's code (fast holdings lookups, the three race winners in the library) with 60 starters, 12 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive, and 3 each of the Systems shop, Electronics and Foundry, to game day 40. Four newcomers played through the JSON API; Kofi reported at day 18 and Iris at day 36, their companies ran on.
+
+| Design | Companies | Avg gain | Gaining |
+|---|---|---|---|
+| Systems shop | 3 | +15,933 | 3 |
+| Foundry | 3 | +8,677 | 3 |
+| Machinist | 6 | +6,306 | 6 |
+| Maker (starter) | 12 | +4,110 | 12 |
+| Miner (starter) | 24 | +3,716 | 24 |
+| Smith | 9 | +3,008 | 9 |
+| Electronics | 3 | +2,897 | 1 |
+| Adaptive | 6 | +2,445 | 5 |
+| Chemist | 12 | +2,136 | 12 |
+| Refiner (starter) | 12 | +1,670 | 12 |
+| Trader (starter) | 12 | 0 | 0 |
+| Newcomers | 8 | +3,770 to +14,579 | 8 |
+
+- **Trades**: 10,249 (station drones selling 2,855, buying 3,392; player to player 4,002).
+- **Clones**: 13. **Wrecks**: 1 of 126 drones.
+- **Leaderboard**: Systems 1, 2 and 3, then Jago 1 4th, Kofi 1 5th, Jago 2 6th, Iris 2 7th.
+- **The engine**: 530 to 690 slices a minute all round, the clock at 560 to 600 (the race before #404 fell to 88 slices and a tenth of the clock).
+
+### Starter-library race: rounds 28-33's best scripts (#380)
+
+A fresh world from #403's code with the usual mix (60 starters, 18 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive) and 34 newcomer scripts from rounds 28 to 33, each released once (factory kit, or mining kit for Dax and Hal), to game day 40. Rounds 26 and 27's scripts were left out: they used `house-price`, which is gone.
+
+| Design | Companies | Avg gain by day 40 | Gaining |
+|---|---|---|---|
+| Farid 2 (systems shop) | 1 | 14,380 | 1 |
+| Elif 1 (pistons, pumps, valves) | 1 | 13,327 | 1 |
+| Elif 2 (electronics) | 1 | 9,524 | 1 |
+| Ines 1 (foundry) | 1 | 9,516 | 1 |
+| Farid 1 | 1 | 8,719 | 1 |
+| Hugo 2 | 1 | 8,249 | 1 |
+| Hal 1 (mining kit) | 1 | 6,550 | 1 |
+| Machinist | 6 | 6,425 | 6 |
+| Miner (starter) | 24 | 5,267 | 24 |
+| Refiner (starter) | 12 | 4,881 | 12 |
+| Maker (starter) | 12 | 4,648 | 12 |
+| Adaptive | 6 | 3,600 | 6 |
+| Smith | 9 | 3,178 | 9 |
+| Chemist | 18 | 662 | 18 |
+| Trader (starter) | 12 | 25 | 2 |
+
+The other 27 race scripts gained less than the Machinist; Cyrus 1 and Greta 2 were wrecked. Added to the library: Farid 2 as `systems.fth`, Elif 2 as `electronics.fth` and Ines 1 as `foundry.fth`. Elif 1 makes the same goods as Farid 2 and earned less, so it stays out.
+
+The race first crawled at a tenth of its speed: the `sqInventory` view works out every drone's holdings before it filters, and station drones look up their stock hundreds of times a round. #404 makes those lookups read one drone's events directly (from 88 to 334 engine slices a minute at once; the clock returned to full speed).
 
 ### Round 33: every product at every exchange, the House buying low (#380)
 

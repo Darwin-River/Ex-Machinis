@@ -65,6 +65,11 @@ Thank you for your support!
   - [Experimenting with logical operators](#experimenting-with-logical-operators)
   - [Repeating yourself: loops](#repeating-yourself-loops)
   - [Market-aware drones](#market-aware-drones)
+- [Chapter 10: Writing your drone in Lua](#chapter-10-writing-your-drone-in-lua)
+  - [A Lua drone](#a-lua-drone)
+  - [The game in Lua](#the-game-in-lua)
+  - [launched() may run again](#launched-may-run-again)
+  - [Limits and costs](#limits-and-costs)
 - [Appendix A: FORTH Error Codes](#appendix-a-forth-error-codes)
 
 ## Chapter 1: Getting Started
@@ -101,6 +106,7 @@ A released drone can't be sent new commands from the Release page, so test your 
 - your script runs in the test world, a separate copy of the game with the same rules, data and starting company, and a clock that runs ten times faster;
 - you go to the test run's own page, which shows what the test drone prints, its latest events (what it did, its cargo and credits), its trades and any crashes: keep its link to come back to it;
 - nothing in the test world affects the live one, and you can test as often as you like (the latest hundred test runs are kept);
+- your script starts loading at once, ahead of the drones already running there, and a run keeps going for 30 real minutes: after that the next test stops it, though its results stay readable;
 - the test world has its own market, so trades there are only with other test runs.
 
 Both the Test button and a release warn you if your script redefines a word your drone already knows, such as `report`, `load` or `pick`. Your word then replaces the drone's for everything written after it, which is rarely what you want: rename yours.
@@ -114,7 +120,7 @@ Not sure where to begin? The Release page offers four starter scripts: click **M
 - **Miner** (Mining Kit): mines kunspar or wolfite on the Moon, whichever has more left there (`richer`), refines it and sells the metals (and wolfite's Inorganics A2). It offers them to other drones first, halfway between the best buy order and the cheapest other sell order, and sells the rest into the best buy orders. If the Moon's deposit stays dry (twelve tries in a row: other miners got there first) and fewer drones work at Phobos than at the Moon, it moves to Mars's moons. Once it can afford to launch copies of itself, two in three of them make the long trip to Mars's moons (about 10 game days) and sell at the Mars Exchange. It buys its fuel wherever it's cheapest; where nobody sells it (Phobos and Deimos), it posts a fuel buy order at 7 and broadcasts that it needs fuel, waits two game hours for a courier, then flies to the Mars Exchange if none came.
 - **Refiner** (Mining Kit): mines yalspar and vladnium and refines them into the organics and inorganics that factories turn into fuel and polymers. It sells them the same way.
 - **Trader** (Mining Kit, though it only uses the Engine): buys metals from the miners on the Moon and hauls them to Mars, where buyers have paid more (check the price board).
-- **Maker** (Factory Kit): buys metals at the Moon wherever they're cheapest, makes them into alloys and rods, and sells the rods at Earth.
+- **Maker** (Factory Kit): buys metals at the Moon wherever they're cheapest, makes them into alloys and rods, and sells the rods where they pay best: at the Moon, or at Earth when rods fetch enough more there to pay for the trip. With enough credits it launches a copy of itself.
 
 Loading a script is free and quick: your drone reads the whole of it in one go when it is released, and starts `launched` a few game minutes later (behind the other drones' turns). The fuel bill starts when `launched` runs. Long, well-commented scripts are fine. Code at the top level of a script, outside any word, runs while it loads, with a one-time allowance of 20 million instructions; past that it runs at the normal pace, 100,000 instructions a turn.
 
@@ -836,7 +842,7 @@ So to stop an order, post one that can't fill. A buy order wants up to its limit
 
 Earth, the Moon and Mars each have an exchange where the House trades through a **station drone** named after it ("Earth Exchange", "Moon Depot", "Mars Exchange"). On the market a station drone is a drone like any other: its buy and sell orders are in the order book, you sell to it by pushing into its buy order and buy from it by pulling from its sell order, at its prices, and the sales tax applies. The only thing it does that you can't: it brings what it sells up from the planet surface and sends what it bought down, with modules no player can get.
 
-Every exchange buys and sells a little of every product a drone can mine, refine or make, from the first day of a world: ores, refined goods, alloys and polymers, parts, systems, modules, hulls and kits (all but the big ship kits). So any good can be bought to use, or made to sell, wherever you start. The exchanges are the market of last resort, not a rival: an exchange buys a good at about three quarters of its value and sells it at half as much again, twice what it pays. Sell to another player for more than the exchange bids, or buy from one for less than it asks, and you both beat the House; making a good yourself usually beats buying it there. It keeps a modest stock of each on offer (about 20 units of a cheap good, down to 4 of a dear one), and its buy order wants about four times that a day: the more of a good it has bought, the less it bids, down to half its starting price. Once a game day it sends what it bought down to the surface and its bid recovers; the goods it sells are restocked every game hour, fuel and raw goods first. A new world's exchanges open with their stock on board and all their orders up. Some goods it buys in larger numbers (refined metals, alloys and polymers at Earth and the Moon, parts and systems at Earth and Mars).
+Every exchange buys and sells a little of every product a drone can mine, refine or make, from the first day of a world: ores, refined goods, alloys and polymers, parts, systems, modules, hulls and kits (all but the big ship kits). So any good can be bought to use, or made to sell, wherever you start. The exchanges are the market of last resort, not a rival: an exchange buys a good at about three quarters of its value and sells it at half as much again, twice what it pays. Sell to another player for more than the exchange bids, or buy from one for less than it asks, and you both beat the House; making a good yourself usually beats buying it there. It keeps a modest stock of each on offer (about 20 units of a cheap good, down to 4 of a dear one), and its buy order wants about four times that a day: the more of a good it has bought, the less it bids, down to half its starting price. Once a game day it sends what it bought down to the surface and its bid recovers; the goods it sells are restocked every game hour, fuel and raw goods first. A new world's exchanges open with their stock on board and all their orders up. Some goods it buys in larger numbers (refined metals, alloys and polymers at Earth and the Moon, parts and systems at Earth and Mars). Prices differ by place: each exchange is short of different things. The Moon Depot, beside the mines, has ores and refined goods to spare and pays most for parts and systems; Earth's industry pays most for ores and refined goods and least for systems; far Mars pays most for parts. Each good also has its own twist at each exchange, so one system pays more than another, and more in one place than the next. Buying where a good is plentiful and selling where it is short is a trade in its own right: compare the order books (`/orders`) and the price board.
 
 Nobody publishes a price list. What a station drone, or any other drone, buys and sells, and at what price, you find out from the market: its orders (`best-bid`, `best-offer`, the Market page's order book) and what goods have sold for (the price board, query 680, and `sold`; the Market history page charts every resource's price and volume, day by day, at each place). Prices move: a buyer pays less as its stock fills, and other players' orders come and go. Compare before you buy or sell:
 
@@ -1274,9 +1280,72 @@ Number your modes with constants, write one word for each mode's step, and let a
 
 Small steps keep the drone responsive. A word that makes one alloy and then returns lets the drone look at prices again before the next one; a word that makes twenty commits it for two game days, whatever happens to the market. Each mode also needs a way out. Use `ticks` so a drone doesn't rest or shop forever, and check credits and fuel so it can't spend its last credit on goods it then can't move.
 
-The Adaptive design (`examples/companies/adaptive.fth`, released with the Factory Kit) puts all of this together. It buys metals only while they cost well under what rods fetched at Earth yesterday, from whoever sells them cheapest. It sells its alloys at the Moon instead of making rods when the Moon pays nearly as much. And when nothing pays, it rests. Read it, then make your own.
+The Adaptive design (`examples/companies/adaptive.fth`, released with the Factory Kit) puts all of this together. It buys metals only while they cost well under what rods fetched at Earth yesterday, from whoever sells them cheapest. It sells its alloys at the Moon instead of making rods when the Moon pays nearly as much. And when nothing pays, it rests. Read it, then make your own. The other designs in `examples/companies/` are worth reading too: the Systems shop (`systems.fth`), Electronics (`electronics.fth`) and Foundry (`foundry.fth`) were written by newcomers in earlier playtests and earned the most when raced against the rest.
 
 **Watch the `answer` buffer.** `ask` and every question word that uses it (`units`, `credits`, `deposit`, `best-offer`, `best-bid`...) write into the same 120-byte buffer. Read everything you need from one answer before you ask anything else. A round 25 trader read a seller's ID after calling `units`, got the wrong drone, and its pulls failed.
+
+## Chapter 10: Writing your drone in Lua
+
+Your drone's computer also runs [Lua](https://www.lua.org/manual/5.4/), a small language used in many games. Everything in this manual still holds: the same protocols, queries, places and resources, the same game clock and fuel. Only the language differs. Write in whichever you prefer; FORTH and Lua drones share the same world and trade with each other.
+
+### A Lua drone
+
+A script is Lua when it defines a function `launched` (`function launched() ... end`) and no FORTH word `launched`. Release it as you would a FORTH script: on the Release page, or with the API (`/check` tells you which language it found, and reports a Lua script's syntax errors with their line number). Once it is released, your drone loads the whole script, then calls `launched()`. As in FORTH, `launched` usually loops for ever:
+
+```lua
+-- A miner in a dozen lines
+low_fuel = 40   -- Settings first, as in the starters
+
+function launched()
+  await_kit()
+  unpack()
+  go(moon)
+  while true do
+    if units(fuel) < low_fuel then buy_here(30, fuel) end
+    if mine(kunspar) ~= 0 then wait(60) end
+    refine(kunspar)
+    if units(metals_a1) >= 16 then sell_here(units(metals_a1), metals_a1) end
+  end
+end
+```
+
+`examples/starters/maker.lua` is the Maker starter in Lua, line for line beside `maker.fth`.
+
+### The game in Lua
+
+Every game word of the FORTH library has a Lua function of the same meaning, with `_` where FORTH has `-` (`sell-price` is `sell_price`, `?sell-order` is `sell_order_if_changed`, `in?` is `in_mode`):
+
+| Kind | Functions |
+|---|---|
+| Places and resources | `earth`, `moon`, `mars`, `phobos`, `deimos`; `fuel`, `kunspar`, `wolfite`, `yalspar`, `vladnium`, `magmite`, `metals_a1` to `metals_a3`, `alloys_a1` to `alloys_a3`, `organics_a1`, `inorganics_a1`, `rods`, `mining_kit`, `factory_kit`, `cruiser_kit` (any other resource by its number) |
+| Actions (return 0 when they worked, else a negative code) | `travel(place)`, `go(place)`, `mine(mineral)`, `refine(mineral)`, `make(resource)`, `wait(minutes)`, `push(n, resource, drone)`, `pull(n, resource, drone)`, `launch(drone, kit)`, `plunder(wreck)`, `jettison(n, resource)`, `broadcast(text)`, `unpack()`, `sell_order(price, keep, resource)`, `buy_order(price, want, resource)`, `sell_order_if_changed(...)`, `buy_order_if_changed(...)` |
+| Trading | `buy_here(n, resource)`, `sell_here(n, resource)`, `sell_all(resource)`, `best_offer(resource)` and `best_bid(resource)` (each returns price, drone, units), `sell_price(resource)`, `buy_price(resource)`, `board_price(resource, place)`, `sold(resource, days_ago, place)` |
+| Questions | `me()`, `location()`, `units(resource)`, `credits()`, `company()`, `today()`, `deposit(mineral)`, `trip(place)`, `crowd(place)`, `my_clones()` (a list of `{drone =, wrecked =}`) |
+| Messages | `events_here(type)`, `events_earth(type)` (lists of event IDs), `event_drone(event)`, `message(event)` (its text, or nil) |
+| State | `become(mode)`, `in_mode(mode)`, `tick()`, `ticks()`, `await_kit()` |
+| Output | `print(...)` (to your drone's output), `report()` (sends it home) |
+
+Underneath them are two functions you can use for anything the library doesn't cover:
+
+- `perform(protocol, ...)` runs a protocol. Its arguments come in the order the protocol's description gives them (`[N R D 10 perform]` is `perform(10, n, r, d)`), and it returns 0 or a negative code, as FORTH's `perform` leaves on the stack. A double is one number here: `perform(7, 70000, 5, rods)` posts a sell order at 70,000.
+- `query(id, ...)` asks a question (the queries of [Chapter 8](#chapter-8-asking-questions)), its arguments in the same order (`[N H R L 620 query]` is `query(620, n, h)`). It returns the rows: a list, each row a list of its columns, which you can also read by name (`rows[1][1]` or `rows[1].price`). No rows is an empty list. `ask(id, ...)` is the same, with an empty list if the query fails.
+
+Money and big numbers are plain numbers: `credits()` is your balance, whatever its size, with no double cells, and no 120-byte `answer` buffer to read before the next question overwrites it.
+
+### launched() may run again
+
+Your drone's Lua stays in the game engine's memory between turns. Whenever it pauses for an action, the game saves its plain variables: numbers, strings, true and false, and tables of them. Functions and the place in the script it had reached are not saved. If the engine restarts, your drone gets its saved variables back and runs `launched()` again from the top. A crash restarts it too, with fresh variables, as a FORTH drone's does.
+
+So write `launched` to do only what still needs doing. `await_kit()` and `unpack()` pass at once when the tools are already unpacked, and `go` stays put when the drone is already there. Keep what your drone must remember (a mode, a count, the last price it saw) in global variables, not in `local` ones inside a loop.
+
+A copy launched with `launch` gets your script and your saved variables, as a FORTH copy gets your drone's memory. Set a variable before launching (`copy = true`) and the copy can tell it is one.
+
+### Limits and costs
+
+- Thinking costs fuel, as in FORTH. Each Lua instruction counts as six of the FORTH machine's, since it does about six times the work, and a turn is 100,000 of those. A drone that thinks hard pauses mid-thought and carries on at its next turn.
+- Your drone's Lua may hold 256 KB. A script that keeps growing a table stops with "not enough memory", and restarts like any crash.
+- There is no file, system or network access, and no `load` or `require`: a drone runs only its own script. `math.random` works, but `math.randomseed` is gone.
+- What your drone prints with `print` reaches you when `launched` returns or calls `report()`, as in FORTH.
 
 ## Appendix A: FORTH Error Codes
 

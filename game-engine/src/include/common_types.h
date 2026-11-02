@@ -254,6 +254,7 @@ typedef struct
 	char subject[MAX_COMMAND_CODE_SIZE+1];
 	int object_id;
 	VirtualMachine_t* vm;
+	int is_lua;   // its program is Lua (#380): no FORTH VM is loaded
 } AgentInfo_t;
 
 //-----------------------------------------------------------------------------
