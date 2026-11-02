@@ -17,6 +17,10 @@
    so each is charged as six: slices and fuel stay what they were */
 #define LUA_INSTRUCTION_WEIGHT 6
 
+/* The most Lua instructions a script's top level may run when it loads
+   (settings, tables, functions): it runs in one go and can't pause */
+#define LUA_LOAD_INSTRUCTIONS 2000000
+
 /* The most memory a drone's Lua may hold */
 #define LUA_MEMORY_CAP (256 * 1024)
 

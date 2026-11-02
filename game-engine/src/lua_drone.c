@@ -227,11 +227,18 @@ static void lua_charge(long long lua_instructions)
     vm_meter_charge(lua_instructions * LUA_INSTRUCTION_WEIGHT);
 }
 
-/* While the script's top level runs (not in a coroutine: it can't pause) */
+/* While the script's top level runs (not in a coroutine: it can't pause),
+   at most LUA_LOAD_INSTRUCTIONS: a top level that loops would hold the
+   engine (#380 round 35: a test run's did, at 99% of a core) */
+static long long g_load_used = 0;
 static void lua_charge_hook(lua_State* L, lua_Debug* ar)
 {
-    (void)L; (void)ar;
+    (void)ar;
     lua_charge(HOOK_EVERY);
+    g_load_used += HOOK_EVERY;
+    if(g_load_used > LUA_LOAD_INSTRUCTIONS)
+        luaL_error(L, "the script's top level ran more than %d instructions: "
+                      "put work in functions that launched calls", LUA_LOAD_INSTRUCTIONS);
 }
 
 static void lua_count_hook(lua_State* L, lua_Debug* ar)
@@ -570,40 +577,72 @@ static void lua_drone_mark_builtins(lua_State* L)
     lua_setfield(L, LUA_REGISTRYINDEX, "builtins");
 }
 
-static void save_value(lua_State* L, int idx, luaL_Buffer* b, int depth)
+/* The snapshot is built in C memory, not a luaL_Buffer: a luaL_Buffer must
+   keep the stack balanced between its calls, and walking tables with
+   lua_next doesn't (#380 round 35: a drone with nested tables crashed the
+   engine when it saved) */
+typedef struct { char* s; size_t len, cap; int failed; } Text;
+
+static void text_add(Text* t, const char* s, size_t n)
+{
+    if(t->failed) return;
+    if(t->len + n + 1 > t->cap)
+    {
+        size_t cap = t->cap ? t->cap * 2 : 1024;
+        while(cap < t->len + n + 1) cap *= 2;
+        if(cap > LUA_MEMORY_CAP * 4) { t->failed = 1; return; }
+        char* p = realloc(t->s, cap);
+        if(!p) { t->failed = 1; return; }
+        t->s = p;
+        t->cap = cap;
+    }
+    memcpy(t->s + t->len, s, n);
+    t->len += n;
+    t->s[t->len] = 0;
+}
+static void text_str(Text* t, const char* s) { text_add(t, s, strlen(s)); }
+
+/* A Lua string literal: printable ASCII as it is, the rest as \ddd */
+static void text_quoted(Text* t, const char* s, size_t n)
+{
+    text_str(t, "\"");
+    for(size_t i = 0; i < n; i++)
+    {
+        unsigned char c = (unsigned char)s[i];
+        char e[8];
+        if(c == '"' || c == '\\') { e[0] = '\\'; e[1] = (char)c; text_add(t, e, 2); }
+        else if(c >= 32 && c < 127) text_add(t, (const char*)&c, 1);
+        else { snprintf(e, sizeof(e), "\\%03d", c); text_str(t, e); }
+    }
+    text_str(t, "\"");
+}
+
+static void save_value(lua_State* L, int idx, Text* t, int depth)
 {
     idx = lua_absindex(L, idx);
     switch(lua_type(L, idx))
     {
     case LUA_TNUMBER:
-        if(lua_isinteger(L, idx))
-        {
-            char n[32];
-            snprintf(n, sizeof(n), "%lld", (long long)lua_tointeger(L, idx));
-            luaL_addstring(b, n);
-        }
-        else
-        {
-            char n[40];
-            snprintf(n, sizeof(n), "%.17g", lua_tonumber(L, idx));
-            luaL_addstring(b, n);
-        }
+    {
+        char n[48];
+        if(lua_isinteger(L, idx)) snprintf(n, sizeof(n), "%lld", (long long)lua_tointeger(L, idx));
+        else snprintf(n, sizeof(n), "%.17g", lua_tonumber(L, idx));
+        text_str(t, n);
         break;
+    }
     case LUA_TBOOLEAN:
-        luaL_addstring(b, lua_toboolean(L, idx) ? "true" : "false");
+        text_str(t, lua_toboolean(L, idx) ? "true" : "false");
         break;
     case LUA_TSTRING:
-        lua_getglobal(L, "string");
-        lua_getfield(L, -1, "format");
-        lua_pushstring(L, "%q");
-        lua_pushvalue(L, idx);
-        lua_call(L, 2, 1);
-        lua_remove(L, -2);
-        luaL_addvalue(b);
+    {
+        size_t n;
+        const char* s = lua_tolstring(L, idx, &n);
+        text_quoted(t, s, n);
         break;
+    }
     case LUA_TTABLE:
-        if(depth > 8) { luaL_addstring(b, "nil"); break; }
-        luaL_addstring(b, "{");
+        if(depth > 8 || !lua_checkstack(L, 4)) { text_str(t, "nil"); break; }
+        text_str(t, "{");
         lua_pushnil(L);
         while(lua_next(L, idx))
         {
@@ -611,33 +650,33 @@ static void save_value(lua_State* L, int idx, luaL_Buffer* b, int depth)
             if((kt == LUA_TNUMBER || kt == LUA_TSTRING) &&
                (vt == LUA_TNUMBER || vt == LUA_TSTRING || vt == LUA_TBOOLEAN || vt == LUA_TTABLE))
             {
-                luaL_addstring(b, "[");
-                save_value(L, -2, b, depth + 1);
-                luaL_addstring(b, "]=");
-                save_value(L, -1, b, depth + 1);
-                luaL_addstring(b, ",");
+                text_str(t, "[");
+                save_value(L, -2, t, depth + 1);
+                text_str(t, "]=");
+                save_value(L, -1, t, depth + 1);
+                text_str(t, ",");
             }
             lua_pop(L, 1);
         }
-        luaL_addstring(b, "}");
+        text_str(t, "}");
         break;
     default:
-        luaL_addstring(b, "nil");
+        text_str(t, "nil");
     }
 }
 
-/* The drone's plain-data globals as Lua source ("return {...}"), in a
-   protected call: a drone at its memory cap keeps its last snapshot */
+/* The drone's plain-data globals as Lua source ("return {...}") into the
+   Text passed as a light userdata */
 static int save_globals(lua_State* L)
 {
-    luaL_Buffer b;
-    luaL_buffinit(L, &b);
-    luaL_addstring(&b, "return {");
+    Text* t = lua_touserdata(L, 1);
+    text_str(t, "return {");
     lua_getfield(L, LUA_REGISTRYINDEX, "builtins");
     int builtins = lua_gettop(L);
     lua_pushglobaltable(L);
+    int globals = lua_gettop(L);
     lua_pushnil(L);
-    while(lua_next(L, -2))
+    while(lua_next(L, globals))
     {
         int vt = lua_type(L, -1);
         int own = 1;
@@ -648,31 +687,31 @@ static int save_globals(lua_State* L)
         if(own && lua_type(L, -2) == LUA_TSTRING &&
            (vt == LUA_TNUMBER || vt == LUA_TSTRING || vt == LUA_TBOOLEAN || vt == LUA_TTABLE))
         {
-            luaL_addstring(&b, "[");
-            save_value(L, -2, &b, 0);
-            luaL_addstring(&b, "]=");
-            save_value(L, -1, &b, 0);
-            luaL_addstring(&b, ",");
+            text_str(t, "[");
+            save_value(L, -2, t, 0);
+            text_str(t, "]=");
+            save_value(L, -1, t, 0);
+            text_str(t, ",");
         }
         lua_pop(L, 1);
     }
-    lua_pop(L, 1);
-    luaL_addstring(&b, "}");
-    luaL_pushresult(&b);
-    return 1;
+    lua_settop(L, 1);
+    text_str(t, "}");
+    return 0;
 }
 
 static void lua_drone_save_state(LuaDrone* d)
 {
+    Text t = { NULL, 0, 0, 0 };
     lua_sethook(d->L, NULL, 0, 0);
     lua_pushcfunction(d->L, save_globals);
-    if(lua_pcall(d->L, 0, 1, 0) == LUA_OK)
-    {
-        size_t n;
-        const char* s = lua_tolstring(d->L, -1, &n);
-        lua_db_set_text(d->agent_id, "lua_state", s, n, 0);
-    }
-    lua_pop(d->L, 1);
+    lua_pushlightuserdata(d->L, &t);
+    int r = lua_pcall(d->L, 1, 0, 0);
+    if(r != LUA_OK)
+        lua_pop(d->L, 1);   /* its error: the last snapshot stays */
+    else if(!t.failed && t.s)
+        lua_db_set_text(d->agent_id, "lua_state", t.s, t.len, 0);
+    free(t.s);
 }
 
 /* Builds the drone's Lua: library, script, saved variables. Leaves
@@ -698,6 +737,7 @@ static int lua_drone_build(LuaDrone* d, int with_state)
     size_t len = 0;
     char* script = lua_db_text(d->agent_id, "lua_script", &len);
     /* The script's top level (settings, functions) is metered like any run */
+    g_load_used = 0;
     lua_sethook(d->L, lua_charge_hook, LUA_MASKCOUNT, HOOK_EVERY);
     int r = luaL_loadbuffer(d->L, script ? script : "", script ? len : 0, "=script");
     free(script);
