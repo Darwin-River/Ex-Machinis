@@ -258,6 +258,13 @@ After the round: why it was slow. Every drone shares the Game Engine in 100,000-
 - *Growth that strands.* Nico 2 launched a clone at 5,600 and was left 191 credits, under its cash floor: both drones idled for 20 days holding half-built parts.
 - *No sign of a stall.* The clock ran on through the freeze; players asked for a "last tick" on `/clock` and a note in the drone timeline when the engine restarts.
 
+**Round 36 findings:** the first round on #407's fixes (trading that skips refusals, Lua name warnings, engine health on `/clock`). Three newcomers chose Lua, Tariq FORTH; all eight companies gained, and they finished 1st (Quinn 2, Lua), 2nd and 3rd (Rosa 1, Lua; Tariq 1, FORTH), ahead of every library design. Lua rated 9.0 to learn and 8.7 for the game; Tariq's FORTH 6 and 8. Would play again 8.0, overall 7.5 (fun 7.5, clarity 7.0, depth 7.25, feedback 6.25, API 8.25), the best overall yet. No engine trouble all round. What they ran into:
+- *Supply chains beat product choice.* All four found the House pays a flat 25 to 33 credits a factory-hour whatever the system, so the edge was a Moon base with standing buy orders one credit over the depot's bid for Metals (A1): miners filled them at 14 to 24 (Quinn 2, Rosa, Tariq). Quinn 1, buying at Earth, made half what Quinn 2 did with the same script. Three asked for demand that moves (a mid-round shock) so adaptive scripts pay.
+- *Recipes by hand.* Three built their own recipe tables by parsing 149 `/protocols` descriptions; they asked for a recipe tree in the API or a `recipe()` word.
+- *The test world isn't the live market.* No miners or Moon sellers, so every Moon or buy-order plan went out untested, and it ran slowly. All four asked for a test world seeded from live prices. Sven also saw test drone ids collide with live ones on `/drones/{id}`.
+- *Fuel inside a deep build.* Sven 2 wrecked on day 18 with 5,517 credits: a long build chain took its tank from 50 to 3 and the failure path's pushes spent the rest. He asked for a fuel floor the engine enforces and a per-round fuel/instruction line on the drone page. Rosa's top-up loop lost a fuel per pull.
+- *Feedback.* Reports come every N rounds and a round is a whole system build, so Rosa and Quinn thought `report()` was broken (it wasn't: about every 2 game days). Asked for: net wealth over time, a company's open orders, the latest output more prominent. Tariq: no spaces after FORTH numbers make logs hard to read; pulls still fail with "didn't allow selling that many" when the book shows units.
+
 **FORTH survey (after round 34).** The four were asked about the language itself:
 
 | Player | Before | First working word | Hardest | Easy to learn | Enjoyed | Fits the game | Would choose |
@@ -312,6 +319,34 @@ After the round: why it was slow. Every drone shares the Game Engine in 100,000-
 After each newcomer round, race the newcomers' best scripts: release each once into a fresh world beside the usual seed mix (60 starters and the library designs), run it to game day 40, and rank by gain over the starter package (the `company_taxable` view). A script that clearly beats the best library design joins `examples/companies/` with a header naming its author and round, and its kit; keep one design per niche (the higher earner when two make the same goods). CI checks every file there loads (`check_starters`, `ReleasePageTest`).
 
 ## Round log
+
+### Round 36: newcomers on #407's fixes (#380)
+
+The round 35 world's mix, fresh from #407's code, to game day 40: 60 starters, 12 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive, 3 each of the Systems shop, Electronics and Foundry, and 3 each of the Lua Maker, Lua Miner and Lua Systems shop. No engine stall or crash all round.
+
+| Design | Language | Companies | Avg gain |
+|---|---|---|---|
+| Newcomers (Rosa) | Lua | 2 | +17,019 |
+| Newcomers (Tariq) | FORTH | 2 | +16,923 |
+| Newcomers (Quinn) | Lua | 2 | +15,960 |
+| Foundry | FORTH | 3 | +13,916 |
+| Systems shop | FORTH | 3 | +12,385 |
+| Systems shop | Lua | 3 | +12,150 |
+| Electronics | FORTH | 3 | +11,175 |
+| Maker (starter) | FORTH | 12 | about +4,600 |
+| Machinist | FORTH | 6 | +4,711 |
+| Miner (starter) | FORTH | 24 | about +4,400 |
+| Maker | Lua | 3 | +4,531 |
+| Smith | FORTH | 9 | +4,004 |
+| Newcomers (Sven) | Lua | 2 | +3,458 |
+| Miner | Lua | 3 | +3,362 |
+| Refiner (starter) | FORTH | 12 | about +2,700 |
+| Adaptive | FORTH | 6 | +2,437 |
+| Chemist | FORTH | 12 | +1,520 |
+| Trader (starter) | FORTH | 12 | 0 (they end with about 970 of their 1,000) |
+
+- **Clones**: 30. **Wrecks**: 3, all out of fuel (two Adaptive, Sven 2).
+- **Leaderboard**: Quinn 2 1st (+22,021), Rosa 1 2nd, Tariq 1 3rd: newcomers' Moon factories with standing metal bids beat the library. The Trader starter still loses money and needs work.
 
 ### Round 35: FORTH or Lua (#380)
 
