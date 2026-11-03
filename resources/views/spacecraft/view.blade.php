@@ -36,7 +36,13 @@
                         <b>Company</b>: {{ $state['company']->name ?? '' }}
                             {{ ($state['company'] && $state['company']->eliminated_at) ? '(ended)' : '' }}<br/>
                         <b>Status</b>: {{ $state['status'] }}<br/>
-                        <b>Fuel</b>: {{ $state['fuel'] }}<br/>
+                        <b>Fuel</b>: {{ $state['fuel'] }}
+                            <span>· used in the last game day: {{ $state['fuel_day']['actions'] }} for actions,
+                                {{ $state['fuel_day']['thinking'] }} for thinking</span><br/>
+                        @if($messages->isNotEmpty())
+                            <b>Last said</b> ({{ \App\Services\DronePage::when($messages->first()->game_t) }}):
+                            <a href="#messages">{{ \Illuminate\Support\Str::limit(trim(preg_replace('/^Location:[^\n]*\n/', '', $messages->first()->body)), 120) }}</a><br/>
+                        @endif
                     </div>
                     <div class="col-12 col-sm-6 col ">
                         <b>Hull</b>: {{$agent->hull->name}}<br/>

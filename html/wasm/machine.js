@@ -5,7 +5,7 @@
 
     const $ = (id) => document.getElementById(id);
     const hex = (n) => (n & 0xffff).toString(16).padStart(4, '0');
-    const FUEL_PER = 100000;   // the engine burns 1 fuel per 100,000 instructions
+    const FUEL_PER = 200000;   // the engine burns 1 fuel per 200,000 instructions
 
     // What each ALU operation does to t (the top of the stack), n (the one
     // under it) and r (the top of the return stack); see game-engine/src/embed.c

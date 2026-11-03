@@ -330,7 +330,7 @@ fetch() { curl -fsS "$@" || echo "fetch failed: $*"; }
 grep -qF "kunspar wolfite richer" <<<"$(fetch -b "$JAR" "http://localhost/release?starter=miner")" || fail "the Release page did not offer the miner starter"
 echo "ok: the Release page offers the starter scripts"
 run $FORGE_DRONE "game words" "stdlib . moon . kunspar . fuel units 0> . 3 trip 0> ."
-knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%17101100-1-1'")" ]; }
+knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%18101100-1-1'")" ]; }
 wait_for 60 "a drone knows the game words" knows_words
 
 # Broadcasts (#380): the released drone, at Earth, broadcasts a message, an
@@ -348,14 +348,14 @@ echo "ok: drones broadcast messages, events others read from the Earth database"
 
 # The House fuel seller (#324 step 10; #380): the released drone, at Earth,
 # buys 10 fuel from the Earth Exchange's station drone like from any drone: a
-# pull from its sell order, at once, at 5 a unit
+# pull from its sell order, at once, at 3 a unit (5 until #380 round 37)
 EARTH_STATION=$(sql "select agent_id from agents where station_id is not null and object_id = 3")
 [ -n "$EARTH_STATION" ] || fail "Earth has no House station drone"
 fuel_ask() { [ "$(sql "select count(*) from events where drone=$EARTH_STATION and event_type=4 and resource=2061 and outcome=1")" -ge 1 ]; }
 wait_for 180 "the Earth Exchange's station drone posts its fuel for sale" fuel_ask
 run $FORGE_DRONE "fuel" "10 2061 $EARTH_STATION 11 perform ."
-bought() { [ "$(sql "select count(*) from trades where seller=$EARTH_STATION and buyer=$FORGE_DRONE and resource=2061 and units=10 and credits=50")" = 1 ]; }
-wait_for 90 "a drone bought 10 fuel from the House at 5 a unit" bought
+bought() { [ "$(sql "select count(*) from trades where seller=$EARTH_STATION and buyer=$FORGE_DRONE and resource=2061 and units=10 and credits=30")" = 1 ]; }
+wait_for 90 "a drone bought 10 fuel from the House at 3 a unit" bought
 # In its hold: the pull's increment event. (Its total can still fall: the
 # drone's computing is billed in fuel too)
 more_fuel() { [ "$(sql "select count(*) from events e join actions x on x.id = e.action
@@ -495,5 +495,17 @@ echo "ok: each exchange has one House station drone"
 posted() { [ "$(sql "select count(*) from events e join agents a on a.agent_id = e.drone join companies c on c.company_id = a.company_id
                      where c.house = 1 and e.event_type in (4, 5) and e.outcome = 1")" -ge 1 ]; }
 wait_for 180 "a House station drone posts its orders" posted
+
+# Markets that move (#380 round 36): today's House prices (house_market),
+# the news of booms and slumps, recipes, and the live market mirrored into
+# the test world on the tick
+[ "$(sql "select count(*) from house_market where price > 0 and daily_units > 0")" -ge 100 ] ||
+    fail "the House market view has no prices"
+[ "$(sql "select count(*) from house_market b where side = 1 and price > (select min(a.price) from house_market a where a.resource = b.resource and a.side = 2)")" = 0 ] ||
+    fail "an exchange bids more than another asks"
+curl -fsS http://localhost/api/v1/news | grep -q '^\[' || fail "/news didn't answer"
+curl -fsS http://localhost/api/v1/recipes/4311/tree | grep -q '"resource":2011' || fail "the pump's recipe tree has no metals"
+mirrored() { [ "$(sqltest "select count(*) from agents a join companies c on c.company_id = a.company_id where c.name = 'Live market'")" -ge 1 ]; }
+wait_for 120 "the test world mirrors the live market" mirrored
 
 echo "Smoke test passed."

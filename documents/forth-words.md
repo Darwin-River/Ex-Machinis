@@ -43,6 +43,11 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 - Tell the drones around you: `broadcast` a message ("Fuel wanted at Phobos, paying 15") so a courier reading the messages (`message-event events-earth`) knows where to go.
 - **Fuel couriers** are the other side of this trade: drones that carry fuel to where others work and run low, look for fuel buy orders there (`fuel best-bid`) and push fuel into them for profit. Every stranded drone is a customer.
 
+**`fuel-floor ( n -- )`** (built in, #380 round 36): at or below n fuel, `make` (but for fuel), `mine`, `refine` and `push` (so `sell-here`) refuse with -30, so a long build or a selling spree can't spend the fuel you need to buy more. Example: `15 fuel-floor` in `launched`.
+
+- Round 36: a factory's nine-step build took its tank from 50 to 3, and the failure path's pushes spent the rest; it became a wreck with 5,517 credits in the bank.
+- Check for -30 where you build: `make -30 = if refuel then`.
+
 ## Getting rid of goods
 
 **`jettison ( n resource -- ior )`** (a game word): throw n units of a resource into space, for 1 fuel whatever the amount. Example: `10 inorganics-a2 jettison drop`.
@@ -128,6 +133,17 @@ A drone that changes what it does as the market changes is easiest to write as a
 - Check every input before the first step (`metals-a1 units 8 < ... if exit then`), so a half-built chain doesn't strand alloys in the hold. Check the fuel too: `fuel units 30 < if exit then`.
 - A long chain needs a bigger fuel margin: start brewing at 60, not 40.
 
+**`recipe ( resource -- rows )`** and **`recipe-row ( i -- addr )`** (built in, #380 round 36): the first recipe that makes a resource, a row a resource: protocol, resource, units (made: positive; used, fuel too: negative; the tool: 0), minutes. A drone that prices what it could make (inputs from `buy-price`, the product from `sell-price`) can choose, each round, what pays best here and now. Example, the fuel a recipe burns:
+
+```
+  : recipe-fuel ( resource -- n )
+    recipe 0 swap begin dup while 1- dup recipe-row
+      dup 2 + @ fuel = if 4 + @ negate rot + swap else drop then
+    repeat drop ;
+```
+
+- The API's `/recipes/{id}/tree` adds up a whole chain (what one unit takes down to metals, organics and inorganics): use it to plan before you write the script.
+
 ## Buying from other drones, with a cash floor
 
 **`buy ( n metal price -- )`** (Machinist): like `buy-cheap`, but it buys nothing while the company has less than `cash-floor` credits, so it never spends the money it needs for fuel. Used by: Machinist, Smith v4 (as `buy-metals`).
@@ -136,7 +152,7 @@ A drone that changes what it does as the market changes is easiest to write as a
 
 **`reinvest ( -- )`**: at an exchange, with 7,000 credits or more, buy a Mining Cruiser kit, launch a clone of this drone, buy the design's kit, `my-kit` (a Mining or Factory Kit), and hand it to the clone with 40 fuel. Used by: every starter and design since #380.
 
-- One kit at a time: equipment fills 364 of a drone's 500 cargo, so both kits (40 each) don't fit at once with a tank of fuel.
+- A drone carries 1,000 cargo (500 until round 37). Unpacked, a kit takes 267 to 296 of it; both kits fit (563), with room for fuel.
 - If a kit is still aboard from a launch whose hand-over failed, `reinvest` hands it over first. A hull already bought is launched whenever the fuel allows, without checking credits again.
 - Launching (30 fuel) and equipping the clone (40) empty the tank: `reinvest` refills it to 60 afterwards. Without that, every parent in round 19 died on its way home.
 - A standing sell order for fuel keeps back only its limit: other drones buy everything above it, even while yours is busy. If the drone sells fuel and also launches clones, set the order's limit above what launching needs (80), or the tank never holds enough to launch (round 28: a factory's 3,000-credit hull sat unlaunched all round).
@@ -152,10 +168,10 @@ A drone that changes what it does as the market changes is easiest to write as a
 
 ## Patterns and pitfalls
 
-- **Sell every by-product.** Equipment takes 310 of a drone's 500 cargo. Anything you make and keep (Inorganics (A2) from vladnium, for one) piles up until there is no room to brew fuel, and the drone dies. Sell it all each round.
+- **Sell every by-product.** Equipment takes about 300 of a drone's 1,000 cargo. Anything you make and keep (Inorganics (A2) from vladnium, for one) piles up until there is no room to brew fuel, and the drone dies. Sell it all each round.
 - **Refuel wherever you wait.** `wait` itself is free, but a drone that wakes every few hours to look for a trade burns fuel computing each time it looks, and over weeks that empties the tank. Call `top-up` in the waiting loop, not only before trips.
 - **Count attempts, not quiet time.** A wait that resets whenever something happens may never end. Count how many times you have looked instead.
-- **Every action costs fuel.** Mining 1, refining 2, making 2 to 4, travel 5. Computing costs too: 1 fuel per 100,000 instructions.
+- **Every action costs fuel.** Mining 1, refining 2, making 2 to 4, travel 5. Computing costs too: 1 fuel per 200,000 instructions.
 - **Leave with fuel to spare.** Nearly every action burns fuel, buying fuel included, and nothing rescues a drone that runs dry. Check the tank before a trip, and at a station buy fuel before you sell. Stranded anyway? `call-for-fuel` posts a buy order a courier can profit from and waits for it.
 - **Long lines are fine, long strings aren't.** The game splits a line over 79 characters between words (dropping its comment) before the drone reads it, but a single string (`." ..."`) longer than that can't be split. The checker and the Machine split lines the same way.
 - **`credits` is a double.** Compare it as one: `credits 200 0 d< if exit then` (less than 200). Dropping the high cell works only until the balance passes 32,767.

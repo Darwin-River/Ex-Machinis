@@ -279,6 +279,10 @@ Then open the site and check a drone page, as in step 4 of the install.
 
 **Lua drones lose their place in their script when the engine restarts.** A Lua drone's program lives in the game engine's memory: after an update (or any restart of the `game-engine` container) each Lua drone gets its saved variables back and runs its `launched` function again from the top. FORTH drones carry on where they were. Players are told so (players' manual, Chapter 10), but updating when few are playing is kinder.
 
+**The House's prices move on the scheduler's tick.** Since round 36 the `scheduler` container's tick (every 5 seconds) posts the exchanges' orders at the day's prices, copies the live market into the test world every 5 minutes, and records each company's net wealth once a game day. If the scheduler stops, the exchanges keep trading at their last prices: check it with `docker compose ps scheduler` and `docker compose logs --tail 20 scheduler` ("tick failed" lines). `docker compose exec app php artisan forge:market` posts the House's orders once by hand. The first start after this update gives each station drone its new program, and its orders move to the tick: the log says "(new program)" for each.
+
+**Engine settings come with the engine image.** The engines read `game-engine/conf/game-engine.conf`, built into their image, so `--build` picks up a change there. Since round 37 thinking costs half the fuel (`POWER_INSTRUCTIONS` 200,000, was 100,000). To set it yourself, add `POWER_INSTRUCTIONS: "100000"` (or any number) to the `environment` of each engine service in `docker-compose.yml`, and keep `power_instructions` in `config/forge.php` the same, since the drone pages quote it. That update also makes every drone's hold 1,000 (migration 0029) and gives each station drone a new program (the log says "(new program)").
+
 **Clean up old images** every few updates. Unused images take several gigabytes:
 
 ```sh
@@ -490,6 +494,7 @@ To keep the downtime short when moving on purpose:
 | Daily, at a glance | The site is up, and the game clock is moving | The Home page's clock line. Free uptime monitors such as UptimeRobot or Better Stack can check `https://<domain>` every few minutes and email you |
 | Weekly | Disk space | `df -h /` (keep it under 80%) and `docker system df` |
 | Weekly | Backups ran | `tail /var/backups/exmachinis/backup.log` and `rclone lsd offsite:exmachinis` |
+| Daily, at a glance | The House's prices are moving | `curl -s https://<domain>/api/v1/news` answers, and the scheduler logs no "tick failed" |
 | Weekly | The engines are keeping up | the Home page's clock: at the floor, with releases queueing, means the server is too small |
 | Monthly | Test a restore | [Test your backups](#test-your-backups) |
 | Monthly | Reboot for kernel updates, if one is waiting | `[ -f /var/run/reboot-required ] && sudo reboot` (everything restarts on its own) |

@@ -51,18 +51,28 @@ const char* vm_library_game_source =
     "2011 constant metals-a1 2012 constant metals-a2 2013 constant metals-a3\n"
     "2031 constant inorganics-a1 2041 constant organics-a1\n"
     "2032 constant inorganics-a2 2042 constant organics-a2\n"
+    "create answer 120 allot\n"
+    ": ask ( [n] id -- rows ) >r answer 120 r> query ;\n"
+    ": units ( resource -- n ) 212 ask drop answer @ ;\n"
+    /* A fuel floor (#380 round 36: Sven 2 sold its last fuel away in a
+       deep build): once set, at or below it make (but fuel), mine, refine
+       and push refuse with -30, so the fuel left is for buying fuel */
+    "variable floor-fuel\n"
+    ": fuel-floor ( n -- ) floor-fuel ! ;\n"
+    ": floored? ( -- f ) floor-fuel @ ?dup if fuel units < 0= else 0 then ;\n"
     ": travel ( place -- ior ) 5001 perform ;\n"
-    ": mine ( mineral -- ior ) 10000 + perform ;\n"
-    ": refine ( mineral -- ior ) 20000 + perform ;\n"
-    ": make ( resource -- ior ) 10000 + perform ;\n"
+    ": mine ( mineral -- ior ) floored? if drop -30 exit then 10000 + perform ;\n"
+    ": refine ( mineral -- ior ) floored? if drop -30 exit then\n"
+    "  20000 + perform ;\n"
+    ": make ( resource -- ior ) dup fuel <> floored? and if drop -30 exit then\n"
+    "  10000 + perform ;\n"
     ": wait ( minutes -- ior ) 3 perform ;\n"
-    ": push ( n resource drone -- ior ) 10 perform ;\n"
+    ": push ( n resource drone -- ior ) floored? if 2drop drop -30 exit then\n"
+    "  10 perform ;\n"
     ": pull ( n resource drone -- ior ) 11 perform ;\n"
     ": launch ( drone kit -- ior ) 12 perform ;\n"
     ": plunder ( wreck -- ior ) 34 perform ;\n"
     ": jettison ( n resource -- ior ) 1 perform ;\n"
-    "create answer 120 allot\n"
-    ": ask ( [n] id -- rows ) >r answer 120 r> query ;\n"
     ": me ( -- drone ) 205 ask drop answer @ ;\n"
     /* Orders (#380 round 31): an order stays up until the drone posts
        another for the same resource and side, and every post is an action
@@ -95,7 +105,6 @@ const char* vm_library_game_source =
     "  >r 2dup r@ negate order-same? if r> drop 2drop 0 else r> buy-order then ;\n"
     ": broadcast ( caddr -- ior ) 40 perform ;\n"
     ": location ( -- place ) me 202 ask drop answer @ ;\n"
-    ": units ( resource -- n ) 212 ask drop answer @ ;\n"
     ": unpack ( -- ior ) 5902 units if 25902 else 25901 then perform ;\n"
     ": company ( -- id ) me 201 ask drop answer @ ;\n"
     ": credits ( -- d ) company 101 ask drop answer 2@ ;\n"
@@ -163,7 +172,12 @@ const char* vm_library_game_source =
     ": event-drone ( d -- drone ) 820 ask drop answer @ ;\n"
     ": message ( d -- f ) 844 ask 0> ;\n"
     ": crowd ( place -- n ) 721 ask drop answer @ ;\n"
-    ": stdlib ( -- version ) 17 ;\n";
+    /* Recipes (#380 round 36): the first recipe for a resource, in
+       answer: rows of protocol, resource, units (made: positive; used,
+       fuel too: negative; the tool: 0), minutes */
+    ": recipe ( resource -- rows ) 695 ask 0 max ;\n"
+    ": recipe-row ( i -- addr ) 8 * answer + ;\n"
+    ": stdlib ( -- version ) 18 ;\n";
 
 int vm_library_load(embed_t* vm)
 {

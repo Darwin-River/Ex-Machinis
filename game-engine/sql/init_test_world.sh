@@ -27,6 +27,9 @@ fi
 
 DB_USER=root DB_NAME="$TEST_DB_NAME" "$SQL/migrate.sh" | sed 's/^migrate:/test world:/'
 root "$TEST_DB_NAME" < "$SQL/game_data.sql"
+# Test drones are numbered from 10,000,000 (#380 round 36: a test drone's
+# number was also a live drone's, so /drones/{id} showed a stranger's drone)
+root "$TEST_DB_NAME" -e "ALTER TABLE agents AUTO_INCREMENT = 10000000"
 if [ -n "${DB_APP_USER:-}" ]; then
     root -e "GRANT ALL PRIVILEGES ON \`$TEST_DB_NAME\`.* TO '$DB_APP_USER'@'%'"
 fi

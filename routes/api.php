@@ -36,6 +36,11 @@ Route::prefix('v1')->group(function () {
     Route::middleware('throttle:api-read')->get('resources', 'ApiController@resources');
     Route::middleware('throttle:api-read')->get('protocols', 'ApiController@protocols');
     Route::middleware('throttle:api-read')->get('queries', 'ApiController@queries');
+    // #380 round 36: recipes, the House's booms and slumps, net wealth by day
+    Route::middleware('throttle:api-read')->get('recipes', 'ApiController@recipes');
+    Route::middleware('throttle:api-read')->get('recipes/{resource}/tree', 'ApiController@recipeTree')->whereNumber('resource');
+    Route::middleware('throttle:api-read')->get('news', 'ApiController@news');
+    Route::middleware('throttle:api-read')->get('companies/{id}/history', 'ApiController@companyHistory')->whereNumber('id');
     Route::middleware('throttle:api-read')->get('test/{token}', 'ApiController@testRun');
     Route::middleware('throttle:api-read')->post('check', 'ApiController@check');
     Route::middleware('throttle:api-write')->post('release', 'ApiController@release');

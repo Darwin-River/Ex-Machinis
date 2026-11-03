@@ -162,7 +162,7 @@ class DronePageTest extends TestCase
             'instructions' => 15700000]);
         $this->get('/spacecraft/' . $agent->agent_id)->assertOk()->assertSee('Post-mortem')
             ->assertSee('It ran out of fuel')->assertSee('Its last action was protocol 11100')
-            ->assertSee('15,700,000 instructions in all, about 157 fuel of computing')
+            ->assertSee('15,700,000 instructions in all, about 78 fuel of computing')
             ->assertSee('failed: not enough of a resource (or fuel) in the hold');
 
         DB::table('drone_crashes')->insert(['drone' => $agent->agent_id, 'game_t' => 1500, 'code' => -10, 'in_row' => 5]);

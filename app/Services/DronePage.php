@@ -117,7 +117,31 @@ class DronePage
             'generation' => (int) $agent->generation,
             'instructions' => (int) $agent->instructions,
             'crashes' => (int) $agent->crashes_total,
+            'fuel_day' => self::fuelLastDay($agent),
         ];
+    }
+
+    /**
+     * The fuel the drone used in the last game day (#380 round 36: Sven found
+     * his drone's thinking cost a fuel a round only from test events): for
+     * its actions and for thinking (its computer's power, protocol 2)
+     */
+    public static function fuelLastDay(Agent $agent): array
+    {
+        $now = World::gameNow();
+        $rows = DB::select(
+            'SELECT x.protocol = 2 AS thinking, SUM(x.prev - x.q) AS used FROM (
+                 SELECT e.game_t, e.new_quantity AS q, LAG(e.new_quantity) OVER (ORDER BY e.id) AS prev, a.protocol
+                 FROM events e LEFT JOIN actions a ON a.id = e.action
+                 WHERE e.drone = ? AND e.resource = ? AND e.outcome = 1 AND e.event_type IN (1, 2)
+                   AND e.installed = 0 AND e.locked = 0 AND e.game_t > ?) x
+             WHERE x.game_t > ? AND x.game_t <= ? AND x.prev > x.q GROUP BY thinking',
+            [$agent->agent_id, self::FUEL, $now - 2 * 86400, $now - 86400, $now]);
+        $used = ['actions' => 0, 'thinking' => 0];
+        foreach ($rows as $r) {
+            $used[(int) $r->thinking ? 'thinking' : 'actions'] = (int) $r->used;
+        }
+        return $used;
     }
 
     /** Where the drone's code comes from, and its words */
@@ -255,12 +279,12 @@ class DronePage
         switch ($agent->wreck_cause) {
             case 'fuel':
                 $cause = "It ran out of fuel on $when: it had none left to pay for its computing "
-                    . '(1 fuel for every 100,000 instructions its program runs) or its next action.' . $last;
+                    . '(1 fuel for every ' . number_format(config('forge.power_instructions', 200000)) . ' instructions its program runs) or its next action.' . $last;
                 // How much went on thinking: a loop without a wait burns a tank this way (#380)
                 $ran = (int) $agent->instructions;
-                if ($ran >= 100000) {
+                if ($ran >= config('forge.power_instructions', 200000)) {
                     $cause .= ' Its program ran ' . number_format($ran) . ' instructions in all, about '
-                        . number_format(intdiv($ran, 100000)) . ' fuel of computing.';
+                        . number_format(intdiv($ran, config('forge.power_instructions', 200000))) . ' fuel of computing.';
                 }
                 if ($agent->release_vm === null && $agent->parent_id === null) {
                     $cause .= ' It never started its launched word.';

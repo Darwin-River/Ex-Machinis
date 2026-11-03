@@ -258,6 +258,13 @@ After the round: why it was slow. Every drone shares the Game Engine in 100,000-
 - *Growth that strands.* Nico 2 launched a clone at 5,600 and was left 191 credits, under its cash floor: both drones idled for 20 days holding half-built parts.
 - *No sign of a stall.* The clock ran on through the freeze; players asked for a "last tick" on `/clock` and a note in the drone timeline when the engine restarts.
 
+**Round 36 findings:** the first round on #407's fixes (trading that skips refusals, Lua name warnings, engine health on `/clock`). Three newcomers chose Lua, Tariq FORTH; all eight companies gained, and they finished 1st (Quinn 2, Lua), 2nd and 3rd (Rosa 1, Lua; Tariq 1, FORTH), ahead of every library design. Lua rated 9.0 to learn and 8.7 for the game; Tariq's FORTH 6 and 8. Would play again 8.0, overall 7.5 (fun 7.5, clarity 7.0, depth 7.25, feedback 6.25, API 8.25), the best overall yet. No engine trouble all round. What they ran into:
+- *Supply chains beat product choice.* All four found the House pays a flat 25 to 33 credits a factory-hour whatever the system, so the edge was a Moon base with standing buy orders one credit over the depot's bid for Metals (A1): miners filled them at 14 to 24 (Quinn 2, Rosa, Tariq). Quinn 1, buying at Earth, made half what Quinn 2 did with the same script. Three asked for demand that moves (a mid-round shock) so adaptive scripts pay.
+- *Recipes by hand.* Three built their own recipe tables by parsing 149 `/protocols` descriptions; they asked for a recipe tree in the API or a `recipe()` word.
+- *The test world isn't the live market.* No miners or Moon sellers, so every Moon or buy-order plan went out untested, and it ran slowly. All four asked for a test world seeded from live prices. Sven also saw test drone ids collide with live ones on `/drones/{id}`.
+- *Fuel inside a deep build.* Sven 2 wrecked on day 18 with 5,517 credits: a long build chain took its tank from 50 to 3 and the failure path's pushes spent the rest. He asked for a fuel floor the engine enforces and a per-round fuel/instruction line on the drone page. Rosa's top-up loop lost a fuel per pull.
+- *Feedback.* Reports come every N rounds and a round is a whole system build, so Rosa and Quinn thought `report()` was broken (it wasn't: about every 2 game days). Asked for: net wealth over time, a company's open orders, the latest output more prominent. Tariq: no spaces after FORTH numbers make logs hard to read; pulls still fail with "didn't allow selling that many" when the book shows units.
+
 **FORTH survey (after round 34).** The four were asked about the language itself:
 
 | Player | Before | First working word | Hardest | Easy to learn | Enjoyed | Fits the game | Would choose |
@@ -312,6 +319,88 @@ After the round: why it was slow. Every drone shares the Game Engine in 100,000-
 After each newcomer round, race the newcomers' best scripts: release each once into a fresh world beside the usual seed mix (60 starters and the library designs), run it to game day 40, and rank by gain over the starter package (the `company_taxable` view). A script that clearly beats the best library design joins `examples/companies/` with a header naming its author and round, and its kit; keep one design per niche (the higher earner when two make the same goods). CI checks every file there loads (`check_starters`, `ReleasePageTest`).
 
 ## Round log
+
+### Markets that move (#380, after round 36)
+
+Round 36's newcomers all found the House paid a flat 25 to 33 credits a factory-hour for any product, at any place, at any time, so the only edge was a cheap supply of metals. The House's demand, supply and prices now move (migration 0028, `house_market`), each exchange its own way:
+
+| Exchange | Wave (each tier) | Length | Booms and slumps |
+|---|---|---|---|
+| Earth Exchange | ±8% | about 20 game days | ±15% |
+| Moon Depot | ±20% | about 7 game days | ±30% |
+| Mars Exchange | ±14% | about 12 game days | ±35% |
+
+- Each tier (ores, refined goods, parts, systems, modules) and side has its own wave length and phase at each exchange, and each good a smaller, faster wave (a third as high).
+- In each 8-day block, a tier and side in four has a boom or slump (two up for one down), a half sine over the block. On demand, a boom raises the bid and the quantity wanted; on supply, a shortage raises the price and cuts the quantity.
+- A bid never tops the lowest ask for the good at any exchange: no loop through the House.
+- The House's orders are posted on the website's tick (`HouseMarket`); the station drones post none themselves (they managed about 8 posts a game hour).
+- The Trader starter now buys only when the price board at Mars or Earth beats the Moon price by the trip's cost, and hauls to whichever pays more.
+- Also from round 36: the test world mirrors the live market (`LiveMirror`), recipes and recipe trees in the API and `recipe` in both libraries, `fuel-floor`, net wealth by game day, a company's open orders, a drone's fuel used per day, test drones numbered from 10,000,000.
+
+### Cheaper fuel, bigger holds (#380, after round 37)
+
+- **The station's fuel was the wrecks' main cause.** station.fth topped up its fuel once a round, and a round (about 90 imports, an action each) took one to six game days, so the Moon Depot sold about 500 fuel every two days instead of 6,000 a day. It now tops up after every import and export, to its reserve plus a quarter of a day's supply.
+- **Fuel costs less**: 3 credits a unit at every exchange (`FUEL_PRICE`, was 5; made goods' House prices count their fuel at 3), and thinking burns 1 fuel per 200,000 instructions (`POWER_INSTRUCTIONS`, was 100,000).
+- **Bigger holds**: hull 1 (every released drone) and the Cruisers carry 1,000 (migration 0029, was 500), for long trips' fuel and bigger loads. Both kits unpacked (563) now fit in one drone; it still does one thing at a time.
+- **The Trader starter** gathers 150 metals a trip (was 60), at least 40 (was 20), and counts a round trip at 200 (was 300).
+- **Players' habits, not the House's rescue**: the players' manual ("Two habits that keep a drone alive") and blog 8 show keeping a fuel reserve and checking what's for sale, with somewhere else to go. The starters are unchanged: the Miner and Refiner still set no fuel floor.
+
+### Round 37: newcomers on moving markets (#380)
+
+The round 36 mix on #408's code (moving markets, the test world's copy of the live market, `recipe`, `fuel-floor`, the new Trader), to game day 40: 60 starters, 12 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive, 3 each of the Systems shop, Electronics and Foundry, and 3 each of the Lua Maker, Miner, Systems shop and Trader. No engine stall or crash all round. All four newcomers chose Lua.
+
+| Design | Language | Companies | Avg net wealth at the end |
+|---|---|---|---|
+| Systems shop | FORTH | 3 | 13,225 |
+| Systems shop | Lua | 3 | 12,104 |
+| Newcomers (Wren) | Lua | 2 | 7,816 |
+| Newcomers (Yusuf) | Lua | 2 | 6,185 |
+| Newcomers (Viktor) | Lua | 2 | 5,568 |
+| Newcomers (Uma) | Lua | 2 | 5,352 and a wreck |
+| Foundry | FORTH | 3 | 3,387 |
+| Maker (starter) | FORTH | 12 | about 2,500 |
+| Maker | Lua | 3 | 2,830 |
+| Smith, Machinist | FORTH | 15 | about 2,750 |
+| Chemist | FORTH | 12 | about 1,575 |
+| Trader (starter) | FORTH, Lua | 15 | all under their 1,000 (170 to 820 credits) |
+| Miner, Refiner (starter) | FORTH | 36 | all wrecks |
+| Miner | Lua | 3 | all wrecks |
+| Adaptive | FORTH | 6 | all wrecks |
+
+- **Wrecks**: 50 of 129 drones (round 36: 3), days 5 to 37, nearly all out of fuel at the Moon. About 95 drones worked the Moon; the Moon Depot's fuel sold out again and again (days 4, 20, 31...), and its metals (A1) and inorganics were gone from about day 13. The starter Miner and Refiner set no `fuel-floor`: their refuel posts a bid, waits and goes back to work, mining down to 0.
+- **Leaderboard**: the six Systems shops 1st to 6th (11,800 to 14,100), whose `rest` flies to the other exchange after four idle rounds; then Wren 1 7th, Yusuf 2 8th, Viktor 1 9th.
+- **Moving markets worked**: every newcomer saw prices move and three built for it (Yusuf's miner sells raw or refined by live prices, Wren's and Uma's factories price every system from the recipe tree each round, Viktor's hauler buys systems at Earth and sells them at the Moon, a pump bought at 388 sold at 1,229). The news was read but no drone can act on it.
+- **What decided results was supply, not price**: inputs and fuel ran out at the crowded Moon. The price board shows what sold, not what can be bought, so Wren 2 flew to the Moon twice for metals that weren't there. Yusuf 2 alone at Phobos earned most.
+- **Ratings** (Uma, Viktor, Wren, Yusuf): fun 7, clarity 7, depth 7.75, feedback 7.25, API 8, again 8, overall 7.25. Lua 8.75 to learn, 8 for fit.
+- **Asked for**: starters with a fuel floor and a fallback exchange; a stock-out signal drones can read (fuel or inputs running low); deposits in the API; `sell_here` with a least price; `/check` warning when a script hides a game or Lua word (`load`, a `local mine`); copies that don't fly back to a starved home; `today()` counting from the start in the test world; leaving one's own other company out of "best other bid"; a per-company trade ledger; a third release after day 10; fix the manual's "Make Fuel → 30" (the recipe makes 28).
+
+### Round 36: newcomers on #407's fixes (#380)
+
+The round 35 world's mix, fresh from #407's code, to game day 40: 60 starters, 12 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive, 3 each of the Systems shop, Electronics and Foundry, and 3 each of the Lua Maker, Lua Miner and Lua Systems shop. No engine stall or crash all round.
+
+| Design | Language | Companies | Avg gain |
+|---|---|---|---|
+| Newcomers (Rosa) | Lua | 2 | +17,019 |
+| Newcomers (Tariq) | FORTH | 2 | +16,923 |
+| Newcomers (Quinn) | Lua | 2 | +15,960 |
+| Foundry | FORTH | 3 | +13,916 |
+| Systems shop | FORTH | 3 | +12,385 |
+| Systems shop | Lua | 3 | +12,150 |
+| Electronics | FORTH | 3 | +11,175 |
+| Maker (starter) | FORTH | 12 | about +4,600 |
+| Machinist | FORTH | 6 | +4,711 |
+| Miner (starter) | FORTH | 24 | about +4,400 |
+| Maker | Lua | 3 | +4,531 |
+| Smith | FORTH | 9 | +4,004 |
+| Newcomers (Sven) | Lua | 2 | +3,458 |
+| Miner | Lua | 3 | +3,362 |
+| Refiner (starter) | FORTH | 12 | about +2,700 |
+| Adaptive | FORTH | 6 | +2,437 |
+| Chemist | FORTH | 12 | +1,520 |
+| Trader (starter) | FORTH | 12 | 0 (they end with about 970 of their 1,000) |
+
+- **Clones**: 30. **Wrecks**: 3, all out of fuel (two Adaptive, Sven 2).
+- **Leaderboard**: Quinn 2 1st (+22,021), Rosa 1 2nd, Tariq 1 3rd: newcomers' Moon factories with standing metal bids beat the library. The Trader starter still loses money and needs work.
 
 ### Round 35: FORTH or Lua (#380)
 

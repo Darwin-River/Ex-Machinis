@@ -129,11 +129,11 @@
 \ A copy starts with no equipment: wait for its kit
 : await-kit ( -- ) begin factory-kit units 0= while 60 wait drop repeat ;
 
-\ Every 8th round, send a line home. What a drone prints reaches you only
+\ Every 4th round, send a line home. What a drone prints reaches you only
 \ when its script ends or calls report, and launched never ends
 variable tells
 : tell ( -- )
-  1 tells +!  tells @ 8 mod if exit then
+  1 tells +!  tells @ 4 mod if exit then
   ." credits " credits d. ." rods " rods units . ."  fuel " fuel units . report ;
 
 : work ( -- )

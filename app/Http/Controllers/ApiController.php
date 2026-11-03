@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Agent;
 use App\Services\DronePage;
+use App\Services\HouseMarket;
 use App\Services\LaunchQueue;
 use App\Services\Leaderboard;
 use App\Services\LiveQuery;
+use App\Services\Recipes;
 use App\Services\Release;
 use App\Services\TestWorld;
 use App\Services\World;
@@ -78,6 +80,10 @@ class ApiController extends Controller
     /** A drone: where it is, what it carries, what it's doing and has said */
     public function drone(int $id): JsonResponse
     {
+        if ($id >= self::TEST_DRONES_FROM) {
+            return $this->notFound('That is a test drone (test drones are numbered from 10,000,000): '
+                . 'its run is at /api/v1/test/{token}.');
+        }
         $agent = Agent::where('agent_id', $id)->first();
         if (!$agent) {
             return $this->notFound('There is no such drone.');
@@ -92,6 +98,7 @@ class ApiController extends Controller
             'clones' => $state['clones']->pluck('agent_id')->map(fn ($c) => (int) $c)->all(),
             'generation' => $state['generation'],
             'instructions' => $state['instructions'],
+            'fuel_last_day' => $state['fuel_day'],
             'crashes' => $state['crashes'],
             'cargo' => DB::table('sqInventory as i')->join('resources as r', 'r.id', '=', 'i.resource')
                 ->where('i.drone', $id)->where('i.units', '>', 0)->orderBy('i.resource')
@@ -113,8 +120,15 @@ class ApiController extends Controller
      * (?side=sell) or buy (the default), for one resource (?resource=) and
      * one place (?place=, an object ID or name)
      */
+    /** Test drones' numbers start here (init_test_world.sh), so none is a live drone's */
+    public const TEST_DRONES_FROM = 10000000;
+
     public function orders(Request $request): JsonResponse
     {
+        // ?world=test: the test world's book (#380 round 36: it mirrors the
+        // live one, LiveMirror, and has its own House)
+        $db = $request->query('world') === 'test' && TestWorld::available()
+            ? DB::connection(TestWorld::CONNECTION) : DB::connection();
         $type = $request->query('side') === 'sell' ? 4 : 5;
         $open = $type === 4 ? 'IFNULL(i.units, 0) - e.new_quantity > 0' : 'e.new_quantity - IFNULL(i.units, 0) > 0';
         $where = '';
@@ -128,12 +142,20 @@ class ApiController extends Controller
             $where .= ctype_digit($place) ? ' AND a.object_id = ?' : ' AND o.object_name = ?';
             $bind[] = ctype_digit($place) ? (int) $place : $place;
         }
-        $rows = DB::select(
+        // ?company=: one company's open orders (#380 round 36), by number or name
+        if ($request->filled('company')) {
+            $company = (string) $request->query('company');
+            $where .= ctype_digit($company) ? ' AND a.company_id = ?' : ' AND c.name = ?';
+            $bind[] = ctype_digit($company) ? (int) $company : $company;
+        }
+        $rows = $db->select(
             "SELECT e.drone, a.name AS drone_name, e.resource, r.name AS resource_name, e.new_credits AS price,
-                    ABS(IFNULL(i.units, 0) - e.new_quantity) AS units, a.object_id AS place_id, o.object_name AS place
+                    ABS(IFNULL(i.units, 0) - e.new_quantity) AS units, a.object_id AS place_id, o.object_name AS place,
+                    a.company_id, c.name AS company_name
              FROM events e
              JOIN (SELECT MAX(id) AS id FROM events WHERE event_type = ? AND outcome = 1 GROUP BY drone, resource) l ON l.id = e.id
              JOIN agents a ON a.agent_id = e.drone AND a.wrecked_at IS NULL
+             LEFT JOIN companies c ON c.company_id = a.company_id
              LEFT JOIN resources r ON r.id = e.resource
              LEFT JOIN objects o ON o.object_id = a.object_id
              LEFT JOIN sqInventory i ON i.drone = e.drone AND i.resource = e.resource
@@ -144,6 +166,7 @@ class ApiController extends Controller
             'drone' => (int) $r->drone, 'drone_name' => $r->drone_name, 'resource' => (int) $r->resource,
             'resource_name' => $r->resource_name, 'price' => (int) $r->price, 'units' => (int) $r->units,
             'place_id' => (int) $r->place_id, 'place' => $r->place,
+            'company_id' => (int) $r->company_id, 'company' => $r->company_name,
         ], $rows));
     }
 
@@ -195,6 +218,39 @@ class ApiController extends Controller
     {
         return response()->json(DB::table('protocols')->orderBy('id')->get(['id', 'name', 'description'])
             ->map(fn ($p) => ['id' => (int) $p->id, 'name' => $p->name, 'description' => $p->description])->all());
+    }
+
+    /** Recipes (#380 round 36): all, or ?resource= those that make it */
+    public function recipes(Request $request): JsonResponse
+    {
+        $all = Recipes::all();
+        $list = $request->filled('resource') ? Recipes::making((int) $request->query('resource'), $all) : array_values($all);
+        return response()->json($list);
+    }
+
+    /** What one unit takes, all the way down to refined goods (?down_to=1: ores) */
+    public function recipeTree(Request $request, int $resource): JsonResponse
+    {
+        if (!DB::table('resources')->where('id', $resource)->exists()) {
+            return $this->notFound('There is no such resource.');
+        }
+        $downTo = (int) $request->query('down_to', 2) === 1 ? 1 : 2;
+        return response()->json(Recipes::tree($resource, $downTo));
+    }
+
+    /** The House's booms, slumps, shortages and gluts under way (#380 round 36) */
+    public function news(): JsonResponse
+    {
+        return response()->json(HouseMarket::news());
+    }
+
+    /** A company's credits and net wealth once a game day (#380 round 36) */
+    public function companyHistory(int $id): JsonResponse
+    {
+        if (!DB::table('companies')->where('company_id', $id)->exists()) {
+            return $this->notFound('There is no such company.');
+        }
+        return response()->json(Leaderboard::history($id));
     }
 
     public function queries(): JsonResponse
