@@ -117,7 +117,31 @@ class DronePage
             'generation' => (int) $agent->generation,
             'instructions' => (int) $agent->instructions,
             'crashes' => (int) $agent->crashes_total,
+            'fuel_day' => self::fuelLastDay($agent),
         ];
+    }
+
+    /**
+     * The fuel the drone used in the last game day (#380 round 36: Sven found
+     * his drone's thinking cost a fuel a round only from test events): for
+     * its actions and for thinking (its computer's power, protocol 2)
+     */
+    public static function fuelLastDay(Agent $agent): array
+    {
+        $now = World::gameNow();
+        $rows = DB::select(
+            'SELECT x.protocol = 2 AS thinking, SUM(x.prev - x.q) AS used FROM (
+                 SELECT e.game_t, e.new_quantity AS q, LAG(e.new_quantity) OVER (ORDER BY e.id) AS prev, a.protocol
+                 FROM events e LEFT JOIN actions a ON a.id = e.action
+                 WHERE e.drone = ? AND e.resource = ? AND e.outcome = 1 AND e.event_type IN (1, 2)
+                   AND e.installed = 0 AND e.locked = 0 AND e.game_t > ?) x
+             WHERE x.game_t > ? AND x.game_t <= ? AND x.prev > x.q GROUP BY thinking',
+            [$agent->agent_id, self::FUEL, $now - 2 * 86400, $now - 86400, $now]);
+        $used = ['actions' => 0, 'thinking' => 0];
+        foreach ($rows as $r) {
+            $used[(int) $r->thinking ? 'thinking' : 'actions'] = (int) $r->used;
+        }
+        return $used;
     }
 
     /** Where the drone's code comes from, and its words */

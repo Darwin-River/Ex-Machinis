@@ -63,7 +63,7 @@ class Release
     public const STARTERS = [
         'miner' => 'Mines kunspar on the Moon, refines it and sells the metals to the Moon Depot.',
         'refiner' => 'Brews fuel on the Moon from yalspar and vladnium, and sells what it doesn\'t need to other drones.',
-        'trader' => 'Buys metals from miners on the Moon and hauls them to Mars, where the House pays more.',
+        'trader' => 'Buys metals from miners on the Moon when the price board says Mars or Earth pays enough more, and hauls them to whichever pays most.',
         'maker' => 'Buys metals on the Moon where they are cheapest, makes alloys and rods, and sells them where they pay best.',
         'miner.lua' => 'The Miner in Lua instead of FORTH (#380): the same drone.',
         'refiner.lua' => 'The Refiner in Lua instead of FORTH (#380): the same drone.',

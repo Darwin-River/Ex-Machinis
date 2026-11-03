@@ -1,23 +1,43 @@
 \ Trader: a starter script for Public Forge. Release
 \ it with the Mining Kit (it only uses the Engine).
-\ It works the Moon, where the Miner offers its metals to other drones
-\ between the best bid and the cheapest other seller there. It buys
-\ them, hauls a load to Mars, where buyers have paid more (check the price
-\ board, query 680), sells it and comes back. It buys its fuel at the
-\ exchanges, from whoever sells it cheapest. Copies compete for the
-\ miners' metals: the first to buy gets them.
+\ It works the Moon, where the miners offer their metals to other drones.
+\ The House's prices move (each exchange its own way: booms, slumps,
+\ shortages and gluts), so it doesn't trade at fixed prices: for each
+\ metal it looks at what it sold for at Mars and at Earth over the last
+\ game day (the price board, query 680) and buys here only when that, less
+\ the sales tax, beats the seller's price by enough to pay for the trip.
+\ With a load aboard it flies wherever the load fetches most, sells it and
+\ comes back. It buys its fuel at the exchanges, from whoever sells it
+\ cheapest. (Round 36: with fixed prices, all 12 Traders ended slightly
+\ down.)
 
 \ Settings: change these numbers to make it your own
 60 constant cargo-goal   \ metals it gathers before setting off
 20 constant min-load     \ ...or this many, after shopping a while
 24 constant patience     \ looks at the market before it goes with less
-20 constant trip-fuel    \ fuel it wants aboard before a trip
-120 constant nap         \ game minutes to rest when nobody sells
+25 constant trip-fuel    \ fuel it wants aboard before a trip
+300 constant trip-cost   \ what a round trip costs (fuel, time)
+2 constant min-margin    \ least profit a unit, after the trip and the tax
+120 constant nap         \ game minutes to rest when nothing pays
 
-\ The most it pays a unit, under what it expects to get at Mars (the Miner
-\ asks about 25, 37 and 50 at the Moon)
+\ What a resource sold for, a unit, at a place over the last game day (the
+\ public price board, query 680: 12 cells a row, the resource first, the
+\ units at +2 and the credits at +6, both doubles); 0 if none sold there
+: board-price ( resource place -- price )
+  swap 680 ask 0 max begin dup while 1- dup 12 * answer +
+    dup @ 3 pick = if
+      dup 6 + 2@ drop swap 2 + 2@ drop  ?dup if / else drop 0 then
+      nip nip exit
+    then drop
+  repeat 2drop 0 ;
+
+\ What a metal fetches at a place, less the 5% sales tax; the best of Mars
+\ and Earth; and the most it pays here, less its share of the trip and the
+\ margin
+: worth ( metal place -- n ) board-price 95 100 */ ;
+: best-worth ( metal -- n ) dup mars worth swap earth worth max ;
 : max-price ( metal -- price )
-  dup metals-a1 = if drop 25 exit then metals-a2 = if 40 else 55 then ;
+  best-worth trip-cost cargo-goal / - min-margin - ;
 
 : metals ( -- n ) metals-a1 units metals-a2 units + metals-a3 units + ;
 
@@ -59,7 +79,15 @@ variable got   variable looks
   dup units 15 min ?dup if swap sell-best else drop then ;
 variable rounds
 
-\ Look for sellers; rest a while when nobody sells. Each look counts
+\ What the load aboard fetches at a place, and where it fetches most
+: load-worth ( place -- n ) >r
+  metals-a1 units metals-a1 r@ board-price *
+  metals-a2 units metals-a2 r@ board-price * +
+  metals-a3 units metals-a3 r@ board-price * +  r> drop ;
+: destination ( -- place )
+  mars load-worth earth load-worth < if earth else mars then ;
+
+\ Look for sellers; rest a while when nothing pays. Each look counts
 \ toward going with a smaller load, so a trader that buys a little at a
 \ time still sets off. Shopping burns fuel too (computing): keep the tank
 \ up here
@@ -75,7 +103,8 @@ variable rounds
     60 wait drop 1 rounds +!
   repeat ;
 
-: haul ( -- ) fuel-up mars go drop sell-metals fuel-up moon go drop 0 looks ! ;
+: haul ( -- )
+  fuel-up destination go drop sell-metals fuel-up moon go drop 0 looks ! ;
 
 \ A full load, or a smaller one after waiting long enough, or whatever it
 \ has once its money is spent
@@ -84,12 +113,13 @@ variable rounds
   metals min-load < 0= looks @ patience < 0= and or
   metals 0> spare 20 < and or ;
 
-\ Every 8th round, send a line home. What a drone prints reaches you only
+\ Every 4th round, send a line home. What a drone prints reaches you only
 \ when its script ends or calls report, and launched never ends
 variable tells
 : tell ( -- )
-  1 tells +!  tells @ 8 mod if exit then
-  ." credits " credits d. ." fuel " fuel units . report ;
+  1 tells +!  tells @ 4 mod if exit then
+  ." day " today . ." credits " credits d. ." fuel " fuel units .
+  ." metals " metals . report ;
 
 : work ( -- ) ready? if haul else shop then tell ;
 

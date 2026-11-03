@@ -44,13 +44,16 @@ A company is a script, in FORTH or Lua: you can't steer it once it's released. T
    - `GET /orders` for who buys and sells what, where, and at what price;
    - `GET /trades` for what has sold;
    - `GET /history` for what each resource sold for, day by day;
+   - `GET /news` for the booms, slumps, shortages and gluts under way at the exchanges (House prices move);
+   - `GET /recipes` and `GET /recipes/{id}/tree` for what each thing takes to make;
    - `GET /places` for where the drones are.
 2. **Write a script and check it** with `POST /check`, which returns the Release page's warnings.
 3. **Try it in the test world** with `POST /test`, then poll `GET /test/{token}` for the results.
 4. **Release it** with `POST /release`.
 5. **Follow it:**
-   - `GET /companies?name=...` for credits, net wealth and drones;
-   - `GET /drones/{id}` for where each drone is, its cargo, what it is doing, what it has said, and what went wrong.
+   - `GET /companies?name=...` for credits, net wealth and drones, and `GET /companies/{id}/history` for net wealth day by day;
+   - `GET /orders?company=...` for its open orders;
+   - `GET /drones/{id}` for where each drone is, its cargo, what it is doing, the fuel it used today, what it has said, and what went wrong.
 6. **Learn and release a better version** under a new name. Every company is an experiment.
 
 The [players' manual](players-manual.md) explains the game and the FORTH words. The [strategy blog](blog) has working examples.
@@ -139,6 +142,10 @@ Look the company up by name later.
 
 The script runs in the **test world**. This is a separate world with the same rules and a faster clock, where nothing touches the live game. It answers `503` when the game runs without one.
 
+**The live market is there too.** Every few real minutes, a company called "Live market" copies the live world's best orders into the test world: at each place, for each good, the cheapest sell order (with the units the live sellers offer at that price) and the dearest buy order. So a plan that buys metals from the Moon's miners can be tried. What a test drone buys from it comes back at the next copy, and what it sells to it goes. `GET /orders?world=test` lists the test world's orders. The test world has its own House, whose prices move on its own clock, and its own game day: `today` there is in the thousands, so count days from the start of your run rather than from day 0.
+
+**Test drones are numbered from 10,000,000,** so no test drone shares a live drone's number. `GET /drones/{id}` answers 404 for them; their results are at `GET /test/{token}`.
+
 **Response:** `201 Created`.
 
 ```json
@@ -172,6 +179,15 @@ The script starts loading at once. A run keeps going for 30 real minutes; after 
 Poll every 30 seconds or so.
 
 ## Your companies and drones
+
+### `GET /companies/{id}/history`: net wealth day by day
+
+Each company's credits, net wealth and working drones, taken once a game day, oldest first. The last 60 game days are kept day by day; older ones every 10th day.
+
+```json
+[{"day": 12, "credits": 3605, "net_wealth": 2890, "drones": 1},
+ {"day": 13, "credits": 4120, "net_wealth": 3410, "drones": 1}]
+```
 
 ### `GET /companies?name=<name>` and `GET /companies/{id}`
 
@@ -212,6 +228,7 @@ Use this to see what a drone is doing. It gives what the drone's page shows:
 | `post_mortem` | for a wreck: `{cause}`, why it died, in plain words |
 | `parent`, `clones`, `generation` | its family |
 | `instructions`, `crashes` | how much it has computed (1 fuel per 100,000 instructions), and how often its `launched` word has crashed |
+| `fuel_last_day` | `{actions, thinking}`: the fuel it used in the last game day, for its actions and for its computer |
 | `script` | the script it runs |
 
 ## The market
@@ -225,6 +242,8 @@ Parameters:
 | `side` | `buy` | `buy` or `sell` |
 | `resource` | all | a resource ID (see `/resources`) |
 | `place` | everywhere | an object ID or name (`Moon`, `Earth`, `Phobos`...) |
+| `company` | everyone | a company ID or name: that company's open orders |
+| `world` | live | `test`: the test world's orders (the live market's copy, its own House and test drones) |
 
 ```sh
 curl -s "$B/orders?side=sell&resource=2061&place=Moon"
@@ -233,9 +252,9 @@ curl -s "$B/orders?side=sell&resource=2061&place=Moon"
 ```json
 [
   {"drone": 104, "drone_name": "SN771450", "resource": 2061, "resource_name": "Fuel (A1)",
-   "price": 4, "units": 1, "place_id": 10, "place": "Moon"},
+   "price": 4, "units": 1, "place_id": 10, "place": "Moon", "company_id": 61, "company": "Kira 1"},
   {"drone": 2, "drone_name": "Moon Depot", "resource": 2061, "resource_name": "Fuel (A1)",
-   "price": 5, "units": 838, "place_id": 10, "place": "Moon"}
+   "price": 5, "units": 838, "place_id": 10, "place": "Moon", "company_id": 1, "company": "The House"}
 ]
 ```
 
@@ -244,6 +263,29 @@ curl -s "$B/orders?side=sell&resource=2061&place=Moon"
 **Units:** for a sell order, how many the seller will sell. For a buy order, how many the buyer still wants.
 
 **The exchanges' station drones** (Earth Exchange, Moon Depot, Mars Exchange) trade through orders like everyone else. Their orders are listed here. There is no separate price list.
+
+**House prices move.** What each exchange bids and asks, and how much it buys and sells a day, moves over game time, each exchange in its own way: the Earth Exchange in long, shallow waves; the Moon Depot in short, deep ones; the Mars Exchange with the sharpest booms and slumps. The prices change every half game day. An exchange never bids more for a good than any exchange asks for it. `GET /news` says which booms and slumps are under way.
+
+**When a pull fails** with "the seller's order didn't allow selling that many", someone else bought those units first, or the seller sold or used them, between your look and your pull. `buy-here` (`buy_here` in Lua) then tries the next seller.
+
+### `GET /news`: booms, slumps, shortages and gluts
+
+Each exchange's demand (what the House buys) and supply (what it sells) has its booms and slumps, by tier of goods (ores, refined goods, parts, systems, modules). Each runs for 8 game days and is strongest in the middle. Strongest first:
+
+```json
+[{"place": "Mars Exchange", "tier": "systems", "side": "demand", "kind": "boom", "percent_now": 31,
+  "from_day": 40, "to_day": 48,
+  "text": "Mars Exchange: a boom in systems (demand): the House bids up 31%, days 40 to 48."}]
+```
+
+| `kind` | Meaning |
+|---|---|
+| `boom` | the House buys more of these, and bids more |
+| `slump` | it buys fewer, and bids less |
+| `shortage` | it sells fewer, and asks more |
+| `glut` | it sells more, and asks less |
+
+`percent_now` is how far the boom or slump moves prices now, on top of the exchange's slower waves. Drones can't read the news: they see what it does to prices where they are.
 
 Drones see these orders only where they are, through `best-bid`, `best-offer` and queries 600 and 610. The API shows every place at once, which helps you decide where to send a company.
 
@@ -283,6 +325,8 @@ Every trade of the last `days` game days (60 if you leave it out, at most 365), 
 |---|---|
 | `GET /resources` | every resource and module: `{id, name, mass}`. The IDs are what the game words take: `fuel` is 2061, `metals-a1` is 2011 |
 | `GET /protocols` | the actions a drone can `perform`: `{id, name, description}` |
+| `GET /recipes?resource=4311` | the recipes (leave `resource` out for all): `{protocol, name, makes: [{resource, name, units}], uses: [...], fuel, tool, tool_name, hours}` |
+| `GET /recipes/{id}/tree` | what one unit takes, all the way down to refined goods (metals, organics, inorganics): `{goods: [{resource, name, units}], fuel, tool_hours: [{tool, name, hours}], steps}`. `?down_to=1` goes down to ores. It follows each good's first recipe |
 | `GET /queries` | the queries a drone can `query`, by ID: `{name, parameters, strings}` |
 
 The [players' manual](players-manual.md) explains each protocol and query and how to read their results.

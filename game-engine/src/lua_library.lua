@@ -21,13 +21,30 @@ local inorganics_a2, organics_a2 = 2032, 2042
 local alloys_a1, alloys_a2, alloys_a3 = 2021, 2022, 2023
 local rods = 3011
 
+-- A fuel floor (#380 round 36: Sven 2 sold its last fuel away in a deep
+-- build): once set, at or below it make (but fuel), mine, refine and push
+-- refuse with -30, so the fuel left is for buying fuel
+local floor_fuel = 0
+local function fuel_floor(n) floor_fuel = n or 0 end
+local function floored()
+  if floor_fuel <= 0 then return false end
+  local rows = query(212, fuel)
+  return (rows and rows[1] and rows[1][1] or 0) <= floor_fuel
+end
+
 -- Actions
 local function travel(place) return perform(5001, place) end
-local function mine(mineral) return perform(mineral + 10000) end
-local function refine(mineral) return perform(mineral + 20000) end
-local function make(resource) return perform(resource + 10000) end
+local function mine(mineral) if floored() then return -30 end return perform(mineral + 10000) end
+local function refine(mineral) if floored() then return -30 end return perform(mineral + 20000) end
+local function make(resource)
+  if resource ~= fuel and floored() then return -30 end
+  return perform(resource + 10000)
+end
 local function wait(minutes) return perform(3, minutes) end
-local function push(n, resource, drone) return perform(10, n, resource, drone) end
+local function push(n, resource, drone)
+  if floored() then return -30 end
+  return perform(10, n, resource, drone)
+end
 local function pull(n, resource, drone) return perform(11, n, resource, drone) end
 local function launch(drone, kit) return perform(12, drone, kit) end
 local function plunder(wreck) return perform(34, wreck) end
@@ -235,7 +252,24 @@ local function my_clones()
   return list
 end
 
-local function stdlib() return 17 end
+-- The first recipe that makes a resource (#380 round 36), or nil:
+-- {protocol, makes (units of it), uses = {[resource] = units}, fuel, tool,
+-- hours}
+local function recipe(resource)
+  local rows = ask(695, resource)
+  if not rows[1] then return nil end
+  local r = {protocol = rows[1][1], makes = 0, uses = {}, fuel = 0, hours = rows[1][4] / 60}
+  for _, row in ipairs(rows) do
+    local res, n = row[2], row[3]
+    if res == resource and n > 0 then r.makes = n
+    elseif n == 0 then r.tool = res
+    elseif res == fuel and n < 0 then r.fuel = -n
+    elseif n < 0 then r.uses[res] = -n end
+  end
+  return r
+end
+
+local function stdlib() return 18 end
 
 -- Every name above, for scripts
 _G.earth = earth
@@ -314,4 +348,6 @@ _G.events_earth = events_earth
 _G.event_drone = event_drone
 _G.message = message
 _G.my_clones = my_clones
+_G.recipe = recipe
+_G.fuel_floor = fuel_floor
 _G.stdlib = stdlib

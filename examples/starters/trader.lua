@@ -1,25 +1,29 @@
 -- Trader: a starter script for Public Forge, in Lua (#380). Release it
 -- with the Mining Kit (it only uses the Engine).
--- It works the Moon, where the Miner offers its metals to other drones
--- between the best bid and the cheapest other seller there. It buys them,
--- hauls a load to Mars, where buyers have paid more (check the price
--- board), sells it and comes back. It buys its fuel at the exchanges, from
--- whoever sells it cheapest. Copies compete for the miners' metals: the
--- first to buy gets them.
+-- It works the Moon, where the miners offer their metals to other drones.
+-- The House's prices move (each exchange its own way: booms, slumps,
+-- shortages and gluts), so it doesn't trade at fixed prices: for each metal
+-- it looks at what it sold for at Mars and at Earth over the last game day
+-- (the price board) and buys here only when that, less the sales tax,
+-- beats the seller's price by enough to pay for the trip. With a load
+-- aboard it flies wherever the load fetches most, sells it and comes back.
+-- It buys its fuel at the exchanges, from whoever sells it cheapest.
+-- (Round 36: with fixed prices, all 12 Traders ended slightly down.)
 -- The same drone as trader.fth, in Lua.
 
 -- Settings: change these numbers to make it your own
 cargo_goal = 60    -- metals it gathers before setting off
 min_load = 20      -- ...or this many, after shopping a while
 patience = 24      -- looks at the market before it goes with less
-trip_fuel = 20     -- fuel it wants aboard before a trip
-nap = 120          -- game minutes to rest when nobody sells
+trip_fuel = 25     -- fuel it wants aboard before a trip
+trip_cost = 300    -- what a round trip costs (fuel, time): spread over a load
+min_margin = 2     -- least profit a unit, after the trip and the tax
+nap = 120          -- game minutes to rest when nothing pays
 cash_floor = 200   -- credits it keeps for fuel: a trader that spends every
                    -- credit on metals can't buy fuel, and is stranded
 
--- The most it pays a unit, under what it expects to get at Mars
-max_price = {[metals_a1] = 25, [metals_a2] = 40, [metals_a3] = 55}
 traded = {metals_a1, metals_a2, metals_a3}
+markets = {mars, earth}
 
 function metals()
   local n = 0
@@ -29,12 +33,30 @@ end
 
 function spare() return math.max(credits() - cash_floor, 0) end
 
+-- Where a metal fetches most, and what (yesterday's price there, less the
+-- 5% sales tax); 0 where it didn't trade
+function best_market(metal)
+  local where, best = mars, 0
+  for _, place in ipairs(markets) do
+    local p = board_price(metal, place) * 95 // 100
+    if p > best then where, best = place, p end
+  end
+  return where, best
+end
+
+-- The most it pays a unit here: what it fetches, less its share of the
+-- trip and the margin
+function max_price(metal)
+  local _, worth = best_market(metal)
+  return worth - trip_cost // cargo_goal - min_margin
+end
+
 -- Buy what the cheapest seller here offers of one metal, if the price is
 -- right, there is room in this load and the spare credits pay for it.
 -- True if it bought any
 function buy(metal)
   local price, seller, avail = best_offer(metal)
-  if avail == 0 or price > max_price[metal] then return false end
+  if avail == 0 or price > max_price(metal) then return false end
   local n = math.min(avail, cargo_goal - metals(), spare() // math.max(price, 1))
   if n <= 0 then return false end
   return pull(n, metal, seller) == 0
@@ -61,7 +83,25 @@ function sell_metals()
   end
 end
 
--- Look for sellers; rest a while when nobody sells. Each look counts
+-- Where the load aboard fetches most
+function destination()
+  local value = {}
+  for _, metal in ipairs(traded) do
+    local n = units(metal)
+    if n > 0 then
+      for _, place in ipairs(markets) do
+        value[place] = (value[place] or 0) + n * board_price(metal, place)
+      end
+    end
+  end
+  local where, best = mars, -1
+  for _, place in ipairs(markets) do
+    if (value[place] or 0) > best then where, best = place, value[place] or 0 end
+  end
+  return where
+end
+
+-- Look for sellers; rest a while when nothing pays. Each look counts
 -- toward going with a smaller load
 looks = 0
 function shop()
@@ -76,7 +116,7 @@ end
 
 function haul()
   fuel_up()
-  go(mars)
+  go(destination())
   sell_metals()
   fuel_up()
   go(moon)
@@ -90,12 +130,12 @@ function ready()
   return n >= cargo_goal or (n >= min_load and looks >= patience) or (n > 0 and spare() < 20)
 end
 
--- Every 8th round, send a line home
+-- Every 4th round, send a line home
 rounds = 0
 function tell()
   rounds = rounds + 1
-  if rounds % 8 ~= 0 then return end
-  print("credits " .. credits() .. " fuel " .. units(fuel))
+  if rounds % 4 ~= 0 then return end
+  print("day " .. today() .. " credits " .. credits() .. " fuel " .. units(fuel) .. " metals " .. metals())
   report()
 end
 

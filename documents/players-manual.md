@@ -107,7 +107,9 @@ A released drone can't be sent new commands from the Release page, so test your 
 - you go to the test run's own page, which shows what the test drone prints, its latest events (what it did, its cargo and credits), its trades and any crashes: keep its link to come back to it;
 - nothing in the test world affects the live one, and you can test as often as you like (the latest hundred test runs are kept);
 - your script starts loading at once, ahead of the drones already running there, and a run keeps going for 30 real minutes: after that the next test stops it, though its results stay readable;
-- the test world has its own market, so trades there are only with other test runs.
+- the test world's market copies the live one: every few real minutes a company called "Live market" posts the live world's best orders there, at each place, with the goods to sell (what your test drone buys from it comes back at the next copy). So a plan that buys metals from the Moon's miners can be tried before you release it. The test world also has its own House, with its own moving prices; `/api/v1/orders?world=test` lists its orders;
+- the test world's game day is its own, in the thousands: count days from the start of your run, not from day 0, if your script cares (`today` there is not the live world's day);
+- test drones are numbered from 10,000,000, so their numbers never match a live drone's.
 
 Both the Test button and a release warn you if your script redefines a word your drone already knows, such as `report`, `load` or `pick`. Your word then replaces the drone's for everything written after it, which is rarely what you want: rename yours.
 
@@ -119,7 +121,7 @@ Not sure where to begin? The Release page offers four starter scripts: click **M
 
 - **Miner** (Mining Kit): mines kunspar or wolfite on the Moon, whichever has more left there (`richer`), refines it and sells the metals (and wolfite's Inorganics A2). It offers them to other drones first, halfway between the best buy order and the cheapest other sell order, and sells the rest into the best buy orders. If the Moon's deposit stays dry (twelve tries in a row: other miners got there first) and fewer drones work at Phobos than at the Moon, it moves to Mars's moons. Once it can afford to launch copies of itself, two in three of them make the long trip to Mars's moons (about 10 game days) and sell at the Mars Exchange. It buys its fuel wherever it's cheapest; where nobody sells it (Phobos and Deimos), it posts a fuel buy order at 7 and broadcasts that it needs fuel, waits two game hours for a courier, then flies to the Mars Exchange if none came.
 - **Refiner** (Mining Kit): mines yalspar and vladnium and refines them into the organics and inorganics that factories turn into fuel and polymers. It sells them the same way.
-- **Trader** (Mining Kit, though it only uses the Engine): buys metals from the miners on the Moon and hauls them to Mars, where buyers have paid more (check the price board).
+- **Trader** (Mining Kit, though it only uses the Engine): buys metals from the miners on the Moon when the price board says Mars or Earth paid enough more to cover the trip, and hauls the load to whichever pays most. House prices move, so its chances come and go.
 - **Maker** (Factory Kit): buys metals at the Moon wherever they're cheapest, makes them into alloys and rods, and sells the rods where they pay best: at the Moon, or at Earth when rods fetch enough more there to pay for the trip. With enough credits it launches a copy of itself.
 
 Loading a script is free and quick: your drone reads the whole of it in one go when it is released, and starts `launched` a few game minutes later (behind the other drones' turns). The fuel bill starts when `launched` runs. Long, well-commented scripts are fine. Code at the top level of a script, outside any word, runs while it loads, with a one-time allowance of 20 million instructions; past that it runs at the normal pace, 100,000 instructions a turn.
@@ -354,7 +356,7 @@ The drone replies with 0 once the kit is unpacked.
 Everything your spacecraft does burns fuel, Fuel (A1) (resource 2061):
 
 - **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (mining, a transfer or an order) to 30 (launching a spacecraft, 20 of which go into the new one's hold). The protocol's description says how much. Unpacking a kit and waiting are free; everything else costs fuel, buying fuel included. Without the fuel, `perform` leaves -2 and nothing happens.
-- **Thinking.** Running your program burns power: 1 fuel for every 100,000 FORTH instructions your spacecraft runs. Words that do less work cost less to run.
+- **Thinking.** Running your program burns power: 1 fuel for every 100,000 FORTH instructions your spacecraft runs. Words that do less work cost less to run. A drone's page shows the fuel it used in the last game day, for actions and for thinking.
 
 A new spacecraft starts with 100 fuel. When it runs out and can't pay for its thinking, it becomes a **wreck** for good. So keep an eye on your fuel (query your inventory) and make or buy more before you run dry: it's for sale at the exchanges (see [Trading at the exchanges](#trading-at-the-exchanges)).
 
@@ -366,6 +368,12 @@ A new spacecraft starts with 100 fuel. When it runs out and can't pay for its th
   : call-for-fuel ( -- )
     15 60 fuel buy-order drop
     begin fuel units 20 < while 120 wait drop repeat ;
+```
+
+<a name="fuel-floor"></a>**A fuel floor.** A long build or a selling spree can spend a tank without your program noticing: each `make` and each push costs fuel, and a drone that sells its last unit of fuel away can't buy more. `n fuel-floor` (Lua: `fuel_floor(n)`) sets a floor: at or below n fuel, `make` (but for making fuel), `mine`, `refine` and `push` (and so `sell-here`) refuse with -30, leaving the fuel you have for buying more. Travel, waiting, orders and buying still work. Set it once in `launched`; `0 fuel-floor` turns it off.
+
+```
+  : launched ( -- ) 15 fuel-floor  unpack drop  begin work again ;
 ```
 
 The buy order is the call: a seller sees it in the market (`fuel best-bid`, the order lists), so there's no need to broadcast as well. Selling into such bids is also a business. A **fuel courier** carries fuel to where drones work and run low (mining sites, Phobos and Deimos, the far side of a long trip), looks for buy orders for fuel there (`fuel best-bid`) and pushes fuel into them for profit. The more drones run low, the more a courier earns.
@@ -648,6 +656,8 @@ Every drone comes with a vocabulary for the game, so you can write `kunspar mine
 | State machines | `become ( mode -- )`, `in? ( mode -- f )`, `tick ( -- )`, `ticks ( -- n )` and the variable `mode`: a drone that changes what it does as the market changes (see [Market-aware drones](#market-aware-drones)) |
 | Arithmetic | `2* ( n -- n*2 )`, `2/ ( n -- n/2 )` and `*/ ( a b c -- a*b/c )`, which keeps the product as a double so it can't overflow: `qty price 95 100 */` is 95% of qty × price. Words you may know from other FORTHs and won't find here: `do`, `?do`, `loop`, `i`, `leave`, `m/mod` |
 | Loops | This FORTH has no `do ... loop` (nor `?do`, `i`): use `n for ... next` (runs n+1 times, `r@` counts down) or `begin ... until`, `begin ... while ... repeat`, `begin ... again`. See [Loops](#chapter-9-making-decisions). |
+| Recipes | `recipe ( resource -- rows )` puts the first recipe that makes a resource in `answer`, a row of 4 cells for each resource it changes: `recipe-row ( i -- addr )` is row i (from 0); at `addr` the protocol, at `addr 2 +` the resource, at `addr 4 +` the units (made: positive; used, fuel too: negative; its tool: 0), at `addr 6 +` the minutes it takes. `4311 recipe` (Pumps (A1)) gives 5 rows: the pump +1, the Spider 0, rods -1, hoses -1, fuel -4, 480 minutes each. The API's `/recipes/{id}/tree` adds it all up for you |
+| Safety | `fuel-floor ( n -- )`: at or below n fuel, `make` (but for fuel), `mine`, `refine` and `push` (so `sell-here`) refuse with -30, keeping the fuel left for buying more (see [A fuel floor](#fuel-floor)) |
 | Helpers | `sell-all ( resource )` sells all of it here with `sell-here`; `sell-to-station` and `buy-from-station` are older names for `sell-here` and `buy-here`; `go ( place -- ior )` travels there unless the drone is already there (then it leaves 0 at once) |
 
 `jettison` throws n units of a resource out of the hold into space, for 1 fuel whatever the amount. Use it for goods nobody buys where you are: a hold that fills up leaves no room for the fuel you make, and a drone without fuel dies. `10 2032 jettison drop` throws away 10 Inorganics (A2).
@@ -845,6 +855,16 @@ So to stop an order, post one that can't fill. A buy order wants up to its limit
 Earth, the Moon and Mars each have an exchange where the House trades through a **station drone** named after it ("Earth Exchange", "Moon Depot", "Mars Exchange"). On the market a station drone is a drone like any other: its buy and sell orders are in the order book, you sell to it by pushing into its buy order and buy from it by pulling from its sell order, at its prices, and the sales tax applies. The only thing it does that you can't: it brings what it sells up from the planet surface and sends what it bought down, with modules no player can get.
 
 Every exchange buys and sells a little of every product a drone can mine, refine or make, from the first day of a world: ores, refined goods, alloys and polymers, parts, systems, modules, hulls and kits (all but the big ship kits). So any good can be bought to use, or made to sell, wherever you start. The exchanges are the market of last resort, not a rival: an exchange buys a good at about three quarters of its value and sells it at half as much again, twice what it pays. Sell to another player for more than the exchange bids, or buy from one for less than it asks, and you both beat the House; making a good yourself usually beats buying it there. It keeps a modest stock of each on offer (about 20 units of a cheap good, down to 4 of a dear one), and its buy order wants about four times that a day: the more of a good it has bought, the less it bids, down to half its starting price. Once a game day it sends what it bought down to the surface and its bid recovers; the goods it sells are restocked every game hour, fuel and raw goods first. A new world's exchanges open with their stock on board and all their orders up. Some goods it buys in larger numbers (refined metals, alloys and polymers at Earth and the Moon, parts and systems at Earth and Mars). Prices differ by place: each exchange is short of different things. The Moon Depot, beside the mines, has ores and refined goods to spare and pays most for parts and systems; Earth's industry pays most for ores and refined goods and least for systems; far Mars pays most for parts. Each good also has its own twist at each exchange, so one system pays more than another, and more in one place than the next. Buying where a good is plentiful and selling where it is short is a trade in its own right: compare the order books (`/orders`) and the price board.
+
+<a name="markets-that-move"></a>**Markets that move.** The House's prices and quantities are not fixed. Each exchange's demand (what it buys, and its bid) and supply (what it sells, and its price) moves over game time, each exchange in its own way:
+
+- the **Earth Exchange**, a big market, moves in long, shallow waves (about 20 game days, a few percent);
+- the **Moon Depot**, a frontier market, in short, deep ones (about a week, up to a fifth);
+- the **Mars Exchange**, a young colony, in middling waves with the sharpest booms and slumps.
+
+Each tier of goods (ores, refined goods, parts, systems, modules) has its own wave at each exchange, and each good a smaller one of its own. On top of that, in each 8-game-day stretch a tier at an exchange may have a **boom** (the House wants more and bids more), a **slump** (less, for less), a **shortage** (it sells less, and asks more) or a **glut** (more, for less), strongest in the middle of the stretch. Prices change every half game day. An exchange never bids more for a good than any exchange asks for it, so no loop runs through the House alone: the profit is in moving goods and making things where and when they pay.
+
+A drone sees the moves in the prices where it is (`sell-price`, `buy-price`, `best-bid`) and in the price board (what goods sold for yesterday at each place). The news on the Market page and `/api/v1/news` says which booms and slumps are under way. A script that compares prices and picks what to make, or where to sell, each round earns more than one that does the same thing whatever the market says.
 
 Nobody publishes a price list. What a station drone, or any other drone, buys and sells, and at what price, you find out from the market: its orders (`best-bid`, `best-offer`, the Market page's order book) and what goods have sold for (the price board, query 680, and `sold`; the Market history page charts every resource's price and volume, day by day, at each place). Prices move: a buyer pays less as its stock fills, and other players' orders come and go. Compare before you buy or sell:
 
@@ -1323,7 +1343,8 @@ Every game word of the FORTH library has a Lua function of the same meaning, wit
 | Places and resources | `earth`, `moon`, `mars`, `phobos`, `deimos`; `fuel`, `kunspar`, `wolfite`, `yalspar`, `vladnium`, `magmite`, `metals_a1` to `metals_a3`, `alloys_a1` to `alloys_a3`, `organics_a1`, `inorganics_a1`, `rods`, `mining_kit`, `factory_kit`, `cruiser_kit` (any other resource by its number) |
 | Actions (return 0 when they worked, else a negative code) | `travel(place)`, `go(place)`, `mine(mineral)`, `refine(mineral)`, `make(resource)`, `wait(minutes)`, `push(n, resource, drone)`, `pull(n, resource, drone)`, `launch(drone, kit)`, `plunder(wreck)`, `jettison(n, resource)`, `broadcast(text)`, `unpack()`, `sell_order(price, keep, resource)`, `buy_order(price, want, resource)`, `sell_order_if_changed(...)`, `buy_order_if_changed(...)` |
 | Trading | `buy_here(n, resource)`, `sell_here(n, resource)`, `sell_all(resource)`, `best_offer(resource)` and `best_bid(resource)` (each returns price, drone, units), `sell_price(resource)`, `buy_price(resource)`, `board_price(resource, place)`, `sold(resource, days_ago, place)` |
-| Questions | `me()`, `location()`, `units(resource)`, `credits()`, `company()`, `today()`, `deposit(mineral)`, `trip(place)`, `crowd(place)`, `my_clones()` (a list of `{drone =, wrecked =}`) |
+| Questions | `me()`, `location()`, `units(resource)`, `credits()`, `company()`, `today()`, `deposit(mineral)`, `trip(place)`, `crowd(place)`, `my_clones()` (a list of `{drone =, wrecked =}`), `recipe(resource)` (its first recipe, or nil: `{protocol, makes, uses = {[resource] = units}, fuel, tool, hours}`) |
+| Safety | `fuel_floor(n)`: at or below n fuel, `make` (but fuel), `mine`, `refine`, `push` and `sell_here` return -30 (see [A fuel floor](#fuel-floor)) |
 | Messages | `events_here(type)`, `events_earth(type)` (lists of event IDs), `event_drone(event)`, `message(event)` (its text, or nil) |
 | State | `become(mode)`, `in_mode(mode)`, `tick()`, `ticks()`, `await_kit()` |
 | Output | `print(...)` (to your drone's output), `report()` (sends it home) |

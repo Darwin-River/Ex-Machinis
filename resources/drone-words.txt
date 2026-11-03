@@ -146,11 +146,14 @@ expect
 factory-kit
 fill
 find
+floor-fuel
+floored?
 flush
 for
 forth
 forth-wordlist
 fuel
+fuel-floor
 get-order
 go
 here
@@ -220,6 +223,8 @@ quit
 r>
 r@
 rdrop
+recipe
+recipe-row
 recurse
 refine
 repeat

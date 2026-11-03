@@ -320,6 +320,23 @@ After each newcomer round, race the newcomers' best scripts: release each once i
 
 ## Round log
 
+### Markets that move (#380, after round 36)
+
+Round 36's newcomers all found the House paid a flat 25 to 33 credits a factory-hour for any product, at any place, at any time, so the only edge was a cheap supply of metals. The House's demand, supply and prices now move (migration 0028, `house_market`), each exchange its own way:
+
+| Exchange | Wave (each tier) | Length | Booms and slumps |
+|---|---|---|---|
+| Earth Exchange | ±8% | about 20 game days | ±15% |
+| Moon Depot | ±20% | about 7 game days | ±30% |
+| Mars Exchange | ±14% | about 12 game days | ±35% |
+
+- Each tier (ores, refined goods, parts, systems, modules) and side has its own wave length and phase at each exchange, and each good a smaller, faster wave (a third as high).
+- In each 8-day block, a tier and side in four has a boom or slump (two up for one down), a half sine over the block. On demand, a boom raises the bid and the quantity wanted; on supply, a shortage raises the price and cuts the quantity.
+- A bid never tops the lowest ask for the good at any exchange: no loop through the House.
+- The House's orders are posted on the website's tick (`HouseMarket`); the station drones post none themselves (they managed about 8 posts a game hour).
+- The Trader starter now buys only when the price board at Mars or Earth beats the Moon price by the trip's cost, and hauls to whichever pays more.
+- Also from round 36: the test world mirrors the live market (`LiveMirror`), recipes and recipe trees in the API and `recipe` in both libraries, `fuel-floor`, net wealth by game day, a company's open orders, a drone's fuel used per day, test drones numbered from 10,000,000.
+
 ### Round 36: newcomers on #407's fixes (#380)
 
 The round 35 world's mix, fresh from #407's code, to game day 40: 60 starters, 12 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive, 3 each of the Systems shop, Electronics and Foundry, and 3 each of the Lua Maker, Lua Miner and Lua Systems shop. No engine stall or crash all round.

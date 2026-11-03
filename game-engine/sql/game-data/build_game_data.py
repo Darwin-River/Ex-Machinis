@@ -1147,14 +1147,15 @@ queries.append((207, 'Game time now',
 # the House's listed prices and demand are not theirs to read. Queries 631
 # and 632 (batch offers and budgets) and 633 (house-price) are gone. Rows
 # come by resource, then side, so a good the exchange both buys and sells
-# is on two rows together (the program pairs them).
+# is on two rows together (the program pairs them). The prices and daily
+# units are today's (house_market, migration 0028: they move over game time).
 STATION_ASKING = "EXISTS (SELECT 1 FROM agents WHERE agent_id = [drone_id] AND station_id IS NOT NULL)"
 queries.append((630, 'Station goods',
                 '[R L 630 query]: House station drones only: what the exchange where the drone is trades now: '
                 'resource, side (1: it buys, 2: it sells), listed price (2 cells), daily units, units held (2 cells).', 0,
                 "SELECT g.resource, g.side, g.price AS d_price, g.daily_units, IFNULL((SELECT MAX("
                 + holding('a.agent_id', 'g.resource') + ") "
-                "FROM agents a WHERE a.station_id = g.station_id), 0) AS d_units FROM station_goods g WHERE g.station_id IN "
+                "FROM agents a WHERE a.station_id = g.station_id), 0) AS d_units FROM house_market g WHERE g.station_id IN "
                 f"{HERE_STATION} AND g.from_day <= {TODAY} AND {STATION_ASKING} ORDER BY g.resource, g.side;"))
 
 # Mining deposits here (#324 step 11): left now (refilled for the time since
@@ -1192,6 +1193,27 @@ queries.append((661, 'Wreck hold',
                 "SELECT i.resource, i.units FROM sqInventory i JOIN agents w ON w.agent_id = i.drone "
                 f"WHERE i.drone = [value_1] AND w.wrecked_at IS NOT NULL AND w.object_id = {HERE_} AND i.units > 0 "
                 "ORDER BY i.resource;"))
+
+# Recipes (#380 round 36: three of four newcomers built their own recipe
+# tables from the protocol descriptions): the first protocol that makes R,
+# from its resource effects: each resource it changes, by how much (what it
+# makes is positive, what it uses negative, fuel included; its tool, locked
+# while it works and given back, is 0), and the minutes it takes
+queries.append((695, 'Recipe',
+                '[R L 695 query]: The first recipe that makes resource R: protocol, resource, units (made: '
+                'positive; used, fuel too: negative; the tool it needs: 0), minutes it takes. One row a resource, '
+                'what it makes first.', 1,
+                "SELECT e.protocol, e.resource, SUM(IF(e.event_type = 1, e.quantity, -e.quantity)) AS units, "
+                "(SELECT MAX(t.time) FROM resource_effects t WHERE t.protocol = e.protocol) DIV 60 AS minutes "
+                "FROM resource_effects e WHERE e.installed = 0 AND e.local = 1 AND e.event_type IN (1, 2) "
+                "AND e.protocol = (SELECT MIN(m.protocol) FROM resource_effects m WHERE m.resource = [value_1] "
+                "AND m.event_type = 1 AND m.locked = 0 AND m.installed = 0 AND m.local = 1 "
+                "AND (SELECT SUM(IF(d.event_type = 1, d.quantity, -d.quantity)) FROM resource_effects d "
+                "WHERE d.protocol = m.protocol AND d.resource = m.resource AND d.installed = 0 AND d.local = 1 "
+                "AND d.event_type IN (1, 2)) > 0 "
+                "AND EXISTS (SELECT 1 FROM resource_effects u WHERE u.protocol = m.protocol AND u.event_type = 2 "
+                "AND u.deplete = 1 AND u.locked = 0 AND u.resource NOT IN (m.resource, " + str(FUEL) + "))) "
+                "GROUP BY e.protocol, e.resource HAVING units <> 0 OR MAX(e.locked) = 1 ORDER BY units DESC, e.resource;"))
 
 # Cloning (#324 step 13): a drone's clones and its own line
 queries.append((670, 'My clones',
@@ -1416,10 +1438,20 @@ lines.append('-- (station_state) are kept: a new station starts with a full budg
 # climbing the production chain was punished.
 def demand_budget(st):
     return sum(price * daily for s_, rid, side, price, daily, _ in STATION_GOODS if s_ == st and side == BUYS)
-STATIONS = [(sid, name, obj, max(cap, demand_budget(sid)), max(refill, demand_budget(sid)))
+# Markets that move (#380 round 36; migration 0028): each exchange's
+# character, (swing, wave length in game days, boom or slump), in
+# thousandths. The Earth Exchange is a big, steady market: long, shallow
+# waves and mild booms. The Moon Depot is a frontier market: short, deep
+# waves. The Mars Exchange is a colony: middling waves and the sharpest
+# booms and slumps. The views house_market_raw and house_market work out
+# the prices now; App\Services\HouseMarket posts the House's orders.
+MARKET_MOODS = {1: (80, 20, 150), 2: (200, 7, 300), 3: (140, 12, 350)}
+STATIONS = [(sid, name, obj, max(cap, demand_budget(sid)), max(refill, demand_budget(sid))) + MARKET_MOODS[sid]
             for sid, name, obj, cap, refill in STATIONS]
-table('stations', ['id', 'name', 'object_id', 'budget_cap', 'refill_per_day'], STATIONS)
-table('station_goods', ['station_id', 'resource', 'side', 'price', 'daily_units', 'from_day'], STATION_GOODS)
+table('stations', ['id', 'name', 'object_id', 'budget_cap', 'refill_per_day',
+                   'swing_permille', 'cycle_days', 'shock_permille'], STATIONS)
+table('station_goods', ['station_id', 'resource', 'side', 'price', 'daily_units', 'from_day', 'steady'],
+      [row + (1 if row[1] in FIXED_PRICES else 0,) for row in STATION_GOODS])
 lines.append('INSERT IGNORE INTO `station_state` (station_id, budget, refilled_t) '
              'SELECT id, budget_cap, 0 FROM `stations`;')
 lines.append('')

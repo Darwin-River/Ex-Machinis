@@ -43,6 +43,11 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 - Tell the drones around you: `broadcast` a message ("Fuel wanted at Phobos, paying 15") so a courier reading the messages (`message-event events-earth`) knows where to go.
 - **Fuel couriers** are the other side of this trade: drones that carry fuel to where others work and run low, look for fuel buy orders there (`fuel best-bid`) and push fuel into them for profit. Every stranded drone is a customer.
 
+**`fuel-floor ( n -- )`** (built in, #380 round 36): at or below n fuel, `make` (but for fuel), `mine`, `refine` and `push` (so `sell-here`) refuse with -30, so a long build or a selling spree can't spend the fuel you need to buy more. Example: `15 fuel-floor` in `launched`.
+
+- Round 36: a factory's nine-step build took its tank from 50 to 3, and the failure path's pushes spent the rest; it became a wreck with 5,517 credits in the bank.
+- Check for -30 where you build: `make -30 = if refuel then`.
+
 ## Getting rid of goods
 
 **`jettison ( n resource -- ior )`** (a game word): throw n units of a resource into space, for 1 fuel whatever the amount. Example: `10 inorganics-a2 jettison drop`.
@@ -127,6 +132,17 @@ A drone that changes what it does as the market changes is easiest to write as a
 
 - Check every input before the first step (`metals-a1 units 8 < ... if exit then`), so a half-built chain doesn't strand alloys in the hold. Check the fuel too: `fuel units 30 < if exit then`.
 - A long chain needs a bigger fuel margin: start brewing at 60, not 40.
+
+**`recipe ( resource -- rows )`** and **`recipe-row ( i -- addr )`** (built in, #380 round 36): the first recipe that makes a resource, a row a resource: protocol, resource, units (made: positive; used, fuel too: negative; the tool: 0), minutes. A drone that prices what it could make (inputs from `buy-price`, the product from `sell-price`) can choose, each round, what pays best here and now. Example, the fuel a recipe burns:
+
+```
+  : recipe-fuel ( resource -- n )
+    recipe 0 swap begin dup while 1- dup recipe-row
+      dup 2 + @ fuel = if 4 + @ negate rot + swap else drop then
+    repeat drop ;
+```
+
+- The API's `/recipes/{id}/tree` adds up a whole chain (what one unit takes down to metals, organics and inorganics): use it to plan before you write the script.
 
 ## Buying from other drones, with a cash floor
 

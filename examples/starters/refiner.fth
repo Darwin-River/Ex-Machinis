@@ -168,11 +168,11 @@ variable copy
   fuel units 50 < if 80 fill-to then
   reinvest site go drop ;
 
-\ Every 8th round, send a line home. What a drone prints reaches you only
+\ Every 4th round, send a line home. What a drone prints reaches you only
 \ when its script ends or calls report, and launched never ends
 variable tells
 : tell ( -- )
-  1 tells +!  tells @ 8 mod if exit then
+  1 tells +!  tells @ 4 mod if exit then
   ." credits " credits d. ." fuel " fuel units . report ;
 
 : work ( -- )

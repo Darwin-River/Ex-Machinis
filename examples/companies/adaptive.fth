@@ -110,7 +110,7 @@
   hauling in? if haul exit then
   rest ;
 
-\ Every 8th round, send a line home: the mode and what it sees
+\ Every 4th round, send a line home: the mode and what it sees
 : tell ( -- )
   ticks 8 mod if exit then
   ." mode " mode @ . ."  credits " credits d. ." rod price " rod-price .

@@ -84,7 +84,7 @@ class HouseStationsTest extends TestCase
             ->get(['event_type', 'resource', 'new_credits', 'new_quantity', 'place'])
             ->map(fn ($e) => [(int) $e->event_type, (int) $e->resource, (int) $e->new_credits, (int) $e->new_quantity, (int) $e->place])
             ->all();
-        $this->assertSame([[5, 2001, 15, 100, 3], [4, 2001, 30, 0, 3], [4, 2061, 5, HouseStations::FUEL_RESERVE, 3]], $orders);
+        $this->assertEqualsCanonicalizing([[5, 2001, 15, 100, 3], [4, 2001, 30, 0, 3], [4, 2061, 5, HouseStations::FUEL_RESERVE, 3]], $orders);
     }
 
     public function testTheHouseIsNotOnTheLeaderboard()

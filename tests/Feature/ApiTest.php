@@ -94,6 +94,92 @@ class ApiTest extends TestCase
         $this->assertSame([], $this->getJson('/api/v1/orders?side=sell&resource=' . $resource . '&place=Nowhere')->json());
     }
 
+    public function testOrdersOfOneCompany()
+    {
+        // #380 round 36: a company's own open orders
+        $a = $this->release('Order Keepers');
+        $b = $this->release('Other Traders');
+        $resource = (int) DB::table('resources')->value('id');
+        foreach ([$a, $b] as $drone) {
+            DB::table('events')->insert(['event_type' => 5, 'action' => 0, 'outcome' => 1, 'drone' => $drone->agent_id,
+                'resource' => $resource, 'new_quantity' => 50, 'new_credits' => 9, 'game_t' => World::gameNow()]);
+        }
+        $mine = $this->getJson('/api/v1/orders?company=' . urlencode('Order Keepers'))->assertOk()->json();
+        $this->assertSame([(int) $a->agent_id], array_column($mine, 'drone'));
+        $this->assertSame('Order Keepers', $mine[0]['company']);
+        $byId = $this->getJson('/api/v1/orders?company=' . $mine[0]['company_id'])->json();
+        $this->assertSame([(int) $a->agent_id], array_column($byId, 'drone'));
+    }
+
+    public function testATestDroneNumberIsNotALiveDrone()
+    {
+        // #380 round 36: test drones are numbered from 10,000,000
+        $this->getJson('/api/v1/drones/10000005')->assertNotFound()->assertJsonFragment(['error' =>
+            'That is a test drone (test drones are numbered from 10,000,000): its run is at /api/v1/test/{token}.']);
+    }
+
+    public function testADroneSaysTheFuelItUsedToday()
+    {
+        $agent = $this->release('Fuel Watchers');
+        $now = World::gameNow();
+        foreach ([[100, $now - 7200], [97, $now - 3600]] as [$q, $t]) {
+            DB::table('events')->insert(['event_type' => 2, 'action' => 0, 'outcome' => 1, 'drone' => $agent->agent_id,
+                'resource' => Release::FUEL, 'installed' => 0, 'locked' => 0, 'new_quantity' => $q, 'game_t' => $t]);
+        }
+        $this->getJson('/api/v1/drones/' . $agent->agent_id)->assertOk()
+            ->assertJsonPath('fuel_last_day.actions', 3)->assertJsonPath('fuel_last_day.thinking', 0);
+    }
+
+    public function testRecipesAndWhatAThingTakes()
+    {
+        // A made-up chain: 2 metals (and 2 fuel) make an alloy, an alloy and
+        // 3 fuel make a rod, on a Smelter
+        foreach ([2011 => 'Metals (A1)', 2021 => 'Alloys (A1)', 3011 => 'Rods (A1)', 5201 => 'Smelter (A1)', 2061 => 'Fuel (A1)'] as $id => $name) {
+            DB::table('resources')->insertOrIgnore(['id' => $id, 'name' => $name, 'mass' => 1, 'capacity' => 0, 'slot_size' => 0]);
+        }
+        // (resource, event type, locked, deplete, quantity, time): the tool
+        // is locked while it works and given back; the rest is used or made
+        $chain = function (int $input, int $inputs, int $fuel, int $seconds, int $product) {
+            return [[5201, 2, 0, 1, 1, 0], [5201, 1, 1, 0, 1, 0], [2061, 2, 0, 1, $fuel, 0], [$input, 2, 0, 1, $inputs, 0],
+                    [5201, 2, 1, 1, 1, $seconds], [5201, 1, 0, 0, 1, $seconds], [$product, 1, 0, 0, 1, $seconds]];
+        };
+        $id = 900000;
+        foreach ([[12021, 'Make Alloys (A1)', $chain(2011, 2, 2, 7200, 2021)],
+                  [13011, 'Make Rods (A1)', $chain(2021, 1, 3, 14400, 3011)]] as [$p, $name, $effects]) {
+            DB::table('protocols')->insertOrIgnore(['id' => $p, 'name' => $name, 'parameters' => 0, 'multiplier' => 0, 'double_params' => 0]);
+            DB::table('resource_effects')->where('protocol', $p)->delete();
+            foreach ($effects as [$res, $type, $locked, $deplete, $q, $time]) {
+                DB::table('resource_effects')->insert(['id' => $id++, 'drone' => 0, 'resource' => $res, 'protocol' => $p, 'event_type' => $type,
+                    'local' => 1, 'installed' => 0, 'locked' => $locked, 'deplete' => $deplete, 'quantity' => $q, 'time' => $time]);
+            }
+        }
+        $rods = $this->getJson('/api/v1/recipes?resource=3011')->assertOk()->json();
+        $this->assertSame(13011, $rods[0]['protocol']);
+        $this->assertSame([['resource' => 2021, 'name' => 'Alloys (A1)', 'units' => 1]], $rods[0]['uses']);
+        $this->assertSame(3, $rods[0]['fuel']);
+        $this->assertSame(5201, $rods[0]['tool']);
+        $this->assertEquals(4, $rods[0]['hours']);
+
+        $tree = $this->getJson('/api/v1/recipes/3011/tree')->assertOk()->json();
+        $this->assertSame([['resource' => 2011, 'name' => 'Metals (A1)', 'units' => 2]], $tree['goods']);
+        $this->assertEquals(5, $tree['fuel']);
+        $this->assertEquals(6, $tree['tool_hours'][0]['hours']);
+        $this->getJson('/api/v1/recipes/99999999/tree')->assertNotFound();
+    }
+
+    public function testNewsAndNetWealthByDay()
+    {
+        $this->getJson('/api/v1/news')->assertOk();
+        $agent = $this->release('Day Keepers');
+        DB::table('company_days')->insert([
+            ['company_id' => $agent->company_id, 'day' => 3, 'credits' => 1200, 'net_wealth' => 150, 'drones' => 1],
+            ['company_id' => $agent->company_id, 'day' => 4, 'credits' => 1500, 'net_wealth' => 420, 'drones' => 2],
+        ]);
+        $this->getJson('/api/v1/companies/' . $agent->company_id . '/history')->assertOk()
+            ->assertJsonPath('1.day', 4)->assertJsonPath('1.net_wealth', 420)->assertJsonPath('0.credits', 1200);
+        $this->getJson('/api/v1/companies/999999999/history')->assertNotFound();
+    }
+
     public function testReleaseChecksAndReleasesAScript()
     {
         $this->postJson('/api/v1/check', ['script' => "variable ask\n: launched ;"])->assertOk()

@@ -157,4 +157,42 @@ class Leaderboard
         }
         return true;
     }
+
+    /**
+     * Net wealth over time (#380 round 36): once a game day, every company's
+     * credits and net wealth (company_days). The last 60 game days are kept
+     * day by day, older ones every 10th day. Returns whether it took one.
+     */
+    public static function dailyIfDue(): bool
+    {
+        if (!Schema::hasTable('company_days')) {
+            return false;
+        }
+        $clock = DB::table('game_clock')->where('id', 1)->first();
+        if (!$clock || $clock->epoch === null) {
+            return false;
+        }
+        $today = (int) floor((World::gameNow() - (float) $clock->epoch) / 86400);
+        if ((int) (DB::table('company_days')->max('day') ?? -1) >= $today) {
+            return false;
+        }
+        $credits = DB::table('companies')->pluck('credits', 'company_id')->all();
+        $rows = array_map(fn ($r) => ['company_id' => $r['company_id'], 'day' => $today,
+            'credits' => (int) ($credits[$r['company_id']] ?? 0), 'net_wealth' => $r['wealth'], 'drones' => $r['drones']],
+            array_values(self::wealth()));
+        foreach (array_chunk($rows, 500) as $chunk) {
+            DB::table('company_days')->insertOrIgnore($chunk);
+        }
+        DB::table('company_days')->where('day', '<', $today - 60)->whereRaw('MOD(day, 10) <> 0')->delete();
+        return true;
+    }
+
+    /** A company's net wealth by game day, oldest first */
+    public static function history(int $companyId): array
+    {
+        return DB::table('company_days')->where('company_id', $companyId)->orderBy('day')
+            ->get(['day', 'credits', 'net_wealth', 'drones'])
+            ->map(fn ($d) => ['day' => (int) $d->day, 'credits' => (int) $d->credits,
+                'net_wealth' => (int) $d->net_wealth, 'drones' => (int) $d->drones])->all();
+    }
 }

@@ -58,6 +58,9 @@ class HomeController extends Controller
         $this->requireCronKey($key);
         \App\Services\Leaderboard::snapshotIfDue();
         \App\Services\LaunchQueue::drain();
+        // Markets that move (#380 round 36): the House's orders at today's
+        // prices, and the live market mirrored into the test world
+        \App\Services\HouseMarket::tick();
         return response('ok');
     }
 

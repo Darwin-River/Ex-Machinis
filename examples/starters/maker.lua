@@ -103,11 +103,11 @@ function reinvest()
   end
 end
 
--- Every 8th round, send a line home
+-- Every 4th round, send a line home
 rounds = 0
 function tell()
   rounds = rounds + 1
-  if rounds % 8 ~= 0 then return end
+  if rounds % 4 ~= 0 then return end
   print("credits " .. credits() .. " rods " .. units(rods) .. " fuel " .. units(fuel))
   report()
 end
