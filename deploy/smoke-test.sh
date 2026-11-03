@@ -348,14 +348,14 @@ echo "ok: drones broadcast messages, events others read from the Earth database"
 
 # The House fuel seller (#324 step 10; #380): the released drone, at Earth,
 # buys 10 fuel from the Earth Exchange's station drone like from any drone: a
-# pull from its sell order, at once, at 5 a unit
+# pull from its sell order, at once, at 3 a unit (5 until #380 round 37)
 EARTH_STATION=$(sql "select agent_id from agents where station_id is not null and object_id = 3")
 [ -n "$EARTH_STATION" ] || fail "Earth has no House station drone"
 fuel_ask() { [ "$(sql "select count(*) from events where drone=$EARTH_STATION and event_type=4 and resource=2061 and outcome=1")" -ge 1 ]; }
 wait_for 180 "the Earth Exchange's station drone posts its fuel for sale" fuel_ask
 run $FORGE_DRONE "fuel" "10 2061 $EARTH_STATION 11 perform ."
-bought() { [ "$(sql "select count(*) from trades where seller=$EARTH_STATION and buyer=$FORGE_DRONE and resource=2061 and units=10 and credits=50")" = 1 ]; }
-wait_for 90 "a drone bought 10 fuel from the House at 5 a unit" bought
+bought() { [ "$(sql "select count(*) from trades where seller=$EARTH_STATION and buyer=$FORGE_DRONE and resource=2061 and units=10 and credits=30")" = 1 ]; }
+wait_for 90 "a drone bought 10 fuel from the House at 3 a unit" bought
 # In its hold: the pull's increment event. (Its total can still fall: the
 # drone's computing is billed in fuel too)
 more_fuel() { [ "$(sql "select count(*) from events e join actions x on x.id = e.action
