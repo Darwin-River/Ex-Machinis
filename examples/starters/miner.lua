@@ -7,7 +7,6 @@
 -- it wherever it is cheapest. With grow_at credits it launches a copy; a
 -- third of its copies stay at the Moon, the rest work Phobos and Deimos
 -- and sell at the Mars Exchange.
--- The same drone as miner.fth, in Lua.
 
 -- Settings: change these numbers to make it your own
 low_fuel = 40      -- get fuel when below this

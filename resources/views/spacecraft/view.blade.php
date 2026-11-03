@@ -149,13 +149,13 @@
                         </div>
                         <pre id="drone-code" style="white-space: pre-wrap; color: #e6e6e6; background: #2b2b36; padding: 1em; border-radius: 4px">{{ $code['release']->source }}</pre>
                         @if($code['words'])
-                            <div style="white-space: normal; line-height: 2"><b>Words</b>:
+                            <div style="white-space: normal; line-height: 2"><b>Functions</b>:
                                 @foreach($code['words'] as $name => $origin)
                                     <span class="mr-2"><code>{{ $name }}</code>
                                         @if($origin)
                                             <span>(first in <a href="{{ url('spacecraft/' . $origin) }}">drone {{ $origin }}</a>)</span>
                                         @endif
-                                        <a href="{{ url('release?copy=' . $agent->agent_id . '&word=' . urlencode($name)) }}" title="Copy this word">copy</a></span>
+                                        <a href="{{ url('release?copy=' . $agent->agent_id . '&word=' . urlencode($name)) }}" title="Copy this function">copy</a></span>
                                 @endforeach
                             </div>
                         @endif

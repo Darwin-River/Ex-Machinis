@@ -19,7 +19,7 @@ class LaunchQueueTest extends TestCase
 {
     use DatabaseTransactions;
 
-    private const SCRIPT = ": launched 1 2 + drop ;";
+    private const SCRIPT = "function launched() local x = 1 + 2 end";
 
     protected function setUp(): void
     {

@@ -38,7 +38,7 @@ B=https://play.example.com/api/v1
 
 ## Play from a program: the loop
 
-A company is a script, in FORTH or Lua: you can't steer it once it's released. The game clock is fast: at the usual pace a game day passes in about 2.4 real minutes (`/clock` gives `real_seconds_per_game_day`), so a 40-day round takes about an hour and a half; release early. Playing from a program is the same loop a person follows on the website:
+A company is a script, in Lua: you can't steer it once it's released. The game clock is fast: the live world normally runs a game day in 24 real minutes (60 game seconds a real second; slower when it's busy, never below 8 game hours a real hour), and the test world ten times faster, a game day in about 2.4 real minutes. `/clock` gives the pace now (`real_seconds_per_game_day`). Release early. Playing from a program is the same loop a person follows on the website:
 
 1. **Study the market:**
    - `GET /orders` for who buys and sells what, where, and at what price;
@@ -56,7 +56,7 @@ A company is a script, in FORTH or Lua: you can't steer it once it's released. T
    - `GET /drones/{id}` for where each drone is, its cargo, what it is doing, the fuel it used today, what it has said, and what went wrong.
 6. **Learn and release a better version** under a new name. Every company is an experiment.
 
-The [players' manual](players-manual.md) explains the game and the FORTH words. The [strategy blog](blog) has working examples.
+The [players' manual](players-manual.md) explains the game and the Lua functions; [lua-functions.md](lua-functions.md) is a quick reference with helpers to copy. The [strategy blog](blog) has working examples.
 
 ## Releasing and testing
 
@@ -66,15 +66,15 @@ The [players' manual](players-manual.md) explains the game and the FORTH words. 
 
 | Field | Required | Meaning |
 |---|---|---|
-| `script` | yes | the script, in FORTH or Lua |
+| `script` | yes | the script, in Lua |
 
-A script is Lua when it defines a function `launched` (`function launched() ... end`) and no FORTH word `launched` (see the players' manual, [Chapter 10](players-manual.md#chapter-10-writing-your-drone-in-lua)). The release and test calls take either language the same way.
+A script must define the function `launched` (`function launched() ... end`): see the players' manual, [Speaking Lua](players-manual.md#chapter-10-writing-your-drone-in-lua). FORTH has been retired: a FORTH script (`: launched ... ;`) is refused, with an error saying so. Drones released in FORTH before then carry on.
 
 **Example:**
 
 ```sh
 curl -s -X POST $B/check -H 'Content-Type: application/json' \
-  -d '{"script": "variable ask\n: launched ( -- ) frobnicate ;"}'
+  -d '{"script": "ask = 1\nfunction launched() frobnicate() end"}'
 ```
 
 **Response:**
@@ -83,17 +83,17 @@ curl -s -X POST $B/check -H 'Content-Type: application/json' \
 {
   "ok": true,
   "error": null,
-  "warning": "Your script uses frobnicate, which isn't defined before it's used: ... Your script redefines ask: ...",
-  "language": "forth"
+  "warning": "Your script uses frobnicate (line 2), which nothing defines: ... Your script sets ask: a name the game already uses. ...",
+  "language": "lua"
 }
 ```
 
 | Field | Meaning |
 |---|---|
 | `ok` | whether the Release page would take the script |
-| `error` | why not, if it wouldn't. For example: no `launched` word, a line too long, or a Lua script that doesn't compile (`"Line 12: unexpected symbol near '='"`) |
-| `warning` | the Release page's warnings: for FORTH, words used before anything defines them (the line using one fails to load with `-13`), and game words the script redefines; for Lua, names of the game's own that the script sets (`best_bid = 30`) |
-| `language` | `forth` or `lua`: how the drone will run it |
+| `error` | why not, if it wouldn't. For example: no `launched` function, a FORTH script, a line too long, or a script that doesn't compile (`"Line 12: unexpected symbol near '='"`) |
+| `warning` | the Release page's warnings: names the script uses that nothing defines (calling one crashes the drone), and names of the game's own that the script sets (`best_bid = 30`) |
+| `language` | `lua` for a Lua script (`forth` for a retired FORTH one, which `ok` refuses) |
 
 ### `POST /release`: release a company
 
@@ -134,7 +134,7 @@ Look the company up by name later.
 
 **Errors:** `422` with the reason. For example:
 - `"The company name has already been taken."`
-- `"Your script must define the word launched ..."`
+- `"Your script must define the function launched ..."`, or `"FORTH has been retired: write your drone in Lua. ..."`
 
 ### `POST /test`: a test run
 
@@ -216,9 +216,9 @@ Use this to see what a drone is doing. It gives what the drone's page shows:
 
 | Field | Meaning |
 |---|---|
-| `place`, `place_id` | where it is (an object ID, as the game words use); while it flies, where it left from |
+| `place`, `place_id` | where it is (an object ID, as the game's functions use); while it flies, where it left from |
 | `flying_to` | while it flies: `{place_id, place, arrives, arrives_game_time}`; otherwise null |
-| `status` | what it's doing, in words: `loading its script (3 pieces to go)` and `about to launch` before it starts, `running its launched word`, `waiting for its action to finish: ...`, `a wreck` |
+| `status` | what it's doing, in words: `loading its script (3 pieces to go)` and `about to launch` before it starts, `running its launched function`, `waiting for its action to finish: ...`, `a wreck` |
 | `fuel` | units in the tank |
 | `cargo` | `[{resource, name, units}]`: what is aboard, its modules included |
 | `now` | the action under way and when it ends, or null |
@@ -227,7 +227,7 @@ Use this to see what a drone is doing. It gives what the drone's page shows:
 | `messages` | what it has said: its `report` lines and outputs, newest first, once they reach Earth (they travel at the speed of light) |
 | `post_mortem` | for a wreck: `{cause}`, why it died, in plain words |
 | `parent`, `clones`, `generation` | its family |
-| `instructions`, `crashes` | how much it has computed (1 fuel per 200,000 instructions), and how often its `launched` word has crashed |
+| `instructions`, `crashes` | how much it has computed (1 fuel per 200,000 instructions), and how often its `launched` function has crashed |
 | `fuel_last_day` | `{actions, thinking}`: the fuel it used in the last game day, for its actions and for its computer |
 | `script` | the script it runs |
 
@@ -266,7 +266,7 @@ curl -s "$B/orders?side=sell&resource=2061&place=Moon"
 
 **House prices move.** What each exchange bids and asks, and how much it buys and sells a day, moves over game time, each exchange in its own way: the Earth Exchange in long, shallow waves; the Moon Depot in short, deep ones; the Mars Exchange with the sharpest booms and slumps. The prices change every half game day. An exchange never bids more for a good than any exchange asks for it. `GET /news` says which booms and slumps are under way.
 
-**When a pull fails** with "the seller's order didn't allow selling that many", someone else bought those units first, or the seller sold or used them, between your look and your pull. `buy-here` (`buy_here` in Lua) then tries the next seller.
+**When a pull fails** with "the seller's order didn't allow selling that many", someone else bought those units first, or the seller sold or used them, between your look and your pull. `buy_here` then tries the next seller. A failed pull costs no fuel: the fuel it burned is given back.
 
 ### `GET /news`: booms, slumps, shortages and gluts
 
@@ -287,7 +287,7 @@ Each exchange's demand (what the House buys) and supply (what it sells) has its 
 
 `percent_now` is how far the boom or slump moves prices now, on top of the exchange's slower waves. Drones can't read the news: they see what it does to prices where they are.
 
-Drones see these orders only where they are, through `best-bid`, `best-offer` and queries 600 and 610. The API shows every place at once, which helps you decide where to send a company.
+Drones see these orders only where they are, through `best_bid`, `best_offer` and queries 600 and 610. The API shows every place at once, which helps you decide where to send a company.
 
 ### `GET /trades?limit=50`: the latest trades
 
@@ -323,7 +323,7 @@ Every trade of the last `days` game days (60 if you leave it out, at most 365), 
 
 | Request | What it gives |
 |---|---|
-| `GET /resources` | every resource and module: `{id, name, mass}`. The IDs are what the game words take: `fuel` is 2061, `metals-a1` is 2011 |
+| `GET /resources` | every resource and module: `{id, name, mass}`. The IDs are what the game's functions take: `fuel` is 2061, `metals_a1` is 2011 |
 | `GET /protocols` | the actions a drone can `perform`: `{id, name, description}` |
 | `GET /recipes?resource=4311` | the recipes (leave `resource` out for all): `{protocol, name, makes: [{resource, name, units}], uses: [...], fuel, tool, tool_name, hours}` |
 | `GET /recipes/{id}/tree` | what one unit takes, all the way down to refined goods (metals, organics, inorganics): `{goods: [{resource, name, units}], fuel, tool_hours: [{tool, name, hours}], steps}`. `?down_to=1` goes down to ores. It follows each good's first recipe |
@@ -333,23 +333,23 @@ The [players' manual](players-manual.md) explains each protocol and query and ho
 
 ## Live queries
 
-The Machine page's live data is open to programs too. The endpoint runs one game query as a drone you name, and gives back the bytes the drone would get:
+This endpoint runs one game query as a drone you name, and gives back the rows the drone's `query` would get. Use it to try a query, or to see what a drone sees from where it is:
 
 ```
-GET /machine/query?id=<query>&drone=<drone id>&size=<bytes>&v[]=<parameter>&v[]=...
+GET /machine/query?id=<query>&drone=<drone id>&v[]=<parameter>&v[]=...
 ```
 
-For example, `GET /machine/query?id=207&drone=108&size=120` asks for the game day:
+The parameters go in the order `query` takes them after the query ID. For example, `GET /machine/query?id=207&drone=108` asks for the game day:
 
 ```json
 {"code": 1, "bytes": "KgFkBA==", "rows": [{"day": 298, "minute": 1124}]}
 ```
 
-- `code` is what `query` leaves on a drone's stack: the number of rows, or `-1`, `-2` or `-3`.
-- `bytes` is the results array the drone would get, base64-encoded and laid out as the manual's query table describes.
-- `rows` is the same data, already decoded.
+- `rows` is what the drone's `query(207)` returns: each row's columns by name (a Lua drone gets them by position too, in the same order).
+- `code` is the number of rows, or `-1` (too few parameters), `-2` (no rows, or the query failed) or `-3` (no such query).
+- `bytes` is the old FORTH drones' memory layout; you can ignore it. `size=<bytes>` limits it (and the rows) to what fits.
 
-Its limit is 240 calls a minute. It sits outside `/api/v1` because the Machine page uses it.
+Its limit is 240 calls a minute. It sits outside `/api/v1` for historical reasons (a FORTH machine page used it).
 
 Ask as a player's drone. A station drone doesn't see its own orders.
 
@@ -375,7 +375,7 @@ def call(path, body=None):
     except urllib.error.HTTPError as e:
         return {"status": e.code, **json.load(e)}
 
-script = open("my_company.fth").read()
+script = open("my_company.lua").read()
 
 check = call("/check", {"script": script})
 print("check:", check["error"] or "ok", "|", check["warning"] or "no warnings")

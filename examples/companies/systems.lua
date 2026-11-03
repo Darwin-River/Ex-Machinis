@@ -1,4 +1,4 @@
--- Systems shop, in Lua (#380): systems.fth line for line (Farid's design
+-- Systems shop, in Lua (#380) (Farid's design
 -- from economy round 33, the best in the starter-library race). Release it
 -- with the Factory Kit.
 -- Pumps, pistons and valves: every exchange bids for them. A pump or a

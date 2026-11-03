@@ -1355,6 +1355,7 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
 
         event_record_failure(&first, OUTCOME_NO_LOCAL);
         event_record_failure(&second, OUTCOME_ACTION_ABORTED);
+        db_refund_fuel(event->action_id);   // a failed transfer costs no fuel (#380 round 38)
         return ENGINE_LOGIC_ERROR;
     }
 
@@ -1384,6 +1385,7 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
         event_record_failure(&first, OUTCOME_ACTION_ABORTED);
         event_record_failure(&second, partner->outcome);
     }
+    db_refund_fuel(event->action_id);   // a failed transfer costs no fuel (#380 round 38)
 
     return ENGINE_LOGIC_ERROR;
 }

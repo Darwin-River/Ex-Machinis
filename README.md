@@ -14,9 +14,9 @@ Ex Machinis is being developed and managed by Darwin River Software LLC with sup
 
 This game relies on our [generous Patreon sponsors](https://patreon.com/exmachinis) for feedback, encouragement, and support. We wouldn't be here without them!
 
-## FORTH Defined
+## Programming drones
 
-The [embed.fth file](game-engine/src/embed/embed.fth) creates the entire FORTH architecture that is used by Ex Machinis spacecraft.  It is a useful resource for understanding how each of the pre-loaded words function.
+Spacecraft are programmed in [Lua](https://www.lua.org/manual/5.4/): the [players' manual](documents/players-manual.md) teaches the game, [lua-functions.md](documents/lua-functions.md) lists the functions every drone knows, and `examples/` has starter scripts and company designs. Drones used to be programmed in FORTH; it was retired, but drones already running in FORTH carry on, on the engine's FORTH VM (built from [embed.fth](game-engine/src/embed/embed.fth)).
 
 ## Developer setup
 
@@ -27,7 +27,7 @@ The [embed.fth file](game-engine/src/embed/embed.fth) creates the entire FORTH a
 | `app/`, `routes/`, `resources/`, `config/` | The website: **Laravel 13** on **PHP 8.3** |
 | `resources/assets/` | Frontend sources: **Vue 3** components and Sass, built with **Vite** |
 | `html/` | The web root (not Laravel's usual `public/`). `html/build/` holds the built frontend and is committed |
-| `game-engine/src/` | The **game engine** and **events engine**, written in C, which run each drone's FORTH VM and process game events |
+| `game-engine/src/` | The **game engine** and **events engine**, written in C, which run each drone's Lua program (or, for drones released before FORTH was retired, its FORTH VM) and process game events |
 | `game-engine/sql/`, `game-engine/db-backup/` | The MySQL schema and reference data. The schema comes from these files, not from Laravel migrations |
 | `game-engine/sql/game-data/` | The game's design spreadsheets (resources, recipes, queries) and `build_game_data.py`, which turns them into `game-engine/sql/game_data.sql` and the query list in the design manual |
 | `game-engine/scripts/`, `game-engine/conf/` | Cron/start scripts and engine configuration |

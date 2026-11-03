@@ -55,10 +55,17 @@ A trader no longer needs a fixed price list. The new Trader starter reads the pr
 
 A long build can drain a tank without your program noticing. In round 36 a factory's nine-step build took it from 50 fuel to 3, and the failure path sold its leftover parts, a fuel a push, until it had none. It became a wreck with 5,517 credits in the bank. Set a floor:
 
-```forth
-\ A round: make a pump, rest an hour (yours does more)
-: work ( -- ) 4311 make drop  60 wait drop ;
-: launched ( -- ) 15 fuel-floor  unpack drop  begin work again ;
+```lua
+-- A round: make a pump, rest an hour (yours does more)
+function work()
+  make(4311)
+  wait(60)
+end
+function launched()
+  fuel_floor(15)
+  unpack()
+  while true do work() end
+end
 ```
 
 At or below 15 fuel, `make` (but for fuel), `mine`, `refine` and `push` refuse with -30. The fuel that's left is for buying more.

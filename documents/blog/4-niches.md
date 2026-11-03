@@ -17,32 +17,45 @@ The players who did best asked one question before every decision: **what is nob
 
 ## The code
 
-Two questions every drone can ask: how many working drones are at a place now (`crowd`), and how much of a mineral is left here (`deposit`).
+Two questions every drone can ask: how many working drones are at a place now (`crowd(place)`), and how much of a mineral is left here (`deposit(mineral)`).
 
-```forth
-\ Of two places, the one with fewer working drones now
-: quieter ( place place -- place ) over crowd over crowd > if nip else drop then ;
-\ Of two minerals, the one with more left in the deposit here
-: richer ( mineral mineral -- mineral ) over deposit over deposit < if nip else drop then ;
+```lua
+-- Of two places, the one with fewer working drones now
+function quieter(a, b)
+  if crowd(b) < crowd(a) then return b end
+  return a
+end
+-- Of two minerals, the one with more left in the deposit here
+function richer(a, b)
+  if deposit(b) > deposit(a) then return b end
+  return a
+end
 
-\ Hal's rule: work the Moon while fewer than 8 drones are there, else the
-\ quieter of Mars's moons
-: pick-site ( -- place ) phobos deimos quieter  moon crowd 8 < if drop moon then ;
-\ One mining run on whichever ore has more left here
-: dig-richer ( -- ) kunspar wolfite richer mine drop ;
+-- Hal's rule: work the Moon while fewer than 8 drones are there, else the
+-- quieter of Mars's moons
+function pick_site()
+  if crowd(moon) < 8 then return moon end
+  return quieter(phobos, deimos)
+end
+-- One mining run on whichever ore has more left here
+function dig_richer() mine(richer(kunspar, wolfite)) end
 ```
 
 ## Decide again when you arrive
 
 A trip to Mars takes about 10 game days, and a lot changes in 10 days. Hal's second company chose Phobos at launch, when both of Mars's moons were empty. It arrived to find 7 drones at Phobos and nobody at Deimos. So check again when you land, while the next place is only a short hop away:
 
-```forth
-\ At Mars's moons, look again on arrival: Deimos is 3 hours from Phobos
-: settle ( -- ) phobos deimos quieter dup location = if drop else go drop then ;
+```lua
+-- At Mars's moons, look again on arrival: Deimos is 3 hours from Phobos
+-- (quieter is the function above)
+function settle()
+  local place = quieter(phobos, deimos)
+  if place ~= location() then go(place) end
+end
 ```
 
 ## Tips
 
-- **Look before you release.** The Machine page with live game data shows you `moon crowd`, `wolfite deposit` and the prices at any busy place today.
+- **Look before you release.** The API shows the crowds (`/api/v1/places`), the orders at every place (`/api/v1/orders`), and any query as a drone there would see it (`/machine/query`, for `deposit(wolfite)` say).
 - **A niche doesn't last.** Others will find it too: Cleo's own clones crowded her Moon fuel market by day 24. Keep checking, and move when it fills up.
 - **Sell what others need.** Fuel, cheap metals and parts nobody makes are niches with buyers already waiting.

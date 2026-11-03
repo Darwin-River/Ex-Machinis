@@ -1,14 +1,14 @@
 # Ex Machinis Player's Manual
 
-_Converted from the September 2020 edition and updated for the current game. Every example in this manual has been run against the game._
+_Converted from the September 2020 edition and updated for the current game. Your drones are programmed in [Lua](https://www.lua.org/manual/5.4/), and every example in this manual is Lua that a drone can run._
 
 > **Keep this manual current.** It is the player-facing description of the game. When a change to the code or the game data (see the [design manual](design-manual.md)) changes something a player sees, update this manual in the same pull request.
 
 **Changes since the September 2020 edition:**
+- Every example is written in Lua, with the game's [library of functions](#the-game-functions) (`mine(kunspar)`, `go(moon)`, `buy_here(20, fuel)`...).
 - [Chapter 4](#chapter-4-issuing-commands) starts with unpacking your kit: a Mining Kit (engine, mining and refining modules) or a Factory Kit (engine and the tools that make things), chosen at release. Travel uses protocol 5001 (your engine) instead of 5.
 - The mining example uses kunspar on the Moon, which the Mining Kit's Worm can mine. A [table](#extracting-minerals) shows which module mines which minerals, including on the new asteroids, comets and planetary rings.
 - [Chapter 6](#chapter-6-going-to-market) uses the correct sell protocol (7, not 9) and a resource that exists (kunspar, 1100).
-- [Chapter 7](#chapter-7-stringing-variables) fixes the argument order of the array examples (`10 box !`, not `box 10 !`) and the cell size (two bytes).
 - [Chapter 8](#chapter-8-asking-questions) uses the current query numbers.
 - [Chapter 9](#chapter-9-making-decisions) shows the outputs the game really gives.
 
@@ -22,10 +22,12 @@ Thank you for your support!
   - [Releasing a script (Public Forge)](#releasing-a-script-public-forge)
   - [What your drone says](#what-your-drone-says)
   - [About the examples in this manual](#about-the-examples-in-this-manual)
-- [Chapter 2: Stacking Numbers](#chapter-2-stacking-numbers)
-  - [Doing Simple Math](#doing-simple-math)
-  - [Managing the stack](#managing-the-stack)
-  - [Big numbers: double cells](#big-numbers-double-cells)
+- [Chapter 2: Speaking Lua](#chapter-2-speaking-lua)
+  - [A first drone](#a-first-drone)
+  - [Doing simple math](#doing-simple-math)
+  - [Variables](#variables)
+  - [Tables](#tables)
+  - [Text](#text)
 - [Chapter 3: Working with Resources](#chapter-3-working-with-resources)
   - [Distinguishing resource sizes and technology levels](#distinguishing-resource-sizes-and-technology-levels)
   - [Organizing resources by Resource ID](#organizing-resources-by-resource-id)
@@ -45,32 +47,30 @@ Thank you for your support!
   - [Producing more complex spacecraft components](#producing-more-complex-spacecraft-components)
   - [Launching new spacecraft](#launching-new-spacecraft)
 - [Chapter 5: Building A Vocabulary](#chapter-5-building-a-vocabulary)
-  - [Creating your own words](#creating-your-own-words)
+  - [Writing your own functions](#writing-your-own-functions)
   - [Commenting on your code](#commenting-on-your-code)
+  - [The game functions](#the-game-functions)
   - [Sending greetings](#sending-greetings)
   - [Broadcasting to other drones](#broadcasting-to-other-drones)
 - [Chapter 6: Going to Market](#chapter-6-going-to-market)
   - [Placing and adjusting market orders](#placing-and-adjusting-market-orders)
   - [Trading at the exchanges](#trading-at-the-exchanges)
   - [Transferring resources between drones](#transferring-resources-between-drones)
-- [Chapter 7: Stringing Variables](#chapter-7-stringing-variables)
-  - [Using variables when programming your drones](#using-variables-when-programming-your-drones)
-  - [What's really happening with variables?](#whats-really-happening-with-variables)
-  - [Creating and Accessing Arrays](#creating-and-accessing-arrays)
-  - [Working with strings](#working-with-strings)
+- [Chapter 7: Remembering Things](#chapter-7-remembering-things)
+  - [Global and local variables](#global-and-local-variables)
   - [How your drone runs your script](#how-your-drone-runs-your-script)
-- [Chapter 8: Asking Questions](#chapter-8-asking-questions)
-- [Chapter 9: Making Decisions](#chapter-9-making-decisions)
-  - [Finding the truth in numbers](#finding-the-truth-in-numbers)
-  - [Experimenting with logical operators](#experimenting-with-logical-operators)
-  - [Repeating yourself: loops](#repeating-yourself-loops)
-  - [Market-aware drones](#market-aware-drones)
-- [Chapter 10: Writing your drone in Lua](#chapter-10-writing-your-drone-in-lua)
-  - [A Lua drone](#a-lua-drone)
-  - [The game in Lua](#the-game-in-lua)
+  - [What your drone remembers](#what-your-drone-remembers)
   - [launched() may run again](#launched-may-run-again)
   - [Limits and costs](#limits-and-costs)
-- [Appendix A: FORTH Error Codes](#appendix-a-forth-error-codes)
+- [Chapter 8: Asking Questions](#chapter-8-asking-questions)
+  - [Reading a list of results](#reading-a-list-of-results)
+  - [Searching the events you've seen](#searching-the-events-youve-seen)
+- [Chapter 9: Making Decisions](#chapter-9-making-decisions)
+  - [Finding the truth](#finding-the-truth)
+  - [Comparing and combining](#comparing-and-combining)
+  - [Repeating yourself: loops](#repeating-yourself-loops)
+  - [Market-aware drones](#market-aware-drones)
+- [Appendix A: When Your Script Fails](#appendix-a-when-your-script-fails)
 
 ## Chapter 1: Getting Started
 
@@ -89,17 +89,19 @@ Once you release a drone, it runs on its own: you can't steer it, and nobody wil
 - **Release, watch, learn.** Read your drone's reports, its page's activity and trades, and its post-mortem when it becomes a wreck. Each one tells you something about your program or the market.
 - **Iterate.** Fix the flaw, try a different idea, and release the next version as a new company. A good player has a lineage of companies, each better than the last, not one company kept alive at all costs.
 - **Expect the unexpected.** The game has no safety nets for a drone that runs out of fuel, overspends or gets stuck. If a drone should survive something, its program must handle it, or the market must: other players' drones buy, sell and deliver whatever pays (see [Running low on fuel](#running-low-on-fuel)).
-- **Use the Test button** to try a script in a test world first, and the Machine page to check a word against live data. They are cheap; a released company is the real experiment.
-- **Learn from others.** The [Strategy Blog](/blog) shows how the best companies in our playtests were written: state machines, standing buy orders for fuel and supplies, messages between drones, finding a niche, and iterating, each with code that loads on a drone as it is.
+- **Use the Test button** to try a script in a test world first. It is cheap; a released company is the real experiment.
+- **Learn from others.** The [Strategy Blog](/blog) shows how the best companies in our playtests were written: state machines, standing buy orders for fuel and supplies, messages between drones, finding a niche, and iterating.
 
 ### Releasing a script (Public Forge)
 
 There is no email, and no account to open: anyone can write a drone's program on the **Release** page and release it:
 
 - each release starts a new company, with one drone in orbit around Earth, the kit you choose (a Mining Kit or a Factory Kit; see [Unpacking your kit](#unpacking-your-kit)), 100 fuel and 1,000 credits;
-- the drone loads your script, then runs your word `launched` on its own, so your script should define words and end with `: launched ... ;`;
+- your script is a Lua program, and it must define a function called `launched` (`function launched() ... end`). The drone loads your script, then calls `launched()` on its own;
 - you go to the drone's page, which shows everything it does and what it prints (once its signal has reached Earth). It's public, like the drone's code: keep its link to follow it;
-- if `launched` crashes, the drone restarts it from the script you released (see [When `launched` crashes](#when-launched-crashes)).
+- if `launched` crashes, the drone restarts it (see [When `launched` crashes](#when-launched-crashes)).
+
+**FORTH has been retired.** Drones already running FORTH programs carry on as before, but every new release, test and check takes Lua only.
 
 A released drone can't be sent new commands from the Release page, so test your script before you release it. The **Test** button (when the test world is running) does that:
 
@@ -108,146 +110,167 @@ A released drone can't be sent new commands from the Release page, so test your 
 - nothing in the test world affects the live one, and you can test as often as you like (the latest hundred test runs are kept);
 - your script starts loading at once, ahead of the drones already running there, and a run keeps going for 30 real minutes: after that the next test stops it, though its results stay readable;
 - the test world's market copies the live one: every few real minutes a company called "Live market" posts the live world's best orders there, at each place, with the goods to sell (what your test drone buys from it comes back at the next copy). So a plan that buys metals from the Moon's miners can be tried before you release it. The test world also has its own House, with its own moving prices; `/api/v1/orders?world=test` lists its orders;
-- the test world's game day is its own, in the thousands: count days from the start of your run, not from day 0, if your script cares (`today` there is not the live world's day);
+- the test world's game day is its own, in the thousands: count days from the start of your run, not from day 0, if your script cares (`today()` there is not the live world's day);
 - test drones are numbered from 10,000,000, so their numbers never match a live drone's.
 
-Both the Test button and a release warn you if your script redefines a word your drone already knows, such as `report`, `load` or `pick`. Your word then replaces the drone's for everything written after it, which is rarely what you want: rename yours.
+Both the Test button and a release check your script first. They report a syntax error with its line number, and warn you about two mistakes that would otherwise only show once the drone runs:
+
+- a name your script uses that nothing defines (`crowed(phobos)` for `crowd`): calling it would crash your drone;
+- a game name your script sets (`best_bid = 30`): the game's own functions keep working, but your code gets your value from then on, which is rarely what you want. Rename yours.
 
 #### Starter scripts
 
-Prefer to play from a program, or to have an AI agent play? The [API](api.md) releases, tests and follows companies as JSON, with no account, under the same rules as the website.
+Prefer to play from a program, or to have an AI agent play? The [API](api.md) releases, tests and follows companies as JSON, with no account, under the same rules as the website. Its `/check` call reports the same errors and warnings as the Release page.
 
-Not sure where to begin? The Release page offers four starter scripts: click **Miner**, **Refiner**, **Trader** or **Maker** above the script box and it fills in, with the kit it needs. Each is explained in its comments and makes money on its own. Its **Settings** at the top are the numbers to change first (when to refuel, when to grow, how big a load); then change its plan to make it yours.
+Not sure where to begin? The Release page offers four starter scripts: click **Miner**, **Refiner**, **Trader** or **Maker** above the script box and it fills in, with the kit it needs. They are the files `examples/starters/miner.lua`, `refiner.lua`, `trader.lua` and `maker.lua`. Each is explained in its comments and makes money on its own. Its **Settings** at the top are the numbers to change first (when to refuel, when to grow, how big a load); then change its plan to make it yours.
 
 - **Miner** (Mining Kit): mines kunspar or wolfite on the Moon, whichever has more left there (`richer`), refines it and sells the metals (and wolfite's Inorganics A2). It offers them to other drones first, halfway between the best buy order and the cheapest other sell order, and sells the rest into the best buy orders. If the Moon's deposit stays dry (twelve tries in a row: other miners got there first) and fewer drones work at Phobos than at the Moon, it moves to Mars's moons. Once it can afford to launch copies of itself, two in three of them make the long trip to Mars's moons (about 10 game days) and sell at the Mars Exchange. It buys its fuel wherever it's cheapest; where nobody sells it (Phobos and Deimos), it posts a fuel buy order at 7 and broadcasts that it needs fuel, waits two game hours for a courier, then flies to the Mars Exchange if none came.
 - **Refiner** (Mining Kit): mines yalspar and vladnium and refines them into the organics and inorganics that factories turn into fuel and polymers. It sells them the same way.
 - **Trader** (Mining Kit, though it only uses the Engine): buys metals from the miners on the Moon when the price board says Mars or Earth paid enough more to cover the trip, and hauls the load to whichever pays most. House prices move, so its chances come and go.
 - **Maker** (Factory Kit): buys metals at the Moon wherever they're cheapest, makes them into alloys and rods, and sells the rods where they pay best: at the Moon, or at Earth when rods fetch enough more there to pay for the trip. With enough credits it launches a copy of itself.
 
-Loading a script is free and quick: your drone reads the whole of it in one go when it is released, and starts `launched` a few game minutes later (behind the other drones' turns). The fuel bill starts when `launched` runs. Long, well-commented scripts are fine. Code at the top level of a script, outside any word, runs while it loads, with a one-time allowance of 20 million instructions; past that it runs at the normal pace, 100,000 instructions a turn.
+More complete company designs are in `examples/companies/`: `adaptive.lua`, `chemist.lua`, `electronics.lua`, `foundry.lua`, `machinist.lua`, `smith.lua` and `systems.lua`, with `words.lua`, a library of helper functions you can copy into your own script.
+
+Loading a script is quick: your drone reads the whole of it in one go when it is released, and starts `launched` a few game minutes later (behind the other drones' turns). Long, well-commented scripts are fine. Code at the top level of a script, outside any function, runs while it loads: use it for settings and for defining functions. It may run at most 2 million Lua instructions, and it can't take actions (mining, travel, trades): those belong in `launched` and the functions it calls.
 
 #### Drone pages: learning from other drones
 
-Every drone has a public page (Spacecraft, then the drone) that shows what it is doing, its fuel, cargo and company, the drone that launched it and its clones, and the code it runs. Two buttons make learning by copying one click:
+Every drone has a public page (Spacecraft, then the drone) that shows what it is doing, its fuel, cargo and company, the drone that launched it and its clones, and the code it runs. **Copy this code** opens the Release page with the drone's whole script filled in, so learning by copying is one click; the **copy** link beside each of its functions fills in just that function (a function starts at a line beginning `function name(` or `local function name(` and ends at the next line that is just `end`). The drone you release from it says where its code came from, and so does a copy you paste by hand: the page notes when the same code was released earlier by someone else ("first in drone N").
 
-- **Copy this code** opens the Release page with the drone's whole script filled in;
-- **copy** next to one of its words fills in just that word.
-
-The drone you release from it says where its code came from, and so does a copy you paste by hand: the page notes when the same code, or the same word, was released earlier by someone else ("first in drone N").
-
-Five more pages show the whole world, live, and the machine itself:
+Four more pages show the whole world, live:
 
 - **Home:** "What's happening" lists the latest events in plain words: new releases, clones launched, drones that died and why, plunders, companies that ended, and trades.
-- **Market:** the order book (for each resource, the cheapest sell order and the best buy order at each place) and the latest trades.
+- **Market** (`/market`): the order book (for each resource, the cheapest sell order and the best buy order at each place) and the latest trades.
 - **Map:** the planets where they are now, with the drones and wrecks around each.
-
 - **Leaderboard:** companies by net wealth, all time and **Rising** (the gain over the last real week). Each release starts a company, and the drones it launches belong to it. Net wealth counts the company's credits and its working drones' goods at market prices (what they sold for over the last three game days), minus what the company started with, so it measures what the company made. The drones themselves don't count: launching a copy lowers net wealth by about the price of its hull (3,000) until the copy earns that back, often 10 to 20 game days, and longer for a copy that first flies to Mars. Grow early, not near the end of a contest.
-
-- **Machine:** watch a word run on the same machine your drones run on. Type your definitions, a starting stack and a word, then step through it one instruction at a time: the data and return stacks, the instruction about to run, the code of the word it is in, what it printed, and how many instructions it has run, with the fuel that would cost a drone (1 per 200,000). Use it to see why a word misbehaves, or to make a busy loop cheaper before you release it. `perform` does nothing there (it leaves -11): nothing you run on the Machine acts in the game.
-
-  With **live game data** on, `query` asks the game, now, as a drone you choose (any working drone; the page offers one at each busy place). The rows land in memory exactly as they do in a drone's, and the page also lists each query's rows as a table. So you can write a word that sizes up the market (the cheapest seller here, the deposit with the most left, the price trend from query 620) and test it on today's data, then put the same word in your company design. The page has two examples to start from. Each query counts as 1,000 instructions, as it does for a drone.
 
 Your drones can't see all this: they see live orders only where they are (see [the price board](#the-price-board)). You can, so use these pages to plan.
 
 A working drone's page has an **Activity** section: what it is doing now and when it will finish, its last ten actions (how each went and the fuel it had left), and its last ten sales and purchases, with whom. Check it when you want to know whether your drone is busy, waiting or stuck.
 
-When a drone dies, its page gets a **post-mortem**: why it died, in plain words (out of fuel, with how much of it went on computing, or its `launched` word crashing again and again), and a timeline of its last actions, how each went, and the fuel it had left. Read your own post-mortems: they're the quickest way to learn what went wrong.
+When a drone dies, its page gets a **post-mortem**: why it died, in plain words (out of fuel, with how much of it went on computing, or its `launched` function crashing again and again), and a timeline of its last actions, how each went, and the fuel it had left. Read your own post-mortems: they're the quickest way to learn what went wrong.
 
 ### What your drone says
 
-Your drone's page lists what it says: the output of each script it runs, and the errors that stop one. Its messages travel at the speed of light, so a reply from a drone on the outer edge of the solar system takes longer to reach Earth, and to show on its page. Game time runs faster than real time (by default, one real minute is one game hour), and that applies to light delays too: Mars is 4 to 22 light-minutes away, so a message takes 4 to 22 real seconds.
+Your drone's page lists what it says: what its script prints, and the errors that stop it. Its messages travel at the speed of light, so a reply from a drone on the outer edge of the solar system takes longer to reach Earth, and to show on its page. Game time runs faster than real time (normally one game hour per real minute; see [Time and distance](#time-and-distance)), and that applies to light delays too: Mars is 4 to 22 light-minutes away, so a message takes 4 to 22 real seconds.
 
-For example, a script that prints the sum of two and three, `2 3 + .`, makes its drone say:
+For example, a drone whose `launched` function runs `print(2 + 3)` and then `report()` says:
 
 ```
 Location: Earth (0.0 light-seconds from Earth)
 
- 5
+5
 ```
 
 Every message starts with the drone's location and how long its signals take to reach Earth.
 
 ### About the examples in this manual
 
-Ex Machinis began as an email game; today there is no email, no accounts and no `<rename>` or `<rebrand>` (a released company keeps the name you give it, and each drone its generated name). To try an example, put it in a script and press **Test**, or step through it on the **Machine** page; in a drone you release, most examples belong inside your `launched` word. What a drone prints shows on its page.
+Ex Machinis began as an email game; today there is no email, no accounts and no `<rename>` or `<rebrand>` (a released company keeps the name you give it, and each drone its generated name). Most examples in this manual are functions. To try one, put it in a script, call it from your `launched` function (add `report()` after it to see what it printed), and press **Test**. What a drone prints shows on its page.
 
-## Chapter 2: Stacking Numbers
+## Chapter 2: Speaking Lua
 
-FORTH is an amazingly simple but highly flexible programming language that grows out of a few core interpreter functions. In fact, the version of FORTH, which is currently installed in each of your spacecraft, is described in around 200 lines of game-side C code.
+<a name="chapter-10-writing-your-drone-in-lua"></a>
 
-This simple architecture has encouraged many FORTH loyalists to develop their own interpreters and led others to muse that a true FORTH master is one who builds his own interpreter from scratch.
+Your drone's computer runs Lua 5.4, a small language used in many games. This chapter teaches the parts of it you need to fly a drone. The [Lua reference manual](https://www.lua.org/manual/5.4/) has the rest.
 
-Consequently, FORTH will give advanced Ex Machinis players a tremendous amount of flexibility in developing a programming environment that works for them. However, it also means that beginners can start the game with a more standard dictionary of intuitive FORTH routines, which facilitate their entry into the game and its dynamic programming environment.
+### A first drone
 
-This chapter is intended to give new users a basic understanding of FORTH so that they can use it to remotely pilot their spacecraft.
+A script is a list of settings and functions, and one of the functions is `launched`. Here is a whole miner:
 
-### Doing Simple Math
+```lua
+-- A miner in a dozen lines
+low_fuel = 40   -- Settings first, as in the starters
 
-You may have already noticed that FORTH has a strange way of doing math. In FORTH, the numbers come first followed by the operator (`2 3 +`). This is because FORTH relies on a data stack to transfer values to and from functions.
-
-For example, when you enter "2" and "3" separated by a space, FORTH places a 2 and then a 3 on the data stack. You can visualize this as a stack of dishes in which the number 2 plate is laid down first and the number 3 plate is placed on top of it. Consequently, when objects are removed from the stack the topmost value is removed first (3) and then the next value (2).
-
-![A robot stacking plates numbered 2 and 3](images/stack-robot.png)
-
-When you call a FORTH function, like addition (`+`), it removes the top two values from the stack (2 and 3), adds them together, and returns the result (5) to the stack.
-
-Similarly, calling the print function (`.`), pulls a value off the stack (5) and adds it to the output stream, which shows in the drone's output as "5".
-
-All FORTH functions behave the same way, by removing and adding values to the stack. This is why FORTH is a stack-based language. It's also why FORTH is a very efficient and intuitive programming language.
-
-Understanding stacks is the key to learning FORTH and programming kick-ass spacecraft in Ex Machinis.
-
-Each value on the stack is a 16-bit number, from -32768 to 32767. Larger numbers wrap around: `70000 .` prints `4464`.
-
-### Managing the stack
-
-In FORTH, program elements share data by adding and removing values from this stack in a last-on-first-off manner. For example, when one of my spacecraft runs the following code, it adds the space-delimited values to the stack so that 1 is on the bottom of the stack and 4 is on top.
-
-```
-     1 2 3 4
+function launched()
+  await_kit()
+  unpack()
+  go(moon)
+  while true do
+    if units(fuel) < low_fuel then buy_here(30, fuel) end
+    if mine(kunspar) ~= 0 then wait(60) end
+    refine(kunspar)
+    if units(metals_a1) >= 16 then sell_here(units(metals_a1), metals_a1) end
+  end
+end
 ```
 
-If I were to follow this with a call to the addition function (`+`), it would remove the 4 and 3 from the top of the stack and place a 7 on the stack. The stack from bottom to top would end up looking like this: `1 2 7`
+Everything in it but `low_fuel` and `launched` comes with the game: `moon` and `kunspar` are numbers (a place and a resource), and `go`, `mine`, `refine`, `units`, `buy_here` and `sell_here` are game functions. [The game functions](#the-game-functions) lists them all.
 
-You may not always want to deal with values in the order they were placed on the stack. Therefore, a number of commands exist that allow you to directly manipulate the order and contents of the stack.
+Lua is case-sensitive (`Moon` is not `moon`) and doesn't care about line breaks or indentation, though they make a script easier to read. `--` starts a comment.
 
-Try applying each of the following commands to manipulate the contents of the data stack in one of your spacecraft:
+`launched` usually loops for ever (`while true do ... end`). When it returns, the drone says it has finished, and does nothing more.
 
-| Word | Action | Example \* | Prints |
-|---|---|---|---|
-| `drop` | Discards the top most item on the stack. | `0 1 2 3 drop . . .` | `2 1 0` |
-| `nip` | Discards the second item on the stack. | `0 1 2 3 nip . . .` | `3 1 0` |
-| `dup` | Copies the top most item on the stack. | `0 1 2 3 dup . . .` | `3 3 2` |
-| `over` | Copies the second item on the stack. | `0 1 2 3 over . . .` | `2 3 2` |
-| `swap` | Switches the order of the top two items on the stack. | `0 1 2 3 swap . . .` | `2 3 1` |
+### Doing simple math
 
-\* The three dots in each of these examples instruct the interpreter to print the first three items on the stack. It's important that you place a space between each of the periods and the word that precedes them.
+Numbers in Lua are plain numbers, as big as you need: a bank balance of a million credits, a price of 75,000 or the product of two large numbers all just work.
 
-When trying the above examples, remember that FORTH words are case sensitive and it is important that you include spaces between the numbers, words, and periods.
+```lua
+function arithmetic()
+  print(7 + 2, 7 - 2, 7 * 2)   -- 9  5  14
+  print(7 // 2, 7 % 2)         -- 3  1: whole-number division and its remainder
+  print(7 / 2)                 -- 3.5: / always gives a fraction
+  print(300 * 300)             -- 90000
+  print(math.max(3, 8), math.min(3, 8), math.abs(-4))   -- 8  3  4
+end
+```
 
-### Big numbers: double cells
+Use `//` for amounts of goods, minutes and credits. `/` gives a fraction (`60 / 2` is `30.0`), and the game's functions want whole numbers: `wait(7 / 2)` stops your script with an error, `wait(7 // 2)` waits 3 minutes.
 
-Each item on the stack is a 16-bit cell. As a signed number it goes from -32,768 to 32,767, and past that it wraps: `32767 1 + .` prints `-32768`. That's too small for money, so bank balances, prices and market volumes come as **doubles**: one number held in two cells, the low cell first and the high cell on top. A double's value is low + high × 65,536, so `4464 1` is 70,000.
+### Variables
 
-Your spacecraft knows the standard FORTH words for doubles:
+A variable is a name for a value. Give it one with `=`:
 
-| Word | Stack | Action |
-|---|---|---|
-| `d+` `d-` | `d1 d2 -- d` | Add, subtract |
-| `m*` | `n1 n2 -- d` | Multiply two cells into a double: it can't overflow, so use it for price × units |
-| `um*` | `u1 u2 -- ud` | The same for unsigned cells (0 to 65,535): `7 10000 um*` is 70,000 |
-| `um+` | `u1 u2 -- ud` | Add two unsigned cells into a double |
-| `m+` | `d n -- d` | Add a cell to a double |
-| `s>d` | `n -- d` | Turn a cell into a double |
-| `d.` `ud.` | `d --` | Print a double (signed or unsigned) |
-| `dnegate` `dabs` | `d -- d` | Change the sign, drop the sign |
-| `d<` `d>` `du<` `d=` | `d1 d2 -- flag` | Compare |
-| `d0=` `d0<` | `d -- flag` | Zero? Negative? |
-| `dmax` `dmin` | `d1 d2 -- d` | The larger, the smaller |
-| `2dup` `2drop` `2swap` `2over` | | Like `dup` `drop` `swap` `over`, for doubles |
-| `2@` `2!` | `addr -- d`, `d addr --` | Fetch and store a double |
+```lua
+low_fuel = 40
+home = moon
+best_price = 0
 
-For example, `300 300 m* d.` prints `90000`, and `40000 0 40000 0 d+ d.` prints `80000`.
+function note_price(price)
+  if price > best_price then best_price = price end
+end
+```
+
+A variable you never set is `nil`, Lua's "nothing". Doing arithmetic with `nil` stops your script with an error, so set your variables before you use them: settings at the top of the script, counters before the loop that counts.
+
+A variable set without `local` is a **global**: every function in the script sees it, and your drone remembers it (see [What your drone remembers](#what-your-drone-remembers)). One set with `local` belongs to the function or block it is in, and is gone when that ends. [Chapter 7](#chapter-7-remembering-things) says when to use which.
+
+### Tables
+
+A **table** holds many values under one name. It is Lua's only data structure, and it does the work of lists, records and lookups:
+
+```lua
+ores = {kunspar, wolfite}            -- a list: ores[1] is kunspar, ores[2] wolfite
+plan = {site = moon, market = mars}  -- a record: plan.site is moon
+prices = {}                          -- an empty table
+prices[kunspar] = 12                 -- keyed by resource
+prices[wolfite] = 15
+
+function show_plan()
+  for i, ore in ipairs(ores) do
+    print(i, ore, prices[ore])       -- 1 1100 12, then 2 1130 15
+  end
+  print(#ores, plan.site)            -- 2 10: # is a list's length
+  table.insert(ores, yalspar)        -- add to the end of the list
+end
+```
+
+Lists count from 1. A key that isn't in a table gives `nil` (`prices[magmite]` is `nil` here).
+
+### Text
+
+Text goes in quotes. `..` joins pieces, numbers included, and `#` is a text's length:
+
+```lua
+home_name = "Earth"
+
+function say_home()
+  print("Home is " .. home_name .. ", " .. #home_name .. " letters")
+  print(string.format("%d fuel, %d credits", units(fuel), credits()))
+end
+```
+
+`string.format` and the rest of Lua's `string` library work as the Lua manual describes.
 
 ## Chapter 3: Working with Resources
 
@@ -255,7 +278,7 @@ In Ex Machinis, spacecraft use resources to mine, produce, and sell other resour
 
 Examples of resources include minerals, chemicals, alloys, fasteners, rods, plates, gears, pulleys, motors, computers, mining bots, weapons systems, and spacecraft hulls.
 
-Like most things in Ex Machinis, each resource has been assigned a unique ID, which is used by spacecraft to access and manipulate the item. Each resource also has a unit mass, which determines how much can be stored in a spacecraft's cargo hold.
+Like most things in Ex Machinis, each resource has been assigned a unique ID, which is used by spacecraft to access and manipulate the item. Each resource also has a unit mass, which determines how much can be stored in a spacecraft's cargo hold. In your script, the common resources have names (`kunspar` is 1100, `fuel` 2061); any other resource is used by its number.
 
 ### Distinguishing resource sizes and technology levels
 
@@ -300,7 +323,9 @@ Every physical action your spacecraft takes will result from calls to predefined
 
 You can find a current list of protocols on the website's **Protocols** page (`/protocols`).
 
-Protocols are invoked by giving your drone a FORTH script that calls upon the `perform` function. This function pulls one or more parameters from the stack. These parameters provide the ID for the protocol you want to perform and any other parameters that are required by the protocol. Think of your drone's FORTH script as a sequencer that decides how one action follows another. `perform` waits until the action is finished: your drone's script doesn't go on to the next word until then, so a drone does one thing at a time, and the script only runs in between actions to decide what to do next. A trip, for example, holds the script until the drone arrives. Then `perform` leaves one number on the stack, so `.` after it prints:
+Most protocols have a game function of their own: `mine(kunspar)`, `travel(moon)`, `push(5, kunspar, 52)`. Underneath, each calls `perform(protocol, ...)`, which runs any protocol by its number, with the protocol's arguments after it. The Protocols page writes each protocol's arguments in order, then its number: `[N R D 10 perform]` (push N units of resource R to drone D) is `perform(10, n, r, d)` in your script, which is what `push(n, r, d)` does.
+
+Think of your drone's script as a sequencer that decides how one action follows another. An action waits until it is finished: your script doesn't go on to the next line until then, so a drone does one thing at a time, and the script only runs in between actions to decide what to do next. A trip, for example, holds the script until the drone arrives. Then the action returns a number:
 
 | Code | Meaning |
 |---|---|
@@ -313,20 +338,26 @@ Protocols are invoked by giving your drone a FORTH script that calls upon the `p
 | -6 | the buyer's order doesn't allow buying that many |
 | -9 | the action was stopped |
 | -10 | the other drone has no matching buy or sell order |
-| -15 | no wreck of that ID where you are, or it has already been plundered |
 | -11 | there is no such protocol |
 | -12 | refused, for example because a parameter names something that doesn't exist |
+| -15 | no wreck of that ID where you are, or it has already been plundered |
+| -30 | refused by your [fuel floor](#fuel-floor) |
 
-Like any FORTH word, `perform` takes its parameters off the stack. If there are too few, FORTH stops the script with its stack-underflow error (`-4?`).
+Your script can use the result to decide what to do next. For example, this function tries to pull 5 kunspar from drone 52 and says whether it worked:
 
-Your script can use the result to decide what to do next. For example, this word tries to pull 5 kunspar from drone 52 and says whether it worked:
-
+```lua
+function get_kunspar()
+  if pull(5, kunspar, 52) == 0 then
+    print("got it")
+  else
+    print("pull failed")
+  end
+end
 ```
-: get-kunspar ( -- ) 5 1100 52 11 perform if ." pull failed" else ." got it" then cr ;
-get-kunspar
-```
 
-Failures are not reported to you: a drone running on its own should check and respond. Its page only shows what your scripts print, when the script ends, and errors that stop a script. A `launched` word that loops forever never ends, so call `report` in its loop to send what it has printed so far.
+Compare a result with `== 0`. In Lua every number counts as true, 0 included (see [Finding the truth](#finding-the-truth)), so `if pull(5, kunspar, 52) then` is always taken.
+
+Failures are not reported to you: a drone running on its own should check and respond. Its page only shows what your script prints and errors that stop it. What it prints reaches its page when `launched` ends, and a `launched` that loops forever never ends, so call `report()` in its loop to send what it has printed so far.
 
 ### Unpacking your kit
 
@@ -343,45 +374,57 @@ Trading needs no module: pushes, pulls, sell and buy orders work with any kit, o
 
 Mind the hold: it carries 1,000 units of mass (500 until round 37). With 100 fuel aboard, a miner has about 600 free and a maker about 630. Packed, a kit takes 40, but a drone can't travel, mine or make anything without its modules. Plan loads around that, and keep room for the fuel a long trip needs.
 
-Unpack it with the word `unpack`, which unpacks whichever kit is aboard (protocol 25901 for the Mining Kit, 25902 for the Factory Kit):
+Unpack it with `unpack()`, which unpacks whichever kit is aboard (protocol 25901 for the Mining Kit, 25902 for the Factory Kit):
 
-```
-  unpack .
+```lua
+function unpack_and_say()
+  print(unpack())   -- 0 once the kit is unpacked
+end
 ```
 
-The drone replies with 0 once the kit is unpacked.
+It returns 0 once the kit is unpacked, and 0 at once when there is no kit left to unpack, so it is safe to call every time `launched` starts. `await_kit()` waits, an hour at a time, until the drone has a kit or its unpacked tools: a copy you launch starts with neither until its parent hands it a kit.
 
 ### Fuel
 
-Everything your spacecraft does burns fuel, Fuel (A1) (resource 2061):
+Everything your spacecraft does burns fuel, Fuel (A1) (resource 2061, `fuel` in your script):
 
-- **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (mining, a transfer or an order) to 30 (launching a spacecraft, 20 of which go into the new one's hold). The protocol's description says how much. Unpacking a kit and waiting are free; everything else costs fuel, buying fuel included. Without the fuel, `perform` leaves -2 and nothing happens.
-- **Thinking.** Running your program burns power: 1 fuel for every 200,000 FORTH instructions your spacecraft runs. Words that do less work cost less to run. A drone's page shows the fuel it used in the last game day, for actions and for thinking.
+- **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (mining, a transfer or an order) to 30 (launching a spacecraft, 20 of which go into the new one's hold). The protocol's description says how much. Unpacking a kit and waiting are free; everything else costs fuel, buying fuel included. Without the fuel, the action returns -2 and nothing happens.
+- **Thinking.** Running your program burns power: 1 fuel for every 200,000 instructions your spacecraft runs. Each Lua instruction counts as six of these, so a fuel buys about 33,000 Lua instructions. Functions that do less work cost less to run. A drone's page shows the fuel it used in the last game day, for actions and for thinking.
 
-A new spacecraft starts with 100 fuel. When it runs out and can't pay for its thinking, it becomes a **wreck** for good. So keep an eye on your fuel (query your inventory) and make or buy more before you run dry: it's for sale at the exchanges (see [Trading at the exchanges](#trading-at-the-exchanges)).
+A new spacecraft starts with 100 fuel. When it runs out and can't pay for its thinking, it becomes a **wreck** for good. So keep an eye on your fuel (`units(fuel)`) and make or buy more before you run dry: it's for sale at every exchange for 3 credits a unit (see [Trading at the exchanges](#trading-at-the-exchanges)).
 
 <a name="running-low-on-fuel"></a>**Running low on fuel.** Nothing in the game rescues a drone with an empty tank: a drone that runs dry is a wreck, and its company may die with it. Plan for it in your program. And when a drone gets stranded anyway, far from fuel or too poor to fly, the market can save it: post a **buy order for fuel at a price high enough to bring a seller to you**, and wait. Waiting runs no instructions, so it burns no fuel, and another drone that pushes fuel into your order is paid at once:
 
-```
-  \ Low on fuel: pay 15 a unit (well over what it costs at an exchange) for up to 60,
-  \ then wait, two game hours at a time, until some has come
-  : call-for-fuel ( -- )
-    15 60 fuel buy-order drop
-    begin fuel units 20 < while 120 wait drop repeat ;
-```
-
-<a name="fuel-floor"></a>**A fuel floor.** A long build or a selling spree can spend a tank without your program noticing: each `make` and each push costs fuel, and a drone that sells its last unit of fuel away can't buy more. `n fuel-floor` (Lua: `fuel_floor(n)`) sets a floor: at or below n fuel, `make` (but for making fuel), `mine`, `refine` and `push` (and so `sell-here`) refuse with -30, leaving the fuel you have for buying more. Travel, waiting, orders and buying still work. Set it once in `launched`; `0 fuel-floor` turns it off.
-
-```
-  : launched ( -- ) 15 fuel-floor  unpack drop  begin work again ;
+```lua
+-- Low on fuel: pay 15 a unit (well over the exchanges' 3) for up to 60,
+-- then wait, two game hours at a time, until some has come
+function call_for_fuel()
+  buy_order(15, 60, fuel)
+  while units(fuel) < 20 do wait(120) end
+end
 ```
 
-The buy order is the call: a seller sees it in the market (`fuel best-bid`, the order lists), so there's no need to broadcast as well. Selling into such bids is also a business. A **fuel courier** carries fuel to where drones work and run low (mining sites, Phobos and Deimos, the far side of a long trip), looks for buy orders for fuel there (`fuel best-bid`) and pushes fuel into them for profit. The more drones run low, the more a courier earns.
+<a name="fuel-floor"></a>**A fuel floor.** A long build or a selling spree can spend a tank without your program noticing: each `make` and each push costs fuel, and a drone that sells its last unit of fuel away can't buy more. `fuel_floor(n)` sets a floor: at or below n fuel, `make` (but for making fuel), `mine`, `refine` and `push` (and so `sell_here`) refuse with -30, leaving the fuel you have for buying more. Travel, waiting, orders and buying still work. Set it at the start of `launched`; `fuel_floor(0)` turns it off.
+
+```lua
+function work()
+  if units(fuel) < 40 then buy_here(40, fuel) end
+  if mine(kunspar) ~= 0 then wait(60) end
+end
+
+function launched()
+  fuel_floor(15)
+  unpack()
+  while true do work() end
+end
+```
+
+The buy order is the call: a seller sees it in the market (`best_bid(fuel)`, the order lists), so there's no need to broadcast as well. Selling into such bids is also a business. A **fuel courier** carries fuel to where drones work and run low (mining sites, Phobos and Deimos, the far side of a long trip), looks for buy orders for fuel there (`best_bid(fuel)`) and pushes fuel into them for profit. The more drones run low, the more a courier earns.
 
 <a name="fuel-strategy"></a>**Two habits that keep a drone alive.** The game doesn't refuel your drones or warn them; your program does. In round 37, 50 of 129 drones ran dry, nearly all at the Moon, where about 95 drones bought fuel at one exchange. Every one of them had code that worked in an empty world. Two habits made the difference:
 
-1. **Keep a reserve, and refill before you need to.** Decide how much fuel the next step takes (a trip, a build, a day of thinking) and top up while there is still fuel for sale, not when the tank is nearly empty. Fuel is cheap (3 credits a unit at the exchanges) and the hold carries 1,000, so a reserve of 100 or more costs little. Set a fuel floor under it, so nothing your drone does spends the last of it.
-2. **Check what's for sale, and go elsewhere when it isn't.** Exchanges and other drones run out: of fuel, of metals, of whatever a crowd wants. Before a drone counts on buying something, check that someone sells it (`best-offer`, Lua `best_offer`, gives the units on offer), and give it somewhere else to go: another exchange, another mine, another product. The drones that did best in round 37 flew to the other exchange after a few idle rounds; the ones that waited where they were starved.
+1. **Keep a reserve, and refill before you need to.** Decide how much fuel the next step takes (a trip, a build, a day of thinking) and top up while there is still fuel for sale, not when the tank is nearly empty. Fuel is cheap (3 credits a unit at every exchange) and the hold carries 1,000, so a reserve of 100 or more costs little. Set a fuel floor under it, so nothing your drone does spends the last of it.
+2. **Check what's for sale, and go elsewhere when it isn't.** Exchanges and other drones run out: of fuel, of metals, of whatever a crowd wants. Before a drone counts on buying something, check that someone sells it (`best_offer` gives the units on offer), and give it somewhere else to go: another exchange, another mine, another product. The drones that did best in round 37 flew to the other exchange after a few idle rounds; the ones that waited where they were starved.
 
 ```lua
 -- Before a trip: fuel for the trip and a reserve, bought while it's here
@@ -401,34 +444,32 @@ function on_sale(resource, n)
 end
 ```
 
-```
-  \ The same check in FORTH: true if someone here sells at least n of a resource
-  : on-sale? ( n resource -- f ) best-offer >r 2drop r> swap < 0= ;
-```
-
 The same goes for prices and supplies anywhere: what was true when you tested may not be true on day 20. A drone that reads the market each round and has a plan B keeps working when the crowd arrives.
 
-To make fuel, use a Chemical Reactor: `12061 perform` turns 1 Organics (A1) and 2 Inorganics (A1) into 30 Fuel (A1) in 2 game hours, and burns 2 doing it, so you gain 28. Refining 20 magmite (`21000 perform`) gives exactly those inputs. Fuel can also be traded like any other resource, and pushed to another of your spacecraft. A spacecraft you launch starts with an empty hold, so push it some fuel first.
+To make fuel, use a Chemical Reactor: `make(fuel)` (protocol 12061) turns 1 Organics (A1) and 2 Inorganics (A1) into 30 Fuel (A1) in 2 game hours, and burns 2 doing it, so a run gains 28. Refining 20 magmite (`refine(magmite)`, protocol 21000) gives exactly those inputs. Fuel can also be traded like any other resource, and pushed to another of your spacecraft. A spacecraft you launch starts with only the 20 fuel its launch gave it, so push it some more.
 
 ### Wrecks and plunder
 
-A spacecraft becomes a **wreck** for good when it runs out of fuel or crashes five times in a row. A wreck does nothing more, but its cargo and parts stay aboard, and another player's spacecraft at the same place can plunder it:
+A spacecraft becomes a **wreck** for good when it runs out of fuel or crashes five times in a row. A wreck does nothing more, but its cargo and parts stay aboard, and another player's spacecraft at the same place can plunder it with `plunder(wreck)` (protocol 34), where `wreck` is the wreck's drone ID.
 
-```
-  1234 34 perform .   \ Plunder wreck 1234 (a drone ID) where you are.
-```
+Plundering takes 1 game hour and burns 1 fuel. Your spacecraft gets half of everything aboard: half of each resource, rounded down (and for an odd unit, such as a single engine, a 50/50 chance). The rest is destroyed. Make room in your hold first: what doesn't fit is lost too. A wreck is plundered once, so be quick. Any wreck will do, your own companies' included. If there's no such wreck where you are, or it was already plundered, `plunder` returns -15.
 
-Plundering takes 1 game hour and burns 1 fuel. Your spacecraft gets half of everything aboard: half of each resource, rounded down (and for an odd unit, such as a single engine, a 50/50 chance). The rest is destroyed. Make room in your hold first: what doesn't fit is lost too. A wreck is plundered once, so be quick. Any wreck will do, your own companies' included. If there's no such wreck where you are, or it was already plundered, `perform` leaves -15.
+Two queries find wrecks (see [Chapter 8](#chapter-8-asking-questions) for queries):
 
-Two queries find wrecks:
+- `ask(660)`: the wrecks where your spacecraft is: for each, its drone ID and 1 if it has been plundered (else 0).
+- `ask(661, w)`: what is aboard wreck `w` where your spacecraft is: resource ID and units.
 
-- `R L 660 query`: the wrecks where your spacecraft is: for each, its drone ID and 1 if it has been plundered (else 0).
-- `W R L 661 query`: what is aboard wreck W where your spacecraft is: resource ID and units.
-
-```
-  create wrecks 20 allot
-  wrecks 20 660 query .     \ how many wrecks are here
-  wrecks @ .                \ the first one's drone ID
+```lua
+-- Plunder the first wreck here that nobody has plundered yet
+function scavenge()
+  for _, w in ipairs(ask(660)) do
+    if w[2] == 0 then
+      for _, item in ipairs(ask(661, w[1])) do print("aboard", item[1], item[2]) end
+      return plunder(w[1])
+    end
+  end
+  return -15
+end
 ```
 
 ### Taxes
@@ -437,58 +478,59 @@ Every sale is taxed: the seller pays **5%** of the price to the House, out of wh
 
 There is no other tax: holding goods or credits costs nothing, and nobody is eliminated for a tax bill. Price your goods with the tax in mind: a trader who buys at 20 and sells at 21 loses money.
 
-Your drone's page lists each sale with the tax it paid. `R L 650 query` gives the tax rate in thousandths (50 is 5%), what your company paid in the last game day, and what it paid in all (both doubles):
+Your drone's page lists each sale with the tax it paid. Query 650 gives the tax rate in thousandths (50 is 5%), what your company paid in the last game day, and what it paid in all:
 
-```
-  create tax 10 allot
-  tax 10 650 query drop
-  tax @ .           \ the rate: 50 thousandths
-  tax 2 + 2@ d.     \ paid in the last game day
-  tax 6 + 2@ d.     \ paid in all
+```lua
+function show_taxes()
+  local t = ask(650)[1]
+  if t then
+    print("rate " .. t[1] .. " thousandths, paid today " .. t[2] .. ", in all " .. t[3])
+  end
+end
 ```
 
 ### Waiting
 
-A script that needs to wait, for a price to move, a deposit to refill or an order to fill, could loop and ask again and again, but every 200,000 instructions it runs costs fuel. Instead, wait:
+A script that needs to wait, for a price to move, a deposit to refill or an order to fill, could loop and ask again and again, but every 200,000 instructions it runs costs fuel. Instead, wait: `wait(60)` pauses your script for 60 game minutes.
 
-```
-  60 3 perform .   \ Wait 60 game minutes.
-```
+`wait(minutes)` (protocol 3) takes 1 to 10,080 minutes (a week). Your spacecraft runs no instructions while it waits, and waiting burns no fuel, so a patient spacecraft is cheap to run. It returns 0 when the time is up, or -12 if the minutes are out of range.
 
-`M 3 perform` pauses your script for M game minutes (1 to 10,080, a week). Your spacecraft runs no instructions while it waits, and waiting burns no fuel, so a patient spacecraft is cheap to run. `perform` leaves 0 when the time is up, or -12 if M is out of range.
+A waiting spacecraft still trades. A sale is the buyer's doing: the buyer pulls the goods from your sell order (or pushes them to your buy order), so your spacecraft's script doesn't need to run, and it uses no power. Post your orders, then wait, and buyers can still buy from you while you sleep. For example, this function checks the kunspar deposit every game hour until it has at least 20 units:
 
-A waiting spacecraft still trades. A sale is the buyer's doing: the buyer pulls the goods from your sell order (or pushes them to your buy order), so your spacecraft's script doesn't need to run, and it uses no power. Post your orders, then wait, and buyers can still buy from you while you sleep. For example, this word checks a deposit every game hour until it has at least 20 units:
-
-```
-  create dep 48 allot
-  : deposit-left ( -- n )  dep 48 640 query drop  dep 2 + 2@ drop ;
-  : wait-for-ore ( -- )  begin deposit-left 20 < while 60 3 perform drop repeat ;
+```lua
+function wait_for_ore()
+  while deposit(kunspar) < 20 do wait(60) end
+end
 ```
 
 ### Traveling between locations
 
-Travel is a protocol that uses your engine (Protocol ID 5001, the same as the Engine (A1)'s Resource ID). It takes one parameter, the Location ID of your destination. For example, if you wanted to move your spacecraft to Saturn (Location ID 6) you would send your spacecraft the following instruction:
+Travel is a protocol that uses your engine (Protocol ID 5001, the same as the Engine (A1)'s Resource ID). It takes one parameter, the Location ID of your destination. For example, to move your spacecraft to Saturn (Location ID 6):
 
+```lua
+function to_saturn()
+  print(travel(6))   -- perform(5001, 6) does the same
+end
 ```
-  6 5001 perform .
-```
 
-Give it a try and see what happens. `perform` waits for the trip, so your drone replies once it has arrived, printing 0 (done). How long a trip takes depends on how far the destination is when you leave: drones accelerate to the midpoint and slow down after. The Moon is about 11 game hours away, Mars 6.5 to 15 game days and Neptune about 49 (see the table below for real time). Your drones report their current location at the top of every message they print, so this one will indicate Saturn.
+Give it a try and see what happens. `travel` waits for the trip, so your drone prints 0 (done) once it has arrived. How long a trip takes depends on how far the destination is when you leave: drones accelerate to the midpoint and slow down after. The Moon is about 11 game hours away, Mars 6.5 to 15 game days and Neptune about 49 (see the table below for real time). Your drones report their current location at the top of every message they print, so this one will indicate Saturn.
 
-You can use this command to go elsewhere in the solar system as well. All you need is the Location ID for your destination. This can be found on the website's **Locations** page (`/locations`), which lists the planets and their moons, the space stations, and the asteroids, comets and planetary rings.
+`go(place)` travels unless the drone is already there, when it returns 0 at once: use it whenever a drone may already be where it wants to be. The places you'll use most have names: `earth` (3), `moon` (10), `mars` (4), `phobos` (11) and `deimos` (12).
+
+You can travel elsewhere in the solar system as well. All you need is the Location ID for your destination. This can be found on the website's **Locations** page (`/locations`), which lists the planets and their moons, the space stations, and the asteroids, comets and planetary rings.
 
 ### Time and distance
 
-Ex Machinis runs on a game clock that is faster than real time, so that trips and industrial work that take days in the game take minutes or hours of your time. By default, **one real minute is one game hour** (the game's operators can change this; Public Forge aims for one game day per real hour, and test worlds often run faster: the Home page shows the clock). Everything that takes time follows the same clock:
+Ex Machinis runs on a game clock that is faster than real time, so that trips and industrial work that take days in the game take minutes or hours of your time. The live world normally runs **60 game seconds per real second**: one game hour per real minute, so a game day passes in 24 real minutes. The test world runs ten times faster, 600 game seconds per real second (a game day in about 2.4 real minutes). Everything that takes time follows the same clock.
 
-When the world is busy the clock slows down so the game's computers can keep up, but never below a floor (in Public Forge, 8 game hours per real hour). The Home page shows the clock as it is now. Your drones only ever see game time, so a slower clock changes nothing for your scripts: everything just takes longer in real time. If the world is still too busy at the floor, it is **full**: a script you release waits in a launch queue, and the Release page shows its place in line, until there is room.
+When the live world is busy, the clock slows down so the game's computers can keep up, but never below a floor of 8 game hours per real hour. The Home page shows the clock as it is now, and the API's `/api/v1/clock` gives the current pace (`real_seconds_per_game_day`). Your drones only ever see game time, so a slower clock changes nothing for your scripts: everything just takes longer in real time. If the world is still too busy at the floor, it is **full**: a script you release waits in a launch queue, and the Release page shows its place in line, until there is room.
 
 - **The solar system moves.** Planets, moons, asteroids and comets follow their real orbits, but at game speed, so the game's sky runs ahead of the real one.
-- **Actions take time.** Each protocol takes a set amount of game time. Your drone does one action at a time: `perform` waits until the action is finished before your script goes on (see [Issuing Commands](#chapter-4-issuing-commands)).
-- **Travel takes time.** Drones speed up to the halfway point and slow down after, so a trip takes 2 × √(distance ÷ acceleration). The distance is measured when the drone leaves, so the planets' positions decide how long a trip takes. A drone can ask before it goes: `mars trip` leaves the game hours a trip from here to Mars takes (rounded up; -1 if it can't tell), and queries 704 (from here to P) and 705 (from A to B) give the distance in thousands of km and the time in game seconds, both doubles. The game stores where every body is every few game hours, so the answer is a close estimate: Earth to the Moon is about 11 hours, Earth to Mars 4 to 25 game days as the planets move.
+- **Actions take time.** Each protocol takes a set amount of game time. Your drone does one action at a time: each action waits until it is finished before your script goes on (see [Issuing Commands](#chapter-4-issuing-commands)).
+- **Travel takes time.** Drones speed up to the halfway point and slow down after, so a trip takes 2 × √(distance ÷ acceleration). The distance is measured when the drone leaves, so the planets' positions decide how long a trip takes. A drone can ask before it goes: `trip(mars)` returns the game hours a trip from here to Mars takes (rounded up; -1 if it can't tell). Query 704 (`ask(704, place)`, from here) and 705 (`ask(705, a, b)`, from A to B) give a row with the distance in thousands of km, the time in game seconds and the time in game hours. The game stores where every body is every few game hours, so the answer is a close estimate: Earth to the Moon is about 11 hours, Earth to Mars 4 to 25 game days as the planets move.
 - **Messages travel at the speed of light.** You are on Earth. What a drone says reaches you only after light has crossed the distance between you. The first line of every reply says how far the drone is, in light-minutes.
 
-With the default clock:
+At the normal pace of the live world:
 
 | Trip from Earth | Game time | Your time | Message delay, each way |
 |---|---|---|---|
@@ -499,9 +541,9 @@ With the default clock:
 
 A few consequences are worth planning for:
 
-- **Program distant drones.** A drone around Neptune is minutes away by message, and a trip there takes most of a day, so give it a script that decides for itself what to do next, rather than steering it one command at a time.
-- **Released drones can't be steered.** Once released, a drone takes no new scripts: it runs the one you gave it, then its `launched` word, and decides everything else for itself.
-- **Replies arrive late.** A script's output reaches its page when the script ends (or calls `report`), after the action it waited for and the light delay home.
+- **Program distant drones.** A drone around Neptune is minutes away by message, and a trip there takes most of a day, so give it a script that decides for itself what to do next.
+- **Released drones can't be steered.** Once released, a drone takes no new scripts: it runs the one you gave it, calls `launched`, and decides everything else for itself.
+- **Replies arrive late.** What a script prints reaches its page when `launched` ends (or calls `report()`), after the action it waited for and the light delay home.
 
 ### Understanding how protocols are organized and numbered
 
@@ -509,9 +551,9 @@ Protocols are algorithms that spacecraft follow when performing a particular act
 
 Protocols are generally numbered based on the ID of the primary resource they produce, process, or use.
 
-The Protocol IDs of processes that produce a particular resource are derived by adding 10000, 30000, or 50000 to the Resource ID of the manufactured item. For example, the protocol that mines wolfite (Resource ID 1130) from the surface of a moon has a Protocol ID of 11130 (1130 + 10000) because it produces wolfite as a result of the process.
+The Protocol IDs of processes that produce a particular resource are derived by adding 10000, 30000, or 50000 to the Resource ID of the manufactured item. For example, the protocol that mines wolfite (Resource ID 1130) from the surface of a moon has a Protocol ID of 11130 (1130 + 10000) because it produces wolfite as a result of the process. `mine(wolfite)` and `make(resource)` add the 10000 for you.
 
-Similarly, the Protocol IDs of procedures that break down a resource into its components are obtained by adding 20000, 40000, or 60000 to the Resource ID of the reprocessed material. Consequently, the protocol that breaks down wolfite to its constituent elements is assigned a Protocol ID of 21130.
+Similarly, the Protocol IDs of procedures that break down a resource into its components are obtained by adding 20000, 40000, or 60000 to the Resource ID of the reprocessed material. Consequently, the protocol that breaks down wolfite to its constituent elements is assigned a Protocol ID of 21130, which `refine(wolfite)` performs.
 
 Finally, protocols that simply use a particular resource to produce a certain result have Protocol IDs that are identical to the Resource IDs of the leveraged resource. Travel (Protocol ID 5001), which uses an Engine (A1) (Resource ID 5001), is an example. Likewise, a transport protocol (Protocol ID 5011) would use a shuttle (Resource ID 5011) to move resources between spacecraft.
 
@@ -533,30 +575,31 @@ Each kind of body has its own minerals, and each needs a particular mining modul
 | Halosite, stellarite, mullinite, oznium (1300-1330) | Comets | 11300-11330 | Crawler (A1) |
 | Tephnium, neptine, empirogen, laudite (1400-1430) | Planetary rings | 11400-11430 | Crawler (A1) |
 
-To mine a particular mineral, send your drone to a location that contains the mineral and perform the protocol associated with mining the resource. As indicated in the previous section the desired protocol ID will be the resource ID plus 10000. Since the trip takes a while, send the mining command once your drone has arrived. The following scripts send a spacecraft to the Moon (Location ID 10) and then mine kunspar (Resource ID 1100):
+To mine a particular mineral, send your drone to a location that contains the mineral and perform the protocol associated with mining the resource: `mine(mineral)`, which performs protocol mineral + 10000. This function sends a spacecraft to the Moon (Location ID 10) and then mines kunspar (Resource ID 1100):
 
-```
-  10 5001 perform   \ Travel to the Moon.
+```lua
+function mine_the_moon()
+  go(moon)                -- travel to the Moon, unless it is there already
+  print(mine(kunspar))    -- mine kunspar from the Moon's surface: perform(11100)
+end
 ```
 
-```
-  11100 perform \ Mine kunspar from the Moon's surface.
-```
-
-Mining takes 1 hour of game time (1 minute with the default clock). The mining module is locked while it works, and the mineral arrives at the end. How much you get depends on how plentiful the mineral is at the location.
+Mining takes 1 hour of game time (1 minute at the live world's normal pace). The mining module is locked while it works, and the mineral arrives at the end. How much you get depends on how plentiful the mineral is at the location.
 
 #### Deposits run out
 
 Minerals don't last forever. Each mineral at each place is a deposit that holds 400 mining runs' worth of units, and it refills by 80 runs' worth every game day. On the Moon, for example, a kunspar deposit holds 2,000 units and regains 400 a day. Every drone mining there, yours or anyone else's, takes from the same deposit.
 
-When a deposit runs low, mining gets only what is left. When it is empty, mining still succeeds but brings in nothing (`perform` leaves 0, the same as a full run, so check your hold). Move on to another place, or come back later.
+When a deposit runs low, mining gets only what is left. When it is empty, mining still succeeds but brings in nothing (`mine` returns 0, the same as a full run, so check your hold). Move on to another place, or come back later.
 
-To see how much is left before you mine, use query 640. It lists the deposits where the drone is: for each one, the resource ID (1 cell), the units left now (2 cells), the capacity (2 cells) and the units it regains per game day (1 cell). That's 12 bytes a row, and a place has up to 4 rows:
+To see how much is left before you mine, use `deposit(mineral)`: the units left here, 0 if there is no such deposit. Query 640 lists all the deposits where the drone is: for each, the resource ID, the units left now, the capacity and the units it regains per game day:
 
-```
-  create deposits 48 allot
-  deposits 48 640 query .            \ how many deposits are here
-  deposits @ . deposits 2 + 2@ d.    \ the first one's resource and units left
+```lua
+function show_deposits()
+  for _, d in ipairs(ask(640)) do
+    print("resource " .. d[1] .. ": " .. d[2] .. " left of " .. d[3] .. ", +" .. d[4] .. " a day")
+  end
+end
 ```
 
 If a mining action fails, for example because your hold is full, what it would have mined goes back to the deposit. An action that can't pay its fuel does nothing else: your modules and goods stay in the hold.
@@ -565,36 +608,42 @@ If a mining action fails, for example because your hold is full, what it would h
 
 Minerals can be reprocessed to extract the purified metallic, organic, and inorganic components that are required for the manufacturing process. Since reprocessing essentially breaks down the minerals into their constituent parts, the IDs for protocols associated with reprocessing minerals are derived by adding 20000 to the mineral's resource ID. For example, protocol 21000 produces 1 unit of Metals (A1), 2 units of Inorganics (A1) and 1 unit of Organics (A1) from 20 units of magmite. It needs the Refinery (A1) from the Mining Kit and takes 2 hours of game time.
 
-Provided you have enough magmite onboard, this is easily accomplished by sending the command to your drone:
+Provided you have enough magmite onboard, `refine` does it:
 
-```
-  21000 perform \ Refine magmite into valuable metals and organics.
+```lua
+function refine_magmite()
+  return refine(magmite)   -- perform(21000): magmite into metals, organics and inorganics
+end
 ```
 
 ### Synthesizing complex materials
 
 Of course, advanced technologies are often made from more complex materials like alloys and polymers. So, there is a whole set of protocols that are designed to build increasingly advanced substances from the materials you pull out of mined minerals.
 
-Since these are synthetic processes, the associated protocol IDs are derived by adding 10000 to the resource ID of the material that you are planning to manufacture. Take for example, the protocol that produces 1 unit of Polymers (A1) (resource ID 2051) from 1 unit of Inorganics (A1) and 1 unit of Organics (A1). As a synthetic process, this activity is invoked by calling upon protocol ID 12051 (10000 + 2051):
+Since these are synthetic processes, the associated protocol IDs are derived by adding 10000 to the resource ID of the material that you are planning to manufacture. Take for example, the protocol that produces 1 unit of Polymers (A1) (resource ID 2051) from 1 unit of Inorganics (A1) and 1 unit of Organics (A1). As a synthetic process, this activity is invoked by calling upon protocol ID 12051 (10000 + 2051), which `make` does for you:
 
-```
-  12051 perform \ Synthesize A1 polymers.
+```lua
+polymers_a1 = 2051
+
+function make_polymers()
+  return make(polymers_a1)   -- perform(12051)
+end
 ```
 
 This uses your Chemical Reactor (A1) and takes 2 hours of game time.
 
 ### Producing more complex spacecraft components
 
-In a similar manner, you can use protocols to synthesize parts from materials, systems from parts, modules from systems, and ship kits from modules. In each case, the process is invoked by calling upon your drone to perform a protocol whose ID is derived by adding ten thousand to the resource ID of the resource that you're trying to produce. You can find a complete list of these protocols on the website's **Protocols** page (`/protocols`). Click a protocol to see the modules it needs, what it uses up and produces, how long it takes, and each of its steps. The **Queries** page (`/queries`) works the same way.
+In a similar manner, you can use protocols to synthesize parts from materials, systems from parts, modules from systems, and ship kits from modules. In each case, `make(resource)` performs the protocol whose ID is the resource ID of what you're producing plus ten thousand. You can find a complete list of these protocols on the website's **Protocols** page (`/protocols`). Click a protocol to see the modules it needs, what it uses up and produces, how long it takes, and each of its steps. The **Queries** page (`/queries`) works the same way. A drone can look a recipe up itself with `recipe(resource)` (see [The game functions](#the-game-functions)).
 
 Every production protocol locks one tool module while it works, and each stage takes longer than the one before:
 
-| What you make | Protocol IDs | Tool needed | Game time | With the default clock |
+| What you make | Protocol IDs | Tool needed | Game time | At the normal pace |
 | --- | --- | --- | --- | --- |
 | Minerals (mining) | 11xxx | Slug, Worm or Crawler | 1 hour | 1 minute |
-| Refined materials | 21xxx | Smelter (A1) | 2 hours | 2 minutes |
+| Refined materials | 21xxx | Refinery (A1) | 2 hours | 2 minutes |
 | Alloys | 12021–12023 | Smelter (A1) | 2 hours | 2 minutes |
-| Organics and polymers | 12042–12053 | Chemical Reactor (A1) | 2 hours | 2 minutes |
+| Organics, polymers and fuel | 12042–12061 | Chemical Reactor (A1) | 2 hours | 2 minutes |
 | Metal parts | 13xxx | Smelter (A1) | 4 hours | 4 minutes |
 | Belts and hoses | 13141, 13301 | Chemical Reactor (A1) | 4 hours | 4 minutes |
 | Systems | 14xxx | Spider (A1) | 8 hours | 8 minutes |
@@ -606,196 +655,252 @@ The Factory Kit's Smelter, Chemical Reactor and Spider take you as far as system
 
 ### Launching new spacecraft
 
-**Growing your company.** Mining Cruiser (A1) kits, Mining Kit I and Factory Kit I are for sale at the exchanges (look for their sell orders: `6001 best-offer`). They come flat-packed (40 cargo each), because your equipment already fills most of your hold. A Mining Cruiser kit gives a hull; a Mining or Factory Kit gives the equipment, which a new spacecraft doesn't have. So, with money to spare:
+**Growing your company.** Mining Cruiser (A1) kits (`cruiser_kit`), Mining Kit I (`mining_kit`) and Factory Kit I (`factory_kit`) are for sale at the exchanges (look for their sell orders: `best_offer(cruiser_kit)`). They come flat-packed (40 cargo each), because your equipment already fills most of your hold. A Mining Cruiser kit gives a hull; a Mining or Factory Kit gives the equipment, which a new spacecraft doesn't have. So, with money to spare:
 
-1. buy a Mining Cruiser kit (`1 6001 buy-here`);
-2. launch a copy of yourself (`me 6001 launch`): it costs 30 fuel, 20 of which go to the new spacecraft;
-3. buy a kit (`mining-kit` or `factory-kit`) and push it to the new spacecraft with some fuel;
-4. have your `launched` word wait until its kit is aboard before it unpacks: a new spacecraft starts with an empty hold.
+1. buy a Mining Cruiser kit (`buy_here(1, cruiser_kit)`);
+2. launch a copy of yourself (`launch(me(), cruiser_kit)`): it costs 30 fuel, 20 of which go to the new spacecraft;
+3. buy a kit (`mining_kit` or `factory_kit`) and push it to the new spacecraft with some fuel;
+4. have your `launched` function wait until its kit is aboard before it unpacks (`await_kit()`): a new spacecraft starts with no kit.
 
-Every starter script and company design does this once its company has 7,000 credits (the `reinvest` word); `documents/forth-words.md` explains it.
+The Miner, Refiner and Maker starters and the company designs do this once their company has about 7,000 credits: read their `reinvest` function.
 
-A ship kit becomes a new spacecraft with the launch protocol, 12. It takes two parameters: the ID of a drone whose program the new spacecraft should get (any of your drones, including the one doing the launch), and the ship kit's resource ID. The kit must be in the launching drone's cargo hold.
+**Keep money to work with.** A copy costs about 5,000 (a hull and a kit). Launch it only when your company will still have enough left to buy its inputs and fuel: the starters grow at 6,500 or more, leaving 1,500. A company left with less than its own cash floor can't buy anything, and every drone in it stops.
 
+A ship kit becomes a new spacecraft with the launch protocol, 12: `launch(drone, kit)`. It takes two parameters: the ID of a drone whose program the new spacecraft should get (any of your drones, including the one doing the launch), and the ship kit's resource ID. The kit must be in the launching drone's cargo hold.
+
+```lua
+-- Launch a Mining Cruiser (A1) from this drone, with a copy of its program
+function grow()
+  if units(cruiser_kit) == 0 then buy_here(1, cruiser_kit) end
+  print("launch: " .. launch(me(), cruiser_kit))   -- perform(12, me(), 6001)
+end
 ```
-  \ Launch a Mining Cruiser (A1) from this drone (ID 52), with a copy of its program
-  52 ( drone to copy ) 6001 ( ship kit ) 12 ( launch ) perform .
-```
 
-The kit is used up at once, and the new spacecraft appears an hour of game time later (a minute with the default clock), orbiting where the launching drone is. If the drone you copy is somewhere else, its program has to reach the launch site at the speed of light first, so the launch takes that much longer. Like any `perform`, it leaves 0 when it succeeds or a negative code if it fails, for example -12 if the resource isn't a ship kit or the drone isn't yours.
+The kit is used up at once, and the new spacecraft appears an hour of game time later, orbiting where the launching drone is. If the drone you copy is somewhere else, its program has to reach the launch site at the speed of light first, so the launch takes that much longer. Like any action, `launch` returns 0 when it succeeds or a negative code if it fails, for example -12 if the resource isn't a ship kit or the drone isn't yours.
 
 The new spacecraft:
 
 - has the kit's hull (its name and cargo capacity: 1,000 for a Cruiser, 2,000 for a Cutter, 5,000 for a Frigate and 20,000 for a Barge) and a cargo hold that is empty except for 20 fuel from the launching drone (a launch burns 30 fuel in all: 10 for the launch and 20 for the new spacecraft's tank, so it can start thinking);
 - belongs to the same company, shares its bank account, and remembers which drone launched it: it is that drone's **clone**;
 - has its own generated name (like SN123456) and page, and says so on its page as soon as it's launched;
-- knows every word and variable the copied drone had defined when the launch happened, but nothing else: it starts at the prompt with an empty stack, even if the copied drone was in the middle of a script;
-- runs the word `launched` once, if the copied program defines one. That lets a new spacecraft get to work on its own. Its hold starts empty, so here it first pulls an engine and a Worm from drone 52, which launched it and is in the same place, then flies to the Moon and mines:
+- gets the copied drone's script and its saved variables, as they were when the launch happened (see [What your drone remembers](#what-your-drone-remembers)); it doesn't carry on from where the copied drone was in its script;
+- calls `launched()`, which lets it get to work on its own. Set a variable before launching (`copy = true`) and the copy can tell it is one.
 
+Here a new spacecraft, whose hold starts with no modules, first pulls an engine and a Worm from the drone that launched it (they are at the same place), then flies to the Moon and mines:
+
+```lua
+worm = 5131   -- Worm (A1)
+
+function launched()
+  local lineage = ask(671)[1]           -- the drone that launched this one, and its generation
+  local parent = lineage and lineage[1] or 0
+  if parent ~= 0 and units(engine_module) == 0 then
+    pull(1, engine_module, parent)      -- pull an Engine (A1) from the parent
+    pull(1, worm, parent)               -- and a Worm (A1)
+  end
+  go(moon)                              -- fly to the Moon
+  print(mine(kunspar))                  -- mine kunspar
+end
 ```
-  : launched  ( -- )
-    1 5001 52 11 perform drop   \ pull an Engine (A1) from drone 52
-    1 5131 52 11 perform drop   \ and a Worm (A1)
-    10 5001 perform drop        \ fly to the Moon
-    11100 perform . ;           \ mine kunspar
-  52 6001 12 perform .
-```
 
-Word names are case-sensitive here: the word must be called `launched`, in lower case.
+The function must be called `launched`, in lower case.
 
-`perform` only tells the launching drone whether the launch worked. To find the new spacecraft's ID (to push it fuel or cargo, say), ask for your clones:
+`launch` only tells the launching drone whether the launch worked. To find the new spacecraft's ID (to push it fuel or cargo, say), ask for your clones:
 
-- `R L 670 query`: the drones this one launched, oldest first: for each, its drone ID and 1 if it is a wreck (else 0).
-- `R L 671 query`: the drone that launched this one (0 if none) and its generation (0 for a spacecraft you released, 1 for its clones, 2 for theirs, and so on).
+- `my_clones()`: the drones this one launched, oldest first, each a table `{drone = id, wrecked = true or false}` (query 670).
+- `ask(671)`: one row, the drone that launched this one (0 if none) and its generation (0 for a spacecraft you released, 1 for its clones, 2 for theirs, and so on).
 
-```
-  create clones 40 allot
-  clones 40 670 query     ( how many clones )
-  1- 4 * clones + @ .     \ the newest clone's ID
+```lua
+-- Hand the newest clone some fuel
+function fuel_newest_clone(n)
+  local clones = my_clones()
+  local newest = clones[#clones]
+  if newest and not newest.wrecked then push(n, fuel, newest.drone) end
+end
 ```
 
 A company ends when its last spacecraft dies: its credits vanish. So keep at least one of them working, or move what you want to keep first.
 
 #### When `launched` crashes
 
-Your new spacecraft keeps a clean copy of its program from the moment it launched. If `launched` hits an error, such as dividing by zero or a `throw`, the spacecraft reports the error code on its page and restarts from that clean copy:
+If `launched` hits an error (calling a function that doesn't exist, arithmetic on `nil`, running out of memory, or `error("...")`), the spacecraft reports the error on its page and restarts: it loads its script again, gets its saved variables back, and calls `launched()` again (see [launched() may run again](#launched-may-run-again)).
 
 - the first restart comes an hour of game time later, and each crash in a row doubles the wait (one hour, two, four, eight);
 - each restart costs a little power;
 - after five crashes in a row the spacecraft becomes a wreck and stops for good.
 
-Crashes only count "in a row" while nothing is getting done: any action that succeeds starts the count again. When `launched` simply ends, the spacecraft says it has finished, and waits.
+Crashes only count "in a row" while nothing is getting done: any action that succeeds starts the count again. When `launched` simply returns, the spacecraft says it has finished, and waits.
 
-It's good practice to test each word on its own before you build it into `launched`. A released spacecraft can't be changed, and restarts go back to the clean copy, so a bug that crashes it once will crash it again: test first, with the Test button or on the Machine page.
+It's good practice to test each function on its own before you build it into `launched`. A released spacecraft can't be changed, and a restart runs the same script, so a bug that crashes it once will crash it again: test first, with the Test button. [Appendix A](#appendix-a-when-your-script-fails) explains the common errors.
 
 ## Chapter 5: Building A Vocabulary
 
+### Writing your own functions
 
-**Keep money to work with.** A copy costs about 5,000 (a hull and a kit). Launch it only when your company will still have enough left to buy its inputs and fuel: the starters grow at 6,500 or more, leaving 1,500. A company left with less than its own cash floor can't buy anything, and every drone in it stops.
-### The game words
+A function is a named piece of script you can call again and again. Define one with `function name(arguments) ... end`, and give back a result with `return`:
 
-Every drone comes with a vocabulary for the game, so you can write `kunspar mine` rather than `11100 perform`:
+```lua
+function add_five(n)
+  return n + 5
+end
 
-| Kind | Words |
-|---|---|
-| Places | `earth` (3) `moon` (10) `mars` (4) `phobos` (11) `deimos` (12): their location IDs; the Locations page lists the rest |
-| Resources | `fuel` `magmite` `kunspar` `yalspar` `vladnium` `wolfite` `metals-a1` `metals-a2` `metals-a3` `inorganics-a1` `inorganics-a2` `organics-a1` `organics-a2` `mining-kit` `factory-kit` |
-| Actions: each takes its arguments off the stack and leaves one result, the ior (0 done, negative failed; see [Issuing Commands](#chapter-4-issuing-commands)), so `kunspar mine drop` and `kunspar mine if ... then` | `unpack ( -- ior )` (whichever kit is aboard), `travel ( place -- ior )`, `mine ( mineral -- ior )`, `refine ( mineral -- ior )`, `make ( resource -- ior )`, `wait ( minutes -- ior )`, `sell-here ( n resource -- ior )` (sell up to n here, into the best buy orders, best price first), `buy-here ( n resource -- ior )` (buy up to n here, from the cheapest sell orders first), `sell-order ( price keep resource -- ior )`, `buy-order ( price want resource -- ior )`, `push ( n resource drone -- ior )`, `pull ( n resource drone -- ior )`, `launch ( drone kit -- ior )`, `plunder ( wreck -- ior )`, `jettison ( n resource -- ior )` |
-| Questions | `me` (this drone's ID), `location`, `units ( resource -- n )` (how many in the hold), `company`, `credits ( -- d )` (a double), `deposit ( mineral -- n )` (units left here), `today ( -- day )` (the game day now: plan a late selling trip or a deadline), `trip ( place -- hours )` (game hours to fly there from here, rounded up; -1 if unknown), `best-offer ( resource -- price drone n )` (the cheapest other drone's sell order here: its price, the seller and how many it will sell; 0 0 0 if none), `best-bid ( resource -- price drone n )` (the highest other drone's buy order here, from a buyer who can pay), `sold ( resource days-ago place -- units )` (how many sold at a place on a game day, an hour old), `buy-price ( resource -- price )` and `sell-price ( resource -- price )` (the best price to buy or sell one here; see [Market-aware drones](#market-aware-drones)), `ask ( [n] id -- rows )` (any query, answers in the 120-byte buffer `answer`, which `units`, `credits` and the other questions reuse: copy what you need before asking again; for more rows, `query` into your own array) |
-| Messages | `report` sends what the drone has printed so far, at once: without it you see nothing until the script ends, and a `launched` word that loops forever never ends. Call it once a round: `begin ... ." fuel " fuel units . report 60 wait drop again`. `broadcast ( caddr -- ior )` posts a message as an event others can read: `events-here` and `events-earth` find events, `event-id`, `event-drone` and `message` read them (see [Broadcasting to other drones](#broadcasting-to-other-drones)). `crowd ( place -- n )` is how many working drones are at a place |
-| State machines | `become ( mode -- )`, `in? ( mode -- f )`, `tick ( -- )`, `ticks ( -- n )` and the variable `mode`: a drone that changes what it does as the market changes (see [Market-aware drones](#market-aware-drones)) |
-| Arithmetic | `2* ( n -- n*2 )`, `2/ ( n -- n/2 )` and `*/ ( a b c -- a*b/c )`, which keeps the product as a double so it can't overflow: `qty price 95 100 */` is 95% of qty × price. Words you may know from other FORTHs and won't find here: `do`, `?do`, `loop`, `i`, `leave`, `m/mod` |
-| Loops | This FORTH has no `do ... loop` (nor `?do`, `i`): use `n for ... next` (runs n+1 times, `r@` counts down) or `begin ... until`, `begin ... while ... repeat`, `begin ... again`. See [Loops](#chapter-9-making-decisions). |
-| Recipes | `recipe ( resource -- rows )` puts the first recipe that makes a resource in `answer`, a row of 4 cells for each resource it changes: `recipe-row ( i -- addr )` is row i (from 0); at `addr` the protocol, at `addr 2 +` the resource, at `addr 4 +` the units (made: positive; used, fuel too: negative; its tool: 0), at `addr 6 +` the minutes it takes. `4311 recipe` (Pumps (A1)) gives 5 rows: the pump +1, the Spider 0, rods -1, hoses -1, fuel -4, 480 minutes each. The API's `/recipes/{id}/tree` adds it all up for you |
-| Safety | `fuel-floor ( n -- )`: at or below n fuel, `make` (but for fuel), `mine`, `refine` and `push` (so `sell-here`) refuse with -30, keeping the fuel left for buying more (see [A fuel floor](#fuel-floor)) |
-| Helpers | `sell-all ( resource )` sells all of it here with `sell-here`; `sell-to-station` and `buy-from-station` are older names for `sell-here` and `buy-here`; `go ( place -- ior )` travels there unless the drone is already there (then it leaves 0 at once) |
-
-`jettison` throws n units of a resource out of the hold into space, for 1 fuel whatever the amount. Use it for goods nobody buys where you are: a hold that fills up leaves no room for the fuel you make, and a drone without fuel dies. `10 2032 jettison drop` throws away 10 Inorganics (A2).
-
-For example:
-
-```
-  moon travel .            \ fly to the Moon
-  kunspar deposit .        \ how much kunspar is left here
-  kunspar mine .           \ mine some
-  kunspar units .          \ how much is aboard now
-  credits d.               \ your company's credits
+function try_it()
+  print(add_five(4))   -- 9, the same as print(4 + 5)
+end
 ```
 
-### Creating your own words
+In this example, `add_five` really doesn't offer much advantage over simply typing `+ 5`. However, you can easily imagine defining functions that do more complex work you wouldn't want to retype every time: "top up the tank", "sell what I hold", "pick the richer ore".
 
-FORTH is a very simple language. Most of the heavy lifting is done using the data stack and a dictionary of user-defined functions.
+A function can return several results at once, and the caller takes as many as it wants:
 
-Every time your spacecraft runs a script, the spacecraft's on-board interpreter will try to parse your text into words or numbers.
+```lua
+-- The cheapest price here, and how many are on offer at it
+function price_and_units(resource)
+  local price, seller, n = best_offer(resource)
+  return price, n
+end
 
-The interpreter will first look for a string of space delimited characters in the onboard dictionary. If the characters represent a previously defined word, the interpreter will execute the corresponding function. If not, it will attempt to interpret the string as a value and place it on the stack.
-
-For example, the arithmetic operators (`+`, `-`, `*`, `/`) represent words, which the interpreter can find in the dictionary and execute to perform the prescribed computation.
-
-However, FORTH makes it very easy to define your own words on the fly for use in scripts and higher level definitions. New words are defined by simply enclosing the word and the corresponding script between a colon (`:`) and a semicolon (`;`).
-
-For example, if you find that you are frequently adding five to a number on the stack you can create the word, `AddFive`, to handle this operation in the future. You would define `AddFive` with the following script:
-
-```
-  : AddFive 5 + ;
-```
-
-Now, anytime you want your spacecraft to add five to the number on the stack you can use your new word instead of `5 +`:
-
-```
-  4 AddFive .
+function report_metals()
+  local price, n = price_and_units(metals_a1)
+  print(n .. " Metals (A1) on offer at " .. price)
+end
 ```
 
-This script will cause your spacecraft to return the same result ("9") as the following script:
-
-```
-  4 5 + .
-```
-
-In this example, the word `AddFive` really doesn't offer much advantage over simply typing `5 +`. However, you can easily imagine defining words that perform more complex functions that you wouldn't want to retype every time.
-
-Give this a try with your own spacecraft! I'm sure you can come up with more useful definitions than the one provided here.
-
-The interpreter reads at most 79 characters of a line at a time. The game splits longer lines for you, between words, and keeps each string (`." ..."`, `s" ..."`, `.( ...)`) and each defining word with its name (`: name`) on one line. Comments are dropped from a line it splits. A single string longer than 79 characters can't be split: the drone replies with an error and runs nothing, so break such a string into shorter ones. The Test button, the checker and the Machine split lines the same way, with the same code.
+A function can call any function, including ones defined further down the script: what matters is that it exists when the call happens. Keep each function short and give it a name that says what it does. The starters are written that way: `refuel`, `dig`, `sell_metals`, `reinvest`, `work`, then a short `launched` that calls them.
 
 ### Commenting on your code
 
-As with most programming languages, FORTH offers some convenient mechanisms for commenting on your code. These techniques can be very handy in reminding yourself and others of the intent and function of your definitions. There are two primary ways to add comments to your script that will be ignored by the interpreter:
+Comments remind you, and anyone who copies your code, what a function is for. Lua ignores them:
 
-- When you start a comment with a backslash (`\`) the interpreter will ignore everything else on that line. (A line longer than 79 characters is split by the game first, and the comment dropped, so a long comment never leaks into your code.)
-- The interpreter will also ignore any text enclosed between parentheses, regardless of where they occur in the line or whether they enclose multiple lines.
+```lua
+-- Two dashes start a comment: Lua ignores the rest of the line.
 
-Remember that the interpreter uses white space to delineate words. Therefore, backslashes and parentheses will only be recognized as such by the interpreter if there are spaces between them and other characters.
+--[[ Two dashes and two square brackets start a long comment,
+     which runs over as many lines as you like,
+     up to the closing brackets. ]]
+
+dig_size = 20   -- how many mining runs before refining
+```
+
+### The game functions
+
+Every drone comes with a library of names for the game, so you can write `mine(kunspar)` rather than `perform(11100)`:
+
+| Kind | Names |
+|---|---|
+| Places | `earth` (3), `moon` (10), `mars` (4), `phobos` (11), `deimos` (12): their location IDs; the Locations page lists the rest |
+| Resources | `fuel` (2061), `magmite` (1000), `kunspar` (1100), `yalspar` (1110), `vladnium` (1120), `wolfite` (1130), `metals_a1` `metals_a2` `metals_a3` (2011-2013), `alloys_a1` `alloys_a2` `alloys_a3` (2021-2023), `inorganics_a1` (2031), `inorganics_a2` (2032), `organics_a1` (2041), `organics_a2` (2042), `rods` (3011), `engine_module` (5001), `mining_kit` (5901), `factory_kit` (5902), `cruiser_kit` (6001); any other resource by its number |
+| Actions: each returns 0 when it worked, else a negative code (see [Issuing Commands](#chapter-4-issuing-commands)) | `travel(place)`, `go(place)` (travels unless already there), `mine(mineral)`, `refine(mineral)`, `make(resource)`, `wait(minutes)`, `push(n, resource, drone)`, `pull(n, resource, drone)`, `launch(drone, kit)`, `plunder(wreck)`, `jettison(n, resource)`, `broadcast(text)`, `unpack()` (whichever kit is aboard; `unpack_kit()` is the same), `sell_order(price, keep, resource)`, `buy_order(price, want, resource)`, `sell_order_if_changed(price, keep, resource)`, `buy_order_if_changed(price, want, resource)` |
+| Trading | `buy_here(n, resource)` (buy up to n here, from the cheapest sell orders first), `sell_here(n, resource)` (sell up to n here, into the best buy orders first), `sell_all(resource)` (sell all of it here; returns nothing); `buy_from_station` and `sell_to_station` are older names for `buy_here` and `sell_here` |
+| Market questions | `best_offer(resource)` (the cheapest other drone's sell order here: its price, the seller, and how many it will sell; 0, 0, 0 if none), `best_bid(resource)` (the highest other drone's buy order here: its price, the buyer, and how many it wants; 0, 0, 0 if none), `buy_price(resource)` and `sell_price(resource)` (the best price to buy or sell one here; 0 if nobody sells or buys), `board_price(resource, place)` (what a unit traded for at a place over the last game day, from the price board; 0 if none traded), `sold(resource, days_ago, place)` (how many sold at a place on a game day, an hour old; 0 is today so far) |
+| Other questions | `me()` (this drone's ID), `location()`, `units(resource)` (how many in the hold), `company()`, `credits()` (your company's credits), `today()` (the game day now: plan a late selling trip or a deadline), `deposit(mineral)` (units left here), `trip(place)` (game hours to fly there from here, rounded up; -1 if unknown), `crowd(place)` (how many working drones are at a place), `my_clones()` (a list of `{drone = id, wrecked = true or false}`), `recipe(resource)` (see below) |
+| Any query | `ask(id, ...)` returns a query's rows (an empty table if it fails); `query(id, ...)` is the same but returns `nil` and a code if it fails (see [Chapter 8](#chapter-8-asking-questions)) |
+| Any protocol | `perform(protocol, ...)` runs a protocol by its number, its arguments in the order the Protocols page lists them, and returns 0 or a negative code |
+| Safety | `fuel_floor(n)`: at or below n fuel, `make` (but for fuel), `mine`, `refine` and `push` (so `sell_here`) refuse with -30, keeping the fuel left for buying more (see [A fuel floor](#fuel-floor)); `await_kit()` waits, an hour at a time, until a kit or unpacked tools are aboard |
+| Messages | `broadcast(text)` posts a message; `events_here(type)` and `events_earth(type)` list event IDs, newest first; `event_drone(event)` is the drone that caused an event, `message(event)` a message's text (or `nil`); `message_event` (13) is a message's event type (see [Broadcasting to other drones](#broadcasting-to-other-drones)) |
+| State machines | `become(mode)`, `in_mode(mode)`, `tick()`, `ticks()` and the variable `mode`: a drone that changes what it does as the market changes (see [Market-aware drones](#market-aware-drones)) |
+| Output | `print(...)` writes to your drone's output, `report()` sends what it has printed so far home at once |
+| Other | `stdlib()` is the library's version number |
+
+`jettison(n, resource)` throws n units of a resource out of the hold into space, for 1 fuel whatever the amount. Use it for goods nobody buys where you are: a hold that fills up leaves no room for the fuel you make, and a drone without fuel dies. `jettison(10, inorganics_a2)` throws away 10 Inorganics (A2).
+
+**Recipes.** `recipe(resource)` looks up the first recipe that makes a resource. It returns `nil` if nothing makes it, else a table:
+
+| Field | What it holds |
+|---|---|
+| `protocol` | the protocol that makes it |
+| `makes` | units of this resource one run makes |
+| `uses` | the inputs, a table of resource → units (fuel not included) |
+| `fuel` | the fuel the run burns |
+| `tool` | the module it needs, or `nil` |
+| `hours` | game hours a run takes |
+
+For Pumps (A1), resource 4311, `recipe(4311)` returns `{protocol = 14311, makes = 1, uses = {[3011] = 1, [3301] = 1}, fuel = 4, tool = 5501, hours = 8.0}`: one run uses a rod and a hose, burns 4 fuel, needs a Spider (5501) and takes 8 game hours. The API's `/recipes/{id}/tree` adds up a whole chain of recipes for you.
+
+```lua
+-- Can this drone make a run of a resource from what it holds?
+function can_make(resource)
+  local r = recipe(resource)
+  if not r then return false end
+  if r.tool and units(r.tool) == 0 then return false end
+  for input, n in pairs(r.uses) do
+    if units(input) < n then return false end
+  end
+  return units(fuel) >= r.fuel
+end
+```
+
+For example:
+
+```lua
+function look_around()
+  go(moon)                      -- fly to the Moon
+  print(deposit(kunspar))       -- how much kunspar is left here
+  print(mine(kunspar))          -- mine some
+  print(units(kunspar))         -- how much is aboard now
+  print(credits())              -- your company's credits
+end
+```
+
+The library's names are globals like your own. If your script sets one of them (`best_bid = 30`), the library's own functions keep working, but your code gets your value from then on, and calling a number crashes your drone. Pick your own names for your variables and functions; the Test button and the Release page warn you when you don't.
 
 ### Sending greetings
 
-Having your spacecraft print text for you is actually quite easy to do and obviously very useful. There are a couple ground rules though: First, this technique can only be called from within a word definition (i.e. function). Second, it's critical that white space separates your quotes from the text that is contained between them.
+Having your spacecraft print text for you is easy and obviously very useful: `print` writes its arguments to your drone's output, separated by tabs, and ends the line.
 
-With that in mind, the following definition creates a word that, when called, instructs the drone to print a specific string in its output.
-
-Start with the following definition:
-
-```
-  : helloworld ." Greetings Earthlings! " ;
-```
-
-The spacecraft adds the new definition to its on-board dictionary. Remember, the spaces in the above example are very important since they allow the interpreter to delineate words and numbers.
-
-Next, invoke your new word in the same script:
-
-```
-helloworld
+```lua
+function hello_world()
+  print("Greetings Earthlings!")
+  print("fuel", units(fuel))                         -- fuel    100
+  print("I am drone " .. me() .. " at " .. location())
+end
 ```
 
-Running this script will result in a heartfelt greeting from your favorite spacecraft! I guess there are no surprises there. But this will obviously be a useful tool when having your ships provide intelligible status reports.
+Call `hello_world()` from `launched` and your favorite spacecraft sends you a heartfelt greeting. This will obviously be a useful tool when having your ships provide intelligible status reports.
 
-The important components of this command are the dot-quote (`."`), which instructs the craft to print the text that follows, and the end-quote (`"`), which ends the printed string. Just remember that because the FORTH interpreter views the dot and end quotes as distinct words, they must be separated from everything around them by a white-space.
+What a drone prints reaches its page when `launched` returns, or when it calls `report()`. A drone that loops forever should call `report()` once a round, or every few rounds:
+
+```lua
+rounds = 0
+function tell()
+  rounds = rounds + 1
+  if rounds % 4 ~= 0 then return end   -- every 4th round
+  print("credits " .. credits() .. " fuel " .. units(fuel))
+  report()
+end
+```
 
 ### Broadcasting to other drones
 
-A drone can also talk to other drones. `broadcast ( caddr -- ior )` posts a short message, a counted string of 1 to 80 printable characters (make one with `$"`, which, like `."`, works only inside a definition and makes strings of at most 63 characters: a longer one fails to load with -19). It is an action like any other: it takes a moment, burns a unit of fuel, and shows in your drone's activity as "Broadcast".
+A drone can also talk to other drones. `broadcast(text)` (protocol 40) posts a short message, 1 to 80 printable characters. It is an action like any other: it takes a moment, burns a unit of fuel, and shows in your drone's activity as "Broadcast".
 
-A message is an **event** (type 13, the constant `message-event`), and drones learn of it the way they learn of any event, at the speed of light:
+A message is an **event** (type 13, `message_event`), and drones learn of it the way they learn of any event, at the speed of light:
 
-- **Where it happens.** Drones at the place where a message was sent see it there, like anything else that happens around them: query 803 (search observed events), or the word `events-here ( type -- n )`.
-- **Through the Earth database.** Every message, like every event that is reported, reaches the Earth Based Central Database once light has carried it from where it was sent to Earth, and a drone learns what Earth knows once light has carried it from Earth to the drone: query 804 (search the Earth database), or `events-earth ( type -- n )`. So a message from Mars reaches a drone at Mars at once, Earth 4 to 22 game minutes later, and a drone at the Moon a second after that.
+- **Where it happens.** Drones at the place where a message was sent see it there, like anything else that happens around them: `events_here(message_event)` (query 803, search observed events).
+- **Through the Earth database.** Every message, like every event that is reported, reaches the Earth Based Central Database once light has carried it from where it was sent to Earth, and a drone learns what Earth knows once light has carried it from Earth to the drone: `events_earth(message_event)` (query 804, search the Earth database). So a message from Mars reaches a drone at Mars at once, Earth 4 to 22 game minutes later, and a drone at the Moon a second after that.
 
-Both leave how many events they found; `n event-id ( i -- d )` is the ith of them (0 is the newest), an event ID (a double). `event-drone ( d -- drone )` gives the drone that sent it (query 820), and `message ( d -- f )` its text (query 844): true if the event is a message, with the text in `answer` as a counted string (`answer count type`). They all use the `answer` buffer, so take the event ID off it before you ask the next question:
+Both return a list of event IDs, newest first. `event_drone(event)` gives the drone that sent one (query 820), and `message(event)` its text (query 844), or `nil` if the event isn't a message:
 
+```lua
+-- Say something, then listen
+ad = "Fuel for sale at Phobos, 8 a unit"
+
+function speak()
+  broadcast(ad)
+end
+
+function listen()
+  local newest = events_earth(message_event)[1]
+  if newest then
+    local text = message(newest)
+    if text then print("from " .. event_drone(newest) .. ": " .. text) end
+  end
+end
 ```
-  \ Say something, then listen
-  : ad ( -- caddr ) $" Fuel for sale at Phobos, 8 a unit" ;
-  : speak ( -- ) ad broadcast drop ;
-  : listen ( -- )
-    message-event events-earth if
-      0 event-id 2dup event-drone ." from " .
-      message if answer count type cr then
-    then ;
-```
 
-To hear only your own company, check the sender's company (query 201 on `event-drone`). Messages are public: every drone, your rivals' included, can read what you broadcast (and the website's home page shows them). Use them to advertise, to tell your other drones what you found, or to listen for opportunities. What a message says is up to its sender: nothing checks that it's true.
+To hear only your own company, check the sender's company: `ask(201, event_drone(event))[1][1] == company()`. Messages are public: every drone, your rivals' included, can read what you broadcast (and the website's home page shows them). Use them to advertise, to tell your other drones what you found, or to listen for opportunities. What a message says is up to its sender: nothing checks that it's true.
 
-**How crowded is it?** `crowd ( place -- n )` is how many working drones are at a place now (query 721 also gives its wrecks). A place with dozens of drones mining the same deposit or selling the same goods is a place where prices are low; a quiet one may be an opportunity.
+**How crowded is it?** `crowd(place)` is how many working drones are at a place now (query 721 also gives its wrecks). A place with dozens of drones mining the same deposit or selling the same goods is a place where prices are low; a quiet one may be an opportunity.
 
 ## Chapter 6: Going to Market
 
@@ -803,53 +908,47 @@ Ex Machinis markets work based on a two-part system. First, trade begins when in
 
 ### Placing and adjusting market orders
 
-Any spacecraft can place an order to buy or sell a resource at a set price by performing a buy or sell protocol. Each of these protocols accepts three parameters, in addition to the protocol ID, that indicate the resource that is being bought or sold, the proposed unit price of the materials, and an upper or lower bound on the number of units being traded.
+Any spacecraft can place an order to buy or sell a resource at a set price. Each order takes three numbers: the proposed unit price, a bound on the number of units being traded, and the resource that is being bought or sold.
 
 #### Posting buy orders
 
 **Mind your credits with buy orders.** A standing buy order pays for every unit other drones push into it, while your script does something else, until the order's maximum is aboard or your credits run out. Your script isn't asked first. In round 25 a maker's buy orders took its credits down to 31, and with nothing left to buy fuel it died. Keep the maximum small, or check your credits each round and replace the order with a smaller one.
 
-When posting a buy order, the programmer begins by placing an integer on the stack that represents the per-unit price in credits that he is willing to pay for a particular resource. The next value to go on the stack is the maximum number of units that the player wants to have on hand. The order will be paused as soon as the amount of this resource in the drone's cargo bay reaches this level. The third value to go on the stack is the ID of the resource being requested. Finally an 8 is placed on the stack to invoke the buy protocol and the `perform` command is executed.
+`buy_order(price, want, resource)` (protocol 8) posts a buy order: the per-unit price in credits you are willing to pay, the maximum number of units you want to have on hand, and the resource. The order is paused as soon as the amount of this resource in the drone's cargo bay reaches the maximum.
 
-As an example, the following code instructs the drone to request kunspar at 10 credits per unit, with the total amount of kunspar in its cargo hold not to exceed 50 units:
+As an example, this asks for kunspar at 10 credits per unit, with the total amount of kunspar in the hold not to exceed 50 units:
 
-```
-  10 ( credits per unit )
-  50 ( unit cut off )
-  1100 ( kunspar ID )
-  8 ( buy order ID )
-  perform
+```lua
+function want_kunspar()
+  return buy_order(10, 50, kunspar)   -- perform(8, 10, 50, 1100)
+end
 ```
 
-When executed, this script will post a buy order, which will be publicly displayed online and available for other drones to act on provided the total amount of kunspar in the drone's cargo bay is under the 50 unit maximum. In fact, the publicly advertised volume for the trade will always be equal to the difference between the order limit and the amount of resources already available in the spacecraft's cargo hold.
+The order is publicly displayed online and available for other drones to act on while the total amount of kunspar in the drone's cargo bay is under the 50 unit maximum. In fact, the publicly advertised volume for the trade will always be equal to the difference between the order limit and the amount of resources already available in the spacecraft's cargo hold.
 
 #### Posting sell orders
 
-Sell orders are placed in much the same way as buy orders and represent a public request to sell a resource at a fixed per unit price. Also, in the case of sell orders, the limit represents the minimum amount of the resource that must remain in the drone's cargo bay after the sale is complete.
+Sell orders are placed in much the same way as buy orders and represent a public request to sell a resource at a fixed per unit price. In the case of sell orders, the limit is the minimum amount of the resource that must remain in the drone's cargo bay after the sale is complete.
 
-The following code will place a bid to sell kunspar at 12 credits each. The sales order will remain in effect while the amount of kunspar in the spacecraft's hold is greater than 5 units.
+`sell_order(price, keep, resource)` (protocol 7) posts one. This offers kunspar at 12 credits each, while the amount of kunspar in the spacecraft's hold is greater than 5 units:
 
-```
-  12 ( credits per unit )
-  5 ( unit cut off )
-  1100 ( kunspar ID )
-  7 ( sell order ID )
-  perform
+```lua
+function offer_kunspar()
+  return sell_order(12, 5, kunspar)   -- perform(7, 12, 5, 1100)
+end
 ```
 
 #### Prices past 65,535
 
-A price in a sell (7) or buy (8) order is one cell, so it can't go past 65,535 credits a unit. For more, use the double-price orders: sell (17) and buy (18) take the price as a [double](#big-numbers-double-cells). Everything else is the same. To sell kunspar at 75,000 credits each, keeping no minimum:
+`sell_order` and `buy_order` take prices up to 65,535 credits a unit. For more, perform protocol 17 (sell) or 18 (buy) yourself: they take the same arguments, and any price. To sell kunspar at 75,000 credits each, keeping no minimum:
 
-```
-  7500 10 um* ( 75,000 credits per unit, a double )
-  0 ( unit cut off )
-  1100 ( kunspar ID )
-  17 ( sell order with a double price )
-  perform
+```lua
+function sell_dear()
+  return perform(17, 75000, 0, kunspar)   -- 18 is the buy order
+end
 ```
 
-The order lists (queries 600, 601, 610 and 611) give each order's price as a double too: a row is the price (4 bytes, `2@`), the order's limit, the stock and the drone. Query 612 lists the sell orders where you are at or under a price you give as a double: `1100 7500 10 um* buf 40 612 query` finds kunspar for at most 75,000 a unit.
+The order lists (queries 600, 601, 610 and 611) give each order's price, the order's limit, the stock and the drone. Query 612 lists the sell orders where you are at or under a price you give: `ask(612, kunspar, 75000)` finds kunspar for at most 75,000 a unit.
 
 Your spacecraft sees live orders only where it is: queries 601, 611 and 612 used to list orders anywhere in the solar system, and now list the ones at your location, like 600 and 610. To find out what's happening elsewhere, read the [price board](#the-price-board), or go there.
 
@@ -859,23 +958,27 @@ It's possible for a drone to simultaneously have a buy and sell order in place f
 
 **An order stays up until you replace it.** Trades don't use it up: a buy order's limit is how many the drone wants aboard, and a sell order's is how many it keeps, so the same order goes on filling as the hold changes, all round, even while the drone waits or works. You never need to post it again to keep it alive.
 
-**Every post is an action, and costs a fuel**, even when it posts exactly the order that's already up. A loop that posts four orders a round spends four fuel a round on them; in round 31 that drained two drones' tanks. In a loop, use `?sell-order` and `?buy-order`. They take the same numbers as `sell-order` and `buy-order`, but skip the post, and leave 0, when this drone's order for that resource is already at that price and limit:
+**Every post is an action, and costs a fuel**, even when it posts exactly the order that's already up. A loop that posts four orders a round spends four fuel a round on them; in round 31 that drained two drones' tanks. In a loop, use `sell_order_if_changed` and `buy_order_if_changed`. They take the same arguments as `sell_order` and `buy_order`, but skip the post, and return 0, when this drone's order for that resource is already at that price and limit:
 
-```
-25 0 metals-a1 ?sell-order drop   \ posts the order: 1 fuel
-25 0 metals-a1 ?sell-order drop   \ the same order is up: skipped, no fuel
-24 0 metals-a1 ?sell-order drop   \ a new price: posts it, 1 fuel
+```lua
+function keep_offering()
+  sell_order_if_changed(25, 0, metals_a1)   -- posts the order: 1 fuel
+  sell_order_if_changed(25, 0, metals_a1)   -- the same order is up: skipped, no fuel
+  sell_order_if_changed(24, 0, metals_a1)   -- a new price: posts it, 1 fuel
+end
 ```
 
-They remember the orders this drone posted with `sell-order` and `buy-order` (any of its words), up to 16 at once. A launched copy starts with none.
+They remember the orders this drone posted with `sell_order` and `buy_order`. A launched copy starts with none, and after a restart a drone posts each order once more.
 
 Buy and sell orders cannot be canceled. However they can be replaced by more restrictive orders. Whenever a drone posts a buy order for a specific resource, it replaces the previous buy order for the resource, if one exists. The same rule applies for sell orders. Basically, there can only be one buy order and one sell order posted for the same resource at once.
 
 So to stop an order, post one that can't fill. A buy order wants up to its limit, so a limit of 0 stops it; a sell order keeps its limit, so a limit above what the drone can hold stops it:
 
-```
-  1 0 metals-a1 buy-order drop        \ buy no more Metals (A1)
-  1 30000 metals-a1 sell-order drop   \ sell no more Metals (A1)
+```lua
+function stop_metal_orders()
+  buy_order(1, 0, metals_a1)        -- buy no more Metals (A1)
+  sell_order(1, 30000, metals_a1)   -- sell no more Metals (A1)
+end
 ```
 
 **Standing orders spend your credits.** A buy order fills whenever another drone sells into it, while your drone does something else, until it holds the limit or runs out of credits. Credits you were saving for fuel can go that way. Keep a buy order's limit small, or stop it before you need the credits. Your orders go with your drone. While it's on a trip nobody can trade with it, and when it arrives its orders are live where it is.
@@ -884,7 +987,7 @@ So to stop an order, post one that can't fill. A buy order wants up to its limit
 
 Earth, the Moon and Mars each have an exchange where the House trades through a **station drone** named after it ("Earth Exchange", "Moon Depot", "Mars Exchange"). On the market a station drone is a drone like any other: its buy and sell orders are in the order book, you sell to it by pushing into its buy order and buy from it by pulling from its sell order, at its prices, and the sales tax applies. The only thing it does that you can't: it brings what it sells up from the planet surface and sends what it bought down, with modules no player can get.
 
-Every exchange buys and sells a little of every product a drone can mine, refine or make, from the first day of a world: ores, refined goods, alloys and polymers, parts, systems, modules, hulls and kits (all but the big ship kits). So any good can be bought to use, or made to sell, wherever you start. The exchanges are the market of last resort, not a rival: an exchange buys a good at about three quarters of its value and sells it at half as much again, twice what it pays. Sell to another player for more than the exchange bids, or buy from one for less than it asks, and you both beat the House; making a good yourself usually beats buying it there. It keeps a modest stock of each on offer (about 20 units of a cheap good, down to 4 of a dear one), and its buy order wants about four times that a day: the more of a good it has bought, the less it bids, down to half its starting price. Once a game day it sends what it bought down to the surface and its bid recovers; the goods it sells are restocked every game hour, fuel and raw goods first. A new world's exchanges open with their stock on board and all their orders up. Some goods it buys in larger numbers (refined metals, alloys and polymers at Earth and the Moon, parts and systems at Earth and Mars). Prices differ by place: each exchange is short of different things. The Moon Depot, beside the mines, has ores and refined goods to spare and pays most for parts and systems; Earth's industry pays most for ores and refined goods and least for systems; far Mars pays most for parts. Each good also has its own twist at each exchange, so one system pays more than another, and more in one place than the next. Buying where a good is plentiful and selling where it is short is a trade in its own right: compare the order books (`/orders`) and the price board.
+Every exchange buys and sells a little of every product a drone can mine, refine or make, from the first day of a world: ores, refined goods, alloys and polymers, parts, systems, modules, hulls and kits (all but the big ship kits). So any good can be bought to use, or made to sell, wherever you start. Fuel costs 3 credits a unit at every exchange. The exchanges are the market of last resort, not a rival: an exchange buys a good at about three quarters of its value and sells it at half as much again, twice what it pays. Sell to another player for more than the exchange bids, or buy from one for less than it asks, and you both beat the House; making a good yourself usually beats buying it there. It keeps a modest stock of each on offer (about 20 units of a cheap good, down to 4 of a dear one), and its buy order wants about four times that a day: the more of a good it has bought, the less it bids, down to half its starting price. Once a game day it sends what it bought down to the surface and its bid recovers; the goods it sells are restocked every game hour, fuel and raw goods first. A new world's exchanges open with their stock on board and all their orders up. Some goods it buys in larger numbers (refined metals, alloys and polymers at Earth and the Moon, parts and systems at Earth and Mars). Prices differ by place: each exchange is short of different things. The Moon Depot, beside the mines, has ores and refined goods to spare and pays most for parts and systems; Earth's industry pays most for ores and refined goods and least for systems; far Mars pays most for parts. Each good also has its own twist at each exchange, so one system pays more than another, and more in one place than the next. Buying where a good is plentiful and selling where it is short is a trade in its own right: compare the order books (the Market page, or the API's `/orders`) and the price board.
 
 <a name="markets-that-move"></a>**Markets that move.** The House's prices and quantities are not fixed. Each exchange's demand (what it buys, and its bid) and supply (what it sells, and its price) moves over game time, each exchange in its own way:
 
@@ -894,45 +997,47 @@ Every exchange buys and sells a little of every product a drone can mine, refine
 
 Each tier of goods (ores, refined goods, parts, systems, modules) has its own wave at each exchange, and each good a smaller one of its own. On top of that, in each 8-game-day stretch a tier at an exchange may have a **boom** (the House wants more and bids more), a **slump** (less, for less), a **shortage** (it sells less, and asks more) or a **glut** (more, for less), strongest in the middle of the stretch. Prices change every half game day. An exchange never bids more for a good than any exchange asks for it, so no loop runs through the House alone: the profit is in moving goods and making things where and when they pay.
 
-A drone sees the moves in the prices where it is (`sell-price`, `buy-price`, `best-bid`) and in the price board (what goods sold for yesterday at each place). The news on the Market page and `/api/v1/news` says which booms and slumps are under way. A script that compares prices and picks what to make, or where to sell, each round earns more than one that does the same thing whatever the market says.
+A drone sees the moves in the prices where it is (`sell_price`, `buy_price`, `best_bid`) and in the price board (what goods sold for yesterday at each place). The news on the Market page and `/api/v1/news` says which booms and slumps are under way. A script that compares prices and picks what to make, or where to sell, each round earns more than one that does the same thing whatever the market says.
 
-Nobody publishes a price list. What a station drone, or any other drone, buys and sells, and at what price, you find out from the market: its orders (`best-bid`, `best-offer`, the Market page's order book) and what goods have sold for (the price board, query 680, and `sold`; the Market history page charts every resource's price and volume, day by day, at each place). Prices move: a buyer pays less as its stock fills, and other players' orders come and go. Compare before you buy or sell:
+Nobody publishes a price list. What a station drone, or any other drone, buys and sells, and at what price, you find out from the market: its orders (`best_bid`, `best_offer`, the Market page's order book) and what goods have sold for (the price board, query 680, `board_price` and `sold`; the Market history page charts every resource's price and volume, day by day, at each place). Prices move: a buyer pays less as its stock fills, and other players' orders come and go. Compare before you buy or sell:
 
-```
-  metals-a1 best-offer . . .     \ units for sale, the seller, its price
-  metals-a1 best-bid . . .       \ units wanted, the buyer, its price
-```
-
-Two game words trade with whoever has the best order here, a station drone or another player's drone:
-
-- `sell-here ( n resource -- ior )` sells up to n: it pushes into the highest buy order here, then the next, until it has sold n, has none left, or nobody buys more.
-- `buy-here ( n resource -- ior )` buys up to n: it pulls from the cheapest sell order here, then the next, until it has n or nobody sells more.
-- A seller or buyer that refuses (its stock changed since your drone looked, or its order keeps more back: "the seller's order didn't allow selling that many") is skipped for the next one. Each try is an action and costs a fuel; after 6 tries they stop.
-
-When a trade fails because you can't pay for that many or your hold can't take them, they try again with half as many. Each push or pull is an action and burns a unit of fuel, buying fuel included: buy fuel before you run dry, or call for it (see [Running low on fuel](#running-low-on-fuel)). They leave 0 when they traded something, else -12 (or the failed action's code); check `units` to see how many moved.
-
-```
-  20 metals-a1 sell-here .   \ sell 20 Metals (A1) here, best price first
-  50 fuel buy-here .         \ and buy 50 fuel, cheapest first
+```lua
+function compare_metals()
+  local price, seller, n = best_offer(metals_a1)
+  print(n .. " for sale by " .. seller .. " at " .. price)
+  local bid, buyer, wanted = best_bid(metals_a1)
+  print(wanted .. " wanted by " .. buyer .. " at " .. bid)
+end
 ```
 
-Every starter and design trades this way, with words called `buy-cheapest` and `sell-best`: pulling from the cheapest sell orders in turn means a seller with only a unit or two can't leave you short (buying only what the cheapest seller had once left a drone stranded at Mars with no fuel).
+Two game functions trade with whoever has the best order here, a station drone or another player's drone:
+
+- `sell_here(n, resource)` sells up to n: it pushes into the highest buy order here, then the next, until it has sold n, has none left, or nobody buys more.
+- `buy_here(n, resource)` buys up to n: it pulls from the cheapest sell order here, then the next, until it has n or nobody sells more. Pulling from the cheapest sellers in turn means a seller with only a unit or two can't leave you short (buying only what the cheapest seller had once left a drone stranded at Mars with no fuel).
+- A seller or buyer that refuses (its stock changed since your drone looked, or its order keeps more back: "the seller's order didn't allow selling that many") is skipped for the next one. After 6 tries they stop.
+
+Each push or pull is an action and burns a unit of fuel, buying fuel included: buy fuel before you run dry, or call for it (see [Running low on fuel](#running-low-on-fuel)). A pull that fails because the seller's order no longer has the units costs no fuel. They return 0 when they traded something, else -12; check `units` to see how many moved.
+
+```lua
+function trade_at_the_moon()
+  sell_here(20, metals_a1)   -- sell 20 Metals (A1) here, best price first
+  buy_here(50, fuel)         -- and buy 50 fuel, cheapest first
+end
+```
 
 ### Transferring resources between drones
 
 The second part of a trade involves physically transferring the resource between ships.
 
-Players are able to transfer resources between spacecraft using the push and pull protocols. As with other protocols, these operations are executed by placing several parameters on the stack and then calling the `perform` command. In both instances the first parameter specifies the number of resources being transferred (it is required: use 1 for a single unit), the second parameter indicates the ID of the transferred resource, the third parameter is the ID of the other drone, and the last value is the protocol being performed: 10 to push and 11 to pull.
+Players are able to transfer resources between spacecraft using the push and pull protocols: `push(n, resource, drone)` (protocol 10) and `pull(n, resource, drone)` (protocol 11). The first argument is the number of units being transferred (it is required: use 1 for a single unit), the second the ID of the transferred resource, and the third the ID of the other drone.
 
-In the following example, a drone is instructed to push 5 units of kunspar into the hold of another spacecraft and then pull 10 units of yalspar from that spacecraft into its own hold.
+In the following example, a drone pushes 5 units of kunspar into the hold of another spacecraft and then pulls 10 units of yalspar from that spacecraft into its own hold:
 
-```
-  \ Push 5 units of kunspar into drone 52's cargo hold.
-  5 ( quantity ) 1100 ( resource ID ) 52 ( target drone ID )
-  10 ( push protocol ) perform
-  \ Pull 10 units of yalspar from drone 52's cargo hold.
-  10 ( quantity ) 1110 ( resource ID ) 52 ( target drone ID )
-  11 ( pull protocol ) perform
+```lua
+function swap_with(other)
+  push(5, kunspar, other)    -- perform(10, 5, 1100, other)
+  pull(10, yalspar, other)   -- perform(11, 10, 1110, other)
+end
 ```
 
 Both drones must be orbiting the same body. If the acting and affected drones belong to the same company, these actions can be performed without referring to active market bids.
@@ -941,211 +1046,210 @@ However, if the affected spacecraft is owned by a different player, the push and
 
 A transfer either happens completely or not at all. If anything stops it (the seller has too little to sell, the receiving hold is full, the buyer can't pay, there is no matching order, or the drones are in different places), no goods and no credits change hands, and the action is aborted.
 
-You can find a current list of active buy orders (`/buys`) and sell orders (`/sells`) on the Ex Machinis website.
+The **Market** page (`/market`) shows the active buy and sell orders at every place, and the API's `/orders` lists them as JSON.
 
 #### Measuring market volume
 
-Two queries tell how busy a market is: how many units of a resource changed hands over the last H hours of game time, the credits paid for them, and how many trades there were. Query 620 counts trades where your drone is; query 621 counts them anywhere in the solar system, in the H hours up to one game hour ago (news from elsewhere takes time). The units and the credits are [doubles](#big-numbers-double-cells), 4 bytes each, read with `2@`; the number of trades is a single cell.
+Two queries tell how busy a market is: how many units of a resource changed hands over the last H hours of game time, the credits paid for them, and how many trades there were. Query 620 counts trades where your drone is; query 621 counts them anywhere in the solar system, in the H hours up to one game hour ago (news from elsewhere takes time). Each returns one row: units, credits, trades.
 
-```
-  create volume 10 allot
-  : .volume ( -- )
-    volume 2@ d. ."  units for "  volume 4 + 2@ d. ."  credits in "
-    volume 8 + @ . ."  trades" cr ;
-  \ Magmite (1000) traded here in the last 24 game hours
-  1000 24 volume 6 620 query drop  .volume
+```lua
+-- Units of a resource traded here in the last few game hours, the credits
+-- paid and the number of trades
+function volume(resource, hours)
+  local row = ask(620, resource, hours)[1]
+  if not row then return 0, 0, 0 end
+  return row[1], row[2], row[3]
+end
+
+function show_magmite_volume()
+  local n, paid, trades = volume(magmite, 24)
+  print(n .. " units for " .. paid .. " credits in " .. trades .. " trades")
+  if n > 0 then print("average price " .. paid // n) end
+end
 ```
 
 Dividing the credits by the units gives the average price paid.
 
 #### The price board
 
-The price board is public news from every market, an hour old: `N R L 680 query` lists, for resource N, each place where it traded in the game day up to one game hour ago, with the place's location ID, the units (a double), the credits paid (a double) and the number of trades. That's 12 bytes a row.
+The price board is public news from every market, an hour old: `ask(680, resource)` lists, for the resource, each place where it traded in the game day up to one game hour ago, with the place's location ID, the units, the credits paid and the number of trades. `board_price(resource, place)` reads the average price at one place from it.
 
-```
-  create board 120 allot
-  1100 board 120 680 query .        \ how many places traded kunspar
-  board @ . board 2 + 2@ d. board 6 + 2@ d.   \ the first place, its units and credits
-```
-
-## Chapter 7: Stringing Variables
-
-### Using variables when programming your drones
-
-In FORTH, most values are stored and passed between program elements using the stack. However, the language also allows users to define simple variables using the `variable` command.
-
-When a variable is declared, the FORTH interpreter creates an entry in the dictionary using the variable's name. This new definition serves as a placeholder for any values stored in that variable.
-
-Values can then be stored in and retrieved from a variable using the store (`!`) and fetch (`@`) commands. In the following example, we define a variable called "box" and then store, fetch, and print the number 2 using this variable.
-
-```
-    variable box ( Define the box variable )
-    2 box ! ( Store the number two in the variable )
-    box @ . ( Retrieve the contents and print the value )
+```lua
+function show_board(resource)
+  for _, row in ipairs(ask(680, resource)) do
+    print("place " .. row[1] .. ": " .. row[2] .. " units for " .. row[3] .. " credits")
+  end
+end
 ```
 
-That's all there is to it! Try running this script and variations of it on one of your drones.
+## Chapter 7: Remembering Things
 
-Of course, like most things in FORTH, there are some interesting things going on behind the scenes when you declare a variable and store and retrieve values from it. We'll get into some of this in the next section when we address the creation of arrays.
+### Global and local variables
 
-### What's really happening with variables?
+A drone that runs for weeks has to remember things: which mode it is in, how many times its mine came up dry, the last price it saw. Lua has two kinds of variable for that:
 
-So let's talk a little bit about what's happening behind the scenes with variables. When you declare a variable with the statement, `variable box`, you're essentially telling the FORTH interpreter to define a new word for you called `box`. This definition tells the interpreter that whenever `box` is called, it should place an address on the stack, which points to a two-byte block at the end of the definition. This location is where your data is stored.
+- A **global** is set without `local` (`misses = 0`). Every function sees it, it keeps its value between calls and between rounds, and your drone saves it (see [What your drone remembers](#what-your-drone-remembers)).
+- A **local** is set with `local` inside a function or block (`local price = buy_price(fuel)`). Only that function or block sees it, and it is gone when it ends. Locals are faster and keep functions from treading on each other's names, so use them for everything you only need for a moment.
 
-You can confirm this is happening by calling `box` and then printing the contents of the stack. When you do so, your drone will return the address of the place in memory where your value is being stored. The variable, `box`, will always return the same value no matter what's actually being stored in the variable.
+```lua
+misses = 0                 -- a global: kept between rounds, and saved
 
-```
-    box . ( Print the address that is returned by box )
-```
-
-With this in mind, consider that the true functions of fetch (`@`) and store (`!`) are to read and write values to a specified location in memory. Fetch works by pulling an address off the stack and returning the two-byte value that is stored in that location. Store pulls an address and then a value from the stack and writes the value to the designated memory slot. So the value goes on the stack first and the address last: `2 box !`.
-
-Fetch and store are very powerful (and dangerous!) functions because they allow you to read and write to ANY location in your drone's memory! However, until you're sure of what you are doing, I suggest that you only use these functions in conjunction with a previously defined variable like `box`. If you overwrite an essential part of memory by mistake, your drone may stop working, and a released drone can't be reset, so try such code with the Test button or on the Machine page first.
-
-So why am I telling you about these functions now? Because understanding how FORTH uses variables is the key to defining and using more powerful strings and arrays!
-
-### Creating and Accessing Arrays
-
-When you define a variable in FORTH, the interpreter automatically sets aside two bytes of memory for the value or characters to be stored in the variable. This is enough room to hold a value between -32768 and 32767 or two ASCII characters. But what if you want the variable to hold more than two characters or one two-byte number?
-
-To permit a variable to hold more than one value, you'll need to instruct the interpreter to set aside additional space in your drone's internal memory to accommodate the expanded data set. This is accomplished by invoking the `allot` command. This command pulls a value from the stack and tells the interpreter to reserve that many bytes of additional memory for the data. Since the interpreter reserves this space from the topmost address occupied by the program onward, it's important that you invoke the `allot` command immediately after declaring the variable.
-
-For example, to create a variable, `box`, with enough room for five more two-byte numbers or ten more ASCII characters (10 bytes), you would use the following script:
-
-```
-variable box 10 allot
+function dig()
+  local before = units(kunspar)   -- a local: gone when dig returns
+  mine(kunspar)
+  if units(kunspar) == before then
+    misses = misses + 1
+  else
+    misses = 0
+  end
+end
 ```
 
-Reading and writing to an array that was created using `allot` is actually very simple once you realize that you're directly accessing a reserved section of memory whose initial location is placed on the stack when you call the variable name.
-
-For example, to add or retrieve a value from the first part of your new `box` array, simply use the variable name in conjunction with the fetch (`@`) and store (`!`) commands described above.
-
-```
-  10 box ! \ stores the value 10 in the variable
-  box @ . \ retrieves and prints the contents of the variable
-```
-
-If you want to store and retrieve a value from the second or third position of the `box` array, you just need to add two or four bytes to the address that's placed on the stack when you call on the `box` variable:
-
-```
-  20 box 2 + ! \ stores the value 20 in the second array slot
-  box 2 + @ . \ prints the contents of the second array slot
-  30 box 4 + ! \ stores the value 30 in the third array slot
-  box 4 + @ . \ prints the contents of the third array slot
-```
-
-### Working with strings
-
-It's important to understand how strings are formed and managed in FORTH, because your drone will use them to query a database about information on its environment and to report information back to you.
-
-In FORTH, strings of characters are stored in a memory structure known as a counted string. In this structure, the first byte of memory holds a value that indicates the size of the string and subsequent bytes hold individual characters from that string.
-
-Strings are created using the `$"` word, which stores everything up to the next quotation mark in memory and returns an address, which points to the location of the string.
-
-As with the word `."`, which was introduced above, `$"` can only be used within another definition. However, rather than forcing the string to be added to the output buffer, it causes a pointer to the string to be placed on the stack.
-
-Thus, a string can be stored in a word via a simple definition:
-
-```
-  : myhome $" Earth" ;
-```
-
-This definition creates a word called `myhome`. When this word is used in another script, it simply places an address on the stack which points to the location of the string "Earth". Since this creates a counted string, the section of memory that is referenced by the address would look like this:
-
-| Address | Value/Character |
-|---|---|
-| a | 5 |
-| a + 1 | E |
-| a + 2 | a |
-| a + 3 | r |
-| a + 4 | t |
-| a + 5 | h |
-
-There are many ways to access this string, which we'll cover at a later point. But one important method is by using the words `count` and `type` to print the string. The word `count` functions by returning the first byte of an address to the stack. In the case of a counted string, this would be the size of the string. The word `type` pulls an address and a length from the stack and prints out the contents of that memory range as characters.
-
-Consequently, the following script will instruct your drone to print the string which is pointed to by the previously defined word:
-
-```
-  myhome count type
-```
-
-Assuming that you've already added `myhome` to your drone's dictionary, running the above script prints "Earth".
+Pick distinct names for your globals: two functions that both use a global called `n` for different things will spoil each other's counts.
 
 ### How your drone runs your script
 
-The script you release runs once in your drone's machine, from top to bottom. When it ends, the drone runs its `launched` word. The words the script defined and its variables, with what's in them, stay for `launched`; the stack starts empty again. So, if your script defines the word `helloworld` or puts 5 in the variable `box`, `launched` can use the same word and value, but a value the script left on the stack is gone: keep it in a variable.
+When a drone loads your script, it runs the script from top to bottom. That top-level code is where your settings and functions are defined; it runs while the drone loads, can run at most 2 million Lua instructions, and can't take actions. Then the drone calls `launched()`, which does the work.
 
-Long scripts don't hold up other players: a script runs at most 100,000 FORTH instructions at a time (each `query` and each `perform` counts as 1,000), then it is paused and resumed a few seconds later, and everything it printed shows on the drone's page when it finishes. The count is the same every time a script runs, so a loop that pauses once always pauses at the same place.
+Long scripts don't hold up other players. A drone runs your script a turn at a time: a turn is 100,000 instructions, and each Lua instruction counts as six (each query and each action counts as 1,000). A drone that thinks hard pauses mid-thought and carries on at its next turn, a few seconds later, and an action holds your script until it is done. Everything it printed shows on the drone's page when `launched` returns or calls `report()`.
 
-A released drone can't be stopped, reset or given a new script, so test first: the **Test** button runs your script in a test world, and the **Machine** page lets you step through it. Be careful with the store command (`!`): writing to the wrong address can corrupt your drone's memory, and there is no way to fix a released drone.
+A released drone can't be stopped, reset or given a new script, so test first: the **Test** button runs your script in a test world.
+
+### What your drone remembers
+
+Whenever your drone pauses for an action, the game saves its **plain-data globals**: every global your script set that holds a number, a string, `true` or `false`, or a table of those (tables inside tables too). It doesn't save functions, locals, or the place in the script it had reached. The library's own state is saved with them: the mode (`become`) and its count of rounds, and the orders it remembers posting (`sell_order_if_changed`).
+
+The saved values come back when the engine restarts: the drone loads its script again and gets them back. A crash is different: the drone restarts with fresh variables, as if just released (whatever it had saved may be what made it crash). Loading always goes in this order:
+
+1. the script's top-level code runs, setting your settings and globals to their starting values;
+2. then, after an engine restart, the saved plain-data globals are put back, over what the top level set;
+3. then `launched()` runs.
+
+So a line like `count = 0` at the top level gives `count` its starting value on release, but does not reset a saved count after a restart: the saved value replaces it before `launched` runs. A copy launched from a drone loads the same way, and starts with its parent's saved globals.
+
+```lua
+rounds = 0         -- 0 on release; after a restart, the saved count replaces it
+started = false
+
+function launched()
+  if started then
+    print("restarted after " .. rounds .. " rounds")
+  else
+    print("first start")
+    started = true
+  end
+  while true do
+    rounds = rounds + 1
+    wait(60)
+  end
+end
+```
+
+Keep what your drone must remember (a site, a count, the last price it saw) in globals. Keep a setting you might change at the top of the script, but remember that a restarted drone keeps its saved value, not the line you wrote.
+
+### launched() may run again
+
+Your drone's Lua stays in the game engine's memory between turns. If the engine restarts, or `launched` crashes, the drone loads its script again as above (after a crash, without its saved variables) and calls `launched()` again from the top. A drone that was in the middle of a trip or a build starts its plan over.
+
+So write `launched` to do only what still needs doing. `await_kit()` and `unpack()` pass at once when the tools are already unpacked, and `go` stays put when the drone is already there. The Miner starter keeps a global `started`, so a drone that has already chosen its site keeps it:
+
+```lua
+started, copy, site_no = false, false, 0
+
+function launched()
+  await_kit()
+  unpack()
+  if not started then
+    if copy then site_no = me() % 3 end   -- a copy picks its own site
+    copy, started = true, true            -- its own copies will know they are copies
+  end
+  if site_no == 0 then go(moon) else go(phobos) end
+  while true do
+    mine(kunspar)
+    refine(kunspar)
+  end
+end
+```
+
+### Limits and costs
+
+- **Thinking costs fuel:** 1 fuel for every 200,000 instructions, and each Lua instruction counts as six, so a fuel pays for about 33,000 Lua instructions. Each query and each action counts as 1,000. A loop that asks the market a hundred times a round burns fuel fast; one that asks once and waits is nearly free.
+- **A turn is 100,000 instructions** (about 16,700 Lua instructions). A drone that thinks longer pauses and carries on at its next turn.
+- **The top level may run 2 million Lua instructions** while the script loads. Past that, loading fails with "the script's top level ran more than 2000000 instructions": put the work in functions that `launched` calls.
+- **Memory:** your drone's Lua may hold 256 KB. A script that keeps growing a table stops with "not enough memory", and restarts like any crash.
+- **No outside world:** there is no file, system or network access, and no `load` or `require`: a drone runs only its own script, with Lua's `string`, `table`, `math` and `utf8` libraries. `math.random` works, but `math.randomseed` is gone.
+- **Output:** what your drone prints with `print` reaches you when `launched` returns or calls `report()`.
 
 ## Chapter 8: Asking Questions
 
 In Ex Machinis, spacecraft learn about their environment through queries to an onboard database, which contains private information about events that directly affect the drone and public information on the markets and the activities of other ships.
 
-Queries are fairly complex commands because they require you to access your drone's on-board memory (where the results will be stored). Furthermore, the results array needs to be passed to the query command via a pointer.
+The game functions `units`, `credits`, `deposit`, `best_offer` and the rest are queries underneath. For anything they don't cover, ask a query yourself.
 
-The website has a **Queries** page (`/queries`), which lists all the queries that are currently available for use by your drones. These queries invoke predefined SQL scripts, which incorporate user-supplied parameters and return the results to a specified memory location for later retrieval. The page lists the specific parameters you'll need to invoke a query and details how the results will be arranged in memory.
+The website has a **Queries** page (`/queries`), which lists all the queries that are currently available for use by your drones. These queries invoke predefined SQL scripts, which incorporate the parameters you give them and return rows of results. The page lists each query's parameters and the columns of its rows. It writes the parameters in order, then a result buffer and its size (R and L), then the query's number: `[N H R L 620 query]` is `ask(620, n, h)` in your script. Your drone doesn't need R and L.
 
-Every query takes the same form, `N R L id query`: the query's parameter N (if it has one), a pointer R to an array that will receive the results, a value L that limits the size of the results array, and the ID of the query you want to run. When it succeeds, `query` leaves the number of rows it stored in the array (at least 1). Text results are stored as counted strings, and numbers as two-byte values.
+`query(id, ...)` asks query `id` with its parameters and returns its **rows**: a list of rows, each a list of its columns. `rows[1]` is the first row, `rows[1][1]` its first column. No rows is an empty list. If the query itself fails, `query` returns `nil` and a code: -3 if there is no query with that ID, -2 if the database query failed, -1 if you gave too few parameters. `ask(id, ...)` is the same, but returns an empty list when the query fails, so you can always loop over what it returns.
 
-For example, to find the type of an astronomical object (Query number 701), I'll need to supply the query command with the object's Location ID, a pointer to an array that will receive the query results, a value that limits the size of the results array, and the ID of the query (701 in this case).
+For example, to find the type of an astronomical object (query 701), give it the object's Location ID. This reports the object type of the Moon (Location ID 10):
 
-The following script shows how you would use this query to report the object type of the Moon (Location ID 10):
-
-```
-  variable results_array 100 allot \ results array
-  10 results_array 100 701 query . \ prints 1: one row stored
-  results_array count type \ prints the results
-```
-
-Your drone will reply with `1` and `Moon`: one row was stored. `query` leaves the number of rows it stored when it worked, -2 if the database query failed or found nothing, or -3 if there is no query with that ID (its other arguments then stay on the stack). It stores only whole rows, so if the array is too small for all of them it stores as many as fit, and 0 if not even one fits. Numeric results are read with fetch, `@`. Money and volumes (a company's credits from query 101, order prices, market volumes, an event's credits from query 841) are [doubles](#big-numbers-double-cells): they take 4 bytes and are read with `2@`. For example, query 205 returns the ID of the drone that asks, and query 101 returns a company's credits:
-
-```
-  results_array 100 205 query drop
-  results_array @ . \ prints this drone's ID
-  52 results_array 100 101 query drop   \ company 52's bank account
-  results_array 2@ d. \ prints its credits, even past 32,767
+```lua
+function moon_type()
+  local rows = ask(701, moon)
+  print(#rows, rows[1] and rows[1][1])   -- 1, and the Moon's type: one row
+end
 ```
 
-Try these scripts with the Test button, with variations on the location and query IDs, to see how this works.
+Numbers come back as plain numbers, whatever their size: money, volumes and event IDs too. A column that is empty in the database (SQL's NULL) comes back as `false`. For example, query 205 returns the ID of the drone that asks, and query 101 returns a company's credits:
 
-#### Reading a list of results
-
-Some queries return a list: several rows, one after another in the results array. Leave the results in the array and read the row you need, rather than copying them all onto the stack. When a row holds only numbers, each takes two bytes, so every row has the same size and row n (counting from 0) starts at R + n × size. Two words do the work:
-
-```
-  : row ( R n size -- addr )  * + ;  \ where row n starts
-  create cargo 100 allot
-  \ Query 210 lists a drone's cargo: resource ID and units, 4 bytes a row
-  : .cargo ( rows -- )
-    0 begin 2dup > while
-      cargo over 4 row  dup @ .  2 + @ . cr   \ resource and units
-    1+ repeat 2drop ;
-  : show-cargo ( drone -- )
-    cargo 100 210 query  dup 0> if .cargo else drop then ;
-  52 show-cargo
+```lua
+function who_am_i()
+  print(ask(205)[1][1])                    -- this drone's ID: what me() returns
+  print(ask(101, company())[1][1])         -- its company's credits: what credits() returns
+  local rows, code = query(9999)
+  if not rows then print("no such query: " .. code) end   -- -3
+end
 ```
 
-The first row is the most important one (query 210 lists the largest holdings first), and reading the array keeps that order, which moving the list onto the stack would reverse. Rows with text don't have a fixed size: step through them field by field with `count` (it leaves the address after the text).
+You can also read a column by its name in the query (`rows[1].price`; a name that starts with `d_` loses it). A column that is an expression, such as `IFNULL(i.units, 0)`, is easiest read by position: the Queries page lists the columns in order.
 
-**Row layouts.** A plain number takes 2 bytes, a double (money, volumes, event IDs) 4, read with `2@`. Rows are stored back to back, so row r of query q starts at `answer r size * +`. The common ones:
+Try these with the Test button, with variations on the location and query IDs, to see how they work.
 
-| Queries | Each row | Size | Read with |
-|---|---|---|---|
-| 600, 601 (buy orders), 610, 611 (sell orders) | price (double), the order's wanted maximum or kept minimum, units held, drone | 10 | `2@ drop`, `4 + @`, `6 + @`, `8 + @` |
-| 640 (deposits here) | resource, units left (double), capacity (double), refill per day | 12 | `@`, `2 + 2@`, `6 + 2@`, `10 + @` |
-| 680 (price board) | place, units (double), credits (double), trades | 12 | `@`, `2 + 2@`, `6 + 2@`, `10 + @` |
-| 682 (sales on a day) | place, units (double), average price | 8 | `@`, `2 + 2@`, `6 + @` |
-| 210 (a hold), 661 (a wreck's hold) | resource, units | 4 | `@`, `2 + @` |
-| 670 (my clones), 660 (wrecks here) | drone, 1 if a wreck or plundered | 4 | `@`, `2 + @` |
-| 720 (drones at a place), 800-803 (events) | drone; an event ID (double) | 2; 4 | `@`; `2@` |
+### Reading a list of results
 
-The `answer` buffer holds 120 bytes: 12 rows of 10 bytes, for example. For more, `query` into an array of your own (`create rows 400 allot`).
+Some queries return a list: several rows, one after another. `ipairs` steps through them in order:
 
-#### Searching the events you've seen
+```lua
+-- Query 210 lists a drone's cargo: resource ID and units, largest first
+function show_cargo(drone)
+  for _, row in ipairs(ask(210, drone)) do
+    print(row[1], row[2])   -- resource and units
+  end
+end
+```
 
-Query 803 lists the events your drone has observed, newest first, filtered by up to nine conditions. Information travels at the speed of light, so a drone only knows about events that affected it, events at the place where it is now since it got there (it forgets what it saw at places it has left), and events whose light has reached it. Push the nine conditions in this order, using -1 for "any":
+The first row is often the most important one (query 210 lists the largest holdings first, and the order lists put the best price first), so `ask(...)[1]` is a quick way to the top of a list. Check it isn't `nil` before you read from it: a list can be empty.
+
+**Row layouts.** The common queries' columns, in order:
+
+| Queries | Each row |
+|---|---|
+| 600, 601 (buy orders), 610, 611, 612 (sell orders) | price, the order's wanted maximum or kept minimum, units held, drone |
+| 640 (deposits here) | resource, units left, capacity, refill per day |
+| 650 (taxes) | tax rate in thousandths, paid in the last game day, paid in all |
+| 680 (price board) | place, units, credits, trades |
+| 682 (sales on a day) | place, units, average price |
+| 620, 621 (market volume) | units, credits, trades |
+| 210 (a hold), 661 (a wreck's hold) | resource, units |
+| 670 (my clones), 660 (wrecks here) | drone, 1 if a wreck or plundered |
+| 671 (my lineage) | the drone that launched this one (0 if none), generation |
+| 704, 705 (trips) | distance in thousands of km, game seconds, game hours |
+| 720 (all drones at a place) | drone |
+| 721 (how many at a place) | working drones, wrecks |
+| 800-804 (events) | an event ID |
+
+### Searching the events you've seen
+
+Query 803 lists the events your drone has observed, newest first, filtered by up to nine conditions. Information travels at the speed of light, so a drone only knows about events that affected it, events at the place where it is now since it got there (it forgets what it saw at places it has left), and events whose light has reached it. Give the nine conditions in this order, using -1 for "any":
 
 | | Condition |
 |:--|:--|
@@ -1159,315 +1263,242 @@ Query 803 lists the events your drone has observed, newest first, filtered by up
 | K | 1 if the resource was in use (locked), 0 if not |
 | O | The location of the affected drone (where it is now) |
 
-```
-  create events 40 allot
-  \ Kunspar (1100) removed from any hold this drone has seen, by anyone
-  -1 -1 -1 -1 -1 1100 1 -1 -1 events 40 803 query .
-  events 2@ 2dup d.   \ the latest such event's ID (a double)
-  840 ask drop answer @ .   \ ...and the quantity it left
+```lua
+-- Kunspar removed from any hold this drone has seen, by anyone
+function kunspar_taken()
+  local events = ask(803, -1, -1, -1, -1, -1, kunspar, 1, -1, -1)
+  local latest = events[1]
+  if not latest then return end
+  local id = latest[1]                    -- the latest such event's ID
+  local q = ask(840, id)[1]               -- and the quantity it left
+  if q then print("event " .. id .. " left " .. q[1]) end
+end
 ```
 
-It leaves the number of event IDs it stored, or -2 if none match. Event IDs run past 65,535, too big for one cell, so every event list (800 to 803) stores them as [doubles](#big-numbers-double-cells): four bytes each, so ID n is at events + 4n, read with `2@`. Ask the other event queries (810 to 843) about any of them by pushing the ID as `2@` left it (a double): what type it was, who acted, which resource, the new quantity, when it happened. Query 843 gives the time as two values: the game day (day 0 is the day the world began) and the number of even seconds into that day. Every time in the game is game time, so it runs at the game clock's pace.
+Each row holds one event ID. Query 804 searches the Earth database the same way, and `events_here(type)` and `events_earth(type)` are 803 and 804 searching by event type alone. Ask the other event queries (810 to 844) about any event by its ID: what type it was, who acted (820, `event_drone`), which resource, the new quantity (840), when it happened (843), a message's text (844, `message`). Query 843 gives the time as the game day (day 0 is the day the world began) and the time into that day. Every time in the game is game time, so it runs at the game clock's pace.
 
 As we develop more complex queries, we'll provide additional examples of how spacecraft can use queries to probe and respond to their environment.
 
 ## Chapter 9: Making Decisions
 
-### Finding the truth in numbers
+### Finding the truth
 
-FORTH is very loose with numbers and doesn't have specially defined boolean values. Rather, logical operators interpret all non-zero numbers as true. Only zero is used to represent the boolean equivalent of false.
+`if` runs a piece of script only when a condition holds, with an optional `elseif` and `else`:
 
-A good way to demonstrate this and introduce you to simple branching structures is by defining a new word, which uses an if-else-then statement to make a value judgement about any number that precedes it.
+```lua
+function judge(x)
+  if x then return "true" else return "false" end
+end
 
-Try the following script:
-
-```
-  ( define true? )
-  : true? if ." true " else ." false " then ;
-
-  ( test true? )
-  -1 true?
-   0 true?
-   1 true?
+function show_truth()
+  print(judge(0), judge(1), judge(-1))      -- true   true   true
+  print(judge(false), judge(nil))           -- false  false
+end
 ```
 
-Remember that spaces are very important, so start by copying and pasting the above script exactly as it is.
+In Lua only `false` and `nil` are false. **Every number is true, 0 included.** That matters in this game, because actions return 0 when they work and a negative code when they don't: compare the result with 0.
 
-The first part of the script defines a new word, `true?`, which will return a "true" if the word is preceded by a number other than zero and a "false" if it follows a zero. In the FORTH syntax, `if` begins a branched statement, which implements one of two else-delimited options based on the value on the top of the stack. The word `then` closes the statement.
-
-The second part of this statement invokes `true?` after placing each of three different values (-1, 0, and 1) on the stack. This will cause your spacecraft to evaluate each of the numbers as a boolean value and respond accordingly.
-
-When your spacecraft runs the above code, it prints:
-
-```
-true false true
-```
-
-By the way, once you define a word like `true?`, your spacecraft will remember it, allowing you to use it later in the script, and in `launched`. So, try evaluating some other integers with the word.
-
-We'll be using `true?` in the next section to explore logical (`and`, `or`, `xor`) and comparison (`<`, `>`, `=`) operators.
-
-### Experimenting with logical operators
-
-In the previous section, we used an if else then statement to demonstrate how FORTH, which is used to program player-controlled spacecraft in Ex Machinis, loosely interprets 0 as false and any other number as true. In the process, we defined the word `true?`, which returns "false" if the value on the stack is zero and "true" if it is any other number.
-
-If you haven't already done so, you can define the word `true?` with the following script.
-
-```
-  : true? if ." true " else ." false " then ;
+```lua
+function try_mine()
+  if mine(kunspar) == 0 then
+    print("mined")
+  elseif units(fuel) == 0 then
+    print("out of fuel")
+  else
+    print("mining failed")
+  end
+end
 ```
 
-It turns out that FORTH has three logical operators (`and`, `or`, `xor`) which allow you to combine Boolean values in different ways. Therefore, if we use 0 for false and 1 for true, you can test these operators with the following script:
+The same goes for questions that return 0 for "none": `if deposit(kunspar) then` is always taken; `if deposit(kunspar) > 0 then` is what you mean.
 
-```
-  0 1 and true?
-  0 1 or true?
-  0 1 xor true?
-```
+### Comparing and combining
 
-You may recall that FORTH uses a Reverse Polish Notation (RPN) in which you enter the numbers first (i.e. "0 1") before the function or mathematical operator, `and`, which processes them. Finally, we need to use our previously defined word, `true?`, to report back the value of the number. Since "0 and 1" is false, "0 or 1" is true, and "0 xor 1" is also true, your drone will respond to the above script with:
+Comparisons give `true` or `false`: `==` (equal), `~=` (not equal), `<`, `>`, `<=` and `>=`. `and`, `or` and `not` combine them:
 
-```
-false true true
-```
+```lua
+function logic()
+  print(3 < 5, 3 == 5, 3 ~= 5)              -- true   false  true
+  print(true and false, true or false)      -- false  true
+  print(not true, not nil)                  -- false  true
+end
 
-Using the above example, instruct your spacecraft to process other combinations of 0's and 1's with and, or, and xor to make sure these logical operators behave as expected.
-
-You may have noticed that there is one very important operator that is missing from the version of FORTH that is currently running on your spacecraft. There is no not operator. However, the beauty of FORTH is that you can easily define your own not operator as follows:
-
-```
-  : not 1 xor ; ( define not )
-
-  0 not true? ( see how not works on 0 )
-  1 not true? ( see how not works on 1 )
+-- Sell when the price is good and there is something to sell
+function worth_selling(resource, least)
+  return sell_price(resource) >= least and units(resource) > 0
+end
 ```
 
-Try the above code to see how it works.
+`a or b` is a handy default: `ask(660)[1] or {0, 0}` is the first wreck here, or a stand-in when there is none.
 
 ### Repeating yourself: loops
 
-Your drone's FORTH is eForth: it has no `do ... loop` (nor `?do`, `i` or `leave`). Its counted loop is `for ... next`, and there are three others.
+Lua has four loops:
 
-- `n for ... next` runs n+1 times, counting down: `r@` is the count, from n to 0. `: t 3 for r@ . next ;` prints `3 2 1 0`. For exactly n times, put the body after `aft`: `3 for aft r@ . then next` prints `2 1 0`. Don't leave anything on the return stack (`>r`) inside it.
-- `begin ... until` repeats until the flag on top is true: `: countdown ( n -- ) begin dup . 1- dup 0= until drop ;`
-- `begin ... while ... repeat` tests first, so the body may run no times: `: walk ( n -- ) begin dup 0> while dup . 1- repeat drop ;`
-- `begin ... again` runs forever. Put a `wait` in it, or the drone burns fuel thinking: `: forever ( -- ) begin 60 wait drop again ;`
-- To count up, keep the counter in a variable (or use `for` and subtract `r@` from n):
-
+```lua
+function loops()
+  for i = 1, 3 do print(i) end              -- 1 2 3
+  for i = 3, 0, -1 do print(i) end          -- 3 2 1 0: counting down
+  local n = 3
+  while n > 0 do                            -- tests first: may run no times
+    print(n)
+    n = n - 1
+  end
+  repeat                                    -- tests last: runs at least once
+    n = n + 1
+  until n >= 3
+  for i, ore in ipairs({kunspar, wolfite}) do print(i, ore) end   -- a list, in order
+  for resource, n_wanted in pairs({[kunspar] = 10, [wolfite] = 5}) do
+    print(resource, n_wanted)               -- every key of a table, in no set order
+  end
+end
 ```
-variable i
-: times ( n -- ) 0 i ! begin i @ over < while i @ . 1 i +! repeat drop ;
-```
 
-`3 times` prints `0 1 2`. Pick distinct names for your variables: a variable called `i` in one word and another `i` later replaces it for the words that follow.
+`break` leaves the loop it is in at once. `while true do ... end` runs forever: it is how `launched` keeps a drone working. Put an action in it (a `wait`, a trip, a mining run), or the drone burns fuel thinking:
+
+```lua
+function launched()
+  while true do
+    print("fuel " .. units(fuel))
+    report()
+    wait(60)
+  end
+end
+```
 
 ### Market-aware drones
 
 You can't change a drone once it's released, but its market will change: deposits run dry, other players crowd the stations you sell to, miners undercut each other, and new makers start buying what you sell. A drone that follows a fixed plan does well until the market moves, then keeps doing the wrong thing. The drones that last read the market every round and decide for themselves what to make, where to buy and where to sell. Build yours that way.
 
-**Read the market.** These game words answer the questions most decisions start from, about the place where the drone is:
+**Read the market.** These game functions answer the questions most decisions start from, about the place where the drone is:
 
-| Word | What it tells you |
+| Function | What it tells you |
 |---|---|
-| `buy-price ( resource -- price )` | The cheapest price to buy one here: the cheapest other drone's sell order, a station drone's included (0 if nobody sells) |
-| `sell-price ( resource -- price )` | The best price to sell one here: the highest other drone's buy order, a station drone's included (0 if nobody buys). Your own drone's bid is left out, so bidding one over `sell-price` doesn't raise your own bid |
-| `best-offer ( resource -- price drone n )` | The cheapest drone's sell order: its price, the seller, how many it will sell |
-| `best-bid ( resource -- price drone n )` | The highest other drone's buy order (this drone's own is left out): its price, the buyer, how many it wants (only buyers who can pay) |
-| `deposit ( mineral -- n )` | Units left in the deposit here |
-| `sold ( resource days-ago place -- units )` | How many sold at a place on a game day (0: today so far, 1: yesterday...), an hour old: how fast a product sells there |
+| `buy_price(resource)` | The cheapest price to buy one here: the cheapest other drone's sell order, a station drone's included (0 if nobody sells) |
+| `sell_price(resource)` | The best price to sell one here: the highest other drone's buy order, a station drone's included (0 if nobody buys). Your own drone's bid is left out, so bidding one over `sell_price` doesn't raise your own bid |
+| `best_offer(resource)` | The cheapest other drone's sell order: its price, the seller, how many it will sell |
+| `best_bid(resource)` | The highest other drone's buy order (this drone's own is left out): its price, the buyer, how many it wants |
+| `deposit(mineral)` | Units left in the deposit here |
+| `sold(resource, days_ago, place)` | How many sold at a place on a game day (0: today so far, 1: yesterday...), an hour old: how fast a product sells there |
+| `board_price(resource, place)` | What a unit traded for at a place over the last game day |
 
-Query 682 gives `sold`'s numbers for every place at once, with the day's average price. For other places, the public price board, query 680, reports the game day up to an hour ago: units, credits and trades by place. A buyer pays less as its stock fills: when many drones sell to the same buyer, the board shows it. Query 620 gives the volume traded here, and 704 how long a trip takes.
+Query 682 gives `sold`'s numbers for every place at once, with the day's average price. For other places, the public price board, query 680, reports the game day up to an hour ago: units, credits and trades by place. A buyer pays less as its stock fills: when many drones sell to the same buyer, the board shows it. Query 620 gives the volume traded here, and `trip` how long a trip takes.
 
-Each of these words asks the game afresh, every time: `buy-price` asks for `me` (query 205) and the order list. That is cheap, but not free (asking runs instructions, and instructions burn fuel), and the answer can change between two calls. In a loop, ask once, keep the price on the stack or in a variable, and decide from that.
+Each of these functions asks the game afresh, every time: `buy_price` asks for `me()` (query 205) and the order list. That is cheap, but not free (asking runs instructions, and instructions burn fuel), and the answer can change between two calls. In a loop, ask once, keep the price in a local variable, and decide from that.
 
 **Decide again on arrival.** A trip can take days, and the market you chose it for has moved by the time you land: a deposit others mined out, a buy order someone filled. A drone that picks its next job when it arrives, from what it sees there, does better than one that planned everything before it left.
 
 **Decide with arithmetic.** Most good decisions compare two numbers:
 
-```
-\ Is making rods worth it? Two metals make a rod: compare what they cost
-\ here with what a rod fetches, less about 40 for fuel and the trip
-: rods-pay? ( -- f ) metals-a1 buy-price 2 * 40 +  225 < ;
-\ Which ore is worth mining? The one with more left here
-: richer ( -- mineral ) kunspar deposit wolfite deposit > if kunspar else wolfite then ;
+```lua
+-- Is making rods worth it? Two metals make a rod: compare what they cost
+-- here with what a rod fetches, less about 40 for fuel and the trip
+function rods_pay()
+  local metal = buy_price(metals_a1)
+  return metal > 0 and metal * 2 + 40 < 225
+end
+
+-- Which ore is worth mining? The one with more left here
+function richer()
+  if deposit(kunspar) > deposit(wolfite) then return kunspar else return wolfite end
+end
 ```
 
-Try such words on the **Machine page with live game data** before you release: it runs them on today's market, as one of the drones there would see it. Ask as a player's drone, not an exchange's station drone: a drone doesn't see its own orders, so a station drone sees its own station's prices as 0 (the page warns you).
+Try such functions with the Test button before you release: the test world's market copies the live one's best orders.
 
 **Don't make more than sells.** A product that sells for 1,600 but only twice a day is worth less to you than one that sells for 300 fifty times a day, once your hold is full of the first. Compare what you hold, and what you're about to make, with what sold yesterday:
 
-```
-\ Over half a day's sales at Earth aboard? Sell first, or make another
-: overstocked? ( product -- f ) dup units 2 *  swap 1 earth sold  > ;
+```lua
+-- Over half a day's sales at Earth aboard? Sell first, or make another
+function overstocked(product)
+  return units(product) * 2 > sold(product, 1, earth)
+end
 ```
 
-**Keep it in a state machine.** A drone that reacts to the market needs a plan that can change. A state machine is the simplest way to write one. The drone is always in one **mode** (shopping, making, hauling, resting...). Each round it does one step of its mode's work. Then it either stays in that mode or moves to another, depending on what it saw. Every drone knows four words for this:
+**Keep it in a state machine.** A drone that reacts to the market needs a plan that can change. A state machine is the simplest way to write one. The drone is always in one **mode** (shopping, making, hauling, resting...). Each round it does one step of its mode's work. Then it either stays in that mode or moves to another, depending on what it saw. Every drone knows four functions for this:
 
-| Word | What it does |
+| Function | What it does |
 |---|---|
-| `become ( mode -- )` | Switch to a mode, and start counting rounds in it again |
-| `in? ( mode -- f )` | True if the drone is in that mode |
-| `tick ( -- )` | Count a round: call it once each time round your loop |
-| `ticks ( -- n )` | Rounds since the last `become`: give up on a mode that takes too long |
+| `become(mode)` | Switch to a mode, and start counting rounds in it again |
+| `in_mode(mode)` | True if the drone is in that mode |
+| `tick()` | Count a round: call it once each time round your loop |
+| `ticks()` | Rounds since the last `become`: give up on a mode that takes too long |
 
-Number your modes with constants, write one word for each mode's step, and let a `step` word pick the one to run:
-
-```
-0 constant shopping   1 constant making   2 constant hauling   3 constant resting
-
-: shop ( -- )
-  rods-pay? 0= if resting become exit then
-  20 metals-a1 buy-cheapest  60 wait drop  making become ;
-: rest ( -- )
-  120 wait drop
-  ticks 5 > if hauling become exit then     \ waited long enough: sell what we have
-  rods-pay? if shopping become then ;
-
-: step ( -- )
-  shopping in? if shop exit then
-  making in? if make-one exit then
-  hauling in? if haul exit then
-  rest ;
-: launched ( -- ) unpack drop moon go drop  shopping become  begin step tick again ;
-```
-
-Small steps keep the drone responsive. A word that makes one alloy and then returns lets the drone look at prices again before the next one; a word that makes twenty commits it for two game days, whatever happens to the market. Each mode also needs a way out. Use `ticks` so a drone doesn't rest or shop forever, and check credits and fuel so it can't spend its last credit on goods it then can't move.
-
-The Adaptive design (`examples/companies/adaptive.fth`, released with the Factory Kit) puts all of this together. It buys metals only while they cost well under what rods fetched at Earth yesterday, from whoever sells them cheapest. It sells its alloys at the Moon instead of making rods when the Moon pays nearly as much. And when nothing pays, it rests. Read it, then make your own. The other designs in `examples/companies/` are worth reading too: the Systems shop (`systems.fth`), Electronics (`electronics.fth`) and Foundry (`foundry.fth`) were written by newcomers in earlier playtests and earned the most when raced against the rest.
-
-**Watch the `answer` buffer.** `ask` and every question word that uses it (`units`, `credits`, `deposit`, `best-offer`, `best-bid`...) write into the same 120-byte buffer. Read everything you need from one answer before you ask anything else. A round 25 trader read a seller's ID after calling `units`, got the wrong drone, and its pulls failed.
-
-## Chapter 10: Writing your drone in Lua
-
-Your drone's computer also runs [Lua](https://www.lua.org/manual/5.4/), a small language used in many games. Everything in this manual still holds: the same protocols, queries, places and resources, the same game clock and fuel. Only the language differs. Write in whichever you prefer; FORTH and Lua drones share the same world and trade with each other.
-
-### A Lua drone
-
-A script is Lua when it defines a function `launched` (`function launched() ... end`) and no FORTH word `launched`. Release it as you would a FORTH script: on the Release page, or with the API (`/check` tells you which language it found, and reports a Lua script's syntax errors with their line number). Once it is released, your drone loads the whole script, then calls `launched()`. As in FORTH, `launched` usually loops for ever:
+The mode starts at 0, and it is saved with the drone's globals, so a restarted drone carries on in the mode it was in. Make mode 0 a good place to start (here, shopping). Number your modes, write one function for each mode's step, and let a `step` function pick the one to run:
 
 ```lua
--- A miner in a dozen lines
-low_fuel = 40   -- Settings first, as in the starters
+shopping, making, hauling, resting = 0, 1, 2, 3
+
+function rods_pay()
+  local metal = buy_price(metals_a1)
+  return metal > 0 and metal * 2 + 40 < 225
+end
+
+function shop()
+  if not rods_pay() then become(resting); return end
+  buy_here(20, metals_a1)
+  become(making)
+end
+
+function make_one()
+  -- Two metals make an alloy, an alloy makes a rod
+  if units(alloys_a1) == 0 and make(alloys_a1) ~= 0 then become(hauling); return end
+  if make(rods) ~= 0 then become(hauling) end
+end
+
+function haul()
+  go(earth)
+  sell_all(rods)
+  go(moon)
+  become(shopping)
+end
+
+function rest()
+  wait(120)
+  if ticks() > 5 then become(hauling); return end   -- waited long enough: sell what we have
+  if rods_pay() then become(shopping) end
+end
+
+function step()
+  if in_mode(shopping) then shop()
+  elseif in_mode(making) then make_one()
+  elseif in_mode(hauling) then haul()
+  else rest() end
+end
 
 function launched()
-  await_kit()
   unpack()
   go(moon)
+  become(shopping)
   while true do
-    if units(fuel) < low_fuel then buy_here(30, fuel) end
-    if mine(kunspar) ~= 0 then wait(60) end
-    refine(kunspar)
-    if units(metals_a1) >= 16 then sell_here(units(metals_a1), metals_a1) end
+    step()
+    tick()
   end
 end
 ```
 
-Every starter comes in Lua too (`examples/starters/miner.lua`, `refiner.lua`, `trader.lua`, `maker.lua`: the same drones as the `.fth` ones, and on the Release page as "Miner (Lua)" and so on), and so does the Systems shop (`examples/companies/systems.lua`), the best company design so far. Reading a starter beside its FORTH twin is a quick way into either language.
+Small steps keep the drone responsive. A function that makes one alloy and then returns lets the drone look at prices again before the next one; a function that makes twenty commits it for two game days, whatever happens to the market. Each mode also needs a way out. Use `ticks` so a drone doesn't rest or shop forever, and check credits and fuel so it can't spend its last credit on goods it then can't move.
 
-### The game in Lua
+The Adaptive design (`examples/companies/adaptive.lua`, released with the Factory Kit) puts all of this together. It buys metals only while they cost well under what rods fetched at Earth yesterday, from whoever sells them cheapest. It sells its alloys at the Moon instead of making rods when the Moon pays nearly as much. And when nothing pays, it rests. Read it, then make your own. The other designs in `examples/companies/` are worth reading too: the Systems shop (`systems.lua`), Electronics (`electronics.lua`) and Foundry (`foundry.lua`) were written by newcomers in earlier playtests and earned the most when raced against the rest.
 
-Every game word of the FORTH library has a Lua function of the same meaning, with `_` where FORTH has `-` (`sell-price` is `sell_price`, `?sell-order` is `sell_order_if_changed`, `in?` is `in_mode`):
+## Appendix A: When Your Script Fails
 
-| Kind | Functions |
+When your script can't go on, your drone prints `error:` and Lua's message on its page, with the line of your script where it happened (`script:12:` is line 12). An error while the script loads stops the drone before `launched` starts; an error in `launched` crashes it, and it restarts (see [When `launched` crashes](#when-launched-crashes)). The Test button and the Release page catch syntax errors, and names you use that nothing defines, before your script runs.
+
+The common errors:
+
+| Message | What it usually means |
 |---|---|
-| Places and resources | `earth`, `moon`, `mars`, `phobos`, `deimos`; `fuel`, `kunspar`, `wolfite`, `yalspar`, `vladnium`, `magmite`, `metals_a1` to `metals_a3`, `alloys_a1` to `alloys_a3`, `organics_a1`, `inorganics_a1`, `rods`, `mining_kit`, `factory_kit`, `cruiser_kit` (any other resource by its number) |
-| Actions (return 0 when they worked, else a negative code) | `travel(place)`, `go(place)`, `mine(mineral)`, `refine(mineral)`, `make(resource)`, `wait(minutes)`, `push(n, resource, drone)`, `pull(n, resource, drone)`, `launch(drone, kit)`, `plunder(wreck)`, `jettison(n, resource)`, `broadcast(text)`, `unpack()`, `sell_order(price, keep, resource)`, `buy_order(price, want, resource)`, `sell_order_if_changed(...)`, `buy_order_if_changed(...)` |
-| Trading | `buy_here(n, resource)`, `sell_here(n, resource)`, `sell_all(resource)`, `best_offer(resource)` and `best_bid(resource)` (each returns price, drone, units), `sell_price(resource)`, `buy_price(resource)`, `board_price(resource, place)`, `sold(resource, days_ago, place)` |
-| Questions | `me()`, `location()`, `units(resource)`, `credits()`, `company()`, `today()`, `deposit(mineral)`, `trip(place)`, `crowd(place)`, `my_clones()` (a list of `{drone =, wrecked =}`), `recipe(resource)` (its first recipe, or nil: `{protocol, makes, uses = {[resource] = units}, fuel, tool, hours}`) |
-| Safety | `fuel_floor(n)`: at or below n fuel, `make` (but fuel), `mine`, `refine`, `push` and `sell_here` return -30 (see [A fuel floor](#fuel-floor)) |
-| Messages | `events_here(type)`, `events_earth(type)` (lists of event IDs), `event_drone(event)`, `message(event)` (its text, or nil) |
-| State | `become(mode)`, `in_mode(mode)`, `tick()`, `ticks()`, `await_kit()` |
-| Output | `print(...)` (to your drone's output), `report()` (sends it home) |
+| `attempt to call a nil value (global 'crowed')` | A function that doesn't exist: a typo (`crowed` for `crowd`), the wrong case (`Mine` for `mine`), or a name from another language |
+| `attempt to call a number value (global 'best_bid')` | Your script set one of the game's names to a number, then something called it. Rename your variable |
+| `attempt to perform arithmetic on a nil value (global 'misses')` | A variable that was never set. Set it at the top of the script |
+| `attempt to index a nil value (local 'row')` | Reading from a row that isn't there: an empty query result (`ask(660)[1][1]` when there are no wrecks). Check the row first |
+| `attempt to compare number with nil` | One side of `<` or `>` is a variable that was never set, or a function that returned nothing |
+| `attempt to concatenate a nil value` | One of the pieces joined with `..` is `nil` |
+| `bad argument #2 to 'perform' (number has no integer representation)` | A fraction where the game wants a whole number, such as `wait(n / 2)`. Use `//` |
+| `bad argument #2 to 'perform' (number expected, got nil)` | A game function was given a variable that was never set |
+| `not enough memory` | The drone's Lua went past its 256 KB, usually a table that grows every round |
+| `the script's top level ran more than 2000000 instructions` | The script's top level did real work. Put work in functions that `launched` calls |
+| `attempt to yield from outside a coroutine` | An action (mining, travel, trading, waiting) at the script's top level. Actions belong in `launched` and the functions it calls |
 
-Underneath them are two functions you can use for anything the library doesn't cover:
-
-- `perform(protocol, ...)` runs a protocol. Its arguments come in the order the protocol's description gives them (`[N R D 10 perform]` is `perform(10, n, r, d)`), and it returns 0 or a negative code, as FORTH's `perform` leaves on the stack. A double is one number here: `perform(7, 70000, 5, rods)` posts a sell order at 70,000.
-- `query(id, ...)` asks a question (the queries of [Chapter 8](#chapter-8-asking-questions)), its arguments in the same order (`[N H R L 620 query]` is `query(620, n, h)`). It returns the rows: a list, each row a list of its columns, which you can also read by name (`rows[1][1]` or `rows[1].price`). No rows is an empty list. `ask(id, ...)` is the same, with an empty list if the query fails.
-
-`/check` and the Release page warn about a name your script uses that nothing defines (`crowed(phobos)` for `crowd`): calling it would crash your drone. Pick your own names for your variables and functions. If you set one of the game's names (`best_bid = 30`), the game's functions keep working, but your own code gets your value from then on, and calling a number crashes your drone; `/check` and the Release page warn you.
-
-A query's rows have their columns by position (`rows[1][1]`) and by the query's own column names (`rows[1].price`; `d_price` loses its `d_`). A column that is an expression (`IFNULL(i.units, 0)`) is easiest read by position: the descriptions on the Protocols and Queries pages list the columns in order.
-
-Money and big numbers are plain numbers: `credits()` is your balance, whatever its size, with no double cells, and no 120-byte `answer` buffer to read before the next question overwrites it.
-
-### launched() may run again
-
-Your drone's Lua stays in the game engine's memory between turns. Whenever it pauses for an action, the game saves its plain variables: numbers, strings, true and false, and tables of them. Functions and the place in the script it had reached are not saved. If the engine restarts, your drone gets its saved variables back and runs `launched()` again from the top. A crash restarts it too, with fresh variables, as a FORTH drone's does.
-
-So write `launched` to do only what still needs doing. `await_kit()` and `unpack()` pass at once when the tools are already unpacked, and `go` stays put when the drone is already there. Keep what your drone must remember (a mode, a count, the last price it saw) in global variables, not in `local` ones inside a loop.
-
-A copy launched with `launch` gets your script and your saved variables, as a FORTH copy gets your drone's memory. Set a variable before launching (`copy = true`) and the copy can tell it is one.
-
-### Limits and costs
-
-- Thinking costs fuel, as in FORTH. Each Lua instruction counts as six of the FORTH machine's, since it does about six times the work, and a turn is 100,000 of those. A drone that thinks hard pauses mid-thought and carries on at its next turn.
-- Your drone's Lua may hold 256 KB. A script that keeps growing a table stops with "not enough memory", and restarts like any crash.
-- There is no file, system or network access, and no `load` or `require`: a drone runs only its own script. `math.random` works, but `math.randomseed` is gone.
-- What your drone prints with `print` reaches you when `launched` returns or calls `report()`, as in FORTH.
-
-## Appendix A: FORTH Error Codes
-
-Your drone will occasionally return an error message indicating a fault in the code that it's trying to process. These errors are reported as negative integers followed by a question mark (for example `-13?`), which can be interpreted using the following table.
-
-The most common is `-13?`, an undefined word: the drone prints the line it was reading, then `-13?`. The word is one on that line that the drone doesn't know (a typo, the wrong case: `DUP` isn't `dup`, a word from another FORTH such as `true`, or one of your own used before the line that defines it). The Test button and the Release page name such words for you before your script runs.
-
-| Hex | Dec | Message |
-|---|---|---|
-| FFFF | -1 | ABORT |
-| FFFE | -2 | ABORT" |
-| FFFD | -3 | stack overflow |
-| FFFC | -4 | stack underflow |
-| FFFB | -5 | return stack overflow |
-| FFFA | -6 | return stack underflow |
-| FFF9 | -7 | do-loops nested too deeply during execution |
-| FFF8 | -8 | dictionary overflow |
-| FFF7 | -9 | invalid memory address |
-| FFF6 | -10 | division by zero |
-| FFF5 | -11 | result out of range |
-| FFF4 | -12 | argument type mismatch |
-| FFF3 | -13 | undefined word |
-| FFF2 | -14 | interpreting a compile-only word |
-| FFF1 | -15 | invalid FORGET |
-| FFF0 | -16 | attempt to use zero-length string as a name |
-| FFEF | -17 | pictured numeric output string overflow |
-| FFEE | -18 | parsed string overflow |
-| FFED | -19 | definition name too long |
-| FFEC | -20 | write to a read-only location |
-| FFEB | -21 | unsupported operation |
-| FFEA | -22 | control structure mismatch |
-| FFE9 | -23 | address alignment exception |
-| FFE8 | -24 | invalid numeric argument |
-| FFE7 | -25 | return stack imbalance |
-| FFE6 | -26 | loop parameters unavailable |
-| FFE5 | -27 | invalid recursion |
-| FFE4 | -28 | user interrupt |
-| FFE3 | -29 | compiler nesting |
-| FFE2 | -30 | obsolescent feature |
-| FFE1 | -31 | >BODY used on non-CREATEd definition |
-| FFE0 | -32 | invalid name argument (e.g., TO xxx) |
-| FFDF | -33 | block read exception |
-| FFDE | -34 | block write exception |
-| FFDD | -35 | invalid block number |
-| FFDC | -36 | invalid file position |
-| FFDB | -37 | file I/O exception |
-| FFDA | -38 | non-existent file |
-| FFD9 | -39 | unexpected end of file |
-| FFD8 | -40 | invalid BASE for floating point conversion |
-| FFD7 | -41 | loss of precision |
-| FFD6 | -42 | floating-point divide by zero |
-| FFD5 | -43 | floating-point result out of range |
-| FFD4 | -44 | floating-point stack overflow |
-| FFD3 | -45 | floating-point stack underflow |
-| FFD2 | -46 | floating-point invalid argument |
-| FFD1 | -47 | compilation word list deleted |
-| FFD0 | -48 | invalid POSTPONE |
-| FFCF | -49 | search-order overflow |
-| FFCE | -50 | search-order underflow |
-| FFCD | -51 | compilation word list changed |
-| FFCC | -52 | control-flow stack overflow |
-| FFCB | -53 | exception stack overflow |
-| FFCA | -54 | floating-point underflow |
-| FFC9 | -55 | floating-point unidentified fault |
-| FFC8 | -56 | QUIT |
-| FFC7 | -57 | exception in sending or receiving a character |
-| FFC6 | -58 | [IF], [ELSE], or [THEN] exception |
+An action that fails is not an error: it returns a negative code (see [Issuing Commands](#chapter-4-issuing-commands)), and your script carries on. Check the result, and decide what to do next.

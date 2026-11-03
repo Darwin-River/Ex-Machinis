@@ -51,7 +51,8 @@ class HouseStationsTest extends TestCase
         $this->assertEqualsCanonicalizing([5911, 5921, 2061], $aboard);
         $codes = DB::table('commands')->where('agent_id', $drones[0]->agent_id)->orderBy('id')->pluck('code')->all();
         $this->assertSame('<launched>', end($codes));
-        $this->assertStringContainsString('5911 perform', implode("\n", $codes));
+        $this->assertStringContainsString('perform(5911, n, resource)', implode("\n", $codes));
+        $this->assertEquals('lua', $drones[0]->language);
 
         // Again: nothing new
         Artisan::call('forge:stations');

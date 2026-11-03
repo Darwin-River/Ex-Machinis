@@ -52,7 +52,7 @@ Platforms such as Railway or Render bill each service and the database separatel
 
 Notes on choosing:
 
-- **CPU is what limits the game.** Every drone's FORTH program runs on the game engine, and each drone action is a database write.
+- **CPU is what limits the game.** Every drone's Lua program runs on the game engine, and each drone action is a database write.
 - **If the engines fall behind, the game slows down rather than breaking.** The game clock slows, and new releases queue (see `GAME_TIME_FLOOR` in [deploy/README.md](../deploy/README.md#settings)). If that happens, resize the server to a bigger plan: both hosts do it in a few minutes, keeping the disk.
 - **Pick a region near most of your players.** For Hetzner that is Ashburn or Hillsboro for the Americas, and Falkenstein, Nuremberg or Helsinki for Europe.
 - **Pick Ubuntu 24.04 LTS** as the image.
@@ -277,9 +277,11 @@ Then open the site and check a drone page, as in step 4 of the install.
 
 **Pick a quiet time.** The rebuild takes a few minutes, but the site stays up until the new containers replace the old ones.
 
-**Lua drones lose their place in their script when the engine restarts.** A Lua drone's program lives in the game engine's memory: after an update (or any restart of the `game-engine` container) each Lua drone gets its saved variables back and runs its `launched` function again from the top. FORTH drones carry on where they were. Players are told so (players' manual, Chapter 10), but updating when few are playing is kinder.
+**Lua drones lose their place in their script when the engine restarts.** A Lua drone's program lives in the game engine's memory: after an update (or any restart of the `game-engine` container) each Lua drone gets its saved variables back and runs its `launched` function again from the top. (Drones released in FORTH, before it was retired, carry on where they were.) Players are told so (players' manual), but updating when few are playing is kinder.
 
 **The House's prices move on the scheduler's tick.** Since round 36 the `scheduler` container's tick (every 5 seconds) posts the exchanges' orders at the day's prices, copies the live market into the test world every 5 minutes, and records each company's net wealth once a game day. If the scheduler stops, the exchanges keep trading at their last prices: check it with `docker compose ps scheduler` and `docker compose logs --tail 20 scheduler` ("tick failed" lines). `docker compose exec app php artisan forge:market` posts the House's orders once by hand. The first start after this update gives each station drone its new program, and its orders move to the tick: the log says "(new program)" for each.
+
+**FORTH was retired after round 38.** From this update the Release page and the API take Lua scripts only; drones already running in FORTH keep running. The update also gives each House station drone its Lua program (the log says "(new program)" for each), and a failed push or pull gives its fuel back.
 
 **Engine settings come with the engine image.** The engines read `game-engine/conf/game-engine.conf`, built into their image, so `--build` picks up a change there. Since round 37 thinking costs half the fuel (`POWER_INSTRUCTIONS` 200,000, was 100,000). To set it yourself, add `POWER_INSTRUCTIONS: "100000"` (or any number) to the `environment` of each engine service in `docker-compose.yml`, and keep `power_instructions` in `config/forge.php` the same, since the drone pages quote it. That update also makes every drone's hold 1,000 (migration 0029) and gives each station drone a new program (the log says "(new program)").
 

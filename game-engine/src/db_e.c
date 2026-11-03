@@ -2655,3 +2655,77 @@ ErrorCode_t db_refund_deposits(int action_id)
     }
     return ENGINE_OK;
 }
+
+/** ****************************************************************************
+
+    @brief          Gives back the fuel a failed push or pull burned
+                    (#380 round 38)
+
+    A pull from a sell order that another drone emptied first (or a push into
+    a buy order that filled first) fails, but its fuel was already burned: a
+    drone in a crowd paid a fuel for every race it lost. The burn (the
+    action's fuel decrement that was applied) is given back as a new fuel
+    increment, so the drone's fuel is as it was.
+
+    @param[in]      action_id Failed push or pull
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_refund_fuel(int action_id)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK)
+        return result;
+
+    // The applied burn: its drone, time and place, and the protocol's cost
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT e.drone, e.game_t, IFNULL(e.place, 0), r.quantity FROM events e "
+        "JOIN actions a ON a.id = e.action "
+        "JOIN resource_effects r ON r.protocol = a.protocol AND r.resource = %d AND r.event_type = 2 AND r.deplete = 1 "
+        "WHERE e.action = %d AND e.resource = %d AND e.event_type = 2 AND e.outcome = %d "
+        "AND e.installed = 0 AND e.locked = 0 AND a.protocol IN (%d, %d) ORDER BY e.id LIMIT 1",
+        FUEL_RESOURCE_ID, action_id, FUEL_RESOURCE_ID, OUTCOME_OK, PUSH_PROTOCOL_ID, PULL_PROTOCOL_ID);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    if(!res)
+        return ENGINE_OK;
+    MYSQL_ROW row = mysql_fetch_row(res);
+    if(!row) {
+        mysql_free_result(res);
+        return ENGINE_OK;   // nothing burned (it had no fuel, or no cost)
+    }
+    int drone = atoi(row[0]);
+    long long game_t = row[1] ? atoll(row[1]) : 0;
+    int place = atoi(row[2]);
+    int cost = atoi(row[3]);
+    mysql_free_result(res);
+    if(cost <= 0)
+        return ENGINE_OK;
+
+    // The fuel comes back on top of what the drone holds now
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "INSERT INTO events (event_type, action, logged, outcome, drone, resource, installed, locked, "
+        "new_quantity, new_credits, new_cargo, game_t, place) "
+        "SELECT 1, 0, 1, %d, %d, %d, 0, 0, "
+        "IFNULL((SELECT f.new_quantity FROM events f WHERE f.drone = %d AND f.resource = %d AND f.installed = 0 "
+        "AND f.locked = 0 AND f.outcome = %d ORDER BY f.id DESC LIMIT 1), 0) + %d, 0, "
+        "IFNULL((SELECT c.new_cargo FROM events c WHERE c.drone = %d AND c.outcome = %d ORDER BY c.id DESC LIMIT 1), 0) + %d, "
+        "%lld, %d",
+        OUTCOME_OK, drone, FUEL_RESOURCE_ID,
+        drone, FUEL_RESOURCE_ID, OUTCOME_OK, cost,
+        drone, OUTCOME_OK, cost,
+        game_t, place);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d]: [%d] fuel given back by failed transfer action [%d]",
+        drone, cost, action_id);
+    return ENGINE_OK;
+}

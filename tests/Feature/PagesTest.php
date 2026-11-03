@@ -28,7 +28,6 @@ class PagesTest extends TestCase
         return [
             'home'             => ['/', 'Home'],
             'home alias'       => ['/home', 'Home'],
-            'forth dictionary' => ['/forth-dictionary', 'FORTH Dictionary'],
             'getting started'  => ['/getting-started', 'Getting Started'],
             'about us'         => ['/about-us', 'About Us'],
             'queries'          => ['/queries', 'Queries'],

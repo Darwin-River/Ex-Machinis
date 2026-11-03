@@ -25,7 +25,7 @@ class BlogPageTest extends TestCase
         $this->get('/blog/1-state-machines')->assertOk()
             ->assertSee('Drones that change their minds')
             ->assertSee('<h2 id="the-code">The code</h2>', false)
-            ->assertSee(': step ( -- )')
+            ->assertSee('function step()')
             ->assertSee('/blog/2-buy-orders', false)
             // Front matter isn't shown as text
             ->assertDontSee('summary:');
@@ -38,13 +38,15 @@ class BlogPageTest extends TestCase
 
     public function testPostCodeRedefinesNoWordTheDroneKnows()
     {
-        // The code examples load on a drone (game-engine/machine
-        // check_starters.mjs checks them on the drone VM); here: none of
-        // them replaces a game word, as the Release page would warn
+        // The code examples are Lua (FORTH was retired, #380; make test in
+        // game-engine/src compiles them); here: none of them replaces a game
+        // name, as the Release page would warn
         foreach (BlogController::posts() as $slug => $post) {
-            preg_match_all('/```forth\R(.*?)```/s', file_get_contents($post['file']), $m);
+            $text = file_get_contents($post['file']);
+            preg_match_all('/```lua\R(.*?)```/s', $text, $m);
             $this->assertNotEmpty($m[1], "$slug has code");
-            $this->assertEquals([], Release::redefinedWords(implode("\n", $m[1])), $slug);
+            $this->assertStringNotContainsString('```forth', $text, $slug);
+            $this->assertEquals([], Release::luaRedefinedWords(implode("\n", $m[1])), $slug);
         }
     }
 }

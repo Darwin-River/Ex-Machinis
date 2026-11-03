@@ -1144,7 +1144,7 @@ queries.append((207, 'Game time now',
                 "SELECT FLOOR(([game_now] - epoch) / 86400) AS day, FLOOR(MOD([game_now] - epoch, 86400) / 60) AS minute "
                 "FROM game_clock WHERE id = 1;"))
 # What a House station drone's exchange trades (#380): its program
-# (resources/house/station.fth) reads it to post its orders. Only station
+# (resources/house/station.lua) reads it to keep its stock. Only station
 # drones get rows: to players a station drone is a drone like any other, so
 # the House's listed prices and demand are not theirs to read. Queries 631
 # and 632 (batch offers and budgets) and 633 (house-price) are gone. Rows

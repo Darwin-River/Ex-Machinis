@@ -461,6 +461,7 @@ ErrorCode_t db_abort_action(int action_id);
 /** Gives back to their deposits what a failed mining action took (#324
     step 11; events engine) */
 ErrorCode_t db_refund_deposits(int action_id);
+ErrorCode_t db_refund_fuel(int action_id);
 
 /** ****************************************************************************
 

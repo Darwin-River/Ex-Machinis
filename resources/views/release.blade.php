@@ -40,7 +40,7 @@
                     {{-- Where this code comes from (#324 step 16) --}}
                     <input type="hidden" name="copied_from" value="{{ $copiedFrom }}">
                     @if($copiedWord)<input type="hidden" name="copied_word" value="{{ $copiedWord }}">@endif
-                    <p><small>Copied from <a href="{{ url('spacecraft/' . $copiedFrom) }}">drone {{ $copiedFrom }}</a>{{ $copiedWord ? ' (the word ' . $copiedWord . ')' : '' }}: the new drone's page will say so.</small></p>
+                    <p><small>Copied from <a href="{{ url('spacecraft/' . $copiedFrom) }}">drone {{ $copiedFrom }}</a>{{ $copiedWord ? ' (the function ' . $copiedWord . ')' : '' }}: the new drone's page will say so.</small></p>
                 @endif
                 <div class="form-group">
                     <label for="company_name">Company name</label>
@@ -49,7 +49,7 @@
                 </div>
                 <p><small>Start from a starter script:
                     @foreach($starters as $name => $what)
-                        <a href="{{ url('release?starter=' . $name) }}" title="{{ $what }}">{{ str_ends_with($name, '.lua') ? ucfirst(substr($name, 0, -4)) . ' (Lua)' : ucfirst($name) }}</a>@if(!$loop->last) · @endif
+                        <a href="{{ url('release?starter=' . $name) }}" title="{{ $what }}">{{ ucfirst($name) }}</a>@if(!$loop->last) · @endif
                     @endforeach
                     (each is explained in its comments; change it to make it your own)</small></p>
                 <div class="form-group">
@@ -61,14 +61,14 @@
                             <label class="form-check-label" for="kit-{{ $name }}">{{ $what }}</label>
                         </div>
                     @endforeach
-                    <small>The mining gear is too big to carry with the factory tools: a drone mines and refines, or
-                        it makes things. Choose the kit your script needs (each starter says which).</small>
+                    <small>A drone mines and refines with the Mining Kit, or makes things with the Factory Kit. Choose the
+                        kit your script needs (each starter says which); a drone can buy the other kit later.</small>
                 </div>
                 <div class="form-group">
-                    <label for="script">Script</label>
+                    <label for="script">Script (Lua)</label>
                     <textarea class="form-control" id="script" name="script" rows="16" spellcheck="false"
                               style="font-family: monospace"
-                              maxlength="{{ config('forge.max_script_length') }}" required>{{ old('script', $starter ?? ": launched  ( -- )\n  .\" Hello from orbit\" cr ;") }}</textarea>
+                              maxlength="{{ config('forge.max_script_length') }}" required>{{ old('script', $starter ?? "function launched()\n  print(\"Hello from orbit\")\nend") }}</textarea>
                 </div>
                 <button class="button button-primary" type="submit">Release</button>
                 @if($testWorld)

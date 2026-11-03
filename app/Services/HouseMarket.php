@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
  * - what it buys: from today's price with no stock bought to half at a full
  *   day's demand, for up to a day's demand above the stock it keeps to sell.
  * Only orders whose price or quantity changed are posted. The drone's
- * program (resources/house/station.fth) keeps the stock and ships down what
+ * program (resources/house/station.lua) keeps the stock and ships down what
  * it bought.
  */
 class HouseMarket

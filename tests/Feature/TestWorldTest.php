@@ -21,7 +21,7 @@ class TestWorldTest extends TestCase
 
     protected $connectionsToTransact = ['mysql', 'testworld'];
 
-    private const SCRIPT = ": launched  .\" test-run-ran\" cr ;";
+    private const SCRIPT = "function launched() print(\"test-run-ran\") end";
 
     protected function setUp(): void
     {

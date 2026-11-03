@@ -8,13 +8,19 @@ use Illuminate\Support\Facades\DB;
  * Where code comes from (#324 step 16). A script is compared by its
  * normalised source, comments and spacing removed, so a pasted copy matches
  * however it is laid out; each word (": name ... ;") is compared the same
- * way on its own.
+ * way on its own. Lua scripts (#380; the only kind since FORTH was retired)
+ * the same way, with -- comments, and each top-level function (from a line
+ * starting "function name" or "local function name" to the next line that
+ * is just "end") as a word.
  */
 class Provenance
 {
     /** The script without comments, one space between words */
     public static function normalise(string $script): string
     {
+        if (Release::isLua($script)) {
+            return self::normaliseLua($script);
+        }
         $text = preg_replace('/(^|\s)\\\\(\s.*)?$/m', '$1', $script);   // \ to the end of the line
         $text = preg_replace('/(^|\s)\((\s[^)]*)?\)/', '$1', $text);     // ( ... )
         $tokens = preg_split('/\s+/', trim($text), -1, PREG_SPLIT_NO_EMPTY);
@@ -32,6 +38,13 @@ class Provenance
      */
     public static function words(string $script): array
     {
+        if (Release::isLua($script)) {
+            $words = [];
+            foreach (self::luaFunctions($script) as $name => $source) {
+                $words[$name] = self::normaliseLua($source);
+            }
+            return $words;
+        }
         $tokens = explode(' ', self::normalise($script));
         $words = [];
         for ($i = 0; $i < count($tokens); $i++) {
@@ -55,11 +68,33 @@ class Provenance
      */
     public static function wordSource(string $script, string $name): ?string
     {
+        if (Release::isLua($script)) {
+            return self::luaFunctions($script)[$name] ?? null;
+        }
         $pattern = '/(^|\s)(:\s+' . preg_quote($name, '/') . '(\s.*?)?\s;)(\s|$)/s';
         if (preg_match_all($pattern, $script, $m) === 0) {
             return null;
         }
         return end($m[2]);
+    }
+
+    /** Lua source without comments, one space between words */
+    private static function normaliseLua(string $source): string
+    {
+        $text = preg_replace(['/--\[\[.*?\]\]/s', '/--[^\n]*/'], ' ', $source);
+        return implode(' ', preg_split('/\s+/', trim($text), -1, PREG_SPLIT_NO_EMPTY));
+    }
+
+    /** A Lua script's top-level functions as written: name => source (the last of a name wins) */
+    private static function luaFunctions(string $script): array
+    {
+        preg_match_all('/^(?:local\s+)?function\s+([A-Za-z_][A-Za-z_0-9]*)\s*\(.*?^end\b[^\n]*/ms',
+            str_replace("\r\n", "\n", $script), $m, PREG_SET_ORDER);
+        $functions = [];
+        foreach ($m as $match) {
+            $functions[$match[1]] = $match[0];
+        }
+        return $functions;
     }
 
     /**

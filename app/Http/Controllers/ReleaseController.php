@@ -23,7 +23,7 @@ class ReleaseController extends Controller
         // a drone's code or one of its words (#324 step 16: "Copy this code")
         $starters = Release::STARTERS;
         $starter = Release::starter((string) request('starter'));
-        $kit = Release::STARTER_KITS[(string) request('starter')] ?? 'mining';
+        $kit = Release::STARTER_KITS[preg_replace('/\.lua$/', '', (string) request('starter'))] ?? 'mining';
         $copiedFrom = null;
         $copiedWord = null;
         if (request()->filled('copy')) {
@@ -135,7 +135,7 @@ class ReleaseController extends Controller
             $request->input('kit'));
 
         return redirect('/spacecraft/' . $agent->agent_id)->withSuccess('Released! Drone ' . $agent->name . ' of '
-            . $request->input('company_name') . ' is loading your script and will run its launched word. '
+            . $request->input('company_name') . ' is loading your script and will run its launched function. '
             . 'Keep this page\'s link to follow it.')
             ->with('warning', Release::redefinedWarning($script));
     }

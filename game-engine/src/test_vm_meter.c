@@ -103,26 +103,6 @@ int main(void)
     check("a load allowance of 0 changes nothing",
           vm_meter_slice_budget(1, 0, 0, 100000) == 100000);
 
-    // A whole script loads in one slice: the starter Miner (98 lines of
-    // code) uses about 8 million instructions
-    {
-        embed_t *h = embed_new();
-        embed_default(h);
-        embed_opt_t o = *embed_opt_get(h);
-        o.put = put_cb;
-        o.options |= EMBED_VM_QUITE_ON;
-        o.yield = yield_cb;
-        embed_opt_set(h, &o);
-        static char script[200000];
-        FILE *f = fopen("../../examples/starters/miner.fth", "r");
-        size_t n = f ? fread(script, 1, sizeof(script) - 1, f) : 0;
-        if(f) fclose(f);
-        script[n] = 0;
-        vm_meter_start(vm_meter_slice_budget(1, 0, 20000000, 100000));
-        embed_eval(h, script);
-        check("the starter Miner loads within one load slice", n > 0 && !vm_meter_exhausted());
-        embed_free(h);
-    }
 
     if(failures) {
         printf("%d check(s) failed\n", failures);
