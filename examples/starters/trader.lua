@@ -12,11 +12,12 @@
 -- The same drone as trader.fth, in Lua.
 
 -- Settings: change these numbers to make it your own
-cargo_goal = 60    -- metals it gathers before setting off
-min_load = 20      -- ...or this many, after shopping a while
+cargo_goal = 150   -- metals it gathers before setting off (the hold
+                   -- carries 1,000 since round 37)
+min_load = 40      -- ...or this many, after shopping a while
 patience = 24      -- looks at the market before it goes with less
 trip_fuel = 25     -- fuel it wants aboard before a trip
-trip_cost = 300    -- what a round trip costs (fuel, time): spread over a load
+trip_cost = 200    -- what a round trip costs (fuel, time): spread over a load
 min_margin = 2     -- least profit a unit, after the trip and the tax
 nap = 120          -- game minutes to rest when nothing pays
 cash_floor = 200   -- credits it keeps for fuel: a trader that spends every

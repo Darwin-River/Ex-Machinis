@@ -279,12 +279,12 @@ class DronePage
         switch ($agent->wreck_cause) {
             case 'fuel':
                 $cause = "It ran out of fuel on $when: it had none left to pay for its computing "
-                    . '(1 fuel for every 100,000 instructions its program runs) or its next action.' . $last;
+                    . '(1 fuel for every ' . number_format(config('forge.power_instructions', 200000)) . ' instructions its program runs) or its next action.' . $last;
                 // How much went on thinking: a loop without a wait burns a tank this way (#380)
                 $ran = (int) $agent->instructions;
-                if ($ran >= 100000) {
+                if ($ran >= config('forge.power_instructions', 200000)) {
                     $cause .= ' Its program ran ' . number_format($ran) . ' instructions in all, about '
-                        . number_format(intdiv($ran, 100000)) . ' fuel of computing.';
+                        . number_format(intdiv($ran, config('forge.power_instructions', 200000))) . ' fuel of computing.';
                 }
                 if ($agent->release_vm === null && $agent->parent_id === null) {
                     $cause .= ' It never started its launched word.';

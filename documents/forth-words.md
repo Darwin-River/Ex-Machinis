@@ -152,7 +152,7 @@ A drone that changes what it does as the market changes is easiest to write as a
 
 **`reinvest ( -- )`**: at an exchange, with 7,000 credits or more, buy a Mining Cruiser kit, launch a clone of this drone, buy the design's kit, `my-kit` (a Mining or Factory Kit), and hand it to the clone with 40 fuel. Used by: every starter and design since #380.
 
-- One kit at a time: equipment fills 364 of a drone's 500 cargo, so both kits (40 each) don't fit at once with a tank of fuel.
+- A drone carries 1,000 cargo (500 until round 37). Unpacked, a kit takes 267 to 296 of it; both kits fit (563), with room for fuel.
 - If a kit is still aboard from a launch whose hand-over failed, `reinvest` hands it over first. A hull already bought is launched whenever the fuel allows, without checking credits again.
 - Launching (30 fuel) and equipping the clone (40) empty the tank: `reinvest` refills it to 60 afterwards. Without that, every parent in round 19 died on its way home.
 - A standing sell order for fuel keeps back only its limit: other drones buy everything above it, even while yours is busy. If the drone sells fuel and also launches clones, set the order's limit above what launching needs (80), or the tank never holds enough to launch (round 28: a factory's 3,000-credit hull sat unlaunched all round).
@@ -168,10 +168,10 @@ A drone that changes what it does as the market changes is easiest to write as a
 
 ## Patterns and pitfalls
 
-- **Sell every by-product.** Equipment takes 310 of a drone's 500 cargo. Anything you make and keep (Inorganics (A2) from vladnium, for one) piles up until there is no room to brew fuel, and the drone dies. Sell it all each round.
+- **Sell every by-product.** Equipment takes about 300 of a drone's 1,000 cargo. Anything you make and keep (Inorganics (A2) from vladnium, for one) piles up until there is no room to brew fuel, and the drone dies. Sell it all each round.
 - **Refuel wherever you wait.** `wait` itself is free, but a drone that wakes every few hours to look for a trade burns fuel computing each time it looks, and over weeks that empties the tank. Call `top-up` in the waiting loop, not only before trips.
 - **Count attempts, not quiet time.** A wait that resets whenever something happens may never end. Count how many times you have looked instead.
-- **Every action costs fuel.** Mining 1, refining 2, making 2 to 4, travel 5. Computing costs too: 1 fuel per 100,000 instructions.
+- **Every action costs fuel.** Mining 1, refining 2, making 2 to 4, travel 5. Computing costs too: 1 fuel per 200,000 instructions.
 - **Leave with fuel to spare.** Nearly every action burns fuel, buying fuel included, and nothing rescues a drone that runs dry. Check the tank before a trip, and at a station buy fuel before you sell. Stranded anyway? `call-for-fuel` posts a buy order a courier can profit from and waits for it.
 - **Long lines are fine, long strings aren't.** The game splits a line over 79 characters between words (dropping its comment) before the drone reads it, but a single string (`." ..."`) longer than that can't be split. The checker and the Machine split lines the same way.
 - **`credits` is a double.** Compare it as one: `credits 200 0 d< if exit then` (less than 200). Dropping the high cell works only until the balance passes 32,767.

@@ -12,11 +12,12 @@
 \ down.)
 
 \ Settings: change these numbers to make it your own
-60 constant cargo-goal   \ metals it gathers before setting off
-20 constant min-load     \ ...or this many, after shopping a while
+150 constant cargo-goal  \ metals it gathers before setting off (the hold
+                         \ carries 1,000 since round 37)
+40 constant min-load     \ ...or this many, after shopping a while
 24 constant patience     \ looks at the market before it goes with less
 25 constant trip-fuel    \ fuel it wants aboard before a trip
-300 constant trip-cost   \ what a round trip costs (fuel, time)
+200 constant trip-cost   \ what a round trip costs (fuel, time)
 2 constant min-margin    \ least profit a unit, after the trip and the tax
 120 constant nap         \ game minutes to rest when nothing pays
 

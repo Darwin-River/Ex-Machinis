@@ -337,6 +337,14 @@ Round 36's newcomers all found the House paid a flat 25 to 33 credits a factory-
 - The Trader starter now buys only when the price board at Mars or Earth beats the Moon price by the trip's cost, and hauls to whichever pays more.
 - Also from round 36: the test world mirrors the live market (`LiveMirror`), recipes and recipe trees in the API and `recipe` in both libraries, `fuel-floor`, net wealth by game day, a company's open orders, a drone's fuel used per day, test drones numbered from 10,000,000.
 
+### Cheaper fuel, bigger holds (#380, after round 37)
+
+- **The station's fuel was the wrecks' main cause.** station.fth topped up its fuel once a round, and a round (about 90 imports, an action each) took one to six game days, so the Moon Depot sold about 500 fuel every two days instead of 6,000 a day. It now tops up after every import and export, to its reserve plus a quarter of a day's supply.
+- **Fuel costs less**: 3 credits a unit at every exchange (`FUEL_PRICE`, was 5; made goods' House prices count their fuel at 3), and thinking burns 1 fuel per 200,000 instructions (`POWER_INSTRUCTIONS`, was 100,000).
+- **Bigger holds**: hull 1 (every released drone) and the Cruisers carry 1,000 (migration 0029, was 500), for long trips' fuel and bigger loads. Both kits unpacked (563) now fit in one drone; it still does one thing at a time.
+- **The Trader starter** gathers 150 metals a trip (was 60), at least 40 (was 20), and counts a round trip at 200 (was 300).
+- **Players' habits, not the House's rescue**: the players' manual ("Two habits that keep a drone alive") and blog 8 show keeping a fuel reserve and checking what's for sale, with somewhere else to go. The starters are unchanged: the Miner and Refiner still set no fuel floor.
+
 ### Round 37: newcomers on moving markets (#380)
 
 The round 36 mix on #408's code (moving markets, the test world's copy of the live market, `recipe`, `fuel-floor`, the new Trader), to game day 40: 60 starters, 12 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive, 3 each of the Systems shop, Electronics and Foundry, and 3 each of the Lua Maker, Miner, Systems shop and Trader. No engine stall or crash all round. All four newcomers chose Lua.

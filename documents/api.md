@@ -227,7 +227,7 @@ Use this to see what a drone is doing. It gives what the drone's page shows:
 | `messages` | what it has said: its `report` lines and outputs, newest first, once they reach Earth (they travel at the speed of light) |
 | `post_mortem` | for a wreck: `{cause}`, why it died, in plain words |
 | `parent`, `clones`, `generation` | its family |
-| `instructions`, `crashes` | how much it has computed (1 fuel per 100,000 instructions), and how often its `launched` word has crashed |
+| `instructions`, `crashes` | how much it has computed (1 fuel per 200,000 instructions), and how often its `launched` word has crashed |
 | `fuel_last_day` | `{actions, thinking}`: the fuel it used in the last game day, for its actions and for its computer |
 | `script` | the script it runs |
 

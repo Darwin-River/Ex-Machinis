@@ -147,7 +147,7 @@ for r in design['Resources'][1:]:
 # recipes-extra.csv), so it joins the production chain.
 FUEL = 2061
 POWER_PROTOCOL = '2'
-POWER_INSTRUCTIONS = 100000     # instructions per unit of fuel (game-engine.conf)
+POWER_INSTRUCTIONS = 200000     # instructions per unit of fuel (game-engine.conf)
 resources[str(FUEL)] = {
     'id': FUEL, 'name': 'Fuel (A1)', 'mass': 1, 'capacity': 0, 'slot_size': 0,
     'description': 'Rocket fuel. Every action burns some, and running the drone\'s computer burns '
@@ -953,7 +953,9 @@ for rid, price, demand in ((2031, 8, 200), (2041, 12, 200),
 # round 22 an alloy sold for less than its two metals and a gear box earned
 # about 4 an hour: newcomers worked that out and only mined.
 WAGE = {2: 20, 3: 30, 4: 45}   # credits a game hour, by tier (first digit): half as much again a step up (#380)
-FUEL_PRICE = 5                 # what the House sells fuel for
+# Fuel was 5 credits; 3 since round 37 (#380): a trip, a round of
+# thinking and a fuel reserve cost less, so hauling and long trips pay
+FUEL_PRICE = 3                 # what the House sells fuel for
 RAW_VALUE = {'2011': 20, '2012': 30, '2013': 40, '2031': 8, '2032': 10, '2033': 12,
              '2041': 12, '2042': 15, '2043': 18}
 
@@ -1000,8 +1002,8 @@ for st in (1, 3):
         STATION_GOODS.append((st, rid, BUYS, made_value(rid), 10, 0))
 # The big mining gear costs more (#380): each kit's modules are worth 2,400
 # The modules at half as much again as their listed value, like everything
-# else the House sells (below); fuel stays at 5
-for rid, price, supply in ((FUEL, 5, 2000), (5001, 400, 10), (WORM, 1000, 10), (REFINERY, 1000, 10),
+# else the House sells (below); fuel stays at FUEL_PRICE
+for rid, price, supply in ((FUEL, FUEL_PRICE, 2000), (5001, 400, 10), (WORM, 1000, 10), (REFINERY, 1000, 10),
                            (5201, 500, 10), (5211, 600, 10), (5501, 900, 5)):
     if rid != FUEL:
         price = -(-price * 3 // 2)
@@ -1011,7 +1013,7 @@ for rid, price, supply in ((FUEL, 5, 2000), (5001, 400, 10), (WORM, 1000, 10), (
 # kits (#380): miners can't brew, and round 25's makers often got no fuel
 # there because every miner shared its 2,000
 for st, supply in ((2, 6000), (3, 6000)):
-    STATION_GOODS.append((st, FUEL, SELLS, 5, supply, 0))
+    STATION_GOODS.append((st, FUEL, SELLS, FUEL_PRICE, supply, 0))
 # The House sells raw goods too, dear (#380): ores, metals, organics and
 # inorganics at half as much again as it pays for them at that station (an
 # ore at half as much again as what it refines to, less the fuel: so buying
@@ -1396,8 +1398,11 @@ for n, (pid, e) in enumerate(sorted(effects, key=lambda pe: (pe[0], pe[1]['time'
                         e['locked'], e['deplete'], e['abundancies'], e['quantity'], e['time']))
 # Hulls: each ship kit (16xxx makes kit 6xxx) launches a drone whose hull has
 # the kit's ID. Upserted, not replaced: existing drones use hulls 1 and 2.
+# Cruisers carry 1,000 since round 37 (#380), like a new drone's hull 1
+# (migration 0029): 500 left a hauler 60 metals and a long trip too little
+# room for fuel
 HULL_SIZES = {  # cargo capacity, A-E slots
-    'Cruiser': (500, 2, 2, 1, 0, 0),
+    'Cruiser': (1000, 2, 2, 1, 0, 0),
     'Cutter': (2000, 3, 3, 2, 0, 0),
     'Frigate': (5000, 4, 3, 2, 1, 0),
     'Barge': (20000, 6, 4, 3, 2, 1),

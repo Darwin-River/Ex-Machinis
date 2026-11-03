@@ -14,7 +14,7 @@
                 <b>live game data</b> on, <code>query</code> asks the game, now, as the drone you choose would: the
                 same rows land in memory as in a drone's, so a word that sizes up the market here works the same in
                 a company design. Off, query leaves -3. Every instruction counts: a drone burns 1 fuel for each
-                {{ number_format(100000) }} it runs, and each query counts as 1,000.
+                {{ number_format(config('forge.power_instructions', 200000)) }} it runs, and each query counts as 1,000.
             </div>
             <div class="row">
                 <div class="col-12 col-lg-5">

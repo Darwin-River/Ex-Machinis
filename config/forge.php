@@ -22,6 +22,8 @@ return [
 
     // Fuel in a new drone's hold (#324 step 8): actions and computing burn it
     'starting_fuel' => 100,
+    // Instructions a drone runs for 1 fuel: game-engine.conf's POWER_INSTRUCTIONS
+    'power_instructions' => 200000,
 
     // A released company's starting bank account
     'starting_credits' => 1000,

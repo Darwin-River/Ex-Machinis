@@ -54,24 +54,34 @@ variable #goods
 
 : restock ( i -- ) dup stock over good units - swap good import ;
 
+\ Fuel: its reserve, and a quarter of a day's supply on top for sale.
+\ Each import takes a while and a round imports about 90 goods, so a round
+\ can last days: it tops its fuel up after each import, not once a round
+\ (#380 round 37: the Moon Depot's 6,000 a day came out at about 500
+\ every two days, and 50 drones ran dry)
+variable fuel-stock
+: find-fuel ( -- )
+  reserve fuel-stock !
+  0 begin dup #goods @ < while
+    dup buys? 0= if dup good fuel = if dup stock fuel-stock ! then then 1+
+  repeat drop ;
+: fuel-up ( -- ) reserve fuel-stock @ +  fuel units -  fuel import ;
+
 \ Each round restocks what sells, from the lowest resource up: fuel and raw
 \ goods, what drones need most, come back first after a sale
 : restock-all ( -- )
   0 begin dup #goods @ < while
-    dup buys? 0= if dup good fuel <> if dup restock then then 1+
+    dup buys? 0= if dup good fuel <> if dup restock fuel-up then then 1+
   repeat drop ;
 
 \ Once a game day, what it bought goes down to the surface
 variable shipped
 : ship ( -- )
   today shipped @ = if exit then  today shipped !
-  #goods @ begin dup while 1- dup buys? if dup excess over good export then
+  #goods @ begin dup while 1- dup buys? if dup excess over good export fuel-up then
   repeat drop ;
 
-\ Its own fuel
-: fuel-up ( -- ) reserve 2 *  fuel units -  fuel import ;
-
 : round ( -- )
-  fuel-up load-goods restock-all ship ;
+  load-goods find-fuel fuel-up restock-all ship ;
 
 : launched ( -- ) -1 shipped !  begin round 60 wait drop again ;
