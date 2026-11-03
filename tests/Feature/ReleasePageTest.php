@@ -184,6 +184,21 @@ class ReleasePageTest extends TestCase
         }
     }
 
+    public function testALuaScriptThatUsesAnUndefinedNameIsWarned()
+    {
+        // #380 round 35: a misspelt game word failed only once the drone ran it
+        if (!is_executable(config('forge.lua_check'))) {
+            $this->markTestSkipped('lua-check is built with the engine (make -C game-engine/src)');
+        }
+        $script = "low = 40\nfunction launched()\n  if crowed(phobos) < low then wiat(60) end\nend\n";
+        $this->assertEquals([['line' => 3, 'name' => 'crowed'], ['line' => 3, 'name' => 'wiat']],
+            Release::luaUndefinedNames($script));
+        $this->assertStringContainsString('crowed (line 3), wiat (line 3)', Release::redefinedWarning($script));
+        foreach (array_merge(glob(base_path('examples/starters/*.lua')), glob(base_path('examples/companies/*.lua'))) as $file) {
+            $this->assertEquals([], Release::luaUndefinedNames(file_get_contents($file)), basename($file));
+        }
+    }
+
     public function testALuaScriptThatDoesntCompileIsRefused()
     {
         if (!is_executable(config('forge.lua_check'))) {

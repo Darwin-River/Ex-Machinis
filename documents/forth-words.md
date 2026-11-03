@@ -65,7 +65,7 @@ Define more the same way: `3311 constant pipes`. The Resources page lists every 
 
 ## Buying where it is cheapest
 
-**`buy-cheapest ( n resource -- )`** (#380): buy up to n of a good here, cheapest first: the game word `buy-here`, which pulls from the cheapest sell order here (any drone's, a station drone's included), then the next, until it has n. Used by: every design that buys (Maker, Smith, Machinist, Chemist, Miner and Refiner for fuel).
+**`buy-cheapest ( n resource -- )`** (#380): buy up to n of a good here, cheapest first: the game word `buy-here`, which pulls from the cheapest sell order here (any drone's, a station drone's included), then the next, until it has n; a seller that refuses is skipped (at most 6 tries). Used by: every design that buys (Maker, Smith, Machinist, Chemist, Miner and Refiner for fuel).
 
 **`sell-best ( n resource -- )`** (#380): sell up to n of a good here, best price first: the game word `sell-here`, which pushes into the highest buy orders here. Used by: every design that sells.
 

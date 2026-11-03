@@ -88,7 +88,7 @@ function get_one(resource)
   end
 end
 function reinvest()
-  if credits() < math.max(grow_at, 5500) then return end
+  if credits() < math.max(grow_at, 6500) then return end   -- keeps 1,500 to work with
   get_one(cruiser_kit)
   get_one(factory_kit)
   if units(cruiser_kit) == 0 or units(factory_kit) == 0 then return end

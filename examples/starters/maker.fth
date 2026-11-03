@@ -18,7 +18,8 @@
 20 constant trip-margin  \ flies to Earth only if rods sold there for
                          \ this much more than the best bid here
 7000 constant grow-at    \ credits at which it buys and launches a copy
-                         \ (5500 at least: a hull is 3000, a kit 2000)
+                         \ (6500 at least: a hull is 3000, a kit 2000,
+                         \ and 1500 left to work with)
 20 constant batch        \ metals it buys at a time
 300 constant cash-floor  \ credits it keeps (for fuel)
 3011 constant rods   2021 constant alloys-a1
@@ -96,7 +97,7 @@
 \ 40 fuel. A copy costs about 5,000 and the hull and kit count for less
 \ than they cost in net wealth: growing pays early, not in the last days.
 6001 constant cruiser-kit
-5500 constant grow-floor
+6500 constant grow-floor
 \ Buy one of a good here unless one is aboard, and wait (up to 6 game
 \ hours) for it, in case nobody here has one for sale yet
 : get-one ( resource -- )

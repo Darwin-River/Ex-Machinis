@@ -330,7 +330,7 @@ fetch() { curl -fsS "$@" || echo "fetch failed: $*"; }
 grep -qF "kunspar wolfite richer" <<<"$(fetch -b "$JAR" "http://localhost/release?starter=miner")" || fail "the Release page did not offer the miner starter"
 echo "ok: the Release page offers the starter scripts"
 run $FORGE_DRONE "game words" "stdlib . moon . kunspar . fuel units 0> . 3 trip 0> ."
-knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%16101100-1-1'")" ]; }
+knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%17101100-1-1'")" ]; }
 wait_for 60 "a drone knows the game words" knows_words
 
 # Broadcasts (#380): the released drone, at Earth, broadcasts a message, an
