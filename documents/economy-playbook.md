@@ -337,6 +337,38 @@ Round 36's newcomers all found the House paid a flat 25 to 33 credits a factory-
 - The Trader starter now buys only when the price board at Mars or Earth beats the Moon price by the trip's cost, and hauls to whichever pays more.
 - Also from round 36: the test world mirrors the live market (`LiveMirror`), recipes and recipe trees in the API and `recipe` in both libraries, `fuel-floor`, net wealth by game day, a company's open orders, a drone's fuel used per day, test drones numbered from 10,000,000.
 
+### Round 38: newcomers on cheaper fuel and bigger holds (#380)
+
+The round 37 mix on #408's code as merged (fuel 3 credits, thinking 1 fuel per 200,000 instructions, holds of 1,000, the station's fuel kept topped up), to game day 40: 60 starters, 12 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive, 3 each of the Systems shop, Electronics and Foundry, and 3 each of the Lua Maker, Miner, Systems shop and Trader. No engine stall or crash. Three newcomers wrote Lua only; Dina wrote one company in each.
+
+| Design | Language | Companies | Avg net wealth at the end |
+|---|---|---|---|
+| Newcomers (Dina) | Lua, FORTH | 2 | 14,072 |
+| Systems shop | FORTH | 3 | 10,932 |
+| Systems shop | Lua | 3 | 10,461 |
+| Foundry | FORTH | 3 | 10,321 |
+| Newcomers (Bea) | Lua | 2 | 10,246 |
+| Newcomers (Cal) | Lua | 2 | 8,414 |
+| Electronics | FORTH | 3 | 7,328 |
+| Newcomers (Abe) | Lua | 2 | 5,761 |
+| Machinist | FORTH | 6 | 5,030 |
+| Miner, Maker, Refiner (starters) | FORTH | 48 | about 4,000 to 4,400 credits |
+| Maker, Miner | Lua | 6 | about 3,300 to 3,800 |
+| Smith | FORTH | 9 | 3,114 |
+| Trader | Lua | 3 | 2,921 |
+| Adaptive | FORTH | 6 | 2,677 |
+| Trader (starter) | FORTH | 12 | about 1,900 credits |
+| Chemist | FORTH | 12 | 863 |
+
+- **Wrecks: 0 of 132 drones** (round 37: 50 of 129). The station's fuel fix did it: fuel was on sale all round, and no newcomer's plan was shaped by its price. Every starter Miner and Refiner survived without a fuel floor.
+- **Leaderboard**: Bea 1 1st (17,490), Dina 2 2nd (16,743, FORTH), Systems 2 3rd, Cal 2 4th, Dina 1 6th. Newcomers took four of the top six, all with recipe-tree factories that priced every system from live prices each round.
+- **Supply decided results.** Metals (A1) at the Moon were fought over from day 3 (about 95 drones there), and every failed pull still cost a fuel. What won: plan B to Earth (Dina 1 moved on day 5 and was 1st at day 30; Abe 1 on day 3.7), standing buy orders that the starter miners sell into (Cal 2: "the crowd became my supply chain"), and bringing inputs from Earth to build at the Moon (Dina 2).
+- **Long hauls didn't pay.** All three drones sent to Mars (Abe 2, Bea 2, and briefly others) arrived after about 10.5 days to a crowd and no Metals (A1). No lane between the House's exchanges pays (asks about twice bids), so hauling pays only to move a factory or to supply players.
+- **Growth is slow**: a copy costs about 5,000 against about 500 a day, so copies launched after day 20 barely paid back.
+- **Bug found**: FORTH can't run in the test world. Test drones are numbered from 10,000,000 (#408), which doesn't fit a 16-bit cell, so `me` is 0 and every question about the drone's hold fails. Dina released her FORTH company untested.
+- **Ratings** (Abe, Bea, Cal, Dina): fun 7.5, clarity 7, depth 7.25, feedback 6.75, API 8, again 8, overall 7.5. Lua 9 to learn, 8.25 for fit; FORTH (Dina) 6 and 7.
+- **Asked for**: test drone ids FORTH can hold; no fuel for a pull that loses the race (or a pull that takes what's there); supply on offer by place and day, and stock levels drones can read; the shape of Lua's `recipe()` table and when saved variables come back, documented; a bulk recipe-tree endpoint; plainer test-run events (which action failed); one pace for the clock in the docs (api.md 2.4 minutes a day, the manual an hour); the manual's `/buys` and `/sells` links removed; hauling lanes (regional shortages, delivery bounties); cheaper early growth; wider margins between systems.
+
 ### Cheaper fuel, bigger holds (#380, after round 37)
 
 - **The station's fuel was the wrecks' main cause.** station.fth topped up its fuel once a round, and a round (about 90 imports, an action each) took one to six game days, so the Moon Depot sold about 500 fuel every two days instead of 6,000 a day. It now tops up after every import and export, to its reserve plus a quarter of a day's supply.
