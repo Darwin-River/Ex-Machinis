@@ -56,6 +56,8 @@ A trader no longer needs a fixed price list. The new Trader starter reads the pr
 A long build can drain a tank without your program noticing. In round 36 a factory's nine-step build took it from 50 fuel to 3, and the failure path sold its leftover parts, a fuel a push, until it had none. It became a wreck with 5,517 credits in the bank. Set a floor:
 
 ```forth
+\ A round: make a pump, rest an hour (yours does more)
+: work ( -- ) 4311 make drop  60 wait drop ;
 : launched ( -- ) 15 fuel-floor  unpack drop  begin work again ;
 ```
 
