@@ -337,6 +337,35 @@ Round 36's newcomers all found the House paid a flat 25 to 33 credits a factory-
 - The Trader starter now buys only when the price board at Mars or Earth beats the Moon price by the trip's cost, and hauls to whichever pays more.
 - Also from round 36: the test world mirrors the live market (`LiveMirror`), recipes and recipe trees in the API and `recipe` in both libraries, `fuel-floor`, net wealth by game day, a company's open orders, a drone's fuel used per day, test drones numbered from 10,000,000.
 
+### Round 37: newcomers on moving markets (#380)
+
+The round 36 mix on #408's code (moving markets, the test world's copy of the live market, `recipe`, `fuel-floor`, the new Trader), to game day 40: 60 starters, 12 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive, 3 each of the Systems shop, Electronics and Foundry, and 3 each of the Lua Maker, Miner, Systems shop and Trader. No engine stall or crash all round. All four newcomers chose Lua.
+
+| Design | Language | Companies | Avg net wealth at the end |
+|---|---|---|---|
+| Systems shop | FORTH | 3 | 13,225 |
+| Systems shop | Lua | 3 | 12,104 |
+| Newcomers (Wren) | Lua | 2 | 7,816 |
+| Newcomers (Yusuf) | Lua | 2 | 6,185 |
+| Newcomers (Viktor) | Lua | 2 | 5,568 |
+| Newcomers (Uma) | Lua | 2 | 5,352 and a wreck |
+| Foundry | FORTH | 3 | 3,387 |
+| Maker (starter) | FORTH | 12 | about 2,500 |
+| Maker | Lua | 3 | 2,830 |
+| Smith, Machinist | FORTH | 15 | about 2,750 |
+| Chemist | FORTH | 12 | about 1,575 |
+| Trader (starter) | FORTH, Lua | 15 | all under their 1,000 (170 to 820 credits) |
+| Miner, Refiner (starter) | FORTH | 36 | all wrecks |
+| Miner | Lua | 3 | all wrecks |
+| Adaptive | FORTH | 6 | all wrecks |
+
+- **Wrecks**: 50 of 129 drones (round 36: 3), days 5 to 37, nearly all out of fuel at the Moon. About 95 drones worked the Moon; the Moon Depot's fuel sold out again and again (days 4, 20, 31...), and its metals (A1) and inorganics were gone from about day 13. The starter Miner and Refiner set no `fuel-floor`: their refuel posts a bid, waits and goes back to work, mining down to 0.
+- **Leaderboard**: the six Systems shops 1st to 6th (11,800 to 14,100), whose `rest` flies to the other exchange after four idle rounds; then Wren 1 7th, Yusuf 2 8th, Viktor 1 9th.
+- **Moving markets worked**: every newcomer saw prices move and three built for it (Yusuf's miner sells raw or refined by live prices, Wren's and Uma's factories price every system from the recipe tree each round, Viktor's hauler buys systems at Earth and sells them at the Moon, a pump bought at 388 sold at 1,229). The news was read but no drone can act on it.
+- **What decided results was supply, not price**: inputs and fuel ran out at the crowded Moon. The price board shows what sold, not what can be bought, so Wren 2 flew to the Moon twice for metals that weren't there. Yusuf 2 alone at Phobos earned most.
+- **Ratings** (Uma, Viktor, Wren, Yusuf): fun 7, clarity 7, depth 7.75, feedback 7.25, API 8, again 8, overall 7.25. Lua 8.75 to learn, 8 for fit.
+- **Asked for**: starters with a fuel floor and a fallback exchange; a stock-out signal drones can read (fuel or inputs running low); deposits in the API; `sell_here` with a least price; `/check` warning when a script hides a game or Lua word (`load`, a `local mine`); copies that don't fly back to a starved home; `today()` counting from the start in the test world; leaving one's own other company out of "best other bid"; a per-company trade ledger; a third release after day 10; fix the manual's "Make Fuel → 30" (the recipe makes 28).
+
 ### Round 36: newcomers on #407's fixes (#380)
 
 The round 35 world's mix, fresh from #407's code, to game day 40: 60 starters, 12 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive, 3 each of the Systems shop, Electronics and Foundry, and 3 each of the Lua Maker, Lua Miner and Lua Systems shop. No engine stall or crash all round.
