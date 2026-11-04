@@ -550,10 +550,10 @@ FORGE_NAME=$(sql "select name from agents where agent_id=$FORGE_DRONE")
 # Public, on the drone's page (#367 step 3)
 wait_for 30 "the drone's page shows the reply" sh -c "curl -fsS http://localhost/spacecraft/$FORGE_DRONE | grep -q 'forge-release-ok7'"
 # Starter scripts and game names (#324 step 15): the Release page fills in
-# a starter, and a drone knows the game's names (the library's version: 18)
+# a starter, and a drone knows the game's names (the library's version: 19)
 grep -qF "richer(kunspar, wolfite)" <<<"$(fetch -b "$JAR" "http://localhost/release?starter=miner")" || fail "the Release page did not offer the miner starter"
 echo "ok: the Release page offers the starter scripts"
-wait_for 60 "a drone knows the game's names" replied $FORGE_DRONE "game-words 18 10 1100 true true"
+wait_for 60 "a drone knows the game's names" replied $FORGE_DRONE "game-words 19 10 1100 true true"
 
 # Broadcasts (#380): the released drone, at Earth, broadcasts a message, an
 # event; the first drone, on the Moon, reads it from the Earth database
