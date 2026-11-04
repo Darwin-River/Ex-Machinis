@@ -84,11 +84,12 @@ class World
             $add(self::gameTimeOf($r->created_at), "{$r->company} released a new drone, {$r->name}{$how}.", 'spacecraft/' . $r->agent_id);
         }
 
-        // Broadcasts (#380): what drones said, for all to see
+        // Broadcasts (#380): messages are private to a company (after round
+        // 40), so the feed says one was sent, not what it said
         $said = DB::table('broadcasts as b')->leftJoin('agents as a', 'a.agent_id', '=', 'b.drone')
-            ->orderBy('b.id', 'desc')->limit($limit)->get(['b.drone', 'b.game_t', 'b.body', 'a.name']);
+            ->orderBy('b.id', 'desc')->limit($limit)->get(['b.drone', 'b.game_t', 'a.name']);
         foreach ($said as $b) {
-            $add((int) $b->game_t, ($b->name ?? 'A drone') . ' broadcast: "' . $b->body . '"', 'spacecraft/' . $b->drone);
+            $add((int) $b->game_t, ($b->name ?? 'A drone') . ' sent a message to its company.', 'spacecraft/' . $b->drone);
         }
 
         $launches = DB::table('events')->where('event_type', 8)->where('outcome', 1)->orderBy('id', 'desc')->limit($limit)->get();

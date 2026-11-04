@@ -127,11 +127,11 @@ class ApiTest extends TestCase
         $this->assertSame([(int) $a->agent_id], array_column($byId, 'drone'));
     }
 
-    public function testATestDroneNumberIsNotALiveDrone()
+    public function testThereIsNoTestWorld()
     {
-        // #380 round 36: test drones are numbered from 10,000,000
-        $this->getJson('/api/v1/drones/10000005')->assertNotFound()->assertJsonFragment(['error' =>
-            'That is a test drone (test drones are numbered from 10,000,000): its run is at /api/v1/test/{token}.']);
+        // Every release is live (#380, after round 40): no test runs
+        $this->postJson('/api/v1/test', ['script' => "function launched() end"])->assertNotFound();
+        $this->get('/release')->assertOk()->assertDontSee('release/test')->assertSee('Break, learn, repeat')->assertSee('Release early, release often');
     }
 
     public function testADroneSaysTheFuelItUsedToday()

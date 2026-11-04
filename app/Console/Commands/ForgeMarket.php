@@ -8,8 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Markets that move (#380 round 36): posts the House station drones' orders
- * at today's prices, in the live and test worlds, and mirrors the live
- * market into the test world when due: what the website's tick does.
+ * at today's prices: what the website's tick does.
  *
  *   php artisan forge:market                         once, the live world
  *   php artisan forge:market --database=pfload       another world

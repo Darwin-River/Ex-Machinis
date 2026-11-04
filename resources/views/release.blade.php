@@ -14,7 +14,12 @@
                 public: keep the link to follow it.</p>
             <p>Write it in Lua and define <code>function launched() ... end</code>. If <code>launched</code> crashes, the drone
                 restarts it from the copy you released, waiting longer after each crash; five crashes in a row make
-                it a wreck. A drone can't be changed once released: test it first.</p>
+                it a wreck.</p>
+            <p><b>Break, learn, repeat.</b> Release early, release often: there is no test world, every release
+                is real, and it costs nothing. Release a first version, watch it on its page, and when you see what goes wrong, release a
+                better one as a new company. A drone can't be changed once released, and a failed company costs you
+                nothing but the lesson. Game time runs fast (a game day in about a minute), so you see how a drone
+                does in minutes.</p>
 
             @if($clock && $clock['full'])
                 <div class="alert alert-warning mt-3" style="white-space: normal">
@@ -71,16 +76,7 @@
                               maxlength="{{ config('forge.max_script_length') }}" required>{{ old('script', $starter ?? "function launched()\n  print(\"Hello from orbit\")\nend") }}</textarea>
                 </div>
                 <button class="button button-primary" type="submit">Release</button>
-                @if($testWorld)
-                    <button class="button button-default" type="submit" formaction="{{ url('release/test') }}" formnovalidate>Test</button>
-                @endif
             </form>
-            @if($testWorld)
-                <p class="mt-2"><small><b>Test</b> runs your script in the test world: the same rules, game data and
-                    starting company, with a faster clock. Nothing there touches the live world, and you can test as
-                    often as you like. Each test run has its own page: keep its link (the latest
-                    {{ config('forge.test_runs_kept') }} test runs are kept).</small></p>
-            @endif
 
             @if($clock && $clock['waiting'] > 0)
                 {{-- The launch queue (#324 step 20) --}}

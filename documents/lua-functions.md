@@ -34,7 +34,7 @@ Every function below is built in (`game-engine/src/lua_library.lua`). Actions re
 | Safety | `fuel_floor(n)` |
 | Waiting | `wait(minutes)` |
 | Wrecks | `plunder(wreck)`, `wrecks()` (here: `{drone, plundered}`), `wreck_hold(wreck)` |
-| Messages and events | `broadcast(text)`, `events_here(type)`, `events_earth(type)`, `events_affecting(drone)`, `local_events()` (lists of event IDs, newest first), `event(id)` (everything about it: `{type, type_name, acting, protocol, affected, resource, quantity, credits, location, place, day, seconds, message}`), `event_drone(event)`, `message(event)` (its text, or nil), `message_event` (the type of a message: 13) |
+| Messages and events | `broadcast(text)`, `events_here(type)`, `events_earth(type)`, `events_affecting(drone)`, `local_events()` (lists of event IDs, newest first), `event(id)` (everything about it: `{type, type_name, acting, protocol, affected, resource, quantity, credits, location, place, day, seconds, message}`), `event_drone(event)`, `message(event)` (its text, or nil; messages are private to a company), `message_event` (the type of a message: 13) |
 | Game data | `resource_name(r)`, `unit_mass(r)`, `protocol_name(p)`, `protocol_minutes(p)`, `consumes(p)`, `produces(p)`, `retains(p)` (`{resource, units}`), `producers(r)`, `consumers(r)`, `users(r)` (`{protocol, units}`), `hull_capacity(hull)` |
 | State machines | `become(mode)`, `in_mode(mode)`, `tick()`, `ticks()` |
 | Output | `print(...)`, `report()` |
@@ -123,7 +123,7 @@ end
 ```
 
 - Nothing in the game rescues a drone that runs dry: only the market does. Pay enough to make the trip worth a courier's while: well above what fuel sells for at the exchanges (see the price board, query 680, or `board_price(fuel, place)`), more the farther you are from one.
-- Tell the drones around you: `broadcast` a message ("Fuel wanted at Phobos, paying 15") so a courier reading the messages (`events_earth(message_event)`) knows where to go.
+- Tell your company's other drones: `broadcast` a message ("Fuel wanted at Phobos") so your courier reading the messages (`events_earth(message_event)`) knows where to go. Messages are private to a company: other companies' drones can't read them.
 - **Fuel couriers** are the other side of this trade: drones that carry fuel to where others work and run low, look for fuel buy orders there (`best_bid(fuel)`) and push fuel into them for profit. Every stranded drone is a customer.
 
 **`fuel_floor(n)`** (built in, #380 round 36): at or below n fuel, `make` (but for fuel), `mine`, `refine` and `push` (so `sell_here`) return -30, so a long build or a selling spree can't spend the fuel you need to buy more. Call it in `launched`: `fuel_floor(15)`. (It isn't a saved variable, so `launched` sets it again after a restart.)

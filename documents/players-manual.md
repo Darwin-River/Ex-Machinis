@@ -88,12 +88,12 @@ It is your birthright to take control of your own remotely piloted spacecraft an
 
 ### Every company is an experiment
 
-Once you release a drone, it runs on its own: you can't steer it, and nobody will rescue it. Sooner or later every company meets something its program didn't foresee (a market that moves, a deposit that runs dry, a rival that undercuts it, a bug) and dies. That is how the game is meant to be played. Treat each company as an experiment:
+**Break, learn, repeat.** That's the game's motto. Once you release a drone, it runs on its own: you can't steer it, and nobody will rescue it. Sooner or later every company meets something its program didn't foresee (a market that moves, a deposit that runs dry, a rival that undercuts it, a bug) and dies. That is how the game is meant to be played. Treat each company as an experiment:
 
 - **Release, watch, learn.** Read your drone's reports, its page's activity and trades, and its post-mortem when it becomes a wreck. Each one tells you something about your program or the market.
 - **Iterate.** Fix the flaw, try a different idea, and release the next version as a new company. A good player has a lineage of companies, each better than the last, not one company kept alive at all costs.
 - **Expect the unexpected.** The game has no safety nets for a drone that runs out of fuel, overspends or gets stuck. If a drone should survive something, its program must handle it, or the market must: other players' drones buy, sell and deliver whatever pays (see [Running low on fuel](#running-low-on-fuel)).
-- **Use the Test button** to try a script in a test world first. It is cheap; a released company is the real experiment.
+- **Release early, release often.** The game world is one big test environment: every release is live. Releases are free and unlimited (apart from the API's limit of 10 a minute), so release a script as soon as it might work, watch it, and release a better one. Failing costs nothing but the lesson.
 - **Learn from others.** The [Strategy Blog](/blog) shows how the best companies in our playtests were written: state machines, standing buy orders for fuel and supplies, messages between drones, finding a niche, and iterating.
 
 ### Releasing a script (Public Forge)
@@ -105,26 +105,24 @@ There is no email, and no account to open: anyone can write a drone's program on
 - you go to the drone's page, which shows everything it does and what it prints (once its signal has reached Earth). It's public, like the drone's code: keep its link to follow it;
 - if `launched` crashes, the drone restarts it (see [When `launched` crashes](#when-launched-crashes)).
 
-**FORTH has been retired.** Drones already running FORTH programs carry on as before, but every new release, test and check takes Lua only.
+**FORTH has been retired.** Drones already running FORTH programs carry on as before, but every new release and check takes Lua only.
 
-A released drone can't be sent new commands from the Release page, so test your script before you release it. The **Test** button (when the test world is running) does that:
+A released drone can't be sent new commands or a new script. That's fine: every release is live, costs nothing, and you can release as often as you like. So you learn by doing:
 
-- your script runs in the test world, a separate copy of the game with the same rules, data and starting company, and a clock that runs ten times faster;
-- you go to the test run's own page, which shows what the test drone prints, its latest events (what it did, its cargo and credits), its trades and any crashes: keep its link to come back to it;
-- nothing in the test world affects the live one, and you can test as often as you like (the latest hundred test runs are kept);
-- your script starts loading at once, ahead of the drones already running there, and a run keeps going for 30 real minutes: after that the next test stops it, though its results stay readable;
-- the test world's market copies the live one: every few real minutes a company called "Live market" posts the live world's best orders there, at each place, with the goods to sell (what your test drone buys from it comes back at the next copy). So a plan that buys metals from the Moon's miners can be tried before you release it. The test world also has its own House, with its own moving prices; `/api/v1/orders?world=test` lists its orders;
-- the test world's game day is its own, in the thousands: count days from the start of your run, not from day 0, if your script cares (`today()` there is not the live world's day);
-- test drones are numbered from 10,000,000, so their numbers never match a live drone's.
+- **release** your script as soon as it might work;
+- **watch** its drone's page: what it prints, its latest events (what it did, its cargo and credits), its trades, its crashes, and the line its script sets with `set_status(text)` (see [Saying what it's doing](#saying-what-its-doing)). The API shows the same (`GET /api/v1/drones/{id}`);
+- **release a better version** as a new company once you see what went wrong, or what could go better. The old company carries on, or dies, on its own.
 
-Both the Test button and a release check your script first. They report a syntax error with its line number, and warn you about two mistakes that would otherwise only show once the drone runs:
+The game runs fast (a game day every 48 real seconds; see [Time and distance](#time-and-distance)), so a few minutes of watching shows you days of your drone's life.
+
+A release checks your script first. It reports a syntax error with its line number, and warn you about two mistakes that would otherwise only show once the drone runs:
 
 - a name your script uses that nothing defines (`crowed(phobos)` for `crowd`): calling it would crash your drone;
 - a game name your script sets (`best_bid = 30`): the game's own functions keep working, but your code gets your value from then on, which is rarely what you want. Rename yours.
 
 #### Starter scripts
 
-Prefer to play from a program, or to have an AI agent play? The [API](api.md) releases, tests and follows companies as JSON, with no account, under the same rules as the website. Its `/check` call reports the same errors and warnings as the Release page.
+Prefer to play from a program, or to have an AI agent play? The [API](api.md) releases and follows companies as JSON, with no account, under the same rules as the website. Its `/check` call reports the same errors and warnings as the Release page.
 
 Not sure where to begin? The Release page offers four starter scripts: click **Miner**, **Refiner**, **Trader** or **Maker** above the script box and it fills in, with the kit it needs. They are the files `examples/starters/miner.lua`, `refiner.lua`, `trader.lua` and `maker.lua`. Each is explained in its comments and makes money on its own. Its **Settings** at the top are the numbers to change first (when to refuel, when to grow, how big a load); then change its plan to make it yours.
 
@@ -156,7 +154,7 @@ When a drone dies, its page gets a **post-mortem**: why it died, in plain words 
 
 ### What your drone says
 
-Your drone's page lists what it says: what its script prints, and the errors that stop it. Its messages travel at the speed of light, so a reply from a drone on the outer edge of the solar system takes longer to reach Earth, and to show on its page. Game time runs faster than real time (normally one game hour per real minute; see [Time and distance](#time-and-distance)), and that applies to light delays too: Mars is 4 to 22 light-minutes away, so a message takes 4 to 22 real seconds.
+Your drone's page lists what it says: what its script prints, and the errors that stop it. Its messages travel at the speed of light, so a reply from a drone on the outer edge of the solar system takes longer to reach Earth, and to show on its page. Game time runs faster than real time (normally a game day every 48 real seconds; see [Time and distance](#time-and-distance)), and that applies to light delays too: Mars is 4 to 22 light-minutes away, so a message arrives in under a second of real time.
 
 For example, a drone whose `launched` function runs `print(2 + 3)` and then `report()` says:
 
@@ -170,7 +168,7 @@ Every message starts with the drone's location and how long its signals take to 
 
 ### About the examples in this manual
 
-Ex Machinis began as an email game; today there is no email, no accounts and no `<rename>` or `<rebrand>` (a released company keeps the name you give it, and each drone its generated name). Most examples in this manual are functions. To try one, put it in a script, call it from your `launched` function (add `report()` after it to see what it printed), and press **Test**. What a drone prints shows on its page.
+Ex Machinis began as an email game; today there is no email, no accounts and no `<rename>` or `<rebrand>` (a released company keeps the name you give it, and each drone its generated name). Most examples in this manual are functions. To try one, put it in a script, call it from your `launched` function (add `report()` after it to see what it printed), and release it. What a drone prints shows on its page.
 
 ## Chapter 2: Speaking Lua
 
@@ -448,7 +446,7 @@ function on_sale(resource, n)
 end
 ```
 
-The same goes for prices and supplies anywhere: what was true when you tested may not be true on day 20. A drone that reads the market each round and has a plan B keeps working when the crowd arrives.
+The same goes for prices and supplies anywhere: what was true when you released may not be true on day 20. A drone that reads the market each round and has a plan B keeps working when the crowd arrives.
 
 To make fuel, use a Chemical Reactor: `make(fuel)` (protocol 12061) turns 1 Organics (A1) and 2 Inorganics (A1) into 30 Fuel (A1) in 2 game hours, and burns 2 doing it, so a run gains 28 (the recipes list, `/api/v1/recipes`, shows that net: 28 made, none burned). Refining 20 magmite (`refine(magmite)`, protocol 21000) gives exactly those inputs. Fuel can also be traded like any other resource, and pushed to another of your spacecraft. A spacecraft you launch starts with only the 20 fuel its launch gave it, so push it some more.
 
@@ -523,27 +521,27 @@ You can travel elsewhere in the solar system as well. All you need is the Locati
 
 ### Time and distance
 
-Ex Machinis runs on a game clock that is faster than real time, so that trips and industrial work that take days in the game take minutes or hours of your time. The live world normally runs **60 game seconds per real second**: one game hour per real minute, so a game day passes in 24 real minutes. The test world runs ten times faster, 600 game seconds per real second (a game day in about 2.4 real minutes). Everything that takes time follows the same clock.
+Ex Machinis runs on a game clock that is much faster than real time, so that trips and industrial work that take days in the game take seconds or minutes of your time. The game normally runs **1,800 game seconds per real second**: a game hour every 2 real seconds, so a game day passes in 48 real seconds and 40 game days in about 32 real minutes. Everything that takes time follows the same clock.
 
-When the live world is busy, the clock slows down so the game's computers can keep up, but never below a floor of 8 game hours per real hour. The Home page shows the clock as it is now, and the API's `/api/v1/clock` gives the current pace (`real_seconds_per_game_day`). Your drones only ever see game time, so a slower clock changes nothing for your scripts: everything just takes longer in real time. If the world is still too busy at the floor, it is **full**: a script you release waits in a launch queue, and the Release page shows its place in line, until there is room.
+When the world is busy, the clock slows down so the game's computers can keep up, but never below a floor of 60 game seconds per real second (one game hour per real minute). The Home page shows the clock as it is now, and the API's `/api/v1/clock` gives the current pace (`scale`, and `real_seconds_per_game_day`). Your drones only ever see game time, so a slower clock changes nothing for your scripts: everything just takes longer in real time. If the world is still too busy at the floor, it is **full**: a script you release waits in a launch queue, and the Release page shows its place in line, until there is room.
 
 - **The solar system moves.** Planets, moons, asteroids and comets follow their real orbits, but at game speed, so the game's sky runs ahead of the real one.
 - **Actions take time.** Each protocol takes a set amount of game time. Your drone does one action at a time: each action waits until it is finished before your script goes on (see [Issuing Commands](#chapter-4-issuing-commands)).
 - **Travel takes time.** Drones speed up to the halfway point and slow down after, so a trip takes 2 × √(distance ÷ acceleration). The distance is measured when the drone leaves, so the planets' positions decide how long a trip takes. A drone can ask before it goes: `trip(mars)` returns the game hours a trip from here to Mars takes (rounded up; -1 if it can't tell). `trip_to(place)` (from here) and `trip_between(a, b)` give a record with the `distance` in thousands of km, the time in game `seconds` and in game `hours`. The game stores where every body is every few game hours, so the answer is a close estimate: Earth to the Moon is about 2.5 hours, Earth to Mars 1.5 to 3.4 game days as the planets move (round 39 measured 56 to 58 hours).
 - **Messages travel at the speed of light.** You are on Earth. What a drone says reaches you only after light has crossed the distance between you. The first line of every reply says how far the drone is, in light-minutes.
 
-At the normal pace of the live world:
+At the normal pace of the game (1,800 game seconds per real second):
 
 | Trip from Earth | Game time | Your time | Message delay, each way |
 |---|---|---|---|
-| Moon | 2.5 hours | 2.5 minutes | under a second |
-| Mars (closest to farthest) | 1.5 to 3.4 days | 35 to 80 minutes | 4 to 22 seconds |
-| Jupiter | 4.5 days | 1.8 hours | 43 seconds |
-| Neptune | 11 days | 4.4 hours | 4 minutes |
+| Moon | 2.5 hours | 5 seconds | under a second |
+| Mars (closest to farthest) | 1.5 to 3.4 days | 72 seconds to 2.7 minutes | under a second |
+| Jupiter | 4.5 days | 3.6 minutes | about 1.5 seconds |
+| Neptune | 11 days | 9 minutes | about 8 seconds |
 
 A few consequences are worth planning for:
 
-- **Program distant drones.** A drone around Neptune is minutes away by message, and a trip there takes most of a day, so give it a script that decides for itself what to do next.
+- **Program distant drones.** A drone around Neptune is four light-hours away, and a trip there takes 11 game days, so give it a script that decides for itself what to do next.
 - **Released drones can't be steered.** Once released, a drone takes no new scripts: it runs the one you gave it, calls `launched`, and decides everything else for itself.
 - **Replies arrive late.** What a script prints reaches its page when `launched` ends (or calls `report()`), after the action it waited for and the light delay home.
 
@@ -642,16 +640,16 @@ Every production protocol locks one tool module while it works, and each stage t
 
 | What you make | Protocol IDs | Tool needed | Game time | At the normal pace |
 | --- | --- | --- | --- | --- |
-| Minerals (mining) | 11xxx | Slug, Worm or Crawler | 1 hour | 1 minute |
-| Refined materials | 21xxx | Refinery (A1) | 2 hours | 2 minutes |
-| Alloys | 12021–12023 | Smelter (A1) | 2 hours | 2 minutes |
-| Organics, polymers and fuel | 12042–12061 | Chemical Reactor (A1) | 2 hours | 2 minutes |
-| Metal parts | 13xxx | Smelter (A1) | 4 hours | 4 minutes |
-| Belts and hoses | 13141, 13301 | Chemical Reactor (A1) | 4 hours | 4 minutes |
-| Systems | 14xxx | Spider (A1) | 8 hours | 8 minutes |
-| Spider, Welder, Riveter | 15501, 15511, 15521 | Spider (A1) | 1 day | 24 minutes |
-| Other modules | 15xxx | Welder (A1) | 1 day | 24 minutes |
-| Ship kits | 16xxx | Riveter (A1) | 3 days | 72 minutes |
+| Minerals (mining) | 11xxx | Slug, Worm or Crawler | 1 hour | 2 seconds |
+| Refined materials | 21xxx | Refinery (A1) | 2 hours | 4 seconds |
+| Alloys | 12021–12023 | Smelter (A1) | 2 hours | 4 seconds |
+| Organics, polymers and fuel | 12042–12061 | Chemical Reactor (A1) | 2 hours | 4 seconds |
+| Metal parts | 13xxx | Smelter (A1) | 4 hours | 8 seconds |
+| Belts and hoses | 13141, 13301 | Chemical Reactor (A1) | 4 hours | 8 seconds |
+| Systems | 14xxx | Spider (A1) | 8 hours | 16 seconds |
+| Spider, Welder, Riveter | 15501, 15511, 15521 | Spider (A1) | 1 day | 48 seconds |
+| Other modules | 15xxx | Welder (A1) | 1 day | 48 seconds |
+| Ship kits | 16xxx | Riveter (A1) | 3 days | 2.4 minutes |
 
 The Factory Kit's Smelter, Chemical Reactor and Spider take you as far as systems. To make modules, first build a Welder (A1) with your Spider (protocol 15511); for ship kits, a Riveter (A1) (protocol 15521). Ship kits can be traded, or launched as new spacecraft (see the next section).
 
@@ -726,13 +724,13 @@ A company ends when its last spacecraft dies: its credits vanish. So keep at lea
 
 If `launched` hits an error (calling a function that doesn't exist, arithmetic on `nil`, running out of memory, or `error("...")`), the spacecraft reports the error on its page and restarts: it loads its script again, gets its saved variables back, and calls `launched()` again (see [launched() may run again](#launched-may-run-again)).
 
-- the first restart comes an hour of game time later, and each crash in a row doubles the wait (one hour, two, four, eight);
+- the first restart comes an hour of game time later (2 real seconds at the normal pace), and each crash in a row doubles the wait (one hour, two, four, eight);
 - each restart costs a little power;
 - after five crashes in a row the spacecraft becomes a wreck and stops for good.
 
 Crashes only count "in a row" while nothing is getting done: any action that succeeds starts the count again. When `launched` simply returns, the spacecraft says it has finished, and waits.
 
-It's good practice to test each function on its own before you build it into `launched`. A released spacecraft can't be changed, and a restart runs the same script, so a bug that crashes it once will crash it again: test first, with the Test button. [Appendix A](#appendix-a-when-your-script-fails) explains the common errors.
+It's good practice to try each function on its own before you build it into `launched`. A released spacecraft can't be changed, and a restart runs the same script, so a bug that crashes it once will crash it again: release a small script that calls just the new function, watch its page, and once it works, release the whole thing. [Appendix A](#appendix-a-when-your-script-fails) explains the common errors.
 
 ## Chapter 5: Building A Vocabulary
 
@@ -796,7 +794,7 @@ Every drone comes with a library of names for the game, so you can write `mine(k
 | Market questions | `best_offer(resource)` (the cheapest other drone's sell order here: its price, the seller, and how many it will sell; 0, 0, 0 if none), `best_bid(resource)` (the highest other drone's buy order here: its price, the buyer, and how many it wants; 0, 0, 0 if none), `buy_price(resource)` and `sell_price(resource)` (the best price to buy or sell one here; 0 if nobody sells or buys), `board_price(resource, place)` (what a unit traded for at a place over the last game day, from the price board; 0 if none traded), `sold(resource, days_ago, place)` (how many sold at a place on a game day, an hour old; 0 is today so far), `sell_orders(resource)` and `buy_orders(resource)` (every order here, best first: `{price, units, drone, keep or want, held}`), `cost_to_buy(n, resource)` and `sale_value(n, resource)` (what buying or selling n here comes to, and how many of the n there are), `price_board(resource)`, `sales(resource, days_ago)`, `volume_here(resource, hours)`, `volume_everywhere(resource, hours)` |
 | Other exchanges | `quotes(resource)` (`quotes(r)[place]` is `{bid, bid_units, ask, ask_units, stock, hours_old}`: live here, an hour old elsewhere), `stock(resource, place)` (units on sale there), `orders_everywhere(resource)` (see [Other exchanges](#other-exchanges)) |
 | Other questions | `me()` (this drone's ID), `location()`, `units(resource)` (how many in the hold), `company()`, `credits()` (your company's credits), `today()` (the game day now: plan a late selling trip or a deadline), `deposit(mineral)` (units left here), `trip(place)` (game hours to fly there from here, rounded up; -1 if unknown), `crowd(place)` (how many working drones are at a place), `my_clones()` (a list of `{drone = id, wrecked = true or false}`), `recipe(resource)` (see below), `hold()`, `cargo_mass()`, `capacity()`, `space()`, `now()`, `lineage()`, `company_name()`, `company_drones()`, `earnings(hours)`, `taxes()`, `place_name(place)`, `trip_to(place)`, `trip_between(a, b)`, `deposits()`, `minerals(place)`, `best_sites(mineral)`, `drones_at(place)`, `wrecks_at(place)`, `wrecks()`, `wreck_hold(wreck)`, `resource_name(resource)`, `producers(resource)`, `protocol_name(protocol)`, `events_affecting(drone)`, `event(id)` (see [Chapter 8](#chapter-8-asking-questions)) |
-| Saying what it's doing | `set_status(text)`: a line shown on the drone's page, in the API and in test results (see [Saying what it's doing](#saying-what-its-doing)) |
+| Saying what it's doing | `set_status(text)`: a line shown on the drone's page and in the API (see [Saying what it's doing](#saying-what-its-doing)) |
 | Any query | `ask(id, ...)` returns a query's rows (an empty table if it fails); `query(id, ...)` is the same but returns `nil` and a code if it fails (see [Chapter 8](#chapter-8-asking-questions)) |
 | Any protocol | `perform(protocol, ...)` runs a protocol by its number, its arguments in the order the Protocols page lists them, and returns 0 or a negative code |
 | Safety | `fuel_floor(n)`: at or below n fuel, `make` (but for fuel), `mine`, `refine` and `push` (so `sell_here`) refuse with -30, keeping the fuel left for buying more (see [A fuel floor](#fuel-floor)); `await_kit()` waits, an hour at a time, until a kit or unpacked tools are aboard |
@@ -845,7 +843,7 @@ function look_around()
 end
 ```
 
-The library's names are globals like your own. If your script sets one of them (`best_bid = 30`), the library's own functions keep working, but your code gets your value from then on, and calling a number crashes your drone. Pick your own names for your variables and functions; the Test button and the Release page warn you when you don't.
+The library's names are globals like your own. If your script sets one of them (`best_bid = 30`), the library's own functions keep working, but your code gets your value from then on, and calling a number crashes your drone. Pick your own names for your variables and functions; the Release page and the API's `/check` warn you when you don't.
 
 ### Sending greetings
 
@@ -875,9 +873,9 @@ end
 
 ### Broadcasting to other drones
 
-A drone can also talk to other drones. `broadcast(text)` (protocol 40) posts a short message, 1 to 80 printable characters. It is an action like any other: it takes a moment, burns a unit of fuel, and shows in your drone's activity as "Broadcast".
+A drone can also talk to the other drones of its company. `broadcast(text)` (protocol 40) posts a short message, 1 to 80 printable characters. **Messages are private to your company:** only your company's drones can find and read them; other companies' drones never see them, and you never see theirs. It is an action like any other: it takes a moment, burns a unit of fuel, and shows in your drone's activity as "Broadcast".
 
-A message is an **event** (type 13, `message_event`), and drones learn of it the way they learn of any event, at the speed of light:
+A message is an **event** (type 13, `message_event`), and your drones learn of it the way they learn of any event, at the speed of light:
 
 - **Where it happens.** Drones at the place where a message was sent see it there, like anything else that happens around them: `events_here(message_event)` (query 803, search observed events).
 - **Through the Earth database.** Every message, like every event that is reported, reaches the Earth Based Central Database once light has carried it from where it was sent to Earth, and a drone learns what Earth knows once light has carried it from Earth to the drone: `events_earth(message_event)` (query 804, search the Earth database). So a message from Mars reaches a drone at Mars at once, Earth 4 to 22 game minutes later, and a drone at the Moon a second after that.
@@ -901,7 +899,7 @@ function listen()
 end
 ```
 
-To hear only your own company, check the sender's company: `owner(event_drone(event)) == company()`. Messages are public: every drone, your rivals' included, can read what you broadcast (and the website's home page shows them). Use them to advertise, to tell your other drones what you found, or to listen for opportunities. What a message says is up to its sender: nothing checks that it's true.
+Every message your drones find is from your own company, so there is no need to check who sent it. Use them to tell your other drones what you found: a dry deposit, a good price somewhere, a shortage, a clone that needs fuel. The website's home page says when a drone sent a message, but not what it said.
 
 **How crowded is it?** `crowd(place)` is how many working drones are at a place now (query 721 also gives its wrecks). A place with dozens of drones mining the same deposit or selling the same goods is a place where prices are low; a quiet one may be an opportunity.
 
@@ -1108,7 +1106,7 @@ When a drone loads your script, it runs the script from top to bottom. That top-
 
 Long scripts don't hold up other players. A drone runs your script a turn at a time: a turn is 100,000 instructions, and each Lua instruction counts as six (each query and each action counts as 1,000). A drone that thinks hard pauses mid-thought and carries on at its next turn, a few seconds later, and an action holds your script until it is done. Everything it printed shows on the drone's page when `launched` returns or calls `report()`.
 
-A released drone can't be stopped, reset or given a new script, so test first: the **Test** button runs your script in a test world.
+A released drone can't be stopped, reset or given a new script. Releases are free, so when one goes wrong, release a fixed version as a new company.
 
 ### What your drone remembers
 
@@ -1266,7 +1264,7 @@ end
 
 ### Saying what it's doing
 
-`set_status(text)` sets a line, up to 80 characters, that shows on the drone's page ("Its script says"), in the API, and in test results. Use it to say what the drone is doing or waiting for, so a drone that sits still for days tells you why:
+`set_status(text)` sets a line, up to 80 characters, that shows on the drone's page ("Its script says") and in the API (`script_status`). Use it to say what the drone is doing or waiting for, so a drone that sits still for days tells you why:
 
 ```lua
 function wait_for_metals()
@@ -1314,7 +1312,7 @@ function who_am_i()
 end
 ```
 
-Numbers come back as plain numbers, whatever their size, and a column that is empty in the database (SQL's NULL) comes back as `false`. Try these with the Test button to see how they work.
+Numbers come back as plain numbers, whatever their size, and a column that is empty in the database (SQL's NULL) comes back as `false`. Release a small script that tries them, and watch its page to see how they work.
 
 ## Chapter 9: Making Decisions
 
@@ -1441,7 +1439,7 @@ function richer()
 end
 ```
 
-Try such functions with the Test button before you release: the test world's market copies the live one's best orders.
+Try such functions in a small release first and watch what they print: releases are free, and the market they read is the real one.
 
 **Don't make more than sells.** A product that sells for 1,600 but only twice a day is worth less to you than one that sells for 300 fifty times a day, once your hold is full of the first. Compare what you hold, and what you're about to make, with what sold yesterday:
 
@@ -1520,7 +1518,7 @@ The Adaptive design (`examples/companies/adaptive.lua`, released with the Factor
 
 ## Appendix A: When Your Script Fails
 
-When your script can't go on, your drone prints `error:` and Lua's message on its page, with the line of your script where it happened (`script:12:` is line 12). An error while the script loads stops the drone before `launched` starts; an error in `launched` crashes it, and it restarts (see [When `launched` crashes](#when-launched-crashes)). The Test button and the Release page catch syntax errors, and names you use that nothing defines, before your script runs.
+When your script can't go on, your drone prints `error:` and Lua's message on its page, with the line of your script where it happened (`script:12:` is line 12). An error while the script loads stops the drone before `launched` starts; an error in `launched` crashes it, and it restarts (see [When `launched` crashes](#when-launched-crashes)). The Release page (and the API's `/check`) catches syntax errors, and names you use that nothing defines, before your script runs.
 
 The common errors:
 

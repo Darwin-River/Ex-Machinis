@@ -72,4 +72,4 @@ At or below 15 fuel, `make` (but for fuel), `mine`, `refine` and `push` refuse w
 
 ## Try it against the real market
 
-The test world now copies the live market every few minutes: the miners' metals at the Moon, the bids at Mars, the House's orders. A Moon plan you test there meets the sellers it will meet live. Its House runs on the test world's own clock, so its booms and slumps aren't the live ones.
+Release it and watch its page: every release is live and free, so a Moon plan meets the miners' metals at the Moon, the bids at Mars and the House's real booms and slumps from its first round. If it goes wrong, release a better version.

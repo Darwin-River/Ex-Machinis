@@ -27,7 +27,7 @@ class RouteServiceProvider extends ServiceProvider
     public function boot()
     {
         // The JSON API's limits (#380), each with its own count per address:
-        // reading, and releasing or test runs
+        // reading, and releasing
         RateLimiter::for('api-read', fn (Request $request) => Limit::perMinute(120)->by('read|' . $request->ip()));
         RateLimiter::for('api-write', fn (Request $request) => Limit::perMinute(10)->by('write|' . $request->ip()));
 

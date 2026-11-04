@@ -10,7 +10,6 @@ use App\Services\Leaderboard;
 use App\Services\LiveQuery;
 use App\Services\Recipes;
 use App\Services\Release;
-use App\Services\TestWorld;
 use App\Services\World;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,7 +18,7 @@ use Illuminate\Support\Facades\Validator;
 
 /**
  * The JSON API (#380): what the website shows, for programs, so players and
- * AI agents can release, test and follow their companies without reading
+ * AI agents can release and follow their companies without reading
  * pages. Everything in it is already public on the website; like the website
  * it needs no account, and it shows no House information (no price list:
  * station drones' orders are in the order book like anyone's). Documented in
@@ -80,10 +79,6 @@ class ApiController extends Controller
     /** A drone: where it is, what it carries, what it's doing and has said */
     public function drone(int $id): JsonResponse
     {
-        if ($id >= self::TEST_DRONES_FROM) {
-            return $this->notFound('That is a test drone (test drones are numbered from 10,000,000): '
-                . 'its run is at /api/v1/test/{token}.');
-        }
         $agent = Agent::where('agent_id', $id)->first();
         if (!$agent) {
             return $this->notFound('There is no such drone.');
@@ -120,15 +115,9 @@ class ApiController extends Controller
      * (?side=sell) or buy (the default), for one resource (?resource=) and
      * one place (?place=, an object ID or name)
      */
-    /** Test drones' numbers start here (init_test_world.sh), so none is a live drone's */
-    public const TEST_DRONES_FROM = 10000000;
-
     public function orders(Request $request): JsonResponse
     {
-        // ?world=test: the test world's book (#380 round 36: it mirrors the
-        // live one, LiveMirror, and has its own House)
-        $db = $request->query('world') === 'test' && TestWorld::available()
-            ? DB::connection(TestWorld::CONNECTION) : DB::connection();
+        $db = DB::connection();
         $type = $request->query('side') === 'sell' ? 4 : 5;
         $open = $type === 4 ? 'IFNULL(i.units, 0) - e.new_quantity > 0' : 'e.new_quantity - IFNULL(i.units, 0) > 0';
         $where = '';
@@ -298,49 +287,6 @@ class ApiController extends Controller
             'page' => url('spacecraft/' . $agent->agent_id),
             'warning' => Release::redefinedWarning($script),
         ], 201);
-    }
-
-    /** Starts a test run in the test world, as the Test button does */
-    public function test(Request $request): JsonResponse
-    {
-        if (!TestWorld::available()) {
-            return response()->json(['error' => 'The test world is not running right now.'], 503);
-        }
-        if (($bad = $this->scriptRules($request, false)) !== null) {
-            return $bad;
-        }
-        $script = $this->script($request);
-        if ($problem = Release::scriptProblem($script)) {
-            return response()->json(['error' => $problem], 422);
-        }
-        $token = TestWorld::run($script, $request->input('kit'));
-        return response()->json(['token' => $token, 'results' => url('api/v1/test/' . $token),
-            'page' => url('release/test/' . $token), 'warning' => Release::redefinedWarning($script)], 201);
-    }
-
-    /** A test run's results so far */
-    public function testRun(string $token): JsonResponse
-    {
-        $run = TestWorld::available() ? TestWorld::runOf($token) : null;
-        if (!$run) {
-            return $this->notFound('There is no such test run (it may have been cleared to make room).');
-        }
-        return response()->json([
-            'drone' => (int) $run->drone->agent_id,
-            'credits' => (int) $run->credits,
-            'wrecked' => $run->drone->wrecked_at !== null,
-            // Where it is and what its script says it is doing (set_status;
-            // #380 round 39: a test drone in flight looked stuck)
-            'place_id' => (int) $run->drone->object_id,
-            'place' => DB::table('objects')->where('object_id', $run->drone->object_id)->value('object_name'),
-            'script_status' => $run->drone->script_status ?? null,
-            'crashes' => (int) $run->crashes,
-            'messages' => $run->messages->map(fn ($m) => ['subject' => $m->subject, 'body' => $m->body])->all(),
-            'events' => $run->events->map(fn ($e) => ['type' => $e->type_name, 'resource' => $e->resource_name,
-                'quantity' => $e->new_quantity, 'credits' => $e->new_credits, 'outcome' => $e->outcome])->all(),
-            'trades' => $run->trades->map(fn ($t) => ['resource' => (int) $t->resource, 'units' => (int) $t->units,
-                'credits' => (int) $t->credits, 'seller' => (int) $t->seller, 'buyer' => (int) $t->buyer])->all(),
-        ]);
     }
 
     private function droneSummary(Agent $a): array

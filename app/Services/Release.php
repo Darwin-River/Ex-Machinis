@@ -258,8 +258,8 @@ class Release
 
     /**
      * Releases the script as a new company of this player; returns its drone.
-     * $connection picks the world: null for the live one, 'testworld' for a
-     * test run (#324 step 7).
+     * $connection picks the world's database connection: null for the live
+     * one (another for tools that seed a world).
      */
     public static function release(User $user, string $companyName, string $script, ?string $connection = null,
                                    ?int $copiedFrom = null, ?string $copiedWord = null, ?string $kit = null): Agent

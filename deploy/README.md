@@ -103,11 +103,11 @@ rm -f .env
 
 - `SITE_ADDRESS`: the names Caddy serves. For example, `SITE_ADDRESS=example.com, www.example.com` also serves `www`, which needs its own DNS record.
 - `APP_URL`: the site's public URL, if it isn't `https://<domain>`.
-- `GAME_TIME_SCALE`: how fast game time passes, in game seconds per real second (default 60: one real minute is one game hour). It governs orbits, action and travel durations, and the light-speed delay of commands and replies. Changing it re-anchors the game clock, so nothing jumps.
-- `GAME_TIME_FLOOR`: the clock floor (default 0: the clock never floats). The clock aims for `GAME_TIME_SCALE`, slows by a quarter each minute while the engines run more than `CLOCK_LAG_HIGH` (60) real seconds behind, never below this, and speeds back up once they are less than `CLOCK_LAG_LOW` (15) behind. Behind at the floor, the world is full: new releases wait in a launch queue. The Home page shows the clock.
+- `GAME_TIME_SCALE`: how fast game time passes, in game seconds per real second (default 1800: a game hour every 2 real seconds, a game day every 48). It governs orbits, action and travel durations, and the light-speed delay of commands and replies. Changing it re-anchors the game clock, so nothing jumps. Since #380 every release is live and free, and players learn by releasing, watching and releasing again, so the clock runs fast.
+- `GAME_TIME_FLOOR`: the clock floor (default 60: one game hour a real minute, the old live pace; 0: the clock never floats). The clock aims for `GAME_TIME_SCALE`, slows by a quarter each minute while the engines run more than `CLOCK_LAG_HIGH` (default 10) real seconds behind, never below this, and speeds back up once they are less than `CLOCK_LAG_LOW` (default 3) behind. Behind at the floor, the world is full: new releases wait in a launch queue. The Home page shows the clock, and `GET /api/v1/clock` its pace (`scale`, `real_seconds_per_game_day`).
+- `CLOCK_LAG_HIGH`, `CLOCK_LAG_LOW`: the lag, in real seconds, at which the clock starts slowing and speeds back up (defaults 10 and 3).
 - `ENGINE_TRACE_LEVEL`: the engines' log detail (default -1: errors, warnings and clock changes only). 0 to 3 log every step, which at full load is gigabytes a day; rotated logs are kept 7 days.
 - `TRAVEL_ACCELERATION`: drones' acceleration in m/s² (default 19.6, 2 g; it was 1 until #380 round 38). Trips take 2·√(distance ÷ acceleration) in game time.
-- `TEST_WORLD=1`: shows the Release page's Test button, which runs a script in the test world (database `exmachinis_test`, which `migrate` keeps up to date). Its engines run in the `testworld` profile: start them with `docker compose --profile testworld up -d`. `TEST_GAME_TIME_SCALE` sets its clock (default 600: ten times the live world's default).
 
 Apply changes with `docker compose up -d`.
 
@@ -117,17 +117,16 @@ To move to another domain, change `DOMAIN` in `deploy/.env` and the DNS record, 
 
 ## Opening Public Forge
 
-Public Forge has no email and no accounts: anyone can release a script on the website. In `deploy/.env`:
+Public Forge has no email and no accounts: anyone can release a script on the website, as often as they like, and every release is live. The defaults suit it: the clock aims for 1800 game seconds a real second and floats down to 60 when the engines fall behind. To change the pace, set it in `deploy/.env`, for example:
 
 ```
-GAME_TIME_SCALE=24      # aims for one game day per real hour
-GAME_TIME_FLOOR=8       # never slower than 8 game hours per real hour
-TEST_WORLD=1            # optional: the Release page's Test button
+GAME_TIME_SCALE=600     # a game day every 2.4 real minutes
+GAME_TIME_FLOOR=24      # never slower than one game day per real hour
 ```
 
-Then `docker compose up -d` (and `docker compose --profile testworld up -d` for the test world).
+Then `docker compose up -d`.
 
-1. **Load test first**, on a copy, never the live database: `docker compose exec app php artisan forge:load-test 1000 --database=exmachinis_test` releases a thousand starter drones into the test world; `... forge:load-test --report --database=exmachinis_test` shows how the engines keep up, and the test engines' clock floats the same way if you give them a floor. See the design manual's [Throughput](../documents/design-manual.md#Engine-Throughput) for what to look for.
+1. **Load test first**, never on the live database (`forge:load-test` refuses it): on a separate server (a throwaway install), or on a copy of the database with engines pointed at it. `docker compose exec app php artisan forge:load-test 1000 --database=<the copy>` releases a thousand starter drones into it; `... forge:load-test --report --database=<the copy>` shows how the engines keep up, and their clock floats as it would live. See the design manual's [Throughput](../documents/design-manual.md#Engine-Throughput) for what to look for.
 2. **Tell players** the site's address: the Release page needs no account.
 3. **Watch** the Home page's clock line: if the clock sits at the floor and the world is full, releases queue until there is room. A faster server, or a lower floor, makes room.
 

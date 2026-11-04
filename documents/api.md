@@ -1,19 +1,18 @@
 # The Ex Machinis API
 
-The API gives programs what the website gives people. It is for your own tools: scripts that watch your companies, dashboards, and AI agents that play the game. With it you can release a company, test a script, and follow your drones, all as JSON.
+The API gives programs what the website gives people. It is for your own tools: scripts that watch your companies, dashboards, and AI agents that play the game. With it you can check a script, release a company, and follow your drones, all as JSON.
 
 - **Base address:** `https://<the game's domain>/api/v1`. On a server you run yourself, that is your own domain.
 - **No account and no key**, just as on the website. Everything the API shows is already public on the website.
 - **Same rules as the website.** A release made through the API is checked exactly as on the Release page, and it becomes a company like any other.
 - **Rate limits, per IP address:**
   - 120 reads a minute;
-  - 10 releases and test runs a minute.
+  - 10 releases a minute.
 
   Past a limit, a request gets `429 Too Many Requests`. Its `Retry-After` header says how many seconds to wait.
 - **Errors:**
   - `404` when something doesn't exist;
   - `422` when a request breaks a rule;
-  - `503` when the test world is off;
   - `500` when something goes wrong on the server (try again in a minute).
 
   Each error body is JSON, whatever the request's `Accept` header with an `error` message in plain words. A `422` also has `errors`, listing the message for each field.
@@ -27,7 +26,7 @@ B=https://play.example.com/api/v1
 ## Contents
 
 1. [Play from a program: the loop](#play-from-a-program-the-loop)
-2. [Releasing and testing](#releasing-and-testing)
+2. [Checking and releasing](#checking-and-releasing)
 3. [Your companies and drones](#your-companies-and-drones)
 4. [The market](#the-market)
 5. [The world](#the-world)
@@ -38,7 +37,9 @@ B=https://play.example.com/api/v1
 
 ## Play from a program: the loop
 
-A company is a script, in Lua: you can't steer it once it's released. The game clock is fast: the live world normally runs a game day in 24 real minutes (60 game seconds a real second; slower when it's busy, never below 8 game hours a real hour), and the test world ten times faster, a game day in about 2.4 real minutes. `/clock` gives the pace now (`real_seconds_per_game_day`). Release early. Playing from a program is the same loop a person follows on the website:
+A company is a script, in Lua: you can't steer it once it's released. Every release is live, releases are free (up to 10 a minute), and the whole game is your test environment. You learn by releasing, watching and releasing again; failing costs nothing but the lesson.
+
+The game clock is fast: it normally runs 1,800 game seconds a real second, a game hour every 2 real seconds and a game day every 48 (slower when the engines fall behind, never below 60 game seconds a real second, one game hour a real minute). `GET /clock` gives the pace now (`scale`, `real_seconds_per_game_day`). Release early, release often. Playing from a program is the same loop a person follows on the website:
 
 1. **Study the market:**
    - `GET /orders` for who buys and sells what, where, and at what price;
@@ -48,17 +49,16 @@ A company is a script, in Lua: you can't steer it once it's released. The game c
    - `GET /recipes` and `GET /recipes/{id}/tree` for what each thing takes to make;
    - `GET /places` for where the drones are.
 2. **Write a script and check it** with `POST /check`, which returns the Release page's warnings.
-3. **Try it in the test world** with `POST /test`, then poll `GET /test/{token}` for the results.
-4. **Release it** with `POST /release`.
-5. **Follow it:**
-   - `GET /companies?name=...` for credits, net wealth and drones, and `GET /companies/{id}/history` for net wealth day by day;
-   - `GET /orders?company=...` for its open orders;
-   - `GET /drones/{id}` for where each drone is, its cargo, what it is doing, the fuel it used today, what it has said, and what went wrong.
-6. **Learn and release a better version** under a new name. Every company is an experiment.
+3. **Release it** with `POST /release`.
+4. **Follow it:**
+   - `GET /drones/{id}` for where each drone is, its cargo, what it is doing, the line its script set with `set_status(text)` (`script_status`), its timeline, the fuel it used today, what it has said, and what went wrong;
+   - `GET /companies/{id}` (or `?name=...`) for credits, net wealth and drones, and `GET /companies/{id}/history` for net wealth day by day;
+   - `GET /orders?company=...` for its open orders.
+5. **Release again:** fix what went wrong, or try a better idea, and release the new version under a new name. Every company is an experiment.
 
 The [players' manual](players-manual.md) explains the game and the Lua functions; [lua-functions.md](lua-functions.md) is a quick reference with helpers to copy. The [strategy blog](blog) has working examples.
 
-## Releasing and testing
+## Checking and releasing
 
 ### `POST /check`: check a script without releasing it
 
@@ -96,6 +96,8 @@ curl -s -X POST $B/check -H 'Content-Type: application/json' \
 | `language` | `lua` for a Lua script (`forth` for a retired FORTH one, which `ok` refuses) |
 
 ### `POST /release`: release a company
+
+Every release is live, and free: the only limit is 10 a minute per address. A released drone can't be changed, so to try a fix, release it again as a new company and follow its drone (`GET /drones/{id}`).
 
 **Fields:**
 
@@ -135,51 +137,6 @@ Look the company up by name later.
 **Errors:** `422` with the reason. For example:
 - `"The company name has already been taken."`
 - `"Your script must define the function launched ..."`, or `"FORTH has been retired: write your drone in Lua. ..."`
-
-### `POST /test`: a test run
-
-**Fields:** `script` and `kit`, as for a release.
-
-The script runs in the **test world**. This is a separate world with the same rules and a faster clock, where nothing touches the live game. It answers `503` when the game runs without one.
-
-**The live market is there too.** Every few real minutes, a company called "Live market" copies the live world's best orders into the test world: at each place, for each good, the cheapest sell order (with the units the live sellers offer at that price) and the dearest buy order. So a plan that buys metals from the Moon's miners can be tried. What a test drone buys from it comes back at the next copy, and what it sells to it goes. `GET /orders?world=test` lists the test world's orders. The test world has its own House, whose prices move on its own clock, and its own game day: `today` there is in the thousands, so count days from the start of your run rather than from day 0.
-
-**Test drones are numbered from 10,000,000,** so no test drone shares a live drone's number. `GET /drones/{id}` answers 404 for them; their results are at `GET /test/{token}`.
-
-**Response:** `201 Created`.
-
-```json
-{
-  "token": "3f9c0a7d5e21b864",
-  "results": "https://play.example.com/api/v1/test/3f9c0a7d5e21b864",
-  "page": "https://play.example.com/release/test/3f9c0a7d5e21b864",
-  "warning": null
-}
-```
-
-The script starts loading at once. A run keeps going for 30 real minutes; after that, the next test anyone starts stops it, though its results stay readable. Test runs are kept for a while, then cleared to make room for others.
-
-### `GET /test/{token}`: a test run's results so far
-
-```json
-{
-  "drone": 5123, "credits": 1180, "wrecked": false, "crashes": 0,
-  "place_id": 10, "place": "Moon", "script_status": "mining kunspar: 12 of 20",
-  "messages": [{"subject": "Release", "body": "..."}],
-  "events": [{"type": "Increment inventory", "resource": "Metals (A1)", "quantity": 12, "credits": null, "outcome": 1}],
-  "trades": [{"resource": 2011, "units": 12, "credits": 290, "seller": 5123, "buyer": 2}]
-}
-```
-
-| Field | Meaning |
-|---|---|
-| `place`, `place_id` | where the test drone is (while it flies, where it left from) |
-| `script_status` | the line its script last set with `set_status(text)`, or null |
-| `messages` | what the drone printed, oldest first |
-| `events` | its latest 20 events (actions, cargo, credits), newest first |
-| `trades` | its trades |
-
-Poll every 30 seconds or so.
 
 ## Your companies and drones
 
@@ -250,7 +207,6 @@ Parameters:
 | `resource` | all | a resource ID (see `/resources`) |
 | `place` | everywhere | an object ID or name (`Moon`, `Earth`, `Phobos`...) |
 | `company` | everyone | a company ID or name: that company's open orders |
-| `world` | live | `test`: the test world's orders (the live market's copy, its own House and test drones) |
 
 ```sh
 curl -s "$B/orders?side=sell&resource=2061&place=Moon"
@@ -363,12 +319,14 @@ Ask as a player's drone. A station drone doesn't see its own orders.
 ## An example agent
 
 A minimal loop in Python, using only the standard library. It:
-1. checks and tests a script;
-2. releases it if the test run looks healthy;
-3. reports on the company every 10 minutes.
+1. checks a script;
+2. releases it as version N of a company (`python3 agent.py 3` releases `Ada Fuel 3`);
+3. follows its drone for about ten real minutes (some twelve game days): what its script says it is doing, its latest action and what it printed.
+
+Read what it shows, improve the script, and run it again with the next number.
 
 ```python
-import json, time, urllib.request
+import json, sys, time, urllib.error, urllib.parse, urllib.request
 
 B = "https://play.example.com/api/v1"
 
@@ -382,31 +340,41 @@ def call(path, body=None):
     except urllib.error.HTTPError as e:
         return {"status": e.code, **json.load(e)}
 
+version = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+name = "Ada Fuel %d" % version
 script = open("my_company.lua").read()
 
 check = call("/check", {"script": script})
 print("check:", check["error"] or "ok", "|", check["warning"] or "no warnings")
+if not check.get("ok"):
+    sys.exit(1)
 
-run = call("/test", {"script": script, "kit": "factory"})
-if "token" in run:
-    time.sleep(300)                                   # let it play a while (the test clock is fast)
-    result = call("/test/" + run["token"])
-    print("test:", result["credits"], "credits,", result["crashes"], "crashes,",
-          "wrecked" if result["wrecked"] else "working")
+released = call("/release", {"company_name": name, "script": script, "kit": "factory"})
+if "drone" not in released:                           # an error, or queued: the world is full
+    sys.exit("not released yet: %s" % released)
+drone = released["drone"]["id"]
+print("released", name, "as drone", drone, released["page"])
 
-released = call("/release", {"company_name": "Ada Fuel 1", "script": script, "kit": "factory"})
-print("released:", released)
+for _ in range(20):                                   # about ten real minutes
+    time.sleep(30)                                    # a game day passes every 48 real seconds
+    d = call("/drones/%d" % drone)
+    said = (d.get("script_status") or {}).get("text")
+    last = (d.get("timeline") or [{}])[0]
+    print(d.get("place"), "|", d.get("status"), "| fuel", d.get("fuel"), "|", said or "-")
+    if last:
+        print("   last action:", last.get("what"), "->", last.get("result"))
+    for m in (d.get("messages") or [])[:1]:
+        print("   said:", m)
+    if d.get("post_mortem"):
+        print("died:", d["post_mortem"]["cause"])
+        break
 
-while True:
-    company = call("/companies?name=Ada%20Fuel%201")
-    print(company.get("credits"), "credits, net wealth", company.get("net_wealth"))
-    for d in company.get("drones", []):
-        print(" ", d["id"], d["place"], d["status"], "fuel", d["fuel"])
-    time.sleep(600)
+company = call("/companies?name=" + urllib.parse.quote(name))
+print(name, ":", company.get("credits"), "credits, net wealth", company.get("net_wealth"))
 ```
 
 ## Good manners
 
-- **Poll gently.** The game moves in game hours, so checking a company every few minutes is plenty. One read a second is far more than any company needs.
-- **One experiment at a time.** Release a few companies and learn from them. Don't flood the world: other people play here too, and a full world makes everyone's releases wait.
+- **Poll gently.** A game day passes in about 48 real seconds, so checking a drone every 30 seconds or so is plenty. One read a second is far more than any company needs.
+- **Release often, not all at once.** Release a version, watch it, and release the next. Don't flood the world: other people play here too, and a full world slows the clock and makes everyone's releases wait.
 - **Name your companies** so you can find them again, for example `Ada Fuel 1`, `Ada Fuel 2`. Names are unique and public.

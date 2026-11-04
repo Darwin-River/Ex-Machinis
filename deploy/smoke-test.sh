@@ -23,10 +23,11 @@
 #     pays the sales tax out of a sale,
 #   - a waiting drone runs no instructions but still sells, and a drone sees
 #     live orders only where it is,
-#   - a drone broadcasts a message and another drone hears it,
+#   - a drone broadcasts a message: a drone of its company hears it, another
+#     company's doesn't,
 #   - a drone's page shows its code, and a wreck's page has a post-mortem,
 #   - the home feed, the market, the map and the leaderboard show the world,
-#   - the Test button runs a script in the test world, not the live one,
+#   - there is no test world: no Test button, no test runs in the API,
 #   - it launches a new drone (a clone) from a ship kit with a copy of its
 #     program and variables, some of its fuel and a record of its parent,
 #   - a launched function that crashes restarts afresh, and crashes in a row
@@ -556,15 +557,23 @@ echo "ok: the Release page offers the starter scripts"
 wait_for 60 "a drone knows the game's names" replied $FORGE_DRONE "game-words 19 10 1100 true true"
 
 # Broadcasts (#380): the released drone, at Earth, broadcasts a message, an
-# event; the first drone, on the Moon, reads it from the Earth database
-# (events_earth) once light has carried it there, with its sender and text,
-# and counts the drones at Earth
+# event. Messages are private to a company (after round 40): the first
+# drone, on the Moon, of another company, never hears it; moved into the
+# sender's company, it reads it from the Earth database (events_earth) once
+# light has carried it there, with its sender and text, and counts the
+# drones at Earth. Then it goes back to its own company.
 sent() { [ "$(sql "select count(*) from broadcasts b join events e on e.action = b.action_id join observations o on o.event = e.id
                    where b.drone=$FORGE_DRONE and b.body='smoke-hello' and e.event_type=13 and e.outcome=1 and o.drone=0")" = 1 ]; }
 wait_for 60 "a drone broadcast a message" sent
 wait_for 30 "the broadcast worked" replied $FORGE_DRONE "broadcast 0"
-wait_for 60 "another drone read the broadcast from the Earth database" replied $DRONE_ID "hear true $FORGE_DRONE smoke-hello"
-echo "ok: drones broadcast messages, events others read from the Earth database"
+sleep 15
+[ "$(replies $DRONE_ID "hear ")" = 0 ] || fail "another company's drone read the message"
+echo "ok: another company's drone can't read the message"
+SENDER_COMPANY=$(sql "select company_id from agents where agent_id=$FORGE_DRONE")
+sql "update agents set company_id = $SENDER_COMPANY where agent_id = $DRONE_ID"
+wait_for 60 "a drone of the sender's company read the broadcast from the Earth database" replied $DRONE_ID "hear true $FORGE_DRONE smoke-hello"
+sql "update agents set company_id = $COMPANY where agent_id = $DRONE_ID"
+echo "ok: drones broadcast messages, events their company's drones read from the Earth database"
 
 # The House fuel seller (#324 step 10; #380): the released drone, at Earth,
 # buys 10 fuel from the Earth Exchange's station drone like from any drone: a
@@ -652,23 +661,12 @@ grep -qF "\"id\":$FORGE_DRONE," <<<"$(fetch "http://localhost/api/v1/drones/$FOR
 grep -qF '"game_day"' <<<"$(fetch http://localhost/api/v1/clock)" || fail "the API doesn't give the clock"
 echo "ok: the API shows the drone and the clock"
 
-# Test world (#324 step 7): start its engines and turn on the Test button,
-# then test a script. It runs in the test world's own database, with a faster
-# clock, and the live world gets nothing.
-TEST_WORLD=1 docker compose --profile testworld up -d app test-game-engine test-events-engine >/dev/null 2>&1
-wait_for 120 "the Release page has a Test button" sh -c "curl -fsS -b '$JAR' http://localhost/release | grep -q 'release/test'"
-# Each test run has its own page (#367 step 3): the Test button leads there
-TEST_PAGE=$(curl -fsS -c "$JAR" -b "$JAR" -o /dev/null -w '%{redirect_url}' -X POST http://localhost/release/test --data-urlencode "_token=$(token /release)" \
-    --data-urlencode $'script=local function hello() return "test-world-" end\nfunction launched()\n  print(hello() .. "ok8")\nend')
-sqltest() {
-    docker compose exec -T db sh -c 'mysql -N -uexmachinis -p"$MYSQL_PASSWORD" exmachinis_test 2>/dev/null' <<<"$1"
-}
-tested() { [ -n "$(sqltest "select id from drone_messages where body like '%test-world-ok8%' and body like '%has finished%'")" ]; }
-wait_for 90 "a test run runs in the test world" tested
-[ -z "$(sql "select company_id from companies where name like 'Test %'")" ] || fail "a test run reached the live world"
-echo "ok: the live world is untouched"
-grep -q "/release/test/[0-9a-f]\{16\}$" <<<"$TEST_PAGE" || fail "the Test button didn't lead to the test run's page ($TEST_PAGE)"
-wait_for 30 "the test run's page shows it" sh -c "curl -fsS '$TEST_PAGE' | grep -q 'test-world-ok8'"
+# No test world (#380, after round 40): every release is live, so the
+# Release page has no Test button and the API no test runs
+! curl -fsS http://localhost/release | grep -q 'release/test' || fail "the Release page still has a Test button"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost/api/v1/test -H 'Content-Type: application/json' -d '{"script":"function launched() end"}')" = 404 ] ||
+    fail "the API still takes test runs"
+echo "ok: there is no test world: every release is live"
 
 # House station drones (#380): the app made the House's trading drone at
 # each exchange on start-up; forge:stations makes none twice, and each posts
@@ -682,15 +680,12 @@ posted() { [ "$(sql "select count(*) from events e join agents a on a.agent_id =
 wait_for 180 "a House station drone posts its orders" posted
 
 # Markets that move (#380 round 36): today's House prices (house_market),
-# the news of booms and slumps, recipes, and the live market mirrored into
-# the test world on the tick
+# the news of booms and slumps, and recipes
 [ "$(sql "select count(*) from house_market where price > 0 and daily_units > 0")" -ge 100 ] ||
     fail "the House market view has no prices"
 [ "$(sql "select count(*) from house_market b where side = 1 and price > (select min(a.price) from house_market a where a.resource = b.resource and a.side = 2)")" = 0 ] ||
     fail "an exchange bids more than another asks"
 curl -fsS http://localhost/api/v1/news | grep -q '^\[' || fail "/news didn't answer"
 curl -fsS http://localhost/api/v1/recipes/4311/tree | grep -q '"resource":2011' || fail "the pump's recipe tree has no metals"
-mirrored() { [ "$(sqltest "select count(*) from agents a join companies c on c.company_id = a.company_id where c.name = 'Live market'")" -ge 1 ]; }
-wait_for 120 "the test world mirrors the live market" mirrored
 
 echo "Smoke test passed."

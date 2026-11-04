@@ -24,23 +24,14 @@ class HouseMarket
                           5 => 'modules', 6 => 'ship kits'];
 
     /**
-     * The website's tick: the House's orders at today's prices in the live
-     * world and the test world, the live market mirrored into the test world
-     * when that is due (LiveMirror), and each company's net wealth once a
-     * game day (Leaderboard::dailyIfDue). Returns the orders posted live.
+     * The website's tick: the House's orders at today's prices, and each
+     * company's net wealth once a game day (Leaderboard::dailyIfDue).
+     * Returns the orders posted.
      */
     public static function tick(): int
     {
         $posted = self::refresh();
         Leaderboard::dailyIfDue();
-        if (TestWorld::available()) {
-            try {
-                self::refresh(TestWorld::CONNECTION);
-                LiveMirror::refreshIfDue();
-            } catch (\Throwable $e) {
-                report($e);
-            }
-        }
         return $posted;
     }
 

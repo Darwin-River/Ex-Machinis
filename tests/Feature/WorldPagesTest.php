@@ -35,10 +35,12 @@ class WorldPagesTest extends TestCase
         $this->get('/')->assertOk()->assertSee("What's happening", false)
             ->assertSee('Feed Testers released a new drone, ' . $agent->name)
             ->assertSee($agent->name . ' became a wreck: it ran out of fuel.');
-        // A broadcast (#380) is in the feed for all to see
+        // A broadcast (#380) is in the feed, but not what it said: messages
+        // are private to the sender's company (after round 40)
         DB::table('broadcasts')->insert(['drone' => $agent->agent_id, 'company_id' => $agent->company_id, 'object_id' => 3,
             'game_t' => World::gameNow(), 'body' => 'Fuel wanted at Phobos']);
-        $this->get('/')->assertOk()->assertSee($agent->name . ' broadcast: &quot;Fuel wanted at Phobos&quot;', false);
+        $this->get('/')->assertOk()->assertSee($agent->name . ' sent a message to its company.')
+            ->assertDontSee('Fuel wanted at Phobos');
     }
 
     public function testMarketShowsOrdersAndTradesButNoHouseInformation()
