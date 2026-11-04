@@ -1,0 +1,144 @@
+name: Load test
+
+# How many ships the engines can run at the live pace (#429, part of #428).
+# Each run builds a throwaway world from this checkout
+# (game-engine/tools/load-world.sh), releases a load, lets the world age,
+# then samples the engines (php artisan forge:load-test --measure) against
+# pass marks. Results: the job summary and a load-tests.jsonl artifact.
+#
+# - nightly, and by hand: the round mix (pass marks) and 1,000 ships (recorded)
+# - on pull requests that change the engines or the game-data queries: the
+#   round mix, briefly. Not a required check: a slow runner can miss a mark.
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      ships:
+        description: 'Extra starter ships on top of the round mix'
+        default: '895'
+      warm_minutes:
+        description: 'Real minutes to let the world age before measuring'
+        default: '20'
+  pull_request:
+    paths:
+      - 'game-engine/src/**'
+      - 'game-engine/sql/**'
+      - 'app/Services/HouseMarket.php'
+      - 'app/Console/Commands/ForgeLoadTest.php'
+      - 'game-engine/tools/load-world.sh'
+      - '.github/workflows/load.yml'
+
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # About a playtest round: 60 starters and 45 company designs
+          - name: round
+            extra: 0
+            marks: --min-turns=1000 --max-lag=10 --min-scale=1500
+          # 1,000 ships: recorded, no marks yet (#428 raises them)
+          - name: ships-1000
+            extra: 895
+            marks: ''
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: secret
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -psecret"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: root
+      DB_USERNAME: root
+      DB_PASSWORD: secret
+      DB_DATABASE: exmachinis
+      APP_KEY: base64:dGVzdGluZy1vbmx5LWtleS1ub3QtYS1zZWNyZXQhISE=
+      WORLD: loadtest
+
+    steps:
+      - uses: actions/checkout@v5
+        if: github.event_name != 'pull_request' || matrix.name == 'round'
+
+      - name: Skip 1,000 ships on pull requests
+        if: github.event_name == 'pull_request' && matrix.name != 'round'
+        run: echo "Pull requests run the round mix only"
+
+      - uses: shivammathur/setup-php@v2
+        if: github.event_name != 'pull_request' || matrix.name == 'round'
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql
+          coverage: none
+
+      - name: Install dependencies and build the engines
+        if: github.event_name != 'pull_request' || matrix.name == 'round'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq libconfig-dev libmysqlclient-dev
+          composer install --no-interaction --no-progress --prefer-dist
+          make -C game-engine/src all
+
+      - name: Start a world and release the load
+        if: github.event_name != 'pull_request' || matrix.name == 'round'
+        run: |
+          game-engine/tools/load-world.sh start "$WORLD" "$RUNNER_TEMP/world"
+          php artisan forge:load-test 60 --starters=miner,miner,refiner,trader,maker \
+            --designs=chemist:12,smith:9,machinist:6,adaptive:6,systems:6,electronics:3,foundry:3 --database="$WORLD"
+          EXTRA="${{ matrix.extra }}"
+          if [ "${{ github.event_name }}" = workflow_dispatch ] && [ "${{ matrix.name }}" != round ]; then EXTRA="${{ inputs.ships }}"; fi
+          if [ "$EXTRA" -gt 0 ]; then
+            php artisan forge:load-test "$EXTRA" --starters=miner,miner,refiner,trader,maker --database="$WORLD"
+          fi
+
+      - name: Let the world age
+        if: github.event_name != 'pull_request' || matrix.name == 'round'
+        run: |
+          MINUTES=20
+          [ "${{ github.event_name }}" = pull_request ] && MINUTES=5
+          [ "${{ github.event_name }}" = workflow_dispatch ] && MINUTES="${{ inputs.warm_minutes }}"
+          sleep $((MINUTES * 60))
+          php artisan forge:load-test --report --database="$WORLD"
+
+      - name: Measure
+        if: github.event_name != 'pull_request' || matrix.name == 'round'
+        run: |
+          SECONDS_TO_MEASURE=300
+          [ "${{ github.event_name }}" = pull_request ] && SECONDS_TO_MEASURE=120
+          php artisan forge:load-test --measure=$SECONDS_TO_MEASURE ${{ matrix.marks }} \
+            --label="${{ matrix.name }} ${{ github.event_name }} ${{ github.sha }}" \
+            --history="$RUNNER_TEMP/load-tests.jsonl" --database="$WORLD" | tee "$RUNNER_TEMP/measure.txt"
+
+      - name: Summary
+        if: always() && (github.event_name != 'pull_request' || matrix.name == 'round')
+        run: |
+          {
+            echo "### Load test: ${{ matrix.name }}"
+            echo '```'
+            cat "$RUNNER_TEMP/measure.txt" 2>/dev/null || echo "No measurement"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          game-engine/tools/load-world.sh stop "$RUNNER_TEMP/world" || true
+
+      - uses: actions/upload-artifact@v4
+        if: always() && (github.event_name != 'pull_request' || matrix.name == 'round')
+        with:
+          name: load-test-${{ matrix.name }}
+          path: |
+            ${{ runner.temp }}/load-tests.jsonl
+            ${{ runner.temp }}/world/log/
+          retention-days: 90
+          if-no-files-found: ignore
