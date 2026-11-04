@@ -126,7 +126,7 @@ GAME_TIME_FLOOR=24      # never slower than one game day per real hour
 
 Then `docker compose up -d`.
 
-1. **Load test first**, never on the live database (`forge:load-test` refuses it): on a separate server (a throwaway install), or on a copy of the database with engines pointed at it. `docker compose exec app php artisan forge:load-test 1000 --database=<the copy>` releases a thousand starter drones into it; `... forge:load-test --report --database=<the copy>` shows how the engines keep up, and their clock floats as it would live. See the design manual's [Throughput](../documents/design-manual.md#Engine-Throughput) for what to look for.
+1. **Load test first**, never on the live database (`forge:load-test` refuses it): on a separate server (a throwaway install), or on a copy of the database with engines pointed at it. `docker compose exec app php artisan forge:load-test 1000 --database=<the copy>` releases a thousand starter drones into it; `... forge:load-test --report --database=<the copy>` shows how the engines keep up, and their clock floats as it would live. `... forge:load-test --measure=300 --min-scale=1500 --max-lag=10 --database=<the copy>` samples them for 5 real minutes and fails if the clock fell below 1,500× or the engines fell more than 10 real seconds behind. See the design manual's [Throughput](../documents/design-manual.md#Engine-Throughput) for what to look for.
 2. **Tell players** the site's address: the Release page needs no account.
 3. **Watch** the Home page's clock line: if the clock sits at the floor and the world is full, releases queue until there is room. A faster server, or a lower floor, makes room.
 
