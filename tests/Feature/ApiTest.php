@@ -131,7 +131,7 @@ class ApiTest extends TestCase
     {
         // Every release is live (#380, after round 40): no test runs
         $this->postJson('/api/v1/test', ['script' => "function launched() end"])->assertNotFound();
-        $this->get('/release')->assertOk()->assertDontSee('release/test')->assertSee('Release early, release often');
+        $this->get('/release')->assertOk()->assertDontSee('release/test')->assertSee('Break, learn, repeat')->assertSee('Release early, release often');
     }
 
     public function testADroneSaysTheFuelItUsedToday()

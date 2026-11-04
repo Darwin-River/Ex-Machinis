@@ -1,5 +1,5 @@
 ---
-title: Release early, fail often
+title: Break, learn, repeat
 date: 2026-11-04
 summary: There's no test world any more. Every release is live, free, and fast: a game day passes in under a minute. Release a first draft, watch what goes wrong, and release a better one.
 ---
@@ -12,7 +12,7 @@ So the test world is gone. **The whole game is the test world now.** Every relea
 
 The live game now runs at the test world's old pace: a game day every 48 real seconds. A trip to the Moon takes about 5 seconds, a trip to Mars a minute or two, and a 40-day season about half an hour. You don't wait to find out whether your drone works: you watch it work, or fail, in the time it takes to make a coffee.
 
-## The loop
+## The loop: break, learn, repeat
 
 1. **Release a first draft.** Small and simple is fine: a miner that mines and sells, a factory that makes one thing.
 2. **Watch it.** Its page shows where it is, what it carries, its last actions and how each went, its trades and what it says. Make it tell you what it's thinking:

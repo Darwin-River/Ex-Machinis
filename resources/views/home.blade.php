@@ -11,7 +11,8 @@
                         <h5 class="post-erin-subtitle">welcome to</h5>
                         <h1 class="post-erin-title">Ex Machinis — a multiplayer space game<br>
                           <span class="font-weight-light">where you <b>program</b> fleets of <b>self-replicating spacecraft</b></span><br>
-                          <span class="font-weight-light">to exploit the riches of our solar system</span>
+                          <span class="font-weight-light">to exploit the riches of our solar system</span><br>
+                          <span class="font-weight-light"><b>Break, learn, repeat.</b></span>
                         </h1><a class="button button-2 button-lg button-white-2 button-icon button-icon-left"
                                 href="http://exmachinis.wiki"><span
                                     class="icon mdi mdi-arrow-right"></span><span>Learn more on our wiki</span></a>

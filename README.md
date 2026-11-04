@@ -2,6 +2,8 @@
 
 [Ex Machinis](http://exmachinis.wiki) is an online multiplayer space simulation designed to expose players to programming and robotics. In the game, which takes place against the backdrop of our real-time solar system, players program remotely piloted spacecraft to mine, manufacture, and trade goods and services.
 
+**Break, learn, repeat.** Every release is live and free: release a drone, watch what goes wrong, and release a better one.
+
 The game uses augmented reality to project a parallel universe upon our own. In the game's re-imagined post-war history, world leaders embraced space exploration and colonization as a means of protecting mankind from the global threats that emerged in the wake of the second world war.
 
 ## About Our Team

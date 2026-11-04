@@ -15,8 +15,8 @@
             <p>Write it in Lua and define <code>function launched() ... end</code>. If <code>launched</code> crashes, the drone
                 restarts it from the copy you released, waiting longer after each crash; five crashes in a row make
                 it a wreck.</p>
-            <p><b>Release early, release often.</b> There is no test world: every release is real, and it costs
-                nothing. Release a first version, watch it on its page, and when you see what goes wrong, release a
+            <p><b>Break, learn, repeat.</b> Release early, release often: there is no test world, every release
+                is real, and it costs nothing. Release a first version, watch it on its page, and when you see what goes wrong, release a
                 better one as a new company. A drone can't be changed once released, and a failed company costs you
                 nothing but the lesson. Game time runs fast (a game day in about a minute), so you see how a drone
                 does in minutes.</p>
