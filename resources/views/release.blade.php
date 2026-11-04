@@ -10,11 +10,11 @@
             <p>Write your drone's program and release it: anyone can, no account needed. Each release starts a new
                 company with one drone in orbit around Earth, the kit you choose and
                 {{ number_format(config('forge.starting_credits')) }} credits. The drone loads your script, then runs
-                your <code>launched</code> word on its own. You go to its page, where everything it does and says is
+                your <code>launched</code> function on its own. You go to its page, where everything it does and says is
                 public: keep the link to follow it.</p>
-            <p>Define words only, and end with <code>: launched ... ;</code>. If <code>launched</code> crashes, the drone
+            <p>Write it in Lua and define <code>function launched() ... end</code>. If <code>launched</code> crashes, the drone
                 restarts it from the copy you released, waiting longer after each crash; five crashes in a row make
-                it a wreck. A drone can't be changed once released: test your words first.</p>
+                it a wreck. A drone can't be changed once released: test it first.</p>
 
             @if($clock && $clock['full'])
                 <div class="alert alert-warning mt-3" style="white-space: normal">

@@ -546,7 +546,7 @@ A drone's replies. The Game Engine writes one for each reply (with email on, the
 
 There are no player accounts (#367 step 4: login, sign-up, password resets, invitation codes, `INVITE_ONLY` and `php artisan forge:invite` are gone; the `users` and `invites` tables stay, for the built-in owner and the email game). `/release`, open to anyone, posts a company name and a script:
 
-* The script must define `launched` (a `: launched` definition, case-sensitive) and be at most 16,000 characters, with no line longer than a command (2,048).
+* The script must define `launched` (`function launched() ... end`, case-sensitive; a FORTH script is refused) and be at most 16,000 characters, with no line longer than a command (2,048).
 * It creates a company (owned by the built-in account `Release::owner()`, "Public Forge", made on first use, so the engines, which expect every company and drone to have an owner, work as before; with 1,000 credits) and one drone in orbit around Earth (object 3, hull 1) with the kit the player chose (`kit`: a Mining Kit I, 5901, unless `factory`, 5902; `companies.start_kit` remembers it, migration 0024). It then queues the script as one or more commands, split at line ends to fit the commands table, followed by `<launched>`. All of this happens in one transaction (`App\Services\Release`).
 * The drone loads the script, then runs `launched` with crash handling ([Crashes](#Crashes)). `<launched>` waits until the script has finished loading.
 * The player goes to the new drone's page, which shows, publicly like its code, the replies in `drone_messages` that have reached Earth ("What it said", the latest 20). The Release page itself lists nothing: there are no accounts to list drones by.

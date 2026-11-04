@@ -109,7 +109,7 @@ curl -s -X POST $B/check -H 'Content-Type: application/json' \
 
 ```sh
 curl -s -X POST $B/release -H 'Content-Type: application/json' \
-  -d '{"company_name": "Ada Fuel 1", "kit": "factory", "script": ": launched ( -- ) .\" hello\" cr ;"}'
+  -d '{"company_name": "Ada Fuel 1", "kit": "factory", "script": "function launched() print(\"hello\") end"}'
 ```
 
 **Response:** `201 Created`.

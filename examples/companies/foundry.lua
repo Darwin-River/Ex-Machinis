@@ -229,11 +229,12 @@ function equip_clone()
   push(40, fuel, newest.drone)
 end
 function fill_to(n)
-  local need = n - units(fuel)
+  local had = units(fuel)
+  local need = n - had
   if need <= 0 then return end
   buy_here(need, fuel)
   for _ = 1, 6 do
-    if units(fuel) >= n then return end
+    if units(fuel) > had then return end
     wait(60)
   end
 end

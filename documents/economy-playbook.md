@@ -337,6 +337,37 @@ Round 36's newcomers all found the House paid a flat 25 to 33 credits a factory-
 - The Trader starter now buys only when the price board at Mars or Earth beats the Moon price by the trip's cost, and hauls to whichever pays more.
 - Also from round 36: the test world mirrors the live market (`LiveMirror`), recipes and recipe trees in the API and `recipe` in both libraries, `fuel-floor`, net wealth by game day, a company's open orders, a drone's fuel used per day, test drones numbered from 10,000,000.
 
+### Round 39: newcomers on Lua only and 2 g travel (#380)
+
+The round 38 mix on #409's code (FORTH retired, every House station and design in Lua, failed pulls refunded, drones accelerating at 2 g), to game day 40: 60 starters, 12 Chemists, 9 Smiths, 6 each of the Machinist, Adaptive and Systems shop, 3 each of Electronics and Foundry. The host restarted near day 36 (about four game days lost): every drone re-ran `launched` with its saved variables and carried on.
+
+| Design | Companies | Avg net wealth at the end |
+|---|---|---|
+| Newcomers (Gus) | 2 | 12,058 |
+| Newcomers (Emil) | 2 | 11,432 |
+| Foundry | 3 | 8,804 |
+| Systems shop | 6 | 8,748 |
+| Electronics | 3 | 7,940 |
+| Newcomers (Fay) | 2 | 7,860 |
+| Newcomers (Hana) | 2 | 6,792 |
+| Machinist | 6 | 5,854 |
+| Maker (starter) | 12 | 5,516 |
+| Smith | 9 | 4,252 |
+| Adaptive | 6 | 3,843 |
+| Miner (starter) | 24 | 3,698 |
+| Refiner (starter) | 12 | 2,524 |
+| Trader (starter) | 12 | 1,801 |
+| Chemist | 12 | 1,418 |
+
+- **Wrecks: 0 of 132 drones**, 15 clones.
+- **2 g opened Mars.** Earth to Mars took 56 to 58 game hours (round 38: about 10.5 days). Three of the four newcomers' best companies worked Mars or its moons, and at the end 28 drones worked there (Mars 24, Phobos 3, Deimos 1) against 83 at the Moon and 21 at Earth. Gus 2 1st (16,340, a Mars systems shop with a standing Metals (A1) bid his own Mars-moons miner sold into), Emil 1 2nd (12,746, flew to Mars on day 1.8 for its empty market and caught the +32% systems boom), Fay 2 4th, Emil 2 5th, Hana 1 10th. The Mars niche lasted about two weeks before the crowd came, as the blog's "go where nobody is" warns.
+- **Supply still decided results.** Metals (A1) sold out at the Moon by day 4, at Earth around days 18 to 22 and at Mars around day 24. Plan B rules that moved after some idle rounds saved Emil's and Gus's drones; Hana 1's never fired (each build reset its idle count) and it stayed at Earth while the Moon paid three times as much. A trip to or from Mars costs about 2.5 days of building, so a wrong move is dear.
+- **Hauling still doesn't pay**: House asks are about twice House bids at every exchange, so Emil (logistics) found no lane; moving a factory was the only travel that paid.
+- **Lua only**: no newcomer missed FORTH. Lua rated 8 to learn and 8.5 for fit. lua-functions.md, the example companies and `recipe()` were the most praised; all four wrote recipe-tree pricers.
+- **Doc bugs found and fixed**: api.md's release example was still FORTH, as was the release page's hint and a design-manual line; the manual gave Earth to Mars as both 1.5 to 3.4 days and "4 to 25 game days"; the example companies and Miner and Refiner starters still had the old `fill_to` that waits for the whole order; `make(fuel)` makes 30 and burns 2, which `/recipes` shows as 28 made.
+- **Ratings** (Emil, Fay, Gus, Hana): fun 7.25, clarity 7.25, depth 7.75, feedback 6.75, API 8, again 8, overall 7.5. Lua 8 to learn, 8.5 for fit.
+- **Asked for**: a test world that's fast and shows the drone's location, status and game day (all four released mostly untested; test drones sat in transit to the Moon for 8 to 10 real minutes); best bid and ask per resource and place (an endpoint, and a query drones can use, for quotes as well as trades); House stock levels or a warning when an exchange runs out; depth-aware pricing ("cost to buy n here"); a per-company profit-and-loss and events feed; an idle reason in the drone's status; cheaper early growth; hauling lanes (regional scarcity, narrower House spreads on some goods); `print` of a place showing its name.
+
 ### FORTH retired; failed pulls cost no fuel (#380, after round 38)
 
 - **Lua only.** Every newcomer since round 35 chose Lua but one, and round 38's FORTH company couldn't be tested. New releases, tests and checks now take Lua only; FORTH drones already running carry on. The starters and company designs (adaptive, chemist, electronics, foundry, machinist, smith, systems, and `words.lua`'s helpers), the players' manual, `lua-functions.md` (in place of `forth-words.md`), the blog and the House station program are Lua; the Machine page and the FORTH dictionary went with FORTH. The converted Foundry and Electronics ran cleanly in the test world; the Foundry's FORTH `brew-pays?` had a bug (a bitwise `and` of two prices), fixed in Lua.
