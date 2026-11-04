@@ -48,8 +48,9 @@ class ReleasePageTest extends TestCase
             $this->assertNotNull($script, "starter $name is missing");
             $this->assertTrue(Release::definesLaunched($script), "starter $name defines launched");
             $this->get('/release?starter=' . $name)->assertOk()
-                ->assertSee(Release::isLua($script) ? 'function launched()' : ': launched', false);
+                ->assertSee('function launched()', false);
         }
+        $this->assertNotNull(Release::starter('miner.lua'), 'a starter may be named with its extension');
         $this->assertNull(Release::starter('../../.env'), 'only the listed starters can be read');
     }
 
@@ -61,7 +62,7 @@ class ReleasePageTest extends TestCase
 
     public function testReleasingAScriptStartsACompanyWithADroneThatRunsIt()
     {
-        $script = ": greet  .\" hello\" cr ;\n: launched  greet ;";
+        $script = "function greet() print(\"hello\") end\nfunction launched() greet() end";
 
         $response = $this->post('/release', ['company_name' => 'Forge Works', 'script' => $script]);
 
@@ -94,64 +95,34 @@ class ReleasePageTest extends TestCase
         }
         $kits = [];
         foreach (['mining' => 'Diggers', 'factory' => 'Makers'] as $kit => $name) {
-            $this->post('/release', ['company_name' => $name, 'script' => ': launched ;', 'kit' => $kit]);
+            $this->post('/release', ['company_name' => $name, 'script' => 'function launched() end', 'kit' => $kit]);
             $company = Company::where('name', $name)->first();
             $drone = Agent::where('company_id', $company->company_id)->first();
             $kits[$kit] = [(int) $company->start_kit, DB::table('events')->where('drone', $drone->agent_id)
                 ->where('resource', Release::kit($kit))->count()];
         }
         $this->assertEquals(['mining' => [5901, 1], 'factory' => [5902, 1]], $kits);
-        $this->post('/release', ['company_name' => 'Nope', 'script' => ': launched ;', 'kit' => 'yacht'])
+        $this->post('/release', ['company_name' => 'Nope', 'script' => 'function launched() end', 'kit' => 'yacht'])
             ->assertSessionHasErrors('kit');
     }
 
     public function testScriptMustDefineLaunched()
     {
         $this->from('/release')
-            ->post('/release', ['company_name' => 'No Entry', 'script' => ': go 1 2 + ;'])
+            ->post('/release', ['company_name' => 'No Entry', 'script' => 'function go() return 3 end'])
             ->assertRedirect('/release')->assertSessionHasErrors('script');
         $this->assertNull(Company::where('name', 'No Entry')->first());
     }
 
-    public function testRedefiningAWordTheDroneKnowsIsWarnedAbout()
+    public function testAForthScriptIsRefused()
     {
-        // report, pick and fuel are the drone's; comments don't count
-        $script = ": report ( -- ) .\" here\" ;\nvariable pick ( : hold )\n\\ : load is only a comment\n"
-            . "40 constant fuel-cap\n: launched report ;";
-        $this->assertEquals(['report', 'pick'], Release::redefinedWords($script));
-        $this->assertEquals([], Release::redefinedWords(file_get_contents(base_path('examples/starters/miner.fth'))));
-
-        $response = $this->post('/release', ['company_name' => 'Shadows', 'script' => $script]);
-        $response->assertSessionHas('warning');
-        $this->assertStringContainsString('report, pick', session('warning'));
-
-        $this->post('/release', ['company_name' => 'Clean', 'script' => ': launched 1 drop ;'])
-            ->assertSessionMissing('warning');
-    }
-
-    public function testAWordUsedBeforeAnythingDefinesItIsWarnedAbout()
-    {
-        // true isn't a word here (round 29), DUP is dup's wrong case, helper
-        // comes too late; numbers, strings, comments and char's letter are fine
-        $script = ": launched true DUP helper ;\n: helper ( x -- ) 1 ;\n"
-            . ": ok .\" fine words\" $\" more words\" char Z \$ff 12. -3 helper ;\n\\ a comment true";
-        $this->assertEquals(['true', 'DUP', 'helper'], Release::undefinedWords($script));
-        foreach (array_merge(glob(base_path('examples/starters/*.fth')), glob(base_path('examples/companies/*.fth'))) as $file) {
-            $this->assertEquals([], Release::undefinedWords(file_get_contents($file)), basename($file));
-        }
-
-        $this->post('/release', ['company_name' => 'Typos', 'script' => $script])->assertSessionHas('warning');
-        $this->assertStringContainsString('uses true, DUP, helper', session('warning'));
-        $this->assertStringContainsString('-13', session('warning'));
-    }
-
-    public function testLaunchedIsFoundOnlyAsADefinition()
-    {
-        $this->assertTrue(Release::definesLaunched(": launched ;"));
-        $this->assertTrue(Release::definesLaunched("variable x\n:   launched\n  x @ . ;"));
-        $this->assertFalse(Release::definesLaunched(": Launched ;"));
-        $this->assertFalse(Release::definesLaunched(": launched-later ;"));
-        $this->assertFalse(Release::definesLaunched("launched"));
+        // FORTH was retired after round 38 (#380): new scripts are Lua
+        $this->from('/release')
+            ->post('/release', ['company_name' => 'Old Hands', 'script' => ": launched 60 wait drop ;"])
+            ->assertRedirect('/release')->assertSessionHasErrors('script');
+        $this->assertNull(Company::where('name', 'Old Hands')->first());
+        $this->assertStringContainsString('FORTH has been retired', Release::scriptProblem(': launched ;'));
+        $this->assertFalse(Release::definesLaunched(': launched ;'));
     }
 
     public function testALuaScriptIsReleasedAsLua()
@@ -163,14 +134,12 @@ class ReleasePageTest extends TestCase
         $this->assertFalse(Release::isLua(": launched 60 wait drop ;"));
         $this->assertFalse(Release::isLua("\\ function launched()\n: launched ;"));
         $this->assertTrue(Release::definesLaunched(file_get_contents(base_path('examples/starters/maker.lua'))));
-        $this->assertNull(Release::redefinedWarning("function launched() wait(60) end"), 'no FORTH word warnings');
+        $this->assertNull(Release::redefinedWarning("function launched() wait(60) end"));
 
         $agent = Release::release(Release::owner(), 'Lua Co', file_get_contents(base_path('examples/starters/maker.lua')));
         $this->assertEquals('lua', DB::table('agents')->where('agent_id', $agent->agent_id)->value('language'));
         $this->assertEquals('<launched>', Command::where('agent_id', $agent->agent_id)->orderBy('id', 'desc')->value('code'));
 
-        $forth = Release::release(Release::owner(), 'Forth Co', ": launched ;");
-        $this->assertEquals('forth', DB::table('agents')->where('agent_id', $forth->agent_id)->value('language'));
     }
 
     public function testALuaScriptThatReusesAGameNameIsWarned()

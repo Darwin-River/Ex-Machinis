@@ -5,7 +5,6 @@
 -- pay best: at the Moon if the best bid there is close to what rods fetched
 -- at Earth yesterday (the price board), else it flies a load to Earth.
 -- With grow_at credits it launches a copy of itself.
--- The same drone as maker.fth, in Lua.
 
 -- Settings: change these numbers to make it your own
 rod_load = 12      -- rods it takes to Earth (4 cargo each)

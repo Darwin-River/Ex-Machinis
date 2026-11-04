@@ -4,15 +4,18 @@
 # for the fake domain example.test over plain HTTP, then checks that:
 #   - the website answers, and Getting Started shows the players' manual,
 #   - the scheduler's ticks succeed, and there are no accounts or email,
-#   - a script released on the website runs, and so do commands queued for
-#     its drone; their replies are kept for the website (#367 step 5),
+#   - FORTH is retired: the website and the API refuse a FORTH script, and
+#     take a Lua one,
+#   - a Lua script released on the website runs, and what it prints and
+#     reports is kept for the website (#367 step 5),
 #   - it unpacks its starter kit, flies to the Moon, mines and refines kunspar,
 #   - companies of one player may trade with each other,
 #   - a released script in several pieces runs, the Release page offers
-#     starter scripts, and drones know the game words,
+#     starter scripts, and drones know the game names,
 #   - actions and computing burn fuel; a drone that runs dry becomes a wreck,
-#   - money past 32,767 comes back as a double, and the double words work,
-#   - House station drones buy goods and sell fuel at once (31 and 32),
+#   - money past 32,767 comes back right (a plain number in Lua),
+#   - House station drones buy goods and sell fuel at once (31 and 32), and a
+#     pull for more than a seller offers fails (-5) and costs no fuel,
 #   - a mined-out deposit yields nothing until it refills over game time,
 #   - another player's wreck can be plundered (not one's own), and a seller
 #     pays the sales tax out of a sale,
@@ -23,7 +26,15 @@
 #   - the home feed, the market, the map and the leaderboard show the world,
 #   - the Test button runs a script in the test world, not the live one,
 #   - it launches a new drone (a clone) from a ship kit with a copy of its
-#     program, some of its fuel and a record of its parent,
+#     program and variables, some of its fuel and a record of its parent,
+#   - a launched function that crashes restarts afresh, and crashes in a row
+#     make a wreck.
+# A Lua drone runs its launched() once (game-engine/src/lua_drone.c): it
+# takes no commands after it is released. So each drone here is a script
+# that goes through its steps in order, printing what each gave and
+# reporting it (report()), and the checks wait for those replies. Where the
+# test changes the world between steps (with SQL), the script waits for the
+# change in a loop of wait()s, which cost no fuel.
 # Needs ports 80 and 443 free. Leaves the stack running; remove it with
 #   docker compose down -v && rm -rf .env
 set -euo pipefail
@@ -69,12 +80,12 @@ sqlw() {
     for _ in 1 2 3; do sql "$1" && return 0; sleep 1; done
     fail "this write failed three times: $1"
 }
-# run <drone id> <subject> <FORTH code>: queue a command for a drone, as the
-# website and the engine do (there is no email, #367 step 5)
-run() {
-    local code=${3//\'/\'\'}
-    sql "insert into commands (code, agent_id, created_at, updated_at, subject, email_content) values ('$code', $1, NOW(), NOW(), '$2', '')"
-}
+# replied <drone id> <text>: a reply of the drone's, kept for the website,
+# holds the text (a LIKE pattern: % is any text). The drones below print one
+# line per step and report() it
+replied() { [ -n "$(sql "select id from drone_messages where agent_id=$1 and body like '%$2%' limit 1")" ]; }
+# replies <drone id> <text>: how many of its replies hold the text
+replies() { sql "select count(*) from drone_messages where agent_id=$1 and body like '%$2%'"; }
 JAR=$(mktemp)
 token() { curl -fsS -c "$JAR" -b "$JAR" "http://localhost$1" | grep -o 'name="_token" value="[^"]*"' | head -1 | sed -e 's/.*value="//' -e 's/"$//'; }
 # release <company name> <script> [kit]: release a script on the website,
@@ -85,6 +96,21 @@ release() {
         --data-urlencode "company_name=$1" --data-urlencode "script=$2" --data-urlencode "kit=${3:-mining}"
 }
 company_drone() { sql "select a.agent_id from agents a join companies c on c.company_id = a.company_id where c.name='$1'"; }
+# (fetch a page, then search it: with pipefail, "curl | grep -q" can fail
+# when grep stops reading before curl has written the whole page)
+fetch() { curl -fsS "$@" || echo "fetch failed: $*"; }
+# finished <drone id>: its launched function returned normally
+# (grep -c reads the whole log: grep -q stops early, and under pipefail the
+# cut-off docker compose logs fails the check)
+finished() { [ "$(docker compose logs game-engine 2>/dev/null | grep -c "Drone \[$1\] finished its launched word")" -gt 0 ]; }
+# give <drone id> <resource> <units> <new cargo>: puts units of a resource
+# in a drone's hold, stamped after its latest event (the engines read a
+# drone's stock from its latest event in game time, so an event without one
+# is ignored)
+give() {
+    sqlw "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
+         select 1, 0, 1, 1, $1, $2, 0, 0, $3, $4, IFNULL(MAX(game_t), 0) + 1 from events where drone = $1"
+}
 
 wait_for 120 "website answers" curl -fsS -o /dev/null http://localhost/
 # No sales tax (#380) but where a check asks for it: the checks below count
@@ -101,139 +127,267 @@ done
 [ -z "$(docker compose ps -a -q mail 2>/dev/null)" ] || fail "there is still a mail server"
 echo "ok: no accounts, no sign-up page, no email"
 
-# The first drone: released on the website with an empty launched word,
-# then driven by commands queued for it
-release "Smoke Miner" ": launched ;"
-DRONE_ID=$(company_drone "Smoke Miner")
-[ -n "$DRONE_ID" ] || fail "release did not create a company and drone"
-DRONE=$(sql "select name from agents where agent_id=$DRONE_ID")
-# perform holds a script until its whole action is done; until then the
-# drone refuses new scripts, so wait for it to be idle before sending one
-idle() { [ "$(sql "select count(*) from commands where agent_id=$DRONE_ID") $(sql "select IFNULL(waiting_action, 0) from agents where agent_id=$DRONE_ID")" = "0 0" ]; }
-wait_for 90 "drone $DRONE loaded its released script" idle
-run $DRONE_ID "smoke test" "2 3 + . cr"
-wait_for 90 "drone $DRONE ran the command" sh -c "docker compose logs game-engine | grep -q 'Command succesfully evaluated'"
-replied() { [ -n "$(sql "select id from drone_messages where agent_id=$DRONE_ID and subject='smoke test' and body like '%5%'")" ]; }
-wait_for 30 "the reply is kept for the website" replied
+# FORTH is retired (#380, after round 38): drones already running in FORTH
+# carry on, but the API's check and the Release page refuse a FORTH script,
+# and take a Lua one
+check_script() { fetch -X POST http://localhost/api/v1/check --data-urlencode "script=$1"; }
+FORTH_CHECK=$(check_script ': launched ;')
+grep -qF '"ok":false' <<<"$FORTH_CHECK" && grep -qF 'FORTH has been retired' <<<"$FORTH_CHECK" ||
+    fail "the API's check took a FORTH script ($FORTH_CHECK)"
+LUA_CHECK=$(check_script $'function launched()\n  print("hello")\nend')
+grep -qF '"ok":true' <<<"$LUA_CHECK" && grep -qF '"language":"lua"' <<<"$LUA_CHECK" ||
+    fail "the API's check didn't take a Lua script ($LUA_CHECK)"
+release "Smoke Forth" ": launched ;"
+[ -z "$(company_drone "Smoke Forth")" ] || fail "the Release page released a FORTH script"
+grep -qF "FORTH has been retired" <<<"$(fetch -c "$JAR" -b "$JAR" http://localhost/release)" ||
+    fail "the Release page didn't say FORTH is retired"
+echo "ok: FORTH is retired: the API and the Release page refuse it, and take Lua"
 
-# The starting sequence from the game data: unpack the starter kit, fly to
-# the Moon (10), mine kunspar (1100) with the kit's mining module, and check a
-# multi-line program at the same time.
-has() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRONE_ID and resource=$1")" -ge "${2:-1}" ]; }
-wait_for 30 "drone got the starter kit" has 5901
-run $DRONE_ID "unpack" "25901 perform . cr"
-wait_for 90 "starter kit unpacked (engine in cargo)" has 5001
-wait_for 60 "drone finished the unpack script" idle
+# The House's station drones (#380): the app makes one at each exchange on
+# start-up; the drones below trade with the Moon Depot's and the Earth
+# Exchange's
+station_at() { sql "select agent_id from agents where station_id is not null and object_id = $1"; }
+has_station() { [ -n "$(station_at "$1")" ]; }
+wait_for 60 "the Moon has a House station drone" has_station 10
+wait_for 60 "Earth has a House station drone" has_station 3
+MOON_STATION=$(station_at 10)
+EARTH_STATION=$(station_at 3)
 
-run $DRONE_ID "to the moon" "  : sq dup * ;
-  7 sq . cr
-  10 5001 perform . cr
-  6 sq . cr"
-wait_for 90 "drone ran a multi-line program" sh -c "docker compose logs game-engine | grep -q 'result \[ 49'"
-at_moon() { [ "$(sql "select object_id from agents where agent_id=$DRONE_ID")" = 10 ]; }
-wait_for 120 "drone flew to the Moon" at_moon
-wait_for 60 "drone finished the trip script" idle
-# perform paused the script for the trip: the line after it must still run
-wait_for 30 "script carried on after the trip" sh -c "docker compose logs game-engine | grep -qE '[|] +36[[:space:]]*\$'"
-
-run $DRONE_ID "mine" "11100 perform . cr"
-wait_for 120 "drone mined kunspar on the Moon" has 1100
-wait_for 60 "drone finished the mining script" idle
+# A drone that never refuels dies (#324 step 8): release one that only
+# computes, leave it 1 unit of fuel, and it runs dry and becomes a wreck.
+# (Released first: the first drone plunders its wreck later on)
+DRY_SCRIPT=$(cat <<'LUA'
+-- Computes for ever and never refuels: each slice burns fuel
+function launched()
+  local n = 0
+  while true do n = n + 1 end
+end
+LUA
+)
+release "Dry Forge" "$DRY_SCRIPT"
+DRY=$(company_drone "Dry Forge")
+[ -n "$DRY" ] || fail "release did not create the dry drone"
+KIT=$(sql "select mass from resources where id=5901")
+# (Stamped after the drone's latest event: the plunder below once failed on
+# fuel the engine said wasn't there)
+sqlw "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
+     select 2, 0, 1, 1, $DRY, 2061, 0, 0, 1, $KIT + 1, IFNULL(MAX(game_t), 0) + 1 from events where drone = $DRY"
+dry() { [ "$(sql "select wreck_cause from agents where agent_id=$DRY")" = fuel ]; }
+wait_for 120 "a drone that runs out of fuel becomes a wreck" dry
+# A company ends when its last drone dies (#324 step 13): its credits vanish
+[ "$(sql "select concat(end_cause, ' ', credits) from companies where name='Dry Forge'")" = "drones 0" ] || fail "the company whose last drone died did not end"
+echo "ok: a company whose last drone died has ended"
 
 # Companies (#324 step 4): the player gets a second company with a drone at
-# the Moon and a buy order for kunspar. Selling to it goes through: the
-# same player's companies may trade with each other (#367 step 1).
-PLAYER_ID=$(sql "select user_id from agents where agent_id=$DRONE_ID")
+# the Moon and a buy order for kunspar. The first drone sells to it, and it
+# goes through: the same player's companies may trade with each other (#367
+# step 1). (Made before the first drone is released, so its script can name
+# the sister drone; all releases here belong to the website's one owner)
+PLAYER_ID=$(sql "select user_id from agents where agent_id=$DRY")
 sql "insert into companies (user_id, name, credits) values ($PLAYER_ID, 'Sister Company', 1000)"
 SISTER_CO=$(sql "select max(company_id) from companies where user_id=$PLAYER_ID")
 sql "insert into agents (user_id, company_id, name, object_id, hull_type) values ($PLAYER_ID, $SISTER_CO, 'sister1', 10, 1)"
 SISTER=$(sql "select agent_id from agents where name='sister1'")
 sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_credits, game_t)
      select 5, 0, 1, 1, $SISTER, 1100, 0, 0, 50, 1, IFNULL(MAX(game_t), 0) + 1 from events where drone = $SISTER"
-run $DRONE_ID "sell to my other company" "1 1100 $SISTER 10 perform . cr"
+
+# The first drone: released on the website, it goes through the game's
+# starting sequence and much else, one step after the other. Each step
+# prints a line the checks below wait for.
+MINER_SCRIPT=$(cat <<LUA
+-- The smoke test's first drone (deploy/smoke-test.sh). Each step prints what
+-- it gave and reports it, so the test can follow; where the test changes the
+-- world between steps, the drone waits for the change.
+local function say(text)
+  print(text)
+  report()
+end
+
+-- Waits, a game hour at a time (a real second here), until ready() is true
+local function hold_until(ready)
+  while not ready() do wait(60) end
+end
+
+local function sq(n) return n * n end
+
+-- Whether a drone has a buy order for a resource here
+local function bids(drone, resource)
+  for _, o in ipairs(ask(600, resource)) do
+    if o[4] == drone then return true end
+  end
+  return false
+end
+
+-- The broadcast the released drone sends from Earth, once it is known here
+local function heard()
+  for _, id in ipairs(events_earth(message_event)) do
+    if message(id) == "smoke-hello" then return id end
+  end
+  return nil
+end
+
+function launched()
+  -- A clone runs this too, with its parent's variables: it says so, and
+  -- its launched function returns
+  if parent and parent ~= me() then
+    say("launched-word-ran " .. tostring(note))
+    return
+  end
+  say("sum " .. 2 + 3)
+  -- The starting sequence: unpack the starter kit, fly to the Moon (the
+  -- line after the trip runs once it is over), mine kunspar
+  say("kit " .. units(mining_kit))
+  say("unpack " .. unpack())
+  print("sq " .. sq(7))
+  print("moon-trip " .. travel(moon))
+  say("after-trip " .. sq(6))
+  say("mine " .. mine(kunspar))
+  -- Computing burns fuel too
+  local s = 0
+  for i = 1, 20000 do s = s + i end
+  say("computed " .. s)
+  -- Sell a unit to the player's other company
+  say("sister " .. push(1, kunspar, $SISTER))
+  -- Refining needs 20 kunspar (each mining run gives 5 here)
+  for _ = 1, 4 do mine(kunspar) end
+  say("refine " .. refine(kunspar))
+  -- Launch a clone once the test gives it a Mining Cruiser kit
+  hold_until(function() return units(cruiser_kit) > 0 end)
+  parent, note = me(), "from-parent"
+  say("launch " .. launch(me(), cruiser_kit))
+  -- Money past 32,767, once the test sets it
+  hold_until(function() return credits() >= 70000 end)
+  say("doubles " .. credits() .. " " .. 300 * 300)
+  -- Sell a unit of metal to the Moon Depot's station drone
+  hold_until(function() return bids($MOON_STATION, metals_a1) end)
+  say("station " .. push(1, metals_a1, $MOON_STATION))
+  -- Mine the deposit the test emptied; mine again once it refills
+  local k = units(kunspar)
+  local r = mine(kunspar)
+  say("mined-dry gained " .. units(kunspar) - k .. " result " .. r)
+  hold_until(function() return deposit(kunspar) > 0 end)
+  say("mined-again " .. mine(kunspar))
+  -- Plunder the wreck the test brought here
+  k = units(kunspar)
+  r = plunder($DRY)
+  -- The share comes aboard by its own action, a moment after the plunder
+  for _ = 1, 10 do
+    if units(kunspar) - k >= 5 then break end
+    wait(60)
+  end
+  local got = units(kunspar) - k
+  say("plunder " .. r .. " gained " .. got .. " half " .. tostring(got >= 5))
+  -- Hear the released drone's broadcast, from the Earth database
+  local id
+  hold_until(function() id = heard() return id ~= nil end)
+  say("hear " .. tostring(crowd(earth) > 0) .. " " .. event_drone(id) .. " " .. message(id))
+  -- Once the test brings it to Earth: buy 2 fuel from the cheapest seller,
+  -- the waiting released drone
+  hold_until(function() return location() == earth end)
+  local _, seller = best_offer(fuel)
+  say("bought " .. pull(2, fuel, seller) .. " from " .. seller)
+  -- Back on the Moon: Earth's live orders can't be seen from here
+  hold_until(function() return location() == moon end)
+  local rows = ask(611, fuel)
+  say("far:" .. tostring(rows[1] and rows[1][4] or "none") .. ":end")
+end
+LUA
+)
+release "Smoke Miner" "$MINER_SCRIPT"
+DRONE_ID=$(company_drone "Smoke Miner")
+[ -n "$DRONE_ID" ] || fail "release did not create a company and drone"
+DRONE=$(sql "select name from agents where agent_id=$DRONE_ID")
+# The engine gathers the script's pieces into lua_script as it loads them
+lua_loaded() { [ "$(sql "select concat(language, ' ', lua_script is not null) from agents where agent_id=$DRONE_ID")" = "lua 1" ]; }
+wait_for 60 "drone $DRONE is a Lua drone with its script" lua_loaded
+wait_for 90 "drone $DRONE ran its launched function; its reply is kept for the website" replied $DRONE_ID "sum 5"
+
+# The starting sequence from the game data: unpack the starter kit, fly to
+# the Moon (10), mine kunspar (1100) with the kit's mining module
+has() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRONE_ID and resource=$1")" -ge "${2:-1}" ]; }
+wait_for 30 "drone got the starter kit" replied $DRONE_ID "kit 1"
+wait_for 90 "drone unpacked its starter kit" replied $DRONE_ID "unpack 0"
+wait_for 30 "starter kit unpacked (engine in cargo)" has 5001
+at_moon() { [ "$(sql "select object_id from agents where agent_id=$DRONE_ID")" = 10 ]; }
+wait_for 120 "drone flew to the Moon" at_moon
+wait_for 60 "drone ran its steps before the trip" replied $DRONE_ID "sq 49%moon-trip 0"
+# perform paused the script for the trip: the line after it must still run
+wait_for 30 "script carried on after the trip" replied $DRONE_ID "after-trip 36"
+wait_for 120 "drone mined kunspar on the Moon" has 1100
+wait_for 30 "the mining went through" replied $DRONE_ID "mine 0"
+
 sister_bought() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$SISTER and resource=1100")" = 1 ]; }
 wait_for 90 "a sale to the player's other company goes through" sister_bought
-wait_for 60 "drone finished the sale script" idle
+wait_for 30 "the sale to the other company worked" replied $DRONE_ID "sister 0"
 
-# Refining needs 20 kunspar (each mining run gives 5 here) and the Mining
-# Kit's Refinery (A1); each perform waits for its action
-run $DRONE_ID "refine" "  11100 perform drop 11100 perform drop 11100 perform drop 11100 perform drop
-  21100 perform . cr"
+# Refining needs 20 kunspar and the Mining Kit's Refinery (A1); each perform
+# waits for its action
 wait_for 180 "drone refined kunspar into metals" has 2011
-wait_for 60 "drone finished the refining script" idle
+wait_for 30 "the refining worked" replied $DRONE_ID "refine 0"
 
 # Launch (#238): give the drone a Mining Cruiser kit (building one takes
-# days), then launch a drone with a copy of its own program. The copy is
-# taken while this script is paused in perform: the new drone starts at the
-# prompt and runs its launched word.
-sqlw "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
-     select 1, 0, 1, 1, $DRONE_ID, 6001, 0, 0, 1, 224, IFNULL(MAX(game_t), 0) + 1 from events where drone = $DRONE_ID"
+# days), then it launches a drone with a copy of its own program and
+# variables: the new drone runs launched() too, and finds itself a clone
+give $DRONE_ID 6001 1 224
 wait_for 10 "drone got a ship kit" has 6001
-run $DRONE_ID "launch" "  : launched .\" launched-word-ran\" cr ;
-  $DRONE_ID 6001 12 perform . cr"
-launched() { [ -n "$(sql "select agent_id from agents where user_id=(select user_id from agents where agent_id=$DRONE_ID) and hull_type=6001 and vm is not null")" ]; }
+launched() { [ -n "$(sql "select agent_id from agents where user_id=(select user_id from agents where agent_id=$DRONE_ID) and hull_type=6001 and lua_script is not null")" ]; }
 wait_for 120 "drone launched a Mining Cruiser" launched
 NEW=$(sql "select name from agents where hull_type=6001 order by agent_id desc limit 1")
-wait_for 60 "launched drone $NEW ran its launched word" sh -c "docker compose logs game-engine | grep -q 'result \[launched-word-ran'"
 NEW_ID=$(sql "select agent_id from agents where name='$NEW'")
-new_replied() { [ -n "$(sql "select id from drone_messages where agent_id=$NEW_ID and body like '%launched-word-ran%'")" ]; }
-wait_for 60 "launched drone's reply is kept for the website" new_replied
-wait_for 60 "drone finished the launch script" idle
+# (it says the variable its parent set before launching it: a clone gets
+# its parent's variables)
+wait_for 60 "launched drone $NEW ran launched() with its parent's variables; its reply is kept for the website" replied $NEW_ID "launched-word-ran from-parent"
+wait_for 60 "drone finished the launch" replied $DRONE_ID "launch 0"
 [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRONE_ID and resource=6001")" = 0 ] || fail "the kit was not used up"
 echo "ok: the kit was used up"
 
-# Entry point and crashes (#324 step 5): the engine runs launched inside
-# catch and saved a clean copy of the program at launch. A launched word that
-# crashes restarts from the clean copy after a wait; 5 crashes in a row make a
-# wreck.
 # Cloning (#324 step 13): the launcher is the clone's parent, one generation
-# on, and the clone got its program and 20 of its fuel
+# on, and the clone got its program (the clean copy it restarts from after a
+# crash: a Lua drone's script) and 20 of its fuel
 [ "$(sql "select concat(parent_id, ' ', generation, ' ', code_from) from agents where agent_id=$NEW_ID")" = "$DRONE_ID 1 $DRONE_ID" ] || fail "the clone's lineage was not recorded"
 echo "ok: the clone's parent, generation and program source are recorded"
 clone_fuel() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$NEW_ID and resource=2061")" -ge 1 ]; }
 wait_for 30 "the clone got fuel from its launcher" clone_fuel
-# Give it more fuel for the rounds below,
-# as its owner would by pushing some over (#324 step 8)
-sqlw "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
-     select 1, 0, 1, 1, $NEW_ID, 2061, 0, 0, 200, 200, IFNULL(MAX(game_t), 0) + 1 from events where drone = $NEW_ID"
-wait_for 60 "launched drone's launched word returned normally" sh -c "docker compose logs game-engine | grep -q 'Drone \[$NEW_ID\] finished its launched word'"
-[ "$(sql "select release_vm is not null from agents where agent_id=$NEW_ID")" = 1 ] || fail "no clean copy saved at launch"
-echo "ok: clean copy saved at launch"
-idle_new() { [ "$(sql "select count(*) from commands where agent_id=$NEW_ID")" = 0 ]; }
-crash_launched() { # redefine launched to divide by zero, then restart it
-    # The restart is queued only once this round's definition has run: the
-    # engine has taken the round's command and the drone has nothing left to do
-    # (compiling may take more than one instruction slice, so its output can
-    # come in pieces: don't match on it)
-    run $NEW_ID "crash $1" ": launched 1 0 / ;"
-    wait_for 60 "launched drone $NEW got the crashing word ($1)" sh -c "docker compose logs game-engine | grep -q 'SUBJECT=\[crash $1\]'"
-    wait_for 60 "launched drone $NEW took the crashing word ($1)" idle_new
-    run $NEW_ID "Restart" "<launched>"
-}
-crash_launched 1
-crashed() { [ "$(sql "select count(*) from drone_crashes where drone=$NEW_ID and code=-10 and restart_at is not null")" = 1 ]; }
-wait_for 60 "a crash in launched is caught (-10) and a restart is scheduled" crashed
-# The restart comes a real second later on this clock, and the engine runs
-# it as soon as it is due (#324 step 20): either it is still queued, with
-# the clean copy in place, or it has already run the clean launched word
-# (one query, so the restart can't run between looking at the queue and at
-# the program)
-RESTART_STATE=$(sql "select concat((select count(*) from commands where agent_id=$NEW_ID and code='<launched>'
-                     and deliver_at > (select min(restart_at) - 1 from drone_crashes where drone=$NEW_ID)),
-                     ' ', vm = release_vm) from agents where agent_id=$NEW_ID")
-restarted_clean() { [ "$(docker compose logs game-engine | grep -c "Drone \[$NEW_ID\] finished its launched word")" -ge 2 ]; }
-if [ "${RESTART_STATE% *}" = 1 ]; then
-    [ "${RESTART_STATE#* }" = 1 ] || fail "the program was not put back to its clean copy"
-    echo "ok: the program went back to its clean copy and a restart is queued"
-else
-    wait_for 30 "the restart ran the clean copy's launched word" restarted_clean
-fi
-# The restart queued above isn't needed (this world's clock is fast): drop it,
-# then make the next crash the 5th in a row
-sql "delete from commands where agent_id=$NEW_ID and code='<launched>'"
-sql "update agents set crashes_in_row = 4 where agent_id=$NEW_ID"
-crash_launched 2
-wrecked() { [ "$(sql "select wrecked_at is not null from agents where agent_id=$NEW_ID")" = 1 ]; }
+wait_for 60 "launched drone's launched function returned normally" replied $NEW_ID "has finished"
+[ "$(sql "select c.language = 'lua' and c.lua_script = p.lua_script from agents c join agents p on p.agent_id = c.parent_id where c.agent_id=$NEW_ID")" = 1 ] ||
+    fail "the clone didn't get a copy of its launcher's script"
+echo "ok: the clone has a copy of its launcher's script"
+
+# Entry point and crashes (#324 step 5): an error in launched() is a crash
+# (-1 for Lua). The drone restarts from its script, with fresh variables,
+# after a wait that doubles with each crash in a row; 5 crashes in a row
+# make a wreck. A finished action ends a run of crashes: while this drone is
+# at Earth it waits a minute before it crashes, so it crashes once in a row
+# and restarts each time
+CRASH_SCRIPT=$(cat <<'LUA'
+-- Crashes each time it runs. At Earth it waits a minute first (an action
+-- that works ends a run of crashes); elsewhere it crashes at once.
+function launched()
+  print("crasher-run " .. tostring(carried))
+  report()
+  carried = "kept"
+  if location() == earth then wait(1) end
+  error("smoke-crash")
+end
+LUA
+)
+release "Smoke Crasher" "$CRASH_SCRIPT"
+CRASHER=$(company_drone "Smoke Crasher")
+[ -n "$CRASHER" ] || fail "release did not create the crashing drone"
+crashed() { [ "$(sql "select count(*) from drone_crashes where drone=$CRASHER and code=-1 and restart_at is not null")" -ge 1 ]; }
+wait_for 90 "a crash in launched is caught (-1) and a restart is scheduled" crashed
+wait_for 30 "the crash is reported" replied $CRASHER "smoke-crash%crashed with error -1"
+# The restart comes a real second later on this clock: it runs launched()
+# again from the script, with none of the variables the crashed run set
+restarted_clean() { [ "$(replies $CRASHER "crasher-run nil")" -ge 2 ]; }
+wait_for 60 "the restart ran launched() again" restarted_clean
+[ "$(replies $CRASHER "crasher-run kept")" = 0 ] || fail "a restart kept the crashed run's variables"
+[ "$(sql "select lua_script is not null from agents where agent_id=$CRASHER")" = 1 ] || fail "the crashed drone lost its script"
+echo "ok: a crashed drone restarts from its script, with fresh variables"
+# Away from Earth it crashes at once, and the next crash is the 5th in a row
+sql "update agents set object_id = 10 where agent_id=$CRASHER"
+sql "update agents set crashes_in_row = 4 where agent_id=$CRASHER"
+wrecked() { [ "$(sql "select concat(wrecked_at is not null, ' ', IFNULL(wreck_cause, '')) from agents where agent_id=$CRASHER")" = "1 crashes" ]; }
 wait_for 60 "the 5th crash in a row makes the drone a wreck" wrecked
 
 # Fuel (#324 step 8): the first drone's actions and computing burned fuel
@@ -243,27 +397,27 @@ wait_for 60 "the 5th crash in a row makes the drone a wreck" wrecked
 [ "$(sql "select wrecked_at is null from agents where agent_id=$DRONE_ID")" = 1 ] || fail "the drone with fuel became a wreck"
 echo "ok: actions and computing burn fuel, and a fuelled drone keeps going"
 
-# Double cells (#324 step 9): a balance past 32,767 comes back as a double
-# (query 101, read with 2@), and m* multiplies without overflowing
-COMPANY=$(sql "select company_id from agents where agent_id=$DRONE_ID")
-sql "update companies set credits = 70000 where company_id = $COMPANY"
-run $DRONE_ID "doubles" "create bank 8 allot
-  $COMPANY bank 8 101 query drop bank 2@ d. 300 300 m* d."
-# (match the whole reply, ignoring all whitespace, CR included: if the script
-# pauses, its output comes in pieces)
-wait_for 60 "a balance of 70,000 and 300 x 300 come out right as doubles" sh -c "docker compose logs --no-log-prefix game-engine | tr -d '[:space:]' | grep -q 'msg\[7000090000'"
-wait_for 60 "drone finished the doubles script" idle
-
+# The first drone waits for its balance to pass 70,000 (money past 32,767
+# came back as a double in FORTH; in Lua it is a plain number), then sells
+# to the Moon Depot and mines a deposit: set those up first.
 # House stations (#324 step 10; #380): the drone, on the Moon, sells a unit of
 # the metal it refined to the Moon Depot's station drone like to any drone: a
 # push into its buy order, at once, and the seller pays the sales tax out of
 # the sale (#380), here 50%
 sql "update house_rules set sales_tax_permille = 500"
-MOON_STATION=$(sql "select agent_id from agents where station_id is not null and object_id = 10")
-[ -n "$MOON_STATION" ] || fail "the Moon has no House station drone"
+# Mining deposits (#324 step 11): mining takes from the place's deposit. Empty
+# the Moon's kunspar deposit and stop it refilling: mining there yields
+# nothing. Let it refill again, and a few game hours later mining yields again.
+kunspar() { sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRONE_ID and resource=1100"; }
+sql "update deposits set refill_per_day = 0 where object_id = 10 and resource = 1100"
+sql "insert into deposit_state (object_id, resource, amount, refilled_t) values (10, 1100, 0, 0) on duplicate key update amount = 0"
+KUNSPAR=$(kunspar)
+COMPANY=$(sql "select company_id from agents where agent_id=$DRONE_ID")
+sql "update companies set credits = 70000 where company_id = $COMPANY"
+wait_for 60 "a balance of 70,000 and 300 x 300 come out right" replied $DRONE_ID "doubles 70000 90000"
+
 bid() { [ "$(sql "select count(*) from events where drone=$MOON_STATION and event_type=5 and resource=2011 and outcome=1")" -ge 1 ]; }
 wait_for 180 "the Moon Depot's station drone posts its buy order for metals" bid
-run $DRONE_ID "station" "1 2011 $MOON_STATION 10 perform . cr"
 sold() { [ "$(sql "select count(*) from trades where seller=$DRONE_ID and buyer=$MOON_STATION and resource=2011 and units=1 and credits>0")" = 1 ]; }
 wait_for 90 "the Moon Depot's station drone bought the drone's metal" sold
 [ "$(sql "select tax = FLOOR((credits * 500 + 500) / 1000) and tax > 0 from trades where seller=$DRONE_ID and buyer=$MOON_STATION")" = 1 ] ||
@@ -273,26 +427,22 @@ wait_for 90 "the Moon Depot's station drone bought the drone's metal" sold
     fail "the sales tax wasn't recorded"
 echo "ok: a drone sold to the House station drone at once, and paid the sales tax out of the sale"
 no_tax
-wait_for 60 "drone finished the station script" idle
+wait_for 30 "the station sale worked" replied $DRONE_ID "station 0"
 
-# Mining deposits (#324 step 11): mining takes from the place's deposit. Empty
-# the Moon's kunspar deposit and stop it refilling: mining there yields
-# nothing. Let it refill again, and a few game hours later mining yields again.
-kunspar() { sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRONE_ID and resource=1100"; }
-sql "update deposits set refill_per_day = 0 where object_id = 10 and resource = 1100"
-sql "insert into deposit_state (object_id, resource, amount, refilled_t) values (10, 1100, 0, 0) on duplicate key update amount = 0"
-KUNSPAR=$(kunspar)
-run $DRONE_ID "mine dry" "11100 perform . cr"
 wait_for 90 "drone mined the empty deposit" sh -c "docker compose logs game-engine | grep -q 'Deposit of resource \[1100\] at \[10\]: \[0\] of'"
-wait_for 60 "drone finished mining the empty deposit" idle
+wait_for 60 "drone finished mining the empty deposit" replied $DRONE_ID "mined-dry gained 0 "
 [ "$(kunspar)" = "$KUNSPAR" ] || fail "a mined-out deposit still yielded kunspar"
 echo "ok: a mined-out deposit yields nothing"
+# Plunder (#324 step 12), the drone's next step but one: a drone where the
+# wreck is may plunder it, whoever owns it (#367 step 1). Put the wreck on
+# the Moon, where the first drone is, with 10 kunspar aboard; the plunderer
+# gets half and the wreck is left empty
+sql "update agents set object_id = 10 where agent_id = $DRY"
+give $DRY 1100 10 "$KIT + 10"
 sql "update deposits set refill_per_day = 40 where object_id = 10 and resource = 1100"
-sleep 5
-run $DRONE_ID "mine again" "11100 perform . cr"
 more_kunspar() { [ "$(kunspar)" -gt "$KUNSPAR" ]; }
 wait_for 90 "the deposit refilled over game time and yields again" more_kunspar
-wait_for 60 "drone finished mining again" idle
+wait_for 60 "drone finished mining again" replied $DRONE_ID "mined-again 0"
 
 [ -z "$(sql "select id from actions where drone=$DRONE_ID and aborted=1")" ] || fail "an action was aborted"
 echo "ok: no action aborted"
@@ -303,91 +453,6 @@ for svc in game-engine events-engine app; do
 done
 echo "ok: no service restarted"
 
-# Public Forge (#324 step 6): release a script on the website. It is
-# longer than one 2,048-character command, so it is released in pieces that
-# must all load, one after the other, before launched runs (#367)
-PADDING=$(for i in $(seq 1 40); do echo "\\ padding line $i: a released script may be as long as it likes"; done)
-release "Smoke Forge" ": hello  .\" forge-release-\" ;
-$PADDING
-: launched  hello .\" ok7\" ;" factory
-FORGE_DRONE=$(company_drone "Smoke Forge")
-[ -n "$FORGE_DRONE" ] || fail "release did not create a company and drone"
-# The kit the player chose (#380): this one asked for the Factory Kit
-[ "$(sql "select count(*) from sqInventory where drone=$FORGE_DRONE and resource=5902 and units=1")" = 1 ] ||
-    fail "the factory release didn't get a Factory Kit"
-echo "ok: a release gets the kit its player chose"
-echo "ok: release created a company with a drone"
-released() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and body like '%forge-release-ok7%' and body like '%has finished%'")" ]; }
-wait_for 90 "released drone ran launched; its reply is kept for the website" released
-FORGE_NAME=$(sql "select name from agents where agent_id=$FORGE_DRONE")
-# Public, on the drone's page (#367 step 3)
-wait_for 30 "the drone's page shows the reply" sh -c "curl -fsS http://localhost/spacecraft/$FORGE_DRONE | grep -q 'forge-release-ok7'"
-# Starter scripts and game words (#324 step 15): the Release page fills in
-# a starter, and a drone knows the game words
-# (fetch a page, then search it: with pipefail, "curl | grep -q" can fail
-# when grep stops reading before curl has written the whole page)
-fetch() { curl -fsS "$@" || echo "fetch failed: $*"; }
-grep -qF "kunspar wolfite richer" <<<"$(fetch -b "$JAR" "http://localhost/release?starter=miner")" || fail "the Release page did not offer the miner starter"
-echo "ok: the Release page offers the starter scripts"
-run $FORGE_DRONE "game words" "stdlib . moon . kunspar . fuel units 0> . 3 trip 0> ."
-knows_words() { [ -n "$(sql "select id from drone_messages where agent_id=$FORGE_DRONE and subject='game words' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%18101100-1-1'")" ]; }
-wait_for 60 "a drone knows the game words" knows_words
-
-# Broadcasts (#380): the released drone, at Earth, broadcasts a message, an
-# event; the first drone, on the Moon, reads it from the Earth database
-# (query 804) once light has carried it there, with its sender (820) and
-# text (844), and counts the drones at Earth (721)
-run $FORGE_DRONE "broadcast" ": hi \$\" smoke-hello\" ; hi broadcast ."
-said() { [ "$(sql "select count(*) from broadcasts b join events e on e.action = b.action_id join observations o on o.event = e.id
-                   where b.drone=$FORGE_DRONE and b.body='smoke-hello' and e.event_type=13 and e.outcome=1 and o.drone=0")" = 1 ]; }
-wait_for 60 "a drone broadcast a message" said
-run $DRONE_ID "hear" "earth crowd 0> . message-event events-earth . 0 event-id 2dup event-drone . message . answer count type"
-heard() { [ -n "$(sql "select id from drone_messages where agent_id=$DRONE_ID and subject='hear' and body like '%$FORGE_DRONE%smoke-hello%'")" ]; }
-wait_for 60 "another drone read the broadcast from the Earth database" heard
-echo "ok: drones broadcast messages, events others read from the Earth database"
-
-# The House fuel seller (#324 step 10; #380): the released drone, at Earth,
-# buys 10 fuel from the Earth Exchange's station drone like from any drone: a
-# pull from its sell order, at once, at 3 a unit (5 until #380 round 37)
-EARTH_STATION=$(sql "select agent_id from agents where station_id is not null and object_id = 3")
-[ -n "$EARTH_STATION" ] || fail "Earth has no House station drone"
-fuel_ask() { [ "$(sql "select count(*) from events where drone=$EARTH_STATION and event_type=4 and resource=2061 and outcome=1")" -ge 1 ]; }
-wait_for 180 "the Earth Exchange's station drone posts its fuel for sale" fuel_ask
-run $FORGE_DRONE "fuel" "10 2061 $EARTH_STATION 11 perform ."
-bought() { [ "$(sql "select count(*) from trades where seller=$EARTH_STATION and buyer=$FORGE_DRONE and resource=2061 and units=10 and credits=30")" = 1 ]; }
-wait_for 90 "a drone bought 10 fuel from the House at 3 a unit" bought
-# In its hold: the pull's increment event. (Its total can still fall: the
-# drone's computing is billed in fuel too)
-more_fuel() { [ "$(sql "select count(*) from events e join actions x on x.id = e.action
-                       where x.protocol = 11 and e.drone = $FORGE_DRONE and e.resource = 2061
-                       and e.event_type = 1 and e.outcome = 1")" -ge 1 ]; }
-wait_for 60 "the fuel arrived in its hold" more_fuel
-
-# A drone that never refuels dies (#324 step 8): release one that only
-# computes, leave it 1 unit of fuel, and it runs dry and becomes a wreck
-release "Dry Forge" ": launched  begin 0 until ;"
-DRY=$(company_drone "Dry Forge")
-[ -n "$DRY" ] || fail "release did not create the dry drone"
-KIT=$(sql "select mass from resources where id=5901")
-# (Stamped after the drone's latest event: the engines read a drone's stock
-# from its latest event in game time, so an event without one is ignored,
-# and the plunder below once failed on fuel the engine said wasn't there)
-sqlw "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
-     select 2, 0, 1, 1, $DRY, 2061, 0, 0, 1, $KIT + 1, IFNULL(MAX(game_t), 0) + 1 from events where drone = $DRY"
-dry() { [ "$(sql "select wreck_cause from agents where agent_id=$DRY")" = fuel ]; }
-wait_for 120 "a drone that runs out of fuel becomes a wreck" dry
-# A company ends when its last drone dies (#324 step 13): its credits vanish
-[ "$(sql "select concat(end_cause, ' ', credits) from companies where name='Dry Forge'")" = "drones 0" ] || fail "the company whose last drone died did not end"
-echo "ok: a company whose last drone died has ended"
-
-# Plunder (#324 step 12): a drone where the wreck is may plunder it, whoever
-# owns it (#367 step 1). Put the wreck on the Moon, where the first drone is,
-# with 10 kunspar aboard; the plunderer gets half and the wreck is left empty
-sql "update agents set object_id = 10 where agent_id = $DRY"
-sqlw "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
-     select 1, 0, 1, 1, $DRY, 1100, 0, 0, 10, $KIT + 10, IFNULL(MAX(game_t), 0) + 1 from events where drone = $DRY"
-KUNSPAR=$(kunspar)
-run $DRONE_ID "plunder" "$DRY 34 perform ."
 plundered() { [ "$(sql "select IFNULL(plundered_by, 0) from agents where agent_id=$DRY")" = "$DRONE_ID" ] &&
               [ "$(sql "select IFNULL(SUM(units), 0) from sqInventory where drone=$DRY")" = 0 ]; }
 if ! wait_quietly 90 plundered; then
@@ -400,44 +465,155 @@ if ! wait_quietly 90 plundered; then
     fail "another player's drone plundered the wreck, leaving it empty"
 fi
 echo "ok: another player's drone plundered the wreck, leaving it empty"
-got_half() { [ "$(kunspar)" -ge "$((KUNSPAR + 5))" ]; }
-wait_for 60 "the plunderer got half the wreck's kunspar" got_half
-wait_for 60 "drone finished plundering" idle
+if ! wait_quietly 90 replied $DRONE_ID "plunder 0 gained % half true"; then
+    # Say what the plunderer said and holds (#380: a CI run once failed here)
+    sql "select id, body from drone_messages where agent_id=$DRONE_ID order by id desc limit 6" >&2
+    sql "select resource, units from sqInventory where drone=$DRONE_ID and units <> 0" >&2
+    sql "select id, protocol, outcome, aborted from actions where drone=$DRONE_ID order by id desc limit 6" >&2
+    fail "the plunderer got half the wreck's kunspar"
+fi
+echo "ok: the plunderer got half the wreck's kunspar"
+
+# Public Forge (#324 step 6): release a script on the website. It is
+# longer than one 2,048-character command, so it is released in pieces that
+# must all load, one after the other, before launched runs (#367)
+PADDING=$(for i in $(seq 1 40); do echo "-- padding line $i: a released script may be as long as it likes"; done)
+FORGE_SCRIPT=$(cat <<LUA
+-- The smoke test's released drone (deploy/smoke-test.sh), at Earth: each
+-- step prints what it gave and reports it
+local function hello() return "forge-release-" end
+$PADDING
+local function say(text)
+  print(text)
+  report()
+end
+
+-- Units of a resource the Earth Exchange's station drone offers (0 until
+-- it posts its sell order)
+local function station_offer(resource)
+  for _, o in ipairs(ask(610, resource)) do
+    if o[4] == $EARTH_STATION then return math.max(o[3] - o[2], 0) end
+  end
+  return 0
+end
+
+function launched()
+  say(hello() .. "ok7")
+  -- The game's names
+  say("game-words " .. stdlib() .. " " .. moon .. " " .. kunspar .. " "
+      .. tostring(units(fuel) > 0) .. " " .. tostring(trip(earth) > 0))
+  -- A message for the drones that listen
+  say("broadcast " .. broadcast("smoke-hello"))
+  -- Buy 10 fuel from the Earth Exchange's station drone
+  while station_offer(fuel) < 10 do wait(60) end
+  say("fuel " .. pull(10, fuel, $EARTH_STATION))
+  -- Ask it for one more unit of a good than it offers: refused (-5), and
+  -- the fuel the try burned comes back
+  for _, good in ipairs({inorganics_a1, organics_a1, metals_a1, metals_a2, alloys_a1}) do
+    local n = station_offer(good)
+    if n > 0 then
+      local before = units(fuel)
+      local r = pull(n + 1, good, $EARTH_STATION)
+      say("too-much " .. r .. " fuel " .. before .. " " .. units(fuel) .. " got " .. units(good))
+      break
+    end
+  end
+  -- Once the test says (its balance past 90,000): sell fuel, see the order
+  -- here, and wait 1,200 game minutes, selling all the while
+  while credits() < 90000 do wait(60) end
+  local r = sell_order(1, 1, fuel)
+  local rows = ask(610, fuel)
+  local seen = rows[1] and rows[1][4] or 0
+  say("sell-and-wait " .. r .. " " .. seen .. " " .. wait(1200))
+end
+LUA
+)
+release "Smoke Forge" "$FORGE_SCRIPT" factory
+FORGE_DRONE=$(company_drone "Smoke Forge")
+[ -n "$FORGE_DRONE" ] || fail "release did not create a company and drone"
+# The kit the player chose (#380): this one asked for the Factory Kit
+[ "$(sql "select count(*) from sqInventory where drone=$FORGE_DRONE and resource=5902 and units=1")" = 1 ] ||
+    fail "the factory release didn't get a Factory Kit"
+echo "ok: a release gets the kit its player chose"
+echo "ok: release created a company with a drone"
+wait_for 90 "released drone ran launched; its reply is kept for the website" replied $FORGE_DRONE "forge-release-ok7"
+FORGE_NAME=$(sql "select name from agents where agent_id=$FORGE_DRONE")
+# Public, on the drone's page (#367 step 3)
+wait_for 30 "the drone's page shows the reply" sh -c "curl -fsS http://localhost/spacecraft/$FORGE_DRONE | grep -q 'forge-release-ok7'"
+# Starter scripts and game names (#324 step 15): the Release page fills in
+# a starter, and a drone knows the game's names (the library's version: 18)
+grep -qF "richer(kunspar, wolfite)" <<<"$(fetch -b "$JAR" "http://localhost/release?starter=miner")" || fail "the Release page did not offer the miner starter"
+echo "ok: the Release page offers the starter scripts"
+wait_for 60 "a drone knows the game's names" replied $FORGE_DRONE "game-words 18 10 1100 true true"
+
+# Broadcasts (#380): the released drone, at Earth, broadcasts a message, an
+# event; the first drone, on the Moon, reads it from the Earth database
+# (events_earth) once light has carried it there, with its sender and text,
+# and counts the drones at Earth
+sent() { [ "$(sql "select count(*) from broadcasts b join events e on e.action = b.action_id join observations o on o.event = e.id
+                   where b.drone=$FORGE_DRONE and b.body='smoke-hello' and e.event_type=13 and e.outcome=1 and o.drone=0")" = 1 ]; }
+wait_for 60 "a drone broadcast a message" sent
+wait_for 30 "the broadcast worked" replied $FORGE_DRONE "broadcast 0"
+wait_for 60 "another drone read the broadcast from the Earth database" replied $DRONE_ID "hear true $FORGE_DRONE smoke-hello"
+echo "ok: drones broadcast messages, events others read from the Earth database"
+
+# The House fuel seller (#324 step 10; #380): the released drone, at Earth,
+# buys 10 fuel from the Earth Exchange's station drone like from any drone: a
+# pull from its sell order, at once, at 3 a unit (5 until #380 round 37)
+fuel_ask() { [ "$(sql "select count(*) from events where drone=$EARTH_STATION and event_type=4 and resource=2061 and outcome=1")" -ge 1 ]; }
+wait_for 180 "the Earth Exchange's station drone posts its fuel for sale" fuel_ask
+bought() { [ "$(sql "select count(*) from trades where seller=$EARTH_STATION and buyer=$FORGE_DRONE and resource=2061 and units=10 and credits=30")" = 1 ]; }
+wait_for 90 "a drone bought 10 fuel from the House at 3 a unit" bought
+# In its hold: the pull's increment event. (Its total can still fall: the
+# drone's computing is billed in fuel too)
+more_fuel() { [ "$(sql "select count(*) from events e join actions x on x.id = e.action
+                       where x.protocol = 11 and e.drone = $FORGE_DRONE and e.resource = 2061
+                       and e.event_type = 1 and e.outcome = 1")" -ge 1 ]; }
+wait_for 60 "the fuel arrived in its hold" more_fuel
+wait_for 30 "the pull worked" replied $FORGE_DRONE "fuel 0"
+# A pull for more than the seller offers fails (-5) and costs no fuel (#380
+# round 38): the engine gives back the fuel it burned
+wait_for 60 "a pull for more than the seller offers fails with -5" replied $FORGE_DRONE "too-much -5 "
+wait_for 30 "the failed pull's fuel was given back" sh -c "docker compose logs events-engine game-engine | grep -q 'Drone \[$FORGE_DRONE\]: \[[0-9]*\] fuel given back by failed transfer action'"
+TOO_MUCH=$(sql "select body from drone_messages where agent_id=$FORGE_DRONE and body like '%too-much -5 %' limit 1" | grep -o 'too-much -5 fuel [0-9]* [0-9]* got [0-9]*')
+read -r _ _ _ FUEL_BEFORE FUEL_AFTER _ GOT <<<"$TOO_MUCH"
+# (computing between the two looks may cost a unit; no more, and none of the
+# good comes)
+[ -n "$GOT" ] && [ "$GOT" = 0 ] && [ "$FUEL_AFTER" -le "$FUEL_BEFORE" ] && [ "$FUEL_AFTER" -ge $((FUEL_BEFORE - 1)) ] ||
+    fail "the failed pull changed the drone's hold ($TOO_MUCH)"
+echo "ok: a pull for more than the seller offers fails and costs no fuel"
 
 # Waiting and local information (#324 step 14). The released drone, at
 # Earth, posts a sell order for fuel, checks it sees it there, and waits
-# 600 game minutes (10 seconds here). While it waits it runs no
+# 1,200 game minutes (20 seconds here). While it waits it runs no
 # instructions, yet it still sells: a buyer pulls from it.
-# (match the replies' end without spaces, newlines or carriage returns)
-reply_ends() { [ "$(sql "select count(*) from drone_messages where agent_id=$1 and subject='$2' and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%$3'")" -ge 1 ]; }
 # (at 1 a unit its order is the cheapest here, so the first row: the Earth
-# Exchange's station drone sells fuel too, at 5; a row's drone is at +8)
-run $FORGE_DRONE "sell and wait" "1 1 2061 7 perform . create o 40 allot 2061 o 40 610 query drop o 8 + @ . 600 3 perform ."
-forge_waits() { [ "$(sql "select a.protocol from agents g join actions a on a.id = g.waiting_action where g.agent_id=$FORGE_DRONE")" = 3 ]; }
+# Exchange's station drone sells fuel too, at 3)
+FORGE_COMPANY=$(sql "select company_id from agents where agent_id=$FORGE_DRONE")
+sql "update companies set credits = 90000 where company_id = $FORGE_COMPANY"
+# (its sell order first: until the test says, it waits a game hour at a time)
+forge_waits() { [ "$(sql "select count(*) from events where drone=$FORGE_DRONE and event_type=4 and resource=2061 and outcome=1")" -ge 1 ] &&
+                [ "$(sql "select a.protocol from agents g join actions a on a.id = g.waiting_action where g.agent_id=$FORGE_DRONE")" = 3 ]; }
 wait_for 60 "a drone with a sell order is waiting" forge_waits
 BEFORE=$(sql "select instructions from agents where agent_id=$FORGE_DRONE")
 # The first drone (another player's) comes to Earth and buys 2 fuel from it
 sql "update agents set object_id = 3 where agent_id = $DRONE_ID"
-run $DRONE_ID "buy from a waiting drone" "2 2061 $FORGE_DRONE 11 perform ."
 sold_waiting() { [ "$(sql "select count(*) from trades where seller=$FORGE_DRONE and buyer=$DRONE_ID and resource=2061 and units=2")" = 1 ]; }
 wait_for 30 "a waiting drone still sells (the buyer pulls from it)" sold_waiting
 forge_waits || fail "the seller stopped waiting before its wait was up"
 [ "$(sql "select instructions from agents where agent_id=$FORGE_DRONE")" = "$BEFORE" ] || fail "a waiting drone ran instructions"
 echo "ok: a waiting drone runs no instructions"
-wait_for 60 "drone finished buying" idle
+wait_for 60 "drone finished buying" replied $DRONE_ID "bought 0 from $FORGE_DRONE"
 # Back on the Moon, the first drone can't see Earth's live orders (query
 # 611 used to list orders anywhere); the seller, at Earth, saw its own
 sql "update agents set object_id = 10 where agent_id = $DRONE_ID"
 # (the Moon Depot's station drone sells fuel there: the seller's order at 1
 # a unit would be the cheapest, so the first row, if the drone saw it)
-run $DRONE_ID "orders far" "create o 40 allot 2061 o 40 611 query 0> if .\" far:\" o 8 + @ . else .\" far:none\" then cr"
-blind_far() { [ "$(sql "select count(*) from drone_messages where agent_id=$DRONE_ID and subject='orders far'
-                       and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') like '%far:%'
-                       and replace(replace(replace(body, ' ', ''), '\\n', ''), '\\r', '') not like '%far:${FORGE_DRONE}'")" -ge 1 ]; }
+blind_far() { replied $DRONE_ID "far:%:end" && ! replied $DRONE_ID "far:$FORGE_DRONE:end"; }
 wait_for 60 "a drone on the Moon can't see Earth's live orders" blind_far
-wait_for 60 "drone finished asking" idle
-sees_here() { reply_ends $FORGE_DRONE 'sell and wait' "0${FORGE_DRONE}0"; }
-wait_for 60 "the seller saw its order at Earth and its wait ended" sees_here
+wait_for 60 "drone finished its launched function" finished $DRONE_ID
+wait_for 60 "the seller saw its order at Earth and its wait ended" replied $FORGE_DRONE "sell-and-wait 0 $FORGE_DRONE 0"
+wait_for 30 "the seller's launched function has finished" replied $FORGE_DRONE "has finished"
 
 # The Drone page (#324 step 16): a released drone shows its code and a Copy
 # button; a wreck has a post-mortem in plain words
@@ -474,7 +650,7 @@ TEST_WORLD=1 docker compose --profile testworld up -d app test-game-engine test-
 wait_for 120 "the Release page has a Test button" sh -c "curl -fsS -b '$JAR' http://localhost/release | grep -q 'release/test'"
 # Each test run has its own page (#367 step 3): the Test button leads there
 TEST_PAGE=$(curl -fsS -c "$JAR" -b "$JAR" -o /dev/null -w '%{redirect_url}' -X POST http://localhost/release/test --data-urlencode "_token=$(token /release)" \
-    --data-urlencode $'script=: hello  ." test-world-" ;\n: launched  hello ." ok8" ;')
+    --data-urlencode $'script=local function hello() return "test-world-" end\nfunction launched()\n  print(hello() .. "ok8")\nend')
 sqltest() {
     docker compose exec -T db sh -c 'mysql -N -uexmachinis -p"$MYSQL_PASSWORD" exmachinis_test 2>/dev/null' <<<"$1"
 }

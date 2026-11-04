@@ -17,25 +17,28 @@ Don't try to keep one company alive at all costs. Build a **lineage**: release, 
 
 ## Make your drone easy to learn from
 
-You can only learn from what you can see. What a drone prints reaches you when its script ends or when it calls `report`, and a `launched` word that loops forever never ends. So send a short line home now and then, with the numbers you'll want when you work out what went wrong:
+You can only learn from what you can see. What a drone prints reaches you when `launched` returns or when it calls `report()`, and a `launched` function that loops forever never returns. So send a short line home now and then, with the numbers you'll want when you work out what went wrong:
 
-```forth
-\ Every 8th round, send a line home: credits, fuel and where it is
-variable rounds
-: tell ( -- )
-  1 rounds +!  rounds @ 8 mod if exit then
-  ." credits " credits d. ." fuel " fuel units . ." at " location . report ;
+```lua
+-- Every 8th round, send a line home: credits, fuel and where it is
+rounds = 0
+function tell()
+  rounds = rounds + 1
+  if rounds % 8 ~= 0 then return end
+  print("credits " .. credits() .. " fuel " .. units(fuel) .. " at " .. location())
+  report()
+end
 ```
 
 Then guard against the failures you've already seen, so the next company doesn't die of the same thing:
 
-```forth
-\ Round 25: a company spent its fuel money on goods. Keep a floor.
-300 constant cash-floor
-: can-spend? ( -- f ) credits cash-floor 0 d< 0= ;
-\ Round 22: miners spent their last fuel flying between dry moons. Below
-\ 15 fuel, wait instead of flying
-: can-fly? ( -- f ) fuel units 15 < 0= ;
+```lua
+-- Round 25: a company spent its fuel money on goods. Keep a floor.
+cash_floor = 300
+function can_spend() return credits() >= cash_floor end
+-- Round 22: miners spent their last fuel flying between dry moons. Below
+-- 15 fuel, wait instead of flying
+function can_fly() return units(fuel) >= 15 end
 ```
 
 ## How to iterate

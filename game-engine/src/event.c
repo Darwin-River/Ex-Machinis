@@ -1313,7 +1313,12 @@ static Bool_t event_get_transfer_partner(Event_t *event, Event_t *partner)
                                    event->event_id, partner) != ENGINE_OK)
         return ENGINE_FALSE;
 
-    return (partner->resource_id == event->resource_id) ? ENGINE_TRUE : ENGINE_FALSE;
+    // The two halves are two drones' (#380 round 38): in a pull of fuel,
+    // the buyer's own fuel cost is a fuel decrement too, and paired with
+    // the buyer's increment it delivered the fuel while the seller's half
+    // failed on its own: an over-pull got its fuel unpaid
+    return (partner->resource_id == event->resource_id && partner->drone_id != event->drone_id)
+        ? ENGINE_TRUE : ENGINE_FALSE;
 }
 
 /** ****************************************************************************
@@ -1355,6 +1360,7 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
 
         event_record_failure(&first, OUTCOME_NO_LOCAL);
         event_record_failure(&second, OUTCOME_ACTION_ABORTED);
+        db_refund_fuel(event->action_id);   // a failed transfer costs no fuel (#380 round 38)
         return ENGINE_LOGIC_ERROR;
     }
 
@@ -1384,6 +1390,7 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
         event_record_failure(&first, OUTCOME_ACTION_ABORTED);
         event_record_failure(&second, partner->outcome);
     }
+    db_refund_fuel(event->action_id);   // a failed transfer costs no fuel (#380 round 38)
 
     return ENGINE_LOGIC_ERROR;
 }

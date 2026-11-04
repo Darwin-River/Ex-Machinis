@@ -1,4 +1,4 @@
--- Systems shop, in Lua (#380): systems.fth line for line (Farid's design
+-- Systems shop, in Lua (#380) (Farid's design
 -- from economy round 33, the best in the starter-library race). Release it
 -- with the Factory Kit.
 -- Pumps, pistons and valves: every exchange bids for them. A pump or a
@@ -131,11 +131,12 @@ function equip_clone()
   push(40, fuel, newest.drone)
 end
 function fill_to(n)
-  local need = n - units(fuel)
+  local had = units(fuel)
+  local need = n - had
   if need <= 0 then return end
   buy_here(need, fuel)
   for _ = 1, 6 do
-    if units(fuel) >= n then return end
+    if units(fuel) > had then return end
     wait(60)
   end
 end

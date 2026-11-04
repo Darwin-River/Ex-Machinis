@@ -22,7 +22,6 @@ Route::get('/', 'HomeController@index')->name('Ex-Machinis');
 Route::get('/home', 'HomeController@index')->name('home');
 
 //static pages
-Route::get('/forth-dictionary', 'HomeController@forthDictionary');
 Route::get('/getting-started', 'HomeController@playersManual');
 Route::get('/getting-started/images/{file}', 'HomeController@playersManualImage')->where('file', '[A-Za-z0-9_-]+\.(png|jpg|jpeg|gif|svg)');
 Route::get('/about-us', 'HomeController@aboutUs');
@@ -70,7 +69,6 @@ Route::get('/market', 'WorldController@market');
 Route::get('/market/history', 'WorldController@history');
 Route::get('/map', 'WorldController@map');
 Route::get('/leaderboard', 'WorldController@leaderboard');
-Route::get('/machine', 'WorldController@machine');
 Route::get('/machine/queries', 'WorldController@machineQueries');
 Route::get('/machine/protocols', 'WorldController@machineProtocols');
 Route::get('/machine/query', 'WorldController@machineQuery')->middleware('throttle:240,1');

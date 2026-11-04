@@ -64,14 +64,6 @@ class HomeController extends Controller
         return response('ok');
     }
 
-    /**
-     * Display static page with forth dictionary
-     */
-    public function forthDictionary()
-    {
-        return view('pages.forth-dictionary');
-    }
-
     /** Where the players' manual and its images live */
     private const PLAYERS_MANUAL = 'documents/players-manual.md';
     private const MANUAL_IMAGES = 'documents/images';

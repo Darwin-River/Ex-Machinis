@@ -18,7 +18,7 @@ class DronePageTest extends TestCase
 {
     use DatabaseTransactions;
 
-    private const SCRIPT = "\\ A miner\n: dig ( n -- ) drop ;\n: launched ( -- )  5 dig ;";
+    private const SCRIPT = "-- A miner\nfunction dig(n) -- n units\nend\n\nfunction launched()\n  dig(5)\nend\n";
 
     protected function setUp(): void
     {
@@ -32,17 +32,17 @@ class DronePageTest extends TestCase
 
     public function testNormalisedSourceIgnoresCommentsAndSpacing()
     {
-        $this->assertSame(': dig drop ; : launched 5 dig ;', Provenance::normalise(self::SCRIPT));
-        $this->assertSame(Provenance::hash(self::SCRIPT), Provenance::hash(":   dig   drop ;\n\n: launched 5 dig ; \\ go"));
-        $this->assertSame(['dig' => ': dig drop ;', 'launched' => ': launched 5 dig ;'], Provenance::words(self::SCRIPT));
-        $this->assertSame(': dig ( n -- ) drop ;', Provenance::wordSource(self::SCRIPT, 'dig'));
+        $this->assertSame('function dig(n) end function launched() dig(5) end', Provenance::normalise(self::SCRIPT));
+        $this->assertSame(Provenance::hash(self::SCRIPT), Provenance::hash("function   dig(n)\nend\nfunction launched()  dig(5) -- go\nend"));
+        $this->assertSame(['dig' => 'function dig(n) end', 'launched' => 'function launched() dig(5) end'], Provenance::words(self::SCRIPT));
+        $this->assertSame("function dig(n) -- n units\nend", Provenance::wordSource(self::SCRIPT, 'dig'));
     }
 
     public function testDronePageShowsItsCodeAndState()
     {
         $agent = Release::release($this->player('a@example.com'), 'Diggers', self::SCRIPT);
         $this->get('/spacecraft/' . $agent->agent_id)->assertOk()
-            ->assertSee('Copy this code')->assertSee(': dig ( n -- ) drop ;', false)
+            ->assertSee('Copy this code')->assertSee('function dig(n) -- n units', false)
             ->assertSee('release?copy=' . $agent->agent_id . '&amp;word=dig', false)
             ->assertSee('Diggers')->assertSee('Generation');
     }
@@ -52,7 +52,7 @@ class DronePageTest extends TestCase
         $original = Release::release($this->player('a@example.com'), 'Diggers', self::SCRIPT);
         $this->get('/release?copy=' . $original->agent_id)->assertOk()
             ->assertSee('name="copied_from" value="' . $original->agent_id . '"', false)
-            ->assertSee(': launched ( -- )  5 dig ;', false);
+            ->assertSee('  dig(5)', false);
         $this->get('/release?copy=' . $original->agent_id . '&word=dig')->assertOk()
             ->assertSee('name="copied_word" value="dig"', false);
 
@@ -68,8 +68,8 @@ class DronePageTest extends TestCase
         $original = Release::release($this->player('a@example.com'), 'Diggers', self::SCRIPT);
         // Another player pastes the same code, laid out differently, and
         // reuses the word dig in a new script
-        $pasted = Release::release($this->player('b@example.com'), 'Pasters', ": dig drop ;\n: launched 5 dig ;");
-        $mixed = Release::release($this->player('c@example.com'), 'Mixers', ": dig ( a -- ) drop ;\n: launched 7 dig ;");
+        $pasted = Release::release($this->player('b@example.com'), 'Pasters', "function dig(n)\nend\nfunction launched() dig(5)\nend");
+        $mixed = Release::release($this->player('c@example.com'), 'Mixers', "function dig(n) -- a\nend\nfunction launched()\n  dig(7)\nend");
 
         $this->get('/spacecraft/' . $pasted->agent_id)->assertSee('The same code as');
         $this->get('/spacecraft/' . $mixed->agent_id)->assertSee('first in <a href="' . url('spacecraft/' . $original->agent_id), false);
@@ -82,7 +82,7 @@ class DronePageTest extends TestCase
         $cloneId = DB::table('agents')->insertGetId(['user_id' => $parent->user_id, 'company_id' => $parent->company_id,
             'name' => 'SN-CLONE-1', 'object_id' => 3, 'hull_type' => 1,
             'parent_id' => $parent->agent_id, 'code_from' => $parent->agent_id, 'generation' => 1]);
-        $this->get('/spacecraft/' . $cloneId)->assertOk()->assertSee('Inherited from')->assertSee(': dig ( n -- ) drop ;', false);
+        $this->get('/spacecraft/' . $cloneId)->assertOk()->assertSee('Inherited from')->assertSee('function dig(n) -- n units', false);
         $this->get('/spacecraft/' . $parent->agent_id)->assertSee('SN-CLONE-1');
     }
 

@@ -9,58 +9,17 @@ use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * The Machine view (#324 step 19). The machine itself is tested in CI by
- * game-engine/machine (make test), against the engine's own VM.
+ * Live queries (#380): /machine/query runs a game query as a drone would.
+ * (The Machine page, a FORTH machine in the browser, went with FORTH.)
  */
-class MachinePageTest extends TestCase
+class LiveQueryTest extends TestCase
 {
     use DatabaseTransactions;
 
-    public function testMachinePageLoadsTheVm()
-    {
-        $this->get('/machine')->assertOk()
-            ->assertSee('id="m-defs"', false)
-            ->assertSee('wasm/machine.wasm', false)
-            ->assertSee('wasm/machine.js', false)
-            ->assertSee(': cube ( n -- n*n*n ) dup square * ;', false);
-    }
-
-    public function testMachinePageTakesAWordFromTheLink()
-    {
-        $this->get('/machine?defs=' . urlencode(': twice 2 * ;') . '&stack=21&word=twice')->assertOk()
-            ->assertSee(': twice 2 * ;')
-            ->assertSee('value="21"', false)
-            ->assertSee('value="twice"', false);
-    }
-
-    public function testMachinePageWarnsWhenAskingAsAStationDrone()
-    {
-        // Round 30: a drone doesn't see its own orders, so asking as a
-        // station drone showed its station's prices as 0 with no warning
-        $user = User::create(['name' => 'Forge Player', 'email' => 'm@example.com', 'password' => bcrypt('secret-password')]);
-        $station = Release::release($user, 'Stand-in Station', ': launched ;');
-        $player = Release::release($user, 'Players', ': launched ;');
-        DB::table('stations')->insert(['id' => 903, 'name' => 'Test Exchange', 'object_id' => 3, 'budget_cap' => 0, 'refill_per_day' => 0]);
-        DB::table('agents')->where('agent_id', $station->agent_id)->update(['station_id' => 903]);
-
-        $page = $this->get('/machine?drone=' . $station->agent_id)->assertOk()->assertSee('is a House station drone')->getContent();
-        $this->assertDoesNotMatchRegularExpression('/id="m-station-warning"[^>]*display:none/', $page, 'shown for a station drone');
-        $page = $this->get('/machine?drone=' . $player->agent_id)->assertOk()->getContent();
-        $this->assertMatchesRegularExpression('/id="m-station-warning"[^>]*display:none/', $page, 'hidden for a player\'s drone');
-        $this->assertStringNotContainsString('value="' . $station->agent_id . '" ', $page, 'not offered as a place to ask from');
-    }
-
-    public function testTheVmIsServed()
-    {
-        $this->assertFileExists(base_path('html/wasm/machine.wasm'));
-        $this->assertSame("\0asm", substr(file_get_contents(base_path('html/wasm/machine.wasm')), 0, 4));
-    }
-
-    /** A drone to ask as, and a query that shows every kind of field */
     private function liveSetup(): int
     {
         $user = User::where('email', 'a@example.com')->first() ?? User::forceCreate(['name' => 'A', 'email' => 'a@example.com', 'password' => 'x']);
-        $agent = Release::release($user, 'Askers', ': launched ;');
+        $agent = Release::release($user, 'Askers', 'function launched() end');
         DB::table('queries')->insert(['id' => 9901, 'name' => 'Test fields', 'description' => 'test', 'parameters' => 3,
             'script' => "SELECT [value_1] AS n, [dvalue_2] AS d_big, 'Moon' AS place, [drone_id] AS me UNION ALL "
                 . "SELECT -2, 70000, 'Mars', 1;"]);
@@ -91,7 +50,10 @@ class MachinePageTest extends TestCase
         $this->assertEquals(-2, $this->getJson("/machine/query?id=9902&drone=$drone&size=120")->json('code'));
         $this->assertEquals(-3, $this->getJson("/machine/query?id=9999&drone=$drone&size=120")->json('code'));
         $this->assertEquals(-1, $this->getJson("/machine/query?id=9901&drone=$drone&size=120&v[]=1")->json('code'));
-        // The page learns each query's parameters
+        // The rows by name, and the whole answer when no size is given
+        $this->assertEquals('Moon', $answer['rows'][0]['place']);
+        $this->assertEquals(2, $this->getJson("/machine/query?id=9901&drone=$drone&v[]=5&v[]=1&v[]=4464")->json('code'));
+        // Each query's parameters
         $this->getJson('/machine/queries')->assertOk()->assertJsonPath('9901.parameters', 3);
     }
 

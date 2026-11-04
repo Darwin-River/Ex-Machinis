@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * House station drones (#380): the House trades as drones, by the same rules
  * as the players (orders, pulls and pushes, the sales tax), from a Drop
- * Station hull at each exchange. Each runs resources/house/station.fth, and
+ * Station hull at each exchange. Each runs resources/house/station.lua, and
  * carries an Import Station and an Export Station: modules no player can get,
  * which bring goods up from the planet surface and send them down.
  *
@@ -27,7 +27,7 @@ class HouseStations
     public const IMPORT_STATION = 5911;
     public const EXPORT_STATION = 5921;
     public const START_FUEL = 1000;
-    public const FUEL_RESERVE = 500;   // station.fth's reserve
+    public const FUEL_RESERVE = 500;   // station.lua's reserve
 
     /** The station drones made, by exchange name */
     public static function ensure(): array
@@ -66,7 +66,7 @@ class HouseStations
                 $agent->save();
                 $agent->agent_id = $agent->id;
                 DB::table('agents')->where('agent_id', $agent->agent_id)
-                    ->update(['station_id' => $station->id, 'program_md5' => md5($script)]);
+                    ->update(['station_id' => $station->id, 'program_md5' => md5($script), 'language' => 'lua']);
                 $cargo = $agent->addCargo(self::IMPORT_STATION);
                 $cargo = $agent->addCargo(self::EXPORT_STATION, 1, $cargo);
                 $cargo = $agent->addCargo(Release::FUEL, self::START_FUEL, $cargo);
@@ -95,7 +95,8 @@ class HouseStations
             DB::table('commands')->where('agent_id', $agentId)->delete();
             DB::table('agents')->where('agent_id', $agentId)->update([
                 'vm' => null, 'release_vm' => null, 'waiting_action' => null, 'pending_input' => null,
-                'launched_running' => 0, 'crashes_in_row' => 0, 'program_md5' => md5($script)]);
+                'launched_running' => 0, 'crashes_in_row' => 0, 'program_md5' => md5($script),
+                'language' => 'lua', 'lua_script' => null, 'lua_state' => null]);
             foreach (Release::chunks($script) as $chunk) {
                 Command::create(['code' => $chunk, 'agent_id' => $agentId, 'subject' => 'Station',
                     'email_content' => '']);
@@ -128,7 +129,7 @@ class HouseStations
     /** The station drones' program */
     public static function script(): string
     {
-        return str_replace("\r\n", "\n", file_get_contents(resource_path('house/station.fth')));
+        return str_replace("\r\n", "\n", file_get_contents(resource_path('house/station.lua')));
     }
 
     /** The House's companies (the leaderboard and the company counts leave them out) */

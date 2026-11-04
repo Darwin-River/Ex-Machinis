@@ -56,29 +56,24 @@ class Release
     }
 
     /** The kit each starter script needs */
-    public const STARTER_KITS = ['miner' => 'mining', 'refiner' => 'mining', 'trader' => 'mining', 'maker' => 'factory',
-                                 'miner.lua' => 'mining', 'refiner.lua' => 'mining', 'trader.lua' => 'mining',
-                                 'maker.lua' => 'factory'];
+    public const STARTER_KITS = ['miner' => 'mining', 'refiner' => 'mining', 'trader' => 'mining', 'maker' => 'factory'];
 
+    /** The starter scripts, in Lua (FORTH was retired after round 38, #380) */
     public const STARTERS = [
         'miner' => 'Mines kunspar on the Moon, refines it and sells the metals to the Moon Depot.',
         'refiner' => 'Brews fuel on the Moon from yalspar and vladnium, and sells what it doesn\'t need to other drones.',
         'trader' => 'Buys metals from miners on the Moon when the price board says Mars or Earth pays enough more, and hauls them to whichever pays most.',
         'maker' => 'Buys metals on the Moon where they are cheapest, makes alloys and rods, and sells them where they pay best.',
-        'miner.lua' => 'The Miner in Lua instead of FORTH (#380): the same drone.',
-        'refiner.lua' => 'The Refiner in Lua instead of FORTH (#380): the same drone.',
-        'trader.lua' => 'The Trader in Lua instead of FORTH (#380): the same drone.',
-        'maker.lua' => 'The Maker in Lua instead of FORTH (#380): the same drone.',
     ];
 
-    /** A starter script's source, or null for an unknown name */
+    /** A starter script's source, or null for an unknown name ("maker" or "maker.lua") */
     public static function starter(string $name): ?string
     {
+        $name = preg_replace('/\.lua$/', '', $name);
         if (!array_key_exists($name, self::STARTERS)) {
             return null;
         }
-        // A name with its extension (maker.lua) is that file; else FORTH's .fth
-        $path = base_path('examples/starters/' . (str_contains($name, '.') ? $name : "{$name}.fth"));
+        $path = base_path("examples/starters/{$name}.lua");
         return is_readable($path) ? file_get_contents($path) : null;
     }
 
@@ -86,114 +81,14 @@ class Release
     public const FUEL = 2061;
 
     /**
-     * The words a script defines that a drone already knows (#380): the
-     * game words, report, and eForth's own (resources/drone-words.txt, kept
-     * in step with the VM by make -C game-engine/machine test). A script may
-     * redefine them, but it is almost always a mistake: three newcomers'
-     * scripts named a word report, which silenced their drones.
-     */
-    public static function redefinedWords(string $script): array
-    {
-        static $known = null;
-        if ($known === null) {
-            $path = base_path('resources/drone-words.txt');
-            $known = is_readable($path) ? array_flip(preg_split('/\s+/', trim(file_get_contents($path)))) : [];
-        }
-        // Comments out: \ to the end of the line, ( ... ) inside it
-        $text = preg_replace(['/(^|\s)\\\\(\s[^\n]*)?$/m', '/(^|\s)\(\s[^)]*\)/'], ' ', $script);
-        $tokens = preg_split('/\s+/', trim($text));
-        $found = [];
-        foreach ($tokens as $i => $token) {
-            if (in_array(strtolower($token), [':', 'variable', 'constant', 'create', '2variable', '2constant'], true)
-                && isset($tokens[$i + 1]) && isset($known[$tokens[$i + 1]])) {
-                $found[$tokens[$i + 1]] = true;
-            }
-        }
-        return array_keys($found);
-    }
-
-    /**
-     * The warning to show for a script that uses words nothing defines or
-     * redefines known ones, or null
+     * The warning to show for a script that uses names nothing defines or
+     * sets names the game uses, or null (Lua; FORTH was retired, #380)
      */
     public static function redefinedWarning(string $script): ?string
     {
-        if (self::isLua($script)) {
-            return self::luaRedefinedWarning($script);
-        }
-        $undefined = self::undefinedWords($script);
-        $warnings = [];
-        if ($undefined) {
-            $warnings[] = 'Your script uses ' . implode(', ', $undefined) . ', which '
-                . (count($undefined) > 1 ? 'aren\'t defined' : 'isn\'t defined')
-                . ' before ' . (count($undefined) > 1 ? 'they\'re' : 'it\'s') . ' used: '
-                . 'a line using ' . (count($undefined) > 1 ? 'one' : 'it') . ' fails to load with -13. '
-                . 'Check the spelling (case matters), or define it earlier in the script.';
-        }
-        if ($redefined = self::redefinedText($script)) {
-            $warnings[] = $redefined;
-        }
-        return $warnings ? implode(' ', $warnings) : null;
+        return self::isLua($script) ? self::luaRedefinedWarning($script) : null;
     }
 
-    /** The part of the warning about redefined words, or null */
-    private static function redefinedText(string $script): ?string
-    {
-        $words = self::redefinedWords($script);
-        if (!$words) {
-            return null;
-        }
-        return 'Your script redefines ' . implode(', ', $words) . ': ' . (count($words) > 1 ? 'words' : 'a word')
-            . ' your drone already knows. Words written after it use yours instead'
-            . (in_array('report', $words, true) ? ' (report is how a looping drone sends you what it printed)' : '')
-            . '. If you didn\'t mean to, rename yours.';
-    }
-
-    /**
-     * The words a script uses before anything defines them (#380): neither
-     * a word the drone knows nor one the script defined on an earlier line
-     * or earlier on the same line. Loading such a line fails with -13 (the
-     * VM's "undefined word"), and round 29's testers couldn't tell which word
-     * it was. Case matters, as on the drone. Comments and strings are skipped.
-     */
-    public static function undefinedWords(string $script): array
-    {
-        static $known = null;
-        if ($known === null) {
-            $path = base_path('resources/drone-words.txt');
-            $known = is_readable($path) ? array_flip(preg_split('/\s+/', trim(file_get_contents($path)))) : [];
-        }
-        $text = preg_replace([
-            '/(^|\s)\\\\(\s[^\n]*)?$/m',               // \ to the end of the line
-            '/(^|\s)\.?\(\s[^)]*\)/',                   // ( ... ) and .( ... )
-            '/(^|\s)(\."|\$"|abort")\s[^"]*"/',         // strings
-        ], ' ', $script);
-        $tokens = preg_split('/\s+/', trim($text), -1, PREG_SPLIT_NO_EMPTY);
-        $defined = [];
-        $found = [];
-        $defining = [':', 'variable', 'constant', 'create', '2variable', '2constant'];
-        for ($i = 0; $i < count($tokens); $i++) {
-            $token = $tokens[$i];
-            if (in_array(strtolower($token), $defining, true)) {
-                if (isset($tokens[$i + 1])) {
-                    $defined[$tokens[++$i]] = true;
-                }
-                continue;
-            }
-            if (in_array($token, ['char', '[char]'], true)) {
-                $i++;
-                continue;
-            }
-            if (isset($known[$token]) || isset($defined[$token])
-                || preg_match('/^-?\d+\.?$|^\$-?[0-9a-fA-F]+$/', $token)) {
-                continue;
-            }
-            $found[$token] = true;
-        }
-        return array_keys($found);
-    }
-
-    /** A script must define the word launched (case matters) */
     /**
      * Why a script can't be released, or null: it must define launched, and
      * no line may be longer than the drone reads. The Release page and the
@@ -201,28 +96,27 @@ class Release
      */
     public static function scriptProblem(string $script): ?string
     {
-        if (self::isLua($script)) {
-            foreach (explode("\n", $script) as $i => $line) {
-                if (mb_strlen($line) > \App\Command::MAX_CODE_LENGTH) {
-                    return 'Line ' . ($i + 1) . ' is too long: split it into shorter lines.';
-                }
-            }
-            return self::luaProblem($script);   // isLua found its launched function
-        }
         foreach (explode("\n", $script) as $i => $line) {
             if (mb_strlen($line) > \App\Command::MAX_CODE_LENGTH) {
                 return 'Line ' . ($i + 1) . ' is too long: split it into shorter lines.';
             }
         }
-        if (!self::definesLaunched($script)) {
-            return 'Your script must define the word launched (": launched ... ;"): your drone runs it once it is released.';
+        if (!self::isLua($script)) {
+            // FORTH was retired after round 38 (#380): drones already running
+            // in FORTH carry on, but new scripts are Lua
+            if (preg_match('/(^|\s):\s+launched(\s|$)/', $script) === 1) {
+                return 'FORTH has been retired: write your drone in Lua. Define function launched() ... end; '
+                    . 'the starters and the players\' manual show how.';
+            }
+            return 'Your script must define the function launched ("function launched() ... end"): '
+                . 'your drone runs it once it is released.';
         }
-        return null;
+        return self::luaProblem($script);
     }
 
     public static function definesLaunched(string $script): bool
     {
-        return preg_match('/(^|\s):\s+launched(\s|$)/', $script) === 1 || self::isLua($script);
+        return self::isLua($script);
     }
 
     /**

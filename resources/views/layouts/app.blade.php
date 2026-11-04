@@ -143,11 +143,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                                                         href="{{url('protocols')}}">Protocols</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('queries')}}">Queries</a></li>
-                                    <!-- Hiding the FORTH Dictionary for now.
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('forth-dictionary')}}">FORTH
-                                                Dictionary</a></li>
-                                        -->
                                     </ul>
                                 </li>
                                 <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
@@ -178,8 +173,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                                                         href="{{url('map')}}">Map</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('leaderboard')}}">Leaderboard</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('machine')}}">Machine</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('buys')}}">Buy Orders</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
@@ -219,11 +212,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                                                         href="{{url('protocols')}}">Protocols</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('queries')}}">Queries</a></li>
-                                    <!-- Hiding the FORTH Dictionary for now.
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('forth-dictionary')}}">FORTH
-                                                Dictionary</a></li>
-                                        -->
                                     </ul>
                                 </li>
                                 <li class="d-none d-lg-inline-block"><a class="" href="{{url('companies')}}">Infrastructure</a><span
@@ -251,8 +239,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('leaderboard')}}">Leaderboard</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('machine')}}">Machine</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('buys')}}">Buy Orders</a></li>
                                         <li class="rd-dropdown-item"><a class="rd-dropdown-link"
                                                                         href="{{url('sells')}}">Sell Orders</a></li>
@@ -275,7 +261,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                 <li class="d-block d-lg-none"><a href="{{url('queries')}}">Queries</a></li>
                               -->
                             <!-- Hide for now.
-                                <li class="d-block d-lg-none"><a href="{{url('forth-dictionary')}}">FORTH Dictionary</a></li>
                                 -->
                                 <!--
                                 <li class="d-block d-lg-none"><a href="{{url('locations')}}">Locations</a></li>

@@ -102,7 +102,7 @@ class DronePage
         if (DB::table('commands')->where('agent_id', $agent->agent_id)->exists()) {
             return 'running its script';
         }
-        return $agent->launched_running ? 'running its launched word' : 'idle';
+        return $agent->launched_running ? 'running its launched function' : 'idle';
     }
 
     public static function state(Agent $agent): array
@@ -287,13 +287,13 @@ class DronePage
                         . number_format(intdiv($ran, config('forge.power_instructions', 200000))) . ' fuel of computing.';
                 }
                 if ($agent->release_vm === null && $agent->parent_id === null) {
-                    $cause .= ' It never started its launched word.';
+                    $cause .= ' It never started its launched function.';
                 }
                 break;
             case 'crashes':
                 $crash = DB::table('drone_crashes')->where('drone', $id)->orderBy('id', 'desc')->first();
                 $error = $crash ? (self::ERRORS[(int) $crash->code] ?? 'error ' . $crash->code) : 'an error';
-                $cause = 'Its launched word crashed ' . ($crash ? $crash->in_row : 'too many') . " times in a row, the last time with $error, and it was given up on $when.";
+                $cause = 'Its launched function crashed ' . ($crash ? $crash->in_row : 'too many') . " times in a row, the last time with $error, and it was given up on $when.";
                 break;
             case 'tax':
                 $bill = DB::table('company_taxes')->where('company_id', $agent->company_id)->where('eliminated', 1)->orderBy('id', 'desc')->first();

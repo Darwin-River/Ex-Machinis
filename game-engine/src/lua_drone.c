@@ -559,8 +559,24 @@ static void lua_drone_sandbox(lua_State* L)
     }
 }
 
+/* The library's own state, saved like the drone's (#380 round 38: a
+   restarted drone was back in mode 0 and posted its orders again) */
+static const char* LIBRARY_STATE[] = { "mode", "ticks_in_mode", "my_orders", "my_orders_of", NULL };
+
+static int lua_is_library_state(lua_State* L, int index)
+{
+    if(lua_type(L, index) != LUA_TSTRING)
+        return 0;
+    const char* name = lua_tostring(L, index);
+    for(int i = 0; LIBRARY_STATE[i]; i++)
+        if(strcmp(name, LIBRARY_STATE[i]) == 0)
+            return 1;
+    return 0;
+}
+
 /* Names the library and the sandbox define, so a snapshot keeps only the
-   drone's own: the set of globals before the script runs */
+   drone's own: the set of globals before the script runs (but for the
+   library's own state) */
 static void lua_drone_mark_builtins(lua_State* L)
 {
     lua_newtable(L);
@@ -569,6 +585,8 @@ static void lua_drone_mark_builtins(lua_State* L)
     while(lua_next(L, -2))
     {
         lua_pop(L, 1);
+        if(lua_is_library_state(L, -1))
+            continue;
         lua_pushvalue(L, -1);
         lua_pushboolean(L, 1);
         lua_rawset(L, -5);

@@ -106,7 +106,7 @@ rm -f .env
 - `GAME_TIME_SCALE`: how fast game time passes, in game seconds per real second (default 60: one real minute is one game hour). It governs orbits, action and travel durations, and the light-speed delay of commands and replies. Changing it re-anchors the game clock, so nothing jumps.
 - `GAME_TIME_FLOOR`: the clock floor (default 0: the clock never floats). The clock aims for `GAME_TIME_SCALE`, slows by a quarter each minute while the engines run more than `CLOCK_LAG_HIGH` (60) real seconds behind, never below this, and speeds back up once they are less than `CLOCK_LAG_LOW` (15) behind. Behind at the floor, the world is full: new releases wait in a launch queue. The Home page shows the clock.
 - `ENGINE_TRACE_LEVEL`: the engines' log detail (default -1: errors, warnings and clock changes only). 0 to 3 log every step, which at full load is gigabytes a day; rotated logs are kept 7 days.
-- `TRAVEL_ACCELERATION`: drones' acceleration in m/s² (default 1). Trips take 2·√(distance ÷ acceleration) in game time.
+- `TRAVEL_ACCELERATION`: drones' acceleration in m/s² (default 19.6, 2 g; it was 1 until #380 round 38). Trips take 2·√(distance ÷ acceleration) in game time.
 - `TEST_WORLD=1`: shows the Release page's Test button, which runs a script in the test world (database `exmachinis_test`, which `migrate` keeps up to date). Its engines run in the `testworld` profile: start them with `docker compose --profile testworld up -d`. `TEST_GAME_TIME_SCALE` sets its clock (default 600: ten times the live world's default).
 
 Apply changes with `docker compose up -d`.

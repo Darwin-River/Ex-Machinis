@@ -6,9 +6,9 @@ summary: A standing buy order brings fuel and supplies to your drone while it wo
 
 Most drones fetch what they need: they fly to an exchange, buy fuel and metals, and fly back. That costs fuel and days. A **standing buy order** turns this around. You post a price, and other players' drones bring the goods to you and push them into your hold. You are paid for nothing and pay only for what arrives.
 
-```forth
-\ price want resource buy-order: pay up to price a unit, until want are aboard
-\ 27 10 metals-a1 buy-order drop
+```lua
+-- buy_order(price, want, resource): pay up to price a unit, until want are aboard
+-- buy_order(27, 10, metals_a1)
 ```
 
 The order stays open while your drone does other things. It fills each time another drone sells into it, until your hold has `want` units of the resource. To stop it, post a new order with a limit of 0, because a drone has at most one buy order for each resource.
@@ -21,47 +21,55 @@ The order stays open while your drone does other things. It fills each time anot
 
 ## Supplies: bid only while you can afford it
 
-```forth
-\ Standing bids for a factory's metals, open only while the company has
-\ 900 credits or more, and small
-900 constant bid-floor
-variable bidding
-: rich? ( -- f ) credits bid-floor 0 d< 0= ;
-\ Bid one credit over the best buy order here, never over max
-: bid-for ( max want resource -- )
-  >r  r@ sell-price 1+ rot min  swap r> buy-order drop ;
-: bids-on ( -- ) 27 10 metals-a1 bid-for  39 3 metals-a2 bid-for ;
-: bids-off ( -- ) 1 0 metals-a1 buy-order drop  1 0 metals-a2 buy-order drop ;
-\ Call once a round: opens or closes the bids as the credits change
-: sync-bids ( -- )
-  rich? dup bidding @ = if drop exit then
-  dup bidding ! if bids-on else bids-off then ;
+```lua
+-- Standing bids for a factory's metals, open only while the company has
+-- 900 credits or more, and small
+bid_floor = 900
+bidding = false
+function rich() return credits() >= bid_floor end
+-- Bid one credit over the best buy order here, never over top
+function bid_for(top, want, resource)
+  buy_order(math.min(sell_price(resource) + 1, top), want, resource)
+end
+function bids_on() bid_for(27, 10, metals_a1); bid_for(39, 3, metals_a2) end
+function bids_off() buy_order(1, 0, metals_a1); buy_order(1, 0, metals_a2) end
+-- Call once a round: opens or closes the bids as the credits change
+function sync_bids()
+  local now = rich()
+  if now == bidding then return end
+  bidding = now
+  if now then bids_on() else bids_off() end
+end
 ```
 
 ## Fuel: call for it, then wait
 
 Nothing in the game rescues a drone with an empty tank. A drone that is stranded, far from an exchange or with nobody selling fuel nearby, can still save itself: post a buy order for fuel at a price well above what it costs anywhere else, then wait. Waiting runs no instructions, so it burns no fuel. A courier that finds the order is paid at once for every unit it pushes.
 
-```forth
-\ Low on fuel and nobody sells here: pay 12 a unit (more than twice the
-\ exchanges' price) for up to 60, wait two game hours at a time until some
-\ has come, then stop the order
-: call-for-fuel ( -- )
-  12 60 fuel buy-order drop
-  begin fuel units 20 < while 120 wait drop repeat
-  1 0 fuel buy-order drop ;
+```lua
+-- Low on fuel and nobody sells here: pay 12 a unit (more than twice the
+-- exchanges' price) for up to 60, wait two game hours at a time until some
+-- has come, then stop the order
+function call_for_fuel()
+  buy_order(12, 60, fuel)
+  while units(fuel) < 20 do wait(120) end
+  buy_order(1, 0, fuel)
+end
 ```
 
 ## The courier's side
 
 Somebody has to answer those orders, and it can be you. A courier carries fuel to where drones run low (mining sites, Phobos and Deimos, the far end of a long trip) and sells into the buy orders it finds:
 
-```forth
-\ Sell fuel into the best buy order here if it pays at least 8 a unit,
-\ keeping 60 for the trip home
-: serve ( -- )
-  fuel best-bid nip swap 8 < if drop exit then
-  fuel units 60 - min dup 0> if fuel sell-here drop else drop then ;
+```lua
+-- Sell fuel into the best buy order here if it pays at least 8 a unit,
+-- keeping 60 for the trip home
+function serve()
+  local price, _, want = best_bid(fuel)
+  if price < 8 then return end
+  local n = math.min(want, units(fuel) - 60)
+  if n > 0 then sell_here(n, fuel) end
+end
 ```
 
 ## Tips

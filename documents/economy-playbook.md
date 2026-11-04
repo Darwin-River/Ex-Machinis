@@ -11,19 +11,19 @@ Ranked by average gain: what a company made beyond its starter package (credits 
 
 | Design | File | Where | Avg gain (round 8, fresh world) | Gaining | Notes |
 |---|---|---|---|---|---|
-| Systems shop (Farid, round 33) | `examples/companies/systems.fth` | Moon | +14,380 by day 40 (about 360 a game day; starter-library race) | 1 of 1 | Prices pumps, pistons and valves from the live order book, builds the best, sells it, brews its own fuel. The best design yet. |
-| Electronics (Elif, round 33) | `examples/companies/electronics.fth` | Moon | +9,524 by day 40 (race) | 1 of 1 | Transceivers, solenoids and computers; standing bids just over the best other bid for its metals. |
-| Foundry (Ines, round 29) | `examples/companies/foundry.fth` | Moon | +9,516 by day 40 (race) | 1 of 1 | Prices every recipe it knows each round and makes the best per game hour; clones with spare cash. |
-| Machinist v3 (race) | `examples/companies/machinist.fth` | Moon, Earth | +6,425 by day 40 (race) | 6 of 6 | The best library design before the race. |
-| Smith v5 | `examples/companies/smith.fth` | Moon, Phobos, Deimos | about 105 a game day (round 16) | 9 of 9 | Spreads like the Chemist; Mars-side copies sell rods at the Mars Exchange, a short hop. The best earner per day. |
-| Machinist v3 | `examples/companies/machinist.fth` | Moon, Earth | about 84 a game day (round 16) | 6 of 6 | Gear boxes (450) from metals bought from miners; brews until its tank is full. |
-| Smith v3 | `examples/companies/smith.fth` | Moon, Earth | +1,513 by day 19 (about 80 a day) | 6 of 6 | Mines yalspar and vladnium, turns its metals into rods and sells them at the Earth Exchange 4 an hour. Needs rods at 90 (parts lever) and an Earth budget to match. |
-| Miner (Moon copies) | `examples/starters/miner.fth` | Moon | +2,496 by day 19 | all | Kunspar to metals; offers them to other drones, the rest to the Moon Depot. Moon kunspar supports about 12. |
-| Chemist v3 (Moon copies) | `examples/companies/chemist.fth` | Moon | +1,771 by day 19 | all | Yalspar and vladnium to metals, polymers and inorganics. Moon yalspar supports about 14 (Smiths share it). |
-| Chemist v3 (Mars-side copies) | `examples/companies/chemist.fth` | Phobos, Deimos | +553 by day 19 | all | Same, selling at the Mars Exchange; loses its first 10 game days to the trip. |
-| Refiner | `examples/starters/refiner.fth` | Moon, Phobos, Deimos | +662 by day 19 | all | Idles once its tank is full: little upside, but sells fuel to other drones. |
-| Miner (Mars-side copies) | `examples/starters/miner.fth` | Phobos, Deimos | +309 by day 19 | all | Slow start (the trip), then steady. |
-| Trader | `examples/starters/trader.fth` | Moon to Mars | 0 (none gaining in round 5) | none | Survives, but clears about 5 a unit after a 20-day round trip. Not worth seeding. |
+| Systems shop (Farid, round 33) | `examples/companies/systems.lua` | Moon | +14,380 by day 40 (about 360 a game day; starter-library race) | 1 of 1 | Prices pumps, pistons and valves from the live order book, builds the best, sells it, brews its own fuel. The best design yet. |
+| Electronics (Elif, round 33) | `examples/companies/electronics.lua` | Moon | +9,524 by day 40 (race) | 1 of 1 | Transceivers, solenoids and computers; standing bids just over the best other bid for its metals. |
+| Foundry (Ines, round 29) | `examples/companies/foundry.lua` | Moon | +9,516 by day 40 (race) | 1 of 1 | Prices every recipe it knows each round and makes the best per game hour; clones with spare cash. |
+| Machinist v3 (race) | `examples/companies/machinist.lua` | Moon, Earth | +6,425 by day 40 (race) | 6 of 6 | The best library design before the race. |
+| Smith v5 | `examples/companies/smith.lua` | Moon, Phobos, Deimos | about 105 a game day (round 16) | 9 of 9 | Spreads like the Chemist; Mars-side copies sell rods at the Mars Exchange, a short hop. The best earner per day. |
+| Machinist v3 | `examples/companies/machinist.lua` | Moon, Earth | about 84 a game day (round 16) | 6 of 6 | Gear boxes (450) from metals bought from miners; brews until its tank is full. |
+| Smith v3 | `examples/companies/smith.lua` | Moon, Earth | +1,513 by day 19 (about 80 a day) | 6 of 6 | Mines yalspar and vladnium, turns its metals into rods and sells them at the Earth Exchange 4 an hour. Needs rods at 90 (parts lever) and an Earth budget to match. |
+| Miner (Moon copies) | `examples/starters/miner.lua` | Moon | +2,496 by day 19 | all | Kunspar to metals; offers them to other drones, the rest to the Moon Depot. Moon kunspar supports about 12. |
+| Chemist v3 (Moon copies) | `examples/companies/chemist.lua` | Moon | +1,771 by day 19 | all | Yalspar and vladnium to metals, polymers and inorganics. Moon yalspar supports about 14 (Smiths share it). |
+| Chemist v3 (Mars-side copies) | `examples/companies/chemist.lua` | Phobos, Deimos | +553 by day 19 | all | Same, selling at the Mars Exchange; loses its first 10 game days to the trip. |
+| Refiner | `examples/starters/refiner.lua` | Moon, Phobos, Deimos | +662 by day 19 | all | Idles once its tank is full: little upside, but sells fuel to other drones. |
+| Miner (Mars-side copies) | `examples/starters/miner.lua` | Phobos, Deimos | +309 by day 19 | all | Slow start (the trip), then steady. |
+| Trader | `examples/starters/trader.lua` | Moon to Mars | 0 (none gaining in round 5) | none | Survives, but clears about 5 a unit after a 20-day round trip. Not worth seeding. |
 
 The round log below has the numbers behind each entry.
 
@@ -336,6 +336,77 @@ Round 36's newcomers all found the House paid a flat 25 to 33 credits a factory-
 - The House's orders are posted on the website's tick (`HouseMarket`); the station drones post none themselves (they managed about 8 posts a game hour).
 - The Trader starter now buys only when the price board at Mars or Earth beats the Moon price by the trip's cost, and hauls to whichever pays more.
 - Also from round 36: the test world mirrors the live market (`LiveMirror`), recipes and recipe trees in the API and `recipe` in both libraries, `fuel-floor`, net wealth by game day, a company's open orders, a drone's fuel used per day, test drones numbered from 10,000,000.
+
+### Round 39: newcomers on Lua only and 2 g travel (#380)
+
+The round 38 mix on #409's code (FORTH retired, every House station and design in Lua, failed pulls refunded, drones accelerating at 2 g), to game day 40: 60 starters, 12 Chemists, 9 Smiths, 6 each of the Machinist, Adaptive and Systems shop, 3 each of Electronics and Foundry. The host restarted near day 36 (about four game days lost): every drone re-ran `launched` with its saved variables and carried on.
+
+| Design | Companies | Avg net wealth at the end |
+|---|---|---|
+| Newcomers (Gus) | 2 | 12,058 |
+| Newcomers (Emil) | 2 | 11,432 |
+| Foundry | 3 | 8,804 |
+| Systems shop | 6 | 8,748 |
+| Electronics | 3 | 7,940 |
+| Newcomers (Fay) | 2 | 7,860 |
+| Newcomers (Hana) | 2 | 6,792 |
+| Machinist | 6 | 5,854 |
+| Maker (starter) | 12 | 5,516 |
+| Smith | 9 | 4,252 |
+| Adaptive | 6 | 3,843 |
+| Miner (starter) | 24 | 3,698 |
+| Refiner (starter) | 12 | 2,524 |
+| Trader (starter) | 12 | 1,801 |
+| Chemist | 12 | 1,418 |
+
+- **Wrecks: 0 of 132 drones**, 15 clones.
+- **2 g opened Mars.** Earth to Mars took 56 to 58 game hours (round 38: about 10.5 days). Three of the four newcomers' best companies worked Mars or its moons, and at the end 28 drones worked there (Mars 24, Phobos 3, Deimos 1) against 83 at the Moon and 21 at Earth. Gus 2 1st (16,340, a Mars systems shop with a standing Metals (A1) bid his own Mars-moons miner sold into), Emil 1 2nd (12,746, flew to Mars on day 1.8 for its empty market and caught the +32% systems boom), Fay 2 4th, Emil 2 5th, Hana 1 10th. The Mars niche lasted about two weeks before the crowd came, as the blog's "go where nobody is" warns.
+- **Supply still decided results.** Metals (A1) sold out at the Moon by day 4, at Earth around days 18 to 22 and at Mars around day 24. Plan B rules that moved after some idle rounds saved Emil's and Gus's drones; Hana 1's never fired (each build reset its idle count) and it stayed at Earth while the Moon paid three times as much. A trip to or from Mars costs about 2.5 days of building, so a wrong move is dear.
+- **Hauling still doesn't pay**: House asks are about twice House bids at every exchange, so Emil (logistics) found no lane; moving a factory was the only travel that paid.
+- **Lua only**: no newcomer missed FORTH. Lua rated 8 to learn and 8.5 for fit. lua-functions.md, the example companies and `recipe()` were the most praised; all four wrote recipe-tree pricers.
+- **Doc bugs found and fixed**: api.md's release example was still FORTH, as was the release page's hint and a design-manual line; the manual gave Earth to Mars as both 1.5 to 3.4 days and "4 to 25 game days"; the example companies and Miner and Refiner starters still had the old `fill_to` that waits for the whole order; `make(fuel)` makes 30 and burns 2, which `/recipes` shows as 28 made.
+- **Ratings** (Emil, Fay, Gus, Hana): fun 7.25, clarity 7.25, depth 7.75, feedback 6.75, API 8, again 8, overall 7.5. Lua 8 to learn, 8.5 for fit.
+- **Asked for**: a test world that's fast and shows the drone's location, status and game day (all four released mostly untested; test drones sat in transit to the Moon for 8 to 10 real minutes); best bid and ask per resource and place (an endpoint, and a query drones can use, for quotes as well as trades); House stock levels or a warning when an exchange runs out; depth-aware pricing ("cost to buy n here"); a per-company profit-and-loss and events feed; an idle reason in the drone's status; cheaper early growth; hauling lanes (regional scarcity, narrower House spreads on some goods); `print` of a place showing its name.
+
+### FORTH retired; failed pulls cost no fuel (#380, after round 38)
+
+- **Lua only.** Every newcomer since round 35 chose Lua but one, and round 38's FORTH company couldn't be tested. New releases, tests and checks now take Lua only; FORTH drones already running carry on. The starters and company designs (adaptive, chemist, electronics, foundry, machinist, smith, systems, and `words.lua`'s helpers), the players' manual, `lua-functions.md` (in place of `forth-words.md`), the blog and the House station program are Lua; the Machine page and the FORTH dictionary went with FORTH. The converted Foundry and Electronics ran cleanly in the test world; the Foundry's FORTH `brew-pays?` had a bug (a bitwise `and` of two prices), fixed in Lua.
+- **A failed push or pull costs no fuel.** In round 38 every pull race lost at the crowded Moon cost a fuel; the engine now gives it back.
+- **The library's own state is saved** (`mode`, its rounds, the orders `_if_changed` remembers): a restarted drone carries on in its mode instead of mode 0, and doesn't post its orders again.
+- **Trips at 2 g** (`TRAVEL_ACCELERATION` 19.6 m/s², was 1): every trip takes 0.23 as long. The Moon is about 2.5 game hours from Earth (was 11), Mars 1.5 to 3.4 days (was 6.5 to 15; Earth to Phobos measured 255 hours in round 38, now about 58). In rounds 37 and 38 every drone that flew to Mars lost 10 of its 40 days on the way and arrived to a crowd.
+- **Docs**: `recipe()`'s table, when saved variables come back (an engine restart: yes, after the top level runs; a crash: no), one clock pace (live 60 game seconds a real second, test 600), no `/buys` and `/sells` pages in the manual.
+
+### Round 38: newcomers on cheaper fuel and bigger holds (#380)
+
+The round 37 mix on #408's code as merged (fuel 3 credits, thinking 1 fuel per 200,000 instructions, holds of 1,000, the station's fuel kept topped up), to game day 40: 60 starters, 12 Chemists, 9 Smiths, 6 Machinists, 6 Adaptive, 3 each of the Systems shop, Electronics and Foundry, and 3 each of the Lua Maker, Miner, Systems shop and Trader. No engine stall or crash. Three newcomers wrote Lua only; Dina wrote one company in each.
+
+| Design | Language | Companies | Avg net wealth at the end |
+|---|---|---|---|
+| Newcomers (Dina) | Lua, FORTH | 2 | 14,072 |
+| Systems shop | FORTH | 3 | 10,932 |
+| Systems shop | Lua | 3 | 10,461 |
+| Foundry | FORTH | 3 | 10,321 |
+| Newcomers (Bea) | Lua | 2 | 10,246 |
+| Newcomers (Cal) | Lua | 2 | 8,414 |
+| Electronics | FORTH | 3 | 7,328 |
+| Newcomers (Abe) | Lua | 2 | 5,761 |
+| Machinist | FORTH | 6 | 5,030 |
+| Miner, Maker, Refiner (starters) | FORTH | 48 | about 4,000 to 4,400 credits |
+| Maker, Miner | Lua | 6 | about 3,300 to 3,800 |
+| Smith | FORTH | 9 | 3,114 |
+| Trader | Lua | 3 | 2,921 |
+| Adaptive | FORTH | 6 | 2,677 |
+| Trader (starter) | FORTH | 12 | about 1,900 credits |
+| Chemist | FORTH | 12 | 863 |
+
+- **Wrecks: 0 of 132 drones** (round 37: 50 of 129). The station's fuel fix did it: fuel was on sale all round, and no newcomer's plan was shaped by its price. Every starter Miner and Refiner survived without a fuel floor.
+- **Leaderboard**: Bea 1 1st (17,490), Dina 2 2nd (16,743, FORTH), Systems 2 3rd, Cal 2 4th, Dina 1 6th. Newcomers took four of the top six, all with recipe-tree factories that priced every system from live prices each round.
+- **Supply decided results.** Metals (A1) at the Moon were fought over from day 3 (about 95 drones there), and every failed pull still cost a fuel. What won: plan B to Earth (Dina 1 moved on day 5 and was 1st at day 30; Abe 1 on day 3.7), standing buy orders that the starter miners sell into (Cal 2: "the crowd became my supply chain"), and bringing inputs from Earth to build at the Moon (Dina 2).
+- **Long hauls didn't pay.** All three drones sent to Mars (Abe 2, Bea 2, and briefly others) arrived after about 10.5 days to a crowd and no Metals (A1). No lane between the House's exchanges pays (asks about twice bids), so hauling pays only to move a factory or to supply players.
+- **Growth is slow**: a copy costs about 5,000 against about 500 a day, so copies launched after day 20 barely paid back.
+- **Bug found**: FORTH can't run in the test world. Test drones are numbered from 10,000,000 (#408), which doesn't fit a 16-bit cell, so `me` is 0 and every question about the drone's hold fails. Dina released her FORTH company untested.
+- **Ratings** (Abe, Bea, Cal, Dina): fun 7.5, clarity 7, depth 7.25, feedback 6.75, API 8, again 8, overall 7.5. Lua 9 to learn, 8.25 for fit; FORTH (Dina) 6 and 7.
+- **Asked for**: test drone ids FORTH can hold; no fuel for a pull that loses the race (or a pull that takes what's there); supply on offer by place and day, and stock levels drones can read; the shape of Lua's `recipe()` table and when saved variables come back, documented; a bulk recipe-tree endpoint; plainer test-run events (which action failed); one pace for the clock in the docs (api.md 2.4 minutes a day, the manual an hour); the manual's `/buys` and `/sells` links removed; hauling lanes (regional shortages, delivery bounties); cheaper early growth; wider margins between systems.
 
 ### Cheaper fuel, bigger holds (#380, after round 37)
 

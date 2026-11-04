@@ -45,25 +45,6 @@ class WorldController extends Controller
         return view('world.leaderboard', compact('allTime', 'rising', 'kit'));
     }
 
-    /** The Machine view (#324 step 19): the VM, stepped in the browser */
-    public function machine(\Illuminate\Http\Request $request)
-    {
-        $defs = (string)$request->query('defs', ": square ( n -- n*n ) dup * ;\n: cube ( n -- n*n*n ) dup square * ;");
-        // An empty starting stack stays empty (it arrives as null)
-        $start = $request->exists('stack') ? (string)$request->query('stack') : '3';
-        $word = (string)$request->query('word', 'cube');
-        // Live data (#380): a working drone at each place to ask as
-        $vantages = \Illuminate\Support\Facades\DB::table('agents as a')->join('objects as o', 'o.object_id', '=', 'a.object_id')
-            ->whereNull('a.wrecked_at')->whereNull('a.station_id')->groupBy('a.object_id', 'o.object_name')
-            ->orderByRaw('COUNT(*) DESC')->limit(12)
-            ->get([DB::raw('MAX(a.agent_id) AS drone'), 'o.object_name AS place']);
-        $drone = (int) $request->query('drone', $vantages->first()->drone ?? 0);
-        // A station drone's own orders are left out of what it sees, so asking
-        // as one shows its station's prices as 0 (round 30): the page warns
-        $stations = DB::table('agents')->whereNotNull('station_id')->pluck('agent_id')->map(fn ($id) => (int) $id)->all();
-        return view('world.machine', compact('defs', 'start', 'word', 'vantages', 'drone', 'stations'));
-    }
-
     /** The game's queries: how many parameters each takes (#380) */
     public function machineQueries()
     {
@@ -83,13 +64,13 @@ class WorldController extends Controller
     public function machineQuery(\Illuminate\Http\Request $request)
     {
         $data = $request->validate([
-            'id' => 'required|integer', 'drone' => 'required|integer|min:1', 'size' => 'required|integer|min:0|max:65535',
+            'id' => 'required|integer', 'drone' => 'required|integer|min:1', 'size' => 'integer|min:0|max:65535',
             'v' => 'array|max:9', 'v.*' => 'integer|min:-32768|max:65535', 's' => 'array|max:4', 's.*' => 'nullable|string|max:255',
         ]);
         if (!DB::table('agents')->where('agent_id', $data['drone'])->exists()) {
             return response()->json(['error' => 'There is no drone ' . $data['drone'] . '.'], 422);
         }
-        return response()->json(\App\Services\LiveQuery::run((int) $data['id'], (int) $data['drone'], (int) $data['size'],
+        return response()->json(\App\Services\LiveQuery::run((int) $data['id'], (int) $data['drone'], (int) ($data['size'] ?? 65535),
             array_map('intval', $data['v'] ?? []), $data['s'] ?? []));
     }
 

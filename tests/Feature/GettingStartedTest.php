@@ -18,13 +18,12 @@ class GettingStartedTest extends TestCase
             ->assertSee('id="chapter-4-issuing-commands"', false)
             ->assertSee('href="#chapter-4-issuing-commands"', false)
             ->assertSee('Unpacking your kit')
-            ->assertSee('src="/getting-started/images/stack-robot.png"', false)
+            ->assertSee('function launched()', false)
             ->assertDontSee('Keep this manual current');
     }
 
     public function testManualImageIsServed()
     {
-        $this->get('/getting-started/images/stack-robot.png')->assertOk();
         $this->get('/getting-started/images/missing.png')->assertNotFound();
         $this->get('/getting-started/images/..%2F..%2F.env')->assertNotFound();
     }

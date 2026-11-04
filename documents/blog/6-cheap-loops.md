@@ -16,30 +16,39 @@ A drone that waits for business still pays for every round it runs. In round 31 
 
 An order stays up until the drone posts another for the same resource, and trades don't use it up: it fills again whenever the hold changes. You never need to post it again to keep it alive.
 
-When the price does follow the market, post only when it changes. `?sell-order` and `?buy-order` take the same numbers as `sell-order` and `buy-order`, and skip the post (no action, no fuel) when this drone's order is already at that price and limit:
+When the price does follow the market, post only when it changes. `sell_order_if_changed` and `buy_order_if_changed` take the same arguments as `sell_order` and `buy_order`, and skip the post (no action, no fuel) when this drone's order is already at that price and limit:
 
-```forth
-\ Ask one under the cheapest other seller, never under a floor;
-\ call it every round: it posts only when the price moves
-20 constant floor
-: ask-for ( resource -- price ) buy-price ?dup if 1- else 30 then floor max ;
-: keep-offering ( resource -- ) dup ask-for 0 rot ?sell-order drop ;
+```lua
+-- Ask one under the cheapest other seller, never under a floor;
+-- call it every round: it posts only when the price moves
+price_floor = 20
+function ask_for(resource)
+  local price = buy_price(resource)   -- 0: nobody else sells it here
+  if price > 0 then price = price - 1 else price = 30 end
+  return math.max(price, price_floor)
+end
+function keep_offering(resource)
+  sell_order_if_changed(ask_for(resource), 0, resource)
+end
 ```
 
 ## Wait longer while nothing changes
 
 Waiting runs no instructions, so it burns no fuel. A drone that finds nothing to do can double its wait each time, up to a limit, and go back to short waits as soon as something happens:
 
-```forth
-\ Wait 30 game minutes after a busy round, twice as long after each
-\ quiet one, up to a game day
-variable nap  30 nap !
-: busy ( -- ) 30 nap ! ;
-: quiet ( -- ) nap @ wait drop  nap @ 2* 1440 min nap ! ;
+```lua
+-- Wait 30 game minutes after a busy round, twice as long after each
+-- quiet one, up to a game day
+nap = 30
+function busy() nap = 30 end
+function quiet()
+  wait(nap)
+  nap = math.min(nap * 2, 1440)
+end
 ```
 
-In the loop, call `busy` when the round did something (a trade, a new order, a move) and `quiet` when it didn't. A drone that rests a game day between checks spends a few instructions a day, not thousands.
+In the loop, call `busy()` when the round did something (a trade, a new order, a move) and `quiet()` when it didn't. A drone that rests a game day between checks spends a few instructions a day, not thousands.
 
 ## Check the cost before you release
 
-Try your round's words on the Machine page. It counts the instructions a word runs and the fuel that would cost a drone. A round that costs 0.2 fuel is fine; run it every hour and it is about 5 fuel a day, more than a miner earns back on a slow day. Make the expensive part, such as a market scan, run only when the drone is ready to act on it.
+Try your round in the test world: a drone's page shows the instructions it has run and the fuel it used for thinking in the last game day. A round that costs 0.2 fuel is fine; run it every hour and it is about 5 fuel a day, more than a miner earns back on a slow day. Make the expensive part, such as a market scan, run only when the drone is ready to act on it.

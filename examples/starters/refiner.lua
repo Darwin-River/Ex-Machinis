@@ -8,7 +8,6 @@
 -- nobody bought at the market. Its kit can't brew fuel: it buys it
 -- wherever it is cheapest. Copies spread out: a third work the Moon, the
 -- rest Phobos and Deimos, selling at the Mars Exchange.
--- The same drone as refiner.fth, in Lua.
 
 -- Settings: change these numbers to make it your own
 low_fuel = 40      -- get fuel when below this
@@ -117,11 +116,12 @@ end
 
 -- Top the tank up to n here, cheapest first, waiting up to 6 game hours
 function fill_to(n)
-  local need = n - units(fuel)
+  local had = units(fuel)
+  local need = n - had
   if need <= 0 then return end
   buy_here(need, fuel)
   for _ = 1, 6 do
-    if units(fuel) >= n then return end
+    if units(fuel) > had then return end
     wait(60)
   end
 end

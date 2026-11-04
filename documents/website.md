@@ -19,7 +19,7 @@ There are a number of core design principles, which will be used to guide the co
 The website will have a range of interlinked pages that give the players and visitors access to tutorials, directories, indexes, and data sheets with information on the game and its contents.  Many of the pages will pull data directly from the SQL database. All tables will be sortable by the different collumns and can be filtered based on a search term.
 * **Landing Page.** The landing page will welcome users to Ex Machinis and offer a brief introduction to the game.
 * **Player's Manual.**  This page will contain an HTML-formatted version of the Player's Manual, which currently exists in the document directory.
-* **FORTH Dictionary.** This page will reproduce the FORTH Dictionary as an HTML document.
+* **Lua reference.** The functions every drone knows are in `documents/lua-functions.md` and the players' manual (FORTH, and its dictionary page, were retired after round 38).
 * **Company Directory.** This is a searchable list of the player-owned companies.  It will display the company name, start date, and wealth (credits) and can be sorted by any of these columns.  The company names will be hyperlinked to individual Company Stats pages.
 * **Spacecraft Directory.** This is a searchable list of all the spacecarft in the game. The table will provide the spacearft name, ID, hull type, location, and affiliated company name.  All names and locations will by hyperlinked to specific data sheets.
 * **Protocol Index.** This index lists all the protocols that are available for use by the players along with a protocol ID and description.  The data for this table will be drawn from the SQL DB.

@@ -8,7 +8,7 @@
         <div class="container" id="container">
             <h1>{{$title}}</h1>
 
-            <p>Queries, which are invoked by the FORTH-based "query" command, allow spacecraft to retrieve data from the central database.  The query command pulls at least three parameters from the stack to direct its actions. The first parameter is the ID of the query that is being invoked.  Next, the command pulls a pair of values from the stack that indicate the length (L) and address (R) of the array that will receive the query results.  Additional numbers (N1, N2, etc) and string pointers (S1, S2, etc) may be required to further define the search.</p>
+            <p>Queries let a drone look things up in the game's database: what is in its hold, prices and orders where it is, deposits, trips, the game day and more. In Lua, <code>query(id, ...)</code> runs one and returns its rows, each a table of its columns (by position, and by name). The extra parameters (N1, N2... and strings S1, S2...) go after the ID in the order the notation below lists them, without the L and R, which were FORTH's results buffer: <code>[N R L 210 query]</code> becomes <code>query(210, n)</code>. Most questions have a named function already (<code>units(fuel)</code>, <code>best_offer(r)</code>, <code>today()</code>...): see the players' manual.</p>
 
             <p>When results are returned from a query, they are added to the results arrray (R) in the order indicated, with the data from each field occupying the number of bytes specified within the square brackets. Click a query to see how to call it.</p>
 

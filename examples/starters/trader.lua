@@ -9,7 +9,6 @@
 -- aboard it flies wherever the load fetches most, sells it and comes back.
 -- It buys its fuel at the exchanges, from whoever sells it cheapest.
 -- (Round 36: with fixed prices, all 12 Traders ended slightly down.)
--- The same drone as trader.fth, in Lua.
 
 -- Settings: change these numbers to make it your own
 cargo_goal = 150   -- metals it gathers before setting off (the hold

@@ -17,7 +17,7 @@ class ApiTest extends TestCase
 {
     use DatabaseTransactions;
 
-    private function release(string $company, string $script = ': launched ;')
+    private function release(string $company, string $script = 'function launched() end')
     {
         $user = User::create(['name' => 'Forge Player', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
         return Release::release($user, $company, $script);
@@ -67,7 +67,7 @@ class ApiTest extends TestCase
 
     public function testADroneShowsWhatItCarriesAndSays()
     {
-        $agent = $this->release('Drone Watchers', ": launched ( -- ) ;\n\\ my script");
+        $agent = $this->release('Drone Watchers', "function launched() end\n-- my script");
         DB::table('drone_messages')->insert(['agent_id' => $agent->agent_id, 'subject' => 'Report', 'body' => 'all well',
             'game_t' => World::gameNow() - 10]);
         $this->getJson('/api/v1/drones/' . $agent->agent_id)->assertOk()
@@ -182,19 +182,22 @@ class ApiTest extends TestCase
 
     public function testReleaseChecksAndReleasesAScript()
     {
-        $this->postJson('/api/v1/check', ['script' => "variable ask\n: launched ;"])->assertOk()
-            ->assertJsonPath('ok', true)->assertJson(['warning' => true]);
-        $this->postJson('/api/v1/check', ['script' => ': go-on ;'])->assertOk()->assertJsonPath('ok', false);
+        $this->postJson('/api/v1/check', ['script' => "ask = 1\nfunction launched() end"])->assertOk()
+            ->assertJsonPath('ok', true)->assertJsonPath('language', 'lua')->assertJson(['warning' => true]);
+        $this->postJson('/api/v1/check', ['script' => 'function go_on() end'])->assertOk()->assertJsonPath('ok', false);
+        // FORTH was retired (#380): a FORTH script is refused, and says why
+        $this->postJson('/api/v1/check', ['script' => ': launched ;'])->assertOk()->assertJsonPath('ok', false)
+            ->assertJsonPath('error', fn ($e) => str_contains($e, 'FORTH has been retired'));
 
-        $response = $this->postJson('/api/v1/release', ['company_name' => 'Api Released', 'script' => ': launched ;', 'kit' => 'factory'])
+        $response = $this->postJson('/api/v1/release', ['company_name' => 'Api Released', 'script' => 'function launched() end', 'kit' => 'factory'])
             ->assertCreated()->assertJsonPath('queued', false)->assertJsonPath('company.name', 'Api Released')->json();
         $this->assertTrue(DB::table('agents')->where('agent_id', $response['drone']['id'])->exists());
 
         // The same rules as the Release page
-        $this->postJson('/api/v1/release', ['company_name' => 'Api Released', 'script' => ': launched ;'])
+        $this->postJson('/api/v1/release', ['company_name' => 'Api Released', 'script' => 'function launched() end'])
             ->assertStatus(422)->assertJsonStructure(['error', 'errors' => ['company_name']]);
-        $this->postJson('/api/v1/release', ['company_name' => 'Api Other', 'script' => ': nothing ;'])->assertStatus(422);
-        $this->postJson('/api/v1/release', ['company_name' => 'Api Kit', 'script' => ': launched ;', 'kit' => 'gold'])->assertStatus(422);
+        $this->postJson('/api/v1/release', ['company_name' => 'Api Other', 'script' => ': launched ;'])->assertStatus(422);
+        $this->postJson('/api/v1/release', ['company_name' => 'Api Kit', 'script' => 'function launched() end', 'kit' => 'gold'])->assertStatus(422);
     }
 
     public function testHistorySumsTradesByDayResourceAndPlace()

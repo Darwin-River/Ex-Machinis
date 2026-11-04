@@ -40,18 +40,28 @@ end
 
 And set a fuel floor, so nothing the drone does spends its last units:
 
-```forth
-: work ( -- ) 4311 make drop  60 wait drop ;
-: launched ( -- ) 30 fuel-floor  unpack drop  begin work again ;
+```lua
+function work()
+  make(4311)
+  wait(60)
+end
+function launched()
+  fuel_floor(30)
+  unpack()
+  while true do work() end
+end
 ```
 
 ## Have a plan B
 
 The price board tells you what sold, not what you can buy. Before a drone counts on an input, it should check someone sells it:
 
-```forth
-\ True if someone here sells at least n of a resource
-: on-sale? ( n resource -- f ) best-offer >r 2drop r> swap < 0= ;
+```lua
+-- True if someone here sells at least n of a resource
+function on_sale(n, resource)
+  local _, _, avail = best_offer(resource)
+  return avail >= n
+end
 ```
 
 And it needs somewhere else to go when nobody does: another exchange, another mine, another product. In round 37 the six Systems shops took the top six places. They are no cleverer than the rest, but after four idle rounds they fly to the other exchange. Uma's factory, the best on the board at day 22, had no such rule; when the Moon's metals ran out it waited for the last 16 days.
