@@ -816,7 +816,7 @@ Every drone comes with a library of names for the game, so you can write `mine(k
 | `tool` | the module it needs, or `nil` |
 | `hours` | game hours a run takes |
 
-For Pumps (A1), resource 4311, `recipe(4311)` returns `{protocol = 14311, makes = 1, uses = {[3011] = 1, [3301] = 1}, fuel = 4, tool = 5501, hours = 8.0}`: one run uses a rod and a hose, burns 4 fuel, needs a Spider (5501) and takes 8 game hours. The API's `/recipes/{id}/tree` adds up a whole chain of recipes for you.
+For Pumps (A1), resource 4311, `recipe(4311)` returns `{protocol = 14311, makes = 1, uses = {[3011] = 1, [3301] = 1}, fuel = 4, tool = 5501, hours = 8.0}`: one run uses a rod and a hose, burns 4 fuel, needs a Spider (5501) and takes 8 game hours. The API's `/recipes/{resource}/tree` (here `/recipes/4311/tree`) adds up a whole chain of recipes for you.
 
 ```lua
 -- Can this drone make a run of a resource from what it holds?
