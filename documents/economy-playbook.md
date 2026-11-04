@@ -337,6 +337,55 @@ Round 36's newcomers all found the House paid a flat 25 to 33 credits a factory-
 - The Trader starter now buys only when the price board at Mars or Earth beats the Moon price by the trip's cost, and hauls to whichever pays more.
 - Also from round 36: the test world mirrors the live market (`LiveMirror`), recipes and recipe trees in the API and `recipe` in both libraries, `fuel-floor`, net wealth by game day, a company's open orders, a drone's fuel used per day, test drones numbered from 10,000,000.
 
+### Round 40: newcomers asking the world by name (#380)
+
+The round 39 mix on #412's code (about 50 named Lua functions, `quotes`, `cost_to_buy`, `earnings`, `set_status`), live at 600× with the old test world beside it. 60 starters, plus:
+- 12 Chemists and 9 Smiths;
+- 6 each of the Machinist, Adaptive and Systems shop;
+- 3 each of Electronics and Foundry.
+
+Ended at game day 36.6 to start round 41 on the new model. The clock fell from 144 real seconds a game day to about 575 late on: with about 145 drones the engines ran behind and the clock slowed itself.
+
+| Design | Companies | Avg net wealth at the end |
+|---|---|---|
+| Electronics | 3 | 15,317 |
+| Systems shop | 6 | 12,254 |
+| Newcomers (Joel) | 2 | 9,588 |
+| Newcomers (Lars) | 2 | 8,732 |
+| Newcomers (Mina) | 2 | 8,583 |
+| Newcomers (Ines) | 2 | 8,470 |
+| Foundry | 3 | 8,239 |
+| Machinist | 6 | 6,425 |
+| Starters (all four kinds) | 60 | 3,334 |
+| Adaptive | 6 | 2,740 |
+| Smith | 9 | 1,394 |
+| Chemist | 12 | 1,045 |
+
+- **Wrecks: 0 of 144 drones.** 31 clones.
+- **Ines 1 came 2nd of 113** (16,170) with a profit-per-hour ranker over every A1 system, priced with `cost_to_buy` and `quotes`. Ines 2 deadlocked: it cloned down to 418 credits, its input buys took it to 175, and its own cash floor then blocked every purchase from day 14 on. Nothing warns of that.
+- **Lars 1 mined Mars's moons** (13th, 10,390 credits) because about 85 drones crowded the Moon and nobody worked Phobos or Deimos. Travel's flat 5 fuel made distance cost only time.
+- **Supply decided results again.** Moon Metals (A1) sold out by day 7, with about 91 drones there, while Metals (A2) sat in a glut at 4. Prices didn't rise with scarcity; it became a race for speed. Plan Bs that read `quotes` moved factories to Earth (Ines 1, Joel 2), at about half the Moon's rate.
+- **All four wrote a generic recipe-tree pricer** using `recipe()`, `cost_to_buy`, `sale_value` or `quotes`, and `set_status`. The named functions were the most praised part of the round.
+- **Same-company drones competed**: clones herded onto the same product and bid for the same scarce metals.
+- **Clones cost net wealth**: about 5,000 credits each, and they took 10+ days to pay back. Cloning after day ~20 didn't pay.
+- **Test world**: too slow to judge a plan's economics, and it couldn't test growth (1,000 starting credits). This round 40 finding is why the test world was removed (#414).
+- **Ratings** (Ines, Joel, Lars, Mina): fun 7, clarity 7.5, depth 6.75, feedback 7, API 8.25, again 7.75, overall 7.25. Lua 8.25 to learn, 8.5 for fit.
+- **Bugs reported**:
+  - `/companies/{id}/history` stopped at day 8 (Mina, #420);
+  - `/clock`'s `real_seconds_per_game_day` gives the target pace, not the pace the clock is running at (all four, #418);
+  - api.md's `/recipes/{id}/tree` doesn't say the id is a resource (Lars, #419).
+- **Asked for**:
+  - a depth or restock signal per good and place, and House demand left today;
+  - news a drone can read;
+  - reservations or an atomic multi-input buy;
+  - coordination between a company's own drones;
+  - a deadlock warning ("credits below what any action needs");
+  - per-drone profit and loss;
+  - prices that rise with scarcity;
+  - bigger, longer-lasting spreads between exchanges, so hauling pays;
+  - deeper tiers that pay a premium per hour (Mina: alloys ~13, parts 7–15, systems 20–29, modules 24–32 credits an hour);
+  - a bulk recipe-tree endpoint.
+
 ### Messages private to a company (#380, during round 40)
 
 Drones' broadcasts are now readable only by drones of the sender's company: event searches (803, 804) leave out other companies' messages, `message` (844) and `event` (845) don't give their text, and the home feed says a message was sent without its text. Round 29's best company (Gia's fuel adverts, answering other companies' calls) relied on public messages; that play is gone, and messages are now for coordinating a fleet. Watch whether companies with several drones use them more now that rivals can't listen.
