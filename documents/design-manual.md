@@ -356,6 +356,10 @@ Each run restarts the engines on a saved world, so a backlog makes the clock ste
   * A drone's inventory, in the events engine, now comes from `holdings`.
 
   Both gave the same answers as before for every drone of round 41's world. Drone turns rose from about 2,100 a minute to about 2,800–2,960.
+* **Current state in the engines (#431, steps 2 and 3).**
+  * The previous event of a holding (`PREVIOUS_EVENT_BY_RESOURCE_INFO`, for every inventory event settled) read every such event the drone had and sorted them by game time: 566 for a station drone's fuel. Migration 0033 adds `events_inventory_time` (drone, resource, installed, locked, outcome, game_t), and the engine names it, so it is one step back. That took 2.6 ms down to 0.04 ms, with the same row.
+  * The game engine saves a drone's input (`agents.input`, left from the email era) only when it changed. Most turns resume with the same command, and 15 of the 19 s these updates took was waiting for the row's lock.
+* **A plan that stalled the engine (#442).** For each seller, query 615 works out what it held an hour ago. With some sampled statistics, MySQL planned that as a reverse scan of all of `events` (`ORDER BY id DESC` by PRIMARY). That took about 25 s a call, and the game engine stalled in two load-test runs. The query now names `events_inventory`: 0.16 s on the same statistics. Two runs after the fix held 1,800× at about 2,900–3,200 turns a minute.
 
 <a name="Current-State"></a>**Current state beside the history (#430, migration 0031).** Two tables say what the history says, so a look is one row instead of a pass over `events`:
 * `holdings` (drone, resource, installed, locked → units, event_id): each kind's newest successful increment or depletion. An event with no installed or locked flag is kept under -1, so `sqInventory` counts it as it always did, and `holding()` reads only 0 and 1, as before. `sqInventory` is now a sum over `holdings`.
