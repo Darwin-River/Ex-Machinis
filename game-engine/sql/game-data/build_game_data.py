@@ -692,13 +692,16 @@ for r in econ['Queries'][1:]:
 # every drone's holdings before it filters, so each look cost ~15 ms and grew
 # with the game; station drones look hundreds of times a round and the engine
 # fell to under 100 slices a minute). The same sum the view gives (the latest
-# inventory event of each installed/locked kind), for one drone only.
+# inventory event of each installed/locked kind), for one drone only: for
+# each kind, its newest event, found walking back from the newest (#422: a
+# NOT EXISTS for a later event checked every event against every later one,
+# took ~100 ms an order book by game day 65 at 1,800x, and slowed the clock
+# to a tenth)
 def holding(drone, resource):
-    return ("(SELECT IFNULL(SUM(h.new_quantity), 0) FROM events AS h WHERE h.drone = " + drone +
-            " AND h.resource = " + resource + " AND h.outcome = 1 AND h.event_type IN (1, 2)"
-            " AND NOT EXISTS (SELECT 1 FROM events AS n WHERE n.drone = h.drone AND n.resource = h.resource"
-            " AND n.installed = h.installed AND n.locked = h.locked AND n.outcome = 1"
-            " AND n.event_type IN (1, 2) AND n.id > h.id))")
+    return (f"(SELECT IFNULL(SUM((SELECT h.new_quantity FROM events h WHERE h.drone = {drone} "
+            f"AND h.resource = {resource} AND h.installed = k.i AND h.locked = k.l AND h.outcome = 1 "
+            "AND h.event_type IN (1, 2) ORDER BY h.id DESC LIMIT 1)), 0) "
+            "FROM (SELECT 0 i, 0 l UNION ALL SELECT 0, 1 UNION ALL SELECT 1, 0 UNION ALL SELECT 1, 1) k)")
 
 
 LATEST_ORDER = ("SELECT MAX(id) AS id FROM events WHERE outcome = 1 AND event_type = {t} "
@@ -1342,8 +1345,8 @@ queries.append((682, 'Sales on a day',
 # and buyers who can't pay for a unit.
 # What a drone held of a resource as of game time t: for each kind
 # (installed, locked), its latest inventory event by then, found walking
-# back from the newest (a NOT EXISTS like holding()'s, with a time limit,
-# took a second over a station's thousands of events)
+# back from the newest, like holding() (a NOT EXISTS for a later event, with
+# a time limit, took a second over a station's thousands of events)
 def holding_asof(drone, resource, t):
     return (f"(SELECT IFNULL(SUM((SELECT h.new_quantity FROM events h WHERE h.drone = {drone} "
             f"AND h.resource = {resource} AND h.installed = k.i AND h.locked = k.l AND h.outcome = 1 "
