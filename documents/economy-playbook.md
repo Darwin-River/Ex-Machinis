@@ -350,6 +350,21 @@ Round 41's clock fell from 1,800× to about 157× after day 50. The queries aski
 
 To watch next round: whether the clock holds through day 100. The next biggest costs are the engine's own event lookups, the company-latest-event query (now cheap) and its latest-event-time check. For 5,000 ships, see the plan on #422.
 
+### Fewer, bigger fetches: commands and events in batches (#432, part of #428)
+
+The #429 load test put the game engine's "next command" query at the top at 1,000 ships (about 9 ms a turn). Then, with that gone, the events engine's "next due events" query took its place (8.6 ms for every 10 events).
+- **Commands:** the game engine fetches up to 64 due commands at a time, and checks each again by id just before it runs.
+- **Events:** the events engine settles 100 events per fetch instead of 10.
+
+On a settled 1,000-ship world, 5 real minutes each, the same saved state:
+
+| | Events settled | Game hours | Clock at the end |
+|---|---|---|---|
+| Before | 59,008 | 92 | 427× |
+| After | 73,134 (+24%) | 113 | 759× |
+
+The top costs left are per event: a company's latest event (#435), the inventory row, and each event's update. The in-memory world (#431) is the next big step.
+
 ### A load test, and current state beside the history (#429, #430, part of #428)
 
 On the way to 5,000 ships (#428), two steps:

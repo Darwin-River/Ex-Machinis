@@ -324,8 +324,21 @@ So a drone performs one in-game action at a time, and its script always knows ho
 
 * The Game Engine slept `DB_READ_TIME` (5 s) after every command, so it ran one slice per 5 seconds. It now sleeps only when there was nothing to run.
 * Loading a drone's saved VM first set up a fresh one (callback words, word library, game words: millions of instructions) and then overwrote all of it with the saved core. It now just loads the core.
-* The Event Engine did one batch of `OUTCOME_EVENT_BATCH_SIZE` (10) events per `ENGINE_CHECK_TIME` (5 s). It now runs the next batch at once while batches come back full.
-* The Game Engine found each command to run with a query over every due command (`db_get_next_command`), once per command. With 1,000 ships that cost about 9 ms a turn, and 70 ms while a thousand releases loaded (#432). It now fetches up to 64 due commands at a time in run order, and checks each again by id, with the same rules, just before it runs it. A command that stopped being runnable meanwhile is skipped. The batch is refilled when it runs out or is a real second old, so a new release still loads first within about a second.
+* The Event Engine did one batch of `OUTCOME_EVENT_BATCH_SIZE` (10) events per `ENGINE_CHECK_TIME` (5 s). It now runs the next batch at once while batches come back full. Since #432 a batch is 100 events. Each batch's query sorts every due event, so with 1,000 ships batches of 10 made that query the Event Engine's biggest cost (8.6 ms a batch). Each event still checks, just before it is processed, that its action wasn't aborted.
+* The Game Engine found each command to run with a query over every due command (`db_get_next_command`), once per command. With 1,000 ships that cost about 9 ms a turn, and 70 ms while a thousand releases loaded (#432). It now fetches up to 64 due commands at a time in run order, and checks each again by id, with the same rules, just before it runs it. A command that stopped being runnable meanwhile is skipped. The batch is refilled when it runs out or is a real second old, so a new release still loads first within about a second. Measured on a settled 1,000-ship world (the same saved state, 5 real minutes each):
+
+| | Before #432 | Command batches | Command batches and 100-event batches |
+|---|---|---|---|
+| Events settled | 59,008 | 60,217 | **73,134** |
+| Game hours passed | 92 | 92 | **113** |
+| Clock at the end | 427× | 427× | **759×** |
+| Engines behind at the end | 10 s | 15 s | **9 s** |
+
+* The command batches took the Game Engine's top query (138 s of MySQL time in 5 minutes) off the list, but on their own changed little, because the Event Engine was the limit.
+* With 100-event batches, its due-events query dropped off the list too.
+* The top costs left are per event: the company's latest event (#435), the drone's inventory row, and each event's update.
+
+Each run restarts the engines on a saved world, so a backlog makes the clock step down at first. It only speeds up again once the engines are under 3 s behind, so where the clock ends after 5 minutes understates the gain.
 * Every observable event got one row in `observations` per drone where it happened, so a thousand drones in one place meant a thousand inserts an event, and the table grew as events × drones (12 million rows in 12 real minutes). Now nothing is stored per drone for it: see [Local sightings](#Local-Sightings).
 
 **Measured** (one 4-core sandbox, MySQL in Docker, 1,000 starter drones): before the fixes, 12 slices a real minute; after them, about 4,200 slices and 4,500 events a real minute in steady play, with the engines 4 to 9 real seconds behind at a 600× clock (the floor's governor dipped to 337× while all 1,000 drones arrived at the Moon at once, and was back at 600× within three minutes). So Public Forge's target of 24× has room to spare at this size. One cost grows with the world and is left for later: every drone's 64 KB VM is read and written each slice, which is the main cost left as the world grows.
