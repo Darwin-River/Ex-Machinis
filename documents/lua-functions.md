@@ -20,23 +20,29 @@ Every function below is built in (`game-engine/src/lua_library.lua`). Actions re
 |---|---|
 | Places | `earth`, `moon`, `mars`, `phobos`, `deimos` |
 | Resources | `fuel`, `magmite`, `kunspar`, `yalspar`, `vladnium`, `wolfite`; `metals_a1` to `metals_a3`, `alloys_a1` to `alloys_a3`, `organics_a1`, `organics_a2`, `inorganics_a1`, `inorganics_a2`, `rods`; `mining_kit`, `factory_kit`, `cruiser_kit`, `engine_module` (any other resource by its number) |
-| Moving | `travel(place)`, `go(place)` (stays put if already there), `trip(place)` (game hours to fly there; -1 if unknown) |
+| Moving | `travel(place)`, `go(place)` (stays put if already there), `trip(place)` (game hours to fly there; -1 if unknown), `trip_to(place)` and `trip_between(a, b)` (`{distance, seconds, hours}`; distance in thousands of km) |
+| Places | `place_name(place)`, `place_type(place)`, `orbits(place)`, `orbiting(place)`, `position(place)` (`{x, y, z}`), `drones_at(place)`, `crowd(place)`, `wrecks_at(place)`, `minerals(place)` and `best_sites(mineral)` (`{resource, abundance}`, `{place, abundance}`), `deposits()` (`{resource, units, capacity, refill}`, here) |
 | Mining and making | `mine(mineral)`, `refine(mineral)`, `make(resource)`, `recipe(resource)` |
-| Your hold | `units(resource)`, `jettison(n, resource)`, `push(n, resource, drone)`, `pull(n, resource, drone)` |
+| Your hold | `units(resource)`, `hold()` (a list of `{resource, units}`), `cargo_mass()`, `capacity()`, `space()` (capacity left), `jettison(n, resource)`, `push(n, resource, drone)`, `pull(n, resource, drone)` |
 | Trading here | `buy_here(n, resource)`, `sell_here(n, resource)`, `sell_all(resource)` (also as `buy_from_station` and `sell_to_station`) |
 | Standing orders | `sell_order(price, keep, resource)`, `buy_order(price, want, resource)`, `sell_order_if_changed(...)`, `buy_order_if_changed(...)` |
-| Reading the market | `buy_price(resource)`, `sell_price(resource)` (0 when nobody sells or buys it here), `best_offer(resource)` and `best_bid(resource)` (each returns price, drone, units), `board_price(resource, place)`, `sold(resource, days_ago, place)`, `crowd(place)`, `deposit(mineral)` |
-| About the drone | `me()`, `location()`, `company()`, `credits()`, `today()`, `my_clones()` (a list of `{drone =, wrecked =}`) |
+| Reading the market | `buy_price(resource)`, `sell_price(resource)` (0 when nobody sells or buys it here), `best_offer(resource)` and `best_bid(resource)` (each returns price, drone, units), `sell_orders(resource)` and `buy_orders(resource)` (every order here: `{price, units, drone, keep or want, held}`), `cost_to_buy(n, resource)` and `sale_value(n, resource)` (credits and units, walking the orders here), `board_price(resource, place)`, `price_board(resource)`, `sold(resource, days_ago, place)`, `sales(resource, days_ago)`, `volume_here(resource, hours)`, `volume_everywhere(resource, hours)`, `deposit(mineral)` |
+| Other exchanges | `quotes(resource)` (best prices and stock at each place: live here, an hour old elsewhere), `stock(resource, place)`, `orders_everywhere(resource)` |
+| Your company | `company_name()`, `company_credits()`, `company_drones()`, `earnings(hours)` (sales, taxes, purchases, net), `taxes()` |
+| About the drone | `me()`, `location()`, `company()`, `credits()`, `today()`, `now()` (`{day, minute}`), `drone_name()`, `hull_name()`, `my_clones()` (a list of `{drone =, wrecked =}`), `lineage()` (`{parent, generation}`), `set_status(text)` (a line shown on its page) |
 | Growing | `launch(drone, kit)`, `unpack()` (also `unpack_kit()`), `await_kit()` |
 | Safety | `fuel_floor(n)` |
 | Waiting | `wait(minutes)` |
-| Wrecks | `plunder(wreck)` |
-| Messages | `broadcast(text)`, `events_here(type)`, `events_earth(type)` (lists of event IDs, newest first), `event_drone(event)`, `message(event)` (its text, or nil), `message_event` (the type of a message: 13) |
+| Wrecks | `plunder(wreck)`, `wrecks()` (here: `{drone, plundered}`), `wreck_hold(wreck)` |
+| Messages and events | `broadcast(text)`, `events_here(type)`, `events_earth(type)`, `events_affecting(drone)`, `local_events()` (lists of event IDs, newest first), `event(id)` (everything about it: `{type, type_name, acting, protocol, affected, resource, quantity, credits, location, place, day, seconds, message}`), `event_drone(event)`, `message(event)` (its text, or nil), `message_event` (the type of a message: 13) |
+| Game data | `resource_name(r)`, `unit_mass(r)`, `protocol_name(p)`, `protocol_minutes(p)`, `consumes(p)`, `produces(p)`, `retains(p)` (`{resource, units}`), `producers(r)`, `consumers(r)`, `users(r)` (`{protocol, units}`), `hull_capacity(hull)` |
 | State machines | `become(mode)`, `in_mode(mode)`, `tick()`, `ticks()` |
 | Output | `print(...)`, `report()` |
 | Anything else | `perform(protocol, ...)`, `query(id, ...)` and `ask(id, ...)` (the same, with an empty list if the query fails) |
 
-A query's rows are a list (the first is `rows[1]`), each row a list of its columns (`rows[1][1]`, or by the query's column name, `rows[1].price`). No rows is an empty list, so check `rows[1]` before you read it.
+A function that asks about a drone or a place asks about this one when you leave it out: `hold()` is this drone's hold, `place_name()` the name of where it is. A list of records is a Lua list of tables with named fields: `for _, o in ipairs(sell_orders(fuel)) do print(o.price, o.units) end`.
+
+Underneath, each of these asks one of the game's numbered queries (the Queries page lists them, with the function that asks each). You rarely need the numbers, but `ask(id, ...)` asks any query: its rows are a list (the first is `rows[1]`), each row a list of its columns (`rows[1][1]`, or by the query's column name, `rows[1].price`). No rows is an empty list, so check `rows[1]` before you read it.
 
 ## Goods the library doesn't name
 
@@ -185,6 +191,58 @@ Every drone also knows `buy_price`, `sell_price`, `best_offer`, `best_bid` and `
 
 ```lua
 function overstocked(product) return units(product) * 2 > sold(product, 1, earth) end
+```
+
+## Asking about other exchanges
+
+**`quotes(resource)`** (built in, #380 after round 39): the best prices for a good at every place where someone trades it: `quotes(r)[place]` is `{bid, bid_units, ask, ask_units, stock, hours_old}`. `bid` is the best buy order's price and `bid_units` how many it still wants; `ask` is the cheapest sell order's price and `ask_units` how many it sells (0 where there is none); `stock` is everything on sale there. Where the drone is it's live (`hours_old` 0); everywhere else it is the market as it stood an hour of game time ago (`hours_old` 1), like the price board: news takes time. Your own orders are left out.
+
+**`stock(resource, place)`** (built in): the units on sale at a place (here if you leave it out). An exchange running dry shows here an hour later.
+
+**`cost_to_buy(n, resource)`** and **`sale_value(n, resource)`** (built in): what buying n here would cost, cheapest sellers first, and what selling n here would bring, best buyers first (before the sales tax); each also returns how many of the n there are. `buy_price` only tells you the cheapest seller's price, and the cheapest seller may have 2 units: price the whole lot before you plan a build on it.
+
+**`earnings(hours)`** (built in): the company's trades over the last hours (24 if you leave it out): `{sales, taxes, purchases, net, by_resource}`, where `by_resource[r]` is `{sales, sold, tax, purchases, bought}`.
+
+**`set_status(text)`** (built in): a line, up to 80 characters, shown on the drone's page, in the API and in test results: say what it is doing or waiting for, so a drone that sits still says why. It costs as much as a query, so set it when the reason changes, not every round.
+
+**`better_place(product, margin)`**: a plan B that looks before it flies. The place whose best buyer pays at least margin more for a product than here, or nil. With `trip`, it weighs the trip too. Round 39's newcomers moved after counting idle rounds, and one stayed at Earth for weeks while the Moon paid three times as much.
+
+```lua
+function better_place(product, margin)
+  local here, q = location(), quotes(product)
+  local best, best_bid = nil, (q[here] and q[here].bid or 0) + margin
+  for place, p in pairs(q) do
+    if place ~= here and p.bid >= best_bid and p.bid_units > 0 then best, best_bid = place, p.bid end
+  end
+  return best
+end
+
+function plan_b(product)
+  local place = better_place(product, 100)
+  if place and trip(place) < 72 then
+    set_status("moving to " .. place_name(place) .. ": " .. resource_name(product) .. " pays more there")
+    go(place)
+  end
+end
+```
+
+**`can_build(product, n)`**: whether the inputs for n of a product are on sale here, in depth (with `recipe` and `cost_to_buy`), and what they would cost:
+
+```lua
+function can_build(product, n)
+  local r = recipe(product)
+  if not r then return false, 0 end
+  local total = 0
+  for input, per in pairs(r.uses) do
+    local need = per * n - units(input)
+    if need > 0 then
+      local cost, got = cost_to_buy(need, input)
+      if got < need then return false, 0 end
+      total = total + cost
+    end
+  end
+  return true, total
+end
 ```
 
 **`spare()`**: credits above `cash_floor`. Spend only `spare()`, so the drone always keeps money for fuel. Used by: Maker, Smith, Machinist, Trader, Adaptive.

@@ -276,6 +276,23 @@ static int l_report(lua_State* L)
     return 0;
 }
 
+/* set_status(text): the drone's own status line (#380), shown on its page
+   and in the API: what it is doing or waiting for. Up to 80 characters;
+   control characters become spaces. Costs as much as a query. */
+static int l_set_status(lua_State* L)
+{
+    size_t len = 0;
+    const char* s = luaL_checklstring(L, 1, &len);
+    char text[81];
+    size_t n = len < 80 ? len : 80;
+    for(size_t i = 0; i < n; i++)
+        text[i] = ((unsigned char)s[i] < 32 || s[i] == 127) ? ' ' : s[i];
+    text[n] = 0;
+    vm_meter_charge(engine_get_query_instructions());
+    db_set_agent_status(engine_get_db_connection(), engine_get_current_drone_id(), text, game_time_now_seconds());
+    return 0;
+}
+
 /* perform(protocol, ...): the arguments in the order FORTH pushes them
    (the last on top). A parameter the protocol takes as a double is one Lua
    number here: it is split into its two cells. Returns the result: 0 when the
@@ -550,7 +567,7 @@ static void lua_drone_sandbox(lua_State* L)
     lua_setfield(L, -2, "randomseed");
     lua_pop(L, 1);
     const luaL_Reg prims[] = {
-        { "print", l_print }, { "report", l_report }, { "perform", l_perform }, { "query", l_query },
+        { "print", l_print }, { "report", l_report }, { "perform", l_perform }, { "query", l_query }, { "set_status", l_set_status },
         { NULL, NULL } };
     for(int i = 0; prims[i].name; i++)
     {

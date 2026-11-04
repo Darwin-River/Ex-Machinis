@@ -329,6 +329,11 @@ class ApiController extends Controller
             'drone' => (int) $run->drone->agent_id,
             'credits' => (int) $run->credits,
             'wrecked' => $run->drone->wrecked_at !== null,
+            // Where it is and what its script says it is doing (set_status;
+            // #380 round 39: a test drone in flight looked stuck)
+            'place_id' => (int) $run->drone->object_id,
+            'place' => DB::table('objects')->where('object_id', $run->drone->object_id)->value('object_name'),
+            'script_status' => $run->drone->script_status ?? null,
             'crashes' => (int) $run->crashes,
             'messages' => $run->messages->map(fn ($m) => ['subject' => $m->subject, 'body' => $m->body])->all(),
             'events' => $run->events->map(fn ($e) => ['type' => $e->type_name, 'resource' => $e->resource_name,
@@ -346,6 +351,9 @@ class ApiController extends Controller
             'place_id' => $a->object_id ? (int) $a->object_id : null,
             'place' => $a->object_id ? DB::table('objects')->where('object_id', $a->object_id)->value('object_name') : null,
             'status' => DronePage::status($a),
+            // What its script says it is doing (set_status, #380)
+            'script_status' => $a->script_status !== null ? ['text' => $a->script_status,
+                'set' => DronePage::when((int) $a->script_status_t), 'set_game_time' => (int) $a->script_status_t] : null,
             // While it flies, place is where it left from; this says where it is going
             'flying_to' => ($f = DronePage::flight($a)) ? ['place_id' => $f['to_id'], 'place' => $f['to'],
                 'arrives' => $f['arrives'], 'arrives_game_time' => $f['arrives_game_time']] : null,

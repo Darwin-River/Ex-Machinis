@@ -36,6 +36,9 @@
                         <b>Company</b>: {{ $state['company']->name ?? '' }}
                             {{ ($state['company'] && $state['company']->eliminated_at) ? '(ended)' : '' }}<br/>
                         <b>Status</b>: {{ $state['status'] }}<br/>
+                        @if($agent->script_status !== null)
+                            <b>Its script says</b> ({{ \App\Services\DronePage::when((int) $agent->script_status_t) }}): {{ $agent->script_status }}<br/>
+                        @endif
                         <b>Fuel</b>: {{ $state['fuel'] }}
                             <span>· used in the last game day: {{ $state['fuel_day']['actions'] }} for actions,
                                 {{ $state['fuel_day']['thinking'] }} for thinking</span><br/>

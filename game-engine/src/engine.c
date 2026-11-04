@@ -450,7 +450,7 @@ static void engine_end_launched(void)
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] finished its launched word", agent_id);
         db_record_launched_finished(&engine.db_connection, agent_id);
-        vm_append_output("\nMy launched word has finished.\n");
+        vm_append_output("\nMy launched function has finished.\n");
         return;
     }
 
@@ -462,7 +462,7 @@ static void engine_end_launched(void)
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] crashed with error [%d], [%d] in a row: it is a wreck", agent_id, code, in_row);
         db_record_crash(&engine.db_connection, agent_id, code, in_row, -1);
-        snprintf(msg, sizeof(msg), "\nMy launched word crashed with error %d, %d times in a row. I am a wreck.\n", code, in_row);
+        snprintf(msg, sizeof(msg), "\nMy launched function crashed with error %d, %d times in a row. I am a wreck.\n", code, in_row);
     }
     else
     {
@@ -475,7 +475,7 @@ static void engine_end_launched(void)
         // A Lua drone restarts with fresh variables too (#380)
         if(engine.last_agent.is_lua)
             lua_drone_forget_state(agent_id);
-        snprintf(msg, sizeof(msg), "\nMy launched word crashed with error %d (%d in a row). Restarting from my clean copy in %lld game seconds.\n", code, in_row, wait);
+        snprintf(msg, sizeof(msg), "\nMy launched function crashed with error %d (%d in a row). Restarting from my clean copy in %lld game seconds.\n", code, in_row, wait);
     }
     vm_append_output(msg);
 }

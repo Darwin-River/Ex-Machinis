@@ -9,7 +9,7 @@ _Converted from the September 2020 edition and updated for the current game. You
 - [Chapter 4](#chapter-4-issuing-commands) starts with unpacking your kit: a Mining Kit (engine, mining and refining modules) or a Factory Kit (engine and the tools that make things), chosen at release. Travel uses protocol 5001 (your engine) instead of 5.
 - The mining example uses kunspar on the Moon, which the Mining Kit's Worm can mine. A [table](#extracting-minerals) shows which module mines which minerals, including on the new asteroids, comets and planetary rings.
 - [Chapter 6](#chapter-6-going-to-market) uses the correct sell protocol (7, not 9) and a resource that exists (kunspar, 1100).
-- [Chapter 8](#chapter-8-asking-questions) uses the current query numbers.
+- [Chapter 8](#chapter-8-asking-questions) asks the game questions by name (`hold()`, `quotes(fuel)`, `earnings()`), not by query number.
 - [Chapter 9](#chapter-9-making-decisions) shows the outputs the game really gives.
 
 Thank you for your support!
@@ -63,8 +63,12 @@ Thank you for your support!
   - [launched() may run again](#launched-may-run-again)
   - [Limits and costs](#limits-and-costs)
 - [Chapter 8: Asking Questions](#chapter-8-asking-questions)
-  - [Reading a list of results](#reading-a-list-of-results)
+  - [Other exchanges](#other-exchanges)
+  - [Before you buy or sell](#before-you-buy-or-sell)
+  - [How the company is doing](#how-the-company-is-doing)
+  - [Saying what it's doing](#saying-what-its-doing)
   - [Searching the events you've seen](#searching-the-events-youve-seen)
+  - [Any query by number](#any-query-by-number)
 - [Chapter 9: Making Decisions](#chapter-9-making-decisions)
   - [Finding the truth](#finding-the-truth)
   - [Comparing and combining](#comparing-and-combining)
@@ -454,18 +458,18 @@ A spacecraft becomes a **wreck** for good when it runs out of fuel or crashes fi
 
 Plundering takes 1 game hour and burns 1 fuel. Your spacecraft gets half of everything aboard: half of each resource, rounded down (and for an odd unit, such as a single engine, a 50/50 chance). The rest is destroyed. Make room in your hold first: what doesn't fit is lost too. Your share comes aboard a moment after `plunder` returns, so wait a minute before counting it. A wreck is plundered once, so be quick. Any wreck will do, your own companies' included. If there's no such wreck where you are, or it was already plundered, `plunder` returns -15.
 
-Two queries find wrecks (see [Chapter 8](#chapter-8-asking-questions) for queries):
+Two functions find wrecks (see [Chapter 8](#chapter-8-asking-questions)):
 
-- `ask(660)`: the wrecks where your spacecraft is: for each, its drone ID and 1 if it has been plundered (else 0).
-- `ask(661, w)`: what is aboard wreck `w` where your spacecraft is: resource ID and units.
+- `wrecks()`: the wrecks where your spacecraft is, a list of `{drone, plundered}` (`plundered` is true or false).
+- `wreck_hold(w)`: what is aboard wreck `w` where your spacecraft is, a list of `{resource, units}`.
 
 ```lua
 -- Plunder the first wreck here that nobody has plundered yet
 function scavenge()
-  for _, w in ipairs(ask(660)) do
-    if w[2] == 0 then
-      for _, item in ipairs(ask(661, w[1])) do print("aboard", item[1], item[2]) end
-      return plunder(w[1])
+  for _, w in ipairs(wrecks()) do
+    if not w.plundered then
+      for _, item in ipairs(wreck_hold(w.drone)) do print("aboard", resource_name(item.resource), item.units) end
+      return plunder(w.drone)
     end
   end
   return -15
@@ -478,14 +482,12 @@ Every sale is taxed: the seller pays **5%** of the price to the House, out of wh
 
 There is no other tax: holding goods or credits costs nothing, and nobody is eliminated for a tax bill. Price your goods with the tax in mind: a trader who buys at 20 and sells at 21 loses money.
 
-Your drone's page lists each sale with the tax it paid. Query 650 gives the tax rate in thousandths (50 is 5%), what your company paid in the last game day, and what it paid in all:
+Your drone's page lists each sale with the tax it paid. `taxes()` gives the tax rate in thousandths (50 is 5%), what your company paid in the last game day, and what it paid in all:
 
 ```lua
 function show_taxes()
-  local t = ask(650)[1]
-  if t then
-    print("rate " .. t[1] .. " thousandths, paid today " .. t[2] .. ", in all " .. t[3])
-  end
+  local t = taxes()
+  print("rate " .. t.permille .. " thousandths, paid today " .. t.last_day .. ", in all " .. t.total)
 end
 ```
 
@@ -527,7 +529,7 @@ When the live world is busy, the clock slows down so the game's computers can ke
 
 - **The solar system moves.** Planets, moons, asteroids and comets follow their real orbits, but at game speed, so the game's sky runs ahead of the real one.
 - **Actions take time.** Each protocol takes a set amount of game time. Your drone does one action at a time: each action waits until it is finished before your script goes on (see [Issuing Commands](#chapter-4-issuing-commands)).
-- **Travel takes time.** Drones speed up to the halfway point and slow down after, so a trip takes 2 × √(distance ÷ acceleration). The distance is measured when the drone leaves, so the planets' positions decide how long a trip takes. A drone can ask before it goes: `trip(mars)` returns the game hours a trip from here to Mars takes (rounded up; -1 if it can't tell). Query 704 (`ask(704, place)`, from here) and 705 (`ask(705, a, b)`, from A to B) give a row with the distance in thousands of km, the time in game seconds and the time in game hours. The game stores where every body is every few game hours, so the answer is a close estimate: Earth to the Moon is about 2.5 hours, Earth to Mars 1.5 to 3.4 game days as the planets move (round 39 measured 56 to 58 hours).
+- **Travel takes time.** Drones speed up to the halfway point and slow down after, so a trip takes 2 × √(distance ÷ acceleration). The distance is measured when the drone leaves, so the planets' positions decide how long a trip takes. A drone can ask before it goes: `trip(mars)` returns the game hours a trip from here to Mars takes (rounded up; -1 if it can't tell). `trip_to(place)` (from here) and `trip_between(a, b)` give a record with the `distance` in thousands of km, the time in game `seconds` and in game `hours`. The game stores where every body is every few game hours, so the answer is a close estimate: Earth to the Moon is about 2.5 hours, Earth to Mars 1.5 to 3.4 game days as the planets move (round 39 measured 56 to 58 hours).
 - **Messages travel at the speed of light.** You are on Earth. What a drone says reaches you only after light has crossed the distance between you. The first line of every reply says how far the drone is, in light-minutes.
 
 At the normal pace of the live world:
@@ -592,12 +594,12 @@ Minerals don't last forever. Each mineral at each place is a deposit that holds 
 
 When a deposit runs low, mining gets only what is left. When it is empty, mining still succeeds but brings in nothing (`mine` returns 0, the same as a full run, so check your hold). Move on to another place, or come back later.
 
-To see how much is left before you mine, use `deposit(mineral)`: the units left here, 0 if there is no such deposit. Query 640 lists all the deposits where the drone is: for each, the resource ID, the units left now, the capacity and the units it regains per game day:
+To see how much is left before you mine, use `deposit(mineral)`: the units left here, 0 if there is no such deposit. `deposits()` lists all the deposits where the drone is: for each, the `resource`, the `units` left now, the `capacity` and the units it regains per game day (`refill`):
 
 ```lua
 function show_deposits()
-  for _, d in ipairs(ask(640)) do
-    print("resource " .. d[1] .. ": " .. d[2] .. " left of " .. d[3] .. ", +" .. d[4] .. " a day")
+  for _, d in ipairs(deposits()) do
+    print(resource_name(d.resource) .. ": " .. d.units .. " left of " .. d.capacity .. ", +" .. d.refill .. " a day")
   end
 end
 ```
@@ -692,8 +694,7 @@ Here a new spacecraft, whose hold starts with no modules, first pulls an engine 
 worm = 5131   -- Worm (A1)
 
 function launched()
-  local lineage = ask(671)[1]           -- the drone that launched this one, and its generation
-  local parent = lineage and lineage[1] or 0
+  local parent = lineage().parent       -- the drone that launched this one (0 if none)
   if parent ~= 0 and units(engine_module) == 0 then
     pull(1, engine_module, parent)      -- pull an Engine (A1) from the parent
     pull(1, worm, parent)               -- and a Worm (A1)
@@ -708,7 +709,7 @@ The function must be called `launched`, in lower case.
 `launch` only tells the launching drone whether the launch worked. To find the new spacecraft's ID (to push it fuel or cargo, say), ask for your clones:
 
 - `my_clones()`: the drones this one launched, oldest first, each a table `{drone = id, wrecked = true or false}` (query 670).
-- `ask(671)`: one row, the drone that launched this one (0 if none) and its generation (0 for a spacecraft you released, 1 for its clones, 2 for theirs, and so on).
+- `lineage()`: `{parent, generation}`: the drone that launched this one (0 if none) and its generation (0 for a spacecraft you released, 1 for its clones, 2 for theirs, and so on).
 
 ```lua
 -- Hand the newest clone some fuel
@@ -792,8 +793,10 @@ Every drone comes with a library of names for the game, so you can write `mine(k
 | Resources | `fuel` (2061), `magmite` (1000), `kunspar` (1100), `yalspar` (1110), `vladnium` (1120), `wolfite` (1130), `metals_a1` `metals_a2` `metals_a3` (2011-2013), `alloys_a1` `alloys_a2` `alloys_a3` (2021-2023), `inorganics_a1` (2031), `inorganics_a2` (2032), `organics_a1` (2041), `organics_a2` (2042), `rods` (3011), `engine_module` (5001), `mining_kit` (5901), `factory_kit` (5902), `cruiser_kit` (6001); any other resource by its number |
 | Actions: each returns 0 when it worked, else a negative code (see [Issuing Commands](#chapter-4-issuing-commands)) | `travel(place)`, `go(place)` (travels unless already there), `mine(mineral)`, `refine(mineral)`, `make(resource)`, `wait(minutes)`, `push(n, resource, drone)`, `pull(n, resource, drone)`, `launch(drone, kit)`, `plunder(wreck)`, `jettison(n, resource)`, `broadcast(text)`, `unpack()` (whichever kit is aboard; `unpack_kit()` is the same), `sell_order(price, keep, resource)`, `buy_order(price, want, resource)`, `sell_order_if_changed(price, keep, resource)`, `buy_order_if_changed(price, want, resource)` |
 | Trading | `buy_here(n, resource)` (buy up to n here, from the cheapest sell orders first), `sell_here(n, resource)` (sell up to n here, into the best buy orders first), `sell_all(resource)` (sell all of it here; returns nothing); `buy_from_station` and `sell_to_station` are older names for `buy_here` and `sell_here` |
-| Market questions | `best_offer(resource)` (the cheapest other drone's sell order here: its price, the seller, and how many it will sell; 0, 0, 0 if none), `best_bid(resource)` (the highest other drone's buy order here: its price, the buyer, and how many it wants; 0, 0, 0 if none), `buy_price(resource)` and `sell_price(resource)` (the best price to buy or sell one here; 0 if nobody sells or buys), `board_price(resource, place)` (what a unit traded for at a place over the last game day, from the price board; 0 if none traded), `sold(resource, days_ago, place)` (how many sold at a place on a game day, an hour old; 0 is today so far) |
-| Other questions | `me()` (this drone's ID), `location()`, `units(resource)` (how many in the hold), `company()`, `credits()` (your company's credits), `today()` (the game day now: plan a late selling trip or a deadline), `deposit(mineral)` (units left here), `trip(place)` (game hours to fly there from here, rounded up; -1 if unknown), `crowd(place)` (how many working drones are at a place), `my_clones()` (a list of `{drone = id, wrecked = true or false}`), `recipe(resource)` (see below) |
+| Market questions | `best_offer(resource)` (the cheapest other drone's sell order here: its price, the seller, and how many it will sell; 0, 0, 0 if none), `best_bid(resource)` (the highest other drone's buy order here: its price, the buyer, and how many it wants; 0, 0, 0 if none), `buy_price(resource)` and `sell_price(resource)` (the best price to buy or sell one here; 0 if nobody sells or buys), `board_price(resource, place)` (what a unit traded for at a place over the last game day, from the price board; 0 if none traded), `sold(resource, days_ago, place)` (how many sold at a place on a game day, an hour old; 0 is today so far), `sell_orders(resource)` and `buy_orders(resource)` (every order here, best first: `{price, units, drone, keep or want, held}`), `cost_to_buy(n, resource)` and `sale_value(n, resource)` (what buying or selling n here comes to, and how many of the n there are), `price_board(resource)`, `sales(resource, days_ago)`, `volume_here(resource, hours)`, `volume_everywhere(resource, hours)` |
+| Other exchanges | `quotes(resource)` (`quotes(r)[place]` is `{bid, bid_units, ask, ask_units, stock, hours_old}`: live here, an hour old elsewhere), `stock(resource, place)` (units on sale there), `orders_everywhere(resource)` (see [Other exchanges](#other-exchanges)) |
+| Other questions | `me()` (this drone's ID), `location()`, `units(resource)` (how many in the hold), `company()`, `credits()` (your company's credits), `today()` (the game day now: plan a late selling trip or a deadline), `deposit(mineral)` (units left here), `trip(place)` (game hours to fly there from here, rounded up; -1 if unknown), `crowd(place)` (how many working drones are at a place), `my_clones()` (a list of `{drone = id, wrecked = true or false}`), `recipe(resource)` (see below), `hold()`, `cargo_mass()`, `capacity()`, `space()`, `now()`, `lineage()`, `company_name()`, `company_drones()`, `earnings(hours)`, `taxes()`, `place_name(place)`, `trip_to(place)`, `trip_between(a, b)`, `deposits()`, `minerals(place)`, `best_sites(mineral)`, `drones_at(place)`, `wrecks_at(place)`, `wrecks()`, `wreck_hold(wreck)`, `resource_name(resource)`, `producers(resource)`, `protocol_name(protocol)`, `events_affecting(drone)`, `event(id)` (see [Chapter 8](#chapter-8-asking-questions)) |
+| Saying what it's doing | `set_status(text)`: a line shown on the drone's page, in the API and in test results (see [Saying what it's doing](#saying-what-its-doing)) |
 | Any query | `ask(id, ...)` returns a query's rows (an empty table if it fails); `query(id, ...)` is the same but returns `nil` and a code if it fails (see [Chapter 8](#chapter-8-asking-questions)) |
 | Any protocol | `perform(protocol, ...)` runs a protocol by its number, its arguments in the order the Protocols page lists them, and returns 0 or a negative code |
 | Safety | `fuel_floor(n)`: at or below n fuel, `make` (but for fuel), `mine`, `refine` and `push` (so `sell_here`) refuse with -30, keeping the fuel left for buying more (see [A fuel floor](#fuel-floor)); `await_kit()` waits, an hour at a time, until a kit or unpacked tools are aboard |
@@ -898,7 +901,7 @@ function listen()
 end
 ```
 
-To hear only your own company, check the sender's company: `ask(201, event_drone(event))[1][1] == company()`. Messages are public: every drone, your rivals' included, can read what you broadcast (and the website's home page shows them). Use them to advertise, to tell your other drones what you found, or to listen for opportunities. What a message says is up to its sender: nothing checks that it's true.
+To hear only your own company, check the sender's company: `owner(event_drone(event)) == company()`. Messages are public: every drone, your rivals' included, can read what you broadcast (and the website's home page shows them). Use them to advertise, to tell your other drones what you found, or to listen for opportunities. What a message says is up to its sender: nothing checks that it's true.
 
 **How crowded is it?** `crowd(place)` is how many working drones are at a place now (query 721 also gives its wrecks). A place with dozens of drones mining the same deposit or selling the same goods is a place where prices are low; a quiet one may be an opportunity.
 
@@ -948,9 +951,9 @@ function sell_dear()
 end
 ```
 
-The order lists (queries 600, 601, 610 and 611) give each order's price, the order's limit, the stock and the drone. Query 612 lists the sell orders where you are at or under a price you give: `ask(612, kunspar, 75000)` finds kunspar for at most 75,000 a unit.
+`sell_orders(r)` and `buy_orders(r)` list every order here, best price first: each a record with its `price`, the `units` it will sell or still wants, the `drone`, and the order's limit (`keep` or `want`) and the stock it holds (`held`). `cost_to_buy(n, r)` and `sale_value(n, r)` walk them for you.
 
-Your spacecraft sees live orders only where it is: queries 601, 611 and 612 used to list orders anywhere in the solar system, and now list the ones at your location, like 600 and 610. To find out what's happening elsewhere, read the [price board](#the-price-board), or go there.
+Your spacecraft sees live orders only where it is. For elsewhere, `quotes(r)` gives every exchange's best prices and stock as they stood an hour of game time ago (see [Other exchanges](#other-exchanges)), and the [price board](#the-price-board) what traded there.
 
 #### Adjusting your orders
 
@@ -1050,21 +1053,13 @@ The **Market** page (`/market`) shows the active buy and sell orders at every pl
 
 #### Measuring market volume
 
-Two queries tell how busy a market is: how many units of a resource changed hands over the last H hours of game time, the credits paid for them, and how many trades there were. Query 620 counts trades where your drone is; query 621 counts them anywhere in the solar system, in the H hours up to one game hour ago (news from elsewhere takes time). Each returns one row: units, credits, trades.
+Two functions tell how busy a market is: how many units of a resource changed hands over the last hours of game time, the credits paid for them, and how many trades there were. `volume_here(resource, hours)` counts trades where your drone is; `volume_everywhere(resource, hours)` counts them anywhere in the solar system, in the hours up to one game hour ago (news from elsewhere takes time). Each returns a record: `units`, `credits`, `trades`.
 
 ```lua
--- Units of a resource traded here in the last few game hours, the credits
--- paid and the number of trades
-function volume(resource, hours)
-  local row = ask(620, resource, hours)[1]
-  if not row then return 0, 0, 0 end
-  return row[1], row[2], row[3]
-end
-
 function show_magmite_volume()
-  local n, paid, trades = volume(magmite, 24)
-  print(n .. " units for " .. paid .. " credits in " .. trades .. " trades")
-  if n > 0 then print("average price " .. paid // n) end
+  local v = volume_here(magmite, 24)
+  print(v.units .. " units for " .. v.credits .. " credits in " .. v.trades .. " trades")
+  if v.units > 0 then print("average price " .. v.credits // v.units) end
 end
 ```
 
@@ -1072,12 +1067,12 @@ Dividing the credits by the units gives the average price paid.
 
 #### The price board
 
-The price board is public news from every market, an hour old: `ask(680, resource)` lists, for the resource, each place where it traded in the game day up to one game hour ago, with the place's location ID, the units, the credits paid and the number of trades. `board_price(resource, place)` reads the average price at one place from it.
+The price board is public news from every market, an hour old: `price_board(resource)` lists, for the resource, each place where it traded in the game day up to one game hour ago: the `place`, the `units`, the `credits` paid, the number of `trades` and the average `price`. `board_price(resource, place)` reads the average price at one place from it. The board shows what traded; `quotes(resource)` shows the orders standing now (an hour old elsewhere).
 
 ```lua
 function show_board(resource)
-  for _, row in ipairs(ask(680, resource)) do
-    print("place " .. row[1] .. ": " .. row[2] .. " units for " .. row[3] .. " credits")
+  for _, b in ipairs(price_board(resource)) do
+    print(place_name(b.place) .. ": " .. b.units .. " units at " .. b.price)
   end
 end
 ```
@@ -1182,102 +1177,144 @@ end
 
 ## Chapter 8: Asking Questions
 
-In Ex Machinis, spacecraft learn about their environment through queries to an onboard database, which contains private information about events that directly affect the drone and public information on the markets and the activities of other ships.
+In Ex Machinis, spacecraft learn about their environment by asking the game's database: private information about the drone and its company, and public information about the markets, the places and the other ships. What a drone can know follows the game's rules: it sees the market where it is as it is now, and other places' markets as they were an hour of game time ago, because news takes time to travel.
 
-The game functions `units`, `credits`, `deposit`, `best_offer` and the rest are queries underneath. For anything they don't cover, ask a query yourself.
-
-The website has a **Queries** page (`/queries`), which lists all the queries that are currently available for use by your drones. These queries invoke predefined SQL scripts, which incorporate the parameters you give them and return rows of results. The page starts each query's description with its Lua call, such as `ask(620, N, H)` (its parameters in order after its number), then lists the columns of its rows.
-
-`query(id, ...)` asks query `id` with its parameters and returns its **rows**: a list of rows, each a list of its columns. `rows[1]` is the first row, `rows[1][1]` its first column. No rows is an empty list. If the query itself fails, `query` returns `nil` and a code: -3 if there is no query with that ID, -2 if the database query failed, -1 if you gave too few parameters. `ask(id, ...)` is the same, but returns an empty list when the query fails, so you can always loop over what it returns.
-
-For example, to find the type of an astronomical object (query 701), give it the object's Location ID. This reports the object type of the Moon (Location ID 10):
+Every question has a function in the game library, which returns plain values or **records**: tables with named fields. A list of records is a Lua list: step through it with `ipairs`.
 
 ```lua
-function moon_type()
-  local rows = ask(701, moon)
-  print(#rows, rows[1] and rows[1][1])   -- 1, and the Moon's type: one row
+function look_around()
+  print("at", place_name(), "with", space(), "of", capacity(), "space free")
+  for _, item in ipairs(hold()) do
+    print(resource_name(item.resource), item.units)
+  end
+  for _, o in ipairs(sell_orders(fuel)) do
+    print("fuel for sale:", o.units, "at", o.price, "from drone", o.drone)
+  end
+  local t = trip_to(mars)
+  if t then print("Mars is", t.hours, "game hours away") end
 end
 ```
 
-Numbers come back as plain numbers, whatever their size: money, volumes and event IDs too. A column that is empty in the database (SQL's NULL) comes back as `false`. For example, query 205 returns the ID of the drone that asks, and query 101 returns a company's credits:
+A function that asks about a drone or a place asks about this one when you leave it out: `hold()` is this drone's hold, `place_name()` the name of where it is, `hold(52)` drone 52's.
+
+**The questions**, by subject (the [game functions](#the-game-functions) table lists them all):
+
+| Subject | Functions and what they return |
+|---|---|
+| This drone | `me()`, `location()`, `units(resource)`, `hold()` (`{resource, units}`), `cargo_mass()`, `capacity()`, `space()`, `drone_name()`, `hull_name()`, `now()` (`{day, minute}`), `today()`, `lineage()` (`{parent, generation}`), `my_clones()` |
+| Its company | `company()`, `credits()`, `company_name()`, `company_drones()`, `earnings(hours)`, `taxes()` (`{permille, last_day, total}`) |
+| The market here | `sell_orders(r)` and `buy_orders(r)` (every order, best first: `{price, units, drone, keep or want, held}`), `best_offer(r)`, `best_bid(r)`, `buy_price(r)`, `sell_price(r)`, `cost_to_buy(n, r)`, `sale_value(n, r)`, `volume_here(r, hours)` (`{units, credits, trades}`) |
+| Other exchanges | `quotes(r)`, `stock(r, place)`, `orders_everywhere(r)`, `price_board(r)` (`{place, units, credits, trades, price}`), `board_price(r, place)`, `sales(r, days_ago)`, `sold(r, days_ago, place)`, `volume_everywhere(r, hours)` |
+| Places | `place_name(p)`, `trip(p)`, `trip_to(p)` and `trip_between(a, b)` (`{distance, seconds, hours}`), `crowd(p)`, `wrecks_at(p)`, `drones_at(p)`, `deposit(mineral)`, `deposits()` (`{resource, units, capacity, refill}`), `minerals(p)` and `best_sites(mineral)`, `position(p)` (`{x, y, z}`), `orbits(p)`, `orbiting(p)` |
+| Wrecks | `wrecks()` (here: `{drone, plundered}`), `wreck_hold(wreck)` |
+| Game data | `resource_name(r)`, `unit_mass(r)`, `recipe(r)`, `producers(r)`, `consumers(r)`, `protocol_name(p)`, `protocol_minutes(p)`, `consumes(p)`, `produces(p)` |
+| Events | `events_here(type)`, `events_earth(type)`, `events_affecting(drone)`, `event(id)`, `event_drone(id)`, `message(id)` |
+
+Each question costs about as much thinking as a thousand Lua instructions, so ask once a round and keep the answer in a variable, rather than asking again inside a loop.
+
+### Other exchanges
+
+`quotes(r)` gives the best prices for a good at every place where someone trades it. `quotes(r)[place]` is a record:
+
+| Field | |
+|---|---|
+| `bid`, `bid_units` | the best buy order's price, and how many it still wants (0 if none) |
+| `ask`, `ask_units` | the cheapest sell order's price, and how many it sells (0 if none) |
+| `stock` | everything on sale there |
+| `hours_old` | 0 where the drone is (live); 1 elsewhere: the market as it stood an hour of game time ago |
+
+Your own orders are left out. `stock(r, place)` is the stock alone: an exchange that is running out of something shows it an hour later. Use them before you fly, and for a plan B that looks instead of guessing:
+
+```lua
+-- The place whose best buyer pays at least margin more than here, or nil
+function better_place(product, margin)
+  local here, q = location(), quotes(product)
+  local best, best_bid = nil, (q[here] and q[here].bid or 0) + margin
+  for place, p in pairs(q) do
+    if place ~= here and p.bid >= best_bid and p.bid_units > 0 then best, best_bid = place, p.bid end
+  end
+  return best
+end
+```
+
+The prices elsewhere are an hour old, and other drones read them too: by the time you arrive they may have moved. A trip to Mars takes two or three game days.
+
+### Before you buy or sell
+
+`buy_price(r)` is the cheapest seller's price, but the cheapest seller may have only 2 units. `cost_to_buy(n, r)` prices the whole lot, cheapest sellers first, and also says how many of the n are for sale; `sale_value(n, r)` does the same for selling, best buyers first (before the sales tax). Check that a build's inputs are all there before you start it, or you'll be left holding half-made parts:
+
+```lua
+function inputs_ready(n)
+  local cost, got = cost_to_buy(n * 2, metals_a1)
+  if got < n * 2 then return false end
+  return cost <= credits() - 200
+end
+```
+
+### How the company is doing
+
+`earnings(hours)` adds up the company's trades over the last hours (24 if you leave it out), all its drones together: `sales` (what buyers paid), `taxes` (the sales tax on them), `purchases`, and `net` (`sales - taxes - purchases`). `by_resource[r]` breaks it down by good, with the units sold and bought. Fuel burned isn't a trade, so it isn't in it.
+
+```lua
+function daily_report()
+  local e = earnings(24)
+  print("last day: sold", e.sales, "bought", e.purchases, "net", e.net)
+  for r, t in pairs(e.by_resource) do print(resource_name(r), "sold", t.sold, "bought", t.bought) end
+  report()
+end
+```
+
+### Saying what it's doing
+
+`set_status(text)` sets a line, up to 80 characters, that shows on the drone's page ("Its script says"), in the API, and in test results. Use it to say what the drone is doing or waiting for, so a drone that sits still for days tells you why:
+
+```lua
+function wait_for_metals()
+  set_status("waiting for metals: none on sale at " .. place_name())
+  wait(60)
+end
+```
+
+Each call costs as much as a question, so set it when the reason changes, not every round.
+
+### Searching the events you've seen
+
+`events_here(type)` lists the events of one type (1 added to a hold, 2 removed, 3 moved, 13 a message...) that the drone has seen where it is, newest first; `events_earth(type)` those reported to the Earth database that it can know of. Information travels at the speed of light, so a drone only knows about events that affected it, events at the place where it is now since it got there (it forgets what it saw at places it has left), and events whose light has reached it. `event(id)` tells you everything about one event:
+
+```lua
+function last_delivery()
+  local ids = events_affecting()            -- events that affected this drone, newest first
+  local e = ids[1] and event(ids[1])
+  if e then print(e.type_name, resource_name(e.resource), e.quantity, "on day", e.day) end
+end
+```
+
+An event record has `type`, `type_name`, `acting` (the drone whose action caused it), `protocol`, `affected` (the drone it affected), `resource`, `quantity` (the new quantity it set), `credits`, `location`, `place`, `day` (day 0 is the day the world began), `seconds` (into that day) and `message` (a broadcast's text). Fields that don't apply are `nil`. Every time in the game is game time, so it runs at the game clock's pace.
+
+To search on more than the type, ask query 803 (or 804 for the Earth database) by number, with nine conditions in this order, -1 for "any": the drone whose action caused it, the protocol, the event type, at least M game minutes old, the drone it affected, the resource, 1 if resources were removed (0 if not), 1 if the resource was in use (0 if not), and the place of the affected drone. Each row holds one event ID:
+
+```lua
+-- Kunspar removed from any hold this drone has seen, by anyone
+function kunspar_taken()
+  local rows = ask(803, -1, -1, -1, -1, -1, kunspar, 1, -1, -1)
+  local e = rows[1] and event(rows[1][1])
+  if e then print("left", e.quantity, "on day", e.day) end
+end
+```
+
+### Any query by number
+
+Each of these functions asks one of the game's numbered queries. The website's **Queries** page (`/queries`) lists them all, each starting with its function, such as `sell_orders(N), or ask(610, N)`, and the columns of its rows. You rarely need the numbers, but `ask(id, ...)` asks any query, with its parameters in order after its number, and returns its **rows**: a list of rows, each a list of its columns. `rows[1]` is the first row, `rows[1][1]` its first column, and a column can also be read by its name in the query (`rows[1].price`). No rows is an empty list, so check `rows[1]` before you read it. `query(id, ...)` is the same, but when the query itself fails it returns `nil` and a code: -3 if there is no query with that ID, -2 if the database query failed, -1 if you gave too few parameters.
 
 ```lua
 function who_am_i()
   print(ask(205)[1][1])                    -- this drone's ID: what me() returns
-  print(ask(101, company())[1][1])         -- its company's credits: what credits() returns
   local rows, code = query(9999)
   if not rows then print("no such query: " .. code) end   -- -3
 end
 ```
 
-You can also read a column by its name in the query (`rows[1].price`; a name that starts with `d_` loses it). A column that is an expression, such as `IFNULL(i.units, 0)`, is easiest read by position: the Queries page lists the columns in order.
-
-Try these with the Test button, with variations on the location and query IDs, to see how they work.
-
-### Reading a list of results
-
-Some queries return a list: several rows, one after another. `ipairs` steps through them in order:
-
-```lua
--- Query 210 lists a drone's cargo: resource ID and units, largest first
-function show_cargo(drone)
-  for _, row in ipairs(ask(210, drone)) do
-    print(row[1], row[2])   -- resource and units
-  end
-end
-```
-
-The first row is often the most important one (query 210 lists the largest holdings first, and the order lists put the best price first), so `ask(...)[1]` is a quick way to the top of a list. Check it isn't `nil` before you read from it: a list can be empty.
-
-**Row layouts.** The common queries' columns, in order:
-
-| Queries | Each row |
-|---|---|
-| 600, 601 (buy orders), 610, 611, 612 (sell orders) | price, the order's wanted maximum or kept minimum, units held, drone |
-| 640 (deposits here) | resource, units left, capacity, refill per day |
-| 650 (taxes) | tax rate in thousandths, paid in the last game day, paid in all |
-| 680 (price board) | place, units, credits, trades |
-| 682 (sales on a day) | place, units, average price |
-| 620, 621 (market volume) | units, credits, trades |
-| 210 (a hold), 661 (a wreck's hold) | resource, units |
-| 670 (my clones), 660 (wrecks here) | drone, 1 if a wreck or plundered |
-| 671 (my lineage) | the drone that launched this one (0 if none), generation |
-| 704, 705 (trips) | distance in thousands of km, game seconds, game hours |
-| 720 (all drones at a place) | drone |
-| 721 (how many at a place) | working drones, wrecks |
-| 800-804 (events) | an event ID |
-
-### Searching the events you've seen
-
-Query 803 lists the events your drone has observed, newest first, filtered by up to nine conditions. Information travels at the speed of light, so a drone only knows about events that affected it, events at the place where it is now since it got there (it forgets what it saw at places it has left), and events whose light has reached it. Give the nine conditions in this order, using -1 for "any":
-
-| | Condition |
-|:--|:--|
-| A | The drone whose action caused the event |
-| P | The protocol that caused it |
-| T | The event type (1 added to a cargo hold, 2 removed, 3 moved...) |
-| M | At least M game minutes old |
-| D | The drone it affected |
-| N | The resource it affected |
-| X | 1 if resources were removed, 0 if not |
-| K | 1 if the resource was in use (locked), 0 if not |
-| O | The location of the affected drone (where it is now) |
-
-```lua
--- Kunspar removed from any hold this drone has seen, by anyone
-function kunspar_taken()
-  local events = ask(803, -1, -1, -1, -1, -1, kunspar, 1, -1, -1)
-  local latest = events[1]
-  if not latest then return end
-  local id = latest[1]                    -- the latest such event's ID
-  local q = ask(840, id)[1]               -- and the quantity it left
-  if q then print("event " .. id .. " left " .. q[1]) end
-end
-```
-
-Each row holds one event ID. Query 804 searches the Earth database the same way, and `events_here(type)` and `events_earth(type)` are 803 and 804 searching by event type alone. Ask the other event queries (810 to 844) about any event by its ID: what type it was, who acted (820, `event_drone`), which resource, the new quantity (840), when it happened (843), a message's text (844, `message`). Query 843 gives the time as the game day (day 0 is the day the world began) and the time into that day. Every time in the game is game time, so it runs at the game clock's pace.
-
-As we develop more complex queries, we'll provide additional examples of how spacecraft can use queries to probe and respond to their environment.
+Numbers come back as plain numbers, whatever their size, and a column that is empty in the database (SQL's NULL) comes back as `false`. Try these with the Test button to see how they work.
 
 ## Chapter 9: Making Decisions
 
@@ -1329,7 +1366,7 @@ function worth_selling(resource, least)
 end
 ```
 
-`a or b` is a handy default: `ask(660)[1] or {0, 0}` is the first wreck here, or a stand-in when there is none.
+`a or b` is a handy default: `wrecks()[1] or {drone = 0}` is the first wreck here, or a stand-in when there is none.
 
 ### Repeating yourself: loops
 
@@ -1492,7 +1529,7 @@ The common errors:
 | `attempt to call a nil value (global 'crowed')` | A function that doesn't exist: a typo (`crowed` for `crowd`), the wrong case (`Mine` for `mine`), or a name from another language |
 | `attempt to call a number value (global 'best_bid')` | Your script set one of the game's names to a number, then something called it. Rename your variable |
 | `attempt to perform arithmetic on a nil value (global 'misses')` | A variable that was never set. Set it at the top of the script |
-| `attempt to index a nil value (local 'row')` | Reading from a row that isn't there: an empty query result (`ask(660)[1][1]` when there are no wrecks). Check the row first |
+| `attempt to index a nil value (local 'row')` | Reading from a row that isn't there: an empty query result (`wrecks()[1].drone` when there are no wrecks). Check the row first |
 | `attempt to compare number with nil` | One side of `<` or `>` is a variable that was never set, or a function that returned nothing |
 | `attempt to concatenate a nil value` | One of the pieces joined with `..` is `nil` |
 | `bad argument #2 to 'perform' (number has no integer representation)` | A fraction where the game wants a whole number, such as `wait(n / 2)`. Use `//` |

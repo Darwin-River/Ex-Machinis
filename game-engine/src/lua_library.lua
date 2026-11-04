@@ -269,7 +269,219 @@ local function recipe(resource)
   return r
 end
 
-local function stdlib() return 18 end
+-- Asking about the world by name (#380, after round 39). Each function
+-- asks one query (its number in the comment; the Queries page lists them)
+-- and returns plain values, or records with named fields. A list of
+-- records is a Lua list: for _, o in ipairs(sell_orders(fuel)) do ... end
+
+-- rows -> a list of records with these field names, by column
+local function records(rows, names)
+  local list = {}
+  for i, row in ipairs(rows) do
+    local r = {}
+    for k, name in ipairs(names) do r[name] = row[k] end
+    list[i] = r
+  end
+  return list
+end
+-- rows -> a list of their first columns
+local function column(rows)
+  local list = {}
+  for i, row in ipairs(rows) do list[i] = row[1] end
+  return list
+end
+-- A query's first row as one record (nil if none)
+local function record(rows, names) return records(rows, names)[1] end
+local function text(id, ...)
+  local rows = query(id, ...)
+  local v = rows and rows[1] and rows[1][1]
+  if v == nil or v == false then return nil end
+  return tostring(v)
+end
+
+-- Companies and drones
+local function company_name(c) return text(100, c or company()) end              -- 100
+local function company_credits(c) return first(101, c or company()) end           -- 101
+local function company_drones(c) return column(ask(110, c or company())) end      -- 110
+local function drone_name(d) return text(200, d or me()) end                      -- 200
+local function owner(d) return first(201, d or me()) end                          -- 201
+local function where_is(d) return first(202, d or me()) end                       -- 202
+local function hull(d) return first(203, d or me()) end                           -- 203
+local function cargo_mass(d) return first(204, d or me()) end                     -- 204
+local function now()                                                              -- 207
+  return record(ask(207), {"day", "minute"}) or {day = 0, minute = 0}
+end
+local function hold(d) return records(ask(210, d or me()), {"resource", "units"}) end  -- 210
+local function hull_name(h) return text(300, h or hull()) end                     -- 300
+local function hull_capacity(h) return first(301, h or hull()) end                -- 301
+local function capacity() return hull_capacity(hull()) end
+local function space() return capacity() - cargo_mass() end
+
+-- Resources and protocols
+local function resource_name(r) return text(400, r) end                           -- 400
+local function unit_mass(r) return first(401, r) end                             -- 401
+local function best_sites(r) return records(ask(410, r), {"place", "abundance"}) end    -- 410
+local function protocol_name(p) return text(500, p) end                           -- 500
+local function protocol_minutes(p) return first(501, p) end                       -- 501
+local function consumes(p) return records(ask(510, p), {"resource", "units"}) end  -- 510
+local function produces(p) return records(ask(511, p), {"resource", "units"}) end  -- 511
+local function retains(p) return records(ask(512, p), {"resource", "units"}) end   -- 512
+local function consumers(r) return records(ask(520, r), {"protocol", "units"}) end -- 520
+local function producers(r) return records(ask(521, r), {"protocol", "units"}) end -- 521
+local function users(r) return records(ask(522, r), {"protocol", "units"}) end     -- 522
+
+-- The market here: every order, best first. A sell order sells what its
+-- drone holds above what it keeps (units); a buy order buys until its
+-- drone holds what it wants (units: how many more)
+local function sell_orders(r)                                                     -- 610
+  local list = records(ask(610, r), {"price", "keep", "held", "drone"})
+  for _, o in ipairs(list) do o.units = math.max(o.held - o.keep, 0) end
+  return list
+end
+local function buy_orders(r)                                                      -- 600
+  local list = records(ask(600, r), {"price", "want", "held", "drone"})
+  for _, o in ipairs(list) do o.units = math.max(o.want - o.held, 0) end
+  return list
+end
+local function volume_here(r, hours)                                              -- 620
+  return record(ask(620, r, hours or 24), {"units", "credits", "trades"})
+end
+local function volume_everywhere(r, hours)                                        -- 621
+  return record(ask(621, r, hours or 24), {"units", "credits", "trades"})
+end
+local function price_board(r)                                                     -- 680
+  local list = records(ask(680, r), {"place", "units", "credits", "trades"})
+  for _, b in ipairs(list) do b.price = b.units > 0 and b.credits // b.units or 0 end
+  return list
+end
+local function sales(r, days_ago)                                                 -- 682
+  return records(ask(682, r, days_ago or 0), {"place", "units", "price"})
+end
+local function taxes()                                                            -- 650
+  return record(ask(650), {"permille", "last_day", "total"}) or {permille = 0, last_day = 0, total = 0}
+end
+
+-- What buying n units here would cost, cheapest sellers first (not your
+-- own orders): the credits, and how many of the n are for sale
+local function cost_to_buy(n, r)
+  local cost, got, mine = 0, 0, me()
+  for _, o in ipairs(sell_orders(r)) do
+    if got >= n then break end
+    if o.drone ~= mine and o.units > 0 then
+      local take = math.min(n - got, o.units)
+      cost, got = cost + take * o.price, got + take
+    end
+  end
+  return cost, got
+end
+-- What selling n units here would bring, best buyers first, before the
+-- sales tax: the credits, and how many of the n are wanted
+local function sale_value(n, r)
+  local value, sold_n, mine = 0, 0, me()
+  for _, o in ipairs(buy_orders(r)) do
+    if sold_n >= n then break end
+    if o.drone ~= mine and o.units > 0 then
+      local take = math.min(n - sold_n, o.units)
+      value, sold_n = value + take * o.price, sold_n + take
+    end
+  end
+  return value, sold_n
+end
+
+-- Every exchange's orders for a resource: live here, and as they stood an
+-- hour of game time ago elsewhere (news takes time). Records: place, side
+-- ("buy" or "sell"), price, units, drone, hours_old (0 or 1)
+local function orders_everywhere(r)                                               -- 615
+  local list = records(ask(615, r), {"place", "side", "price", "units", "drone", "hours_old"})
+  for _, o in ipairs(list) do o.side = o.side == 1 and "buy" or "sell" end
+  return list
+end
+-- The best prices for a resource at each place, from orders_everywhere
+-- (not your own orders): quotes(r)[place] is {bid, bid_units, ask,
+-- ask_units, stock, hours_old}: the best buy order's price and the units
+-- it wants, the cheapest sell order's price and the units it sells (0
+-- when there is none), and all the units on sale there
+local function quotes(r)
+  local q, mine = {}, me()
+  for _, o in ipairs(orders_everywhere(r)) do
+    if o.drone ~= mine and o.units > 0 then
+      local p = q[o.place]
+      if not p then
+        p = {bid = 0, bid_units = 0, ask = 0, ask_units = 0, stock = 0, hours_old = o.hours_old}
+        q[o.place] = p
+      end
+      if o.side == "buy" and o.price > p.bid then p.bid, p.bid_units = o.price, o.units end
+      if o.side == "sell" then
+        p.stock = p.stock + o.units
+        if p.ask == 0 or o.price < p.ask then p.ask, p.ask_units = o.price, o.units end
+      end
+    end
+  end
+  return q
+end
+-- Units of a resource on sale at a place (here if no place): live here,
+-- an hour old elsewhere
+local function stock(r, place)
+  local p = quotes(r)[place or location()]
+  return p and p.stock or 0
+end
+
+-- The company's trades over the last hours (24 if not given): sales (the
+-- credits buyers paid), taxes, purchases, net (sales - taxes - purchases),
+-- and by_resource[r] = {sales, sold, tax, purchases, bought}
+local function earnings(hours)                                                    -- 655
+  local e = {sales = 0, taxes = 0, purchases = 0, net = 0, by_resource = {}}
+  for _, t in ipairs(records(ask(655, hours or 24), {"resource", "sales", "sold", "tax", "purchases", "bought"})) do
+    e.by_resource[t.resource] = t
+    e.sales, e.taxes, e.purchases = e.sales + t.sales, e.taxes + t.tax, e.purchases + t.purchases
+  end
+  e.net = e.sales - e.taxes - e.purchases
+  return e
+end
+
+-- Mining, wrecks, family
+local function deposits()                                                         -- 640
+  return records(ask(640), {"resource", "units", "capacity", "refill"})
+end
+local function wrecks()                                                           -- 660
+  local list = records(ask(660), {"drone", "plundered"})
+  for _, w in ipairs(list) do w.plundered = w.plundered == 1 end
+  return list
+end
+local function wreck_hold(w) return records(ask(661, w), {"resource", "units"}) end    -- 661
+local function lineage()                                                          -- 671
+  return record(ask(671), {"parent", "generation"}) or {parent = 0, generation = 0}
+end
+
+-- Places
+local function place_name(p) return text(700, p or location()) end                -- 700
+local function place_type(p) return first(701, p or location()) end               -- 701
+local function orbits(p) return first(702, p or location()) end                   -- 702
+local function position(p) return record(ask(703, p or location()), {"x", "y", "z"}) end -- 703
+local trip_fields = {"distance", "seconds", "hours"}
+local function trip_to(p) return record(ask(704, p), trip_fields) end             -- 704
+local function trip_between(a, b) return record(ask(705, a, b), trip_fields) end  -- 705
+local function orbiting(p) return column(ask(710, p or location())) end           -- 710
+local function drones_at(p) return column(ask(720, p or location())) end          -- 720
+local function wrecks_at(p)                                                       -- 721
+  local rows = ask(721, p or location())
+  return rows[1] and rows[1][2] or 0
+end
+local function minerals(p) return records(ask(730, p or location()), {"resource", "abundance"}) end -- 730
+
+-- Events
+local function events_affecting(d) return column(ask(800, d or me())) end         -- 800
+local function local_events() return column(ask(801)) end                         -- 801
+local function event(id)                                                          -- 845
+  local e = record(ask(845, id), {"type", "type_name", "acting", "protocol", "affected", "resource",
+                                  "quantity", "credits", "location", "place", "day", "seconds", "message"})
+  if e then
+    for k, v in pairs(e) do if v == false then e[k] = nil end end
+  end
+  return e
+end
+
+local function stdlib() return 19 end
 
 -- Every name above, for scripts
 _G.earth = earth
@@ -350,4 +562,59 @@ _G.message = message
 _G.my_clones = my_clones
 _G.recipe = recipe
 _G.fuel_floor = fuel_floor
+_G.company_name = company_name
+_G.company_credits = company_credits
+_G.company_drones = company_drones
+_G.drone_name = drone_name
+_G.owner = owner
+_G.where_is = where_is
+_G.hull = hull
+_G.cargo_mass = cargo_mass
+_G.now = now
+_G.hold = hold
+_G.hull_name = hull_name
+_G.hull_capacity = hull_capacity
+_G.capacity = capacity
+_G.space = space
+_G.resource_name = resource_name
+_G.unit_mass = unit_mass
+_G.best_sites = best_sites
+_G.protocol_name = protocol_name
+_G.protocol_minutes = protocol_minutes
+_G.consumes = consumes
+_G.produces = produces
+_G.retains = retains
+_G.consumers = consumers
+_G.producers = producers
+_G.users = users
+_G.sell_orders = sell_orders
+_G.buy_orders = buy_orders
+_G.volume_here = volume_here
+_G.volume_everywhere = volume_everywhere
+_G.price_board = price_board
+_G.sales = sales
+_G.taxes = taxes
+_G.cost_to_buy = cost_to_buy
+_G.sale_value = sale_value
+_G.orders_everywhere = orders_everywhere
+_G.quotes = quotes
+_G.stock = stock
+_G.earnings = earnings
+_G.deposits = deposits
+_G.wrecks = wrecks
+_G.wreck_hold = wreck_hold
+_G.lineage = lineage
+_G.place_name = place_name
+_G.place_type = place_type
+_G.orbits = orbits
+_G.position = position
+_G.trip_to = trip_to
+_G.trip_between = trip_between
+_G.orbiting = orbiting
+_G.drones_at = drones_at
+_G.wrecks_at = wrecks_at
+_G.minerals = minerals
+_G.events_affecting = events_affecting
+_G.local_events = local_events
+_G.event = event
 _G.stdlib = stdlib

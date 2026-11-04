@@ -164,6 +164,7 @@ The script starts loading at once. A run keeps going for 30 real minutes; after 
 ```json
 {
   "drone": 5123, "credits": 1180, "wrecked": false, "crashes": 0,
+  "place_id": 10, "place": "Moon", "script_status": "mining kunspar: 12 of 20",
   "messages": [{"subject": "Release", "body": "..."}],
   "events": [{"type": "Increment inventory", "resource": "Metals (A1)", "quantity": 12, "credits": null, "outcome": 1}],
   "trades": [{"resource": 2011, "units": 12, "credits": 290, "seller": 5123, "buyer": 2}]
@@ -172,6 +173,8 @@ The script starts loading at once. A run keeps going for 30 real minutes; after 
 
 | Field | Meaning |
 |---|---|
+| `place`, `place_id` | where the test drone is (while it flies, where it left from) |
+| `script_status` | the line its script last set with `set_status(text)`, or null |
 | `messages` | what the drone printed, oldest first |
 | `events` | its latest 20 events (actions, cargo, credits), newest first |
 | `trades` | its trades |
@@ -198,9 +201,12 @@ Use these to look up a company.
   "id": 106, "name": "Kira 2", "credits": 22936, "net_wealth": 24791, "ended": false,
   "drones": [
     {"id": 108, "name": "SN123002", "place_id": 10, "place": "Moon",
-     "status": "waiting for its action to finish: Pull resource", "fuel": 69, "wrecked": false, "wreck_cause": null},
+     "status": "waiting for its action to finish: Pull resource",
+     "script_status": {"text": "buying metals for a pump", "set": "day 12, 14:05", "set_game_time": 1794788700},
+     "fuel": 69, "wrecked": false, "wreck_cause": null},
     {"id": 111, "name": "SN156871", "place_id": 3, "place": "Earth",
-     "status": "waiting for its action to finish: Make Fuel (A1)", "fuel": 108, "wrecked": false, "wreck_cause": null}
+     "status": "waiting for its action to finish: Make Fuel (A1)", "script_status": null,
+     "fuel": 108, "wrecked": false, "wreck_cause": null}
   ]
 }
 ```
@@ -219,6 +225,7 @@ Use this to see what a drone is doing. It gives what the drone's page shows:
 | `place`, `place_id` | where it is (an object ID, as the game's functions use); while it flies, where it left from |
 | `flying_to` | while it flies: `{place_id, place, arrives, arrives_game_time}`; otherwise null |
 | `status` | what it's doing, in words: `loading its script (3 pieces to go)` and `about to launch` before it starts, `running its launched function`, `waiting for its action to finish: ...`, `a wreck` |
+| `script_status` | what its script says it is doing: `{text, set, set_game_time}`, the line it last set with `set_status(text)` and when; null if it never set one. A drone that sits still can say why ("waiting for metals: none on sale here") |
 | `fuel` | units in the tank |
 | `cargo` | `[{resource, name, units}]`: what is aboard, its modules included |
 | `now` | the action under way and when it ends, or null |
