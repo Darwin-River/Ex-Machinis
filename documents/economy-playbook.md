@@ -337,6 +337,16 @@ Round 36's newcomers all found the House paid a flat 25 to 33 credits a factory-
 - The Trader starter now buys only when the price board at Mars or Earth beats the Moon price by the trip's cost, and hauls to whichever pays more.
 - Also from round 36: the test world mirrors the live market (`LiveMirror`), recipes and recipe trees in the API and `recipe` in both libraries, `fuel-floor`, net wealth by game day, a company's open orders, a drone's fuel used per day, test drones numbered from 10,000,000.
 
+### No test world: every release is live, at 1,800× (#380, during round 40)
+
+The test world was meant to let players try a script before releasing it. In practice it got in the way: in round 39 all four newcomers found it too slow or too opaque to trust (test drones sat "in transit" for 8 to 10 real minutes) and released mostly untested, and every round's newcomers spent their first half hour testing instead of playing. The model now:
+
+- **No test world.** The Test button, `/api/v1/test`, the test world's database and engines, and the live-market mirror are gone.
+- **Every release is live and free.** Iterate by releasing, watching (`set_status`, the drone page, post-mortems) and releasing a better version as a new company. A released drone still can't be changed; a failed company costs nothing.
+- **The live clock runs at 1,800×**, the old test world's pace: a game day every 48 real seconds, a 40-day season in about 32 minutes. It slows when the engines fall behind (more than 10 real seconds), never below 60× (the old live pace).
+
+What to watch in the next round: whether the engines keep 1,800× with the usual ~130 drones plus many more newcomer releases (the clock reports its pace); whether newcomers release more often and earlier, and learn faster; whether failed releases clutter the leaderboard or the market (abandoned sell orders, wrecks at the busy exchanges); and whether the House stations keep their stock up when a round of imports passes in seconds. Playtest rules change with it: newcomers may release as often as they like, and should be told the game is fast.
+
 ### Asking about the world by name (#380, after round 39)
 
 Round 39's newcomers lost money to things their drones couldn't see. Hana 1 sat at Earth making valves for 636 while the Moon paid 1,061: its plan B counted idle rounds, and every valve it built reset the count. Fay 2 planned builds on metals at 1 credit from a miner with 2 units and was left with half-built parts. Everyone wanted best bid and ask by place, stock levels, profit and loss, and an idle reason. What changed:

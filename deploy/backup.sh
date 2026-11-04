@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Backs up the game: the live database, the test world's database and
+# Backs up the game: the live database and
 # deploy/.env (the app key and passwords), into one dated folder. Run it from
 # anywhere, as a user who can run docker:
 #
@@ -40,10 +40,6 @@ dump() {   # dump <database> <file>
 }
 
 dump exmachinis "$DEST/exmachinis.sql.gz"
-# The test world is optional: skip it if it doesn't exist
-if docker compose exec -T db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e "USE exmachinis_test"' >/dev/null 2>&1; then
-    dump exmachinis_test "$DEST/exmachinis_test.sql.gz"
-fi
 cp .env "$DEST/env"
 git -C .. rev-parse HEAD > "$DEST/commit"   # the code the data goes with
 

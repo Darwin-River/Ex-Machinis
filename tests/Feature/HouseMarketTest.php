@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Services\HouseMarket;
 use App\Services\HouseStations;
-use App\Services\LiveMirror;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -12,8 +11,7 @@ use Tests\TestCase;
 /**
  * Markets that move (#380 round 36): the House's prices and daily units
  * move over game time, each exchange its own way (house_market), and its
- * orders are posted for its station drones (HouseMarket); the live market
- * is mirrored into the test world (LiveMirror).
+ * orders are posted for its station drones (HouseMarket).
  */
 class HouseMarketTest extends TestCase
 {
@@ -143,36 +141,5 @@ class HouseMarketTest extends TestCase
         $this->assertNotContains('@@@RESUME@@@', $codes);
         $this->assertSame('<launched>', end($codes));
         $this->assertSame([], HouseStations::ensure(), 'once is enough');
-    }
-
-    public function testTheLiveMarketIsMirroredIntoTheTestWorld()
-    {
-        // A miner's sell order at the Moon: 12 metals at 17, keeping 2
-        $user = DB::table('users')->insertGetId(['name' => 'm', 'email' => 'm-' . uniqid() . '@x.invalid', 'password' => 'x']);
-        $company = DB::table('companies')->insertGetId(['user_id' => $user, 'name' => 'Miner Co', 'credits' => 1000]);
-        $miner = DB::table('agents')->insertGetId(['name' => 'Miner', 'user_id' => $user, 'company_id' => $company,
-            'object_id' => 10, 'hull_type' => HouseStations::HULL]);
-        foreach ([[1, 14, 0], [4, 2, 17]] as [$type, $q, $price]) {
-            DB::table('events')->insert(['event_type' => $type, 'action' => 0, 'logged' => 1, 'outcome' => 1, 'drone' => $miner,
-                'resource' => 2011, 'installed' => 0, 'locked' => 0, 'new_quantity' => $q, 'new_credits' => $price, 'new_cargo' => 0]);
-        }
-        $book = LiveMirror::liveBook(DB::connection());
-        $this->assertSame([17, 12], $book[10][2011]['sell']);
-
-        // Mirrored (into the same database here): a "Live market" drone at
-        // the Moon holds the 12 and sells them at 17
-        LiveMirror::refresh(DB::connection(), DB::connection());
-        $mirror = DB::table('agents as a')->join('companies as c', 'c.company_id', '=', 'a.company_id')
-            ->where('c.name', LiveMirror::NAME)->where('a.object_id', 10)->value('a.agent_id');
-        $this->assertNotNull($mirror);
-        $this->assertSame(12, HouseMarket::holdings(DB::connection(), (int) $mirror)[2011] ?? null);
-        $this->assertEquals(17, DB::table('events')->where('drone', $mirror)->where('event_type', 4)
-            ->where('resource', 2011)->orderBy('id', 'desc')->value('new_credits'));
-
-        // The live order goes: so does the mirrored one
-        DB::table('events')->insert(['event_type' => 4, 'action' => 0, 'logged' => 1, 'outcome' => 1, 'drone' => $miner,
-            'resource' => 2011, 'installed' => 0, 'locked' => 0, 'new_quantity' => 100, 'new_credits' => 17, 'new_cargo' => 0]);
-        LiveMirror::refresh(DB::connection(), DB::connection());
-        $this->assertSame(0, HouseMarket::holdings(DB::connection(), (int) $mirror)[2011] ?? 0);
     }
 }

@@ -74,8 +74,6 @@ Route::get('/machine/protocols', 'WorldController@machineProtocols');
 Route::get('/machine/query', 'WorldController@machineQuery')->middleware('throttle:240,1');
 Route::get('/release', 'ReleaseController@show');
 Route::post('/release', 'ReleaseController@store');
-Route::post('/release/test', 'ReleaseController@test');
-Route::get('/release/test/{token}', 'ReleaseController@testRun');
 
 // The scheduler's tick (#367 step 5); /get-mails is its old name
 Route::get('/tick/{key}', 'HomeController@tick');

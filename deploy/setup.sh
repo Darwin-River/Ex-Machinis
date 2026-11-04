@@ -48,14 +48,15 @@ DB_PASSWORD=$(secret)
 #APP_URL=https://$DOMAIN
 ${SITE_ADDRESS:+SITE_ADDRESS=$SITE_ADDRESS}
 
-# Game time: game seconds per real second (60 = one real minute is one game
-# hour) and drones' acceleration in m/s^2. See documents/design-manual.md.
-#GAME_TIME_SCALE=60
+# Game time: game seconds per real second (1800, the default: a game day
+# every 48 real seconds; 60 = one real minute is one game hour) and drones'
+# acceleration in m/s^2. See documents/design-manual.md.
+#GAME_TIME_SCALE=1800
 #TRAVEL_ACCELERATION=19.6
 ${GAME_TIME_SCALE:+GAME_TIME_SCALE=$GAME_TIME_SCALE}
 # The clock floor: the clock slows when the engines fall behind, never below
-# this; behind at the floor, new releases queue. Public Forge: 24 and 8.
-#GAME_TIME_FLOOR=0
+# this; behind at the floor, new releases queue.
+#GAME_TIME_FLOOR=60
 ${GAME_TIME_FLOOR:+GAME_TIME_FLOOR=$GAME_TIME_FLOOR}
 # The engines' log detail: -1 (default) errors, warnings and clock changes
 # only; 0 to 3 every step (gigabytes a day under load)

@@ -6,7 +6,6 @@ use App\Agent;
 use App\Services\LaunchQueue;
 use App\Services\Provenance;
 use App\Services\Release;
-use App\Services\TestWorld;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -42,44 +41,11 @@ class ReleaseController extends Controller
             }
         }
 
-        $testWorld = TestWorld::available();
         $clock = LaunchQueue::clock();
 
         $kits = Release::KIT_NAMES;
 
-        return view('release', compact('testWorld', 'starters', 'starter', 'copiedFrom', 'copiedWord', 'clock', 'kits', 'kit'));
-    }
-
-    /**
-     * The Test button (#324 step 7): runs the script in the test world, with
-     * the same rules and a faster clock, and nothing in the live world. Its
-     * results have their own page (#367 step 3: no accounts, so a link)
-     */
-    public function test(Request $request)
-    {
-        if (!TestWorld::available()) {
-            return back()->withErrors(['script' => 'The test world is not running right now.'])->withInput();
-        }
-        $script = $this->validScript($request, false);
-        if (!is_string($script)) {
-            return $script;
-        }
-
-        $token = TestWorld::run($script, $request->input('kit'));
-
-        return redirect('/release/test/' . $token)->withSuccess('Test run started: the test drone is loading your script. '
-            . 'Its results appear below as it runs; keep this page\'s link to come back to them.')
-            ->with('warning', Release::redefinedWarning($script));
-    }
-
-    /** A test run's results (#367 step 3) */
-    public function testRun(string $token)
-    {
-        $run = TestWorld::available() ? TestWorld::runOf($token) : null;
-        if (!$run) {
-            abort(404);
-        }
-        return view('release-test', compact('run', 'token'));
+        return view('release', compact('starters', 'starter', 'copiedFrom', 'copiedWord', 'clock', 'kits', 'kit'));
     }
 
     /**

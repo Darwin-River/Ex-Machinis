@@ -12,14 +12,16 @@ x-engine-env: &engine-env
   DB_NAME: exmachinis
   DB_USER: exmachinis
   DB_PASSWORD: ${DB_PASSWORD:?run setup.sh first}
-  # Master game clock (see game-engine/conf/game-engine.conf)
-  GAME_TIME_SCALE: ${GAME_TIME_SCALE:-60}
+  # Master game clock (see game-engine/conf/game-engine.conf): 1800, a game
+  # day every 48 real seconds (#380: no test world, every release is live)
+  GAME_TIME_SCALE: ${GAME_TIME_SCALE:-1800}
   # The clock floor (#324 step 20): the clock slows when the engines fall
-  # behind, never below GAME_TIME_FLOOR ("0": it never floats); behind at the
+  # behind, never below GAME_TIME_FLOOR (60: one game hour a real minute,
+  # the old live pace; "0": it never floats); behind at the
   # floor, new releases queue
-  GAME_TIME_FLOOR: ${GAME_TIME_FLOOR:-0}
-  CLOCK_LAG_HIGH: ${CLOCK_LAG_HIGH:-60}
-  CLOCK_LAG_LOW: ${CLOCK_LAG_LOW:-15}
+  GAME_TIME_FLOOR: ${GAME_TIME_FLOOR:-60}
+  CLOCK_LAG_HIGH: ${CLOCK_LAG_HIGH:-10}
+  CLOCK_LAG_LOW: ${CLOCK_LAG_LOW:-3}
   # -1: quiet logs (errors, warnings and clock changes only); 0 to 3 log
   # every step, which at full load is gigabytes a day
   APP_TRACE_LEVEL: ${ENGINE_TRACE_LEVEL:--1}
@@ -71,14 +73,10 @@ services:
       DB_USER: root
       DB_NAME: exmachinis
       MYSQL_PWD: ${DB_ROOT_PASSWORD}
-      # The test world's database (#324 step 7), kept up to date with the
-      # live one: the Release page's Test button runs scripts there
-      TEST_DB_NAME: exmachinis_test
-      DB_APP_USER: exmachinis
     volumes:
       - ../game-engine/sql:/sql:ro
       - ../game-engine/db-backup:/db-backup:ro
-    entrypoint: ["sh", "-c", "/sql/migrate.sh && mysql -hdb -uroot exmachinis < /sql/game_data.sql && echo 'migrate: game data loaded' && /sql/init_test_world.sh"]
+    entrypoint: ["sh", "-c", "/sql/migrate.sh && mysql -hdb -uroot exmachinis < /sql/game_data.sql && echo 'migrate: game data loaded'"]
 
   app:
     build:
@@ -101,10 +99,6 @@ services:
       DB_USERNAME: exmachinis
       DB_PASSWORD: ${DB_PASSWORD}
       CRON_KEY: ${CRON_KEY:?run setup.sh first}
-      # TEST_WORLD=1 shows the Release page's Test button; start the test
-      # world's engines with: docker compose --profile testworld up -d
-      TEST_WORLD: ${TEST_WORLD:-0}
-      DB_TEST_DATABASE: exmachinis_test
     volumes:
       - app-storage:/var/www/storage
 
@@ -133,42 +127,6 @@ services:
     environment: *engine-env
     volumes:
       - engine-logs:/opt/exmachinis/log
-
-  # The test world (#324 step 7): the same engines on the test database, with
-  # a faster clock. Started with the testworld profile.
-  test-game-engine:
-    image: exmachinis-engine
-    profiles: [testworld]
-    restart: unless-stopped
-    init: true
-    command: ["/opt/exmachinis/bin/run-engine.sh", "game-engine"]
-    depends_on:
-      migrate: {condition: service_completed_successfully}
-      game-engine: {condition: service_started}
-    environment:
-      <<: *engine-env
-      DB_NAME: exmachinis_test
-      GAME_TIME_SCALE: ${TEST_GAME_TIME_SCALE:-600}
-      GAME_TIME_FLOOR: "0"
-    volumes:
-      - test-engine-logs:/opt/exmachinis/log
-
-  test-events-engine:
-    image: exmachinis-engine
-    profiles: [testworld]
-    restart: unless-stopped
-    init: true
-    command: ["/opt/exmachinis/bin/run-engine.sh", "events-engine"]
-    depends_on:
-      migrate: {condition: service_completed_successfully}
-      test-game-engine: {condition: service_started}
-    environment:
-      <<: *engine-env
-      DB_NAME: exmachinis_test
-      GAME_TIME_SCALE: ${TEST_GAME_TIME_SCALE:-600}
-      GAME_TIME_FLOOR: "0"
-    volumes:
-      - test-engine-logs:/opt/exmachinis/log
 
   scheduler:
     image: exmachinis-engine
@@ -204,6 +162,5 @@ volumes:
   db-data:
   app-storage:
   engine-logs:
-  test-engine-logs:
   caddy-data:
   caddy-config:

@@ -20,7 +20,7 @@ Route::middleware(['auth:api', 'throttle:60,1'])->get('/user', function (Request
 /*
 | The game's JSON API (#380), /api/v1: what the website shows, for programs
 | (players' tools and AI agents). No account, like the website; reads are
-| limited to 120 a minute per address and releases and test runs to 10.
+| limited to 120 a minute per address and releases to 10.
 | Documented in documents/api.md.
 */
 Route::prefix('v1')->group(function () {
@@ -41,8 +41,6 @@ Route::prefix('v1')->group(function () {
     Route::middleware('throttle:api-read')->get('recipes/{resource}/tree', 'ApiController@recipeTree')->whereNumber('resource');
     Route::middleware('throttle:api-read')->get('news', 'ApiController@news');
     Route::middleware('throttle:api-read')->get('companies/{id}/history', 'ApiController@companyHistory')->whereNumber('id');
-    Route::middleware('throttle:api-read')->get('test/{token}', 'ApiController@testRun');
     Route::middleware('throttle:api-read')->post('check', 'ApiController@check');
     Route::middleware('throttle:api-write')->post('release', 'ApiController@release');
-    Route::middleware('throttle:api-write')->post('test', 'ApiController@test');
 });
