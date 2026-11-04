@@ -47,7 +47,7 @@ Platforms such as Railway or Render bill each service and the database separatel
 | Use | vCPUs | RAM | Disk | Hetzner Cloud | DigitalOcean |
 |---|---|---|---|---|---|
 | Trying it out, a few dozen drones | 2 | 4 GB | 40 GB | CPX21 or CX32 | Basic 4 GB |
-| **Public launch** (hundreds of drones, test world on) | 4 | 8 GB | 80 GB | **CPX31** | Basic or Premium 8 GB |
+| **Public launch** (hundreds of drones) | 4 | 8 GB | 80 GB | **CPX31** | Basic or Premium 8 GB |
 | A busy world (a thousand or more drones) | 8 | 16 GB | 160 GB | CPX41 or CCX23 | CPU-Optimized 16 GB |
 
 Notes on choosing:
@@ -220,34 +220,32 @@ Then, in a browser:
 
 ## Open the game to players
 
-Edit `deploy/.env` (`nano /opt/exmachinis/deploy/.env`) and add:
+Every release is live and free, and players learn by releasing a script, watching its drone and releasing a better one. So the game runs fast, and the defaults are ready for players:
+
+- **`GAME_TIME_SCALE`** (default 1800) sets how fast game time runs, in game seconds per real second: a game hour every 2 real seconds, a game day every 48.
+- **`GAME_TIME_FLOOR`** (default 60, one game hour a real minute) is how far the clock may slow down when the server is busy. It starts slowing when the engines run more than `CLOCK_LAG_HIGH` (10) real seconds behind, and speeds back up once they are less than `CLOCK_LAG_LOW` (3) behind.
+
+To change them, edit `deploy/.env` (`nano /opt/exmachinis/deploy/.env`), for example:
 
 ```
-GAME_TIME_SCALE=24      # aims for one game day per real hour
-GAME_TIME_FLOOR=8       # never slower than 8 game hours per real hour
-TEST_WORLD=1            # the Release page's Test button
+GAME_TIME_SCALE=600     # a game day every 2.4 real minutes
+GAME_TIME_FLOOR=24      # never slower than one game day per real hour
 ```
 
-Apply the changes:
+and apply the change:
 
 ```sh
 cd /opt/exmachinis/deploy
 docker compose up -d
-docker compose --profile testworld up -d      # the test world's engines
 ```
 
-What these settings do:
-- **`GAME_TIME_SCALE`** sets how fast game time runs.
-- **`GAME_TIME_FLOOR`** is how far the clock may slow down when the server is busy.
-- **`TEST_WORLD`** turns on the Test button, which lets players try a script in a separate world before they release it.
-
-[deploy/README.md](../deploy/README.md#opening-public-forge) explains them in full, including how to load-test the server before you announce the game.
+`GET /api/v1/clock` shows the pace now. [deploy/README.md](../deploy/README.md#opening-public-forge) explains the settings in full, including how to load-test the server before you announce the game.
 
 **Starting the world.** A fresh install has only the exchanges' station drones. The website creates them each time it starts (`forge:stations`).
 
 For a livelier market on day one, release a few starters yourself from the Release page, for example two Miners, a Refiner and a Maker, so the first players find sellers and buyers.
 
-`forge:load-test` refuses to run on the live database, so use it only on the test world, as described above.
+`forge:load-test` refuses to run on the live database, so load-test on a copy of the database or a separate server, as described in deploy/README.md.
 
 ## Update the game
 
@@ -268,7 +266,6 @@ git log --oneline HEAD..origin/public-forge      # 2. what's new
 git pull --ff-only origin public-forge            # 3. take it
 cd deploy
 docker compose up -d --build                      # 4. rebuild and restart
-docker compose --profile testworld up -d          #    (if the test world is on)
 docker compose logs migrate | tail -5             # 5. "migrate: game data loaded"
 docker compose ps                                 # 6. all running
 ```
@@ -279,7 +276,7 @@ Then open the site and check a drone page, as in step 4 of the install.
 
 **Lua drones lose their place in their script when the engine restarts.** A Lua drone's program lives in the game engine's memory: after an update (or any restart of the `game-engine` container) each Lua drone gets its saved variables back and runs its `launched` function again from the top. (Drones released in FORTH, before it was retired, carry on where they were.) Players are told so (players' manual), but updating when few are playing is kinder.
 
-**The House's prices move on the scheduler's tick.** Since round 36 the `scheduler` container's tick (every 5 seconds) posts the exchanges' orders at the day's prices, copies the live market into the test world every 5 minutes, and records each company's net wealth once a game day. If the scheduler stops, the exchanges keep trading at their last prices: check it with `docker compose ps scheduler` and `docker compose logs --tail 20 scheduler` ("tick failed" lines). `docker compose exec app php artisan forge:market` posts the House's orders once by hand. The first start after this update gives each station drone its new program, and its orders move to the tick: the log says "(new program)" for each.
+**The House's prices move on the scheduler's tick.** Since round 36 the `scheduler` container's tick (every 5 seconds) posts the exchanges' orders at the day's prices and records each company's net wealth once a game day. If the scheduler stops, the exchanges keep trading at their last prices: check it with `docker compose ps scheduler` and `docker compose logs --tail 20 scheduler` ("tick failed" lines). `docker compose exec app php artisan forge:market` posts the House's orders once by hand. The first start after this update gives each station drone its new program, and its orders move to the tick: the log says "(new program)" for each.
 
 **FORTH was retired after round 38.** From this update the Release page and the API take Lua scripts only; drones already running in FORTH keep running. The update also gives each House station drone its Lua program (the log says "(new program)" for each), and a failed push or pull gives its fuel back. Drones now accelerate at 2 g (`TRAVEL_ACCELERATION` 19.6, was 1), so trips take about a quarter as long; a `TRAVEL_ACCELERATION` in your `deploy/.env` overrides it.
 
@@ -318,7 +315,6 @@ docker image prune -f
 | What | Where it lives | How |
 |---|---|---|
 | **The game's database** (companies, drones, the market, everything players did) | Docker volume `db-data` | `deploy/backup.sh` (a `mysqldump`) |
-| The test world's database | the same volume | `deploy/backup.sh` |
 | **`deploy/.env`** (app key and passwords) | `/opt/exmachinis/deploy/.env` | `deploy/backup.sh` copies it into every backup |
 | The code | GitHub | the backup records its version (`commit`) |
 | HTTPS certificates | volume `caddy-data` | not needed: Caddy gets new ones |
@@ -331,7 +327,6 @@ docker image prune -f
 | File | What it is |
 |---|---|
 | `exmachinis.sql.gz` | the live world |
-| `exmachinis_test.sql.gz` | the test world, if it exists |
 | `env` | a copy of `deploy/.env` |
 | `commit` | the version of the code the backup was taken with |
 
@@ -422,15 +417,11 @@ Restoring replaces the whole world with the backup's: everything since the backu
 cd /opt/exmachinis/deploy
 B=/var/backups/exmachinis/<the backup to restore>
 docker compose stop app scheduler game-engine events-engine
-docker compose --profile testworld stop                     # if the test world is on
 
-# The live world
+# The game's database
 gunzip -c $B/exmachinis.sql.gz | docker compose exec -T db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot exmachinis'
-# The test world (optional)
-gunzip -c $B/exmachinis_test.sql.gz | docker compose exec -T db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot exmachinis_test'
 
 docker compose up -d                                         # migrate runs, then everything starts
-docker compose --profile testworld up -d
 ```
 
 - **If the backup is older than the code**, the `migrate` step brings its schema up to date as everything starts.
@@ -523,7 +514,7 @@ Both power the server off for a few minutes, and everything starts again on its 
 - [ ] The game was installed from `public-forge` with `deploy/setup.sh`.
 - [ ] `deploy/.env` is saved in a password manager.
 - [ ] The DNS A record is added, HTTPS works, and a released Miner runs.
-- [ ] Public Forge settings and the test world are on.
+- [ ] The game clock's pace suits you (`GET /api/v1/clock`).
 - [ ] `deploy/backup.sh` runs nightly from cron and copies off the server.
 - [ ] A restore was tested.
 - [ ] An uptime monitor watches the site.

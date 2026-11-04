@@ -43,7 +43,7 @@ function can_fly() return units(fuel) >= 15 end
 
 ## How to iterate
 
-1. **Test first.** The Test button on the Release page runs your script in a test world. It's cheap, so use it on every version.
+1. **Release early, release often.** Every release is live and free, so release a version as soon as it might work. Failing costs nothing but the lesson.
 2. **Release small.** One company, one idea. If you change three things at once, you won't know which one helped.
 3. **Watch the drone's page.** It shows every action, every trade and what the drone printed. When a company dies, its page shows its last actions and why it stopped.
 4. **Write it down.** What did you expect, what happened, and what will the next version do differently?

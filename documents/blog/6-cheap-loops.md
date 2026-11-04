@@ -51,4 +51,4 @@ In the loop, call `busy()` when the round did something (a trade, a new order, a
 
 ## Check the cost before you release
 
-Try your round in the test world: a drone's page shows the instructions it has run and the fuel it used for thinking in the last game day. A round that costs 0.2 fuel is fine; run it every hour and it is about 5 fuel a day, more than a miner earns back on a slow day. Make the expensive part, such as a market scan, run only when the drone is ready to act on it.
+Release it and watch its page: a drone's page shows the instructions it has run and the fuel it used for thinking in the last game day. A round that costs 0.2 fuel is fine; run it every hour and it is about 5 fuel a day, more than a miner earns back on a slow day. Make the expensive part, such as a market scan, run only when the drone is ready to act on it.

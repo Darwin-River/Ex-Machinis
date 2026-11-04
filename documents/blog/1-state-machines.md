@@ -85,4 +85,4 @@ end
 - **One small step per round.** Make one rod, not twelve, and then look at the market again. A drone that commits to a long job can't react until the job is done.
 - **Always have a way out.** `ticks()` counts rounds in the current mode. A mode that has gone on too long, such as six rests in a row or sixty rounds of building, should hand over to another one.
 - **Add a mode, not an `if`.** When you think of something new for the drone to do, like growing, refuelling or moving, give it its own mode and step. The `step` function stays a simple list.
-- **Try it first.** Use the Test button on the Release page: the test world copies the live market, so a test drone that prints what `worth_buying()` says shows what it would decide today before you risk a credit.
+- **Release it and watch.** Releases are free: release a drone that prints what `worth_buying()` says (or shows it with `set_status`), and its page shows what it decides against the real market. Then release a better version.
