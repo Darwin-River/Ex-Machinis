@@ -1313,7 +1313,12 @@ static Bool_t event_get_transfer_partner(Event_t *event, Event_t *partner)
                                    event->event_id, partner) != ENGINE_OK)
         return ENGINE_FALSE;
 
-    return (partner->resource_id == event->resource_id) ? ENGINE_TRUE : ENGINE_FALSE;
+    // The two halves are two drones' (#380 round 38): in a pull of fuel,
+    // the buyer's own fuel cost is a fuel decrement too, and paired with
+    // the buyer's increment it delivered the fuel while the seller's half
+    // failed on its own: an over-pull got its fuel unpaid
+    return (partner->resource_id == event->resource_id && partner->drone_id != event->drone_id)
+        ? ENGINE_TRUE : ENGINE_FALSE;
 }
 
 /** ****************************************************************************
