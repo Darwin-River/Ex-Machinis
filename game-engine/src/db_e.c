@@ -2712,19 +2712,35 @@ ErrorCode_t db_refund_fuel(int action_id)
     if(cost <= 0)
         return ENGINE_OK;
 
-    // The fuel comes back on top of what the drone holds now
+    // The fuel comes back on top of what the drone holds now. Read first,
+    // then inserted (#439): inside INSERT ... SELECT these reads were locking
+    // reads, and the cargo one walks events back from the newest, so it held
+    // a shared lock on the end of the table until the batch committed, and
+    // every new event the game engine wrote waited for it
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT IFNULL((SELECT f.new_quantity FROM events f WHERE f.drone = %d AND f.resource = %d AND f.installed = 0 "
+        "AND f.locked = 0 AND f.outcome = %d ORDER BY f.id DESC LIMIT 1), 0), "
+        "IFNULL((SELECT c.new_cargo FROM events c WHERE c.drone = %d AND c.outcome = %d ORDER BY c.id DESC LIMIT 1), 0)",
+        drone, FUEL_RESOURCE_ID, OUTCOME_OK, drone, OUTCOME_OK);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    long long fuel = 0, cargo = 0;
+    res = mysql_store_result(connection->hndl);
+    if(res) {
+        row = mysql_fetch_row(res);
+        if(row) {
+            fuel = row[0] ? atoll(row[0]) : 0;
+            cargo = row[1] ? atoll(row[1]) : 0;
+        }
+        mysql_free_result(res);
+    }
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
         "INSERT INTO events (event_type, action, logged, outcome, drone, resource, installed, locked, "
         "new_quantity, new_credits, new_cargo, game_t, place) "
-        "SELECT 1, 0, 1, %d, %d, %d, 0, 0, "
-        "IFNULL((SELECT f.new_quantity FROM events f WHERE f.drone = %d AND f.resource = %d AND f.installed = 0 "
-        "AND f.locked = 0 AND f.outcome = %d ORDER BY f.id DESC LIMIT 1), 0) + %d, 0, "
-        "IFNULL((SELECT c.new_cargo FROM events c WHERE c.drone = %d AND c.outcome = %d ORDER BY c.id DESC LIMIT 1), 0) + %d, "
-        "%lld, %d",
-        OUTCOME_OK, drone, FUEL_RESOURCE_ID,
-        drone, FUEL_RESOURCE_ID, OUTCOME_OK, cost,
-        drone, OUTCOME_OK, cost,
-        game_t, place);
+        "VALUES (1, 0, 1, %d, %d, %d, 0, 0, %lld, 0, %lld, %lld, %d)",
+        OUTCOME_OK, drone, FUEL_RESOURCE_ID, fuel + cost, cargo + cost, game_t, place);
     if(mysql_query(connection->hndl, query_text)) {
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
