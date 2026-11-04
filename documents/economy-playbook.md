@@ -350,6 +350,23 @@ Round 41's clock fell from 1,800× to about 157× after day 50. The queries aski
 
 To watch next round: whether the clock holds through day 100. The next biggest costs are the engine's own event lookups, the company-latest-event query (now cheap) and its latest-event-time check. For 5,000 ships, see the plan on #422.
 
+### Locks and history reads (#439, #431 step 1, part of #428)
+
+Two more steps on round 41's world, on the same saved state, 5 real minutes each:
+
+| | Drone turns a minute | Engines behind |
+|---|---|---|
+| after #438 | ~1,450 | 4–5 s |
+| no lock on the end of `events` (#439) | ~2,100 | 2 s |
+| current state in the engines (#431 step 1) | ~2,800–2,960 | 1–2 s |
+
+- **#439:** inserts had been waiting on a shared lock that the events engine held on the end of `events`, taken by a fuel refund's locking subqueries and by the current-state triggers.
+- **#431 step 1:**
+  - "when may this drone's next action start" now takes two index steps instead of reading every event the drone ever had;
+  - a drone's inventory now comes from `holdings`.
+
+Each step was checked: holdings and orders matched the history exactly, and the rewritten queries gave the same answers for every drone. The top costs now are the previous event for a drone and resource, the drone's previous event, and saving a drone's input: more steps for #431.
+
 ### Skipping a lookup three in four events didn't need (#435, part of #428)
 
 On round 41's aged world, after #437, the clock held 1,800×, but the top cost was the events engine looking up a company's latest event for every inventory and order event. Its result is only used by events that carry credits, and about three in four don't. Events without credits now skip it.
