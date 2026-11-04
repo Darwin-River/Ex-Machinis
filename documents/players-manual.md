@@ -323,7 +323,7 @@ Every physical action your spacecraft takes will result from calls to predefined
 
 You can find a current list of protocols on the website's **Protocols** page (`/protocols`).
 
-Most protocols have a game function of their own: `mine(kunspar)`, `travel(moon)`, `push(5, kunspar, 52)`. Underneath, each calls `perform(protocol, ...)`, which runs any protocol by its number, with the protocol's arguments after it. The Protocols page writes each protocol's arguments in order, then its number: `[N R D 10 perform]` (push N units of resource R to drone D) is `perform(10, n, r, d)` in your script, which is what `push(n, r, d)` does.
+Most protocols have a game function of their own: `mine(kunspar)`, `travel(moon)`, `push(5, kunspar, 52)`. Underneath, each calls `perform(protocol, ...)`, which runs any protocol by its number, with the protocol's arguments after it. The Protocols page starts each protocol's description with its Lua call: `push(N, R, D), or perform(10, N, R, D)` pushes N units of resource R to drone D.
 
 Think of your drone's script as a sequencer that decides how one action follows another. An action waits until it is finished: your script doesn't go on to the next line until then, so a drone does one thing at a time, and the script only runs in between actions to decide what to do next. A trip, for example, holds the script until the drone arrives. Then the action returns a number:
 
@@ -1186,7 +1186,7 @@ In Ex Machinis, spacecraft learn about their environment through queries to an o
 
 The game functions `units`, `credits`, `deposit`, `best_offer` and the rest are queries underneath. For anything they don't cover, ask a query yourself.
 
-The website has a **Queries** page (`/queries`), which lists all the queries that are currently available for use by your drones. These queries invoke predefined SQL scripts, which incorporate the parameters you give them and return rows of results. The page lists each query's parameters and the columns of its rows. It writes the parameters in order, then a result buffer and its size (R and L), then the query's number: `[N H R L 620 query]` is `ask(620, n, h)` in your script. Your drone doesn't need R and L.
+The website has a **Queries** page (`/queries`), which lists all the queries that are currently available for use by your drones. These queries invoke predefined SQL scripts, which incorporate the parameters you give them and return rows of results. The page starts each query's description with its Lua call, such as `ask(620, N, H)` (its parameters in order after its number), then lists the columns of its rows.
 
 `query(id, ...)` asks query `id` with its parameters and returns its **rows**: a list of rows, each a list of its columns. `rows[1]` is the first row, `rows[1][1]` its first column. No rows is an empty list. If the query itself fails, `query` returns `nil` and a code: -3 if there is no query with that ID, -2 if the database query failed, -1 if you gave too few parameters. `ask(id, ...)` is the same, but returns an empty list when the query fails, so you can always loop over what it returns.
 
