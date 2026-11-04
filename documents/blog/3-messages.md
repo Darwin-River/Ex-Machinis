@@ -49,14 +49,11 @@ end
 
 ## Coordinate your own fleet
 
-Messages are public, so check who sent one: query 201 gives a drone's company. Here, miners of one company warn each other. A drone that finds its deposit dry says so before it moves on. Another drone of the same company that hears the warning where it works moves on too, without spending its fuel on mining runs that bring nothing.
+Messages are public, so check who sent one: `owner(drone)` gives a drone's company. Here, miners of one company warn each other. A drone that finds its deposit dry says so before it moves on. Another drone of the same company that hears the warning where it works moves on too, without spending its fuel on mining runs that bring nothing.
 
 ```lua
 -- Is a drone one of this company's?
-function own(drone)
-  local rows = ask(201, drone)
-  return rows[1] ~= nil and rows[1][1] == company()
-end
+function own(drone) return owner(drone) == company() end
 function say_dry() broadcast("Deposit dry: moving on") end
 
 -- Heard, since we last listened, a drone of ours here say its deposit is dry?

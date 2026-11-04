@@ -197,5 +197,44 @@ function reinvest()
   fill_to(60)
 end
 
+-- Asking about other exchanges (#380, after round 39)
+-- The place whose best buyer pays at least margin more for a product than
+-- here, or nil (quotes: live here, an hour old elsewhere)
+function better_place(product, margin)
+  local here, q = location(), quotes(product)
+  local best, best_bid = nil, (q[here] and q[here].bid or 0) + margin
+  for place, p in pairs(q) do
+    if place ~= here and p.bid >= best_bid and p.bid_units > 0 then best, best_bid = place, p.bid end
+  end
+  return best
+end
+
+-- A plan B that looks before it flies: move where the product pays more,
+-- if the trip is under three game days, and say so on the drone's page
+function plan_b(product)
+  local place = better_place(product, 100)
+  if place and trip(place) < 72 then
+    set_status("moving to " .. place_name(place) .. ": " .. resource_name(product) .. " pays more there")
+    go(place)
+  end
+end
+
+-- Whether the inputs for n of a product are on sale here, in depth, and
+-- what they would cost
+function can_build(product, n)
+  local r = recipe(product)
+  if not r then return false, 0 end
+  local total = 0
+  for input, per in pairs(r.uses) do
+    local need = per * n - units(input)
+    if need > 0 then
+      local cost, got = cost_to_buy(need, input)
+      if got < need then return false, 0 end
+      total = total + cost
+    end
+  end
+  return true, total
+end
+
 -- So that this file can also be released as it is (it does nothing)
 function launched() end

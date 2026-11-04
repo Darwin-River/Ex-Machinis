@@ -75,7 +75,7 @@ function choose()
   consider(score(sell_price(comps), 402, 34), comps)
 end
 
-function stock() return units(xcvrs) + units(solens) + units(comps) end
+function goods_held() return units(xcvrs) + units(solens) + units(comps) end
 function sell_one(res)
   if units(res) == 0 then return end
   if sell_price(res) < min_sale then return end
@@ -153,7 +153,7 @@ function tell()
   rounds = rounds + 1
   if rounds % 6 ~= 0 then return end
   print("day " .. today() .. " cr " .. credits() .. " fuel " .. units(fuel) ..
-        " make " .. product .. " best " .. best .. " stock " .. stock() .. " wip " .. wip() ..
+        " make " .. product .. " best " .. best .. " stock " .. goods_held() .. " wip " .. wip() ..
         " m1 " .. units(metals_a1) .. " m2 " .. units(metals_a2) .. " m3 " .. units(metals_a3))
   report()
 end
@@ -170,7 +170,7 @@ function round()
   sync_bids()
   if fuel_step() then busy(); return end
   sell_step()
-  if stock() < max_stock then
+  if goods_held() < max_stock then
     if make_step() then busy(); return end
     shop()
     if make_step() then busy(); return end

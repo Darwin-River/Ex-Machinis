@@ -78,6 +78,22 @@ class ApiTest extends TestCase
         $this->getJson('/api/v1/drones/999999999')->assertNotFound();
     }
 
+    public function testADroneSaysWhatItsScriptIsDoing()
+    {
+        $agent = $this->release('Status Watchers', "function launched() end");
+        $this->getJson('/api/v1/drones/' . $agent->agent_id)->assertOk()->assertJsonPath('script_status', null);
+
+        // set_status(text) in the drone's script writes these (#380)
+        DB::table('agents')->where('agent_id', $agent->agent_id)
+            ->update(['script_status' => 'waiting for metals: none on sale here', 'script_status_t' => World::gameNow()]);
+        $this->getJson('/api/v1/drones/' . $agent->agent_id)->assertOk()
+            ->assertJsonPath('script_status.text', 'waiting for metals: none on sale here')
+            ->assertJsonStructure(['script_status' => ['text', 'set', 'set_game_time']]);
+        $this->get('/spacecraft/' . $agent->agent_id)->assertOk()
+            ->assertSee('Its script says')
+            ->assertSee('waiting for metals: none on sale here');
+    }
+
     public function testOrdersListEveryOpenOrderAndFilter()
     {
         $a = $this->release('Bidder One');

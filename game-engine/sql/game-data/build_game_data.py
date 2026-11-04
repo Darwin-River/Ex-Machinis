@@ -1325,6 +1325,75 @@ queries.append((682, 'Sales on a day',
                 "FROM trades t WHERE t.resource = [value_2] AND t.location IS NOT NULL "
                 f"AND {in_day('t.game_t')} GROUP BY t.location ORDER BY t.location;"))
 
+# Asking about the world (#380, after round 39): newcomers wanted quotes
+# from other exchanges, stock levels, and their own profit and loss.
+# Every exchange's orders for resource N, as a drone may know them: live
+# where it is, and as they stood an hour of game time ago elsewhere (the
+# price board's lag): each drone's latest order for N posted by then, and
+# what it held by then. Rows: place, side (1 buy, 2 sell), price, units
+# (what a sell order will sell, or a buy order still wants), drone, hours
+# old (0 or 1). Drones flying, wrecked or arrived after then are left out,
+# and buyers who can't pay for a unit.
+# What a drone held of a resource as of game time t: for each kind
+# (installed, locked), its latest inventory event by then, found walking
+# back from the newest (a NOT EXISTS like holding()'s, with a time limit,
+# took a second over a station's thousands of events)
+def holding_asof(drone, resource, t):
+    return (f"(SELECT IFNULL(SUM((SELECT h.new_quantity FROM events h WHERE h.drone = {drone} "
+            f"AND h.resource = {resource} AND h.installed = k.i AND h.locked = k.l AND h.outcome = 1 "
+            f"AND h.event_type IN (1, 2) AND h.game_t <= {t} ORDER BY h.id DESC LIMIT 1)), 0) "
+            "FROM (SELECT 0 i, 0 l UNION ALL SELECT 0, 1 UNION ALL SELECT 1, 0 UNION ALL SELECT 1, 1) k)")
+
+
+ASOF = ("WITH a AS (SELECT g.agent_id, g.object_id, g.company_id, g.arrived_t, "
+        f"IF(g.object_id = {HERE_}, [game_now], [game_now] - {BOARD_LAG}) AS t FROM agents g "
+        "WHERE g.wrecked_at IS NULL AND NOT EXISTS (SELECT 1 FROM events m WHERE m.drone = g.agent_id "
+        "AND m.event_type = 3 AND m.outcome = 0 AND m.game_t > [game_now])), "
+        "l AS (SELECT e.drone, MAX(e.id) AS id FROM events e INNER JOIN a ON a.agent_id = e.drone "
+        "WHERE e.outcome = 1 AND e.event_type IN (4, 5) AND e.resource = [value_1] AND e.game_t <= a.t "
+        "GROUP BY e.drone, e.event_type) "
+        "SELECT a.object_id AS place, IF(o.event_type = 5, 1, 2) AS side, o.new_credits AS price, "
+        "ABS(i.units - o.new_quantity) AS units, o.drone, IF(a.t = [game_now], 0, 1) AS hours_old "
+        "FROM l INNER JOIN events o ON o.id = l.id INNER JOIN a ON a.agent_id = l.drone "
+        f"JOIN LATERAL (SELECT {holding_asof('a.agent_id', '[value_1]', 'a.t')} AS units) i "
+        "WHERE IFNULL(a.arrived_t, 0) <= a.t AND IF(o.event_type = 4, i.units > o.new_quantity, "
+        "i.units < o.new_quantity AND (SELECT c.credits FROM companies c WHERE c.company_id = a.company_id) "
+        ">= o.new_credits) ORDER BY place, side, price;")
+queries.append((615, 'Orders everywhere',
+                '[N R L 615 query]: Every exchange\'s orders for resource N: live where the drone is, an hour old '
+                'elsewhere. Rows: place, side (1 buy, 2 sell), price, units on offer or wanted, drone, hours old.', 1,
+                ASOF))
+# The drone's company's trades over the last H game hours, by resource:
+# credits from sales, units sold, sales tax paid, credits paid for
+# purchases, units bought
+MY_COMPANY = "(SELECT company_id FROM agents WHERE agent_id = [drone_id])"
+queries.append((655, 'My company\'s trades',
+                '[H R L 655 query]: The drone\'s company\'s trades over the last H game hours, by resource: '
+                'credits from sales, units sold, sales tax paid, credits paid for purchases, units bought.', 1,
+                "SELECT t.resource, "
+                f"SUM(IF(s.company_id = {MY_COMPANY}, t.credits, 0)) AS sales, "
+                f"SUM(IF(s.company_id = {MY_COMPANY}, t.units, 0)) AS sold, "
+                f"SUM(IF(s.company_id = {MY_COMPANY}, t.tax, 0)) AS tax, "
+                f"SUM(IF(b.company_id = {MY_COMPANY}, t.credits, 0)) AS purchases, "
+                f"SUM(IF(b.company_id = {MY_COMPANY}, t.units, 0)) AS bought "
+                "FROM trades AS t INNER JOIN agents AS s ON s.agent_id = t.seller "
+                "INNER JOIN agents AS b ON b.agent_id = t.buyer "
+                "WHERE t.game_t > [game_now] - [value_1] * 3600 AND t.game_t <= [game_now] "
+                f"AND (s.company_id = {MY_COMPANY} OR b.company_id = {MY_COMPANY}) "
+                "GROUP BY t.resource ORDER BY t.resource;"))
+# Everything about an event in one row (810 to 844 ask one column each)
+queries.append((845, 'Event details',
+                '[N R L 845 query]: Event N in one row: type, type name, acting drone, protocol, affected drone, '
+                'resource, new quantity, new credits, new location, place, game day, seconds into it, message.', 1,
+                "SELECT e.event_type AS type, t.name AS type_name, IFNULL(x.drone, 0) AS acting, "
+                "IFNULL(x.protocol, 0) AS protocol, e.drone AS affected, e.resource, e.new_quantity AS quantity, "
+                "e.new_credits AS credits, e.new_location AS location, e.place, "
+                "FLOOR((e.game_t - g.epoch) / 86400) AS day, MOD(e.game_t - g.epoch, 86400) AS seconds, "
+                "(SELECT b.body FROM broadcasts AS b WHERE b.action_id = e.action AND e.event_type = 13 LIMIT 1) "
+                "AS message FROM events AS e INNER JOIN event_types AS t ON t.id = e.event_type "
+                "LEFT JOIN actions AS x ON x.id = e.action INNER JOIN game_clock AS g ON g.id = 1 "
+                "WHERE e.outcome = 1 AND e.id = [value_1];"))
+
 # Queries whose money or volume columns are double cells: say so
 DOUBLE_QUERIES = {101, 600, 601, 610, 611, 612, 620, 621, 841}  # 630 says so itself
 queries = [(q[0], q[1], (q[2] if q[0] == 612 else q[2].rstrip() + ' Money and volumes are double cells (2@).')[:255],
@@ -1433,6 +1502,25 @@ FORTH_WORDING = [
 ]
 
 
+# The library function that asks each query (game-engine/src/lua_library.lua)
+QUERY_FUNCS = {
+    '100': 'company_name(N)', '101': 'company_credits(N)', '110': 'company_drones(N)', '200': 'drone_name(N)',
+    '201': 'owner(N)', '202': 'where_is(N)', '203': 'hull(N)', '204': 'cargo_mass(N)', '205': 'me()',
+    '207': 'now()', '210': 'hold(N)', '212': 'units(N)', '300': 'hull_name(N)', '301': 'hull_capacity(N)',
+    '400': 'resource_name(N)', '401': 'unit_mass(N)', '410': 'best_sites(N)', '500': 'protocol_name(N)',
+    '501': 'protocol_minutes(N)', '510': 'consumes(N)', '511': 'produces(N)', '512': 'retains(N)',
+    '520': 'consumers(N)', '521': 'producers(N)', '522': 'users(N)', '600': 'buy_orders(N)',
+    '610': 'sell_orders(N)', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
+    '640': 'deposits()', '650': 'taxes()', '655': 'earnings(H)', '660': 'wrecks()', '661': 'wreck_hold(W)',
+    '670': 'my_clones()', '671': 'lineage()', '680': 'price_board(N)', '682': 'sales(N, D)', '695': 'recipe(R)',
+    '700': 'place_name(N)', '701': 'place_type(N)', '702': 'orbits(N)', '703': 'position(N)',
+    '704': 'trip_to(P)', '705': 'trip_between(A, B)', '710': 'orbiting(N)', '720': 'drones_at(N)',
+    '721': 'crowd(P)', '730': 'minerals(N)', '800': 'events_affecting(N)', '801': 'local_events()',
+    '803': 'events_here(T)', '804': 'events_earth(T)', '820': 'event_drone(N)', '844': 'message(N)',
+    '845': 'event(N)',
+}
+
+
 def lua_description(desc, kind):
     if kind == 'perform':
         m = re.match(r'^\[((?:[A-Z][0-9]* )*)(\d+) perform\]', desc)
@@ -1444,7 +1532,9 @@ def lua_description(desc, kind):
     else:
         m = re.match(r'^\[((?:[A-Z][0-9]* )*)R L (\d+) query\]', desc)
         if m:
-            desc = 'ask(' + ', '.join([m.group(2)] + m.group(1).split()) + ')' + desc[m.end():]
+            call = 'ask(' + ', '.join([m.group(2)] + m.group(1).split()) + ')'
+            named = QUERY_FUNCS.get(m.group(2))
+            desc = (f'{named}, or {call}' if named else call) + desc[m.end():]
     for old, new in FORTH_WORDING:
         desc = re.sub(old, new, desc)
     return desc

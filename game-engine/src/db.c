@@ -884,6 +884,36 @@ ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMa
 
 /** ****************************************************************************
 
+    @brief          Sets a drone's own status line (agents.script_status, #380):
+                    what its script says it is doing, shown on its page
+
+*******************************************************************************/
+ErrorCode_t db_set_agent_status(DbConnection_t* connection, int agent_id, const char* text, long long game_t)
+{
+    ErrorCode_t result = db_reconnect(connection);
+    if(!text) return ENGINE_INTERNAL_ERROR;
+
+    char* safe = db_escape_alloc(connection, text);
+    if(!safe) return ENGINE_INTERNAL_ERROR;
+    size_t query_size = strlen(safe) + 160;
+    char* query_text = engine_malloc(query_size);
+    if(!query_text) { free(safe); return ENGINE_INTERNAL_ERROR; }
+
+    snprintf(query_text, query_size,
+        "UPDATE agents SET script_status = '%s', script_status_t = %lld WHERE agent_id = %d",
+        safe, game_t, agent_id);
+    if (mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+
+    engine_free(query_text, query_size);
+    free(safe);
+    return result;
+}
+
+/** ****************************************************************************
+
     @brief          Appends to the output a paused script has produced so far
                     (agents.OUTPUT holds it until the script finishes)
 
@@ -3035,7 +3065,7 @@ ErrorCode_t db_get_query_info(Queries_t* queryInfo)
                     sprintf(queryInfo->name, "%s", row[QUERIES_NAME_IDX]?row[QUERIES_NAME_IDX]:"");
                     snprintf(queryInfo->description, sizeof(queryInfo->description), "%s", row[QUERIES_DESCRIPTION_IDX]?row[QUERIES_DESCRIPTION_IDX]:"");
                     queryInfo->parametersNum = row[QUERIES_PARAMETERS_IDX]?atoi(row[QUERIES_PARAMETERS_IDX]):0;
-                    sprintf(queryInfo->script, "%s", row[QUERIES_SCRIPT_IDX]?row[QUERIES_SCRIPT_IDX]:"");
+                    snprintf(queryInfo->script, sizeof(queryInfo->script), "%s", row[QUERIES_SCRIPT_IDX]?row[QUERIES_SCRIPT_IDX]:"");
 
                     engine_trace(TRACE_LEVEL_ALWAYS,
                         "NAME [%s] DESCRIPTION [%s] PARAMETERS [%d] SCRIPT [%s] obtained for QUERY_ID [%d]",

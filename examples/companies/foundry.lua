@@ -62,12 +62,12 @@ function each_recipe()
 end
 
 -- --- the hold, read once a round (query 210: resource, units) ------------
-hold = {}
+held = {}
 function snap()
-  hold = {}
-  for _, row in ipairs(ask(210, me())) do hold[row[1]] = row[2] end
+  held = {}
+  for _, item in ipairs(hold()) do held[item.resource] = item.units end
 end
-function have(res) return hold[res] or 0 end
+function have(res) return held[res] or 0 end
 
 -- --- money ----------------------------------------------------------------
 function spare() return math.max(credits() - cash_floor, 0) end
@@ -130,7 +130,7 @@ function batch(i)
   return math.min(spare() // math.max(cost, 1), 4)
 end
 -- buy what the inputs of recipe i lack for a batch
-function stock(i)
+function stock_up(i)
   local k = batch(i)
   if k == 0 then return end
   for _, input in ipairs(rec[i].ins) do
@@ -274,7 +274,7 @@ function round()
   choose()
   tell()
   if best < 1 then wait(120); return end
-  if not ready(best) then stock(best) end
+  if not ready(best) then stock_up(best) end
   if ready(best) then make_one(best) else wait(60) end
   reinvest()
 end

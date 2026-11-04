@@ -8,6 +8,8 @@
 #     take a Lua one,
 #   - a Lua script released on the website runs, and what it prints and
 #     reports is kept for the website (#367 step 5),
+#   - it asks about its world by name (quotes, cost_to_buy) and sets its
+#     status line (set_status),
 #   - it unpacks its starter kit, flies to the Moon, mines and refines kunspar,
 #   - companies of one player may trade with each other,
 #   - a released script in several pieces runs, the Release page offers
@@ -234,6 +236,10 @@ function launched()
     return
   end
   say("sum " .. 2 + 3)
+  -- Asking by name (#380): records, quotes, the cost of a lot, a status line
+  set_status("smoke: looking around")
+  local cost, got = cost_to_buy(5, fuel)
+  say("asked " .. place_name() .. " " .. type(quotes(fuel)) .. " " .. #hold() .. " " .. got .. " " .. now().day)
   -- The starting sequence: unpack the starter kit, fly to the Moon (the
   -- line after the trip runs once it is over), mine kunspar
   say("kit " .. units(mining_kit))
@@ -301,6 +307,9 @@ DRONE=$(sql "select name from agents where agent_id=$DRONE_ID")
 lua_loaded() { [ "$(sql "select concat(language, ' ', lua_script is not null) from agents where agent_id=$DRONE_ID")" = "lua 1" ]; }
 wait_for 60 "drone $DRONE is a Lua drone with its script" lua_loaded
 wait_for 90 "drone $DRONE ran its launched function; its reply is kept for the website" replied $DRONE_ID "sum 5"
+wait_for 30 "drone $DRONE asked about its world by name" replied $DRONE_ID "asked Earth table"
+[ "$(sql "select script_status from agents where agent_id=$DRONE_ID")" = "smoke: looking around" ] || fail "set_status didn't set the drone's status line"
+echo "ok: the drone's status line is set"
 
 # The starting sequence from the game data: unpack the starter kit, fly to
 # the Moon (10), mine kunspar (1100) with the kit's mining module
@@ -541,10 +550,10 @@ FORGE_NAME=$(sql "select name from agents where agent_id=$FORGE_DRONE")
 # Public, on the drone's page (#367 step 3)
 wait_for 30 "the drone's page shows the reply" sh -c "curl -fsS http://localhost/spacecraft/$FORGE_DRONE | grep -q 'forge-release-ok7'"
 # Starter scripts and game names (#324 step 15): the Release page fills in
-# a starter, and a drone knows the game's names (the library's version: 18)
+# a starter, and a drone knows the game's names (the library's version: 19)
 grep -qF "richer(kunspar, wolfite)" <<<"$(fetch -b "$JAR" "http://localhost/release?starter=miner")" || fail "the Release page did not offer the miner starter"
 echo "ok: the Release page offers the starter scripts"
-wait_for 60 "a drone knows the game's names" replied $FORGE_DRONE "game-words 18 10 1100 true true"
+wait_for 60 "a drone knows the game's names" replied $FORGE_DRONE "game-words 19 10 1100 true true"
 
 # Broadcasts (#380): the released drone, at Earth, broadcasts a message, an
 # event; the first drone, on the Moon, reads it from the Earth database

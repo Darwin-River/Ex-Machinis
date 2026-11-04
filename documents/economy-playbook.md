@@ -337,6 +337,18 @@ Round 36's newcomers all found the House paid a flat 25 to 33 credits a factory-
 - The Trader starter now buys only when the price board at Mars or Earth beats the Moon price by the trip's cost, and hauls to whichever pays more.
 - Also from round 36: the test world mirrors the live market (`LiveMirror`), recipes and recipe trees in the API and `recipe` in both libraries, `fuel-floor`, net wealth by game day, a company's open orders, a drone's fuel used per day, test drones numbered from 10,000,000.
 
+### Asking about the world by name (#380, after round 39)
+
+Round 39's newcomers lost money to things their drones couldn't see. Hana 1 sat at Earth making valves for 636 while the Moon paid 1,061: its plan B counted idle rounds, and every valve it built reset the count. Fay 2 planned builds on metals at 1 credit from a miner with 2 units and was left with half-built parts. Everyone wanted best bid and ask by place, stock levels, profit and loss, and an idle reason. What changed:
+
+- **Every question has a name** in the Lua library (about 50 functions: `hold()`, `sell_orders(r)`, `trip_to(p)`, `price_board(r)`, `deposits()`, `wrecks()`, `event(id)`...), returning records with named fields. The manual's chapter 8 teaches the names; query numbers are for the rest.
+- **`quotes(r)`**: best bid and ask, the units at each, and the stock on sale, for every exchange: live here, an hour old elsewhere (query 615 rebuilds the order book as it stood then). `stock(r, place)` is the stock alone. A plan B can now compare places before it flies (`better_place` in `lua-functions.md`).
+- **`cost_to_buy(n, r)`** and **`sale_value(n, r)`**: the whole lot, in depth, before a build starts.
+- **`earnings(hours)`**: the company's sales, taxes, purchases and net, by good.
+- **`set_status(text)`**: a line on the drone's page, in the API and in test results; test results also show where the drone is.
+
+To watch in round 40: whether plan Bs that read `quotes` move factories to the better exchange (and whether many arrive at once, since everyone reads the same hour-old news), and whether failed half-builds fall.
+
 ### Round 39: newcomers on Lua only and 2 g travel (#380)
 
 The round 38 mix on #409's code (FORTH retired, every House station and design in Lua, failed pulls refunded, drones accelerating at 2 g), to game day 40: 60 starters, 12 Chemists, 9 Smiths, 6 each of the Machinist, Adaptive and Systems shop, 3 each of Electronics and Foundry. The host restarted near day 36 (about four game days lost): every drone re-ran `launched` with its saved variables and carried on.

@@ -54,7 +54,7 @@ function needs(product)
 end
 
 -- With fewer than per of a good aboard, buy up to batch systems' worth
-function stock(per, res)
+function stock_up(per, res)
   if per == 0 or units(res) >= per then return end
   local n = math.min(per * batch - units(res), spare() // cost(res))
   if n > 0 then buy_here(n, res) end
@@ -174,7 +174,7 @@ function work()
   local product = choose()
   if not product then tell(nil); rest(); return end
   local need = needs(product)
-  for _, res in ipairs({metals_a1, organics_a1, inorganics_a1}) do stock(need[res] or 0, res) end
+  for _, res in ipairs({metals_a1, organics_a1, inorganics_a1}) do stock_up(need[res] or 0, res) end
   if not have(need) then tell(product); rest(); return end
   idle = 0
   build(product)
