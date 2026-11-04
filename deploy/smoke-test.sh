@@ -100,7 +100,9 @@ company_drone() { sql "select a.agent_id from agents a join companies c on c.com
 # when grep stops reading before curl has written the whole page)
 fetch() { curl -fsS "$@" || echo "fetch failed: $*"; }
 # finished <drone id>: its launched function returned normally
-finished() { docker compose logs game-engine | grep -q "Drone \[$1\] finished its launched word"; }
+# (grep -c reads the whole log: grep -q stops early, and under pipefail the
+# cut-off docker compose logs fails the check)
+finished() { [ "$(docker compose logs game-engine 2>/dev/null | grep -c "Drone \[$1\] finished its launched word")" -gt 0 ]; }
 # give <drone id> <resource> <units> <new cargo>: puts units of a resource
 # in a drone's hold, stamped after its latest event (the engines read a
 # drone's stock from its latest event in game time, so an event without one
@@ -341,7 +343,7 @@ echo "ok: the kit was used up"
 echo "ok: the clone's parent, generation and program source are recorded"
 clone_fuel() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$NEW_ID and resource=2061")" -ge 1 ]; }
 wait_for 30 "the clone got fuel from its launcher" clone_fuel
-wait_for 60 "launched drone's launched function returned normally" finished $NEW_ID
+wait_for 60 "launched drone's launched function returned normally" replied $NEW_ID "has finished"
 [ "$(sql "select c.language = 'lua' and c.lua_script = p.lua_script from agents c join agents p on p.agent_id = c.parent_id where c.agent_id=$NEW_ID")" = 1 ] ||
     fail "the clone didn't get a copy of its launcher's script"
 echo "ok: the clone has a copy of its launcher's script"
