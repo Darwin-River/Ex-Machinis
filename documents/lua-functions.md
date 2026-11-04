@@ -390,7 +390,7 @@ end
 ```
 
 - Each `recipe` call is a query, and each price another: price your options once a round, not before every step.
-- The API's `/recipes/{id}/tree` adds up a whole chain (what one unit takes down to metals, organics and inorganics): use it to plan before you write the script.
+- The API's `/recipes/{resource}/tree` (by resource id, e.g. `/recipes/4311/tree`) adds up a whole chain (what one unit takes down to metals, organics and inorganics): use it to plan before you write the script.
 
 ## Growing: launching clones
 

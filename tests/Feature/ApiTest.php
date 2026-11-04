@@ -26,7 +26,19 @@ class ApiTest extends TestCase
     public function testClockSaysTheGameDay()
     {
         $this->getJson('/api/v1/clock')->assertOk()->assertJsonStructure(['game_time', 'game_day', 'when', 'world_full', 'releases_waiting',
-            'real_seconds_per_game_day', 'engine' => ['running', 'last_seen_seconds_ago', 'turns_per_minute', 'behind_seconds']]);
+            'real_seconds_per_game_day', 'target_scale', 'target_real_seconds_per_game_day', 'floor_scale', 'slowed', 'engine' => ['running', 'last_seen_seconds_ago', 'turns_per_minute', 'behind_seconds']]);
+    }
+
+    public function testClockSaysWhenItIsSlowerThanUsual()
+    {
+        // #418: the pace now, beside the pace it runs at when the engines keep up
+        $now = time();
+        DB::table('game_clock')->updateOrInsert(['id' => 1], ['epoch' => $now, 'scale' => 450, 'target_scale' => 1800, 'floor_scale' => 60,
+            'real_anchor' => $now, 'game_anchor' => $now, 'load_checked_at' => $now]);
+        $this->getJson('/api/v1/clock')->assertOk()->assertJson(['scale' => 450, 'real_seconds_per_game_day' => 192,
+            'target_scale' => 1800, 'target_real_seconds_per_game_day' => 48, 'floor_scale' => 60, 'slowed' => true]);
+        DB::table('game_clock')->where('id', 1)->update(['scale' => 1800]);
+        $this->getJson('/api/v1/clock')->assertOk()->assertJson(['real_seconds_per_game_day' => 48, 'slowed' => false]);
     }
 
     public function testErrorsAreJsonWhateverTheRequestAccepts()

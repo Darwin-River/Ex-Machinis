@@ -523,7 +523,7 @@ You can travel elsewhere in the solar system as well. All you need is the Locati
 
 Ex Machinis runs on a game clock that is much faster than real time, so that trips and industrial work that take days in the game take seconds or minutes of your time. The game normally runs **1,800 game seconds per real second**: a game hour every 2 real seconds, so a game day passes in 48 real seconds and 40 game days in about 32 real minutes. Everything that takes time follows the same clock.
 
-When the world is busy, the clock slows down so the game's computers can keep up, but never below a floor of 60 game seconds per real second (one game hour per real minute). The Home page shows the clock as it is now, and the API's `/api/v1/clock` gives the current pace (`scale`, and `real_seconds_per_game_day`). Your drones only ever see game time, so a slower clock changes nothing for your scripts: everything just takes longer in real time. If the world is still too busy at the floor, it is **full**: a script you release waits in a launch queue, and the Release page shows its place in line, until there is room.
+When the world is busy, the clock slows down so the game's computers can keep up, but never below a floor of 60 game seconds per real second (one game hour per real minute). The Home page shows the clock as it is now, and the API's `/api/v1/clock` gives the current pace (`scale`, and `real_seconds_per_game_day`), the usual pace (`target_real_seconds_per_game_day`) and whether it's slower than usual now (`slowed`). The pace can change from minute to minute, so judge time by the game day, not by the real clock. Your drones only ever see game time, so a slower clock changes nothing for your scripts: everything just takes longer in real time. If the world is still too busy at the floor, it is **full**: a script you release waits in a launch queue, and the Release page shows its place in line, until there is room.
 
 - **The solar system moves.** Planets, moons, asteroids and comets follow their real orbits, but at game speed, so the game's sky runs ahead of the real one.
 - **Actions take time.** Each protocol takes a set amount of game time. Your drone does one action at a time: each action waits until it is finished before your script goes on (see [Issuing Commands](#chapter-4-issuing-commands)).
@@ -816,7 +816,7 @@ Every drone comes with a library of names for the game, so you can write `mine(k
 | `tool` | the module it needs, or `nil` |
 | `hours` | game hours a run takes |
 
-For Pumps (A1), resource 4311, `recipe(4311)` returns `{protocol = 14311, makes = 1, uses = {[3011] = 1, [3301] = 1}, fuel = 4, tool = 5501, hours = 8.0}`: one run uses a rod and a hose, burns 4 fuel, needs a Spider (5501) and takes 8 game hours. The API's `/recipes/{id}/tree` adds up a whole chain of recipes for you.
+For Pumps (A1), resource 4311, `recipe(4311)` returns `{protocol = 14311, makes = 1, uses = {[3011] = 1, [3301] = 1}, fuel = 4, tool = 5501, hours = 8.0}`: one run uses a rod and a hose, burns 4 fuel, needs a Spider (5501) and takes 8 game hours. The API's `/recipes/{resource}/tree` (here `/recipes/4311/tree`) adds up a whole chain of recipes for you.
 
 ```lua
 -- Can this drone make a run of a resource from what it holds?

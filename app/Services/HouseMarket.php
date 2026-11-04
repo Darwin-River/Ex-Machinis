@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -30,9 +31,39 @@ class HouseMarket
      */
     public static function tick(): int
     {
-        $posted = self::refresh();
-        Leaderboard::dailyIfDue();
-        return $posted;
+        // The daily record runs even when posting fails (#420: a deadlock
+        // ended the tick before it, and company history stopped)
+        try {
+            return self::refresh();
+        } finally {
+            Leaderboard::dailyIfDue();
+        }
+    }
+
+    /**
+     * Runs $work, again up to $tries times in all if MySQL picks it as a
+     * deadlock's victim (#420): the engines write events all the time, and
+     * at 1,800x the House's inserts sometimes lose the race.
+     */
+    public static function retryOnDeadlock(callable $work, int $tries = 3)
+    {
+        for ($try = 1; ; $try++) {
+            try {
+                return $work();
+            } catch (QueryException $e) {
+                if ($try >= $tries || !self::isDeadlock($e)) {
+                    throw $e;
+                }
+                usleep(50000 * $try);
+            }
+        }
+    }
+
+    /** Whether MySQL gave up on a statement because of a deadlock or lock wait */
+    public static function isDeadlock(QueryException $e): bool
+    {
+        $code = (int) ($e->errorInfo[1] ?? 0);
+        return $code === 1213 || $code === 1205 || ($e->errorInfo[0] ?? $e->getCode()) === '40001';
     }
 
     /** Posts every station drone's changed orders; returns how many it posted */
@@ -43,7 +74,15 @@ class HouseMarket
         $drones = $db->table('agents')->whereNotNull('station_id')->whereNull('wrecked_at')
             ->get(['agent_id', 'station_id', 'object_id']);
         foreach ($drones as $drone) {
-            $posted += self::post($db, (int) $drone->agent_id, (int) $drone->station_id, (int) $drone->object_id);
+            try {
+                $posted += self::post($db, (int) $drone->agent_id, (int) $drone->station_id, (int) $drone->object_id);
+            } catch (QueryException $e) {
+                // Still deadlocked after retries: this station waits for the
+                // next tick, and the others carry on (#420)
+                if (!self::isDeadlock($e)) {
+                    throw $e;
+                }
+            }
         }
         return $posted;
     }
@@ -100,7 +139,7 @@ class HouseMarket
             }
         }
         foreach (array_chunk($rows, 200) as $chunk) {
-            $db->table('events')->insert($chunk);
+            self::retryOnDeadlock(fn () => $db->table('events')->insert($chunk));
         }
         return count($rows);
     }

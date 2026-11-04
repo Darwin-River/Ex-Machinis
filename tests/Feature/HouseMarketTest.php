@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\HouseMarket;
 use App\Services\HouseStations;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -101,6 +102,48 @@ class HouseMarketTest extends TestCase
         $this->assertContains($news[0]['kind'], ['boom', 'slump', 'shortage', 'glut']);
         $this->assertSame($news[0]['from_day'] + 8, $news[0]['to_day']);
         $this->assertStringContainsString($news[0]['place'], $news[0]['text']);
+    }
+
+    /** A deadlock as MySQL reports it (#420) */
+    private function deadlock(): QueryException
+    {
+        $pdo = new \PDOException('Deadlock found when trying to get lock; try restarting transaction');
+        $pdo->errorInfo = ['40001', 1213, 'Deadlock found when trying to get lock'];
+        return new QueryException('mysql', 'insert into events', [], $pdo);
+    }
+
+    public function testADeadlockedInsertIsTriedAgain()
+    {
+        $tries = 0;
+        $result = HouseMarket::retryOnDeadlock(function () use (&$tries) {
+            if (++$tries < 3) {
+                throw $this->deadlock();
+            }
+            return 'posted';
+        });
+        $this->assertSame('posted', $result);
+        $this->assertSame(3, $tries);
+    }
+
+    public function testAPersistentDeadlockOrOtherErrorIsNotHidden()
+    {
+        $tries = 0;
+        try {
+            HouseMarket::retryOnDeadlock(function () use (&$tries) {
+                $tries++;
+                throw $this->deadlock();
+            });
+            $this->fail('expected the deadlock');
+        } catch (QueryException $e) {
+            $this->assertTrue(HouseMarket::isDeadlock($e));
+            $this->assertSame(3, $tries);
+        }
+        $tries = 0;
+        $this->expectException(\RuntimeException::class);
+        HouseMarket::retryOnDeadlock(function () use (&$tries) {
+            $tries++;
+            throw new \RuntimeException('not a deadlock');
+        });
     }
 
     public function testOrdersArePostedForTheStationDronesWhenTheyChange()

@@ -30,7 +30,16 @@ class ForgeMarket extends Command
         }
         $every = (int) $this->option('watch');
         do {
-            $posted = HouseMarket::tick();
+            try {
+                $posted = HouseMarket::tick();
+            } catch (\Throwable $e) {
+                // Watching, one failed tick mustn't end the loop (#420)
+                if ($every <= 0) {
+                    throw $e;
+                }
+                $this->error(date('H:i:s') . ' tick failed: ' . strtok($e->getMessage(), "\n"));
+                $posted = 0;
+            }
             if ($every <= 0 || $posted > 0) {
                 $this->line(date('H:i:s') . " $posted order(s) posted");
             }
