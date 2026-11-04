@@ -350,6 +350,28 @@ Round 41's clock fell from 1,800× to about 157× after day 50. The queries aski
 
 To watch next round: whether the clock holds through day 100. The next biggest costs are the engine's own event lookups, the company-latest-event query (now cheap) and its latest-event-time check. For 5,000 ships, see the plan on #422.
 
+### A load test, and current state beside the history (#429, #430, part of #428)
+
+On the way to 5,000 ships (#428), two steps:
+- **The load test (#429).**
+  - `game-engine/tools/load-world.sh` builds a throwaway world, and `forge:load-test` releases a mix of starters and company designs.
+  - `forge:load-test --measure` samples the engines against pass marks: turns a minute, lag, and the clock's pace. It also lists MySQL's slowest statements, so each step has a number to beat.
+  - A nightly GitHub workflow runs the round mix with pass marks, and 1,000 ships recorded without marks.
+- **Current-state tables (#430).** `holdings` and `latest_orders`, kept by triggers on `events` by the same rule the queries used, so holdings and order books no longer read the history.
+
+**Measured:**
+
+| World | Run | Turns a minute | Clock | Behind | Top costs |
+|---|---|---|---|---|---|
+| 1,000 ships, before #430 | baseline, ~game day 6, 4 min | ~2,500 | fell to 427× | up to 31 s | due commands (96 s), order books (63 s) |
+| 1,000 ships, settled, same state | before #430 | ~2,500 | fell to 427× | 16 s | — |
+| 1,000 ships, settled, same state | after #430 | ~2,800 | fell to 427× | 11 s | — |
+| round 41's end state (183 drones, aged) | #427 and #430 | ~850 | — | — | — |
+
+- Each order book went from 9.6 ms to 2.3 ms with #430, and the engines settled 53% more events in the same time.
+- On round 41's end state #427 and #430 were alike. The top cost there is now a company's latest event (#435).
+- **What holds the clock back at 1,000 ships** is now the engine's query for due commands (#432).
+
 ### Round 41: newcomers on the iterate-and-fail model (#380)
 
 The first round with no test world. It ran live at 1,800× with free, unlimited releases, on #413's code. Four newcomers each played a different style: a speedrunner, an accountant, an explorer, and a teacher new to programming. The world held:

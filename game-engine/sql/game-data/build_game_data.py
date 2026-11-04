@@ -715,14 +715,15 @@ def latest_inventory(drone, resource, t=None):
 
 
 def holding(drone, resource):
-    return f"(SELECT IFNULL(SUM({latest_inventory(drone, resource)}), 0) FROM {KINDS})"
+    # #430: the holdings table (migration 0031), kept by triggers on events by
+    # the same rule: one row per kind, one index step
+    return (f"(SELECT IFNULL(SUM(hd.units), 0) FROM holdings hd WHERE hd.drone = {drone} "
+            f"AND hd.resource = {resource} AND hd.installed IN (0, 1) AND hd.locked IN (0, 1))")
 
 
-LATEST_ORDER = ("SELECT MAX(id) AS id FROM events WHERE outcome = 1 AND event_type = {t} "
-                "AND resource = [value_1] GROUP BY drone")
 # Double-cell money (#324 step 9): a column whose name starts with d_ comes
 # back as two cells (high cell first, so 2@ reads it); others as one
-ORDER_COLS = "o.new_credits AS d_price, o.new_quantity, i.units, o.drone"
+ORDER_COLS = "o.price AS d_price, o.quantity, i.units, o.drone"
 HERE_ = "(SELECT object_id FROM agents WHERE agent_id = [drone_id])"
 
 
@@ -730,7 +731,7 @@ def orders(event_type, local, resource='[value_1]', extra=''):
     # Sell orders (4) are open while stock is above the kept minimum; buy
     # orders (5) while stock is below the wanted maximum.
     cmp, order = ('>', 'ASC') if event_type == 4 else ('<', 'DESC')
-    where = f"i.units {cmp} o.new_quantity"
+    where = f"i.units {cmp} o.quantity"
     # Here, and not flying away: a drone on a trip keeps the place it left
     # until it arrives, but nobody can trade with it (#380 round 29: pulls
     # from listed miners failed with "the other drone was somewhere else")
@@ -741,14 +742,15 @@ def orders(event_type, local, resource='[value_1]', extra=''):
     if event_type == 5:
         # ...and only buyers who can pay for a unit (#380: round 25's sellers
         # burned fuel pushing into orders whose buyers were broke)
-        where = ("IFNULL(i.units, 0) < o.new_quantity AND (SELECT c.credits FROM companies AS c "
-                 "INNER JOIN agents AS b ON b.company_id = c.company_id WHERE b.agent_id = o.drone) >= o.new_credits")
+        where = ("IFNULL(i.units, 0) < o.quantity AND (SELECT c.credits FROM companies AS c "
+                 "INNER JOIN agents AS b ON b.company_id = c.company_id WHERE b.agent_id = o.drone) >= o.price")
         cols = ORDER_COLS.replace('i.units', 'IFNULL(i.units, 0)')
     else:
         cols = ORDER_COLS
-    latest = LATEST_ORDER.format(t=event_type).replace('[value_1]', resource)
-    return (f"SELECT {cols} FROM events AS o INNER JOIN ({latest}) AS l ON l.id = o.id"
-            f"{join_here} {stock} WHERE {where}{extra} ORDER BY o.new_credits {order};")
+    # Each drone's latest order for the resource (#430: latest_orders, kept
+    # by triggers on events, in place of MAX(id) over the history)
+    return (f"SELECT {cols} FROM latest_orders AS o{join_here} {stock} "
+            f"WHERE o.resource = {resource} AND o.event_type = {event_type} AND {where}{extra} ORDER BY o.price {order};")
 
 
 EVENT_COL = "SELECT {c} FROM events WHERE outcome = 1 AND id = [value_1];"
@@ -923,7 +925,7 @@ queries.append((621, 'Solar market volume',
 queries.append((612, 'Solar sell orders up to a price',
                 '[N P R L 612 query]: Sell orders for resource N anywhere in the solar system at a price of at most P '
                 '(a double, e.g. 7 10000 um* for 70,000), cheapest first: price (2 cells), kept minimum, stock, drone.', 3,
-                orders(4, False, resource='[value_3]', extra=' AND o.new_credits <= [dvalue_1]')))
+                orders(4, False, resource='[value_3]', extra=' AND o.price <= [dvalue_1]')))
 
 # House drop stations (#324 step 10), placeholders to tune in step 20.
 # (id, name, object, budget cap, refill per game day). The Mars Exchange
@@ -1271,7 +1273,7 @@ local_queries = {
     612: ('Sell orders here up to a price',
           '[N P R L 612 query]: Sell orders for resource N where the drone is at a price of at most P (a double, e.g. '
           '7 10000 um* for 70,000), cheapest first: price (2 cells), kept minimum, stock, drone.', 3,
-          orders(4, True, resource='[value_3]', extra=' AND o.new_credits <= [dvalue_1]')),
+          orders(4, True, resource='[value_3]', extra=' AND o.price <= [dvalue_1]')),
     621: ('Solar market volume, an hour old',
           '[N H R L 621 query]: Units of resource N traded anywhere in the solar system in the H game hours up to one '
           'game hour ago, credits paid for them, and number of trades.', 2,
@@ -1441,17 +1443,12 @@ lines = [
     "-- Query 803's SQL is longer than the old 512-character column",
     'ALTER TABLE `queries` MODIFY `script` VARCHAR(2000) NOT NULL;',
     '-- What each drone holds: the sum over each state (installed, locked) of',
-    '-- its latest inventory event (same as create_db.sql, for older databases)',
+    '-- its latest inventory event, from the holdings table (#430, migration',
+    '-- 0031: triggers on events keep it by the same rule)',
     'CREATE OR REPLACE VIEW `sqInventory` AS',
-    'SELECT e.`drone` AS `drone`, e.`resource` AS `resource`, CAST(SUM(e.`new_quantity`) AS SIGNED) AS `units`',
-    'FROM `events` e',
-    'JOIN (',
-    '  SELECT MAX(`id`) AS `id`',
-    '  FROM `events`',
-    '  WHERE `outcome` = 1 AND `event_type` IN (1, 2)',
-    '  GROUP BY `drone`, `resource`, `installed`, `locked`',
-    ') latest ON latest.`id` = e.`id`',
-    'GROUP BY e.`drone`, e.`resource`;',
+    'SELECT `drone`, `resource`, CAST(SUM(`units`) AS SIGNED) AS `units`',
+    'FROM `holdings`',
+    'GROUP BY `drone`, `resource`;',
     'START TRANSACTION;',
     '',
 ]
