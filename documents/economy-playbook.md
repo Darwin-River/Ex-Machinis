@@ -337,6 +337,19 @@ Round 36's newcomers all found the House paid a flat 25 to 33 credits a factory-
 - The Trader starter now buys only when the price board at Mars or Earth beats the Moon price by the trip's cost, and hauls to whichever pays more.
 - Also from round 36: the test world mirrors the live market (`LiveMirror`), recipes and recipe trees in the API and `recipe` in both libraries, `fuel-floor`, net wealth by game day, a company's open orders, a drone's fuel used per day, test drones numbered from 10,000,000.
 
+### The clock holds 1,800× again: faster holdings (#422, after round 41)
+
+Round 41's clock fell from 1,800× to about 157× after day 50. The queries asking what a drone holds went through its whole history for the resource. Every order book asks that of each seller, so each look cost more as the game went on.
+- **Holdings:** for each kind of holding (installed, locked), the query now reads the newer of the drone's latest increment and latest depletion. Each is one step down an existing index, so a holding costs the same on day 100 as on day 1. Order books with holdings went from about 160 ms to about 8 ms.
+- **A company's latest event** (the events engine): each drone's latest event, then the newest of those, in place of sorting every event the company ever had. About 120 ms down to about 6 ms for the House.
+- **Benchmark:** round 41's end state (183 drones, about 510,000 events), 5 real minutes at 1,800×:
+  - old code: the clock slowed to 570×, with about 250 turns a minute, and the engines ran 34–67 s behind;
+  - new code: it held 1,800× throughout, with about 1,450 turns a minute, and the engines ran 5–6 s behind.
+
+  Holdings matched the old form for all 2,628 drone/resource pairs, both now and as of a past time.
+
+To watch next round: whether the clock holds through day 100. The next biggest costs are the engine's own event lookups, the company-latest-event query (now cheap) and its latest-event-time check. For 5,000 ships, see the plan on #422.
+
 ### Round 41: newcomers on the iterate-and-fail model (#380)
 
 The first round with no test world. It ran live at 1,800× with free, unlimited releases, on #413's code. Four newcomers each played a different style: a speedrunner, an accountant, an explorer, and a teacher new to programming. The world held:
