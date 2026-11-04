@@ -350,6 +350,16 @@ Round 41's clock fell from 1,800× to about 157× after day 50. The queries aski
 
 To watch next round: whether the clock holds through day 100. The next biggest costs are the engine's own event lookups, the company-latest-event query (now cheap) and its latest-event-time check. For 5,000 ships, see the plan on #422.
 
+### Skipping a lookup three in four events didn't need (#435, part of #428)
+
+On round 41's aged world, after #437, the clock held 1,800×, but the top cost was the events engine looking up a company's latest event for every inventory and order event. Its result is only used by events that carry credits, and about three in four don't. Events without credits now skip it.
+
+Over 5 real minutes on the same saved state:
+- drone turns went from about 800 a minute to about 1,450;
+- the engines ran 4 to 5 s behind instead of 6 to 10 s.
+
+The top cost now is inserting events (about 4 ms each, perhaps the #430 triggers' work).
+
 ### Fewer, bigger fetches: commands and events in batches (#432, part of #428)
 
 The #429 load test put the game engine's "next command" query at the top at 1,000 ships (about 9 ms a turn). Then, with that gone, the events engine's "next due events" query took its place (8.6 ms for every 10 events).
