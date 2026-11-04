@@ -379,93 +379,141 @@ ErrorCode_t db_record_load(DbConnection_t* connection, double target, double flo
     return ENGINE_OK;
 }
 
+/*
+ * The commands due now, a batch at a time (#432, part of #428): one query
+ * for up to COMMAND_BATCH_SIZE of them, in run order, instead of one query
+ * over every due command for each command run. With 1,000 ships that query
+ * cost ~9 ms a turn (70 ms while a thousand releases loaded) and was the
+ * game engine's biggest cost. Each id is checked again just before it runs
+ * (a lookup by id, with the same rules), so a command that stopped being
+ * runnable is skipped. The batch is refilled when it runs out or is
+ * COMMAND_BATCH_MAX_AGE real seconds old, so a new release still loads first
+ * within about a second.
+ */
+#define COMMAND_BATCH_SIZE 64
+#define COMMAND_BATCH_MAX_AGE 1
+static int g_command_batch[COMMAND_BATCH_SIZE];
+static int g_command_batch_count = 0;
+static int g_command_batch_next = 0;
+static time_t g_command_batch_at = 0;
+
+/* Fills the batch with the ids of the commands due now, in run order */
+static ErrorCode_t db_fill_command_batch(DbConnection_t* connection)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char where[1024];
+
+    g_command_batch_count = 0;
+    g_command_batch_next = 0;
+    g_command_batch_at = time(NULL);
+    db_runnable_where(where, sizeof(where));
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT c.id FROM commands c LEFT JOIN agents a ON a.agent_id = c.agent_id "
+        "WHERE %s ORDER BY (a.release_vm IS NULL AND c.code NOT LIKE '%s%%') DESC, c.id LIMIT %d",
+        where, engine_get_vm_resume_command(), COMMAND_BATCH_SIZE);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    if(res == NULL)
+        return ENGINE_DB_QUERY_ERROR;
+    MYSQL_ROW row;
+    while((row = mysql_fetch_row(res)) && g_command_batch_count < COMMAND_BATCH_SIZE)
+        g_command_batch[g_command_batch_count++] = atoi(row[0]);
+    mysql_free_result(res);
+    return ENGINE_OK;
+}
+
 ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
 {
-	char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-	// always check connection is alive
-	ErrorCode_t result = db_reconnect(connection);
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
 
     // Initialize out command
     memset(command, 0, sizeof(Command_t));
     command->command_id = -1;
+    if(result != ENGINE_OK)
+        return result;
 
-	// A command runs once it has reached its drone (deliver_at, see
-	// db_stamp_commands). A script paused by perform resumes only once its action is done (no
-	// unprocessed events, or aborted): hold its resume back until then.
-	// <launched> is held while the drone's script is still running. Other
-	// commands, such as <abort> or new mail, are never held.
-	// A script still loading (not yet launched: no release_vm) goes first, so
-	// a new release or test run loads at once instead of waiting a turn per
-	// piece behind every running drone (#380 round 34: tests queued behind 70
-	// drones took 10-20 real minutes to load). Its resumes don't: a script
-	// whose top-level code loops while loading takes turns like any other.
-	char where[1024];
-	db_runnable_where(where, sizeof(where));
-	snprintf(query_text,
-        DB_MAX_SQL_QUERY_LEN,
-        "SELECT c.id, c.code, c.agent_id, c.subject, c.email_content FROM commands c "
-        "LEFT JOIN agents a ON a.agent_id = c.agent_id "
-        "WHERE %s ORDER BY (a.release_vm IS NULL AND c.code NOT LIKE '%s%%') DESC, c.id LIMIT 1",
-        where, engine_get_vm_resume_command());
+    // A command runs once it has reached its drone (deliver_at, see
+    // db_stamp_commands). A script paused by perform resumes only once its action is done (no
+    // unprocessed events, or aborted): hold its resume back until then.
+    // <launched> is held while the drone's script is still running. Other
+    // commands, such as <abort> or new mail, are never held.
+    // A script still loading (not yet launched: no release_vm) goes first, so
+    // a new release or test run loads at once instead of waiting a turn per
+    // piece behind every running drone (#380 round 34: tests queued behind 70
+    // drones took 10-20 real minutes to load). Its resumes don't: a script
+    // whose top-level code loops while loading takes turns like any other.
+    char where[1024];
+    db_runnable_where(where, sizeof(where));
 
-    // run it
-    if (mysql_query(connection->hndl, query_text))
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-        result = ENGINE_DB_QUERY_ERROR;
-    }
-    else
-    {
-        // retrieve the result
+    // Take the next batched id that is still runnable; refill once when the
+    // batch is spent or stale
+    for(int refills = 0; ; ) {
+        if(g_command_batch_next >= g_command_batch_count
+           || time(NULL) - g_command_batch_at >= COMMAND_BATCH_MAX_AGE) {
+            if(refills++ > 0)
+                break;
+            result = db_fill_command_batch(connection);
+            if(result != ENGINE_OK)
+                return result;
+            if(g_command_batch_count == 0)
+                break;
+        }
+        int id = g_command_batch[g_command_batch_next++];
+        snprintf(query_text,
+            DB_MAX_SQL_QUERY_LEN,
+            "SELECT c.id, c.code, c.agent_id, c.subject, c.email_content FROM commands c "
+            "LEFT JOIN agents a ON a.agent_id = c.agent_id WHERE c.id = %d AND %s",
+            id, where);
+        if (mysql_query(connection->hndl, query_text))
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            return ENGINE_DB_QUERY_ERROR;
+        }
         MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-
         if(db_result == NULL)
         {
             engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to get next command (no more results)");
-            result = ENGINE_DB_QUERY_ERROR;
+            return ENGINE_DB_QUERY_ERROR;
         }
-        else
+        MYSQL_ROW row = mysql_fetch_row(db_result);
+        if(row)
         {
-            MYSQL_ROW row = mysql_fetch_row(db_result);
-            if(row)
-            {
-                // Read command information
-                command->command_id = atoi(row[0]);
-                command->agent_id = atoi(row[2]);
-                if(row[1] && strlen(row[1]) > MAX_COMMAND_CODE_SIZE)
-                    engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: command [%s] is longer than [%d] characters: cut",
-                        row[0], MAX_COMMAND_CODE_SIZE);
-                snprintf(command->code, sizeof(command->code), "%s", row[1] ? row[1] : "");
-                sprintf(command->subject, "%s", row[3]);
-                command->email_content = engine_malloc(strlen(row[4])+1);
-                sprintf(command->email_content, "%s", row[4]);
+            // Read command information
+            command->command_id = atoi(row[0]);
+            command->agent_id = atoi(row[2]);
+            if(row[1] && strlen(row[1]) > MAX_COMMAND_CODE_SIZE)
+                engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: command [%s] is longer than [%d] characters: cut",
+                    row[0], MAX_COMMAND_CODE_SIZE);
+            snprintf(command->code, sizeof(command->code), "%s", row[1] ? row[1] : "");
+            snprintf(command->subject, sizeof(command->subject), "%s", row[3] ? row[3] : "");
+            command->email_content = engine_malloc(strlen(row[4] ? row[4] : "")+1);
+            sprintf(command->email_content, "%s", row[4] ? row[4] : "");
 
-                engine_trace(TRACE_LEVEL_ALWAYS,
-                	"Command info read from DB: CMD_ID=[%d] COMMAND=[%s] AGENT_ID=[%d] SUBJECT=[%s]",
-                	command->command_id,
-                	command->code,
-                	command->agent_id,
-                    command->subject);
+            engine_trace(TRACE_LEVEL_ALWAYS,
+                "Command info read from DB: CMD_ID=[%d] COMMAND=[%s] AGENT_ID=[%d] SUBJECT=[%s]",
+                command->command_id,
+                command->code,
+                command->agent_id,
+                command->subject);
 
-                engine_trace(TRACE_LEVEL_ALWAYS,
-                    "Command info read from DB: EMAIL_CONTENT=[%s]",
-                    command->email_content);
-            }
-            else
-            {
-            	engine_trace(TRACE_LEVEL_ALWAYS,
-            		"WARNING: No more commands to process");
-
-                result = ENGINE_DB_NOT_FOUND_ERROR;
-            }
+            engine_trace(TRACE_LEVEL_ALWAYS,
+                "Command info read from DB: EMAIL_CONTENT=[%s]",
+                command->email_content);
+            mysql_free_result(db_result);
+            return ENGINE_OK;
         }
-
+        // No longer runnable (deleted, or held back now): the next one
         mysql_free_result(db_result);
     }
 
-
-	return result;
+    engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: No more commands to process");
+    return ENGINE_DB_NOT_FOUND_ERROR;
 }
 
 /** ****************************************************************************
