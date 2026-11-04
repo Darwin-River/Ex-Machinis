@@ -337,6 +337,12 @@ Round 36's newcomers all found the House paid a flat 25 to 33 credits a factory-
 - The Trader starter now buys only when the price board at Mars or Earth beats the Moon price by the trip's cost, and hauls to whichever pays more.
 - Also from round 36: the test world mirrors the live market (`LiveMirror`), recipes and recipe trees in the API and `recipe` in both libraries, `fuel-floor`, net wealth by game day, a company's open orders, a drone's fuel used per day, test drones numbered from 10,000,000.
 
+### Fixes from round 40's reports (#418, #419, #420)
+
+- **The House market kept stopping (#420).** Posting the House's orders races the engines' own event inserts, and a MySQL deadlock ended the tick before the daily net-wealth record. The playtest runner died with it, so round 40's company histories stopped at day 8, and from then on the House's orders froze at day 8 prices. Round 41's runner died the same way near day 25 and was restarted at day 49. Now a deadlocked insert is retried, a station that's still stuck waits for the next tick, the daily record always runs, and the runner keeps going. Rounds 40 and 41 ran partly on frozen House prices, which may explain some of round 40's flat late game.
+- **`/clock` says when it's slower than usual (#418)**: `target_scale`, `target_real_seconds_per_game_day`, `floor_scale` and `slowed`, beside the pace now. Players had taken a pace read once for the usual one.
+- **api.md says `/recipes/{id}/tree` takes a resource id (#419).**
+
 ### Round 40: newcomers asking the world by name (#380)
 
 The round 39 mix on #412's code (about 50 named Lua functions, `quotes`, `cost_to_buy`, `earnings`, `set_status`), live at 600× with the old test world beside it. 60 starters, plus:

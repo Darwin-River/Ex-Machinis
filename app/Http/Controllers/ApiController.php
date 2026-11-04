@@ -44,6 +44,12 @@ class ApiController extends Controller
             'when' => DronePage::when($now),
             'scale' => $scale,
             'real_seconds_per_game_day' => $scale ? (int) round(86400 / $scale) : null,
+            // The pace it runs at when the engines keep up, and whether it's
+            // slower now (#418: players took the pace now for the usual one)
+            'target_scale' => $clock['target'] ?? $scale,
+            'target_real_seconds_per_game_day' => ($clock['target'] ?? $scale) ? (int) round(86400 / ($clock['target'] ?? $scale)) : null,
+            'floor_scale' => $clock['floor'] ?? null,
+            'slowed' => $scale !== null && isset($clock['target']) && $scale < $clock['target'] * 0.999,
             'world_full' => $clock['full'] ?? false,
             'releases_waiting' => $clock['waiting'] ?? 0,
             'engine' => [

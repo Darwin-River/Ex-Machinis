@@ -39,14 +39,14 @@ B=https://play.example.com/api/v1
 
 A company is a script, in Lua: you can't steer it once it's released. Every release is live, releases are free (up to 10 a minute), and the whole game is your test environment. You learn by releasing, watching and releasing again; failing costs nothing but the lesson.
 
-The game clock is fast: it normally runs 1,800 game seconds a real second, a game hour every 2 real seconds and a game day every 48 (slower when the engines fall behind, never below 60 game seconds a real second, one game hour a real minute). `GET /clock` gives the pace now (`scale`, `real_seconds_per_game_day`). Release early, release often. Playing from a program is the same loop a person follows on the website:
+The game clock is fast: it normally runs 1,800 game seconds a real second, a game hour every 2 real seconds and a game day every 48 (slower when the engines fall behind, never below 60 game seconds a real second, one game hour a real minute). `GET /clock` gives the pace now (`scale`, `real_seconds_per_game_day`), the usual pace (`target_scale`, `target_real_seconds_per_game_day`) and whether it's slower than usual now (`slowed`). The pace can change from one call to the next, so time a wait in game days, not real seconds. Release early, release often. Playing from a program is the same loop a person follows on the website:
 
 1. **Study the market:**
    - `GET /orders` for who buys and sells what, where, and at what price;
    - `GET /trades` for what has sold;
    - `GET /history` for what each resource sold for, day by day;
    - `GET /news` for the booms, slumps, shortages and gluts under way at the exchanges (House prices move);
-   - `GET /recipes` and `GET /recipes/{id}/tree` for what each thing takes to make;
+   - `GET /recipes` and `GET /recipes/{resource}/tree` for what each thing takes to make;
    - `GET /places` for where the drones are.
 2. **Write a script and check it** with `POST /check`, which returns the Release page's warnings.
 3. **Release it** with `POST /release`.
@@ -278,7 +278,7 @@ Every trade of the last `days` game days (60 if you leave it out, at most 365), 
 
 | Request | What it gives |
 |---|---|
-| `GET /clock` | `game_time` (game seconds), `game_day` (since the world began), `when` (as the website writes it), `scale` (game seconds per real second), `real_seconds_per_game_day`, `world_full` (releases are queueing), `releases_waiting`, and `engine`: `running` (false when the game engine hasn't reported for 3 real minutes: drones are waiting for it, not slow), `last_seen_seconds_ago`, `turns_per_minute`, `behind_seconds` |
+| `GET /clock` | `game_time` (game seconds), `game_day` (since the world began), `when` (as the website writes it), `scale` (game seconds per real second, now), `real_seconds_per_game_day` (now), `target_scale` and `target_real_seconds_per_game_day` (the pace when the engines keep up), `floor_scale` (the slowest it goes), `slowed` (true while it runs slower than its target), `world_full` (releases are queueing), `releases_waiting`, and `engine`: `running` (false when the game engine hasn't reported for 3 real minutes: drones are waiting for it, not slow), `last_seen_seconds_ago`, `turns_per_minute`, `behind_seconds` |
 | `GET /places` | where drones are, busiest first: `{id, name, working, wrecks}` |
 | `GET /leaderboard?limit=50` | net wealth, richest first: `{company_id, company, drones, net_wealth, released_drone}`. `limit` can be up to 500 |
 
@@ -289,7 +289,7 @@ Every trade of the last `days` game days (60 if you leave it out, at most 365), 
 | `GET /resources` | every resource and module: `{id, name, mass}`. The IDs are what the game's functions take: `fuel` is 2061, `metals_a1` is 2011 |
 | `GET /protocols` | the actions a drone can `perform`: `{id, name, description}` |
 | `GET /recipes?resource=4311` | the recipes (leave `resource` out for all): `{protocol, name, makes: [{resource, name, units}], uses: [...], fuel, tool, tool_name, hours}` |
-| `GET /recipes/{id}/tree` | what one unit takes, all the way down to refined goods (metals, organics, inorganics): `{goods: [{resource, name, units}], fuel, tool_hours: [{tool, name, hours}], steps}`. `?down_to=1` goes down to ores. It follows each good's first recipe |
+| `GET /recipes/{resource}/tree` | `{resource}` is a **resource** id, the thing you want to make (e.g. `/recipes/4311/tree` for Pumps (A1)), not a recipe's protocol id: what one unit takes, all the way down to refined goods (metals, organics, inorganics): `{goods: [{resource, name, units}], fuel, tool_hours: [{tool, name, hours}], steps}`. `?down_to=1` goes down to ores. It follows each good's first recipe |
 | `GET /queries` | the queries a drone can `query`, by ID: `{name, parameters, strings}` |
 
 The [players' manual](players-manual.md) explains each protocol and query and how to read their results.
