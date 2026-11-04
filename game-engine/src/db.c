@@ -3981,36 +3981,41 @@ ErrorCode_t db_set_agent_pending_input(DbConnection_t* connection, int agent_id,
 ErrorCode_t db_get_latest_processed_game_t(const int* drones, int count, long long* game_t)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    char list[256] = "";
     ErrorCode_t result = db_reconnect(engine_get_db_connection());
 
     *game_t = 0;
     if(result != ENGINE_OK || count <= 0)
         return result;
 
-    for(int i = 0; i < count; i++) {
-        size_t len = strlen(list);
-        snprintf(list + len, sizeof(list) - len, "%s%d", i ? "," : "", drones[i]);
-    }
-    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "SELECT IFNULL(MAX(game_t), 0) FROM events WHERE drone IN (%s) AND outcome >= %d AND event_type <> %d"
-        /* An aborted action's events never happen (#380 round 35: an aborted
-           trip's arrival, 159 game hours off, held every later trade with
-           the drone, and with the Moon Depot, which it sold to, till then) */
-        " AND NOT EXISTS (SELECT 1 FROM actions x WHERE x.id = events.action AND x.aborted = 1)",
-        list, OUTCOME_NO_OUTCOME, WAIT_EVENT_TYPE);
-
+    // Per drone, the newer of its latest pending (0) and latest done (1)
+    // event: "not failed" is just those two outcomes, and each is one step
+    // back down events_drone_game_t (#431: MAX over outcome >= 0 read every
+    // event the drone ever had, ~8 ms a call, ~40 ms for a station drone)
     DbConnection_t* connection = engine_get_db_connection();
-    if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
-        return ENGINE_DB_QUERY_ERROR;
+    for(int i = 0; i < count; i++) {
+        char one[2][320];
+        for(int o = 0; o < 2; o++)
+            snprintf(one[o], sizeof(one[o]),
+                "IFNULL((SELECT e.game_t FROM events e FORCE INDEX (events_drone_game_t) WHERE e.drone = %d "
+                "AND e.outcome = %d AND e.event_type <> %d "
+                /* An aborted action's events never happen (#380 round 35: an aborted
+                   trip's arrival, 159 game hours off, held every later trade with
+                   the drone, and with the Moon Depot, which it sold to, till then) */
+                "AND NOT EXISTS (SELECT 1 FROM actions x WHERE x.id = e.action AND x.aborted = 1) "
+                "ORDER BY e.game_t DESC LIMIT 1), 0)",
+                drones[i], o == 0 ? OUTCOME_NO_OUTCOME : OUTCOME_OK, WAIT_EVENT_TYPE);
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "SELECT GREATEST(%s, %s)", one[0], one[1]);
+        if(mysql_query(connection->hndl, query_text)) {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+            return ENGINE_DB_QUERY_ERROR;
+        }
+        MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+        MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+        if(row && row[0] && atoll(row[0]) > *game_t)
+            *game_t = atoll(row[0]);
+        if(db_result)
+            mysql_free_result(db_result);
     }
-    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-    MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
-    if(row && row[0])
-        *game_t = atoll(row[0]);
-    if(db_result)
-        mysql_free_result(db_result);
     return ENGINE_OK;
 }
 

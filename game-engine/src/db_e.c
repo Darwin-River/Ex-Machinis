@@ -1847,7 +1847,12 @@ ErrorCode_t db_get_drone_resources(int droneId, DroneResources_t** resources, in
 
         snprintf(query_text,
             DB_MAX_SQL_QUERY_LEN,
-            "select  resources.id as resource_id, resources.name as name, events.locked as locked, resources.mass as mass, events.new_quantity as new_quantity, events.id as event_id  from events left join resources on events.resource = resources.id  left join event_types on event_types.id = events.event_type  join (select max(events.id) as id from events where drone = %d and events.outcome = 1 and (events.event_type = 1 or events.event_type = 2) group by events.resource, events.installed, events.locked ORDER BY id DESC) as events_latest on events_latest.id = events.id   ORDER BY new_quantity;",
+            // What the drone holds, from the holdings table (#431): the same
+            // rows, each kind's newest increment or depletion, that the
+            // history query rebuilt from every event the drone ever had
+            "SELECT resources.id AS resource_id, resources.name AS name, IF(h.locked = -1, NULL, h.locked) AS locked, "
+            "resources.mass AS mass, h.units AS new_quantity, h.event_id AS event_id "
+            "FROM holdings h LEFT JOIN resources ON h.resource = resources.id WHERE h.drone = %d ORDER BY h.units;",
             droneId);
 
         engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
