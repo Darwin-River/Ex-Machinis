@@ -270,6 +270,11 @@ function launched()
   -- Plunder the wreck the test brought here
   k = units(kunspar)
   r = plunder($DRY)
+  -- The share comes aboard by its own action, a moment after the plunder
+  for _ = 1, 10 do
+    if units(kunspar) - k >= 5 then break end
+    wait(60)
+  end
   local got = units(kunspar) - k
   say("plunder " .. r .. " gained " .. got .. " half " .. tostring(got >= 5))
   -- Hear the released drone's broadcast, from the Earth database
