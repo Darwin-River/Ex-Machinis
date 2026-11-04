@@ -311,10 +311,10 @@ resources[str(WORM)]['mass'] = BIG_GEAR_MASS
 resources[str(REFINERY)] = {'id': REFINERY, 'name': 'Refinery (A1)', 'mass': BIG_GEAR_MASS, 'capacity': 0, 'slot_size': 0,
                             'description': 'A heavy refining module: refines ore into metals, organics and inorganics.'}
 resources[str(MINING_KIT)] = dict(resources[str(MINING_KIT)], name='Mining Kit I',
-    description='A packed mining set: Engine (A1), Worm (A1) and Refinery (A1). Unpack it with 25901 perform.')
+    description='A packed mining set: Engine (A1), Worm (A1) and Refinery (A1). Unpack it with unpack() (protocol 25901).')
 resources[str(FACTORY_KIT)] = {'id': FACTORY_KIT, 'name': 'Factory Kit I', 'mass': 40, 'capacity': 0, 'slot_size': 0,
     'description': 'A packed factory set: Engine (A1), Smelter (A1), Chemical Reactor (A1) and Spider (A1). '
-                   'Unpack it with 25902 perform.'}
+                   'Unpack it with unpack() (protocol 25902).'}
 
 protocols = {}   # id -> row
 effects = []     # (protocol, effect dict)
@@ -397,8 +397,8 @@ LAUNCH_PROTOCOL, LAUNCH_EVENT, LAUNCH_TIME = '12', 8, 1 * HOUR
 LAUNCH_FUEL = 20
 protocols[LAUNCH_PROTOCOL] = [
     LAUNCH_PROTOCOL, 'Launch drone', '2', '100',
-    '[D K 12 perform]: Builds a new drone (a clone) from ship kit K in the cargo bay, beside this one, with a copy '
-    'of drone D\'s program and 20 of this drone\'s fuel; it runs its launched word. Takes 1 hour plus the light time from D.',
+    '[D K 12 perform]: Builds a new drone (a clone) from ship kit K in the hold, beside this one, with drone D\'s '
+    'program and 20 of this drone\'s fuel; it runs launched(). Takes 1 hour plus the light time from D.',
     '1', '1', '0']
 add_effects(LAUNCH_PROTOCOL, [
     {'time': 0, 'drone': 0, 'resource': -1, 'event_type': 2, 'local': 1, 'installed': 0, 'locked': 0,
@@ -1387,6 +1387,83 @@ for rid, mass in (('5901', 40), ('5902', 40), ('6001', 40)):
 table('resources', ['id', 'name', 'description', 'mass', 'capacity', 'slot_size'],
       [(r['id'], r['name'], r['description'], r['mass'], r['capacity'], r['slot_size'])
        for r in sorted(resources.values(), key=lambda r: r['id'])])
+# Drones are written in Lua (#380: FORTH retired): each protocol and query
+# description opens with its Lua call, not the old FORTH notation
+# ("[N R D 10 perform]", "[N R L 210 query]"), and drops FORTH's cells,
+# doubles and counted strings. Lua names for resources come from the
+# drones' library (game-engine/src/lua_library.lua).
+LUA_NAMES = {}
+for line in open(os.path.join(REPO, 'game-engine', 'src', 'lua_library.lua'), encoding='utf-8'):
+    m = re.match(r'local ([a-z_0-9, ]+) = ([0-9, ]+)$', line.strip())
+    if m:
+        for name, value in zip(m.group(1).split(','), m.group(2).split(',')):
+            LUA_NAMES.setdefault(int(value), name.strip())
+lua_res = lambda rid: LUA_NAMES.get(rid, str(rid))
+LUA_CALLS = {'1': 'jettison(N, R)', '3': 'wait(M)', '7': 'sell_order(P, M, R)', '8': 'buy_order(P, M, R)',
+             '10': 'push(N, R, D)', '11': 'pull(N, R, D)', '12': 'launch(D, K)', '34': 'plunder(W)',
+             '40': 'broadcast(text)', '5001': 'travel(N)', '25901': 'unpack()', '25902': 'unpack()'}
+
+
+def lua_call(pid, args):
+    """The Lua that runs protocol pid: its library function where it has one"""
+    i = int(pid)
+    if pid in LUA_CALLS:
+        return LUA_CALLS[pid]
+    if 11000 <= i < 12000 and (i - 10000) in resources_by_id:
+        return f'mine({lua_res(i - 10000)})'
+    if 21000 <= i < 22000 and (i - 20000) in resources_by_id:
+        return f'refine({lua_res(i - 20000)})'
+    if 12000 <= i < 20000 and not args and (i - 10000) in resources_by_id:
+        return f'make({lua_res(i - 10000)})'
+    return None
+
+
+FORTH_WORDING = [
+    (r' Money and volumes are double cells \(2@\)\.', ''),
+    (r' Event IDs are doubles \(2 cells, 2@\)\.', ''),
+    (r' N is an event ID, a double \(2 cells\) as an event list \(800-804\) leaves it with 2@\.',
+     ' N is an event ID, from an event list (800-804).'),
+    (r' \((?:each )?2 cells(?:, 2@)?\)', ''),
+    (r', a double \(two cells\),', ' (any whole number of credits),'),
+    (r' \(a double, e\.g\. 7 10000 um\* for 70,000\)', ''),
+    (r'the counted string at address A', 'the text'),
+    (r'as a counted string \(answer count type\)', 'as a string'),
+    (r'^broadcast\(text\), or perform\(40, A\)', 'broadcast(text), or perform(40, text)'),
+    (r'the the astronimical object whoes', 'the astronomical object whose'),
+]
+
+
+def lua_description(desc, kind):
+    if kind == 'perform':
+        m = re.match(r'^\[((?:[A-Z][0-9]* )*)(\d+) perform\]', desc)
+        if m:
+            args = m.group(1).split()
+            call = 'perform(' + ', '.join([m.group(2)] + args) + ')'
+            named = lua_call(m.group(2), args)
+            desc = (f'{named}, or {call}' if named else call) + desc[m.end():]
+    else:
+        m = re.match(r'^\[((?:[A-Z][0-9]* )*)R L (\d+) query\]', desc)
+        if m:
+            desc = 'ask(' + ', '.join([m.group(2)] + m.group(1).split()) + ')' + desc[m.end():]
+    for old, new in FORTH_WORDING:
+        desc = re.sub(old, new, desc)
+    return desc
+
+
+def fit(desc, limit=250):
+    """At most limit characters, cut after a whole sentence: the engine keeps
+    descriptions in 255-byte buffers (MAX_PROTOCOL_DESCRIPTION_SIZE)"""
+    if len(desc) <= limit:
+        return desc
+    cut = desc.rfind('. ', 0, limit)
+    return desc[:cut + 1] if cut > 0 else desc[:limit].rsplit(' ', 1)[0]
+
+
+resources_by_id = {int(r['id']) for r in resources.values()}
+for p in protocols.values():
+    p[4] = fit(lua_description(p[4], 'perform'))
+queries = [(q[0], q[1], fit(lua_description(q[2], 'query')), q[3], q[4]) for q in queries]
+
 table('protocols', ['id', 'name', 'parameters', 'bulk_modifier', 'description', 'observable', 'reportable', 'multiplier',
                     'double_params'],
       [(int(p[0]), p[1][:45], int(num(p[2]) or 0), int(num(p[3]) or 100), p[4][:255],

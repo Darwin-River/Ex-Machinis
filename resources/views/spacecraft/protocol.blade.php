@@ -12,14 +12,14 @@
             <h4 class="mt-4">Performing it</h4>
             <ul>
                 <li><b>Protocol ID:</b> {{ $protocol->id }}</li>
-                <li><b>Parameters from the stack:</b> {{ $protocol->parameters }}@if($protocol->parameters > 0) (the stack picture in the description above shows their order)@endif</li>
+                <li><b>Parameters:</b> {{ $protocol->parameters }}@if($protocol->parameters > 0) (the Lua call at the start of the description above shows their order)@endif</li>
                 @if($details['travel'])
-                    <li><b>Destination:</b> the Location ID on the stack (see <a href="{{ url('/locations') }}">Locations</a>), for example <code>10 {{ $protocol->id }} perform</code> to go to the Moon.</li>
+                    <li><b>Destination:</b> a Location ID (see <a href="{{ url('/locations') }}">Locations</a>), for example <code>travel(moon)</code> or <code>perform({{ $protocol->id }}, 10)</code> to go to the Moon.</li>
                 @endif
                 @if($protocol->multiplier)
-                    <li><b>Quantity:</b> an optional number below the parameters multiplies the quantities, for example <code>5 {{ $protocol->parameters > 0 ? '… ' : '' }}{{ $protocol->id }} perform</code> to do it five times over{{ $protocol->parameters > 0 ? ', with the parameters in place of …' : '' }}.</li>
+                    <li><b>Quantity:</b> the first parameter, N, is how many units: for example <code>push(5, kunspar, 52)</code> moves five.</li>
                 @endif
-                <li><b>Result:</b> <code>perform</code> waits until the action is finished, then leaves 0 if it worked or a negative code saying why it failed.</li>
+                <li><b>Result:</b> the call waits until the action is finished, then returns 0 if it worked or a negative code saying why it failed (see the players' manual).</li>
             </ul>
 
             <h4 class="mt-4">How long it takes</h4>
@@ -68,7 +68,7 @@
                         @endforeach
                     </table>
                 </div>
-                <p class="small">If any step can't happen (for example, a module is missing or the cargo hold is full), the action stops there and <code>perform</code> leaves the reason.</p>
+                <p class="small">If any step can't happen (for example, a module is missing or the cargo hold is full), the action stops there and the call returns the reason.</p>
             @endif
         </div>
     </section>
