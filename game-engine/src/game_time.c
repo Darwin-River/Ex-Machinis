@@ -49,11 +49,14 @@ ErrorCode_t game_time_load(void)
         return result;
 
     // First start: game time begins as real time, at scale 1, and the world's
-    // first game second (its epoch) is now
-    snprintf(query_text, sizeof(query_text),
-        "INSERT IGNORE INTO game_clock (id, real_anchor, game_anchor, scale, epoch) "
-        "VALUES (1, UNIX_TIMESTAMP(), UNIX_TIMESTAMP(), 1, UNIX_TIMESTAMP())");
-    result = game_time_query(connection, query_text);
+    // first game second (its epoch) is now. Once the clock has loaded, the
+    // row exists: skip it (#431: one statement every engine loop)
+    if(!g_loaded) {
+        snprintf(query_text, sizeof(query_text),
+            "INSERT IGNORE INTO game_clock (id, real_anchor, game_anchor, scale, epoch) "
+            "VALUES (1, UNIX_TIMESTAMP(), UNIX_TIMESTAMP(), 1, UNIX_TIMESTAMP())");
+        result = game_time_query(connection, query_text);
+    }
 
     if(result == ENGINE_OK)
         result = game_time_query(connection,
