@@ -693,12 +693,29 @@ for r in econ['Queries'][1:]:
 # with the game; station drones look hundreds of times a round and the engine
 # fell to under 100 slices a minute). The same sum the view gives (the latest
 # inventory event of each installed/locked kind), for one drone only.
+# #422: for each kind, the newer of its latest increment (1) and latest
+# depletion (2). Each is one step down events_inventory (drone, resource,
+# installed, locked, outcome, event_type, then id), so a holding costs the
+# same on day 100 as on day 1. A NOT EXISTS for a later event, and then an
+# ORDER BY id over both event types, read the drone's whole history for the
+# resource (~100 to 160 ms an order book by round 41's day 70 at 1,800x, and
+# the clock fell to a tenth).
+KINDS = "(SELECT 0 i, 0 l UNION ALL SELECT 0, 1 UNION ALL SELECT 1, 0 UNION ALL SELECT 1, 1) k"
+
+
+def latest_inventory(drone, resource, t=None):
+    def newest(event_type):
+        if t is None:
+            return (f"IFNULL((SELECT MAX(x.id) FROM events x WHERE x.drone = {drone} AND x.resource = {resource} "
+                    f"AND x.installed = k.i AND x.locked = k.l AND x.outcome = 1 AND x.event_type = {event_type}), 0)")
+        return (f"IFNULL((SELECT x.id FROM events x WHERE x.drone = {drone} AND x.resource = {resource} "
+                f"AND x.installed = k.i AND x.locked = k.l AND x.outcome = 1 AND x.event_type = {event_type} "
+                f"AND x.game_t <= {t} ORDER BY x.id DESC LIMIT 1), 0)")
+    return f"(SELECT h.new_quantity FROM events h WHERE h.id = GREATEST({newest(1)}, {newest(2)}))"
+
+
 def holding(drone, resource):
-    return ("(SELECT IFNULL(SUM(h.new_quantity), 0) FROM events AS h WHERE h.drone = " + drone +
-            " AND h.resource = " + resource + " AND h.outcome = 1 AND h.event_type IN (1, 2)"
-            " AND NOT EXISTS (SELECT 1 FROM events AS n WHERE n.drone = h.drone AND n.resource = h.resource"
-            " AND n.installed = h.installed AND n.locked = h.locked AND n.outcome = 1"
-            " AND n.event_type IN (1, 2) AND n.id > h.id))")
+    return f"(SELECT IFNULL(SUM({latest_inventory(drone, resource)}), 0) FROM {KINDS})"
 
 
 LATEST_ORDER = ("SELECT MAX(id) AS id FROM events WHERE outcome = 1 AND event_type = {t} "
@@ -1341,14 +1358,9 @@ queries.append((682, 'Sales on a day',
 # old (0 or 1). Drones flying, wrecked or arrived after then are left out,
 # and buyers who can't pay for a unit.
 # What a drone held of a resource as of game time t: for each kind
-# (installed, locked), its latest inventory event by then, found walking
-# back from the newest (a NOT EXISTS like holding()'s, with a time limit,
-# took a second over a station's thousands of events)
+# (installed, locked), its latest inventory event by then (like holding())
 def holding_asof(drone, resource, t):
-    return (f"(SELECT IFNULL(SUM((SELECT h.new_quantity FROM events h WHERE h.drone = {drone} "
-            f"AND h.resource = {resource} AND h.installed = k.i AND h.locked = k.l AND h.outcome = 1 "
-            f"AND h.event_type IN (1, 2) AND h.game_t <= {t} ORDER BY h.id DESC LIMIT 1)), 0) "
-            "FROM (SELECT 0 i, 0 l UNION ALL SELECT 0, 1 UNION ALL SELECT 1, 0 UNION ALL SELECT 1, 1) k)")
+    return f"(SELECT IFNULL(SUM({latest_inventory(drone, resource, t)}), 0) FROM {KINDS})"
 
 
 ASOF = ("WITH a AS (SELECT g.agent_id, g.object_id, g.company_id, g.arrived_t, "

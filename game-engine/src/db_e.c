@@ -785,11 +785,15 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
             case PREVIOUS_EVENT_BY_OWNER:
                 snprintf(query_text,
                     DB_MAX_SQL_QUERY_LEN,
-                    "SELECT * from events where drone in "
-                    "(select agent_id from agents where company_id = (select company_id from agents where agent_id = %d)) "
-                    "and outcome = %d " // success
-                    "and game_t < %lld order by game_t DESC, id DESC limit 1;",
-                    event->drone_id, OUTCOME_OK, game_t);
+                    // Each of the company's drones' latest event, then the
+                    // latest of those (#422: gathering and sorting all the
+                    // company's events took ~120 ms for the House by day 65)
+                    "SELECT e.* FROM agents a JOIN LATERAL (SELECT * FROM events "
+                    "WHERE drone = a.agent_id AND outcome = %d " // success
+                    "AND game_t < %lld ORDER BY game_t DESC, id DESC LIMIT 1) e ON TRUE "
+                    "WHERE a.company_id = (SELECT company_id FROM agents WHERE agent_id = %d) "
+                    "ORDER BY e.game_t DESC, e.id DESC LIMIT 1;",
+                    OUTCOME_OK, game_t, event->drone_id);
                 break;
             case PREVIOUS_EVENT_BY_SELL_ORDER:
                 snprintf(query_text,

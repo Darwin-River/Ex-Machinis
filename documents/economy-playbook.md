@@ -337,6 +337,67 @@ Round 36's newcomers all found the House paid a flat 25 to 33 credits a factory-
 - The Trader starter now buys only when the price board at Mars or Earth beats the Moon price by the trip's cost, and hauls to whichever pays more.
 - Also from round 36: the test world mirrors the live market (`LiveMirror`), recipes and recipe trees in the API and `recipe` in both libraries, `fuel-floor`, net wealth by game day, a company's open orders, a drone's fuel used per day, test drones numbered from 10,000,000.
 
+### The clock holds 1,800× again: faster holdings (#422, after round 41)
+
+Round 41's clock fell from 1,800× to about 157× after day 50. The queries asking what a drone holds went through its whole history for the resource. Every order book asks that of each seller, so each look cost more as the game went on.
+- **Holdings:** for each kind of holding (installed, locked), the query now reads the newer of the drone's latest increment and latest depletion. Each is one step down an existing index, so a holding costs the same on day 100 as on day 1. Order books with holdings went from about 160 ms to about 8 ms.
+- **A company's latest event** (the events engine): each drone's latest event, then the newest of those, in place of sorting every event the company ever had. About 120 ms down to about 6 ms for the House.
+- **Benchmark:** round 41's end state (183 drones, about 510,000 events), 5 real minutes at 1,800×:
+  - old code: the clock slowed to 570×, with about 250 turns a minute, and the engines ran 34–67 s behind;
+  - new code: it held 1,800× throughout, with about 1,450 turns a minute, and the engines ran 5–6 s behind.
+
+  Holdings matched the old form for all 2,628 drone/resource pairs, both now and as of a past time.
+
+To watch next round: whether the clock holds through day 100. The next biggest costs are the engine's own event lookups, the company-latest-event query (now cheap) and its latest-event-time check. For 5,000 ships, see the plan on #422.
+
+### Round 41: newcomers on the iterate-and-fail model (#380)
+
+The first round with no test world. It ran live at 1,800× with free, unlimited releases, on #413's code. Four newcomers each played a different style: a speedrunner, an accountant, an explorer, and a teacher new to programming. The world held:
+- 60 starters;
+- 12 Chemists and 9 Smiths;
+- 6 each of the Machinist, Adaptive and Systems shop;
+- 3 each of Electronics and Foundry.
+
+Planned for game day 100, it was cut to day 70 when the clock slowed (#422).
+
+| Design | Companies | Avg net wealth | Best |
+|---|---|---|---|
+| Systems shop | 6 | 13,210 | 14,051 (#2) |
+| Electronics | 3 | 11,409 | 11,696 |
+| Foundry | 3 | 9,650 | 11,463 |
+| Machinist | 6 | 5,843 | 6,493 |
+| Newcomers (Vera, teacher) | 15 | 5,315 | **21,840 (#1)** |
+| Newcomers (Theo, explorer) | 9 | 4,821 | 9,843 (#14) |
+| Newcomers (Suki, accountant) | 14 | 3,927 | 9,205 (#16) |
+| Adaptive | 6 | 3,460 | 4,819 |
+| Starters | 60 | 3,236 | 5,952 |
+| Newcomers (Ravi, speedrunner) | 14 | 3,165 | 11,340 (#12) |
+| Smith | 9 | 3,045 | 3,871 |
+| Chemist | 12 | 721 | 1,182 |
+
+- **52 releases in 70 days**, against 2 per newcomer in round 40. No wrecks among 183 drones, and 26 clones.
+- **Iterating worked.** All four said failure felt cheap and taught them something concrete.
+  - The newcomer least used to programming won. Vera copied `systems.lua`, moved it to the Moon (pumps bid 784 there against 585 at Earth), then added standing buy orders from blog 2. Vera 5 led from about day 43 and ended on 21,840, against the best shipped design's 14,051.
+  - Ravi changed one thing per release. His fourth (buy a whole lot from one seller) was his best, at 13th. Later changes were swamped by the Moon running out of Metals (A1).
+- **What failing still costs is time.** A late release has too few days to grow, a trip to Mars takes about 2 game days each way, and a buggy drone can't be stopped. Suki's haulers ping-ponged with full holds for 30 days while Earth's bid was gone. One player asked for a way to retire their own company.
+- **Bids beat pulls.** Ravi, Suki and Vera all hit the same trap (#425): `buy_here` walks the cheapest orders and gives up after 6 refusals, so tiny miner lots that others have already taken stop it before it reaches the House's stock. Standing buy orders and buying a whole lot from one seller both won.
+- **Supply again.** The Moon Depot stopped selling Metals (A1) around day 15, and the miners' small lots had dried up by about day 45. Earth ran out by day 50–61. Only Mars still had stock, at 42–54 credits. Earth's Metals (A2) bid vanished from day 31 to 61, while `/news` called it a boom in refined goods.
+- **The clock** held 1,800× until about day 50. It then slowed to about a tenth (157×, 549 real seconds a game day, 348 turns a minute at day 70). With 183 drones and about 510,000 events, the database queries that rebuild holdings and order books from the whole history had become the bottleneck (#422). Players felt it as actions taking 3–7 game hours each.
+- **Ratings** (Ravi, Suki, Theo, Vera): fun 7.25, clarity 7, depth 8, feedback 7.75, API 8, again 8, overall 7.4. Lua 7.75 to learn, 8 for fit. Depth (+1.25) and feedback (+0.75) are up on round 40.
+- **Bugs filed:**
+  - #423: `crowd()` with no argument crashes;
+  - #424: `best_sites` returns ~150 identical rows;
+  - #425: `buy_here` gives up before reaching the House;
+  - #426: examples assume 40-day rounds, plus doc gaps (`company_drones`, buy orders spending while the drone is busy, `sale_value`'s tax, `/machine/query`).
+- **Asked for:**
+  - a way to retire one's own company;
+  - drone-readable news and a restock signal;
+  - a turn-latency figure;
+  - per-company trades and open orders in the API;
+  - an exchange beyond Mars;
+  - House restock that scales with the crowd;
+  - the round's length stated up front.
+
 ### Fixes from round 40's reports (#418, #419, #420)
 
 - **The House market kept stopping (#420).** Posting the House's orders races the engines' own event inserts, and a MySQL deadlock ended the tick before the daily net-wealth record. The playtest runner died with it, so round 40's company histories stopped at day 8, and from then on the House's orders froze at day 8 prices. Round 41's runner died the same way near day 25 and was restarted at day 49. Now a deadlocked insert is retried, a station that's still stuck waits for the next tick, the daily record always runs, and the runner keeps going. Rounds 40 and 41 ran partly on frozen House prices, which may explain some of round 40's flat late game.
