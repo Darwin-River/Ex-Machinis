@@ -151,6 +151,12 @@ ErrorCode_t event_update_new_credit(Event_t *event)
         result = ENGINE_INTERNAL_ERROR;
     }
 
+    // Only an event that carries credits uses the company's latest event
+    // (#435): the lookup cost ~11 ms an event with 183 drones, and about
+    // three in four events (depletions, most increments) carry none
+    if(result == ENGINE_OK && !(event->new_credits >= 0 && event->new_credits != NULL_VALUE))
+        return ENGINE_OK;
+
     if(result == ENGINE_OK)
     {
         // search for the last processed event with the same drone
@@ -159,10 +165,8 @@ ErrorCode_t event_update_new_credit(Event_t *event)
 
     if(result == ENGINE_OK)
     {
-        if(event->new_credits >= 0 &&  event->new_credits != NULL_VALUE) {
-          // We obtained and event - do the maths to update new_quantity
-          event->new_credits += previous_event.new_credits;
-        }
+        // We obtained and event - do the maths to update new_quantity
+        event->new_credits += previous_event.new_credits;
     }
 
     if(result == ENGINE_NOT_FOUND)
