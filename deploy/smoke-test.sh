@@ -460,7 +460,14 @@ if ! wait_quietly 90 plundered; then
     fail "another player's drone plundered the wreck, leaving it empty"
 fi
 echo "ok: another player's drone plundered the wreck, leaving it empty"
-wait_for 60 "the plunderer got half the wreck's kunspar" replied $DRONE_ID "plunder 0 gained % half true"
+if ! wait_quietly 90 replied $DRONE_ID "plunder 0 gained % half true"; then
+    # Say what the plunderer said and holds (#380: a CI run once failed here)
+    sql "select id, body from drone_messages where agent_id=$DRONE_ID order by id desc limit 6" >&2
+    sql "select resource, units from sqInventory where drone=$DRONE_ID and units <> 0" >&2
+    sql "select id, protocol, outcome, aborted from actions where drone=$DRONE_ID order by id desc limit 6" >&2
+    fail "the plunderer got half the wreck's kunspar"
+fi
+echo "ok: the plunderer got half the wreck's kunspar"
 
 # Public Forge (#324 step 6): release a script on the website. It is
 # longer than one 2,048-character command, so it is released in pieces that
