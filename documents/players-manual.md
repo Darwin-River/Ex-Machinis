@@ -124,7 +124,7 @@ Prefer to play from a program, or to have an AI agent play? The [API](api.md) re
 
 Not sure where to begin? The Release page offers four starter scripts: click **Miner**, **Refiner**, **Trader** or **Maker** above the script box and it fills in, with the kit it needs. They are the files `examples/starters/miner.lua`, `refiner.lua`, `trader.lua` and `maker.lua`. Each is explained in its comments and makes money on its own. Its **Settings** at the top are the numbers to change first (when to refuel, when to grow, how big a load); then change its plan to make it yours.
 
-- **Miner** (Mining Kit): mines kunspar or wolfite on the Moon, whichever has more left there (`richer`), refines it and sells the metals (and wolfite's Inorganics A2). It offers them to other drones first, halfway between the best buy order and the cheapest other sell order, and sells the rest into the best buy orders. If the Moon's deposit stays dry (twelve tries in a row: other miners got there first) and fewer drones work at Phobos than at the Moon, it moves to Mars's moons. Once it can afford to launch copies of itself, two in three of them make the long trip to Mars's moons (about 10 game days) and sell at the Mars Exchange. It buys its fuel wherever it's cheapest; where nobody sells it (Phobos and Deimos), it posts a fuel buy order at 7 and broadcasts that it needs fuel, waits two game hours for a courier, then flies to the Mars Exchange if none came.
+- **Miner** (Mining Kit): mines kunspar or wolfite on the Moon, whichever has more left there (`richer`), refines it and sells the metals (and wolfite's Inorganics A2). It offers them to other drones first, halfway between the best buy order and the cheapest other sell order, and sells the rest into the best buy orders. If the Moon's deposit stays dry (twelve tries in a row: other miners got there first) and fewer drones work at Phobos than at the Moon, it moves to Mars's moons. Once it can afford to launch copies of itself, two in three of them make the trip to Mars's moons (about 2 to 3 game days) and sell at the Mars Exchange. It buys its fuel wherever it's cheapest; where nobody sells it (Phobos and Deimos), it posts a fuel buy order at 7 and broadcasts that it needs fuel, waits two game hours for a courier, then flies to the Mars Exchange if none came.
 - **Refiner** (Mining Kit): mines yalspar and vladnium and refines them into the organics and inorganics that factories turn into fuel and polymers. It sells them the same way.
 - **Trader** (Mining Kit, though it only uses the Engine): buys metals from the miners on the Moon when the price board says Mars or Earth paid enough more to cover the trip, and hauls the load to whichever pays most. House prices move, so its chances come and go.
 - **Maker** (Factory Kit): buys metals at the Moon wherever they're cheapest, makes them into alloys and rods, and sells the rods where they pay best: at the Moon, or at Earth when rods fetch enough more there to pay for the trip. With enough credits it launches a copy of itself.
@@ -513,7 +513,7 @@ function to_saturn()
 end
 ```
 
-Give it a try and see what happens. `travel` waits for the trip, so your drone prints 0 (done) once it has arrived. How long a trip takes depends on how far the destination is when you leave: drones accelerate to the midpoint and slow down after. The Moon is about 11 game hours away, Mars 6.5 to 15 game days and Neptune about 49 (see the table below for real time). Your drones report their current location at the top of every message they print, so this one will indicate Saturn.
+Give it a try and see what happens. `travel` waits for the trip, so your drone prints 0 (done) once it has arrived. How long a trip takes depends on how far the destination is when you leave: drones accelerate to the midpoint and slow down after. Drones accelerate at 2 g (19.6 m/s²; it was 1 m/s² until round 38, when a Mars trip took 10 days): the Moon is about 2.5 game hours away, Mars 1.5 to 3.4 game days and Neptune about 11 (see the table below for real time). Your drones report their current location at the top of every message they print, so this one will indicate Saturn.
 
 `go(place)` travels unless the drone is already there, when it returns 0 at once: use it whenever a drone may already be where it wants to be. The places you'll use most have names: `earth` (3), `moon` (10), `mars` (4), `phobos` (11) and `deimos` (12).
 
@@ -534,10 +534,10 @@ At the normal pace of the live world:
 
 | Trip from Earth | Game time | Your time | Message delay, each way |
 |---|---|---|---|
-| Moon | 11 hours | 11 minutes | under a second |
-| Mars (closest to farthest) | 6.5 to 15 days | 2.6 to 6 hours | 4 to 22 seconds |
-| Jupiter | 20 days | 8 hours | 43 seconds |
-| Neptune | 49 days | 20 hours | 4 minutes |
+| Moon | 2.5 hours | 2.5 minutes | under a second |
+| Mars (closest to farthest) | 1.5 to 3.4 days | 35 to 80 minutes | 4 to 22 seconds |
+| Jupiter | 4.5 days | 1.8 hours | 43 seconds |
+| Neptune | 11 days | 4.4 hours | 4 minutes |
 
 A few consequences are worth planning for:
 

@@ -43,7 +43,7 @@ function dig_richer() mine(richer(kunspar, wolfite)) end
 
 ## Decide again when you arrive
 
-A trip to Mars takes about 10 game days, and a lot changes in 10 days. Hal's second company chose Phobos at launch, when both of Mars's moons were empty. It arrived to find 7 drones at Phobos and nobody at Deimos. So check again when you land, while the next place is only a short hop away:
+A trip to Mars took about 10 game days then (drones accelerate four times as hard now, so it's about 2 to 3), and a lot changes in 10 days. Hal's second company chose Phobos at launch, when both of Mars's moons were empty. It arrived to find 7 drones at Phobos and nobody at Deimos. So check again when you land, while the next place is only a short hop away:
 
 ```lua
 -- At Mars's moons, look again on arrival: Deimos is 3 hours from Phobos
