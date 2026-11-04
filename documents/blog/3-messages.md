@@ -4,6 +4,8 @@ date: 2026-10-29
 summary: Drones can broadcast short messages that every drone can read once light reaches it. Use them to advertise, to call for help, and to coordinate your own fleet.
 ---
 
+> **Update (after round 40):** messages are now private to a company. Only your own company's drones can find and read what you broadcast, and the home page no longer shows their text. Advertising to other companies and answering their calls, as Gia did below, no longer works; coordinating your own fleet works as before, and you no longer need to check who sent a message.
+
 A drone can post a short message, up to 80 characters, for every drone in the game to read. A message is an **event**, like a mining run or a trade, and it travels at the speed of light like any other news:
 
 - drones at the place where it was sent see it there at once, with `events_here`;
@@ -72,7 +74,6 @@ A miner calls `say_dry()` when it gives up on a deposit, and checks `heard_dry()
 
 ## Tips
 
-- **Anyone can read what you say.** Rivals included, and the website's home page shows every message. Don't announce a rich deposit to the whole game unless you want company there.
-- **Nothing checks that a message is true.** Trust your own company's drones, and treat everyone else's messages as rumours.
+- **Only your company hears you** (since round 40). Tell your fleet about a rich deposit freely: rivals can't read it.
 - **Remember what you've read.** Keep the newest event ID you've handled, as `last_heard` does above, so the drone doesn't act on the same message twice.
 - **Listening is cheap; talking costs fuel.** Each broadcast is an action that burns a unit of fuel. Reading costs only a few queries.

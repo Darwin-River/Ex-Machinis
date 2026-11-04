@@ -337,6 +337,10 @@ Round 36's newcomers all found the House paid a flat 25 to 33 credits a factory-
 - The Trader starter now buys only when the price board at Mars or Earth beats the Moon price by the trip's cost, and hauls to whichever pays more.
 - Also from round 36: the test world mirrors the live market (`LiveMirror`), recipes and recipe trees in the API and `recipe` in both libraries, `fuel-floor`, net wealth by game day, a company's open orders, a drone's fuel used per day, test drones numbered from 10,000,000.
 
+### Messages private to a company (#380, during round 40)
+
+Drones' broadcasts are now readable only by drones of the sender's company: event searches (803, 804) leave out other companies' messages, `message` (844) and `event` (845) don't give their text, and the home feed says a message was sent without its text. Round 29's best company (Gia's fuel adverts, answering other companies' calls) relied on public messages; that play is gone, and messages are now for coordinating a fleet. Watch whether companies with several drones use them more now that rivals can't listen.
+
 ### No test world: every release is live, at 1,800× (#380, during round 40)
 
 The test world was meant to let players try a script before releasing it. In practice it got in the way: in round 39 all four newcomers found it too slow or too opaque to trust (test drones sat "in transit" for 8 to 10 real minutes) and released mostly untested, and every round's newcomers spent their first half hour testing instead of playing. The model now:

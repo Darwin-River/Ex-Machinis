@@ -841,6 +841,12 @@ EVENT_FILTERS = [  # (letter, meaning, SQL condition on [value_n])
 ]
 conditions = ' '.join(f'AND ({{v}}<0 OR {c})'.format(v=f'[value_{len(EVENT_FILTERS) - i}]')
                       for i, (_, _, c) in enumerate(EVENT_FILTERS))
+# Messages are private to a company (#380, after round 40): a broadcast
+# (event type 13) is found, and read (844, 845), only by drones of the
+# company whose drone sent it
+MY_CO = "(SELECT company_id FROM agents WHERE agent_id=[drone_id])"
+conditions += (" AND (e.event_type<>13 OR EXISTS(SELECT 1 FROM broadcasts b WHERE b.action_id=e.action "
+               f"AND b.company_id={MY_CO}))")
 # Seen: an observation row (the acting or affected drone, or the light has
 # reached it), or the event happened where the drone is, since it arrived
 # (#324 step 20: local sightings are worked out here, not stored per drone)
@@ -871,10 +877,10 @@ queries.append((804, 'Search Earth database',
 # An event's message (#380): the text of a broadcast (event type 13), a
 # counted string; no row for other events
 queries.append((844, 'Get event message',
-                '[N R L 844 query]: The message of event N, a broadcast (event type 13), as a counted string '
-                '(answer count type); no row for other events.', 1,
+                '[N R L 844 query]: The message of event N, a broadcast (event type 13) from a drone of this '
+                'drone\'s company; no row for other events or other companies\' messages.', 1,
                 "SELECT b.body FROM broadcasts b INNER JOIN events e ON e.action = b.action_id "
-                "WHERE e.id = [value_1] AND e.event_type = 13;"))
+                f"WHERE e.id = [value_1] AND e.event_type = 13 AND b.company_id = {MY_CO};"))
 # How crowded a place is (#380): the drones there now, working and wrecked
 queries.append((721, 'Drones at a place',
                 '[P R L 721 query]: How many drones are at location P now: working drones, wrecks.', 1,
@@ -1384,12 +1390,13 @@ queries.append((655, 'My company\'s trades',
 # Everything about an event in one row (810 to 844 ask one column each)
 queries.append((845, 'Event details',
                 '[N R L 845 query]: Event N in one row: type, type name, acting drone, protocol, affected drone, '
-                'resource, new quantity, new credits, new location, place, game day, seconds into it, message.', 1,
+                'resource, new quantity, new credits, new location, place, game day, seconds into it, message (your company\'s only).', 1,
                 "SELECT e.event_type AS type, t.name AS type_name, IFNULL(x.drone, 0) AS acting, "
                 "IFNULL(x.protocol, 0) AS protocol, e.drone AS affected, e.resource, e.new_quantity AS quantity, "
                 "e.new_credits AS credits, e.new_location AS location, e.place, "
                 "FLOOR((e.game_t - g.epoch) / 86400) AS day, MOD(e.game_t - g.epoch, 86400) AS seconds, "
-                "(SELECT b.body FROM broadcasts AS b WHERE b.action_id = e.action AND e.event_type = 13 LIMIT 1) "
+                "(SELECT b.body FROM broadcasts AS b WHERE b.action_id = e.action AND e.event_type = 13 "
+                f"AND b.company_id = {MY_CO} LIMIT 1) "
                 "AS message FROM events AS e INNER JOIN event_types AS t ON t.id = e.event_type "
                 "LEFT JOIN actions AS x ON x.id = e.action INNER JOIN game_clock AS g ON g.id = 1 "
                 "WHERE e.outcome = 1 AND e.id = [value_1];"))

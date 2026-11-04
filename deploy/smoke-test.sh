@@ -23,7 +23,8 @@
 #     pays the sales tax out of a sale,
 #   - a waiting drone runs no instructions but still sells, and a drone sees
 #     live orders only where it is,
-#   - a drone broadcasts a message and another drone hears it,
+#   - a drone broadcasts a message: a drone of its company hears it, another
+#     company's doesn't,
 #   - a drone's page shows its code, and a wreck's page has a post-mortem,
 #   - the home feed, the market, the map and the leaderboard show the world,
 #   - there is no test world: no Test button, no test runs in the API,
@@ -556,15 +557,23 @@ echo "ok: the Release page offers the starter scripts"
 wait_for 60 "a drone knows the game's names" replied $FORGE_DRONE "game-words 19 10 1100 true true"
 
 # Broadcasts (#380): the released drone, at Earth, broadcasts a message, an
-# event; the first drone, on the Moon, reads it from the Earth database
-# (events_earth) once light has carried it there, with its sender and text,
-# and counts the drones at Earth
+# event. Messages are private to a company (after round 40): the first
+# drone, on the Moon, of another company, never hears it; moved into the
+# sender's company, it reads it from the Earth database (events_earth) once
+# light has carried it there, with its sender and text, and counts the
+# drones at Earth. Then it goes back to its own company.
 sent() { [ "$(sql "select count(*) from broadcasts b join events e on e.action = b.action_id join observations o on o.event = e.id
                    where b.drone=$FORGE_DRONE and b.body='smoke-hello' and e.event_type=13 and e.outcome=1 and o.drone=0")" = 1 ]; }
 wait_for 60 "a drone broadcast a message" sent
 wait_for 30 "the broadcast worked" replied $FORGE_DRONE "broadcast 0"
-wait_for 60 "another drone read the broadcast from the Earth database" replied $DRONE_ID "hear true $FORGE_DRONE smoke-hello"
-echo "ok: drones broadcast messages, events others read from the Earth database"
+sleep 15
+[ "$(replies $DRONE_ID "hear ")" = 0 ] || fail "another company's drone read the message"
+echo "ok: another company's drone can't read the message"
+SENDER_COMPANY=$(sql "select company_id from agents where agent_id=$FORGE_DRONE")
+sql "update agents set company_id = $SENDER_COMPANY where agent_id = $DRONE_ID"
+wait_for 60 "a drone of the sender's company read the broadcast from the Earth database" replied $DRONE_ID "hear true $FORGE_DRONE smoke-hello"
+sql "update agents set company_id = $COMPANY where agent_id = $DRONE_ID"
+echo "ok: drones broadcast messages, events their company's drones read from the Earth database"
 
 # The House fuel seller (#324 step 10; #380): the released drone, at Earth,
 # buys 10 fuel from the Earth Exchange's station drone like from any drone: a

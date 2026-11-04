@@ -873,9 +873,9 @@ end
 
 ### Broadcasting to other drones
 
-A drone can also talk to other drones. `broadcast(text)` (protocol 40) posts a short message, 1 to 80 printable characters. It is an action like any other: it takes a moment, burns a unit of fuel, and shows in your drone's activity as "Broadcast".
+A drone can also talk to the other drones of its company. `broadcast(text)` (protocol 40) posts a short message, 1 to 80 printable characters. **Messages are private to your company:** only your company's drones can find and read them; other companies' drones never see them, and you never see theirs. It is an action like any other: it takes a moment, burns a unit of fuel, and shows in your drone's activity as "Broadcast".
 
-A message is an **event** (type 13, `message_event`), and drones learn of it the way they learn of any event, at the speed of light:
+A message is an **event** (type 13, `message_event`), and your drones learn of it the way they learn of any event, at the speed of light:
 
 - **Where it happens.** Drones at the place where a message was sent see it there, like anything else that happens around them: `events_here(message_event)` (query 803, search observed events).
 - **Through the Earth database.** Every message, like every event that is reported, reaches the Earth Based Central Database once light has carried it from where it was sent to Earth, and a drone learns what Earth knows once light has carried it from Earth to the drone: `events_earth(message_event)` (query 804, search the Earth database). So a message from Mars reaches a drone at Mars at once, Earth 4 to 22 game minutes later, and a drone at the Moon a second after that.
@@ -899,7 +899,7 @@ function listen()
 end
 ```
 
-To hear only your own company, check the sender's company: `owner(event_drone(event)) == company()`. Messages are public: every drone, your rivals' included, can read what you broadcast (and the website's home page shows them). Use them to advertise, to tell your other drones what you found, or to listen for opportunities. What a message says is up to its sender: nothing checks that it's true.
+Every message your drones find is from your own company, so there is no need to check who sent it. Use them to tell your other drones what you found: a dry deposit, a good price somewhere, a shortage, a clone that needs fuel. The website's home page says when a drone sent a message, but not what it said.
 
 **How crowded is it?** `crowd(place)` is how many working drones are at a place now (query 721 also gives its wrecks). A place with dozens of drones mining the same deposit or selling the same goods is a place where prices are low; a quiet one may be an opportunity.
 
