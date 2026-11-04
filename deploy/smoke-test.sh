@@ -290,8 +290,9 @@ release "Smoke Miner" "$MINER_SCRIPT"
 DRONE_ID=$(company_drone "Smoke Miner")
 [ -n "$DRONE_ID" ] || fail "release did not create a company and drone"
 DRONE=$(sql "select name from agents where agent_id=$DRONE_ID")
-[ "$(sql "select concat(language, ' ', lua_script is not null) from agents where agent_id=$DRONE_ID")" = "lua 1" ] ||
-    fail "drone $DRONE isn't a Lua drone with its script"
+# The engine gathers the script's pieces into lua_script as it loads them
+lua_loaded() { [ "$(sql "select concat(language, ' ', lua_script is not null) from agents where agent_id=$DRONE_ID")" = "lua 1" ]; }
+wait_for 60 "drone $DRONE is a Lua drone with its script" lua_loaded
 wait_for 90 "drone $DRONE ran its launched function; its reply is kept for the website" replied $DRONE_ID "sum 5"
 
 # The starting sequence from the game data: unpack the starter kit, fly to
