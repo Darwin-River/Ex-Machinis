@@ -365,7 +365,12 @@ Two more steps on round 41's world, on the same saved state, 5 real minutes each
   - "when may this drone's next action start" now takes two index steps instead of reading every event the drone ever had;
   - a drone's inventory now comes from `holdings`.
 
-Each step was checked: holdings and orders matched the history exactly, and the rewritten queries gave the same answers for every drone. The top costs now are the previous event for a drone and resource, the drone's previous event, and saving a drone's input: more steps for #431.
+Each step was checked: holdings and orders matched the history exactly, and the rewritten queries gave the same answers for every drone. Then #431 steps 2 and 3:
+- an index for the previous event of a holding;
+- saving a drone's input only when it changed;
+- a fix for query 615, which with some statistics walked the whole of `events` and stalled the engine (#442).
+
+After those: about 2,900–3,200 turns a minute, the engines 1–2.6 s behind, and no stall in two runs. The top costs now are the previous event for a drone and resource, the drone's previous event, and saving a drone's input: more steps for #431.
 
 ### Skipping a lookup three in four events didn't need (#435, part of #428)
 

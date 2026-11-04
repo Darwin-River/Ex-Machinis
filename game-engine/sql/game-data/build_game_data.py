@@ -708,7 +708,10 @@ def latest_inventory(drone, resource, t=None):
         if t is None:
             return (f"IFNULL((SELECT MAX(x.id) FROM events x WHERE x.drone = {drone} AND x.resource = {resource} "
                     f"AND x.installed = k.i AND x.locked = k.l AND x.outcome = 1 AND x.event_type = {event_type}), 0)")
-        return (f"IFNULL((SELECT x.id FROM events x WHERE x.drone = {drone} AND x.resource = {resource} "
+        # The index named (#431): with some statistics MySQL walked the
+        # whole of events back from the newest row instead (ORDER BY id DESC
+        # by PRIMARY), and query 615 took ~25 s a call and stalled the engine
+        return (f"IFNULL((SELECT x.id FROM events x FORCE INDEX (events_inventory) WHERE x.drone = {drone} AND x.resource = {resource} "
                 f"AND x.installed = k.i AND x.locked = k.l AND x.outcome = 1 AND x.event_type = {event_type} "
                 f"AND x.game_t <= {t} ORDER BY x.id DESC LIMIT 1), 0)")
     return f"(SELECT h.new_quantity FROM events h WHERE h.id = GREATEST({newest(1)}, {newest(2)}))"

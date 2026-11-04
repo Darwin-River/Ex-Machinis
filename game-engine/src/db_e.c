@@ -764,8 +764,11 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
             case PREVIOUS_EVENT_BY_RESOURCE_INFO:
                 snprintf(query_text,
                     DB_MAX_SQL_QUERY_LEN,
+                    // One step back down events_inventory_time (migration
+                    // 0033, #431): events_inventory read every such event
+                    // the drone ever had and sorted them
                     "SELECT * "
-                    "FROM events "
+                    "FROM events FORCE INDEX (events_inventory_time) "
                     "WHERE drone = %d and resource = %d and installed = %d and locked = %d "
                     "and outcome = %d " // success
                     "and (event_type = 1 or event_type = 2)" // look only for increment and depletion events

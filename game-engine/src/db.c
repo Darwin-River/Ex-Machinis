@@ -1116,6 +1116,18 @@ ErrorCode_t db_update_agent_input(DbConnection_t* connection, int agent_id, Comm
         }
     }
 
+    // Most turns resume a script with the same command as last time: the
+    // row already says so, and the update only waited for its lock, held by
+    // the events engine while it settles a batch (#431: 15 of 19 s of these
+    // updates was lock wait). Write only a change.
+    if(result == ENGINE_OK && new_input && agent_info.input_content
+       && strcmp(agent_info.input_content, new_input) == 0
+       && strcmp(agent_info.subject, new_subject) == 0)
+    {
+        if(agent_info.input_content) engine_free(agent_info.input_content, strlen(agent_info.input_content)+1);
+        return ENGINE_OK;
+    }
+
     if(result == ENGINE_OK)
     {
         // Prepare query to update input and subject. Both come from the
