@@ -397,8 +397,8 @@ LAUNCH_PROTOCOL, LAUNCH_EVENT, LAUNCH_TIME = '12', 8, 1 * HOUR
 LAUNCH_FUEL = 20
 protocols[LAUNCH_PROTOCOL] = [
     LAUNCH_PROTOCOL, 'Launch drone', '2', '100',
-    '[D K 12 perform]: Builds a new drone (a clone) from ship kit K in the cargo bay, beside this one, with a copy '
-    'of drone D\'s program and 20 of this drone\'s fuel; it runs its launched word. Takes 1 hour plus the light time from D.',
+    '[D K 12 perform]: Builds a new drone (a clone) from ship kit K in the hold, beside this one, with drone D\'s '
+    'program and 20 of this drone\'s fuel; it runs launched(). Takes 1 hour plus the light time from D.',
     '1', '1', '0']
 add_effects(LAUNCH_PROTOCOL, [
     {'time': 0, 'drone': 0, 'resource': -1, 'event_type': 2, 'local': 1, 'installed': 0, 'locked': 0,
@@ -1450,10 +1450,19 @@ def lua_description(desc, kind):
     return desc
 
 
+def fit(desc, limit=250):
+    """At most limit characters, cut after a whole sentence: the engine keeps
+    descriptions in 255-byte buffers (MAX_PROTOCOL_DESCRIPTION_SIZE)"""
+    if len(desc) <= limit:
+        return desc
+    cut = desc.rfind('. ', 0, limit)
+    return desc[:cut + 1] if cut > 0 else desc[:limit].rsplit(' ', 1)[0]
+
+
 resources_by_id = {int(r['id']) for r in resources.values()}
 for p in protocols.values():
-    p[4] = lua_description(p[4], 'perform')
-queries = [(q[0], q[1], lua_description(q[2], 'query'), q[3], q[4]) for q in queries]
+    p[4] = fit(lua_description(p[4], 'perform'))
+queries = [(q[0], q[1], fit(lua_description(q[2], 'query')), q[3], q[4]) for q in queries]
 
 table('protocols', ['id', 'name', 'parameters', 'bulk_modifier', 'description', 'observable', 'reportable', 'multiplier',
                     'double_params'],
