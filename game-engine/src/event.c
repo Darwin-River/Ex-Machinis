@@ -29,7 +29,74 @@
 
 /******************************* GLOBAL VARIABLES ****************************/
 
+// The action of the event being settled (#446): each event asked MySQL for
+// it two or three times (is it aborted, is it a transfer, what protocol).
+// Good for one event_process_outcome call; an abort clears it.
+static Action_t current_action;
+static int current_action_valid = 0;
+
+// When the expired events of each kind were last deleted (#446): the delete
+// ran after every successful event, but what it deletes is days old
+#define EXPIRED_SWEEP_SLOTS 65536
+#define EXPIRED_SWEEP_SECONDS 3600
+typedef struct { int key[5]; time_t at; } ExpiredSweep_t;
+static ExpiredSweep_t expired_sweeps[EXPIRED_SWEEP_SLOTS];
+
 /******************************* LOCAL FUNCTIONS *****************************/
+
+/** ****************************************************************************
+
+  @brief      Gets an event's action, once per event (#446)
+
+  @param[in]  action_id  The action
+  @param[out] action     Its row
+
+  @return     Execution result
+
+*******************************************************************************/
+static ErrorCode_t event_get_action(int action_id, Action_t *action)
+{
+    if(current_action_valid && current_action.action_id == action_id) {
+        *action = current_action;
+        return ENGINE_OK;
+    }
+
+    memset(action, 0, sizeof(*action));
+    action->action_id = action_id;
+    ErrorCode_t result = db_get_action(action);
+    if(result == ENGINE_OK) {
+        current_action = *action;
+        current_action_valid = 1;
+    }
+    return result;
+}
+
+/** ****************************************************************************
+
+  @brief      Whether this kind of event's expired history is due a delete:
+              at most once a real hour per kind (#446)
+
+  @param[in]  event  The event that just succeeded
+
+  @return     1 when the delete should run
+
+*******************************************************************************/
+static int event_expired_sweep_due(Event_t *event)
+{
+    int key[5] = { event->event_type, event->drone_id, event->resource_id, event->installed, event->locked };
+    unsigned int h = 2166136261u;
+    for(int i = 0; i < 5; i++)
+        h = (h ^ (unsigned int)key[i]) * 16777619u;
+    ExpiredSweep_t* slot = &expired_sweeps[h % EXPIRED_SWEEP_SLOTS];
+
+    time_t now = time(NULL);
+    if(slot->at && now - slot->at < EXPIRED_SWEEP_SECONDS && memcmp(slot->key, key, sizeof(key)) == 0)
+        return 0;
+
+    memcpy(slot->key, key, sizeof(key));
+    slot->at = now;
+    return 1;
+}
 
 /** ****************************************************************************
 
@@ -433,7 +500,7 @@ ErrorCode_t event_delete_previous_events(Event_t *event)
   ErrorCode_t result = ENGINE_INTERNAL_ERROR;
 
   if(event)
-    result = db_delete_previous_events(event);
+    result = event_expired_sweep_due(event) ? db_delete_previous_events(event) : ENGINE_OK;
 
   // Purge old actions too: at most once a real minute (#431). It looks for
   // actions a month old, and ran after every successful event
@@ -462,6 +529,7 @@ ErrorCode_t event_abort_action(Event_t *event)
 
     if(event)
         result = db_abort_action(event->action_id);
+    current_action_valid = 0;   // it is aborted now
 
     return result;
 }
@@ -593,8 +661,13 @@ ErrorCode_t event_update_observations(Event_t *event)
     Observation_t observation;
 
     // Get first the flags observable and reportable for current event
+    // From the protocols cache when the action is at hand (#446)
     ProtocolInfo_t protocol;
-    result = db_get_event_observation_info(event, &protocol);
+    Action_t action;
+    if(event_get_action(event->action_id, &action) == ENGINE_OK)
+        result = db_get_protocol_flags(action.protocol_id, &protocol);
+    else
+        result = db_get_event_observation_info(event, &protocol);
 
     if(result == ENGINE_OK)
     {
@@ -1004,10 +1077,7 @@ static ErrorCode_t event_apply(Event_t *event)
 
     // Check that associated action is not aborted - we do not process events for aborted actions
     Action_t action;
-    memset(&action, 0, sizeof(action));
-    action.action_id = event->action_id;
-
-    result = db_get_action(&action);
+    result = event_get_action(event->action_id, &action);
 
     if((result != ENGINE_OK) || action.aborted)
     {
@@ -1165,11 +1235,11 @@ static ErrorCode_t event_apply(Event_t *event)
         return result;
     }
 
-    // Get previous events info
-    // We get (if exist, the previous valid event and the previous by resource event)
+    // The previous event of this resource, kind and state. (The drone's
+    // previous event was looked up too, for a log line only: the cargo comes
+    // from the holdings. It was the events engine's top cost, #446.)
     if(result == ENGINE_OK)
     {
-        db_get_previous_event(event, PREVIOUS_EVENT_BY_DRONE, &previous_event);
         db_get_previous_event(event, PREVIOUS_EVENT_BY_RESOURCE_INFO, &previous_resource_event);
     }
 
@@ -1282,10 +1352,8 @@ static void event_record_failure(Event_t *event, int outcome)
     // (#324 step 8). Only a lack of fuel does that: a power burn that fails
     // for another reason just leaves the bill unpaid this time.
     Action_t action;
-    memset(&action, 0, sizeof(action));
-    action.action_id = event->action_id;
     if(outcome == OUTCOME_NO_RESOURCES &&
-       db_get_action(&action) == ENGINE_OK && action.protocol_id == POWER_PROTOCOL_ID)
+       event_get_action(event->action_id, &action) == ENGINE_OK && action.protocol_id == POWER_PROTOCOL_ID)
         db_wreck_drone(event->drone_id, "fuel");
 }
 
@@ -1310,10 +1378,7 @@ static Bool_t event_get_transfer_partner(Event_t *event, Event_t *partner)
     if(event->event_type != DECREMENT_INVENTORY_EVENT_TYPE)
         return ENGINE_FALSE;
 
-    memset(&action, 0, sizeof(action));
-    action.action_id = event->action_id;
-
-    if(db_get_action(&action) != ENGINE_OK || action.aborted)
+    if(event_get_action(event->action_id, &action) != ENGINE_OK || action.aborted)
         return ENGINE_FALSE;
 
     if(action.protocol_id != PUSH_PROTOCOL_ID && action.protocol_id != PULL_PROTOCOL_ID)
@@ -1420,7 +1485,6 @@ ErrorCode_t event_process_outcome(Event_t *event)
 {
     ErrorCode_t result;
     Event_t partner;
-    int outcome = OUTCOME_NO_OUTCOME;
 
     if(event == NULL)
     {
@@ -1429,14 +1493,16 @@ ErrorCode_t event_process_outcome(Event_t *event)
     }
 
     // The batch was read before earlier events ran: skip events already
-    // settled since (e.g. the second half of a transfer)
-    if((db_get_event_outcome(event->event_id, &outcome) == ENGINE_OK) &&
-       (outcome != OUTCOME_NO_OUTCOME))
+    // settled since (e.g. the second half of a transfer). Kept in memory
+    // (#446): only this engine settles events, in this transaction
+    Bool_t settled = ENGINE_FALSE;
+    if((db_event_settled_in_batch(event->event_id, &settled) == ENGINE_OK) && settled)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Event [%d] already processed (outcome [%d])",
-            event->event_id, outcome);
+        engine_trace(TRACE_LEVEL_ALWAYS, "Event [%d] already processed", event->event_id);
         return ENGINE_OK;
     }
+
+    current_action_valid = 0;   // read it afresh for each event
 
     memset(&partner, 0, sizeof(partner));
     if(event_get_transfer_partner(event, &partner) == ENGINE_TRUE)
