@@ -582,9 +582,14 @@ ErrorCode_t db_insert_command(DbConnection_t* connection, Command_t* command)
     char* query_end = query_text;
 #define QUERY_LEFT (query_size - (size_t)(query_end - query_text))
 
+    // A resume is the drone's own: it is due at once, so it goes in already
+    // stamped instead of waiting for the stamping pass (#431 step 1)
+    const char* resume = engine_get_vm_resume_command();
+    int stamped = resume && strncmp(command->code, resume, strlen(resume)) == 0;
+
     query_end += snprintf(query_end,
         QUERY_LEFT,
-        "INSERT INTO commands (code, agent_id, created_at, updated_at, subject, email_content) VALUES('");
+        "INSERT INTO commands (code, agent_id, created_at, updated_at, subject, email_content, deliver_at) VALUES('");
 
     query_end += mysql_real_escape_string(connection->hndl, query_end, command->code, code_len);
     query_end += snprintf(query_end,
@@ -598,9 +603,10 @@ ErrorCode_t db_insert_command(DbConnection_t* connection, Command_t* command)
         "', '");
 
     query_end += mysql_real_escape_string(connection->hndl, query_end, command->email_content, content_len);
-    query_end += snprintf(query_end,
-        QUERY_LEFT,
-        "')");
+    if(stamped)
+        query_end += snprintf(query_end, QUERY_LEFT, "', %lld)", game_time_now_seconds());
+    else
+        query_end += snprintf(query_end, QUERY_LEFT, "', NULL)");
 #undef QUERY_LEFT
 
     // run it
@@ -1980,7 +1986,7 @@ ErrorCode_t db_abort_action(int action_id)
     @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_resource_effects
+static ErrorCode_t db_get_resource_effects_query
 (
     ProtocolInfo_t* protocol,
     ResourceEffect_t** effects,
@@ -2148,7 +2154,7 @@ ErrorCode_t db_get_resource_effects
     @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_market_effects
+static ErrorCode_t db_get_market_effects_query
 (
     ProtocolInfo_t* protocol,
     MarketEffect_t** effects,
@@ -4388,3 +4394,38 @@ ErrorCode_t db_get_location_effects(ProtocolInfo_t* protocol, LocationEffect_t**
     }
     return result;
 }
+
+/* Resource and market effects are game data too: from the same kind of
+   cache (#431 step 1). Each action read both. */
+#define CACHED_ROWS_MAX 32
+#define DEFINE_CACHED_EFFECTS(name, type) \
+typedef struct { int num; type rows[CACHED_ROWS_MAX]; } name##_cached_t; \
+ErrorCode_t name(ProtocolInfo_t* protocol, type** effects, int* effectsNum) \
+{ \
+    static StaticCache_t cache = { .ttl = 60 }; \
+    time_t now = time(NULL); \
+    name##_cached_t cached; \
+    if(!protocol || !effects || !effectsNum) return ENGINE_INTERNAL_ERROR; \
+    if(static_cache_get(&cache, protocol->protocol_id, &cached, sizeof(cached), now)) { \
+        *effectsNum = cached.num; \
+        *effects = NULL; \
+        if(cached.num > 0) { \
+            *effects = (type*)malloc(sizeof(type) * (unsigned int)cached.num); \
+            if(!*effects) { *effectsNum = 0; return ENGINE_INTERNAL_ERROR; } \
+            memcpy(*effects, cached.rows, sizeof(type) * (unsigned int)cached.num); \
+        } \
+        return ENGINE_OK; \
+    } \
+    ErrorCode_t result = name##_query(protocol, effects, effectsNum); \
+    if(result == ENGINE_OK && *effectsNum >= 0 && *effectsNum <= CACHED_ROWS_MAX) { \
+        memset(&cached, 0, sizeof(cached)); \
+        cached.num = *effectsNum; \
+        if(cached.num > 0 && *effects) \
+            memcpy(cached.rows, *effects, sizeof(type) * (unsigned int)cached.num); \
+        static_cache_put(&cache, protocol->protocol_id, &cached, sizeof(cached), now); \
+    } \
+    return result; \
+}
+
+DEFINE_CACHED_EFFECTS(db_get_resource_effects, ResourceEffect_t)
+DEFINE_CACHED_EFFECTS(db_get_market_effects, MarketEffect_t)
