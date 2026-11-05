@@ -1124,6 +1124,20 @@ static void engine_check_load(void)
     if(seconds < CLOCK_CHECK_SECONDS)
         return;
 
+    // Other shards only report their turns a minute (#433); shard 0 sets
+    // the pace from everyone's
+    long own_per_minute = lround(g_load_slices * 60.0 / seconds);
+    db_record_shard_turns(&engine.db_connection, engine_shard(), own_per_minute, (long long)now);
+    if(engine_shard() != 0) {
+        g_load_since = now;
+        g_load_slices = 0;
+        return;
+    }
+    long others = 0;
+    if(engine_shards() > 1)
+        db_other_shard_turns(&engine.db_connection, engine_shard(), (long long)now - 3 * CLOCK_CHECK_SECONDS, &others);
+    g_load_slices += lround(others * seconds / 60.0);
+
     long runnable = 0;
     double oldest_event = 0;
     int has_event = 0;
@@ -1194,12 +1208,15 @@ ErrorCode_t engine_run()
         // minute set its pace from how far behind the engines run
         game_time_load();
         engine_check_load();
-        engine_store_positions();
 
-        // Signals travel at the speed of light: time when new commands reach
-        // their drones, and send the replies that have reached Earth
-        engine_stamp_commands();
-        db_send_due_outbox(&engine.db_connection, engine.config.params[SEND_EMAIL_SCRIPT_ID]);
+        // The shared work runs in shard 0 only (#433): positions, and, as
+        // signals travel at the speed of light, timing when new commands
+        // reach their drones and sending the replies that have reached Earth
+        if(engine_shard() == 0) {
+            engine_store_positions();
+            engine_stamp_commands();
+            db_send_due_outbox(&engine.db_connection, engine.config.params[SEND_EMAIL_SCRIPT_ID]);
+        }
 
         // start a transaction
         result = db_start_transaction(&engine.db_connection);
@@ -1308,6 +1325,7 @@ ErrorCode_t engine_run()
         {
             result = db_rollback_transaction(&engine.db_connection);
         }
+        engine_release_order_lock();
 
         // always deallocate VM and command resources
         if(engine.last_agent.vm) vm_free(engine.last_agent.vm);
@@ -1680,6 +1698,51 @@ long long engine_get_crash_restart_instructions()
 const char* engine_get_vm_resume_command()
 {
     return (const char*)engine.config.params[VM_RESUME_COMMAND];
+}
+
+/* How many game engines share the drones, and which one this is (#433) */
+int engine_shards(void)
+{
+    const char* v = engine.config.params[ENGINE_SHARDS_ID];
+    int n = v ? atoi(v) : 1;
+    return n > 1 ? n : 1;
+}
+
+int engine_shard(void)
+{
+    const char* v = engine.config.params[ENGINE_SHARD_ID];
+    int k = v ? atoi(v) : 0;
+    int n = engine_shards();
+    return (k >= 0 && k < n) ? k : 0;
+}
+
+/*
+ * The event-order lock (#433). An action's events start after the drones'
+ * latest event, and IDs must keep game-time order within a drone's stock
+ * entry (see protocol_flush_events). With several game engines, two could
+ * schedule events for the same drone at once and interleave them. So an
+ * engine takes this lock before it reads the drones' latest events, and
+ * holds it until its turn commits, so the next engine reads them with this
+ * one's events in. One engine needs no lock.
+ */
+static int g_order_locked = 0;
+
+void engine_take_order_lock(void)
+{
+    if(g_order_locked || engine_shards() <= 1)
+        return;
+    if(db_get_named_lock(&engine.db_connection, "exm_event_order", 30) == ENGINE_OK)
+        g_order_locked = 1;
+    else
+        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: no event-order lock after 30 s: going on without it");
+}
+
+void engine_release_order_lock(void)
+{
+    if(!g_order_locked)
+        return;
+    db_release_named_lock(&engine.db_connection, "exm_event_order");
+    g_order_locked = 0;
 }
 
 /** ****************************************************************************

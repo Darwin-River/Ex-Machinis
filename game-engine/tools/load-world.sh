@@ -13,7 +13,8 @@
 #
 # Settings from the environment: DB_HOST (127.0.0.1), DB_PORT (3306),
 # DB_USER (root), DB_PASSWORD; the clock as live (GAME_TIME_SCALE 1800,
-# GAME_TIME_FLOOR 60, CLOCK_LAG_HIGH 10, CLOCK_LAG_LOW 3). Run from the
+# GAME_TIME_FLOOR 60, CLOCK_LAG_HIGH 10, CLOCK_LAG_LOW 3); ENGINE_SHARDS game
+# engines (1). Run from the
 # repository root, with the engines built (make -C game-engine/src all).
 set -e
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
@@ -22,9 +23,9 @@ export DB_HOST DB_PORT DB_USER DB_PASSWORD MYSQL_PWD="$DB_PASSWORD"
 sql() { mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" "$@"; }
 
 stop() {
-    for f in ge ee market; do
-        [ -f "$1/$f.pid" ] && kill "$(cat "$1/$f.pid")" 2>/dev/null || true
-        rm -f "$1/$f.pid"
+    for f in "$1"/ge*.pid "$1/ee.pid" "$1/market.pid"; do
+        [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null || true
+        rm -f "$f"
     done
 }
 
@@ -54,7 +55,12 @@ export GAME_TIME_SCALE=${GAME_TIME_SCALE:-1800} GAME_TIME_FLOOR=${GAME_TIME_FLOO
 export CLOCK_LAG_HIGH=${CLOCK_LAG_HIGH:-10} CLOCK_LAG_LOW=${CLOCK_LAG_LOW:-3} APP_TRACE_LEVEL=-1
 ENV
     ( . "$DIR/env.sh"; cd "$DIR"
-      nohup bin/game-engine > log/ge.out 2>&1 & echo $! > ge.pid
+      # ENGINE_SHARDS game engines (#433), each with its share of the drones
+      N=${ENGINE_SHARDS:-1}; k=0
+      while [ $k -lt $N ]; do
+          ENGINE_SHARDS=$N ENGINE_SHARD=$k nohup bin/game-engine > log/ge$k.out 2>&1 & echo $! > ge$k.pid
+          k=$((k + 1))
+      done
       nohup bin/events-engine > log/ee.out 2>&1 & echo $! > ee.pid )
     sleep 2
     # The House: its stations and the market runner (what the website's tick does)

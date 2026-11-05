@@ -140,6 +140,12 @@ ErrorCode_t db_rollback_transaction(DbConnection_t* connection);
 *******************************************************************************/
 ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command);
 
+/* Several game engines (#433) */
+ErrorCode_t db_get_named_lock(DbConnection_t* connection, const char* name, int timeout);
+void db_release_named_lock(DbConnection_t* connection, const char* name);
+void db_record_shard_turns(DbConnection_t* connection, int shard, long per_minute, long long now);
+void db_other_shard_turns(DbConnection_t* connection, int shard, long long since, long* turns);
+
 /** ****************************************************************************
 
     @brief          Inserts given command info into DB
