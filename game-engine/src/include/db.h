@@ -583,6 +583,19 @@ ErrorCode_t db_update_event(Event_t *event);
 
 /** ****************************************************************************
 
+    @brief          Whether this batch has settled an event already (#446)
+
+    @param[in]      event_id  The event
+    @param[out]     settled   ENGINE_TRUE when it has
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_event_settled_in_batch(int event_id, Bool_t* settled);
+void db_settled_batch_start(void);
+
+/** ****************************************************************************
+
     @brief          Gets previous event using input one and applying some filters
 
     @param[in]      event     Event to do the search
@@ -674,6 +687,19 @@ ErrorCode_t db_insert_local_observations(Event_t *event);
 
 *******************************************************************************/
 ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protocol);
+
+/** ****************************************************************************
+
+    @brief          Gets a protocol's observable and reportable flags, from a
+                    cache good for a minute (#446)
+
+    @param[in]      protocol_id  The protocol
+    @param[in\out]  protocol     Output struct where we store the flags
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_protocol_flags(int protocol_id, ProtocolInfo_t *protocol);
 
 /** ****************************************************************************
 

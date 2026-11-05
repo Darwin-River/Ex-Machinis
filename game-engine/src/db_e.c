@@ -9,6 +9,7 @@
 /******************************* INCLUDES ************************************/
 
 #define _XOPEN_SOURCE
+#include "static_cache.h"
 #include <time.h>
 #include <string.h>
 #include <stdlib.h>
@@ -365,6 +366,8 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
+
+    db_settled_batch_start();
 
     if(result == ENGINE_OK)
     {
@@ -1052,6 +1055,43 @@ ErrorCode_t db_abort_action(int action_id)
     @return         Execution result
 
 *******************************************************************************/
+/* The events this batch has settled (#446). Only the events engine settles
+   events, all in db_update_event, and a batch is one transaction: so what
+   this list says is what asking MySQL each event's outcome said, without the
+   round trip. A list that fills up says "don't know", and MySQL is asked. */
+#define SETTLED_IN_BATCH_MAX 4096
+static int settled_ids[SETTLED_IN_BATCH_MAX];
+static int settled_count = 0;
+static int settled_overflow = 0;
+
+static void db_note_settled(int event_id)
+{
+    if(settled_count < SETTLED_IN_BATCH_MAX)
+        settled_ids[settled_count++] = event_id;
+    else
+        settled_overflow = 1;
+}
+
+void db_settled_batch_start(void)
+{
+    settled_count = 0;
+    settled_overflow = 0;
+}
+
+ErrorCode_t db_event_settled_in_batch(int event_id, Bool_t* settled)
+{
+    for(int i = settled_count - 1; i >= 0; i--)
+        if(settled_ids[i] == event_id) { *settled = ENGINE_TRUE; return ENGINE_OK; }
+    if(settled_overflow) {
+        int outcome = OUTCOME_NO_OUTCOME;
+        ErrorCode_t result = db_get_event_outcome(event_id, &outcome);
+        *settled = (result == ENGINE_OK && outcome != OUTCOME_NO_OUTCOME) ? ENGINE_TRUE : ENGINE_FALSE;
+        return result;
+    }
+    *settled = ENGINE_FALSE;
+    return ENGINE_OK;
+}
+
 ErrorCode_t db_update_event(Event_t *event)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
@@ -1101,6 +1141,9 @@ ErrorCode_t db_update_event(Event_t *event)
         }
         else
         {
+            if(event->outcome != OUTCOME_NO_OUTCOME)
+                db_note_settled(event->event_id);
+
             engine_trace(TRACE_LEVEL_ALWAYS,
                 "Event [%d] updated with outcome [%d] new_quantity [%d] new_credits [%d] new cargo [%d]",
                 event->event_id, event->outcome, event->new_quantity, event->new_credits, event->new_cargo);
@@ -1568,7 +1611,7 @@ ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protoc
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_object_info_by_name_x(char* name, ObjectOrbitInfo_t* object)
+static ErrorCode_t db_get_object_info_by_name_x_query(char* name, ObjectOrbitInfo_t* object)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -1673,7 +1716,7 @@ ErrorCode_t db_get_object_info_by_name_x(char* name, ObjectOrbitInfo_t* object)
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_orbit_info_x(ObjectOrbitInfo_t* object)
+static ErrorCode_t db_get_orbit_info_x_query(ObjectOrbitInfo_t* object)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -2756,4 +2799,101 @@ ErrorCode_t db_refund_fuel(int action_id)
     engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d]: [%d] fuel given back by failed transfer action [%d]",
         drone, cost, action_id);
     return ENGINE_OK;
+}
+
+/** ****************************************************************************
+
+    @brief          Gets a protocol's observable and reportable flags, from a
+                    cache good for a minute (#446): it was a query per event
+
+    @param[in]      protocol_id  The protocol
+    @param[in\out]  protocol     Output struct where we store the flags
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_protocol_flags(int protocol_id, ProtocolInfo_t *protocol)
+{
+    static StaticCache_t cache = { .ttl = 60 };
+    int flags[2];
+    time_t now = time(NULL);
+
+    if(!protocol) return ENGINE_INTERNAL_ERROR;
+    memset(protocol, 0, sizeof(*protocol));
+
+    if(!static_cache_get(&cache, protocol_id, flags, sizeof(flags), now))
+    {
+        char query_text[DB_MAX_SQL_QUERY_LEN+1];
+        DbConnection_t* connection = engine_get_db_connection();
+        ErrorCode_t result = db_reconnect(connection);
+        if(result != ENGINE_OK) return result;
+
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "SELECT observable, reportable FROM protocols WHERE id = %d", protocol_id);
+        if(mysql_query(connection->hndl, query_text))
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            return ENGINE_DB_QUERY_ERROR;
+        }
+
+        MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+        MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+        if(!row || mysql_num_fields(db_result) != 2)
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: No protocol [%d] for its flags", protocol_id);
+            if(db_result) mysql_free_result(db_result);
+            return ENGINE_DB_QUERY_ERROR;
+        }
+        flags[0] = (row[0] && atoi(row[0]) > 0) ? 1 : 0;
+        flags[1] = (row[1] && atoi(row[1]) > 0) ? 1 : 0;
+        mysql_free_result(db_result);
+        static_cache_put(&cache, protocol_id, flags, sizeof(flags), now);
+    }
+
+    protocol->observable = flags[0];
+    protocol->reportable = flags[1];
+    return ENGINE_OK;
+}
+
+/* Objects (bodies and their orbits) don't change while the engines run: from
+   a cache good for a minute (#446). Each reportable event asked for the Sun,
+   the Earth and every body up to the Sun. */
+static StaticCache_t objects_by_id_cache = { .ttl = 60 };
+static StaticCache_t objects_by_name_cache = { .ttl = 60 };
+
+static int object_name_key(const char* name)
+{
+    unsigned int h = 2166136261u;
+    for(; *name; name++) h = (h ^ (unsigned char)*name) * 16777619u;
+    return (int)(h & 0x7fffffff);
+}
+
+ErrorCode_t db_get_object_info_by_name_x(char* name, ObjectOrbitInfo_t* object)
+{
+    time_t now = time(NULL);
+    if(!object || !name) return ENGINE_INTERNAL_ERROR;
+    int key = object_name_key(name);
+    ObjectOrbitInfo_t cached;
+    if(static_cache_get(&objects_by_name_cache, key, &cached, sizeof(cached), now) &&
+       strncmp(cached.object_name, name, sizeof(cached.object_name)) == 0) {
+        *object = cached;
+        return ENGINE_OK;
+    }
+    ErrorCode_t result = db_get_object_info_by_name_x_query(name, object);
+    if(result == ENGINE_OK)
+        static_cache_put(&objects_by_name_cache, key, object, sizeof(*object), now);
+    return result;
+}
+
+ErrorCode_t db_get_orbit_info_x(ObjectOrbitInfo_t* object)
+{
+    time_t now = time(NULL);
+    if(!object) return ENGINE_INTERNAL_ERROR;
+    int id = object->object_id;
+    if(static_cache_get(&objects_by_id_cache, id, object, sizeof(*object), now))
+        return ENGINE_OK;
+    ErrorCode_t result = db_get_orbit_info_x_query(object);
+    if(result == ENGINE_OK && object->object_id == id)
+        static_cache_put(&objects_by_id_cache, id, object, sizeof(*object), now);
+    return result;
 }

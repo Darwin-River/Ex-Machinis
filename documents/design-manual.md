@@ -376,6 +376,13 @@ Each run restarts the engines on a saved world, so a backlog makes the clock ste
   * With short transactions the deadlocks went. Even so, on a settled 1,000-ship world three engines did no better than one: about 6,600 turns a minute against about 5,000–6,500, and the clock fell to 1,012× against 1,350×. The events engine, which settles every action alone, was the limit at about 15,000 events a minute.
   * Three engines also left 17 inventory entries whose newest event by id wasn't the newest by game time.
   * The events engine's throughput comes first.
+* **Fewer round trips per settled event (#446).** On the settled 1,000-ship world, the events engine's statements were measured one by one. It now skips those whose answer it already has:
+  * It no longer looks up the drone's previous event. Only a log line used it: the cargo comes from `holdings`. It was the engine's top cost (30 s of each 5 minutes).
+  * It reads an event's action once per event, not two or three times.
+  * A protocol's observable and reportable flags, and the bodies of the solar system (the Sun, the Earth and each orbit up to the Sun), come from `static_cache.c`. Each reported event read them all from MySQL.
+  * Whether a batch has already settled an event (the second half of a transfer) comes from a list it keeps. Only the events engine settles events, and a batch is one transaction, so the list says what MySQL said.
+  * The delete of a kind's expired history (days old) runs at most once a real hour per kind, not after every successful event.
+  * Over 5 real minutes on the same saved state, the clock held 1,800× throughout, and the game advanced 151 hours. Before, it fell to 1,350× after two minutes, and the game advanced 129 hours. Due events waiting to settle stayed in the hundreds, against 2,000–4,000 before. Holdings and orders matched the history, and no more inventory kinds were out of time order than in the saved state.
 
 <a name="Current-State"></a>**Current state beside the history (#430, migration 0031).** Two tables say what the history says, so a look is one row instead of a pass over `events`:
 * `holdings` (drone, resource, installed, locked → units, event_id): each kind's newest successful increment or depletion. An event with no installed or locked flag is kept under -1, so `sqInventory` counts it as it always did, and `holding()` reads only 0 and 1, as before. `sqInventory` is now a sum over `holdings`.

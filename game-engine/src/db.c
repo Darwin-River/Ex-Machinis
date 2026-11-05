@@ -1541,7 +1541,7 @@ ErrorCode_t db_rollback_transaction(DbConnection_t* connection)
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_orbit_info(DbConnection_t* connection, ObjectOrbitInfo_t* object)
+static ErrorCode_t db_get_orbit_info_query(DbConnection_t* connection, ObjectOrbitInfo_t* object)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -1648,7 +1648,7 @@ ErrorCode_t db_get_orbit_info(DbConnection_t* connection, ObjectOrbitInfo_t* obj
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_object_info_by_name(DbConnection_t* connection, char* name, ObjectOrbitInfo_t* object)
+static ErrorCode_t db_get_object_info_by_name_query(DbConnection_t* connection, char* name, ObjectOrbitInfo_t* object)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -4257,5 +4257,48 @@ ErrorCode_t db_get_event_type_info(EventType_t* event_type)
     ErrorCode_t result = db_get_event_type_info_db(event_type);
     if(result == ENGINE_OK)
         static_cache_put(&cache, id, event_type, sizeof(*event_type), now);
+    return result;
+}
+
+/* Objects (bodies and their orbits) don't change while the engines run: from
+   a cache good for a minute (#446). Each reportable event asked for the Sun,
+   the Earth and every body up to the Sun. */
+static StaticCache_t objects_by_id_cache = { .ttl = 60 };
+static StaticCache_t objects_by_name_cache = { .ttl = 60 };
+
+static int object_name_key(const char* name)
+{
+    unsigned int h = 2166136261u;
+    for(; *name; name++) h = (h ^ (unsigned char)*name) * 16777619u;
+    return (int)(h & 0x7fffffff);
+}
+
+ErrorCode_t db_get_object_info_by_name(DbConnection_t* connection, char* name, ObjectOrbitInfo_t* object)
+{
+    time_t now = time(NULL);
+    if(!object || !name) return ENGINE_INTERNAL_ERROR;
+    int key = object_name_key(name);
+    ObjectOrbitInfo_t cached;
+    if(static_cache_get(&objects_by_name_cache, key, &cached, sizeof(cached), now) &&
+       strncmp(cached.object_name, name, sizeof(cached.object_name)) == 0) {
+        *object = cached;
+        return ENGINE_OK;
+    }
+    ErrorCode_t result = db_get_object_info_by_name_query(connection, name, object);
+    if(result == ENGINE_OK)
+        static_cache_put(&objects_by_name_cache, key, object, sizeof(*object), now);
+    return result;
+}
+
+ErrorCode_t db_get_orbit_info(DbConnection_t* connection, ObjectOrbitInfo_t* object)
+{
+    time_t now = time(NULL);
+    if(!object) return ENGINE_INTERNAL_ERROR;
+    int id = object->object_id;
+    if(static_cache_get(&objects_by_id_cache, id, object, sizeof(*object), now))
+        return ENGINE_OK;
+    ErrorCode_t result = db_get_orbit_info_query(connection, object);
+    if(result == ENGINE_OK && object->object_id == id)
+        static_cache_put(&objects_by_id_cache, id, object, sizeof(*object), now);
     return result;
 }
