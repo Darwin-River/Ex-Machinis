@@ -223,13 +223,6 @@ ErrorCode_t db_init(DbConnection_t* connection)
                 // Save connection handler
                 connection->hndl = local_hndl;
 
-                // Several game engines (#433): each statement reads what the
-                // others have committed, so the event-order lock works (under
-                // REPEATABLE READ a transaction keeps its older snapshot)
-                if(engine_shards() > 1 &&
-                   mysql_query(local_hndl, "SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED"))
-                    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to set READ COMMITTED: %s", mysql_error(local_hndl));
-
             } else {
                  engine_trace(TRACE_LEVEL_ALWAYS,
                  	"ERROR: Unable to conect to DB. "
@@ -293,14 +286,9 @@ void db_stop(DbConnection_t* connection)
 
 *******************************************************************************/
 /* The commands that may run now (FROM commands c LEFT JOIN agents a) */
-static void db_runnable_where_for(char *where, size_t length, int all_shards)
+static void db_runnable_where(char *where, size_t length)
 {
-    // Several game engines (#433): each takes its share of the drones
-    char shard[64] = "";
-    if(!all_shards && engine_shards() > 1)
-        snprintf(shard, sizeof(shard), "c.agent_id %% %d = %d AND ", engine_shards(), engine_shard());
     snprintf(where, length,
-        "%s"
         "c.deliver_at IS NOT NULL AND c.deliver_at <= %lld "  // game time (#327)
         "AND NOT (c.code LIKE '%s%%' AND a.waiting_action IS NOT NULL "
         "  AND EXISTS (SELECT 1 FROM actions x WHERE x.id = a.waiting_action AND x.aborted = 0) "
@@ -315,18 +303,11 @@ static void db_runnable_where_for(char *where, size_t length, int all_shards)
         "AND NOT ((c.code = '%s' OR (c.code NOT LIKE '<%%' AND c.code NOT LIKE '%s%%')) "
         "  AND EXISTS (SELECT 1 FROM commands r "
         "  WHERE r.agent_id = c.agent_id AND r.id <> c.id AND r.code LIKE '%s%%'))",
-        shard,
         game_time_now_seconds(),
         engine_get_vm_resume_command(),
         META_COMMAND_LAUNCHED,
         engine_get_vm_resume_command(),
         engine_get_vm_resume_command());
-}
-
-/* The commands this engine may run now (its shard's) */
-static void db_runnable_where(char *where, size_t length)
-{
-    db_runnable_where_for(where, length, 0);
 }
 
 /* One number from a query (0 when there's none) */
@@ -361,7 +342,7 @@ ErrorCode_t db_load_backlog(DbConnection_t* connection, long* runnable, double* 
     if(result != ENGINE_OK)
         return result;
 
-    db_runnable_where_for(where, sizeof(where), 1);   // every shard's (#433)
+    db_runnable_where(where, sizeof(where));
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
         "SELECT COUNT(*) FROM commands c LEFT JOIN agents a ON a.agent_id = c.agent_id WHERE %s", where);
     result = db_query_number(connection, query_text, &count, NULL);
@@ -4277,64 +4258,4 @@ ErrorCode_t db_get_event_type_info(EventType_t* event_type)
     if(result == ENGINE_OK)
         static_cache_put(&cache, id, event_type, sizeof(*event_type), now);
     return result;
-}
-
-/* A MySQL named lock (#433): waits up to timeout seconds */
-ErrorCode_t db_get_named_lock(DbConnection_t* connection, const char* name, int timeout)
-{
-    char query_text[256];
-    if(db_reconnect(connection) != ENGINE_OK)
-        return ENGINE_DB_CONNECT_ERROR;
-    snprintf(query_text, sizeof(query_text), "SELECT GET_LOCK('%s', %d)", name, timeout);
-    if(mysql_query(connection->hndl, query_text))
-        return ENGINE_DB_QUERY_ERROR;
-    MYSQL_RES* res = mysql_store_result(connection->hndl);
-    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
-    int got = row && row[0] && atoi(row[0]) == 1;
-    if(res)
-        mysql_free_result(res);
-    return got ? ENGINE_OK : ENGINE_DB_QUERY_ERROR;
-}
-
-void db_release_named_lock(DbConnection_t* connection, const char* name)
-{
-    char query_text[256];
-    snprintf(query_text, sizeof(query_text), "SELECT RELEASE_LOCK('%s')", name);
-    if(mysql_query(connection->hndl, query_text) == 0) {
-        MYSQL_RES* res = mysql_store_result(connection->hndl);
-        if(res)
-            mysql_free_result(res);
-    }
-}
-
-/* A shard's turns a minute, for shard 0's pace (#433; migration 0034) */
-void db_record_shard_turns(DbConnection_t* connection, int shard, long per_minute, long long now)
-{
-    char query_text[256];
-    if(engine_shards() <= 1 || db_reconnect(connection) != ENGINE_OK)
-        return;
-    snprintf(query_text, sizeof(query_text),
-        "INSERT INTO engine_shards (shard, turns_per_minute, checked_at) VALUES (%d, %ld, %lld) "
-        "ON DUPLICATE KEY UPDATE turns_per_minute = VALUES(turns_per_minute), checked_at = VALUES(checked_at)",
-        shard, per_minute, now);
-    if(mysql_query(connection->hndl, query_text))
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
-}
-
-/* The other shards' turns a minute, from reports since a real time */
-void db_other_shard_turns(DbConnection_t* connection, int shard, long long since, long* turns)
-{
-    char query_text[256];
-    *turns = 0;
-    snprintf(query_text, sizeof(query_text),
-        "SELECT IFNULL(SUM(turns_per_minute), 0) FROM engine_shards WHERE shard <> %d AND shard < %d AND checked_at >= %lld",
-        shard, engine_shards(), since);
-    if(mysql_query(connection->hndl, query_text))
-        return;
-    MYSQL_RES* res = mysql_store_result(connection->hndl);
-    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
-    if(row && row[0])
-        *turns = atol(row[0]);
-    if(res)
-        mysql_free_result(res);
 }

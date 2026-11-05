@@ -26,10 +26,6 @@ x-engine-env: &engine-env
   # every step, which at full load is gigabytes a day
   APP_TRACE_LEVEL: ${ENGINE_TRACE_LEVEL:--1}
   TRAVEL_ACCELERATION: ${TRAVEL_ACCELERATION:-19.6}
-  # Drone turns on several processes (#433): the game-engine container runs
-  # this many game engines, each with its share of the drones. 1 (the
-  # default) runs one, as before; up to the number of cores is sensible
-  ENGINE_SHARDS: ${ENGINE_SHARDS:-1}
   # No email (#367 step 5): drones' replies go to drone_messages, which the
   # website shows
   EMAIL_ENABLED: "0"

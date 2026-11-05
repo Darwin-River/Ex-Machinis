@@ -75,10 +75,6 @@ char conf_param_names[MAX_CONFIG_PARAM+1][MAX_CONF_PARAM_LEN] =
     "GAME_TIME_FLOOR",
     "CLOCK_LAG_HIGH",
     "CLOCK_LAG_LOW",
-
-    // Drone turns on several processes (#433)
-    "ENGINE_SHARDS",
-    "ENGINE_SHARD",
 };
 
 /******************************* LOCAL FUNCTIONS *****************************/

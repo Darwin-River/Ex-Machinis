@@ -76,10 +76,6 @@ enum
     CLOCK_LAG_HIGH_ID,
     CLOCK_LAG_LOW_ID,
 
-    // Drone turns on several processes (#433)
-    ENGINE_SHARDS_ID,
-    ENGINE_SHARD_ID,
-
     // Max configured parameters
     MAX_CONFIG_PARAM
 };
@@ -346,12 +342,6 @@ long long engine_get_crash_restart_instructions();
 
 *******************************************************************************/
 const char* engine_get_vm_resume_command();
-
-/* Several game engines (#433) */
-int engine_shards(void);
-int engine_shard(void);
-void engine_take_order_lock(void);
-void engine_release_order_lock(void);
 
 /** ****************************************************************************
 
