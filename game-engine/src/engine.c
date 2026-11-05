@@ -1192,7 +1192,7 @@ ErrorCode_t engine_run()
 
         // Read the game clock (shared with the events engine), and once a
         // minute set its pace from how far behind the engines run
-        game_time_load();
+        game_time_load_recent();
         engine_check_load();
         engine_store_positions();
 
