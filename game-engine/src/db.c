@@ -402,7 +402,32 @@ static int g_command_batch_count = 0;
 static int g_command_batch_next = 0;
 static time_t g_command_batch_at = 0;
 
-/* Fills the batch with the ids of the commands due now, in run order */
+/* Adds the ids a query returns to the batch, skipping any already in it */
+static ErrorCode_t db_add_to_command_batch(DbConnection_t* connection, const char* query_text)
+{
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    if(res == NULL)
+        return ENGINE_DB_QUERY_ERROR;
+    MYSQL_ROW row;
+    while((row = mysql_fetch_row(res)) && g_command_batch_count < COMMAND_BATCH_SIZE) {
+        int id = atoi(row[0]), known = 0;
+        for(int i = 0; i < g_command_batch_count && !known; i++)
+            known = (g_command_batch[i] == id);
+        if(!known)
+            g_command_batch[g_command_batch_count++] = id;
+    }
+    mysql_free_result(res);
+    return ENGINE_OK;
+}
+
+/* Fills the batch with the ids of the commands due now, in run order: those
+   of drones whose script is still loading first, then the rest by id. Two
+   queries that each stop at the batch size (#454): one sorting every due
+   command, about one per drone, took 25 ms on a 3,000-ship world */
 static ErrorCode_t db_fill_command_batch(DbConnection_t* connection)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
@@ -412,22 +437,24 @@ static ErrorCode_t db_fill_command_batch(DbConnection_t* connection)
     g_command_batch_next = 0;
     g_command_batch_at = time(NULL);
     db_runnable_where(where, sizeof(where));
+
+    // Loading drones (agents_loading, migration 0035), not their resumes
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "SELECT c.id FROM commands c LEFT JOIN agents a ON a.agent_id = c.agent_id "
-        "WHERE %s ORDER BY (a.release_vm IS NULL AND c.code NOT LIKE '%s%%') DESC, c.id LIMIT %d",
-        where, engine_get_vm_resume_command(), COMMAND_BATCH_SIZE);
-    if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-        return ENGINE_DB_QUERY_ERROR;
+        "SELECT c.id FROM agents a STRAIGHT_JOIN commands c ON c.agent_id = a.agent_id "
+        "WHERE (a.release_vm IS NULL) = 1 AND c.code NOT LIKE '%s%%' AND %s ORDER BY c.id LIMIT %d",
+        engine_get_vm_resume_command(), where, COMMAND_BATCH_SIZE);
+    ErrorCode_t result = db_add_to_command_batch(connection, query_text);
+
+    // Then the rest, oldest first (enough to fill the batch past any
+    // loading ones it returns again)
+    if(result == ENGINE_OK && g_command_batch_count < COMMAND_BATCH_SIZE) {
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "SELECT c.id FROM commands c LEFT JOIN agents a ON a.agent_id = c.agent_id "
+            "WHERE %s ORDER BY c.id LIMIT %d",
+            where, COMMAND_BATCH_SIZE + g_command_batch_count);
+        result = db_add_to_command_batch(connection, query_text);
     }
-    MYSQL_RES* res = mysql_store_result(connection->hndl);
-    if(res == NULL)
-        return ENGINE_DB_QUERY_ERROR;
-    MYSQL_ROW row;
-    while((row = mysql_fetch_row(res)) && g_command_batch_count < COMMAND_BATCH_SIZE)
-        g_command_batch[g_command_batch_count++] = atoi(row[0]);
-    mysql_free_result(res);
-    return ENGINE_OK;
+    return result;
 }
 
 ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
