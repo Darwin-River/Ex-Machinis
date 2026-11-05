@@ -350,7 +350,7 @@ const char* engine_get_vm_resume_command();
 /* Several game engines (#433) */
 int engine_shards(void);
 int engine_shard(void);
-void engine_take_order_locks(const int* drones, int count);
+void engine_take_order_lock(void);
 void engine_release_order_lock(void);
 
 /** ****************************************************************************
