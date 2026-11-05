@@ -1682,6 +1682,16 @@ const char* engine_get_vm_resume_command()
     return (const char*)engine.config.params[VM_RESUME_COMMAND];
 }
 
+/* Commits the turn's work so far and goes on in a new transaction (#431:
+   see protocol_execute) */
+void engine_commit_turn_so_far(void)
+{
+    if(db_commit_transaction(&engine.db_connection) != ENGINE_OK)
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: unable to commit the turn so far");
+    if(db_start_transaction(&engine.db_connection) != ENGINE_OK)
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: unable to start the rest of the turn");
+}
+
 /** ****************************************************************************
 
   @brief      Gets current engine DB connection

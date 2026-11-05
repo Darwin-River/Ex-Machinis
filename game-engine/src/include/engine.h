@@ -343,6 +343,9 @@ long long engine_get_crash_restart_instructions();
 *******************************************************************************/
 const char* engine_get_vm_resume_command();
 
+/* Short transactions (#431) */
+void engine_commit_turn_so_far(void);
+
 /** ****************************************************************************
 
   @brief      Gets current engine DB connection
