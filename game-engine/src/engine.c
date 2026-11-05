@@ -1722,32 +1722,61 @@ int engine_shard(void)
 }
 
 /*
- * The event-order lock (#433). An action's events start after the drones'
- * latest event, and IDs must keep game-time order within a drone's stock
+ * The event-order locks (#433). An action's events start after its drones'
+ * latest events, and IDs must keep game-time order within a drone's stock
  * entry (see protocol_flush_events). With several game engines, two could
- * schedule events for the same drone at once and interleave them. So an
- * engine takes this lock before it reads the drones' latest events, and
- * holds it until its turn commits, so the next engine reads them with this
- * one's events in. One engine needs no lock.
+ * schedule events for the same drone at once and interleave them. So before
+ * an engine reads the latest events of the drones an action touches (the
+ * acting drone, and the other drone in a trade), it takes a MySQL named lock
+ * per drone, in drone ID order, and holds them until its turn commits; the
+ * next engine to touch those drones then reads them with these events in.
+ * Engines acting on different drones don't wait for each other. One engine
+ * needs no locks.
  */
-static int g_order_locked = 0;
+#define MAX_ORDER_LOCKS 16
+static int g_order_locks[MAX_ORDER_LOCKS];
+static int g_order_lock_count = 0;
 
-void engine_take_order_lock(void)
+static int engine_holds_order_lock(int drone)
 {
-    if(g_order_locked || engine_shards() <= 1)
+    for(int i = 0; i < g_order_lock_count; i++)
+        if(g_order_locks[i] == drone)
+            return 1;
+    return 0;
+}
+
+void engine_take_order_locks(const int* drones, int count)
+{
+    if(engine_shards() <= 1)
         return;
-    if(db_get_named_lock(&engine.db_connection, "exm_event_order", 30) == ENGINE_OK)
-        g_order_locked = 1;
-    else
-        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: no event-order lock after 30 s: going on without it");
+    // Drone ID order, so two engines never wait on each other in a circle
+    int sorted[MAX_ORDER_LOCKS];
+    int n = 0;
+    for(int i = 0; i < count && n < MAX_ORDER_LOCKS; i++)
+        if(drones[i] > 0 && !engine_holds_order_lock(drones[i]))
+            sorted[n++] = drones[i];
+    for(int i = 1; i < n; i++)
+        for(int j = i; j > 0 && sorted[j - 1] > sorted[j]; j--) {
+            int t = sorted[j]; sorted[j] = sorted[j - 1]; sorted[j - 1] = t;
+        }
+    for(int i = 0; i < n && g_order_lock_count < MAX_ORDER_LOCKS; i++) {
+        char name[64];
+        snprintf(name, sizeof(name), "exm_order_%d", sorted[i]);
+        if(db_get_named_lock(&engine.db_connection, name, 30) == ENGINE_OK)
+            g_order_locks[g_order_lock_count++] = sorted[i];
+        else
+            engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: no event-order lock on drone [%d] after 30 s: going on without it", sorted[i]);
+    }
 }
 
 void engine_release_order_lock(void)
 {
-    if(!g_order_locked)
-        return;
-    db_release_named_lock(&engine.db_connection, "exm_event_order");
-    g_order_locked = 0;
+    for(int i = 0; i < g_order_lock_count; i++) {
+        char name[64];
+        snprintf(name, sizeof(name), "exm_order_%d", g_order_locks[i]);
+        db_release_named_lock(&engine.db_connection, name);
+    }
+    g_order_lock_count = 0;
 }
 
 /** ****************************************************************************

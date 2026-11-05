@@ -97,8 +97,6 @@ static ErrorCode_t protocol_flush_events(Bool_t insert)
   // changes (#380): a pull buys from a drone that is busy mining or
   // travelling at once, as long as both are at the same place.
   if(insert && g_pending_count > 0) {
-    // With several game engines, one at a time from here to its commit (#433)
-    engine_take_order_lock();
     game_time_load();
     int acting = engine_get_current_drone_id();
     int drones[2 * 8];
@@ -108,6 +106,9 @@ static ErrorCode_t protocol_flush_events(Bool_t insert)
       for(int j = 0; j < n; j++) seen |= (drones[j] == d);
       if(!seen) drones[n++] = d;
     }
+    // With several game engines, one engine at a time touches these drones,
+    // from here to its commit (#433)
+    engine_take_order_locks(drones, n);
     long long latest = 0, now = game_time_now_seconds();
     for(int j = 0; j < n; j++) {
       long long t = 0;
