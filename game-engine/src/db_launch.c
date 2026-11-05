@@ -105,8 +105,13 @@ ErrorCode_t db_save_release_vm(DbConnection_t* connection, int agent_id)
 {
     // Whether it saves anything depends on the VM: read the row afresh
     TurnRow_t* turn = db_turn_row(agent_id);
-    if(turn)
+    if(turn) {
+        // What the turn changed is written first (#431 step 3)
+        ErrorCode_t written = db_turn_row_flush(connection);
+        if(written != ENGINE_OK)
+            return written;
         db_turn_row_clear();
+    }
     return db_launch_query(connection,
         "UPDATE agents SET release_vm = VM WHERE agent_id = %d AND release_vm IS NULL AND VM IS NOT NULL",
         agent_id);
@@ -269,6 +274,12 @@ ErrorCode_t db_take_power_due(DbConnection_t* connection, int agent_id, long lon
         // Already square: nothing to write (#431 step 2)
         if(turn && paid == instructions)
             return ENGINE_OK;
+        if(turn) {
+            // Written with the rest of the turn's row (#431 step 3)
+            turn->power_paid = turn->instructions;
+            turn->power_paid_dirty = 1;
+            return ENGINE_OK;
+        }
         result = db_launch_query(connection,
             "UPDATE agents SET power_paid = instructions WHERE agent_id = %d", agent_id);
         if(result == ENGINE_OK && turn)
@@ -277,11 +288,12 @@ ErrorCode_t db_take_power_due(DbConnection_t* connection, int agent_id, long lon
     }
 
     *units = vm_meter_fuel_due(instructions, paid, per_fuel);
-    if(*units > 0) {
+    if(*units > 0 && turn) {
+        turn->power_paid += *units * per_fuel;
+        turn->power_paid_dirty = 1;
+    } else if(*units > 0) {
         result = db_launch_query(connection,
             "UPDATE agents SET power_paid = power_paid + %lld WHERE agent_id = %d", *units * per_fuel, agent_id);
-        if(result == ENGINE_OK && turn)
-            turn->power_paid += *units * per_fuel;
     }
 
     return result;

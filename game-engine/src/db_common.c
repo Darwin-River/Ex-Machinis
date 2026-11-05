@@ -385,6 +385,11 @@ void db_turn_row_clear(void)
     g_turn_row_valid = 0;
 }
 
+TurnRow_t* db_turn_row_current(void)
+{
+    return g_turn_row_valid ? &g_turn_row : NULL;
+}
+
 TurnRow_t* db_turn_row(int agent_id)
 {
     return (g_turn_row_valid && g_turn_row.agent_id == agent_id) ? &g_turn_row : NULL;

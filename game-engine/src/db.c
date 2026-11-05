@@ -3681,6 +3681,14 @@ ErrorCode_t db_add_agent_instructions(DbConnection_t* connection, int agent_id, 
     if(result != ENGINE_OK || instructions <= 0)
         return result;
 
+    // Written with the rest of the turn's row (#431 step 3)
+    TurnRow_t* turn = db_turn_row(agent_id);
+    if(turn) {
+        turn->instructions += instructions;
+        turn->instructions_added += instructions;
+        return ENGINE_OK;
+    }
+
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
         "UPDATE agents SET instructions = instructions + %lld WHERE agent_id = %d", instructions, agent_id);
 
@@ -3689,8 +3697,6 @@ ErrorCode_t db_add_agent_instructions(DbConnection_t* connection, int agent_id, 
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         result = ENGINE_DB_QUERY_ERROR;
     }
-    else if(db_turn_row(agent_id))
-        db_turn_row(agent_id)->instructions += instructions;
 
     return result;
 }
@@ -3713,8 +3719,12 @@ ErrorCode_t db_set_agent_waiting_action(DbConnection_t* connection, int agent_id
     TurnRow_t* turn = db_turn_row(agent_id);
     if(turn && turn->waiting_action == action_id)
         return ENGINE_OK;
-    if(turn)
+    if(turn) {
+        // Written with the rest of the turn's row (#431 step 3)
         turn->waiting_action = action_id;
+        turn->waiting_action_dirty = 1;
+        return ENGINE_OK;
+    }
 
     if(action_id)
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
@@ -4014,6 +4024,16 @@ ErrorCode_t db_set_agent_pending_input(DbConnection_t* connection, int agent_id,
     if(turn && ((!text && !turn->pending_input) ||
                 (text && turn->pending_input && strcmp(text, turn->pending_input) == 0)))
         return ENGINE_OK;
+    if(turn) {
+        // Written with the rest of the turn's row (#431 step 3)
+        char* copy = text ? strdup(text) : NULL;
+        if(text && !copy)
+            return ENGINE_MEMORY_ALLOC_ERROR;
+        free(turn->pending_input);
+        turn->pending_input = copy;
+        turn->pending_input_dirty = 1;
+        return ENGINE_OK;
+    }
 
     ErrorCode_t result = db_reconnect(connection);
     if(result != ENGINE_OK)
@@ -4461,3 +4481,67 @@ ErrorCode_t name(ProtocolInfo_t* protocol, type** effects, int* effectsNum) \
 
 DEFINE_CACHED_EFFECTS(db_get_resource_effects, ResourceEffect_t)
 DEFINE_CACHED_EFFECTS(db_get_market_effects, MarketEffect_t)
+
+/** ****************************************************************************
+
+    @brief          Writes what the turn changed in the drone's row, in one
+                    statement, before the turn commits (#431 step 3). The
+                    waiting action, unread input, instructions and power paid
+                    were each an UPDATE, the waiting action twice a turn (a
+                    resume clears it, a perform sets it).
+
+*******************************************************************************/
+ErrorCode_t db_turn_row_flush(DbConnection_t* connection)
+{
+    TurnRow_t* turn = db_turn_row_current();
+    if(!turn || !(turn->waiting_action_dirty || turn->pending_input_dirty ||
+                  turn->power_paid_dirty || turn->instructions_added))
+        return ENGINE_OK;
+
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK)
+        return result;
+
+    char* safe = (turn->pending_input_dirty && turn->pending_input) ? db_escape_alloc(connection, turn->pending_input) : NULL;
+    if(turn->pending_input_dirty && turn->pending_input && !safe)
+        return ENGINE_MEMORY_ALLOC_ERROR;
+    size_t size = (safe ? strlen(safe) : 0) + 512;
+    char* query_text = malloc(size);
+    if(!query_text) { free(safe); return ENGINE_MEMORY_ALLOC_ERROR; }
+
+    char* end = query_text;
+    const char* sep = "";
+    end += snprintf(end, size, "UPDATE agents SET ");
+#define LEFT (size - (size_t)(end - query_text))
+    if(turn->waiting_action_dirty) {
+        if(turn->waiting_action) end += snprintf(end, LEFT, "%swaiting_action = %d", sep, turn->waiting_action);
+        else end += snprintf(end, LEFT, "%swaiting_action = NULL", sep);
+        sep = ", ";
+    }
+    if(turn->pending_input_dirty) {
+        if(safe) end += snprintf(end, LEFT, "%spending_input = '%s'", sep, safe);
+        else end += snprintf(end, LEFT, "%spending_input = NULL", sep);
+        sep = ", ";
+    }
+    if(turn->instructions_added) {
+        end += snprintf(end, LEFT, "%sinstructions = instructions + %lld", sep, turn->instructions_added);
+        sep = ", ";
+    }
+    if(turn->power_paid_dirty) {
+        end += snprintf(end, LEFT, "%spower_paid = %lld", sep, turn->power_paid);
+        sep = ", ";
+    }
+    snprintf(end, LEFT, " WHERE agent_id = %d", turn->agent_id);
+#undef LEFT
+
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to save drone [%d]'s turn: %s", turn->agent_id, mysql_error(connection->hndl));
+        result = ENGINE_DB_QUERY_ERROR;
+    } else {
+        turn->waiting_action_dirty = turn->pending_input_dirty = turn->power_paid_dirty = 0;
+        turn->instructions_added = 0;
+    }
+    free(query_text);
+    free(safe);
+    return result;
+}

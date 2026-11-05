@@ -72,6 +72,7 @@ typedef struct LuaDrone
     int result;
     int finished;         /* launched() returned */
     int crash;            /* launched() failed: its code */
+    unsigned long long state_hash;  /* of the lua_state last saved or loaded (0: none known) */
     struct LuaDrone *next;
 } LuaDrone;
 
@@ -79,6 +80,15 @@ static LuaDrone* g_drones[BUCKETS];
 static LuaDrone* g_current = NULL;   /* the drone running now */
 
 /******************************* THE REGISTRY ********************************/
+
+/* FNV-1a of a saved state, never 0 (#431 step 3) */
+static unsigned long long state_hash(const char* s, size_t len)
+{
+    unsigned long long h = 1469598103934665603ULL;
+    for(size_t i = 0; i < len; i++)
+        h = (h ^ (unsigned char)s[i]) * 1099511628211ULL;
+    return h ? h : 1;
+}
 
 static LuaDrone* drone_find(int agent_id)
 {
@@ -185,6 +195,8 @@ static ErrorCode_t lua_db_set_text(int agent_id, const char* column, const char*
 
 void lua_drone_forget_state(int agent_id)
 {
+    LuaDrone* d = drone_find(agent_id);
+    if(d) d->state_hash = 0;
     lua_db_set_text(agent_id, "lua_state", NULL, 0, 0);
 }
 
@@ -199,6 +211,8 @@ void lua_drone_mark_released(int agent_id)
 
 void lua_drone_clear_script(int agent_id)
 {
+    LuaDrone* d = drone_find(agent_id);
+    if(d) d->state_hash = 0;
     lua_db_set_text(agent_id, "lua_script", NULL, 0, 0);
     lua_db_set_text(agent_id, "lua_state", NULL, 0, 0);
 }
@@ -747,7 +761,13 @@ static void lua_drone_save_state(LuaDrone* d)
     if(r != LUA_OK)
         lua_pop(d->L, 1);   /* its error: the last snapshot stays */
     else if(!t.failed && t.s)
-        lua_db_set_text(d->agent_id, "lua_state", t.s, t.len, 0);
+    {
+        // Most turns leave the variables as they were: write only a change
+        // (#431 step 3: an UPDATE of the drone's state every turn)
+        unsigned long long h = state_hash(t.s, t.len);
+        if(h != d->state_hash && lua_db_set_text(d->agent_id, "lua_state", t.s, t.len, 0) == ENGINE_OK)
+            d->state_hash = h;
+    }
     free(t.s);
 }
 
@@ -793,6 +813,7 @@ static int lua_drone_build(LuaDrone* d, int with_state)
     {
         size_t sl = 0;
         char* state = lua_db_text(d->agent_id, "lua_state", &sl);
+        d->state_hash = state ? state_hash(state, sl) : 0;
         if(state && luaL_loadbuffer(d->L, state, sl, "=state") == LUA_OK && lua_pcall(d->L, 0, 1, 0) == LUA_OK &&
            lua_istable(d->L, -1))
         {
