@@ -160,12 +160,7 @@ ErrorCode_t engine_init_db()
 	result = db_init(&engine.db_connection);
 
 	// Only one game-engine per database
-	// One engine per shard (#433): two copies of a shard would split a drone's
-	// input between them; different shards may run side by side
-	static char claim[64] = "game-engine";
-	if(engine_shards() > 1)
-		snprintf(claim, sizeof(claim), "game-engine-shard-%d", engine_shard());
-	if(result == ENGINE_OK) result = db_claim_engine(&engine.db_connection, claim);
+	if(result == ENGINE_OK) result = db_claim_engine(&engine.db_connection, "game-engine");
 
 	// The master game time scale comes from this engine's configuration
 	if(result == ENGINE_OK) game_time_set_scale(atof(engine.config.params[GAME_TIME_SCALE_ID]));
