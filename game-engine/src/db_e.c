@@ -368,6 +368,7 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found
     ErrorCode_t result = db_reconnect(connection);
 
     db_settled_batch_start();
+    db_batch_writes_discard();
 
     if(result == ENGINE_OK)
     {
@@ -1359,60 +1360,120 @@ ErrorCode_t db_get_max_drone_cargo(int drone_id, int *capacity)
     @return         Execution result
 
 *******************************************************************************/
+/* Observations and event places are written once per batch (#448): a
+   round trip each was a third of the events engine's writes. Nothing in the
+   events engine reads them back while the batch runs, except a refund's
+   place, and a move changes the place later events record: those flush the
+   places first. A transfer rolled back to its savepoint drops what it added
+   (db_batch_writes_mark / db_batch_writes_undo). */
+#define BATCH_OBSERVATIONS_MAX 4096
+#define BATCH_PLACES_MAX 4096
+typedef struct { int drone; int event; char time[24]; long long game_t; } PendingObservation_t;
+static PendingObservation_t pending_observations[BATCH_OBSERVATIONS_MAX];
+static int pending_observations_count = 0;
+static int pending_places[BATCH_PLACES_MAX];
+static int pending_places_count = 0;
+
+static ErrorCode_t db_run_write(const char* query_text)
+{
+    DbConnection_t* connection = engine_get_db_connection();
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK) return result;
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%.200s...] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    return ENGINE_OK;
+}
+
+ErrorCode_t db_flush_observations(void)
+{
+    ErrorCode_t result = ENGINE_OK;
+    int i = 0;
+    while(result == ENGINE_OK && i < pending_observations_count) {
+        static char query_text[64 * 1024];
+        char* end = query_text;
+        char* limit = query_text + sizeof(query_text) - 128;
+        end += sprintf(end, "INSERT INTO observations (drone, event, time, game_t) VALUES ");
+        int first = i;
+        for(; i < pending_observations_count && end < limit; i++) {
+            PendingObservation_t* o = &pending_observations[i];
+            end += sprintf(end, "%s(%d, %d, '%s', %lld)", i == first ? "" : ",", o->drone, o->event, o->time, o->game_t);
+        }
+        result = db_run_write(query_text);
+    }
+    if(result == ENGINE_OK) pending_observations_count = 0;
+    return result;
+}
+
+ErrorCode_t db_flush_places(void)
+{
+    ErrorCode_t result = ENGINE_OK;
+    int i = 0;
+    while(result == ENGINE_OK && i < pending_places_count) {
+        static char query_text[64 * 1024];
+        char* end = query_text;
+        char* limit = query_text + sizeof(query_text) - 64;
+        end += sprintf(end, "UPDATE events e JOIN agents a ON a.agent_id = e.drone SET e.place = a.object_id WHERE e.id IN (");
+        int first = i;
+        for(; i < pending_places_count && end < limit; i++)
+            end += sprintf(end, "%s%d", i == first ? "" : ",", pending_places[i]);
+        sprintf(end, ")");
+        result = db_run_write(query_text);
+    }
+    if(result == ENGINE_OK) pending_places_count = 0;
+    return result;
+}
+
+ErrorCode_t db_flush_batch_writes(void)
+{
+    ErrorCode_t result = db_flush_places();
+    if(result == ENGINE_OK) result = db_flush_observations();
+    return result;
+}
+
+void db_batch_writes_discard(void)
+{
+    pending_observations_count = 0;
+    pending_places_count = 0;
+}
+
+BatchWritesMark_t db_batch_writes_mark(void)
+{
+    // Room for what the savepoint adds, so no flush inside it writes rows
+    // from before the mark (its rollback would undo them)
+    if(pending_observations_count > BATCH_OBSERVATIONS_MAX / 2) db_flush_observations();
+    if(pending_places_count > BATCH_PLACES_MAX / 2) db_flush_places();
+    BatchWritesMark_t mark = { pending_observations_count, pending_places_count };
+    return mark;
+}
+
+void db_batch_writes_undo(BatchWritesMark_t mark)
+{
+    // Only what was added since the mark. Had a flush written some of it
+    // inside the savepoint, the rollback undid it there
+    if(mark.observations < pending_observations_count) pending_observations_count = mark.observations;
+    if(mark.places < pending_places_count) pending_places_count = mark.places;
+}
+
 ErrorCode_t db_insert_observation(Observation_t* observation)
 {
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    if(!observation)
+        return ENGINE_INTERNAL_ERROR;
 
-    DbConnection_t* connection =  engine_get_db_connection();
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    if(result == ENGINE_OK)
-    {
-        // Sanity check
-        if(!observation)
-            return ENGINE_INTERNAL_ERROR;
+    if(pending_observations_count >= BATCH_OBSERVATIONS_MAX) {
+        ErrorCode_t result = db_flush_observations();
+        if(result != ENGINE_OK) return result;
     }
 
-    char* query_end = query_text;
+    PendingObservation_t* o = &pending_observations[pending_observations_count++];
+    o->drone = observation->drone_id;
+    o->event = observation->event_id;
+    strftime(o->time, sizeof(o->time), "%F %T", localtime(&observation->timestamp));
+    o->game_t = observation->game_t;
+    observation->id = 0;   // not known until the batch is written; unused
 
-    // time_t -> string
-    char timestamp_buffer[80];
-    strftime(timestamp_buffer, 80,"%F %T", localtime(&observation->timestamp));
-    engine_trace(TRACE_LEVEL_DEBUG,
-                "TIMESTAMP [%ld] => DATE [%s]",
-                observation->timestamp, timestamp_buffer);
-
-    query_end += snprintf(query_end,
-        QUERY_SPACE_LEFT,
-        "INSERT INTO observations (drone, event, time, game_t) VALUES(%d, %d, '%s', %lld)",
-        observation->drone_id,
-        observation->event_id,
-        timestamp_buffer,
-        observation->game_t);
-
-    // run it
-    if (mysql_query(connection->hndl, query_text))
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-        result = ENGINE_DB_QUERY_ERROR;
-    }
-    else
-    {
-        // Get auto-increment ID
-        observation->id = mysql_insert_id(connection->hndl);
-
-        engine_trace(TRACE_LEVEL_ALWAYS,
-            "Observation [%d, %d, %d, %s] inserted into DB",
-            observation->id,
-            observation->drone_id,
-            observation->event_id,
-            timestamp_buffer);
-    }
-
-
-    return result;
+    return ENGINE_OK;
 }
 
 /** ****************************************************************************
@@ -1471,38 +1532,23 @@ ErrorCode_t db_delete_event_observations(int event_id)
 *******************************************************************************/
 ErrorCode_t db_insert_local_observations(Event_t *event)
 {
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    DbConnection_t* connection =  engine_get_db_connection();
-
     // Sanity check
     if(!event)
         return ENGINE_INTERNAL_ERROR;
 
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    if(result == ENGINE_OK)
-    {
-        // Every drone where the event's drone is sees it (#324 step 20).
-        // No row per drone: the event records its place, and a drone sees
-        // the events at its current place since it arrived there
-        // (agents.arrived_t), worked out when it asks (query 803, the
-        // website). A row per drone grew as events x drones.
-        snprintf(query_text,
-                DB_MAX_SQL_QUERY_LEN,
-                "UPDATE events SET place = (SELECT object_id FROM agents WHERE agent_id = %d) WHERE id = %d",
-                event->drone_id,
-                event->event_id);
-
-        if (mysql_query(connection->hndl, query_text))
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
-            result = ENGINE_DB_QUERY_ERROR;
-        }
+    // Every drone where the event's drone is sees it (#324 step 20).
+    // No row per drone: the event records its place, and a drone sees
+    // the events at its current place since it arrived there
+    // (agents.arrived_t), worked out when it asks (query 803, the
+    // website). A row per drone grew as events x drones. The place is
+    // written with the batch's others (#448).
+    if(pending_places_count >= BATCH_PLACES_MAX) {
+        ErrorCode_t result = db_flush_places();
+        if(result != ENGINE_OK) return result;
     }
+    pending_places[pending_places_count++] = event->event_id;
 
-    return result;
+    return ENGINE_OK;
 }
 
 
@@ -2732,6 +2778,11 @@ ErrorCode_t db_refund_fuel(int action_id)
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
     DbConnection_t* connection = engine_get_db_connection();
     ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK)
+        return result;
+
+    // The burn's place may be waiting to be written with the batch (#448)
+    result = db_flush_places();
     if(result != ENGINE_OK)
         return result;
 

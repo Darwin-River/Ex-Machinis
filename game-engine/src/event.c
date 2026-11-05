@@ -1138,8 +1138,12 @@ static ErrorCode_t event_apply(Event_t *event)
     // If move event, update drone location.  No further action required.
     if(result == ENGINE_OK && event->event_type == MOVE_EVENT_TYPE) {
 
+        // Places waiting to be written are where the drone was (#448)
+        result = db_flush_places();
+
         // Update drone location.
-        result = db_update_agent_object(engine_get_db_connection(), event->drone_id, event->new_location);
+        if(result == ENGINE_OK)
+            result = db_update_agent_object(engine_get_db_connection(), event->drone_id, event->new_location);
 
         // Log result.
         engine_trace(TRACE_LEVEL_ALWAYS,
@@ -1439,6 +1443,7 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
         return ENGINE_LOGIC_ERROR;
     }
 
+    BatchWritesMark_t mark = db_batch_writes_mark();
     result = db_savepoint("SAVEPOINT transfer");
     if(result != ENGINE_OK)
         return result;
@@ -1457,6 +1462,7 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
         event->action_id, event->outcome, partner->outcome);
 
     db_savepoint("ROLLBACK TO SAVEPOINT transfer");
+    db_batch_writes_undo(mark);   // what both halves added to the batch's writes
 
     if(event->outcome != OUTCOME_OK) {
         event_record_failure(&first, event->outcome);

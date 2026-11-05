@@ -678,6 +678,21 @@ ErrorCode_t db_insert_local_observations(Event_t *event);
 
 /** ****************************************************************************
 
+    @brief          Observations and event places are written once per batch
+                    (#448). Flush before the batch commits; a move flushes the
+                    places first. A savepoint takes a mark, and undoes what was
+                    added since if it rolls back.
+
+*******************************************************************************/
+typedef struct { int observations; int places; } BatchWritesMark_t;
+ErrorCode_t db_flush_batch_writes(void);
+ErrorCode_t db_flush_places(void);
+void db_batch_writes_discard(void);
+BatchWritesMark_t db_batch_writes_mark(void);
+void db_batch_writes_undo(BatchWritesMark_t mark);
+
+/** ****************************************************************************
+
     @brief          Gets whole observation info for a given event (observable, reportable, etc,..)
 
     @param[in]      event    Input event
