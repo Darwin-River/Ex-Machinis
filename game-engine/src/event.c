@@ -435,8 +435,14 @@ ErrorCode_t event_delete_previous_events(Event_t *event)
   if(event)
     result = db_delete_previous_events(event);
 
-  // Purge old actions too
-  db_purge_old_actions();
+  // Purge old actions too: at most once a real minute (#431). It looks for
+  // actions a month old, and ran after every successful event
+  static time_t last_purge = 0;
+  time_t now = time(NULL);
+  if(now - last_purge >= 60) {
+    last_purge = now;
+    db_purge_old_actions();
+  }
 
   return result;
 }

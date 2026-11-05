@@ -15,6 +15,11 @@
 #include <math.h>
 
 #include "db.h"
+#include "static_cache.h"
+
+// Real seconds a cached game-data row stays good (#431): game data reloaded
+// by a deploy reaches running engines within this
+#define STATIC_CACHE_TTL 60
 #include "game_time.h"
 #include "email.h"
 #include "trace.h"
@@ -2438,7 +2443,7 @@ ErrorCode_t db_get_location_effects
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_resource_info(Resource_t* resource)
+static ErrorCode_t db_get_resource_info_db(Resource_t* resource)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -2532,7 +2537,7 @@ ErrorCode_t db_get_resource_info(Resource_t* resource)
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_event_type_info(EventType_t* event_type)
+static ErrorCode_t db_get_event_type_info_db(EventType_t* event_type)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -3073,7 +3078,7 @@ ErrorCode_t db_update_agent_company(DbConnection_t* connection, int agent_id, ch
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_query_info(Queries_t* queryInfo)
+static ErrorCode_t db_get_query_info_db(Queries_t* queryInfo)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -4185,4 +4190,72 @@ ErrorCode_t db_take_deposit(int object_id, int resource, long long wanted, long 
     engine_trace(TRACE_LEVEL_ALWAYS, "Deposit of resource [%d] at [%d]: [%lld] of [%lld] wanted taken, [%.1f] left",
         resource, object_id, *taken, wanted, amount);
     return ENGINE_OK;
+}
+
+/* db_get_query_info, from the static cache when it has a fresh copy (#431).
+   Only the table's fields are cached: the caller's own (parameter values,
+   results array, final query) are left as they were. */
+typedef struct
+{
+    char name[MAX_QUERIES_NAME_SIZE];
+    char description[MAX_QUERIES_DESCRIPTION_SIZE];
+    int parametersNum;
+    char script[MAX_QUERIES_SCRIPT_SIZE];
+} QueryRow_t;
+
+ErrorCode_t db_get_query_info(Queries_t* queryInfo)
+{
+    static StaticCache_t cache = { .ttl = STATIC_CACHE_TTL };
+    static QueryRow_t row;
+    if(!queryInfo)
+        return ENGINE_INTERNAL_ERROR;
+    time_t now = time(NULL);
+    if(static_cache_get(&cache, queryInfo->id, &row, sizeof(row), now)) {
+        memcpy(queryInfo->name, row.name, sizeof(row.name));
+        memcpy(queryInfo->description, row.description, sizeof(row.description));
+        queryInfo->parametersNum = row.parametersNum;
+        memcpy(queryInfo->script, row.script, sizeof(row.script));
+        return ENGINE_OK;
+    }
+    ErrorCode_t result = db_get_query_info_db(queryInfo);
+    if(result == ENGINE_OK) {
+        memcpy(row.name, queryInfo->name, sizeof(row.name));
+        memcpy(row.description, queryInfo->description, sizeof(row.description));
+        row.parametersNum = queryInfo->parametersNum;
+        memcpy(row.script, queryInfo->script, sizeof(row.script));
+        static_cache_put(&cache, queryInfo->id, &row, sizeof(row), now);
+    }
+    return result;
+}
+
+/* db_get_resource_info, from the static cache when it has a fresh copy (#431) */
+ErrorCode_t db_get_resource_info(Resource_t* resource)
+{
+    static StaticCache_t cache = { .ttl = STATIC_CACHE_TTL };
+    if(!resource)
+        return ENGINE_INTERNAL_ERROR;
+    time_t now = time(NULL);
+    int id = resource->resource_id;
+    if(static_cache_get(&cache, id, resource, sizeof(*resource), now))
+        return ENGINE_OK;
+    ErrorCode_t result = db_get_resource_info_db(resource);
+    if(result == ENGINE_OK)
+        static_cache_put(&cache, id, resource, sizeof(*resource), now);
+    return result;
+}
+
+/* db_get_event_type_info, from the static cache when it has a fresh copy (#431) */
+ErrorCode_t db_get_event_type_info(EventType_t* event_type)
+{
+    static StaticCache_t cache = { .ttl = STATIC_CACHE_TTL };
+    if(!event_type)
+        return ENGINE_INTERNAL_ERROR;
+    time_t now = time(NULL);
+    int id = event_type->event_type_id;
+    if(static_cache_get(&cache, id, event_type, sizeof(*event_type), now))
+        return ENGINE_OK;
+    ErrorCode_t result = db_get_event_type_info_db(event_type);
+    if(result == ENGINE_OK)
+        static_cache_put(&cache, id, event_type, sizeof(*event_type), now);
+    return result;
 }
