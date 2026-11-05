@@ -1198,8 +1198,14 @@ ErrorCode_t engine_run()
 
         // Signals travel at the speed of light: time when new commands reach
         // their drones, and send the replies that have reached Earth
-        engine_stamp_commands();
-        db_send_due_outbox(&engine.db_connection, engine.config.params[SEND_EMAIL_SCRIPT_ID]);
+        // once a real second (#431 step 1: they were two statements a turn;
+        // a resume, the commonest command, comes in already stamped)
+        static time_t housekept_at = 0;
+        if(time(NULL) != housekept_at) {
+            housekept_at = time(NULL);
+            engine_stamp_commands();
+            db_send_due_outbox(&engine.db_connection, engine.config.params[SEND_EMAIL_SCRIPT_ID]);
+        }
 
         // start a transaction
         result = db_start_transaction(&engine.db_connection);
