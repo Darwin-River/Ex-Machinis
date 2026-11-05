@@ -193,6 +193,8 @@ void lua_drone_mark_released(int agent_id)
     char sql[160];
     snprintf(sql, sizeof(sql), "UPDATE agents SET release_vm = '' WHERE agent_id = %d AND release_vm IS NULL", agent_id);
     lua_db_exec(sql);
+    if(db_turn_row(agent_id))
+        db_turn_row(agent_id)->loading = 0;
 }
 
 void lua_drone_clear_script(int agent_id)

@@ -41,6 +41,14 @@ ErrorCode_t db_get_launch_state(DbConnection_t* connection, int agent_id, Launch
 {
     state->running = state->crashes_in_row = state->wrecked = 0;
 
+    TurnRow_t* turn = db_turn_row(agent_id);
+    if(turn) {
+        state->running = turn->launched_running;
+        state->crashes_in_row = turn->crashes_in_row;
+        state->wrecked = turn->wrecked;
+        return ENGINE_OK;
+    }
+
     ErrorCode_t result = db_launch_query(connection,
         "SELECT launched_running, crashes_in_row, wrecked_at IS NOT NULL FROM agents WHERE agent_id = %d",
         agent_id);
@@ -69,6 +77,13 @@ ErrorCode_t db_get_agent_loading(DbConnection_t* connection, int agent_id, int* 
 {
     *loading = 0;
     *instructions = 0;
+
+    TurnRow_t* turn = db_turn_row(agent_id);
+    if(turn) {
+        *loading = turn->loading;
+        *instructions = turn->instructions;
+        return ENGINE_OK;
+    }
     ErrorCode_t result = db_launch_query(connection,
         "SELECT release_vm IS NULL, instructions FROM agents WHERE agent_id = %d", agent_id);
     if(result != ENGINE_OK)
@@ -88,6 +103,10 @@ ErrorCode_t db_get_agent_loading(DbConnection_t* connection, int agent_id, int* 
 
 ErrorCode_t db_save_release_vm(DbConnection_t* connection, int agent_id)
 {
+    // Whether it saves anything depends on the VM: read the row afresh
+    TurnRow_t* turn = db_turn_row(agent_id);
+    if(turn)
+        db_turn_row_clear();
     return db_launch_query(connection,
         "UPDATE agents SET release_vm = VM WHERE agent_id = %d AND release_vm IS NULL AND VM IS NOT NULL",
         agent_id);
@@ -102,14 +121,22 @@ ErrorCode_t db_restore_release_vm(DbConnection_t* connection, int agent_id)
 
 ErrorCode_t db_set_launched_running(DbConnection_t* connection, int agent_id, int running)
 {
-    return db_launch_query(connection,
+    ErrorCode_t result = db_launch_query(connection,
         "UPDATE agents SET launched_running = %d WHERE agent_id = %d", running ? 1 : 0, agent_id);
+    TurnRow_t* turn = db_turn_row(agent_id);
+    if(result == ENGINE_OK && turn)
+        turn->launched_running = running ? 1 : 0;
+    return result;
 }
 
 ErrorCode_t db_record_launched_finished(DbConnection_t* connection, int agent_id)
 {
-    return db_launch_query(connection,
+    ErrorCode_t result = db_launch_query(connection,
         "UPDATE agents SET launched_running = 0, crashes_in_row = 0 WHERE agent_id = %d", agent_id);
+    TurnRow_t* turn = db_turn_row(agent_id);
+    if(result == ENGINE_OK && turn)
+        turn->launched_running = turn->crashes_in_row = 0;
+    return result;
 }
 
 ErrorCode_t db_record_crash(DbConnection_t* connection, int agent_id, int code, int in_row,
@@ -137,6 +164,12 @@ ErrorCode_t db_record_crash(DbConnection_t* connection, int agent_id, int code, 
             "wrecked_at = %s, wreck_cause = %s WHERE agent_id = %d",
             in_row, wrecked, restart_at < 0 ? "'crashes'" : "NULL", agent_id);
 
+    TurnRow_t* turn = db_turn_row(agent_id);
+    if(result == ENGINE_OK && turn) {
+        turn->launched_running = 0;
+        turn->crashes_in_row = in_row;
+        turn->wrecked = restart_at < 0;
+    }
     return result;
 }
 
@@ -150,6 +183,12 @@ ErrorCode_t db_queue_launched(DbConnection_t* connection, int agent_id, long lon
 
 ErrorCode_t db_clear_crashes_in_row(DbConnection_t* connection, int agent_id)
 {
+    // Nothing to clear: most actions end no run of crashes (#431 step 2)
+    TurnRow_t* turn = db_turn_row(agent_id);
+    if(turn && turn->crashes_in_row == 0)
+        return ENGINE_OK;
+    if(turn)
+        turn->crashes_in_row = 0;
     return db_launch_query(connection,
         "UPDATE agents SET crashes_in_row = 0 WHERE agent_id = %d AND crashes_in_row <> 0", agent_id);
 }
@@ -199,31 +238,51 @@ ErrorCode_t db_take_power_due(DbConnection_t* connection, int agent_id, long lon
     if(per_fuel <= 0)
         return ENGINE_OK;
 
-    ErrorCode_t result = db_launch_query(connection,
-        "SELECT instructions, power_paid, release_vm IS NULL FROM agents WHERE agent_id = %d", agent_id);
-    if(result != ENGINE_OK)
-        return result;
+    ErrorCode_t result = ENGINE_OK;
+    long long instructions = 0, paid = 0;
+    int loading = 0;
+    TurnRow_t* turn = db_turn_row(agent_id);
+    if(turn) {
+        instructions = turn->instructions;
+        paid = turn->power_paid;
+        loading = turn->loading;
+    } else {
+        result = db_launch_query(connection,
+            "SELECT instructions, power_paid, release_vm IS NULL FROM agents WHERE agent_id = %d", agent_id);
+        if(result != ENGINE_OK)
+            return result;
 
-    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-    MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
-    long long instructions = (row && row[0]) ? atoll(row[0]) : 0;
-    long long paid = (row && row[1]) ? atoll(row[1]) : 0;
-    int loading = (row && row[2]) ? atoi(row[2]) : 0;
-    if(db_result)
-        mysql_free_result(db_result);
+        MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+        MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+        instructions = (row && row[0]) ? atoll(row[0]) : 0;
+        paid = (row && row[1]) ? atoll(row[1]) : 0;
+        loading = (row && row[2]) ? atoi(row[2]) : 0;
+        if(db_result)
+            mysql_free_result(db_result);
+    }
 
     // Loading a released script is free (#380): until the drone first runs
     // launched (which saves release_vm) it is only reading its program, about
     // 20,000 instructions a word. Billed, a 150-line script cost more than
     // the 100 fuel a drone starts with, and the drone died before it ran.
-    if(loading)
-        return db_launch_query(connection,
+    if(loading) {
+        // Already square: nothing to write (#431 step 2)
+        if(turn && paid == instructions)
+            return ENGINE_OK;
+        result = db_launch_query(connection,
             "UPDATE agents SET power_paid = instructions WHERE agent_id = %d", agent_id);
+        if(result == ENGINE_OK && turn)
+            turn->power_paid = turn->instructions;
+        return result;
+    }
 
     *units = vm_meter_fuel_due(instructions, paid, per_fuel);
-    if(*units > 0)
+    if(*units > 0) {
         result = db_launch_query(connection,
             "UPDATE agents SET power_paid = power_paid + %lld WHERE agent_id = %d", *units * per_fuel, agent_id);
+        if(result == ENGINE_OK && turn)
+            turn->power_paid += *units * per_fuel;
+    }
 
     return result;
 }

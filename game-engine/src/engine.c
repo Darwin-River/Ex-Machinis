@@ -1216,6 +1216,10 @@ ErrorCode_t engine_run()
             result = db_get_next_command(&engine.db_connection, &engine.last_command);
         }
 
+        // The drone's own row, read once for the turn (#431 step 2)
+        if(result == ENGINE_OK && engine.last_command.code[0])
+            db_turn_row_load(&engine.db_connection, engine.last_command.agent_id);
+
         if(result == ENGINE_OK)
         {
             // Get whole info for agent_id
@@ -1314,6 +1318,7 @@ ErrorCode_t engine_run()
         {
             result = db_rollback_transaction(&engine.db_connection);
         }
+        db_turn_row_clear();
 
         // always deallocate VM and command resources
         if(engine.last_agent.vm) vm_free(engine.last_agent.vm);
