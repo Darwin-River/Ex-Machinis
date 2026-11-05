@@ -366,6 +366,16 @@ Each run restarts the engines on a saved world, so a backlog makes the clock ste
   * The purge of month-old actions ran after every successful event; it now runs at most once a real minute.
   * The `INSERT IGNORE` of the clock row ran every engine loop; it now runs only until the clock has loaded.
   * MySQL now answers about 14% fewer statements a second for the same work (5,400 against 6,300). Drone turns stayed at about 3,000 a minute, because each engine waits on its round trips one at a time. The saving is headroom for running drones on several cores (#433).
+* **Short transactions (#431).** A drone's turn was one transaction, from fetching its command to saving its machine, so every row an action wrote stayed locked until the turn ended.
+  * Now `perform` and the fuel a drone's thinking burns each commit the turn's work so far, run, and commit their own action and events at once (`protocol_execute`, `protocol_burn_power`).
+  * Locks last as long as one action. The database holds an action as soon as the drone's script counts on it; a Lua drone's script lives in memory, which a rollback never undid.
+  * A turn that fails after an action keeps the action.
+  * On round 41's world one engine ran as fast as before, about 3,000 turns a minute, and the history checks held.
+* **Several game engines (#433), tried and shelved.** Each engine took the drones whose ID left its remainder. Per-drone MySQL named locks kept events in game-time order.
+  * With whole-turn transactions, three engines were slower than one, because they deadlocked across named and row locks on the House's station drones.
+  * With short transactions the deadlocks went. Even so, on a settled 1,000-ship world three engines did no better than one: about 6,600 turns a minute against about 5,000–6,500, and the clock fell to 1,012× against 1,350×. The events engine, which settles every action alone, was the limit at about 15,000 events a minute.
+  * Three engines also left 17 inventory entries whose newest event by id wasn't the newest by game time.
+  * The events engine's throughput comes first.
 
 <a name="Current-State"></a>**Current state beside the history (#430, migration 0031).** Two tables say what the history says, so a look is one row instead of a pass over `events`:
 * `holdings` (drone, resource, installed, locked → units, event_id): each kind's newest successful increment or depletion. An event with no installed or locked flag is kept under -1, so `sqInventory` counts it as it always did, and `holding()` reads only 0 and 1, as before. `sqInventory` is now a sum over `holdings`.

@@ -1041,7 +1041,7 @@ ErrorCode_t protocol_process_effects(ProtocolInfo_t *protocol, int action_id)
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
+static ErrorCode_t protocol_execute_action(int protocolId, VmExtension_t* vmExt)
 {
   // Get from DB the rest of information for this protocol ID
   Bool_t actionCreated = ENGINE_FALSE;
@@ -1178,7 +1178,7 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_burn_power(int units)
+static ErrorCode_t protocol_burn_power_action(int units)
 {
   ProtocolInfo_t protocol;
   Action_t action;
@@ -1226,4 +1226,31 @@ ErrorCode_t protocol_burn_power(int units)
 const char* protocol_get_result_msg()
 {
   return protocolMsg;
+}
+
+/*
+ * Short transactions (#431). A drone's turn was one transaction, from
+ * fetching its command to saving its machine, so every row an action wrote
+ * stayed locked until the turn ended, and anything written earlier in the
+ * turn was locked across the action. Now an action (perform, or the fuel
+ * its thinking burns) commits the turn's work so far, runs, and commits its
+ * own action and events straight away. Locks last only as long as one
+ * action, and the database holds the action as soon as the drone's script
+ * counts on it: a Lua drone's script lives in memory, which a rollback
+ * never undid. A turn that fails after an action keeps the action.
+ */
+ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
+{
+  engine_commit_turn_so_far();
+  ErrorCode_t result = protocol_execute_action(protocolId, vmExt);
+  engine_commit_turn_so_far();
+  return result;
+}
+
+ErrorCode_t protocol_burn_power(int units)
+{
+  engine_commit_turn_so_far();
+  ErrorCode_t result = protocol_burn_power_action(units);
+  engine_commit_turn_so_far();
+  return result;
 }
