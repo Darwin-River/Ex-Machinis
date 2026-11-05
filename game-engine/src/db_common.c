@@ -279,6 +279,11 @@ ErrorCode_t db_wreck_drone(int drone_id, const char* cause)
     engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] becomes a wreck (%s)", drone_id, cause);
 
     ErrorCode_t result = db_exec(engine_get_db_connection(), query_text);
+    TurnRow_t* turn = db_turn_row(drone_id);
+    if(result == ENGINE_OK && turn) {
+        turn->wrecked = 1;
+        turn->launched_running = 0;
+    }
 
     // A company ends when its last drone dies (#324 step 13): its credits
     // vanish, as when it can't pay its tax
@@ -366,4 +371,60 @@ ErrorCode_t db_insert_broadcast(int action_id, int drone_id, const char* body, l
         return ENGINE_DB_QUERY_ERROR;
     }
     return ENGINE_OK;
+}
+
+/******************************* THE TURN'S ROW (#431 step 2) ****************/
+
+static TurnRow_t g_turn_row;
+static int g_turn_row_valid = 0;
+
+void db_turn_row_clear(void)
+{
+    free(g_turn_row.pending_input);
+    memset(&g_turn_row, 0, sizeof(g_turn_row));
+    g_turn_row_valid = 0;
+}
+
+TurnRow_t* db_turn_row(int agent_id)
+{
+    return (g_turn_row_valid && g_turn_row.agent_id == agent_id) ? &g_turn_row : NULL;
+}
+
+ErrorCode_t db_turn_row_load(DbConnection_t* connection, int agent_id)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    db_turn_row_clear();
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK)
+        return result;
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT launched_running, crashes_in_row, wrecked_at IS NOT NULL, release_vm IS NULL, "
+        "instructions, power_paid, IFNULL(waiting_action, 0), pending_input FROM agents WHERE agent_id = %d",
+        agent_id);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+    if(row) {
+        g_turn_row.agent_id = agent_id;
+        g_turn_row.launched_running = row[0] ? atoi(row[0]) : 0;
+        g_turn_row.crashes_in_row = row[1] ? atoi(row[1]) : 0;
+        g_turn_row.wrecked = row[2] ? atoi(row[2]) : 0;
+        g_turn_row.loading = row[3] ? atoi(row[3]) : 0;
+        g_turn_row.instructions = row[4] ? atoll(row[4]) : 0;
+        g_turn_row.power_paid = row[5] ? atoll(row[5]) : 0;
+        g_turn_row.waiting_action = row[6] ? atoi(row[6]) : 0;
+        // An empty pending input reads as none, as db_get_agent_pending_input did
+        g_turn_row.pending_input = (row[7] && row[7][0]) ? strdup(row[7]) : NULL;
+        g_turn_row_valid = 1;
+    } else {
+        result = ENGINE_DB_NOT_FOUND_ERROR;
+    }
+    if(db_result) mysql_free_result(db_result);
+    return result;
 }

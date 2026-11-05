@@ -974,6 +974,35 @@ ErrorCode_t db_take_deposit(int object_id, int resource, long long wanted, long 
 /** Makes a drone a wreck (e.g. it ran out of fuel) */
 ErrorCode_t db_wreck_drone(int drone_id, const char* cause);
 
+/** ****************************************************************************
+
+    @brief          The drone's own row for the turn being run (#431 step 2).
+                    The game engine read it six or seven times a turn, a
+                    column or two at a time. Now one statement loads what a
+                    turn reads; the engine's functions that write those
+                    columns keep the copy up to date. Cleared when the turn
+                    ends. Columns another program changes during a turn (the
+                    drone's place) are still read from MySQL.
+
+*******************************************************************************/
+typedef struct
+{
+    int agent_id;
+    int launched_running;
+    int crashes_in_row;
+    int wrecked;
+    int loading;            // release_vm IS NULL: the script is still loading
+    long long instructions;
+    long long power_paid;
+    int waiting_action;     // 0: none
+    char* pending_input;    // NULL: none
+} TurnRow_t;
+
+ErrorCode_t db_turn_row_load(DbConnection_t* connection, int agent_id);
+void db_turn_row_clear(void);
+// The loaded row, if it is this drone's; NULL otherwise (then ask MySQL)
+TurnRow_t* db_turn_row(int agent_id);
+
 /** Sets (or clears, with 0) the action a drone's script waits for */
 ErrorCode_t db_get_launch_source(DbConnection_t* connection, int launcher_id, int source_id,
                                  int kit_id, int* source_object);

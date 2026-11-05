@@ -3689,6 +3689,8 @@ ErrorCode_t db_add_agent_instructions(DbConnection_t* connection, int agent_id, 
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         result = ENGINE_DB_QUERY_ERROR;
     }
+    else if(db_turn_row(agent_id))
+        db_turn_row(agent_id)->instructions += instructions;
 
     return result;
 }
@@ -3705,6 +3707,14 @@ ErrorCode_t db_set_agent_waiting_action(DbConnection_t* connection, int agent_id
 
     if(result != ENGINE_OK)
         return result;
+
+    // Already so: nothing to write (#431 step 2: a resume cleared a
+    // waiting action that was already clear)
+    TurnRow_t* turn = db_turn_row(agent_id);
+    if(turn && turn->waiting_action == action_id)
+        return ENGINE_OK;
+    if(turn)
+        turn->waiting_action = action_id;
 
     if(action_id)
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
@@ -3732,6 +3742,11 @@ ErrorCode_t db_get_agent_waiting_action(DbConnection_t* connection, int agent_id
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
     *action_id = 0;
+    TurnRow_t* turn = db_turn_row(agent_id);
+    if(turn) {
+        *action_id = turn->waiting_action;
+        return ENGINE_OK;
+    }
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
         "SELECT waiting_action FROM agents WHERE agent_id = %d", agent_id);
 
@@ -3960,6 +3975,10 @@ char* db_get_agent_pending_input(DbConnection_t* connection, int agent_id)
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
     char* text = NULL;
 
+    TurnRow_t* turn = db_turn_row(agent_id);
+    if(turn)
+        return turn->pending_input ? strdup(turn->pending_input) : NULL;
+
     if(db_reconnect(connection) != ENGINE_OK)
         return NULL;
 
@@ -3987,6 +4006,15 @@ char* db_get_agent_pending_input(DbConnection_t* connection, int agent_id)
 *******************************************************************************/
 ErrorCode_t db_set_agent_pending_input(DbConnection_t* connection, int agent_id, const char* text)
 {
+    // Already so: nothing to write (#431 step 2: most turns clear an input
+    // that was already clear)
+    TurnRow_t* turn = db_turn_row(agent_id);
+    if(text && !text[0])
+        text = NULL;    // empty reads back as none
+    if(turn && ((!text && !turn->pending_input) ||
+                (text && turn->pending_input && strcmp(text, turn->pending_input) == 0)))
+        return ENGINE_OK;
+
     ErrorCode_t result = db_reconnect(connection);
     if(result != ENGINE_OK)
         return result;
@@ -4011,6 +4039,10 @@ ErrorCode_t db_set_agent_pending_input(DbConnection_t* connection, int agent_id,
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to save pending input: %s", mysql_error(connection->hndl));
         result = ENGINE_DB_QUERY_ERROR;
+    }
+    else if(turn) {
+        free(turn->pending_input);
+        turn->pending_input = text ? strdup(text) : NULL;
     }
 
     free(query_text); free(safe);
