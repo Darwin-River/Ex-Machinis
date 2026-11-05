@@ -1780,7 +1780,7 @@ static ErrorCode_t db_get_object_info_by_name_query(DbConnection_t* connection, 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_prococol_info(ProtocolInfo_t* protocol)
+static ErrorCode_t db_get_prococol_info_query(ProtocolInfo_t* protocol)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -2310,7 +2310,7 @@ ErrorCode_t db_get_market_effects
     @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_location_effects
+static ErrorCode_t db_get_location_effects_query
 (
     ProtocolInfo_t* protocol,
     LocationEffect_t** effects,
@@ -4327,5 +4327,64 @@ ErrorCode_t db_get_orbit_info(DbConnection_t* connection, ObjectOrbitInfo_t* obj
     ErrorCode_t result = db_get_orbit_info_query(connection, object);
     if(result == ENGINE_OK && object->object_id == id)
         static_cache_put(&objects_by_id_cache, id, object, sizeof(*object), now);
+    return result;
+}
+
+/* A protocol's row and its location effects are game data: from a cache
+   good for a minute (#456). Every action asked MySQL for both, about four
+   statements a turn on a 3,000-ship world. */
+#define CACHED_EFFECTS_MAX 16
+typedef struct { int num; LocationEffect_t rows[CACHED_EFFECTS_MAX]; } CachedEffects_t;
+
+ErrorCode_t db_get_prococol_info(ProtocolInfo_t* protocol)
+{
+    static StaticCache_t cache = { .ttl = 60 };
+    time_t now = time(NULL);
+    ProtocolInfo_t row;
+
+    if(!protocol) return ENGINE_INTERNAL_ERROR;
+    if(static_cache_get(&cache, protocol->protocol_id, &row, sizeof(row), now)) {
+        // Only the fields the query sets: the caller's own stay as they are
+        snprintf(protocol->protocol_name, sizeof(protocol->protocol_name), "%s", row.protocol_name);
+        snprintf(protocol->protocol_description, sizeof(protocol->protocol_description), "%s", row.protocol_description);
+        protocol->parameters_num = row.parameters_num;
+        protocol->bulk_multiplier = row.bulk_multiplier;
+        protocol->observable = row.observable;
+        protocol->reportable = row.reportable;
+        protocol->multiplier = row.multiplier;
+        protocol->double_params = row.double_params;
+        return ENGINE_OK;
+    }
+    ErrorCode_t result = db_get_prococol_info_query(protocol);
+    if(result == ENGINE_OK)
+        static_cache_put(&cache, protocol->protocol_id, protocol, sizeof(*protocol), now);
+    return result;
+}
+
+ErrorCode_t db_get_location_effects(ProtocolInfo_t* protocol, LocationEffect_t** effects, int* effectsNum)
+{
+    static StaticCache_t cache = { .ttl = 60 };
+    time_t now = time(NULL);
+    CachedEffects_t cached;
+
+    if(!protocol || !effects || !effectsNum) return ENGINE_INTERNAL_ERROR;
+    if(static_cache_get(&cache, protocol->protocol_id, &cached, sizeof(cached), now)) {
+        *effectsNum = cached.num;
+        *effects = NULL;
+        if(cached.num > 0) {
+            *effects = (LocationEffect_t*)malloc(sizeof(LocationEffect_t) * (unsigned int)cached.num);
+            if(!*effects) { *effectsNum = 0; return ENGINE_INTERNAL_ERROR; }
+            memcpy(*effects, cached.rows, sizeof(LocationEffect_t) * (unsigned int)cached.num);
+        }
+        return ENGINE_OK;
+    }
+    ErrorCode_t result = db_get_location_effects_query(protocol, effects, effectsNum);
+    if(result == ENGINE_OK && *effectsNum >= 0 && *effectsNum <= CACHED_EFFECTS_MAX) {
+        memset(&cached, 0, sizeof(cached));
+        cached.num = *effectsNum;
+        if(cached.num > 0 && *effects)
+            memcpy(cached.rows, *effects, sizeof(LocationEffect_t) * (unsigned int)cached.num);
+        static_cache_put(&cache, protocol->protocol_id, &cached, sizeof(cached), now);
+    }
     return result;
 }

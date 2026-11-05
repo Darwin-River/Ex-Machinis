@@ -97,7 +97,7 @@ static ErrorCode_t protocol_flush_events(Bool_t insert)
   // changes (#380): a pull buys from a drone that is busy mining or
   // travelling at once, as long as both are at the same place.
   if(insert && g_pending_count > 0) {
-    game_time_load();
+    game_time_load_recent();
     int acting = engine_get_current_drone_id();
     int drones[2 * 8];
     int n = 0;
@@ -1140,7 +1140,7 @@ static ErrorCode_t protocol_execute_action(int protocolId, VmExtension_t* vmExt)
   }
 
   if(result == ENGINE_OK && protocol.protocol_id == BROADCAST_PROTOCOL_ID) {
-    game_time_load();
+    game_time_load_recent();
     result = db_insert_broadcast(action.action_id, engine_get_current_drone_id(), broadcast,
                                  game_time_now_seconds());
   }

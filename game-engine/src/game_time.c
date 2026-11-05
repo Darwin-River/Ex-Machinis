@@ -28,6 +28,7 @@ static time_t g_real_anchor = 0;
 static double g_game_anchor = 0;
 static double g_epoch = 0;
 static int g_loaded = 0;
+static time_t g_loaded_at = 0;   // real time of the last load
 
 static ErrorCode_t game_time_query(DbConnection_t* connection, const char* query_text)
 {
@@ -74,6 +75,7 @@ ErrorCode_t game_time_load(void)
             g_scale = atof(row[2]);
             g_epoch = atof(row[3]);
             g_loaded = 1;
+            g_loaded_at = time(NULL);
         }
         else
         {
@@ -84,6 +86,18 @@ ErrorCode_t game_time_load(void)
     }
 
     return result;
+}
+
+/* The clock as loaded within this real second, else loaded now (#456). For
+   the game engine, which sets the scale itself (game_time_set_scale keeps
+   what it loaded up to date): it loaded the clock on every turn and action,
+   about 78,000 times in 5 minutes on a 3,000-ship world. The events engine
+   loads it afresh, since it never sets it. */
+ErrorCode_t game_time_load_recent(void)
+{
+    if(g_loaded && time(NULL) == g_loaded_at)
+        return ENGINE_OK;
+    return game_time_load();
 }
 
 ErrorCode_t game_time_set_scale(double scale)
