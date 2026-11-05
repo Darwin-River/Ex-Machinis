@@ -727,6 +727,16 @@ def holding(drone, resource):
 # Double-cell money (#324 step 9): a column whose name starts with d_ comes
 # back as two cells (high cell first, so 2@ reads it); others as one
 ORDER_COLS = "o.price AS d_price, o.quantity, i.units, o.drone"
+
+
+def flying(drone):
+    # A drone on a trip has a pending move still to come. The index is named
+    # (events_pending: outcome, game_t), so MySQL reads only the events still
+    # to come. With some statistics it planned this as a scan of the whole of
+    # events instead, on every order book: 78 ms a call on a 1,000-ship
+    # world's 300,000 events, and growing with the history (#450)
+    return (f"EXISTS (SELECT 1 FROM events AS m FORCE INDEX (events_pending) WHERE m.drone = {drone} "
+            "AND m.event_type = 3 AND m.outcome = 0 AND m.game_t > [game_now])")
 HERE_ = "(SELECT object_id FROM agents WHERE agent_id = [drone_id])"
 
 
@@ -739,8 +749,7 @@ def orders(event_type, local, resource='[value_1]', extra=''):
     # until it arrives, but nobody can trade with it (#380 round 29: pulls
     # from listed miners failed with "the other drone was somewhere else")
     join_here = (f" INNER JOIN agents AS a ON a.agent_id = o.drone AND a.object_id = {HERE_}"
-                 " AND NOT EXISTS (SELECT 1 FROM events AS m WHERE m.drone = o.drone AND m.event_type = 3"
-                 " AND m.outcome = 0 AND m.game_t > [game_now])") if local else ''
+                 f" AND NOT {flying('o.drone')}") if local else ''
     stock = f"JOIN LATERAL (SELECT {holding('o.drone', resource)} AS units) AS i"
     if event_type == 5:
         # ...and only buyers who can pay for a unit (#380: round 25's sellers
@@ -1370,8 +1379,7 @@ def holding_asof(drone, resource, t):
 
 ASOF = ("WITH a AS (SELECT g.agent_id, g.object_id, g.company_id, g.arrived_t, "
         f"IF(g.object_id = {HERE_}, [game_now], [game_now] - {BOARD_LAG}) AS t FROM agents g "
-        "WHERE g.wrecked_at IS NULL AND NOT EXISTS (SELECT 1 FROM events m WHERE m.drone = g.agent_id "
-        "AND m.event_type = 3 AND m.outcome = 0 AND m.game_t > [game_now])), "
+        f"WHERE g.wrecked_at IS NULL AND NOT {flying('g.agent_id')}), "
         "l AS (SELECT e.drone, MAX(e.id) AS id FROM events e INNER JOIN a ON a.agent_id = e.drone "
         "WHERE e.outcome = 1 AND e.event_type IN (4, 5) AND e.resource = [value_1] AND e.game_t <= a.t "
         "GROUP BY e.drone, e.event_type) "
