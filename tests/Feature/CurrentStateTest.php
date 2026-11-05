@@ -102,6 +102,36 @@ class CurrentStateTest extends TestCase
         $this->assertSame(8, $this->fromHistory());
     }
 
+    /** An order's stock and whether it is open, as the order books read them (#452, migration 0034) */
+    private function order(int $type): array
+    {
+        $o = DB::table('latest_orders')->where(['drone' => $this->drone, 'resource' => self::METALS, 'event_type' => $type])
+            ->first(['units', 'is_open']);
+        return [(int) $o->units, (int) $o->is_open];
+    }
+
+    public function testOrdersCarryTheDronesStockAndWhetherTheyAreOpen()
+    {
+        $this->event(['new_quantity' => 3]);
+        // Sell while more than 5 are held; buy while fewer than 10 are
+        $this->event(['event_type' => 4, 'new_quantity' => 5, 'new_credits' => 20]);
+        $this->event(['event_type' => 5, 'new_quantity' => 10, 'new_credits' => 12]);
+        $this->assertSame([3, 0], $this->order(4));
+        $this->assertSame([3, 1], $this->order(5));
+        // The stock changes: both orders follow, installed and locked units count too
+        $this->event(['new_quantity' => 8]);
+        $this->event(['installed' => 1, 'new_quantity' => 4]);
+        $this->assertSame([12, 1], $this->order(4));
+        $this->assertSame([12, 0], $this->order(5));
+        // A pending event counts only once it succeeds; a deleted one falls back
+        $pending = $this->event(['new_quantity' => 1, 'outcome' => 0]);
+        $this->assertSame([12, 1], $this->order(4));
+        DB::table('events')->where('id', $pending)->update(['outcome' => 1]);
+        $this->assertSame([5, 0], $this->order(4));
+        DB::table('events')->where('id', $pending)->delete();
+        $this->assertSame([12, 1], $this->order(4));
+    }
+
     public function testLatestOrdersFollowTheNewestOrderEvent()
     {
         $this->event(['event_type' => 4, 'new_quantity' => 3, 'new_credits' => 20]);

@@ -726,7 +726,7 @@ def holding(drone, resource):
 
 # Double-cell money (#324 step 9): a column whose name starts with d_ comes
 # back as two cells (high cell first, so 2@ reads it); others as one
-ORDER_COLS = "o.price AS d_price, o.quantity, i.units, o.drone"
+ORDER_COLS = "o.price AS d_price, o.quantity, o.units, o.drone"
 
 
 def flying(drone):
@@ -742,27 +742,28 @@ HERE_ = "(SELECT object_id FROM agents WHERE agent_id = [drone_id])"
 
 def orders(event_type, local, resource='[value_1]', extra=''):
     # Sell orders (4) are open while stock is above the kept minimum; buy
-    # orders (5) while stock is below the wanted maximum.
-    cmp, order = ('>', 'ASC') if event_type == 4 else ('<', 'DESC')
-    where = f"i.units {cmp} o.quantity"
+    # orders (5) while stock is below the wanted maximum. latest_orders
+    # carries the drone's stock and whether the order is open (#452), so a
+    # book reads only the open orders, in price order (latest_orders_open):
+    # on a 3,000-ship world almost no listed order is open, and reading them
+    # all took 5 ms a book
+    order = 'ASC' if event_type == 4 else 'DESC'
+    where = "o.is_open = 1"
     # Here, and not flying away: a drone on a trip keeps the place it left
     # until it arrives, but nobody can trade with it (#380 round 29: pulls
     # from listed miners failed with "the other drone was somewhere else")
     join_here = (f" INNER JOIN agents AS a ON a.agent_id = o.drone AND a.object_id = {HERE_}"
                  f" AND NOT {flying('o.drone')}") if local else ''
-    stock = f"JOIN LATERAL (SELECT {holding('o.drone', resource)} AS units) AS i"
     if event_type == 5:
         # ...and only buyers who can pay for a unit (#380: round 25's sellers
         # burned fuel pushing into orders whose buyers were broke)
-        where = ("IFNULL(i.units, 0) < o.quantity AND (SELECT c.credits FROM companies AS c "
-                 "INNER JOIN agents AS b ON b.company_id = c.company_id WHERE b.agent_id = o.drone) >= o.price")
-        cols = ORDER_COLS.replace('i.units', 'IFNULL(i.units, 0)')
-    else:
-        cols = ORDER_COLS
+        where += (" AND (SELECT c.credits FROM companies AS c "
+                  "INNER JOIN agents AS b ON b.company_id = c.company_id WHERE b.agent_id = o.drone) >= o.price")
     # Each drone's latest order for the resource (#430: latest_orders, kept
-    # by triggers on events, in place of MAX(id) over the history)
-    return (f"SELECT {cols} FROM latest_orders AS o{join_here} {stock} "
-            f"WHERE o.resource = {resource} AND o.event_type = {event_type} AND {where}{extra} ORDER BY o.price {order};")
+    # by triggers on events, in place of MAX(id) over the history). Equal
+    # prices list the lowest drone ID first, as the index used to give them
+    return (f"SELECT {ORDER_COLS} FROM latest_orders AS o FORCE INDEX (latest_orders_open){join_here} "
+            f"WHERE o.resource = {resource} AND o.event_type = {event_type} AND {where}{extra} ORDER BY o.price {order}, o.drone;")
 
 
 EVENT_COL = "SELECT {c} FROM events WHERE outcome = 1 AND id = [value_1];"
