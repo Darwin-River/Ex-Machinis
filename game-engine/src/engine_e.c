@@ -311,6 +311,13 @@ ErrorCode_t engine_run()
             result = db_get_outcome_events(engine_process_outcome, &found);
         }
 
+        // Observations and places, written once for the batch (#448)
+        if((result == ENGINE_OK) || (result == ENGINE_DB_NOT_FOUND_ERROR))
+        {
+            ErrorCode_t written = db_flush_batch_writes();
+            if(written != ENGINE_OK) result = written;
+        }
+
         // commit or rollback current transaction
         if((result == ENGINE_OK) || (result == ENGINE_DB_NOT_FOUND_ERROR))
         {
