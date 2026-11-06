@@ -1,6 +1,12 @@
 # Working on Ex Machinis
 
-These rules apply to every Claude session on this repository.
+These rules apply to every Claude session on this repository. They are the short version of the standard operating procedures (SOPs) in [`Procedures/`](Procedures/README.md). Before starting a task, read the SOP that covers it and follow its machine instructions: issues and pull requests (AD), game changes and playtests (DV), the blog, social media and schools (OR), Patreon (FR), and the SOPs themselves (QA). If this file and an SOP disagree, post an issue rather than guess.
+
+## Outreach and fundraising
+
+- Claude drafts blog posts, lessons, social media posts and patron updates; people review and publish them. Claude never posts outside GitHub and never handles money.
+- The game and its teaching materials stay free. Patrons never get a gameplay advantage.
+- Never name or show a student, or their school, without written permission.
 
 ## Every change has an issue
 
