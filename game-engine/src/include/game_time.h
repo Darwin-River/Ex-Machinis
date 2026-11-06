@@ -7,6 +7,8 @@
 ErrorCode_t game_time_load(void);
 // As game_time_load, unless loaded within this real second (the game engine)
 ErrorCode_t game_time_load_recent(void);
+// Whether this program sets the scale (then load_recent may skip a load)
+void game_time_set_owner(int owner);
 
 /** Sets the master scale (game seconds per real second), re-anchoring the
  *  clock so game time carries on without a jump */

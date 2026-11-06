@@ -29,6 +29,7 @@ static double g_game_anchor = 0;
 static double g_epoch = 0;
 static int g_loaded = 0;
 static time_t g_loaded_at = 0;   // real time of the last load
+static int g_owner = 0;          // this program sets the scale (#433)
 
 static ErrorCode_t game_time_query(DbConnection_t* connection, const char* query_text)
 {
@@ -93,9 +94,16 @@ ErrorCode_t game_time_load(void)
    what it loaded up to date): it loaded the clock on every turn and action,
    about 78,000 times in 5 minutes on a 3,000-ship world. The events engine
    loads it afresh, since it never sets it. */
+void game_time_set_owner(int owner)
+{
+    g_owner = owner;
+}
+
 ErrorCode_t game_time_load_recent(void)
 {
-    if(g_loaded && time(NULL) == g_loaded_at)
+    // Only the program that sets the scale knows its copy is current: with
+    // several game engines (#433), shard 0 sets it and the others read it
+    if(g_owner && g_loaded && time(NULL) == g_loaded_at)
         return ENGINE_OK;
     return game_time_load();
 }
