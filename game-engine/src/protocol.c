@@ -106,6 +106,9 @@ static ErrorCode_t protocol_flush_events(Bool_t insert)
       for(int j = 0; j < n; j++) seen |= (drones[j] == d);
       if(!seen) drones[n++] = d;
     }
+    // With several game engines, one engine at a time touches these drones,
+    // from here to its commit (#433)
+    engine_take_order_locks(drones, n);
     long long latest = 0, now = game_time_now_seconds();
     for(int j = 0; j < n; j++) {
       long long t = 0;
