@@ -1309,6 +1309,15 @@ ErrorCode_t engine_run()
             result = db_delete_command(&engine.db_connection, &engine.last_command);
         }
 
+        // What the turn changed in the drone's row, in one statement
+        // (#431 step 3)
+        if((result == ENGINE_OK) || (result == ENGINE_DB_NOT_FOUND_ERROR))
+        {
+            ErrorCode_t written = db_turn_row_flush(&engine.db_connection);
+            if(written != ENGINE_OK)
+                result = written;
+        }
+
         // commit or rollback current transaction
         if((result == ENGINE_OK) || (result == ENGINE_DB_NOT_FOUND_ERROR))
         {

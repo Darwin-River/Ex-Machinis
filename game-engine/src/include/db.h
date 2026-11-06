@@ -996,12 +996,21 @@ typedef struct
     long long power_paid;
     int waiting_action;     // 0: none
     char* pending_input;    // NULL: none
+    // Written once, before the turn commits (#431 step 3)
+    int waiting_action_dirty;
+    int pending_input_dirty;
+    int power_paid_dirty;
+    long long instructions_added;
 } TurnRow_t;
 
 ErrorCode_t db_turn_row_load(DbConnection_t* connection, int agent_id);
 void db_turn_row_clear(void);
 // The loaded row, if it is this drone's; NULL otherwise (then ask MySQL)
 TurnRow_t* db_turn_row(int agent_id);
+// The loaded row, whoever's it is (NULL when none)
+TurnRow_t* db_turn_row_current(void);
+// Writes what the turn changed in the row, in one statement (game engine)
+ErrorCode_t db_turn_row_flush(DbConnection_t* connection);
 
 /** Sets (or clears, with 0) the action a drone's script waits for */
 ErrorCode_t db_get_launch_source(DbConnection_t* connection, int launcher_id, int source_id,
