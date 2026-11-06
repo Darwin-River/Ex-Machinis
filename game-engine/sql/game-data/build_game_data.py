@@ -752,8 +752,10 @@ def orders(event_type, local, resource='[value_1]', extra=''):
     # Here, and not flying away: a drone on a trip keeps the place it left
     # until it arrives, but nobody can trade with it (#380 round 29: pulls
     # from listed miners failed with "the other drone was somewhere else")
-    join_here = (f" INNER JOIN agents AS a ON a.agent_id = o.drone AND a.object_id = {HERE_}"
-                 f" AND NOT {flying('o.drone')}") if local else ''
+    # The order carries its drone's place (#462: latest_orders.place, kept
+    # by a trigger when the drone moves), so a local book reads only the open
+    # orders here, in price order, with no lookup of each seller's place
+    here = f" AND o.place = {HERE_} AND NOT {flying('o.drone')}" if local else ''
     if event_type == 5:
         # ...and only buyers who can pay for a unit (#380: round 25's sellers
         # burned fuel pushing into orders whose buyers were broke)
@@ -762,8 +764,10 @@ def orders(event_type, local, resource='[value_1]', extra=''):
     # Each drone's latest order for the resource (#430: latest_orders, kept
     # by triggers on events, in place of MAX(id) over the history). Equal
     # prices list the lowest drone ID first, as the index used to give them
-    return (f"SELECT {ORDER_COLS} FROM latest_orders AS o FORCE INDEX (latest_orders_open){join_here} "
-            f"WHERE o.resource = {resource} AND o.event_type = {event_type} AND {where}{extra} ORDER BY o.price {order}, o.drone;")
+    index = 'latest_orders_here' if local else 'latest_orders_open'
+    return (f"SELECT {ORDER_COLS} FROM latest_orders AS o FORCE INDEX ({index}) "
+            f"WHERE o.resource = {resource} AND o.event_type = {event_type} AND {where}{here}{extra} "
+            f"ORDER BY o.price {order}, o.drone;")
 
 
 EVENT_COL = "SELECT {c} FROM events WHERE outcome = 1 AND id = [value_1];"
