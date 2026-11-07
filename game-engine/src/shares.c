@@ -12,34 +12,20 @@ long long dividend_for(long long net, int units)
     return net * units / SHARES_PER_COMPANY;
 }
 
-int shares_cross(ShareOrder_t* offers, int n_offers, ShareOrder_t* bids, int n_bids,
-                 long long* credits, ShareFill_t* out, int max)
+int share_trade_check(int side, long long units, long long price, long long limit,
+                      long long seller_held, long long buyer_held, long long buyer_credits)
 {
-    int n = 0;
-    for(int b = 0; b < n_bids && n < max; b++) {
-        for(int o = 0; o < n_offers && n < max && bids[b].units > 0; o++) {
-            if(offers[o].units <= 0 || offers[o].company == bids[b].company)
-                continue;
-            if(offers[o].price > bids[b].price)
-                break;              /* sorted: no cheaper offers left */
-            long long price = offers[o].price;
-            long long units = offers[o].units < bids[b].units ? offers[o].units : bids[b].units;
-            long long affordable = price > 0 ? credits[b] / price : units;
-            if(affordable < units)
-                units = affordable;
-            if(units <= 0)
-                break;              /* this bid can't pay for any more */
-            out[n].offer = o;
-            out[n].bid = b;
-            out[n].units = units;
-            out[n].price = price;
-            n++;
-            offers[o].units -= units;
-            bids[b].units -= units;
-            credits[b] -= units * price;
-        }
-    }
-    return n;
+    if(units <= 0 || price <= 0)
+        return SHARE_NO_ORDER;
+    if(side == SHARE_SELL && seller_held - units < limit)
+        return SHARE_BELOW_KEEP;
+    if(seller_held < units)
+        return SHARE_NOT_HELD;
+    if(side == SHARE_BUY && buyer_held + units > limit)
+        return SHARE_ABOVE_WANT;
+    if(buyer_credits < units * price)
+        return SHARE_NO_CREDITS;
+    return SHARE_OK;
 }
 
 long long house_share_price(long long net_sales_last_day)

@@ -126,9 +126,11 @@
 #define BROADCAST_EVENT_TYPE          13   // a drone broadcasts a message (#380)
 #define BROADCAST_PROTOCOL_ID         40   // [A 40 perform]: broadcast the counted string at A (#380)
 #define BROADCAST_MAX_LEN             80   // characters in a broadcast
-#define SHARE_ORDER_EVENT_TYPE        14   // an order for shares sent to the Earth exchange (#469)
-#define SHARE_OFFER_PROTOCOL_ID       41   // [C U P 41 perform]: offer U of company C's shares at P each
-#define SHARE_BID_PROTOCOL_ID         42   // [C U P 42 perform]: bid for U of company C's shares at P each
+#define SHARE_EVENT_TYPE              14   // a share request reaching the Earth exchange (#469)
+#define SHARE_SELL_ORDER_PROTOCOL_ID  41   // perform(41, company, keep, price): post a sell order for shares
+#define SHARE_BUY_ORDER_PROTOCOL_ID   42   // perform(42, company, want, price): post a buy order for shares
+#define SHARE_PULL_PROTOCOL_ID        43   // perform(43, units, company, seller): buy from a sell order
+#define SHARE_PUSH_PROTOCOL_ID        44   // perform(44, units, company, buyer): sell into a buy order
 #define WAIT_PROTOCOL_ID               3   // [M 3 perform]: wait M game minutes
 #define MAX_WAIT_MINUTES           10080   // a week
 #define PLUNDER_HAUL_PROTOCOL_ID      35   // actions that move plunder out of a wreck and into the plunderer
@@ -341,6 +343,7 @@ typedef struct
 	int travel_shift;     // ...are delayed by this much, to last the trip
 	int launch_delay;     // launch: the program's light time from drone D (game s)
 	int wait_delay;       // wait: how long the drone waits (game s, #324 step 14)
+	int share_delay;      // shares: the light time to the Earth exchange (game s, #469)
 
 } ProtocolInfo_t;
 

@@ -789,7 +789,7 @@ Every drone comes with a library of names for the game, so you can write `mine(k
 |---|---|
 | Places | `earth` (3), `moon` (10), `mars` (4), `phobos` (11), `deimos` (12): their location IDs; the Locations page lists the rest |
 | Resources | `fuel` (2061), `magmite` (1000), `kunspar` (1100), `yalspar` (1110), `vladnium` (1120), `wolfite` (1130), `metals_a1` `metals_a2` `metals_a3` (2011-2013), `alloys_a1` `alloys_a2` `alloys_a3` (2021-2023), `inorganics_a1` (2031), `inorganics_a2` (2032), `organics_a1` (2041), `organics_a2` (2042), `rods` (3011), `engine_module` (5001), `mining_kit` (5901), `factory_kit` (5902), `cruiser_kit` (6001); any other resource by its number |
-| Actions: each returns 0 when it worked, else a negative code (see [Issuing Commands](#chapter-4-issuing-commands)) | `travel(place)`, `go(place)` (travels unless already there), `mine(mineral)`, `refine(mineral)`, `make(resource)`, `wait(minutes)`, `push(n, resource, drone)`, `pull(n, resource, drone)`, `launch(drone, kit)`, `plunder(wreck)`, `jettison(n, resource)`, `broadcast(text)`, `sell_shares(company, units, price)`, `buy_shares(company, units, price)`, `unpack()` (whichever kit is aboard; `unpack_kit()` is the same), `sell_order(price, keep, resource)`, `buy_order(price, want, resource)`, `sell_order_if_changed(price, keep, resource)`, `buy_order_if_changed(price, want, resource)` |
+| Actions: each returns 0 when it worked, else a negative code (see [Issuing Commands](#chapter-4-issuing-commands)) | `travel(place)`, `go(place)` (travels unless already there), `mine(mineral)`, `refine(mineral)`, `make(resource)`, `wait(minutes)`, `push(n, resource, drone)`, `pull(n, resource, drone)`, `launch(drone, kit)`, `plunder(wreck)`, `jettison(n, resource)`, `broadcast(text)`, `sell_shares(company, keep, price)`, `buy_shares(company, want, price)`, `pull_shares(n, company, seller)`, `push_shares(n, company, buyer)`, `unpack()` (whichever kit is aboard; `unpack_kit()` is the same), `sell_order(price, keep, resource)`, `buy_order(price, want, resource)`, `sell_order_if_changed(price, keep, resource)`, `buy_order_if_changed(price, want, resource)` |
 | Trading | `buy_here(n, resource)` (buy up to n here, from the cheapest sell orders first), `sell_here(n, resource)` (sell up to n here, into the best buy orders first), `sell_all(resource)` (sell all of it here; returns nothing); `buy_from_station` and `sell_to_station` are older names for `buy_here` and `sell_here` |
 | Market questions | `best_offer(resource)` (the cheapest other drone's sell order here: its price, the seller, and how many it will sell; 0, 0, 0 if none), `best_bid(resource)` (the highest other drone's buy order here: its price, the buyer, and how many it wants; 0, 0, 0 if none), `buy_price(resource)` and `sell_price(resource)` (the best price to buy or sell one here; 0 if nobody sells or buys), `board_price(resource, place)` (what a unit traded for at a place over the last game day, from the price board; 0 if none traded), `sold(resource, days_ago, place)` (how many sold at a place on a game day, an hour old; 0 is today so far), `sell_orders(resource)` and `buy_orders(resource)` (every order here, best first: `{price, units, drone, keep or want, held}`), `cost_to_buy(n, resource)` and `sale_value(n, resource)` (what buying or selling n here comes to, and how many of the n there are), `price_board(resource)`, `sales(resource, days_ago)`, `volume_here(resource, hours)`, `volume_everywhere(resource, hours)` |
 | Other exchanges | `quotes(resource)` (`quotes(r)[place]` is `{bid, bid_units, ask, ask_units, stock, hours_old}`: live here, an hour old elsewhere), `stock(resource, place)` (units on sale there), `orders_everywhere(resource)` (see [Other exchanges](#other-exchanges)) |
@@ -1032,26 +1032,54 @@ Every company has **1,000 shares**. Each share earns its holder **0.1% of the co
 
 Selling shares raises credits now in exchange for part of your future sales. Buying another company's shares earns you part of its sales for as long as you hold them. A company could make its living trading shares alone.
 
-Shares are traded at the **stock exchange at Earth**. Orders are electronic: a drone anywhere can place one for its company, and it reaches Earth at the speed of light.
+Shares trade **the way goods do**, at the **stock exchange at Earth**. Everything is electronic: a drone anywhere can act for its company, and each request reaches Earth at the speed of light and takes effect when it arrives.
 
-- `sell_shares(company, units, price)` (protocol 41) offers that many of a company's shares, yours or ones you hold, at no less than `price` credits each.
-- `buy_shares(company, units, price)` (protocol 42) bids for that many at no more than `price` each. Use `company()` for your own company's number, for instance to buy back your shares.
+**Posting orders.** Your company can have one standing sell order and one standing buy order for each company's shares:
 
-Each is an action: it takes a moment and burns a unit of fuel, and returns 0 when the order was sent. Your company has **one standing offer and one standing bid for each company's shares**. A new order replaces the old one when it reaches Earth, and an order for 0 units withdraws it.
+- `sell_shares(company, keep, price)` (protocol 41) sells that company's shares at `price` credits each, for as long as your company holds more than `keep`. For your own shares, use `company()`.
+- `buy_shares(company, want, price)` (protocol 42) buys them at `price` each, for as long as your company holds fewer than `want` and can pay.
 
-**Once a game hour the exchange clears.** For each company's shares, the highest bids buy from the cheapest offers, at the seller's price. A fill goes only as far as the seller still holds the shares and the buyer has the credits. What isn't filled stays on the book. There is no sales tax on shares.
+A new order replaces your old one when it reaches Earth, and a price of 0 withdraws it.
 
-**When a company fails**, the shares it held go to the House, which goes on collecting their income and offers them on the exchange at about 30 days' worth of their recent income.
+**Answering orders.**
+
+- `pull_shares(n, company, seller)` (protocol 43) buys `n` of a company's shares from the `seller` company's sell order, at its price.
+- `push_shares(n, company, buyer)` (protocol 44) sells `n` into the `buyer` company's buy order, at its price.
+
+It's all or nothing: the trade goes through whole, or it's refused and returns why:
+
+| Code | Why |
+|---|---|
+| -10 | there's no such order (or it's your own company's) |
+| -5 | it would leave the seller with fewer than its order keeps |
+| -6 | it would give the buyer more than its order wants |
+| -4 | the buyer can't pay |
+| -2 | you don't hold that many shares to push |
+
+There is no sales tax on shares.
+
+**Finding orders.** `share_sell_orders(company)` (query 690) lists the sell orders for a company's shares that can sell now, cheapest first. `share_buy_orders(company)` (query 691) lists the buy orders that can buy now, highest first. Each order is a record:
+
+- `price`;
+- `keep` (sell orders) or `want` (buy orders);
+- `held`: the shares the poster holds;
+- `company`: the poster;
+- `units`: how many a pull or push can move.
+
+Each of the four actions takes a moment and burns a unit of fuel. Each returns 0 when it worked.
+
+**When a company fails**, the shares it held go to the House. The House goes on collecting their income and posts sell orders for them at about 30 days' worth of their recent income.
 
 ```lua
--- Raise 2,000 credits by selling a fifth of the company, at 10 a share
-sell_shares(company(), 200, 10)
+-- Raise credits: sell up to a fifth of the company at 10 a share
+sell_shares(company(), 800, 10)
 
--- Buy up to 50 of company 12's shares at no more than 25 each
-buy_shares(12, 50, 25)
+-- Buy the cheapest 50 of company 12's shares on offer, if they're 25 or less
+local o = share_sell_orders(12)[1]
+if o and o.price <= 25 and o.units >= 50 then
+  pull_shares(50, 12, o.company)
+end
 ```
-
-Questions about who holds what, the order book and past prices come in a later release.
 
 ### Transferring resources between drones
 

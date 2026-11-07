@@ -28,36 +28,19 @@ int main(void)
     for(int i = 0; i < 3; i++) paid += dividend_for(net, holders[i]);
     check("holders of all shares get no more than the sale", paid <= net);
 
-    // The exchange (#469)
-    {
-        ShareOrder_t offers[] = { {1, 100, 10}, {2, 50, 12}, {3, 200, 20} };
-        ShareOrder_t bids[] = { {7, 120, 15}, {8, 100, 11} };
-        long long credits[] = { 100000, 100000 };
-        ShareFill_t f[8];
-        int n = shares_cross(offers, 3, bids, 2, credits, f, 8);
-        check("the highest bid buys the cheapest offer first, at its price",
-              n >= 1 && f[0].offer == 0 && f[0].bid == 0 && f[0].units == 100 && f[0].price == 10);
-        check("then the next cheapest it can meet", n >= 2 && f[1].offer == 1 && f[1].units == 20 && f[1].price == 12);
-        check("an offer above every bid doesn't sell", offers[2].units == 200);
-        check("a bid below what's left doesn't buy", n == 2 && bids[1].units == 100);
-        check("the buyer paid what it bought", credits[0] == 100000 - 100 * 10 - 20 * 12);
-    }
-    {
-        ShareOrder_t offers[] = { {1, 100, 10} };
-        ShareOrder_t bids[] = { {7, 100, 50} };
-        long long credits[] = { 255 };
-        ShareFill_t f[4];
-        int n = shares_cross(offers, 1, bids, 1, credits, f, 4);
-        check("a buyer gets only what its credits pay for", n == 1 && f[0].units == 25 && credits[0] == 5);
-    }
-    {
-        ShareOrder_t offers[] = { {7, 100, 10}, {1, 100, 11} };
-        ShareOrder_t bids[] = { {7, 50, 20} };
-        long long credits[] = { 100000 };
-        ShareFill_t f[4];
-        int n = shares_cross(offers, 2, bids, 1, credits, f, 4);
-        check("a company doesn't buy from itself", n == 1 && f[0].offer == 1 && offers[0].units == 100);
-    }
+    // The exchange (#469): a pull buys from a sell order, a push sells into a buy order
+    check("a pull within the seller's surplus goes through",
+          share_trade_check(SHARE_SELL, 40, 5, 900, 1000, 0, 200) == SHARE_OK);
+    check("a pull that would leave the seller below what it keeps is refused",
+          share_trade_check(SHARE_SELL, 150, 5, 900, 1000, 0, 100000) == SHARE_BELOW_KEEP);
+    check("a buyer who can't pay is refused", share_trade_check(SHARE_SELL, 40, 5, 900, 1000, 0, 199) == SHARE_NO_CREDITS);
+    check("a push within what the buyer wants goes through",
+          share_trade_check(SHARE_BUY, 50, 8, 100, 60, 40, 400) == SHARE_OK);
+    check("a push past what the buyer wants is refused",
+          share_trade_check(SHARE_BUY, 61, 8, 100, 100, 40, 100000) == SHARE_ABOVE_WANT);
+    check("a seller can't push shares it doesn't hold",
+          share_trade_check(SHARE_BUY, 50, 8, 100, 49, 0, 100000) == SHARE_NOT_HELD);
+    check("nothing for nothing", share_trade_check(SHARE_SELL, 0, 5, 0, 10, 0, 100) == SHARE_NO_ORDER);
     check("the House asks 30 days of dividends", house_share_price(100000) == 3000);
     check("and at least 1 credit", house_share_price(0) == 1 && house_share_price(10) == 1);
 

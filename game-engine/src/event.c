@@ -15,6 +15,7 @@
 #include "event.h"
 #include "db_station.h"
 #include "db_wreck.h"
+#include "db_shares.h"
 #include "wreck.h"
 #include "engine_e.h"
 #include "db.h"
@@ -1135,13 +1136,17 @@ static ErrorCode_t event_apply(Event_t *event)
 
     // The end of a wait (#324 step 14): nothing to do but finish the action,
     // so the waiting script's perform returns
-    // An order for shares (#469): the game engine already sent it to the Earth
-    // exchange; the event finishes the action, so the script's perform returns
-    if(result == ENGINE_OK && event->event_type == SHARE_ORDER_EVENT_TYPE) {
-        event->outcome = OUTCOME_OK;
+    // A share request reaching the Earth exchange (#469): posts an order, or
+    // pulls or pushes shares against another company's order. A refusal is
+    // recorded like any failed event, and perform returns why
+    if(result == ENGINE_OK && event->event_type == SHARE_EVENT_TYPE) {
+        int outcome = db_shares_settle(event);
+        event->outcome = outcome;
         event->logged = 1;
         event->new_cargo = NULL_VALUE;
         event->new_credits = NULL_VALUE;
+        if(outcome != OUTCOME_OK)
+            return ENGINE_LOGIC_ERROR;
         return db_update_event(event);
     }
 

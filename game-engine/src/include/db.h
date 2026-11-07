@@ -755,10 +755,10 @@ ErrorCode_t db_insert_broadcast(int action_id, int drone_id, const char* body, l
 /** The share exchange (#469): whether a company is still trading */
 int db_company_trading(int company);
 
-/** Sends an order for shares (side 1 offer, 2 bid) for the drone's company;
-    it reaches the Earth exchange at arrives_t */
-ErrorCode_t db_insert_share_order(int action_id, int drone_id, int share_company, int side,
-                                  int units, int price, long long placed_t, long long arrives_t);
+/** Records a share request (kind 1 post a sell order, 2 post a buy order,
+    3 pull, 4 push) for the drone's company, for its Share event to settle */
+ErrorCode_t db_insert_share_request(int action_id, int drone_id, int kind, int share_company, int counterparty,
+                                    int units, int price, long long placed_t);
 
 /** ****************************************************************************
 

@@ -451,13 +451,16 @@ int db_company_trading(int company)
     return found;
 }
 
-ErrorCode_t db_insert_share_order(int action_id, int drone_id, int share_company, int side,
-                                  int units, int price, long long placed_t, long long arrives_t)
+ErrorCode_t db_insert_share_request(int action_id, int drone_id, int kind, int share_company, int counterparty,
+                                    int units, int price, long long placed_t)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char other[16];
+    if(counterparty > 0) snprintf(other, sizeof(other), "%d", counterparty);
+    else snprintf(other, sizeof(other), "NULL");
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "INSERT INTO share_orders (company, drone, action, share_company, side, units, price, placed_t, arrives_t) "
-        "SELECT company_id, %d, %d, %d, %d, %d, %d, %lld, %lld FROM agents WHERE agent_id = %d",
-        drone_id, action_id, share_company, side, units, price, placed_t, arrives_t, drone_id);
+        "INSERT INTO share_requests (action, company, drone, kind, share_company, counterparty, units, price, placed_t) "
+        "SELECT %d, company_id, %d, %d, %d, %s, %d, %d, %lld FROM agents WHERE agent_id = %d",
+        action_id, drone_id, kind, share_company, other, units, price, placed_t, drone_id);
     return db_exec(engine_get_db_connection(), query_text);
 }
