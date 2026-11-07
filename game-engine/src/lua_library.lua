@@ -368,6 +368,12 @@ end
 local function share_trades(c)                                                    -- 694
   return records(ask(694, c), {"price", "units", "seller", "buyer", "day"})
 end
+-- Every company's shares on offer now, cheapest first (#473): company,
+-- price, units, seller, and sales (the company's income after tax over the
+-- last game day; each share earns 0.1% of it)
+local function shares_for_sale()                                                  -- 696
+  return records(ask(696), {"company", "price", "units", "seller", "sales"})
+end
 local function share_price(c)
   local t = share_trades(c)[1]
   return t and t.price or nil
@@ -564,6 +570,7 @@ _G.shares_held = shares_held
 _G.shareholders = shareholders
 _G.share_trades = share_trades
 _G.share_price = share_price
+_G.shares_for_sale = shares_for_sale
 _G.ask = ask
 _G.me = me
 _G.location = location

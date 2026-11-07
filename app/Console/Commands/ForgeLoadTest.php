@@ -100,8 +100,11 @@ class ForgeLoadTest extends Command
         foreach ($designs as $design => [$script, $n]) {
             $owner = Release::owner();
             $have = (int) DB::table('companies')->where('name', 'like', "$design %")->count();
+            // The kit its header asks for (#473: the listed miner mines);
+            // the factory kit otherwise
+            $kit = preg_match('/Release it with the Mining Kit/', $script) ? 'mining' : 'factory';
             for ($i = 1; $i <= $n; $i++) {
-                Release::release($owner, "$design " . ($have + $i), $script, null, null, null, 'factory');
+                Release::release($owner, "$design " . ($have + $i), $script, null, null, null, $kit);
             }
             $this->info("Released $n $design.");
         }
