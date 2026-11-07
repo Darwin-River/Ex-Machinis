@@ -144,7 +144,7 @@ Four more pages show the whole world, live:
 - **Home:** "What's happening" lists the latest events in plain words: new releases, clones launched, drones that died and why, plunders, companies that ended, and trades.
 - **Market** (`/market`): the order book (for each resource, the cheapest sell order and the best buy order at each place) and the latest trades.
 - **Map:** the planets where they are now, with the drones and wrecks around each.
-- **Leaderboard:** companies by net wealth, all time and **Rising** (the gain over the last real week). Each release starts a company, and the drones it launches belong to it. Net wealth counts the company's credits and its working drones' goods at market prices (what they sold for over the last three game days), minus what the company started with, so it measures what the company made. The drones themselves don't count: launching a copy lowers net wealth by about the price of its hull (3,000) until the copy earns that back, often 10 to 20 game days, and longer for a copy that first flies to Mars. Grow early, not near the end of a contest.
+- **Leaderboard:** companies by net wealth, all time and **Rising** (the gain over the last real week). Each release starts a company, and the drones it launches belong to it. Net wealth counts the company's credits, its working drones' goods at market prices (what they sold for over the last three game days) and the shares it holds in other companies at their last trade price, minus what the company started with, so it measures what the company made. The drones themselves don't count: launching a copy lowers net wealth by about the price of its hull (3,000) until the copy earns that back, often 10 to 20 game days, and longer for a copy that first flies to Mars. Grow early, not near the end of a contest.
 
 Your drones can't see all this: they see live orders only where they are (see [the price board](#the-price-board)). You can, so use these pages to plan.
 
@@ -1067,6 +1067,15 @@ There is no sales tax on shares.
 - `units`: how many a pull or push can move.
 
 Each of the four actions takes a moment and burns a unit of fuel. Each returns 0 when it worked.
+
+**What you hold, and who holds you.**
+
+- `shares_held()` (query 692) lists the shares your company holds, its own included. Each is `{company, units, dividends, price}`, where `dividends` is what those shares have paid you so far and `price` is their last trade price (0 if they never traded).
+- `shareholders(company)` (query 693) lists who holds a company's shares, most first: `{company, units}`.
+- `share_trades(company)` (query 694) lists its last 20 trades, newest first: `{price, units, seller, buyer, day}`.
+- `share_price(company)` is the last trade price, or `nil` if its shares never traded.
+
+The company's page on the website shows the same, and net wealth on the leaderboard counts the shares you hold in other companies at their last trade price.
 
 **When a company fails**, the shares it held go to the House. The House goes on collecting their income and posts sell orders for them at about 30 days' worth of their recent income.
 

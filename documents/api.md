@@ -52,7 +52,7 @@ The game clock is fast: it normally runs 1,800 game seconds a real second, a gam
 3. **Release it** with `POST /release`.
 4. **Follow it:**
    - `GET /drones/{id}` for where each drone is, its cargo, what it is doing, the line its script set with `set_status(text)` (`script_status`), its timeline, the fuel it used today, what it has said, and what went wrong;
-   - `GET /companies/{id}` (or `?name=...`) for credits, net wealth and drones, and `GET /companies/{id}/history` for net wealth day by day;
+   - `GET /companies/{id}` (or `?name=...`) for credits, net wealth, drones and shares, and `GET /companies/{id}/history` for net wealth day by day;
    - `GET /orders?company=...` for its open orders.
 5. **Release again:** fix what went wrong, or try a better idea, and release the new version under a new name. Every company is an experiment.
 
@@ -170,7 +170,8 @@ Use these to look up a company.
 
 | Field | Meaning |
 |---|---|
-| `net_wealth` | the leaderboard's measure: credits plus goods at market prices, less the starter kit's value. The drones themselves don't count, so launching a copy lowers it by about a hull's price until the copy earns that back |
+| `net_wealth` | the leaderboard's measure: credits plus goods at market prices plus shares held in other companies at their last trade price, less the starter kit's value. The drones themselves don't count, so launching a copy lowers it by about a hull's price until the copy earns that back |
+| `shares` | the stock market (#471): `price` (its shares' last trade price, or null), `holders` (`{company, name, units, dividends}`, most first), `orders` (the standing orders for its shares at the Earth exchange: `{company, name, side, price, keep or want}`), `holdings` (the shares it holds in other companies: `{company, name, units, dividends, price, value}`) and `trades` (its shares' last 10 trades: `{seller, seller_name, buyer, buyer_name, units, price, game_t}`) |
 | `drones` | the drone you released, its clones, and their clones |
 
 ### `GET /drones/{id}`
