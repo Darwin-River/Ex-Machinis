@@ -433,3 +433,31 @@ ErrorCode_t db_turn_row_load(DbConnection_t* connection, int agent_id)
     if(db_result) mysql_free_result(db_result);
     return result;
 }
+
+/******************************* SHARE ORDERS (#469) *************************/
+
+int db_company_trading(int company)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT COUNT(*) FROM companies WHERE company_id = %d AND eliminated_at IS NULL", company);
+    if(mysql_query(connection->hndl, query_text))
+        return 0;
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+    int found = (row && row[0]) ? atoi(row[0]) > 0 : 0;
+    if(res) mysql_free_result(res);
+    return found;
+}
+
+ErrorCode_t db_insert_share_order(int action_id, int drone_id, int share_company, int side,
+                                  int units, int price, long long placed_t, long long arrives_t)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "INSERT INTO share_orders (company, drone, action, share_company, side, units, price, placed_t, arrives_t) "
+        "SELECT company_id, %d, %d, %d, %d, %d, %d, %lld, %lld FROM agents WHERE agent_id = %d",
+        drone_id, action_id, share_company, side, units, price, placed_t, arrives_t, drone_id);
+    return db_exec(engine_get_db_connection(), query_text);
+}

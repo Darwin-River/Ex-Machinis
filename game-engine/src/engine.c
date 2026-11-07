@@ -1843,6 +1843,12 @@ int engine_get_current_drone_id()
     return engine.last_command.agent_id;
 }
 
+/* Where the drone running now is (its object, #469) */
+int engine_get_current_object_id(void)
+{
+    return engine.last_agent.object_id;
+}
+
 
 /** ****************************************************************************
 

@@ -1092,6 +1092,23 @@ static ErrorCode_t protocol_execute_action(int protocolId, VmExtension_t* vmExt)
     }
   }
 
+  // An order for shares (#469): perform(41 or 42, company, units, price), so
+  // the price is on top. Withdrawing (0 units) needs no price; otherwise a
+  // price of at least 1 and a company still trading
+  Bool_t share_order = (protocol.protocol_id == SHARE_OFFER_PROTOCOL_ID ||
+                        protocol.protocol_id == SHARE_BID_PROTOCOL_ID) ? ENGINE_TRUE : ENGINE_FALSE;
+  int share_price = 0, share_units = 0, share_company = 0;
+  if(result == ENGINE_OK && share_order) {
+    share_price = protocol.parameters[0];
+    share_units = protocol.parameters[1];
+    share_company = protocol.parameters[2];
+    if(share_units < 0 || (share_units > 0 && (share_price < 1 || !db_company_trading(share_company)))) {
+      engine_trace(TRACE_LEVEL_ALWAYS, "Share order refused: company [%d], units [%d], price [%d]",
+        share_company, share_units, share_price);
+      result = ENGINE_LOGIC_ERROR;
+    }
+  }
+
   // Protocols with the multiplier flag (push, pull) always take it, after
   // their parameters: N R D 10 perform (#315). Taking it only when the stack
   // had a value made perform eat a script's own values. Missing, it is a
@@ -1140,6 +1157,18 @@ static ErrorCode_t protocol_execute_action(int protocolId, VmExtension_t* vmExt)
     result = protocol_process_effects(&protocol, action.action_id);
     ErrorCode_t flushed = protocol_flush_events(result == ENGINE_OK ? ENGINE_TRUE : ENGINE_FALSE);
     if(result == ENGINE_OK) result = flushed;
+  }
+
+  // The order goes to the Earth exchange at the speed of light (#469)
+  if(result == ENGINE_OK && share_order) {
+    char position[MAX_OBJECT_NAME_SIZE];
+    double km = 0;
+    long long now = game_time_now_seconds(), delay = 0;
+    if(engine_get_drone_position(engine_get_current_object_id(), position, &km) == ENGINE_OK)
+      delay = game_time_light_seconds(km);
+    result = db_insert_share_order(action.action_id, engine_get_current_drone_id(), share_company,
+                                   protocol.protocol_id == SHARE_OFFER_PROTOCOL_ID ? 1 : 2,
+                                   share_units, share_price, now, now + delay);
   }
 
   if(result == ENGINE_OK && protocol.protocol_id == BROADCAST_PROTOCOL_ID) {

@@ -50,6 +50,10 @@ local function launch(drone, kit) return perform(12, drone, kit) end
 local function plunder(wreck) return perform(34, wreck) end
 local function jettison(n, resource) return perform(1, n, resource) end
 local function broadcast(text) return perform(40, text) end
+-- The share exchange at Earth (#469): orders for the drone's company,
+-- standing until filled or replaced; 0 units withdraws one
+local function sell_shares(c, n, price) return perform(41, c, n, price or 1) end
+local function buy_shares(c, n, price) return perform(42, c, n, price or 1) end
 
 -- Queries: ask returns the rows (a table of rows, each a table of columns)
 local function ask(id, ...) return query(id, ...) or {} end
@@ -520,6 +524,8 @@ _G.launch = launch
 _G.plunder = plunder
 _G.jettison = jettison
 _G.broadcast = broadcast
+_G.sell_shares = sell_shares
+_G.buy_shares = buy_shares
 _G.ask = ask
 _G.me = me
 _G.location = location

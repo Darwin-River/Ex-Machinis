@@ -376,6 +376,8 @@ DbConnection_t* engine_get_db_connection();
 
 *******************************************************************************/
 int engine_get_current_drone_id();
+// Where the drone running now is (#469)
+int engine_get_current_object_id(void);
 
 /** Where the drone running the current command is (object ID) */
 int engine_get_current_drone_object_id();

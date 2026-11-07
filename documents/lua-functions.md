@@ -34,6 +34,7 @@ Every function below is built in (`game-engine/src/lua_library.lua`). Actions re
 | Safety | `fuel_floor(n)` |
 | Waiting | `wait(minutes)` |
 | Wrecks | `plunder(wreck)`, `wrecks()` (here: `{drone, plundered}`), `wreck_hold(wreck)` |
+| Shares (the stock exchange at Earth) | `sell_shares(company, units, price)` and `buy_shares(company, units, price)` send your company's offer or bid to the Earth exchange, which clears once a game hour at the seller's price; 0 units withdraws the order. See the players' manual, [Shares and the stock exchange](players-manual.md#shares-and-the-stock-exchange) |
 | Messages and events | `broadcast(text)`, `events_here(type)`, `events_earth(type)`, `events_affecting(drone)`, `local_events()` (lists of event IDs, newest first), `event(id)` (everything about it: `{type, type_name, acting, protocol, affected, resource, quantity, credits, location, place, day, seconds, message}`), `event_drone(event)`, `message(event)` (its text, or nil; messages are private to a company), `message_event` (the type of a message: 13) |
 | Game data | `resource_name(r)`, `unit_mass(r)`, `protocol_name(p)`, `protocol_minutes(p)`, `consumes(p)`, `produces(p)`, `retains(p)` (`{resource, units}`), `producers(r)`, `consumers(r)`, `users(r)` (`{protocol, units}`), `hull_capacity(hull)` |
 | State machines | `become(mode)`, `in_mode(mode)`, `tick()`, `ticks()` |

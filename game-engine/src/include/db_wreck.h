@@ -36,6 +36,10 @@ typedef struct
     *total, and returns how many holders are paid */
 int db_dividends_due(int company, long long net, Dividend_t* out, int max, long long* total);
 
+/** Adds amount (negative: takes it) to a company's credits, with a credit
+    event for the drone given or, when 0, for one of its drones */
+ErrorCode_t db_credit_company(int company, long long amount, int drone, int action, int resource);
+
 /** Pays a dividend to a holder that isn't a party to the sale: its account,
     a credit event for one of its drones, and the holder's running total */
 ErrorCode_t db_pay_dividend(int company, int holder, long long amount, int action, int resource);

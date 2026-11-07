@@ -535,6 +535,24 @@ add_effects(BROADCAST_PROTOCOL, [
     {'time': 0, 'drone': 0, 'resource': FUEL, 'event_type': BROADCAST_EVENT, 'local': 1, 'installed': 0,
      'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': 0}])
 
+# The share exchange at Earth (#469, the stock market #466): [C U P 41
+# perform] offers U of company C's shares at P credits each; [C U P 42
+# perform] bids for them. The order is the drone's company's and travels to
+# Earth at the speed of light; the exchange clears once a game hour
+# (db_shares.c). Its one effect is a Share order event (type 14) that ends
+# the action at once. It burns a unit of fuel.
+SHARE_EVENT = 14
+for pid, verb in (('41', 'Offer shares'), ('42', 'Bid for shares')):
+    what = ('offers U of company C\'s shares at P credits each' if pid == '41'
+            else 'bids for U of company C\'s shares at up to P credits each')
+    protocols[pid] = [pid, verb, '3', '100',
+                      f'[C U P {pid} perform]: {what}, for the drone\'s company, at the Earth exchange (it gets '
+                      'there at the speed of light; 0 units withdraws the order). The exchange clears hourly.',
+                      '1', '1', '0']
+    add_effects(pid, [
+        {'time': 0, 'drone': 0, 'resource': FUEL, 'event_type': SHARE_EVENT, 'local': 1, 'installed': 0,
+         'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': 0}])
+
 # Wrecks and plunder (#324 step 12): a drone plunders the wreck W at the
 # place where it is (34). The plunder event (type 11) carries W; the events
 # engine checks it and moves the plunderer's share of the wreck's goods and
@@ -1502,7 +1520,8 @@ for line in open(os.path.join(REPO, 'game-engine', 'src', 'lua_library.lua'), en
 lua_res = lambda rid: LUA_NAMES.get(rid, str(rid))
 LUA_CALLS = {'1': 'jettison(N, R)', '3': 'wait(M)', '7': 'sell_order(P, M, R)', '8': 'buy_order(P, M, R)',
              '10': 'push(N, R, D)', '11': 'pull(N, R, D)', '12': 'launch(D, K)', '34': 'plunder(W)',
-             '40': 'broadcast(text)', '5001': 'travel(N)', '25901': 'unpack()', '25902': 'unpack()'}
+             '40': 'broadcast(text)', '41': 'sell_shares(company, units, price)',
+             '42': 'buy_shares(company, units, price)', '5001': 'travel(N)', '25901': 'unpack()', '25902': 'unpack()'}
 
 
 def lua_call(pid, args):
@@ -1620,6 +1639,8 @@ lines.append('-- Event types the engines handle (8: launch a drone, #238)')
 lines.append("INSERT INTO `event_types` (id, name) VALUES (8, 'Launch drone') "
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')
 lines.append("INSERT INTO `event_types` (id, name) VALUES (9, 'Offer to station'), (10, 'Order from station') "
+             'ON DUPLICATE KEY UPDATE name = VALUES(name);')
+lines.append("INSERT INTO `event_types` (id, name) VALUES (14, 'Share order') "
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')
 lines.append("INSERT INTO `event_types` (id, name) VALUES (13, 'Broadcast') "
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')

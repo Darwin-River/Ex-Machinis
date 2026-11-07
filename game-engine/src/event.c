@@ -1135,6 +1135,16 @@ static ErrorCode_t event_apply(Event_t *event)
 
     // The end of a wait (#324 step 14): nothing to do but finish the action,
     // so the waiting script's perform returns
+    // An order for shares (#469): the game engine already sent it to the Earth
+    // exchange; the event finishes the action, so the script's perform returns
+    if(result == ENGINE_OK && event->event_type == SHARE_ORDER_EVENT_TYPE) {
+        event->outcome = OUTCOME_OK;
+        event->logged = 1;
+        event->new_cargo = NULL_VALUE;
+        event->new_credits = NULL_VALUE;
+        return db_update_event(event);
+    }
+
     if(result == ENGINE_OK && event->event_type == WAIT_EVENT_TYPE) {
         event->outcome = OUTCOME_OK;
         event->logged = 1;

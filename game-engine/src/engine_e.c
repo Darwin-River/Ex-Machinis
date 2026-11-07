@@ -19,6 +19,7 @@
 #include "event.h"
 #include "engine_e.h"
 #include "db_station.h"
+#include "db_shares.h"
 #include "db_wreck.h"
 #include "game_time.h"
 #include "db.h"
@@ -334,6 +335,16 @@ ErrorCode_t engine_run()
         if(db_start_transaction(&engine.db_connection) == ENGINE_OK)
         {
             if(db_station_clear_due() == ENGINE_OK)
+                db_commit_transaction(&engine.db_connection);
+            else
+                db_rollback_transaction(&engine.db_connection);
+        }
+
+        // The share exchange at Earth (#469): once a game hour, in one
+        // transaction, so a batch clears whole or not at all
+        if(db_start_transaction(&engine.db_connection) == ENGINE_OK)
+        {
+            if(db_shares_clear_due() == ENGINE_OK)
                 db_commit_transaction(&engine.db_connection);
             else
                 db_rollback_transaction(&engine.db_connection);

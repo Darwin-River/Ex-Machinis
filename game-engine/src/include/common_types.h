@@ -126,6 +126,9 @@
 #define BROADCAST_EVENT_TYPE          13   // a drone broadcasts a message (#380)
 #define BROADCAST_PROTOCOL_ID         40   // [A 40 perform]: broadcast the counted string at A (#380)
 #define BROADCAST_MAX_LEN             80   // characters in a broadcast
+#define SHARE_ORDER_EVENT_TYPE        14   // an order for shares sent to the Earth exchange (#469)
+#define SHARE_OFFER_PROTOCOL_ID       41   // [C U P 41 perform]: offer U of company C's shares at P each
+#define SHARE_BID_PROTOCOL_ID         42   // [C U P 42 perform]: bid for U of company C's shares at P each
 #define WAIT_PROTOCOL_ID               3   // [M 3 perform]: wait M game minutes
 #define MAX_WAIT_MINUTES           10080   // a week
 #define PLUNDER_HAUL_PROTOCOL_ID      35   // actions that move plunder out of a wreck and into the plunderer
