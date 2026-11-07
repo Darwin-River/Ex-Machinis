@@ -1074,6 +1074,7 @@ Each of the four actions takes a moment and burns a unit of fuel. Each returns 0
 - `shareholders(company)` (query 693) lists who holds a company's shares, most first: `{company, units}`.
 - `share_trades(company)` (query 694) lists its last 20 trades, newest first: `{price, units, seller, buyer, day}`.
 - `share_price(company)` is the last trade price, or `nil` if its shares never traded.
+- `shares_for_sale()` (query 696) lists every sell order for shares that can sell now, any company's, cheapest first: `{company, price, units, seller, sales}`. `sales` is the company's sales income after tax over the last game day, so a share of it earns about `sales / 1000` a day. `examples/companies/investor.lua` is a company that lives on this.
 
 The company's page on the website shows the same, and net wealth on the leaderboard counts the shares you hold in other companies at their last trade price.
 
