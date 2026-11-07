@@ -4,7 +4,9 @@
 -- Every company has 1,000 shares, each paying its holder 0.1% of the
 -- company's sales income. This one keeps share_keep of its own and offers
 -- the rest at the Earth exchange for share_days of their dividends, re-priced
--- each game day from what it sold: credits now for part of its future.
+-- each game day from what it sold (with no sales, it withdraws the offer):
+-- credits now for part of its future. Once it has sold some, it puts the
+-- credits to work: it grows at grow_listed instead of grow_at.
 -- The rest is the miner starter:
 -- It mines the richer of kunspar and wolfite at the Moon, refines it, and
 -- keeps standing sell orders for its metals, priced halfway between the
@@ -24,17 +26,30 @@ rest = 240         -- game minutes to rest when both Mars moons are dry
 hold_cap = 16      -- metals it keeps on offer to other drones
 share_keep = 700   -- of its own 1,000 shares it keeps this many
 share_days = 8     -- asks this many days of dividends a share
-share_floor = 5    -- and never less than this
+grow_listed = 6500 -- grows at this instead, once it has sold shares
 
 -- Its sell order for its own shares, at share_days of what a share earns
--- (0.1% of a day's sales after tax), once a game day
-share_day = -1
+-- (0.1% of a day's sales after tax), once a game day. No sales, no price:
+-- price 0 withdraws the order until it earns again
+share_day, sold = -1, 0
 function list_shares()
   if today() == share_day then return end
   share_day = today()
   local e = earnings(24)
   local a_day = math.max(e.sales - e.taxes, 0) / 1000
-  sell_shares(company(), share_keep, math.max(math.floor(a_day * share_days), share_floor))
+  sell_shares(company(), share_keep, math.floor(a_day * share_days))
+  local held = 0
+  for _, h in ipairs(shares_held()) do
+    if h.company == company() then held = h.units end
+  end
+  sold = 1000 - held
+end
+
+-- The credits at which it launches a copy: lower once shareholders have
+-- paid in, so what it raised goes into drones
+function grow_line()
+  if sold > 0 then return math.max(grow_listed, 6500) end
+  return math.max(grow_at, 6500)
 end
 
 -- The site it works: 0 the Moon, 1 Phobos, 2 Deimos. The drone you release
@@ -170,14 +185,14 @@ function equip_clone()
   push(40, fuel, newest.drone)
 end
 
--- Growth: with grow_at credits or more, at an exchange, buy a Mining
+-- Growth: with grow_line() credits or more, at an exchange, buy a Mining
 -- Cruiser kit and a Mining Kit, launch a copy of this drone (it runs this
 -- same program, with these variables) and hand it the kit and 40 fuel. A
 -- copy costs about 5,000: growing pays early, not in a contest's last weeks
 function reinvest()
   if units(mining_kit) > 0 then equip_clone(); fill_to(60); return end
   if units(cruiser_kit) == 0 then
-    if credits() < math.max(grow_at, 6500) then return end
+    if credits() < grow_line() then return end
     get_one(cruiser_kit)
     if units(cruiser_kit) == 0 then return end
   end
