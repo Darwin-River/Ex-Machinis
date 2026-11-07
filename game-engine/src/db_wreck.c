@@ -12,6 +12,7 @@
 #include "game_time.h"
 #include "trace.h"
 #include "wreck.h"
+#include "shares.h"
 
 #define MAX_WRECK_ROWS     100
 
@@ -202,4 +203,68 @@ ErrorCode_t db_record_sales_tax(int company, long long amount, long long credits
         return ENGINE_OK;
     return wr_exec("INSERT INTO company_taxes (company_id, charged_t, amount, credits_after, eliminated) "
                    "VALUES (%d, %lld, %lld, %lld, 0)", company, game_time_now_seconds(), amount, credits_after);
+}
+
+/******************************* DIVIDENDS (#467) ****************************/
+
+int db_dividends_due(int company, long long net, Dividend_t* out, int max, long long* total)
+{
+    int n = 0;
+    *total = 0;
+    if(net <= 0)
+        return 0;
+
+    // Most companies hold all their own shares: one index step finds no one
+    MYSQL_RES* res = wr_select("SELECT holder, units FROM shares WHERE company = %d AND holder <> %d AND units > 0",
+                               company, company);
+    MYSQL_ROW row;
+    while(res && n < max && (row = mysql_fetch_row(res))) {
+        long long amount = dividend_for(net, row[1] ? atoi(row[1]) : 0);
+        if(amount <= 0)
+            continue;
+        out[n].holder = row[0] ? atoi(row[0]) : 0;
+        out[n].amount = amount;
+        *total += amount;
+        n++;
+    }
+    if(res) mysql_free_result(res);
+    return n;
+}
+
+ErrorCode_t db_record_dividend(int company, int holder, long long amount)
+{
+    return wr_exec("UPDATE shares SET dividends = dividends + %lld WHERE company = %d AND holder = %d",
+                   amount, company, holder);
+}
+
+ErrorCode_t db_pay_dividend(int company, int holder, long long amount, int action, int resource)
+{
+    if(amount <= 0)
+        return ENGINE_OK;
+
+    ErrorCode_t result = wr_exec("UPDATE companies SET credits = credits + %lld WHERE company_id = %d", amount, holder);
+    if(result == ENGINE_OK)
+        result = db_record_dividend(company, holder, amount);
+
+    // A credit event for one of its drones (a working one if it has any), as
+    // every other change of credits has: the company's history of credits
+    int drone = (int)wr_value(0, "SELECT agent_id FROM agents WHERE company_id = %d "
+                                 "ORDER BY wrecked_at IS NOT NULL, agent_id LIMIT 1", holder);
+    if(result == ENGINE_OK && drone > 0) {
+        Event_t ev;
+        memset(&ev, 0, sizeof(ev));
+        ev.event_type = INCREMENT_CREDITS_EVENT_TYPE;
+        ev.action_id = action;
+        ev.logged = 1;
+        ev.outcome = OUTCOME_OK;
+        ev.drone_id = drone;
+        ev.resource_id = resource;
+        ev.new_quantity = NULL_VALUE;
+        ev.new_credits = (int)wr_value(0, "SELECT credits FROM companies WHERE company_id = %d", holder);
+        ev.new_location = NULL_VALUE;
+        ev.new_transmission = NULL_VALUE;
+        ev.new_cargo = NULL_VALUE;
+        result = db_insert_event_e(&ev);
+    }
+    return result;
 }

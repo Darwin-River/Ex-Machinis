@@ -243,7 +243,13 @@ static ErrorCode_t st_clear_batch(int station, int resource, int side, long long
             long long paid = fill[i] * price;
             long long tax = sales_tax(paid, permille);
             spent += paid;
-            result = st_credit(companies[i], drones[i], actions[i], resource, paid - tax);
+            // Dividends (#467): the seller's shareholders' part of the sale
+            static Dividend_t due[MAX_DIVIDENDS];
+            long long dividends = 0;
+            int holders = db_dividends_due(companies[i], paid - tax, due, MAX_DIVIDENDS, &dividends);
+            result = st_credit(companies[i], drones[i], actions[i], resource, paid - tax - dividends);
+            for(int h = 0; h < holders && result == ENGINE_OK; h++)
+                result = db_pay_dividend(companies[i], due[h].holder, due[h].amount, actions[i], resource);
             if(result == ENGINE_OK && tax > 0)
                 result = db_record_sales_tax(companies[i], tax,
                     st_value(0, "SELECT credits FROM companies WHERE company_id = %d", companies[i]));

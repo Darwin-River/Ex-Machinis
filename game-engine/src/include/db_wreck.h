@@ -22,4 +22,26 @@ int db_sales_tax_permille(void);
 /** Records the sales tax a company paid on a sale, with its credits after */
 ErrorCode_t db_record_sales_tax(int company, long long amount, long long credits_after);
 
+/* Dividends (#467, part of the stock market #466): what a sale pays the
+   seller's outside shareholders */
+typedef struct
+{
+    int holder;           /* the company holding the shares */
+    long long amount;     /* credits it is paid */
+} Dividend_t;
+#define MAX_DIVIDENDS 1000
+
+/** What a company's sale, `net` credits after sales tax, pays the companies
+    holding its shares (not the company itself): fills out[] (up to max) and
+    *total, and returns how many holders are paid */
+int db_dividends_due(int company, long long net, Dividend_t* out, int max, long long* total);
+
+/** Pays a dividend to a holder that isn't a party to the sale: its account,
+    a credit event for one of its drones, and the holder's running total */
+ErrorCode_t db_pay_dividend(int company, int holder, long long amount, int action, int resource);
+
+/** Adds a dividend to the holder's running total (shares.dividends), for a
+    holder its caller credits itself */
+ErrorCode_t db_record_dividend(int company, int holder, long long amount);
+
 #endif
