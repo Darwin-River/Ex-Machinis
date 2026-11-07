@@ -76,6 +76,66 @@
                     @endforeach
                 </table>
             </div>
+
+            {{-- The stock market (#471) --}}
+            <div class="row row-xxl row-30 row-md-60">
+                <div class="col">
+                    <h2 class="wow fadeInLeft">Shares</h2>
+                    <p>1,000 shares, each paying 0.1% of the company's sales income after tax.
+                        Last trade price: <b>{{ $shares['price'] !== null ? number_format($shares['price']) . ' credits' : 'never traded' }}</b>.</p>
+                </div>
+            </div>
+            <div class="table-custom-responsive">
+                <table class="table-ticket">
+                    <tr><th>Holder</th><th>Shares</th><th>Dividends paid</th></tr>
+                    @forelse($shares['holders'] as $h)
+                        <tr><td><a href="{{ url('/companies/'.$h['company']) }}">{{ $h['name'] }}</a></td>
+                            <td>{{ number_format($h['units']) }}</td><td>{{ number_format($h['dividends']) }}</td></tr>
+                    @empty
+                        <tr><td colspan="3">No holders.</td></tr>
+                    @endforelse
+                </table>
+            </div>
+            @if(count($shares['orders']))
+                <h4>Orders at the Earth exchange</h4>
+                <div class="table-custom-responsive">
+                    <table class="table-ticket">
+                        <tr><th>Company</th><th>Order</th><th>Price</th><th>Limit</th></tr>
+                        @foreach($shares['orders'] as $o)
+                            <tr><td><a href="{{ url('/companies/'.$o['company']) }}">{{ $o['name'] }}</a></td>
+                                <td>{{ $o['side'] }}</td><td>{{ number_format($o['price']) }}</td>
+                                <td>{{ $o['side'] === 'sell' ? 'keeps ' . $o['keep'] : 'wants ' . $o['want'] }}</td></tr>
+                        @endforeach
+                    </table>
+                </div>
+            @endif
+            @if(count($shares['holdings']))
+                <h4>Shares it holds in other companies</h4>
+                <div class="table-custom-responsive">
+                    <table class="table-ticket">
+                        <tr><th>Company</th><th>Shares</th><th>Last price</th><th>Value</th><th>Dividends received</th></tr>
+                        @foreach($shares['holdings'] as $h)
+                            <tr><td><a href="{{ url('/companies/'.$h['company']) }}">{{ $h['name'] }}</a></td>
+                                <td>{{ number_format($h['units']) }}</td>
+                                <td>{{ $h['price'] !== null ? number_format($h['price']) : '-' }}</td>
+                                <td>{{ number_format($h['value']) }}</td><td>{{ number_format($h['dividends']) }}</td></tr>
+                        @endforeach
+                    </table>
+                </div>
+            @endif
+            @if(count($shares['trades']))
+                <h4>Recent trades in its shares</h4>
+                <div class="table-custom-responsive">
+                    <table class="table-ticket">
+                        <tr><th>Seller</th><th>Buyer</th><th>Shares</th><th>Price</th></tr>
+                        @foreach($shares['trades'] as $t)
+                            <tr><td><a href="{{ url('/companies/'.$t['seller']) }}">{{ $t['seller_name'] }}</a></td>
+                                <td><a href="{{ url('/companies/'.$t['buyer']) }}">{{ $t['buyer_name'] }}</a></td>
+                                <td>{{ number_format($t['units']) }}</td><td>{{ number_format($t['price']) }}</td></tr>
+                        @endforeach
+                    </table>
+                </div>
+            @endif
         </div>
 
 

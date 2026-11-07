@@ -65,7 +65,10 @@ class UserController extends Controller
 
         $spacecraft = Agent::with('hull')->with('location')->with('lastEVents')->where('company_id', '=', $id)->get();
 
-        return view('user.company', compact('user', 'spacecraft'));
+        // The stock market (#471)
+        $shares = \App\Services\Shares::summary((int) $company->company_id);
+
+        return view('user.company', compact('user', 'spacecraft', 'shares'));
     }
 
 }

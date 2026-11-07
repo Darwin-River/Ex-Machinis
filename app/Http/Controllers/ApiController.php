@@ -7,6 +7,7 @@ use App\Services\DronePage;
 use App\Services\HouseMarket;
 use App\Services\LaunchQueue;
 use App\Services\Leaderboard;
+use App\Services\Shares;
 use App\Services\LiveQuery;
 use App\Services\Recipes;
 use App\Services\Release;
@@ -79,6 +80,9 @@ class ApiController extends Controller
             'net_wealth' => $wealth,
             'ended' => $company->eliminated_at !== null,
             'drones' => $drones->map(fn (Agent $a) => $this->droneSummary($a))->all(),
+            // The stock market (#471): its share price, holders, orders, trades
+            // and the shares it holds in others
+            'shares' => Shares::summary((int) $company->company_id),
         ]);
     }
 

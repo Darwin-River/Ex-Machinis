@@ -357,6 +357,21 @@ local function share_buy_orders(c)                                              
   for _, o in ipairs(list) do o.units = math.max(o.want - o.held, 0) end
   return list
 end
+-- Shares (#471): what the company holds, who holds a company's shares,
+-- its trades, and its last trade price (nil if it never traded)
+local function shares_held()                                                      -- 692
+  return records(ask(692), {"company", "units", "dividends", "price"})
+end
+local function shareholders(c)                                                    -- 693
+  return records(ask(693, c), {"company", "units"})
+end
+local function share_trades(c)                                                    -- 694
+  return records(ask(694, c), {"price", "units", "seller", "buyer", "day"})
+end
+local function share_price(c)
+  local t = share_trades(c)[1]
+  return t and t.price or nil
+end
 local function buy_orders(r)                                                      -- 600
   local list = records(ask(600, r), {"price", "want", "held", "drone"})
   for _, o in ipairs(list) do o.units = math.max(o.want - o.held, 0) end
@@ -545,6 +560,10 @@ _G.pull_shares = pull_shares
 _G.push_shares = push_shares
 _G.share_sell_orders = share_sell_orders
 _G.share_buy_orders = share_buy_orders
+_G.shares_held = shares_held
+_G.shareholders = shareholders
+_G.share_trades = share_trades
+_G.share_price = share_price
 _G.ask = ask
 _G.me = me
 _G.location = location

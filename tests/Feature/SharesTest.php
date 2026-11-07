@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Services\Leaderboard;
+use App\Services\Release;
 use App\Services\Shares;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -70,5 +72,48 @@ class SharesTest extends TestCase
         $this->assertSame(0, DB::table('shares')->where('holder', $b)->count());
         // Its own shares, which it still held, went too
         $this->assertSame(1000, Shares::holders($b)[$house]['units']);
+    }
+
+    private function trade(int $company, int $seller, int $buyer, int $units, int $price): void
+    {
+        Shares::transfer($company, $seller, $buyer, $units);
+        DB::table('share_trades')->insert(['share_company' => $company, 'seller' => $seller, 'buyer' => $buyer,
+            'units' => $units, 'price' => $price, 'game_t' => 1000]);
+    }
+
+    public function testTheLastTradeSetsTheSharePrice()
+    {
+        $a = $this->company('Issuer Co');
+        $b = $this->company('Investor Co');
+        $this->assertArrayNotHasKey($a, Shares::lastPrices());
+        $this->trade($a, $a, $b, 10, 7);
+        $this->trade($a, $a, $b, 10, 9);
+        $this->assertSame(9, Shares::lastPrices()[$a]);
+    }
+
+    public function testNetWealthCountsSharesHeldInOthersAtTheLastPrice()
+    {
+        $user = User::create(['name' => 'Investor', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
+        $investor = Release::release($user, 'Investor Co', 'function launched() end');
+        $issuer = Release::release($user, 'Issuer Co', 'function launched() end');
+        $before = Leaderboard::wealth()[$investor->company_id]['wealth'];
+        $this->trade($issuer->company_id, $issuer->company_id, $investor->company_id, 100, 12);
+        $this->assertSame($before + 1200, Leaderboard::wealth()[$investor->company_id]['wealth']);
+        // Its own shares count nothing; a company's shares never traded count 0
+        $this->assertSame(0, Shares::holdingsValue()[$issuer->company_id] ?? 0);
+    }
+
+    public function testTheCompanyPageAndApiShowTheShares()
+    {
+        $user = User::create(['name' => 'Investor', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
+        $issuer = Release::release($user, 'Issuer Co', 'function launched() end');
+        $investor = Release::release($user, 'Investor Co', 'function launched() end');
+        $this->trade($issuer->company_id, $issuer->company_id, $investor->company_id, 40, 15);
+        $this->get('/companies/' . $issuer->company_id)->assertOk()
+            ->assertSee('Shares')->assertSee('Last trade price')->assertSee('Investor Co');
+        $json = $this->getJson('/api/v1/companies/' . $issuer->company_id)->assertOk()->json('shares');
+        $this->assertSame(15, $json['price']);
+        $this->assertSame([960, 40], array_column($json['holders'], 'units'));
+        $this->assertSame(600, $this->getJson('/api/v1/companies/' . $investor->company_id)->json('shares.holdings.0.value'));
     }
 }

@@ -104,6 +104,12 @@ class Leaderboard
                      ->groupBy('a.company_id', 'i.resource')->get() as $g) {
             $rows[$g->company_id]['wealth'] += (int) $g->units * ($prices[$g->resource] ?? 0);
         }
+        // Shares held in other companies, at their last trade price (#471)
+        foreach (Shares::holdingsValue() as $co => $value) {
+            if (isset($rows[$co])) {
+                $rows[$co]['wealth'] += $value;
+            }
+        }
         return array_filter($rows, fn ($row) => $row['drone'] !== null);
     }
 
