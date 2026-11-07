@@ -27,6 +27,23 @@ int main(void)
     int holders[] = { 333, 333, 334 };
     for(int i = 0; i < 3; i++) paid += dividend_for(net, holders[i]);
     check("holders of all shares get no more than the sale", paid <= net);
+
+    // The exchange (#469): a pull buys from a sell order, a push sells into a buy order
+    check("a pull within the seller's surplus goes through",
+          share_trade_check(SHARE_SELL, 40, 5, 900, 1000, 0, 200) == SHARE_OK);
+    check("a pull that would leave the seller below what it keeps is refused",
+          share_trade_check(SHARE_SELL, 150, 5, 900, 1000, 0, 100000) == SHARE_BELOW_KEEP);
+    check("a buyer who can't pay is refused", share_trade_check(SHARE_SELL, 40, 5, 900, 1000, 0, 199) == SHARE_NO_CREDITS);
+    check("a push within what the buyer wants goes through",
+          share_trade_check(SHARE_BUY, 50, 8, 100, 60, 40, 400) == SHARE_OK);
+    check("a push past what the buyer wants is refused",
+          share_trade_check(SHARE_BUY, 61, 8, 100, 100, 40, 100000) == SHARE_ABOVE_WANT);
+    check("a seller can't push shares it doesn't hold",
+          share_trade_check(SHARE_BUY, 50, 8, 100, 49, 0, 100000) == SHARE_NOT_HELD);
+    check("nothing for nothing", share_trade_check(SHARE_SELL, 0, 5, 0, 10, 0, 100) == SHARE_NO_ORDER);
+    check("the House asks 30 days of dividends", house_share_price(100000) == 3000);
+    check("and at least 1 credit", house_share_price(0) == 1 && house_share_price(10) == 1);
+
     if(failures) { printf("test_shares: %d failed\n", failures); return 1; }
     printf("test_shares: all passed\n");
     return 0;

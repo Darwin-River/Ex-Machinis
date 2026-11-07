@@ -752,6 +752,14 @@ Bool_t db_drone_in_transit(int drone_id, long long game_t);
 /** Records a broadcast: what a drone said, where it was and when (#380) */
 ErrorCode_t db_insert_broadcast(int action_id, int drone_id, const char* body, long long game_t);
 
+/** The share exchange (#469): whether a company is still trading */
+int db_company_trading(int company);
+
+/** Records a share request (kind 1 post a sell order, 2 post a buy order,
+    3 pull, 4 push) for the drone's company, for its Share event to settle */
+ErrorCode_t db_insert_share_request(int action_id, int drone_id, int kind, int share_company, int counterparty,
+                                    int units, int price, long long placed_t);
+
 /** ****************************************************************************
 
     @brief          Deletes a given action

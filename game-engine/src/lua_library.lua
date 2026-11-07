@@ -50,6 +50,13 @@ local function launch(drone, kit) return perform(12, drone, kit) end
 local function plunder(wreck) return perform(34, wreck) end
 local function jettison(n, resource) return perform(1, n, resource) end
 local function broadcast(text) return perform(40, text) end
+-- The share exchange at Earth (#469): shares trade the way goods do. Post
+-- the company's standing orders (price 0 withdraws one), or answer another
+-- company's: pull from its sell order, push into its buy order
+local function sell_shares(c, keep, price) return perform(41, c, keep, price) end
+local function buy_shares(c, want, price) return perform(42, c, want, price) end
+local function pull_shares(n, c, seller) return perform(43, n, c, seller) end
+local function push_shares(n, c, buyer) return perform(44, n, c, buyer) end
 
 -- Queries: ask returns the rows (a table of rows, each a table of columns)
 local function ask(id, ...) return query(id, ...) or {} end
@@ -338,6 +345,18 @@ local function sell_orders(r)                                                   
   for _, o in ipairs(list) do o.units = math.max(o.held - o.keep, 0) end
   return list
 end
+-- The share exchange (#469): orders for company c's shares that can trade
+-- now; units: how many a pull or push can move
+local function share_sell_orders(c)                                               -- 690
+  local list = records(ask(690, c), {"price", "keep", "held", "company"})
+  for _, o in ipairs(list) do o.units = math.max(o.held - o.keep, 0) end
+  return list
+end
+local function share_buy_orders(c)                                                -- 691
+  local list = records(ask(691, c), {"price", "want", "held", "company"})
+  for _, o in ipairs(list) do o.units = math.max(o.want - o.held, 0) end
+  return list
+end
 local function buy_orders(r)                                                      -- 600
   local list = records(ask(600, r), {"price", "want", "held", "drone"})
   for _, o in ipairs(list) do o.units = math.max(o.want - o.held, 0) end
@@ -520,6 +539,12 @@ _G.launch = launch
 _G.plunder = plunder
 _G.jettison = jettison
 _G.broadcast = broadcast
+_G.sell_shares = sell_shares
+_G.buy_shares = buy_shares
+_G.pull_shares = pull_shares
+_G.push_shares = push_shares
+_G.share_sell_orders = share_sell_orders
+_G.share_buy_orders = share_buy_orders
 _G.ask = ask
 _G.me = me
 _G.location = location

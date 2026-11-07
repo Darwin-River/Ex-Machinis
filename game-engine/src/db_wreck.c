@@ -237,34 +237,44 @@ ErrorCode_t db_record_dividend(int company, int holder, long long amount)
                    amount, company, holder);
 }
 
-ErrorCode_t db_pay_dividend(int company, int holder, long long amount, int action, int resource)
+ErrorCode_t db_credit_company(int company, long long amount, int drone, int action, int resource)
 {
-    if(amount <= 0)
+    if(amount == 0)
         return ENGINE_OK;
 
-    ErrorCode_t result = wr_exec("UPDATE companies SET credits = credits + %lld WHERE company_id = %d", amount, holder);
-    if(result == ENGINE_OK)
-        result = db_record_dividend(company, holder, amount);
+    ErrorCode_t result = wr_exec("UPDATE companies SET credits = credits + (%lld) WHERE company_id = %d", amount, company);
 
-    // A credit event for one of its drones (a working one if it has any), as
-    // every other change of credits has: the company's history of credits
-    int drone = (int)wr_value(0, "SELECT agent_id FROM agents WHERE company_id = %d "
-                                 "ORDER BY wrecked_at IS NOT NULL, agent_id LIMIT 1", holder);
+    // A credit event for one of its drones (the given one, else a working one
+    // if it has any), as every other change of credits has: the company's
+    // history of credits
+    if(drone <= 0)
+        drone = (int)wr_value(0, "SELECT agent_id FROM agents WHERE company_id = %d "
+                                 "ORDER BY wrecked_at IS NOT NULL, agent_id LIMIT 1", company);
     if(result == ENGINE_OK && drone > 0) {
         Event_t ev;
         memset(&ev, 0, sizeof(ev));
-        ev.event_type = INCREMENT_CREDITS_EVENT_TYPE;
+        ev.event_type = amount > 0 ? INCREMENT_CREDITS_EVENT_TYPE : DECREMENT_CREDITS_EVENT_TYPE;
         ev.action_id = action;
         ev.logged = 1;
         ev.outcome = OUTCOME_OK;
         ev.drone_id = drone;
         ev.resource_id = resource;
         ev.new_quantity = NULL_VALUE;
-        ev.new_credits = (int)wr_value(0, "SELECT credits FROM companies WHERE company_id = %d", holder);
+        ev.new_credits = (int)wr_value(0, "SELECT credits FROM companies WHERE company_id = %d", company);
         ev.new_location = NULL_VALUE;
         ev.new_transmission = NULL_VALUE;
         ev.new_cargo = NULL_VALUE;
         result = db_insert_event_e(&ev);
     }
+    return result;
+}
+
+ErrorCode_t db_pay_dividend(int company, int holder, long long amount, int action, int resource)
+{
+    if(amount <= 0)
+        return ENGINE_OK;
+    ErrorCode_t result = db_credit_company(holder, amount, 0, action, resource);
+    if(result == ENGINE_OK)
+        result = db_record_dividend(company, holder, amount);
     return result;
 }

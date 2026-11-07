@@ -17,7 +17,7 @@ LDFLAGS=-lmysqlclient -lconfig -lm
 # Program sources and name
 #---------------------------------------------------------------------------
 GAME_ENGINE_SRCS=static_cache.c lua_drone.c lua_library.c config.c db.c db_common.c email.c embed.c embed_image.c embed_util.c engine.c main.c orbits.c protocol.c trace.c vm.c vm_extension.c vm_meter.c wrap.c game_time.c crash.c db_launch.c vm_library.c clock_floor.c event_order.c
-EVENTS_ENGINE_SRCS=static_cache.c shares.c main_e.c engine_e.c config_e.c db_e.c db_common.c trace.c event.c orbits.c game_time.c station.c db_station.c wreck.c db_wreck.c
+EVENTS_ENGINE_SRCS=static_cache.c shares.c db_shares.c main_e.c engine_e.c config_e.c db_e.c db_common.c trace.c event.c orbits.c game_time.c station.c db_station.c wreck.c db_wreck.c
 OBJS_PATH=objs
 GAME_ENGINE_OBJS=$(patsubst %.c,$(OBJS_PATH)/%.o,$(GAME_ENGINE_SRCS))
 EVENTS_ENGINE_OBJS=$(patsubst %.c,$(OBJS_PATH)/%.o,$(EVENTS_ENGINE_SRCS))

@@ -8,6 +8,7 @@
 
 /******************************* INCLUDES ************************************/
 
+#include "shares.h"
 #include <string.h>
 #include <limits.h>
 #include <time.h>
@@ -585,6 +586,8 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
         newEvent.delay += protocol->launch_delay;
       if(effect->event_type == WAIT_EVENT_TYPE)
         newEvent.delay += protocol->wait_delay;
+      if(effect->event_type == SHARE_EVENT_TYPE)
+        newEvent.delay += protocol->share_delay;
 
       newEvent.drone_id = engine_get_current_drone_id();
       // Take into account negative parameters that mean => retrieve it from stack
@@ -1092,6 +1095,41 @@ static ErrorCode_t protocol_execute_action(int protocolId, VmExtension_t* vmExt)
     }
   }
 
+  // The share exchange (#469). Orders: perform(41|42, company, keep|want,
+  // price), price on top (0 withdraws). Pull, push: perform(43|44, units,
+  // company, other company). The request goes to the Earth exchange at the
+  // speed of light; its Share event settles it there
+  int share_kind = protocol.protocol_id == SHARE_SELL_ORDER_PROTOCOL_ID ? 1 :
+                   protocol.protocol_id == SHARE_BUY_ORDER_PROTOCOL_ID ? 2 :
+                   protocol.protocol_id == SHARE_PULL_PROTOCOL_ID ? 3 :
+                   protocol.protocol_id == SHARE_PUSH_PROTOCOL_ID ? 4 : 0;
+  int share_company = 0, share_units = 0, share_price = 0, share_other = 0;
+  if(result == ENGINE_OK && share_kind) {
+    if(share_kind <= 2) {
+      share_price = protocol.parameters[0];
+      share_units = protocol.parameters[1];
+      share_company = protocol.parameters[2];
+    } else {
+      share_other = protocol.parameters[0];
+      share_company = protocol.parameters[1];
+      share_units = protocol.parameters[2];
+    }
+    int ok = share_kind <= 2 ?
+      (share_price == 0 || (share_price > 0 && share_units >= 0 && share_units <= SHARES_PER_COMPANY &&
+                            db_company_trading(share_company))) :
+      (share_units > 0 && db_company_trading(share_company) && db_company_trading(share_other));
+    if(!ok) {
+      engine_trace(TRACE_LEVEL_ALWAYS, "Share request refused: kind [%d] company [%d] units [%d] price [%d] other [%d]",
+        share_kind, share_company, share_units, share_price, share_other);
+      result = ENGINE_LOGIC_ERROR;
+    } else {
+      char position[MAX_OBJECT_NAME_SIZE];
+      double km = 0;
+      if(engine_get_drone_position(engine_get_current_object_id(), position, &km) == ENGINE_OK)
+        protocol.share_delay = (int)game_time_light_seconds(km);
+    }
+  }
+
   // Protocols with the multiplier flag (push, pull) always take it, after
   // their parameters: N R D 10 perform (#315). Taking it only when the stack
   // had a value made perform eat a script's own values. Missing, it is a
@@ -1141,6 +1179,11 @@ static ErrorCode_t protocol_execute_action(int protocolId, VmExtension_t* vmExt)
     ErrorCode_t flushed = protocol_flush_events(result == ENGINE_OK ? ENGINE_TRUE : ENGINE_FALSE);
     if(result == ENGINE_OK) result = flushed;
   }
+
+  // The request, for the events engine to settle at Earth (#469)
+  if(result == ENGINE_OK && share_kind)
+    result = db_insert_share_request(action.action_id, engine_get_current_drone_id(), share_kind, share_company,
+                                     share_other, share_units, share_price, game_time_now_seconds());
 
   if(result == ENGINE_OK && protocol.protocol_id == BROADCAST_PROTOCOL_ID) {
     game_time_load_recent();

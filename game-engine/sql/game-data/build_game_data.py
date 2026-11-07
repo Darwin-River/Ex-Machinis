@@ -535,6 +535,29 @@ add_effects(BROADCAST_PROTOCOL, [
     {'time': 0, 'drone': 0, 'resource': FUEL, 'event_type': BROADCAST_EVENT, 'local': 1, 'installed': 0,
      'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': 0}])
 
+# The share exchange at Earth (#469, the stock market #466). Shares trade
+# the way goods do: a company posts standing orders (41 sell: while it holds
+# more than it keeps; 42 buy: while it holds fewer than it wants), and
+# another company's drone pulls shares from a sell order (43) or pushes
+# them into a buy order (44), at the order's price and within its limits.
+# Each request travels to Earth at the speed of light: its one effect is a
+# Share event (type 14) when it arrives, which the events engine settles
+# (db_shares.c). Each burns a unit of fuel.
+SHARE_EVENT = 14
+for pid, verb, args, what in (
+        ('41', 'Post share sell order', 'C K P', 'posts a sell order for company C\'s shares at P credits each, '
+         'selling while the drone\'s company holds more than K (P 0 withdraws it)'),
+        ('42', 'Post share buy order', 'C W P', 'posts a buy order for company C\'s shares at P credits each, '
+         'buying while the drone\'s company holds fewer than W (P 0 withdraws it)'),
+        ('43', 'Pull shares', 'N C S', 'buys N of company C\'s shares from company S\'s sell order, at its price'),
+        ('44', 'Push shares', 'N C B', 'sells N of company C\'s shares into company B\'s buy order, at its price')):
+    protocols[pid] = [pid, verb, '3', '100',
+                      f'[{args} {pid} perform]: {what}, at the Earth exchange (it gets there at the speed of light).',
+                      '1', '1', '0']
+    add_effects(pid, [
+        {'time': 0, 'drone': 0, 'resource': FUEL, 'event_type': SHARE_EVENT, 'local': 1, 'installed': 0,
+         'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': 0}])
+
 # Wrecks and plunder (#324 step 12): a drone plunders the wreck W at the
 # place where it is (34). The plunder event (type 11) carries W; the events
 # engine checks it and moves the plunderer's share of the wreck's goods and
@@ -1260,6 +1283,24 @@ queries.append((695, 'Recipe',
                 "GROUP BY e.protocol, e.resource HAVING units <> 0 OR MAX(e.locked) = 1 ORDER BY units DESC, e.resource;"))
 
 # Cloning (#324 step 13): a drone's clones and its own line
+# The share exchange (#469): the standing orders for a company's shares
+# that can trade now. Sell orders: the poster holds more than it keeps,
+# cheapest first. Buy orders: it holds fewer than it wants and can pay for
+# one, highest first. Rows: price, kept minimum or wanted maximum, shares
+# held, company
+SHARE_BOOK = ("SELECT o.price AS d_price, o.limit_units, IFNULL(s.units, 0), o.company FROM share_orders AS o "
+              "INNER JOIN companies AS c ON c.company_id = o.company AND c.eliminated_at IS NULL "
+              "LEFT JOIN shares AS s ON s.company = o.share_company AND s.holder = o.company "
+              "WHERE o.share_company = [value_1] AND o.side = {side} AND {cond} ORDER BY o.price {order}, o.company;")
+queries.append((690, 'Share sell orders',
+                'Sell orders for company N\'s shares at the Earth exchange, cheapest first: price, kept minimum, '
+                'shares held, company.', 1,
+                SHARE_BOOK.format(side=1, cond='IFNULL(s.units, 0) > o.limit_units', order='ASC')))
+queries.append((691, 'Share buy orders',
+                'Buy orders for company N\'s shares at the Earth exchange, highest first: price, wanted maximum, '
+                'shares held, company.', 1,
+                SHARE_BOOK.format(side=2, cond='IFNULL(s.units, 0) < o.limit_units AND c.credits >= o.price',
+                                  order='DESC')))
 queries.append((670, 'My clones',
                 '[R L 670 query]: The drones this drone launched, oldest first: drone ID, 1 if it is a wreck (else 0).', 0,
                 "SELECT agent_id, wrecked_at IS NOT NULL FROM agents WHERE parent_id = [drone_id] ORDER BY agent_id;"))
@@ -1502,7 +1543,9 @@ for line in open(os.path.join(REPO, 'game-engine', 'src', 'lua_library.lua'), en
 lua_res = lambda rid: LUA_NAMES.get(rid, str(rid))
 LUA_CALLS = {'1': 'jettison(N, R)', '3': 'wait(M)', '7': 'sell_order(P, M, R)', '8': 'buy_order(P, M, R)',
              '10': 'push(N, R, D)', '11': 'pull(N, R, D)', '12': 'launch(D, K)', '34': 'plunder(W)',
-             '40': 'broadcast(text)', '5001': 'travel(N)', '25901': 'unpack()', '25902': 'unpack()'}
+             '40': 'broadcast(text)', '41': 'sell_shares(company, keep, price)',
+             '42': 'buy_shares(company, want, price)', '43': 'pull_shares(n, company, seller)',
+             '44': 'push_shares(n, company, buyer)', '5001': 'travel(N)', '25901': 'unpack()', '25902': 'unpack()'}
 
 
 def lua_call(pid, args):
@@ -1542,7 +1585,7 @@ QUERY_FUNCS = {
     '400': 'resource_name(N)', '401': 'unit_mass(N)', '410': 'best_sites(N)', '500': 'protocol_name(N)',
     '501': 'protocol_minutes(N)', '510': 'consumes(N)', '511': 'produces(N)', '512': 'retains(N)',
     '520': 'consumers(N)', '521': 'producers(N)', '522': 'users(N)', '600': 'buy_orders(N)',
-    '610': 'sell_orders(N)', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
+    '610': 'sell_orders(N)', '690': 'share_sell_orders(N)', '691': 'share_buy_orders(N)', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
     '640': 'deposits()', '650': 'taxes()', '655': 'earnings(H)', '660': 'wrecks()', '661': 'wreck_hold(W)',
     '670': 'my_clones()', '671': 'lineage()', '680': 'price_board(N)', '682': 'sales(N, D)', '695': 'recipe(R)',
     '700': 'place_name(N)', '701': 'place_type(N)', '702': 'orbits(N)', '703': 'position(N)',
@@ -1620,6 +1663,8 @@ lines.append('-- Event types the engines handle (8: launch a drone, #238)')
 lines.append("INSERT INTO `event_types` (id, name) VALUES (8, 'Launch drone') "
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')
 lines.append("INSERT INTO `event_types` (id, name) VALUES (9, 'Offer to station'), (10, 'Order from station') "
+             'ON DUPLICATE KEY UPDATE name = VALUES(name);')
+lines.append("INSERT INTO `event_types` (id, name) VALUES (14, 'Share') "
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')
 lines.append("INSERT INTO `event_types` (id, name) VALUES (13, 'Broadcast') "
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')
