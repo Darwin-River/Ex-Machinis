@@ -419,6 +419,25 @@ On the way to 5,000 ships (#428), two steps:
 - On round 41's end state #427 and #430 were alike. The top cost there is now a company's latest event (#435).
 - **What holds the clock back at 1,000 ships** is now the engine's query for due commands (#432).
 
+### Round 42: the first stock market (#466, #473)
+
+**What ran.** A load-test world with the round mix: 60 starter companies and 45 company designs, plus 12 listed miners and 6 investors (`examples/companies`). It ran 25 real minutes at 1,800×, 31 game days, on one engine.
+- **Listed miners** run the miner starter and offer 300 of their own 1,000 shares for 8 days of their dividends, never under 5 credits.
+- **Investors** trade shares only. They buy shares that pay back within 12 game days and offer what they hold at 25 days of dividends, or half as much again as the last price.
+
+**What happened.**
+- **Shares in a small company are worth little.** At game day 6 the listed miners were selling 6 to 145 credits a day after tax, so a share (0.1%) earned 0.006 to 0.15 a day. At the floor price of 5 that is 35 to 800 days to pay back, and no investor bought.
+- **Trading started once income grew.** By day 31 there had been 55 trades of 1,922 shares for 11,972 credits, and outside holders had been paid 1,971 credits in dividends.
+- **Two listed miners sold out.** Each raised 1,500 credits for its 300 shares and had paid back 837 and 1,031 in dividends by day 31: about 15 to 18 days of payback, a good deal for their buyers. The other ten sold few or no shares.
+- **Listing didn't help the miners yet.** They averaged about 2,400 credits against 2,600 for the starter miners, and none reached the 7,000 that launches a copy, so the credits raised weren't put to work.
+- **Investors came out about even.** They started with 1,000 credits and ended with 270 to 430 credits, 98 to 164 shares worth 5 to 7 each, and 260 to 420 credits of dividends received.
+- **Much of the volume was investors trading with each other** at 7: each one's rule marks the last price up by half, and the next one's numbers say it still pays back. This is allowed (wash trades are acceptable, #466).
+
+**What it suggests.**
+- At 0.1% a share, shares only matter for companies that sell a lot.
+- A listed company should price its shares from its income, and use the credits to grow sooner.
+- An investor needs a longer horizon than 12 days, or companies that earn more.
+
 ### Round 41: newcomers on the iterate-and-fail model (#380)
 
 The first round with no test world. It ran live at 1,800× with free, unlimited releases, on #413's code. Four newcomers each played a different style: a speedrunner, an accountant, an explorer, and a teacher new to programming. The world held:

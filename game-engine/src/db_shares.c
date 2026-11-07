@@ -82,10 +82,10 @@ static ErrorCode_t sh_house_orders(long long now)
 
     ErrorCode_t result = ENGINE_OK;
     for(int i = 0; i < n && result == ENGINE_OK; i++) {
-        long long net = sh_value(0, "SELECT IFNULL(SUM(t.credits - t.tax), 0) FROM trades t "
-                                    "JOIN agents a ON a.agent_id = t.seller "
-                                    "WHERE a.company_id = %d AND t.game_t > %lld",
-                                 companies[i], now - 86400);
+        long long net = sh_value(0, "SELECT IFNULL(SUM(t.credits - t.tax), 0) FROM agents a "
+                                    "JOIN trades t ON t.seller = a.agent_id AND t.game_t > %lld "
+                                    "WHERE a.company_id = %d",
+                                 now - 86400, companies[i]);
         result = sh_exec("INSERT INTO share_orders (company, share_company, side, price, limit_units, placed_t) "
                          "VALUES (%d, %d, %d, %lld, 0, %lld) ON DUPLICATE KEY UPDATE price = VALUES(price), "
                          "limit_units = 0, placed_t = VALUES(placed_t)",

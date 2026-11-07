@@ -1320,6 +1320,19 @@ queries.append((694, 'Share trades',
                 "SELECT t.price AS d_price, t.units, t.seller, t.buyer, FLOOR((t.game_t - g.epoch) / 86400) "
                 "FROM share_trades AS t JOIN game_clock AS g ON g.id = 1 WHERE t.share_company = [value_1] "
                 "ORDER BY t.id DESC LIMIT 20;"))
+# Every company's shares on offer (#473): the sell orders that can sell
+# now, cheapest first, with the company's sales income after tax over the
+# last game day (what its dividends come from: 0.1% a share). Rows: company,
+# price, units, seller, sales
+queries.append((696, 'Shares for sale',
+                'Every sell order for shares at the Earth exchange that can sell now, cheapest first (50 at most): '
+                'company, price, units for sale, seller, the company\'s sales income after tax over the last game day.', 0,
+                "SELECT o.share_company, o.price AS d_price, IFNULL(s.units, 0) - o.limit_units, o.company, "
+                "IFNULL((SELECT SUM(t.credits - t.tax) FROM agents AS a JOIN trades AS t ON t.seller = a.agent_id "
+                "AND t.game_t > [game_now] - 86400 WHERE a.company_id = o.share_company), 0) AS d_sales "
+                "FROM share_orders AS o INNER JOIN companies AS c ON c.company_id = o.company AND c.eliminated_at IS NULL "
+                "LEFT JOIN shares AS s ON s.company = o.share_company AND s.holder = o.company "
+                "WHERE o.side = 1 AND IFNULL(s.units, 0) > o.limit_units ORDER BY o.price, o.share_company LIMIT 50;"))
 queries.append((670, 'My clones',
                 '[R L 670 query]: The drones this drone launched, oldest first: drone ID, 1 if it is a wreck (else 0).', 0,
                 "SELECT agent_id, wrecked_at IS NOT NULL FROM agents WHERE parent_id = [drone_id] ORDER BY agent_id;"))
@@ -1604,7 +1617,7 @@ QUERY_FUNCS = {
     '400': 'resource_name(N)', '401': 'unit_mass(N)', '410': 'best_sites(N)', '500': 'protocol_name(N)',
     '501': 'protocol_minutes(N)', '510': 'consumes(N)', '511': 'produces(N)', '512': 'retains(N)',
     '520': 'consumers(N)', '521': 'producers(N)', '522': 'users(N)', '600': 'buy_orders(N)',
-    '610': 'sell_orders(N)', '690': 'share_sell_orders(N)', '691': 'share_buy_orders(N)', '692': 'shares_held()', '693': 'shareholders(N)', '694': 'share_trades(N)', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
+    '610': 'sell_orders(N)', '690': 'share_sell_orders(N)', '691': 'share_buy_orders(N)', '692': 'shares_held()', '693': 'shareholders(N)', '694': 'share_trades(N)', '696': 'shares_for_sale()', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
     '640': 'deposits()', '650': 'taxes()', '655': 'earnings(H)', '660': 'wrecks()', '661': 'wreck_hold(W)',
     '670': 'my_clones()', '671': 'lineage()', '680': 'price_board(N)', '682': 'sales(N, D)', '695': 'recipe(R)',
     '700': 'place_name(N)', '701': 'place_type(N)', '702': 'orbits(N)', '703': 'position(N)',
