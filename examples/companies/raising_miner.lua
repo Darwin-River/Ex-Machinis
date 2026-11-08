@@ -4,7 +4,8 @@
 -- Worm and Refinery).
 -- From its third game day of income, while it is short of a copy's cost,
 -- the drone you release offers enough new shares to make up the difference
--- (offer_shares), open for raise_days. Investors commit and pay; if every
+-- (offer_shares), open for raise_days, once that is no more than raise_cap
+-- (it saves the rest from income). Investors commit and pay; if every
 -- share is committed in time, the company is paid and launches the copy,
 -- and if not, they are refunded and it tries again. It prices the shares so
 -- that raise_horizon days of a share's income after the raise, counting the
@@ -24,7 +25,8 @@ low_fuel = 40      -- get fuel when below this
 dry_tries = 12     -- dry tries at the Moon before trying Phobos
 rest = 240         -- game minutes to rest when both Mars moons are dry
 hold_cap = 16      -- metals it keeps on offer to other drones
-raise_days = 5     -- days an offering stays open
+raise_days = 10    -- days an offering stays open
+raise_cap = 2500   -- the most it raises at a time: it saves the rest itself
 raise_horizon = 30 -- days of a share's income (after the raise) its price is
 grow_raised = 6500 -- the credits it raises up to, for a copy
 
@@ -50,8 +52,10 @@ function raise()
   table.insert(incomes, math.max(e.sales - e.taxes, 0))
   if #incomes > 7 then table.remove(incomes, 1) end
   if not founder or #incomes < 3 or units(cruiser_kit) > 0 then return end
+  -- A small raise finds backers sooner (#488): it raises at most raise_cap,
+  -- once its own credits and that come to a copy's cost
   local need = grow_raised - credits()
-  if need < 500 then return end
+  if need < 500 or need > raise_cap then return end
   for _, o in ipairs(share_offerings()) do
     if o.company == company() then return end
   end
