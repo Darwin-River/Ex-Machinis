@@ -31,7 +31,7 @@ grow_listed = 6500 -- grows at this instead, once it has sold shares
 -- Its sell order for its own shares, at share_days of what a share earns
 -- (0.1% of a day's sales after tax), once a game day. No sales, no price:
 -- price 0 withdraws the order until it earns again
-share_day, sold = -1, 0
+share_day, shares_out = -1, 0
 function list_shares()
   if today() == share_day then return end
   share_day = today()
@@ -42,13 +42,13 @@ function list_shares()
   for _, h in ipairs(shares_held()) do
     if h.company == company() then held = h.units end
   end
-  sold = 1000 - held
+  shares_out = 1000 - held
 end
 
 -- The credits at which it launches a copy: lower once shareholders have
 -- paid in, so what it raised goes into drones
 function grow_line()
-  if sold > 0 then return math.max(grow_listed, 6500) end
+  if shares_out > 0 then return math.max(grow_listed, 6500) end
   return math.max(grow_at, 6500)
 end
 
