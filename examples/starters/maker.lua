@@ -108,6 +108,7 @@ end
 
 -- Investing: once a game day, credits above invest_above buy shares that
 -- companies sell of themselves at the Earth exchange (shares_for_sale()),
+-- or offer new (share_offerings(), #485),
 -- if a share's income pays its price back within invest_days. Each share
 -- earns 0.1% of the company's sales after tax, paid as it sells, wherever
 -- this drone is. A request reaches Earth at the speed of light and burns a
@@ -118,7 +119,7 @@ function invest()
   invest_day = today()
   local free = credits() - invest_above
   for _, o in ipairs(shares_for_sale()) do
-    local a_day = math.max(o.sales, 0) / 1000
+    local a_day = math.max(o.sales, 0) / share_count(o.company)
     if o.seller == o.company and o.company ~= company() and o.price > 0
         and o.price <= a_day * invest_days then
       local n = math.min(o.units, free // o.price, (invest_cap - put_in) // o.price)
@@ -128,6 +129,38 @@ function invest()
       end
     end
   end
+  -- and offerings of new shares (#485) worth it, with what's left (a
+  -- refund comes back as credits, but stays counted)
+  local budget = math.min(free, invest_cap - put_in)
+  if budget >= 25 then put_in = put_in + back_offerings(budget, invest_days) end
+end
+
+-- Offerings of new shares (#485): what a new share is worth over `days`
+-- days, on the company's last day of sales spread over its shares once the
+-- offering fills, and counting the sales of one more drone (what a raise is
+-- usually for)
+function offering_worth(o, days)
+  local n = math.max(#company_drones(o.company), 1)
+  return days * math.max(o.sales, 0) * (n + 1) / n / (o.count + o.units)
+end
+-- Commit up to `budget` credits to offerings worth their price, those
+-- closest to filling first: an offering pays only if it fills. Skips
+-- commitments under 25 credits (each burns a unit of fuel). Returns the
+-- credits it committed
+function back_offerings(budget, days)
+  local spent = 0
+  local list = share_offerings()
+  table.sort(list, function(a, b) return a.left < b.left end)
+  for _, o in ipairs(list) do
+    if o.company ~= company() and o.left > 0 and o.price <= offering_worth(o, days) then
+      local n = math.min(o.left, budget // o.price)
+      if n * o.price >= 25 then
+        commit_shares(n, o.company)
+        budget, spent = budget - n * o.price, spent + n * o.price
+      end
+    end
+  end
+  return spent
 end
 
 -- Every 4th round, send a line home
