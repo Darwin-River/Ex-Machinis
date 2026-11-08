@@ -13,7 +13,30 @@
                 and the stock exchange</a> in the players' manual. Everything here is live.
             </div>
 
-            <h3>Companies</h3>
+            <h3>Offerings of new shares</h3>
+            <div style="white-space: normal; margin-bottom: 1em">Companies raising credits by issuing new shares. Investors
+                commit and pay now; when every share is committed the shares are issued and the company paid, and if the
+                deadline passes first everyone is refunded. <i>A share a day</i> is the last game day's sales after tax
+                divided by the shares it will have once the offering fills.</div>
+            <div class="table-custom-responsive">
+                <table class="table-ticket" id="share-offerings">
+                    <tr><th>Company</th><th>New shares</th><th>Price</th><th>Raising</th><th>Committed</th><th>Hours left</th>
+                        <th>A share a day</th></tr>
+                    @forelse($exchange['offerings'] as $o)
+                        <tr>
+                            <td><a href="{{ url('companies/' . $o['company']) }}">{{ $o['name'] }}</a></td>
+                            <td>{{ number_format($o['units']) }} <small>(has {{ number_format($o['count']) }})</small></td>
+                            <td>{{ number_format($o['price']) }}</td><td>{{ number_format($o['raise']) }}</td>
+                            <td>{{ number_format($o['committed']) }} of {{ number_format($o['units']) }}</td>
+                            <td>{{ $o['hours'] }}</td><td>{{ $o['a_day_after'] }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="7">No open offerings.</td></tr>
+                    @endforelse
+                </table>
+            </div>
+
+            <h3 class="mt-4">Companies</h3>
             <div style="white-space: normal; margin-bottom: 1em">Companies whose shares have traded, are on offer, or are
                 held by others, busiest first. <i>A share a day</i> is the last game day's sales after tax divided by its shares;
                 <i>Pays back</i> is how many days of that the last price comes to.</div>

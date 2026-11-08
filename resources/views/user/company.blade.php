@@ -96,6 +96,25 @@
                     @endforelse
                 </table>
             </div>
+            @if($shares['offering'])
+                @php($o = $shares['offering'])
+                <h4>Offering new shares</h4>
+                <p>{{ number_format($o['units']) }} new shares at {{ number_format($o['price']) }} credits each, raising
+                    {{ number_format($o['raise']) }}: {{ number_format($o['committed']) }} committed so far, {{ $o['hours'] }}
+                    game hours left. If every share is committed in time the shares are issued and the company paid; if
+                    not, everyone is refunded.</p>
+                @if(count($o['investors']))
+                    <div class="table-custom-responsive">
+                        <table class="table-ticket">
+                            <tr><th>Investor</th><th>Shares committed</th></tr>
+                            @foreach($o['investors'] as $m)
+                                <tr><td><a href="{{ url('/companies/'.$m['company']) }}">{{ $m['name'] }}</a></td>
+                                    <td>{{ number_format($m['units']) }}</td></tr>
+                            @endforeach
+                        </table>
+                    </div>
+                @endif
+            @endif
             @if(count($shares['orders']))
                 <h4>Orders at the Earth exchange</h4>
                 <div class="table-custom-responsive">

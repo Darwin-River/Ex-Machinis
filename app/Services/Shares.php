@@ -92,6 +92,7 @@ class Shares
         return [
             'price' => $prices[$company] ?? null,
             'count' => (int) (DB::table('companies')->where('company_id', $company)->value('share_count') ?? self::PER_COMPANY),
+            'offering' => self::offerings($company)[0] ?? null,
             'holders' => $holders->map(fn ($h) => ['company' => (int) $h->holder, 'name' => $name($h->holder),
                 'units' => (int) $h->units, 'dividends' => (int) $h->dividends])->all(),
             'orders' => $orders->map(fn ($o) => ['company' => (int) $o->company, 'name' => $name($o->company),
@@ -105,6 +106,45 @@ class Shares
                 'buyer' => (int) $t->buyer, 'buyer_name' => $name($t->buyer), 'units' => (int) $t->units,
                 'price' => (int) $t->price, 'game_t' => (int) $t->game_t])->all(),
         ];
+    }
+
+    /**
+     * Open offerings of new shares (#485), soonest deadline first, with what
+     * is committed so far: one company's (its page) or every company's
+     */
+    public static function offerings(?int $company = null): array
+    {
+        $now = World::gameNow();
+        $q = DB::table('share_offerings AS o')->join('companies AS c', 'c.company_id', '=', 'o.company')
+            ->whereNull('c.eliminated_at')->where('o.deadline_t', '>', $now)->orderBy('o.deadline_t');
+        if ($company !== null) {
+            $q->where('o.company', $company);
+        }
+        $offers = $q->get(['o.company', 'c.name', 'c.share_count', 'o.units', 'o.price', 'o.deadline_t']);
+        if ($offers->isEmpty()) {
+            return [];
+        }
+        $ids = $offers->pluck('company')->all();
+        $commits = DB::table('share_commitments AS m')->join('companies AS c', 'c.company_id', '=', 'm.investor')
+            ->whereIn('m.company', $ids)->orderByDesc('m.units')->get(['m.company', 'm.investor', 'c.name', 'm.units'])
+            ->groupBy('company');
+        $sales = DB::table('trades AS t')->join('agents AS a', 'a.agent_id', '=', 't.seller')
+            ->where('t.game_t', '>', $now - 86400)->whereIn('a.company_id', $ids)->groupBy('a.company_id')
+            ->get(['a.company_id', DB::raw('SUM(t.credits - t.tax) AS net')])->pluck('net', 'company_id')->all();
+
+        return $offers->map(function ($o) use ($commits, $sales, $now) {
+            $in = $commits[$o->company] ?? collect();
+            $committed = (int) $in->sum('units');
+            $net = max(0, (int) ($sales[$o->company] ?? 0));
+            $after = (int) $o->share_count + (int) $o->units;
+            return ['company' => (int) $o->company, 'name' => $o->name, 'count' => (int) $o->share_count,
+                'units' => (int) $o->units, 'price' => (int) $o->price, 'raise' => (int) $o->units * (int) $o->price,
+                'committed' => $committed, 'left' => (int) $o->units - $committed,
+                'hours' => (int) max(0, ceil(($o->deadline_t - $now) / 3600)),
+                'sales' => $net, 'a_day_after' => round($net / $after, 2),
+                'investors' => $in->map(fn ($m) => ['company' => (int) $m->investor, 'name' => $m->name,
+                    'units' => (int) $m->units])->values()->all()];
+        })->all();
     }
 
     /**
@@ -170,6 +210,7 @@ class Shares
         usort($buying, fn ($a, $b) => $b['price'] <=> $a['price']);
 
         return [
+            'offerings' => self::offerings(),
             'companies' => $companies,
             'for_sale' => $forSale,
             'buying' => $buying,
