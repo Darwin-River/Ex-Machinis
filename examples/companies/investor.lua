@@ -2,27 +2,77 @@
 -- market #466). Release it with either kit: it never mines or makes
 -- anything. It stays at Earth and lives on shares.
 -- Every company's shares pay their holders 0.1% a share of the company's
--- sales income. shares_for_sale() lists the sell orders at the Earth
--- exchange with each company's sales over the last game day, so the
--- investor knows what a share pays a day. It buys shares that pay for
--- themselves within buy_days days, and offers what it holds at sell_days
--- days of their dividends, or half as much again as their last price.
+-- sales income. Once a game day the investor learns what a share of each
+-- company pays a day: from the dividends it has had where it holds shares,
+-- else from the company's sales over the last day (shares_for_sale() lists
+-- them), smoothed over about a week. It looks ahead (#475 step 3):
+-- - from a company itself it pays up to buy_days of a share's income, and
+--   up to grow_days for a company whose income is growing;
+-- - from another holder it pays no more than buy_days: no premium for
+--   growth, so it doesn't bid up shares between investors;
+-- - it offers what it holds at sell_days of a share's income.
 
 -- Settings: change these numbers to make it your own
-buy_days = 12      -- buys shares that pay back within this many game days
-sell_days = 25     -- asks this many days of dividends for what it holds
+buy_days = 30      -- pays up to this many days of a share's income
+grow_days = 60     -- and up to this many for a company that is growing
+sell_days = 60     -- asks this many days of a share's income for what it holds
 spend = 1500       -- credits it puts into one company at a time
 cash_floor = 500   -- credits it keeps
 low_fuel = 20      -- buys fuel below this (each order burns one)
 
--- What a company's shares pay a day, per share, from its sales over the last day
-function per_share(sales) return math.max(sales, 0) / 1000 end
+-- What it has learned of each company: a share's income a day, smoothed
+-- over about a week (avg), and the latest day's (last)
+known = {}
+function learn(c, a_day)
+  local k = known[c]
+  if not k then known[c] = {avg = a_day, last = a_day}; return end
+  k.last = a_day
+  k.avg = k.avg + (a_day - k.avg) / 7
+end
 
--- Buy the shares on offer that pay back fastest
+-- Growth: the latest day against the week, from 1 (flat or falling) to 2
+function growth(c)
+  local k = known[c]
+  if not k or k.avg <= 0 then return 1 end
+  return math.min(math.max(k.last / k.avg, 1), 2)
+end
+
+-- What it pays for a share at most: buy_days of its income, more for a
+-- growing company, but only when buying from the company itself
+function limit(c, seller)
+  local k = known[c]
+  if not k then return 0 end
+  local days = buy_days
+  if seller == c then days = math.min(buy_days * growth(c), grow_days) end
+  return k.avg * days
+end
+
+-- Once a game day: what each company's shares paid a share. The dividends
+-- it had are the surest guide; where it holds none, the company's sales
+dividends_had = {}
+function study()
+  local paid = {}
+  for _, h in ipairs(shares_held()) do
+    if h.company ~= company() and h.units > 0 then
+      local before = dividends_had[h.company]
+      if before then paid[h.company] = math.max(h.dividends - before, 0) / h.units end
+      dividends_had[h.company] = h.dividends
+    end
+  end
+  local seen = {}
+  for _, o in ipairs(shares_for_sale()) do
+    if not seen[o.company] then
+      seen[o.company] = true
+      if not paid[o.company] then learn(o.company, math.max(o.sales, 0) / 1000) end
+    end
+  end
+  for c, a_day in pairs(paid) do learn(c, a_day) end
+end
+
+-- Buy the shares on offer that are worth their price
 function buy()
   for _, o in ipairs(shares_for_sale()) do
-    local a_day = per_share(o.sales)
-    if o.company ~= company() and a_day > 0 and o.price <= a_day * buy_days then
+    if o.company ~= company() and o.price > 0 and o.price <= limit(o.company, o.seller) then
       local cash = credits() - cash_floor
       local n = math.min(o.units, spend // o.price, cash // o.price)
       if n > 0 then pull_shares(n, o.company, o.seller) end
@@ -30,17 +80,14 @@ function buy()
   end
 end
 
--- Offer what it holds: sell_days of dividends where it can tell (the
--- company's own offer lists its sales), else half as much again as the
--- last price
+-- Offer what it holds at sell_days of a share's income (twice the last
+-- price for a company it knows nothing of yet)
 function sell()
-  local sales = {}
-  for _, o in ipairs(shares_for_sale()) do sales[o.company] = o.sales end
   for _, h in ipairs(shares_held()) do
     if h.company ~= company() then
-      local price = math.floor(per_share(sales[h.company] or 0) * sell_days)
-      price = math.max(price, h.price + h.price // 2, 1)
-      sell_shares(h.company, 0, price)
+      local k = known[h.company]
+      local price = k and math.floor(k.avg * sell_days) or 2 * h.price
+      sell_shares(h.company, 0, math.max(price, 1))
     end
   end
 end
@@ -59,8 +106,8 @@ function launched()
   last_day = -1
   while true do
     if units(fuel) < low_fuel then buy_here(40, fuel) end
+    if today() ~= last_day then study(); sell(); last_day = today() end
     buy()
-    if today() ~= last_day then sell(); last_day = today() end
     report()
     wait(120)
   end
