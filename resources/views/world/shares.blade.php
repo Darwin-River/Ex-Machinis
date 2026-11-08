@@ -6,7 +6,8 @@
         <div class="container" id="container">
             <h2>Stock exchange</h2>
             <div style="white-space: normal; margin-bottom: 1em">
-                Every company has 1,000 shares, each paying its holder 0.1% of the company's sales income after tax.
+                Every company starts with 1,000 shares, and more once it issues new ones to raise credits; each share pays
+                its holder its part of the company's sales income after tax.
                 Shares trade at the Earth exchange: a drone buys by pulling from a sell order and sells by pushing into
                 a buy order, wherever it is. See <a href="{{ url('players-manual') }}#shares-and-the-stock-exchange">Shares
                 and the stock exchange</a> in the players' manual. Everything here is live.
@@ -14,15 +15,16 @@
 
             <h3>Companies</h3>
             <div style="white-space: normal; margin-bottom: 1em">Companies whose shares have traded, are on offer, or are
-                held by others, busiest first. <i>A share a day</i> is 0.1% of the last game day's sales after tax;
+                held by others, busiest first. <i>A share a day</i> is the last game day's sales after tax divided by its shares;
                 <i>Pays back</i> is how many days of that the last price comes to.</div>
             <div class="table-custom-responsive">
                 <table class="table-ticket" id="share-companies">
-                    <tr><th>Company</th><th>Last price</th><th>Sales, last day</th><th>A share a day</th><th>Pays back</th>
+                    <tr><th>Company</th><th>Shares</th><th>Last price</th><th>Sales, last day</th><th>A share a day</th><th>Pays back</th>
                         <th>Held by others</th><th>Dividends paid</th></tr>
                     @forelse($exchange['companies'] as $c)
                         <tr>
                             <td><a href="{{ url('companies/' . $c['company']) }}">{{ $c['name'] }}</a></td>
+                            <td>{{ number_format($c['count']) }}</td>
                             <td>{{ $c['price'] !== null ? number_format($c['price']) : 'never traded' }}</td>
                             <td>{{ number_format($c['sales']) }}</td>
                             <td>{{ $c['a_day'] }}</td>
@@ -31,7 +33,7 @@
                             <td>{{ number_format($c['dividends_paid']) }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="7">No company has traded or offered shares yet.</td></tr>
+                        <tr><td colspan="8">No company has traded or offered shares yet.</td></tr>
                     @endforelse
                 </table>
             </div>

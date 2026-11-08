@@ -110,6 +110,14 @@ class Leaderboard
                 $rows[$co]['wealth'] += $value;
             }
         }
+        // Credits committed to offerings of new shares, held at the exchange
+        // until the shares are issued or the offering is refunded (#485)
+        foreach (DB::table('share_commitments')->groupBy('investor')
+                     ->select('investor', DB::raw('SUM(credits) AS credits'))->pluck('credits', 'investor')->all() as $co => $held) {
+            if (isset($rows[$co])) {
+                $rows[$co]['wealth'] += (int) $held;
+            }
+        }
         return array_filter($rows, fn ($row) => $row['drone'] !== null);
     }
 

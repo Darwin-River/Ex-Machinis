@@ -143,4 +143,31 @@ class SharesTest extends TestCase
         $this->get('/market/shares')->assertOk()->assertSee('Stock exchange')
             ->assertSee('Issuer Co')->assertSee('Investor Co')->assertSee('6 days');
     }
+
+    public function testNewSharesChangeWhatAShareEarnsAndCommittedCreditsCountAsWealth()
+    {
+        $user = User::create(['name' => 'Investor', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
+        $issuer = Release::release($user, 'Issuer Co', 'function launched() end');
+        $investor = Release::release($user, 'Investor Co', 'function launched() end');
+        // A company starts with 1,000 shares (#485)
+        $this->assertSame(1000, (int) DB::table('companies')->where('company_id', $issuer->company_id)->value('share_count'));
+
+        // Issued to 2,000: a share earns half as much of the same sales
+        DB::table('companies')->where('company_id', $issuer->company_id)->update(['share_count' => 2000]);
+        $this->trade($issuer->company_id, $issuer->company_id, $investor->company_id, 40, 15);
+        DB::table('trades')->insert(['resource' => 2011, 'units' => 10, 'credits' => 3000, 'tax' => 300,
+            'seller' => $issuer->agent_id, 'buyer' => $investor->agent_id, 'game_t' => \App\Services\World::gameNow() - 60]);
+        $row = collect(Shares::exchange()['companies'])->firstWhere('company', $issuer->company_id);
+        $this->assertSame([2000, 1.35, 12], [$row['count'], $row['a_day'], $row['payback']]);
+        $this->assertSame(2000, Shares::summary($issuer->company_id)['count']);
+
+        // Credits committed to an offering are still the investor's wealth
+        $before = Leaderboard::wealth()[$investor->company_id]['wealth'];
+        DB::table('share_offerings')->insert(['company' => $issuer->company_id, 'units' => 500, 'price' => 6,
+            'deadline_t' => \App\Services\World::gameNow() + 86400, 'placed_t' => 0]);
+        DB::table('companies')->where('company_id', $investor->company_id)->decrement('credits', 600);
+        DB::table('share_commitments')->insert(['company' => $issuer->company_id, 'investor' => $investor->company_id,
+            'units' => 100, 'credits' => 600, 'placed_t' => 0]);
+        $this->assertSame($before, Leaderboard::wealth()[$investor->company_id]['wealth']);
+    }
 }

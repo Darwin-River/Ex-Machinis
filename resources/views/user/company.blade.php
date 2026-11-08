@@ -81,7 +81,7 @@
             <div class="row row-xxl row-30 row-md-60">
                 <div class="col">
                     <h2 class="wow fadeInLeft">Shares</h2>
-                    <p>1,000 shares, each paying 0.1% of the company's sales income after tax.
+                    <p>{{ number_format($shares['count']) }} shares, each paying its part of the company's sales income after tax.
                         Last trade price: <b>{{ $shares['price'] !== null ? number_format($shares['price']) . ' credits' : 'never traded' }}</b>.</p>
                 </div>
             </div>

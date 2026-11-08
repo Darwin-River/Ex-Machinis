@@ -215,11 +215,14 @@ int db_dividends_due(int company, long long net, Dividend_t* out, int max, long 
         return 0;
 
     // Most companies hold all their own shares: one index step finds no one
-    MYSQL_RES* res = wr_select("SELECT holder, units FROM shares WHERE company = %d AND holder <> %d AND units > 0",
-                               company, company);
+    MYSQL_RES* res = wr_select("SELECT s.holder, s.units, c.share_count FROM shares s "
+                               "JOIN companies c ON c.company_id = s.company "
+                               "WHERE s.company = %d AND s.holder <> %d AND s.units > 0", company, company);
     MYSQL_ROW row;
     while(res && n < max && (row = mysql_fetch_row(res))) {
-        long long amount = dividend_for(net, row[1] ? atoi(row[1]) : 0);
+        // A share is a part of the company's count (#485)
+        long long amount = dividend_for(net, row[1] ? atoll(row[1]) : 0,
+                                        row[2] ? atoll(row[2]) : SHARES_PER_COMPANY);
         if(amount <= 0)
             continue;
         out[n].holder = row[0] ? atoi(row[0]) : 0;

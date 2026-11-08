@@ -5,12 +5,14 @@
 #ifndef __SHARES_H__
 #define __SHARES_H__
 
-/* Every company has this many shares */
+/* Every company starts with this many shares; offerings of new shares
+   (#485) add to its count */
 #define SHARES_PER_COMPANY 1000
 
-/* What `units` shares are paid from a sale's net income (after sales tax):
-   0.1% a share, rounded down. Nothing from a loss or for no shares. */
-long long dividend_for(long long net, int units);
+/* What `units` of a company's `total` shares are paid from a sale's net
+   income (after sales tax): net x units / total, rounded down. Nothing from
+   a loss or for no shares. */
+long long dividend_for(long long net, long long units, long long total);
 
 /* The share exchange (#469): shares trade the way goods do. The two
    sides of a standing order */
@@ -33,8 +35,29 @@ int share_trade_check(int side, long long units, long long price, long long limi
                       long long seller_held, long long buyer_held, long long buyer_credits);
 
 /* The House's asking price a share (#469): 30 game days of dividends at the
-   rate of the company's sales income after tax over the last game day,
-   at least 1 */
-long long house_share_price(long long net_sales_last_day);
+   rate of the company's sales income after tax over the last game day, for
+   a company with `total` shares, at least 1 */
+long long house_share_price(long long net_sales_last_day, long long total);
+
+/* Offerings of new shares (#485). Why one is refused (0: it goes through) */
+#define OFFER_OK            0
+#define OFFER_BAD           1   /* no units, no price, or a deadline out of range */
+#define OFFER_TOO_MANY      2   /* more new shares than the company already has */
+#define OFFER_ALREADY_OPEN  3   /* the company already has an open offering */
+#define OFFER_MAX_DAYS     30   /* the longest deadline, in game days */
+
+/* Whether a company with `count` shares, and an open offering or not, can
+   offer `units` new shares at `price` for `days` game days */
+int offer_check(long long units, long long price, long long days, long long count, int open);
+
+/* Why a commitment is refused (0: it goes through) */
+#define COMMIT_OK           0
+#define COMMIT_NO_OFFERING  1   /* no open offering, or it's the drone's own company's */
+#define COMMIT_TOO_MANY     2   /* more than the offering has left */
+#define COMMIT_NO_CREDITS   3   /* the investor can't pay */
+
+/* Whether `units` can be committed to an offering with `left` shares not yet
+   committed, at `price` each, by an investor with `credits` */
+int commit_check(long long units, long long left, long long price, long long credits);
 
 #endif
