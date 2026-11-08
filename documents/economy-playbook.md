@@ -419,6 +419,29 @@ On the way to 5,000 ships (#428), two steps:
 - On round 41's end state #427 and #430 were alike. The top cost there is now a company's latest event (#435).
 - **What holds the clock back at 1,000 ships** is now the engine's query for due commands (#432).
 
+### Round 44: investors look further ahead (#475 step 3)
+
+**What ran.** The same world as rounds 42 and 43, for 31 game days. The one change: investors value a share at up to 30 days of its smoothed income (60 for a growing company), pay other holders no more than 30 days, and ask 60.
+
+| | Round 42 | Round 43 | Round 44 |
+|---|---|---|---|
+| Share trades | 55 | 238 | 191 |
+| Average price | 5.7 | 1.4 | 1.8 |
+| Listed miners that sold all 300 | 2 | 6 | 12 |
+| Raised by listed miners | 3,705 | 4,419 | 4,859 |
+| Dividends to outside holders | 1,971 | 4,426 | 9,156 |
+| Trades between investors | 20 | 142 | 65 |
+| Investors' worth (credits + shares at last price), average | 1,148 | 1,053 | 2,676 |
+| Listed miners' average credits | 2,390 | 2,342 | 2,090 |
+| Starter miners' average credits | 2,596 | 2,880 | 2,300 |
+
+**What happened.**
+- **Investors did well.** They bought every share the listed miners offered and were paid 9,156 in dividends, about twice round 43. Their worth went from about 1,000 to 2,700 on average, with the best at 4,368.
+- **Less trading between investors.** 65 of 191 trades, down from 142 of 238. They still trade with each other when a company's income rises.
+- **The listed miners gave too much away.** They still price from one day's income at 8 days of it. Every one paid out more in dividends than it raised (300 to 649 credits raised, 419 to 1,157 paid), and none came near launching a copy.
+
+**What it suggests.** The market works for buyers now; the sellers are underpricing. A listed miner should price from a week of income and ask about as many days as investors will pay (30). That's a change to `listed_miner.lua` for a later round.
+
 ### Round 43: listed miners price from income (#475 step 2)
 
 **What ran.** The same world as round 42 (60 starters, 45 designs, 12 listed miners, 6 investors), 25 real minutes at 1,800×, 31 game days. The one change: listed miners price their shares from the last game day's income with no floor (no income, no offer), and launch copies at 6,500 credits once they have sold shares.
