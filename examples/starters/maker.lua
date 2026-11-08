@@ -4,7 +4,8 @@
 -- into alloys and the alloys into rods, and sells the rods wherever they
 -- pay best: at the Moon if the best bid there is close to what rods fetched
 -- at Earth yesterday (the price board), else it flies a load to Earth.
--- With grow_at credits it launches a copy of itself.
+-- With grow_at credits it launches a copy of itself. Credits above
+-- invest_above it puts into other companies' shares (see invest()).
 
 -- Settings: change these numbers to make it your own
 rod_load = 12      -- rods it takes to Earth (4 cargo each)
@@ -14,6 +15,9 @@ trip_margin = 20   -- flies to Earth only if rods sold there for this much more
 grow_at = 7000     -- credits at which it buys and launches a copy
 batch = 20         -- metals it buys at a time
 cash_floor = 300   -- credits it keeps (for fuel)
+invest_above = 3000 -- credits above this go into other companies' shares
+invest_days = 30   -- pays up to this many days of a share's income
+invest_cap = 1500  -- credits it puts into shares in all (0: never invests)
 
 -- Fuel when low, from whoever sells it cheapest here
 function refuel()
@@ -102,6 +106,30 @@ function reinvest()
   end
 end
 
+-- Investing: once a game day, credits above invest_above buy shares that
+-- companies sell of themselves at the Earth exchange (shares_for_sale()),
+-- if a share's income pays its price back within invest_days. Each share
+-- earns 0.1% of the company's sales after tax, paid as it sells, wherever
+-- this drone is. A request reaches Earth at the speed of light and burns a
+-- unit of fuel, so it skips buys worth less than 25 credits
+invest_day, put_in = -1, 0
+function invest()
+  if today() == invest_day or put_in >= invest_cap then return end
+  invest_day = today()
+  local free = credits() - invest_above
+  for _, o in ipairs(shares_for_sale()) do
+    local a_day = math.max(o.sales, 0) / 1000
+    if o.seller == o.company and o.company ~= company() and o.price > 0
+        and o.price <= a_day * invest_days then
+      local n = math.min(o.units, free // o.price, (invest_cap - put_in) // o.price)
+      if n * o.price >= 25 then
+        pull_shares(n, o.company, o.seller)
+        put_in, free = put_in + n * o.price, free - n * o.price
+      end
+    end
+  end
+end
+
 -- Every 4th round, send a line home
 rounds = 0
 function tell()
@@ -121,6 +149,7 @@ function work()
     haul()
   end
   reinvest()
+  invest()
   tell()
 end
 

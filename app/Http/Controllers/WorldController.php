@@ -35,6 +35,13 @@ class WorldController extends Controller
         return view('world.history', compact('resources', 'places', 'today'));
     }
 
+    /** The stock exchange (#484): every company's shares, what's for sale, and the latest trades */
+    public function shares()
+    {
+        $exchange = \App\Services\Shares::exchange();
+        return view('world.shares', compact('exchange'));
+    }
+
     /** The leaderboard (#324 step 18): net wealth, all time and Rising */
     public function leaderboard()
     {

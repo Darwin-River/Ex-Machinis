@@ -67,6 +67,7 @@ Route::get('/events/search', 'HomeController@InGameEventsSearch');
 //releasing a script (#324 step 6)
 Route::get('/market', 'WorldController@market');
 Route::get('/market/history', 'WorldController@history');
+Route::get('/market/shares', 'WorldController@shares');
 Route::get('/map', 'WorldController@map');
 Route::get('/leaderboard', 'WorldController@leaderboard');
 Route::get('/machine/queries', 'WorldController@machineQueries');

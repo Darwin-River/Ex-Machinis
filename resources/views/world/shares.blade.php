@@ -1,0 +1,94 @@
+@extends('layouts.app')
+@section('pageTitle', 'Stock exchange')
+@section('content')
+    {{-- The Stock exchange page (#484): every company's shares, what's for sale, and the latest trades --}}
+    <section class="section section-xs section-first bg-default text-md-left">
+        <div class="container" id="container">
+            <h2>Stock exchange</h2>
+            <div style="white-space: normal; margin-bottom: 1em">
+                Every company has 1,000 shares, each paying its holder 0.1% of the company's sales income after tax.
+                Shares trade at the Earth exchange: a drone buys by pulling from a sell order and sells by pushing into
+                a buy order, wherever it is. See <a href="{{ url('players-manual') }}#shares-and-the-stock-exchange">Shares
+                and the stock exchange</a> in the players' manual. Everything here is live.
+            </div>
+
+            <h3>Companies</h3>
+            <div style="white-space: normal; margin-bottom: 1em">Companies whose shares have traded, are on offer, or are
+                held by others, busiest first. <i>A share a day</i> is 0.1% of the last game day's sales after tax;
+                <i>Pays back</i> is how many days of that the last price comes to.</div>
+            <div class="table-custom-responsive">
+                <table class="table-ticket" id="share-companies">
+                    <tr><th>Company</th><th>Last price</th><th>Sales, last day</th><th>A share a day</th><th>Pays back</th>
+                        <th>Held by others</th><th>Dividends paid</th></tr>
+                    @forelse($exchange['companies'] as $c)
+                        <tr>
+                            <td><a href="{{ url('companies/' . $c['company']) }}">{{ $c['name'] }}</a></td>
+                            <td>{{ $c['price'] !== null ? number_format($c['price']) : 'never traded' }}</td>
+                            <td>{{ number_format($c['sales']) }}</td>
+                            <td>{{ $c['a_day'] }}</td>
+                            <td>{{ $c['payback'] !== null ? $c['payback'] . ' days' : '–' }}</td>
+                            <td>{{ number_format($c['held_by_others']) }}</td>
+                            <td>{{ number_format($c['dividends_paid']) }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="7">No company has traded or offered shares yet.</td></tr>
+                    @endforelse
+                </table>
+            </div>
+
+            <h3 class="mt-4">For sale now</h3>
+            <div style="white-space: normal; margin-bottom: 1em">Sell orders that can sell now, cheapest first.
+                <i>Days</i> is how many days of a share's income the price asks.</div>
+            <div class="table-custom-responsive">
+                <table class="table-ticket" id="shares-for-sale">
+                    <tr><th>Shares of</th><th>Price</th><th>Units</th><th>Days</th><th>Seller</th></tr>
+                    @forelse($exchange['for_sale'] as $o)
+                        <tr>
+                            <td><a href="{{ url('companies/' . $o['company']) }}">{{ $o['name'] }}</a></td>
+                            <td>{{ number_format($o['price']) }}</td><td>{{ number_format($o['units']) }}</td>
+                            <td>{{ $o['days'] ?? '–' }}</td>
+                            <td><a href="{{ url('companies/' . $o['by']) }}">{{ $o['by_name'] }}</a></td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5">No shares for sale.</td></tr>
+                    @endforelse
+                </table>
+            </div>
+
+            <h3 class="mt-4">Buy orders</h3>
+            <div class="table-custom-responsive">
+                <table class="table-ticket" id="shares-wanted">
+                    <tr><th>Shares of</th><th>Price</th><th>Units wanted</th><th>Days</th><th>Buyer</th></tr>
+                    @forelse($exchange['buying'] as $o)
+                        <tr>
+                            <td><a href="{{ url('companies/' . $o['company']) }}">{{ $o['name'] }}</a></td>
+                            <td>{{ number_format($o['price']) }}</td><td>{{ number_format($o['units']) }}</td>
+                            <td>{{ $o['days'] ?? '–' }}</td>
+                            <td><a href="{{ url('companies/' . $o['by']) }}">{{ $o['by_name'] }}</a></td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5">No buy orders.</td></tr>
+                    @endforelse
+                </table>
+            </div>
+
+            <h3 class="mt-4">Recent trades</h3>
+            <div class="table-custom-responsive">
+                <table class="table-ticket" id="share-trades">
+                    <tr><th>When</th><th>Shares of</th><th>Units</th><th>Price</th><th>Seller</th><th>Buyer</th></tr>
+                    @forelse($exchange['trades'] as $t)
+                        <tr>
+                            <td>{{ $t['when'] }}</td>
+                            <td><a href="{{ url('companies/' . $t['company']) }}">{{ $t['name'] }}</a></td>
+                            <td>{{ number_format($t['units']) }}</td><td>{{ number_format($t['price']) }}</td>
+                            <td><a href="{{ url('companies/' . $t['seller']) }}">{{ $t['seller_name'] }}</a></td>
+                            <td><a href="{{ url('companies/' . $t['buyer']) }}">{{ $t['buyer_name'] }}</a></td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="6">No share trades yet.</td></tr>
+                    @endforelse
+                </table>
+            </div>
+        </div>
+    </section>
+@endsection
