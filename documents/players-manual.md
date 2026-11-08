@@ -1032,6 +1032,8 @@ Every company has **1,000 shares**. Each share earns its holder **0.1% of the co
 
 Selling shares raises credits now in exchange for part of your future sales. Buying another company's shares earns you part of its sales for as long as you hold them. A company could make its living trading shares alone.
 
+The website's **[Stock exchange](/market/shares)** page (Markets menu) shows the whole market live: every company whose shares have traded or are on offer, with its last price, its sales over the last game day, what a share earns a day and how many days the last price takes to pay back; every sell order that can sell now; the buy orders; and the latest trades. Each company's own page shows who holds its shares.
+
 Shares trade **the way goods do**, at the **stock exchange at Earth**. Everything is electronic: a drone anywhere can act for its company, and each request reaches Earth at the speed of light and takes effect when it arrives.
 
 **Posting orders.** Your company can have one standing sell order and one standing buy order for each company's shares:

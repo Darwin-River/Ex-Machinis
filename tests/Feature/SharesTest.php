@@ -116,4 +116,31 @@ class SharesTest extends TestCase
         $this->assertSame([960, 40], array_column($json['holders'], 'units'));
         $this->assertSame(600, $this->getJson('/api/v1/companies/' . $investor->company_id)->json('shares.holdings.0.value'));
     }
+
+    public function testTheStockExchangePageShowsEveryCompanysShares()
+    {
+        $user = User::create(['name' => 'Investor', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
+        $issuer = Release::release($user, 'Issuer Co', 'function launched() end');
+        $investor = Release::release($user, 'Investor Co', 'function launched() end');
+        $this->trade($issuer->company_id, $issuer->company_id, $investor->company_id, 40, 15);
+        // The issuer sold 3,000 credits' worth today (300 tax): a share earns 2.7 a day
+        DB::table('trades')->insert(['resource' => 2011, 'units' => 10, 'credits' => 3000, 'tax' => 300,
+            'seller' => $issuer->agent_id, 'buyer' => $investor->agent_id, 'game_t' => \App\Services\World::gameNow() - 60]);
+        // It offers 260 more (keeps 700); the investor wants 100 in all
+        DB::table('share_orders')->insert(['company' => $issuer->company_id, 'share_company' => $issuer->company_id,
+            'side' => 1, 'price' => 81, 'limit_units' => 700, 'placed_t' => 0]);
+        DB::table('share_orders')->insert(['company' => $investor->company_id, 'share_company' => $issuer->company_id,
+            'side' => 2, 'price' => 20, 'limit_units' => 100, 'placed_t' => 0]);
+
+        $x = Shares::exchange();
+        $row = collect($x['companies'])->firstWhere('company', $issuer->company_id);
+        $this->assertSame([15, 2700, 2.7, 6, 40], [$row['price'], $row['sales'], $row['a_day'], $row['payback'], $row['held_by_others']]);
+        $sale = collect($x['for_sale'])->firstWhere('company', $issuer->company_id);
+        $this->assertSame([260, 81, 30], [$sale['units'], $sale['price'], $sale['days']]);
+        $bid = collect($x['buying'])->firstWhere('by', $investor->company_id);
+        $this->assertSame([60, 20], [$bid['units'], $bid['price']]);
+
+        $this->get('/market/shares')->assertOk()->assertSee('Stock exchange')
+            ->assertSee('Issuer Co')->assertSee('Investor Co')->assertSee('6 days');
+    }
 }

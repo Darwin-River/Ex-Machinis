@@ -106,6 +106,78 @@ class Shares
     }
 
     /**
+     * The whole stock exchange (#484), for the Stock exchange page: every
+     * company whose shares have traded, are on offer or are held by others,
+     * with a day's sales and what a share earns of them; the sell orders that
+     * can sell now; the buy orders still buying; and the latest trades
+     */
+    public static function exchange(int $tradeLimit = 25): array
+    {
+        $now = World::gameNow();
+        $ids = DB::table('share_trades')->distinct()->pluck('share_company')
+            ->merge(DB::table('share_orders')->distinct()->pluck('share_company'))
+            ->merge(DB::table('shares')->whereColumn('holder', '<>', 'company')->where('units', '>', 0)->distinct()->pluck('company'))
+            ->map(fn ($id) => (int) $id)->unique()->values()->all();
+        $prices = self::lastPrices();
+        $sales = $ids ? DB::table('trades AS t')->join('agents AS a', 'a.agent_id', '=', 't.seller')
+            ->where('t.game_t', '>', $now - 86400)->whereIn('a.company_id', $ids)->groupBy('a.company_id')
+            ->get(['a.company_id', DB::raw('SUM(t.credits - t.tax) AS net')])->pluck('net', 'company_id')->all() : [];
+        $outside = $ids ? DB::table('shares')->whereIn('company', $ids)->whereColumn('holder', '<>', 'company')
+            ->groupBy('company')->get(['company', DB::raw('SUM(units) AS units'), DB::raw('SUM(dividends) AS dividends')])
+            ->keyBy('company')->all() : [];
+
+        $held = fn ($o) => (int) (DB::table('shares')->where(['company' => $o->share_company, 'holder' => $o->company])->value('units') ?? 0);
+        $orders = DB::table('share_orders AS o')->join('companies AS c', 'c.company_id', '=', 'o.company')
+            ->whereNull('c.eliminated_at')->orderBy('o.side')->orderBy('o.price')
+            ->get(['o.company', 'o.share_company', 'o.side', 'o.price', 'o.limit_units']);
+        $trades = DB::table('share_trades')->orderByDesc('id')->limit($tradeLimit)
+            ->get(['share_company', 'seller', 'buyer', 'units', 'price', 'game_t']);
+
+        $names = DB::table('companies')->whereIn('company_id', array_merge($ids, $orders->pluck('company')->all(),
+            $trades->pluck('seller')->all(), $trades->pluck('buyer')->all()))->pluck('name', 'company_id')->all();
+        $name = fn ($id) => $names[$id] ?? "Company $id";
+        // A share earns 0.1% of the company's sales after tax
+        $aDay = fn ($id) => max(0, (int) ($sales[$id] ?? 0)) / self::PER_COMPANY;
+        $days = fn ($price, $id) => $aDay($id) > 0 ? (int) ceil($price / $aDay($id)) : null;
+
+        $companies = [];
+        foreach ($ids as $id) {
+            $price = $prices[$id] ?? null;
+            $companies[] = ['company' => $id, 'name' => $name($id), 'price' => $price,
+                'sales' => max(0, (int) ($sales[$id] ?? 0)), 'a_day' => round($aDay($id), 2),
+                'payback' => $price !== null ? $days($price, $id) : null,
+                'held_by_others' => (int) ($outside[$id]->units ?? 0),
+                'dividends_paid' => (int) ($outside[$id]->dividends ?? 0)];
+        }
+        usort($companies, fn ($a, $b) => [$b['sales'], $a['company']] <=> [$a['sales'], $b['company']]);
+
+        $forSale = $buying = [];
+        foreach ($orders as $o) {
+            $h = $held($o);
+            $row = ['company' => (int) $o->share_company, 'name' => $name((int) $o->share_company),
+                'by' => (int) $o->company, 'by_name' => $name((int) $o->company), 'price' => (int) $o->price,
+                'days' => $days((int) $o->price, (int) $o->share_company)];
+            if ((int) $o->side === 1 && $h > (int) $o->limit_units) {
+                $forSale[] = $row + ['units' => $h - (int) $o->limit_units];
+            } elseif ((int) $o->side === 2 && $h < (int) $o->limit_units) {
+                $buying[] = $row + ['units' => (int) $o->limit_units - $h];
+            }
+        }
+        usort($buying, fn ($a, $b) => $b['price'] <=> $a['price']);
+
+        return [
+            'companies' => $companies,
+            'for_sale' => $forSale,
+            'buying' => $buying,
+            'trades' => $trades->map(fn ($t) => ['company' => (int) $t->share_company, 'name' => $name((int) $t->share_company),
+                'seller' => (int) $t->seller, 'seller_name' => $name((int) $t->seller),
+                'buyer' => (int) $t->buyer, 'buyer_name' => $name((int) $t->buyer),
+                'units' => (int) $t->units, 'price' => (int) $t->price,
+                'when' => DronePage::when((int) $t->game_t)])->all(),
+        ];
+    }
+
+    /**
      * What each company's holdings of other companies' shares are worth at
      * their last trade price (#471): holder => credits. Shares never traded
      * count 0; a company's own shares don't count
