@@ -33,12 +33,20 @@ grow_listed = 6500 -- grows at this instead, once it has sold shares
 -- Its sell order for its own shares, at share_days of what a share earns
 -- (0.1% of a day's sales after tax), averaged over the last 7 game days
 -- so a slow day doesn't give the company away. Once a game day, from its
--- third day of income on. No sales, no price: price 0 withdraws the order
+-- third day of income on, share_step more at a time. No sales, no price:
+-- price 0 withdraws the order
 share_day, shares_out = -1, 0
 incomes = {}       -- a day's sales after tax, the last 7 game days
+share_step = 50    -- offers at most this many more shares a day, so later
+                   -- ones sell at the higher prices a growing income earns
 function list_shares()
   if today() == share_day then return end
   share_day = today()
+  local held = 0
+  for _, h in ipairs(shares_held()) do
+    if h.company == company() then held = h.units end
+  end
+  shares_out = 1000 - held
   local e = earnings(24)
   table.insert(incomes, math.max(e.sales - e.taxes, 0))
   if #incomes > 7 then table.remove(incomes, 1) end
@@ -46,13 +54,9 @@ function list_shares()
     local total = 0
     for _, v in ipairs(incomes) do total = total + v end
     local a_day = total / #incomes / 1000
-    sell_shares(company(), share_keep, math.floor(a_day * share_days))
+    local keep = math.max(share_keep, held - share_step)
+    sell_shares(company(), keep, math.floor(a_day * share_days))
   end
-  local held = 0
-  for _, h in ipairs(shares_held()) do
-    if h.company == company() then held = h.units end
-  end
-  shares_out = 1000 - held
 end
 
 -- The credits at which it launches a copy: lower once shareholders have
