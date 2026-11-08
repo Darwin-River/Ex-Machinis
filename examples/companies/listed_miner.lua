@@ -4,7 +4,8 @@
 -- Every company has 1,000 shares, each paying its holder 0.1% of the
 -- company's sales income. This one keeps share_keep of its own and offers
 -- the rest at the Earth exchange for share_days of their dividends, re-priced
--- each game day from what it sold (with no sales, it withdraws the offer):
+-- each game day from what it sold over the last week (with no sales, it
+-- withdraws the offer):
 -- credits now for part of its future. Once it has sold some, it puts the
 -- credits to work: it grows at grow_listed instead of grow_at.
 -- The rest is the miner starter:
@@ -25,24 +26,37 @@ grow_at = 7000     -- credits at which it buys and launches a copy
 rest = 240         -- game minutes to rest when both Mars moons are dry
 hold_cap = 16      -- metals it keeps on offer to other drones
 share_keep = 700   -- of its own 1,000 shares it keeps this many
-share_days = 8     -- asks this many days of dividends a share
+share_days = 30    -- asks this many days of a share's income (about what
+                   -- investors pay)
 grow_listed = 6500 -- grows at this instead, once it has sold shares
 
 -- Its sell order for its own shares, at share_days of what a share earns
--- (0.1% of a day's sales after tax), once a game day. No sales, no price:
--- price 0 withdraws the order until it earns again
+-- (0.1% of a day's sales after tax), averaged over the last 7 game days
+-- so a slow day doesn't give the company away. Once a game day, from its
+-- third day of income on, share_step more at a time. No sales, no price:
+-- price 0 withdraws the order
 share_day, shares_out = -1, 0
+incomes = {}       -- a day's sales after tax, the last 7 game days
+share_step = 50    -- offers at most this many more shares a day, so later
+                   -- ones sell at the higher prices a growing income earns
 function list_shares()
   if today() == share_day then return end
   share_day = today()
-  local e = earnings(24)
-  local a_day = math.max(e.sales - e.taxes, 0) / 1000
-  sell_shares(company(), share_keep, math.floor(a_day * share_days))
   local held = 0
   for _, h in ipairs(shares_held()) do
     if h.company == company() then held = h.units end
   end
   shares_out = 1000 - held
+  local e = earnings(24)
+  table.insert(incomes, math.max(e.sales - e.taxes, 0))
+  if #incomes > 7 then table.remove(incomes, 1) end
+  if #incomes >= 3 then
+    local total = 0
+    for _, v in ipairs(incomes) do total = total + v end
+    local a_day = total / #incomes / 1000
+    local keep = math.max(share_keep, held - share_step)
+    sell_shares(company(), keep, math.floor(a_day * share_days))
+  end
 end
 
 -- The credits at which it launches a copy: lower once shareholders have
