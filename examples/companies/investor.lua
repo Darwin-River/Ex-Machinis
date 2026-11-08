@@ -19,6 +19,7 @@ sell_days = 60     -- asks this many days of a share's income for what it holds
 spend = 1500       -- credits it puts into one company at a time
 cash_floor = 500   -- credits it keeps
 low_fuel = 20      -- buys fuel below this (each order burns one)
+min_buy = 25       -- skips buys worth less than this: each costs a unit of fuel
 
 -- What it has learned of each company: a share's income a day, smoothed
 -- over about a week (avg), and the latest day's (last)
@@ -75,19 +76,25 @@ function buy()
     if o.company ~= company() and o.price > 0 and o.price <= limit(o.company, o.seller) then
       local cash = credits() - cash_floor
       local n = math.min(o.units, spend // o.price, cash // o.price)
-      if n > 0 then pull_shares(n, o.company, o.seller) end
+      if n > 0 and n * o.price >= min_buy then pull_shares(n, o.company, o.seller) end
     end
   end
 end
 
 -- Offer what it holds at sell_days of a share's income (twice the last
--- price for a company it knows nothing of yet)
+-- price for a company it knows nothing of yet). It remembers the price it
+-- last posted for each, so an unchanged order costs no fuel
+posted = {}
 function sell()
   for _, h in ipairs(shares_held()) do
     if h.company ~= company() then
       local k = known[h.company]
       local price = k and math.floor(k.avg * sell_days) or 2 * h.price
-      sell_shares(h.company, 0, math.max(price, 1))
+      price = math.max(price, 1)
+      if posted[h.company] ~= price then
+        sell_shares(h.company, 0, price)
+        posted[h.company] = price
+      end
     end
   end
 end
