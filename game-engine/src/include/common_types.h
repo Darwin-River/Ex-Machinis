@@ -131,6 +131,8 @@
 #define SHARE_BUY_ORDER_PROTOCOL_ID   42   // perform(42, company, want, price): post a buy order for shares
 #define SHARE_PULL_PROTOCOL_ID        43   // perform(43, units, company, seller): buy from a sell order
 #define SHARE_PUSH_PROTOCOL_ID        44   // perform(44, units, company, buyer): sell into a buy order
+#define SHARE_OFFER_PROTOCOL_ID       45   // perform(45, units, price, days): offer new shares (0 units withdraws) (#485)
+#define SHARE_COMMIT_PROTOCOL_ID      46   // perform(46, units, company): commit credits to a company's offering
 #define WAIT_PROTOCOL_ID               3   // [M 3 perform]: wait M game minutes
 #define MAX_WAIT_MINUTES           10080   // a week
 #define PLUNDER_HAUL_PROTOCOL_ID      35   // actions that move plunder out of a wreck and into the plunderer

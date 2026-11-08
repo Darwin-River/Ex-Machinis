@@ -6,8 +6,9 @@ use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 /**
- * Shares (#467, step 1 of the stock market #466). Each company has 1,000
- * shares; each pays its holder 0.1% of the company's sales income after
+ * Shares (#467, step 1 of the stock market #466). Each company starts with
+ * 1,000 shares, and more once it issues new ones (#485, companies.share_count);
+ * a share pays its holder its part of the company's sales income after
  * sales tax (the events engine pays them at every sale). A company starts
  * holding all its own (migration 0038).
  */
@@ -90,6 +91,7 @@ class Shares
 
         return [
             'price' => $prices[$company] ?? null,
+            'count' => (int) (DB::table('companies')->where('company_id', $company)->value('share_count') ?? self::PER_COMPANY),
             'holders' => $holders->map(fn ($h) => ['company' => (int) $h->holder, 'name' => $name($h->holder),
                 'units' => (int) $h->units, 'dividends' => (int) $h->dividends])->all(),
             'orders' => $orders->map(fn ($o) => ['company' => (int) $o->company, 'name' => $name($o->company),
@@ -136,14 +138,16 @@ class Shares
         $names = DB::table('companies')->whereIn('company_id', array_merge($ids, $orders->pluck('company')->all(),
             $trades->pluck('seller')->all(), $trades->pluck('buyer')->all()))->pluck('name', 'company_id')->all();
         $name = fn ($id) => $names[$id] ?? "Company $id";
-        // A share earns 0.1% of the company's sales after tax
-        $aDay = fn ($id) => max(0, (int) ($sales[$id] ?? 0)) / self::PER_COMPANY;
+        // A share earns its part of the company's sales after tax (#485)
+        $counts = $ids ? DB::table('companies')->whereIn('company_id', $ids)->pluck('share_count', 'company_id')->all() : [];
+        $count = fn ($id) => (int) ($counts[$id] ?? self::PER_COMPANY);
+        $aDay = fn ($id) => max(0, (int) ($sales[$id] ?? 0)) / $count($id);
         $days = fn ($price, $id) => $aDay($id) > 0 ? (int) ceil($price / $aDay($id)) : null;
 
         $companies = [];
         foreach ($ids as $id) {
             $price = $prices[$id] ?? null;
-            $companies[] = ['company' => $id, 'name' => $name($id), 'price' => $price,
+            $companies[] = ['company' => $id, 'name' => $name($id), 'price' => $price, 'count' => $count($id),
                 'sales' => max(0, (int) ($sales[$id] ?? 0)), 'a_day' => round($aDay($id), 2),
                 'payback' => $price !== null ? $days($price, $id) : null,
                 'held_by_others' => (int) ($outside[$id]->units ?? 0),

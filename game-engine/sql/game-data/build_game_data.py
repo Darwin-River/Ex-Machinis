@@ -558,6 +558,24 @@ for pid, verb, args, what in (
         {'time': 0, 'drone': 0, 'resource': FUEL, 'event_type': SHARE_EVENT, 'local': 1, 'installed': 0,
          'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': 0}])
 
+# Offerings of new shares (#485): a company offers N new shares at P credits
+# each for D game days (45; N 0 withdraws it, refunding everyone); other
+# companies commit to it (46), paying when they commit. Covered, the shares
+# are created and the company paid; lapsed, every commitment is refunded.
+# Like the share exchange, each travels to Earth at the speed of light and
+# is settled by its Share event; each burns a unit of fuel.
+for pid, verb, nargs, args, what in (
+        ('45', 'Offer new shares', '3', 'N P D', 'offers N new shares of the drone\'s company at P credits each, '
+         'open for D game days (1 to 30): at most as many as it has, one offering at a time. N 0 withdraws it'),
+        ('46', 'Commit to an offering', '2', 'N C', 'commits to N of company C\'s offered new shares at its price, '
+         'paid now; refunded if the offering lapses or is withdrawn')):
+    protocols[pid] = [pid, verb, nargs, '100',
+                      f'[{args} {pid} perform]: {what}, at the Earth exchange (it gets there at the speed of light).',
+                      '1', '1', '0']
+    add_effects(pid, [
+        {'time': 0, 'drone': 0, 'resource': FUEL, 'event_type': SHARE_EVENT, 'local': 1, 'installed': 0,
+         'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': 0}])
+
 # Wrecks and plunder (#324 step 12): a drone plunders the wreck W at the
 # place where it is (34). The plunder event (type 11) carries W; the events
 # engine checks it and moves the plunderer's share of the wreck's goods and
@@ -1333,6 +1351,22 @@ queries.append((696, 'Shares for sale',
                 "FROM share_orders AS o INNER JOIN companies AS c ON c.company_id = o.company AND c.eliminated_at IS NULL "
                 "LEFT JOIN shares AS s ON s.company = o.share_company AND s.holder = o.company "
                 "WHERE o.side = 1 AND IFNULL(s.units, 0) > o.limit_units ORDER BY o.price, o.share_company LIMIT 50;"))
+# Offerings of new shares (#485): every open offering, and a company's
+# share count
+queries.append((697, 'Share offerings',
+                'Open offerings of new shares, soonest deadline first (50 at most): company, shares offered, '
+                'price, shares not yet committed, game hours left, its share count, its sales after tax over the '
+                'last game day, shares my company committed.', 0,
+                "SELECT o.company, o.units, o.price AS d_price, o.units - IFNULL((SELECT SUM(m.units) FROM "
+                "share_commitments AS m WHERE m.company = o.company), 0), GREATEST(0, CEIL((o.deadline_t - [game_now]) "
+                "/ 3600)), c.share_count, IFNULL((SELECT SUM(t.credits - t.tax) FROM agents AS a JOIN trades AS t "
+                "ON t.seller = a.agent_id AND t.game_t > [game_now] - 86400 WHERE a.company_id = o.company), 0) AS d_sales, "
+                f"IFNULL((SELECT m.units FROM share_commitments AS m WHERE m.company = o.company AND m.investor = {MY_COMPANY}), 0) "
+                "FROM share_offerings AS o INNER JOIN companies AS c ON c.company_id = o.company AND c.eliminated_at IS NULL "
+                "WHERE o.deadline_t > [game_now] ORDER BY o.deadline_t, o.company LIMIT 50;"))
+queries.append((698, 'Share count',
+                'Company N\'s shares in all: 1,000 to start, more once it has issued new ones.', 1,
+                "SELECT share_count FROM companies WHERE company_id = [value_1];"))
 queries.append((670, 'My clones',
                 '[R L 670 query]: The drones this drone launched, oldest first: drone ID, 1 if it is a wreck (else 0).', 0,
                 "SELECT agent_id, wrecked_at IS NOT NULL FROM agents WHERE parent_id = [drone_id] ORDER BY agent_id;"))
@@ -1577,7 +1611,8 @@ LUA_CALLS = {'1': 'jettison(N, R)', '3': 'wait(M)', '7': 'sell_order(P, M, R)', 
              '10': 'push(N, R, D)', '11': 'pull(N, R, D)', '12': 'launch(D, K)', '34': 'plunder(W)',
              '40': 'broadcast(text)', '41': 'sell_shares(company, keep, price)',
              '42': 'buy_shares(company, want, price)', '43': 'pull_shares(n, company, seller)',
-             '44': 'push_shares(n, company, buyer)', '5001': 'travel(N)', '25901': 'unpack()', '25902': 'unpack()'}
+             '44': 'push_shares(n, company, buyer)', '45': 'offer_shares(n, price, days)',
+             '46': 'commit_shares(n, company)', '5001': 'travel(N)', '25901': 'unpack()', '25902': 'unpack()'}
 
 
 def lua_call(pid, args):
@@ -1617,7 +1652,7 @@ QUERY_FUNCS = {
     '400': 'resource_name(N)', '401': 'unit_mass(N)', '410': 'best_sites(N)', '500': 'protocol_name(N)',
     '501': 'protocol_minutes(N)', '510': 'consumes(N)', '511': 'produces(N)', '512': 'retains(N)',
     '520': 'consumers(N)', '521': 'producers(N)', '522': 'users(N)', '600': 'buy_orders(N)',
-    '610': 'sell_orders(N)', '690': 'share_sell_orders(N)', '691': 'share_buy_orders(N)', '692': 'shares_held()', '693': 'shareholders(N)', '694': 'share_trades(N)', '696': 'shares_for_sale()', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
+    '610': 'sell_orders(N)', '690': 'share_sell_orders(N)', '691': 'share_buy_orders(N)', '692': 'shares_held()', '693': 'shareholders(N)', '694': 'share_trades(N)', '696': 'shares_for_sale()', '697': 'share_offerings()', '698': 'share_count(N)', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
     '640': 'deposits()', '650': 'taxes()', '655': 'earnings(H)', '660': 'wrecks()', '661': 'wreck_hold(W)',
     '670': 'my_clones()', '671': 'lineage()', '680': 'price_board(N)', '682': 'sales(N, D)', '695': 'recipe(R)',
     '700': 'place_name(N)', '701': 'place_type(N)', '702': 'orbits(N)', '703': 'position(N)',

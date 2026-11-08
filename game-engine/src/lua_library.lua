@@ -57,6 +57,11 @@ local function sell_shares(c, keep, price) return perform(41, c, keep, price) en
 local function buy_shares(c, want, price) return perform(42, c, want, price) end
 local function pull_shares(n, c, seller) return perform(43, n, c, seller) end
 local function push_shares(n, c, buyer) return perform(44, n, c, buyer) end
+-- New shares (#485): offer n new shares of your company at price each, open
+-- for days game days (n 0 withdraws the offering), or commit to n of
+-- company c's offered shares (paid now, refunded if it lapses)
+local function offer_shares(n, price, days) return perform(45, n, price, days) end
+local function commit_shares(n, c) return perform(46, n, c) end
 
 -- Queries: ask returns the rows (a table of rows, each a table of columns)
 local function ask(id, ...) return query(id, ...) or {} end
@@ -374,6 +379,19 @@ end
 local function shares_for_sale()                                                  -- 696
   return records(ask(696), {"company", "price", "units", "seller", "sales"})
 end
+-- Every open offering of new shares, soonest deadline first (#485): company,
+-- units offered, price, left (not yet committed), hours (game hours left),
+-- count (its shares now), sales (its income after tax over the last game
+-- day; each share earns sales / count of it), mine (shares your company has
+-- committed)
+local function share_offerings()                                                  -- 697
+  return records(ask(697), {"company", "units", "price", "left", "hours", "count", "sales", "mine"})
+end
+-- Company c's shares in all: 1,000 to start, more after it issues new ones
+local function share_count(c)                                                     -- 698
+  local row = ask(698, c)[1]
+  return row and row[1] or 1000
+end
 local function share_price(c)
   local t = share_trades(c)[1]
   return t and t.price or nil
@@ -564,6 +582,8 @@ _G.sell_shares = sell_shares
 _G.buy_shares = buy_shares
 _G.pull_shares = pull_shares
 _G.push_shares = push_shares
+_G.offer_shares = offer_shares
+_G.commit_shares = commit_shares
 _G.share_sell_orders = share_sell_orders
 _G.share_buy_orders = share_buy_orders
 _G.shares_held = shares_held
@@ -571,6 +591,8 @@ _G.shareholders = shareholders
 _G.share_trades = share_trades
 _G.share_price = share_price
 _G.shares_for_sale = shares_for_sale
+_G.share_offerings = share_offerings
+_G.share_count = share_count
 _G.ask = ask
 _G.me = me
 _G.location = location

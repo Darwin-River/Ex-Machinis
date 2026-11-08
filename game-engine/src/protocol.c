@@ -1099,13 +1099,25 @@ static ErrorCode_t protocol_execute_action(int protocolId, VmExtension_t* vmExt)
   // price), price on top (0 withdraws). Pull, push: perform(43|44, units,
   // company, other company). The request goes to the Earth exchange at the
   // speed of light; its Share event settles it there
+  // Offerings of new shares (#485): perform(45, units, price, days) offers
+  // the drone's company's (0 units withdraws it; the days ride as the
+  // counterparty), perform(46, units, company) commits to another's
   int share_kind = protocol.protocol_id == SHARE_SELL_ORDER_PROTOCOL_ID ? 1 :
                    protocol.protocol_id == SHARE_BUY_ORDER_PROTOCOL_ID ? 2 :
                    protocol.protocol_id == SHARE_PULL_PROTOCOL_ID ? 3 :
-                   protocol.protocol_id == SHARE_PUSH_PROTOCOL_ID ? 4 : 0;
+                   protocol.protocol_id == SHARE_PUSH_PROTOCOL_ID ? 4 :
+                   protocol.protocol_id == SHARE_OFFER_PROTOCOL_ID ? 5 :
+                   protocol.protocol_id == SHARE_COMMIT_PROTOCOL_ID ? 6 : 0;
   int share_company = 0, share_units = 0, share_price = 0, share_other = 0;
   if(result == ENGINE_OK && share_kind) {
-    if(share_kind <= 2) {
+    if(share_kind == 5) {
+      share_other = protocol.parameters[0];
+      share_price = protocol.parameters[1];
+      share_units = protocol.parameters[2];
+    } else if(share_kind == 6) {
+      share_company = protocol.parameters[0];
+      share_units = protocol.parameters[1];
+    } else if(share_kind <= 2) {
       share_price = protocol.parameters[0];
       share_units = protocol.parameters[1];
       share_company = protocol.parameters[2];
@@ -1114,8 +1126,11 @@ static ErrorCode_t protocol_execute_action(int protocolId, VmExtension_t* vmExt)
       share_company = protocol.parameters[1];
       share_units = protocol.parameters[2];
     }
-    int ok = share_kind <= 2 ?
-      (share_price == 0 || (share_price > 0 && share_units >= 0 && share_units <= SHARES_PER_COMPANY &&
+    int ok = share_kind == 5 ? (share_units == 0 || (share_units > 0 && share_price > 0 && share_other >= 1 &&
+                                                     share_other <= OFFER_MAX_DAYS)) :
+             share_kind == 6 ? (share_units > 0 && db_company_trading(share_company)) :
+             share_kind <= 2 ?
+      (share_price == 0 || (share_price > 0 && share_units >= 0 &&
                             db_company_trading(share_company))) :
       (share_units > 0 && db_company_trading(share_company) && db_company_trading(share_other));
     if(!ok) {
