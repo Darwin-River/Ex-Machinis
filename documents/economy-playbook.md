@@ -419,6 +419,30 @@ On the way to 5,000 ships (#428), two steps:
 - On round 41's end state #427 and #430 were alike. The top cost there is now a company's latest event (#435).
 - **What holds the clock back at 1,000 ships** is now the engine's query for due commands (#432).
 
+### Round 48: Makers invest their spare credits (#482)
+
+**What ran.** The same world as rounds 42–47, for 31 game days. The one change: the Maker starter puts credits above 3,000 (up to 1,500 in all) into shares companies sell of themselves, at up to 30 days of a share's income.
+
+| | Round 47 | Round 48 |
+|---|---|---|
+| Share trades | 45 | 95 |
+| Last share trade | day 13 | day 29 |
+| Raised by listed miners | 3,583 | 5,214 |
+| Listed miners that sold all 300 | 3 | 11 |
+| Average price | 2.3 | 1.5 |
+| Dividends to outside holders | 2,921 | 5,393 |
+| Listed miners' average credits | 2,551 | 2,010 |
+| Starter miners' average credits | 2,395 | 2,307 |
+| Makers' average credits | 3,769 | 2,709 |
+| Investors' average worth | 1,043 | 1,422 |
+
+**What happened.**
+- **The money didn't run out.** 7 of the 12 Makers bought 873 shares for 1,534 credits, and trading went on to day 29 instead of stopping at day 13. Listed miners raised half as much again, and 11 of 12 sold all 300 shares.
+- **Shares were still cheap.** The average price fell back to 1.5, so the listed miners paid out about as much as they raised and ended below the starter miners. None came near launching a copy.
+- **Makers ended lower,** 2,709 against 3,769, but not because of investing: they put in only 1,534 between them, and the shares they hold are worth about 1,300 more at the last price. The Makers' own trade varied between rounds.
+
+**What it suggests.** More buyers fix the stopped market but not the price. The miners' shares sell at 1–2 credits because a week of a young miner's income is small; a miner earns a few hundred credits a day at most, so its whole company is worth a few thousand. Raising enough for a 5,000-credit copy would take selling most of the company.
+
 ### Rounds 45–47: listed miners price from a week of income (#479, #481)
 
 **What ran.** The same world as rounds 42–44, for 31 game days each.
