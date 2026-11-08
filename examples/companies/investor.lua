@@ -10,7 +10,9 @@
 --   up to grow_days for a company whose income is growing;
 -- - from another holder it pays no more than buy_days: no premium for
 --   growth, so it doesn't bid up shares between investors;
--- - it offers what it holds at sell_days of a share's income.
+-- - it offers what it holds at sell_days of a share's income;
+-- - once a day it commits to offerings of new shares (#485) worth buy_days
+--   of a share's income once filled, counting one more drone's sales.
 
 -- Settings: change these numbers to make it your own
 buy_days = 30      -- pays up to this many days of a share's income
@@ -64,7 +66,7 @@ function study()
   for _, o in ipairs(shares_for_sale()) do
     if not seen[o.company] then
       seen[o.company] = true
-      if not paid[o.company] then learn(o.company, math.max(o.sales, 0) / 1000) end
+      if not paid[o.company] then learn(o.company, math.max(o.sales, 0) / share_count(o.company)) end
     end
   end
   for c, a_day in pairs(paid) do learn(c, a_day) end
@@ -99,6 +101,34 @@ function sell()
   end
 end
 
+-- Offerings of new shares (#485): what a new share is worth over `days`
+-- days, on the company's last day of sales spread over its shares once the
+-- offering fills, and counting the sales of one more drone (what a raise is
+-- usually for)
+function offering_worth(o, days)
+  local n = math.max(#company_drones(o.company), 1)
+  return days * math.max(o.sales, 0) * (n + 1) / n / (o.count + o.units)
+end
+-- Commit up to `budget` credits to offerings worth their price, those
+-- closest to filling first: an offering pays only if it fills. Skips
+-- commitments under 25 credits (each burns a unit of fuel). Returns the
+-- credits it committed
+function back_offerings(budget, days)
+  local spent = 0
+  local list = share_offerings()
+  table.sort(list, function(a, b) return a.left < b.left end)
+  for _, o in ipairs(list) do
+    if o.company ~= company() and o.left > 0 and o.price <= offering_worth(o, days) then
+      local n = math.min(o.left, budget // o.price)
+      if n * o.price >= 25 then
+        commit_shares(n, o.company)
+        budget, spent = budget - n * o.price, spent + n * o.price
+      end
+    end
+  end
+  return spent
+end
+
 function report()
   local held, value = 0, 0
   for _, h in ipairs(shares_held()) do
@@ -113,7 +143,11 @@ function launched()
   last_day = -1
   while true do
     if units(fuel) < low_fuel then buy_here(40, fuel) end
-    if today() ~= last_day then study(); sell(); last_day = today() end
+    if today() ~= last_day then
+      study(); sell()
+      back_offerings(math.min(spend, credits() - cash_floor), buy_days)
+      last_day = today()
+    end
     buy()
     report()
     wait(120)

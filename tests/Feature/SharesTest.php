@@ -170,4 +170,28 @@ class SharesTest extends TestCase
             'units' => 100, 'credits' => 600, 'placed_t' => 0]);
         $this->assertSame($before, Leaderboard::wealth()[$investor->company_id]['wealth']);
     }
+
+    public function testTheWebsiteShowsOpenOfferings()
+    {
+        $user = User::create(['name' => 'Investor', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
+        $issuer = Release::release($user, 'Raising Co', 'function launched() end');
+        $investor = Release::release($user, 'Backer Co', 'function launched() end');
+        DB::table('share_offerings')->insert(['company' => $issuer->company_id, 'units' => 500, 'price' => 10,
+            'deadline_t' => \App\Services\World::gameNow() + 5 * 3600 - 60, 'placed_t' => 0]);
+        DB::table('share_commitments')->insert(['company' => $issuer->company_id, 'investor' => $investor->company_id,
+            'units' => 120, 'credits' => 1200, 'placed_t' => 0]);
+        DB::table('trades')->insert(['resource' => 2011, 'units' => 10, 'credits' => 3300, 'tax' => 300,
+            'seller' => $issuer->agent_id, 'buyer' => $investor->agent_id, 'game_t' => \App\Services\World::gameNow() - 60]);
+
+        $o = collect(Shares::exchange()['offerings'])->firstWhere('company', $issuer->company_id);
+        $this->assertSame([5000, 120, 380, 5, 2.0], [$o['raise'], $o['committed'], $o['left'], $o['hours'], $o['a_day_after']]);
+        $this->assertSame('Backer Co', $o['investors'][0]['name']);
+        $this->get('/market/shares')->assertOk()->assertSee('Offerings of new shares')->assertSee('Raising Co')
+            ->assertSee('120 of 500');
+        $this->get('/companies/' . $issuer->company_id)->assertOk()->assertSee('Offering new shares')->assertSee('Backer Co');
+        $this->assertSame(380, $this->getJson('/api/v1/companies/' . $issuer->company_id)->json('shares.offering.left'));
+        // A lapsed offering isn't open
+        DB::table('share_offerings')->where('company', $issuer->company_id)->update(['deadline_t' => 0]);
+        $this->assertNull(Shares::summary($issuer->company_id)['offering']);
+    }
 }
