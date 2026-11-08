@@ -419,6 +419,34 @@ On the way to 5,000 ships (#428), two steps:
 - On round 41's end state #427 and #430 were alike. The top cost there is now a company's latest event (#435).
 - **What holds the clock back at 1,000 ships** is now the engine's query for due commands (#432).
 
+### Round 43: listed miners price from income (#475 step 2)
+
+**What ran.** The same world as round 42 (60 starters, 45 designs, 12 listed miners, 6 investors), 25 real minutes at 1,800×, 31 game days. The one change: listed miners price their shares from the last game day's income with no floor (no income, no offer), and launch copies at 6,500 credits once they have sold shares.
+
+| | Round 42 | Round 43 |
+|---|---|---|
+| Share trades | 55 | 238 |
+| Shares traded | 1,922 | 4,978 |
+| Average price | 5.7 (5–7) | 1.4 (1–5) |
+| Raised by listed miners | 3,705 | 4,419 |
+| Listed miners that sold any / all 300 | 4 / 2 | 12 / 6 |
+| Most raised by one | 1,500 | 649 |
+| Dividends to outside holders | 1,971 | 4,426 |
+| Trades between investors | 20 | 142 |
+| Listed miners' average credits | 2,390 | 2,342 |
+| Starter miners' average credits | 2,596 | 2,880 |
+| Copies launched by listed miners | 0 | 0 |
+
+**What happened.**
+- **The market came alive, but cheaply.** With no floor, a miner with a slow first day asked 1 credit, and the shares sold at once. Every listed miner sold some, against 4 of 12 in round 42.
+- **Shares were sold too cheaply.** Several miners paid out more in dividends by day 31 than they raised: Listed miner 6 raised 564 and paid out 1,073. One day's income is a noisy guide to a share's worth.
+- **Raising still didn't buy growth.** The most any miner raised was 649 credits, far from what a copy needs, so the lower threshold never came into play. Listed miners ended where they did in round 42.
+- **Investors earned more in dividends** (4,426 in all against 1,971) but traded mostly with each other: 142 of 238 trades.
+
+**What it suggests.**
+- Price shares from a longer stretch of income (a week, say) and for more days of it, so a slow day doesn't give the company away.
+- Investors that look further ahead (#475 step 3) would pay more for the same income, so listed companies could ask more.
+
 ### Round 42: the first stock market (#466, #473)
 
 **What ran.** A load-test world with the round mix: 60 starter companies and 45 company designs, plus 12 listed miners and 6 investors (`examples/companies`). It ran 25 real minutes at 1,800×, 31 game days, on one engine.
