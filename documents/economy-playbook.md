@@ -419,6 +419,29 @@ On the way to 5,000 ships (#428), two steps:
 - On round 41's end state #427 and #430 were alike. The top cost there is now a company's latest event (#435).
 - **What holds the clock back at 1,000 ships** is now the engine's query for due commands (#432).
 
+### Round 49: miners raise their next copy with new shares (#485)
+
+**What ran.** The same world as round 48, for 31 game days, with 12 raising miners (`raising_miner.lua`) in place of the listed miners. A raising miner sells none of its own shares. From its third day of income it offers enough new shares to make up the 6,500 credits a copy needs, open for 5 days, priced so 30 days of a share's income after the raise (counting one more drone's sales) pay it back. Investors and Makers commit to offerings that pass the same test, closest to filling first.
+
+| | Round 48 (listed miners) | Round 49 (raising miners) |
+|---|---|---|
+| Copies launched with what shares raised | 0 | **2** |
+| Raised by the miners | 5,214 | 8,300 |
+| Most raised by one | 874 | 4,250 |
+| Price a share | 1.5 on average | 10 |
+| Share trades | 95 | 14 |
+| Dividends to outside holders | 5,393 | 1,085 |
+| Miners' average credits | 2,010 | 1,800 |
+| Makers' average credits | 2,709 | 4,096 |
+
+**What happened.**
+- **Raising worked where income was high enough.** Raising miner 2 sold 425 new shares at 10 on day 15, to three Makers and all six investors, and raised 4,250. Raising miner 11 sold 405 at 10 on day 20, to five Makers, and raised 4,050. Each launched a copy, the first time selling shares has funded a drone in these rounds. A share sold for 10, against 1–2 when miners sold their own shares.
+- **Ten offerings never filled.** Most needed 4,000–5,000 credits from one pool of investors and Makers. Commitments to offerings that lapsed sat idle until refunded, and the backers spread themselves thinly. At the end five offerings were open, with 65 of about 3,850 shares committed.
+- **Little dilution so far.** The two raisers went to about 1,400 shares, so their old shares earn about 70% as much a share as before; they paid out 1,085 in dividends.
+- **Investors held their own.** Each committed to the same offerings and ended with 585 credits plus 50 shares at 10.
+
+**What it suggests.** Offerings with a target let investors price on income after growth, and that funds copies. What limits them now is the money available at once: ten miners each asking for 4,000–5,000 at the same time from about 15,000 of spare credits. Smaller raises (a kit, not a hull), longer deadlines, or investors that back one offering at a time until it fills would let more of them complete.
+
 ### Round 48: Makers invest their spare credits (#482)
 
 **What ran.** The same world as rounds 42–47, for 31 game days. The one change: the Maker starter puts credits above 3,000 (up to 1,500 in all) into shares companies sell of themselves, at up to 30 days of a share's income.
