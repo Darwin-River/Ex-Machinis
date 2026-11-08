@@ -419,6 +419,33 @@ On the way to 5,000 ships (#428), two steps:
 - On round 41's end state #427 and #430 were alike. The top cost there is now a company's latest event (#435).
 - **What holds the clock back at 1,000 ships** is now the engine's query for due commands (#432).
 
+### Rounds 45–47: listed miners price from a week of income (#479, #481)
+
+**What ran.** The same world as rounds 42–44, for 31 game days each.
+- **Round 45:** listed miners average their last 7 days of income and ask 30 days of it, from their third day of income on.
+- **Round 46:** also offering at most 50 more shares a day.
+- **Round 47:** as 46, with the investor fix below.
+
+| | Round 44 | Round 45 | Round 46 | Round 47 |
+|---|---|---|---|---|
+| Share trades | 191 | 184 | 92 | 45 |
+| Average price | 1.8 | 3.1 | 2.1 | 2.6 |
+| Raised by listed miners | 4,859 | 6,387 | 3,332 | 3,583 |
+| Dividends to outside holders | 9,156 | 6,997 | 675* | 2,921 |
+| Listed miners' average credits | 2,090 | 2,206 | 2,310 | 2,551 |
+| Starter miners' average credits | 2,300 | 2,598 | 2,401 | 2,395 |
+| Investors' average worth | 2,676 | 1,206 | 0 | 1,043 |
+
+\* All six investors were gone by day 23; their shares went to the House.
+
+**What happened.**
+- **A week of income at 30 days (round 45) wasn't enough on its own.** Most miners still sold all 300 shares at 1 credit on their third day, when a week of small income times 30 still rounds to 1. The one that sold a few at a time as its price rose raised 1,838 and finished richest (4,449).
+- **Offering 50 a day (round 46) exposed an investor bug (#481).** Every share request burns a unit of fuel. Investors re-posted every sell order daily and bought in lots as small as one; with fewer shares on offer and small dividends, fuel used up their credits, and all six lost their drones by day 23. The fix: re-post an order only when its price changes, and skip buys worth under 25 credits.
+- **Round 47 is the first in which listing paid.** Listed miners averaged 2,551, above the starter miners' 2,395 and above every earlier round, because they gave less away: 2,921 paid out in dividends against 9,156 in round 44. Investors came out about even.
+- **Then the money ran out.** Trading stopped at day 13: the six investors, with 1,000 credits each, had spent down to their 500-credit reserve. No listed miner raised more than 700, and none launched a copy.
+
+**What it suggests.** The listed miner's pricing is now reasonable. What limits the market is the money looking for shares: six investors with 1,000 each. Companies with spare credits (a Maker ends with about 3,700) could invest them, which would give listed companies enough to grow.
+
 ### Round 44: investors look further ahead (#475 step 3)
 
 **What ran.** The same world as rounds 42 and 43, for 31 game days. The one change: investors value a share at up to 30 days of its smoothed income (60 for a growing company), pay other holders no more than 30 days, and ask 60.
