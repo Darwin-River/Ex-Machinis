@@ -419,6 +419,31 @@ On the way to 5,000 ships (#428), two steps:
 - On round 41's end state #427 and #430 were alike. The top cost there is now a company's latest event (#435).
 - **What holds the clock back at 1,000 ships** is now the engine's query for due commands (#432).
 
+### Rounds 50–51: smaller raises, longer deadlines, focused backers (#488)
+
+**What ran.** The same world as round 49, for 31 game days each. Offerings stay open 10 days instead of 5; investors and Makers back one offering at a time until it fills or lapses, else the one closest to filling; raising miners raise at most 2,500 at a time.
+- **Round 50:** a miner offered only once its own credits plus 2,500 would reach a copy's cost (4,000 of its own). None got there in 31 days (the best had 3,474), so no miner offered at all.
+- **Round 51:** a miner raises up to 2,500 at a time and raises again for the rest.
+
+| | Round 49 | Round 51 |
+|---|---|---|
+| Offerings filled | 2 | 8 |
+| Miners that raised | 2 | 4 |
+| Raised in all | 8,300 | 14,626 |
+| Copies launched | 2 | 2, and a third with 6,338 ready |
+| Price a share | 10 | 3–12 |
+| Dividends to outside holders | 1,085 | 2,366 |
+| Raising miners' average credits | 1,800 | 2,863 |
+| Makers' average credits | 4,096 | 3,816 |
+
+**What happened.**
+- **Smaller raises fill.** Eight offerings of about 2,500 filled, against two of 4,000–5,000 in round 49. Raising miner 3 filled the first on day 4, at 4 credits a share, from five backers.
+- **Raising miners 4 and 2 raised two or three times** and launched copies; Raising miner 4 went from 1,000 to 2,017 shares to do it. Raising miner 7 raised 2,508 at 12 a share and ended with 6,338, ready for its copy.
+- **Early raises sell cheaply.** A miner that offers on its third day, on a small income, prices at 3–4 and offers up to 834 shares; one that waits until its income has grown gets 8–12.
+- **The money still runs out.** By the end, investors were down to their reserve, and ten offerings were open with little committed.
+
+**What it suggests.** Raising in steps works: twice as many offerings filled and nearly twice as much was raised. A miner gets a better price by waiting until its income has grown, and the market's spare credits, not the rules, now limit how many raises fill.
+
 ### Round 49: miners raise their next copy with new shares (#485)
 
 **What ran.** The same world as round 48, for 31 game days, with 12 raising miners (`raising_miner.lua`) in place of the listed miners. A raising miner sells none of its own shares. From its third day of income it offers enough new shares to make up the 6,500 credits a copy needs, open for 5 days, priced so 30 days of a share's income after the raise (counting one more drone's sales) pay it back. Investors and Makers commit to offerings that pass the same test, closest to filling first.
