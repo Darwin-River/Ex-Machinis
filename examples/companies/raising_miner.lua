@@ -2,7 +2,7 @@
 -- stock market #466): the miner starter that raises the cost of its next
 -- copy by offering new shares. Release it with the Mining Kit (Engine,
 -- Worm and Refinery).
--- From its third game day of income, while it is short of a copy's cost,
+-- From its raise_after-th game day of income, while it is short of a copy's cost,
 -- the drone you release offers enough new shares to make up the difference
 -- (offer_shares), open for raise_days, at most raise_cap at a time (it
 -- raises again for the rest). Investors commit and pay; if every
@@ -10,7 +10,8 @@
 -- and if not, they are refunded and it tries again. It prices the shares so
 -- that raise_horizon days of a share's income after the raise, counting the
 -- extra drone's sales, pay the price back: what investors look for. A
--- company that earns too little for that doesn't offer.
+-- company that earns too little for that, or would sell its shares for
+-- less than raise_min, doesn't offer yet.
 -- The rest is the miner starter:
 -- It mines the richer of kunspar and wolfite at the Moon, refines it, and
 -- keeps standing sell orders for its metals, priced halfway between the
@@ -27,6 +28,8 @@ rest = 240         -- game minutes to rest when both Mars moons are dry
 hold_cap = 16      -- metals it keeps on offer to other drones
 raise_days = 10    -- days an offering stays open
 raise_cap = 2500   -- the most it raises at a time: it raises again for the rest
+raise_min = 5      -- never sells new shares for less than this
+raise_after = 7    -- game days of income it waits for before raising
 raise_horizon = 30 -- days of a share's income (after the raise) its price is
 grow_raised = 6500 -- the credits it raises up to, for a copy
 
@@ -51,7 +54,7 @@ function raise()
   local e = earnings(24)
   table.insert(incomes, math.max(e.sales - e.taxes, 0))
   if #incomes > 7 then table.remove(incomes, 1) end
-  if not founder or #incomes < 3 or units(cruiser_kit) > 0 then return end
+  if not founder or #incomes < raise_after or units(cruiser_kit) > 0 then return end
   -- A small raise finds backers sooner (#488): it raises at most raise_cap
   -- at a time, and raises again for the rest
   local need = math.min(grow_raised - credits(), raise_cap)
@@ -63,7 +66,9 @@ function raise()
   local s = a_week() * (n + 1) / n
   local c = share_count(company())
   local p = math.floor((raise_horizon * s - need) / c)
-  if p < 1 then return end
+  -- A young miner's income is small: rather than sell cheaply, it waits
+  -- for its income to grow (#490)
+  if p < raise_min then return end
   local u = math.ceil(need / p)
   if u > c then return end
   offer_shares(u, p, raise_days)
