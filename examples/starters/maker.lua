@@ -143,24 +143,24 @@ function offering_worth(o, days)
   local n = math.max(#company_drones(o.company), 1)
   return days * math.max(o.sales, 0) * (n + 1) / n / (o.count + o.units)
 end
--- Commit up to `budget` credits to offerings worth their price, those
--- closest to filling first: an offering pays only if it fills. Skips
--- commitments under 25 credits (each burns a unit of fuel). Returns the
--- credits it committed
+-- Commit up to `budget` credits to one offering at a time (#488): the one
+-- it has already backed while it is open, else the open offering worth its
+-- price that is closest to filling. An offering pays only if it fills, so
+-- backers that pile into the same one fill it. Skips commitments under 25
+-- credits (each burns a unit of fuel). Returns the credits it committed
 function back_offerings(budget, days)
-  local spent = 0
-  local list = share_offerings()
-  table.sort(list, function(a, b) return a.left < b.left end)
-  for _, o in ipairs(list) do
-    if o.company ~= company() and o.left > 0 and o.price <= offering_worth(o, days) then
-      local n = math.min(o.left, budget // o.price)
-      if n * o.price >= 25 then
-        commit_shares(n, o.company)
-        budget, spent = budget - n * o.price, spent + n * o.price
-      end
+  local pick
+  for _, o in ipairs(share_offerings()) do
+    if o.company ~= company() and o.left > 0 then
+      if o.mine > 0 then pick = o; break end
+      if o.price <= offering_worth(o, days) and (not pick or o.left < pick.left) then pick = o end
     end
   end
-  return spent
+  if not pick then return 0 end
+  local n = math.min(pick.left, budget // pick.price)
+  if n * pick.price < 25 then return 0 end
+  commit_shares(n, pick.company)
+  return n * pick.price
 end
 
 -- Every 4th round, send a line home
