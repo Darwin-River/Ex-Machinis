@@ -187,14 +187,23 @@ Use this to see what a drone is doing. It gives what the drone's page shows:
 | `fuel` | units in the tank |
 | `cargo` | `[{resource, name, units}]`: what is aboard, its modules included |
 | `now` | the action under way and when it ends, or null |
-| `timeline` | its last actions, newest first: `{when, what, result, fuel}`. `result` is `done`, `under way, until ...` or `failed: <why>` |
-| `trades` | its last trades with other drones: `{when, what, with, credits}` |
+| `timeline` | its last actions, newest first: `{action, when, what, result, fuel}`. `result` is `done`, `under way, until ...` or `failed: <why>`. Older ones: `GET /drones/{id}/timeline` |
+| `trades` | its last trades with other drones, a wreck's too: `{when, what, with, credits}` |
 | `messages` | what it has said: its `report` lines and outputs, newest first, once they reach Earth (they travel at the speed of light) |
 | `post_mortem` | for a wreck: `{cause}`, why it died, in plain words |
 | `parent`, `clones`, `generation` | its family |
 | `instructions`, `crashes` | how much it has computed (1 fuel per 200,000 instructions), and how often its `launched` function has crashed |
-| `fuel_last_day` | `{actions, thinking}`: the fuel it used in the last game day, for its actions and for its computer |
+| `fuel_last_day` | `{actions, thinking, by_action}`: the fuel it used in the last game day, for its actions and for its computer, and by action, most first: `[{what, fuel, times}]` (#494) |
 | `script` | the script it runs |
+
+### `GET /drones/{id}/timeline`: all its actions, a page at a time
+
+A drone's actions, newest first, like `timeline` above but as far back as you like (#494): `?limit=` (up to 100, 50 if left out) and `?before=` (an action ID: the actions before it). `next_before` is the `before` for the next page, or null at the start.
+
+```sh
+curl -s "$B/drones/142/timeline?limit=100"
+curl -s "$B/drones/142/timeline?limit=100&before=38377"
+```
 
 ## The market
 

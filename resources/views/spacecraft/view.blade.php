@@ -41,7 +41,10 @@
                         @endif
                         <b>Fuel</b>: {{ $state['fuel'] }}
                             <span>· used in the last game day: {{ $state['fuel_day']['actions'] }} for actions,
-                                {{ $state['fuel_day']['thinking'] }} for thinking</span><br/>
+                                {{ $state['fuel_day']['thinking'] }} for thinking</span>
+                            @if($state['fuel_day']['by_action'])
+                                <span>({{ collect($state['fuel_day']['by_action'])->map(fn ($u) => $u['what'] . ' ' . $u['fuel'])->implode(', ') }})</span>
+                            @endif<br/>
                         @if($messages->isNotEmpty())
                             <b>Last said</b> ({{ \App\Services\DronePage::when($messages->first()->game_t) }}):
                             <a href="#messages">{{ \Illuminate\Support\Str::limit(trim(preg_replace('/^Location:[^\n]*\n/', '', $messages->first()->body)), 120) }}</a><br/>
@@ -85,6 +88,18 @@
                         @endforeach
                     </table>
                 </div>
+                @php($wreckDeals = \App\Services\DronePage::deals((int) $agent->agent_id))
+                @if($wreckDeals)
+                    <h4 class="mt-3">Its last sales and purchases</h4>
+                    <div class="table-custom-responsive">
+                        <table class="table-ticket">
+                            <tr><th>When</th><th>What</th><th>With</th><th>Credits</th></tr>
+                            @foreach($wreckDeals as $row)
+                                <tr><td>{{ $row['when'] }}</td><td>{{ $row['what'] }}</td><td>{{ $row['with'] }}</td><td>{{ $row['credits'] }}</td></tr>
+                            @endforeach
+                        </table>
+                    </div>
+                @endif
             @endif
 
             @if($activity)

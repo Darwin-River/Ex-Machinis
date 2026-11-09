@@ -28,6 +28,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware('throttle:api-read')->get('companies', 'ApiController@company');
     Route::middleware('throttle:api-read')->get('companies/{id}', 'ApiController@company')->whereNumber('id');
     Route::middleware('throttle:api-read')->get('drones/{id}', 'ApiController@drone')->whereNumber('id');
+    Route::middleware('throttle:api-read')->get('drones/{id}/timeline', 'ApiController@droneTimeline')->whereNumber('id');
     Route::middleware('throttle:api-read')->get('orders', 'ApiController@orders');
     Route::middleware('throttle:api-read')->get('trades', 'ApiController@trades');
     Route::middleware('throttle:api-read')->get('history', 'ApiController@history');
