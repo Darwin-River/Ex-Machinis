@@ -1308,6 +1308,7 @@ queries.append((695, 'Recipe',
 # held, company
 SHARE_BOOK = ("SELECT o.price AS d_price, o.limit_units, IFNULL(s.units, 0), o.company FROM share_orders AS o "
               "INNER JOIN companies AS c ON c.company_id = o.company AND c.eliminated_at IS NULL "
+              "INNER JOIN companies AS sc ON sc.company_id = o.share_company AND sc.eliminated_at IS NULL "
               "LEFT JOIN shares AS s ON s.company = o.share_company AND s.holder = o.company "
               "WHERE o.share_company = [value_1] AND o.side = {side} AND {cond} ORDER BY o.price {order}, o.company;")
 queries.append((690, 'Share sell orders',
@@ -1327,9 +1328,10 @@ LAST_SHARE_PRICE = ("(SELECT t.price FROM share_trades AS t WHERE t.share_compan
                     "ORDER BY t.id DESC LIMIT 1)")
 queries.append((692, 'My shares',
                 'The shares the drone\'s company holds, its own included: company, shares, the dividends they have '
-                'paid it, the last trade price (0 if never traded).', 0,
-                f"SELECT s.company, s.units, s.dividends AS d_dividends, IFNULL({LAST_SHARE_PRICE.format(c='s.company')}, 0) "
-                f"AS d_price FROM shares AS s WHERE s.holder = {MY_COMPANY} AND s.units > 0 ORDER BY s.company;"))
+                'paid it, the last trade price (0 if never traded, or if the company has ended).', 0,
+                f"SELECT s.company, s.units, s.dividends AS d_dividends, IF(c.eliminated_at IS NULL, "
+                f"IFNULL({LAST_SHARE_PRICE.format(c='s.company')}, 0), 0) AS d_price FROM shares AS s "
+                f"JOIN companies AS c ON c.company_id = s.company WHERE s.holder = {MY_COMPANY} AND s.units > 0 ORDER BY s.company;"))
 queries.append((693, 'Shareholders',
                 'Who holds company N\'s shares, most first: company, shares.', 1,
                 "SELECT holder, units FROM shares WHERE company = [value_1] AND units > 0 ORDER BY units DESC, holder;"))
@@ -1338,29 +1340,34 @@ queries.append((694, 'Share trades',
                 "SELECT t.price AS d_price, t.units, t.seller, t.buyer, FLOOR((t.game_t - g.epoch) / 86400) "
                 "FROM share_trades AS t JOIN game_clock AS g ON g.id = 1 WHERE t.share_company = [value_1] "
                 "ORDER BY t.id DESC LIMIT 20;"))
+# A company's sales income after tax a day, averaged over the last 7 game
+# days (#492), or over its life if it is younger: sales come in lumps, and
+# one day is a poor guide to what a share earns
+DAY_SALES = ("FLOOR(IFNULL((SELECT SUM(t.credits - t.tax) FROM agents AS a JOIN trades AS t ON t.seller = a.agent_id "
+             "AND t.game_t > [game_now] - 604800 WHERE a.company_id = {c}), 0) / GREATEST(1, LEAST(7, "
+             "([game_now] - IFNULL((SELECT f.founded_t FROM companies AS f WHERE f.company_id = {c}), 0)) / 86400)))")
 # Every company's shares on offer (#473): the sell orders that can sell
 # now, cheapest first, with the company's sales income after tax over the
 # last game day (what its dividends come from: 0.1% a share). Rows: company,
 # price, units, seller, sales
 queries.append((696, 'Shares for sale',
                 'Every sell order for shares at the Earth exchange that can sell now, cheapest first (50 at most): '
-                'company, price, units for sale, seller, the company\'s sales income after tax over the last game day.', 0,
+                'company, price, units for sale, seller, the company\'s sales after tax a day (7-day average).', 0,
                 "SELECT o.share_company, o.price AS d_price, IFNULL(s.units, 0) - o.limit_units, o.company, "
-                "IFNULL((SELECT SUM(t.credits - t.tax) FROM agents AS a JOIN trades AS t ON t.seller = a.agent_id "
-                "AND t.game_t > [game_now] - 86400 WHERE a.company_id = o.share_company), 0) AS d_sales "
+                f"{DAY_SALES.format(c='o.share_company')} AS d_sales "
                 "FROM share_orders AS o INNER JOIN companies AS c ON c.company_id = o.company AND c.eliminated_at IS NULL "
+                "INNER JOIN companies AS sc ON sc.company_id = o.share_company AND sc.eliminated_at IS NULL "
                 "LEFT JOIN shares AS s ON s.company = o.share_company AND s.holder = o.company "
                 "WHERE o.side = 1 AND IFNULL(s.units, 0) > o.limit_units ORDER BY o.price, o.share_company LIMIT 50;"))
 # Offerings of new shares (#485): every open offering, and a company's
 # share count
 queries.append((697, 'Share offerings',
                 'Open offerings of new shares, soonest deadline first (50 at most): company, shares offered, '
-                'price, shares not yet committed, game hours left, its share count, its sales after tax over the '
-                'last game day, shares my company committed.', 0,
+                'price, shares not yet committed, game hours left, its share count, its sales after tax a day '
+                '(7-day average), shares my company committed.', 0,
                 "SELECT o.company, o.units, o.price AS d_price, o.units - IFNULL((SELECT SUM(m.units) FROM "
                 "share_commitments AS m WHERE m.company = o.company), 0), GREATEST(0, CEIL((o.deadline_t - [game_now]) "
-                "/ 3600)), c.share_count, IFNULL((SELECT SUM(t.credits - t.tax) FROM agents AS a JOIN trades AS t "
-                "ON t.seller = a.agent_id AND t.game_t > [game_now] - 86400 WHERE a.company_id = o.company), 0) AS d_sales, "
+                f"/ 3600)), c.share_count, {DAY_SALES.format(c='o.company')} AS d_sales, "
                 f"IFNULL((SELECT m.units FROM share_commitments AS m WHERE m.company = o.company AND m.investor = {MY_COMPANY}), 0) "
                 "FROM share_offerings AS o INNER JOIN companies AS c ON c.company_id = o.company AND c.eliminated_at IS NULL "
                 "WHERE o.deadline_t > [game_now] ORDER BY o.deadline_t, o.company LIMIT 50;"))

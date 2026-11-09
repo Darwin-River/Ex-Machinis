@@ -419,6 +419,26 @@ On the way to 5,000 ships (#428), two steps:
 - On round 41's end state #427 and #430 were alike. The top cost there is now a company's latest event (#435).
 - **What holds the clock back at 1,000 ships** is now the engine's query for due commands (#432).
 
+### Round 53: newcomers on the stock market (#380)
+
+**What ran.** This was the first newcomer round since the stock market (#466, #475) and new shares (#485). It ran for 60 game days at 1,800× with the round mix, 12 raising miners and 6 investors. Three newcomers played through the API: Nia, an investor; Omar, an entrepreneur raising capital; and Pip, a casual player starting from the examples. 79 share trades moved 20,512 credits.
+
+| | Releases | Best | Overall | Stock market |
+|---|---|---|---|---|
+| Nia | 12 | Nia 6, a maker listing its shares: 4,214 | 7 | 5 |
+| Omar | 9 | Omar 2, a systems factory: 21,110, #2 | 8 | 5 |
+| Pip | 9 | Pip 3, the Foundry example: 10,209, #14 | 7 | 6 |
+
+**What happened.**
+- **Everyone used the stock market:** listing their own shares, issuing new ones, backing raises and buying shares. It still scored lowest, 5–6.
+- **One day's sales misled everyone (#492).** Lumpy sales showed as 0 or a spike. The investor example re-priced shares at 1 after one bad day, Pip's share rule never fired, and Omar's raises were priced from 8 to 38.
+- **Dead companies' shares kept value (#493).** The House listed them at 1, holders kept the last price, and investors bought shares in dying companies.
+- **Fuel deaths couldn't be traced (#494).** The timeline was too short, with no breakdown of where the fuel went.
+- **Also asked for:**
+  - a JSON stock exchange and a cost basis for holdings (#495);
+  - safer example designs (#496);
+  - share holdings valued at something other than the last trade price, which a fire-sale at 1 could move.
+
 ### Round 52: raising miners wait for a week of income and a fair price (#490)
 
 **What ran.** The same world as round 51, for 31 game days. Raising miners now wait for 7 game days of income before raising, and never offer new shares under 5 credits.

@@ -69,7 +69,9 @@ static ErrorCode_t sh_house_orders(long long now)
     if(house <= 0)
         return ENGINE_OK;
 
-    MYSQL_RES* res = sh_select("SELECT company FROM shares WHERE holder = %d AND company <> %d AND units > 0",
+    // Not a company that has ended: its shares are worth nothing (#493)
+    MYSQL_RES* res = sh_select("SELECT s.company FROM shares s JOIN companies c ON c.company_id = s.company "
+                               "AND c.eliminated_at IS NULL WHERE s.holder = %d AND s.company <> %d AND s.units > 0",
                                house, house);
     if(!res)
         return ENGINE_DB_QUERY_ERROR;
@@ -82,10 +84,11 @@ static ErrorCode_t sh_house_orders(long long now)
 
     ErrorCode_t result = ENGINE_OK;
     for(int i = 0; i < n && result == ENGINE_OK; i++) {
+        // A day's sales, averaged over the last 7 game days (#492)
         long long net = sh_value(0, "SELECT IFNULL(SUM(t.credits - t.tax), 0) FROM agents a "
                                     "JOIN trades t ON t.seller = a.agent_id AND t.game_t > %lld "
                                     "WHERE a.company_id = %d",
-                                 now - 86400, companies[i]);
+                                 now - 7 * 86400, companies[i]) / 7;
         result = sh_exec("INSERT INTO share_orders (company, share_company, side, price, limit_units, placed_t) "
                          "VALUES (%d, %d, %d, %lld, 0, %lld) ON DUPLICATE KEY UPDATE price = VALUES(price), "
                          "limit_units = 0, placed_t = VALUES(placed_t)",
@@ -278,7 +281,8 @@ int db_shares_settle(Event_t* event)
     // buy order. At the order's price, within its limit
     int side = kind == 3 ? SHARE_SELL : SHARE_BUY;
     int seller = kind == 3 ? other : company, buyer = kind == 3 ? company : other;
-    if(other == company)
+    // An ended company's shares are worth nothing and don't trade (#493)
+    if(other == company || !db_company_trading(shares))
         return OUTCOME_NO_MARKET_ORDER;
     res = sh_select("SELECT o.price, o.limit_units, IFNULL(o.drone, 0), IFNULL(o.action, 0) FROM share_orders o "
                     "JOIN companies c ON c.company_id = o.company AND c.eliminated_at IS NULL "
@@ -332,6 +336,11 @@ ErrorCode_t db_shares_clear_due(void)
     ErrorCode_t result = sh_house_orders(now);
     if(result == ENGINE_OK)
         result = sh_exec("DELETE o FROM share_orders o JOIN companies c ON c.company_id = o.company "
+                         "WHERE c.eliminated_at IS NOT NULL");
+    // and so do the orders for an ended company's shares: they are worth
+    // nothing and can't be traded (#493)
+    if(result == ENGINE_OK)
+        result = sh_exec("DELETE o FROM share_orders o JOIN companies c ON c.company_id = o.share_company "
                          "WHERE c.eliminated_at IS NOT NULL");
     // Offerings past their deadline, or of a company that ended, close
     // unfilled and refund their commitments (#485)

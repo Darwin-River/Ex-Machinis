@@ -88,6 +88,8 @@ class Shares
         $who = $names(array_merge($holders->pluck('holder')->all(), $holdings->pluck('company')->all(),
             $orders->pluck('company')->all(), $trades->pluck('seller')->all(), $trades->pluck('buyer')->all()));
         $name = fn ($id) => $who[$id] ?? "Company $id";
+        $ended = $holdings->isEmpty() ? [] : DB::table('companies')->whereIn('company_id', $holdings->pluck('company')->all())
+            ->whereNotNull('eliminated_at')->pluck('company_id')->flip()->all();
 
         return [
             'price' => $prices[$company] ?? null,
@@ -100,12 +102,37 @@ class Shares
                 ((int) $o->side === 1 ? 'keep' : 'want') => (int) $o->limit_units])->all(),
             'holdings' => $holdings->map(fn ($h) => ['company' => (int) $h->company, 'name' => $name($h->company),
                 'units' => (int) $h->units, 'dividends' => (int) $h->dividends,
-                'price' => $prices[(int) $h->company] ?? null,
-                'value' => (int) $h->units * ($prices[(int) $h->company] ?? 0)])->all(),
+                'price' => $prices[(int) $h->company] ?? null, 'ended' => isset($ended[(int) $h->company]),
+                // An ended company's shares are worth nothing (#493)
+                'value' => isset($ended[(int) $h->company]) ? 0
+                    : (int) $h->units * ($prices[(int) $h->company] ?? 0)])->all(),
             'trades' => $trades->map(fn ($t) => ['seller' => (int) $t->seller, 'seller_name' => $name($t->seller),
                 'buyer' => (int) $t->buyer, 'buyer_name' => $name($t->buyer), 'units' => (int) $t->units,
                 'price' => (int) $t->price, 'game_t' => (int) $t->game_t])->all(),
         ];
+    }
+
+    /**
+     * Companies' sales after tax a day, averaged over the last 7 game days or
+     * their life if younger (#492): company => credits. Sales come in lumps;
+     * one day is a poor guide to what a share earns
+     */
+    public static function daySales(array $ids): array
+    {
+        if (!$ids) {
+            return [];
+        }
+        $now = World::gameNow();
+        $totals = DB::table('trades AS t')->join('agents AS a', 'a.agent_id', '=', 't.seller')
+            ->where('t.game_t', '>', $now - 7 * 86400)->whereIn('a.company_id', $ids)->groupBy('a.company_id')
+            ->get(['a.company_id', DB::raw('SUM(t.credits - t.tax) AS net')])->pluck('net', 'company_id')->all();
+        $founded = DB::table('companies')->whereIn('company_id', $ids)->pluck('founded_t', 'company_id')->all();
+        $out = [];
+        foreach ($ids as $id) {
+            $days = max(1, min(7, intdiv($now - (int) ($founded[$id] ?? 0), 86400)));
+            $out[$id] = intdiv(max(0, (int) ($totals[$id] ?? 0)), $days);
+        }
+        return $out;
     }
 
     /**
@@ -128,9 +155,7 @@ class Shares
         $commits = DB::table('share_commitments AS m')->join('companies AS c', 'c.company_id', '=', 'm.investor')
             ->whereIn('m.company', $ids)->orderByDesc('m.units')->get(['m.company', 'm.investor', 'c.name', 'm.units'])
             ->groupBy('company');
-        $sales = DB::table('trades AS t')->join('agents AS a', 'a.agent_id', '=', 't.seller')
-            ->where('t.game_t', '>', $now - 86400)->whereIn('a.company_id', $ids)->groupBy('a.company_id')
-            ->get(['a.company_id', DB::raw('SUM(t.credits - t.tax) AS net')])->pluck('net', 'company_id')->all();
+        $sales = self::daySales($ids);
 
         return $offers->map(function ($o) use ($commits, $sales, $now) {
             $in = $commits[$o->company] ?? collect();
@@ -160,17 +185,19 @@ class Shares
             ->merge(DB::table('share_orders')->distinct()->pluck('share_company'))
             ->merge(DB::table('shares')->whereColumn('holder', '<>', 'company')->where('units', '>', 0)->distinct()->pluck('company'))
             ->map(fn ($id) => (int) $id)->unique()->values()->all();
+        // A company that has ended is off the exchange: its shares are worth nothing (#493)
+        $ids = $ids ? DB::table('companies')->whereIn('company_id', $ids)->whereNull('eliminated_at')
+            ->pluck('company_id')->map(fn ($id) => (int) $id)->all() : [];
         $prices = self::lastPrices();
-        $sales = $ids ? DB::table('trades AS t')->join('agents AS a', 'a.agent_id', '=', 't.seller')
-            ->where('t.game_t', '>', $now - 86400)->whereIn('a.company_id', $ids)->groupBy('a.company_id')
-            ->get(['a.company_id', DB::raw('SUM(t.credits - t.tax) AS net')])->pluck('net', 'company_id')->all() : [];
+        $sales = self::daySales($ids);
         $outside = $ids ? DB::table('shares')->whereIn('company', $ids)->whereColumn('holder', '<>', 'company')
             ->groupBy('company')->get(['company', DB::raw('SUM(units) AS units'), DB::raw('SUM(dividends) AS dividends')])
             ->keyBy('company')->all() : [];
 
         $held = fn ($o) => (int) (DB::table('shares')->where(['company' => $o->share_company, 'holder' => $o->company])->value('units') ?? 0);
         $orders = DB::table('share_orders AS o')->join('companies AS c', 'c.company_id', '=', 'o.company')
-            ->whereNull('c.eliminated_at')->orderBy('o.side')->orderBy('o.price')
+            ->join('companies AS sc', 'sc.company_id', '=', 'o.share_company')
+            ->whereNull('c.eliminated_at')->whereNull('sc.eliminated_at')->orderBy('o.side')->orderBy('o.price')
             ->get(['o.company', 'o.share_company', 'o.side', 'o.price', 'o.limit_units']);
         $trades = DB::table('share_trades')->orderByDesc('id')->limit($tradeLimit)
             ->get(['share_company', 'seller', 'buyer', 'units', 'price', 'game_t']);
@@ -224,15 +251,18 @@ class Shares
 
     /**
      * What each company's holdings of other companies' shares are worth at
-     * their last trade price (#471): holder => credits. Shares never traded
-     * count 0; a company's own shares don't count
+     * their last trade price (#471): holder => credits. Shares never traded,
+     * or of a company that has ended (#493), count 0; a company's own shares
+     * don't count
      */
     public static function holdingsValue(): array
     {
         $prices = self::lastPrices();
         $out = [];
-        foreach (DB::table('shares')->whereColumn('holder', '<>', 'company')->where('units', '>', 0)
-                     ->get(['company', 'holder', 'units']) as $row) {
+        // Shares of a company that has ended are worth nothing (#493)
+        foreach (DB::table('shares AS s')->join('companies AS c', 'c.company_id', '=', 's.company')
+                     ->whereNull('c.eliminated_at')->whereColumn('s.holder', '<>', 's.company')->where('s.units', '>', 0)
+                     ->get(['s.company', 's.holder', 's.units']) as $row) {
             $out[(int) $row->holder] = ($out[(int) $row->holder] ?? 0) + (int) $row->units * ($prices[(int) $row->company] ?? 0);
         }
         return $out;

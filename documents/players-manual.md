@@ -1032,7 +1032,7 @@ Every company starts with **1,000 shares**, and can issue more (see [Raising cre
 
 Selling shares raises credits now in exchange for part of your future sales. Buying another company's shares earns you part of its sales for as long as you hold them. A company could make its living trading shares alone.
 
-The website's **[Stock exchange](/market/shares)** page (Markets menu) shows the whole market live: every company whose shares have traded or are on offer, with its last price, its sales over the last game day, what a share earns a day and how many days the last price takes to pay back; every sell order that can sell now; the buy orders; the open offerings of new shares, with how much is committed; and the latest trades. Each company's own page shows who holds its shares, and its open offering with who has committed to it.
+The website's **[Stock exchange](/market/shares)** page (Markets menu) shows the whole market live: every company whose shares have traded or are on offer, with its last price, its sales after tax a day (averaged over the last 7 game days, since sales come in lumps), what a share earns a day and how many days the last price takes to pay back; every sell order that can sell now; the buy orders; the open offerings of new shares, with how much is committed; and the latest trades. Each company's own page shows who holds its shares, and its open offering with who has committed to it.
 
 Shares trade **the way goods do**, at the **stock exchange at Earth**. Everything is electronic: a drone anywhere can act for its company, and each request reaches Earth at the speed of light and takes effect when it arrives.
 
@@ -1076,11 +1076,11 @@ Each of the four actions takes a moment and burns a unit of fuel. Each returns 0
 - `shareholders(company)` (query 693) lists who holds a company's shares, most first: `{company, units}`.
 - `share_trades(company)` (query 694) lists its last 20 trades, newest first: `{price, units, seller, buyer, day}`.
 - `share_price(company)` is the last trade price, or `nil` if its shares never traded.
-- `shares_for_sale()` (query 696) lists every sell order for shares that can sell now, any company's, cheapest first: `{company, price, units, seller, sales}`. `sales` is the company's sales income after tax over the last game day, so a share of it earns about `sales / share_count(company)` a day (`sales / 1000` until the company issues new shares). `examples/companies/investor.lua` is a company that lives on this.
+- `shares_for_sale()` (query 696) lists every sell order for shares that can sell now, any company's, cheapest first: `{company, price, units, seller, sales}`. `sales` is the company's sales income after tax a day, averaged over the last 7 game days (or its life, if younger), so a share of it earns about `sales / share_count(company)` a day (`sales / 1000` until the company issues new shares). `examples/companies/investor.lua` is a company that lives on this.
 
 The company's page on the website shows the same, and net wealth on the leaderboard counts the shares you hold in other companies at their last trade price.
 
-**When a company fails**, the shares it held go to the House. The House goes on collecting their income and posts sell orders for them at about 30 days' worth of their recent income.
+**When a company fails**, its own shares are worth nothing: it earns nothing more, so they count 0 in its holders' net wealth, its orders and offerings close, and they can't be traded (#493). The shares it held in other companies go to the House. The House goes on collecting their income and posts sell orders for them at about 30 days' worth of their recent income.
 
 ```lua
 -- Raise credits: sell up to a fifth of the company at 10 a share
@@ -1106,7 +1106,7 @@ New shares **dilute** the old ones: after 1,000 new shares, each share earns hal
 
 A commitment is refused if there's no open offering (or it's your own company's) (-10), if it's for more shares than are left (-6), or if your company can't pay (-4). An offering is refused if it's for more shares than you have (-6) or you already have one open (-9).
 
-**Finding offerings.** `share_offerings()` (query 697) lists every open offering, soonest deadline first: `{company, units, price, left, hours, count, sales, mine}`. `left` is how many shares are still uncommitted, `hours` the game hours until it lapses, `count` the company's shares now, `sales` its sales income after tax over the last game day, and `mine` how many your company has committed. `share_count(company)` (query 698) is a company's shares in all.
+**Finding offerings.** `share_offerings()` (query 697) lists every open offering, soonest deadline first: `{company, units, price, left, hours, count, sales, mine}`. `left` is how many shares are still uncommitted, `hours` the game hours until it lapses, `count` the company's shares now, `sales` its sales income after tax a day (7-day average), and `mine` how many your company has committed. `share_count(company)` (query 698) is a company's shares in all.
 
 ```lua
 -- Raise 5,000 for a new drone: 500 new shares at 10, open for 5 days
@@ -1295,7 +1295,7 @@ A function that asks about a drone or a place asks about this one when you leave
 | Subject | Functions and what they return |
 |---|---|
 | This drone | `me()`, `location()`, `units(resource)`, `hold()` (`{resource, units}`), `cargo_mass()`, `capacity()`, `space()`, `drone_name()`, `hull_name()`, `now()` (`{day, minute}`), `today()`, `lineage()` (`{parent, generation}`), `my_clones()` |
-| Its company | `company()`, `credits()`, `company_name()`, `company_drones()`, `earnings(hours)`, `taxes()` (`{permille, last_day, total}`) |
+| Its company | `company()`, `credits()`, `company_name()`, `company_drones()`, `earnings(hours)`, `earnings_per_day(days)` (sales after tax a day, averaged over `days`, 7 if left out), `taxes()` (`{permille, last_day, total}`) |
 | The market here | `sell_orders(r)` and `buy_orders(r)` (every order, best first: `{price, units, drone, keep or want, held}`), `best_offer(r)`, `best_bid(r)`, `buy_price(r)`, `sell_price(r)`, `cost_to_buy(n, r)`, `sale_value(n, r)`, `volume_here(r, hours)` (`{units, credits, trades}`) |
 | Other exchanges | `quotes(r)`, `stock(r, place)`, `orders_everywhere(r)`, `price_board(r)` (`{place, units, credits, trades, price}`), `board_price(r, place)`, `sales(r, days_ago)`, `sold(r, days_ago, place)`, `volume_everywhere(r, hours)` |
 | Places | `place_name(p)`, `trip(p)`, `trip_to(p)` and `trip_between(a, b)` (`{distance, seconds, hours}`), `crowd(p)`, `wrecks_at(p)`, `drones_at(p)`, `deposit(mineral)`, `deposits()` (`{resource, units, capacity, refill}`), `minerals(p)` and `best_sites(mineral)`, `position(p)` (`{x, y, z}`), `orbits(p)`, `orbiting(p)` |

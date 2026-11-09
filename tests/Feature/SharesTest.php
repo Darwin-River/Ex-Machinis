@@ -26,6 +26,12 @@ class SharesTest extends TestCase
         return (int) DB::table('companies')->insertGetId(['user_id' => $user->user_id, 'name' => $name, 'credits' => 0, 'house' => $house]);
     }
 
+    /** A company a game day old: its sales a day average over that one day (#492) */
+    private function dayOld(int $company): void
+    {
+        DB::table('companies')->where('company_id', $company)->update(['founded_t' => \App\Services\World::gameNow() - 86400 - 60]);
+    }
+
     private function house(): int
     {
         return (int) (DB::table('companies')->where('house', 1)->min('company_id') ?: $this->company('The House', 1));
@@ -122,6 +128,7 @@ class SharesTest extends TestCase
         $user = User::create(['name' => 'Investor', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
         $issuer = Release::release($user, 'Issuer Co', 'function launched() end');
         $investor = Release::release($user, 'Investor Co', 'function launched() end');
+        $this->dayOld($issuer->company_id);
         $this->trade($issuer->company_id, $issuer->company_id, $investor->company_id, 40, 15);
         // The issuer sold 3,000 credits' worth today (300 tax): a share earns 2.7 a day
         DB::table('trades')->insert(['resource' => 2011, 'units' => 10, 'credits' => 3000, 'tax' => 300,
@@ -149,6 +156,7 @@ class SharesTest extends TestCase
         $user = User::create(['name' => 'Investor', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
         $issuer = Release::release($user, 'Issuer Co', 'function launched() end');
         $investor = Release::release($user, 'Investor Co', 'function launched() end');
+        $this->dayOld($issuer->company_id);
         // A company starts with 1,000 shares (#485)
         $this->assertSame(1000, (int) DB::table('companies')->where('company_id', $issuer->company_id)->value('share_count'));
 
@@ -176,6 +184,7 @@ class SharesTest extends TestCase
         $user = User::create(['name' => 'Investor', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
         $issuer = Release::release($user, 'Raising Co', 'function launched() end');
         $investor = Release::release($user, 'Backer Co', 'function launched() end');
+        $this->dayOld($issuer->company_id);
         DB::table('share_offerings')->insert(['company' => $issuer->company_id, 'units' => 500, 'price' => 10,
             'deadline_t' => \App\Services\World::gameNow() + 5 * 3600 - 60, 'placed_t' => 0]);
         DB::table('share_commitments')->insert(['company' => $issuer->company_id, 'investor' => $investor->company_id,
@@ -193,5 +202,33 @@ class SharesTest extends TestCase
         // A lapsed offering isn't open
         DB::table('share_offerings')->where('company', $issuer->company_id)->update(['deadline_t' => 0]);
         $this->assertNull(Shares::summary($issuer->company_id)['offering']);
+    }
+
+    public function testSalesAverageOverAWeekAndEndedCompaniesSharesAreWorthNothing()
+    {
+        $user = User::create(['name' => 'Investor', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
+        $issuer = Release::release($user, 'Lumpy Co', 'function launched() end');
+        $investor = Release::release($user, 'Holder Co', 'function launched() end');
+        $now = \App\Services\World::gameNow();
+        DB::table('companies')->where('company_id', $issuer->company_id)->update(['founded_t' => $now - 30 * 86400]);
+        // One lumpy sale four days ago, none since: 7,000 a week is 1,000 a day (#492)
+        DB::table('trades')->insert(['resource' => 2011, 'units' => 10, 'credits' => 7700, 'tax' => 700,
+            'seller' => $issuer->agent_id, 'buyer' => $investor->agent_id, 'game_t' => $now - 4 * 86400]);
+        $this->assertSame(1000, Shares::daySales([$issuer->company_id])[$issuer->company_id]);
+        $this->trade($issuer->company_id, $issuer->company_id, $investor->company_id, 100, 20);
+        DB::table('share_orders')->insert(['company' => $investor->company_id, 'share_company' => $issuer->company_id,
+            'side' => 1, 'price' => 25, 'limit_units' => 0, 'placed_t' => 0]);
+        $this->assertSame(2000, Shares::holdingsValue()[$investor->company_id]);
+        $this->assertSame(1, collect(Shares::exchange()['for_sale'])->where('company', $issuer->company_id)->count());
+
+        // The issuer ends: its shares are worth nothing and off the exchange (#493)
+        DB::table('companies')->where('company_id', $issuer->company_id)->update(['eliminated_at' => $now]);
+        $this->assertSame(0, Shares::holdingsValue()[$investor->company_id] ?? 0);
+        $x = Shares::exchange();
+        $this->assertSame(0, collect($x['for_sale'])->where('company', $issuer->company_id)->count());
+        $this->assertSame(0, collect($x['companies'])->where('company', $issuer->company_id)->count());
+        $holding = Shares::summary($investor->company_id)['holdings'][0];
+        $this->assertSame([true, 0], [$holding['ended'], $holding['value']]);
+        $this->get('/companies/' . $investor->company_id)->assertOk()->assertSee('ended: worth nothing');
     }
 }
