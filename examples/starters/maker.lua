@@ -190,6 +190,7 @@ end
 -- it only does what still needs doing: await_kit and unpack pass at once
 -- once the tools are unpacked, and go stays put if already there
 function launched()
+  fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
   await_kit()   -- a copy starts with no equipment: wait for its kit
   unpack()
   go(moon)

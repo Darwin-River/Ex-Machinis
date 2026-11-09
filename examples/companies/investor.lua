@@ -10,7 +10,8 @@
 --   up to grow_days for a company whose income is growing;
 -- - from another holder it pays no more than buy_days: no premium for
 --   growth, so it doesn't bid up shares between investors;
--- - it offers what it holds at sell_days of a share's income;
+-- - it offers what it holds at sell_days of a share's income, never under
+--   what it paid, and always keeps fuel_money for fuel (#496);
 -- - once a day it commits to offerings of new shares (#485) worth buy_days
 --   of a share's income once filled, counting one more drone's sales, one
 --   offering at a time until it fills or lapses (#488).
@@ -20,7 +21,9 @@ buy_days = 30      -- pays up to this many days of a share's income
 grow_days = 60     -- and up to this many for a company that is growing
 sell_days = 60     -- asks this many days of a share's income for what it holds
 spend = 1500       -- credits it puts into one company at a time
-cash_floor = 500   -- credits it keeps
+cash_floor = 500   -- credits it keeps (never under fuel_money, below)
+fuel_money = 200   -- credits it always keeps for fuel: each request burns one,
+                   -- and a drone that can't buy fuel dies (#496)
 low_fuel = 20      -- buys fuel below this (each order burns one)
 min_buy = 25       -- skips buys worth less than this: each costs a unit of fuel
 
@@ -77,23 +80,42 @@ end
 function buy()
   for _, o in ipairs(shares_for_sale()) do
     if o.company ~= company() and o.price > 0 and o.price <= limit(o.company, o.seller) then
-      local cash = credits() - cash_floor
+      local cash = credits() - math.max(cash_floor, fuel_money)
       local n = math.min(o.units, spend // o.price, cash // o.price)
-      if n > 0 and n * o.price >= min_buy then pull_shares(n, o.company, o.seller) end
+      if n > 0 and n * o.price >= min_buy then
+        pull_shares(n, o.company, o.seller)
+        note_cost(o.company, n, o.price)
+      end
     end
   end
 end
 
+-- What it has paid a share of each company, on average (#496): it never
+-- offers shares for less, so one bad day can't make it dump them. Counted
+-- when it asks; a request refused at Earth still counts
+paid_for = {}
+function note_cost(c, n, price)
+  local p = paid_for[c] or {units = 0, credits = 0}
+  p.units, p.credits = p.units + n, p.credits + n * price
+  paid_for[c] = p
+end
+function cost(c)
+  local p = paid_for[c]
+  if not p or p.units == 0 then return 0 end
+  return math.ceil(p.credits / p.units)
+end
+
 -- Offer what it holds at sell_days of a share's income (twice the last
--- price for a company it knows nothing of yet). It remembers the price it
--- last posted for each, so an unchanged order costs no fuel
+-- price for a company it knows nothing of yet), and never under what it
+-- paid. It remembers the price it last posted for each, so an unchanged
+-- order costs no fuel
 posted = {}
 function sell()
   for _, h in ipairs(shares_held()) do
     if h.company ~= company() then
       local k = known[h.company]
       local price = k and math.floor(k.avg * sell_days) or 2 * h.price
-      price = math.max(price, 1)
+      price = math.max(price, cost(h.company), 1)
       if posted[h.company] ~= price then
         sell_shares(h.company, 0, price)
         posted[h.company] = price
@@ -127,10 +149,11 @@ function back_offerings(budget, days)
   local n = math.min(pick.left, budget // pick.price)
   if n * pick.price < 25 then return 0 end
   commit_shares(n, pick.company)
+  note_cost(pick.company, n, pick.price)
   return n * pick.price
 end
 
-function report()
+function show_status()
   local held, value = 0, 0
   for _, h in ipairs(shares_held()) do
     if h.company ~= company() then held = held + h.units; value = value + h.units * h.price end
@@ -140,17 +163,18 @@ end
 
 started = false
 function launched()
+  fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
   go(earth)
   last_day = -1
   while true do
     if units(fuel) < low_fuel then buy_here(40, fuel) end
     if today() ~= last_day then
       study(); sell()
-      back_offerings(math.min(spend, credits() - cash_floor), buy_days)
+      back_offerings(math.min(spend, credits() - math.max(cash_floor, fuel_money)), buy_days)
       last_day = today()
     end
     buy()
-    report()
+    show_status()
     wait(120)
   end
 end

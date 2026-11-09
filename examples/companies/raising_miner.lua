@@ -23,7 +23,8 @@
 
 -- Settings: change these numbers to make it your own
 low_fuel = 40      -- get fuel when below this
-dry_tries = 12     -- dry tries at the Moon before trying Phobos
+dry_tries = 12     -- dry tries at the Moon before trying Phobos (a large
+                   -- number keeps it at the Moon)
 rest = 240         -- game minutes to rest when both Mars moons are dry
 hold_cap = 16      -- metals it keeps on offer to other drones
 raise_days = 10    -- days an offering stays open
@@ -149,11 +150,14 @@ function move_on()
       return
     end
     site_no, misses = 1, 0
+    -- Say why it leaves (#496): its page shows the status
+    set_status("the Moon was dry " .. dry_tries .. " times: trying Phobos")
     go(site())
     return
   end
   if units(fuel) < 15 then wait(rest); return end
   site_no = 3 - site_no   -- Phobos <-> Deimos
+  set_status("dry here: trying " .. place_name(site()))
   misses = misses + 1
   if misses % 2 == 0 then wait(rest) end
   go(site())
@@ -266,6 +270,7 @@ end
 -- has already chosen its site keeps it
 started = false
 function launched()
+  fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
   await_kit()
   unpack()
   if not started then
