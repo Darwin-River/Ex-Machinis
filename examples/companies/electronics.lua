@@ -182,6 +182,7 @@ end
 -- launched() may run again (after a crash, or if the engine restarts):
 -- await_kit and unpack pass once the tools are unpacked
 function launched()
+  fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
   await_kit()
   unpack()
   go(moon)

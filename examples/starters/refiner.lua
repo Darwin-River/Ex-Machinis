@@ -201,6 +201,7 @@ end
 -- has already chosen its site keeps it
 started = false
 function launched()
+  fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
   await_kit()
   unpack()
   if not started then

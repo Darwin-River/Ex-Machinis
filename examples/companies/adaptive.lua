@@ -119,6 +119,7 @@ end
 -- launched() may run again (after a crash, or if the engine restarts):
 -- unpack passes once the tools are unpacked, and it starts again shopping
 function launched()
+  fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
   unpack()
   go(moon)
   become(shopping)
