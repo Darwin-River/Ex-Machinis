@@ -419,6 +419,28 @@ On the way to 5,000 ships (#428), two steps:
 - On round 41's end state #427 and #430 were alike. The top cost there is now a company's latest event (#435).
 - **What holds the clock back at 1,000 ships** is now the engine's query for due commands (#432).
 
+### Round 52: raising miners wait for a week of income and a fair price (#490)
+
+**What ran.** The same world as round 51, for 31 game days. Raising miners now wait for 7 game days of income before raising, and never offer new shares under 5 credits.
+
+| | Round 51 | Round 52 |
+|---|---|---|
+| Offerings filled | 8 | 5 |
+| Miners that raised | 4 | 5 |
+| Raised in all | 14,626 | 12,517 |
+| First raise filled | day 4 | day 9 |
+| Price a share | 3–12 | 5–13 |
+| Most shares a miner ended with | 2,017 | 1,500 |
+| Copies launched | 2 (and one ready) | 0 |
+| Raising miners' average credits | 2,863 | 3,037 |
+
+**What happened.**
+- **Fairer prices, less dilution.** No new share sold under 5, and no miner went past 1,500 shares, against up to 2,017 in round 51.
+- **Slower growth.** Five miners raised once each, ending with 3,729 to 5,376 credits, but none raised a second time or reached a copy's 6,500 within 31 days. In round 51 two had launched copies by then.
+- **More miners raised.** Five against four: with fewer early raises soaking up the investors' money, it went further.
+
+**What it suggests.** Waiting trades speed for price. A miner that raises early grows sooner but sells its company cheaply; one that waits keeps more of it but grows later. Both are now settings players can tune (`raise_after`, `raise_min`); in a 31-day round, raising early won more drones.
+
 ### Rounds 50–51: smaller raises, longer deadlines, focused backers (#488)
 
 **What ran.** The same world as round 49, for 31 game days each. Offerings stay open 10 days instead of 5; investors and Makers back one offering at a time until it fills or lapses, else the one closest to filling; raising miners raise at most 2,500 at a time.
