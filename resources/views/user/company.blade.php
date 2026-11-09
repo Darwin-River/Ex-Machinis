@@ -136,7 +136,7 @@
                         @foreach($shares['holdings'] as $h)
                             <tr><td><a href="{{ url('/companies/'.$h['company']) }}">{{ $h['name'] }}</a></td>
                                 <td>{{ number_format($h['units']) }}</td>
-                                <td>{{ $h['price'] !== null ? number_format($h['price']) : '-' }}</td>
+                                <td>{{ $h['ended'] ? 'ended: worth nothing' : ($h['price'] !== null ? number_format($h['price']) : '-') }}</td>
                                 <td>{{ number_format($h['value']) }}</td><td>{{ number_format($h['dividends']) }}</td></tr>
                         @endforeach
                     </table>

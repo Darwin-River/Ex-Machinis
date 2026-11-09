@@ -4,7 +4,7 @@
 -- Every company's shares pay their holders 0.1% a share of the company's
 -- sales income. Once a game day the investor learns what a share of each
 -- company pays a day: from the dividends it has had where it holds shares,
--- else from the company's sales over the last day (shares_for_sale() lists
+-- else from the company's sales a day over the last week (shares_for_sale() lists
 -- them), smoothed over about a week. It looks ahead (#475 step 3):
 -- - from a company itself it pays up to buy_days of a share's income, and
 --   up to grow_days for a company whose income is growing;

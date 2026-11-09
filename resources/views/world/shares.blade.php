@@ -16,8 +16,8 @@
             <h3>Offerings of new shares</h3>
             <div style="white-space: normal; margin-bottom: 1em">Companies raising credits by issuing new shares. Investors
                 commit and pay now; when every share is committed the shares are issued and the company paid, and if the
-                deadline passes first everyone is refunded. <i>A share a day</i> is the last game day's sales after tax
-                divided by the shares it will have once the offering fills.</div>
+                deadline passes first everyone is refunded. <i>A share a day</i> is the company's sales after tax a day
+                (7-day average) divided by the shares it will have once the offering fills.</div>
             <div class="table-custom-responsive">
                 <table class="table-ticket" id="share-offerings">
                     <tr><th>Company</th><th>New shares</th><th>Price</th><th>Raising</th><th>Committed</th><th>Hours left</th>
@@ -38,11 +38,11 @@
 
             <h3 class="mt-4">Companies</h3>
             <div style="white-space: normal; margin-bottom: 1em">Companies whose shares have traded, are on offer, or are
-                held by others, busiest first. <i>A share a day</i> is the last game day's sales after tax divided by its shares;
+                held by others, busiest first. <i>Sales a day</i> is sales after tax averaged over the last 7 game days (sales come in lumps); <i>A share a day</i> is that divided by its shares;
                 <i>Pays back</i> is how many days of that the last price comes to.</div>
             <div class="table-custom-responsive">
                 <table class="table-ticket" id="share-companies">
-                    <tr><th>Company</th><th>Shares</th><th>Last price</th><th>Sales, last day</th><th>A share a day</th><th>Pays back</th>
+                    <tr><th>Company</th><th>Shares</th><th>Last price</th><th>Sales a day</th><th>A share a day</th><th>Pays back</th>
                         <th>Held by others</th><th>Dividends paid</th></tr>
                     @forelse($exchange['companies'] as $c)
                         <tr>

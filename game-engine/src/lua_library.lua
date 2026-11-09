@@ -374,8 +374,8 @@ local function share_trades(c)                                                  
   return records(ask(694, c), {"price", "units", "seller", "buyer", "day"})
 end
 -- Every company's shares on offer now, cheapest first (#473): company,
--- price, units, seller, and sales (the company's income after tax over the
--- last game day; each share earns 0.1% of it)
+-- price, units, seller, and sales (the company's income after tax
+-- a day, averaged over the last 7 game days; each share earns its part of it)
 local function shares_for_sale()                                                  -- 696
   return records(ask(696), {"company", "price", "units", "seller", "sales"})
 end
@@ -495,6 +495,14 @@ local function earnings(hours)                                                  
   end
   e.net = e.sales - e.taxes - e.purchases
   return e
+end
+-- Your company's sales after tax a day, averaged over the last `days` game
+-- days (7 if not given): sales come in lumps, and one day is a poor guide
+-- (#492). A company younger than that counts days it didn't exist as 0
+local function earnings_per_day(days)
+  days = days or 7
+  local e = earnings(24 * days)
+  return math.max(e.sales - e.taxes, 0) / days
 end
 
 -- Mining, wrecks, family
@@ -673,6 +681,7 @@ _G.orders_everywhere = orders_everywhere
 _G.quotes = quotes
 _G.stock = stock
 _G.earnings = earnings
+_G.earnings_per_day = earnings_per_day
 _G.deposits = deposits
 _G.wrecks = wrecks
 _G.wreck_hold = wreck_hold
