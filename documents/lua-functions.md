@@ -21,10 +21,10 @@ Every function below is built in (`game-engine/src/lua_library.lua`). Actions re
 | Places | `earth`, `moon`, `mars`, `phobos`, `deimos` |
 | Resources | `fuel`, `magmite`, `kunspar`, `yalspar`, `vladnium`, `wolfite`; `metals_a1` to `metals_a3`, `alloys_a1` to `alloys_a3`, `organics_a1`, `organics_a2`, `inorganics_a1`, `inorganics_a2`, `rods`; `mining_kit`, `factory_kit`, `cruiser_kit`, `engine_module` (any other resource by its number) |
 | Moving | `travel(place)`, `go(place)` (stays put if already there), `trip(place)` (game hours to fly there; -1 if unknown), `trip_to(place)` and `trip_between(a, b)` (`{distance, seconds, hours}`; distance in thousands of km) |
-| Places | `place_name(place)`, `place_type(place)`, `orbits(place)`, `orbiting(place)`, `position(place)` (`{x, y, z}`), `drones_at(place)`, `crowd(place)`, `wrecks_at(place)`, `minerals(place)` and `best_sites(mineral)` (`{resource, abundance}`, `{place, abundance}`), `deposits()` (`{resource, units, capacity, refill}`, here) |
+| Places | `place_name(place)`, `place_type(place)`, `orbits(place)`, `orbiting(place)`, `position(place)` (`{x, y, z}`), `drones_at(place)`, `crowd(place)`, `wrecks_at(place)`, `minerals(place)` and `best_sites(mineral)` (`{resource, abundance}`, and the 10 best places `{place, abundance, units, distance}`: richest, then most left, then nearest), `deposits()` (`{resource, units, capacity, refill}`, here) |
 | Mining and making | `mine(mineral)`, `refine(mineral)`, `make(resource)`, `recipe(resource)` |
 | Your hold | `units(resource)`, `hold()` (a list of `{resource, units}`), `cargo_mass()`, `capacity()`, `space()` (capacity left), `jettison(n, resource)`, `push(n, resource, drone)`, `pull(n, resource, drone)` |
-| Trading here | `buy_here(n, resource)`, `sell_here(n, resource)`, `sell_all(resource)` (also as `buy_from_station` and `sell_to_station`) |
+| Trading here | `buy_here(n, resource, max_price)`, `sell_here(n, resource)`, `sell_all(resource)` (also as `buy_from_station` and `sell_to_station`) |
 | Standing orders | `sell_order(price, keep, resource)`, `buy_order(price, want, resource)`, `sell_order_if_changed(...)`, `buy_order_if_changed(...)` |
 | Reading the market | `buy_price(resource)`, `sell_price(resource)` (0 when nobody sells or buys it here), `best_offer(resource)` and `best_bid(resource)` (each returns price, drone, units), `sell_orders(resource)` and `buy_orders(resource)` (every order here: `{price, units, drone, keep or want, held}`), `cost_to_buy(n, resource)` and `sale_value(n, resource)` (credits and units, walking the orders here), `board_price(resource, place)`, `price_board(resource)`, `sold(resource, days_ago, place)`, `sales(resource, days_ago)`, `volume_here(resource, hours)`, `volume_everywhere(resource, hours)`, `deposit(mineral)` |
 | Other exchanges | `quotes(resource)` (best prices and stock at each place: live here, an hour old elsewhere), `stock(resource, place)`, `orders_everywhere(resource)` |
@@ -176,7 +176,7 @@ end
 
 ## Buying where it is cheapest
 
-**`buy_here(n, resource)`** (built in, #380): buy up to n of a good here, cheapest first: it pulls from the cheapest sell order here (any drone's, a station drone's included), then the next, until it has n; a seller that refuses is skipped (at most 6 tries). A pull that fails costs no fuel. Used by: every design that buys (Maker, Smith, Machinist, Chemist, Miner and Refiner for fuel).
+**`buy_here(n, resource)`** (built in, #380): buy up to n of a good here, cheapest first: it pulls from the cheapest sell order here (any drone's, a station drone's included), then the next, until it has n; it reads the orders afresh before each pull, a seller that refuses is skipped (at most 6 tries), and with `max_price` it buys only from sellers asking at most that a unit (#503). A pull that fails costs no fuel: it is given back. Used by: every design that buys (Maker, Smith, Machinist, Chemist, Miner and Refiner for fuel).
 
 - The exchanges' station drones sell inputs too, so a maker can usually buy, but a miner asking less sells first.
 

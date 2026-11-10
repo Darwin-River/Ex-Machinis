@@ -181,12 +181,15 @@ function leftover()
 end
 
 -- --- selling: everything in the recipe list, in lots of 4 or more,
--- or whatever is aboard every 12th round
+-- or whatever is aboard every 12th round, or at once when credits are
+-- below the cash floor (#512: a Foundry spent down to 3 credits, couldn't
+-- buy fuel, and wrecked holding a gear box, nozzles and semiconductors)
 function sell_goods()
+  local short = credits() < cash_floor
   for i in each_recipe() do
     local res = rec[i].product
     local n = have(res)
-    if (n > 3 or rounds % 12 == 0) and n > 0 then sell_here(n, res) end
+    if (n > 3 or rounds % 12 == 0 or short) and n > 0 then sell_here(n, res) end
   end
 end
 
@@ -208,6 +211,7 @@ function refuel()
     snap()
   end
   if can_brew() and make(fuel) == 0 then snap(); return end
+  if credits() < cash_floor then sell_goods() end   -- raise the credits first
   buy_here(30, fuel)
   snap()
 end

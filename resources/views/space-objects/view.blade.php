@@ -85,7 +85,7 @@
             <div class="row row-30">
                 <div class="col">
                     <h2 class="">Deposits</h2>
-                    <p>What is left to mine here now. Each deposit refills every game day, up to its capacity; a drone asks with <code>deposit ( mineral -- n )</code>.</p>
+                    <p>What is left to mine here now. Each deposit refills every game day, up to its capacity; a drone asks with <code>deposit(mineral)</code>.</p>
                     <div class="table-custom-responsive">
                         <table class="table-custom table-custom-primary table-deposits">
                             <tr><th>Mineral</th><th>Left</th><th>Capacity</th><th>Refills a day</th></tr>

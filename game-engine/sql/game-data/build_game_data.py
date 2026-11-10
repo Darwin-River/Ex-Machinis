@@ -1434,6 +1434,20 @@ queries.append((640, 'Deposits here',
 BOARD_LAG = HOUR
 LOCAL_NOTE = ' Only where the drone is: for elsewhere, see the price board (680).'
 local_queries = {
+    # The best places to mine a resource (#424: it listed every place, ~177
+    # for yalspar, all at abundance 5): the 10 richest, then those with most
+    # left to mine now, then the nearest to the drone
+    410: ('List best extraction sites',
+          'The 10 best places to mine resource N: place, abundance, units left there now, distance from the drone '
+          '(thousand km). Richest first, then most left, then nearest.', 1,
+          "SELECT a.location AS place, a.multiplier AS abundance, FLOOR(IFNULL(LEAST(d.capacity, IFNULL(s.amount, "
+          "d.capacity) + d.refill_per_day * ([game_now] - IFNULL(s.refilled_t, [game_now])) / 86400), 0)) AS d_units, "
+          "IFNULL(ROUND(SQRT(POW(o.x_coord - h.x_coord, 2) + POW(o.y_coord - h.y_coord, 2) + POW(o.z_coord - h.z_coord, 2)) "
+          f"/ 1000), 0) AS d_distance FROM abundancies AS a INNER JOIN objects AS o ON o.object_id = a.location "
+          f"INNER JOIN objects AS h ON h.object_id = {HERE_} "
+          "LEFT JOIN deposits AS d ON d.object_id = a.location AND d.resource = a.resource "
+          "LEFT JOIN deposit_state AS s ON s.object_id = a.location AND s.resource = a.resource "
+          "WHERE a.resource = [value_1] ORDER BY a.multiplier DESC, d_units DESC, d_distance, a.location LIMIT 10;"),
     601: ('List buy orders here', '[N R L 601 query]: Lists buy orders for resource N where the drone is (like 600): price, '
           'wanted maximum, stock it holds free (plus what is on its way in), spacecraft ID.' + LOCAL_NOTE, 1, orders(5, True)),
     611: ('List sell orders here', '[N R L 611 query]: Lists sell orders for resource N where the drone is (like 610): price, '

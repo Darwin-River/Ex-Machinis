@@ -78,7 +78,8 @@ local function units(resource) return first(212, resource) end
 local function company() return first(201, me()) end
 local function credits() return first(101, company()) end
 local function today() return first(207) end
-local function crowd(place) return first(721, place) end
+-- Drones at a place (here if no place, #423: crowd() crashed)
+local function crowd(place) return first(721, place or location()) end
 -- Unpacks the kit aboard; 0 when there is none (already unpacked: a drone
 -- whose engine restarted runs launched() again, so this must be harmless)
 local engine_module = 5001
@@ -148,8 +149,10 @@ local function buy_price(resource)
   return price
 end
 
--- Units of a resource sold at a place on the game day days_ago days ago
+-- Units of a resource sold at a place (here if no place) on the game day
+-- days_ago days ago
 local function sold(resource, days_ago, place)
+  place = place or location()
   for _, row in ipairs(ask(682, resource, days_ago)) do
     if row[1] == place then return row[2] end
   end
@@ -157,8 +160,9 @@ local function sold(resource, days_ago, place)
 end
 
 -- What a good traded for, a unit, at a place over the last game day (the
--- price board, query 680); 0 if none traded there
+-- price board, query 680; here if no place); 0 if none traded there
 local function board_price(resource, place)
+  place = place or location()
   for _, row in ipairs(ask(680, resource)) do
     if row[1] == place and row[2] > 0 then return row[3] // row[2] end
   end
@@ -171,12 +175,14 @@ end
 -- was hours old, and other buyers had taken what it listed). A seller that
 -- refuses is skipped for the next (#380 round 35: buying from the same
 -- small miner lot again and again stalled factories for days); at most 6
--- tries, each an action
-local function buy_here(n, resource)
+-- tries, each an action. With max_price it buys only from sellers asking
+-- at most that a unit (#503: once the cheap sellers ran out it paid 49)
+local function buy_here(n, resource, max_price)
   local result, tries, mine, refused = -12, 0, me(), {}
   while n > 0 and tries < 6 do
     local seller, avail
     for _, o in ipairs(ask(610, resource)) do
+      if max_price and o[1] > max_price then break end
       if o[4] ~= mine and not refused[o[4]] and o[3] > o[2] then seller, avail = o[4], o[3] - o[2]; break end
     end
     if not seller then break end
@@ -341,7 +347,9 @@ local function space() return capacity() - cargo_mass() end
 -- Resources and protocols
 local function resource_name(r) return text(400, r) end                           -- 400
 local function unit_mass(r) return first(401, r) end                             -- 401
-local function best_sites(r) return records(ask(410, r), {"place", "abundance"}) end    -- 410
+-- The 10 best places to mine r (#424): richest, then most left now, then
+-- nearest; place, abundance, units (left there now), distance (thousand km)
+local function best_sites(r) return records(ask(410, r), {"place", "abundance", "units", "distance"}) end -- 410
 local function protocol_name(p) return text(500, p) end                           -- 500
 local function protocol_minutes(p) return first(501, p) end                       -- 501
 local function consumes(p) return records(ask(510, p), {"resource", "units"}) end  -- 510
