@@ -20,3 +20,6 @@ phpMyAdmin
 /.phpunit.cache
 /html/hot
 /game-engine/src/bin
+
+# Access lock files (#526)
+*.laccdb

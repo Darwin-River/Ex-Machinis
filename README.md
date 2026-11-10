@@ -16,6 +16,10 @@ Ex Machinis is being developed and managed by Darwin River Software LLC with sup
 
 Ex Machinis is free to play. Supporters cover what it costs to run (the server, the domain and the AI subscription that does most of the building); the site's **Keep the Lights On** page (`/support`) shows the costs, how much is covered, and how to chip in. See the [sustainability playbook](documents/sustainability-playbook.md).
 
+## Licence and contributing
+
+Ex Machinis is free and open source under the [MIT licence](LICENSE). See [CONTRIBUTING.md](CONTRIBUTING.md) to get involved, and [SECURITY.md](SECURITY.md) to report a security problem privately.
+
 ## Programming drones
 
 Spacecraft are programmed in [Lua](https://www.lua.org/manual/5.4/): the [players' manual](documents/players-manual.md) teaches the game, [lua-functions.md](documents/lua-functions.md) lists the functions every drone knows, and `examples/` has starter scripts and company designs. Drones used to be programmed in FORTH; it was retired, but drones already running in FORTH carry on, on the engine's FORTH VM (built from [embed.fth](game-engine/src/embed/embed.fth)).
@@ -34,7 +38,7 @@ Spacecraft are programmed in [Lua](https://www.lua.org/manual/5.4/): the [player
 | `game-engine/sql/game-data/` | The game's design spreadsheets (resources, recipes, queries) and `build_game_data.py`, which turns them into `game-engine/sql/game_data.sql` and the query list in the design manual |
 | `game-engine/scripts/`, `game-engine/conf/` | Cron/start scripts and engine configuration |
 | `tests/` | PHPUnit tests and test fixtures |
-| `documents/` | Game docs: the [player's manual](documents/players-manual.md) and the [design manual](documents/design-manual.md) (both kept up to date with the code), the [production install guide](documents/install.md) the [upgrade plan](documents/laravel-upgrade-plan.md), and the [sustainability playbook](documents/sustainability-playbook.md) (funding, promotion and handing the project on) |
+| `documents/` | Game docs: the [player's manual](documents/players-manual.md) and the [design manual](documents/design-manual.md) (both kept up to date with the code), the [production install guide](documents/install.md), the [upgrade plan](documents/laravel-upgrade-plan.md), the [sustainability playbook](documents/sustainability-playbook.md) (funding, promotion and handing the project on), and the [open-source pathway](documents/open-source-pathway.md) (licence, audit, moving to a project organization) |
 
 ### Run the website locally
 
