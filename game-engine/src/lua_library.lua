@@ -166,20 +166,23 @@ local function board_price(resource, place)
 end
 
 -- Buy up to n here, cheapest first, from whoever sells; 0 when it bought
--- any. A seller that refuses (its stock moved since the look, or its order
--- keeps more back) is skipped for the next (#380 round 35: buying from the
--- same small miner lot again and again stalled factories for days); at
--- most 6 tries, each an action
+-- any. It reads the sell orders afresh before each pull (#502: each pull
+-- waits for the drone's next turn, so by its fourth pull a list read once
+-- was hours old, and other buyers had taken what it listed). A seller that
+-- refuses is skipped for the next (#380 round 35: buying from the same
+-- small miner lot again and again stalled factories for days); at most 6
+-- tries, each an action
 local function buy_here(n, resource)
-  local result, tries, mine = -12, 0, me()
-  for _, o in ipairs(ask(610, resource)) do
-    if n <= 0 or tries >= 6 then break end
-    local avail = math.max(o[3] - o[2], 0)
-    if o[4] ~= mine and avail > 0 then
-      local take = math.min(n, avail)
-      tries = tries + 1
-      if pull(take, resource, o[4]) == 0 then n = n - take; result = 0 end
+  local result, tries, mine, refused = -12, 0, me(), {}
+  while n > 0 and tries < 6 do
+    local seller, avail
+    for _, o in ipairs(ask(610, resource)) do
+      if o[4] ~= mine and not refused[o[4]] and o[3] > o[2] then seller, avail = o[4], o[3] - o[2]; break end
     end
+    if not seller then break end
+    local take = math.min(n, avail)
+    tries = tries + 1
+    if pull(take, resource, seller) == 0 then n = n - take; result = 0 else refused[seller] = true end
   end
   return result
 end
