@@ -190,15 +190,18 @@ end
 -- Sell up to n here, best price first, to whoever buys; 0 when it sold
 -- any. A buyer that refuses is skipped for the next; at most 6 tries
 local function sell_here(n, resource)
-  local result, tries, mine = -12, 0, me()
-  for _, o in ipairs(ask(600, resource)) do
-    if n <= 0 or tries >= 6 then break end
-    local want = math.max(o[2] - o[3], 0)
-    local take = math.min(n, want, units(resource))
-    if o[4] ~= mine and take > 0 then
-      tries = tries + 1
-      if push(take, resource, o[4]) == 0 then n = n - take; result = 0 end
+  -- Reads the buy orders afresh before each push, as buy_here does (#502),
+  -- and skips a buyer that refused
+  local result, tries, mine, refused = -12, 0, me(), {}
+  while n > 0 and tries < 6 do
+    local buyer, want
+    for _, o in ipairs(ask(600, resource)) do
+      if o[4] ~= mine and not refused[o[4]] and o[2] > o[3] then buyer, want = o[4], o[2] - o[3]; break end
     end
+    local take = buyer and math.min(n, want, units(resource)) or 0
+    if take <= 0 then break end
+    tries = tries + 1
+    if push(take, resource, buyer) == 0 then n = n - take; result = 0 else refused[buyer] = true end
   end
   return result
 end

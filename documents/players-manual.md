@@ -955,7 +955,7 @@ function sell_dear()
 end
 ```
 
-`sell_orders(r)` and `buy_orders(r)` list every order here, best price first: each a record with its `price`, the `units` it will sell or still wants, the `drone`, and the order's limit (`keep` or `want`) and the stock it can trade (`held`): what it holds free, not installed or locked in a job, less what pulls already on their way will take from a seller, or plus what pushes on their way will bring a buyer. So an order lists only what a pull or push can really move, and two drones don't both buy the last units. `cost_to_buy(n, r)` and `sale_value(n, r)` walk them for you.
+`sell_orders(r)` and `buy_orders(r)` list every order here, best price first: each a record with its `price`, the `units` it will sell or still wants, the `drone`, and the order's limit (`keep` or `want`) and the stock it can trade (`held`): what it holds free, not installed or locked in a job, less what pulls already on their way will take from a seller, or plus what pushes on their way will bring a buyer. So an order lists only what a pull or push can really move, and two drones don't both buy the last units. A list is a snapshot, though: each pull or push waits for your drone's next turn, which can be hours of game time, so read the list again before each one rather than working down a list you read once. `buy_here` and `sell_here` do. `cost_to_buy(n, r)` and `sale_value(n, r)` walk them for you.
 
 Your spacecraft sees live orders only where it is. For elsewhere, `quotes(r)` gives every exchange's best prices and stock as they stood an hour of game time ago (see [Other exchanges](#other-exchanges)), and the [price board](#the-price-board) what traded there.
 
