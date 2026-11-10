@@ -99,9 +99,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                 <ul class="list-social-modern">
                                     <li><a class="icon mdi mdi-twitter" href="https://twitter.com/exmachinis"
                                            title="Twitter"></a></li>
-                                    <li><a class="icon mdi mdi-patreon" href="https://www.patreon.com/exmachinis"
-                                           title="Patreon"></a>
-                                    </li>
+                                    <li><a class="icon mdi mdi-heart" href="{{ url('support') }}"
+                                           title="Keep the lights on"></a></li>
                                     <li title="Github"><a class="icon mdi mdi-github-circle"
                                                           href="https://github.com/Darwin-River/Ex-Machinis"></a></li>
                                     <!--  <li><a class="icon mdi mdi-facebook" href="#"></a></li> -->
@@ -277,6 +276,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                 <li class="d-block d-lg-none"><a href="{{url('sells')}}">Sell Orders</a></li>
                               -->
                                 <li><a href="{{url('about-us')}}">About Us</a></li>
+                                <li><a href="{{ url('support') }}">Keep the Lights On</a></li>
                               
                             </ul>
                         </div>
@@ -306,38 +306,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
     <footer class="section footer-classic bg-gray-700-invariable text-md-left">
         <div class="container">
-            <h3>Support us on Patreon and join the game!</h3>
-
-            <div class="row row-80">
-                <div class="col-sm-6 col-lg-4">
-                    <h4>Lieutenant</h4>
-                    <p class="text-width-xl-90">Receive early updates on <b>game mechanics</b> when you support this project with at least $2 per month.</p>
-                    <br/>
-                    <a href="https://www.patreon.com/bePatron?u=6799833"
-                       data-patreon-widget-type="become-patron-button">Become a Patron!</a>
-                    <br/>
-                </div>
-
-                <div class="col-sm-6 col-lg-4">
-                    <h4>Commander</h4>
-                    <p class="text-width-xl-90">Be the first to learn about novel <b>training missions</b> when you contribute at least $4 a month.</p>
-                    <br/>
-                    <a href="https://www.patreon.com/bePatron?u=6799833"
-                       data-patreon-widget-type="become-patron-button">Become a Patron!</a>
-                    <br/>
-                </div>
-
-                <div class="col-sm-6 col-lg-4">
-                    <h4>Admiral</h4>
-                    <p class="text-width-xl-90">Enjoy behind-the-scenes access to our <b>development plans</b> when you help us grow at $6 or more a month.</p>
-                    <br/>
-                    <a href="https://www.patreon.com/bePatron?u=6799833"
-                       data-patreon-widget-type="become-patron-button">Become a Patron!</a>
-
-                </div>
-
-                <p><b>Thank's for helping us succeed!</b></p>
-            </div>
+            {{-- #522: one ask, for running costs only --}}
+            <h3>Keep the lights on</h3>
+            <p class="text-width-xl-90">Ex Machinis is free to play, with no ads and nothing to buy. If you enjoy it, chip in to cover the server and the tools that build it.</p>
+            <p><a class="button button-primary" href="{{ url('support') }}">Keep the lights on</a></p>
 
         </div>
         <div class="container">
@@ -357,7 +329,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
      Vue on #app; the theme sets up the navbar and other widgets on that DOM. --}}
 <script src="/js/core.min.js" defer></script>
 <script src="/js/script.js" defer></script>
-<script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
 
 </body>
 </html>

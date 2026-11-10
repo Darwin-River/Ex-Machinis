@@ -5,13 +5,13 @@ How Ex Machinis pays for itself, finds players, and keeps going when its maintai
 ## The goal
 
 - **The game stays free and open.** No logins, no paid features, no ads. Anyone can release a drone in minutes.
-- **Donations cover running costs, nothing more.** The server, the domain and the AI subscription that does most of the building. Money beyond that isn't the point; if pledges ever run well over the goal, lower the goal or spend the surplus on the game (a bigger server, a second maintainer's AI subscription).
+- **Support covers running costs, nothing more.** The server, the domain and the AI subscription that does most of the building. Money beyond that isn't the point; if support ever runs well over the goal, lower the goal or spend the surplus on the game (a bigger server, a second maintainer's AI subscription).
 - **Promotion rides on work that is already done.** Every change already has an issue, a PR and, when it matters to players, a blog post. Those are the posts.
 - **Anyone can take over.** Every account, secret and routine is written down here, and nothing depends on one person's memory.
 
 ## The budget
 
-Check these once a year and update the Patreon goal to match.
+Check these once a year. The same figures are in [`config/support.php`](../config/support.php), which the site's **Keep the Lights On** page (`/support`) shows.
 
 | Cost | Typical | Notes |
 |---|---|---|
@@ -21,37 +21,31 @@ Check these once a year and update the Patreon goal to match.
 | Off-site backups | $0–1/month | Optional object storage for database dumps. |
 | **Total** | **about $45–130/month** | |
 
-Platforms take a share of each pledge: Patreon's fee depends on the plan the page joined under (roughly 5–12%), plus payment processing, which is heaviest on small pledges. **Set the Patreon goal at the total plus 15%**, rounded up: about $55/month with Pro, about $150/month with Max.
+Ko-fi takes no platform fee on one-off support (monthly support may carry a 5% fee on the free plan); card processing is taken on top. Aim for the total plus about 10%.
 
-A zero-fee option alongside Patreon: GitHub Sponsors takes no fee on personal accounts. Add it to [`.github/FUNDING.yml`](../.github/FUNDING.yml) next to Patreon if you set it up; GitHub then shows both on the repository's **Sponsor** button.
+## Ko-fi and the support page
 
-## Patreon
+One ask, for running costs only (#522). No tiers, no supporter-only posts, nothing to keep up week to week.
 
 ### Set it up once
 
-1. **One goal, shown publicly:** "Keep the servers on: $55 a month" (or whatever the budget says). Patreon shows progress on the page, which is the strongest reason anyone gives.
-2. **Three tiers, none of which takes ongoing work:**
+1. **Make the Ko-fi page.** Use the game's name and logo, and in the description say in three lines what the money pays for, what the game is, and the link to play.
+2. **Turn on a Ko-fi goal** for the monthly total, so the page shows progress too.
+3. **Connect the site:** put the page's name (as in `ko-fi.com/<name>`) in `config/support.php`'s `kofi`, or set `KOFI_NAME` in the server's `.env`. Until then the support page says Ko-fi is coming soon.
+4. **Turn on the repository's Sponsor button:** uncomment the `ko_fi` line in [`.github/FUNDING.yml`](../.github/FUNDING.yml) with the same name.
 
-   | Tier | Price | What patrons get |
-   |---|---|---|
-   | Patron | $3/month | Their name on the [About page](../resources/views/pages/about-us.blade.php) sponsors list. |
-   | Crew | $8/month | The above, plus a vote in the monthly "what next" poll. |
-   | Sponsor | $25/month | The above, plus their company or school listed with a link. Aimed at teachers, clubs and companies. |
+The **Keep the Lights On** page shows the monthly costs, how much last month's support covered, the Ko-fi button, and free ways to help. Every page links to it from the header, the menu and the footer.
 
-   Never put play behind a tier. The game's promise is that it's free; patrons pay so it stays that way.
-3. **Turn on Patreon's free tier** (followers) so people can follow updates without paying.
-4. **Pin a welcome post** that says, in three lines, what the money pays for, what the game is, and the link to play.
+Darwin River Software is an LLC, so support is income, not a tax-deductible donation: say "support" or "chip in", not "donate".
 
-### Every month (one post)
+### Every month (one update)
 
-One Patreon post a month, written from what already happened:
+- Set `covered` and `month` in `config/support.php` to what Ko-fi received last month (Claude can make the PR).
+- Post a short Ko-fi update from what already happened: the PRs merged since the last one (linking the blog posts), the playtest notes on #380, and the month's costs against support in one line ("Costs $47, support $52: covered, thank you").
 
-- the PRs merged since the last post (one line each, linking the blog posts);
-- the playtest round notes on #380;
-- the month's costs against pledges, in one line ("Costs $48, pledges $61: covered, thank you");
-- the poll for next month's focus (Crew and up).
+Claude can draft both: ask a session to "draft this month's support update from the PRs merged since <date> and the #380 comments, and update config/support.php with $N for <month>". A [scheduled task](https://code.claude.com/docs/en/claude-code-on-the-web) can do the drafting on the 1st of each month.
 
-Claude can draft this: ask a session to "draft this month's Patreon update from the PRs merged since <date> and the #380 comments". Patreon has no API for posting, so pasting it in is the one manual step. A [scheduled task](https://code.claude.com/docs/en/claude-code-on-the-web) can do the drafting on the 1st of each month and leave the draft as a comment on #518.
+If Ko-fi ever stops fitting, Open Collective is the next step: a public ledger of income and bills, and maintainers can change without moving the money. It takes about 10% and needs an open-source licence.
 
 ## Social media
 
@@ -74,11 +68,11 @@ Good extra posts cost a minute each:
 - the leaderboard's top company of the week, with a link to its page;
 - "this drone ran out of fuel halfway to Mars": failures are on-brand. Break, learn, repeat.
 
-Every post links to the game, and to Patreon at most once a month.
+Every post links to the game, and to the support page at most once a month.
 
 ### Posting automatically
 
-When a new blog post reaches `public-forge`, the **Announce blog posts** Action ([`.github/workflows/announce.yml`](../.github/workflows/announce.yml), using [`admin/announce.py`](../admin/announce.py)) posts its title, summary and link to Bluesky and Mastodon. The run's summary also holds the same text, ready to paste into Patreon, Discord or Reddit.
+When a new blog post reaches `public-forge`, the **Announce blog posts** Action ([`.github/workflows/announce.yml`](../.github/workflows/announce.yml), using [`admin/announce.py`](../admin/announce.py)) posts its title, summary and link to Bluesky and Mastodon. The run's summary also holds the same text, ready to paste into Ko-fi, Discord or Reddit.
 
 Set it up once, in the repository's **Settings → Secrets and variables → Actions**:
 
@@ -98,9 +92,9 @@ The blog also has an RSS feed at `/blog/feed`. Free tools turn a feed into posts
 
 On the first of each month:
 
-1. **Costs (5 min).** Check the server, domain and AI bills against the budget table. Update the table and the Patreon goal if they moved.
-2. **Patreon (15 min).** Read Claude's draft, fix what's off, post it, and open the poll.
-3. **Sponsors list (5 min).** Add new Patron-and-up names to the About page (ask Claude to make the PR).
+1. **Costs (5 min).** Check the server, domain and AI bills against the budget table. Update the table, `config/support.php` and the Ko-fi goal if they moved.
+2. **Support page (5 min).** Set last month's `covered` and `month` in `config/support.php` (ask Claude to make the PR).
+3. **Ko-fi update (10 min).** Read Claude's draft, fix what's off, and post it.
 4. **Health (10 min).** Open the site and a drone page; check the last backup ran ([hosting.md](hosting.md#back-up-the-game)); glance at the Actions tab for red runs.
 5. **One extra post (5 min).** A screenshot or leaderboard shout-out on Bluesky and Mastodon.
 
@@ -119,25 +113,25 @@ Keep this table current. "Owner" is an account or organisation, not a person's p
 | Code | GitHub `Darwin-River/Ex-Machinis` | Darwin-River organisation | |
 | Server | Hetzner project | Darwin River Software LLC | |
 | Domain | Registrar | Darwin River Software LLC | |
-| Patreon | patreon.com/exmachinis | | |
+| Ko-fi | ko-fi.com/ (not set up yet) | | |
 | Bluesky, Mastodon | | | |
 | AI subscription | | | |
 | Shared passwords | A password manager's shared vault (Bitwarden's free organisation plan holds two people) | | |
 
 ### Steps
 
-1. **Put every login in the shared vault**, including the server's SSH key passphrase, the registrar, Patreon and the social accounts, and add a second trusted person.
-2. **Pay from one account** that belongs to the project, not a personal card, so bills don't stop when a card does.
+1. **Put every login in the shared vault**, including the server's SSH key passphrase, the registrar, Ko-fi and the social accounts, and add a second trusted person.
+2. **Pay from one account** that belongs to the project, not a personal card, so bills don't stop when a card does. Ko-fi pays out to one account too: moving it is part of a hand-over.
 3. **Add a second GitHub owner** on the organisation, and give helpers write access with branch protection on `public-forge` (CI green, one review).
 4. **Keep the way of working in the repository.** [CLAUDE.md](../CLAUDE.md) already tells every AI session the rules: an issue per change, PRs into `public-forge`, docs kept current, tests to run. A new maintainer with their own AI subscription picks up the same workflow on day one.
 5. **Choose a licence** and add a `LICENSE` file, so contributors know their work can be used and the project can move to new hands.
 6. **Write the hand-off as an issue** when the time comes: the new maintainer's name, each row of the table above moved to them, and the date the old maintainer's access ends.
 
-If no one takes over, the cheapest graceful ending is to keep the server running as long as pledges cover it, then publish a final database backup and leave the code public so anyone can host a world.
+If no one takes over, the cheapest graceful ending is to keep the server running as long as support covers it, then publish a final database backup and leave the code public so anyone can host a world.
 
 ## What not to do
 
 - **Don't paywall play, add ads or sell in-game advantages.** The low barrier is the whole strategy.
-- **Don't promise rewards that take weekly work** (custom art, private builds, personal coaching).
+- **Don't promise rewards that take weekly work** (tiers, custom art, private builds, personal coaching).
 - **Don't chase every network.** Two automated, one or two by hand, is plenty.
 - **Don't run a separate test server.** The live game is the test world; one server keeps costs flat.

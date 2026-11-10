@@ -10,11 +10,11 @@ The game uses augmented reality to project a parallel universe upon our own. In 
 
 Ex Machinis is being developed and managed by Darwin River Software LLC with support from a number of talented developers.  
 
-* **Darwin River Software LLC** is a small software studio that was established to support the creation of engaging educational applications.  The organization is built on an open source model in which contributions from patrons, sponsors, and committed developers, are used to guide and support the creation of free educational software.  Ex Machinis is our effort to create a multiplayer space simulation that encourages and inspires the development of fundamental programming skills as a tool for success. 
+* **Darwin River Software LLC** is a small software studio that was established to support the creation of engaging educational applications.  The organization is built on an open source model in which contributions from supporters and committed developers, are used to guide and support the creation of free educational software.  Ex Machinis is our effort to create a multiplayer space simulation that encourages and inspires the development of fundamental programming skills as a tool for success. 
 
-## Our Awesome Sponsors
+## Keep the lights on
 
-This game relies on our [generous Patreon sponsors](https://patreon.com/exmachinis) for feedback, encouragement, and support. We wouldn't be here without them!
+Ex Machinis is free to play. Supporters cover what it costs to run (the server, the domain and the AI subscription that does most of the building); the site's **Keep the Lights On** page (`/support`) shows the costs, how much is covered, and how to chip in. See the [sustainability playbook](documents/sustainability-playbook.md).
 
 ## Programming drones
 

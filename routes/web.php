@@ -25,6 +25,7 @@ Route::get('/home', 'HomeController@index')->name('home');
 Route::get('/getting-started', 'HomeController@playersManual');
 Route::get('/getting-started/images/{file}', 'HomeController@playersManualImage')->where('file', '[A-Za-z0-9_-]+\.(png|jpg|jpeg|gif|svg)');
 Route::get('/about-us', 'HomeController@aboutUs');
+Route::get('/support', 'HomeController@support');
 Route::get('/blog', 'BlogController@index');
 Route::get('/blog/feed', 'BlogController@feed');
 Route::get('/blog/{slug}', 'BlogController@show')->where('slug', '[a-z0-9-]+');

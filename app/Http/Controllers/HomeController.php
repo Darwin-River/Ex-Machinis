@@ -223,6 +223,25 @@ class HomeController extends Controller
     }
 
     /**
+     * "Keep the lights on" (#522): what the game costs each month, how much
+     * is covered, and the Ko-fi button (config/support.php)
+     */
+    public function support()
+    {
+        $costs = config('support.costs', []);
+        $total = array_sum($costs);
+        $covered = (float) config('support.covered', 0);
+        return view('pages.support', [
+            'costs' => $costs,
+            'total' => $total,
+            'covered' => $covered,
+            'month' => config('support.month', ''),
+            'percent' => $total > 0 ? min(100, (int) round(100 * $covered / $total)) : 0,
+            'kofi' => trim((string) config('support.kofi', '')),
+        ]);
+    }
+
+    /**
      * Displays a flash message alone
      * @param $request Request object
      * @return \Illuminate\Http\Response

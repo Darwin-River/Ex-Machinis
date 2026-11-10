@@ -9,7 +9,7 @@ For each post it builds a short announcement from the post's front matter
 - posts it to Bluesky when BLUESKY_HANDLE and BLUESKY_APP_PASSWORD are set;
 - posts it to Mastodon when MASTODON_INSTANCE and MASTODON_TOKEN are set;
 - always writes it to $GITHUB_STEP_SUMMARY (or prints it), ready to paste
-  into Patreon, Discord, Reddit or anywhere else.
+  into Ko-fi, Discord, Reddit or anywhere else.
 
 SITE_URL is the game's public address, e.g. https://exmachinis.example.
 DRY_RUN=1 prints what would be posted and posts nothing.
@@ -143,7 +143,7 @@ def main(paths):
                 lines.append(f"- {name}: **failed**: {e}")
         if not targets:
             lines.append("- No network is set up; paste the text below by hand.")
-        lines += ["", "Ready to paste (Patreon, Discord, Reddit…):", "",
+        lines += ["", "Ready to paste (Ko-fi, Discord, Reddit…):", "",
                   "```", announcement(meta, link, MASTODON_LIMIT), "```", ""]
         summary(lines)
     return 1 if failed else 0
