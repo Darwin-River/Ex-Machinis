@@ -258,6 +258,18 @@ function reinvest()
   fill_to(60)
 end
 
+-- Spare credits into other companies' shares (#551), once a game day:
+-- credits above what the next copy needs while it can still grow, else
+-- above 3,000 (invest_surplus: the offerings and listed shares that pay
+-- back soonest, within 40 days of a share's income). Round 58: a Foundry
+-- sat on 11,000 credits while other companies' offerings went unbacked
+invest_day = -1
+function invest()
+  if today() == invest_day then return end
+  invest_day = today()
+  invest_surplus(today() > 24 and 3000 or 9000)
+end
+
 function tell()
   if rounds % 6 ~= 0 then return end
   local what = best
@@ -269,6 +281,7 @@ end
 
 function round()
   rounds = rounds + 1
+  invest()
   snap()
   refuel()
   sell_goods()

@@ -152,6 +152,27 @@ class SharesTest extends TestCase
         $this->assertSame(600, $this->getJson('/api/v1/companies/' . $investor->company_id)->json('shares.holdings.0.value'));
     }
 
+    /** #551: the stock exchange and a share's price history through the API */
+    public function testTheApiShowsTheExchangeAndPriceHistory()
+    {
+        $user = User::create(['name' => 'Investor', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
+        $issuer = Release::release($user, 'History Co', 'function launched() end');
+        $investor = Release::release($user, 'Backer Co', 'function launched() end');
+        $epoch = (float) DB::table('game_clock')->where('id', 1)->value('epoch');
+        $day = intdiv(\App\Services\World::gameNow() - (int) $epoch, 86400);
+        foreach ([[12, 30, 2], [9, 10, 2], [15, 5, 1]] as [$price, $units, $ago]) {
+            DB::table('share_trades')->insert(['share_company' => $issuer->company_id, 'seller' => $issuer->company_id,
+                'buyer' => $investor->company_id, 'units' => $units, 'price' => $price,
+                'game_t' => (int) $epoch + ($day - $ago) * 86400 + 3600 * ($price % 5 + 1)]);
+        }
+        $history = $this->getJson('/api/v1/shares/' . $issuer->company_id . '/history')->assertOk()->json();
+        $this->assertSame([['day' => $day - 2, 'low' => 9, 'high' => 12, 'last' => 9, 'units' => 40],
+            ['day' => $day - 1, 'low' => 15, 'high' => 15, 'last' => 15, 'units' => 5]], $history);
+        $this->getJson('/api/v1/shares/999999/history')->assertNotFound();
+        $names = array_column($this->getJson('/api/v1/shares')->assertOk()->json('companies'), 'name');
+        $this->assertContains('History Co', $names);
+    }
+
     public function testTheStockExchangePageShowsEveryCompanysShares()
     {
         $user = User::create(['name' => 'Investor', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);

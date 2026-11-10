@@ -296,6 +296,36 @@ class ApiController extends Controller
         return response()->json(HouseMarket::news());
     }
 
+    /**
+     * The House's demand (#550): for each exchange and good it buys, its bid
+     * now, the units it still takes today, its day's demand, its listed price
+     * and the game hours until it refills. ?resource= and ?place= narrow it
+     */
+    public function houseDemand(Request $request): JsonResponse
+    {
+        $int = fn ($k) => is_numeric($request->query($k)) ? (int) $request->query($k) : null;
+        return response()->json(HouseMarket::demand($int('resource'), $int('place')));
+    }
+
+    /**
+     * The stock exchange (#551): every listed company (price, value, sales,
+     * payback, health), shares for sale, buy orders, open offerings and the
+     * latest trades, as the Stock exchange page shows them
+     */
+    public function shares(Request $request): JsonResponse
+    {
+        return response()->json(Shares::exchange(min(200, max(1, (int) $request->query('trades', 25)))));
+    }
+
+    /** A company's share price by game day (#551): low, high, last and shares traded */
+    public function shareHistory(int $id): JsonResponse
+    {
+        if (!DB::table('companies')->where('company_id', $id)->exists()) {
+            return $this->notFound('There is no such company.');
+        }
+        return response()->json(Shares::history($id));
+    }
+
     /** A company's credits and net wealth once a game day (#380 round 36) */
     public function companyHistory(int $id): JsonResponse
     {

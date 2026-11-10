@@ -183,6 +183,58 @@ class HouseMarket
         return $news;
     }
 
+    /**
+     * The House's demand (#550): for each exchange and good it buys, its bid
+     * now, the units it still takes today, its day's demand, its listed price
+     * and the game hours until it refills. As wanted() and query 706: it buys
+     * up to a day's demand above what it keeps to sell, its bid falls to half
+     * the listed price at a full day's demand bought, and what it bought goes
+     * down to the surface at the start of the next game day (station.lua).
+     * Rows: place, place_name, resource, resource_name, price, left, daily,
+     * listed, hours
+     */
+    public static function demand(?int $resource = null, ?int $place = null): array
+    {
+        $db = DB::connection();
+        $today = self::today($db);
+        $epoch = (float) ($db->table('game_clock')->where('id', 1)->value('epoch') ?? 0);
+        $hours = (int) max(0, ceil(($epoch + ($today + 1) * 86400 - self::gameNow($db)) / 3600));
+        $stations = $db->table('agents AS a')->join('stations AS s', 's.id', '=', 'a.station_id')
+            ->leftJoin('objects AS o', 'o.object_id', '=', 's.object_id')->whereNull('a.wrecked_at')
+            ->when($place !== null, fn ($q) => $q->where('s.object_id', $place))
+            ->get(['a.agent_id', 's.id AS station_id', 's.object_id', 'o.object_name']);
+        $names = $db->table('resources')->pluck('name', 'id')->all();
+        $out = [];
+        foreach ($stations as $st) {
+            $goods = $db->table('house_market')->where('station_id', $st->station_id)->where('from_day', '<=', $today)
+                ->when($resource !== null, fn ($q) => $q->where('resource', $resource))
+                ->get(['resource', 'side', 'price', 'daily_units']);
+            $keep = [];
+            foreach ($goods as $g) {
+                if ((int) $g->side === 2) {
+                    $keep[(int) $g->resource] = max(1, intdiv(max(1, (int) $g->daily_units), 4));
+                }
+            }
+            $held = $db->table('holdings')->where('drone', $st->agent_id)->whereIn('installed', [0, 1])->whereIn('locked', [0, 1])
+                ->when($resource !== null, fn ($q) => $q->where('resource', $resource))
+                ->groupBy('resource')->selectRaw('resource, SUM(units) AS units')->pluck('units', 'resource')->all();
+            foreach ($goods as $g) {
+                if ((int) $g->side !== 1) {
+                    continue;
+                }
+                $r = (int) $g->resource;
+                $daily = max(1, (int) $g->daily_units);
+                $listed = (int) $g->price;
+                $bought = min(max(0, (int) ($held[$r] ?? 0) - ($keep[$r] ?? 0)), $daily);
+                $out[] = ['place' => (int) $st->object_id, 'place_name' => $st->object_name, 'resource' => $r,
+                    'resource_name' => $names[$r] ?? "Resource $r", 'price' => max(1, $listed - intdiv($listed * $bought, 2 * $daily)),
+                    'left' => $daily - $bought, 'daily' => $daily, 'listed' => $listed, 'hours' => $hours];
+            }
+        }
+        usort($out, fn ($a, $b) => [$a['resource'], $b['price'], $a['place']] <=> [$b['resource'], $a['price'], $b['place']]);
+        return $out;
+    }
+
     /** What a drone holds, by resource */
     public static function holdings($db, int $agentId): array
     {

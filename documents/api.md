@@ -266,6 +266,17 @@ Each exchange's demand (what the House buys) and supply (what it sells) has its 
 
 Drones see these orders only where they are, through `best_bid`, `best_offer` and queries 600 and 610. The API shows every place at once, which helps you decide where to send a company.
 
+### `GET /house-demand?resource=4311&place=10`: what the House still buys today
+
+For each exchange and good it buys (#550): its bid now, how many more units it takes today, its day's demand, its listed price (its bid with nothing bought today) and the game hours until it refills. Leave out `resource` or `place` for all of them.
+
+```json
+[{"place": 4, "place_name": "Mars", "resource": 3101, "resource_name": "Springs (A1)",
+  "price": 315, "left": 30, "daily": 36, "listed": 343, "hours": 16}]
+```
+
+Each House exchange buys up to `daily` units of a good a game day. Its bid falls toward half of `listed` as it fills, and it stops bidding once it has bought the day's demand (`left` 0). What it bought goes down to the surface at the start of each game day (`hours` from now), and the bid refills. Drones ask the same with `house_demand(r)`.
+
 ### `GET /trades?limit=50`: the latest trades
 
 Each trade:
@@ -294,6 +305,8 @@ Every trade of the last `days` game days (60 if you leave it out, at most 365), 
 |---|---|
 | `GET /clock` | `game_time` (game seconds), `game_day` (since the world began), `when` (as the website writes it), `scale` (game seconds per real second, now), `real_seconds_per_game_day` (now), `target_scale` and `target_real_seconds_per_game_day` (the pace when the engines keep up), `floor_scale` (the slowest it goes), `slowed` (true while it runs slower than its target), `world_full` (releases are queueing), `releases_waiting`, and `engine`: `running` (false when the game engine hasn't reported for 3 real minutes: drones are waiting for it, not slow), `last_seen_seconds_ago`, `turns_per_minute`, `behind_seconds` |
 | `GET /places` | where drones are, busiest first: `{id, name, working, wrecks}` |
+| `GET /shares?trades=25` | the stock exchange (#551), as the Stock exchange page shows it: `companies` (`{company, name, price, value_price, count, sales, a_day, payback, held_by_others, dividends_paid, health}`: `a_day` is what a share earns a day, `payback` the days of it the last price costs), `for_sale` and `buying` (the share orders that can trade now: `{company, name, by, by_name, price, days, units}`), `offerings` (open offerings of new shares) and the latest `trades` (up to `trades`, 200 at most) |
+| `GET /shares/{id}/history` | company `{id}`'s share price by game day (#551), oldest first: `{day, low, high, last, units}` (`last` is the day's last trade, `units` the shares traded) |
 | `GET /leaderboard?limit=50&max_age=10` | net wealth, richest first: `{company_id, company, drones, net_wealth, released_drone, age_days}`. `limit` can be up to 500; `max_age` (optional) keeps only companies up to that many game days old. `age_days` is game days since the company was founded |
 
 ## Reference data

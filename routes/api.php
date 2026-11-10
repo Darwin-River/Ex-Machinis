@@ -41,6 +41,9 @@ Route::prefix('v1')->group(function () {
     Route::middleware('throttle:api-read')->get('recipes', 'ApiController@recipes');
     Route::middleware('throttle:api-read')->get('recipes/{resource}/tree', 'ApiController@recipeTree')->whereNumber('resource');
     Route::middleware('throttle:api-read')->get('news', 'ApiController@news');
+    Route::middleware('throttle:api-read')->get('house-demand', 'ApiController@houseDemand');
+    Route::middleware('throttle:api-read')->get('shares', 'ApiController@shares');
+    Route::middleware('throttle:api-read')->get('shares/{id}/history', 'ApiController@shareHistory')->whereNumber('id');
     Route::middleware('throttle:api-read')->get('companies/{id}/history', 'ApiController@companyHistory')->whereNumber('id');
     Route::middleware('throttle:api-read')->post('check', 'ApiController@check');
     Route::middleware('throttle:api-write')->post('release', 'ApiController@release');

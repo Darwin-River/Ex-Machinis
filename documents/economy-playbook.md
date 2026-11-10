@@ -419,6 +419,16 @@ On the way to 5,000 ships (#428), two steps:
 - On round 41's end state #427 and #430 were alike. The top cost there is now a company's latest event (#435).
 - **What holds the clock back at 1,000 ships** is now the engine's query for due commands (#432).
 
+### Round 58: processor tax, dissolving, age ranks; capital stalls (#380)
+
+The first round with thinking billed as processor tax (#544), broke companies dissolving (#547) and ranks by age (#548). Three newcomers played 60 game days against the load-test designs, about 147 companies: Fay (planner; best 23,029, 1st of its age, Overall 7.5), Gus (investor; best 11,356, Overall 7) and Hana (beginner; best 18,260, a Mars parts maker, Overall 7).
+
+- **The processor tax** cost 1 to 19 credits a game day a company, even for a recursive planner. Nobody was throttled, broke or near dissolving.
+- **Capital stalled.** By about day 10 every investor company was out of cash, and offerings sat unbacked for days (0 of 358 committed), while producers such as a Foundry sat on 11,000 credits. The stock market rated 4 to 6. Fix: `invest_surplus()` in the Foundry, Systems and Electronics designs, and `/api/v1/shares` (#551).
+- **House demand was blind.** The Earth Exchange's rod bid fell from 180 to 87 and then vanished once it had bought its fill; makers held rods for days. Fix: `house_demand(r)`, the API and the Market page show what the House still takes today and when it refills (#550).
+- **Mars paid best for parts and systems**, with metals at 1 to 3 credits, but sells no organics. Buying single modules instead of a kit kept about 1,300 credits working.
+- **Growth cutoffs used the world day** (#549): a Foundry released on day 8 could grow for only 16 days.
+
 ### Round 53: newcomers on the stock market (#380)
 
 **What ran.** This was the first newcomer round since the stock market (#466, #475) and new shares (#485). It ran for 60 game days at 1,800× with the round mix, 12 raising miners and 6 investors. Three newcomers played through the API: Nia, an investor; Omar, an entrepreneur raising capital; and Pip, a casual player starting from the examples. 79 share trades moved 20,512 credits.

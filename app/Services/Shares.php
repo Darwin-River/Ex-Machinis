@@ -286,6 +286,28 @@ class Shares
     }
 
     /**
+     * A company's share price by game day (#551), oldest first: day, low,
+     * high, last (the day's last trade), units traded. Gus (round 58) had no
+     * price history to judge a share by
+     */
+    public static function history(int $company): array
+    {
+        $epoch = (float) (DB::table('game_clock')->where('id', 1)->value('epoch') ?? 0);
+        $out = [];
+        foreach (DB::table('share_trades')->where('share_company', $company)->where('units', '>', 0)->orderBy('id')
+                     ->get(['game_t', 'price', 'units']) as $t) {
+            $day = (int) floor(((int) $t->game_t - $epoch) / 86400);
+            $d = $out[$day] ?? ['day' => $day, 'low' => (int) $t->price, 'high' => (int) $t->price, 'last' => 0, 'units' => 0];
+            $d['low'] = min($d['low'], (int) $t->price);
+            $d['high'] = max($d['high'], (int) $t->price);
+            $d['last'] = (int) $t->price;
+            $d['units'] += (int) $t->units;
+            $out[$day] = $d;
+        }
+        return array_values($out);
+    }
+
+    /**
      * What each company's holdings of other companies' shares are worth at
      * their last trade price (#471): holder => credits. Shares never traded,
      * or of a company that has ended (#493), count 0; a company's own shares

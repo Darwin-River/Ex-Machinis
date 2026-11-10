@@ -1459,6 +1459,25 @@ queries.append((699, 'Company health',
                 'last game day, days until one runs dry (-1: none), credits, game hours since its drones last '
                 'traded or made goods.', 1,
                 company_health_sql('[value_1]', '[game_now]')))
+# The House's demand (#550): at each exchange that buys good N, its bid now,
+# the units it still takes today, its day's demand, its listed price and the
+# game hours until it refills. It buys up to a day's demand above what it
+# keeps to sell; its bid falls to half its listed price at a full day's
+# demand bought, and what it bought goes down to the surface at the start of
+# the next game day (station.lua's ship). As App\Services\HouseMarket::demand
+HOUSE_KEEP = ("IFNULL((SELECT GREATEST(1, FLOOR(GREATEST(1, k.daily_units) / 4)) FROM house_market AS k "
+              f"WHERE k.station_id = g.station_id AND k.resource = g.resource AND k.side = 2 AND k.from_day <= {TODAY} LIMIT 1), 0)")
+queries.append((706, 'House demand',
+                'Where the House buys resource N: place, its bid now, units it still takes today, its day\'s demand, '
+                'its listed price, game hours until it refills.', 1,
+                "SELECT d.place, GREATEST(1, d.listed - FLOOR(d.listed * d.bought / (2 * d.daily))) AS d_price, "
+                "d.daily - d.bought AS left_units, d.daily, d.listed AS d_listed, "
+                f"CEIL(((SELECT epoch FROM game_clock WHERE id = 1) + ({TODAY} + 1) * 86400 - [game_now]) / 3600) AS hours "
+                "FROM (SELECT s.object_id AS place, g.price AS listed, GREATEST(1, g.daily_units) AS daily, "
+                f"LEAST(GREATEST(0, {holding('a.agent_id', 'g.resource')} - {HOUSE_KEEP}), GREATEST(1, g.daily_units)) AS bought "
+                "FROM house_market AS g JOIN stations AS s ON s.id = g.station_id "
+                "JOIN agents AS a ON a.station_id = s.id AND a.wrecked_at IS NULL "
+                f"WHERE g.side = 1 AND g.resource = [value_1] AND g.from_day <= {TODAY}) AS d ORDER BY d_price DESC, d.place;"))
 queries.append((698, 'Share count',
                 'Company N\'s shares in all: 1,000 to start, more once it has issued new ones.', 1,
                 "SELECT share_count FROM companies WHERE company_id = [value_1];"))
