@@ -291,9 +291,9 @@ class Release
             $agent->language = self::isLua($script) ? 'lua' : 'forth';   // #380
             $agent->save();
             $agent->agent_id = $agent->id; // the key the save filled in
-            $cargo = $agent->addCargo(self::kit($kit));                          // its kit (#380)
-            DB::table('companies')->where('company_id', $company->company_id)->update(['start_kit' => self::kit($kit)]);
-            $agent->addCargo(self::FUEL, config('forge.starting_fuel'), $cargo);   // its first fuel
+            // No kit (#506): credits instead, to equip itself as its script
+            // chooses. The kit argument is still accepted, and ignored
+            $agent->addCargo(self::FUEL, config('forge.starting_fuel'));   // its first fuel
 
             foreach (self::chunks($script) as $chunk) {
                 Command::create([

@@ -1,5 +1,5 @@
 -- Adaptive: a market-aware company design for Public Forge, in Lua (#380),
--- written as a state machine. Release it with the Factory Kit. The players'
+-- written as a state machine. It equips itself with the Factory Kit. The players'
 -- manual walks through it
 -- (Chapter 9, "Market-aware drones").
 -- It turns Metals (A1) into rods at the Moon, like the Smith, but it reads
@@ -120,7 +120,7 @@ end
 -- unpack passes once the tools are unpacked, and it starts again shopping
 function launched()
   fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
-  unpack()
+  equip(factory_kit)   -- buys a kit at Earth and unpacks it (a copy waits for the one it is handed; #506)
   go(moon)
   become(shopping)
   while true do

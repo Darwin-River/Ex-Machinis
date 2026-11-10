@@ -314,7 +314,7 @@ INSERT INTO `event_types` (id, name) VALUES (11, 'Plunder wreck') ON DUPLICATE K
 -- Taxes and plunder (#324 step 12), placeholders to tune in step 20
 DELETE FROM `house_rules`;
 INSERT INTO `house_rules` (id, tax_period, tax_grace, tax_flat, tax_permille, plunder_share, start_credits, start_fuel, sales_tax_permille) VALUES
-  (1, 0, 259200, 0, 5, 50, 1000, 100, 50);
+  (1, 0, 259200, 0, 5, 50, 3000, 100, 50);
 
 
 -- House drop stations (#324 step 10): what they trade. Their budgets
@@ -349,8 +349,8 @@ INSERT INTO `station_goods` (station_id, resource, side, price, daily_units, fro
   (2, 2042, 1, 10, 200, 0, 0),
   (2, 2043, 1, 12, 200, 0, 0),
   (1, 6001, 2, 3000, 24, 0, 1),
-  (1, 5901, 2, 2000, 24, 0, 1),
-  (1, 5902, 2, 2000, 24, 0, 1),
+  (1, 5901, 2, 2000, 400, 0, 1),
+  (1, 5902, 2, 2000, 400, 0, 1),
   (2, 6001, 2, 3000, 24, 0, 1),
   (2, 5901, 2, 2000, 24, 0, 1),
   (2, 5902, 2, 2000, 24, 0, 1),
@@ -387,12 +387,12 @@ INSERT INTO `station_goods` (station_id, resource, side, price, daily_units, fro
   (3, 4281, 1, 1152, 10, 0, 0),
   (3, 4311, 1, 808, 10, 0, 0),
   (1, 2061, 2, 3, 2000, 0, 1),
-  (1, 5001, 2, 588, 10, 0, 0),
-  (1, 5131, 2, 1590, 10, 0, 0),
-  (1, 5221, 2, 1455, 10, 0, 0),
-  (1, 5201, 2, 742, 10, 0, 0),
-  (1, 5211, 2, 882, 10, 0, 0),
-  (1, 5501, 2, 1215, 5, 0, 0),
+  (1, 5001, 2, 588, 100, 0, 0),
+  (1, 5131, 2, 1590, 100, 0, 0),
+  (1, 5221, 2, 1455, 100, 0, 0),
+  (1, 5201, 2, 742, 100, 0, 0),
+  (1, 5211, 2, 882, 100, 0, 0),
+  (1, 5501, 2, 1215, 100, 0, 0),
   (2, 2061, 2, 3, 6000, 0, 1),
   (3, 2061, 2, 3, 6000, 0, 1),
   (1, 2011, 2, 37, 200, 0, 0),

@@ -1,6 +1,6 @@
 -- Raising miner: a company design for Public Forge, in Lua (#485, the
 -- stock market #466): the miner starter that raises the cost of its next
--- copy by offering new shares. Release it with the Mining Kit (Engine,
+-- copy by offering new shares. It equips itself with the Mining Kit (Engine,
 -- Worm and Refinery).
 -- From its raise_after-th game day of income, while it is short of a copy's cost,
 -- the drone you release offers enough new shares to make up the difference
@@ -266,13 +266,12 @@ function work()
 end
 
 -- launched() may run again (after a crash, or if the engine restarts):
--- await_kit and unpack pass once the tools are unpacked, and a drone that
+-- equip passes once the tools are unpacked, and a drone that
 -- has already chosen its site keeps it
 started = false
 function launched()
   fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
-  await_kit()
-  unpack()
+  equip(mining_kit)   -- buys a kit at Earth and unpacks it (a copy waits for the one it is handed; #506)
   if not started then
     founder = not copy
     if copy then site_no = me() % 3 else site_no = 0 end

@@ -1,4 +1,4 @@
--- Maker: a starter script for Public Forge, in Lua (#380). Release it with
+-- Maker: a starter script for Public Forge, in Lua (#380). It equips itself with
 -- the Factory Kit (Engine, Smelter, Chemical Reactor and Spider).
 -- It buys Metals (A1) at the Moon wherever they are cheapest, makes them
 -- into alloys and the alloys into rods, and sells the rods wherever they
@@ -187,12 +187,11 @@ function work()
 end
 
 -- launched() may run again (after a crash, or if the engine restarts), so
--- it only does what still needs doing: await_kit and unpack pass at once
+-- it only does what still needs doing: equip passes at once
 -- once the tools are unpacked, and go stays put if already there
 function launched()
   fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
-  await_kit()   -- a copy starts with no equipment: wait for its kit
-  unpack()
+  equip(factory_kit)   -- buys a kit at Earth and unpacks it (a copy waits for the one it is handed; #506)
   go(moon)
   while true do work() end
 end

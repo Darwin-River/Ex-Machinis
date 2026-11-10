@@ -47,7 +47,7 @@ function work()
 end
 function launched()
   fuel_floor(30)
-  unpack()
+  equip(factory_kit)   -- since #506 a drone buys its kit at Earth
   while true do work() end
 end
 ```

@@ -197,13 +197,12 @@ function work()
 end
 
 -- launched() may run again (after a crash, or if the engine restarts):
--- await_kit and unpack pass once the tools are unpacked, and a drone that
+-- equip passes once the tools are unpacked, and a drone that
 -- has already chosen its site keeps it
 started = false
 function launched()
   fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
-  await_kit()
-  unpack()
+  equip(mining_kit)   -- buys a kit at Earth and unpacks it (a copy waits for the one it is handed; #506)
   if not started then
     if copy then site_no = me() % 3 else site_no = 0 end
     copy, started = true, true

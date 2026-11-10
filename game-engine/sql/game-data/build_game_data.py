@@ -1019,10 +1019,14 @@ for st in (1, 2):
 # Starter Kit I (its equipment), so a company with money to spare can
 # launch a clone of its drone: buy both, launch, hand the clone the
 # starter kit and some fuel. The kit price is the launch fee.
+# Since #506 a released company starts at Earth with credits and no kit,
+# and buys its own: Earth keeps enough kits for a crowd of releases (a
+# quarter of the daily units is in stock: 100 of each)
 for st in (1, 2, 3):
+    kits_a_day = 400 if st == 1 else 24
     STATION_GOODS.append((st, 6001, SELLS, 3000, 24, 0))
-    STATION_GOODS.append((st, MINING_KIT, SELLS, 2000, 24, 0))
-    STATION_GOODS.append((st, FACTORY_KIT, SELLS, 2000, 24, 0))
+    STATION_GOODS.append((st, MINING_KIT, SELLS, 2000, kits_a_day, 0))
+    STATION_GOODS.append((st, FACTORY_KIT, SELLS, 2000, kits_a_day, 0))
 # The Mars Exchange buys the chemists' goods too (#380), so they can work
 # Phobos and Deimos instead of crowding the Moon's yalspar
 for rid, price, demand in ((2031, 8, 200), (2041, 12, 200),
@@ -1086,8 +1090,10 @@ for st in (1, 3):
 # The big mining gear costs more (#380): each kit's modules are worth 2,400
 # The modules at half as much again as their listed value, like everything
 # else the House sells (below); fuel stays at FUEL_PRICE
-for rid, price, supply in ((FUEL, FUEL_PRICE, 2000), (5001, 400, 10), (WORM, 1000, 10), (REFINERY, 1000, 10),
-                           (5201, 500, 10), (5211, 600, 10), (5501, 900, 5)):
+# (#506: modules 100 a day, so new companies can equip themselves module by
+# module)
+for rid, price, supply in ((FUEL, FUEL_PRICE, 2000), (5001, 400, 100), (WORM, 1000, 100), (REFINERY, 1000, 100),
+                           (5201, 500, 100), (5211, 600, 100), (5501, 900, 100)):
     if rid != FUEL:
         price = -(-price * 3 // 2)
     STATION_GOODS.append((1, rid, SELLS, price, supply, 0))
@@ -1258,7 +1264,8 @@ queries.append((630, 'Station goods',
 # every sale (to a player or a station) out of what the buyer pays, and the
 # daily tax is off (tax_period 0).
 SALES_TAX_PERMILLE = 50
-HOUSE_RULES = [(1, 0, 3 * DAY, 0, 5, 50, 1000, 100, SALES_TAX_PERMILLE)]
+# start_credits 3,000 and no kit since #506 (forge.starting_credits)
+HOUSE_RULES = [(1, 0, 3 * DAY, 0, 5, 50, 3000, 100, SALES_TAX_PERMILLE)]
 MY_COMPANY = "(SELECT company_id FROM agents WHERE agent_id = [drone_id])"
 queries.append((650, 'My taxes',
                 '[R L 650 query]: The sales tax: the share of each sale the seller pays, in thousandths (50 is 5%); '

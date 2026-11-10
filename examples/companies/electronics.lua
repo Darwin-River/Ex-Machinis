@@ -1,5 +1,5 @@
 -- Electronics: a company design for Public Forge, in Lua, from newcomer
--- Elif's second company in economy round 33 (#380). Release it with the Factory Kit. In the
+-- Elif's second company in economy round 33 (#380). It equips itself with the Factory Kit. In the
 -- starter-library race (60 starters and the library designs, 40 game days)
 -- it gained 9,524 over its starter package, against 6,425 for the
 -- Machinist, the best design before it.
@@ -180,11 +180,10 @@ function round()
 end
 
 -- launched() may run again (after a crash, or if the engine restarts):
--- await_kit and unpack pass once the tools are unpacked
+-- equip passes once the tools are unpacked
 function launched()
   fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
-  await_kit()
-  unpack()
+  equip(factory_kit)   -- buys a kit at Earth and unpacks it (a copy waits for the one it is handed; #506)
   go(moon)
   choose()
   while true do

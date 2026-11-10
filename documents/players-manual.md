@@ -6,7 +6,7 @@ _Converted from the September 2020 edition and updated for the current game. You
 
 **Changes since the September 2020 edition:**
 - Every example is written in Lua, with the game's [library of functions](#the-game-functions) (`mine(kunspar)`, `go(moon)`, `buy_here(20, fuel)`...).
-- [Chapter 4](#chapter-4-issuing-commands) starts with unpacking your kit: a Mining Kit (engine, mining and refining modules) or a Factory Kit (engine and the tools that make things), chosen at release. Travel uses protocol 5001 (your engine) instead of 5.
+- [Chapter 4](#chapter-4-issuing-commands) starts with equipping your drone: it starts with credits and no equipment, and buys a Mining Kit (engine, mining and refining modules), a Factory Kit (engine and the tools that make things), single modules, or nothing at all (#506). Travel uses protocol 5001 (your engine) instead of 5.
 - The mining example uses kunspar on the Moon, which the Mining Kit's Worm can mine. A [table](#extracting-minerals) shows which module mines which minerals, including on the new asteroids, comets and planetary rings.
 - [Chapter 6](#chapter-6-going-to-market) uses the correct sell protocol (7, not 9) and a resource that exists (kunspar, 1100).
 - [Chapter 8](#chapter-8-asking-questions) asks the game questions by name (`hold()`, `quotes(fuel)`, `earnings()`), not by query number.
@@ -33,7 +33,7 @@ Thank you for your support!
   - [Organizing resources by Resource ID](#organizing-resources-by-resource-id)
   - [Browsing the Resource Catalog](#browsing-the-resource-catalog)
 - [Chapter 4: Issuing Commands](#chapter-4-issuing-commands)
-  - [Unpacking your kit](#unpacking-your-kit)
+  - [Equipping your drone](#unpacking-your-kit)
   - [Fuel](#fuel)
   - [Wrecks and plunder](#wrecks-and-plunder)
   - [Taxes](#taxes)
@@ -100,7 +100,7 @@ It is your birthright to take control of your own remotely piloted spacecraft an
 
 There is no email, and no account to open: anyone can write a drone's program on the **Release** page and release it:
 
-- each release starts a new company, with one drone in orbit around Earth, the kit you choose (a Mining Kit or a Factory Kit; see [Unpacking your kit](#unpacking-your-kit)), 100 fuel and 1,000 credits;
+- each release starts a new company, with one drone in orbit around Earth, 100 fuel and 3,000 credits, and no equipment: your script buys what it needs (see [Equipping your drone](#unpacking-your-kit));
 - your script is a Lua program, and it must define a function called `launched` (`function launched() ... end`). The drone loads your script, then calls `launched()` on its own;
 - you go to the drone's page, which shows everything it does and what it prints (once its signal has reached Earth). It's public, like the drone's code: keep its link to follow it;
 - if `launched` crashes, the drone restarts it (see [When `launched` crashes](#when-launched-crashes)).
@@ -124,11 +124,11 @@ A release checks your script first. It reports a syntax error with its line numb
 
 Prefer to play from a program, or to have an AI agent play? The [API](api.md) releases and follows companies as JSON, with no account, under the same rules as the website. Its `/check` call reports the same errors and warnings as the Release page.
 
-Not sure where to begin? The Release page offers four starter scripts: click **Miner**, **Refiner**, **Trader** or **Maker** above the script box and it fills in, with the kit it needs. They are the files `examples/starters/miner.lua`, `refiner.lua`, `trader.lua` and `maker.lua`. Each is explained in its comments and makes money on its own. Its **Settings** at the top are the numbers to change first (when to refuel, when to grow, how big a load); then change its plan to make it yours.
+Not sure where to begin? The Release page offers four starter scripts: click **Miner**, **Refiner**, **Trader** or **Maker** above the script box and it fills in. Each buys its own equipment at Earth first. They are the files `examples/starters/miner.lua`, `refiner.lua`, `trader.lua` and `maker.lua`. Each is explained in its comments and makes money on its own. Its **Settings** at the top are the numbers to change first (when to refuel, when to grow, how big a load); then change its plan to make it yours.
 
 - **Miner** (Mining Kit): mines kunspar or wolfite on the Moon, whichever has more left there (`richer`), refines it and sells the metals (and wolfite's Inorganics A2). It offers them to other drones first, halfway between the best buy order and the cheapest other sell order, and sells the rest into the best buy orders. If the Moon's deposit stays dry (twelve tries in a row: other miners got there first) and fewer drones work at Phobos than at the Moon, it moves to Mars's moons. Once it can afford to launch copies of itself, two in three of them make the trip to Mars's moons (about 2 to 3 game days) and sell at the Mars Exchange. It buys its fuel wherever it's cheapest; where nobody sells it (Phobos and Deimos), it posts a fuel buy order at 7 and broadcasts that it needs fuel, waits two game hours for a courier, then flies to the Mars Exchange if none came.
 - **Refiner** (Mining Kit): mines yalspar and vladnium and refines them into the organics and inorganics that factories turn into fuel and polymers. It sells them the same way.
-- **Trader** (Mining Kit, though it only uses the Engine): buys metals from the miners on the Moon when the price board says Mars or Earth paid enough more to cover the trip, and hauls the load to whichever pays most. House prices move, so its chances come and go.
+- **Trader** (just an Engine, about 600, so it keeps the rest of its credits to trade with): buys metals from the miners on the Moon when the price board says Mars or Earth paid enough more to cover the trip, and hauls the load to whichever pays most. House prices move, so its chances come and go.
 - **Maker** (Factory Kit): buys metals at the Moon wherever they're cheapest, makes them into alloys and rods, and sells the rods where they pay best: at the Moon, or at Earth when rods fetch enough more there to pay for the trip. With enough credits it launches a copy of itself, and it puts credits above 3,000 (up to 1,500 in all) into shares other companies sell of themselves, when a share's income pays its price back within 30 days (see [Shares and the stock exchange](#shares-and-the-stock-exchange)).
 
 More complete company designs are in `examples/companies/`: `adaptive.lua`, `chemist.lua`, `electronics.lua`, `foundry.lua`, `machinist.lua`, `smith.lua` and `systems.lua`, with `words.lua`, a library of helper functions you can copy into your own script.
@@ -185,8 +185,7 @@ A script is a list of settings and functions, and one of the functions is `launc
 low_fuel = 40   -- Settings first, as in the starters
 
 function launched()
-  await_kit()
-  unpack()
+  equip(mining_kit)   -- buys a Mining Kit at Earth and unpacks it
   go(moon)
   while true do
     if units(fuel) < low_fuel then buy_here(30, fuel) end
@@ -361,9 +360,16 @@ Compare a result with `== 0`. In Lua every number counts as true, 0 included (se
 
 Failures are not reported to you: a drone running on its own should check and respond. Its page only shows what your script prints and errors that stop it. What it prints reaches its page when `launched` ends, and a `launched` that loops forever never ends, so call `report()` in its loop to send what it has printed so far.
 
-### Unpacking your kit
+<a name="unpacking-your-kit"></a>
+### Equipping your drone
 
-Each spacecraft you release starts with one of two kits in its cargo hold, chosen on the Release page. A drone can do both jobs if it buys the other kit (2,000 at any exchange): both unpacked take 563 of its 1,000 cargo. But a drone does one thing at a time, so two drones, one of each, get twice as much done.
+Each company you release starts at Earth with one drone, 100 fuel and **3,000 credits**, and **no equipment** (#506; until then it started with 1,000 credits and a kit chosen at release). Your script spends the credits on whatever its plan needs:
+
+- **A kit**, the cheap way to the usual jobs: the Earth Exchange sells a Mining Kit and a Factory Kit for 2,000 each. `equip(mining_kit)` or `equip(factory_kit)` buys one and unpacks it. Call it first thing in `launched`; it returns once the drone has its tools, and in a copy you launch it waits for the kit the parent hands it.
+- **Single modules**, for a drone that needs only some: Earth sells each one (the Engine alone costs about 600). A trader only needs an Engine to fly, and keeps the rest of its credits to trade with: `buy_here(1, engine_module)`.
+- **Nothing at all**: a company that only trades shares, or only trades at Earth, needs no equipment, and keeps its 3,000 credits for its plan.
+
+A drone can do both jobs if it buys both kits: both unpacked take 563 of its 1,000 cargo. But a drone does one thing at a time, so two drones, one of each, get twice as much done. Net wealth starts at 0 either way: it counts your starting credits and fuel as the starting point, and equipment counts at its value.
 
 | Kit | Resource | Modules | Cargo, unpacked | What it does |
 |---|---|---|---|---|
@@ -384,7 +390,7 @@ function unpack_and_say()
 end
 ```
 
-It returns 0 once the kit is unpacked, and 0 at once when there is no kit left to unpack, so it is safe to call every time `launched` starts. `await_kit()` waits, an hour at a time, until the drone has a kit or its unpacked tools: a copy you launch starts with neither until its parent hands it a kit.
+It returns 0 once the kit is unpacked, and 0 at once when there is no kit left to unpack, so it is safe to call every time `launched` starts. `equip(kit)` does the whole job: it unpacks a kit aboard, buys one at Earth if the drone was released with none, or waits for its parent's if it's a copy. `await_kit()` only waits, an hour at a time, until the drone has a kit or its unpacked tools.
 
 ### Fuel
 
@@ -660,7 +666,7 @@ The Factory Kit's Smelter, Chemical Reactor and Spider take you as far as system
 1. buy a Mining Cruiser kit (`buy_here(1, cruiser_kit)`);
 2. launch a copy of yourself (`launch(me(), cruiser_kit)`): it costs 30 fuel, 20 of which go to the new spacecraft;
 3. buy a kit (`mining_kit` or `factory_kit`) and push it to the new spacecraft with some fuel;
-4. have your `launched` function wait until its kit is aboard before it unpacks (`await_kit()`): a new spacecraft starts with no kit.
+4. have your `launched` function wait until its kit is aboard before it unpacks (`equip(kit)` does that in a copy): a new spacecraft starts with no kit.
 
 The Miner, Refiner and Maker starters and the company designs do this once their company has about 7,000 credits: read their `reinvest` function.
 
@@ -1245,8 +1251,7 @@ So write `launched` to do only what still needs doing. `await_kit()` and `unpack
 started, copy, site_no = false, false, 0
 
 function launched()
-  await_kit()
-  unpack()
+  equip(mining_kit)
   if not started then
     if copy then site_no = me() % 3 end   -- a copy picks its own site
     copy, started = true, true            -- its own copies will know they are copies

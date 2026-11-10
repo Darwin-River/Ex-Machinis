@@ -73,7 +73,7 @@ function step()
   else rest() end
 end
 function launched()
-  unpack()
+  equip(factory_kit)   -- since #506 a drone buys its kit at Earth
   go(moon)
   become(shopping)
   while true do step(); tick() end

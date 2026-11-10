@@ -1,5 +1,5 @@
 -- Machinist: a company design for Public Forge, in Lua (economy rounds 10,
--- 11, 14; #380). Release it with the Factory Kit (Engine, Smelter, Chemical
+-- 11, 14; #380). It equips itself with the Factory Kit (Engine, Smelter, Chemical
 -- Reactor and Spider).
 -- It builds gear boxes, which station drones at Earth and Mars buy (check
 -- the price board, board_price or query 680, for what they fetch). A gear
@@ -136,11 +136,10 @@ function work()
 end
 
 -- launched() may run again (after a crash, or if the engine restarts):
--- await_kit and unpack pass once the tools are unpacked
+-- equip passes once the tools are unpacked
 function launched()
   fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
-  await_kit()
-  unpack()
+  equip(factory_kit)   -- buys a kit at Earth and unpacks it (a copy waits for the one it is handed; #506)
   go(moon)
   while true do work() end
 end

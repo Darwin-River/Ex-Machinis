@@ -19,7 +19,7 @@ The live game now runs at the test world's old pace: a game day every 48 real se
 
 ```lua
 function launched()
-  unpack()
+  equip(mining_kit)   -- since #506 a drone buys its kit at Earth
   while true do
     if units(fuel) < 20 then
       set_status("low on fuel: buying")

@@ -105,13 +105,13 @@ Every release is live, and free: the only limit is 10 a minute per address. A re
 |---|---|---|
 | `company_name` | yes | 3 to 45 characters, not already taken |
 | `script` | yes | must define `launched` |
-| `kit` | no | `mining` (the default) or `factory` |
+| `kit` | no | ignored since #506: a company starts with 3,000 credits and no kit, and its script equips itself (`equip(mining_kit)`) |
 
 **Example:**
 
 ```sh
 curl -s -X POST $B/release -H 'Content-Type: application/json' \
-  -d '{"company_name": "Ada Fuel 1", "kit": "factory", "script": "function launched() print(\"hello\") end"}'
+  -d '{"company_name": "Ada Fuel 1", "script": "function launched() print(\"hello\") end"}'
 ```
 
 **Response:** `201 Created`.
@@ -170,7 +170,7 @@ Use these to look up a company.
 
 | Field | Meaning |
 |---|---|
-| `net_wealth` | the leaderboard's measure: credits plus goods at market prices plus shares held in other companies at their last trade price plus credits committed to offerings of new shares, less the starter kit's value. The drones themselves don't count, so launching a copy lowers it by about a hull's price until the copy earns that back |
+| `net_wealth` | the leaderboard's measure: credits plus goods at market prices plus shares held in other companies at their last trade price plus credits committed to offerings of new shares, less what it started with (3,000 credits and 100 fuel). The drones themselves don't count, so launching a copy lowers it by about a hull's price until the copy earns that back |
 | `shares` | the stock market (#471): `price` (its shares' last trade price, or null), `count` (its shares in all: 1,000 to start, more after it issues new ones, #485), `offering` (its open offering of new shares, or null: `{units, price, raise, committed, left, hours, count, sales, a_day_after, investors: [{company, name, units}]}`), `holders` (`{company, name, units, dividends}`, most first), `orders` (the standing orders for its shares at the Earth exchange: `{company, name, side, price, keep or want}`), `holdings` (the shares it holds in other companies: `{company, name, units, dividends, price, ended, value}`; a company that has ended is worth 0, #493) and `trades` (its shares' last 10 trades: `{seller, seller_name, buyer, buyer_name, units, price, game_t}`) |
 | `drones` | the drone you released, its clones, and their clones |
 
@@ -359,7 +359,7 @@ print("check:", check["error"] or "ok", "|", check["warning"] or "no warnings")
 if not check.get("ok"):
     sys.exit(1)
 
-released = call("/release", {"company_name": name, "script": script, "kit": "factory"})
+released = call("/release", {"company_name": name, "script": script})
 if "drone" not in released:                           # an error, or queued: the world is full
     sys.exit("not released yet: %s" % released)
 drone = released["drone"]["id"]

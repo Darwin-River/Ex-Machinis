@@ -1,5 +1,5 @@
--- Trader: a starter script for Public Forge, in Lua (#380). Release it
--- with the Mining Kit (it only uses the Engine).
+-- Trader: a starter script for Public Forge, in Lua (#380). It buys an
+-- Engine at Earth, all it needs, and trades with the rest of its credits.
 -- It works the Moon, where the miners offer their metals to other drones.
 -- The House's prices move (each exchange its own way: booms, slumps,
 -- shortages and gluts), so it doesn't trade at fixed prices: for each metal
@@ -148,7 +148,11 @@ end
 -- unpack passes once the tools are unpacked, and go stays put if already there
 function launched()
   fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
-  unpack()
+  -- It needs only an Engine to fly (#506): it buys one at Earth (577 or so)
+  -- and keeps the rest of its credits to trade with
+  while units(engine_module) == 0 do
+    if units(mining_kit) > 0 or units(factory_kit) > 0 then unpack() else buy_here(1, engine_module); wait(60) end
+  end
   go(moon)
   while true do work() end
 end

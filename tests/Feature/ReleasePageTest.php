@@ -84,26 +84,19 @@ class ReleasePageTest extends TestCase
         $this->assertEquals([$script, '<launched>'], $codes);
     }
 
-    public function testTheReleaseGetsTheKitItsPlayerChose()
+    public function testAReleaseStartsWithCreditsAndNoKit()
     {
-        // #380: a Mining Kit unless the player asks for a Factory Kit
-        $this->get('/release')->assertOk()->assertSee('name="kit"', false)->assertSee('Factory Kit');
-        $this->get('/release?starter=maker')->assertOk()->assertSee('value="factory" checked', false);
-        foreach (Release::KITS as $name => $id) {
-            DB::table('resources')->insertOrIgnore(['id' => $id, 'name' => ucfirst($name) . ' Kit I', 'mass' => 40,
-                'capacity' => 0, 'slot_size' => 0]);
-        }
-        $kits = [];
-        foreach (['mining' => 'Diggers', 'factory' => 'Makers'] as $kit => $name) {
-            $this->post('/release', ['company_name' => $name, 'script' => 'function launched() end', 'kit' => $kit]);
-            $company = Company::where('name', $name)->first();
-            $drone = Agent::where('company_id', $company->company_id)->first();
-            $kits[$kit] = [(int) $company->start_kit, DB::table('events')->where('drone', $drone->agent_id)
-                ->where('resource', Release::kit($kit))->count()];
-        }
-        $this->assertEquals(['mining' => [5901, 1], 'factory' => [5902, 1]], $kits);
-        $this->post('/release', ['company_name' => 'Nope', 'script' => 'function launched() end', 'kit' => 'yacht'])
-            ->assertSessionHasErrors('kit');
+        // #506: credits instead of a kit; the script equips itself
+        $this->get('/release')->assertOk()->assertDontSee('name="kit"', false)->assertSee('equip(mining_kit)');
+        $this->post('/release', ['company_name' => 'Free Hands', 'script' => 'function launched() end', 'kit' => 'factory']);
+        $company = Company::where('name', 'Free Hands')->first();
+        $drone = Agent::where('company_id', $company->company_id)->first();
+        $this->assertSame(3000, (int) $company->credits);
+        $this->assertNull($company->start_kit);
+        $this->assertSame(0, DB::table('events')->where('drone', $drone->agent_id)
+            ->whereIn('resource', array_values(Release::KITS))->count());
+        // A fresh release is worth 0: its credits and fuel are its starting point
+        $this->assertSame(0, \App\Services\Leaderboard::wealth()[$company->company_id]['wealth']);
     }
 
     public function testScriptMustDefineLaunched()
