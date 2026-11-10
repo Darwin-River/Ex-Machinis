@@ -810,9 +810,32 @@ def orders(event_type, local, resource='[value_1]', extra=''):
     # by triggers on events, in place of MAX(id) over the history). Equal
     # prices list the lowest drone ID first, as the index used to give them
     index = 'latest_orders_here' if local else 'latest_orders_open'
-    return (f"SELECT {ORDER_COLS} FROM latest_orders AS o FORCE INDEX ({index}) "
-            f"WHERE o.resource = {resource} AND o.event_type = {event_type} AND {where}{here}{extra} "
-            f"ORDER BY o.price {order}, o.drone;")
+    # The stock a pull or push can really move (#502): what the drone holds
+    # free (not installed, not locked: a factory's inputs in use are locked),
+    # less what pulls and its own work already on the way will take (a sell
+    # order), or plus what pushes on the way will bring (a buy order).
+    # latest_orders.units counts installed and locked units too, and none of
+    # what is on the way: round 55's books listed units that had just been
+    # pulled, and the next buyers' pulls were refused (29,484 times)
+    return (f"SELECT d_price, quantity, units, drone FROM (SELECT o.price AS d_price, o.quantity, "
+            f"{movable('o.drone', 'o.resource', event_type)} AS units, o.drone "
+            f"FROM latest_orders AS o FORCE INDEX ({index}) "
+            f"WHERE o.resource = {resource} AND o.event_type = {event_type} AND {where}{here}{extra}) AS b "
+            f"WHERE {'units > quantity' if event_type == 4 else 'units < quantity'} "
+            f"ORDER BY d_price {order}, drone;")
+
+
+def movable(drone, resource, event_type):
+    # A drone's free stock of a resource (holdings: not installed, not
+    # locked), less what is on its way out (a sell order: pending depletions)
+    # or plus what is on its way in (a buy order: pending accumulations).
+    # Pending events are outcome 0 and carry the change (#502)
+    sign, pending = ('-', 2) if event_type == 4 else ('+', 1)
+    return (f"(IFNULL((SELECT h.units FROM holdings AS h WHERE h.drone = {drone} AND h.resource = {resource} "
+            f"AND h.installed = 0 AND h.locked = 0), 0) {sign} "
+            f"IFNULL((SELECT ABS(SUM(p.new_quantity)) FROM events AS p FORCE INDEX (events_inventory) "
+            f"WHERE p.drone = {drone} AND p.resource = {resource} AND p.installed = 0 AND p.locked = 0 "
+            f"AND p.outcome = 0 AND p.event_type = {pending}), 0))")
 
 
 EVENT_COL = "SELECT {c} FROM events WHERE outcome = 1 AND id = [value_1];"
@@ -855,10 +878,10 @@ QUERY_DESC = {  # for queries without a description in either spreadsheet
     '204': "Returns the total cargo mass in kg of spacecraft N.",
     '210': "Lists the resources and quantities in the cargo hold of spacecraft N.",
     '212': "Returns how many units of resource N are in the requesting spacecraft's cargo hold.",
-    '600': "Lists buy orders for resource N at the requesting spacecraft's location: price, wanted maximum, units held, spacecraft ID.",
-    '601': "Lists buy orders for resource N anywhere in the solar system: price, wanted maximum, units held, spacecraft ID.",
-    '610': "Lists sell orders for resource N at the requesting spacecraft's location: price, kept minimum, units held, spacecraft ID.",
-    '611': "Lists sell orders for resource N anywhere in the solar system: price, kept minimum, units held, spacecraft ID.",
+    '600': "Lists buy orders for resource N at the requesting spacecraft's location: price, wanted maximum, stock it holds free (plus what is on its way in), spacecraft ID.",
+    '601': "Lists buy orders for resource N anywhere in the solar system: price, wanted maximum, stock it holds free (plus what is on its way in), spacecraft ID.",
+    '610': "Lists sell orders for resource N at the requesting spacecraft's location: price, kept minimum, stock it holds free (less what is on its way out), spacecraft ID.",
+    '611': "Lists sell orders for resource N anywhere in the solar system: price, kept minimum, stock it holds free (less what is on its way out), spacecraft ID.",
     '800': "Lists the most recent events that affected spacecraft N.",
     '801': "Lists the most recent events at the requesting spacecraft's location.",
     '802': "Lists the most recent events anywhere in the solar system.",
@@ -986,7 +1009,7 @@ queries.append((621, 'Solar market volume',
 # (its high cell is parameter 1, its low cell parameter 2); N is parameter 3
 queries.append((612, 'Solar sell orders up to a price',
                 '[N P R L 612 query]: Sell orders for resource N anywhere in the solar system at a price of at most P '
-                '(a double, e.g. 7 10000 um* for 70,000), cheapest first: price (2 cells), kept minimum, stock, drone.', 3,
+                '(a double, e.g. 7 10000 um* for 70,000), cheapest first: price (2 cells), kept minimum, free stock (less what is on its way out), drone.', 3,
                 orders(4, False, resource='[value_3]', extra=' AND o.price <= [dvalue_1]')))
 
 # House drop stations (#324 step 10), placeholders to tune in step 20.
@@ -1412,12 +1435,12 @@ BOARD_LAG = HOUR
 LOCAL_NOTE = ' Only where the drone is: for elsewhere, see the price board (680).'
 local_queries = {
     601: ('List buy orders here', '[N R L 601 query]: Lists buy orders for resource N where the drone is (like 600): price, '
-          'wanted maximum, units held, spacecraft ID.' + LOCAL_NOTE, 1, orders(5, True)),
+          'wanted maximum, stock it holds free (plus what is on its way in), spacecraft ID.' + LOCAL_NOTE, 1, orders(5, True)),
     611: ('List sell orders here', '[N R L 611 query]: Lists sell orders for resource N where the drone is (like 610): price, '
-          'kept minimum, units held, spacecraft ID.' + LOCAL_NOTE, 1, orders(4, True)),
+          'kept minimum, stock it holds free (less what is on its way out), spacecraft ID.' + LOCAL_NOTE, 1, orders(4, True)),
     612: ('Sell orders here up to a price',
           '[N P R L 612 query]: Sell orders for resource N where the drone is at a price of at most P (a double, e.g. '
-          '7 10000 um* for 70,000), cheapest first: price (2 cells), kept minimum, stock, drone.', 3,
+          '7 10000 um* for 70,000), cheapest first: price (2 cells), kept minimum, free stock (less what is on its way out), drone.', 3,
           orders(4, True, resource='[value_3]', extra=' AND o.price <= [dvalue_1]')),
     621: ('Solar market volume, an hour old',
           '[N H R L 621 query]: Units of resource N traded anywhere in the solar system in the H game hours up to one '

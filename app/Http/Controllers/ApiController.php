@@ -145,20 +145,35 @@ class ApiController extends Controller
      * (?side=sell) or buy (the default), for one resource (?resource=) and
      * one place (?place=, an object ID or name)
      */
+    /**
+     * A drone's stock a pull or push can move (#502), for an order of the
+     * type (4 sell, 5 buy) on latest_orders AS o: its free holding, less its
+     * pending depletions (a seller) or plus its pending accumulations (a
+     * buyer). The same as the order-book queries' (build_game_data.py movable)
+     */
+    public static function movable(int $type): string
+    {
+        [$sign, $pending] = $type === 4 ? ['-', 2] : ['+', 1];
+        return "(IFNULL((SELECT h.units FROM holdings AS h WHERE h.drone = o.drone AND h.resource = o.resource
+                    AND h.installed = 0 AND h.locked = 0), 0) $sign
+                 IFNULL((SELECT ABS(SUM(e.new_quantity)) FROM events AS e FORCE INDEX (events_inventory)
+                    WHERE e.drone = o.drone AND e.resource = o.resource AND e.installed = 0 AND e.locked = 0
+                    AND e.outcome = 0 AND e.event_type = $pending), 0))";
+    }
+
     public function orders(Request $request): JsonResponse
     {
         $db = DB::connection();
         $type = $request->query('side') === 'sell' ? 4 : 5;
-        $open = $type === 4 ? 'IFNULL(i.units, 0) - e.new_quantity > 0' : 'e.new_quantity - IFNULL(i.units, 0) > 0';
         $where = '';
         $bind = [$type];
         if ($request->filled('resource')) {
-            $where .= ' AND e.resource = ?';
+            $where .= ' AND o.resource = ?';
             $bind[] = (int) $request->query('resource');
         }
         if ($request->filled('place')) {
             $place = (string) $request->query('place');
-            $where .= ctype_digit($place) ? ' AND a.object_id = ?' : ' AND o.object_name = ?';
+            $where .= ctype_digit($place) ? ' AND a.object_id = ?' : ' AND p.object_name = ?';
             $bind[] = ctype_digit($place) ? (int) $place : $place;
         }
         // ?company=: one company's open orders (#380 round 36), by number or name
@@ -167,20 +182,26 @@ class ApiController extends Controller
             $where .= ctype_digit($company) ? ' AND a.company_id = ?' : ' AND c.name = ?';
             $bind[] = ctype_digit($company) ? (int) $company : $company;
         }
+        // The units a pull or push can really move, as the drones' order books
+        // count them (#502): free stock (not installed, not locked), less what
+        // is on its way out of a seller, or plus what is on its way into a buyer
+        $movable = self::movable($type);
         $rows = $db->select(
-            "SELECT e.drone, a.name AS drone_name, e.resource, r.name AS resource_name, e.new_credits AS price,
-                    ABS(IFNULL(i.units, 0) - e.new_quantity) AS units, a.object_id AS place_id, o.object_name AS place,
+            "SELECT * FROM (SELECT o.drone, a.name AS drone_name, o.resource, r.name AS resource_name, o.price,
+                    o.quantity, $movable AS movable, a.object_id AS place_id, p.object_name AS place,
                     a.company_id, c.name AS company_name
-             FROM events e
-             JOIN (SELECT MAX(id) AS id FROM events WHERE event_type = ? AND outcome = 1 GROUP BY drone, resource) l ON l.id = e.id
-             JOIN agents a ON a.agent_id = e.drone AND a.wrecked_at IS NULL
+             FROM latest_orders o
+             JOIN agents a ON a.agent_id = o.drone AND a.wrecked_at IS NULL
              LEFT JOIN companies c ON c.company_id = a.company_id
-             LEFT JOIN resources r ON r.id = e.resource
-             LEFT JOIN objects o ON o.object_id = a.object_id
-             LEFT JOIN sqInventory i ON i.drone = e.drone AND i.resource = e.resource
-             WHERE $open $where
-             ORDER BY e.resource, o.object_name, e.new_credits " . ($type === 4 ? 'ASC' : 'DESC') . ' LIMIT 500',
+             LEFT JOIN resources r ON r.id = o.resource
+             LEFT JOIN objects p ON p.object_id = a.object_id
+             WHERE o.event_type = ? AND o.is_open = 1 $where) b
+             WHERE " . ($type === 4 ? 'movable > quantity' : 'movable < quantity') . "
+             ORDER BY resource, place, price " . ($type === 4 ? 'ASC' : 'DESC') . ' LIMIT 500',
             $bind);
+        foreach ($rows as $r) {
+            $r->units = abs((int) $r->movable - (int) $r->quantity);
+        }
         return response()->json(array_map(fn ($r) => [
             'drone' => (int) $r->drone, 'drone_name' => $r->drone_name, 'resource' => (int) $r->resource,
             'resource_name' => $r->resource_name, 'price' => (int) $r->price, 'units' => (int) $r->units,

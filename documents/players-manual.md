@@ -955,7 +955,7 @@ function sell_dear()
 end
 ```
 
-`sell_orders(r)` and `buy_orders(r)` list every order here, best price first: each a record with its `price`, the `units` it will sell or still wants, the `drone`, and the order's limit (`keep` or `want`) and the stock it holds (`held`). `cost_to_buy(n, r)` and `sale_value(n, r)` walk them for you.
+`sell_orders(r)` and `buy_orders(r)` list every order here, best price first: each a record with its `price`, the `units` it will sell or still wants, the `drone`, and the order's limit (`keep` or `want`) and the stock it can trade (`held`): what it holds free, not installed or locked in a job, less what pulls already on their way will take from a seller, or plus what pushes on their way will bring a buyer. So an order lists only what a pull or push can really move, and two drones don't both buy the last units. `cost_to_buy(n, r)` and `sale_value(n, r)` walk them for you.
 
 Your spacecraft sees live orders only where it is. For elsewhere, `quotes(r)` gives every exchange's best prices and stock as they stood an hour of game time ago (see [Other exchanges](#other-exchanges)), and the [price board](#the-price-board) what traded there.
 
@@ -1206,7 +1206,7 @@ Pick distinct names for your globals: two functions that both use a global calle
 
 When a drone loads your script, it runs the script from top to bottom. That top-level code is where your settings and functions are defined; it runs while the drone loads, can run at most 2 million Lua instructions, and can't take actions. Then the drone calls `launched()`, which does the work.
 
-Long scripts don't hold up other players. A drone runs your script a turn at a time: a turn is 100,000 instructions, and each Lua instruction counts as six (each query and each action counts as 1,000). A drone that thinks hard pauses mid-thought and carries on at its next turn, a few seconds later, and an action holds your script until it is done. Everything it printed shows on the drone's page when `launched` returns or calls `report()`.
+Long scripts don't hold up other players. A drone runs your script a turn at a time: a turn is 100,000 instructions, and each Lua instruction counts as six (each query and each action counts as 1,000). A drone that thinks hard pauses mid-thought and carries on at its next turn, a few seconds later, and an action holds your script until it is done. It can't pause inside a function that Lua itself calls, such as the comparison you give `table.sort` or the replacement you give `string.gsub`: there it finishes the call, then pauses. Keep those functions small: one that runs 2 million Lua instructions past the drone's turn is stopped with an error. Everything it printed shows on the drone's page when `launched` returns or calls `report()`.
 
 A released drone can't be stopped, reset or given a new script. Releases are free, so when one goes wrong, release a fixed version as a new company.
 

@@ -257,14 +257,34 @@ static void lua_charge_hook(lua_State* L, lua_Debug* ar)
                       "put work in functions that launched calls", LUA_LOAD_INSTRUCTIONS);
 }
 
+/* How far the running drone has run past its slice where it can't pause */
+static long long g_unpausable = 0;
+
 static void lua_count_hook(lua_State* L, lua_Debug* ar)
 {
     (void)ar;
     lua_charge(HOOK_EVERY);
-    if(vm_meter_exhausted())
+    int exhausted = vm_meter_exhausted();
+    if(exhausted && !lua_isyieldable(L))
+        g_unpausable += HOOK_EVERY;
+    switch(vm_meter_hook(exhausted, lua_isyieldable(L), g_unpausable, LUA_UNPAUSABLE_INSTRUCTIONS))
     {
+    case VM_HOOK_PAUSE:
+        /* the slice is used up: carries on next turn. Inside a function
+           called from C (a table.sort comparator) Lua can't pause (#508):
+           it ran on, and pauses here, back in its own code */
+        g_unpausable = 0;
         vm_slice_yield();
-        lua_yield(L, 0);   /* the slice is used up: carries on next turn */
+        lua_yield(L, 0);
+        break;
+    case VM_HOOK_TOO_LONG:
+        g_unpausable = 0;
+        luaL_error(L, "ran more than %d instructions past its turn inside a function called by table.sort, "
+                      "string.gsub or the like, which can't pause: keep the work in those functions small",
+                   LUA_UNPAUSABLE_INSTRUCTIONS);
+        break;
+    default:
+        break;
     }
 }
 
@@ -854,6 +874,7 @@ static void lua_drone_slice(LuaDrone* d)
         d->has_result = 0;
     }
     lua_sethook(d->co, lua_count_hook, LUA_MASKCOUNT, HOOK_EVERY);
+    g_unpausable = 0;
     g_current = d;
     int r = lua_resume(d->co, d->L, nargs, &nres);
     g_current = NULL;

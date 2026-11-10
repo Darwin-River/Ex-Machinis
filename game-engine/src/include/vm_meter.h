@@ -36,4 +36,15 @@ long long vm_meter_fuel_due(long long instructions, long long paid, long long pe
     less than a normal slice); any other slice gets the normal budget. */
 long long vm_meter_slice_budget(int loading, long long used_so_far, long long load_limit, long long slice);
 
+/** What a Lua drone's count hook does (#508). With its slice used up it
+    pauses, unless it is inside a function called from C (a table.sort
+    comparator, a string.gsub replacement), where Lua can't pause: then it
+    runs on, and pauses once it is back in its own code. `unpausable` is
+    how much it has run on past its slice; past `cap` it is stopped, so a
+    loop inside a comparator can't hold the engine. */
+#define VM_HOOK_GO        0   /* carry on */
+#define VM_HOOK_PAUSE     1   /* pause until its next turn */
+#define VM_HOOK_TOO_LONG  2   /* ran on too long where it can't pause: an error */
+int vm_meter_hook(int exhausted, int can_pause, long long unpausable, long long cap);
+
 #endif
