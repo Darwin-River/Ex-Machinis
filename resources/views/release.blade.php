@@ -57,18 +57,11 @@
                         <a href="{{ url('release?starter=' . $name) }}" title="{{ $what }}">{{ ucfirst($name) }}</a>@if(!$loop->last) · @endif
                     @endforeach
                     (each is explained in its comments; change it to make it your own)</small></p>
-                <div class="form-group">
-                    <label>Kit</label>
-                    @foreach($kits as $name => $what)
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="kit" id="kit-{{ $name }}"
-                                   value="{{ $name }}"{{ old('kit', $kit) === $name ? ' checked' : '' }}>
-                            <label class="form-check-label" for="kit-{{ $name }}">{{ $what }}</label>
-                        </div>
-                    @endforeach
-                    <small>A drone mines and refines with the Mining Kit, or makes things with the Factory Kit. Choose the
-                        kit your script needs (each starter says which); a drone can buy the other kit later.</small>
-                </div>
+                <p><small>Your company starts at Earth with one drone, 100 fuel and {{ number_format(config('forge.starting_credits')) }}
+                    credits, and no equipment: your script buys what it needs. <code>equip(mining_kit)</code> buys and unpacks
+                    a Mining Kit (Engine, Worm and Refinery, to mine and refine), <code>equip(factory_kit)</code> a Factory Kit
+                    (Engine, Smelter, Chemical Reactor and Spider, to make things); each costs 2,000 at Earth. Or buy modules
+                    one at a time, or none at all. Each starter equips itself.</small></p>
                 <div class="form-group">
                     <label for="script">Script (Lua)</label>
                     <textarea class="form-control" id="script" name="script" rows="16" spellcheck="false"

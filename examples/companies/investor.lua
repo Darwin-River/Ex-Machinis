@@ -1,5 +1,5 @@
 -- Investor: a company design for Public Forge, in Lua (#473, the stock
--- market #466). Release it with either kit: it never mines or makes
+-- market #466). It needs no equipment: it never mines or makes
 -- anything. It stays at Earth and lives on shares.
 -- Every company's shares pay their holders 0.1% a share of the company's
 -- sales income. Once a game day the investor learns what a share of each

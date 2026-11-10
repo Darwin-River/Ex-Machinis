@@ -12,8 +12,8 @@ use Illuminate\Support\Facades\Schema;
  *
  * Net wealth = the company's credits
  * + the goods aboard its working drones, at their market price
- * - its starter package (credits, fuel and the kit), so a fresh release is
- *   worth 0 and wealth is what it made.
+ * - its starter package (credits and fuel; since #506 no kit), so a fresh
+ *   release is worth 0 and wealth is what it made.
  * The market price of a good is what it sold for, a unit, over the last
  * three game days (#380: it was the House stations' price); a packed
  * starter kit is worth its contents. Rising is the gain over the last real week, from the hourly
@@ -59,11 +59,10 @@ class Leaderboard
         return array_map('intval', $prices);
     }
 
-    /** What every company starts with (#324 step 6): credits, fuel and a kit */
+    /** What every company starts with (#324 step 6): credits and fuel (#506: no kit) */
     public static function kitValue(array $prices): int
     {
-        return (int) config('forge.starting_credits') + (int) config('forge.starting_fuel') * ($prices[self::FUEL] ?? 0)
-            + ($prices[self::STARTER_KIT] ?? 0);
+        return (int) config('forge.starting_credits') + (int) config('forge.starting_fuel') * ($prices[self::FUEL] ?? 0);
     }
 
     /**

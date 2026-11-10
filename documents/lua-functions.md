@@ -9,7 +9,7 @@ Drones are programmed in Lua. The game's own functions (`mine`, `refine`, `make`
 - Your script's top level runs first: settings, tables and function definitions. Keep it short (it may run at most 2,000,000 instructions): put the work in functions that `launched` calls.
 - Then the drone's saved variables are put back, and `launched()` runs. Usually it loops for ever.
 - Whenever the drone pauses for an action, the game saves its **plain-data globals**: numbers, strings, true and false, and tables of them. Functions, `local` variables and the place the script had reached are not saved. If the engine restarts, the script's top level runs again, the saved globals are put back over it, and `launched()` starts again from the top.
-- So keep what the drone must remember (a count, the last price it saw) in globals, and write `launched` so it does only what still needs doing. `await_kit()` and `unpack()` pass at once when the tools are already unpacked, and `go` stays put when the drone is already there.
+- So keep what the drone must remember (a count, the last price it saw) in globals, and write `launched` so it does only what still needs doing. `equip(kit)`, `await_kit()` and `unpack()` pass at once when the tools are already unpacked, and `go` stays put when the drone is already there.
 - The library's own state is saved too: the mode (`become`) and its rounds, and the orders `sell_order_if_changed` and `buy_order_if_changed` remember. A drone starts in mode 0; number your first mode 0.
 
 ## The game library, by purpose
@@ -30,7 +30,7 @@ Every function below is built in (`game-engine/src/lua_library.lua`). Actions re
 | Other exchanges | `quotes(resource)` (best prices and stock at each place: live here, an hour old elsewhere), `stock(resource, place)`, `orders_everywhere(resource)` |
 | Your company | `company_name()`, `company_credits()`, `company_drones()`, `earnings(hours)` (sales, taxes, purchases, net), `earnings_per_day(days)`, `taxes()` |
 | About the drone | `me()`, `location()`, `company()`, `credits()`, `today()`, `now()` (`{day, minute}`), `drone_name()`, `hull_name()`, `my_clones()` (a list of `{drone =, wrecked =}`), `lineage()` (`{parent, generation}`), `set_status(text)` (a line shown on its page) |
-| Growing | `launch(drone, kit)`, `unpack()` (also `unpack_kit()`), `await_kit()` |
+| Equipping and growing | `equip(kit)`, `launch(drone, kit)`, `unpack()` (also `unpack_kit()`), `await_kit()` |
 | Safety | `fuel_floor(n)` |
 | Waiting | `wait(minutes)` |
 | Wrecks | `plunder(wreck)`, `wrecks()` (here: `{drone, plundered}`), `wreck_hold(wreck)` |
@@ -312,8 +312,7 @@ function step()
   if in_mode(mining) then mine_step() else sell_step() end
 end
 function launched()
-  await_kit()
-  unpack()
+  equip(mining_kit)
   go(moon)
   while true do step(); tick() end
 end
@@ -452,6 +451,8 @@ function reinvest()
   fill_to(60)
 end
 ```
+
+**`equip(kit)`** (built in, #506): equips the drone. A company starts with 3,000 credits and no equipment; until the drone has its tools (an Engine), `equip` unpacks a kit aboard, buys `kit` (`mining_kit` or `factory_kit`, 2,000 at Earth) if the drone was released, or waits for the kit its parent hands it if it's a copy. Put it first in `launched`: `equip(mining_kit)`. A drone that needs other equipment buys modules itself (`buy_here(1, engine_module)`), and one that only trades shares needs none.
 
 **`await_kit()`** (built in): wait, an hour at a time, until a kit (or its unpacked tools) is aboard. Put it first in `launched`: a clone starts with an empty hold and runs `launched` at once.
 

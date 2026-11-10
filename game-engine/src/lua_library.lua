@@ -519,6 +519,25 @@ local function lineage()                                                        
   return record(ask(671), {"parent", "generation"}) or {parent = 0, generation = 0}
 end
 
+-- Equips the drone (#506): a released drone starts with credits and no
+-- equipment. Until it has tools (an Engine), it unpacks a kit aboard, or
+-- buys `kit` here (Earth sells both kits) if it was released, or waits for
+-- the kit its parent hands it if it is a clone. kit: mining_kit or
+-- factory_kit
+local function equip(kit)
+  local clone = lineage().parent > 0
+  while units(engine_module) == 0 do
+    if units(factory_kit) > 0 or units(mining_kit) > 0 then
+      unpack_kit()
+    elseif clone then
+      wait(60)
+    else
+      buy_here(1, kit or mining_kit)
+      if units(factory_kit) == 0 and units(mining_kit) == 0 then wait(60) end
+    end
+  end
+end
+
 -- Places
 local function place_name(p) return text(700, p or location()) end                -- 700
 local function place_type(p) return first(701, p or location()) end               -- 701
@@ -613,6 +632,7 @@ _G.engine_module = engine_module
 _G.unpack_kit = unpack_kit
 _G.unpack = unpack
 _G.await_kit = await_kit
+_G.equip = equip
 _G.deposit = deposit
 _G.go = go
 _G.trip = trip

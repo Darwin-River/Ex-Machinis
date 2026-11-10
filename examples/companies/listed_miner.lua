@@ -1,6 +1,6 @@
 -- Listed miner: a company design for Public Forge, in Lua (#473, the
 -- stock market #466): the miner starter that also sells part of its
--- company. Release it with the Mining Kit (Engine, Worm and Refinery).
+-- company. It equips itself with the Mining Kit (Engine, Worm and Refinery).
 -- Every company has 1,000 shares, each paying its holder 0.1% of the
 -- company's sales income. This one keeps share_keep of its own and offers
 -- the rest at the Earth exchange for share_days of their dividends, re-priced
@@ -255,13 +255,12 @@ function work()
 end
 
 -- launched() may run again (after a crash, or if the engine restarts):
--- await_kit and unpack pass once the tools are unpacked, and a drone that
+-- equip passes once the tools are unpacked, and a drone that
 -- has already chosen its site keeps it
 started = false
 function launched()
   fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
-  await_kit()
-  unpack()
+  equip(mining_kit)   -- buys a kit at Earth and unpacks it (a copy waits for the one it is handed; #506)
   if not started then
     if copy then site_no = me() % 3 else site_no = 0 end
     copy, started = true, true

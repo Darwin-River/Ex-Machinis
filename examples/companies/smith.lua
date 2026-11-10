@@ -1,5 +1,5 @@
 -- Smith: a company design for Public Forge, in Lua (economy rounds 2, 4,
--- 6, 9, 12; #380). Release it with the Factory Kit (Engine, Smelter,
+-- 6, 9, 12; #380). It equips itself with the Factory Kit (Engine, Smelter,
 -- Chemical Reactor and Spider).
 -- It turns Metals (A1) into rods (two metals make an alloy, an alloy makes
 -- a rod, which has sold for several times its metals). It can't mine
@@ -136,11 +136,10 @@ function work()
 end
 
 -- launched() may run again (after a crash, or if the engine restarts):
--- await_kit and unpack pass once the tools are unpacked
+-- equip passes once the tools are unpacked
 function launched()
   fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
-  await_kit()
-  unpack()
+  equip(factory_kit)   -- buys a kit at Earth and unpacks it (a copy waits for the one it is handed; #506)
   if me() % 3 == 0 then site_no = 0 else site_no = 1 end
   go(site())
   while true do work() end
