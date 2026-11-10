@@ -957,6 +957,15 @@ end
 
 `sell_orders(r)` and `buy_orders(r)` list every order here, best price first: each a record with its `price`, the `units` it will sell or still wants, the `drone`, and the order's limit (`keep` or `want`) and the stock it can trade (`held`): what it holds free, not installed or locked in a job, less what pulls already on their way will take from a seller, or plus what pushes on their way will bring a buyer. So an order lists only what a pull or push can really move, and two drones don't both buy the last units. A list is a snapshot, though: each pull or push waits for your drone's next turn, which can be hours of game time, so read the list again before each one rather than working down a list you read once. `buy_here` and `sell_here` do. `cost_to_buy(n, r)` and `sale_value(n, r)` walk them for you.
 
+**Where else?** When nobody here sells what you need (round 56's factories sat idle for days when metals ran out at Earth and the Moon, while Phobos sold them at 8), `where_to_buy(r, n)` lists every place with n on sale, cheapest overall first. Each entry is `{place, cost, price, stock, hours, fuel, total}`: what n cost there (its cheapest sell orders first), the round trip's game hours and fuel (5 fuel a trip), and the `total`, which adds the fuel at today's price here and 10 credits for each game hour away. Pass a third number to value an hour differently: `where_to_buy(metals_a1, 20, 25)`. `where_to_sell(r, n)` is the other way round: places whose buy orders take all n, best first, with what they `value` after the 5% sales tax and the `net` after the trip. Prices elsewhere are an hour old, so check again when you arrive.
+
+```lua
+-- Go where 20 metals cost least, counting the trip
+local best = where_to_buy(metals_a1, 20)[1]
+if best and best.place ~= location() then go(best.place) end
+buy_here(20, metals_a1, best and best.price * 2)
+```
+
 Your spacecraft sees live orders only where it is. For elsewhere, `quotes(r)` gives every exchange's best prices and stock as they stood an hour of game time ago (see [Other exchanges](#other-exchanges)), and the [price board](#the-price-board) what traded there.
 
 #### Adjusting your orders
@@ -1113,6 +1122,16 @@ New shares **dilute** the old ones: after 1,000 new shares, each share earns hal
 A commitment is refused if there's no open offering (or it's your own company's) (-10), if it's for more shares than are left (-6), or if your company can't pay (-4). An offering is refused if it's for more shares than you have (-6), you already have one open (-9), or its minimum isn't between 1 and `n`.
 
 **Finding offerings.** `share_offerings()` (query 697) lists every open offering, soonest deadline first: `{company, units, price, left, hours, count, sales, mine, min}`. `units` is the most new shares it offers, `left` how many are still uncommitted, `hours` the game hours until its deadline, `count` the company's shares now, `sales` its sales income after tax a day (7-day average), `mine` how many your company has committed, and `min` the fewest it issues at the deadline. An offering with `units - left >= min` already has its minimum: your commitment will become shares. `share_count(company)` (query 698) is a company's shares in all.
+
+<a name="company-health"></a>**Is it healthy?** A share is worth something only while the company's drones keep working: a company whose drones run out of fuel ends, and its shares are worth 0. `company_health(company)` (query 699; your own if you leave it out) says how it stands: `{working, wrecked, fuel, lowest, used, days, credits}`. `fuel` is the fuel aboard its working drones and `lowest` the least aboard one; `used` is what they used over the last game day; `days` is how many game days until its first drone runs dry at the last day's net fall in fuel (what it used less what it bought), or -1 when no drone's fuel is falling. A company with a few days of fuel and few credits to buy more is in trouble. The Stock exchange page, the company page and the API's `health` show the same, and flag a company **at risk** when it has no working drone, or a drone that runs dry within 3 game days while it has under 500 credits.
+
+```lua
+-- Sell out of a company that is running dry
+local h = company_health(c)
+if h.working == 0 or (h.days >= 0 and h.days <= 3 and h.credits < 500) then
+  sell_shares(c, 0, 1)
+end
+```
 
 ```lua
 -- Raise up to 5,000: 500 new shares at 10, open for 5 days, and take
@@ -1302,7 +1321,7 @@ A function that asks about a drone or a place asks about this one when you leave
 |---|---|
 | This drone | `me()`, `location()`, `units(resource)`, `hold()` (`{resource, units}`), `cargo_mass()`, `capacity()`, `space()`, `drone_name()`, `hull_name()`, `now()` (`{day, minute}`), `today()`, `lineage()` (`{parent, generation}`), `my_clones()` |
 | Its company | `company()`, `credits()`, `company_name()`, `company_drones()`, `earnings(hours)`, `earnings_per_day(days)` (sales after tax a day, averaged over `days`, 7 if left out), `taxes()` (`{permille, last_day, total}`) |
-| The market here | `sell_orders(r)` and `buy_orders(r)` (every order, best first: `{price, units, drone, keep or want, held}`), `best_offer(r)`, `best_bid(r)`, `buy_price(r)`, `sell_price(r)`, `cost_to_buy(n, r)`, `sale_value(n, r)`, `volume_here(r, hours)` (`{units, credits, trades}`) |
+| The market here | `sell_orders(r)` and `buy_orders(r)` (every order, best first: `{price, units, drone, keep or want, held}`), `best_offer(r)`, `best_bid(r)`, `buy_price(r)`, `sell_price(r)`, `cost_to_buy(n, r)`, `sale_value(n, r)`, `volume_here(r, hours)` (`{units, credits, trades}`), `where_to_buy(r, n, hour_value)` and `where_to_sell(r, n, hour_value)` (every place, best overall first, counting the trip) |
 | Other exchanges | `quotes(r)`, `stock(r, place)`, `orders_everywhere(r)`, `price_board(r)` (`{place, units, credits, trades, price}`), `board_price(r, place)`, `sales(r, days_ago)`, `sold(r, days_ago, place)`, `volume_everywhere(r, hours)` |
 | Places | `place_name(p)`, `trip(p)`, `trip_to(p)` and `trip_between(a, b)` (`{distance, seconds, hours}`), `crowd(p)`, `wrecks_at(p)`, `drones_at(p)`, `deposit(mineral)`, `deposits()` (`{resource, units, capacity, refill}`), `minerals(p)` and `best_sites(mineral)` (the 10 best places: `{place, abundance, units, distance}`, richest first, then most left to mine, then nearest), `position(p)` (`{x, y, z}`), `orbits(p)`, `orbiting(p)` |
 | Wrecks | `wrecks()` (here: `{drone, plundered}`), `wreck_hold(wreck)` |

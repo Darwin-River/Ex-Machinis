@@ -69,6 +69,13 @@
             <div class="row row-30">
                 <div class="col">
                     <h2 class="">Shares</h2>
+                    {{-- Whether it can keep its drones flying (#537) --}}
+                    @php($h = $shares['health'])
+                    <p id="company-health">Health: {{ $h['working'] }} working {{ \Illuminate\Support\Str::plural('drone', $h['working']) }}@if($h['wrecked']), {{ $h['wrecked'] }} wrecked @endif;
+                        {{ number_format($h['fuel']) }} fuel aboard (the least, {{ $h['lowest'] }}), {{ number_format($h['used']) }} used over the last game day;
+                        @if($h['days'] >= 0) a drone runs dry in about {{ $h['days'] }} game {{ \Illuminate\Support\Str::plural('day', $h['days']) }} at that rate @else no drone's fuel is falling @endif;
+                        {{ number_format($h['credits']) }} credits.
+                        @if($h['at_risk'])<strong>At risk: it may not keep its drones flying.</strong>@endif</p>
                     <p>{{ number_format($shares['count']) }} shares, each paying its part of the company's sales income after tax.
                         Last trade price: <b>{{ $shares['price'] !== null ? number_format($shares['price']) . ' credits' : 'never traded' }}</b>.</p>
                 </div>

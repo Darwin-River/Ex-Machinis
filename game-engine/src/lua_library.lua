@@ -410,6 +410,13 @@ local function share_count(c)                                                   
   local row = ask(698, c)[1]
   return row and row[1] or 1000
 end
+-- A company's health (#537; yours if c is left out): working and wrecked
+-- drones, fuel (aboard its working drones), lowest (the least aboard one),
+-- used (fuel they used over the last game day), days (game days until one
+-- runs dry at its net fall in fuel; -1 when none is falling), credits
+local function company_health(c)                                                  -- 699
+  return record(ask(699, c or company()), {"working", "wrecked", "fuel", "lowest", "used", "days", "credits"})
+end
 local function share_price(c)
   local t = share_trades(c)[1]
   return t and t.price or nil
@@ -564,6 +571,82 @@ local function position(p) return record(ask(703, p or location()), {"x", "y", "
 local trip_fields = {"distance", "seconds", "hours"}
 local function trip_to(p) return record(ask(704, p), trip_fields) end             -- 704
 local function trip_between(a, b) return record(ask(705, a, b), trip_fields) end  -- 705
+-- Where to buy n of r (#536: round 56's factories sat idle for days when
+-- metals ran out at Earth and the Moon, though Phobos sold them at 8): every
+-- place with n on sale, cheapest overall first. Each is {place, cost (n
+-- units, walking that place's sell orders cheapest first), price (a unit,
+-- on average), stock (on sale there), hours (the round trip; 0 here), fuel
+-- (10 for a round trip: 5 a trip), total}. total is the cost plus the fuel
+-- at the cheapest price here (3 if none) plus hour_value credits for each
+-- game hour of the round trip (10 if left out). Prices elsewhere are an
+-- hour old
+local function fuel_price_here()
+  local o = ask(610, fuel)[1]
+  return o and o[1] or 3
+end
+local function walk(orders, n, best_first)
+  table.sort(orders, best_first)
+  local value, got = 0, 0
+  for _, o in ipairs(orders) do
+    if got >= n then break end
+    local take = math.min(n - got, o.units)
+    value, got = value + take * o.price, got + take
+  end
+  return value, got
+end
+local function trip_cost(place, hour_value, fuel_price)
+  if place == location() then return 0, 0, 0 end
+  local t = trip_to(place)
+  local hours = t and t.hours * 2 or 0
+  return hours, 10, 10 * fuel_price + hours * hour_value
+end
+local function by_place(r, side)
+  local places, mine = {}, me()
+  for _, o in ipairs(orders_everywhere(r)) do
+    if o.side == side and o.drone ~= mine and o.units > 0 then
+      places[o.place] = places[o.place] or {}
+      table.insert(places[o.place], o)
+    end
+  end
+  return places
+end
+local function where_to_buy(r, n, hour_value)
+  n, hour_value = n or 1, hour_value or 10
+  local list, fp = {}, fuel_price_here()
+  for place, orders in pairs(by_place(r, "sell")) do
+    local stock = 0
+    for _, o in ipairs(orders) do stock = stock + o.units end
+    if stock >= n then
+      local cost = walk(orders, n, function(a, b) return a.price < b.price end)
+      local hours, f, extra = trip_cost(place, hour_value, fp)
+      table.insert(list, {place = place, cost = cost, price = cost // n, stock = stock, hours = hours, fuel = f,
+                          total = cost + extra})
+    end
+  end
+  table.sort(list, function(a, b) return a.total < b.total end)
+  return list
+end
+-- Where to sell n of r (#536): every place whose buy orders take all n,
+-- best overall first. Each is {place, value (what the n fetch, best bids
+-- first, less the 5% sales tax), price (a unit, on average), wanted (units
+-- wanted there), hours, fuel, net (value less the round trip as in
+-- where_to_buy)}
+local function where_to_sell(r, n, hour_value)
+  n, hour_value = n or 1, hour_value or 10
+  local list, fp = {}, fuel_price_here()
+  for place, orders in pairs(by_place(r, "buy")) do
+    local wanted = 0
+    for _, o in ipairs(orders) do wanted = wanted + o.units end
+    if wanted >= n then
+      local value = walk(orders, n, function(a, b) return a.price > b.price end) * 95 // 100
+      local hours, f, extra = trip_cost(place, hour_value, fp)
+      table.insert(list, {place = place, value = value, price = value // n, wanted = wanted, hours = hours, fuel = f,
+                          net = value - extra})
+    end
+  end
+  table.sort(list, function(a, b) return a.net > b.net end)
+  return list
+end
 local function orbiting(p) return column(ask(710, p or location())) end           -- 710
 local function drones_at(p) return column(ask(720, p or location())) end          -- 720
 local function wrecks_at(p)                                                       -- 721
@@ -637,6 +720,9 @@ _G.share_trades = share_trades
 _G.share_price = share_price
 _G.shares_for_sale = shares_for_sale
 _G.share_offerings = share_offerings
+_G.company_health = company_health
+_G.where_to_buy = where_to_buy
+_G.where_to_sell = where_to_sell
 _G.share_count = share_count
 _G.ask = ask
 _G.me = me
