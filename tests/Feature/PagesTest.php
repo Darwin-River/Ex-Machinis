@@ -30,6 +30,7 @@ class PagesTest extends TestCase
             'home alias'       => ['/home', 'Home'],
             'getting started'  => ['/getting-started', 'Getting Started'],
             'about us'         => ['/about-us', 'About Us'],
+            'support'          => ['/support', 'Keep the Lights On'],
             'queries'          => ['/queries', 'Queries'],
             'message'          => ['/message', 'Notification'],
             'resources'        => ['/resources', 'Resources'],

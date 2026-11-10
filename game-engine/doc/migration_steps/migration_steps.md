@@ -168,13 +168,13 @@ At the new model file, we need to take into account the changes described above 
 This statement:
 
 ```
-INSERT INTO `users` VALUES (1,'Williamtroke','codydavis3434@yahoo.com','$2y$10$maRcbyOV5SOexfj02ptLg.X64XcemvA5ic2U2oiaqV/v43.zfRa12',NULL,'2017-11-15 23:15:12','2017-11-15 23:15:12')
+INSERT INTO `users` VALUES (1,'example','player@example.com','$2y$10$EXAMPLEHASHEXAMPLEHASHEXAMPLEHASHEXAMPLEHASHEXAMPLEHA',NULL,'2017-11-15 23:15:12','2017-11-15 23:15:12')
 ```
 
 would be now (notice that we add now the 1000 credits at the end):
 
 ```
-INSERT INTO `users` VALUES (1,'Williamtroke','codydavis3434@yahoo.com','$2y$10$maRcbyOV5SOexfj02ptLg.X64XcemvA5ic2U2oiaqV/v43.zfRa12',NULL,'2017-11-15 23:15:12','2017-11-15 23:15:12', 1000)
+INSERT INTO `users` VALUES (1,'example','player@example.com','$2y$10$EXAMPLEHASHEXAMPLEHASHEXAMPLEHASHEXAMPLEHASHEXAMPLEHA',NULL,'2017-11-15 23:15:12','2017-11-15 23:15:12', 1000)
 ```
 
 

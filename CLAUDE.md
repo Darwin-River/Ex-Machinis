@@ -25,7 +25,9 @@ When a change affects players, update the docs in the same PR:
 - `documents/hosting.md`
 - `documents/lua-functions.md`
 - `documents/economy-playbook.md`
-- `documents/blog/` when the change is worth a post
+- `documents/sustainability-playbook.md` (costs, the support page, social accounts, who owns what)
+- `documents/open-source-pathway.md` (the licence, the move to a project organization, the site's design)
+- `documents/blog/` when the change is worth a post. A new post is announced on Bluesky and Mastodon automatically when it reaches `public-forge`.
 
 ## Tests
 

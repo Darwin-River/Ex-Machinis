@@ -2,9 +2,9 @@
 @php $title = 'Release a Script' ; @endphp
 @section('pageTitle', $title)
 @section('content')
-    <section class="section section-xs section-first bg-default text-md-left">
+    <x-page-header :title="$title" />
+    <section class="section section-xs section-first text-md-left">
         <div class="container" id="container">
-            <h1>{{$title}}</h1>
             @include('_flash_message')
 
             <p>Write your drone's program and release it: anyone can, no account needed. Each release starts a new

@@ -31,6 +31,20 @@ class BlogPageTest extends TestCase
             ->assertDontSee('summary:');
     }
 
+    public function testTheFeedListsEveryPostNewestFirst()
+    {
+        $posts = BlogController::posts();
+        $response = $this->get('/blog/feed')->assertOk();
+        $this->assertStringStartsWith('application/rss+xml', $response->headers->get('Content-Type'));
+        $rss = simplexml_load_string($response->getContent());
+        $this->assertNotFalse($rss, 'the feed is well-formed XML');
+        $this->assertCount(count($posts), $rss->channel->item);
+        $last = array_key_last($posts);
+        $this->assertSame($posts[$last]['title'], (string) $rss->channel->item[0]->title);
+        $this->assertStringEndsWith('/blog/' . $last, (string) $rss->channel->item[0]->link);
+        $this->get('/blog')->assertSee('/blog/feed', false);
+    }
+
     public function testAnUnknownPostIsNotFound()
     {
         $this->get('/blog/no-such-post')->assertNotFound();

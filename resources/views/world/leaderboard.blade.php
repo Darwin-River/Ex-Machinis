@@ -2,9 +2,9 @@
 @section('pageTitle', 'Leaderboard')
 @section('content')
     {{-- The leaderboard (#324 step 18) --}}
-    <section class="section section-xs section-first bg-default text-md-left">
+    <x-page-header :title="'Leaderboard'" />
+    <section class="section section-xs section-first text-md-left">
         <div class="container" id="container">
-            <h2>Leaderboard</h2>
             <div style="white-space: normal; margin-bottom: 1em">
                 Companies by net wealth: each release starts a company, and the drones it launches belong to it.
                 Net wealth is the company's credits, plus the goods aboard its working drones at their market price

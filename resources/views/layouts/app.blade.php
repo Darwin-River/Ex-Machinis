@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html class="wide wow-animation" lang="{{ app()->getLocale() }}">
+<html lang="{{ app()->getLocale() }}">
 <head>
 
 <!-- Google Tag Manager -->
@@ -11,31 +11,21 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <!-- End Google Tag Manager -->
 
     <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport"
-          content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-
-    <!-- CSRF Token -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="description" content="Ex Machinis: a free multiplayer space game where you program drones in Lua to mine, build and trade across our solar system.">
+    <meta name="theme-color" content="#0b0f1a">
 
     <title>@yield('pageTitle') - {{ config('app.name') }}</title>
 
-    <!-- Styles -->
-    <link rel="stylesheet" type="text/css"
-          href="//fonts.googleapis.com/css?family=Open+Sans:400,400i,600,700,700i%7CYanone+Kaffeesatz:300,700%7CNova+Mono">
+    {{-- Our own design (#524): Bootstrap 4 for the grid, resources/assets/sass/site/ for the rest --}}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;700&display=swap">
     @vite('resources/assets/sass/app.scss')
 
-
-    <meta name="format-detection" content="telephone=no">
-    <link rel="icon" href="/images/favicon.ico" type="image/x-icon">
-    <!--[if lt IE 10]>
-    <div style="background: #212121; padding: 10px 0; box-shadow: 3px 3px 5px 0 rgba(0,0,0,.3); clear: both; text-align:center; position: relative; z-index:1;">
-        <a href="http://windows.microsoft.com/en-US/internet-explorer/"><img
-                src="images/ie8-panel/warning_bar_0000_us.jpg" border="0" height="42" width="820"
-                alt="You are using an outdated browser. For a faster, safer browsing experience, upgrade for free today."></a>
-    </div>
-    <script src="js/html5shiv.min.js"></script>
-    <![endif]-->
+    <link rel="icon" href="/images/favicon.svg" type="image/svg+xml">
+    <link rel="alternate" type="application/rss+xml" title="Ex Machinis strategy blog" href="/blog/feed">
 
     {{-- Page-specific styles (inside #app, Vue would drop <style> tags) --}}
     @stack('styles')
@@ -48,315 +38,100 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
 
-<div class="preloader">
-    <div class="preloader-wrap"><a class="brand" href="/"><img class="brand-logo-dark"
-                                                               src="/images/logo.png" alt="loading"
-            /><img
-                    class="brand-logo-light" src="/images/logo.png" alt=""/></a>
-        <div class="fountainG-wrap">
-            <div class="fountainG_1 fountainG"></div>
-            <div class="fountainG_2 fountainG"></div>
-            <div class="fountainG_3 fountainG"></div>
-            <div class="fountainG_4 fountainG"></div>
-            <div class="fountainG_5 fountainG"></div>
-            <div class="fountainG_6 fountainG"></div>
-            <div class="fountainG_7 fountainG"></div>
-            <div class="fountainG_8 fountainG"></div>
-        </div>
-    </div>
-</div>
+<a class="skip-link" href="#main">Skip to content</a>
+
 <div id="app" class="page">
-    <header class="section page-header">
-        <!-- RD Navbar-->
-        <div class="rd-navbar-wrap">
-            <nav class="rd-navbar rd-navbar-classic" data-layout="rd-navbar-fixed" data-sm-layout="rd-navbar-fixed"
-                 data-md-layout="rd-navbar-fixed" data-md-device-layout="rd-navbar-fixed"
-                 data-lg-device-layout="rd-navbar-fixed" data-lg-layout="rd-navbar-static"
-                 data-xl-layout="rd-navbar-static" data-xl-device-layout="rd-navbar-static"
-                 data-xxl-layout="rd-navbar-static" data-xxl-device-layout="rd-navbar-static" data-lg-stick-up="false"
-                 data-xl-stick-up="false" data-xxl-stick-up="false" data-body-class="body-style-1">
-                <div class="rd-navbar-collapse-toggle rd-navbar-fixed-element-1"
-                     data-rd-navbar-toggle=".rd-navbar-collapse"><span></span></div>
-                <div class="rd-navbar-aside-outer">
-                    <div class="rd-navbar-aside">
-                        <!-- RD Navbar Panel-->
-                        <div class="rd-navbar-panel">
-                            <!-- RD Navbar Toggle-->
-                            <button class="rd-navbar-toggle" data-rd-navbar-toggle=".rd-navbar-nav-wrap"><span></span>
-                            </button>
-                            <!-- RD Navbar Brand-->
-                            <div class="rd-navbar-brand"><a class="brand" href="/"><img class="brand-logo-dark"
-                                                                                        src="/images/logo.png" alt=""
-                                                                                        width="200"/><img
-                                            class="brand-logo-light" src="/images/logo.png" alt="ex-machinis logo"/></a>
-                            </div>
+    <header class="site-header">
+        <nav class="navbar navbar-expand-lg navbar-dark container">
+            <a class="navbar-brand" href="/" aria-label="Ex Machinis home">
+                <img src="/images/logo.png" alt="Ex Machinis" width="203" height="16">
+            </a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#site-nav"
+                    aria-controls="site-nav" aria-expanded="false" aria-label="Menu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="site-nav">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="nav-learn" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Learn</a>
+                        <div class="dropdown-menu" aria-labelledby="nav-learn">
+                            <a class="dropdown-item" href="{{ url('getting-started') }}">Getting started</a>
+                            <a class="dropdown-item" href="{{ url('blog') }}">Strategy blog</a>
+                            <a class="dropdown-item" href="{{ url('protocols') }}">Protocols</a>
+                            <a class="dropdown-item" href="{{ url('queries') }}">Queries</a>
                         </div>
-                        <div class="rd-navbar-aside-info rd-navbar-collapse">
-                            <p class="rd-navbar-quote d-none d-sm-block">“Give me a lever… and I shall move the world” -
-                                Archimedes</p>
-                            <div>
-                                <ul class="list-social-modern">
-                                    <li><a class="icon mdi mdi-twitter" href="https://twitter.com/exmachinis"
-                                           title="Twitter"></a></li>
-                                    <li><a class="icon mdi mdi-patreon" href="https://www.patreon.com/exmachinis"
-                                           title="Patreon"></a>
-                                    </li>
-                                    <li title="Github"><a class="icon mdi mdi-github-circle"
-                                                          href="https://github.com/Darwin-River/Ex-Machinis"></a></li>
-                                    <!--  <li><a class="icon mdi mdi-facebook" href="#"></a></li> -->
-                                </ul>
-                            </div>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="nav-world" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">World</a>
+                        <div class="dropdown-menu" aria-labelledby="nav-world">
+                            <a class="dropdown-item" href="{{ url('market') }}">Market</a>
+                            <a class="dropdown-item" href="{{ url('market/history') }}">Market history</a>
+                            <a class="dropdown-item" href="{{ url('market/shares') }}">Stock exchange</a>
+                            <a class="dropdown-item" href="{{ url('map') }}">Map</a>
+                            <a class="dropdown-item" href="{{ url('leaderboard') }}">Leaderboard</a>
+                            <a class="dropdown-item" href="{{ url('events') }}">Events</a>
                         </div>
-                    </div>
-                </div>
-                <div class="rd-navbar-main-outer">
-                    <div class="rd-navbar-main">
-                        <div class="rd-navbar-nav-wrap">
-                            <!-- RD Navbar Nav-->
-                            <ul class="rd-navbar-nav">
-                              <!--
-                                <li class="rd-nav-item"><a class="rd-nav-link" href="/"><span
-                                                class="rd-nav-icon mdi mdi-home"></span><span
-                                                class="rd-nav-title">Home</span></a>
-
-                                </li>
-                              -->
-
-
-
-
-                                <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
-                                                                             href="{{url('release')}}"><span
-                                                class="rd-nav-icon mdi mdi-rocket"></span><span
-                                                class="rd-nav-title">Release</span></a></li>
-                                <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
-                                                                             href="{{url('getting-started')}}"><span
-                                                class="rd-nav-icon mdi mdi-satellite-uplink"></span><span
-                                                class="rd-nav-title">Documentation</span></a>
-                                    <!-- RD Navbar Dropdown-->
-                                    <ul class="rd-menu rd-navbar-dropdown">
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('getting-started')}}">Getting Started</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('blog')}}">Strategy Blog</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('protocols')}}">Protocols</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('queries')}}">Queries</a></li>
-                                    </ul>
-                                </li>
-                                <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
-                                                                             href="{{'companies'}}"><span
-                                                class="rd-nav-icon mdi mdi-factory"></span><span
-                                                class="rd-nav-title">Infrastructure</span></a>
-                                    <!-- RD Navbar Dropdown-->
-                                    <ul class="rd-menu rd-navbar-dropdown">
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('companies')}}">Companies</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('spacecraft')}}">Spacecraft</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('resources')}}">Resources</a></li>
-                                    </ul>
-                                </li>
-                                <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
-                                                                             href="{{'buys'}}"><span
-                                                class="rd-nav-icon mdi mdi-chart-line"></span><span
-                                                class="rd-nav-title">Markets</span></a>
-                                    <!-- RD Navbar Dropdown-->
-                                    <ul class="rd-menu rd-navbar-dropdown">
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('market')}}">Market</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('market/history')}}">Market history</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('market/shares')}}">Stock exchange</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('map')}}">Map</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('leaderboard')}}">Leaderboard</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('buys')}}">Buy Orders</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('sells')}}">Sell Orders</a></li>
-                                    </ul>
-                                </li>
-                                <li class="rd-nav-item d-none d-lg-block"><a class="rd-nav-link "
-                                                                             href="{{'locations'}}"><span
-                                                class="rd-nav-icon mdi mdi-moon-waning-crescent"></span><span
-                                                class="rd-nav-title">Environment</span></a>
-                                    <!-- RD Navbar Dropdown-->
-                                    <ul class="rd-menu rd-navbar-dropdown">
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('locations')}}">Locations</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('events')}}">Events</a></li>
-                                    </ul>
-                                </li>
-                                <!--  <li class="rd-nav-item active"><a class="rd-nav-link" href="contacts.html"><span
-                                                  class="rd-nav-icon mdi mdi-email"></span><span class="rd-nav-title">Contacts</span></a>
-                                  </li> -->
-                            </ul>
-
-                            <!-- MAIN MENU -->
-                            <ul class="rd-navbar-list-link">
-
-
-                                <li class="d-none d-lg-inline-block"><a class="" href="">Command and Control</a><span
-                                            class="rd-navbar-submenu-toggle"></span>
-                                    <!-- RD Navbar Dropdown-->
-                                    <ul class="rd-menu rd-navbar-dropdown oriented-down">
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('getting-started')}}">Getting Started</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('blog')}}">Strategy Blog</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('protocols')}}">Protocols</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('queries')}}">Queries</a></li>
-                                    </ul>
-                                </li>
-                                <li class="d-none d-lg-inline-block"><a class="" href="{{url('companies')}}">Infrastructure</a><span
-                                            class="rd-navbar-submenu-toggle"></span>
-                                    <!-- RD Navbar Dropdown-->
-                                    <ul class="rd-menu rd-navbar-dropdown oriented-down">
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('companies')}}">Companies</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('spacecraft')}}">Spacecraft</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('resources')}}">Resources</a></li>
-                                    </ul>
-                                </li>
-                                <li><a class="" href="{{url('buys')}}">Markets</a><span
-                                            class="rd-navbar-submenu-toggle"></span>
-                                    <!-- RD Navbar Dropdown-->
-                                    <ul class="rd-menu rd-navbar-dropdown oriented-down">
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('market')}}">Market</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('market/history')}}">Market history</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('market/shares')}}">Stock exchange</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('map')}}">Map</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('leaderboard')}}">Leaderboard</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('buys')}}">Buy Orders</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('sells')}}">Sell Orders</a></li>
-                                    </ul>
-                                </li>
-                                <li><a href="{{url('locations')}}">Environnmental</a><span
-                                            class="rd-navbar-submenu-toggle"></span>
-                                    <!-- RD Navbar Dropdown-->
-                                    <ul class="rd-menu rd-navbar-dropdown oriented-down">
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('locations')}}">Locations</a></li>
-                                        <li class="rd-dropdown-item"><a class="rd-dropdown-link"
-                                                                        href="{{url('events')}}">Events</a></li>
-                                    </ul>
-                                </li>
-                                <!--
-                                <li class="d-block d-lg-none"><a href="{{url('players-manual')}}">Player's Manual</a>
-                                </li>
-                                <li class="d-block d-lg-none"><a href="{{url('protocols')}}">Protocols</a></li>
-                                <li class="d-block d-lg-none"><a href="{{url('queries')}}">Queries</a></li>
-                              -->
-                            <!-- Hide for now.
-                                -->
-                                <!--
-                                <li class="d-block d-lg-none"><a href="{{url('locations')}}">Locations</a></li>
-                                <li class="d-block d-lg-none"><a href="{{url('companies')}}">Companies</a></li>
-                                <li class="d-block d-lg-none"><a href="{{url('spacecraft')}}">Spacecraft</a></li>
-                                <li class="d-block d-lg-none"><a href="{{url('resources')}}">Resources</a></li>
-                                <li class="d-block d-lg-none"><a href="{{url('events')}}">Events</a></li>
-                                <li class="d-block d-lg-none"><a href="{{url('buys')}}">Buy Orders</a></li>
-                                <li class="d-block d-lg-none"><a href="{{url('sells')}}">Sell Orders</a></li>
-                              -->
-                                <li><a href="{{url('about-us')}}">About Us</a></li>
-                              
-                            </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="nav-directory" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Directory</a>
+                        <div class="dropdown-menu" aria-labelledby="nav-directory">
+                            <a class="dropdown-item" href="{{ url('companies') }}">Companies</a>
+                            <a class="dropdown-item" href="{{ url('spacecraft') }}">Spacecraft</a>
+                            <a class="dropdown-item" href="{{ url('resources') }}">Resources</a>
+                            <a class="dropdown-item" href="{{ url('locations') }}">Locations</a>
+                            <a class="dropdown-item" href="{{ url('buys') }}">Buy orders</a>
+                            <a class="dropdown-item" href="{{ url('sells') }}">Sell orders</a>
                         </div>
-                        <!-- RD Navbar Search-->
-                        <!--  <div class="rd-navbar-search">
-                              <button class="rd-navbar-search-toggle rd-navbar-fixed-element-2"
-                                      data-rd-navbar-toggle=".rd-navbar-search"><span></span></button>
-                              <form class="rd-search" action="search-results.html"
-                                    data-search-live="rd-search-results-live" method="GET">
-                                  <div class="form-wrap">
-                                      <label class="form-label" for="rd-navbar-search-form-input">Search</label>
-                                      <input class="rd-navbar-search-form-input form-input"
-                                             id="rd-navbar-search-form-input" type="text" name="s" autocomplete="off"/>
-                                      <div class="rd-search-results-live" id="rd-search-results-live"></div>
-                                  </div>
-                                  <button class="rd-search-form-submit mdi mdi-magnify" type="submit"></button>
-                              </form>
-                          </div> -->
-                    </div>
-                </div>
-            </nav>
-        </div>
+                    </li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url('about-us') }}">About</a></li>
+                </ul>
+                <ul class="navbar-nav nav-actions">
+                    <li class="nav-item"><a class="nav-link nav-support" href="{{ url('support') }}" title="Keep the lights on">&#9829;<span class="d-lg-none"> Keep the lights on</span></a></li>
+                    <li class="nav-item"><a class="button button-primary button-sm" href="{{ url('release') }}">Release a drone</a></li>
+                </ul>
+            </div>
+        </nav>
     </header>
 
+    <main id="main">
+        @yield('content')
+    </main>
 
-    @yield('content')
-
-    <footer class="section footer-classic bg-gray-700-invariable text-md-left">
+    <footer class="site-footer">
         <div class="container">
-            <h3>Support us on Patreon and join the game!</h3>
-
-            <div class="row row-80">
-                <div class="col-sm-6 col-lg-4">
-                    <h4>Lieutenant</h4>
-                    <p class="text-width-xl-90">Receive early updates on <b>game mechanics</b> when you support this project with at least $2 per month.</p>
-                    <br/>
-                    <a href="https://www.patreon.com/bePatron?u=6799833"
-                       data-patreon-widget-type="become-patron-button">Become a Patron!</a>
-                    <br/>
+            <div class="row">
+                <div class="col-md-5 mb-4">
+                    {{-- #522: one ask, for running costs only --}}
+                    <h2 class="footer-title">Keep the lights on</h2>
+                    <p>Ex Machinis is free to play, with no ads and nothing to buy. If you enjoy it, chip in to cover the server and the tools that build it.</p>
+                    <p><a class="button button-primary" href="{{ url('support') }}">Keep the lights on</a></p>
                 </div>
-
-                <div class="col-sm-6 col-lg-4">
-                    <h4>Commander</h4>
-                    <p class="text-width-xl-90">Be the first to learn about novel <b>training missions</b> when you contribute at least $4 a month.</p>
-                    <br/>
-                    <a href="https://www.patreon.com/bePatron?u=6799833"
-                       data-patreon-widget-type="become-patron-button">Become a Patron!</a>
-                    <br/>
+                <div class="col-6 col-md-3 offset-md-1 mb-4">
+                    <h2 class="footer-title">Play</h2>
+                    <ul class="footer-links">
+                        <li><a href="{{ url('release') }}">Release a drone</a></li>
+                        <li><a href="{{ url('getting-started') }}">Getting started</a></li>
+                        <li><a href="{{ url('blog') }}">Strategy blog</a></li>
+                        <li><a href="{{ url('leaderboard') }}">Leaderboard</a></li>
+                    </ul>
                 </div>
-
-                <div class="col-sm-6 col-lg-4">
-                    <h4>Admiral</h4>
-                    <p class="text-width-xl-90">Enjoy behind-the-scenes access to our <b>development plans</b> when you help us grow at $6 or more a month.</p>
-                    <br/>
-                    <a href="https://www.patreon.com/bePatron?u=6799833"
-                       data-patreon-widget-type="become-patron-button">Become a Patron!</a>
-
+                <div class="col-6 col-md-3 mb-4">
+                    <h2 class="footer-title">Community</h2>
+                    <ul class="footer-links">
+                        <li><a href="https://github.com/Darwin-River/Ex-Machinis">Source code</a></li>
+                        <li><a href="https://github.com/Darwin-River/Ex-Machinis/blob/public-forge/CONTRIBUTING.md">Contribute</a></li>
+                        <li><a href="https://github.com/Darwin-River/Ex-Machinis/issues">Report a problem</a></li>
+                        <li><a href="/blog/feed">Blog RSS feed</a></li>
+                    </ul>
                 </div>
-
-                <p><b>Thank's for helping us succeed!</b></p>
             </div>
-
-        </div>
-        <div class="container">
-            <!-- Rights-->
-            <p class="rights"><span>©&nbsp; </span><span class="copyright-year">2019</span><span>&nbsp;</span><span>All rights reserved</span><span>.&nbsp;</span><!--<a
-                        href="terms-of-use.html">Privacy Policy</a>--></p>
+            <p class="footer-legal">Ex Machinis is free and open source under the <a href="https://github.com/Darwin-River/Ex-Machinis/blob/public-forge/LICENSE">MIT licence</a>. &copy; Darwin River Software LLC and the Ex Machinis contributors.</p>
         </div>
     </footer>
 </div>
 
-<!-- Global Mailform Output-->
-<div class="snackbars" id="form-output-global"></div>
-
 <!-- Scripts -->
 @vite('resources/assets/js/app.js')
-{{-- Deferred so they run after the app bundle (a module script) has mounted
-     Vue on #app; the theme sets up the navbar and other widgets on that DOM. --}}
-<script src="/js/core.min.js" defer></script>
-<script src="/js/script.js" defer></script>
-<script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
 
 </body>
 </html>

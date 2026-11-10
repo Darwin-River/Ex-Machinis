@@ -2,9 +2,9 @@
 @section('pageTitle', 'Stock exchange')
 @section('content')
     {{-- The Stock exchange page (#484): every company's shares, what's for sale, and the latest trades --}}
-    <section class="section section-xs section-first bg-default text-md-left">
+    <x-page-header :title="'Stock exchange'" />
+    <section class="section section-xs section-first text-md-left">
         <div class="container" id="container">
-            <h2>Stock exchange</h2>
             <div style="white-space: normal; margin-bottom: 1em">
                 Every company starts with 1,000 shares, and more once it issues new ones to raise credits; each share pays
                 its holder its part of the company's sales income after tax.

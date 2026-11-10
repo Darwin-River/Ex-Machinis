@@ -1,12 +1,10 @@
-// Fonts
-@import url("https://fonts.googleapis.com/css?family=Raleway:300,400,600");
-// Variables
-@import "variables";
-// Bootstrap
-//@import "~bootstrap-sass/assets/stylesheets/bootstrap";
-//@import "./bootstrap/bootstrap.scss";
-@import "bootstrap/scss/bootstrap";
-@import "./custom-styles/fonts.scss";
-@import "./custom-styles/style.scss";
-@import "custom-styles/exmachinis.scss";
+// Ex Machinis's own design (#524), MIT licensed like the rest of the game.
+// Bootstrap 4 (MIT) gives the grid, navbar, dropdowns, alerts and tables;
+// site/ holds everything that makes it look like Ex Machinis.
 
+@import "site/tokens";
+@import "bootstrap/scss/bootstrap";
+@import "site/base";
+@import "site/layout";
+@import "site/components";
+@import "site/legacy";

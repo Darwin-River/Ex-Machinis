@@ -10,11 +10,15 @@ The game uses augmented reality to project a parallel universe upon our own. In 
 
 Ex Machinis is being developed and managed by Darwin River Software LLC with support from a number of talented developers.  
 
-* **Darwin River Software LLC** is a small software studio that was established to support the creation of engaging educational applications.  The organization is built on an open source model in which contributions from patrons, sponsors, and committed developers, are used to guide and support the creation of free educational software.  Ex Machinis is our effort to create a multiplayer space simulation that encourages and inspires the development of fundamental programming skills as a tool for success. 
+* **Darwin River Software LLC** is a small software studio that was established to support the creation of engaging educational applications.  The organization is built on an open source model in which contributions from supporters and committed developers, are used to guide and support the creation of free educational software.  Ex Machinis is our effort to create a multiplayer space simulation that encourages and inspires the development of fundamental programming skills as a tool for success. 
 
-## Our Awesome Sponsors
+## Keep the lights on
 
-This game relies on our [generous Patreon sponsors](https://patreon.com/exmachinis) for feedback, encouragement, and support. We wouldn't be here without them!
+Ex Machinis is free to play. Supporters cover what it costs to run (the server, the domain and the AI subscription that does most of the building); the site's **Keep the Lights On** page (`/support`) shows the costs, how much is covered, and how to chip in. See the [sustainability playbook](documents/sustainability-playbook.md).
+
+## Licence and contributing
+
+Ex Machinis is free and open source under the [MIT licence](LICENSE). See [CONTRIBUTING.md](CONTRIBUTING.md) to get involved, and [SECURITY.md](SECURITY.md) to report a security problem privately.
 
 ## Programming drones
 
@@ -34,7 +38,7 @@ Spacecraft are programmed in [Lua](https://www.lua.org/manual/5.4/): the [player
 | `game-engine/sql/game-data/` | The game's design spreadsheets (resources, recipes, queries) and `build_game_data.py`, which turns them into `game-engine/sql/game_data.sql` and the query list in the design manual |
 | `game-engine/scripts/`, `game-engine/conf/` | Cron/start scripts and engine configuration |
 | `tests/` | PHPUnit tests and test fixtures |
-| `documents/` | Game docs: the [player's manual](documents/players-manual.md) and the [design manual](documents/design-manual.md) (both kept up to date with the code), the [production install guide](documents/install.md) and the [upgrade plan](documents/laravel-upgrade-plan.md) |
+| `documents/` | Game docs: the [player's manual](documents/players-manual.md) and the [design manual](documents/design-manual.md) (both kept up to date with the code), the [production install guide](documents/install.md), the [upgrade plan](documents/laravel-upgrade-plan.md), the [sustainability playbook](documents/sustainability-playbook.md) (funding, promotion and handing the project on), and the [open-source pathway](documents/open-source-pathway.md) (licence, audit, moving to a project organization) |
 
 ### Run the website locally
 
