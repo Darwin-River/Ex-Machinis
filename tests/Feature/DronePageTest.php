@@ -123,7 +123,44 @@ class DronePageTest extends TestCase
 
         // A wreck has a post-mortem instead
         DB::table('agents')->where('agent_id', $agent->agent_id)->update(['wrecked_at' => $now, 'wreck_cause' => 'fuel']);
-        $this->get('/spacecraft/' . $agent->agent_id)->assertDontSee('id="activity"', false);
+        $this->get('/spacecraft/' . $agent->agent_id)->assertDontSee('id="activity"', false)
+            ->assertSee('Its last sales and purchases')->assertSee('Sold 5 Pellets, Iron');
+        // and its trades are still in the API (#494: they were empty for a wreck)
+        $this->assertCount(2, $this->getJson('/api/v1/drones/' . $agent->agent_id)->json('trades'));
+    }
+
+    public function testTheTimelinePagesAndFuelIsBrokenDownByAction()
+    {
+        $agent = Release::release($this->player('a@example.com'), 'Diggers', self::SCRIPT);
+        $now = \App\Services\World::gameNow();
+        // 30 mining runs in the last game day, a fuel each, and a power bill of 2
+        $fuel = 100;
+        DB::table('events')->insert(['event_type' => 1, 'action' => 0, 'logged' => 1, 'outcome' => 1,
+            'drone' => $agent->agent_id, 'resource' => 2061, 'installed' => 0, 'locked' => 0,
+            'new_quantity' => $fuel, 'new_cargo' => 0, 'game_t' => $now - 31 * 1800]);
+        for ($i = 30; $i >= 1; $i--) {
+            $action = DB::table('actions')->insertGetId(['drone' => $agent->agent_id, 'protocol' => 11100, 'multiplier' => 1, 'aborted' => 0]);
+            DB::table('events')->insert(['event_type' => 2, 'action' => $action, 'logged' => 1, 'outcome' => 1,
+                'drone' => $agent->agent_id, 'resource' => 2061, 'installed' => 0, 'locked' => 0,
+                'new_quantity' => --$fuel, 'new_cargo' => 0, 'game_t' => $now - $i * 1800]);
+        }
+        $power = DB::table('actions')->insertGetId(['drone' => $agent->agent_id, 'protocol' => 2, 'multiplier' => 1, 'aborted' => 0]);
+        DB::table('events')->insert(['event_type' => 2, 'action' => $power, 'logged' => 1, 'outcome' => 1,
+            'drone' => $agent->agent_id, 'resource' => 2061, 'installed' => 0, 'locked' => 0,
+            'new_quantity' => $fuel - 2, 'new_cargo' => 0, 'game_t' => $now - 60]);
+
+        $used = \App\Services\DronePage::fuelLastDay($agent);
+        $this->assertSame([30, 2], [$used['actions'], $used['thinking']]);
+        $this->assertSame(['Thinking', 2], [$used['by_action'][1]['what'], $used['by_action'][1]['fuel']]);
+        $this->assertSame([30, 30], [$used['by_action'][0]['fuel'], $used['by_action'][0]['times']]);
+
+        // Pages of 20, then the rest
+        $first = $this->getJson('/api/v1/drones/' . $agent->agent_id . '/timeline?limit=20')->assertOk()->json();
+        $this->assertCount(20, $first['timeline']);
+        $rest = $this->getJson('/api/v1/drones/' . $agent->agent_id . '/timeline?limit=20&before=' . $first['next_before'])->json();
+        $this->assertCount(10, $rest['timeline']);
+        $this->assertNull($rest['next_before']);
+        $this->getJson('/api/v1/drones/999999/timeline')->assertNotFound();
     }
 
     public function testAFlyingDroneSaysWhereItIsGoing()

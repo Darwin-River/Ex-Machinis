@@ -2819,11 +2819,19 @@ ErrorCode_t db_refund_fuel(int action_id)
     // reads, and the cargo one walks events back from the newest, so it held
     // a shared lock on the end of the table until the batch committed, and
     // every new event the game engine wrote waited for it
+    //
+    // Only inventory events (increments and depletions, types 1 and 2) say
+    // what a drone holds (#494). A wait or a share request also names fuel,
+    // with 0 and a cargo of 0: read after one, the refund set the tank to the
+    // refund alone (86 fuel became 1), and the next power bill wrecked the
+    // drone for fuel. The fuel comes from the holdings table (#430), the
+    // cargo from the newest inventory event
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "SELECT IFNULL((SELECT f.new_quantity FROM events f WHERE f.drone = %d AND f.resource = %d AND f.installed = 0 "
-        "AND f.locked = 0 AND f.outcome = %d ORDER BY f.id DESC LIMIT 1), 0), "
-        "IFNULL((SELECT c.new_cargo FROM events c WHERE c.drone = %d AND c.outcome = %d ORDER BY c.id DESC LIMIT 1), 0)",
-        drone, FUEL_RESOURCE_ID, OUTCOME_OK, drone, OUTCOME_OK);
+        "SELECT IFNULL((SELECT h.units FROM holdings h WHERE h.drone = %d AND h.resource = %d AND h.installed = 0 "
+        "AND h.locked = 0), 0), "
+        "IFNULL((SELECT c.new_cargo FROM events c WHERE c.drone = %d AND c.outcome = %d AND c.event_type IN (1, 2) "
+        "ORDER BY c.id DESC LIMIT 1), 0)",
+        drone, FUEL_RESOURCE_ID, drone, OUTCOME_OK);
     if(mysql_query(connection->hndl, query_text)) {
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;

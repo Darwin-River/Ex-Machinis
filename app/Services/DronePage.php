@@ -129,17 +129,22 @@ class DronePage
     public static function fuelLastDay(Agent $agent): array
     {
         $now = World::gameNow();
+        // Each drop in the tank, by the action that made it (#494: which
+        // actions a drone's fuel went on)
         $rows = DB::select(
-            'SELECT x.protocol = 2 AS thinking, SUM(x.prev - x.q) AS used FROM (
+            'SELECT x.protocol, SUM(x.prev - x.q) AS used, COUNT(*) AS times FROM (
                  SELECT e.game_t, e.new_quantity AS q, LAG(e.new_quantity) OVER (ORDER BY e.id) AS prev, a.protocol
                  FROM events e LEFT JOIN actions a ON a.id = e.action
                  WHERE e.drone = ? AND e.resource = ? AND e.outcome = 1 AND e.event_type IN (1, 2)
                    AND e.installed = 0 AND e.locked = 0 AND e.game_t > ?) x
-             WHERE x.game_t > ? AND x.game_t <= ? AND x.prev > x.q GROUP BY thinking',
+             WHERE x.game_t > ? AND x.game_t <= ? AND x.prev > x.q GROUP BY x.protocol ORDER BY used DESC',
             [$agent->agent_id, self::FUEL, $now - 2 * 86400, $now - 86400, $now]);
-        $used = ['actions' => 0, 'thinking' => 0];
+        $used = ['actions' => 0, 'thinking' => 0, 'by_action' => []];
         foreach ($rows as $r) {
-            $used[(int) $r->thinking ? 'thinking' : 'actions'] = (int) $r->used;
+            $protocol = (int) $r->protocol;
+            $used[$protocol === 2 ? 'thinking' : 'actions'] += (int) $r->used;
+            $used['by_action'][] = ['what' => $protocol === 2 ? 'Thinking' : self::protocolName($protocol),
+                'fuel' => (int) $r->used, 'times' => (int) $r->times];
         }
         return $used;
     }
@@ -181,11 +186,14 @@ class DronePage
      * each started, what it was, how it went (or when it will finish) and
      * the fuel left after it. Actions planned for later aren't shown.
      */
-    public static function timeline(int $id, int $limit = 10): array
+    public static function timeline(int $id, int $limit = 10, ?int $before = null): array
     {
         $now = World::gameNow();
         $timeline = [];
+        // Older pages: actions before a given one (#494: 10-15 entries
+        // couldn't show where a day's fuel went)
         $actions = DB::table('actions as a')->where('a.drone', $id)->where('a.protocol', '<>', 2)
+            ->when($before, fn ($q) => $q->where('a.id', '<', $before))
             ->orderBy('a.id', 'desc')->limit($limit + 5)->get();
         foreach ($actions as $action) {
             $span = DB::table('events')->where('action', $action->id)
@@ -205,6 +213,7 @@ class DronePage
                 $result = 'done';
             }
             $timeline[] = [
+                'action' => (int) $action->id,
                 'game_t' => (int) $span->start,
                 'when' => self::when((int) $span->start),
                 'what' => self::protocolName((int) $action->protocol),
@@ -241,11 +250,19 @@ class DronePage
             }
         }
 
-        // Its trades with other drones (the House's station drones included)
+        return ['now' => $now, 'timeline' => self::timeline($id, 10), 'deals' => self::deals($id)];
+    }
+
+    /**
+     * A drone's last trades with other drones (the House's station drones
+     * included), newest first. A wreck's too (#494: they showed none)
+     */
+    public static function deals(int $id, int $limit = 10): array
+    {
         $deals = [];
         $trades = DB::table('trades as t')->join('resources as r', 'r.id', '=', 't.resource')
             ->where(fn ($q) => $q->where('t.seller', $id)->orWhere('t.buyer', $id))
-            ->orderBy('t.id', 'desc')->limit(10)->get(['t.seller', 't.buyer', 't.units', 't.credits', 't.tax', 't.game_t', 'r.name']);
+            ->orderBy('t.id', 'desc')->limit($limit)->get(['t.seller', 't.buyer', 't.units', 't.credits', 't.tax', 't.game_t', 'r.name']);
         foreach ($trades as $t) {
             $sold = (int) $t->seller === $id;
             $other = Agent::where('agent_id', $sold ? $t->buyer : $t->seller)->first();
@@ -255,8 +272,7 @@ class DronePage
                 'credits' => $sold ? self::netOfTax((int) $t->credits, (int) $t->tax) : '-' . number_format((int) $t->credits)];
         }
         usort($deals, fn ($a, $b) => $b['game_t'] <=> $a['game_t']);
-
-        return ['now' => $now, 'timeline' => self::timeline($id, 10), 'deals' => array_slice($deals, 0, 10)];
+        return array_slice($deals, 0, $limit);
     }
 
     /** What a seller got for a sale: the price less the sales tax it paid (#380) */
@@ -310,7 +326,7 @@ class DronePage
             $cause .= ' On ' . self::when((int) $agent->plundered_at) . ' it was plundered by ' . ($by ? $by->name : 'another drone') . '.';
         }
 
-        $timeline = self::timeline($id, 15);
+        $timeline = self::timeline($id, 25);
         foreach (DB::table('drone_crashes')->where('drone', $id)->orderBy('id', 'desc')->limit(5)->get() as $crash) {
             $timeline[] = [
                 'game_t' => (int) $crash->game_t,

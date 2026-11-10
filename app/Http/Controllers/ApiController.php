@@ -111,12 +111,32 @@ class ApiController extends Controller
                 ->map(fn ($c) => ['resource' => (int) $c->resource, 'name' => $c->name, 'units' => (int) $c->units])->all(),
             'now' => $activity['now'] ?? null,
             'timeline' => $activity['timeline'] ?? ($postMortem['timeline'] ?? []),
-            'trades' => $activity['deals'] ?? [],
+            'trades' => DronePage::deals($id),
             'messages' => DronePage::messages($agent, 50)->map(fn ($m) => [
                 'when' => DronePage::when((int) $m->game_t), 'game_time' => (int) $m->game_t,
                 'subject' => $m->subject, 'body' => $m->body])->all(),
             'post_mortem' => $postMortem ? ['cause' => $postMortem['cause'] ?? null] : null,
             'script' => $code ? $code['release']->source : null,
+        ]);
+    }
+
+    /**
+     * A drone's actions, newest first, a page at a time (#494): ?limit= (up
+     * to 100, 50 if left out) and ?before= (an action ID: the ones before
+     * it). next_before gives the next page, null at the start
+     */
+    public function droneTimeline(Request $request, int $id): JsonResponse
+    {
+        if (!Agent::where('agent_id', $id)->exists()) {
+            return $this->notFound('There is no such drone.');
+        }
+        $limit = max(1, min(100, (int) $request->query('limit', 50)));
+        $before = $request->query('before') !== null ? (int) $request->query('before') : null;
+        $timeline = DronePage::timeline($id, $limit, $before);
+        return response()->json([
+            'drone' => $id,
+            'timeline' => $timeline,
+            'next_before' => count($timeline) >= $limit ? end($timeline)['action'] : null,
         ]);
     }
 

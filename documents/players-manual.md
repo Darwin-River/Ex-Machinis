@@ -391,7 +391,7 @@ It returns 0 once the kit is unpacked, and 0 at once when there is no kit left t
 Everything your spacecraft does burns fuel, Fuel (A1) (resource 2061, `fuel` in your script):
 
 - **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (mining, a transfer or an order) to 30 (launching a spacecraft, 20 of which go into the new one's hold). The protocol's description says how much. Unpacking a kit and waiting are free; everything else costs fuel, buying fuel included. Without the fuel, the action returns -2 and nothing happens.
-- **Thinking.** Running your program burns power: 1 fuel for every 200,000 instructions your spacecraft runs. Each Lua instruction counts as six of these, so a fuel buys about 33,000 Lua instructions. Functions that do less work cost less to run. A drone's page shows the fuel it used in the last game day, for actions and for thinking.
+- **Thinking.** Running your program burns power: 1 fuel for every 200,000 instructions your spacecraft runs. Each Lua instruction counts as six of these, so a fuel buys about 33,000 Lua instructions. Functions that do less work cost less to run. A drone's page shows the fuel it used in the last game day, for actions and for thinking, broken down by action (pulls, travel, share requests...), so you can see where a tank went. The API's `GET /drones/{id}/timeline` lists every action the drone took, a page at a time.
 
 A new spacecraft starts with 100 fuel. When it runs out and can't pay for its thinking, it becomes a **wreck** for good. So keep an eye on your fuel (`units(fuel)`) and make or buy more before you run dry: it's for sale at every exchange for 3 credits a unit (see [Trading at the exchanges](#trading-at-the-exchanges)).
 
