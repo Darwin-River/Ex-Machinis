@@ -55,7 +55,8 @@ class ReleaseController extends Controller
     private function validScript(Request $request, bool $needsCompanyName)
     {
         $rules = ['script' => 'required|string|max:' . config('forge.max_script_length'),
-                  'kit' => 'nullable|in:' . implode(',', array_keys(Release::KITS))];
+                  'kit' => 'nullable|in:' . implode(',', array_keys(Release::KITS)),
+                  'password' => 'nullable|string|min:' . config('forge.push_password_min') . '|max:200'];
         if ($needsCompanyName) {
             $rules['company_name'] = ['required', 'string', 'min:3', 'max:45', 'unique:companies,name',
                 function ($attribute, $value, $fail) {
@@ -88,10 +89,13 @@ class ReleaseController extends Controller
         $copiedWord = $copiedFrom !== null && $request->filled('copied_word')
             ? mb_substr((string) $request->input('copied_word'), 0, 64) : null;
 
+        // A password lets its owner push new code later (#553): kept as a hash
+        $hash = \App\Services\CodePush::hash($request->filled('password') ? (string) $request->input('password') : null);
+
         // The world is full (#324 step 20): the release waits its turn
         if (LaunchQueue::full()) {
             $place = LaunchQueue::enqueue(Release::owner(), $request->input('company_name'), $script, $copiedFrom, $copiedWord,
-                $request->input('kit'));
+                $request->input('kit'), $hash);
             return redirect('/release')->withSuccess('The world is full right now, so ' . $request->input('company_name')
                 . ' waits in the launch queue: it is number ' . $place . ' in line, and launches as soon as there is room.');
         }
@@ -99,6 +103,7 @@ class ReleaseController extends Controller
         // Anyone may release (#367 step 3): the drone's page is where to follow it
         $agent = Release::release(Release::owner(), $request->input('company_name'), $script, null, $copiedFrom, $copiedWord,
             $request->input('kit'));
+        \App\Services\CodePush::setHash((int) $agent->company_id, $hash);
 
         return redirect('/spacecraft/' . $agent->agent_id)->withSuccess('Released! Drone ' . $agent->name . ' of '
             . $request->input('company_name') . ' is loading your script and will run its launched function. '

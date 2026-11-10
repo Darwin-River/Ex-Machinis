@@ -103,6 +103,9 @@ services:
       DB_USERNAME: exmachinis
       DB_PASSWORD: ${DB_PASSWORD}
       CRON_KEY: ${CRON_KEY:?run setup.sh first}
+      # Code pushes (#553): thousandths of a company's credits per push number, and the most
+      FORGE_PUSH_FEE_PERMILLE: ${FORGE_PUSH_FEE_PERMILLE:-50}
+      FORGE_PUSH_FEE_CAP_PERMILLE: ${FORGE_PUSH_FEE_CAP_PERMILLE:-500}
     volumes:
       - app-storage:/var/www/storage
 

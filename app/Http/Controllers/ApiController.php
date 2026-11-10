@@ -88,6 +88,8 @@ class ApiController extends Controller
             // The stock market (#471): its share price, holders, orders, trades
             // and the shares it holds in others
             'shares' => Shares::summary((int) $company->company_id),
+            // Code pushes (#553): whether it takes them, what the next costs, and each so far
+            'pushes' => \App\Services\CodePush::summary($company),
             // What its drones' thinking costs it (#544)
             'compute' => \App\Services\ProcessorTax::of((int) $company->company_id),
             // Whether it can keep its drones flying (#537)
@@ -95,6 +97,28 @@ class ApiController extends Controller
                 // and each working drone: idle hours, last status, hold (#540)
                 + ['drones' => \App\Services\CompanyHealth::drones((int) $company->company_id)],
         ]);
+    }
+
+    /**
+     * Pushes a new script to a company's working drones (#553), with the
+     * password it was released with. Each drone gets it at the speed of
+     * light from Earth and restarts on it with fresh variables
+     */
+    public function push(Request $request, int $id): JsonResponse
+    {
+        if (($bad = $this->scriptRules($request, false)) !== null) {
+            return $bad;
+        }
+        $result = \App\Services\CodePush::push($id, (string) $request->input('password', ''), $this->script($request));
+        if (!$result['ok']) {
+            return response()->json(['error' => $result['error']], $result['status']);
+        }
+        return response()->json(['push' => $result['number'], 'fee' => $result['fee'],
+            'fee_percent' => $result['permille'] / 10, 'next_fee_percent' => $result['next_permille'] / 10,
+            'drones' => $result['drones'],
+            'message' => 'Pushed to ' . count($result['drones']) . ' drone(s): each gets it at the speed of light from '
+                . 'Earth, then restarts its launched function on the new script with fresh variables.',
+            'warning' => Release::redefinedWarning($this->script($request))], 202);
     }
 
     /** A drone: where it is, what it carries, what it's doing and has said */
@@ -367,13 +391,17 @@ class ApiController extends Controller
         }
         $name = (string) $request->input('company_name');
         $kit = $request->input('kit');
+        // A password lets its owner push new code later (#553): kept as a hash
+        $hash = \App\Services\CodePush::hash($request->filled('password') ? (string) $request->input('password') : null);
         if (LaunchQueue::full()) {
-            $place = LaunchQueue::enqueue(Release::owner(), $name, $script, null, null, $kit);
+            $place = LaunchQueue::enqueue(Release::owner(), $name, $script, null, null, $kit, $hash);
             return response()->json(['queued' => true, 'place_in_line' => $place, 'company_name' => $name,
                 'message' => 'The world is full: the company launches as soon as there is room.'], 202);
         }
         $agent = Release::release(Release::owner(), $name, $script, null, null, null, $kit);
+        \App\Services\CodePush::setHash((int) $agent->company_id, $hash);
         return response()->json([
+            'push_password' => $hash !== null,
             'queued' => false,
             'company' => ['id' => (int) $agent->company_id, 'name' => $name],
             'drone' => ['id' => (int) $agent->agent_id, 'name' => $agent->name],
@@ -406,7 +434,8 @@ class ApiController extends Controller
     private function scriptRules(Request $request, bool $needsCompanyName): ?JsonResponse
     {
         $rules = ['script' => 'required|string|max:' . config('forge.max_script_length'),
-                  'kit' => 'nullable|in:' . implode(',', array_keys(Release::KITS))];
+                  'kit' => 'nullable|in:' . implode(',', array_keys(Release::KITS)),
+                  'password' => 'nullable|string|min:' . config('forge.push_password_min') . '|max:200'];
         if ($needsCompanyName) {
             $rules['company_name'] = ['required', 'string', 'min:3', 'max:45', 'unique:companies,name',
                 function ($attribute, $value, $fail) {

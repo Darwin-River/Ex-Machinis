@@ -60,6 +60,7 @@ Route::get('/protocols/{id}', 'AgentController@protocol')->whereNumber('id');
 Route::get('/companies', 'UserController@companyIndex');
 Route::get('/companies/search', 'UserController@companySearch');
 Route::get('/companies/{id}', 'UserController@companyView')->whereNumber('id');
+Route::post('/companies/{id}/push', 'UserController@push')->whereNumber('id');
 
 //in-game events
 Route::get('/events', 'HomeController@inGameEvents');

@@ -107,11 +107,21 @@ There is no email, and no account to open: anyone can write a drone's program on
 
 **FORTH has been retired.** Drones already running FORTH programs carry on as before, but every new release and check takes Lua only.
 
-A released drone can't be sent new commands or a new script. That's fine: every release is live, costs nothing, and you can release as often as you like. So you learn by doing:
+A released drone can't be sent commands, and it can be given a new script only by pushing new code to its company, for a fee (see [Pushing new code](#pushing-new-code)). Most of the time you don't need to: every release is live, costs nothing, and you can release as often as you like. So you learn by doing:
 
 - **release** your script as soon as it might work;
 - **watch** its drone's page: what it prints, its latest events (what it did, its cargo and credits), its trades, its crashes, and the line its script sets with `set_status(text)` (see [Saying what it's doing](#saying-what-its-doing)). The API shows the same (`GET /api/v1/drones/{id}`);
-- **release a better version** as a new company once you see what went wrong, or what could go better. The old company carries on, or dies, on its own.
+- **release a better version** as a new company once you see what went wrong, or what could go better. The old company carries on, or dies, on its own. Or, if you released it with a password, **push** the better version to it (see [Pushing new code](#pushing-new-code)).
+
+<a name="pushing-new-code"></a>**Pushing new code.** Release a company with a **push password** (the Release page's optional field, or `password` in the API) and you can send its drones new code later, without starting over. Push it from the company's page, or with `POST /api/v1/companies/{id}/push` and the password. The same password can serve all your companies; the game keeps only a hash of it.
+
+- **It travels at the speed of light.** The new code goes from Earth to each working drone of the company, arriving after the time light takes to cross the distance: about a second at the Moon, minutes at Mars.
+- **The drone starts over on it.** When it arrives, the drone drops what it was running and calls the new code's `launched()`, with fresh variables. It keeps its hold, its place and its equipment. An action under way finishes. A copy forgets anything its parent told it in a variable: use `lineage()` to tell a copy from the released drone.
+- **It costs a share of the company's credits, more each time.** The first push costs 5% of the credits it has, the second 10%, the third 15%, up to half. A young or failing company is cheap to fix, a rich one dear, and a company that keeps tinkering pays more each time. A company with no credits pays nothing.
+- **Everyone can see it.** The company's page and the API list each push, with its fee, so investors know when a company's code changed.
+- **Without a password, nothing changes.** A company released without one runs its first code for life.
+
+Releasing a new company is still free: push when the company is worth keeping (its drones, its goods, its shareholders), release when you'd rather start over.
 
 The game runs fast (a game day every 48 real seconds; see [Time and distance](#time-and-distance)), so a few minutes of watching shows you days of your drone's life.
 
@@ -741,7 +751,7 @@ If `launched` hits an error (calling a function that doesn't exist, arithmetic o
 
 Crashes only count "in a row" while nothing is getting done: any action that succeeds starts the count again. When `launched` simply returns, the spacecraft says it has finished, and waits.
 
-It's good practice to try each function on its own before you build it into `launched`. A released spacecraft can't be changed, and a restart runs the same script, so a bug that crashes it once will crash it again: release a small script that calls just the new function, watch its page, and once it works, release the whole thing. [Appendix A](#appendix-a-when-your-script-fails) explains the common errors.
+It's good practice to try each function on its own before you build it into `launched`. A released spacecraft can't be changed except by a paid push (see [Pushing new code](#pushing-new-code)), and a restart runs the same script, so a bug that crashes it once will crash it again: release a small script that calls just the new function, watch its page, and once it works, release the whole thing. [Appendix A](#appendix-a-when-your-script-fails) explains the common errors.
 
 ## Chapter 5: Building A Vocabulary
 
@@ -1250,7 +1260,7 @@ When a drone loads your script, it runs the script from top to bottom. That top-
 
 Long scripts don't hold up other players. A drone runs your script a turn at a time: a turn is 100,000 instructions, and each Lua instruction counts as six (each query and each action counts as 1,000). A drone that thinks hard pauses mid-thought and carries on at its next turn, a few seconds later, and an action holds your script until it is done. It can't pause inside a function that Lua itself calls, such as the comparison you give `table.sort` or the replacement you give `string.gsub`: there it finishes the call, then pauses. Keep those functions small: one that runs 2 million Lua instructions past the drone's turn is stopped with an error. Everything it printed shows on the drone's page when `launched` returns or calls `report()`.
 
-A released drone can't be stopped, reset or given a new script. Releases are free, so when one goes wrong, release a fixed version as a new company.
+A released drone can't be stopped or reset. Releases are free, so when one goes wrong, release a fixed version as a new company, or push it to the company if you released it with a password (see [Pushing new code](#pushing-new-code)).
 
 ### What your drone remembers
 
@@ -1546,7 +1556,7 @@ end
 
 ### Market-aware drones
 
-You can't change a drone once it's released, but its market will change: deposits run dry, other players crowd the stations you sell to, miners undercut each other, and new makers start buying what you sell. A drone that follows a fixed plan does well until the market moves, then keeps doing the wrong thing. The drones that last read the market every round and decide for themselves what to make, where to buy and where to sell. Build yours that way.
+A drone's code changes only if you pay to push new code, but its market will change: deposits run dry, other players crowd the stations you sell to, miners undercut each other, and new makers start buying what you sell. A drone that follows a fixed plan does well until the market moves, then keeps doing the wrong thing. The drones that last read the market every round and decide for themselves what to make, where to buy and where to sell. Build yours that way.
 
 **Read the market.** These game functions answer the questions most decisions start from, about the place where the drone is:
 

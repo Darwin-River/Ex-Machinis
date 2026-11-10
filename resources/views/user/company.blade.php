@@ -187,6 +187,50 @@
                     </table>
                 </div>
             @endif
+
+            {{-- Code pushes (#553): new code for its drones, with the password it was released with --}}
+            <h3 class="mt-4" id="pushes">Code pushes</h3>
+            @include('_flash_message')
+            @if(!$pushes['enabled'])
+                <p style="white-space: normal">This company was released without a push password, so its code can't change.</p>
+            @else
+                <p style="white-space: normal">
+                    Its owner can push new code to its working drones with the password it was released with. The code
+                    travels from Earth to each drone at the speed of light; the drone then drops what it was running and
+                    starts the new code's <code>launched()</code> with fresh variables, keeping its hold and its place.
+                    Pushed {{ $pushes['count'] }} {{ $pushes['count'] === 1 ? 'time' : 'times' }}. The next push costs
+                    {{ $pushes['next_fee_percent'] }}% of its credits: {{ number_format($pushes['next_fee']) }} now.
+                </p>
+                @if($errors->has('push'))
+                    <div class="alert alert-danger">{{ $errors->first('push') }}</div>
+                @endif
+                <form method="POST" action="{{ url('/companies/' . $user->user_id . '/push') }}">
+                    {{ csrf_field() }}
+                    <div class="form-group">
+                        <label for="push-script">New script (Lua)</label>
+                        <textarea class="form-control" id="push-script" name="script" rows="10" spellcheck="false"
+                                  style="font-family: monospace" maxlength="{{ config('forge.max_script_length') }}"
+                                  required>{{ old('script') }}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="push-password">Password</label>
+                        <input class="form-control" id="push-password" name="password" type="password" maxlength="200"
+                               autocomplete="current-password" required>
+                    </div>
+                    <button class="button button-primary" type="submit">Push for {{ number_format($pushes['next_fee']) }} credits</button>
+                </form>
+                @if(count($pushes['log']))
+                    <div class="table-custom-responsive mt-3">
+                        <table class="table-ticket" id="push-log">
+                            <tr><th>#</th><th>When</th><th>Fee</th><th>Drones</th></tr>
+                            @foreach($pushes['log'] as $p)
+                                <tr><td>{{ $p['number'] }}</td><td>{{ $p['when'] }}</td>
+                                    <td>{{ number_format($p['fee']) }} ({{ $p['percent'] }}%)</td><td>{{ $p['drones'] }}</td></tr>
+                            @endforeach
+                        </table>
+                    </div>
+                @endif
+            @endif
         </div>
 
 

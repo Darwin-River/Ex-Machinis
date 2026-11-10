@@ -97,7 +97,7 @@ curl -s -X POST $B/check -H 'Content-Type: application/json' \
 
 ### `POST /release`: release a company
 
-Every release is live, and free: the only limit is 10 a minute per address. A released drone can't be changed, so to try a fix, release it again as a new company and follow its drone (`GET /drones/{id}`).
+Every release is live, and free: the only limit is 10 a minute per address. To try a fix, release it again as a new company and follow its drone (`GET /drones/{id}`), or, if you released the company with a `password`, push the fix to it (`POST /companies/{id}/push`, below).
 
 **Fields:**
 
@@ -106,6 +106,7 @@ Every release is live, and free: the only limit is 10 a minute per address. A re
 | `company_name` | yes | 3 to 45 characters, not already taken |
 | `script` | yes | must define `launched` |
 | `kit` | no | ignored since #506: a company starts with 3,000 credits and no kit, and its script equips itself (`equip(mining_kit)`) |
+| `password` | no | at least 6 characters: lets you push new code to the company later (#553). The game keeps only its hash. Without one, the company's code never changes |
 
 **Example:**
 
@@ -122,7 +123,8 @@ curl -s -X POST $B/release -H 'Content-Type: application/json' \
   "company": {"id": 109, "name": "Ada Fuel 1"},
   "drone": {"id": 207, "name": "SN949636"},
   "page": "https://play.example.com/spacecraft/207",
-  "warning": null
+  "warning": null,
+  "push_password": true
 }
 ```
 
@@ -137,6 +139,23 @@ Look the company up by name later.
 **Errors:** `422` with the reason. For example:
 - `"The company name has already been taken."`
 - `"Your script must define the function launched ..."`, or `"FORTH has been retired: write your drone in Lua. ..."`
+
+### `POST /companies/{id}/push`: push new code to a company
+
+With the password the company was released with (#553), sends every working drone of the company a new script. It travels from Earth to each drone at the speed of light; when it arrives, the drone drops what it was running and starts the new script's `launched()` with fresh variables, keeping its hold, place and equipment.
+
+**Fields:** `password`, `script` (checked as a release's is).
+
+**The fee** is a share of the company's credits: 5% for its first push, 10% for its second, and so on, up to 50%. A company with no credits pays nothing. A refused push costs nothing.
+
+**Response:** `202 Accepted`.
+
+```json
+{"push": 1, "fee": 150, "fee_percent": 5, "next_fee_percent": 10, "drones": [207, 311],
+ "message": "Pushed to 2 drone(s): ...", "warning": null}
+```
+
+**Errors:** `403` (wrong password, or the company was released without one), `404` (no such company), `409` (it has ended, or has no working drone), `422` (the script's problem). Pushes count against the release limit, 10 a minute per address.
 
 ## Your companies and drones
 
@@ -170,6 +189,7 @@ Use these to look up a company.
 
 | Field | Meaning |
 |---|---|
+| `pushes` | code pushes (#553): `{enabled, count, next_fee_percent, next_fee, log: [{number, when, game_time, fee, percent, drones}]}`. `enabled` is false for a company released without a push password |
 | `net_wealth` | the leaderboard's measure: credits plus goods at market prices plus shares held in other companies at the average price of their trades over the last three game days (weighted by shares; the last trade price if none traded then) plus credits committed to offerings of new shares, less what it started with (3,000 credits and 100 fuel). The drones themselves don't count, so launching a copy lowers it by about a hull's price until the copy earns that back |
 | `age_days` | game days since the company was founded |
 | `peer_rank` | its place on the leaderboard among companies its age or younger: `{rank, of, age}` (`of`: how many such companies); null once it has ended |
