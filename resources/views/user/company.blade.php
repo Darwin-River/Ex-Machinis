@@ -74,7 +74,10 @@
                     <p id="processor-tax">Processor tax: {{ number_format($pt['tax_day']) }} credits over the last game day for
                         {{ number_format($pt['instructions_day']) }} instructions ({{ $pt['per_million'] }} credits a million).
                         @if($pt['debt'] > 0)
-                            <strong>It owes {{ number_format($pt['debt']) }}</strong>: its drones run throttled, a tenth of a turn each, until it has paid.
+                            <strong>It owes {{ number_format($pt['debt']) }}</strong>: a drone of its whose turn runs out thinks again only a game hour later, until it has paid.
+                        @endif
+                        @if($pt['broke_days'] !== null)
+                            <strong>Broke</strong> for {{ $pt['broke_days'] }} game days{{ $pt['dissolves_in'] !== null ? ': it dissolves in ' . $pt['dissolves_in'] . ' game days unless it earns credits, and its drones become wrecks' : '' }}.
                         @endif
                     </p>
                     {{-- Whether it can keep its drones flying (#537) --}}

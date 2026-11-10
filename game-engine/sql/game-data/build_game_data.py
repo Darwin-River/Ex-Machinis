@@ -151,6 +151,7 @@ POWER_PROTOCOL = '2'
 # the company pays processor tax in credits instead (COMPUTE_TAX_PER_MILLION)
 POWER_INSTRUCTIONS = 0
 COMPUTE_TAX_PER_MILLION = 15    # credits a million instructions (#544)
+DISSOLVE_DAYS = 50              # game days broke before a company dissolves (#547)
 resources[str(FUEL)] = {
     'id': FUEL, 'name': 'Fuel (A1)', 'mass': 1, 'capacity': 0, 'slot_size': 0,
     'description': 'Rocket fuel. Every action burns some (travel, mining, making, transfers). '
@@ -1295,7 +1296,7 @@ queries.append((630, 'Station goods',
 # daily tax is off (tax_period 0).
 SALES_TAX_PERMILLE = 50
 # start_credits 3,000 and no kit since #506 (forge.starting_credits)
-HOUSE_RULES = [(1, 0, 3 * DAY, 0, 5, 50, 3000, 100, SALES_TAX_PERMILLE, COMPUTE_TAX_PER_MILLION)]
+HOUSE_RULES = [(1, 0, 3 * DAY, 0, 5, 50, 3000, 100, SALES_TAX_PERMILLE, COMPUTE_TAX_PER_MILLION, DISSOLVE_DAYS)]
 MY_COMPANY = "(SELECT company_id FROM agents WHERE agent_id = [drone_id])"
 queries.append((650, 'My taxes',
                 '[R L 650 query]: The sales tax: the share of each sale the seller pays, in thousandths (50 is 5%); '
@@ -1311,13 +1312,14 @@ queries.append((650, 'My taxes',
 # instructions billed over the last game day, and what it owes
 queries.append((651, 'My processor tax',
                 'compute_tax(): the processor tax, credits a million instructions; what the company paid for its '
-                'drones\' thinking over the last game day, the instructions billed, and what it owes (drones run '
-                'throttled while it owes).', 0,
+                'drones\' thinking over the last game day, instructions billed, what it owes, game days broke (-1: '
+                'not broke).', 0,
                 "SELECT h.compute_tax_per_million AS per_million, "
                 "(SELECT IFNULL(SUM(b.amount), 0) FROM compute_bills AS b WHERE b.company_id = c.company_id "
                 "AND b.charged_t > [game_now] - 86400) AS d_tax, "
                 "(SELECT IFNULL(SUM(b.instructions), 0) FROM compute_bills AS b WHERE b.company_id = c.company_id "
-                "AND b.charged_t > [game_now] - 86400) AS d_instructions, c.compute_debt AS d_debt "
+                "AND b.charged_t > [game_now] - 86400) AS d_instructions, c.compute_debt AS d_debt, "
+                "IF(c.broke_since IS NULL, -1, FLOOR(([game_now] - c.broke_since) / 86400)) AS broke_days "
                 f"FROM companies AS c JOIN house_rules AS h ON h.id = 1 WHERE c.company_id = {MY_COMPANY};"))
 queries.append((660, 'Wrecks here',
                 '[R L 660 query]: The wrecks where the drone is: drone ID, 1 if it has been plundered (else 0).', 0,
@@ -1849,7 +1851,7 @@ lines.append("INSERT INTO `event_types` (id, name) VALUES (11, 'Plunder wreck') 
 lines.append('')
 lines.append('-- Taxes and plunder (#324 step 12), placeholders to tune in step 20')
 table('house_rules', ['id', 'tax_period', 'tax_grace', 'tax_flat', 'tax_permille', 'plunder_share',
-                      'start_credits', 'start_fuel', 'sales_tax_permille', 'compute_tax_per_million'], HOUSE_RULES)
+                      'start_credits', 'start_fuel', 'sales_tax_permille', 'compute_tax_per_million', 'dissolve_days'], HOUSE_RULES)
 lines.append('')
 lines.append('-- House drop stations (#324 step 10): what they trade. Their budgets')
 lines.append('-- (station_state) are kept: a new station starts with a full budget.')

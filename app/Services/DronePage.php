@@ -319,6 +319,12 @@ class DronePage
                     . ($bill ? ' (it had ' . number_format($bill->amount) . ' credits left)' : '')
                     . ', so the company was eliminated and all its drones became wrecks.';
                 break;
+            case 'dissolved':
+                $name = DB::table('companies')->where('company_id', $agent->company_id)->value('name');
+                $days = (int) (DB::table('house_rules')->where('id', 1)->value('dissolve_days') ?? 50);
+                $cause = "Its company, $name, had no credits for $days game days straight, so it dissolved on $when "
+                    . 'and all its drones became wrecks, with what they carried, for anyone to plunder.';
+                break;
             default:
                 $cause = "It became a wreck on $when.";
         }

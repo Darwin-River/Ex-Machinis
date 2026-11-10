@@ -146,6 +146,38 @@ ErrorCode_t db_compute_bill_due(void)
                 b->company, owed - paid, paid);
     }
 
+    // A company broke (credits less what it owes at 0 or below) for
+    // house_rules.dissolve_days game days straight dissolves (#547): it ends,
+    // and every working drone becomes a wreck for anyone to plunder
+    if(result == ENGINE_OK)
+        result = cp_exec("UPDATE companies SET broke_since = %lld WHERE broke_since IS NULL AND eliminated_at IS NULL "
+                         "AND house = 0 AND credits - compute_debt <= 0", now);
+    if(result == ENGINE_OK)
+        result = cp_exec("UPDATE companies SET broke_since = NULL WHERE broke_since IS NOT NULL "
+                         "AND (credits - compute_debt > 0 OR eliminated_at IS NOT NULL)");
+    long long dissolve_days = cp_value(0, "SELECT dissolve_days FROM house_rules WHERE id = 1");
+    if(result == ENGINE_OK && dissolve_days > 0) {
+        long long since = now - dissolve_days * 86400;
+        MYSQL_RES* res = cp_select("SELECT company_id FROM companies WHERE broke_since IS NOT NULL AND broke_since <= %lld "
+                                   "AND eliminated_at IS NULL AND house = 0 LIMIT %d", since, MAX_COMPANIES);
+        int gone[MAX_COMPANIES];
+        int g = 0;
+        MYSQL_ROW row;
+        while(res && g < MAX_COMPANIES && (row = mysql_fetch_row(res)))
+            gone[g++] = atoi(row[0]);
+        if(res) mysql_free_result(res);
+        else result = ENGINE_DB_QUERY_ERROR;
+        for(int i = 0; i < g && result == ENGINE_OK; i++) {
+            result = cp_exec("UPDATE agents SET wrecked_at = %lld, wreck_cause = 'dissolved', launched_running = 0 "
+                             "WHERE company_id = %d AND wrecked_at IS NULL", now, gone[i]);
+            if(result == ENGINE_OK)
+                result = cp_exec("UPDATE companies SET credits = 0, eliminated_at = %lld, end_cause = 'dissolved', "
+                                 "broke_since = NULL WHERE company_id = %d", now, gone[i]);
+            engine_trace(TRACE_LEVEL_ALWAYS, "Company [%d] dissolves: broke for %lld game days; its drones are wrecks",
+                gone[i], dissolve_days);
+        }
+    }
+
     if(result == ENGINE_OK)
         result = cp_exec("UPDATE compute_clock SET billed_t = %lld WHERE id = 1", hour);
     return result;

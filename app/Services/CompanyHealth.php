@@ -71,7 +71,7 @@ class CompanyHealth
         $row = DB::selectOne(self::sql((string) $company, (string) $now));
         $health = ['working' => (int) $row->working, 'wrecked' => (int) $row->wrecked, 'fuel' => (int) $row->fuel,
             'lowest' => (int) $row->lowest, 'used' => (int) $row->used, 'days' => (int) $row->days,
-            'credits' => (int) $row->d_credits, 'idle' => (int) $row->idle];
+            'credits' => (int) $row->d_credits, 'idle' => (int) $row->idle] + ProcessorTax::broke($company);
         $health['stalled'] = $health['working'] > 0 && $health['idle'] >= self::STALLED_HOURS;
         $health['at_risk_reason'] = self::riskReason($health);
         $health['at_risk'] = $health['at_risk_reason'] !== null;
@@ -87,6 +87,9 @@ class CompanyHealth
     {
         if ($h['working'] === 0) {
             return 'no working drone';
+        }
+        if (($h['dissolves_in'] ?? null) !== null) {
+            return "it has had no credits for {$h['broke_days']} game days, and dissolves in {$h['dissolves_in']} unless it earns some";
         }
         if ($h['days'] >= 0 && $h['days'] <= self::RISK_DAYS && $h['credits'] < self::RISK_CREDITS) {
             return "a drone runs dry in about {$h['days']} game " . ($h['days'] === 1 ? 'day' : 'days')

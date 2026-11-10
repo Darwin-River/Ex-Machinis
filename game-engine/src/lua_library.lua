@@ -433,8 +433,11 @@ end
 -- The processor tax (#544): per_million (credits a million instructions),
 -- tax and instructions (billed to your company over the last game day), debt
 -- (what it owes: while it owes, its drones get a tenth of a turn each)
+-- broke_days: game days your company has been broke, its credits less what it
+-- owes at 0 or below (-1 when it isn't); broke for 50 straight, it dissolves
+-- and its drones become wrecks (#547)
 local function compute_tax()                                                      -- 651
-  return record(ask(651), {"per_million", "tax", "instructions", "debt"})
+  return record(ask(651), {"per_million", "tax", "instructions", "debt", "broke_days"})
 end
 -- A company's health (#537; yours if c is left out): working and wrecked
 -- drones, fuel (aboard its working drones), lowest (the least aboard one),

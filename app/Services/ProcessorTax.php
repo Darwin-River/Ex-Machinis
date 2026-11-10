@@ -37,7 +37,28 @@ class ProcessorTax
             ->selectRaw('IFNULL(SUM(instructions), 0) AS i, IFNULL(SUM(amount), 0) AS a')->first();
         $debt = (int) (DB::table('companies')->where('company_id', $company)->value('compute_debt') ?? 0);
         return ['instructions_day' => (int) $day->i, 'tax_day' => (int) $day->a, 'debt' => $debt,
-            'throttled' => $debt > 0, 'per_million' => $out['per_million']];
+            'throttled' => $debt > 0, 'per_million' => $out['per_million']] + self::broke($company);
+    }
+
+    /**
+     * How long a company has been broke (#547): its credits less the tax it
+     * owes at 0 or below, checked once a game hour. Broke for dissolve_days
+     * game days straight, it dissolves and its drones become wrecks.
+     * broke_days (null when it isn't broke) and dissolves_in (game days left)
+     */
+    public static function broke(int $company): array
+    {
+        $out = ['broke_days' => null, 'dissolves_in' => null];
+        if (!Schema::hasColumn('companies', 'broke_since')) {
+            return $out;
+        }
+        $since = DB::table('companies')->where('company_id', $company)->whereNull('eliminated_at')->value('broke_since');
+        if ($since === null) {
+            return $out;
+        }
+        $days = (World::gameNow() - (int) $since) / 86400;
+        $limit = (int) (DB::table('house_rules')->where('id', 1)->value('dissolve_days') ?? 50);
+        return ['broke_days' => round($days, 1), 'dissolves_in' => $limit > 0 ? max(0, round($limit - $days, 1)) : null];
     }
 
     /** company => processor tax owed, for net wealth */
