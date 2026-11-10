@@ -699,6 +699,19 @@ ErrorCode_t db_delete_command(DbConnection_t* connection, Command_t* command)
     @return         Execution result
 
 *******************************************************************************/
+ErrorCode_t db_delay_resume_commands(DbConnection_t* connection, int agent_id, long long seconds)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "UPDATE commands SET deliver_at = deliver_at + %lld WHERE agent_id = %d AND code = '%s' AND deliver_at IS NOT NULL",
+        seconds, agent_id, engine_get_vm_resume_command());
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    return ENGINE_OK;
+}
+
 ErrorCode_t db_delete_resume_commands(DbConnection_t* connection, int agent_id)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];

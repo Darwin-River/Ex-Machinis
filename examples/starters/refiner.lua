@@ -15,6 +15,10 @@ dry_tries = 12     -- dry tries at the Moon before trying Phobos
 grow_at = 7000     -- credits at which it buys and launches a copy
                    -- (6500 at least: a hull is 3000, a kit 2000,
                    -- and 1500 left to work with)
+work_cash = 1500   -- credits each drone keeps to work with: a copy launches
+                   -- only when the company keeps this much for every drone
+                   -- it will have (#542: copies left companies with 8 to
+                   -- 322 credits, and every drone sat "short of credits")
 grow_until = 0     -- game day after which it launches no more copies (0: no
                    -- limit). A copy takes about 20 game days to earn back
                    -- its cost, so in a contest set this ~20 days before the
@@ -68,14 +72,14 @@ end
 -- filled at the market
 function refuel()
   if units(fuel) >= low_fuel then return end
-  buy_here(30, fuel)
+  raise_cash(150); buy_here(30, fuel)
   wait(60)
   if units(fuel) < low_fuel then
     buy_order(7, 60, fuel)
     wait(120)
     if units(fuel) < low_fuel then
       go(market())
-      buy_here(30, fuel)
+      raise_cash(150); buy_here(30, fuel)
       wait(120)
       go(site())
     end
@@ -123,7 +127,7 @@ function fill_to(n)
   local had = units(fuel)
   local need = n - had
   if need <= 0 then return end
-  buy_here(need, fuel)
+  raise_cash(150); buy_here(need, fuel)
   for _ = 1, 6 do
     if units(fuel) > had then return end
     wait(60)
@@ -153,11 +157,19 @@ end
 -- Cruiser kit and a Mining Kit, launch a copy of this drone (it runs this
 -- same program, with these variables) and hand it the kit and 40 fuel. A
 -- copy costs about 5,000: growing pays early, not in a contest's last weeks
+-- Credits the company needs before launching a copy: about 5,000 for the
+-- copy (a hull and a kit), and work_cash for each drone it will then have
+function grow_line()
+  local h = company_health()
+  local drones = h and h.working or 1
+  return math.max(grow_at, 5000 + work_cash * (drones + 1))
+end
+
 function reinvest()
   if grow_until > 0 and today() > grow_until and units(mining_kit) == 0 and units(factory_kit) == 0 then return end
   if units(mining_kit) > 0 then equip_clone(); fill_to(60); return end
   if units(cruiser_kit) == 0 then
-    if credits() < math.max(grow_at, 6500) then return end
+    if credits() < grow_line() then return end
     get_one(cruiser_kit)
     if units(cruiser_kit) == 0 then return end
   end

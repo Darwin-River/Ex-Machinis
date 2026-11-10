@@ -72,19 +72,28 @@ class ApiController extends Controller
             return $this->notFound('There is no such company.');
         }
         $drones = Agent::where('company_id', $company->company_id)->orderBy('agent_id')->get();
-        $wealth = Leaderboard::wealth()[$company->company_id]['wealth'] ?? null;
+        $board = Leaderboard::wealth();
+        $wealth = $board[$company->company_id]['wealth'] ?? null;
         return response()->json([
             'id' => (int) $company->company_id,
             'name' => $company->name,
             'credits' => (int) $company->credits,
             'net_wealth' => $wealth,
+            // Game days since it was founded, and its leaderboard place among
+            // companies its age or younger (#548)
+            'age_days' => Leaderboard::age($company->founded_t, World::gameNow()),
+            'peer_rank' => Leaderboard::peerRank((int) $company->company_id, $board),
             'ended' => $company->eliminated_at !== null,
             'drones' => $drones->map(fn (Agent $a) => $this->droneSummary($a))->all(),
             // The stock market (#471): its share price, holders, orders, trades
             // and the shares it holds in others
             'shares' => Shares::summary((int) $company->company_id),
+            // What its drones' thinking costs it (#544)
+            'compute' => \App\Services\ProcessorTax::of((int) $company->company_id),
             // Whether it can keep its drones flying (#537)
-            'health' => \App\Services\CompanyHealth::of((int) $company->company_id),
+            'health' => \App\Services\CompanyHealth::of((int) $company->company_id)
+                // and each working drone: idle hours, last status, hold (#540)
+                + ['drones' => \App\Services\CompanyHealth::drones((int) $company->company_id)],
         ]);
     }
 
@@ -236,8 +245,9 @@ class ApiController extends Controller
     {
         return response()->json(array_map(fn ($r) => [
             'company_id' => $r['company_id'], 'company' => $r['company'], 'drones' => $r['drones'],
-            'net_wealth' => $r['wealth'], 'released_drone' => $r['drone'],
-        ], Leaderboard::allTime(min(500, max(1, (int) $request->query('limit', 50))))));
+            'net_wealth' => $r['wealth'], 'released_drone' => $r['drone'], 'age_days' => $r['age'],
+        ], Leaderboard::allTime(min(500, max(1, (int) $request->query('limit', 50))),
+            is_numeric($request->query('max_age')) ? max(0, (float) $request->query('max_age')) : null)));
     }
 
     /** Where drones are, busiest first */

@@ -7,9 +7,10 @@ return [
     // reported by the check, the Release page and the API before release
     'lua_check' => env('LUA_CHECK', base_path('game-engine/src/bin/lua-check')),
 
-    // Fuel in a new drone's hold (#324 step 8): actions and computing burn it
+    // Fuel in a new drone's hold (#324 step 8): actions burn it
     'starting_fuel' => 100,
-    // Instructions a drone runs for 1 fuel: game-engine.conf's POWER_INSTRUCTIONS
+    // Instructions a drone ran for 1 fuel until #544 (game-engine.conf's
+    // POWER_INSTRUCTIONS, now 0): old wrecks' post-mortems still use it
     'power_instructions' => 200000,
 
     // A released company's starting bank account (#506: 3,000, the 1,000 it

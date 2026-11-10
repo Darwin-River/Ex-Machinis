@@ -180,6 +180,9 @@ ErrorCode_t db_delete_command(DbConnection_t* connection, Command_t* command);
     @return         Execution result
 
 *******************************************************************************/
+/** Delays a drone's queued resumes by seconds of game time (#544: a drone
+    whose company owes processor tax thinks at most a turn a game hour) */
+ErrorCode_t db_delay_resume_commands(DbConnection_t* connection, int agent_id, long long seconds);
 ErrorCode_t db_delete_resume_commands(DbConnection_t* connection, int agent_id);
 
 /** ****************************************************************************
@@ -1010,6 +1013,7 @@ typedef struct
     long long power_paid;
     int waiting_action;     // 0: none
     char* pending_input;    // NULL: none
+    int throttled;          // its company owes processor tax (#544)
     // Written once, before the turn commits (#431 step 3)
     int waiting_action_dirty;
     int pending_input_dirty;

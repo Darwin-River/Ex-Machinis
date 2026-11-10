@@ -147,11 +147,15 @@ for r in design['Resources'][1:]:
 # recipes-extra.csv), so it joins the production chain.
 FUEL = 2061
 POWER_PROTOCOL = '2'
-POWER_INSTRUCTIONS = 200000     # instructions per unit of fuel (game-engine.conf)
+# Thinking burns no fuel since #544 (game-engine.conf POWER_INSTRUCTIONS 0):
+# the company pays processor tax in credits instead (COMPUTE_TAX_PER_MILLION)
+POWER_INSTRUCTIONS = 0
+COMPUTE_TAX_PER_MILLION = 15    # credits a million instructions (#544)
+DISSOLVE_DAYS = 50              # game days broke before a company dissolves (#547)
 resources[str(FUEL)] = {
     'id': FUEL, 'name': 'Fuel (A1)', 'mass': 1, 'capacity': 0, 'slot_size': 0,
-    'description': 'Rocket fuel. Every action burns some, and running the drone\'s computer burns '
-                   f'1 unit per {POWER_INSTRUCTIONS:,} instructions. A drone that runs dry becomes a wreck.'}
+    'description': 'Rocket fuel. Every action burns some (travel, mining, making, transfers). '
+                   'A drone that runs dry becomes a wreck. Thinking burns none: the company pays processor tax.'}
 
 # --- recipes from the design workbook ------------------------------------------
 
@@ -638,8 +642,8 @@ for pid in sorted(protocols, key=int):
 # isn't there, the drone becomes a wreck.
 protocols[POWER_PROTOCOL] = [
     POWER_PROTOCOL, 'Burn power', '1', '100',
-    f'[N 2 perform]: Burns N fuel to power the drone\'s computer. The engine does this for every drone, '
-    f'1 fuel per {POWER_INSTRUCTIONS:,} instructions; a drone that can\'t pay becomes a wreck.',
+    '[N 2 perform]: Burns N fuel. Until #544 the engine performed it to pay for a drone\'s thinking; '
+    'now the company pays processor tax in credits, and the engine no longer burns fuel for thinking.',
     '0', '0', '0']
 add_effects(POWER_PROTOCOL, [{'time': 0, 'drone': 0, 'resource': FUEL, 'event_type': 2, 'local': 1,
                               'installed': 0, 'locked': 0, 'deplete': 1, 'abundancies': 0, 'quantity': -1}])
@@ -1292,7 +1296,7 @@ queries.append((630, 'Station goods',
 # daily tax is off (tax_period 0).
 SALES_TAX_PERMILLE = 50
 # start_credits 3,000 and no kit since #506 (forge.starting_credits)
-HOUSE_RULES = [(1, 0, 3 * DAY, 0, 5, 50, 3000, 100, SALES_TAX_PERMILLE)]
+HOUSE_RULES = [(1, 0, 3 * DAY, 0, 5, 50, 3000, 100, SALES_TAX_PERMILLE, COMPUTE_TAX_PER_MILLION, DISSOLVE_DAYS)]
 MY_COMPANY = "(SELECT company_id FROM agents WHERE agent_id = [drone_id])"
 queries.append((650, 'My taxes',
                 '[R L 650 query]: The sales tax: the share of each sale the seller pays, in thousandths (50 is 5%); '
@@ -1303,6 +1307,20 @@ queries.append((650, 'My taxes',
                 "(SELECT IFNULL(SUM(t.amount), 0) FROM company_taxes t WHERE t.company_id = c.company_id "
                 "AND t.eliminated = 0) AS d_all "
                 f"FROM companies c JOIN house_rules h ON h.id = 1 WHERE c.company_id = {MY_COMPANY};"))
+# The processor tax (#544): what the drone's company pays for its drones'
+# thinking. Rows: the rate (credits a million instructions), the tax and the
+# instructions billed over the last game day, and what it owes
+queries.append((651, 'My processor tax',
+                'compute_tax(): the processor tax, credits a million instructions; what the company paid for its '
+                'drones\' thinking over the last game day, instructions billed, what it owes, game days broke (-1: '
+                'not broke).', 0,
+                "SELECT h.compute_tax_per_million AS per_million, "
+                "(SELECT IFNULL(SUM(b.amount), 0) FROM compute_bills AS b WHERE b.company_id = c.company_id "
+                "AND b.charged_t > [game_now] - 86400) AS d_tax, "
+                "(SELECT IFNULL(SUM(b.instructions), 0) FROM compute_bills AS b WHERE b.company_id = c.company_id "
+                "AND b.charged_t > [game_now] - 86400) AS d_instructions, c.compute_debt AS d_debt, "
+                "IF(c.broke_since IS NULL, -1, FLOOR(([game_now] - c.broke_since) / 86400)) AS broke_days "
+                f"FROM companies AS c JOIN house_rules AS h ON h.id = 1 WHERE c.company_id = {MY_COMPANY};"))
 queries.append((660, 'Wrecks here',
                 '[R L 660 query]: The wrecks where the drone is: drone ID, 1 if it has been plundered (else 0).', 0,
                 "SELECT agent_id, plundered_at IS NOT NULL FROM agents WHERE wrecked_at IS NOT NULL "
@@ -1360,11 +1378,18 @@ queries.append((691, 'Share buy orders',
 MY_COMPANY = "(SELECT company_id FROM agents WHERE agent_id = [drone_id])"
 LAST_SHARE_PRICE = ("(SELECT t.price FROM share_trades AS t WHERE t.share_company = {c} "
                     "ORDER BY t.id DESC LIMIT 1)")
+# What a share is worth (#513): the average of the company's share trades
+# over the last 3 game days, weighted by shares, else its last trade price.
+# As Shares::valuePrices()
+VALUE_SHARE_PRICE = ("IFNULL((SELECT GREATEST(1, ROUND(SUM(v.units * v.price) / SUM(v.units))) FROM share_trades AS v "
+                     "WHERE v.share_company = {c} AND v.game_t > [game_now] - 259200 AND v.units > 0 HAVING SUM(v.units) > 0), "
+                     + LAST_SHARE_PRICE + ")")
 queries.append((692, 'My shares',
                 'The shares the drone\'s company holds, its own included: company, shares, the dividends they have '
-                'paid it, the last trade price (0 if never traded, or if the company has ended).', 0,
+                'paid it, what a share is worth (the last 3 game days\' average trade price, else the last; 0 if '
+                'never traded, or if the company has ended).', 0,
                 f"SELECT s.company, s.units, s.dividends AS d_dividends, IF(c.eliminated_at IS NULL, "
-                f"IFNULL({LAST_SHARE_PRICE.format(c='s.company')}, 0), 0) AS d_price FROM shares AS s "
+                f"IFNULL({VALUE_SHARE_PRICE.format(c='s.company')}, 0), 0) AS d_price FROM shares AS s "
                 f"JOIN companies AS c ON c.company_id = s.company WHERE s.holder = {MY_COMPANY} AND s.units > 0 ORDER BY s.company;"))
 queries.append((693, 'Shareholders',
                 'Who holds company N\'s shares, most first: company, shares.', 1,
@@ -1420,14 +1445,19 @@ def company_health_sql(company, now):
         f"(SELECT COUNT(*) FROM agents AS w WHERE w.company_id = {company} AND w.wrecked_at IS NOT NULL) AS wrecked, "
         "IFNULL(SUM(d.fuel), 0) AS fuel, IFNULL(MIN(d.fuel), 0) AS lowest, IFNULL(SUM(d.used), 0) AS used, "
         "IFNULL(MIN(IF(d.fall > 0, FLOOR(d.fuel / d.fall), NULL)), -1) AS days, "
-        f"IFNULL((SELECT c.credits FROM companies AS c WHERE c.company_id = {company}), 0) AS d_credits "
-        "FROM (SELECT a.agent_id, IFNULL((SELECT f.units FROM holdings AS f WHERE f.drone = a.agent_id "
+        f"IFNULL((SELECT c.credits FROM companies AS c WHERE c.company_id = {company}), 0) AS d_credits, "
+        f"IF(COUNT(d.agent_id) = 0, -1, FLOOR(({now} - IFNULL(MAX(d.last_t), {now} - 864000)) / 3600)) AS idle "
+        f"FROM (SELECT a.agent_id, (SELECT w.game_t FROM events AS w FORCE INDEX (events_drone_game_t) WHERE w.drone = a.agent_id "
+        f"AND w.outcome = 1 AND w.game_t > {now} - 864000 AND w.game_t <= {now} AND w.event_type IN (1, 2) "
+        "AND w.resource <> 2061 ORDER BY w.game_t DESC LIMIT 1) AS last_t, "
+        "IFNULL((SELECT f.units FROM holdings AS f WHERE f.drone = a.agent_id "
         "AND f.resource = 2061 AND f.installed = 0 AND f.locked = 0), 0) AS fuel, "
         + fall('x.prev > x.q') + " AS used, " + fall('x.prev IS NOT NULL') + " AS fall "
         f"FROM agents AS a WHERE a.company_id = {company} AND a.wrecked_at IS NULL) AS d;")
 queries.append((699, 'Company health',
-                'Company N: working drones, wrecked drones, fuel aboard them, the least aboard one, fuel they used '
-                'over the last game day, game days until one runs dry at its net fall (-1: none falling), credits.', 1,
+                'Company N: working drones, wrecked drones, fuel aboard, the least aboard one, fuel used over the '
+                'last game day, days until one runs dry (-1: none), credits, game hours since its drones last '
+                'traded or made goods.', 1,
                 company_health_sql('[value_1]', '[game_now]')))
 queries.append((698, 'Share count',
                 'Company N\'s shares in all: 1,000 to start, more once it has issued new ones.', 1,
@@ -1731,7 +1761,7 @@ QUERY_FUNCS = {
     '400': 'resource_name(N)', '401': 'unit_mass(N)', '410': 'best_sites(N)', '500': 'protocol_name(N)',
     '501': 'protocol_minutes(N)', '510': 'consumes(N)', '511': 'produces(N)', '512': 'retains(N)',
     '520': 'consumers(N)', '521': 'producers(N)', '522': 'users(N)', '600': 'buy_orders(N)',
-    '610': 'sell_orders(N)', '690': 'share_sell_orders(N)', '691': 'share_buy_orders(N)', '692': 'shares_held()', '693': 'shareholders(N)', '694': 'share_trades(N)', '696': 'shares_for_sale()', '697': 'share_offerings()', '698': 'share_count(N)', '699': 'company_health(N)', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
+    '610': 'sell_orders(N)', '690': 'share_sell_orders(N)', '691': 'share_buy_orders(N)', '692': 'shares_held()', '693': 'shareholders(N)', '694': 'share_trades(N)', '696': 'shares_for_sale()', '697': 'share_offerings()', '698': 'share_count(N)', '699': 'company_health(N)', '651': 'compute_tax()', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
     '640': 'deposits()', '650': 'taxes()', '655': 'earnings(H)', '660': 'wrecks()', '661': 'wreck_hold(W)',
     '670': 'my_clones()', '671': 'lineage()', '680': 'price_board(N)', '682': 'sales(N, D)', '695': 'recipe(R)',
     '700': 'place_name(N)', '701': 'place_type(N)', '702': 'orbits(N)', '703': 'position(N)',
@@ -1821,7 +1851,7 @@ lines.append("INSERT INTO `event_types` (id, name) VALUES (11, 'Plunder wreck') 
 lines.append('')
 lines.append('-- Taxes and plunder (#324 step 12), placeholders to tune in step 20')
 table('house_rules', ['id', 'tax_period', 'tax_grace', 'tax_flat', 'tax_permille', 'plunder_share',
-                      'start_credits', 'start_fuel', 'sales_tax_permille'], HOUSE_RULES)
+                      'start_credits', 'start_fuel', 'sales_tax_permille', 'compute_tax_per_million', 'dissolve_days'], HOUSE_RULES)
 lines.append('')
 lines.append('-- House drop stations (#324 step 10): what they trade. Their budgets')
 lines.append('-- (station_state) are kept: a new station starts with a full budget.')

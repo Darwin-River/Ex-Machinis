@@ -294,12 +294,13 @@ class DronePage
         $last = $lastAction ? ' Its last action was ' . self::protocolName((int) $lastAction->protocol) . '.' : '';
         switch ($agent->wreck_cause) {
             case 'fuel':
-                $cause = "It ran out of fuel on $when: it had none left to pay for its computing "
-                    . '(1 fuel for every ' . number_format(config('forge.power_instructions', 200000)) . ' instructions its program runs) or its next action.' . $last;
-                // How much went on thinking: a loop without a wait burns a tank this way (#380)
+                // Its thinking burned fuel until #544; since then only actions do
+                $thinkingBurned = DB::table('actions')->where('drone', $id)->where('protocol', 2)->exists();
+                $cause = "It ran out of fuel on $when: it had none left for its next action." . $last;
+                // How much went on thinking: a loop without a wait burned a tank this way (#380)
                 $ran = (int) $agent->instructions;
-                if ($ran >= config('forge.power_instructions', 200000)) {
-                    $cause .= ' Its program ran ' . number_format($ran) . ' instructions in all, about '
+                if ($thinkingBurned && $ran >= config('forge.power_instructions', 200000)) {
+                    $cause .= ' Its thinking burned fuel then: its program ran ' . number_format($ran) . ' instructions in all, about '
                         . number_format(intdiv($ran, config('forge.power_instructions', 200000))) . ' fuel of computing.';
                 }
                 if ($agent->release_vm === null && $agent->parent_id === null) {
@@ -317,6 +318,12 @@ class DronePage
                 $cause = "Its company, $name, couldn't pay its tax bill on $when"
                     . ($bill ? ' (it had ' . number_format($bill->amount) . ' credits left)' : '')
                     . ', so the company was eliminated and all its drones became wrecks.';
+                break;
+            case 'dissolved':
+                $name = DB::table('companies')->where('company_id', $agent->company_id)->value('name');
+                $days = (int) (DB::table('house_rules')->where('id', 1)->value('dissolve_days') ?? 50);
+                $cause = "Its company, $name, had no credits for $days game days straight, so it dissolved on $when "
+                    . 'and all its drones became wrecks, with what they carried, for anyone to plunder.';
                 break;
             default:
                 $cause = "It became a wreck on $when.";

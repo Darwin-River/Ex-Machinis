@@ -13,6 +13,10 @@ low_fuel = 40      -- buy fuel below this
 keep_fuel = 25     -- it stops making rods below this much fuel
 trip_margin = 20   -- flies to Earth only if rods sold there for this much more
 grow_at = 7000     -- credits at which it buys and launches a copy
+work_cash = 1500   -- credits each drone keeps to work with: a copy launches
+                   -- only when the company keeps this much for every drone
+                   -- it will have (#542: copies left companies with 8 to
+                   -- 322 credits, and every drone sat "short of credits")
 grow_until = 0     -- game day after which it launches no more copies (0: no
                    -- limit). A copy takes about 20 game days to earn back
                    -- its cost, so in a contest set this ~20 days before the
@@ -26,7 +30,7 @@ invest_cap = 1500  -- credits it puts into shares in all (0: never invests)
 -- Fuel when low, from whoever sells it cheapest here
 function refuel()
   if units(fuel) < low_fuel then
-    buy_here(30, fuel)
+    raise_cash(150); buy_here(30, fuel)
     wait(60)
   end
 end
@@ -82,9 +86,21 @@ function sell_here_pays()
   return bid > 0 and bid + trip_margin >= earth_pays
 end
 
+-- Where to sell the rods aboard: Earth, unless another place pays more for
+-- them after the round trip (where_to_sell; #542: round 57's Makers carried
+-- rods nobody bid for at Earth or the Moon for up to 18 days, while Mars
+-- bid 155)
+function market_for_rods()
+  local best = where_to_sell(rods, math.max(units(rods), 1))[1]
+  if best and best.place ~= moon and best.net > 0 then return best.place end
+  return earth
+end
+
 function haul()
-  go(earth)
-  if units(fuel) < 60 then buy_here(30, fuel); wait(120) end
+  local market = market_for_rods()
+  set_status("hauling " .. units(rods) .. " rods to " .. place_name(market))
+  go(market)
+  if units(fuel) < 60 then raise_cash(150); buy_here(30, fuel); wait(120) end
   sell_rods()
   go(moon)
 end
@@ -101,13 +117,21 @@ function get_one(resource)
     wait(60)
   end
 end
+-- Credits the company needs before launching a copy: about 5,000 for the
+-- copy (a hull and a kit), and work_cash for each drone it will then have
+function grow_line()
+  local h = company_health()
+  local drones = h and h.working or 1
+  return math.max(grow_at, 5000 + work_cash * (drones + 1))
+end
+
 function reinvest()
   if grow_until > 0 and today() > grow_until and units(mining_kit) == 0 and units(factory_kit) == 0 then return end
-  if credits() < math.max(grow_at, 6500) then return end   -- keeps 1,500 to work with
+  if credits() < grow_line() then return end   -- keeps work_cash for every drone
   get_one(cruiser_kit)
   get_one(factory_kit)
   if units(cruiser_kit) == 0 or units(factory_kit) == 0 then return end
-  if units(fuel) < 80 then buy_here(90 - units(fuel), fuel); wait(60) end
+  if units(fuel) < 80 then raise_cash(150); buy_here(90 - units(fuel), fuel); wait(60) end
   copy = true   -- the copy gets this too: it knows it is a copy
   if launch(me(), cruiser_kit) ~= 0 then return end
   local clones = my_clones()

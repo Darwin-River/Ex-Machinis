@@ -195,6 +195,8 @@ class DronePageTest extends TestCase
             'resource' => 2061, 'installed' => 0, 'locked' => 0, 'new_quantity' => 0, 'new_cargo' => 0, 'game_t' => 1000]);
         // Plundered after it died: that haul isn't its last action
         DB::table('actions')->insert(['drone' => $agent->agent_id, 'protocol' => 35, 'multiplier' => 1, 'aborted' => 0]);
+        // It paid for its thinking in fuel (before #544): a power bill
+        DB::table('actions')->insert(['drone' => $agent->agent_id, 'protocol' => 2, 'multiplier' => 1, 'aborted' => 0]);
         DB::table('agents')->where('agent_id', $agent->agent_id)->update(['wrecked_at' => 2000, 'wreck_cause' => 'fuel',
             'instructions' => 15700000]);
         $this->get('/spacecraft/' . $agent->agent_id)->assertOk()->assertSee('Post-mortem')

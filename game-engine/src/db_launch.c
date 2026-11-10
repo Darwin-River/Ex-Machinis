@@ -148,16 +148,13 @@ ErrorCode_t db_record_crash(DbConnection_t* connection, int agent_id, int code, 
                             long long restart_at)
 {
     long long now = game_time_now_seconds();
-    char restart[32], wrecked[32];
+    char restart[32];
 
     // A restart time, or none and the drone is a wreck from now on
-    if(restart_at < 0) {
+    if(restart_at < 0)
         snprintf(restart, sizeof(restart), "NULL");
-        snprintf(wrecked, sizeof(wrecked), "%lld", now);
-    } else {
+    else
         snprintf(restart, sizeof(restart), "%lld", restart_at);
-        snprintf(wrecked, sizeof(wrecked), "NULL");
-    }
 
     ErrorCode_t result = db_launch_query(connection,
         "INSERT INTO drone_crashes (drone, game_t, code, in_row, restart_at) VALUES (%d, %lld, %d, %d, %s)",
@@ -165,16 +162,18 @@ ErrorCode_t db_record_crash(DbConnection_t* connection, int agent_id, int code, 
 
     if(result == ENGINE_OK)
         result = db_launch_query(connection,
-            "UPDATE agents SET launched_running = 0, crashes_in_row = %d, crashes_total = crashes_total + 1, "
-            "wrecked_at = %s, wreck_cause = %s WHERE agent_id = %d",
-            in_row, wrecked, restart_at < 0 ? "'crashes'" : "NULL", agent_id);
+            "UPDATE agents SET launched_running = 0, crashes_in_row = %d, crashes_total = crashes_total + 1 "
+            "WHERE agent_id = %d", in_row, agent_id);
 
     TurnRow_t* turn = db_turn_row(agent_id);
     if(result == ENGINE_OK && turn) {
         turn->launched_running = 0;
         turn->crashes_in_row = in_row;
-        turn->wrecked = restart_at < 0;
     }
+    // Given up on: a wreck, through db_wreck_drone so that a company whose
+    // last drone crashed out ends too (#546: it kept trading with none)
+    if(result == ENGINE_OK && restart_at < 0)
+        result = db_wreck_drone(agent_id, "crashes");
     return result;
 }
 
@@ -240,8 +239,6 @@ ErrorCode_t db_add_drone_message(DbConnection_t* connection, int agent_id, long 
 ErrorCode_t db_take_power_due(DbConnection_t* connection, int agent_id, long long per_fuel, long long* units)
 {
     *units = 0;
-    if(per_fuel <= 0)
-        return ENGINE_OK;
 
     ErrorCode_t result = ENGINE_OK;
     long long instructions = 0, paid = 0;
@@ -286,6 +283,12 @@ ErrorCode_t db_take_power_due(DbConnection_t* connection, int agent_id, long lon
             turn->power_paid = turn->instructions;
         return result;
     }
+
+    // Thinking burns no fuel since #544 (POWER_INSTRUCTIONS 0): the events
+    // engine bills the company processor tax for instructions - power_paid
+    // instead (db_compute.c). Loading stays free either way (above)
+    if(per_fuel <= 0)
+        return ENGINE_OK;
 
     *units = vm_meter_fuel_due(instructions, paid, per_fuel);
     if(*units > 0 && turn) {

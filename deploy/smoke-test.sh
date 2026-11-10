@@ -15,7 +15,9 @@
 #   - companies of one player may trade with each other,
 #   - a released script in several pieces runs, the Release page offers
 #     starter scripts, and drones know the game names,
-#   - actions and computing burn fuel; a drone that runs dry becomes a wreck,
+#   - actions burn fuel, and thinking costs the company processor tax in
+#     credits, not fuel (#544): a drone that thinks for ever on 1 fuel keeps
+#     its fuel and works on,
 #   - money past 32,767 comes back right (a plain number in Lua),
 #   - House station drones buy goods and sell fuel at once (31 and 32), and a
 #     pull for more than a seller offers fails (-5) and costs no fuel,
@@ -157,27 +159,50 @@ wait_for 60 "Earth has a House station drone" has_station 3
 MOON_STATION=$(station_at 10)
 EARTH_STATION=$(station_at 3)
 
-# A drone that never refuels dies (#324 step 8): release one that only
-# computes, leave it 1 unit of fuel, and it runs dry and becomes a wreck.
-# (Released first: the first drone plunders its wreck later on)
-DRY_SCRIPT=$(cat <<'LUA'
--- Computes for ever and never refuels: each slice burns fuel
+# Thinking costs processor tax, not fuel (#544): a drone that only computes,
+# left 1 unit of fuel, keeps it and works on, and its company is billed in
+# credits once a game hour (a real couple of seconds here)
+THINK_SCRIPT=$(cat <<'LUA'
+-- Computes for ever and never refuels: its company pays for the thinking
 function launched()
   local n = 0
   while true do n = n + 1 end
 end
 LUA
 )
+release "Smoke Thinker" "$THINK_SCRIPT"
+THINKER=$(company_drone "Smoke Thinker")
+[ -n "$THINKER" ] || fail "release did not create the thinking drone"
+sqlw "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
+     select 2, 0, 1, 1, $THINKER, 2061, 0, 0, 1, $(sql "select mass from resources where id=5901") + 1, IFNULL(MAX(game_t), 0) + 1 from events where drone = $THINKER"
+billed() { [ -n "$(sql "select b.id from compute_bills b join agents a on a.company_id = b.company_id where a.agent_id = $THINKER and b.amount > 0 limit 1")" ]; }
+wait_for 120 "a thinking drone's company pays processor tax" billed
+[ "$(sql "select count(*) from actions where drone=$THINKER and protocol=2")" = 0 ] || fail "thinking burned fuel"
+[ "$(sql "select concat(wrecked_at is null, ' ', (select units from holdings where drone=$THINKER and resource=2061 and installed=0 and locked=0)) from agents where agent_id=$THINKER")" = "1 1" ] ||
+    fail "the thinking drone lost its fuel or became a wreck"
+echo "ok: thinking costs the company credits, not fuel, and the drone keeps going"
+
+# A wreck to plunder later (#324 step 12): a drone whose launched function
+# crashes for the 5th time in a row. (Released first: the first drone
+# plunders its wreck later on)
+DRY_SCRIPT=$(cat <<'LUA'
+-- (no action first: a finished action ends a run of crashes)
+function launched()
+  error("smoke-dry")
+end
+LUA
+)
 release "Dry Forge" "$DRY_SCRIPT"
 DRY=$(company_drone "Dry Forge")
 [ -n "$DRY" ] || fail "release did not create the dry drone"
+sqlw "update agents set crashes_in_row = 4 where agent_id=$DRY"
 KIT=$(sql "select mass from resources where id=5901")
 # (Stamped after the drone's latest event: the plunder below once failed on
 # fuel the engine said wasn't there)
 sqlw "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
      select 2, 0, 1, 1, $DRY, 2061, 0, 0, 1, $KIT + 1, IFNULL(MAX(game_t), 0) + 1 from events where drone = $DRY"
-dry() { [ "$(sql "select wreck_cause from agents where agent_id=$DRY")" = fuel ]; }
-wait_for 120 "a drone that runs out of fuel becomes a wreck" dry
+dry() { [ "$(sql "select wreck_cause from agents where agent_id=$DRY")" = crashes ]; }
+wait_for 120 "a drone that crashes 5 times in a row becomes a wreck" dry
 # A company ends when its last drone dies (#324 step 13): its credits vanish
 [ "$(sql "select concat(end_cause, ' ', credits) from companies where name='Dry Forge'")" = "drones 0" ] || fail "the company whose last drone died did not end"
 echo "ok: a company whose last drone died has ended"
@@ -252,7 +277,7 @@ function launched()
   print("moon-trip " .. travel(moon))
   say("after-trip " .. sq(6))
   say("mine " .. mine(kunspar))
-  -- Computing burns fuel too
+  -- Computing costs the company processor tax (#544)
   local s = 0
   for i = 1, 20000 do s = s + i end
   say("computed " .. s)
@@ -404,12 +429,12 @@ sql "update agents set crashes_in_row = 4 where agent_id=$CRASHER"
 wrecked() { [ "$(sql "select concat(wrecked_at is not null, ' ', IFNULL(wreck_cause, '')) from agents where agent_id=$CRASHER")" = "1 crashes" ]; }
 wait_for 60 "the 5th crash in a row makes the drone a wreck" wrecked
 
-# Fuel (#324 step 8): the first drone's actions and computing burned fuel
-# from its starting 100, and it keeps going
+# Fuel (#324 step 8): the first drone's actions burned fuel from its starting
+# 100, and it keeps going; its thinking burned none (#544)
 [ "$(sql "select IFNULL(MAX(units), 0) < 100 and IFNULL(MAX(units), 0) > 0 from sqInventory where drone=$DRONE_ID and resource=2061")" = 1 ] || fail "the drone's fuel was not burned"
-[ -n "$(sql "select id from actions where drone=$DRONE_ID and protocol=2 and aborted=0")" ] || fail "no power was burned for computing"
+[ -z "$(sql "select id from actions where drone=$DRONE_ID and protocol=2 limit 1")" ] || fail "thinking burned fuel"
 [ "$(sql "select wrecked_at is null from agents where agent_id=$DRONE_ID")" = 1 ] || fail "the drone with fuel became a wreck"
-echo "ok: actions and computing burn fuel, and a fuelled drone keeps going"
+echo "ok: actions burn fuel, thinking doesn't, and a fuelled drone keeps going"
 
 # The first drone waits for its balance to pass 70,000 (money past 32,767
 # came back as a double in FORTH; in Lua it is a plain number), then sells
@@ -648,7 +673,7 @@ FORGE_PAGE=$(fetch "http://localhost/spacecraft/$FORGE_DRONE")
 grep -qF "forge-release-" <<<"$FORGE_PAGE" || fail "the drone page doesn't show the released code"
 grep -qF "release?copy=$FORGE_DRONE" <<<"$FORGE_PAGE" || fail "the drone page has no Copy this code link"
 echo "ok: the drone page shows its code, with a Copy this code link"
-grep -qF "It ran out of fuel" <<<"$(fetch "http://localhost/spacecraft/$DRY")" || fail "no post-mortem for the drone that ran out of fuel"
+grep -qF "Its launched function crashed" <<<"$(fetch "http://localhost/spacecraft/$DRY")" || fail "no post-mortem for the drone that crashed"
 echo "ok: wrecks have post-mortems"
 
 # Home, Market and Map (#324 step 17): the feed tells what happened, the

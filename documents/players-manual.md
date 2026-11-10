@@ -144,7 +144,7 @@ Four more pages show the whole world, live:
 - **Home:** "What's happening" lists the latest events in plain words: new releases, clones launched, drones that died and why, plunders, companies that ended, and trades.
 - **Market** (`/market`): the order book (for each resource, the cheapest sell order and the best buy order at each place) and the latest trades.
 - **Map:** the planets where they are now, with the drones and wrecks around each.
-- **Leaderboard:** companies by net wealth, all time and **Rising** (the gain over the last real week). Each release starts a company, and the drones it launches belong to it. Net wealth counts the company's credits, its working drones' goods at market prices (what they sold for over the last three game days) and the shares it holds in other companies at their last trade price, minus what the company started with, so it measures what the company made. The drones themselves don't count: launching a copy lowers net wealth by about the price of its hull (3,000) until the copy earns that back, often 10 to 20 game days, and longer for a copy that first flies to Mars. Grow early, not near the end of a contest.
+- **Leaderboard:** companies by net wealth, all time and **Rising** (the gain over the last real week). Each release starts a company, and the drones it launches belong to it. Net wealth counts the company's credits, its working drones' goods at market prices (what they sold for over the last three game days) and the shares it holds in other companies at the average price of their trades over the last three game days (weighted by shares; the last trade price if none traded then), minus what the company started with, so it measures what the company made. The drones themselves don't count: launching a copy lowers net wealth by about the price of its hull (3,000) until the copy earns that back, often 10 to 20 game days, and longer for a copy that first flies to Mars. Grow early, not near the end of a contest. Each company's **age** is shown in game days since it was founded. To compare new companies without the old ones that simply had longer to grow, show only companies up to an age (30, 10 or 3 game days, or any number you type). Your company's page gives its place among companies its age or younger, e.g. "4 of 37 companies up to 6.2 game days old".
 
 Your drones can't see all this: they see live orders only where they are (see [the price board](#the-price-board)). You can, so use these pages to plan.
 
@@ -394,14 +394,17 @@ It returns 0 once the kit is unpacked, and 0 at once when there is no kit left t
 
 ### Fuel
 
-Everything your spacecraft does burns fuel, Fuel (A1) (resource 2061, `fuel` in your script):
+Every action your spacecraft takes burns fuel, Fuel (A1) (resource 2061, `fuel` in your script). Its thinking doesn't: your company pays for that in credits.
 
 - **Actions.** Each protocol burns a few units from the hold when it starts, from 1 (mining, a transfer or an order) to 30 (launching a spacecraft, 20 of which go into the new one's hold). The protocol's description says how much. Unpacking a kit and waiting are free; everything else costs fuel, buying fuel included. Without the fuel, the action returns -2 and nothing happens.
-- **Thinking.** Running your program burns power: 1 fuel for every 200,000 instructions your spacecraft runs. Each Lua instruction counts as six of these, so a fuel buys about 33,000 Lua instructions. Functions that do less work cost less to run. A drone's page shows the fuel it used in the last game day, for actions and for thinking, broken down by action (pulls, travel, share requests...), so you can see where a tank went. The API's `GET /drones/{id}/timeline` lists every action the drone took, a page at a time.
+- **Thinking: the processor tax.** Running your program burns no fuel. Instead your company pays a **processor tax**: 15 credits for every million instructions its drones run, billed once a game hour from its credits. Each Lua instruction counts as six, so a million counts as about 167,000 Lua instructions. Loading a released script is free. Every drone's thinking runs on the game's real servers, so the tax rewards code that thinks only as much as it needs: ask once and keep the answer, wait between rounds, and keep work out of loops and sorts. `compute_tax()` (query 651) tells a drone what its company paid over the last game day (`tax`, `instructions`) and what it owes (`debt`); the company page and the API's `compute` show the same.
+- **When the company can't pay,** it pays what it has and owes the rest, which comes out of its next credits before anything else. While it owes, each of its drones thinks at most a turn a game hour: its waits and actions go on as usual, but a drone that thinks hard slows to a crawl until the company has paid. Nothing is wrecked for the tax, and net wealth counts the debt against the company. (Until #544 thinking burned 1 fuel per 200,000 instructions, and drones whose loops thought their tanks away were wrecked.)
 
-A new spacecraft starts with 100 fuel. When it runs out and can't pay for its thinking, it becomes a **wreck** for good. So keep an eye on your fuel (`units(fuel)`) and make or buy more before you run dry: it's for sale at every exchange for 3 credits a unit (see [Trading at the exchanges](#trading-at-the-exchanges)).
+A drone's page shows the fuel it used in the last game day, broken down by action (pulls, travel, share requests...), so you can see where a tank went. The API's `GET /drones/{id}/timeline` lists every action the drone took, a page at a time.
 
-<a name="running-low-on-fuel"></a>**Running low on fuel.** Nothing in the game rescues a drone with an empty tank: a drone that runs dry is a wreck, and its company may die with it. Plan for it in your program. Keep credits for fuel as well as fuel itself: a drone that spends its last credits on goods can't buy fuel, and while it keeps trying, its thinking still burns fuel (#511: a Foundry spent down to 3 credits, retried its fuel purchase for half a day, and its power bill took the last 4 units). The failed purchases cost nothing, but a drone that is broke should sell what it holds, or wait, rather than keep asking. And when a drone gets stranded anyway, far from fuel or too poor to fly, the market can save it: post a **buy order for fuel at a price high enough to bring a seller to you**, and wait. Waiting runs no instructions, so it burns no fuel, and another drone that pushes fuel into your order is paid at once:
+A new spacecraft starts with 100 fuel. When it runs out it is **stranded**: every action it tries fails (-2), so it can't fly, mine, make or trade until fuel reaches it. (Until #544 a drone that couldn't pay for its thinking in fuel became a wreck for good; now thinking costs credits, and a stranded drone waits. But a company with no credits for 50 game days straight dissolves, and its drones become wrecks: see [Wrecks and plunder](#wrecks-and-plunder).) So keep an eye on your fuel (`units(fuel)`) and make or buy more before you run dry: it's for sale at every exchange for 3 credits a unit (see [Trading at the exchanges](#trading-at-the-exchanges)).
+
+<a name="running-low-on-fuel"></a>**Running low on fuel.** Nothing in the game rescues a drone with an empty tank: a drone that runs dry is stranded where it is, earning nothing, until fuel reaches it. Plan for it in your program. Keep credits for fuel as well as fuel itself: a drone that spends its last credits on goods can't buy fuel, and while it keeps trying, its company pays processor tax on every look (#511). The failed purchases cost nothing, but a drone that is broke should sell what it holds, or wait, rather than keep asking. And when a drone gets stranded anyway, far from fuel or too poor to fly, the market can save it: post a **buy order for fuel at a price high enough to bring a seller to you**, and wait. Waiting runs no instructions, so it burns no fuel, and another drone that pushes fuel into your order is paid at once:
 
 ```lua
 -- Low on fuel: pay 15 a unit (well over the exchanges' 3) for up to 60,
@@ -458,7 +461,7 @@ To make fuel, use a Chemical Reactor: `make(fuel)` (protocol 12061) turns 1 Orga
 
 ### Wrecks and plunder
 
-A spacecraft becomes a **wreck** for good when it runs out of fuel or crashes five times in a row. A wreck does nothing more, but its cargo and parts stay aboard, and another player's spacecraft at the same place can plunder it with `plunder(wreck)` (protocol 34), where `wreck` is the wreck's drone ID.
+A spacecraft becomes a **wreck** for good when it crashes five times in a row, or when its company dissolves. A company that has had no credits for 50 game days straight (its credits, less any processor tax it owes, at 0 or below the whole time) **dissolves**: it ends, and every one of its drones becomes a wreck, with all it carries, for anyone to plunder. A drone that runs out of fuel is not wrecked: it is stranded, its actions failing, until fuel reaches it. `compute_tax().broke_days` tells your drone how long its company has been broke (-1 if it isn't); the company page and its health count down to the day it dissolves. A wreck does nothing more, but its cargo and parts stay aboard, and another player's spacecraft at the same place can plunder it with `plunder(wreck)` (protocol 34), where `wreck` is the wreck's drone ID.
 
 Plundering takes 1 game hour and burns 1 fuel. Your spacecraft gets half of everything aboard: half of each resource, rounded down (and for an odd unit, such as a single engine, a 50/50 chance). The rest is destroyed. Make room in your hold first: what doesn't fit is lost too. Your share comes aboard a moment after `plunder` returns, so wait a minute before counting it. A wreck is plundered once, so be quick. Any wreck will do, your own companies' included. If there's no such wreck where you are, or it was already plundered, `plunder` returns -15.
 
@@ -497,7 +500,7 @@ end
 
 ### Waiting
 
-A script that needs to wait, for a price to move, a deposit to refill or an order to fill, could loop and ask again and again, but every 200,000 instructions it runs costs fuel. Instead, wait: `wait(60)` pauses your script for 60 game minutes.
+A script that needs to wait, for a price to move, a deposit to refill or an order to fill, could loop and ask again and again, but every instruction it runs adds to your company's processor tax. Instead, wait: `wait(60)` pauses your script for 60 game minutes.
 
 `wait(minutes)` (protocol 3) takes 1 to 10,080 minutes (a week). Your spacecraft runs no instructions while it waits, and waiting burns no fuel, so a patient spacecraft is cheap to run. It returns 0 when the time is up, or -12 if the minutes are out of range.
 
@@ -692,6 +695,8 @@ The new spacecraft:
 - gets the copied drone's script and its saved variables, as they were when the launch happened (see [What your drone remembers](#what-your-drone-remembers)); it doesn't carry on from where the copied drone was in its script;
 - calls `launched()`, which lets it get to work on its own. Set a variable before launching (`copy = true`) and the copy can tell it is one.
 
+**Keep money to work with.** Every drone of a company spends from the same account, so a copy that takes the last credits can stop the whole company: with nothing left to buy inputs or fuel, every drone waits "short of credits" until it runs dry (round 57: Dev 6 launched its third drone with 322 credits left, and all three died). The Miner, Refiner and Maker starters launch a copy only when the company keeps `work_cash` (1,500) for each drone it will then have (`grow_line()`), and a drone short of credits sells what it holds before it buys fuel. `raise_cash(n)` does that: it sells the goods aboard (never fuel, modules or kits) into the best buy orders here until the company has n credits, below your fuel floor if it must, since a drone with no credits can't buy fuel anyway, and returns what it raised.
+
 Here a new spacecraft, whose hold starts with no modules, first pulls an engine and a Worm from the drone that launched it (they are at the same place), then flies to the Moon and mines:
 
 ```lua
@@ -796,7 +801,7 @@ Every drone comes with a library of names for the game, so you can write `mine(k
 | Places | `earth` (3), `moon` (10), `mars` (4), `phobos` (11), `deimos` (12): their location IDs; the Locations page lists the rest |
 | Resources | `fuel` (2061), `magmite` (1000), `kunspar` (1100), `yalspar` (1110), `vladnium` (1120), `wolfite` (1130), `metals_a1` `metals_a2` `metals_a3` (2011-2013), `alloys_a1` `alloys_a2` `alloys_a3` (2021-2023), `inorganics_a1` (2031), `inorganics_a2` (2032), `organics_a1` (2041), `organics_a2` (2042), `rods` (3011), `engine_module` (5001), `mining_kit` (5901), `factory_kit` (5902), `cruiser_kit` (6001); any other resource by its number |
 | Actions: each returns 0 when it worked, else a negative code (see [Issuing Commands](#chapter-4-issuing-commands)) | `travel(place)`, `go(place)` (travels unless already there), `mine(mineral)`, `refine(mineral)`, `make(resource)`, `wait(minutes)`, `push(n, resource, drone)`, `pull(n, resource, drone)`, `launch(drone, kit)`, `plunder(wreck)`, `jettison(n, resource)`, `broadcast(text)`, `sell_shares(company, keep, price)`, `buy_shares(company, want, price)`, `pull_shares(n, company, seller)`, `push_shares(n, company, buyer)`, `unpack()` (whichever kit is aboard; `unpack_kit()` is the same), `sell_order(price, keep, resource)`, `buy_order(price, want, resource)`, `sell_order_if_changed(price, keep, resource)`, `buy_order_if_changed(price, want, resource)` |
-| Trading | `buy_here(n, resource, max_price)` (buy up to n here, from the cheapest sell orders first; with `max_price`, only from sellers asking at most that a unit), `sell_here(n, resource)` (sell up to n here, into the best buy orders first), `sell_all(resource)` (sell all of it here; returns nothing); `buy_from_station` and `sell_to_station` are older names for `buy_here` and `sell_here` |
+| Trading | `raise_cash(n)` (sell goods aboard until the company has n credits), `buy_here(n, resource, max_price)` (buy up to n here, from the cheapest sell orders first; with `max_price`, only from sellers asking at most that a unit), `sell_here(n, resource)` (sell up to n here, into the best buy orders first), `sell_all(resource)` (sell all of it here; returns nothing); `buy_from_station` and `sell_to_station` are older names for `buy_here` and `sell_here` |
 | Market questions | `best_offer(resource)` (the cheapest other drone's sell order here: its price, the seller, and how many it will sell; 0, 0, 0 if none), `best_bid(resource)` (the highest other drone's buy order here: its price, the buyer, and how many it wants; 0, 0, 0 if none), `buy_price(resource)` and `sell_price(resource)` (the best price to buy or sell one here; 0 if nobody sells or buys), `board_price(resource, place)` (what a unit traded for at a place over the last game day, from the price board; 0 if none traded), `sold(resource, days_ago, place)` (how many sold at a place on a game day, an hour old; 0 is today so far), `sell_orders(resource)` and `buy_orders(resource)` (every order here, best first: `{price, units, drone, keep or want, held}`), `cost_to_buy(n, resource)` and `sale_value(n, resource)` (what buying or selling n here comes to, and how many of the n there are), `price_board(resource)`, `sales(resource, days_ago)`, `volume_here(resource, hours)`, `volume_everywhere(resource, hours)` |
 | Other exchanges | `quotes(resource)` (`quotes(r)[place]` is `{bid, bid_units, ask, ask_units, stock, hours_old}`: live here, an hour old elsewhere), `stock(resource, place)` (units on sale there), `orders_everywhere(resource)` (see [Other exchanges](#other-exchanges)) |
 | Other questions | `me()` (this drone's ID), `location()`, `units(resource)` (how many in the hold), `company()`, `credits()` (your company's credits), `today()` (the game day now: plan a late selling trip or a deadline), `deposit(mineral)` (units left here), `trip(place)` (game hours to fly there from here, rounded up; -1 if unknown), `crowd(place)` (how many working drones are at a place; here if left out), `my_clones()` (a list of `{drone = id, wrecked = true or false}`), `recipe(resource)` (see below), `hold()`, `cargo_mass()`, `capacity()`, `space()`, `now()`, `lineage()`, `company_name()`, `company_drones()`, `earnings(hours)`, `taxes()`, `place_name(place)`, `trip_to(place)`, `trip_between(a, b)`, `deposits()`, `minerals(place)`, `best_sites(mineral)`, `drones_at(place)`, `wrecks_at(place)`, `wrecks()`, `wreck_hold(wreck)`, `resource_name(resource)`, `producers(resource)`, `protocol_name(protocol)`, `events_affecting(drone)`, `event(id)` (see [Chapter 8](#chapter-8-asking-questions)) |
@@ -1047,7 +1052,7 @@ Every company starts with **1,000 shares**, and can issue more (see [Raising cre
 
 Selling shares raises credits now in exchange for part of your future sales. Buying another company's shares earns you part of its sales for as long as you hold them. A company could make its living trading shares alone.
 
-The website's **[Stock exchange](/market/shares)** page (Markets menu) shows the whole market live: every company whose shares have traded or are on offer, with its last price, its sales after tax a day (averaged over the last 7 game days, since sales come in lumps), what a share earns a day and how many days the last price takes to pay back; every sell order that can sell now; the buy orders; the open offerings of new shares, with how much is committed; and the latest trades. Each company's own page shows who holds its shares, and its open offering with who has committed to it.
+The website's **[Stock exchange](/market/shares)** page (Markets menu) shows the whole market live: every company whose shares have traded or are on offer, with its last price, its value (the three-day average that net wealth uses), its sales after tax a day (averaged over the last 7 game days, since sales come in lumps), what a share earns a day and how many days the last price takes to pay back; every sell order that can sell now; the buy orders; the open offerings of new shares, with how much is committed; and the latest trades. Each company's own page shows who holds its shares, and its open offering with who has committed to it.
 
 Shares trade **the way goods do**, at the **stock exchange at Earth**. Everything is electronic: a drone anywhere can act for its company, and each request reaches Earth at the speed of light and takes effect when it arrives.
 
@@ -1087,13 +1092,13 @@ Each of the four actions takes a moment and burns a unit of fuel. Each returns 0
 
 **What you hold, and who holds you.**
 
-- `shares_held()` (query 692) lists the shares your company holds, its own included. Each is `{company, units, dividends, price}`, where `dividends` is what those shares have paid you so far and `price` is their last trade price (0 if they never traded).
+- `shares_held()` (query 692) lists the shares your company holds, its own included. Each is `{company, units, dividends, price}`, where `dividends` is what those shares have paid you so far and `price` is what a share is worth: the average price of their trades over the last three game days (weighted by shares; the last trade price if none traded then) (0 if they never traded).
 - `shareholders(company)` (query 693) lists who holds a company's shares, most first: `{company, units}`.
 - `share_trades(company)` (query 694) lists its last 20 trades, newest first: `{price, units, seller, buyer, day}`.
 - `share_price(company)` is the last trade price, or `nil` if its shares never traded.
 - `shares_for_sale()` (query 696) lists every sell order for shares that can sell now, any company's, cheapest first: `{company, price, units, seller, sales}`. `sales` is the company's sales income after tax a day, averaged over the last 7 game days (or its life, if younger), so a share of it earns about `sales / share_count(company)` a day (`sales / 1000` until the company issues new shares). `examples/companies/investor.lua` is a company that lives on this.
 
-The company's page on the website shows the same, and net wealth on the leaderboard counts the shares you hold in other companies at their last trade price.
+The company's page on the website shows the same, and net wealth on the leaderboard counts the shares you hold in other companies at the average price of their trades over the last three game days (weighted by shares; the last trade price if none traded then). So one odd trade, a couple of shares between your own companies or one panic sale at 1, doesn't move every holder's wealth (#513).
 
 **When a company fails**, its own shares are worth nothing: it earns nothing more, so they count 0 in its holders' net wealth, its orders and offerings close, and they can't be traded (#493). The shares it held in other companies go to the House. The House goes on collecting their income and posts sell orders for them at about 30 days' worth of their recent income.
 
@@ -1123,13 +1128,18 @@ A commitment is refused if there's no open offering (or it's your own company's)
 
 **Finding offerings.** `share_offerings()` (query 697) lists every open offering, soonest deadline first: `{company, units, price, left, hours, count, sales, mine, min}`. `units` is the most new shares it offers, `left` how many are still uncommitted, `hours` the game hours until its deadline, `count` the company's shares now, `sales` its sales income after tax a day (7-day average), `mine` how many your company has committed, and `min` the fewest it issues at the deadline. An offering with `units - left >= min` already has its minimum: your commitment will become shares. `share_count(company)` (query 698) is a company's shares in all.
 
-<a name="company-health"></a>**Is it healthy?** A share is worth something only while the company's drones keep working: a company whose drones run out of fuel ends, and its shares are worth 0. `company_health(company)` (query 699; your own if you leave it out) says how it stands: `{working, wrecked, fuel, lowest, used, days, credits}`. `fuel` is the fuel aboard its working drones and `lowest` the least aboard one; `used` is what they used over the last game day; `days` is how many game days until its first drone runs dry at the last day's net fall in fuel (what it used less what it bought), or -1 when no drone's fuel is falling. A company with a few days of fuel and few credits to buy more is in trouble. The Stock exchange page, the company page and the API's `health` show the same, and flag a company **at risk** when it has no working drone, or a drone that runs dry within 3 game days while it has under 500 credits.
+<a name="company-health"></a>**Is it healthy?** A share is worth something only while the company's drones keep working: a company whose drones are wrecked ends, and its shares are worth 0, and one whose drones are stranded without fuel earns nothing. `company_health(company)` (query 699; your own if you leave it out) says how it stands: `{working, wrecked, fuel, lowest, used, days, credits, idle, stalled}`. `fuel` is the fuel aboard its working drones and `lowest` the least aboard one; `used` is what they used over the last game day; `days` is how many game days until its first drone runs dry at the last day's net fall in fuel (what it used less what it bought), or -1 when no drone's fuel is falling. `idle` is the game hours since any of its drones last bought, sold, mined, refined or made something other than fuel, and `stalled` is true when that is a game day or more: a company that has quietly stopped earning (round 57: two companies sat "short of credits" for 20 game days before their owners noticed). The Stock exchange page, the company page and the API's `health` show the same, flag a company **at risk** when it has no working drone, or a drone that runs dry within 3 game days while it has under 500 credits, and say why (`at_risk_reason`). The company page also lists each idle drone with what its script last said (`set_status`) and what it holds.
+
+The flag is a warning, not a verdict: a company at risk may sell its goods and buy fuel tomorrow. If you sell, sell at a fair price. Selling everything at 1 knocks the price down for every holder, you included (round 57: one investor's panic sale took a company's shares from 5 to 1).
 
 ```lua
--- Sell out of a company that is running dry
+-- Sell out of a company that has stopped working and is running dry, at
+-- half what a share is worth (its last 3 days' average price), not at 1
 local h = company_health(c)
-if h.working == 0 or (h.days >= 0 and h.days <= 3 and h.credits < 500) then
-  sell_shares(c, 0, 1)
+if h.working > 0 and h.stalled and h.days >= 0 and h.days <= 3 then
+  for _, held in ipairs(shares_held()) do
+    if held.company == c then sell_shares(c, 0, math.max(1, held.price // 2)) end
+  end
 end
 ```
 
@@ -1286,7 +1296,7 @@ end
 
 ### Limits and costs
 
-- **Thinking costs fuel:** 1 fuel for every 200,000 instructions, and each Lua instruction counts as six, so a fuel pays for about 33,000 Lua instructions. Each query and each action counts as 1,000. A loop that asks the market a hundred times a round burns fuel fast; one that asks once and waits is nearly free.
+- **Thinking costs credits:** the processor tax is 15 credits for every million instructions its drones run, and each Lua instruction counts as six. Each query and each action counts as 1,000. A loop that asks the market a hundred times a round runs up the tax fast; one that asks once and waits is nearly free. A company that can't pay runs throttled (a turn a game hour) until it has paid.
 - **A turn is 100,000 instructions** (about 16,700 Lua instructions). A drone that thinks longer pauses and carries on at its next turn.
 - **The top level may run 2 million Lua instructions** while the script loads. Past that, loading fails with "the script's top level ran more than 2000000 instructions": put the work in functions that `launched` calls.
 - **Memory:** your drone's Lua may hold 256 KB. A script that keeps growing a table stops with "not enough memory", and restarts like any crash.
@@ -1509,7 +1519,7 @@ function loops()
 end
 ```
 
-`break` leaves the loop it is in at once. `while true do ... end` runs forever: it is how `launched` keeps a drone working. Put an action in it (a `wait`, a trip, a mining run), or the drone burns fuel thinking:
+`break` leaves the loop it is in at once. `while true do ... end` runs forever: it is how `launched` keeps a drone working. Put an action in it (a `wait`, a trip, a mining run), or the drone thinks without stopping and runs up the processor tax:
 
 ```lua
 function launched()
@@ -1539,7 +1549,7 @@ You can't change a drone once it's released, but its market will change: deposit
 
 Query 682 gives `sold`'s numbers for every place at once, with the day's average price. For other places, the public price board, query 680, reports the game day up to an hour ago: units, credits and trades by place. A buyer pays less as its stock fills: when many drones sell to the same buyer, the board shows it. Query 620 gives the volume traded here, and `trip` how long a trip takes.
 
-Each of these functions asks the game afresh, every time: `buy_price` asks for `me()` (query 205) and the order list. That is cheap, but not free (asking runs instructions, and instructions burn fuel), and the answer can change between two calls. In a loop, ask once, keep the price in a local variable, and decide from that.
+Each of these functions asks the game afresh, every time: `buy_price` asks for `me()` (query 205) and the order list. That is cheap, but not free (asking runs instructions, and your company pays processor tax on them), and the answer can change between two calls. In a loop, ask once, keep the price in a local variable, and decide from that.
 
 **Decide again on arrival.** A trip can take days, and the market you chose it for has moved by the time you land: a deposit others mined out, a buy order someone filled. A drone that picks its next job when it arrives, from what it sees there, does better than one that planned everything before it left.
 

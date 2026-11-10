@@ -20,6 +20,7 @@
 #include <ctype.h>
 #include <stdbool.h>
 
+#include "compute.h"
 #include "engine.h"
 #include "wrap.h"
 #include "game_time.h"
@@ -544,6 +545,7 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
     db_get_agent_loading(&engine.db_connection, engine.last_command.agent_id, &loading, &used_so_far);
     g_slice_instructions = vm_meter_slice_budget(loading, used_so_far,
         atoll((const char*)engine.config.params[LOAD_INSTRUCTIONS]), engine_get_max_cycle_instructions());
+
 
     if(engine.last_agent.is_lua)
     {
@@ -1297,6 +1299,13 @@ ErrorCode_t engine_run()
 
                 // When we yield - insert special command to indicate that we need to resume later
                 engine_insert_db_command(engine.config.params[VM_RESUME_COMMAND]);
+                // A drone whose company owes processor tax (#544) thinks at
+                // most a turn a game hour until it has paid: a broke company
+                // can't keep the server busy, and nothing is wrecked for it
+                TurnRow_t* turn = db_turn_row(engine.last_command.agent_id);
+                if(turn && turn->throttled && !turn->loading)
+                    db_delay_resume_commands(&engine.db_connection, engine.last_command.agent_id,
+                                             COMPUTE_THROTTLE_SECONDS);
             }
             else if(g_ran_on_vm)
             {

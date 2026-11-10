@@ -109,6 +109,35 @@ class SharesTest extends TestCase
         $this->assertSame(0, Shares::holdingsValue()[$issuer->company_id] ?? 0);
     }
 
+    public function testNetWealthValuesSharesAtTheLastThreeDaysAverage()
+    {
+        // #513: one odd trade doesn't set every holder's value
+        $user = User::create(['name' => 'Investor', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
+        $holder = Release::release($user, 'Holder Co', 'function launched() end');
+        $issuer = Release::release($user, 'Listed Co', 'function launched() end');
+        $other = Release::release($user, 'Dumper Co', 'function launched() end');
+        $now = \App\Services\World::gameNow();
+        $trade = function ($seller, $buyer, $units, $price, $ago) use ($issuer, $now) {
+            Shares::transfer($issuer->company_id, $seller, $buyer, $units);
+            DB::table('share_trades')->insert(['share_company' => $issuer->company_id, 'seller' => $seller, 'buyer' => $buyer,
+                'units' => $units, 'price' => $price, 'game_t' => $now - $ago]);
+        };
+        // 200 traded at 10 two days ago; then a panic sale of 10 at 1
+        $trade($issuer->company_id, $holder->company_id, 100, 10, 2 * 86400);
+        $trade($issuer->company_id, $other->company_id, 100, 10, 2 * 86400);
+        $trade($other->company_id, $holder->company_id, 10, 1, 3600);
+        $this->assertSame(1, Shares::lastPrices()[$issuer->company_id]);
+        // (200 × 10 + 10 × 1) ÷ 210 = 9.57, so 10
+        $this->assertSame(10, Shares::valuePrices()[$issuer->company_id]);
+        $this->assertSame(110 * 10, Shares::holdingsValue()[$holder->company_id]);
+        $summary = Shares::summary($holder->company_id);
+        $this->assertSame([1, 10, 1100], [$summary['holdings'][0]['price'], $summary['holdings'][0]['value_price'],
+            $summary['holdings'][0]['value']]);
+        // Trades older than 3 days don't count: then the last price is all there is
+        DB::table('share_trades')->where('share_company', $issuer->company_id)->update(['game_t' => $now - 5 * 86400]);
+        $this->assertSame(1, Shares::valuePrices()[$issuer->company_id]);
+    }
+
     public function testTheCompanyPageAndApiShowTheShares()
     {
         $user = User::create(['name' => 'Investor', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);

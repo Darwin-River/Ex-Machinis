@@ -93,4 +93,36 @@ class LeaderboardTest extends TestCase
             ->assertSeeInOrder(['Rich Co', '9,000', 'Poor Co'])
             ->assertDontSee($rich->name);
     }
+
+    /** #548: age in game days, a max-age filter, and a company ranked among its age or younger */
+    public function testAgeFilterAndPeerRank()
+    {
+        $now = \App\Services\World::gameNow();
+        $old = Release::release($this->player('old@example.com', 'Old Timer'), 'Old Rich Co', ': launched ;');
+        $young = Release::release($this->player('young@example.com', 'Young One'), 'Young Co', ': launched ;');
+        $this->assertSame(0.0, Leaderboard::wealth()[$young->company_id]['age'], 'a release is founded now');
+        DB::table('companies')->where('company_id', $old->company_id)
+            ->update(['founded_t' => $now - 4000 * 86400, 'credits' => DB::raw('credits + 100000')]);
+        DB::table('companies')->where('company_id', $young->company_id)
+            ->update(['founded_t' => $now - 2 * 86400, 'credits' => DB::raw('credits + 50')]);
+
+        $this->assertEqualsWithDelta(4000.0, Leaderboard::wealth()[$old->company_id]['age'], 0.1);
+        $young10 = array_column(Leaderboard::allTime(500, 10), 'company_id');
+        $this->assertContains($young->company_id, $young10);
+        $this->assertNotContains($old->company_id, $young10, 'an older company is left out');
+        $this->assertNotContains($old->company_id, array_column(Leaderboard::rising(500, 10), 'company_id'));
+
+        $rank = Leaderboard::peerRank($young->company_id);
+        $this->assertEqualsWithDelta(2.0, $rank['age'], 0.1);
+        $all = array_column(Leaderboard::allTime(500), 'company_id');
+        $this->assertLessThan(array_search($young->company_id, $all) + 1, $rank['rank'], 'the older, richer company doesn\'t count');
+        $this->assertLessThan(count($all), $rank['of']);
+        $this->assertSame(count($all), Leaderboard::peerRank($old->company_id)['of'], 'the oldest is ranked among all');
+
+        $this->get('/leaderboard?max_age=10')->assertOk()->assertSee('Young Co')->assertDontSee('Old Rich Co');
+        $this->getJson('/api/v1/leaderboard?max_age=10&limit=500')->assertOk()
+            ->assertJsonFragment(['company' => 'Young Co'])->assertJsonMissing(['company' => 'Old Rich Co']);
+        $this->get('/companies/' . $young->company_id)->assertOk()->assertSee('game days old', false);
+        $this->getJson('/api/v1/companies/' . $young->company_id)->assertOk()->assertJsonPath('peer_rank.rank', $rank['rank']);
+    }
 }

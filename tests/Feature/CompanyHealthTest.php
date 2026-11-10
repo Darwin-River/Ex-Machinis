@@ -41,6 +41,9 @@ class CompanyHealthTest extends TestCase
         $this->assertSame([1, 0, 30, 30, 10, 3, 200], [$h['working'], $h['wrecked'], $h['fuel'], $h['lowest'], $h['used'],
             $h['days'], $h['credits']]);
         $this->assertTrue($h['at_risk'], '3 days of fuel and 200 credits');
+        // #541: it says why
+        $this->assertSame("a drone runs dry in about 3 game days at the last day's fall in fuel, with 200 credits to buy more",
+            $h['at_risk_reason']);
 
         // Buying fuel back up to where it was: no fall, so no deadline
         $this->fuelEvent($drone, 1, 40, 3600);
@@ -54,6 +57,33 @@ class CompanyHealthTest extends TestCase
         $this->get('/companies/' . $company)->assertOk()->assertSee('Health: 1 working drone');
     }
 
+    public function testACompanyWhoseDronesStopWorkingIsStalled()
+    {
+        // #540: no goods bought, sold, mined or made for a game day
+        $user = User::create(['name' => 'Health', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
+        $agent = Release::release($user, 'Gone Quiet', 'function launched() end');
+        $drone = (int) $agent->agent_id;
+        DB::table('agents')->where('agent_id', $drone)->update(['script_status' => 'short of credits']);
+        // Its last metals: 30 game hours ago; fuel bought since doesn't count
+        DB::table('events')->insert(['event_type' => 1, 'action' => 0, 'outcome' => 1, 'drone' => $drone,
+            'resource' => 2011, 'installed' => 0, 'locked' => 0, 'new_quantity' => 16, 'game_t' => World::gameNow() - 30 * 3600]);
+        $this->fuelEvent($drone, 1, 50, 3600);
+        $h = CompanyHealth::of((int) $agent->company_id);
+        $this->assertSame(30, $h['idle']);
+        $this->assertTrue($h['stalled']);
+        $drones = CompanyHealth::drones((int) $agent->company_id);
+        $this->assertSame([30, 'short of credits'], [$drones[0]['idle'], $drones[0]['status']]);
+        $this->get('/companies/' . $agent->company_id)->assertOk()->assertSee('Stalled:')->assertSee('short of credits');
+        $this->getJson('/api/v1/companies/' . $agent->company_id)->assertJsonPath('health.stalled', true)
+            ->assertJsonPath('health.drones.0.idle', 30);
+        // A sale an hour ago: working again
+        DB::table('events')->insert(['event_type' => 2, 'action' => 0, 'outcome' => 1, 'drone' => $drone,
+            'resource' => 2011, 'installed' => 0, 'locked' => 0, 'new_quantity' => 0, 'game_t' => World::gameNow() - 3600]);
+        $h = CompanyHealth::of((int) $agent->company_id);
+        $this->assertSame(1, $h['idle']);
+        $this->assertFalse($h['stalled']);
+    }
+
     public function testACompanyWithNoWorkingDroneIsAtRisk()
     {
         $user = User::create(['name' => 'Health', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
@@ -62,5 +92,7 @@ class CompanyHealthTest extends TestCase
         $h = CompanyHealth::of((int) $agent->company_id);
         $this->assertSame([0, 1], [$h['working'], $h['wrecked']]);
         $this->assertTrue($h['at_risk']);
+        $this->assertSame('no working drone', $h['at_risk_reason']);
+        $this->assertFalse($h['stalled']);
     }
 }

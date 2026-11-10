@@ -18,6 +18,11 @@ use Illuminate\Support\Facades\Schema;
  * three game days (#380: it was the House stations' price); a packed
  * starter kit is worth its contents. Rising is the gain over the last real week, from the hourly
  * snapshots.
+ *
+ * Age (#548): game days since the company was founded (founded_t). Either
+ * board can compare only companies up to a given age, so a new company isn't
+ * eclipsed by ones that simply had longer to grow; a company's page ranks it
+ * among companies its age or younger.
  */
 class Leaderboard
 {
@@ -75,10 +80,13 @@ class Leaderboard
         $prices = self::prices();
         $kit = self::kitValue($prices);
         $rows = [];
+        $now = World::gameNow();
         // The House (#380: its station drones' company) isn't a player
-        foreach (DB::table('companies')->whereNull('eliminated_at')->where('house', 0)->get(['company_id', 'name', 'credits']) as $c) {
+        foreach (DB::table('companies')->whereNull('eliminated_at')->where('house', 0)
+                     ->get(['company_id', 'name', 'credits', 'founded_t']) as $c) {
             $rows[$c->company_id] = ['company_id' => (int) $c->company_id, 'company' => $c->name, 'drone' => null,
-                'name' => null, 'drones' => 0, 'wealth' => (int) $c->credits - $kit];
+                'name' => null, 'drones' => 0, 'wealth' => (int) $c->credits - $kit,
+                'age' => self::age($c->founded_t, $now)];
         }
         // The released drone: the company's first, a launched clone's ancestor
         foreach (DB::table('agents')->whereIn('company_id', array_keys($rows))->groupBy('company_id')
@@ -109,6 +117,12 @@ class Leaderboard
                 $rows[$co]['wealth'] += $value;
             }
         }
+        // Processor tax it owes (#544) counts against it
+        foreach (ProcessorTax::debts() as $co => $debt) {
+            if (isset($rows[$co])) {
+                $rows[$co]['wealth'] -= $debt;
+            }
+        }
         // Credits committed to offerings of new shares, held at the exchange
         // until the shares are issued or the offering is refunded (#485)
         foreach (DB::table('share_commitments')->groupBy('investor')
@@ -120,10 +134,22 @@ class Leaderboard
         return array_filter($rows, fn ($row) => $row['drone'] !== null);
     }
 
-    /** The all-time board, richest first */
-    public static function allTime(int $limit = 50): array
+    /** Game days since founded_t, to a tenth (#548); 0 when it has none */
+    public static function age($foundedT, int $now): float
     {
-        $rows = array_values(self::wealth());
+        return $foundedT === null ? 0.0 : round(max(0, $now - (int) $foundedT) / 86400, 1);
+    }
+
+    /** Only the companies up to maxAge game days old (#548); all of them when null */
+    private static function upTo(array $rows, ?float $maxAge): array
+    {
+        return $maxAge === null ? $rows : array_filter($rows, fn ($row) => $row['age'] <= $maxAge);
+    }
+
+    /** The all-time board, richest first; maxAge: only companies up to that many game days old (#548) */
+    public static function allTime(int $limit = 50, ?float $maxAge = null): array
+    {
+        $rows = array_values(self::upTo(self::wealth(), $maxAge));
         usort($rows, fn ($a, $b) => [$b['wealth'], $a['drone']] <=> [$a['wealth'], $b['drone']]);
         return array_slice($rows, 0, $limit);
     }
@@ -132,7 +158,7 @@ class Leaderboard
      * Rising: the gain over the last real week (since the latest snapshot at
      * least a week old; a company that started within the week, since 0)
      */
-    public static function rising(int $limit = 50): array
+    public static function rising(int $limit = 50, ?float $maxAge = null): array
     {
         $since = now()->subDays(7);
         $before = [];
@@ -144,12 +170,31 @@ class Leaderboard
             })->pluck('s.wealth', 's.company_id')->all();
         }
         $rows = [];
-        foreach (self::wealth() as $co => $row) {
+        foreach (self::upTo(self::wealth(), $maxAge) as $co => $row) {
             $row['gain'] = $row['wealth'] - (int) ($before[$co] ?? 0);
             $rows[] = $row;
         }
         usort($rows, fn ($a, $b) => [$b['gain'], $a['drone']] <=> [$a['gain'], $b['drone']]);
         return array_slice($rows, 0, $limit);
+    }
+
+    /**
+     * A company's place on the all-time board among companies its age or
+     * younger (#548): [rank, of, age], or null when it isn't on the board
+     * (ended, or the House). An older company that simply had longer to grow
+     * doesn't count against it.
+     */
+    public static function peerRank(int $companyId, ?array $rows = null): ?array
+    {
+        $rows ??= self::wealth();
+        if (!isset($rows[$companyId])) {
+            return null;
+        }
+        $me = $rows[$companyId];
+        $peers = array_values(self::upTo($rows, $me['age']));
+        usort($peers, fn ($a, $b) => [$b['wealth'], $a['drone']] <=> [$a['wealth'], $b['drone']]);
+        $rank = 1 + (int) array_search($companyId, array_column($peers, 'company_id'), true);
+        return ['rank' => $rank, 'of' => count($peers), 'age' => $me['age']];
     }
 
     /** Takes the hourly snapshot when it is due; returns whether it did */

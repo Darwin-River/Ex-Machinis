@@ -43,13 +43,15 @@ class WorldController extends Controller
     }
 
     /** The leaderboard (#324 step 18): net wealth, all time and Rising */
-    public function leaderboard()
+    public function leaderboard(\Illuminate\Http\Request $request)
     {
         Leaderboard::snapshotIfDue();
-        $allTime = Leaderboard::allTime();
-        $rising = Leaderboard::rising();
+        // Only companies up to this many game days old (#548)
+        $maxAge = is_numeric($request->query('max_age')) ? max(0, (float) $request->query('max_age')) : null;
+        $allTime = Leaderboard::allTime(50, $maxAge);
+        $rising = Leaderboard::rising(50, $maxAge);
         $kit = Leaderboard::kitValue(Leaderboard::prices());
-        return view('world.leaderboard', compact('allTime', 'rising', 'kit'));
+        return view('world.leaderboard', compact('allTime', 'rising', 'kit', 'maxAge'));
     }
 
     /** The game's queries: how many parameters each takes (#380) */
