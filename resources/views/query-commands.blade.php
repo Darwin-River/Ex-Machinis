@@ -3,10 +3,10 @@
 @section('pageTitle', $title)
 @section('content')
 
-    <section class="section section-xs section-first bg-default text-md-left">
+    <x-page-header :title="$title" />
+    <section class="section section-xs section-first text-md-left">
 
         <div class="container" id="container">
-            <h1>{{$title}}</h1>
 
             <p>Queries let a drone look things up in the game's database: what is in its hold, prices and orders where it is, deposits, trips, the game day and more. Each description starts with the drone library's function that asks it, such as <code>sell_orders(N)</code> or <code>trip_to(P)</code>, which returns plain values or records with named fields (see the players' manual, chapter 8). Then comes <code>ask(id, ...)</code>, which asks any query by its ID, with its parameters after the ID, and returns its rows, each a table of its columns (by position, and by name), or an empty table if the query fails; <code>query(id, ...)</code> is the same but returns <code>nil</code> and a code when it fails.</p>
 

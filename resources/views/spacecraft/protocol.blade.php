@@ -2,10 +2,10 @@
 @php $title = $protocol->name; @endphp
 @section('pageTitle', $title)
 @section('content')
-    <section class="section section-xs section-first bg-default text-md-left">
+    <x-page-header :title="$title" />
+    <section class="section section-xs section-first text-md-left">
         <div class="container" id="container">
             <p><a href="{{ url('/protocols') }}">Protocols</a> / {{ $protocol->id }}</p>
-            <h1>{{ $title }}</h1>
 
             <p>{{ $protocol->description }}</p>
 

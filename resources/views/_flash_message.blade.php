@@ -1,6 +1,6 @@
-<div class="container flash ">
-    <div class="row ">
-        <div class="col ">
+<div class="container flash">
+    <div class="row">
+        <div class="col">
             @if ($message = Session::get('success'))
                 <div class="alert alert-success alert-block mt-3">
                     <button type="button" class="close" data-dismiss="alert">×</button>

@@ -21,23 +21,11 @@
 @endpush
 @section('content')
     <!-- Breadcrumbs-->
-    <section class="breadcrumbs-modern box-transform-wrap bg-image context-dark"
-             style="background-image: url(/images/bg-breadcrumbs.jpg);">
-        <div class="container">
-            <div class="breadcrumbs-modern-body">
-                <h1 class="breadcrumbs-modern-title">{{ $title }}</h1>
-            </div>
-            <ul class="breadcrumbs-path breadcrumbs-modern-path">
-                <li><a href="/">Home</a></li>
-                <li class="active">{{ $title }}</li>
-            </ul>
-        </div>
-        <div class="box-transform" style="background-image: url(/images/bg-breadcrumbs.jpg);"></div>
-        <div class="comets comets-left"></div>
-        <div class="comets comets-center"></div>
-        <div class="comets comets-top"></div>
-    </section>
-    <section class="section section-lg bg-default">
+    <x-page-header>
+        <x-slot:title>{{ $title }}</x-slot:title>
+        <li class="active">{{ $title }}</li>
+    </x-page-header>
+    <section class="section section-lg">
         <div class="container">
             <div class="row">
                 {{-- config/support.php (#522) --}}

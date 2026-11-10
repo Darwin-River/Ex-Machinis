@@ -2,9 +2,9 @@
 @section('pageTitle', 'Map')
 @section('content')
     {{-- The Map (#324 step 17): the planets where they are now, and the drones around each --}}
-    <section class="section section-xs section-first bg-default text-md-left">
+    <x-page-header :title="'Map'" />
+    <section class="section section-xs section-first text-md-left">
         <div class="container" id="container">
-            <h2>Map</h2>
             <div style="white-space: normal; margin-bottom: 1em">
                 The planets where they are now, seen from above (distances on a log scale). Each shows the working
                 drones and the wrecks around it, its moons included.

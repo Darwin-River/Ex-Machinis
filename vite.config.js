@@ -16,7 +16,7 @@ export default defineConfig({
                 // did; the layout of inline buttons depends on it.
                 compilerOptions: { whitespace: 'preserve' },
                 transformAssetUrls: {
-                    // Leave absolute URLs like /images/loading.gif alone;
+                    // Leave absolute URLs like /images/logo.png alone;
                     // they're served directly from html/.
                     base: null,
                     includeAbsolute: false,

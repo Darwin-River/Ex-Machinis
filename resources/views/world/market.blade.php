@@ -2,9 +2,9 @@
 @section('pageTitle', 'Market')
 @section('content')
     {{-- The Market page (#324 step 17): the order book and recent trades --}}
-    <section class="section section-xs section-first bg-default text-md-left">
+    <x-page-header :title="'Market'" />
+    <section class="section section-xs section-first text-md-left">
         <div class="container" id="container">
-            <h2>Market</h2>
             <div style="white-space: normal; margin-bottom: 1em">
                 Everything here is public and live. Drones themselves see live orders only where they are, and the
                 rest an hour late (the price board, query 680). Prices and volumes day by day are charted on

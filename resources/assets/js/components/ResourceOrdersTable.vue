@@ -7,11 +7,11 @@
                         <input class="form-input input-md" id="location" v-model="location"
                                type="text"
                                name="agent_name">
-                        <label class="form-label rd-input-label" for="location">Location</label>
+                        <label class="form-label" for="location">Location</label>
                     </div>
                 </div>
                 <div class="col-md-3 col-sm-6 col-6 mt-0 mt-md-0">
-                    <button class="button button-sm button-primary " type="submit"
+                    <button class="button button-sm button-primary" type="submit"
                             id="update_button">Update
                     </button>
                     <button class="button button-sm button-secondary mt-0 ml-lg-1 ml-xl-2 d-none d-lg-inline-block"
@@ -21,8 +21,8 @@
             </div>
         </form>
 
-        <img src="/images/loading.gif" id="table_preloader" v-show="loading"/>
-        <div v-bind:class="'table-responsive '+(loading?' loading-table ':'') ">
+        <div class="spinner" id="table_preloader" v-show="loading" role="status" aria-label="Loading"></div>
+        <div v-bind:class="'table-responsive '+(loading?' loading-table ':'')">
             <data-table :api-url="dataUrl" :fields="fields"
                       @loading="startLoading"
                       @loaded="stopLoading" ref="vuetable" :append-params="extraParams"
@@ -123,10 +123,10 @@
             css: {
                 table: {
                     tableClass: 'small-version table-custom table-custom-striped table-custom-primary ui blue selectable unstackable celled table',
-                    ascendingIcon: 'icon mdi mdi-chevron-up',
-                    descendingIcon: 'icon mdi mdi-chevron-down',
-                    sortableIcon: 'icon mdi mdi-swap-vertical',
-                    handleIcon: 'icon mdi mdi-hand-left',
+                    ascendingIcon: 'icon-asc',
+                    descendingIcon: 'icon-desc',
+                    sortableIcon: 'icon-sortable',
+                    handleIcon: '',
                     loadingClass: 'loading',
                 },
                 pagination: {}

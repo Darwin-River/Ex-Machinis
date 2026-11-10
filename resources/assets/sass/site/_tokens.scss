@@ -1,0 +1,86 @@
+// Colours and type. Change the look of the whole site here.
+
+$space-900: #0b0f1a;   // the page
+$space-800: #111729;   // panels, header, footer
+$space-700: #19213a;   // raised panels, table headers
+$space-600: #263052;   // borders on raised panels
+$line: rgba(255, 255, 255, 0.1);
+
+$text: #e6e9f2;
+$muted: #9aa3b8;
+
+$thrust: #ffb547;      // amber: actions and links
+$thrust-dark: #e89a24;
+$telemetry: #4cc9f0;   // cyan: data and highlights
+$ok: #5ad19a;
+$warn: #ffd166;
+$alarm: #ff6b6b;
+
+$font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+$font-heading: "Space Grotesk", $font-body;
+$font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+$radius: 0.5rem;
+
+// Bootstrap's own settings, from ours
+$body-bg: $space-900;
+$body-color: $text;
+$primary: $thrust;
+$secondary: $space-600;
+$info: $telemetry;
+$success: $ok;
+$warning: $warn;
+$danger: $alarm;
+$dark: $space-800;
+$link-color: $thrust;
+$link-hover-color: lighten($thrust, 10%);
+$border-color: $line;
+$font-family-sans-serif: $font-body;
+$font-family-monospace: $font-mono;
+$headings-font-family: $font-heading;
+$headings-font-weight: 700;
+$border-radius: $radius;
+$code-color: $telemetry;
+$text-muted: $muted;
+$hr-border-color: $line;
+
+$table-color: $text;
+$table-border-color: $line;
+$table-accent-bg: rgba(255, 255, 255, 0.03);
+$table-hover-bg: rgba(76, 201, 240, 0.08);
+
+$input-bg: $space-800;
+$input-color: $text;
+$input-border-color: $space-600;
+$input-placeholder-color: $muted;
+$input-focus-bg: $space-800;
+$input-focus-color: $text;
+$input-focus-border-color: $telemetry;
+$input-focus-box-shadow: 0 0 0 0.2rem rgba(76, 201, 240, 0.25);
+$custom-select-bg: $space-800;
+$custom-select-color: $text;
+
+$dropdown-bg: $space-800;
+$dropdown-border-color: $space-600;
+$dropdown-link-color: $text;
+$dropdown-link-hover-color: $text;
+$dropdown-link-hover-bg: $space-700;
+$dropdown-link-active-bg: $space-700;
+$dropdown-link-active-color: $thrust;
+
+$pagination-bg: $space-800;
+$pagination-color: $text;
+$pagination-border-color: $space-600;
+$pagination-hover-bg: $space-700;
+$pagination-hover-color: $thrust;
+$pagination-hover-border-color: $space-600;
+$pagination-active-bg: $thrust;
+$pagination-active-color: $space-900;
+$pagination-active-border-color: $thrust;
+
+$card-bg: $space-800;
+$card-border-color: $line;
+$close-color: $text;
+$alert-bg-level: -10;
+$alert-border-level: -6;
+$alert-color-level: 6;

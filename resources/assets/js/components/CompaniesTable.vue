@@ -4,10 +4,10 @@
             <div class="row mt-4 mb-4">
                 <div class="col-md-3 col-sm-6 col-6">
                     <div class="form-wrap form-sm">
-                        <input class="form-input form-control-has-validation input-md" id="company_id" v-model="companyId"
+                        <input class="form-input input-md" id="company_id" v-model="companyId"
                                type="text"
                                name="object_id" data-constraints="@Numeric ">
-                        <label class="form-label rd-input-label" for="company_id">Id</label>
+                        <label class="form-label" for="company_id">Id</label>
                     </div>
                 </div>
                 <div class="col-md-3 col-sm-6 col-6">
@@ -15,11 +15,11 @@
                         <input class="form-input input-md" id="company_name" v-model="companyName"
                                type="text"
                                name="agent_name">
-                        <label class="form-label rd-input-label" for="company_name">Name</label>
+                        <label class="form-label" for="company_name">Name</label>
                     </div>
                 </div>
                 <div class="col-md-3 col-sm-6 col-6 mt-2 mt-md-0">
-                    <button class="button button-sm button-primary " type="submit"
+                    <button class="button button-sm button-primary" type="submit"
                             id="update_button">Update
                     </button>
                     <button class="button button-sm button-secondary mt-0 ml-lg-1 ml-xl-2 d-none d-lg-inline-block"
@@ -29,8 +29,8 @@
             </div>
         </form>
 
-        <img src="/images/loading.gif" id="table_preloader" v-show="loading"/>
-        <div v-bind:class="'table-responsive '+(loading?' loading-table ':'') ">
+        <div class="spinner" id="table_preloader" v-show="loading" role="status" aria-label="Loading"></div>
+        <div v-bind:class="'table-responsive '+(loading?' loading-table ':'')">
             <data-table api-url="/companies/search" :fields="fields"
                       @pagination-data="onPaginationData" @loading="startLoading"
                       @loaded="stopLoading" ref="vuetable" :append-params="extraParams"
@@ -133,10 +133,10 @@
             css: {
                 table: {
                     tableClass: 'table-custom table-custom-striped table-custom-primary ui blue selectable unstackable celled',
-                    ascendingIcon: 'icon mdi mdi-chevron-up',
-                    descendingIcon: 'icon mdi mdi-chevron-down',
-                    sortableIcon: 'icon mdi mdi-swap-vertical',
-                    handleIcon: 'icon mdi mdi-hand-left',
+                    ascendingIcon: 'icon-asc',
+                    descendingIcon: 'icon-desc',
+                    sortableIcon: 'icon-sortable',
+                    handleIcon: '',
                     loadingClass: 'loading',
                 },
                 pagination: {}
