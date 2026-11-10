@@ -1,4 +1,7 @@
 # Ex Machinis Web Design Manual
+
+> **Historical.** This is the 2019 plan for the website, from when the game was played by email. Today's site has no accounts or email play, and its design is described in the [open-source pathway](open-source-pathway.md#the-websites-design); the pages themselves are listed in the [design manual](design-manual.md).
+
 Ex Machinis is an information intensive multiplayer sapace game. The game is played primarily by building and programming fleets of autonomous spacecraft via email. These spacecraft are capable of accessing, acting, and reporting on the contents of an extensive in-game database. The database holds searchable information on planets, moons, commets, spacracft, resources, and markets.  However, in addition to accessing this information via their spacecraft, players and visitors will be able to browse the game's data sets via a visually intuitive web interface.
 
 # Primary Objectives
