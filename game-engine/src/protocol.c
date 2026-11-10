@@ -1099,9 +1099,10 @@ static ErrorCode_t protocol_execute_action(int protocolId, VmExtension_t* vmExt)
   // price), price on top (0 withdraws). Pull, push: perform(43|44, units,
   // company, other company). The request goes to the Earth exchange at the
   // speed of light; its Share event settles it there
-  // Offerings of new shares (#485): perform(45, units, price, days) offers
-  // the drone's company's (0 units withdraws it; the days ride as the
-  // counterparty), perform(46, units, company) commits to another's
+  // Offerings of new shares (#485): perform(45, min, units, price, days)
+  // offers the drone's company's, up to units and at least min (#516; 0
+  // units withdraws it; the days ride as the counterparty, the minimum as
+  // the share company), perform(46, units, company) commits to another's
   int share_kind = protocol.protocol_id == SHARE_SELL_ORDER_PROTOCOL_ID ? 1 :
                    protocol.protocol_id == SHARE_BUY_ORDER_PROTOCOL_ID ? 2 :
                    protocol.protocol_id == SHARE_PULL_PROTOCOL_ID ? 3 :
@@ -1114,6 +1115,7 @@ static ErrorCode_t protocol_execute_action(int protocolId, VmExtension_t* vmExt)
       share_other = protocol.parameters[0];
       share_price = protocol.parameters[1];
       share_units = protocol.parameters[2];
+      share_company = protocol.parameters[3];   /* its minimum (#516) */
     } else if(share_kind == 6) {
       share_company = protocol.parameters[0];
       share_units = protocol.parameters[1];
@@ -1127,7 +1129,8 @@ static ErrorCode_t protocol_execute_action(int protocolId, VmExtension_t* vmExt)
       share_units = protocol.parameters[2];
     }
     int ok = share_kind == 5 ? (share_units == 0 || (share_units > 0 && share_price > 0 && share_other >= 1 &&
-                                                     share_other <= OFFER_MAX_DAYS)) :
+                                                     share_other <= OFFER_MAX_DAYS &&
+                                                     share_company >= 1 && share_company <= share_units)) :
              share_kind == 6 ? (share_units > 0 && db_company_trading(share_company)) :
              share_kind <= 2 ?
       (share_price == 0 || (share_price > 0 && share_units >= 0 &&

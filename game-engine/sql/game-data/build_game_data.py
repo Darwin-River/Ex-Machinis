@@ -558,15 +558,19 @@ for pid, verb, args, what in (
         {'time': 0, 'drone': 0, 'resource': FUEL, 'event_type': SHARE_EVENT, 'local': 1, 'installed': 0,
          'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': 0}])
 
-# Offerings of new shares (#485): a company offers N new shares at P credits
-# each for D game days (45; N 0 withdraws it, refunding everyone); other
-# companies commit to it (46), paying when they commit. Covered, the shares
-# are created and the company paid; lapsed, every commitment is refunded.
+# Offerings of new shares (#485): a company offers up to N new shares, at
+# least M (#516), at P credits each for D game days (45; N 0 withdraws it,
+# refunding everyone); other companies commit to it (46), paying when they
+# commit. Fully covered, the shares are created and the company paid at once;
+# at the deadline, with at least M committed, the committed shares are; short
+# of M, every commitment is refunded.
 # Like the share exchange, each travels to Earth at the speed of light and
 # is settled by its Share event; each burns a unit of fuel.
 for pid, verb, nargs, args, what in (
-        ('45', 'Offer new shares', '3', 'N P D', 'offers N new shares of the drone\'s company at P credits each, '
-         'open for D game days (1 to 30): at most as many as it has, one offering at a time. N 0 withdraws it'),
+        ('45', 'Offer new shares', '4', 'M N P D', 'offers up to N new shares of the drone\'s company, at least M '
+         '(1 to N), at P credits each, open for D game days (1 to 30): at most as many as it has, one offering '
+         'at a time. Fully committed, it issues them at once; at the deadline, it issues what was committed if '
+         'that is at least M, or refunds everyone. N 0 withdraws it'),
         ('46', 'Commit to an offering', '2', 'N C', 'commits to N of company C\'s offered new shares at its price, '
          'paid now; refunded if the offering lapses or is withdrawn')):
     protocols[pid] = [pid, verb, nargs, '100',
@@ -1360,7 +1364,8 @@ DAY_SALES = ("FLOOR(IFNULL((SELECT SUM(t.credits - t.tax) FROM agents AS a JOIN 
 queries.append((696, 'Shares for sale',
                 'Every sell order for shares at the Earth exchange that can sell now, cheapest first (50 at most): '
                 'company, price, units for sale, seller, the company\'s sales after tax a day (7-day average).', 0,
-                "SELECT o.share_company, o.price AS d_price, IFNULL(s.units, 0) - o.limit_units, o.company, "
+                "SELECT o.share_company AS company, o.price AS d_price, IFNULL(s.units, 0) - o.limit_units AS units, "
+                "o.company AS seller, "
                 f"{DAY_SALES.format(c='o.share_company')} AS d_sales "
                 "FROM share_orders AS o INNER JOIN companies AS c ON c.company_id = o.company AND c.eliminated_at IS NULL "
                 "INNER JOIN companies AS sc ON sc.company_id = o.share_company AND sc.eliminated_at IS NULL "
@@ -1369,13 +1374,15 @@ queries.append((696, 'Shares for sale',
 # Offerings of new shares (#485): every open offering, and a company's
 # share count
 queries.append((697, 'Share offerings',
-                'Open offerings of new shares, soonest deadline first (50 at most): company, shares offered, '
-                'price, shares not yet committed, game hours left, its share count, its sales after tax a day '
-                '(7-day average), shares my company committed.', 0,
-                "SELECT o.company, o.units, o.price AS d_price, o.units - IFNULL((SELECT SUM(m.units) FROM "
-                "share_commitments AS m WHERE m.company = o.company), 0), GREATEST(0, CEIL((o.deadline_t - [game_now]) "
-                f"/ 3600)), c.share_count, {DAY_SALES.format(c='o.company')} AS d_sales, "
-                f"IFNULL((SELECT m.units FROM share_commitments AS m WHERE m.company = o.company AND m.investor = {MY_COMPANY}), 0) "
+                'Open offerings of new shares, soonest deadline first (50 at most): company, most new shares, price, '
+                'shares left, game hours left, its share count, its sales after tax a day (7-day average), shares '
+                'my company committed, fewest it issues.', 0,
+                "SELECT o.company AS company, o.units AS units, o.price AS d_price, o.units - IFNULL((SELECT SUM(m.units) FROM "
+                "share_commitments AS m WHERE m.company = o.company), 0) AS left_units, "
+                "GREATEST(0, CEIL((o.deadline_t - [game_now]) / 3600)) AS hours, "
+                f"c.share_count AS count, {DAY_SALES.format(c='o.company')} AS d_sales, "
+                f"IFNULL((SELECT m.units FROM share_commitments AS m WHERE m.company = o.company AND m.investor = {MY_COMPANY}), 0) AS mine, "
+                "IFNULL(o.min_units, o.units) AS min_units "
                 "FROM share_offerings AS o INNER JOIN companies AS c ON c.company_id = o.company AND c.eliminated_at IS NULL "
                 "WHERE o.deadline_t > [game_now] ORDER BY o.deadline_t, o.company LIMIT 50;"))
 queries.append((698, 'Share count',
@@ -1625,7 +1632,7 @@ LUA_CALLS = {'1': 'jettison(N, R)', '3': 'wait(M)', '7': 'sell_order(P, M, R)', 
              '10': 'push(N, R, D)', '11': 'pull(N, R, D)', '12': 'launch(D, K)', '34': 'plunder(W)',
              '40': 'broadcast(text)', '41': 'sell_shares(company, keep, price)',
              '42': 'buy_shares(company, want, price)', '43': 'pull_shares(n, company, seller)',
-             '44': 'push_shares(n, company, buyer)', '45': 'offer_shares(n, price, days)',
+             '44': 'push_shares(n, company, buyer)', '45': 'offer_shares(n, price, days, min)',
              '46': 'commit_shares(n, company)', '5001': 'travel(N)', '25901': 'unpack()', '25902': 'unpack()'}
 
 

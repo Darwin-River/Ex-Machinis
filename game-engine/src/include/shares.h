@@ -41,14 +41,19 @@ long long house_share_price(long long net_sales_last_day, long long total);
 
 /* Offerings of new shares (#485). Why one is refused (0: it goes through) */
 #define OFFER_OK            0
-#define OFFER_BAD           1   /* no units, no price, or a deadline out of range */
+#define OFFER_BAD           1   /* no units, no price, a minimum out of range, or a deadline out of range */
 #define OFFER_TOO_MANY      2   /* more new shares than the company already has */
 #define OFFER_ALREADY_OPEN  3   /* the company already has an open offering */
 #define OFFER_MAX_DAYS     30   /* the longest deadline, in game days */
 
 /* Whether a company with `count` shares, and an open offering or not, can
-   offer `units` new shares at `price` for `days` game days */
-int offer_check(long long units, long long price, long long days, long long count, int open);
+   offer up to `units` new shares, at least `min` of them (1 to units, #516),
+   at `price` for `days` game days */
+int offer_check(long long units, long long min, long long price, long long days, long long count, int open);
+
+/* How many new shares an offering issues at its deadline (#516): what was
+   committed, if that reached its minimum; 0 if not (everyone is refunded) */
+long long offer_issues(long long committed, long long min);
 
 /* Why a commitment is refused (0: it goes through) */
 #define COMMIT_OK           0

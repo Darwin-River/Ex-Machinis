@@ -5,9 +5,10 @@
 -- From its raise_after-th game day of income, while it is short of a copy's cost,
 -- the drone you release offers enough new shares to make up the difference
 -- (offer_shares), open for raise_days, at most raise_cap at a time (it
--- raises again for the rest). Investors commit and pay; if every
--- share is committed in time, the company is paid and launches the copy,
--- and if not, they are refunded and it tries again. It prices the shares so
+-- raises again for the rest). Investors commit and pay; once every share
+-- is committed the company is paid, and at the deadline it takes what was
+-- committed if that is at least half (#516), or they are refunded and it
+-- tries again. With grow_raised credits it launches the copy. It prices the shares so
 -- that raise_horizon days of a share's income after the raise, counting the
 -- extra drone's sales, pay the price back: what investors look for. A
 -- company that earns too little for that, or would sell its shares for
@@ -72,7 +73,7 @@ function raise()
   if p < raise_min then return end
   local u = math.ceil(need / p)
   if u > c then return end
-  offer_shares(u, p, raise_days)
+  offer_shares(u, p, raise_days, math.ceil(u / 2))
 end
 
 -- It launches a copy with grow_raised credits (what it raised for)

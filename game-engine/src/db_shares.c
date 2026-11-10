@@ -143,8 +143,10 @@ static ErrorCode_t sh_refund_offering(int company)
     return result;
 }
 
-/* An offering fully committed (#485): the new shares go to the committers,
-   the company is paid what they put in, and its count grows */
+/* An offering closes with shares to issue (#485): fully committed, or at
+   its deadline with at least its minimum committed (#516). The new shares
+   (`units`: what was committed) go to the committers, the company is paid
+   what they put in, and its count grows */
 static ErrorCode_t sh_fill_offering(int company, long long units, long long price, int drone, int action, long long now)
 {
     MYSQL_RES* res = sh_select("SELECT investor, units, credits FROM share_commitments WHERE company = %d", company);
@@ -175,8 +177,10 @@ static ErrorCode_t sh_fill_offering(int company, long long units, long long pric
     return result;
 }
 
-/* Posting (or, with no units, withdrawing) an offering of new shares (#485) */
-static int sh_offer(int company, int drone, int action, long long units, long long price, long long days, long long now)
+/* Posting (or, with no units, withdrawing) an offering of new shares (#485):
+   up to `units`, at least `min` (#516) */
+static int sh_offer(int company, int drone, int action, long long units, long long min, long long price,
+                    long long days, long long now)
 {
     int open = sh_value(0, "SELECT COUNT(*) FROM share_offerings WHERE company = %d", company) > 0;
     if(units <= 0) {
@@ -185,18 +189,18 @@ static int sh_offer(int company, int drone, int action, long long units, long lo
         return sh_refund_offering(company) == ENGINE_OK ? OUTCOME_OK : OUTCOME_ACTION_ABORTED;
     }
     long long count = sh_value(SHARES_PER_COMPANY, "SELECT share_count FROM companies WHERE company_id = %d", company);
-    int check = offer_check(units, price, days, count, open);
+    int check = offer_check(units, min, price, days, count, open);
     if(check != OFFER_OK) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d]'s offering of [%lld] at [%lld] for [%lld] days refused ([%d])",
-            company, units, price, days, check);
+        engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d]'s offering of [%lld] (at least [%lld]) at [%lld] for [%lld] days "
+            "refused ([%d])", company, units, min, price, days, check);
         return check == OFFER_TOO_MANY ? OUTCOME_RESOURCES_UPPER_LIMIT :
                check == OFFER_ALREADY_OPEN ? OUTCOME_ACTION_ABORTED : OUTCOME_NO_MARKET_ORDER;
     }
-    ErrorCode_t result = sh_exec("INSERT INTO share_offerings (company, units, price, deadline_t, drone, action, placed_t) "
-                                 "VALUES (%d, %lld, %lld, %lld, %d, %d, %lld)",
-                                 company, units, price, now + days * 86400, drone, action, now);
-    engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d] offers [%lld] new shares at [%lld] for [%lld] days",
-        company, units, price, days);
+    ErrorCode_t result = sh_exec("INSERT INTO share_offerings (company, units, min_units, price, deadline_t, drone, action, placed_t) "
+                                 "VALUES (%d, %lld, %lld, %lld, %lld, %d, %d, %lld)",
+                                 company, units, min, price, now + days * 86400, drone, action, now);
+    engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d] offers up to [%lld] new shares (at least [%lld]) at [%lld] for [%lld] days",
+        company, units, min, price, days);
     return result == ENGINE_OK ? OUTCOME_OK : OUTCOME_ACTION_ABORTED;
 }
 
@@ -258,9 +262,10 @@ int db_shares_settle(Event_t* event)
     long long now = game_time_now_seconds();
 
     // Offerings of new shares (#485): 5 offers (or withdraws) the drone's
-    // company's (the days ride in counterparty), 6 commits to another's
+    // company's (the days ride in counterparty, its minimum in share_company,
+    // #516), 6 commits to another's
     if(kind == 5)
-        return sh_offer(company, drone, event->action_id, units, price, other, now);
+        return sh_offer(company, drone, event->action_id, units, shares, price, other, now);
     if(kind == 6)
         return sh_commit(company, drone, event->action_id, shares, units, now);
 
@@ -342,20 +347,36 @@ ErrorCode_t db_shares_clear_due(void)
     if(result == ENGINE_OK)
         result = sh_exec("DELETE o FROM share_orders o JOIN companies c ON c.company_id = o.share_company "
                          "WHERE c.eliminated_at IS NOT NULL");
-    // Offerings past their deadline, or of a company that ended, close
-    // unfilled and refund their commitments (#485)
+    // Offerings past their deadline close (#485): one with at least its
+    // minimum committed issues what was committed (#516); short of it, or
+    // of a company that ended, it refunds every commitment
     if(result == ENGINE_OK) {
-        MYSQL_RES* res = sh_select("SELECT o.company FROM share_offerings o JOIN companies c ON c.company_id = o.company "
+        MYSQL_RES* res = sh_select("SELECT o.company, c.eliminated_at IS NOT NULL, IFNULL(o.min_units, o.units), o.price, "
+                                   "IFNULL(o.drone, 0), IFNULL(o.action, 0), "
+                                   "IFNULL((SELECT SUM(m.units) FROM share_commitments m WHERE m.company = o.company), 0) "
+                                   "FROM share_offerings o JOIN companies c ON c.company_id = o.company "
                                    "WHERE o.deadline_t <= %lld OR c.eliminated_at IS NOT NULL LIMIT %d", now, MAX_BOOK);
-        int lapsed[MAX_BOOK];
+        struct { int company, ended, drone, action; long long min, price, committed; } lapsed[MAX_BOOK];
         int n = 0;
         MYSQL_ROW row;
-        while(res && n < MAX_BOOK && (row = mysql_fetch_row(res)))
-            lapsed[n++] = atoi(row[0]);
+        while(res && n < MAX_BOOK && (row = mysql_fetch_row(res))) {
+            lapsed[n].company = atoi(row[0]);
+            lapsed[n].ended = atoi(row[1]);
+            lapsed[n].min = atoll(row[2]);
+            lapsed[n].price = atoll(row[3]);
+            lapsed[n].drone = atoi(row[4]);
+            lapsed[n].action = atoi(row[5]);
+            lapsed[n].committed = atoll(row[6]);
+            n++;
+        }
         if(res) mysql_free_result(res);
         else result = ENGINE_DB_QUERY_ERROR;
-        for(int i = 0; i < n && result == ENGINE_OK; i++)
-            result = sh_refund_offering(lapsed[i]);
+        for(int i = 0; i < n && result == ENGINE_OK; i++) {
+            long long issue = lapsed[i].ended ? 0 : offer_issues(lapsed[i].committed, lapsed[i].min);
+            result = issue > 0 ?
+                sh_fill_offering(lapsed[i].company, issue, lapsed[i].price, lapsed[i].drone, lapsed[i].action, now) :
+                sh_refund_offering(lapsed[i].company);
+        }
     }
     // A company that ended can't take up new shares: its commitments go
     // (with the credits, as with the rest of what it had), and the shares

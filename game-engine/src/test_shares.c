@@ -49,12 +49,20 @@ int main(void)
     check("1,500 shares: 300 pay a fifth", dividend_for(1500, 300, 1500) == 300);
     check("no count, no dividend", dividend_for(1000, 10, 0) == 0);
     check("the House's price follows the count", house_share_price(100000, 2000) == 1500);
-    check("an offering up to the count goes through", offer_check(1000, 5, 7, 1000, 0) == OFFER_OK);
-    check("an offering past doubling is refused", offer_check(1001, 5, 7, 1000, 0) == OFFER_TOO_MANY);
-    check("one open offering at a time", offer_check(10, 5, 7, 1000, 1) == OFFER_ALREADY_OPEN);
-    check("an offering needs a price", offer_check(10, 0, 7, 1000, 0) == OFFER_BAD);
-    check("and a deadline of 1 to 30 days", offer_check(10, 5, 0, 1000, 0) == OFFER_BAD &&
-          offer_check(10, 5, 31, 1000, 0) == OFFER_BAD && offer_check(10, 5, 30, 1000, 0) == OFFER_OK);
+    check("an offering up to the count goes through", offer_check(1000, 1000, 5, 7, 1000, 0) == OFFER_OK);
+    check("an offering past doubling is refused", offer_check(1001, 1001, 5, 7, 1000, 0) == OFFER_TOO_MANY);
+    check("one open offering at a time", offer_check(10, 10, 5, 7, 1000, 1) == OFFER_ALREADY_OPEN);
+    check("an offering needs a price", offer_check(10, 10, 0, 7, 1000, 0) == OFFER_BAD);
+    check("and a deadline of 1 to 30 days", offer_check(10, 10, 5, 0, 1000, 0) == OFFER_BAD &&
+          offer_check(10, 10, 5, 31, 1000, 0) == OFFER_BAD && offer_check(10, 10, 5, 30, 1000, 0) == OFFER_OK);
+    // A minimum and a maximum (#516)
+    check("a minimum of 1 to the maximum goes through", offer_check(300, 1, 5, 7, 1000, 0) == OFFER_OK &&
+          offer_check(300, 150, 5, 7, 1000, 0) == OFFER_OK);
+    check("a minimum of 0 or past the maximum is refused", offer_check(300, 0, 5, 7, 1000, 0) == OFFER_BAD &&
+          offer_check(300, 301, 5, 7, 1000, 0) == OFFER_BAD);
+    check("at the deadline, the minimum or more issues what was committed",
+          offer_issues(150, 150) == 150 && offer_issues(277, 150) == 277);
+    check("short of the minimum, nothing is issued", offer_issues(149, 150) == 0 && offer_issues(0, 1) == 0);
     check("a commitment within what's left goes through", commit_check(100, 400, 5, 500) == COMMIT_OK);
     check("a commitment past what's left is refused", commit_check(401, 400, 5, 100000) == COMMIT_TOO_MANY);
     check("an investor who can't pay is refused", commit_check(100, 400, 5, 499) == COMMIT_NO_CREDITS);

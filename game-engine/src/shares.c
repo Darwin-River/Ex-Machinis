@@ -34,15 +34,20 @@ long long house_share_price(long long net_sales_last_day, long long total)
     return price > 0 ? price : 1;
 }
 
-int offer_check(long long units, long long price, long long days, long long count, int open)
+int offer_check(long long units, long long min, long long price, long long days, long long count, int open)
 {
-    if(units <= 0 || price <= 0 || days < 1 || days > OFFER_MAX_DAYS)
+    if(units <= 0 || min < 1 || min > units || price <= 0 || days < 1 || days > OFFER_MAX_DAYS)
         return OFFER_BAD;
     if(units > count)
         return OFFER_TOO_MANY;
     if(open)
         return OFFER_ALREADY_OPEN;
     return OFFER_OK;
+}
+
+long long offer_issues(long long committed, long long min)
+{
+    return (committed > 0 && committed >= min) ? committed : 0;
 }
 
 int commit_check(long long units, long long left, long long price, long long credits)

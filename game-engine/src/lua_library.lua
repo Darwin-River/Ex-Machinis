@@ -57,10 +57,13 @@ local function sell_shares(c, keep, price) return perform(41, c, keep, price) en
 local function buy_shares(c, want, price) return perform(42, c, want, price) end
 local function pull_shares(n, c, seller) return perform(43, n, c, seller) end
 local function push_shares(n, c, buyer) return perform(44, n, c, buyer) end
--- New shares (#485): offer n new shares of your company at price each, open
--- for days game days (n 0 withdraws the offering), or commit to n of
--- company c's offered shares (paid now, refunded if it lapses)
-local function offer_shares(n, price, days) return perform(45, n, price, days) end
+-- New shares (#485): offer up to n new shares of your company at price
+-- each, open for days game days, and at least min (#516; all n if left out):
+-- fully committed it issues them at once, and at the deadline it issues what
+-- was committed if that is at least min (n 0 withdraws the offering). Or
+-- commit to n of company c's offered shares (paid now, refunded if the
+-- offering lapses short of its minimum)
+local function offer_shares(n, price, days, min) return perform(45, min or n, n, price or 0, days or 0) end
 local function commit_shares(n, c) return perform(46, n, c) end
 
 -- Queries: ask returns the rows (a table of rows, each a table of columns)
@@ -383,9 +386,10 @@ end
 -- units offered, price, left (not yet committed), hours (game hours left),
 -- count (its shares now), sales (its income after tax over the last game
 -- day; each share earns sales / count of it), mine (shares your company has
--- committed)
+-- committed), min (the fewest it issues at its deadline, #516: units for an
+-- all-or-nothing offering)
 local function share_offerings()                                                  -- 697
-  return records(ask(697), {"company", "units", "price", "left", "hours", "count", "sales", "mine"})
+  return records(ask(697), {"company", "units", "price", "left", "hours", "count", "sales", "mine", "min"})
 end
 -- Company c's shares in all: 1,000 to start, more after it issues new ones
 local function share_count(c)                                                     -- 698
