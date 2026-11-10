@@ -21,6 +21,11 @@
    (settings, tables, functions): it runs in one go and can't pause */
 #define LUA_LOAD_INSTRUCTIONS 2000000
 
+/* The most Lua instructions a drone may run past its slice inside a
+   function called from C, where it can't pause (#508: a table.sort
+   comparator); past that it stops with an error */
+#define LUA_UNPAUSABLE_INSTRUCTIONS 2000000
+
 /* The most memory a drone's Lua may hold */
 #define LUA_MEMORY_CAP (256 * 1024)
 

@@ -122,6 +122,30 @@ class ApiTest extends TestCase
         $this->assertSame([], $this->getJson('/api/v1/orders?side=sell&resource=' . $resource . '&place=Nowhere')->json());
     }
 
+    public function testSellOrdersListOnlyWhatAPullCanTake()
+    {
+        // #502: locked units (a factory's inputs in use) and units a pull on
+        // its way will take aren't for sale
+        $seller = $this->release('Careful Sellers');
+        $resource = (int) DB::table('resources')->value('id');
+        $now = World::gameNow();
+        $event = fn ($type, $q, $extra = []) => DB::table('events')->insert(array_merge(['event_type' => $type,
+            'action' => 0, 'outcome' => 1, 'drone' => $seller->agent_id, 'resource' => $resource, 'installed' => 0,
+            'locked' => 0, 'new_quantity' => $q, 'game_t' => $now], $extra));
+        $event(1, 10);
+        $event(1, 5, ['locked' => 1]);
+        $event(4, 2, ['new_credits' => 7]);
+        $units = fn () => collect($this->getJson('/api/v1/orders?side=sell&resource=' . $resource)->json())
+            ->firstWhere('drone', (int) $seller->agent_id)['units'] ?? 0;
+        $this->assertSame(8, $units(), '10 free less the 2 it keeps; the 5 locked are not for sale');
+        // A pull on its way (pending: outcome 0) takes 4 of them
+        $event(2, -4, ['outcome' => 0, 'game_t' => $now + 60]);
+        $this->assertSame(4, $units());
+        // ...and when it takes the rest the order is no longer listed
+        $event(2, -4, ['outcome' => 0, 'game_t' => $now + 60]);
+        $this->assertSame(0, $units());
+    }
+
     public function testOrdersOfOneCompany()
     {
         // #380 round 36: a company's own open orders

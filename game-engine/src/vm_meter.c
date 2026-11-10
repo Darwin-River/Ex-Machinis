@@ -41,6 +41,15 @@ long long vm_meter_fuel_due(long long instructions, long long paid, long long pe
     return (instructions - paid) / per_fuel;
 }
 
+int vm_meter_hook(int exhausted, int can_pause, long long unpausable, long long cap)
+{
+    if(!exhausted)
+        return VM_HOOK_GO;
+    if(can_pause)
+        return VM_HOOK_PAUSE;
+    return unpausable > cap ? VM_HOOK_TOO_LONG : VM_HOOK_GO;
+}
+
 long long vm_meter_slice_budget(int loading, long long used_so_far, long long load_limit, long long slice)
 {
     if(!loading || load_limit <= used_so_far)

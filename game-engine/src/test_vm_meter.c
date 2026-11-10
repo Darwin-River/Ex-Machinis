@@ -103,6 +103,12 @@ int main(void)
     check("a load allowance of 0 changes nothing",
           vm_meter_slice_budget(1, 0, 0, 100000) == 100000);
 
+    // Pausing a Lua drone (#508): not inside a function called from C
+    check("a drone with slice left carries on", vm_meter_hook(0, 1, 0, 1000) == VM_HOOK_GO &&
+          vm_meter_hook(0, 0, 5000, 1000) == VM_HOOK_GO);
+    check("a drone out of slice pauses where it can", vm_meter_hook(1, 1, 0, 1000) == VM_HOOK_PAUSE);
+    check("inside a sort comparator it runs on instead of crashing", vm_meter_hook(1, 0, 1000, 1000) == VM_HOOK_GO);
+    check("but not forever", vm_meter_hook(1, 0, 1001, 1000) == VM_HOOK_TOO_LONG);
 
     if(failures) {
         printf("%d check(s) failed\n", failures);
