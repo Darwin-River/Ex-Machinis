@@ -10,7 +10,8 @@
 #     reports is kept for the website (#367 step 5),
 #   - it asks about its world by name (quotes, cost_to_buy) and sets its
 #     status line (set_status),
-#   - it unpacks its starter kit, flies to the Moon, mines and refines kunspar,
+#   - it buys a Mining Kit at Earth and unpacks it, flies to the Moon, mines
+#     and refines kunspar,
 #   - companies of one player may trade with each other,
 #   - a released script in several pieces runs, the Release page offers
 #     starter scripts, and drones know the game names,
@@ -241,9 +242,11 @@ function launched()
   set_status("smoke: looking around")
   local cost, got = cost_to_buy(5, fuel)
   say("asked " .. place_name() .. " " .. type(quotes(fuel)) .. " " .. #hold() .. " " .. got .. " " .. now().day)
-  -- The starting sequence: unpack the starter kit, fly to the Moon (the
-  -- line after the trip runs once it is over), mine kunspar
-  say("kit " .. units(mining_kit))
+  -- The starting sequence: buy and unpack a Mining Kit at Earth (#506: a
+  -- company starts with credits and no kit), fly to the Moon (the line
+  -- after the trip runs once it is over), mine kunspar
+  equip(mining_kit)
+  say("kit " .. units(engine_module))
   say("unpack " .. unpack())
   print("sq " .. sq(7))
   print("moon-trip " .. travel(moon))
@@ -312,12 +315,13 @@ wait_for 30 "drone $DRONE asked about its world by name" replied $DRONE_ID "aske
 [ "$(sql "select script_status from agents where agent_id=$DRONE_ID")" = "smoke: looking around" ] || fail "set_status didn't set the drone's status line"
 echo "ok: the drone's status line is set"
 
-# The starting sequence from the game data: unpack the starter kit, fly to
-# the Moon (10), mine kunspar (1100) with the kit's mining module
+# The starting sequence from the game data: buy a Mining Kit at Earth and
+# unpack it (#506), fly to the Moon (10), mine kunspar (1100) with the
+# kit's mining module
 has() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRONE_ID and resource=$1")" -ge "${2:-1}" ]; }
-wait_for 30 "drone got the starter kit" replied $DRONE_ID "kit 1"
-wait_for 90 "drone unpacked its starter kit" replied $DRONE_ID "unpack 0"
-wait_for 30 "starter kit unpacked (engine in cargo)" has 5001
+wait_for 120 "drone bought a Mining Kit at Earth and unpacked it" replied $DRONE_ID "kit 1"
+wait_for 90 "nothing left to unpack" replied $DRONE_ID "unpack 0"
+wait_for 30 "the kit's engine is in its cargo" has 5001
 at_moon() { [ "$(sql "select object_id from agents where agent_id=$DRONE_ID")" = 10 ]; }
 wait_for 120 "drone flew to the Moon" at_moon
 wait_for 60 "drone ran its steps before the trip" replied $DRONE_ID "sq 49%moon-trip 0"
@@ -541,10 +545,15 @@ LUA
 release "Smoke Forge" "$FORGE_SCRIPT" factory
 FORGE_DRONE=$(company_drone "Smoke Forge")
 [ -n "$FORGE_DRONE" ] || fail "release did not create a company and drone"
-# The kit the player chose (#380): this one asked for the Factory Kit
-[ "$(sql "select count(*) from sqInventory where drone=$FORGE_DRONE and resource=5902 and units=1")" = 1 ] ||
-    fail "the factory release didn't get a Factory Kit"
-echo "ok: a release gets the kit its player chose"
+# Credits instead of a kit (#506): this one asked for the Factory Kit, and
+# got 3,000 credits and no kit
+[ "$(sql "select count(*) from sqInventory where drone=$FORGE_DRONE and resource in (5901, 5902) and units > 0")" = 0 ] ||
+    fail "a release got a kit"
+# (it may have bought fuel already: what it has and has spent come to 3,000)
+[ "$(sql "select c.credits + IFNULL((select sum(t.credits) from trades t where t.buyer=$FORGE_DRONE), 0) from companies c
+          where c.company_id=(select company_id from agents where agent_id=$FORGE_DRONE)")" = 3000 ] ||
+    fail "a release didn't start with 3,000 credits"
+echo "ok: a release starts with 3,000 credits and no kit"
 echo "ok: release created a company with a drone"
 wait_for 90 "released drone ran launched; its reply is kept for the website" replied $FORGE_DRONE "forge-release-ok7"
 FORGE_NAME=$(sql "select name from agents where agent_id=$FORGE_DRONE")
