@@ -46,6 +46,38 @@ class BlogController extends Controller
         return view('pages.blog', compact('posts'));
     }
 
+    /**
+     * The blog as RSS (#519), newest post first, so feed readers and free
+     * sharing tools (Discord or Mastodon bots, Buffer, IFTTT) pick up new posts
+     */
+    public function feed()
+    {
+        $x = fn (string $s) => htmlspecialchars($s, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+        $items = '';
+        foreach (array_reverse(self::posts(), true) as $slug => $post) {
+            $link = url('/blog/' . $slug);
+            $date = strtotime($post['date']) ?: filemtime($post['file']);
+            $items .= "    <item>\n"
+                . '      <title>' . $x($post['title']) . "</title>\n"
+                . '      <link>' . $x($link) . "</link>\n"
+                . '      <guid isPermaLink="true">' . $x($link) . "</guid>\n"
+                . '      <pubDate>' . gmdate(DATE_RSS, $date) . "</pubDate>\n"
+                . '      <description>' . $x($post['summary']) . "</description>\n"
+                . "    </item>\n";
+        }
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
+            . '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">' . "\n"
+            . "  <channel>\n"
+            . '    <title>' . $x(config('app.name') . ' strategy blog') . "</title>\n"
+            . '    <link>' . $x(url('/blog')) . "</link>\n"
+            . '    <atom:link href="' . $x(url('/blog/feed')) . '" rel="self" type="application/rss+xml"/>' . "\n"
+            . "    <description>How to write drones and companies that succeed in Ex Machinis</description>\n"
+            . "    <language>en</language>\n"
+            . $items
+            . "  </channel>\n</rss>\n";
+        return response($xml, 200, ['Content-Type' => 'application/rss+xml; charset=UTF-8']);
+    }
+
     public function show(string $slug)
     {
         $posts = self::posts();

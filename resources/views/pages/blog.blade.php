@@ -47,7 +47,7 @@
         <div class="container">
             <div class="row">
                 <div class="col-md-12 col-lg-10 col-xl-9 single-post blog-post">
-                    <p>How the most successful companies in our playtests were written: the strategy, the code behind it, and the players who made it work. Every code example loads on a drone as it is.</p>
+                    <p>How the most successful companies in our playtests were written: the strategy, the code behind it, and the players who made it work. Every code example loads on a drone as it is. Follow new posts with the <a href="/blog/feed">RSS feed</a>.</p>
                     {{-- documents/blog/*.md (see BlogController) --}}
                     @foreach ($posts as $slug => $post)
                         <article class="blog-entry">

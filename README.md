@@ -34,7 +34,7 @@ Spacecraft are programmed in [Lua](https://www.lua.org/manual/5.4/): the [player
 | `game-engine/sql/game-data/` | The game's design spreadsheets (resources, recipes, queries) and `build_game_data.py`, which turns them into `game-engine/sql/game_data.sql` and the query list in the design manual |
 | `game-engine/scripts/`, `game-engine/conf/` | Cron/start scripts and engine configuration |
 | `tests/` | PHPUnit tests and test fixtures |
-| `documents/` | Game docs: the [player's manual](documents/players-manual.md) and the [design manual](documents/design-manual.md) (both kept up to date with the code), the [production install guide](documents/install.md) and the [upgrade plan](documents/laravel-upgrade-plan.md) |
+| `documents/` | Game docs: the [player's manual](documents/players-manual.md) and the [design manual](documents/design-manual.md) (both kept up to date with the code), the [production install guide](documents/install.md) the [upgrade plan](documents/laravel-upgrade-plan.md), and the [sustainability playbook](documents/sustainability-playbook.md) (funding, promotion and handing the project on) |
 
 ### Run the website locally
 

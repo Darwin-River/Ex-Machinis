@@ -1,0 +1,52 @@
+name: Announce blog posts
+
+# When a new post in documents/blog/ reaches public-forge, post it to
+# Bluesky and Mastodon (#520). See documents/sustainability-playbook.md for
+# the secrets to set; with none set, the run's summary holds the text to
+# paste by hand.
+
+on:
+  push:
+    branches: [public-forge]
+    paths: ['documents/blog/*.md']
+  workflow_dispatch:
+    inputs:
+      post:
+        description: 'Post to announce again, e.g. 10-fail-fast'
+        required: true
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Find new posts
+        id: posts
+        env:
+          BEFORE: ${{ github.event.before }}
+          POST: ${{ inputs.post }}
+        run: |
+          if [ -n "$POST" ]; then
+            POST="${POST%.md}"
+            case "$POST" in *[!a-z0-9-]*) echo "Not a post name: $POST"; exit 1;; esac
+            files="documents/blog/$POST.md"
+          elif [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            files=$(git diff --diff-filter=A --name-only HEAD^ HEAD -- 'documents/blog/*.md')
+          else
+            files=$(git diff --diff-filter=A --name-only "$BEFORE" HEAD -- 'documents/blog/*.md')
+          fi
+          echo "files=$(echo $files)" >> "$GITHUB_OUTPUT"
+
+      - name: Announce
+        if: steps.posts.outputs.files != ''
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+          BLUESKY_HANDLE: ${{ vars.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          MASTODON_INSTANCE: ${{ vars.MASTODON_INSTANCE }}
+          MASTODON_TOKEN: ${{ secrets.MASTODON_TOKEN }}
+          FILES: ${{ steps.posts.outputs.files }}
+        run: python3 admin/announce.py $FILES
