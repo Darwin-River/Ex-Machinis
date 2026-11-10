@@ -1020,6 +1020,18 @@ Each tier of goods (ores, refined goods, parts, systems, modules) has its own wa
 
 A drone sees the moves in the prices where it is (`sell_price`, `buy_price`, `best_bid`) and in the price board (what goods sold for yesterday at each place). The news on the Market page and `/api/v1/news` says which booms and slumps are under way. A script that compares prices and picks what to make, or where to sell, each round earns more than one that does the same thing whatever the market says.
 
+<a name="house-demand"></a>**How much more will the House buy?** Each House exchange buys up to a day's demand of each good. Its bid falls toward half its listed price as it fills, and once it has bought the day's demand it stops bidding: its buy order disappears from the book. What it bought goes down to the surface at the start of each game day, and the bid comes back. `house_demand(r)` (query 706) tells your drone where that stands for resource r at every exchange that buys it, best bid first: `{place, price, left, daily, listed, hours}`, its bid now, the units it still takes today, its day's demand, its listed price and the game hours until it refills. The Market page's **House demand** table and `/api/v1/house-demand` show the same (#550: round 58's makers held rods for days after the Earth Exchange had bought its fill, and couldn't see why nobody bid).
+
+```lua
+-- Sell rods where the House still takes them, or hold them until it refills
+local d = house_demand(rods)[1]
+if d and d.left >= units(rods) then
+  go(d.place); sell_here(units(rods), rods)
+else
+  set_status("holding rods: the House is full until it refills in " .. (d and d.hours or "?") .. " hours")
+end
+```
+
 Nobody publishes a price list. What a station drone, or any other drone, buys and sells, and at what price, you find out from the market: its orders (`best_bid`, `best_offer`, the Market page's order book) and what goods have sold for (the price board, query 680, `board_price` and `sold`; the Market history page charts every resource's price and volume, day by day, at each place). Prices move: a buyer pays less as its stock fills, and other players' orders come and go. Compare before you buy or sell:
 
 ```lua
@@ -1097,6 +1109,7 @@ Each of the four actions takes a moment and burns a unit of fuel. Each returns 0
 - `share_trades(company)` (query 694) lists its last 20 trades, newest first: `{price, units, seller, buyer, day}`.
 - `share_price(company)` is the last trade price, or `nil` if its shares never traded.
 - `shares_for_sale()` (query 696) lists every sell order for shares that can sell now, any company's, cheapest first: `{company, price, units, seller, sales}`. `sales` is the company's sales income after tax a day, averaged over the last 7 game days (or its life, if younger), so a share of it earns about `sales / share_count(company)` a day (`sales / 1000` until the company issues new shares). `examples/companies/investor.lua` is a company that lives on this.
+- `invest_surplus(keep, days, cap)` (#551) puts your company's credits above `keep` (3,000 if left out) into the offerings of new shares and the listed shares that pay their price back soonest, within `days` (40 if left out) of a share's income, at most `cap` credits in one call. It returns the credits it put in. The Foundry, Systems and Electronics designs call it once a game day, keeping what their next copy needs while they can still grow: credits a producer can't use are what fill other companies' offerings (round 58: a Foundry sat on 11,000 credits while offerings went unbacked for days). The API's `/shares` and `/shares/{id}/history` give the whole exchange and a share's price by day.
 
 The company's page on the website shows the same, and net wealth on the leaderboard counts the shares you hold in other companies at the average price of their trades over the last three game days (weighted by shares; the last trade price if none traded then). So one odd trade, a couple of shares between your own companies or one panic sale at 1, doesn't move every holder's wealth (#513).
 
@@ -1331,7 +1344,7 @@ A function that asks about a drone or a place asks about this one when you leave
 |---|---|
 | This drone | `me()`, `location()`, `units(resource)`, `hold()` (`{resource, units}`), `cargo_mass()`, `capacity()`, `space()`, `drone_name()`, `hull_name()`, `now()` (`{day, minute}`), `today()`, `lineage()` (`{parent, generation}`), `my_clones()` |
 | Its company | `company()`, `credits()`, `company_name()`, `company_drones()`, `earnings(hours)`, `earnings_per_day(days)` (sales after tax a day, averaged over `days`, 7 if left out), `taxes()` (`{permille, last_day, total}`) |
-| The market here | `sell_orders(r)` and `buy_orders(r)` (every order, best first: `{price, units, drone, keep or want, held}`), `best_offer(r)`, `best_bid(r)`, `buy_price(r)`, `sell_price(r)`, `cost_to_buy(n, r)`, `sale_value(n, r)`, `volume_here(r, hours)` (`{units, credits, trades}`), `where_to_buy(r, n, hour_value)` and `where_to_sell(r, n, hour_value)` (every place, best overall first, counting the trip) |
+| The market here | `sell_orders(r)` and `buy_orders(r)` (every order, best first: `{price, units, drone, keep or want, held}`), `best_offer(r)`, `best_bid(r)`, `buy_price(r)`, `sell_price(r)`, `cost_to_buy(n, r)`, `sale_value(n, r)`, `volume_here(r, hours)` (`{units, credits, trades}`), `where_to_buy(r, n, hour_value)` and `where_to_sell(r, n, hour_value)` (every place, best overall first, counting the trip), `house_demand(r)` (what the House still buys today at each exchange, and when it refills) |
 | Other exchanges | `quotes(r)`, `stock(r, place)`, `orders_everywhere(r)`, `price_board(r)` (`{place, units, credits, trades, price}`), `board_price(r, place)`, `sales(r, days_ago)`, `sold(r, days_ago, place)`, `volume_everywhere(r, hours)` |
 | Places | `place_name(p)`, `trip(p)`, `trip_to(p)` and `trip_between(a, b)` (`{distance, seconds, hours}`), `crowd(p)`, `wrecks_at(p)`, `drones_at(p)`, `deposit(mineral)`, `deposits()` (`{resource, units, capacity, refill}`), `minerals(p)` and `best_sites(mineral)` (the 10 best places: `{place, abundance, units, distance}`, richest first, then most left to mine, then nearest), `position(p)` (`{x, y, z}`), `orbits(p)`, `orbiting(p)` |
 | Wrecks | `wrecks()` (here: `{drone, plundered}`), `wreck_hold(wreck)` |

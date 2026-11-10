@@ -167,6 +167,39 @@ class HouseMarketTest extends TestCase
         $this->assertLessThan($bid, $lower);
     }
 
+    /** #550: how much more the House takes today, at what bid, and when it refills */
+    public function testHouseDemandShowsWhatItStillTakesToday()
+    {
+        HouseStations::ensure();
+        $drone = (int) DB::table('agents')->where('station_id', 2)->value('agent_id');
+        $this->atDay(10.75);
+        $pumps = fn () => collect(HouseMarket::demand(4311, 10))->first();
+        $d = $pumps();
+        $listed = (int) DB::table('house_market')->where('station_id', 2)->where('resource', 4311)->where('side', 1)->value('price');
+        $daily = (int) DB::table('house_market')->where('station_id', 2)->where('resource', 4311)->where('side', 1)->value('daily_units');
+        $keep = max(1, intdiv((int) DB::table('house_market')->where('station_id', 2)->where('resource', 4311)->where('side', 2)->value('daily_units'), 4));
+        $this->assertSame($listed, $d['price'], 'nothing bought yet: the listed price');
+        $this->assertSame($daily, $d['left']);
+        $this->assertSame(6, $d['hours'], 'it refills at the start of the next game day');
+
+        // Half a day's demand bought (above the stock it keeps to sell): a lower bid, half left
+        $half = intdiv($daily, 2);
+        DB::table('events')->insert(['event_type' => 1, 'action' => 0, 'logged' => 1, 'outcome' => 1, 'drone' => $drone,
+            'resource' => 4311, 'installed' => 0, 'locked' => 0, 'new_quantity' => $keep + $half, 'new_cargo' => 0]);
+        $d = $pumps();
+        $this->assertSame($daily - $half, $d['left']);
+        $this->assertSame($listed - intdiv($listed * $half, 2 * $daily), $d['price']);
+        HouseMarket::refresh();
+        $posted = (int) DB::table('events')->where('drone', $drone)->where('event_type', 5)->where('resource', 4311)
+            ->orderBy('id', 'desc')->value('new_credits');
+        $this->assertSame($posted, $d['price'], 'the same as the bid it posts');
+
+        $this->getJson('/api/v1/house-demand?resource=4311&place=10')->assertOk()
+            ->assertJsonPath('0.left', $daily - $half)->assertJsonPath('0.place_name', 'Moon');
+        $this->get('/market?house=4311')->assertOk()->assertSee('House demand')
+            ->assertSee(number_format($daily - $half) . ' of ' . number_format($daily));
+    }
+
     public function testAStationDroneOnAnOldProgramGetsTheNewOne()
     {
         HouseStations::ensure();

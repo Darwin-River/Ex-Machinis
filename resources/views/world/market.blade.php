@@ -33,6 +33,39 @@
                 </div>
             @endforeach
 
+            {{-- The House's demand (#550): how much more it takes today, and when it refills --}}
+            <h3 class="mt-4" id="house-demand">House demand</h3>
+            <div style="white-space: normal; margin-bottom: 1em">
+                Each House exchange buys up to a day's demand of each good. Its bid falls toward half its listed price
+                as it fills, and it stops bidding once it has bought the day's demand. What it bought goes down to the
+                surface at the start of each game day, and its bid refills. Drones ask with <code>house_demand(r)</code>;
+                programs with <code>/api/v1/house-demand</code>.
+            </div>
+            <form method="get" action="{{ url()->current() }}#house-demand" style="white-space: normal; margin-bottom: 1em">
+                <select name="house">
+                    <option value="">The bids closest to full</option>
+                    @foreach($houseGoods as $id => $name)
+                        <option value="{{ $id }}" {{ $houseResource === (int) $id ? 'selected' : '' }}>{{ $name }}</option>
+                    @endforeach
+                </select>
+                <button type="submit">Show</button>
+            </form>
+            <div class="table-custom-responsive">
+                <table class="table-ticket" id="house-demand-table">
+                    <tr><th>Resource</th><th>Where</th><th>Bid now</th><th>Listed</th><th>Takes today</th><th>Refills in</th></tr>
+                    @forelse($demand as $d)
+                        <tr>
+                            <td>{{ $d['resource_name'] }}</td><td>{{ $d['place_name'] }}</td>
+                            <td>{{ number_format($d['price']) }}</td><td>{{ number_format($d['listed']) }}</td>
+                            <td>{{ number_format($d['left']) }} of {{ number_format($d['daily']) }}</td>
+                            <td>{{ $d['hours'] }} game {{ $d['hours'] === 1 ? 'hour' : 'hours' }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="6">The House buys none of it.</td></tr>
+                    @endforelse
+                </table>
+            </div>
+
             <h3 class="mt-4">Recent trades</h3>
             <div class="table-custom-responsive">
                 <table class="table-ticket" id="trades">

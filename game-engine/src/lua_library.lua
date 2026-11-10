@@ -430,6 +430,47 @@ local function share_count(c)                                                   
   local row = ask(698, c)[1]
   return row and row[1] or 1000
 end
+-- Put credits above keep into other companies' shares (#551): the open
+-- offerings of new shares and the listed shares that pay their price back
+-- soonest, within days (default 40) of a share's income, best first. A
+-- share's income is its part of the company's sales after tax a day (the
+-- 7-day average; an offering's spread over its shares once it fills). At
+-- most cap credits in one call; skips buys under 25 credits (each request
+-- burns a unit of fuel) unless one completes an offering. A request reaches
+-- Earth at the speed of light, from anywhere. Returns the credits it put
+-- in. Round 58: producers sat on 11,000 credits while offerings went unbacked
+local function invest_surplus(keep, days, cap)
+  days = days or 40
+  local free = credits() - (keep or 3000)
+  if cap then free = math.min(free, cap) end
+  if free < 25 then return 0 end
+  local picks, mine = {}, company()
+  for _, o in ipairs(share_offerings()) do
+    local a_day = math.max(o.sales, 0) / (o.count + o.units)
+    if o.company ~= mine and o.left > 0 and o.price > 0 and a_day > 0 then
+      table.insert(picks, {offering = true, company = o.company, price = o.price, units = o.left,
+                           days = o.price / a_day})
+    end
+  end
+  for _, o in ipairs(shares_for_sale()) do
+    local a_day = math.max(o.sales, 0) / share_count(o.company)
+    if o.company ~= mine and o.seller ~= mine and o.units > 0 and o.price > 0 and a_day > 0 then
+      table.insert(picks, {company = o.company, seller = o.seller, price = o.price, units = o.units,
+                           days = o.price / a_day})
+    end
+  end
+  table.sort(picks, function(a, b) return a.days < b.days end)
+  local spent = 0
+  for _, p in ipairs(picks) do
+    if p.days > days then break end
+    local n = math.min(p.units, (free - spent) // p.price)
+    if n > 0 and (n * p.price >= 25 or (p.offering and n == p.units)) then
+      if p.offering then commit_shares(n, p.company) else pull_shares(n, p.company, p.seller) end
+      spent = spent + n * p.price
+    end
+  end
+  return spent
+end
 -- The processor tax (#544): per_million (credits a million instructions),
 -- tax and instructions (billed to your company over the last game day), debt
 -- (what it owes: while it owes, its drones get a tenth of a turn each)
@@ -680,6 +721,15 @@ local function where_to_sell(r, n, hour_value)
   table.sort(list, function(a, b) return a.net > b.net end)
   return list
 end
+-- The House's demand for r (#550), at each exchange that buys it, best bid
+-- first: {place, price (its bid now), left (units it still takes today),
+-- daily (its day's demand), listed (its bid with nothing bought today),
+-- hours (game hours until it refills)}. Its bid falls toward half of listed
+-- as it fills and stops at a full day's demand; what it bought goes down to
+-- the surface at the start of each game day, and the bid refills
+local function house_demand(r)                                                    -- 706
+  return records(ask(706, r), {"place", "price", "left", "daily", "listed", "hours"})
+end
 local function orbiting(p) return column(ask(710, p or location())) end           -- 710
 local function drones_at(p) return column(ask(720, p or location())) end          -- 720
 local function wrecks_at(p)                                                       -- 721
@@ -757,7 +807,9 @@ _G.company_health = company_health
 _G.compute_tax = compute_tax
 _G.where_to_buy = where_to_buy
 _G.raise_cash = raise_cash
+_G.invest_surplus = invest_surplus
 _G.where_to_sell = where_to_sell
+_G.house_demand = house_demand
 _G.share_count = share_count
 _G.ask = ask
 _G.me = me

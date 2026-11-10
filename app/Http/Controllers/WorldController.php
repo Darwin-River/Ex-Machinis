@@ -13,12 +13,20 @@ use App\Services\World;
  */
 class WorldController extends Controller
 {
-    public function market()
+    public function market(\Illuminate\Http\Request $request)
     {
         $trades = World::trades();
         $sells = World::orders(4);
         $buys = World::orders(5);
-        return view('world.market', compact('trades', 'sells', 'buys'));
+        // The House's demand (#550): one good everywhere, or the bids closest to full
+        $houseResource = is_numeric($request->query('house')) ? (int) $request->query('house') : null;
+        $demand = \App\Services\HouseMarket::demand($houseResource);
+        $houseGoods = collect($demand)->pluck('resource_name', 'resource')->sort()->all();
+        if ($houseResource === null) {
+            usort($demand, fn ($a, $b) => [$a['left'] / $a['daily'], $a['resource']] <=> [$b['left'] / $b['daily'], $b['resource']]);
+            $demand = array_slice($demand, 0, 30);
+        }
+        return view('world.market', compact('trades', 'sells', 'buys', 'demand', 'houseGoods', 'houseResource'));
     }
 
     /** Market history (#380): charts of prices and volumes, drawn from /api/v1/history */
