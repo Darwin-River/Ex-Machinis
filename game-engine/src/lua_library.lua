@@ -430,6 +430,12 @@ local function share_count(c)                                                   
   local row = ask(698, c)[1]
   return row and row[1] or 1000
 end
+-- The processor tax (#544): per_million (credits a million instructions),
+-- tax and instructions (billed to your company over the last game day), debt
+-- (what it owes: while it owes, its drones get a tenth of a turn each)
+local function compute_tax()                                                      -- 651
+  return record(ask(651), {"per_million", "tax", "instructions", "debt"})
+end
 -- A company's health (#537; yours if c is left out): working and wrecked
 -- drones, fuel (aboard its working drones), lowest (the least aboard one),
 -- used (fuel they used over the last game day), days (game days until one
@@ -745,6 +751,7 @@ _G.share_price = share_price
 _G.shares_for_sale = shares_for_sale
 _G.share_offerings = share_offerings
 _G.company_health = company_health
+_G.compute_tax = compute_tax
 _G.where_to_buy = where_to_buy
 _G.raise_cash = raise_cash
 _G.where_to_sell = where_to_sell

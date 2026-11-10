@@ -406,7 +406,9 @@ ErrorCode_t db_turn_row_load(DbConnection_t* connection, int agent_id)
 
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
         "SELECT launched_running, crashes_in_row, wrecked_at IS NOT NULL, release_vm IS NULL, "
-        "instructions, power_paid, IFNULL(waiting_action, 0), pending_input FROM agents WHERE agent_id = %d",
+        "instructions, power_paid, IFNULL(waiting_action, 0), pending_input, "
+        "IFNULL((SELECT c.compute_debt > 0 FROM companies AS c WHERE c.company_id = agents.company_id), 0) "
+        "FROM agents WHERE agent_id = %d",
         agent_id);
     if(mysql_query(connection->hndl, query_text)) {
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
@@ -426,6 +428,7 @@ ErrorCode_t db_turn_row_load(DbConnection_t* connection, int agent_id)
         g_turn_row.waiting_action = row[6] ? atoi(row[6]) : 0;
         // An empty pending input reads as none, as db_get_agent_pending_input did
         g_turn_row.pending_input = (row[7] && row[7][0]) ? strdup(row[7]) : NULL;
+        g_turn_row.throttled = row[8] ? atoi(row[8]) : 0;
         g_turn_row_valid = 1;
     } else {
         result = ENGINE_DB_NOT_FOUND_ERROR;

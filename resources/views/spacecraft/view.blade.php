@@ -30,8 +30,8 @@
                             <b>Its script says</b> ({{ \App\Services\DronePage::when((int) $agent->script_status_t) }}): {{ $agent->script_status }}<br/>
                         @endif
                         <b>Fuel</b>: {{ $state['fuel'] }}
-                            <span>· used in the last game day: {{ $state['fuel_day']['actions'] }} for actions,
-                                {{ $state['fuel_day']['thinking'] }} for thinking</span>
+                            <span>· used in the last game day: {{ $state['fuel_day']['actions'] }} for actions{{ $state['fuel_day']['thinking'] ? ', ' . $state['fuel_day']['thinking'] . ' for thinking (before #544)' : '' }}
+                                (thinking burns no fuel: the company pays processor tax)</span>
                             @if($state['fuel_day']['by_action'])
                                 <span>({{ collect($state['fuel_day']['by_action'])->map(fn ($u) => $u['what'] . ' ' . $u['fuel'])->implode(', ') }})</span>
                             @endif<br/>

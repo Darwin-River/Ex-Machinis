@@ -167,8 +167,8 @@ function equip_clone()
   push(40, fuel, newest.drone)
 end
 -- Top the tank up to n here, cheapest first, waiting (up to 6 game hours)
--- (Waits for the fuel, not for n: computing burns a unit or two just
--- after it arrives, and waiting for n then sat out all 6 hours)
+-- (Waits for the fuel, not for n: the pull itself burns a unit, so the
+-- tank can end just short of n, and waiting for n then sat out all 6 hours)
 function fill_to(n)
   local had = units(fuel)
   local need = n - had

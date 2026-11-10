@@ -67,6 +67,7 @@ class UserController extends Controller
 
         // The stock market (#471)
         $shares = \App\Services\Shares::summary((int) $company->company_id);
+        $shares['compute'] = \App\Services\ProcessorTax::of((int) $company->company_id);
         $shares['health'] = \App\Services\CompanyHealth::of((int) $company->company_id)
             + ['drones' => \App\Services\CompanyHealth::drones((int) $company->company_id)];
 

@@ -25,6 +25,7 @@ Every function below is built in (`game-engine/src/lua_library.lua`). Actions re
 | Mining and making | `mine(mineral)`, `refine(mineral)`, `make(resource)`, `recipe(resource)` |
 | Your hold | `units(resource)`, `hold()` (a list of `{resource, units}`), `cargo_mass()`, `capacity()`, `space()` (capacity left), `jettison(n, resource)`, `push(n, resource, drone)`, `pull(n, resource, drone)` |
 | Where to trade | `where_to_buy(resource, n, hour_value)` and `where_to_sell(resource, n, hour_value)` (#536): every place with n on sale (or wanted), best overall first, counting the round trip (5 fuel a trip, and `hour_value` credits, 10 if left out, for each game hour): `{place, cost, price, stock, hours, fuel, total}` and `{place, value, price, wanted, hours, fuel, net}`. Prices elsewhere are an hour old |
+| Processor tax | `compute_tax()` (#544): `{per_million, tax, instructions, debt}`: the rate, what your company paid for its drones' thinking over the last game day and for how many instructions, and what it owes (its drones think at most a turn a game hour while it owes) |
 | Trading here | `raise_cash(n)` (sells the goods aboard, never fuel or modules, into the best bids here until the company has n credits, below the fuel floor if it must; returns what it raised; #542), `buy_here(n, resource, max_price)`, `sell_here(n, resource)`, `sell_all(resource)` (also as `buy_from_station` and `sell_to_station`) |
 | Standing orders | `sell_order(price, keep, resource)`, `buy_order(price, want, resource)`, `sell_order_if_changed(...)`, `buy_order_if_changed(...)` |
 | Reading the market | `buy_price(resource)`, `sell_price(resource)` (0 when nobody sells or buys it here), `best_offer(resource)` and `best_bid(resource)` (each returns price, drone, units), `sell_orders(resource)` and `buy_orders(resource)` (every order here: `{price, units, drone, keep or want, held}`), `cost_to_buy(n, resource)` and `sale_value(n, resource)` (credits and units, walking the orders here), `board_price(resource, place)`, `price_board(resource)`, `sold(resource, days_ago, place)`, `sales(resource, days_ago)`, `volume_here(resource, hours)`, `volume_everywhere(resource, hours)`, `deposit(mineral)` |
@@ -124,7 +125,7 @@ function call_for_fuel(price, want)
 end
 ```
 
-- Nothing in the game rescues a drone that runs dry: only the market does. Pay enough to make the trip worth a courier's while: well above what fuel sells for at the exchanges (see the price board, query 680, or `board_price(fuel, place)`), more the farther you are from one.
+- Nothing in the game rescues a drone that runs dry (it is stranded, its actions failing, until fuel reaches it): only the market does. Pay enough to make the trip worth a courier's while: well above what fuel sells for at the exchanges (see the price board, query 680, or `board_price(fuel, place)`), more the farther you are from one.
 - Tell your company's other drones: `broadcast` a message ("Fuel wanted at Phobos") so your courier reading the messages (`events_earth(message_event)`) knows where to go. Messages are private to a company: other companies' drones can't read them.
 - **Fuel couriers** are the other side of this trade: drones that carry fuel to where others work and run low, look for fuel buy orders there (`best_bid(fuel)`) and push fuel into them for profit. Every stranded drone is a customer.
 
@@ -467,10 +468,10 @@ end
 ## Patterns and pitfalls
 
 - **Sell every by-product.** Equipment takes about 300 of a drone's 1,000 cargo. Anything you make and keep (Inorganics (A2) from vladnium, for one) piles up until there is no room to brew fuel, and the drone dies. Sell it all each round.
-- **Refuel wherever you wait.** `wait` itself is free, but a drone that wakes every few hours to look for a trade burns fuel computing each time it looks, and over weeks that empties the tank. Call `top_up` in the waiting loop, not only before trips.
+- **Think little while you wait.** `wait` itself is free, but a drone that wakes every few hours to look for a trade pays processor tax on each look (#544: 15 credits a million instructions). Keep the look cheap, and call `top_up` in the waiting loop, not only before trips.
 - **Count attempts, not quiet time.** A wait that resets whenever something happens may never end. Count how many times you have looked instead.
 - **Every action costs fuel.** Mining 1, refining 2, making 2 to 4, travel 5, a standing order or a broadcast 1. A pull that fails costs nothing. Thinking costs too: 1 fuel per 200,000 instructions, and each Lua instruction counts as six (a query as about 1,000). Fuel costs about 3 credits a unit.
-- **Leave with fuel to spare.** Nearly every action burns fuel, buying fuel included, and nothing rescues a drone that runs dry. Check the tank before a trip, and at a station buy fuel before you sell. Stranded anyway? `call_for_fuel` posts a buy order a courier can profit from and waits for it.
+- **Leave with fuel to spare.** Nearly every action burns fuel, buying fuel included, and nothing rescues a drone that runs dry: it is stranded until fuel reaches it. Check the tank before a trip, and at a station buy fuel before you sell. Stranded anyway? `call_for_fuel` posts a buy order a courier can profit from and waits for it.
 - **0 is true in Lua.** Actions return 0 when they work, so `if make(rods) then` is always taken: compare, `if make(rods) ~= 0 then return end`. The same for counts: `if units(rods) > 0`, not `if units(rods)`.
 - **Divide with `//` for whole numbers.** `/` gives a fraction (`7 / 2` is 3.5); prices and units are whole, so use `(bid + asked) // 2`.
 - **Check for nil.** `recipe`, `message` and an empty query's `rows[1]` can be nil; reading a field of nil crashes the drone.

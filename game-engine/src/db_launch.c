@@ -240,8 +240,6 @@ ErrorCode_t db_add_drone_message(DbConnection_t* connection, int agent_id, long 
 ErrorCode_t db_take_power_due(DbConnection_t* connection, int agent_id, long long per_fuel, long long* units)
 {
     *units = 0;
-    if(per_fuel <= 0)
-        return ENGINE_OK;
 
     ErrorCode_t result = ENGINE_OK;
     long long instructions = 0, paid = 0;
@@ -286,6 +284,12 @@ ErrorCode_t db_take_power_due(DbConnection_t* connection, int agent_id, long lon
             turn->power_paid = turn->instructions;
         return result;
     }
+
+    // Thinking burns no fuel since #544 (POWER_INSTRUCTIONS 0): the events
+    // engine bills the company processor tax for instructions - power_paid
+    // instead (db_compute.c). Loading stays free either way (above)
+    if(per_fuel <= 0)
+        return ENGINE_OK;
 
     *units = vm_meter_fuel_due(instructions, paid, per_fuel);
     if(*units > 0 && turn) {

@@ -69,6 +69,14 @@
             <div class="row row-30">
                 <div class="col">
                     <h2 class="">Shares</h2>
+                    {{-- What its drones' thinking costs it (#544) --}}
+                    @php($pt = $shares['compute'])
+                    <p id="processor-tax">Processor tax: {{ number_format($pt['tax_day']) }} credits over the last game day for
+                        {{ number_format($pt['instructions_day']) }} instructions ({{ $pt['per_million'] }} credits a million).
+                        @if($pt['debt'] > 0)
+                            <strong>It owes {{ number_format($pt['debt']) }}</strong>: its drones run throttled, a tenth of a turn each, until it has paid.
+                        @endif
+                    </p>
                     {{-- Whether it can keep its drones flying (#537) --}}
                     @php($h = $shares['health'])
                     <p id="company-health">Health: {{ $h['working'] }} working {{ \Illuminate\Support\Str::plural('drone', $h['working']) }}{{ $h['wrecked'] ? ', ' . $h['wrecked'] . ' wrecked' : '' }};

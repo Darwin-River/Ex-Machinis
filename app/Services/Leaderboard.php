@@ -109,6 +109,12 @@ class Leaderboard
                 $rows[$co]['wealth'] += $value;
             }
         }
+        // Processor tax it owes (#544) counts against it
+        foreach (ProcessorTax::debts() as $co => $debt) {
+            if (isset($rows[$co])) {
+                $rows[$co]['wealth'] -= $debt;
+            }
+        }
         // Credits committed to offerings of new shares, held at the exchange
         // until the shares are issued or the offering is refunded (#485)
         foreach (DB::table('share_commitments')->groupBy('investor')

@@ -19,6 +19,7 @@
 #include "event.h"
 #include "engine_e.h"
 #include "db_station.h"
+#include "db_compute.h"
 #include "db_shares.h"
 #include "db_wreck.h"
 #include "game_time.h"
@@ -345,6 +346,16 @@ ErrorCode_t engine_run()
         if(db_start_transaction(&engine.db_connection) == ENGINE_OK)
         {
             if(db_shares_clear_due() == ENGINE_OK)
+                db_commit_transaction(&engine.db_connection);
+            else
+                db_rollback_transaction(&engine.db_connection);
+        }
+
+        // The processor tax (#544): once a game hour, each company pays for
+        // its drones' thinking, in one transaction
+        if(db_start_transaction(&engine.db_connection) == ENGINE_OK)
+        {
+            if(db_compute_bill_due() == ENGINE_OK)
                 db_commit_transaction(&engine.db_connection);
             else
                 db_rollback_transaction(&engine.db_connection);

@@ -83,6 +83,8 @@ class ApiController extends Controller
             // The stock market (#471): its share price, holders, orders, trades
             // and the shares it holds in others
             'shares' => Shares::summary((int) $company->company_id),
+            // What its drones' thinking costs it (#544)
+            'compute' => \App\Services\ProcessorTax::of((int) $company->company_id),
             // Whether it can keep its drones flying (#537)
             'health' => \App\Services\CompanyHealth::of((int) $company->company_id)
                 // and each working drone: idle hours, last status, hold (#540)
