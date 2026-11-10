@@ -44,7 +44,9 @@
                 wealth: the average price of its trades over the last 3 game days, weighted by shares, or the last price if
                 none traded then, so one odd trade doesn't move every holder's wealth. <i>Health</i> is whether it can keep its
                 drones flying: the game days until its first drone runs dry at the last day's fall in fuel, and
-                <i>at risk</i> when that is 3 days or fewer and it has under 500 credits, or no drone works.</div>
+                <i>at risk</i> when that is 3 days or fewer and it has under 500 credits, or no drone works (a warning, not a
+                verdict: see the company's page for why), and <i>stalled</i> when none of its drones has bought, sold or
+                made anything for a game day.</div>
             <div class="table-custom-responsive">
                 <table class="table-ticket" id="share-companies">
                     <tr><th>Company</th><th>Shares</th><th>Last price</th><th>Value</th><th>Sales a day</th><th>A share a day</th><th>Pays back</th>
@@ -60,7 +62,20 @@
                             <td>{{ $c['payback'] !== null ? $c['payback'] . ' days' : '–' }}</td>
                             <td>{{ number_format($c['held_by_others']) }}</td>
                             <td>{{ number_format($c['dividends_paid']) }}</td>
-                            <td>@php($h = $c['health'])@if(!$h)–@elseif($h['at_risk'])<strong>at risk</strong>@if($h['days'] >= 0), {{ $h['days'] }} {{ \Illuminate\Support\Str::plural('day', $h['days']) }}@endif @elseif($h['days'] >= 0){{ $h['days'] }} {{ \Illuminate\Support\Str::plural('day', $h['days']) }} of fuel @else steady @endif</td>
+                            @php($h = $c['health'])
+                            @php($days = $h && $h['days'] >= 0 ? $h['days'] . ' ' . \Illuminate\Support\Str::plural('day', $h['days']) : null)
+                            <td>
+                                @if(!$h)
+                                    –
+                                @elseif($h['at_risk'])
+                                    <strong>at risk</strong>{{ $days ? ', ' . $days : '' }}
+                                @else
+                                    {{ $days ? $days . ' of fuel' : 'steady' }}
+                                @endif
+                                @if($h && $h['stalled'])
+                                    , <strong>stalled</strong>
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr><td colspan="10">No company has traded or offered shares yet.</td></tr>

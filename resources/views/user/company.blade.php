@@ -71,11 +71,29 @@
                     <h2 class="">Shares</h2>
                     {{-- Whether it can keep its drones flying (#537) --}}
                     @php($h = $shares['health'])
-                    <p id="company-health">Health: {{ $h['working'] }} working {{ \Illuminate\Support\Str::plural('drone', $h['working']) }}@if($h['wrecked']), {{ $h['wrecked'] }} wrecked @endif;
+                    <p id="company-health">Health: {{ $h['working'] }} working {{ \Illuminate\Support\Str::plural('drone', $h['working']) }}{{ $h['wrecked'] ? ', ' . $h['wrecked'] . ' wrecked' : '' }};
                         {{ number_format($h['fuel']) }} fuel aboard (the least, {{ $h['lowest'] }}), {{ number_format($h['used']) }} used over the last game day;
-                        @if($h['days'] >= 0) a drone runs dry in about {{ $h['days'] }} game {{ \Illuminate\Support\Str::plural('day', $h['days']) }} at that rate @else no drone's fuel is falling @endif;
+                        {{ $h['days'] >= 0 ? 'a drone runs dry in about ' . $h['days'] . ' game ' . \Illuminate\Support\Str::plural('day', $h['days']) . ' at that rate' : "no drone's fuel is falling" }};
                         {{ number_format($h['credits']) }} credits.
-                        @if($h['at_risk'])<strong>At risk: it may not keep its drones flying.</strong>@endif</p>
+                        @if($h['at_risk'])
+                            <strong>At risk:</strong> {{ $h['at_risk_reason'] }}. A warning, not a verdict.
+                        @endif
+                        @if($h['stalled'])
+                            <strong>Stalled:</strong> none of its drones has bought, sold or made anything for {{ $h['idle'] }} game hours.
+                        @endif
+                    </p>
+                    @if($h['stalled'] || collect($h['drones'])->contains(fn ($d) => $d['idle'] >= 24))
+                        <ul id="idle-drones">
+                            @foreach($h['drones'] as $d)
+                                @if($d['idle'] >= 24)
+                                    @php($says = $d['status'] ? ', says "' . $d['status'] . '"' : '')
+                                    @php($holds = count($d['holds']) ? ', holds ' . collect($d['holds'])->map(fn ($x) => $x['units'] . ' ' . $x['resource'])->implode(', ') : '')
+                                    <li><a href="{{ url('/spacecraft/' . $d['drone']) }}">{{ $d['name'] }}</a>: idle {{ $d['idle'] }}
+                                        game hours{{ $says }}{{ $holds }}</li>
+                                @endif
+                            @endforeach
+                        </ul>
+                    @endif
                     <p>{{ number_format($shares['count']) }} shares, each paying its part of the company's sales income after tax.
                         Last trade price: <b>{{ $shares['price'] !== null ? number_format($shares['price']) . ' credits' : 'never traded' }}</b>.</p>
                 </div>

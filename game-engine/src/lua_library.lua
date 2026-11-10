@@ -339,6 +339,26 @@ local function now()                                                            
   return record(ask(207), {"day", "minute"}) or {day = 0, minute = 0}
 end
 local function hold(d) return records(ask(210, d or me()), {"resource", "units"}) end  -- 210
+-- Raise credits by selling what is aboard (#542): goods only (resources
+-- under 5000: never fuel, modules or kits), each into the best buy orders
+-- here, until the company has at least n credits. It may sell below the
+-- fuel floor: a drone with no credits can't buy fuel anyway, and selling is
+-- how it gets them (round 57: Dev 2 sat at its floor with 16 parts aboard
+-- and 17 credits, and its sells were refused). Returns the credits raised
+local function raise_cash(n)
+  local start = credits()
+  if start >= n then return 0 end
+  local saved = floor_fuel
+  floor_fuel = 0
+  local goods = hold()
+  table.sort(goods, function(a, b) return a.units > b.units end)
+  for _, g in ipairs(goods) do
+    if credits() >= n then break end
+    if g.resource < 5000 and g.resource ~= fuel and g.units > 0 then sell_here(g.units, g.resource) end
+  end
+  floor_fuel = saved
+  return credits() - start
+end
 local function hull_name(h) return text(300, h or hull()) end                     -- 300
 local function hull_capacity(h) return first(301, h or hull()) end                -- 301
 local function capacity() return hull_capacity(hull()) end
@@ -413,9 +433,13 @@ end
 -- A company's health (#537; yours if c is left out): working and wrecked
 -- drones, fuel (aboard its working drones), lowest (the least aboard one),
 -- used (fuel they used over the last game day), days (game days until one
--- runs dry at its net fall in fuel; -1 when none is falling), credits
+-- runs dry at its net fall in fuel; -1 when none is falling), credits,
+-- idle (game hours since any of its drones last bought, sold, mined, refined
+-- or made goods other than fuel, #540), stalled (idle a game day or more)
 local function company_health(c)                                                  -- 699
-  return record(ask(699, c or company()), {"working", "wrecked", "fuel", "lowest", "used", "days", "credits"})
+  local h = record(ask(699, c or company()), {"working", "wrecked", "fuel", "lowest", "used", "days", "credits", "idle"})
+  if h then h.stalled = h.working > 0 and h.idle >= 24 end
+  return h
 end
 local function share_price(c)
   local t = share_trades(c)[1]
@@ -722,6 +746,7 @@ _G.shares_for_sale = shares_for_sale
 _G.share_offerings = share_offerings
 _G.company_health = company_health
 _G.where_to_buy = where_to_buy
+_G.raise_cash = raise_cash
 _G.where_to_sell = where_to_sell
 _G.share_count = share_count
 _G.ask = ask

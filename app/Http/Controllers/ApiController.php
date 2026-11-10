@@ -84,7 +84,9 @@ class ApiController extends Controller
             // and the shares it holds in others
             'shares' => Shares::summary((int) $company->company_id),
             // Whether it can keep its drones flying (#537)
-            'health' => \App\Services\CompanyHealth::of((int) $company->company_id),
+            'health' => \App\Services\CompanyHealth::of((int) $company->company_id)
+                // and each working drone: idle hours, last status, hold (#540)
+                + ['drones' => \App\Services\CompanyHealth::drones((int) $company->company_id)],
         ]);
     }
 
