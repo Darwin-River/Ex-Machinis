@@ -1,6 +1,6 @@
 # Open-source pathway
 
-How Ex Machinis becomes an MIT-licensed project that lives in its own GitHub organization and can be handed to new maintainers (#523). The [sustainability playbook](sustainability-playbook.md) covers money, promotion and the day-to-day hand-over; this page covers the code and its home.
+How Ex Machinis becomes an MIT-licensed project that lives in a new repository in its own GitHub organization and can be handed to new maintainers (#523). The [sustainability playbook](sustainability-playbook.md) covers money, promotion and the day-to-day hand-over; this page covers the code and its home.
 
 ## Where things stand
 
@@ -8,75 +8,92 @@ How Ex Machinis becomes an MIT-licensed project that lives in its own GitHub org
 |---|---|
 | MIT licence (`LICENSE`) | Done (#523) |
 | `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, issue templates | Done (#523) |
-| Full-history audit for secrets, personal data and third-party licences | Done (#523): findings below |
-| Remove the commercial website template, its scripts, fonts and stock images; build our own design | Done (#524) |
+| Full-history audit for secrets, personal data and third-party licences | Done (#523) |
+| Remove the commercial website template; build our own design | Done (#524) |
 | Personal email out of the wiki settings | Done (#525) |
 | Player data and an Access lock file out of the current files | Done (#526) |
-| Rotate old passwords and keys that are in git history | **To do: maintainer** |
-| Contributors agree to MIT | **To do: maintainer** |
-| Decide on the old player data in git history | **To do: maintainer** |
-| Smaller clean-ups (below) | To do |
-| Create the organization and transfer the repository | To do: maintainer |
-| After the move: links, settings, Claude app | To do |
+| A cleaned copy of the history for the new repository | Ready (#527): `admin/clean-history.sh` |
+| Create the new repository and push the cleaned history | To do: maintainer, then Claude |
+| Move the open issues; archive the old repository | To do |
 
-## Before the move: what only a maintainer can do
+## Decisions (November 2026)
 
-### 1. Rotate everything that was ever committed
+- **Old passwords and keys:** none of them is live any more, so nothing needs rotating. They are removed from the new repository's history instead (#527).
+- **Contributors:** Carlos Rodríguez and Fernando Rivas wrote their code under contract with Darwin River Software LLC, which owns it, so the LLC can license it all under MIT without further permission.
+- **The 2018 users dump:** no longer relevant; it is dropped from the new repository's history (#527).
+- **A new repository rather than a transfer:** so the project starts with a clean history.
 
-The audit found **no live secrets in the current files**, but git history still holds old values, readable by anyone, because history isn't being rewritten. Treat each as public and change it wherever it's still in use:
+## The cleaned history
 
-- the game database password used in 2018–2020 (old `.env`, `game-engine/conf/*.conf`, `game-engine/scripts/.env` copies);
-- the Laravel `APP_KEY` from that era;
-- the `CRON_KEY` from that era (the app still uses a `CRON_KEY`: make sure the live one is different);
-- the mail passwords for the old `@exmachinis.com` mailboxes;
-- the wiki's database password, `$wgSecretKey` and `$wgUpgradeKey` from 2022.
+`admin/clean-history.sh` copies the old repository and rewrites the copy; the old repository isn't touched. It:
 
-Where a service is retired (old mailboxes, the old DigitalOcean server at the IP in `game-engine/doc/developers_guide.txt`), confirm it's off rather than rotating.
+- replaces every old password and key (database, `APP_KEY`, `CRON_KEY`, mail, wiki) with `REMOVED`, finding them by their setting names, so the script itself holds no secrets;
+- drops the 2018 `users` dump, the old `.env` files and a 2021 engine log;
+- drops the commercial template's scripts, styles, fonts and stock images (#524), which can't be distributed under MIT;
+- replaces players' rows quoted in old notes and the old server's address with example values (found by pattern, so the script repeats none of them);
+- then checks that none of the old values is left.
 
-### 2. Get the contributors' agreement
+On the November 2026 history it kept 959 of 962 commits (three only touched removed files), and the repository shrank from 33 MB to 14 MB. A gitleaks scan of the result finds only an example token in `documents/api.md`.
 
-MIT is a grant from whoever owns the copyright. Most of the history is by the maintainer, but two other people wrote a lot of it: **Carlos Rodríguez** (`crodnun`, much of `game-engine/`) and **Fernando Rivas** (`freelancefrivas`). Either:
+Run it on the old repository's **latest** history, after the last pull request there is merged:
 
-- their contracts already assign their work to Darwin River Software LLC: note that on #523; or
-- ask each of them to reply on #523 that they agree to their contributions being released under MIT.
+```sh
+pip install git-filter-repo
+admin/clean-history.sh https://github.com/Darwin-River/Ex-Machinis.git /tmp/clean --review   # see what it will do
+admin/clean-history.sh https://github.com/Darwin-River/Ex-Machinis.git /tmp/clean
+git -C /tmp/clean/repo.git push <new-repository-url> public-forge
+git -C /tmp/clean/repo.git push <new-repository-url> --tags
+```
 
-Until then the `LICENSE` file states the intent, but this is the step that makes it solid.
+Every commit gets a new hash. Commit messages keep their text, so `#123` references still read correctly, but they'll point at the new repository's issue numbers.
 
-### 3. Decide about old player data in history
+Old commits in the cleaned history won't build the website (the template they used is gone); the current code is unaffected.
 
-An old database dump (`game-engine/sql/exmachinis_02082018.sql`, added 2018-02-08, removed 2019-03-21) holds names, email addresses and password hashes for eight accounts: three players, a spam sign-up and two developers. The website no longer has accounts, so the hashes protect nothing in the game, but people reuse passwords. Options:
+## What moves to a new repository, and what doesn't
 
-- **Leave it** (it's been public since 2018) and note the decision on #523; or
-- **Ask GitHub Support** to purge cached views of those commits, and email the three players if you have a way to reach them.
+| | Moves? | How |
+|---|---|---|
+| Code, commits, authors, dates, messages | Yes | Pushed from the cleaned history |
+| Branches and tags | Yes, the ones pushed | `public-forge` and the tags; old work branches aren't needed |
+| Issues and their comments | **No** | Copied by script, or left in the archived old repository (below) |
+| Pull requests and reviews | **No** | Stay readable in the archived old repository |
+| Labels, milestones | No | Recreated (a few minutes), or copied by the issue script |
+| Stars, watchers, forks | No | Start again |
+| Actions settings, variables and secrets | No | Set again (the announce Action's, see the [playbook](sustainability-playbook.md#posting-automatically)) |
+| Releases, wiki, Pages, webhooks, deploy keys | No | Set again if used |
+| Old links to `github.com/Darwin-River/Ex-Machinis` | No redirect | The archived old repository says where the project went |
 
-Rewriting history would break every existing clone and fork; it isn't recommended for this.
+### Issues
 
-### 4. Smaller clean-ups
+Issue numbers are referenced all over the code and docs (`#324`, `#380` …). Two options:
+
+- **Recommended: start fresh, keep the old ones readable.** Archive the old repository (Settings → Archive): it becomes read-only but stays public, so every `#N` in the history can still be looked up there. Copy only the **open** issues to the new repository, each linking back to the original.
+- **Copy everything.** A script can copy every issue and comment through the GitHub API. But the numbers change (pull requests used half of them), the copies are posted by whoever runs it, with the original author and date written into the text; it takes hours for 500+ issues; and pull requests can't be copied as pull requests.
+
+## The move
+
+1. **Create an organization** on GitHub (free plan), named for the game, e.g. `ex-machinis`, with at least one other trusted person as an **owner**. Create an **empty** repository in it (no README, licence or `.gitignore`).
+2. **Merge** the last pull request in the old repository, then **run the clean-up and push** (above).
+3. **Set up the new repository:**
+   - make `public-forge` the default branch;
+   - add a branch ruleset on `public-forge`: pull requests only, CI must pass, squash merges only;
+   - turn on private vulnerability reporting (Settings → Code security), which `SECURITY.md` points to;
+   - add labels: `bug`, `idea`, `good first issue`;
+   - set the Actions variables and secrets;
+   - install the Claude GitHub app on the organization.
+4. **Move the open issues** (Claude can do this once it has access to both repositories).
+5. **Point everything at the new home** in one pull request: the site footer (`resources/views/layouts/app.blade.php`), `.github/ISSUE_TEMPLATE/config.yml`, `HomeController::REPOSITORY_DOCS` and its test, `deploy/README.md`, `documents/hosting.md`, and the README.
+6. **On the server**, point the checkout at the new repository: `git remote set-url origin <new-url>`, then `git fetch` and reset to the new `public-forge` (the history was rewritten, so a plain pull won't work).
+7. **Archive the old repository**, after adding a line at the top of its README saying where the project moved.
+8. Fill in the "who owns what" table in the [playbook](sustainability-playbook.md#who-owns-what).
+
+## Smaller clean-ups still open
 
 - `game-engine/machine/trace_machine` is a compiled program whose source (`trace_machine.c`) isn't in the repository. Commit the source or delete the binary.
 - The logo (`html/images/logo.png`) looks original, but check the licence of the typeface it was drawn from.
 - `soundasleep/html2text` in `composer.json` is no longer used; remove it.
-- `HomeController::REPOSITORY_DOCS` links to the `main` branch; point it at `public-forge`.
 
 Bundled code that stays, with its own notices: Lua 5.4 (`game-engine/lua54/`, MIT) and Richard Howe's eForth "embed" (`game-engine/src/embed/`, MIT). Bootstrap (MIT) and the npm and Composer dependencies are all permissive.
-
-## The move
-
-1. **Create an organization** on GitHub (free plan), named for the game, e.g. `ex-machinis`. Add at least one other trusted person as an **owner**.
-2. **Transfer the repository**: Settings → General → Danger Zone → Transfer, to the new organization. GitHub keeps the issues, pull requests, stars and history, and redirects the old address (web and `git`) unless a new repository later takes the old name. Leave `Darwin-River/Ex-Machinis` unused for that reason.
-3. **Reconnect what's tied to the repository:**
-   - Install the Claude GitHub app on the new organization, so AI sessions can keep working on it.
-   - Check Settings → Secrets and variables → Actions: the announce Action's `SITE_URL`, Bluesky and Mastodon settings (see the [playbook](sustainability-playbook.md#posting-automatically)).
-   - Re-point any deploy keys or webhooks the server uses.
-
-## After the move
-
-- Make `public-forge` the **default branch**, so newcomers land where pull requests go.
-- Add a **branch ruleset** on `public-forge`: pull requests only, CI must pass, squash merges only.
-- Turn on **private vulnerability reporting** (Settings → Code security), which `SECURITY.md` points to.
-- Add the labels the issue templates use (`bug`, `idea`) and a `good first issue` label.
-- Update the `Darwin-River/Ex-Machinis` links: the site footer (`resources/views/layouts/app.blade.php`), `.github/ISSUE_TEMPLATE/config.yml`, `HomeController::REPOSITORY_DOCS` and its test, `deploy/README.md` and `documents/hosting.md`. Claude can do this in one pull request.
-- Fill in the "who owns what" table in the [playbook](sustainability-playbook.md#who-owns-what).
 
 ## The website's design
 
