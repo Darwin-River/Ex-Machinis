@@ -125,7 +125,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     </ul>
                 </div>
             </div>
-            <p class="footer-legal">Ex Machinis is free and open source under the <a href="https://github.com/Darwin-River/Ex-Machinis/blob/public-forge/LICENSE">MIT licence</a>. &copy; Darwin River Software LLC and the Ex Machinis contributors.</p>
+            <p class="footer-legal">Ex Machinis is free and open source under the <a href="https://github.com/Darwin-River/Ex-Machinis/blob/public-forge/LICENSE">MIT licence</a>. &copy; the Ex Machinis contributors.</p>
         </div>
     </footer>
 </div>

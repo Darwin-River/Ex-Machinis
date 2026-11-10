@@ -19,7 +19,7 @@ How Ex Machinis becomes an MIT-licensed project that lives in a new repository i
 ## Decisions (November 2026)
 
 - **Old passwords and keys:** none of them is live any more, so nothing needs rotating. They are removed from the new repository's history instead (#527).
-- **Contributors:** Carlos Rodríguez and Fernando Rivas wrote their code under contract with Darwin River Software LLC, which owns it, so the LLC can license it all under MIT without further permission.
+- **Contributors:** Carlos Rodríguez and Fernando Rivas wrote their code under contract with the project's owner, who holds the copyright to it, so it can all be licensed under MIT without further permission.
 - **The 2018 users dump:** no longer relevant; it is dropped from the new repository's history (#527).
 - **A new repository rather than a transfer:** so the project starts with a clean history.
 

@@ -36,7 +36,7 @@ One ask, for running costs only (#522). No tiers, no supporter-only posts, nothi
 
 The **Keep the Lights On** page shows the monthly costs, how much last month's support covered, the Ko-fi button, and free ways to help. Every page links to it from the header, the menu and the footer.
 
-Darwin River Software is an LLC, so support is income, not a tax-deductible donation: say "support" or "chip in", not "donate".
+The project isn't a registered charity, so support is income to whoever runs it, not a tax-deductible donation: say "support" or "chip in", not "donate".
 
 ### Every month (one update)
 
@@ -110,9 +110,9 @@ Keep this table current. "Owner" is an account or organisation, not a person's p
 
 | Thing | Where | Owner | Who else has access |
 |---|---|---|---|
-| Code | GitHub `Darwin-River/Ex-Machinis` | Darwin-River organisation | |
-| Server | Hetzner project | Darwin River Software LLC | |
-| Domain | Registrar | Darwin River Software LLC | |
+| Code | GitHub (moving to a project organization, see the [open-source pathway](open-source-pathway.md)) | The project organization | |
+| Server | Hetzner project | | |
+| Domain | Registrar | | |
 | Ko-fi | ko-fi.com/ (not set up yet) | | |
 | Bluesky, Mastodon | | | |
 | AI subscription | | | |

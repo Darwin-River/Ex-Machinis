@@ -950,6 +950,8 @@ This provides the Cartesian position of the orbital object with respect to the c
 
 ## Meta Commands
 
+> **Retired.** Email play ended in #367: drones are released on the website or through the API, and there are no accounts or mailboxes. This section describes how the old email game worked, for the drones and code that remain from it.
+
 Players generally interact with their spacecraft via email.  Each spacecraft has its own email address and players use this address to send their drones meta-commands.  Meta-commands are always bracketed by greater than and less than signs (ie. “\<command\>”) to distinguish them from other email content, which is ignored by the drones. Most meta-commands enclose a single parameter, which is being sent to the spacecraft.  In this case, the meta-command would be rendered as “\<command\> parameter \</command\>.”  Spacecraft will only execute the first recognizable meta-command in an email: a second `<run>` block, for example, is ignored, so a script that needs more lines goes in one block.
 
 The Mail Handler reads an email's plain-text part. If that part holds no meta-command but the HTML part does (some mail clients send a plain part without what the player typed), it uses the HTML part converted to text. Mail to a drone name that doesn't exist (a typo, or a drone that was renamed) gets a reply listing the sender's drones, if the sender is a registered player; anyone else gets no reply, so spam to the catch-all address isn't answered.
