@@ -70,8 +70,10 @@ class UserController extends Controller
         $shares['compute'] = \App\Services\ProcessorTax::of((int) $company->company_id);
         $shares['health'] = \App\Services\CompanyHealth::of((int) $company->company_id)
             + ['drones' => \App\Services\CompanyHealth::drones((int) $company->company_id)];
+        // Its leaderboard place among companies its age or younger (#548)
+        $rank = \App\Services\Leaderboard::peerRank((int) $company->company_id);
 
-        return view('user.company', compact('user', 'spacecraft', 'shares'));
+        return view('user.company', compact('user', 'spacecraft', 'shares', 'rank'));
     }
 
 }

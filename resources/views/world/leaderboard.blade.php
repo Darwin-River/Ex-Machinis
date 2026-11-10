@@ -12,8 +12,20 @@
                 ({{ number_format($kit) }}: its starting credits and fuel). So a new company is worth 0, and
                 wealth is what it made. The drones themselves don't count, so launching a copy lowers net wealth by
                 about the price of its hull until the copy earns it back (often 10 to 20 game days).
-                <b>Rising</b> is the gain over the last real week.
+                <b>Rising</b> is the gain over the last real week. <b>Age</b> is game days since the company was founded.
             </div>
+            {{-- Compare young companies only (#548), so they aren't eclipsed by ones that had longer to grow --}}
+            <form method="get" action="{{ url()->current() }}" id="age-filter" style="white-space: normal; margin-bottom: 1em">
+                Companies up to
+                <input type="number" name="max_age" min="0" step="0.1" style="width: 6em"
+                       value="{{ $maxAge === null ? '' : $maxAge }}" placeholder="any">
+                game days old <button type="submit">Show</button>
+                &middot;
+                @foreach([null => 'any age', 30 => '30 days', 10 => '10 days', 3 => '3 days'] as $days => $label)
+                    <a href="{{ $days === '' ? url()->current() : url()->current() . '?max_age=' . $days }}"
+                       style="{{ (string) $maxAge === (string) $days ? 'font-weight: bold' : '' }}">{{ $label }}</a>
+                @endforeach
+            </form>
             <div class="row">
                 @foreach(['All time' => ['rows' => $allTime, 'key' => 'wealth', 'id' => 'all-time'],
                           'Rising this week' => ['rows' => $rising, 'key' => 'gain', 'id' => 'rising']] as $title => $board)
@@ -21,14 +33,14 @@
                         <h3>{{ $title }}</h3>
                         <div class="table-custom-responsive">
                             <table class="table-ticket" id="{{ $board['id'] }}">
-                                <tr><th>#</th><th>Company</th><th>Working drones</th><th>{{ $board['key'] === 'gain' ? 'Gain' : 'Net wealth' }}</th></tr>
+                                <tr><th>#</th><th>Company</th><th>Age (game days)</th><th>Working drones</th><th>{{ $board['key'] === 'gain' ? 'Gain' : 'Net wealth' }}</th></tr>
                                 @forelse($board['rows'] as $i => $row)
                                     <tr>
-                                        <td>{{ $i + 1 }}</td><td>{{ $row['company'] }}</td>
+                                        <td>{{ $i + 1 }}</td><td>{{ $row['company'] }}</td><td>{{ number_format($row['age'], 1) }}</td>
                                         <td>{{ $row['drones'] }}</td><td>{{ number_format($row[$board['key']]) }}</td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="4">Nobody yet.</td></tr>
+                                    <tr><td colspan="5">{{ $maxAge === null ? 'Nobody yet.' : 'No company that young.' }}</td></tr>
                                 @endforelse
                             </table>
                         </div>

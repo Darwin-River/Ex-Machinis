@@ -22,6 +22,13 @@
                     <div class="col-12 col-lg-12 col">
 
                         <b>Credits: </b><span style="font-weight: normal">{{$user->credits}}</span><br/>
+                        @if($rank)
+                            {{-- Ranked only among companies its age or younger (#548) --}}
+                            <b>Leaderboard: </b><span style="font-weight: normal" id="peer-rank">{{ $rank['rank'] }} of {{ $rank['of'] }}
+                                {{ $rank['of'] === 1 ? 'company' : 'companies' }} up to {{ number_format($rank['age'], 1) }} game days old
+                                (its age)</span>
+                            (<a href="{{ url('leaderboard') . '?max_age=' . $rank['age'] }}">compare</a>)<br/>
+                        @endif
 
                     </div>
                 </div>

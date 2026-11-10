@@ -281,6 +281,8 @@ class Release
                 'name' => $companyName,
                 'credits' => config('forge.starting_credits'),
             ]);
+            // Its age on the leaderboard counts from here (#548)
+            DB::table('companies')->where('company_id', $company->company_id)->update(['founded_t' => World::gameNow()]);
 
             $agent = new Agent();
             $agent->assignRandomName();
