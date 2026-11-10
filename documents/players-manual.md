@@ -144,7 +144,7 @@ Four more pages show the whole world, live:
 - **Home:** "What's happening" lists the latest events in plain words: new releases, clones launched, drones that died and why, plunders, companies that ended, and trades.
 - **Market** (`/market`): the order book (for each resource, the cheapest sell order and the best buy order at each place) and the latest trades.
 - **Map:** the planets where they are now, with the drones and wrecks around each.
-- **Leaderboard:** companies by net wealth, all time and **Rising** (the gain over the last real week). Each release starts a company, and the drones it launches belong to it. Net wealth counts the company's credits, its working drones' goods at market prices (what they sold for over the last three game days) and the shares it holds in other companies at their last trade price, minus what the company started with, so it measures what the company made. The drones themselves don't count: launching a copy lowers net wealth by about the price of its hull (3,000) until the copy earns that back, often 10 to 20 game days, and longer for a copy that first flies to Mars. Grow early, not near the end of a contest.
+- **Leaderboard:** companies by net wealth, all time and **Rising** (the gain over the last real week). Each release starts a company, and the drones it launches belong to it. Net wealth counts the company's credits, its working drones' goods at market prices (what they sold for over the last three game days) and the shares it holds in other companies at the average price of their trades over the last three game days (weighted by shares; the last trade price if none traded then), minus what the company started with, so it measures what the company made. The drones themselves don't count: launching a copy lowers net wealth by about the price of its hull (3,000) until the copy earns that back, often 10 to 20 game days, and longer for a copy that first flies to Mars. Grow early, not near the end of a contest.
 
 Your drones can't see all this: they see live orders only where they are (see [the price board](#the-price-board)). You can, so use these pages to plan.
 
@@ -1047,7 +1047,7 @@ Every company starts with **1,000 shares**, and can issue more (see [Raising cre
 
 Selling shares raises credits now in exchange for part of your future sales. Buying another company's shares earns you part of its sales for as long as you hold them. A company could make its living trading shares alone.
 
-The website's **[Stock exchange](/market/shares)** page (Markets menu) shows the whole market live: every company whose shares have traded or are on offer, with its last price, its sales after tax a day (averaged over the last 7 game days, since sales come in lumps), what a share earns a day and how many days the last price takes to pay back; every sell order that can sell now; the buy orders; the open offerings of new shares, with how much is committed; and the latest trades. Each company's own page shows who holds its shares, and its open offering with who has committed to it.
+The website's **[Stock exchange](/market/shares)** page (Markets menu) shows the whole market live: every company whose shares have traded or are on offer, with its last price, its value (the three-day average that net wealth uses), its sales after tax a day (averaged over the last 7 game days, since sales come in lumps), what a share earns a day and how many days the last price takes to pay back; every sell order that can sell now; the buy orders; the open offerings of new shares, with how much is committed; and the latest trades. Each company's own page shows who holds its shares, and its open offering with who has committed to it.
 
 Shares trade **the way goods do**, at the **stock exchange at Earth**. Everything is electronic: a drone anywhere can act for its company, and each request reaches Earth at the speed of light and takes effect when it arrives.
 
@@ -1087,13 +1087,13 @@ Each of the four actions takes a moment and burns a unit of fuel. Each returns 0
 
 **What you hold, and who holds you.**
 
-- `shares_held()` (query 692) lists the shares your company holds, its own included. Each is `{company, units, dividends, price}`, where `dividends` is what those shares have paid you so far and `price` is their last trade price (0 if they never traded).
+- `shares_held()` (query 692) lists the shares your company holds, its own included. Each is `{company, units, dividends, price}`, where `dividends` is what those shares have paid you so far and `price` is what a share is worth: the average price of their trades over the last three game days (weighted by shares; the last trade price if none traded then) (0 if they never traded).
 - `shareholders(company)` (query 693) lists who holds a company's shares, most first: `{company, units}`.
 - `share_trades(company)` (query 694) lists its last 20 trades, newest first: `{price, units, seller, buyer, day}`.
 - `share_price(company)` is the last trade price, or `nil` if its shares never traded.
 - `shares_for_sale()` (query 696) lists every sell order for shares that can sell now, any company's, cheapest first: `{company, price, units, seller, sales}`. `sales` is the company's sales income after tax a day, averaged over the last 7 game days (or its life, if younger), so a share of it earns about `sales / share_count(company)` a day (`sales / 1000` until the company issues new shares). `examples/companies/investor.lua` is a company that lives on this.
 
-The company's page on the website shows the same, and net wealth on the leaderboard counts the shares you hold in other companies at their last trade price.
+The company's page on the website shows the same, and net wealth on the leaderboard counts the shares you hold in other companies at the average price of their trades over the last three game days (weighted by shares; the last trade price if none traded then). So one odd trade, a couple of shares between your own companies or one panic sale at 1, doesn't move every holder's wealth (#513).
 
 **When a company fails**, its own shares are worth nothing: it earns nothing more, so they count 0 in its holders' net wealth, its orders and offerings close, and they can't be traded (#493). The shares it held in other companies go to the House. The House goes on collecting their income and posts sell orders for them at about 30 days' worth of their recent income.
 

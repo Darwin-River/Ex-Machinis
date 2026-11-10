@@ -40,18 +40,21 @@
             <h3 class="mt-4">Companies</h3>
             <div style="white-space: normal; margin-bottom: 1em">Companies whose shares have traded, are on offer, or are
                 held by others, busiest first. <i>Sales a day</i> is sales after tax averaged over the last 7 game days (sales come in lumps); <i>A share a day</i> is that divided by its shares;
-                <i>Pays back</i> is how many days of that the last price comes to. <i>Health</i> is whether it can keep its
+                <i>Pays back</i> is how many days of that the last price comes to. <i>Value</i> is what a share counts for in net
+                wealth: the average price of its trades over the last 3 game days, weighted by shares, or the last price if
+                none traded then, so one odd trade doesn't move every holder's wealth. <i>Health</i> is whether it can keep its
                 drones flying: the game days until its first drone runs dry at the last day's fall in fuel, and
                 <i>at risk</i> when that is 3 days or fewer and it has under 500 credits, or no drone works.</div>
             <div class="table-custom-responsive">
                 <table class="table-ticket" id="share-companies">
-                    <tr><th>Company</th><th>Shares</th><th>Last price</th><th>Sales a day</th><th>A share a day</th><th>Pays back</th>
+                    <tr><th>Company</th><th>Shares</th><th>Last price</th><th>Value</th><th>Sales a day</th><th>A share a day</th><th>Pays back</th>
                         <th>Held by others</th><th>Dividends paid</th><th>Health</th></tr>
                     @forelse($exchange['companies'] as $c)
                         <tr>
                             <td><a href="{{ url('companies/' . $c['company']) }}">{{ $c['name'] }}</a></td>
                             <td>{{ number_format($c['count']) }}</td>
                             <td>{{ $c['price'] !== null ? number_format($c['price']) : 'never traded' }}</td>
+                            <td>{{ $c['value_price'] !== null ? number_format($c['value_price']) : '–' }}</td>
                             <td>{{ number_format($c['sales']) }}</td>
                             <td>{{ $c['a_day'] }}</td>
                             <td>{{ $c['payback'] !== null ? $c['payback'] . ' days' : '–' }}</td>
@@ -60,7 +63,7 @@
                             <td>@php($h = $c['health'])@if(!$h)–@elseif($h['at_risk'])<strong>at risk</strong>@if($h['days'] >= 0), {{ $h['days'] }} {{ \Illuminate\Support\Str::plural('day', $h['days']) }}@endif @elseif($h['days'] >= 0){{ $h['days'] }} {{ \Illuminate\Support\Str::plural('day', $h['days']) }} of fuel @else steady @endif</td>
                         </tr>
                     @empty
-                        <tr><td colspan="9">No company has traded or offered shares yet.</td></tr>
+                        <tr><td colspan="10">No company has traded or offered shares yet.</td></tr>
                     @endforelse
                 </table>
             </div>

@@ -1360,11 +1360,18 @@ queries.append((691, 'Share buy orders',
 MY_COMPANY = "(SELECT company_id FROM agents WHERE agent_id = [drone_id])"
 LAST_SHARE_PRICE = ("(SELECT t.price FROM share_trades AS t WHERE t.share_company = {c} "
                     "ORDER BY t.id DESC LIMIT 1)")
+# What a share is worth (#513): the average of the company's share trades
+# over the last 3 game days, weighted by shares, else its last trade price.
+# As Shares::valuePrices()
+VALUE_SHARE_PRICE = ("IFNULL((SELECT GREATEST(1, ROUND(SUM(v.units * v.price) / SUM(v.units))) FROM share_trades AS v "
+                     "WHERE v.share_company = {c} AND v.game_t > [game_now] - 259200 AND v.units > 0 HAVING SUM(v.units) > 0), "
+                     + LAST_SHARE_PRICE + ")")
 queries.append((692, 'My shares',
                 'The shares the drone\'s company holds, its own included: company, shares, the dividends they have '
-                'paid it, the last trade price (0 if never traded, or if the company has ended).', 0,
+                'paid it, what a share is worth (the last 3 game days\' average trade price, else the last; 0 if '
+                'never traded, or if the company has ended).', 0,
                 f"SELECT s.company, s.units, s.dividends AS d_dividends, IF(c.eliminated_at IS NULL, "
-                f"IFNULL({LAST_SHARE_PRICE.format(c='s.company')}, 0), 0) AS d_price FROM shares AS s "
+                f"IFNULL({VALUE_SHARE_PRICE.format(c='s.company')}, 0), 0) AS d_price FROM shares AS s "
                 f"JOIN companies AS c ON c.company_id = s.company WHERE s.holder = {MY_COMPANY} AND s.units > 0 ORDER BY s.company;"))
 queries.append((693, 'Shareholders',
                 'Who holds company N\'s shares, most first: company, shares.', 1,

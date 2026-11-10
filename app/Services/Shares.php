@@ -67,6 +67,28 @@ class Shares
         return $out;
     }
 
+    /** The game days of trades a share's value averages over (#513) */
+    public const VALUE_DAYS = 3;
+
+    /**
+     * company => what its shares are worth a share (#513): the average price
+     * of its share trades over the last VALUE_DAYS game days, weighted by
+     * units, or its last trade price if none traded in that time. The last
+     * trade alone could be pushed up by a couple of shares traded between a
+     * player's own companies, or knocked to 1 by one panic sale (round 57),
+     * and every holder's net wealth moved with it.
+     */
+    public static function valuePrices(): array
+    {
+        $out = self::lastPrices();
+        $since = World::gameNow() - self::VALUE_DAYS * 86400;
+        foreach (DB::table('share_trades')->where('game_t', '>', $since)->where('units', '>', 0)->groupBy('share_company')
+                     ->select('share_company', DB::raw('ROUND(SUM(units * price) / SUM(units)) AS price'))->get() as $row) {
+            $out[(int) $row->share_company] = max(1, (int) $row->price);
+        }
+        return $out;
+    }
+
     /**
      * What a company's shares and share holdings come to (#471), for its page
      * and the API: its last trade price, who holds its shares, the standing
@@ -76,6 +98,7 @@ class Shares
     {
         $names = fn (array $ids) => DB::table('companies')->whereIn('company_id', $ids)->pluck('name', 'company_id')->all();
         $prices = self::lastPrices();
+        $values = self::valuePrices();
 
         $holders = DB::table('shares')->where('company', $company)->where('units', '>', 0)
             ->orderByDesc('units')->get(['holder', 'units', 'dividends']);
@@ -93,6 +116,8 @@ class Shares
 
         return [
             'price' => $prices[$company] ?? null,
+            // What a share counts for in net wealth (#513): the last 3 days' average
+            'value_price' => $values[$company] ?? null,
             'count' => (int) (DB::table('companies')->where('company_id', $company)->value('share_count') ?? self::PER_COMPANY),
             'offering' => self::offerings($company)[0] ?? null,
             'holders' => $holders->map(fn ($h) => ['company' => (int) $h->holder, 'name' => $name($h->holder),
@@ -102,10 +127,12 @@ class Shares
                 ((int) $o->side === 1 ? 'keep' : 'want') => (int) $o->limit_units])->all(),
             'holdings' => $holdings->map(fn ($h) => ['company' => (int) $h->company, 'name' => $name($h->company),
                 'units' => (int) $h->units, 'dividends' => (int) $h->dividends,
-                'price' => $prices[(int) $h->company] ?? null, 'ended' => isset($ended[(int) $h->company]),
-                // An ended company's shares are worth nothing (#493)
+                'price' => $prices[(int) $h->company] ?? null, 'value_price' => $values[(int) $h->company] ?? null,
+                'ended' => isset($ended[(int) $h->company]),
+                // An ended company's shares are worth nothing (#493); others
+                // count at the 3-day average (#513)
                 'value' => isset($ended[(int) $h->company]) ? 0
-                    : (int) $h->units * ($prices[(int) $h->company] ?? 0)])->all(),
+                    : (int) $h->units * ($values[(int) $h->company] ?? 0)])->all(),
             'trades' => $trades->map(fn ($t) => ['seller' => (int) $t->seller, 'seller_name' => $name($t->seller),
                 'buyer' => (int) $t->buyer, 'buyer_name' => $name($t->buyer), 'units' => (int) $t->units,
                 'price' => (int) $t->price, 'game_t' => (int) $t->game_t])->all(),
@@ -191,6 +218,7 @@ class Shares
         $ids = $ids ? DB::table('companies')->whereIn('company_id', $ids)->whereNull('eliminated_at')
             ->pluck('company_id')->map(fn ($id) => (int) $id)->all() : [];
         $prices = self::lastPrices();
+        $values = self::valuePrices();
         $sales = self::daySales($ids);
         $outside = $ids ? DB::table('shares')->whereIn('company', $ids)->whereColumn('holder', '<>', 'company')
             ->groupBy('company')->get(['company', DB::raw('SUM(units) AS units'), DB::raw('SUM(dividends) AS dividends')])
@@ -221,7 +249,8 @@ class Shares
             fn () => CompanyHealth::many($ids));
         foreach ($ids as $id) {
             $price = $prices[$id] ?? null;
-            $companies[] = ['company' => $id, 'name' => $name($id), 'price' => $price, 'count' => $count($id),
+            $companies[] = ['company' => $id, 'name' => $name($id), 'price' => $price,
+                'value_price' => $values[$id] ?? null, 'count' => $count($id),
                 'sales' => max(0, (int) ($sales[$id] ?? 0)), 'a_day' => round($aDay($id), 2),
                 'payback' => $price !== null ? $days($price, $id) : null,
                 'held_by_others' => (int) ($outside[$id]->units ?? 0),
@@ -264,7 +293,7 @@ class Shares
      */
     public static function holdingsValue(): array
     {
-        $prices = self::lastPrices();
+        $prices = self::valuePrices();
         $out = [];
         // Shares of a company that has ended are worth nothing (#493)
         foreach (DB::table('shares AS s')->join('companies AS c', 'c.company_id', '=', 's.company')
