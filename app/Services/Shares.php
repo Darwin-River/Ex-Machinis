@@ -147,7 +147,7 @@ class Shares
         if ($company !== null) {
             $q->where('o.company', $company);
         }
-        $offers = $q->get(['o.company', 'c.name', 'c.share_count', 'o.units', 'o.price', 'o.deadline_t']);
+        $offers = $q->get(['o.company', 'c.name', 'c.share_count', 'o.units', 'o.min_units', 'o.price', 'o.deadline_t']);
         if ($offers->isEmpty()) {
             return [];
         }
@@ -163,7 +163,9 @@ class Shares
             $net = max(0, (int) ($sales[$o->company] ?? 0));
             $after = (int) $o->share_count + (int) $o->units;
             return ['company' => (int) $o->company, 'name' => $o->name, 'count' => (int) $o->share_count,
-                'units' => (int) $o->units, 'price' => (int) $o->price, 'raise' => (int) $o->units * (int) $o->price,
+                // The fewest it issues at its deadline (#516); NULL: all of them
+                'units' => (int) $o->units, 'min' => (int) ($o->min_units ?? $o->units),
+                'price' => (int) $o->price, 'raise' => (int) $o->units * (int) $o->price,
                 'committed' => $committed, 'left' => (int) $o->units - $committed,
                 'hours' => (int) max(0, ceil(($o->deadline_t - $now) / 3600)),
                 'sales' => $net, 'a_day_after' => round($net / $after, 2),

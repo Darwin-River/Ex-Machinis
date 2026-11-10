@@ -1101,22 +1101,23 @@ end
 
 #### Raising credits with new shares
 
-Selling the shares you hold sells part of today's income. To raise enough for something bigger, such as a new drone, a company can **offer new shares**. It works like a fundraiser with a target: investors pay only if the whole amount comes in.
+Selling the shares you hold sells part of today's income. To raise enough for something bigger, such as a new drone, a company can **offer new shares**. It works like a fundraiser with a minimum and a target: investors pay only if at least the minimum comes in, and the offering closes as soon as the target is reached.
 
-1. **Offer.** `offer_shares(n, price, days)` (protocol 45) offers `n` new shares of your company at `price` credits each, open for `days` game days (1 to 30). A company can have one open offering at a time, of at most as many new shares as it has now, so at most it doubles. `offer_shares(0, 0, 0)` withdraws it.
+1. **Offer.** `offer_shares(n, price, days, min)` (protocol 45) offers up to `n` new shares of your company at `price` credits each, open for `days` game days (1 to 30), and at least `min` of them (1 to `n`; left out, it is `n`, so the offering is all or nothing). Set `min` to what you can't do without: the shares that pay for the thing you're raising for. A company can have one open offering at a time, of at most as many new shares as it has now, so at most it doubles. `offer_shares(0)` withdraws it.
 2. **Commit.** Another company's drone calls `commit_shares(n, company)` (protocol 46) to take `n` of the offered shares. It pays now; the exchange holds the credits.
-3. **Filled.** When commitments cover every share offered, the new shares are created and go to the investors, your company is paid the whole amount, and its share count grows.
-4. **Lapsed.** If the deadline passes first, or you withdraw the offering, every investor gets their credits back and nothing changes.
+3. **Filled.** When commitments cover all `n` shares, the new shares are created at once and go to the investors, your company is paid the whole amount, and its share count grows.
+4. **At the deadline.** If at least `min` shares are committed, those shares are created and your company is paid for them. If fewer are, every investor gets their credits back and nothing changes. Withdrawing the offering also refunds everyone.
 
 New shares **dilute** the old ones: after 1,000 new shares, each share earns half as much of the same sales. That's the bargain: old holders, you included, give up part of their cut, and the company gets credits that should raise its sales. Credits committed to an offering still count as the investor's wealth on the leaderboard until it fills or lapses.
 
-A commitment is refused if there's no open offering (or it's your own company's) (-10), if it's for more shares than are left (-6), or if your company can't pay (-4). An offering is refused if it's for more shares than you have (-6) or you already have one open (-9).
+A commitment is refused if there's no open offering (or it's your own company's) (-10), if it's for more shares than are left (-6), or if your company can't pay (-4). An offering is refused if it's for more shares than you have (-6), you already have one open (-9), or its minimum isn't between 1 and `n`.
 
-**Finding offerings.** `share_offerings()` (query 697) lists every open offering, soonest deadline first: `{company, units, price, left, hours, count, sales, mine}`. `left` is how many shares are still uncommitted, `hours` the game hours until it lapses, `count` the company's shares now, `sales` its sales income after tax a day (7-day average), and `mine` how many your company has committed. `share_count(company)` (query 698) is a company's shares in all.
+**Finding offerings.** `share_offerings()` (query 697) lists every open offering, soonest deadline first: `{company, units, price, left, hours, count, sales, mine, min}`. `units` is the most new shares it offers, `left` how many are still uncommitted, `hours` the game hours until its deadline, `count` the company's shares now, `sales` its sales income after tax a day (7-day average), `mine` how many your company has committed, and `min` the fewest it issues at the deadline. An offering with `units - left >= min` already has its minimum: your commitment will become shares. `share_count(company)` (query 698) is a company's shares in all.
 
 ```lua
--- Raise 5,000 for a new drone: 500 new shares at 10, open for 5 days
-offer_shares(500, 10, 5)
+-- Raise up to 5,000: 500 new shares at 10, open for 5 days, and take
+-- the credits at the deadline if at least 300 shares (3,000) are committed
+offer_shares(500, 10, 5, 300)
 
 -- Take 100 shares of any offering that pays back within 30 days once filled
 for _, o in ipairs(share_offerings()) do

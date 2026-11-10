@@ -99,10 +99,11 @@
             @if($shares['offering'])
                 @php($o = $shares['offering'])
                 <h4>Offering new shares</h4>
-                <p>{{ number_format($o['units']) }} new shares at {{ number_format($o['price']) }} credits each, raising
-                    {{ number_format($o['raise']) }}: {{ number_format($o['committed']) }} committed so far, {{ $o['hours'] }}
-                    game hours left. If every share is committed in time the shares are issued and the company paid; if
-                    not, everyone is refunded.</p>
+                <p>Up to {{ number_format($o['units']) }} new shares at {{ number_format($o['price']) }} credits each,
+                    raising up to {{ number_format($o['raise']) }}, and at least {{ number_format($o['min']) }} of them:
+                    {{ number_format($o['committed']) }} committed so far, {{ $o['hours'] }} game hours left. Once every
+                    share is committed they are issued and the company paid. At the deadline, if at least
+                    {{ number_format($o['min']) }} are committed, those are issued; if not, everyone is refunded.</p>
                 @if(count($o['investors']))
                     <div class="table-custom-responsive">
                         <table class="table-ticket">

@@ -199,6 +199,11 @@ class SharesTest extends TestCase
             ->assertSee('120 of 500');
         $this->get('/companies/' . $issuer->company_id)->assertOk()->assertSee('Offering new shares')->assertSee('Backer Co');
         $this->assertSame(380, $this->getJson('/api/v1/companies/' . $issuer->company_id)->json('shares.offering.left'));
+        // With no minimum (posted before #516) it is all of them; with one, the page says so
+        $this->assertSame(500, $o['min']);
+        DB::table('share_offerings')->where('company', $issuer->company_id)->update(['min_units' => 200]);
+        $this->assertSame(200, $this->getJson('/api/v1/companies/' . $issuer->company_id)->json('shares.offering.min'));
+        $this->get('/companies/' . $issuer->company_id)->assertSee('at least 200 of them');
         // A lapsed offering isn't open
         DB::table('share_offerings')->where('company', $issuer->company_id)->update(['deadline_t' => 0]);
         $this->assertNull(Shares::summary($issuer->company_id)['offering']);
