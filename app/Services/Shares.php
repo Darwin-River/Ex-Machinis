@@ -214,13 +214,18 @@ class Shares
         $days = fn ($price, $id) => $aDay($id) > 0 ? (int) ceil($price / $aDay($id)) : null;
 
         $companies = [];
+        // Whether each can keep its drones flying (#537): about 20 ms a
+        // company, so kept a minute (a game half hour at full speed)
+        sort($ids);
+        $health = \Illuminate\Support\Facades\Cache::remember('share-health:' . md5(implode(',', $ids)), 60,
+            fn () => CompanyHealth::many($ids));
         foreach ($ids as $id) {
             $price = $prices[$id] ?? null;
             $companies[] = ['company' => $id, 'name' => $name($id), 'price' => $price, 'count' => $count($id),
                 'sales' => max(0, (int) ($sales[$id] ?? 0)), 'a_day' => round($aDay($id), 2),
                 'payback' => $price !== null ? $days($price, $id) : null,
                 'held_by_others' => (int) ($outside[$id]->units ?? 0),
-                'dividends_paid' => (int) ($outside[$id]->dividends ?? 0)];
+                'dividends_paid' => (int) ($outside[$id]->dividends ?? 0), 'health' => $health[$id] ?? null];
         }
         usort($companies, fn ($a, $b) => [$b['sales'], $a['company']] <=> [$a['sales'], $b['company']]);
 

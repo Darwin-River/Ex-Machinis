@@ -134,9 +134,10 @@ function offering_worth(o, days)
 end
 -- Commit up to `budget` credits to one offering at a time (#488): the one
 -- it has already backed while it is open, else the open offering worth its
--- price that is closest to filling. An offering pays only if it fills, so
--- backers that pile into the same one fill it. Skips commitments under 25
--- credits (each burns a unit of fuel). Returns the credits it committed
+-- price that is closest to filling. Backers that pile into the same one
+-- fill it (an offering short of its minimum at the deadline refunds them).
+-- Skips commitments under 25 credits (each burns a unit of fuel), unless
+-- one completes the offering. Returns the credits it committed
 function back_offerings(budget, days)
   local pick
   for _, o in ipairs(share_offerings()) do
@@ -147,7 +148,9 @@ function back_offerings(budget, days)
   end
   if not pick then return 0 end
   local n = math.min(pick.left, budget // pick.price)
-  if n * pick.price < 25 then return 0 end
+  -- (but never skips the commitment that completes it: #509, an offering
+  -- sat at 277 of 278 shares for days because the last one cost 9)
+  if n * pick.price < 25 and n < pick.left then return 0 end
   commit_shares(n, pick.company)
   note_cost(pick.company, n, pick.price)
   return n * pick.price

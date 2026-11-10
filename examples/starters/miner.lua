@@ -3,7 +3,9 @@
 -- It mines the richer of kunspar and wolfite at the Moon, refines it, and
 -- keeps standing sell orders for its metals, priced halfway between the
 -- best bid and the cheapest other seller here; once hold_cap are aboard it
--- sells what nobody bought at the market. When the Moon has been dry
+-- sells what nobody bought at the market. When more than crowd_limit
+-- drones are at the Moon, the drone you release starts at the quieter of
+-- Phobos and Deimos instead. When the Moon has been dry
 -- dry_tries times in a row and Phobos is less crowded, it moves to Phobos
 -- and Deimos and sells at the Mars Exchange (its status says so). Its kit
 -- can't brew fuel: it buys it wherever it is cheapest. With grow_at
@@ -18,11 +20,19 @@ dry_tries = 12     -- dry tries at the Moon before trying Phobos (a large
 grow_at = 7000     -- credits at which it buys and launches a copy
                    -- (6500 at least: a hull is 3000, a kit 2000,
                    -- and 1500 left to work with)
+grow_until = 0     -- game day after which it launches no more copies (0: no
+                   -- limit). A copy takes about 20 game days to earn back
+                   -- its cost, so in a contest set this ~20 days before the
+                   -- end (#512: a copy launched on day 47 of 60 lost 2,100)
+crowd_limit = 30   -- drones at the Moon past which the drone you release
+                   -- starts at Phobos or Deimos instead, whichever is quieter
+                   -- (round 55: 98 drones at the Moon on day 1, the deposits
+                   -- mined out; a large number keeps it at the Moon)
 rest = 240         -- game minutes to rest when both Mars moons are dry
 hold_cap = 16      -- metals it keeps on offer to other drones
 
 -- The site it works: 0 the Moon, 1 Phobos, 2 Deimos. The drone you release
--- works the Moon; copies spread out by drone number
+-- works the Moon unless it is crowded; copies spread out by drone number
 site_no, misses, copy = 0, 0, false
 
 function site()
@@ -162,6 +172,7 @@ end
 -- same program, with these variables) and hand it the kit and 40 fuel. A
 -- copy costs about 5,000: growing pays early, not in a contest's last weeks
 function reinvest()
+  if grow_until > 0 and today() > grow_until and units(mining_kit) == 0 and units(factory_kit) == 0 then return end
   if units(mining_kit) > 0 then equip_clone(); fill_to(60); return end
   if units(cruiser_kit) == 0 then
     if credits() < math.max(grow_at, 6500) then return end
@@ -207,6 +218,16 @@ function work()
   tell()
 end
 
+-- Where the drone you release starts: the Moon, unless more than
+-- crowd_limit drones are there; then the quieter of Phobos and Deimos
+function first_site()
+  local at_moon = crowd(moon)
+  if at_moon <= crowd_limit then return 0 end
+  local n = crowd(phobos) <= crowd(deimos) and 1 or 2
+  set_status(at_moon .. " drones at the Moon: starting at " .. place_name(n == 1 and phobos or deimos))
+  return n
+end
+
 -- launched() may run again (after a crash, or if the engine restarts):
 -- equip passes once the tools are unpacked, and a drone that
 -- has already chosen its site keeps it
@@ -215,7 +236,7 @@ function launched()
   fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
   equip(mining_kit)   -- buys a kit at Earth and unpacks it (a copy waits for the one it is handed; #506)
   if not started then
-    if copy then site_no = me() % 3 else site_no = 0 end
+    if copy then site_no = me() % 3 else site_no = first_site() end
     copy, started = true, true
   end
   go(site())

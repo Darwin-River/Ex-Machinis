@@ -13,6 +13,10 @@ low_fuel = 40      -- buy fuel below this
 keep_fuel = 25     -- it stops making rods below this much fuel
 trip_margin = 20   -- flies to Earth only if rods sold there for this much more
 grow_at = 7000     -- credits at which it buys and launches a copy
+grow_until = 0     -- game day after which it launches no more copies (0: no
+                   -- limit). A copy takes about 20 game days to earn back
+                   -- its cost, so in a contest set this ~20 days before the
+                   -- end (#512: a copy launched on day 47 of 60 lost 2,100)
 batch = 20         -- metals it buys at a time
 cash_floor = 300   -- credits it keeps (for fuel)
 invest_above = 3000 -- credits above this go into other companies' shares
@@ -66,9 +70,16 @@ end
 
 -- Sell here? Yes if somebody here bids for rods and Earth paid no more than
 -- trip_margin over that yesterday
+-- Selling here pays when the bid here, plus what the trip would cost,
+-- matches what Earth pays: its best bid an hour ago (quotes), or what rods
+-- traded for there yesterday if that was more. (#503: the board price alone
+-- was 0 for rods that hadn't traded at Earth yet, so it sold at the Moon's
+-- low bid)
 function sell_here_pays()
   local bid = sell_price(rods)
-  return bid > 0 and bid + trip_margin >= board_price(rods, earth)
+  local at_earth = quotes(rods)[earth]
+  local earth_pays = math.max(at_earth and at_earth.bid or 0, board_price(rods, earth))
+  return bid > 0 and bid + trip_margin >= earth_pays
 end
 
 function haul()
@@ -91,6 +102,7 @@ function get_one(resource)
   end
 end
 function reinvest()
+  if grow_until > 0 and today() > grow_until and units(mining_kit) == 0 and units(factory_kit) == 0 then return end
   if credits() < math.max(grow_at, 6500) then return end   -- keeps 1,500 to work with
   get_one(cruiser_kit)
   get_one(factory_kit)
@@ -145,9 +157,10 @@ function offering_worth(o, days)
 end
 -- Commit up to `budget` credits to one offering at a time (#488): the one
 -- it has already backed while it is open, else the open offering worth its
--- price that is closest to filling. An offering pays only if it fills, so
--- backers that pile into the same one fill it. Skips commitments under 25
--- credits (each burns a unit of fuel). Returns the credits it committed
+-- price that is closest to filling. Backers that pile into the same one
+-- fill it (an offering short of its minimum at the deadline refunds them).
+-- Skips commitments under 25 credits (each burns a unit of fuel), unless
+-- one completes the offering. Returns the credits it committed
 function back_offerings(budget, days)
   local pick
   for _, o in ipairs(share_offerings()) do
@@ -158,7 +171,9 @@ function back_offerings(budget, days)
   end
   if not pick then return 0 end
   local n = math.min(pick.left, budget // pick.price)
-  if n * pick.price < 25 then return 0 end
+  -- (but never skips the commitment that completes it: #509, an offering
+  -- sat at 277 of 278 shares for days because the last one cost 9)
+  if n * pick.price < 25 and n < pick.left then return 0 end
   commit_shares(n, pick.company)
   return n * pick.price
 end

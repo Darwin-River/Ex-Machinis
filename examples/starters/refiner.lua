@@ -15,6 +15,10 @@ dry_tries = 12     -- dry tries at the Moon before trying Phobos
 grow_at = 7000     -- credits at which it buys and launches a copy
                    -- (6500 at least: a hull is 3000, a kit 2000,
                    -- and 1500 left to work with)
+grow_until = 0     -- game day after which it launches no more copies (0: no
+                   -- limit). A copy takes about 20 game days to earn back
+                   -- its cost, so in a contest set this ~20 days before the
+                   -- end (#512: a copy launched on day 47 of 60 lost 2,100)
 rest = 240         -- game minutes to rest when both Mars moons are dry
 hold_cap = 16      -- goods it keeps on offer to other drones
 
@@ -150,6 +154,7 @@ end
 -- same program, with these variables) and hand it the kit and 40 fuel. A
 -- copy costs about 5,000: growing pays early, not in a contest's last weeks
 function reinvest()
+  if grow_until > 0 and today() > grow_until and units(mining_kit) == 0 and units(factory_kit) == 0 then return end
   if units(mining_kit) > 0 then equip_clone(); fill_to(60); return end
   if units(cruiser_kit) == 0 then
     if credits() < math.max(grow_at, 6500) then return end

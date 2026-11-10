@@ -1408,6 +1408,27 @@ queries.append((697, 'Share offerings',
                 "IFNULL(o.min_units, o.units) AS min_units "
                 "FROM share_offerings AS o INNER JOIN companies AS c ON c.company_id = o.company AND c.eliminated_at IS NULL "
                 "WHERE o.deadline_t > [game_now] ORDER BY o.deadline_t, o.company LIMIT 50;"))
+# A company's health (#537): its drones, their fuel and how fast it falls,
+# and its credits. The same SQL as App\Services\CompanyHealth: keep the two
+# in step
+def company_health_sql(company, now):
+    fall = lambda only: ("IFNULL((SELECT SUM(x.prev - x.q) FROM (SELECT e.game_t, e.new_quantity AS q, "
+        "LAG(e.new_quantity) OVER (ORDER BY e.game_t, e.id) AS prev FROM events AS e FORCE INDEX (events_inventory_time) "
+        "WHERE e.drone = a.agent_id AND e.resource = 2061 AND e.installed = 0 AND e.locked = 0 "
+        f"AND e.outcome = 1 AND e.game_t > {now} - 172800) AS x WHERE x.game_t > {now} - 86400 AND {only}), 0)")
+    return (f"SELECT (SELECT COUNT(*) FROM agents AS w WHERE w.company_id = {company} AND w.wrecked_at IS NULL) AS working, "
+        f"(SELECT COUNT(*) FROM agents AS w WHERE w.company_id = {company} AND w.wrecked_at IS NOT NULL) AS wrecked, "
+        "IFNULL(SUM(d.fuel), 0) AS fuel, IFNULL(MIN(d.fuel), 0) AS lowest, IFNULL(SUM(d.used), 0) AS used, "
+        "IFNULL(MIN(IF(d.fall > 0, FLOOR(d.fuel / d.fall), NULL)), -1) AS days, "
+        f"IFNULL((SELECT c.credits FROM companies AS c WHERE c.company_id = {company}), 0) AS d_credits "
+        "FROM (SELECT a.agent_id, IFNULL((SELECT f.units FROM holdings AS f WHERE f.drone = a.agent_id "
+        "AND f.resource = 2061 AND f.installed = 0 AND f.locked = 0), 0) AS fuel, "
+        + fall('x.prev > x.q') + " AS used, " + fall('x.prev IS NOT NULL') + " AS fall "
+        f"FROM agents AS a WHERE a.company_id = {company} AND a.wrecked_at IS NULL) AS d;")
+queries.append((699, 'Company health',
+                'Company N: working drones, wrecked drones, fuel aboard them, the least aboard one, fuel they used '
+                'over the last game day, game days until one runs dry at its net fall (-1: none falling), credits.', 1,
+                company_health_sql('[value_1]', '[game_now]')))
 queries.append((698, 'Share count',
                 'Company N\'s shares in all: 1,000 to start, more once it has issued new ones.', 1,
                 "SELECT share_count FROM companies WHERE company_id = [value_1];"))
@@ -1434,6 +1455,20 @@ queries.append((640, 'Deposits here',
 BOARD_LAG = HOUR
 LOCAL_NOTE = ' Only where the drone is: for elsewhere, see the price board (680).'
 local_queries = {
+    # The best places to mine a resource (#424: it listed every place, ~177
+    # for yalspar, all at abundance 5): the 10 richest, then those with most
+    # left to mine now, then the nearest to the drone
+    410: ('List best extraction sites',
+          'The 10 best places to mine resource N: place, abundance, units left there now, distance from the drone '
+          '(thousand km). Richest first, then most left, then nearest.', 1,
+          "SELECT a.location AS place, a.multiplier AS abundance, FLOOR(IFNULL(LEAST(d.capacity, IFNULL(s.amount, "
+          "d.capacity) + d.refill_per_day * ([game_now] - IFNULL(s.refilled_t, [game_now])) / 86400), 0)) AS d_units, "
+          "IFNULL(ROUND(SQRT(POW(o.x_coord - h.x_coord, 2) + POW(o.y_coord - h.y_coord, 2) + POW(o.z_coord - h.z_coord, 2)) "
+          f"/ 1000), 0) AS d_distance FROM abundancies AS a INNER JOIN objects AS o ON o.object_id = a.location "
+          f"INNER JOIN objects AS h ON h.object_id = {HERE_} "
+          "LEFT JOIN deposits AS d ON d.object_id = a.location AND d.resource = a.resource "
+          "LEFT JOIN deposit_state AS s ON s.object_id = a.location AND s.resource = a.resource "
+          "WHERE a.resource = [value_1] ORDER BY a.multiplier DESC, d_units DESC, d_distance, a.location LIMIT 10;"),
     601: ('List buy orders here', '[N R L 601 query]: Lists buy orders for resource N where the drone is (like 600): price, '
           'wanted maximum, stock it holds free (plus what is on its way in), spacecraft ID.' + LOCAL_NOTE, 1, orders(5, True)),
     611: ('List sell orders here', '[N R L 611 query]: Lists sell orders for resource N where the drone is (like 610): price, '
@@ -1696,7 +1731,7 @@ QUERY_FUNCS = {
     '400': 'resource_name(N)', '401': 'unit_mass(N)', '410': 'best_sites(N)', '500': 'protocol_name(N)',
     '501': 'protocol_minutes(N)', '510': 'consumes(N)', '511': 'produces(N)', '512': 'retains(N)',
     '520': 'consumers(N)', '521': 'producers(N)', '522': 'users(N)', '600': 'buy_orders(N)',
-    '610': 'sell_orders(N)', '690': 'share_sell_orders(N)', '691': 'share_buy_orders(N)', '692': 'shares_held()', '693': 'shareholders(N)', '694': 'share_trades(N)', '696': 'shares_for_sale()', '697': 'share_offerings()', '698': 'share_count(N)', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
+    '610': 'sell_orders(N)', '690': 'share_sell_orders(N)', '691': 'share_buy_orders(N)', '692': 'shares_held()', '693': 'shareholders(N)', '694': 'share_trades(N)', '696': 'shares_for_sale()', '697': 'share_offerings()', '698': 'share_count(N)', '699': 'company_health(N)', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
     '640': 'deposits()', '650': 'taxes()', '655': 'earnings(H)', '660': 'wrecks()', '661': 'wreck_hold(W)',
     '670': 'my_clones()', '671': 'lineage()', '680': 'price_board(N)', '682': 'sales(N, D)', '695': 'recipe(R)',
     '700': 'place_name(N)', '701': 'place_type(N)', '702': 'orbits(N)', '703': 'position(N)',
