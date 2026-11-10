@@ -28,9 +28,9 @@
 @endpush
 @section('content')
     {{-- Market history (#380): daily prices and volumes, from /api/v1/history --}}
-    <section class="section section-xs section-first bg-default text-md-left">
+    <x-page-header :title="'Market history'" />
+    <section class="section section-xs section-first text-md-left">
         <div class="container mh" id="container">
-            <h2>Market history</h2>
             <div class="mh-intro">
                 What every resource traded for, game day by game day, at each place. Each day's price is the average a
                 unit fetched over all of that day's trades; the shaded band runs from the cheapest unit to the dearest.

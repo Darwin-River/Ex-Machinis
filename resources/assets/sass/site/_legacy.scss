@@ -1,0 +1,6 @@
+// Small helpers older pages still use
+
+.text-nowrap { white-space: nowrap; }
+.row-30 > [class*="col"] { margin-bottom: 0.5rem; }
+.counter-modern-number { font-family: $font-heading; font-size: 1.75rem; color: #fff; }
+.counter-modern-title { color: $muted; }

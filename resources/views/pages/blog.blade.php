@@ -26,28 +26,15 @@
     </style>
 @endpush
 @section('content')
-    <section class="breadcrumbs-modern box-transform-wrap bg-image context-dark"
-             style="background-image: url('/images/bg-breadcrumbs.jpg');">
-        <div class="container">
-            <div class="breadcrumbs-modern-body">
-                <h5 class="breadcrumbs-modern-subtitle"></h5>
-                <h1 class="breadcrumbs-modern-title">Strategy Blog</h1>
-            </div>
-            <ul class="breadcrumbs-path breadcrumbs-modern-path">
-                <li><a href="/">Home</a></li>
-                <li class="active">Strategy Blog</li>
-            </ul>
-        </div>
-        <div class="box-transform" style="background-image: url('/images/bg-breadcrumbs.jpg');"></div>
-        <div class="comets comets-left"></div>
-        <div class="comets comets-center"></div>
-        <div class="comets comets-top"></div>
-    </section>
-    <section class="section section-lg bg-default">
+    <x-page-header>
+        <x-slot:title>Strategy Blog</x-slot:title>
+        <li class="active">Strategy Blog</li>
+    </x-page-header>
+    <section class="section section-lg">
         <div class="container">
             <div class="row">
                 <div class="col-md-12 col-lg-10 col-xl-9 single-post blog-post">
-                    <p>How the most successful companies in our playtests were written: the strategy, the code behind it, and the players who made it work. Every code example loads on a drone as it is.</p>
+                    <p>How the most successful companies in our playtests were written: the strategy, the code behind it, and the players who made it work. Every code example loads on a drone as it is. Follow new posts with the <a href="/blog/feed">RSS feed</a>.</p>
                     {{-- documents/blog/*.md (see BlogController) --}}
                     @foreach ($posts as $slug => $post)
                         <article class="blog-entry">

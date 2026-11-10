@@ -2,27 +2,17 @@
 @php $title = $agent->name ; @endphp
 @section('pageTitle', $title)
 @section('content')
-    <section class="breadcrumbs-modern box-transform-wrap bg-image context-dark"
-             style="background-image: url('/images/240907570-huge.jpg');">
-        <div class="container">
-            <div class="breadcrumbs-modern-body">
-                <h5 class="breadcrumbs-modern-subtitle"></h5>
-                <h1 class="breadcrumbs-modern-title">{{$title}}</h1>
-            </div>
-            <ul class="breadcrumbs-path breadcrumbs-modern-path">
-                <li><a href="/">Home</a></li>
-                <li><a href="/spacecraft">Spacecraft</a></li>
-                <li class="active">{{$title}}</li>
-            </ul>
-        </div>
-        <div class="box-transform" style="background-image: url('/images/240907570-huge.jpg');"></div>
-    </section>
+    <x-page-header>
+        <x-slot:title>{{$title}}</x-slot:title>
+        <li><a href="/spacecraft">Spacecraft</a></li>
+        <li class="active">{{$title}}</li>
+    </x-page-header>
 
-    <section class="section section-xs section-first bg-default text-md-left">
-        <div class="container grid-demonstration" id="container">
+    <section class="section section-xs section-first text-md-left">
+        <div class="container" id="container">
             @include('_flash_message')
             <div class="description-fields">
-                <div class="row row-xxl row-30 row-md-60 ">
+                <div class="row row-30">
                     <div class="col-12 col-sm-6 col mb-0">
                         <b>Spacecraft Id</b>: {{$agent->agent_id}}<br/>
                         @if($flight)
@@ -50,7 +40,7 @@
                             <a href="#messages">{{ \Illuminate\Support\Str::limit(trim(preg_replace('/^Location:[^\n]*\n/', '', $messages->first()->body)), 120) }}</a><br/>
                         @endif
                     </div>
-                    <div class="col-12 col-sm-6 col ">
+                    <div class="col-12 col-sm-6 col">
                         <b>Hull</b>: {{$agent->hull->name}}<br/>
                         <b>Max Cargo</b>: {{$agent->hull->cargo_capacity}} kg.<br/>
 
@@ -74,9 +64,9 @@
             </div>
             @if($postMortem)
                 {{-- Post-mortem (#324 step 16) --}}
-                <div class="row row-xxl row-30 row-md-60">
+                <div class="row row-30">
                     <div class="col">
-                        <h2 class="wow fadeInLeft">Post-mortem</h2>
+                        <h2 class="">Post-mortem</h2>
                         <div id="post-mortem-cause" style="white-space: normal; margin-bottom: 1em">{{ $postMortem['cause'] }}</div>
                     </div>
                 </div>
@@ -104,9 +94,9 @@
 
             @if($activity)
                 {{-- What a working drone is doing (#380) --}}
-                <div class="row row-xxl row-30 row-md-60">
+                <div class="row row-30">
                     <div class="col" id="activity">
-                        <h2 class="wow fadeInLeft">Activity</h2>
+                        <h2 class="">Activity</h2>
                         <p><b>Now</b>: {{ $activity['now'] ?? $state['status'] }}</p>
                     </div>
                 </div>
@@ -134,9 +124,9 @@
             @endif
 
             {{-- What it has said (#367 step 3: public, like its code) --}}
-            <div class="row row-xxl row-30 row-md-60">
+            <div class="row row-30">
                 <div class="col" id="messages">
-                    <h2 class="wow fadeInLeft">What it said</h2>
+                    <h2 class="">What it said</h2>
                     @forelse($messages as $message)
                         <div><small>{{ \App\Services\DronePage::when($message->game_t) }}{{ $message->subject ? ' · ' . $message->subject : '' }}</small></div>
                         <pre class="p-2" style="white-space: pre-wrap">{{ $message->body }}</pre>
@@ -147,9 +137,9 @@
             </div>
 
             {{-- Its code and where it comes from (#324 step 16) --}}
-            <div class="row row-xxl row-30 row-md-60">
+            <div class="row row-30">
                 <div class="col">
-                    <h2 class="wow fadeInLeft">Code</h2>
+                    <h2 class="">Code</h2>
                     @if($code)
                         <div style="white-space: normal; margin-bottom: 1em">
                             @if($code['inherited'])
@@ -183,9 +173,9 @@
                 </div>
             </div>
 
-            <div class="row row-xxl row-30 row-md-60">
+            <div class="row row-30">
                 <div class="col">
-                    <h2 class="wow fadeInLeft">Cargo Manifest</h2>
+                    <h2 class="">Cargo Manifest</h2>
                 </div>
             </div>
             <div class="table-custom-responsive">
@@ -202,14 +192,14 @@
                             </td>
                             <td>
                                 @if($cargoPlacement->locked)
-                                    <span class="icon mdi mdi-lock" title="resource in use"></span>
+                                    <span class="locked" title="resource in use">in use</span>
                                 @endif
                             </td>
-                            <td><span class="rd-nav-icon mdi mdi-package-down" title="cargo"></span>
+                            <td><span class="meta-label">cargo</span>
                                 {{$cargoPlacement->new_quantity}} units
                             </td>
                             <td>
-                            <td><span class="rd-nav-icon mdi mdi-weight" title="weight"></span>
+                            <td><span class="meta-label">weight</span>
                                 {{$cargoPlacement->new_quantity*$cargoPlacement->mass}} kg
                             </td>
                         <!--     <td>
@@ -220,9 +210,9 @@
                     @endforeach
                 </table>
             </div>
-            <div class="row row-xxl row-30 row-md-60">
+            <div class="row row-30">
                 <div class="col">
-                    <h2 class="wow fadeInLeft">Observed Events</h2>
+                    <h2 class="">Observed Events</h2>
                 </div>
             </div>
             <in-game-events-table

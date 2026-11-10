@@ -1,0 +1,54 @@
+// The page itself: background, type, links, code
+
+html { scroll-padding-top: 5rem; }
+
+body {
+  min-height: 100vh;
+  // A faint starfield, drawn in CSS so there are no images to license
+  background-color: $space-900;
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 140px 90px, rgba(255, 255, 255, 0.35), transparent),
+    radial-gradient(1.5px 1.5px at 260px 160px, rgba(76, 201, 240, 0.45), transparent),
+    radial-gradient(1px 1px at 330px 40px, rgba(255, 255, 255, 0.3), transparent),
+    radial-gradient(1px 1px at 80px 210px, rgba(255, 255, 255, 0.25), transparent),
+    radial-gradient(1.5px 1.5px at 390px 250px, rgba(255, 181, 71, 0.4), transparent);
+  background-size: 420px 280px;
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 { color: #fff; letter-spacing: -0.01em; margin-top: 1.5em; }
+h1:first-child, h2:first-child, h3:first-child, h4:first-child { margin-top: 0; }
+h1 { font-size: 2rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.25rem; }
+h4, h5, h6 { font-size: 1.05rem; }
+
+p, li { line-height: 1.65; }
+a { text-underline-offset: 0.15em; }
+::selection { background: rgba(76, 201, 240, 0.35); }
+
+code { font-size: 0.875em; background: rgba(76, 201, 240, 0.08); padding: 0.1em 0.35em; border-radius: 0.25rem; }
+pre {
+  color: $text;
+  background: $space-800;
+  border: 1px solid $line;
+  border-radius: $radius;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  code { background: none; padding: 0; color: inherit; }
+}
+
+blockquote { border-left: 3px solid $telemetry; padding-left: 1rem; color: $muted; }
+img { max-width: 100%; height: auto; }
+hr { border-color: $line; }
+
+.skip-link {
+  position: absolute; left: -999px; top: 0.5rem; z-index: 2000;
+  background: $thrust; color: $space-900; padding: 0.5rem 1rem; border-radius: $radius;
+  &:focus { left: 0.5rem; }
+}
+
+:focus-visible { outline: 2px solid $telemetry; outline-offset: 2px; }

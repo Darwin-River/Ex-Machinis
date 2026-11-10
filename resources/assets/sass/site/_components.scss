@@ -1,0 +1,130 @@
+// Buttons, forms, tables, panels and the home page hero
+
+// Buttons: .button, with -primary / -secondary and -sm / -lg
+.button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  padding: 0.6rem 1.25rem;
+  border: 1px solid transparent; border-radius: $radius;
+  font-family: $font-heading; font-weight: 700; font-size: 1rem; line-height: 1.2;
+  text-decoration: none !important; cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+.button-primary { background: $thrust; color: $space-900 !important; }
+.button-primary:hover, .button-primary:focus { background: $thrust-dark; }
+.button-secondary { background: transparent; color: $text !important; border-color: $space-600; }
+.button-secondary:hover, .button-secondary:focus { border-color: $telemetry; color: $telemetry !important; }
+.button-sm { padding: 0.4rem 0.9rem; font-size: 0.9rem; }
+.button-lg { padding: 0.85rem 1.75rem; font-size: 1.1rem; }
+
+// Search forms in the directory tables: the label sits after its input in
+// the markup, so show the column reversed to put it on top
+.form-wrap { display: flex; flex-direction: column-reverse; margin-bottom: 0.5rem; }
+.form-label { font-size: 0.8rem; color: $muted; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.form-input {
+  width: 100%; padding: 0.45rem 0.75rem;
+  background: $space-800; color: $text;
+  border: 1px solid $space-600; border-radius: $radius;
+  &:focus { outline: none; border-color: $telemetry; box-shadow: $input-focus-box-shadow; }
+}
+select.form-input { appearance: none; padding-right: 2rem; }
+.select-wrapper { position: relative; }
+.select-wrapper::before {
+  content: ""; position: absolute; right: 0.9rem; top: 1rem; z-index: 1; pointer-events: none;
+  border: solid $muted; border-width: 0 2px 2px 0; padding: 3px; transform: rotate(45deg);
+}
+textarea.form-control { font-family: $font-mono; font-size: 0.875rem; }
+#update_button { @include media-breakpoint-down(md) { width: 100%; } }
+
+// Tables
+.table-custom, .table-ticket {
+  width: 100%; border-collapse: collapse; margin: 0.5rem 0 1rem;
+  font-size: 0.925rem;
+  th, td { padding: 0.55rem 0.75rem; border-bottom: 1px solid $line; vertical-align: top; text-align: left; }
+  thead th {
+    background: $space-700; color: #fff; font-family: $font-heading; font-weight: 700;
+    border-bottom: 1px solid $space-600; white-space: nowrap;
+  }
+  tbody tr:hover { background: $table-hover-bg; }
+}
+.table-custom-striped tbody tr:nth-of-type(odd) { background: $table-accent-bg; }
+.table-custom-bordered { th, td { border: 1px solid $line; } }
+.table-custom-responsive, .table-responsive { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-ticket td:first-child { color: $muted; white-space: nowrap; }
+.small-version { th, td { font-size: 0.875rem; padding: 0.45rem 0.65rem; } }
+.vuetable-empty-result { color: $muted; text-align: center !important; padding: 2rem !important; }
+
+// Sorting arrows in table headers (the Vue tables' css.table icons)
+.sort-icon { font-style: normal; color: $muted; margin-left: 0.4rem; display: none; }
+@include media-breakpoint-up(sm) { th .sort-icon { display: inline; } }
+.icon-asc::before { content: "\25B2"; color: $thrust; font-size: 0.7em; }
+.icon-desc::before { content: "\25BC"; color: $thrust; font-size: 0.7em; }
+.icon-sortable::before { content: "\21C5"; }
+th.sortable { cursor: pointer; }
+
+// Loading: the Vue tables fade while they fetch, with a spinner on top
+.table-responsive { transition: opacity 0.4s; }
+.loading-table { opacity: 0.3; }
+.spinner {
+  position: absolute; left: 0; right: 0; margin: 6rem auto 0; z-index: 5;
+  width: 2.25rem; height: 2.25rem; border-radius: 50%;
+  border: 3px solid $space-600; border-top-color: $telemetry;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+
+.pagination-wrap { margin: 1rem 0; overflow-x: auto; }
+.pagination { flex-wrap: wrap; }
+
+// Panels: a drone's, company's or place's facts
+.description-fields {
+  background: $space-800; border: 1px solid $line; border-radius: $radius;
+  padding: 1.25rem 1.5rem; margin: 1.5rem 0; line-height: 1.9;
+  b { color: $muted; font-weight: 600; }
+}
+.meta-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: $muted; margin-right: 0.25rem; }
+.locked { color: $warn; font-size: 0.8rem; }
+
+.alert { overflow-wrap: anywhere; }
+.alert .close { text-shadow: none; }
+
+// Long-form text: manual, blog, about, support
+.single-post, .prose {
+  max-width: 48rem;
+  font-size: 1.05rem;
+  h2 { margin-top: 2.25rem; }
+  h3, h4 { margin-top: 1.75rem; }
+  ul, ol { padding-left: 1.5rem; }
+  table { display: block; overflow-x: auto; margin: 1rem 0; border-collapse: collapse; }
+  th, td { border: 1px solid $line; padding: 0.4rem 0.75rem; }
+  th { background: $space-700; }
+}
+
+// Home page
+.hero {
+  position: relative; overflow: hidden;
+  padding: 4rem 0 3.5rem;
+  border-bottom: 1px solid $line;
+  background:
+    radial-gradient(ellipse at 80% 40%, rgba(76, 201, 240, 0.14), transparent 50%),
+    radial-gradient(ellipse at 10% 120%, rgba(255, 181, 71, 0.1), transparent 50%),
+    $space-800;
+  .hero-kicker { color: $telemetry; font-family: $font-mono; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 0.75rem; }
+  .hero-title { font-size: 2.25rem; line-height: 1.15; max-width: 40rem; margin: 0 0 1rem; }
+  .hero-lead { font-size: 1.15rem; color: $text; max-width: 36rem; margin-bottom: 1.75rem; }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+  .hero-art { width: 100%; max-width: 26rem; height: auto; display: block; margin-left: auto; }
+  .hero-art .orbit { fill: none; stroke: rgba(255, 255, 255, 0.16); stroke-width: 1; }
+  .hero-art .orbit-path { fill: none; stroke: $telemetry; stroke-width: 1.5; stroke-dasharray: 3 6; opacity: 0.7; }
+  @include media-breakpoint-up(md) { padding: 5.5rem 0 5rem; .hero-title { font-size: 3rem; } }
+}
+.steps { list-style: none; padding: 0; margin: 0; counter-reset: step; }
+.steps li { counter-increment: step; position: relative; padding-left: 2.75rem; margin-bottom: 1rem; }
+.steps li::before {
+  content: counter(step); position: absolute; left: 0; top: 0.1rem;
+  width: 1.9rem; height: 1.9rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: $space-700; border: 1px solid $space-600; color: $thrust; font-family: $font-heading; font-weight: 700;
+}
+.panel-box { background: $space-800; border: 1px solid $line; border-radius: $radius; padding: 1.25rem 1.5rem; }

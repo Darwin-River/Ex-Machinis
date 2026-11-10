@@ -67,7 +67,7 @@ class HomeController extends Controller
     /** Where the players' manual and its images live */
     private const PLAYERS_MANUAL = 'documents/players-manual.md';
     private const MANUAL_IMAGES = 'documents/images';
-    private const REPOSITORY_DOCS = 'https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/';
+    private const REPOSITORY_DOCS = 'https://github.com/Darwin-River/Ex-Machinis/blob/public-forge/documents/';
 
     /**
      * Getting Started: the players' manual (documents/players-manual.md),
@@ -220,6 +220,25 @@ class HomeController extends Controller
     public function aboutUs()
     {
         return view('pages.about-us');
+    }
+
+    /**
+     * "Keep the lights on" (#522): what the game costs each month, how much
+     * is covered, and the Ko-fi button (config/support.php)
+     */
+    public function support()
+    {
+        $costs = config('support.costs', []);
+        $total = array_sum($costs);
+        $covered = (float) config('support.covered', 0);
+        return view('pages.support', [
+            'costs' => $costs,
+            'total' => $total,
+            'covered' => $covered,
+            'month' => config('support.month', ''),
+            'percent' => $total > 0 ? min(100, (int) round(100 * $covered / $total)) : 0,
+            'kofi' => trim((string) config('support.kofi', '')),
+        ]);
     }
 
     /**

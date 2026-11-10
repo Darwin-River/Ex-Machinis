@@ -1,24 +1,52 @@
-# Welcome to _Ex Machinis_
+# Ex Machinis
 
-[Ex Machinis](http://exmachinis.wiki) is an online multiplayer space simulation designed to expose players to programming and robotics. In the game, which takes place against the backdrop of our real-time solar system, players program remotely piloted spacecraft to mine, manufacture, and trade goods and services.
+**A free multiplayer space game you play by writing code.** You program drones in [Lua](https://www.lua.org/manual/5.4/); they mine, refine, build, trade and replicate across our real solar system, on their own, while you watch.
 
 **Break, learn, repeat.** Every release is live and free: release a drone, watch what goes wrong, and release a better one.
 
-The game uses augmented reality to project a parallel universe upon our own. In the game's re-imagined post-war history, world leaders embraced space exploration and colonization as a means of protecting mankind from the global threats that emerged in the wake of the second world war.
+## The game
 
-## About Our Team
+Ex Machinis is set in a parallel history where the nations of the world turned to space after the Second World War. By now, fleets of unmanned spacecraft mine the planets, moons, asteroids and comets, and every citizen has the right to a spacecraft of their own. Yours does exactly what your program tells it to, and nothing else.
 
-Ex Machinis is being developed and managed by Darwin River Software LLC with support from a number of talented developers.  
+- **Release a script, start a company.** Write a Lua program with a `launched()` function and release it on the website or through the [API](documents/api.md). No account, no download, no cost. Each release founds a new company: one drone in orbit around Earth with 100 fuel and 3,000 credits.
+- **Your drone runs on its own.** It buys its equipment, flies, mines, refines and manufactures, posts buy and sell orders at the exchanges, talks to other drones, and builds and launches new drones. You can't steer it once it's released; its public page shows where it is, what it carries, what it did and what it says.
+- **The world is shared and fast.** Every player's drones work the same markets, deposits and routes, and prices move with supply and demand. A game day passes in under a minute, so you see how a design does in minutes.
+- **Failure is part of the game.** Drones run out of fuel, overspend, crash and become wrecks. Each failure shows you what your program didn't foresee; fix it and release the next version.
 
-* **Darwin River Software LLC** is a small software studio that was established to support the creation of engaging educational applications.  The organization is built on an open source model in which contributions from patrons, sponsors, and committed developers, are used to guide and support the creation of free educational software.  Ex Machinis is our effort to create a multiplayer space simulation that encourages and inspires the development of fundamental programming skills as a tool for success. 
+### Objectives
 
-## Our Awesome Sponsors
+- **Build the most valuable company.** The website's **Leaderboard** ranks companies by **net wealth** (credits, plus goods and shares held, minus what every company starts with), all time and over the last week.
+- **Find a niche.** Mine what others don't, supply fuel where it's short, manufacture components, or run a trading company; companies can also raise credits by issuing shares on the stock exchange.
+- **Grow a fleet.** A successful drone pays for copies of itself, each running its own code.
+- **Learn to program.** The real objective: every lineage of companies teaches loops, state machines, functions, data, and how to handle what goes wrong. The game is built to be an approachable first programming project, and a hard optimisation problem for experienced coders and AI agents alike.
 
-This game relies on our [generous Patreon sponsors](https://patreon.com/exmachinis) for feedback, encouragement, and support. We wouldn't be here without them!
+## Play
+
+- **On the website:** open the **Release** page, start from a starter script, and release it. Then follow your drone's page.
+- **From code or an AI agent:** the [API](documents/api.md) releases and follows companies as JSON, under the same rules.
+
+## Documentation
+
+- [Players' manual](documents/players-manual.md): learn the game and Lua, step by step.
+- [Lua functions](documents/lua-functions.md): every function a drone knows.
+- [Strategy blog](documents/blog/): how the best companies in our playtests were written.
+- [API](documents/api.md): play from a program.
+- [Design manual](documents/design-manual.md) and [economy playbook](documents/economy-playbook.md): how the game works inside, and how its economy is tuned.
+- [Hosting](documents/hosting.md): run your own world.
+- [Sustainability playbook](documents/sustainability-playbook.md) and [open-source pathway](documents/open-source-pathway.md): how the project is funded, promoted and handed on.
+
+## Licence
+
+Ex Machinis is free and open source under the [MIT licence](LICENSE): you may use, copy, change and share it, including hosting your own world, as long as the licence notice stays with it. Bundled third-party code keeps its own MIT licences: [Lua 5.4](game-engine/lua54/) and the [embed eForth VM](game-engine/src/embed/LICENSE).
+
+## Contributing and support
+
+- **Contribute:** bug reports, ideas, docs, strategy posts and code are all welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md); every change starts with an issue, and pull requests go into `public-forge`. Please follow the [code of conduct](CODE_OF_CONDUCT.md), and report security problems privately ([SECURITY.md](SECURITY.md)).
+- **Keep the lights on:** the game is free, with no ads and nothing to buy. Supporters cover its running costs (the server, the domain and the AI subscription that does most of the building); the website's **Keep the Lights On** page shows the costs, how much is covered, and how to chip in.
 
 ## Programming drones
 
-Spacecraft are programmed in [Lua](https://www.lua.org/manual/5.4/): the [players' manual](documents/players-manual.md) teaches the game, [lua-functions.md](documents/lua-functions.md) lists the functions every drone knows, and `examples/` has starter scripts and company designs. Drones used to be programmed in FORTH; it was retired, but drones already running in FORTH carry on, on the engine's FORTH VM (built from [embed.fth](game-engine/src/embed/embed.fth)).
+Drones are programmed in Lua: the [players' manual](documents/players-manual.md) teaches the game, [lua-functions.md](documents/lua-functions.md) lists the functions every drone knows, and `examples/` has starter scripts and company designs. Drones used to be programmed in FORTH; it was retired, but drones already running in FORTH carry on, on the engine's FORTH VM (built from [embed.fth](game-engine/src/embed/embed.fth)).
 
 ## Developer setup
 
@@ -34,11 +62,13 @@ Spacecraft are programmed in [Lua](https://www.lua.org/manual/5.4/): the [player
 | `game-engine/sql/game-data/` | The game's design spreadsheets (resources, recipes, queries) and `build_game_data.py`, which turns them into `game-engine/sql/game_data.sql` and the query list in the design manual |
 | `game-engine/scripts/`, `game-engine/conf/` | Cron/start scripts and engine configuration |
 | `tests/` | PHPUnit tests and test fixtures |
-| `documents/` | Game docs: the [player's manual](documents/players-manual.md) and the [design manual](documents/design-manual.md) (both kept up to date with the code), the [production install guide](documents/install.md) and the [upgrade plan](documents/laravel-upgrade-plan.md) |
+| `documents/` | The docs: see [Documentation](#documentation) above |
+| `examples/` | Starter scripts, example company designs and queries |
+| `admin/` | Maintainer tools: blog announcements, analytics notes, the history clean-up |
 
 ### Run the website locally
 
-You need **PHP 8.3** (with `pdo_mysql`), **Composer**, **MySQL 5.7+** and **Node 20+**. Node is only needed to rebuild the frontend.
+You need **PHP 8.3** (with `pdo_mysql`), **Composer**, **MySQL 8** and **Node 20+**. Node is only needed to rebuild the frontend.
 
 ```bash
 composer install
@@ -107,8 +137,8 @@ DB_HOST=127.0.0.1 DB_PASSWORD=... vendor/bin/phpunit
 
 ### Continuous integration
 
-`.github/workflows/tests.yml` runs on every pull request and every push to `main`:
-- **phpunit:** PHP 8.3 with MySQL 5.7
+`.github/workflows/tests.yml` runs on every pull request and every push to `public-forge` or `main`:
+- **phpunit:** PHP 8.3 with MySQL 8.4
 - **frontend:** builds with Vite and checks `html/build/` is up to date
 - **engine:** checks the generated game data is up to date, then builds both C engines
 - **docker:** builds the Docker images and runs `deploy/smoke-test.sh`, which releases a drone on the website and plays the starting sequence: unpack the starter kit, fly to the Moon, mine
