@@ -313,6 +313,24 @@ class Shares
      * or of a company that has ended (#493), count 0; a company's own shares
      * don't count
      */
+    /**
+     * What the shares other companies hold in each company are worth, at the
+     * same value price (#568): company => credits. Net wealth counts them
+     * against the company, as the holders count them for themselves: a share
+     * sold is income given away (round 59: Jonah 3 reached #1 overall on
+     * credits from selling about 72% of its future income)
+     */
+    public static function claimsValue(): array
+    {
+        $prices = self::valuePrices();
+        $out = [];
+        foreach (DB::table('shares')->whereColumn('holder', '<>', 'company')->where('units', '>', 0)
+                     ->groupBy('company')->select('company', DB::raw('SUM(units) AS units'))->get() as $row) {
+            $out[(int) $row->company] = (int) $row->units * ($prices[(int) $row->company] ?? 0);
+        }
+        return $out;
+    }
+
     public static function holdingsValue(): array
     {
         $prices = self::valuePrices();
