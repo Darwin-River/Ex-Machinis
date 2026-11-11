@@ -1,6 +1,6 @@
 # Working on Ex Machinis
 
-These rules apply to every Claude session on this repository.
+These rules apply to every Claude session on this repository. They are the short version of the standard operating procedures in [`Procedures/`](Procedures/README.md): before a task, read the SOP that covers it and follow its machine instructions. If this file and an SOP disagree, post an issue for the project lead rather than guess.
 
 ## Every change has an issue
 
@@ -34,6 +34,13 @@ When a change affects players, update the docs in the same PR:
 - PHP: `vendor/bin/phpunit`
 - Engine: `make test` in `game-engine/src`
 - Game data: after editing `game-engine/sql/game-data/`, run `python3 game-engine/sql/game-data/build_game_data.py` and commit what it regenerates.
+
+## Outreach and fundraising
+
+- Claude drafts blog posts, lessons, social media posts and supporter updates; people review and publish them.
+- Claude never posts outside GitHub and never handles money. The Announce blog posts Action, which posts each new blog post to Bluesky and Mastodon when it reaches `main`, is the only automatic post.
+- The game and its teaching materials stay free, and supporters never get a gameplay advantage.
+- Never name or show a student or their school without written permission.
 
 ## Game philosophy
 
