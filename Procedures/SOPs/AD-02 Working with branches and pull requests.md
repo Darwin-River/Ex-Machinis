@@ -24,7 +24,7 @@
 
    2. <a id="4.2"></a>`main` is the default branch and the branch the public game runs from. Pull requests go into `main`. (The old default branch was retired in #563 and deleted; don't open pull requests into it.)
 
-   3. <a id="4.3"></a>Break, learn, repeat. There is no test world: each merge is released to players for free, and the server takes it at its next update (`documents/hosting.md`, "Update the game"). Keep each pull request small enough that, if it breaks something, it is quick to see why and quick to fix or revert.
+   3. <a id="4.3"></a>Break, learn, repeat. There is no test world: each merge is released to players for free: the Deploy workflow puts it on the live server once CI passes, per [AD-03](AD-03%20Deploying%20to%20the%20live%20server.md). Keep each pull request small enough that, if it breaks something, it is quick to see why and quick to fix or revert.
 
 5. # <a id="5"></a>Procedures
 
@@ -50,15 +50,17 @@
 
    7. <a id="5.7"></a>After a merge, check that the issues named in the pull request were closed, and delete the branch.
 
-   8. <a id="5.8"></a>If a merge breaks the live game, open an issue at once, then fix forward or revert in a new pull request. Tell players what happened in the next blog post or social post if it affected them, per [OR-02](OR-02%20Engaging%20on%20social%20media.md).
+   8. <a id="5.8"></a>After a merge, follow the deploy to the live server, per [AD-03](AD-03%20Deploying%20to%20the%20live%20server.md). If a merge breaks the live game, open an issue at once, then fix forward or revert in a new pull request, per [AD-03](AD-03%20Deploying%20to%20the%20live%20server.md) §5.4. Tell players what happened in the next blog post or social post if it affected them, per [OR-02](OR-02%20Engaging%20on%20social%20media.md).
 
 6. # <a id="6"></a>References
 
-   1. <a id="6.1"></a>[DV-01](DV-01%20Making%20and%20testing%20game%20changes.md): Making and testing game changes
+   1. <a id="6.1"></a>[AD-03](AD-03%20Deploying%20to%20the%20live%20server.md): Deploying to the live server
 
-   2. <a id="6.2"></a>[OR-02](OR-02%20Engaging%20on%20social%20media.md): Engaging on social media
+   2. <a id="6.2"></a>[DV-01](DV-01%20Making%20and%20testing%20game%20changes.md): Making and testing game changes
 
-   3. <a id="6.3"></a>[QA-01](QA-01%20Writing%20and%20maintaining%20Ex%20Machinis%20standard%20operating%20procedures.md): Writing and maintaining Ex Machinis standard operating procedures
+   3. <a id="6.3"></a>[OR-02](OR-02%20Engaging%20on%20social%20media.md): Engaging on social media
+
+   4. <a id="6.4"></a>[QA-01](QA-01%20Writing%20and%20maintaining%20Ex%20Machinis%20standard%20operating%20procedures.md): Writing and maintaining Ex Machinis standard operating procedures
 
 7. # <a id="7"></a>Attachments
 

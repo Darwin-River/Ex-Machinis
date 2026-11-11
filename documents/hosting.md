@@ -252,7 +252,7 @@ For a livelier market on day one, release a few starters yourself from the Relea
 
 ## Update the game
 
-New code reaches the game through the `main` branch.
+New code reaches the game through the `main` branch. With [automatic updates](#automatic-updates) set up, every merge to `main` is deployed by itself; this section is also how to update by hand.
 
 **What happens during an update:**
 - The containers restart. Drones pause for a minute or two and carry on; nothing is lost.
@@ -292,6 +292,61 @@ Then open the site and check a drone page, as in step 4 of the install.
 ```sh
 docker image prune -f
 ```
+
+### Automatic updates
+
+Once set up, every merge to `main` updates the server by itself (#575, SOP [AD-03](../Procedures/SOPs/AD-03%20Deploying%20to%20the%20live%20server.md)). When the Tests workflow passes on `main`, the **Deploy** workflow (`.github/workflows/deploy.yml`) logs in with a key that can run `deploy/auto-deploy.sh` and nothing else. The script does the routine above:
+
+1. backs up;
+2. pulls `main`;
+3. rebuilds and restarts (containers whose code didn't change keep running);
+4. waits for `migrate`;
+5. checks every service stays up.
+
+It stops at the first problem, says what failed and how to go back, and the run turns red in the repository's **Actions** tab (GitHub emails the person who merged). Each run is also logged on the server in `/var/backups/exmachinis/deploy.log`.
+
+The script refuses to deploy over local changes in `/opt/exmachinis`, or while the checkout is off `main` (after a rollback by hand). `git checkout main` turns automatic updates back on.
+
+**Set it up once** (about 10 minutes):
+
+1. **Make sure the server has the script.** If `ls /opt/exmachinis/deploy/auto-deploy.sh` finds nothing, do one update by hand first (above).
+
+2. **Make a key for GitHub** on the server, as `forge`, and lock it to the deploy script:
+
+   ```sh
+   ssh-keygen -t ed25519 -N "" -C github-deploy -f ~/github-deploy
+   echo "command=\"/opt/exmachinis/deploy/auto-deploy.sh\",restrict $(cat ~/github-deploy.pub)" >> ~/.ssh/authorized_keys
+   ```
+
+   `restrict` turns off everything else the key could do (a shell, port forwarding and so on), so even someone who stole it could only start a deploy.
+
+3. **Note the server's fingerprint,** so GitHub can be sure it is talking to your server (replace `SERVER_IP`):
+
+   ```sh
+   echo "SERVER_IP $(cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub)"
+   ```
+
+4. **Add three secrets** on GitHub: the repository's **Settings → Secrets and variables → Actions → New repository secret**:
+
+   | Name | Value |
+   |---|---|
+   | `DEPLOY_HOST` | the server's IP address |
+   | `DEPLOY_SSH_KEY` | the private key: the whole output of `cat ~/github-deploy`, including the `BEGIN` and `END` lines |
+   | `DEPLOY_KNOWN_HOSTS` | the line printed in step 3 |
+
+5. **Delete the key files from the server** (GitHub has the only copy now; the lock in `authorized_keys` stays):
+
+   ```sh
+   rm ~/github-deploy ~/github-deploy.pub
+   ```
+
+6. **Test it:** on GitHub, **Actions → Deploy → Run workflow**. The log should end with `deploy: already at …: nothing to deploy` (tick **force** to rebuild anyway).
+
+Until the three secrets exist, the Deploy workflow only notes that automatic updates aren't set up.
+
+**Pause automatic updates** with **Actions → Deploy → ⋯ → Disable workflow**, or make every deploy wait for your approval: **Settings → Environments → production → Required reviewers**.
+
+**Revoke the key** by deleting its line (the one ending `github-deploy`) from `~/.ssh/authorized_keys` and the `DEPLOY_SSH_KEY` secret; make a new one with steps 2 to 5.
 
 ### If an update goes wrong
 

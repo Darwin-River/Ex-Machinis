@@ -1,0 +1,62 @@
+name: Deploy
+
+# Deploys main to the live server (#575, SOP AD-03) once the Tests workflow
+# passes on a push to main, or when run by hand from the Actions tab.
+#
+# The server lets this key run deploy/auto-deploy.sh and nothing else
+# (documents/hosting.md, "Automatic updates"). Until the three secrets are
+# set, the job only says so and succeeds.
+
+on:
+  workflow_run:
+    workflows: [Tests]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Rebuild and restart even if the server already runs the latest main'
+        type: boolean
+        default: false
+
+# One deploy at a time; a newer one waits for the running one
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: ${{ vars.SITE_URL || 'https://exmachinis.com' }}
+    steps:
+      - name: Deploy
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          FORCE: ${{ inputs.force && 'force' || 'deploy' }}
+        run: |
+          if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_SSH_KEY" ] || [ -z "$DEPLOY_KNOWN_HOSTS" ]; then
+            echo "::notice::Automatic deploys aren't set up: add DEPLOY_HOST, DEPLOY_SSH_KEY and DEPLOY_KNOWN_HOSTS (documents/hosting.md, \"Automatic updates\")."
+            exit 0
+          fi
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # The server ignores the command and runs auto-deploy.sh; "force" is the only word it reads
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              -o ServerAliveInterval=30 "forge@$DEPLOY_HOST" "$FORCE"
+
+      - name: Remove the key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

@@ -15,6 +15,7 @@ To have Claude do a task, name the machine instructions, for example: "Apply DV-
 | [QA-01](SOPs/QA-01%20Writing%20and%20maintaining%20Ex%20Machinis%20standard%20operating%20procedures.md) | Writing and maintaining Ex Machinis standard operating procedures | M1 proofreading SOPs, M2 reviewing SOP changes, T1 SOP template, T2 machine instructions template |
 | [AD-01](SOPs/AD-01%20Creating%20and%20resolving%20GitHub%20issues.md) | Creating and resolving GitHub issues | M1 resolving issues, M2 posting issues, M3 tracking requests, M4 issue sweeps |
 | [AD-02](SOPs/AD-02%20Working%20with%20branches%20and%20pull%20requests.md) | Working with branches and pull requests | None |
+| [AD-03](SOPs/AD-03%20Deploying%20to%20the%20live%20server.md) | Deploying to the live server | M1 following a deploy |
 | [DV-01](SOPs/DV-01%20Making%20and%20testing%20game%20changes.md) | Making and testing game changes | A1 docs to keep current, M1 making a game change |
 | [DV-02](SOPs/DV-02%20Running%20playtest%20rounds.md) | Running playtest rounds | M1 running a round, T1 round comment for #380 |
 | [OR-01](SOPs/OR-01%20Writing%20and%20publishing%20blog%20posts.md) | Writing and publishing blog posts | M1 drafting a post, T1 blog post |
@@ -25,7 +26,7 @@ To have Claude do a task, name the machine instructions, for example: "Apply DV-
 ## Categories
 
 - **QA**, quality assurance: keeping code, docs and SOPs correct and consistent.
-- **AD**, administration: issues, branches, pull requests and merging.
+- **AD**, administration: issues, branches, pull requests, merging and deploying.
 - **DV**, development: changing, testing and playtesting the game.
 - **OR**, outreach: the blog, social media, schools and learners.
 - **FR**, fundraising: the Keep the Lights On page, Ko-fi and other support.

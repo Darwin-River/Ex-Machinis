@@ -14,6 +14,7 @@ These rules apply to every Claude session on this repository. They are the short
 
 - Pull requests go into `main`, the default branch.
 - Squash-merge only, only when CI is green, and only when the user says to merge.
+- A merge to `main` deploys itself to the live server at exmachinis.com once CI passes. Follow the deploy and report it, per AD-03 (`Procedures/SOPs/AD-03 Deploying to the live server.md`). Never ask for a login to the server.
 
 ## Docs to keep current
 
