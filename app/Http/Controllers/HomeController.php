@@ -67,7 +67,7 @@ class HomeController extends Controller
     /** Where the players' manual and its images live */
     private const PLAYERS_MANUAL = 'documents/players-manual.md';
     private const MANUAL_IMAGES = 'documents/images';
-    private const REPOSITORY_DOCS = 'https://github.com/Darwin-River/Ex-Machinis/blob/public-forge/documents/';
+    private const REPOSITORY_DOCS = 'https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/';
 
     /**
      * Getting Started: the players' manual (documents/players-manual.md),

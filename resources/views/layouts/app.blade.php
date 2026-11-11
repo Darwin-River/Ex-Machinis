@@ -119,13 +119,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     <h2 class="footer-title">Community</h2>
                     <ul class="footer-links">
                         <li><a href="https://github.com/Darwin-River/Ex-Machinis">Source code</a></li>
-                        <li><a href="https://github.com/Darwin-River/Ex-Machinis/blob/public-forge/CONTRIBUTING.md">Contribute</a></li>
+                        <li><a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/CONTRIBUTING.md">Contribute</a></li>
                         <li><a href="https://github.com/Darwin-River/Ex-Machinis/issues">Report a problem</a></li>
                         <li><a href="/blog/feed">Blog RSS feed</a></li>
                     </ul>
                 </div>
             </div>
-            <p class="footer-legal">Ex Machinis is free and open source under the <a href="https://github.com/Darwin-River/Ex-Machinis/blob/public-forge/LICENSE">MIT licence</a>. &copy; the Ex Machinis contributors.</p>
+            <p class="footer-legal">Ex Machinis is free and open source under the <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/LICENSE">MIT licence</a>. &copy; the Ex Machinis contributors.</p>
         </div>
     </footer>
 </div>

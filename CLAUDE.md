@@ -12,7 +12,7 @@ These rules apply to every Claude session on this repository.
 
 ## Branches and merging
 
-- Pull requests go into `public-forge`, never `main`.
+- Pull requests go into `main`, the default branch. (`public-forge` was the default until #563; don't open pull requests into it.)
 - Squash-merge only, only when CI is green, and only when the user says to merge.
 
 ## Docs to keep current
@@ -26,8 +26,8 @@ When a change affects players, update the docs in the same PR:
 - `documents/lua-functions.md`
 - `documents/economy-playbook.md`
 - `documents/sustainability-playbook.md` (costs, the support page, social accounts, who owns what)
-- `documents/open-source-pathway.md` (the licence, the move to a project organization, the site's design)
-- `documents/blog/` when the change is worth a post. A new post is announced on Bluesky and Mastodon automatically when it reaches `public-forge`.
+- `documents/open-source-pathway.md` (the licence, the shared organization, the site's design)
+- `documents/blog/` when the change is worth a post. A new post is announced on Bluesky and Mastodon automatically when it reaches `main`.
 
 ## Tests
 

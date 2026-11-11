@@ -16,7 +16,7 @@
                         <p>Ex Machinis is a free multiplayer space game you play by writing code. You program drones in Lua, release them into a shared, real-time solar system, and watch them mine, build, trade and replicate on their own. The aim is to build the most valuable company, and along the way to learn to program: every company is an experiment, and every failure shows you what your code didn't foresee.</p>
 
                         <h2>Free and open source</h2>
-                        <p>The game is free to play, with no accounts, no ads and nothing to buy, and its code is open source under the <a href="https://github.com/Darwin-River/Ex-Machinis/blob/public-forge/LICENSE">MIT licence</a>: anyone can read it, change it, host their own world, or <a href="https://github.com/Darwin-River/Ex-Machinis/blob/public-forge/CONTRIBUTING.md">help build it</a>.</p>
+                        <p>The game is free to play, with no accounts, no ads and nothing to buy, and its code is open source under the <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/LICENSE">MIT licence</a>: anyone can read it, change it, host their own world, or <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/CONTRIBUTING.md">help build it</a>.</p>
 
                         <h2>Who builds it</h2>
                         <p>Ex Machinis is built by its maintainers and contributors, in the open on <a href="https://github.com/Darwin-River/Ex-Machinis">GitHub</a>. Its core was written by:</p>
