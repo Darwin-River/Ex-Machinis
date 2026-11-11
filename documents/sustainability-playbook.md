@@ -110,7 +110,7 @@ Keep this table current. "Owner" is an account or organisation, not a person's p
 
 | Thing | Where | Owner | Who else has access |
 |---|---|---|---|
-| Code | GitHub (moving to a project organization, see the [open-source pathway](open-source-pathway.md)) | The project organization | |
+| Code | GitHub [`Darwin-River/Ex-Machinis`](https://github.com/Darwin-River/Ex-Machinis) | The Darwin River organization (shared) | |
 | Server | Hetzner project | | |
 | Domain | Registrar | | |
 | Ko-fi | ko-fi.com/ (not set up yet) | | |
