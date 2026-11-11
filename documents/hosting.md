@@ -309,7 +309,7 @@ The script refuses to deploy over local changes in `/opt/exmachinis`, or while t
 
 **Set it up once** (about 10 minutes):
 
-1. **Make sure the server has the script.** If `ls /opt/exmachinis/deploy/auto-deploy.sh` finds nothing, do one update by hand first (above).
+1. **Make sure the server has the script and a backups folder.** Every deploy backs up first. If `ls /opt/exmachinis/deploy/auto-deploy.sh` finds nothing, do one update by hand first (above). If `deploy/backup.sh` says it can't write to `/var/backups/exmachinis`, make the folder as [The backup script](#the-backup-script) shows.
 
 2. **Make a key for GitHub** on the server, as `forge`, and lock it to the deploy script:
 

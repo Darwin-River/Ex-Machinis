@@ -17,17 +17,21 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 REPO="$(pwd)"
-LOG_DIR="${DEPLOY_LOG_DIR:-/var/backups/exmachinis}"
+# Every deploy backs up first, into the backups folder; its log goes there too
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/exmachinis}"
+LOG_DIR="$BACKUP_DIR"
 
 # Through the SSH key, the command GitHub sends arrives here; only "force" means anything
 FORCE=""
 [ "${1:-}" = "--force" ] && FORCE=1
 [ "${SSH_ORIGINAL_COMMAND:-}" = "force" ] && FORCE=1
 
-# The backups folder (documents/hosting.md, "Back up the game"), or the home folder before it exists
-if ! { mkdir -p "$LOG_DIR" 2>/dev/null && [ -w "$LOG_DIR" ]; }; then
-    LOG_DIR="$HOME/exmachinis-deploy"
-    mkdir -p "$LOG_DIR"
+# No deploy without a backup: check the folder first, even when there's nothing
+# to deploy, so the setup test catches it (#581; documents/hosting.md, "The backup script")
+if ! { [ -d "$LOG_DIR" ] && [ -w "$LOG_DIR" ]; }; then
+    me="$(id -un)"
+    echo "deploy: FAILED: $me can't write to $LOG_DIR, where each deploy's backup goes. Make it once, logged in as $me: sudo mkdir -p $LOG_DIR && sudo chown $me:$me $LOG_DIR"
+    exit 1
 fi
 exec > >(tee -a "$LOG_DIR/deploy.log") 2>&1
 
