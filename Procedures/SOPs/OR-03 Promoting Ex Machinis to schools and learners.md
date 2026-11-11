@@ -16,7 +16,7 @@
 
 3. # <a id="3"></a>Required resources
 
-   1. <a id="3.1"></a>The player's manual (`documents/players-manual.md`), the Lua function list (`documents/lua-functions.md`) and the starter scripts in `examples/`.
+   1. <a id="3.1"></a>The players' manual (`documents/players-manual.md`, also on the website), the Lua function list (`documents/lua-functions.md`), the starter scripts in `examples/` (also offered on the website's **Release** page), the strategy blog (`documents/blog/`), and, for experienced coders, the API (`documents/api.md`).
 
    2. <a id="3.2"></a>The teaching materials folder, `documents/teaching/`, created with the first lesson.
 
@@ -28,7 +28,7 @@
 
    2. <a id="4.2"></a>Free means free. The game and all teaching materials stay free for schools and learners. Supporters on Ko-fi help pay the running costs; support never gates learning or brings a gameplay advantage, per [FR-01](FR-01%20Raising%20funds%20through%20Ko-fi.md) §4.2.
 
-   3. <a id="4.3"></a>Protect students. The game needs no accounts and collects no personal data from players; keep it that way for anything aimed at students. Never name, picture or quote a student, or name their school, without written permission from the school and, for a student under 18, a parent or guardian. Talk to teachers and schools, never to students directly.
+   3. <a id="4.3"></a>Protect students. The game needs no accounts and asks players for no personal details; keep it that way for anything aimed at students. Never name, picture or quote a student, or name their school, without written permission from the school and, for a student under 18, a parent or guardian. Talk to teachers and schools, never to students directly.
 
    4. <a id="4.4"></a>Teach transferable skills. Every lesson names the programming idea it teaches (variables, loops, functions, state machines, debugging, data) in terms a teacher can map to their course, and shows how it applies beyond the game.
 
@@ -58,7 +58,7 @@
 
       3. <a id="5.5.3"></a>With permission, share what classes did in a blog post or supporter update, per [OR-01](OR-01%20Writing%20and%20publishing%20blog%20posts.md) and [FR-01](FR-01%20Raising%20funds%20through%20Ko-fi.md).
 
-   6. <a id="5.6"></a>Reach the general public through the blog ([OR-01](OR-01%20Writing%20and%20publishing%20blog%20posts.md)) and social media ([OR-02](OR-02%20Engaging%20on%20social%20media.md)), with the same promise: learn to code by flying drones in the real solar system, for free.
+   6. <a id="5.6"></a>Reach the general public through the blog ([OR-01](OR-01%20Writing%20and%20publishing%20blog%20posts.md)) and social media ([OR-02](OR-02%20Engaging%20on%20social%20media.md)), with the same promise: learn to code by writing Lua for drones that mine, trade and build in the real solar system, for free, with no account and nothing to install.
 
    7. <a id="5.7"></a>Review this outreach every three months in an issue: what was tried, what teachers said, and what to try next.
 

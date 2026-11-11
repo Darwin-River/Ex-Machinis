@@ -10,7 +10,7 @@
 
    1. <a id="2.1"></a>The project lead is responsible for approving every new or changed SOP and for keeping the set of SOPs complete.
 
-   2. <a id="2.2"></a>Developers and Claude are responsible for proposing SOP changes, through an issue per [AD-01](AD-01%20Creating%20and%20resolving%20GitHub%20issues.md), whenever they find a procedure that is missing, wrong or slower than it needs to be.
+   2. <a id="2.2"></a>Developers and Claude are responsible for proposing SOP changes, through an issue per [AD-01](AD-01%20Creating%20and%20resolving%20GitHub%20issues.md), whenever they find a procedure that is missing, wrong or slower than it needs to be. Any contributor may propose one the same way, per `CONTRIBUTING.md`.
 
    3. <a id="2.3"></a>Claude is responsible for applying the "Machine instructions for reviewing SOP changes" ([QA-01-M2](../Attachments/QA-01-M2%20Machine%20instructions%20for%20reviewing%20SOP%20changes.md)) to every pull request that changes an SOP or attachment.
 
@@ -24,7 +24,7 @@
 
    2. <a id="4.2"></a>Write SOPs in plain language. Say who does what, in what order, and where the result goes. Prefer short numbered steps to long paragraphs.
 
-   3. <a id="4.3"></a>`CLAUDE.md` at the root of the repository is the short version of these SOPs that every Claude session reads first. When an SOP change affects a rule summarized there, update `CLAUDE.md` in the same pull request so the two never disagree.
+   3. <a id="4.3"></a>`CLAUDE.md` at the root of the repository is the short version of these SOPs that every Claude session reads first. When an SOP change affects a rule summarized there, update `CLAUDE.md` in the same pull request so the two never disagree. If they are found to disagree, post an issue for the project lead rather than guess which is right.
 
 5. # <a id="5"></a>Procedures
 

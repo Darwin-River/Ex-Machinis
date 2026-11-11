@@ -34,6 +34,7 @@ Ex Machinis is set in a parallel history where the nations of the world turned t
 - [Design manual](documents/design-manual.md) and [economy playbook](documents/economy-playbook.md): how the game works inside, and how its economy is tuned.
 - [Hosting](documents/hosting.md): run your own world.
 - [Sustainability playbook](documents/sustainability-playbook.md) and [open-source pathway](documents/open-source-pathway.md): how the project is funded, promoted and handed on.
+- [Procedures](Procedures/README.md): the standard operating procedures for running the project (issues and pull requests, game changes and playtests, the blog, social media, schools, and Ko-fi support).
 
 ## Licence
 
@@ -64,7 +65,8 @@ Drones are programmed in Lua: the [players' manual](documents/players-manual.md)
 | `tests/` | PHPUnit tests and test fixtures |
 | `documents/` | The docs: see [Documentation](#documentation) above |
 | `examples/` | Starter scripts, example company designs and queries |
-| `admin/` | Maintainer tools: blog announcements, analytics notes, the history clean-up |
+| `admin/` | Maintainer tools: blog announcements and analytics notes |
+| `Procedures/` | The standard operating procedures (SOPs) for running the project, and their templates and machine instructions |
 
 ### Run the website locally
 

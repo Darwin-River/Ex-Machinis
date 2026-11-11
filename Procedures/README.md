@@ -33,5 +33,5 @@ To have Claude do a task, name the machine instructions, for example: "Apply DV-
 ## Who does what
 
 - **The project lead** sets direction, approves and merges pull requests, and is the only one who posts to social media and Ko-fi by hand or handles money. The Announce blog posts Action posts each new blog post to Bluesky and Mastodon by itself; nothing else is posted outside GitHub without a person.
-- **Developers** make changes, review them, and bring ideas and feedback in as issues.
+- **Developers** make changes, review them, and bring ideas and feedback in as issues. Anyone can contribute, per [CONTRIBUTING.md](../CONTRIBUTING.md) and the [code of conduct](../CODE_OF_CONDUCT.md). The project is MIT licensed ([LICENSE](../LICENSE)) and lives in the shared [Darwin-River](https://github.com/Darwin-River/Ex-Machinis) organization on GitHub.
 - **Claude** tracks every request in an issue, makes changes on a branch and opens pull requests, runs playtest rounds, and drafts blog posts, lessons, social posts and supporter updates for people to review and publish. Claude never merges on its own judgment and never posts outside GitHub.

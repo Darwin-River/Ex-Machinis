@@ -8,7 +8,7 @@
 
    1. <a id="2.1"></a>The project lead decides which issues are worked on, answers the questions Claude asks in issues, and closes issues that will not be done.
 
-   2. <a id="2.2"></a>Developers post issues that say clearly what they want and why, and confirm when an issue has been resolved to their satisfaction.
+   2. <a id="2.2"></a>Developers post issues that say clearly what they want and why, and confirm when an issue has been resolved to their satisfaction. Anyone else may post an issue too, using the bug or idea templates in `.github/ISSUE_TEMPLATE/`, per `CONTRIBUTING.md`.
 
    3. <a id="2.3"></a>Claude makes sure every request it acts on is tracked by an issue, per the "Machine instructions for tracking requests with issues" ([AD-01-M3](../Attachments/AD-01-M3%20Machine%20instructions%20for%20tracking%20requests%20with%20issues.md)), resolves issues when directed to, per the "Machine instructions for resolving GitHub issues" ([AD-01-M1](../Attachments/AD-01-M1%20Machine%20instructions%20for%20resolving%20GitHub%20issues.md)), and posts the problems and ideas it notices along the way, per the "Machine instructions for identifying and posting issues" ([AD-01-M2](../Attachments/AD-01-M2%20Machine%20instructions%20for%20identifying%20and%20posting%20issues.md)).
 
@@ -16,7 +16,7 @@
 
 3. # <a id="3"></a>Required resources
 
-   1. <a id="3.1"></a>Access to the [Darwin-River/Ex-Machinis](https://github.com/Darwin-River/Ex-Machinis) repository on GitHub, and a way to work with its issues, such as the GitHub website or Claude's GitHub tools.
+   1. <a id="3.1"></a>Access to the [Darwin-River/Ex-Machinis](https://github.com/Darwin-River/Ex-Machinis) repository, in the shared Darwin-River organization on GitHub, and a way to work with its issues, such as the GitHub website or Claude's GitHub tools.
 
 4. # <a id="4"></a>General guidelines
 
@@ -29,6 +29,8 @@
    4. <a id="4.4"></a>Social media drafts and supporter updates are tracked in issues too, per [OR-02](OR-02%20Engaging%20on%20social%20media.md) and [FR-01](FR-01%20Raising%20funds%20through%20Ko-fi.md), so that what was said in public, and when, can be found later.
 
    5. <a id="4.5"></a>Ideas and feedback from players, supporters and teachers are welcome as issues. Whoever relays them says where they came from, without naming a student.
+
+   6. <a id="4.6"></a>Everyone who posts in issues and pull requests follows the project's `CODE_OF_CONDUCT.md`. Security problems are reported privately, per `SECURITY.md`, never in a public issue; if one turns up in an issue, Claude says so and leaves the details out of its own posts.
 
 5. # <a id="5"></a>Procedures
 

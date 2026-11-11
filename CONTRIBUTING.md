@@ -16,7 +16,7 @@ These are the same rules every maintainer and every AI session follows; [CLAUDE.
 2. **Branch from `main`, and open the pull request into `main`.** Name the issue in the description: `Closes #N`.
 3. **Keep the docs current.** If players would notice the change, update the manual and the other documents listed in CLAUDE.md in the same pull request.
 4. **Run the tests:** `vendor/bin/phpunit` for the website, `make test` in `game-engine/src` for the engines. CI runs them too.
-5. **A maintainer squash-merges** once CI is green.
+5. **The project lead squash-merges** once CI is green and they agree to the change.
 
 Small pull requests get reviewed fastest. If you're unsure whether a change is wanted, ask on the issue before writing it.
 
