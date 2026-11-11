@@ -216,7 +216,7 @@ function refuel()
   snap()
 end
 
--- --- growth: copied from the Smith design, stops after day 24 ---------
+-- --- growth: copied from the Smith design, stops at age 24 (#549) -----
 function get_one(resource)
   if units(resource) > 0 then return end
   buy_here(1, resource)
@@ -245,7 +245,7 @@ end
 function reinvest()
   if units(factory_kit) > 0 then equip_clone(); fill_to(60); return end
   if units(cruiser_kit) == 0 then
-    if today() > 24 then return end
+    if company_age() > 24 then return end  -- its first 24 game days (#549)
     if credits() < 7500 then return end
     get_one(cruiser_kit)
     if units(cruiser_kit) == 0 then return end
@@ -267,7 +267,7 @@ invest_day = -1
 function invest()
   if today() == invest_day then return end
   invest_day = today()
-  invest_surplus(today() > 24 and 3000 or 9000)
+  invest_surplus(company_age() > 24 and 3000 or 9000)
 end
 
 function tell()
