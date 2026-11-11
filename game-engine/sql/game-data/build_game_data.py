@@ -1310,6 +1310,12 @@ queries.append((650, 'My taxes',
 # The processor tax (#544): what the drone's company pays for its drones'
 # thinking. Rows: the rate (credits a million instructions), the tax and the
 # instructions billed over the last game day, and what it owes
+# A company's age (#549): whole game days since it was founded (founded_t,
+# set at release since #548). The examples' growth cutoffs used today(), the
+# world's day: a Foundry released on day 8 could grow for only 16 days
+queries.append((652, 'Company age',
+                'Company N\'s age: whole game days since it was founded.', 1,
+                "SELECT FLOOR(GREATEST(0, [game_now] - IFNULL(founded_t, [game_now])) / 86400) FROM companies WHERE company_id = [value_1];"))
 queries.append((651, 'My processor tax',
                 'compute_tax(): the processor tax, credits a million instructions; what the company paid for its '
                 'drones\' thinking over the last game day, instructions billed, what it owes, game days broke (-1: '

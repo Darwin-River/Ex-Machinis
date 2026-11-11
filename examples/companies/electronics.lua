@@ -118,7 +118,7 @@ function wip()
          units(al1) + units(al2) + units(al3)
 end
 
--- Growth: up to day 24, with 6,500 credits, buy a hull and a Factory Kit,
+-- Growth: in its first 24 game days (company_age(), #549), with 6,500 credits, buy a hull and a Factory Kit,
 -- launch a copy of this drone and hand it the kit and 40 fuel
 function get_one(resource)
   if units(resource) > 0 then return end
@@ -137,7 +137,7 @@ function equip_clone()
 end
 function reinvest()
   if units(factory_kit) > 0 then equip_clone(); return end
-  if today() > 24 then return end
+  if company_age() > 24 then return end  -- its first 24 game days (#549)
   if units(cruiser_kit) == 0 then
     if credits() < 6500 then return end
     get_one(cruiser_kit)
@@ -158,7 +158,7 @@ invest_day = -1
 function invest()
   if today() == invest_day then return end
   invest_day = today()
-  invest_surplus(today() > 24 and 3000 or 8500)
+  invest_surplus(company_age() > 24 and 3000 or 8500)
 end
 
 function tell()

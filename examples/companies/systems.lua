@@ -113,7 +113,7 @@ function rest()
   wait(120)
 end
 
--- Growth: with 7,000 credits before day 24, at an exchange, buy a hull and
+-- Growth: with 7,000 credits in its first 24 game days (company_age(), #549), at an exchange, buy a hull and
 -- a Factory Kit, launch a copy of this drone and equip it
 function get_one(resource)
   if units(resource) > 0 then return end
@@ -148,7 +148,7 @@ end
 function reinvest()
   if units(factory_kit) > 0 then equip_clone(); fuel_to(60); return end
   if units(cruiser_kit) == 0 then
-    if today() >= 24 or credits() < 7000 then return end
+    if company_age() >= 24 or credits() < 7000 then return end  -- its first 24 game days (#549)
     get_one(cruiser_kit)
     if units(cruiser_kit) == 0 then return end
   end
@@ -169,7 +169,7 @@ invest_day = -1
 function invest()
   if today() == invest_day then return end
   invest_day = today()
-  invest_surplus(today() > 24 and 3000 or 9000)
+  invest_surplus(company_age() > 24 and 3000 or 9000)
 end
 
 rounds = 0

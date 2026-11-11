@@ -477,6 +477,13 @@ end
 -- broke_days: game days your company has been broke, its credits less what it
 -- owes at 0 or below (-1 when it isn't); broke for 50 straight, it dissolves
 -- and its drones become wrecks (#547)
+-- A company's age (#549; yours if c is left out): whole game days since it
+-- was founded. today() is the world's day: use this for "in its first 24
+-- days", so a company released late gets the same time to grow
+local function company_age(c)                                                     -- 652
+  local row = ask(652, c or company())[1]
+  return row and row[1] or 0
+end
 local function compute_tax()                                                      -- 651
   return record(ask(651), {"per_million", "tax", "instructions", "debt", "broke_days"})
 end
@@ -805,6 +812,7 @@ _G.shares_for_sale = shares_for_sale
 _G.share_offerings = share_offerings
 _G.company_health = company_health
 _G.compute_tax = compute_tax
+_G.company_age = company_age
 _G.where_to_buy = where_to_buy
 _G.raise_cash = raise_cash
 _G.invest_surplus = invest_surplus
