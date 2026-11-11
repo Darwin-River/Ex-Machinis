@@ -12,7 +12,7 @@ These rules apply to every Claude session on this repository.
 
 ## Branches and merging
 
-- Pull requests go into `main`, the default branch. (`public-forge` was the default until #563; don't open pull requests into it.)
+- Pull requests go into `main`, the default branch.
 - Squash-merge only, only when CI is green, and only when the user says to merge.
 
 ## Docs to keep current
