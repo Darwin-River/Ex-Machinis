@@ -26,7 +26,7 @@
 
    3. <a id="4.3"></a>Ex Machinis teaches programming. Prefer changes that make a player's code easier to read, test and reason about over changes that add rules to memorize. Error messages are teaching moments: say what went wrong and what to try.
 
-   4. <a id="4.4"></a>The game must stay free to play and open to classrooms. A change must not put a gameplay advantage behind payment, per [FR-01](FR-01%20Raising%20funds%20through%20Patreon.md) §4.2.
+   4. <a id="4.4"></a>The game must stay free to play and open to classrooms. A change must not put a gameplay advantage behind payment, per [FR-01](FR-01%20Raising%20funds%20through%20Ko-fi.md) §4.2.
 
 5. # <a id="5"></a>Procedures
 
@@ -48,7 +48,7 @@
 
    4. <a id="5.4"></a>Update every doc the change affects, using [DV-01-A1](../Attachments/DV-01-A1%20Docs%20to%20keep%20current.md), in the same pull request.
 
-   5. <a id="5.5"></a>If the change is worth telling players about, open an issue for a blog post, per [OR-01](OR-01%20Writing%20and%20publishing%20blog%20posts.md), and note the change in the next social post or patron update, per [OR-02](OR-02%20Engaging%20on%20social%20media.md) and [FR-01](FR-01%20Raising%20funds%20through%20Patreon.md).
+   5. <a id="5.5"></a>If the change is worth telling players about, open an issue for a blog post, per [OR-01](OR-01%20Writing%20and%20publishing%20blog%20posts.md), and note the change in the next social post or supporter update, per [OR-02](OR-02%20Engaging%20on%20social%20media.md) and [FR-01](FR-01%20Raising%20funds%20through%20Ko-fi.md).
 
    6. <a id="5.6"></a>If the change came from a playtest round, link the round's comment on #380 in the pull request, per [DV-02](DV-02%20Running%20playtest%20rounds.md).
 
@@ -62,7 +62,7 @@
 
    3. <a id="6.3"></a>[DV-02](DV-02%20Running%20playtest%20rounds.md): Running playtest rounds
 
-   4. <a id="6.4"></a>[FR-01](FR-01%20Raising%20funds%20through%20Patreon.md): Raising funds through Patreon
+   4. <a id="6.4"></a>[FR-01](FR-01%20Raising%20funds%20through%20Ko-fi.md): Raising funds through Ko-fi
 
    5. <a id="6.5"></a>[OR-01](OR-01%20Writing%20and%20publishing%20blog%20posts.md): Writing and publishing blog posts
 

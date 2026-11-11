@@ -10,7 +10,7 @@
 
 3. <a id="3"></a>Tracking a request
 
-   1. <a id="3.1"></a>Fetch `public-forge` and read what has changed since you last looked, so you work from the current code, docs and SOPs. If an SOP has changed, follow its new version.
+   1. <a id="3.1"></a>Fetch `main` and read what has changed since you last looked, so you work from the current code, docs and SOPs. If an SOP has changed, follow its new version.
 
    2. <a id="3.2"></a>Search open and closed issues for one that covers the request.
 

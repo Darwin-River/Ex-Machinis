@@ -30,13 +30,13 @@
 
 5. # <a id="5"></a>Procedures
 
-   1. <a id="5.1"></a>Open an issue for the post that says its idea and who it is for, per [AD-01](AD-01%20Creating%20and%20resolving%20GitHub%20issues.md). Ideas come from changes worth explaining ([DV-01](DV-01%20Making%20and%20testing%20game%20changes.md) §5.5), playtest rounds ([DV-02](DV-02%20Running%20playtest%20rounds.md) §5.7), and questions from players, patrons and teachers.
+   1. <a id="5.1"></a>Open an issue for the post that says its idea and who it is for, per [AD-01](AD-01%20Creating%20and%20resolving%20GitHub%20issues.md). Ideas come from changes worth explaining ([DV-01](DV-01%20Making%20and%20testing%20game%20changes.md) §5.5), playtest rounds ([DV-02](DV-02%20Running%20playtest%20rounds.md) §5.7), and questions from players, supporters and teachers.
 
    2. <a id="5.2"></a>Draft the post from [OR-01-T1](../Attachments/OR-01-T1%20Blog%20post%20template.md), named with the next number and a short slug, for example `11-reading-the-market.md`.
 
-   3. <a id="5.3"></a>Open a pull request into `public-forge`, per [AD-02](AD-02%20Working%20with%20branches%20and%20pull%20requests.md). The project lead reviews it; the post goes live when it is merged.
+   3. <a id="5.3"></a>Open a pull request into `main`, per [AD-02](AD-02%20Working%20with%20branches%20and%20pull%20requests.md). The project lead reviews it; the post goes live when it is merged.
 
-   4. <a id="5.4"></a>Once it is live, open an issue to announce it, per [OR-02](OR-02%20Engaging%20on%20social%20media.md), and include it in the next patron update, per [FR-01](FR-01%20Raising%20funds%20through%20Patreon.md).
+   4. <a id="5.4"></a>When it reaches `main`, the Announce blog posts Action posts its title, summary and link to Bluesky and Mastodon, per [OR-02](OR-02%20Engaging%20on%20social%20media.md) §5.2; nobody needs to post it by hand. Check the front matter's `title` and `summary` before merging, since they are what the Action posts. The post also goes into the next supporter update, per [FR-01](FR-01%20Raising%20funds%20through%20Ko-fi.md).
 
 6. # <a id="6"></a>References
 
@@ -48,7 +48,7 @@
 
    4. <a id="6.4"></a>[DV-02](DV-02%20Running%20playtest%20rounds.md): Running playtest rounds
 
-   5. <a id="6.5"></a>[FR-01](FR-01%20Raising%20funds%20through%20Patreon.md): Raising funds through Patreon
+   5. <a id="6.5"></a>[FR-01](FR-01%20Raising%20funds%20through%20Ko-fi.md): Raising funds through Ko-fi
 
    6. <a id="6.6"></a>[OR-02](OR-02%20Engaging%20on%20social%20media.md): Engaging on social media
 

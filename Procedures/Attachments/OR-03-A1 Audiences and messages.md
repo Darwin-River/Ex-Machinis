@@ -26,6 +26,6 @@
 
    5. <a id="2.5"></a>**Adult learners and hobbyists** in the general public. Need: a reason to practise programming that is more fun than exercises. Message: "Learn to code by running a space company."
 
-   6. <a id="2.6"></a>**Supporters and sponsors** who care about education. Need: to see that their money reaches learners. Message: "Help keep a coding classroom free for every student," per [FR-01](../SOPs/FR-01%20Raising%20funds%20through%20Patreon.md).
+   6. <a id="2.6"></a>**Supporters and sponsors** who care about education. Need: to see that their money reaches learners. Message: "Help keep a coding classroom free for every student," per [FR-01](../SOPs/FR-01%20Raising%20funds%20through%20Ko-fi.md).
 
 3. <a id="3"></a>Keep this list current, per [OR-03](../SOPs/OR-03%20Promoting%20Ex%20Machinis%20to%20schools%20and%20learners.md) §5.1. Change a message when a teacher, student or playtest shows it is not landing.

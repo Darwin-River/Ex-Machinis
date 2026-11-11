@@ -12,7 +12,7 @@
 
    2. <a id="3.2"></a>Post the round's plan on #380, per [DV-02](../SOPs/DV-02%20Running%20playtest%20rounds.md) §5.1.
 
-   3. <a id="3.3"></a>Build the world from the current `public-forge` and release the starter companies and the designs under test.
+   3. <a id="3.3"></a>Build the world from the current `main` and release the starter companies and the designs under test.
 
    4. <a id="3.4"></a>Play each newcomer persona as a separate player, using a separate agent where you can. Give each one only what a real newcomer has: the player's manual, `documents/lua-functions.md`, `examples/` and the game. Each writes its own Lua, releases it, watches it, and releases a better version when it fails. Record what each one tried, what broke, and how long it took to recover.
 

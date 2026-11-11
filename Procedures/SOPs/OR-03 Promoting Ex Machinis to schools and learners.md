@@ -26,7 +26,7 @@
 
    1. <a id="4.1"></a>This SOP will be formatted and maintained IAW [QA-01](QA-01%20Writing%20and%20maintaining%20Ex%20Machinis%20standard%20operating%20procedures.md).
 
-   2. <a id="4.2"></a>Free means free. The game and all teaching materials stay free for schools and learners. Patreon funds the project; it never gates learning, per [FR-01](FR-01%20Raising%20funds%20through%20Patreon.md) §4.2.
+   2. <a id="4.2"></a>Free means free. The game and all teaching materials stay free for schools and learners. Supporters on Ko-fi help pay the running costs; support never gates learning or brings a gameplay advantage, per [FR-01](FR-01%20Raising%20funds%20through%20Ko-fi.md) §4.2.
 
    3. <a id="4.3"></a>Protect students. The game needs no accounts and collects no personal data from players; keep it that way for anything aimed at students. Never name, picture or quote a student, or name their school, without written permission from the school and, for a student under 18, a parent or guardian. Talk to teachers and schools, never to students directly.
 
@@ -56,7 +56,7 @@
 
       2. <a id="5.5.2"></a>Offer a pilot: a teacher runs a lesson with a class and tells us what worked. Record what they report in an issue labeled `education`.
 
-      3. <a id="5.5.3"></a>With permission, share what classes did in a blog post or patron update, per [OR-01](OR-01%20Writing%20and%20publishing%20blog%20posts.md) and [FR-01](FR-01%20Raising%20funds%20through%20Patreon.md).
+      3. <a id="5.5.3"></a>With permission, share what classes did in a blog post or supporter update, per [OR-01](OR-01%20Writing%20and%20publishing%20blog%20posts.md) and [FR-01](FR-01%20Raising%20funds%20through%20Ko-fi.md).
 
    6. <a id="5.6"></a>Reach the general public through the blog ([OR-01](OR-01%20Writing%20and%20publishing%20blog%20posts.md)) and social media ([OR-02](OR-02%20Engaging%20on%20social%20media.md)), with the same promise: learn to code by flying drones in the real solar system, for free.
 
@@ -74,7 +74,7 @@
 
    5. <a id="6.5"></a>[DV-02](DV-02%20Running%20playtest%20rounds.md): Running playtest rounds
 
-   6. <a id="6.6"></a>[FR-01](FR-01%20Raising%20funds%20through%20Patreon.md): Raising funds through Patreon
+   6. <a id="6.6"></a>[FR-01](FR-01%20Raising%20funds%20through%20Ko-fi.md): Raising funds through Ko-fi
 
    7. <a id="6.7"></a>[OR-01](OR-01%20Writing%20and%20publishing%20blog%20posts.md): Writing and publishing blog posts
 

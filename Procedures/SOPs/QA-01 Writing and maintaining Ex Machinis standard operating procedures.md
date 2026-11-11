@@ -40,7 +40,7 @@
 
       4. <a id="5.2.4"></a>**Outreach (OR)** SOPs cover the blog, social media, and promoting Ex Machinis to schools, teachers, students and the general public.
 
-      5. <a id="5.2.5"></a>**Fundraising (FR)** SOPs cover Patreon and any other way the project raises money.
+      5. <a id="5.2.5"></a>**Fundraising (FR)** SOPs cover the Ko-fi support page and any other way the project raises money.
 
    3. <a id="5.3"></a>Store every SOP in `Procedures/SOPs`.
 
@@ -70,7 +70,7 @@
 
    10. <a id="5.10"></a>Give every numbered item a hidden link anchor named by its full section number, for example `5. # <a id="5"></a>Procedures` and `   2. <a id="5.2"></a>Use the following…`. A link ending in `#5.2` then opens the document at that item. Do not write anchors by hand: run `python3 Procedures/Tools/update_anchors.py` after every edit that adds, removes or renumbers an item. `python3 Procedures/Tools/update_anchors.py --check` lists any file whose anchors are out of date.
 
-   11. <a id="5.11"></a>Change SOPs the same way as any other part of the repository: through an issue and a pull request into `public-forge`, per [AD-01](AD-01%20Creating%20and%20resolving%20GitHub%20issues.md) and [AD-02](AD-02%20Working%20with%20branches%20and%20pull%20requests.md). Before the pull request is merged, Claude applies [QA-01-M2](../Attachments/QA-01-M2%20Machine%20instructions%20for%20reviewing%20SOP%20changes.md) to it, and the project lead reviews the changes and Claude's summary.
+   11. <a id="5.11"></a>Change SOPs the same way as any other part of the repository: through an issue and a pull request into `main`, per [AD-01](AD-01%20Creating%20and%20resolving%20GitHub%20issues.md) and [AD-02](AD-02%20Working%20with%20branches%20and%20pull%20requests.md). Before the pull request is merged, Claude applies [QA-01-M2](../Attachments/QA-01-M2%20Machine%20instructions%20for%20reviewing%20SOP%20changes.md) to it, and the project lead reviews the changes and Claude's summary.
 
    12. <a id="5.12"></a>Keep [Procedures/README.md](../README.md), the index of SOPs, up to date whenever an SOP is added, renamed or retired.
 

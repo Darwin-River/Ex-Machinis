@@ -8,7 +8,7 @@
 
 3. <a id="3"></a>Sweeping issues
 
-   1. <a id="3.1"></a>Fetch `public-forge` and read what has changed since you last looked.
+   1. <a id="3.1"></a>Fetch `main` and read what has changed since you last looked.
 
    2. <a id="3.2"></a>List every open issue. For each one, read its description, every comment and any pull request that refers to it.
 

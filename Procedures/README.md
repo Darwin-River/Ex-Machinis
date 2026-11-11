@@ -1,6 +1,6 @@
 # Ex Machinis standard operating procedures
 
-These standard operating procedures (SOPs) say how the developers of Ex Machinis and Claude work together: to maintain the repository, track issues, improve the game, share it on social media, and raise funds through Patreon, so that Ex Machinis can grow as a free place for high school students and anyone else to learn to code.
+These standard operating procedures (SOPs) say how the developers of Ex Machinis and Claude work together: to maintain the repository, track issues, improve the game, share it on social media, and pay its running costs through Ko-fi supporters, so that Ex Machinis can grow as a free place for high school students and anyone else to learn to code.
 
 - **SOPs** are in [SOPs/](SOPs/). Each says who does what, and in what order.
 - **Attachments** are in [Attachments/](Attachments/): machine instructions (M) that Claude follows, templates (T), and appendices (A).
@@ -20,7 +20,7 @@ To have Claude do a task, name the machine instructions, for example: "Apply DV-
 | [OR-01](SOPs/OR-01%20Writing%20and%20publishing%20blog%20posts.md) | Writing and publishing blog posts | M1 drafting a post, T1 blog post |
 | [OR-02](SOPs/OR-02%20Engaging%20on%20social%20media.md) | Engaging on social media | A1 accounts and conduct, M1 drafting posts, T1 social post |
 | [OR-03](SOPs/OR-03%20Promoting%20Ex%20Machinis%20to%20schools%20and%20learners.md) | Promoting Ex Machinis to schools and learners | A1 audiences and messages, M1 drafting a lesson, T1 lesson |
-| [FR-01](SOPs/FR-01%20Raising%20funds%20through%20Patreon.md) | Raising funds through Patreon | M1 drafting the monthly patron update, T1 patron update |
+| [FR-01](SOPs/FR-01%20Raising%20funds%20through%20Ko-fi.md) | Raising funds through Ko-fi | M1 drafting the monthly supporter update, T1 supporter update |
 
 ## Categories
 
@@ -28,10 +28,10 @@ To have Claude do a task, name the machine instructions, for example: "Apply DV-
 - **AD**, administration: issues, branches, pull requests and merging.
 - **DV**, development: changing, testing and playtesting the game.
 - **OR**, outreach: the blog, social media, schools and learners.
-- **FR**, fundraising: Patreon and other support.
+- **FR**, fundraising: the Keep the Lights On page, Ko-fi and other support.
 
 ## Who does what
 
-- **The project lead** sets direction, approves and merges pull requests, and is the only one who posts to social media and Patreon or handles money.
+- **The project lead** sets direction, approves and merges pull requests, and is the only one who posts to social media and Ko-fi by hand or handles money. The Announce blog posts Action posts each new blog post to Bluesky and Mastodon by itself; nothing else is posted outside GitHub without a person.
 - **Developers** make changes, review them, and bring ideas and feedback in as issues.
-- **Claude** tracks every request in an issue, makes changes on a branch and opens pull requests, runs playtest rounds, and drafts blog posts, lessons, social posts and patron updates for people to review and publish. Claude never merges on its own judgment and never posts outside GitHub.
+- **Claude** tracks every request in an issue, makes changes on a branch and opens pull requests, runs playtest rounds, and drafts blog posts, lessons, social posts and supporter updates for people to review and publish. Claude never merges on its own judgment and never posts outside GitHub.

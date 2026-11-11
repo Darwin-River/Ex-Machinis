@@ -26,9 +26,9 @@
 
    3. <a id="4.3"></a>Playtest rounds are logged as comments on the playtest issue (#380), not as new issues, per [DV-02](DV-02%20Running%20playtest%20rounds.md). A change that a round leads to still gets its own issue.
 
-   4. <a id="4.4"></a>Social media and Patreon drafts are tracked in issues too, per [OR-02](OR-02%20Engaging%20on%20social%20media.md) and [FR-01](FR-01%20Raising%20funds%20through%20Patreon.md), so that what was said in public, and when, can be found later.
+   4. <a id="4.4"></a>Social media drafts and supporter updates are tracked in issues too, per [OR-02](OR-02%20Engaging%20on%20social%20media.md) and [FR-01](FR-01%20Raising%20funds%20through%20Ko-fi.md), so that what was said in public, and when, can be found later.
 
-   5. <a id="4.5"></a>Ideas and feedback from players, patrons and teachers are welcome as issues. Whoever relays them says where they came from, without naming a student.
+   5. <a id="4.5"></a>Ideas and feedback from players, supporters and teachers are welcome as issues. Whoever relays them says where they came from, without naming a student.
 
 5. # <a id="5"></a>Procedures
 
@@ -48,7 +48,7 @@
 
    4. <a id="5.4"></a>When Claude notices a problem or an improvement outside the task in hand, it posts an issue per [AD-01-M2](../Attachments/AD-01-M2%20Machine%20instructions%20for%20identifying%20and%20posting%20issues.md) and carries on with its task. Posting an issue is not permission to work on it.
 
-   5. <a id="5.5"></a>Whenever Claude posts an issue or comment, it links every repository file it mentions by its full URL on the default branch, in the form `https://github.com/Darwin-River/Ex-Machinis/blob/public-forge/<path>`, with each space written as `%20`. Issues and pull requests are referred to by number (`#380`), and commits by hash, which GitHub links automatically.
+   5. <a id="5.5"></a>Whenever Claude posts an issue or comment, it links every repository file it mentions by its full URL on the default branch, in the form `https://github.com/Darwin-River/Ex-Machinis/blob/main/<path>`, with each space written as `%20`. Issues and pull requests are referred to by number (`#380`), and commits by hash, which GitHub links automatically.
 
    6. <a id="5.6"></a>Every issue and comment Claude posts shows who each part came from:
 
@@ -72,7 +72,7 @@
 
    2. <a id="6.2"></a>[DV-02](DV-02%20Running%20playtest%20rounds.md): Running playtest rounds
 
-   3. <a id="6.3"></a>[FR-01](FR-01%20Raising%20funds%20through%20Patreon.md): Raising funds through Patreon
+   3. <a id="6.3"></a>[FR-01](FR-01%20Raising%20funds%20through%20Ko-fi.md): Raising funds through Ko-fi
 
    4. <a id="6.4"></a>[OR-02](OR-02%20Engaging%20on%20social%20media.md): Engaging on social media
 

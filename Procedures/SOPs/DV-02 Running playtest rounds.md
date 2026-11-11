@@ -10,11 +10,11 @@
 
    2. <a id="2.2"></a>Claude runs rounds when directed, using the "Machine instructions for running a playtest round" ([DV-02-M1](../Attachments/DV-02-M1%20Machine%20instructions%20for%20running%20a%20playtest%20round.md)), plays the newcomer personas, and logs each round with the "Playtest round comment template" ([DV-02-T1](../Attachments/DV-02-T1%20Playtest%20round%20comment%20template.md)).
 
-   3. <a id="2.3"></a>Developers, patrons, teachers and students may take part in a round as real players. Their feedback is logged without naming students.
+   3. <a id="2.3"></a>Developers, supporters, teachers, students and any other players may take part in a round as real players. Their feedback is logged without naming students.
 
 3. # <a id="3"></a>Required resources
 
-   1. <a id="3.1"></a>A world to play in: a local world built from the current `public-forge` (see `game-engine/tools/load-world.sh` and the developer setup in `README.md`), or the live game.
+   1. <a id="3.1"></a>A world to play in: a local world built from the current `main` (see `game-engine/tools/load-world.sh` and the developer setup in `README.md`), or the live game.
 
    2. <a id="3.2"></a>The playtest issue, #380, and the economy playbook, `documents/economy-playbook.md`.
 
