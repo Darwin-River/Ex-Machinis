@@ -9,7 +9,7 @@ Drones are programmed in Lua. The game's own functions (`mine`, `refine`, `make`
 - Your script's top level runs first: settings, tables and function definitions. Keep it short (it may run at most 2,000,000 instructions): put the work in functions that `launched` calls.
 - Then the drone's saved variables are put back, and `launched()` runs. Usually it loops for ever.
 - Whenever the drone pauses for an action, the game saves its **plain-data globals**: numbers, strings, true and false, and tables of them. Functions, `local` variables and the place the script had reached are not saved. If the engine restarts, the script's top level runs again, the saved globals are put back over it, and `launched()` starts again from the top.
-- So keep what the drone must remember (a count, the last price it saw) in globals, and write `launched` so it does only what still needs doing. `equip(kit)`, `await_kit()` and `unpack()` pass at once when the tools are already unpacked, and `go` stays put when the drone is already there.
+- So keep what the drone must remember (a count, the last price it saw) in globals, and write `launched` so it does only what still needs doing. `equip(kit)`, `await_kit()` and `unpack()` pass at once when the tools are already unpacked (`equip(kit)` checks for that kit's own tools, #556), and `go` stays put when the drone is already there.
 - The library's own state is saved too: the mode (`become`) and its rounds, and the orders `sell_order_if_changed` and `buy_order_if_changed` remember. A drone starts in mode 0; number your first mode 0.
 
 ## The game library, by purpose

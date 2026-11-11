@@ -106,6 +106,25 @@ class CodePush
         });
     }
 
+    /**
+     * What pushing to the company would cost now (#558), without charging or
+     * sending anything: null when there is no such company
+     */
+    public static function preview(int $companyId): ?array
+    {
+        $company = DB::table('companies')->where('company_id', $companyId)->where('house', 0)->first();
+        if (!$company) {
+            return null;
+        }
+        [$permille, $fee] = self::nextFee($company);
+        $drones = DB::table('agents')->where('company_id', $companyId)->whereNull('wrecked_at')
+            ->whereNull('station_id')->where('language', 'lua')->count();
+        return ['enabled' => $company->push_password !== null && $company->eliminated_at === null && $drones > 0,
+            'password_set' => $company->push_password !== null, 'number' => (int) $company->pushes + 1,
+            'credits' => (int) $company->credits, 'fee_percent' => $permille / 10, 'fee' => $fee, 'drones' => $drones,
+            'note' => 'The fee is worked out on the company\'s credits when the push is sent, so it changes as they do.'];
+    }
+
     /** A company's pushes, newest first: number, when, fee, permille, drones */
     public static function log(int $companyId): array
     {

@@ -67,6 +67,7 @@ The [players' manual](players-manual.md) explains the game and the Lua functions
 | Field | Required | Meaning |
 |---|---|---|
 | `script` | yes | the script, in Lua |
+| `company` | no | a company's ID: the response then previews a code push to it (`push`, below; #558). Nothing is charged or sent |
 
 A script must define the function `launched` (`function launched() ... end`): see the players' manual, [Speaking Lua](players-manual.md#chapter-10-writing-your-drone-in-lua). FORTH has been retired: a FORTH script (`: launched ... ;`) is refused, with an error saying so. Drones released in FORTH before then carry on.
 
@@ -94,6 +95,8 @@ curl -s -X POST $B/check -H 'Content-Type: application/json' \
 | `error` | why not, if it wouldn't. For example: no `launched` function, a FORTH script, a line too long, or a script that doesn't compile (`"Line 12: unexpected symbol near '='"`) |
 | `warning` | the Release page's warnings: names the script uses that nothing defines (calling one crashes the drone), and names of the game's own that the script sets (`best_bid = 30`) |
 | `language` | `lua` for a Lua script (`forth` for a retired FORTH one, which `ok` refuses) |
+| `length`, `max_length` | the script's length in characters, and the most a release or push takes (16,000; #557). Over it, `ok` is false; within a tenth of it, `warning` says so. Comments count: cut those you don't need |
+| `push` | with `company`: `{enabled, password_set, number, credits, fee_percent, fee, drones}`, what pushing this script to the company would cost now and how many working drones would get it (null for no such company). The fee is worked out on the company's credits when the push is sent, so it changes as they do |
 
 ### `POST /release`: release a company
 
@@ -104,7 +107,7 @@ Every release is live, and free: the only limit is 10 a minute per address. To t
 | Field | Required | Meaning |
 |---|---|---|
 | `company_name` | yes | 3 to 45 characters, not already taken |
-| `script` | yes | must define `launched` |
+| `script` | yes | must define `launched`; at most 16,000 characters (#557), comments included |
 | `kit` | no | ignored since #506: a company starts with 3,000 credits and no kit, and its script equips itself (`equip(mining_kit)`) |
 | `password` | no | at least 6 characters: lets you push new code to the company later (#553). The game keeps only its hash. Without one, the company's code never changes |
 
@@ -144,7 +147,7 @@ Look the company up by name later.
 
 With the password the company was released with (#553), sends every working drone of the company a new script. It travels from Earth to each drone at the speed of light; when it arrives, the drone drops what it was running and starts the new script's `launched()` with fresh variables, keeping its hold, place and equipment.
 
-**Fields:** `password`, `script` (checked as a release's is).
+**Fields:** `password`, `script` (checked as a release's is, at most 16,000 characters). To see the fee first, `POST /check` with `company` (#558).
 
 **The fee** is a share of the company's credits: 5% for its first push, 10% for its second, and so on, up to 50%. A company with no credits pays nothing. A refused push costs nothing.
 

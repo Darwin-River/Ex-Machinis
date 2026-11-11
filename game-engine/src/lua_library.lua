@@ -630,16 +630,36 @@ end
 -- buys `kit` here (Earth sells both kits) if it was released, or waits for
 -- the kit its parent hands it if it is a clone. kit: mining_kit or
 -- factory_kit
+-- The tools each kit unpacks into (#556): equip(kit) checks for these, not
+-- just an Engine. Round 59: equip(factory_kit) on a miner (which has the
+-- Mining Kit's Engine) returned at once, buying nothing
+local kit_tools = {[mining_kit] = {engine_module, 5131, 5221},
+                   [factory_kit] = {engine_module, 5201, 5211, 5501}}
+local function has_kit_tools(kit)
+  for _, t in ipairs(kit_tools[kit] or {engine_module}) do
+    if units(t) == 0 then return false end
+  end
+  return true
+end
 local function equip(kit)
+  kit = kit or mining_kit
   local clone = lineage().parent > 0
-  while units(engine_module) == 0 do
-    if units(factory_kit) > 0 or units(mining_kit) > 0 then
-      unpack_kit()
-    elseif clone then
-      wait(60)
+  local said = false
+  while not has_kit_tools(kit) do
+    if units(kit) > 0 then
+      -- That kit is aboard: unpack it (the protocol 20000 above its ID)
+      if perform(kit + 20000) ~= 0 then wait(60) end
+    elseif clone and units(engine_module) == 0 then
+      wait(60)   -- a new copy: its parent hands it a kit
     else
-      buy_here(1, kit or mining_kit)
-      if units(factory_kit) == 0 and units(mining_kit) == 0 then wait(60) end
+      if not said then
+        print("equip: some of the kit's tools are missing: buying kit " .. kit .. " here, or at Earth")
+        said = true
+      end
+      buy_here(1, kit)
+      if units(kit) == 0 then
+        if location() ~= earth then go(earth) else wait(60) end
+      end
     end
   end
 end
