@@ -367,16 +367,38 @@ class ApiController extends Controller
     /** The warnings the Release page would give, and whether it would take the script */
     public function check(Request $request): JsonResponse
     {
-        if (($bad = $this->scriptRules($request, false)) !== null) {
-            return $bad;
+        // Any length: the check says how long it is against the limit (#557)
+        $validator = Validator::make($request->all(), ['script' => 'required|string|max:200000',
+            'company' => 'nullable|integer']);
+        if ($validator->fails()) {
+            return response()->json(['error' => $validator->errors()->first(),
+                'errors' => $validator->errors()->toArray()], 422);
         }
         $script = $this->script($request);
-        return response()->json([
-            'ok' => Release::scriptProblem($script) === null,
-            'error' => Release::scriptProblem($script),
-            'warning' => Release::redefinedWarning($script),
+        $length = mb_strlen($script);
+        $max = (int) config('forge.max_script_length');
+        $problem = $length > $max
+            ? 'Your script is ' . number_format($length) . ' characters long: a release or push takes at most '
+                . number_format($max) . '. Cut comments, blank lines or functions it no longer calls.'
+            : Release::scriptProblem($script);
+        $warning = Release::redefinedWarning($script);
+        if ($length <= $max && $length > $max * 0.9) {
+            $warning = trim(($warning ?? '') . ' Your script is ' . number_format($length) . ' characters long, close to the '
+                . number_format($max) . ' a release or push takes.');
+        }
+        $out = [
+            'ok' => $problem === null,
+            'error' => $problem,
+            'warning' => $warning,
             'language' => Release::isLua($script) ? 'lua' : 'forth',   // #380
-        ]);
+            'length' => $length,
+            'max_length' => $max,
+        ];
+        // A push preview (#558): what pushing this to the company would cost now
+        if ($request->filled('company')) {
+            $out['push'] = \App\Services\CodePush::preview((int) $request->input('company'));
+        }
+        return response()->json($out);
     }
 
     /** Releases a script as a new company, as the Release page does */

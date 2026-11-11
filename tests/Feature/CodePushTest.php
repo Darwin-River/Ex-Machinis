@@ -101,4 +101,26 @@ class CodePushTest extends TestCase
         $this->assertSame(1, (int) DB::table('companies')->where('company_id', $id)->value('pushes'));
         $this->post("/companies/$id/push", ['password' => 'bad-pass', 'script' => self::NEW])->assertSessionHasErrors('push');
     }
+
+    /** #558: /check with a company previews the push; #557: it reports the length against the limit */
+    public function testCheckPreviewsAPushAndReportsTheLength()
+    {
+        $id = $this->release('Preview Co', 'secret-pass');
+        DB::table('companies')->where('company_id', $id)->update(['credits' => 4000, 'pushes' => 1]);
+        $this->postJson('/api/v1/check', ['script' => self::NEW, 'company' => $id])->assertOk()
+            ->assertJsonPath('ok', true)->assertJsonPath('length', mb_strlen(self::NEW))
+            ->assertJsonPath('max_length', 16000)
+            ->assertJsonPath('push.enabled', true)->assertJsonPath('push.number', 2)
+            ->assertJsonPath('push.fee_percent', 10)->assertJsonPath('push.fee', 400)->assertJsonPath('push.drones', 1);
+        $this->assertSame(4000, (int) DB::table('companies')->where('company_id', $id)->value('credits'), 'a preview is free');
+        $this->postJson('/api/v1/check', ['script' => self::NEW, 'company' => $this->release('Locked Co', null)])
+            ->assertJsonPath('push.enabled', false)->assertJsonPath('push.password_set', false);
+
+        $long = self::NEW . "\n" . str_repeat("-- padding\n", 1500);
+        $this->postJson('/api/v1/check', ['script' => $long])->assertOk()->assertJsonPath('ok', false)
+            ->assertJsonPath('length', mb_strlen(rtrim($long)));
+        $this->assertStringContainsString('16,000', $this->postJson('/api/v1/check', ['script' => $long])->json('error'));
+        $near = self::NEW . "\n" . str_repeat("-- padding\n", 1350);
+        $this->assertStringContainsString('close to the', (string) $this->postJson('/api/v1/check', ['script' => $near])->json('warning'));
+    }
 }

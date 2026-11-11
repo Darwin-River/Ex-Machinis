@@ -117,15 +117,17 @@ A released drone can't be sent commands, and it can be given a new script only b
 
 - **It travels at the speed of light.** The new code goes from Earth to each working drone of the company, arriving after the time light takes to cross the distance: about a second at the Moon, minutes at Mars.
 - **The drone starts over on it.** When it arrives, the drone drops what it was running and calls the new code's `launched()`, with fresh variables. It keeps its hold, its place and its equipment. An action under way finishes. A copy forgets anything its parent told it in a variable: use `lineage()` to tell a copy from the released drone.
-- **It costs a share of the company's credits, more each time.** The first push costs 5% of the credits it has, the second 10%, the third 15%, up to half. A young or failing company is cheap to fix, a rich one dear, and a company that keeps tinkering pays more each time. A company with no credits pays nothing.
+- **It costs a share of the company's credits, more each time.** The first push costs 5% of the credits it has when you send it, the second 10%, the third 15%, up to half. To see what a push would cost before you send it, check the script with the company's ID: `POST /api/v1/check` with `company` returns the fee now (#558). The company's page shows it on the Push button too. A young or failing company is cheap to fix, a rich one dear, and a company that keeps tinkering pays more each time. A company with no credits pays nothing.
 - **Everyone can see it.** The company's page and the API list each push, with its fee, so investors know when a company's code changed.
 - **Without a password, nothing changes.** A company released without one runs its first code for life.
+- **A script can be at most 16,000 characters**, comments included, for a push as for a release (#557). `/check` reports its length.
+- **Put what must happen at once first.** The new `launched()` starts from the top: code that must run straight away (a price change, say) belongs before a long trip, or it waits for the trip (round 59).
 
 Releasing a new company is still free: push when the company is worth keeping (its drones, its goods, its shareholders), release when you'd rather start over.
 
 The game runs fast (a game day every 48 real seconds; see [Time and distance](#time-and-distance)), so a few minutes of watching shows you days of your drone's life.
 
-A release checks your script first. It reports a syntax error with its line number, and warn you about two mistakes that would otherwise only show once the drone runs:
+A script can be at most 16,000 characters, comments included (#557). A release checks your script first. It reports a syntax error with its line number, and warn you about two mistakes that would otherwise only show once the drone runs:
 
 - a name your script uses that nothing defines (`crowed(phobos)` for `crowd`): calling it would crash your drone;
 - a game name your script sets (`best_bid = 30`): the game's own functions keep working, but your code gets your value from then on, which is rarely what you want. Rename yours.
@@ -400,7 +402,7 @@ function unpack_and_say()
 end
 ```
 
-It returns 0 once the kit is unpacked, and 0 at once when there is no kit left to unpack, so it is safe to call every time `launched` starts. `equip(kit)` does the whole job: it unpacks a kit aboard, buys one at Earth if the drone was released with none, or waits for its parent's if it's a copy. `await_kit()` only waits, an hour at a time, until the drone has a kit or its unpacked tools.
+It returns 0 once the kit is unpacked, and 0 at once when there is no kit left to unpack, so it is safe to call every time `launched` starts. `equip(kit)` does the whole job: once the drone has all of that kit's tools it returns at once; otherwise it unpacks that kit if it is aboard, waits for its parent's if it is a new copy, or buys one where it is (flying to Earth if it isn't sold there). It checks for the kit's own tools, not just an Engine (#556), so `equip(factory_kit)` on a drone that unpacked a Mining Kit buys and unpacks a Factory Kit too, if the company has the 2,000 credits. `await_kit()` only waits, an hour at a time, until the drone has a kit or its unpacked tools.
 
 ### Fuel
 
