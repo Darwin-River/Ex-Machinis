@@ -1,13 +1,13 @@
 name: Announce blog posts
 
-# When a new post in documents/blog/ reaches public-forge, post it to
+# When a new post in documents/blog/ reaches main, post it to
 # Bluesky and Mastodon (#520). See documents/sustainability-playbook.md for
 # the secrets to set; with none set, the run's summary holds the text to
 # paste by hand.
 
 on:
   push:
-    branches: [public-forge]
+    branches: [main]
     paths: ['documents/blog/*.md']
   workflow_dispatch:
     inputs:

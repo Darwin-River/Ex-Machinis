@@ -173,11 +173,11 @@ Docker publishes ports 80 and 443 itself and bypasses `ufw`, so the host's firew
 
 ### 1. Get the code
 
-The public game runs from the **`public-forge`** branch.
+The public game runs from the **`main`** branch.
 
 ```sh
 sudo mkdir -p /opt/exmachinis && sudo chown forge:forge /opt/exmachinis
-git clone -b public-forge https://github.com/Darwin-River/Ex-Machinis.git /opt/exmachinis
+git clone -b main https://github.com/Darwin-River/Ex-Machinis.git /opt/exmachinis
 cd /opt/exmachinis
 ```
 
@@ -252,7 +252,7 @@ For a livelier market on day one, release a few starters yourself from the Relea
 
 ## Update the game
 
-New code reaches the game through the `public-forge` branch.
+New code reaches the game through the `main` branch.
 
 **What happens during an update:**
 - The containers restart. Drones pause for a minute or two and carry on; nothing is lost.
@@ -264,9 +264,9 @@ New code reaches the game through the `public-forge` branch.
 ```sh
 cd /opt/exmachinis
 deploy/backup.sh                                  # 1. a backup first (see below)
-git fetch origin public-forge
-git log --oneline HEAD..origin/public-forge      # 2. what's new
-git pull --ff-only origin public-forge            # 3. take it
+git fetch origin main
+git log --oneline HEAD..origin/main              # 2. what's new
+git pull --ff-only origin main                    # 3. take it
 cd deploy
 docker compose up -d --build                      # 4. rebuild and restart
 docker compose logs migrate | tail -5             # 5. "migrate: game data loaded"
@@ -310,7 +310,7 @@ docker image prune -f
 4. **Once the fix is out, return to the branch:**
 
    ```sh
-   git checkout public-forge && git pull --ff-only
+   git checkout main && git pull --ff-only
    ```
 
 ## Back up the game
@@ -449,7 +449,7 @@ Use this when changing hosts or server size the long way, or recovering from a l
    sudo mkdir -p /opt/exmachinis /var/backups/exmachinis && sudo chown forge:forge /opt/exmachinis /var/backups/exmachinis
    rclone copy offsite:exmachinis/<date> /var/backups/exmachinis/<date>       # or scp it from the old server
    B=/var/backups/exmachinis/<date>
-   git clone -b public-forge https://github.com/Darwin-River/Ex-Machinis.git /opt/exmachinis
+   git clone -b main https://github.com/Darwin-River/Ex-Machinis.git /opt/exmachinis
    cd /opt/exmachinis && git checkout $(cat $B/commit)
    ```
 
@@ -473,7 +473,7 @@ Use this when changing hosts or server size the long way, or recovering from a l
 6. **Get back onto the branch:**
 
    ```sh
-   git checkout public-forge && git pull --ff-only && docker compose up -d --build
+   git checkout main && git pull --ff-only && docker compose up -d --build
    ```
 
 7. **Set up the nightly backup cron line** on the new server.
@@ -516,7 +516,7 @@ Both power the server off for a few minutes, and everything starts again on its 
 - [ ] The server is created, with the host's firewall allowing only 22, 80 and 443, and its backups on.
 - [ ] Logging in as `forge` works with a key only; root login and passwords are off.
 - [ ] Unattended upgrades, fail2ban, swap and Docker's log limit are set up.
-- [ ] The game was installed from `public-forge` with `deploy/setup.sh`.
+- [ ] The game was installed from `main` with `deploy/setup.sh`.
 - [ ] `deploy/.env` is saved in a password manager.
 - [ ] The DNS A record is added, HTTPS works, and a released Miner runs.
 - [ ] The game clock's pace suits you (`GET /api/v1/clock`).

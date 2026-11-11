@@ -72,7 +72,7 @@ Every post links to the game, and to the support page at most once a month.
 
 ### Posting automatically
 
-When a new blog post reaches `public-forge`, the **Announce blog posts** Action ([`.github/workflows/announce.yml`](../.github/workflows/announce.yml), using [`admin/announce.py`](../admin/announce.py)) posts its title, summary and link to Bluesky and Mastodon. The run's summary also holds the same text, ready to paste into Ko-fi, Discord or Reddit.
+When a new blog post reaches `main`, the **Announce blog posts** Action ([`.github/workflows/announce.yml`](../.github/workflows/announce.yml), using [`admin/announce.py`](../admin/announce.py)) posts its title, summary and link to Bluesky and Mastodon. The run's summary also holds the same text, ready to paste into Ko-fi, Discord or Reddit.
 
 Set it up once, in the repository's **Settings → Secrets and variables → Actions**:
 
@@ -122,8 +122,8 @@ Keep this table current. "Owner" is an account or organisation, not a person's p
 
 1. **Put every login in the shared vault**, including the server's SSH key passphrase, the registrar, Ko-fi and the social accounts, and add a second trusted person.
 2. **Pay from one account** that belongs to the project, not a personal card, so bills don't stop when a card does. Ko-fi pays out to one account too: moving it is part of a hand-over.
-3. **Add a second GitHub owner** on the organisation, and give helpers write access with branch protection on `public-forge` (CI green, one review).
-4. **Keep the way of working in the repository.** [CLAUDE.md](../CLAUDE.md) already tells every AI session the rules: an issue per change, PRs into `public-forge`, docs kept current, tests to run. A new maintainer with their own AI subscription picks up the same workflow on day one.
+3. **Add a second GitHub owner** on the organisation, and give helpers write access with branch protection on `main` (CI green, one review).
+4. **Keep the way of working in the repository.** [CLAUDE.md](../CLAUDE.md) already tells every AI session the rules: an issue per change, PRs into `main`, docs kept current, tests to run. A new maintainer with their own AI subscription picks up the same workflow on day one.
 5. **Choose a licence** and add a `LICENSE` file, so contributors know their work can be used and the project can move to new hands.
 6. **Write the hand-off as an issue** when the time comes: the new maintainer's name, each row of the table above moved to them, and the date the old maintainer's access ends.
 

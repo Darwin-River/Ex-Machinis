@@ -41,7 +41,7 @@ Ex Machinis is free and open source under the [MIT licence](LICENSE): you may us
 
 ## Contributing and support
 
-- **Contribute:** bug reports, ideas, docs, strategy posts and code are all welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md); every change starts with an issue, and pull requests go into `public-forge`. Please follow the [code of conduct](CODE_OF_CONDUCT.md), and report security problems privately ([SECURITY.md](SECURITY.md)).
+- **Contribute:** bug reports, ideas, docs, strategy posts and code are all welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md); every change starts with an issue, and pull requests go into `main`. Please follow the [code of conduct](CODE_OF_CONDUCT.md), and report security problems privately ([SECURITY.md](SECURITY.md)).
 - **Keep the lights on:** the game is free, with no ads and nothing to buy. Supporters cover its running costs (the server, the domain and the AI subscription that does most of the building); the website's **Keep the Lights On** page shows the costs, how much is covered, and how to chip in.
 
 ## Programming drones
@@ -137,7 +137,7 @@ DB_HOST=127.0.0.1 DB_PASSWORD=... vendor/bin/phpunit
 
 ### Continuous integration
 
-`.github/workflows/tests.yml` runs on every pull request and every push to `public-forge` or `main`:
+`.github/workflows/tests.yml` runs on every pull request and every push to `main`:
 - **phpunit:** PHP 8.3 with MySQL 8.4
 - **frontend:** builds with Vite and checks `html/build/` is up to date
 - **engine:** checks the generated game data is up to date, then builds both C engines

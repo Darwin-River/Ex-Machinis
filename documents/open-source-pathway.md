@@ -26,8 +26,8 @@ How Ex Machinis became an MIT-licensed project that can be handed to new maintai
 So the project doesn't depend on one person:
 
 1. **Add at least one other trusted person as an owner** of the Darwin River organization (Settings → People), and give regular helpers write access to the repository.
-2. **Make `public-forge` the default branch**, so newcomers land where pull requests go.
-3. **Add a branch ruleset** on `public-forge`: pull requests only, CI must pass, squash merges only.
+2. **Make `main` the default branch** (#563), so newcomers land where pull requests go.
+3. **Add a branch ruleset** on `main`: pull requests only, CI must pass, squash merges only.
 4. **Turn on private vulnerability reporting** (Settings → Code security), which `SECURITY.md` points to.
 5. **Add the labels** the issue templates use, `bug` and `idea`, and a `good first issue` label.
 6. **Set the Actions variables and secrets** for the announce Action (see the [playbook](sustainability-playbook.md#posting-automatically)).
