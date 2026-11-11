@@ -105,10 +105,11 @@ class SharesTest extends TestCase
         $after = \App\Services\Leaderboard::wealth();
         $this->assertSame($before[$issuer->company_id]['wealth'], $after[$issuer->company_id]['wealth'], 'credits in, the same value owed out');
         $this->assertSame($before[$investor->company_id]['wealth'], $after[$investor->company_id]['wealth']);
-        // The share's value falls to 4: the issuer is worth more, the holder less
-        DB::table('share_trades')->insert(['share_company' => $issuer->company_id, 'seller' => $investor->company_id,
-            'buyer' => $issuer->company_id, 'units' => 0, 'price' => 4, 'game_t' => $now - 30]);
+        // The share's value falls to 4: the issuer is worth more, the holder less.
+        // (Trades of half the 300 shares held outside, at 4, set it: #573)
         DB::table('share_trades')->where('share_company', $issuer->company_id)->update(['game_t' => $now - 5 * 86400]);
+        DB::table('share_trades')->insert(['share_company' => $issuer->company_id, 'seller' => $investor->company_id,
+            'buyer' => $investor->company_id, 'units' => 150, 'price' => 4, 'game_t' => $now - 30]);
         $later = \App\Services\Leaderboard::wealth();
         $this->assertSame($before[$issuer->company_id]['wealth'] + 300 * 6, $later[$issuer->company_id]['wealth']);
         $this->assertSame($before[$investor->company_id]['wealth'] - 300 * 6, $later[$investor->company_id]['wealth']);
@@ -160,9 +161,29 @@ class SharesTest extends TestCase
         $summary = Shares::summary($holder->company_id);
         $this->assertSame([1, 10, 1100], [$summary['holdings'][0]['price'], $summary['holdings'][0]['value_price'],
             $summary['holdings'][0]['value']]);
-        // Trades older than 3 days don't count: then the last price is all there is
+        // Older than 3 days, trades still count until they cover half the 200
+        // shares held outside (#573): 10 at 1 and 100 at 10 come to 9
         DB::table('share_trades')->where('share_company', $issuer->company_id)->update(['game_t' => $now - 5 * 86400]);
-        $this->assertSame(1, Shares::valuePrices()[$issuer->company_id]);
+        $this->assertSame(9, Shares::valuePrices()[$issuer->company_id]);
+    }
+
+    /** #573: one small trade doesn't set the value of a company most of whose outside shares sold lower */
+    public function testOneSmallTradeDoesNotSetTheValue()
+    {
+        $user = User::create(['name' => 'Raiser', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
+        $issuer = Release::release($user, 'Raised Co', 'function launched() end');
+        $a = Release::release($user, 'Backer A Co', 'function launched() end');
+        $b = Release::release($user, 'Backer B Co', 'function launched() end');
+        $now = \App\Services\World::gameNow();
+        // 600 new shares at 8 to A, four days ago; then A sells 109 of them to B at 24
+        Shares::transfer($issuer->company_id, $issuer->company_id, $a->company_id, 600);
+        DB::table('share_trades')->insert(['share_company' => $issuer->company_id, 'seller' => $issuer->company_id,
+            'buyer' => $a->company_id, 'units' => 600, 'price' => 8, 'game_t' => $now - 4 * 86400]);
+        Shares::transfer($issuer->company_id, $a->company_id, $b->company_id, 109);
+        DB::table('share_trades')->insert(['share_company' => $issuer->company_id, 'seller' => $a->company_id,
+            'buyer' => $b->company_id, 'units' => 109, 'price' => 24, 'game_t' => $now - 3600]);
+        // The trades back to half the 600 held outside: 109 at 24, then 600 at 8, about 10, not 24
+        $this->assertSame(10, Shares::valuePrices()[$issuer->company_id]);
     }
 
     public function testTheCompanyPageAndApiShowTheShares()
@@ -254,6 +275,9 @@ class SharesTest extends TestCase
         DB::table('share_commitments')->insert(['company' => $issuer->company_id, 'investor' => $investor->company_id,
             'units' => 100, 'credits' => 600, 'placed_t' => 0]);
         $this->assertSame($before, Leaderboard::wealth()[$investor->company_id]['wealth']);
+        // What the offering sells (#572): 500 new shares on 2,000 take 20% of its income
+        $this->assertSame(20.0, Shares::offerings($issuer->company_id)[0]['income_percent']);
+        $this->get('/companies/' . $issuer->company_id)->assertOk()->assertSee('take 20% of the company', false);
     }
 
     public function testTheWebsiteShowsOpenOfferings()

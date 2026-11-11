@@ -134,7 +134,9 @@
                     raising up to {{ number_format($o['raise']) }}, and at least {{ number_format($o['min']) }} of them:
                     {{ number_format($o['committed']) }} committed so far, {{ $o['hours'] }} game hours left. Once every
                     share is committed they are issued and the company paid. At the deadline, if at least
-                    {{ number_format($o['min']) }} are committed, those are issued; if not, everyone is refunded.</p>
+                    {{ number_format($o['min']) }} are committed, those are issued; if not, everyone is refunded.
+                    If it fills, the new shares take {{ $o['income_percent'] }}% of the company's future sales income:
+                    about {{ number_format($o['dividends_a_day'], 1) }} credits a day at today's sales (#572).</p>
                 @if(count($o['investors']))
                     <div class="table-custom-responsive">
                         <table class="table-ticket">

@@ -123,4 +123,22 @@ class CodePushTest extends TestCase
         $near = self::NEW . "\n" . str_repeat("-- padding\n", 1350);
         $this->assertStringContainsString('close to the', (string) $this->postJson('/api/v1/check', ['script' => $near])->json('warning'));
     }
+
+    /** #571: the push preview lists the standing orders that outlive a push */
+    public function testThePreviewListsStandingOrders()
+    {
+        $id = $this->release('Orders Co', 'secret-pass');
+        $drone = (int) DB::table('agents')->where('company_id', $id)->value('agent_id');
+        $resource = (int) DB::table('resources')->value('id');
+        // A sell order keeping 5, and a cancelled one (keeping 1,000,000) that can't trade
+        DB::table('latest_orders')->insert([
+            ['drone' => $drone, 'resource' => $resource, 'event_type' => 4, 'event_id' => 1, 'price' => 4, 'quantity' => 5],
+            ['drone' => $drone, 'resource' => $resource, 'event_type' => 5, 'event_id' => 2, 'price' => 3, 'quantity' => 0],
+        ]);
+        $push = $this->postJson('/api/v1/check', ['script' => self::NEW, 'company' => $id])->json('push');
+        $this->assertCount(1, $push['orders']);
+        $this->assertSame(['drone' => $drone, 'side' => 'sell', 'price' => 4, 'keep' => 5],
+            array_intersect_key($push['orders'][0], array_flip(['drone', 'side', 'price', 'keep'])));
+        $this->assertStringContainsString('cancel_orders()', $push['orders_note']);
+    }
 }

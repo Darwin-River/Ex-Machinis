@@ -77,14 +77,37 @@ class Shares
      * trade alone could be pushed up by a couple of shares traded between a
      * player's own companies, or knocked to 1 by one panic sale (round 57),
      * and every holder's net wealth moved with it.
+     * Since #573 the trades averaged also reach back, newest first, until
+     * they cover at least half the shares other companies hold: round 60's
+     * single trade of 109 shares at 24 tripled Lena 2's value, and (#568)
+     * dropped its net wealth by 9,000 in a day. Query 692 does the same
+     * (VALUE_SHARE_PRICE): keep the two in step
      */
     public static function valuePrices(): array
     {
         $out = self::lastPrices();
         $since = World::gameNow() - self::VALUE_DAYS * 86400;
-        foreach (DB::table('share_trades')->where('game_t', '>', $since)->where('units', '>', 0)->groupBy('share_company')
-                     ->select('share_company', DB::raw('ROUND(SUM(units * price) / SUM(units)) AS price'))->get() as $row) {
-            $out[(int) $row->share_company] = max(1, (int) $row->price);
+        // Half the shares others hold in each company: its recent trades
+        // must cover at least that many (#573)
+        $half = [];
+        foreach (DB::table('shares')->whereColumn('holder', '<>', 'company')->where('units', '>', 0)->groupBy('company')
+                     ->select('company', DB::raw('SUM(units) AS units'))->get() as $row) {
+            $half[(int) $row->company] = (int) ceil((int) $row->units / 2);
+        }
+        $sum = $units = [];
+        // Newest first: a trade counts while it is within VALUE_DAYS, or the
+        // newer ones don't yet cover half the shares others hold
+        foreach (DB::table('share_trades')->where('units', '>', 0)->orderByDesc('id')
+                     ->get(['share_company', 'units', 'price', 'game_t']) as $t) {
+            $c = (int) $t->share_company;
+            if ((int) $t->game_t <= $since && ($units[$c] ?? 0) >= ($half[$c] ?? 0)) {
+                continue;
+            }
+            $sum[$c] = ($sum[$c] ?? 0) + (int) $t->units * (int) $t->price;
+            $units[$c] = ($units[$c] ?? 0) + (int) $t->units;
+        }
+        foreach ($units as $c => $u) {
+            $out[$c] = max(1, (int) round($sum[$c] / $u));
         }
         return $out;
     }
@@ -196,6 +219,10 @@ class Shares
                 'committed' => $committed, 'left' => (int) $o->units - $committed,
                 'hours' => (int) max(0, ceil(($o->deadline_t - $now) / 3600)),
                 'sales' => $net, 'a_day_after' => round($net / $after, 2),
+                // What it sells (#572): the part of its future sales income the
+                // new shares take if it fills, and what they'd be paid a day now
+                'income_percent' => round(100 * (int) $o->units / $after, 1),
+                'dividends_a_day' => round($net * (int) $o->units / $after, 1),
                 'investors' => $in->map(fn ($m) => ['company' => (int) $m->investor, 'name' => $m->name,
                     'units' => (int) $m->units])->values()->all()];
         })->all();

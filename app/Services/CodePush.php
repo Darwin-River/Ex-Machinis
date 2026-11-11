@@ -119,7 +119,22 @@ class CodePush
         [$permille, $fee] = self::nextFee($company);
         $drones = DB::table('agents')->where('company_id', $companyId)->whereNull('wrecked_at')
             ->whereNull('station_id')->where('language', 'lua')->count();
-        return ['enabled' => $company->push_password !== null && $company->eliminated_at === null && $drones > 0,
+        // Each drone's standing orders for goods (#571): they outlive the push
+        $ids = DB::table('agents')->where('company_id', $companyId)->whereNull('wrecked_at')->whereNull('station_id')
+            ->pluck('agent_id')->all();
+        $orders = DB::table('latest_orders AS o')->leftJoin('resources AS r', 'r.id', '=', 'o.resource')
+            ->whereIn('o.drone', $ids)
+            ->where(fn ($q) => $q->where(fn ($s) => $s->where('o.event_type', 4)->where('o.quantity', '<', 1000000))
+                ->orWhere(fn ($b) => $b->where('o.event_type', 5)->where('o.quantity', '>', 0)))
+            ->orderBy('o.drone')->orderBy('o.resource')
+            ->get(['o.drone', 'o.resource', 'r.name', 'o.event_type', 'o.price', 'o.quantity'])
+            ->map(fn ($o) => ['drone' => (int) $o->drone, 'resource' => (int) $o->resource, 'name' => $o->name,
+                'side' => (int) $o->event_type === 4 ? 'sell' : 'buy', 'price' => (int) $o->price,
+                ((int) $o->event_type === 4 ? 'keep' : 'want') => (int) $o->quantity])->all();
+        return ['orders' => $orders,
+            'orders_note' => $orders ? 'These standing orders stay in force after the push. Call cancel_orders() first in '
+                . 'the new launched() if it should not keep them.' : null,
+            'enabled' => $company->push_password !== null && $company->eliminated_at === null && $drones > 0,
             'password_set' => $company->push_password !== null, 'number' => (int) $company->pushes + 1,
             'credits' => (int) $company->credits, 'fee_percent' => $permille / 10, 'fee' => $fee, 'drones' => $drones,
             'note' => 'The fee is worked out on the company\'s credits when the push is sent, so it changes as they do.'];
