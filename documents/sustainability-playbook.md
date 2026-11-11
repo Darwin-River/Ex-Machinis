@@ -111,8 +111,9 @@ Keep this table current. "Owner" is an account or organisation, not a person's p
 | Thing | Where | Owner | Who else has access |
 |---|---|---|---|
 | Code | GitHub [`Darwin-River/Ex-Machinis`](https://github.com/Darwin-River/Ex-Machinis) | The Darwin River organization (shared) | |
-| Server | Hetzner project | | |
-| Domain | Registrar | | |
+| Server | Hetzner project, running [exmachinis.com](https://exmachinis.com) ([hosting.md](hosting.md)) | David Rozak | |
+| Domain | `exmachinis.com`, at its registrar | David Rozak | |
+| Deploy key | The repository's `DEPLOY_SSH_KEY` secret; the server locks it to `deploy/auto-deploy.sh` ([AD-03](../Procedures/SOPs/AD-03%20Deploying%20to%20the%20live%20server.md)) | David Rozak | GitHub Actions, to deploy only. Revoke per AD-03 §5.6 |
 | Ko-fi | ko-fi.com/ (not set up yet) | | |
 | Bluesky, Mastodon | | | |
 | AI subscription | | | |
