@@ -8,7 +8,8 @@
             <div style="white-space: normal; margin-bottom: 1em">
                 Companies by net wealth: each release starts a company, and the drones it launches belong to it.
                 Net wealth is the company's credits, plus the goods aboard its working drones at their market price
-                (what they sold for, a unit, over the last three game days), minus what every company starts with
+                (what they sold for, a unit, over the last three game days), plus the shares it holds in other companies,
+                less its own shares that others hold (both at the last three days' average share price), minus what every company starts with
                 ({{ number_format($kit) }}: its starting credits and fuel). So a new company is worth 0, and
                 wealth is what it made. The drones themselves don't count, so launching a copy lowers net wealth by
                 about the price of its hull until the copy earns it back (often 10 to 20 game days).

@@ -87,6 +87,33 @@ class SharesTest extends TestCase
             'units' => $units, 'price' => $price, 'game_t' => 1000]);
     }
 
+    /** #568: shares others hold count against the company, at the value an investor counts them at */
+    public function testSellingSharesAtTheirValueLeavesNetWealthUnchanged()
+    {
+        $user = User::create(['name' => 'Seller', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
+        $issuer = Release::release($user, 'Dilute Co', 'function launched() end');
+        $investor = Release::release($user, 'Holder Two Co', 'function launched() end');
+        $before = \App\Services\Leaderboard::wealth();
+        // 300 of the issuer's shares change hands at 10 (the money moves as the exchange moves it)
+        $now = \App\Services\World::gameNow();
+        Shares::transfer($issuer->company_id, $issuer->company_id, $investor->company_id, 300);
+        DB::table('share_trades')->insert(['share_company' => $issuer->company_id, 'seller' => $issuer->company_id,
+            'buyer' => $investor->company_id, 'units' => 300, 'price' => 10, 'game_t' => $now - 60]);
+        DB::table('companies')->where('company_id', $issuer->company_id)->increment('credits', 3000);
+        DB::table('companies')->where('company_id', $investor->company_id)->decrement('credits', 3000);
+        $this->assertSame(3000, Shares::claimsValue()[$issuer->company_id]);
+        $after = \App\Services\Leaderboard::wealth();
+        $this->assertSame($before[$issuer->company_id]['wealth'], $after[$issuer->company_id]['wealth'], 'credits in, the same value owed out');
+        $this->assertSame($before[$investor->company_id]['wealth'], $after[$investor->company_id]['wealth']);
+        // The share's value falls to 4: the issuer is worth more, the holder less
+        DB::table('share_trades')->insert(['share_company' => $issuer->company_id, 'seller' => $investor->company_id,
+            'buyer' => $issuer->company_id, 'units' => 0, 'price' => 4, 'game_t' => $now - 30]);
+        DB::table('share_trades')->where('share_company', $issuer->company_id)->update(['game_t' => $now - 5 * 86400]);
+        $later = \App\Services\Leaderboard::wealth();
+        $this->assertSame($before[$issuer->company_id]['wealth'] + 300 * 6, $later[$issuer->company_id]['wealth']);
+        $this->assertSame($before[$investor->company_id]['wealth'] - 300 * 6, $later[$investor->company_id]['wealth']);
+    }
+
     public function testTheLastTradeSetsTheSharePrice()
     {
         $a = $this->company('Issuer Co');

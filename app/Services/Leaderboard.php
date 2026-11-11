@@ -13,7 +13,9 @@ use Illuminate\Support\Facades\Schema;
  * Net wealth = the company's credits
  * + the goods aboard its working drones, at their market price
  * - its starter package (credits and fuel; since #506 no kit), so a fresh
- *   release is worth 0 and wealth is what it made.
+ *   release is worth 0 and wealth is what it made
+ * + the shares it holds in other companies, - its own shares others hold,
+ *   both at their value price (#471, #513, #568).
  * The market price of a good is what it sold for, a unit, over the last
  * three game days (#380: it was the House stations' price); a packed
  * starter kit is worth its contents. Rising is the gain over the last real week, from the hourly
@@ -115,6 +117,13 @@ class Leaderboard
         foreach (Shares::holdingsValue() as $co => $value) {
             if (isset($rows[$co])) {
                 $rows[$co]['wealth'] += $value;
+            }
+        }
+        // Its own shares that others hold count against it, at the same value
+        // price (#568): selling shares at their value leaves net wealth as it was
+        foreach (Shares::claimsValue() as $co => $value) {
+            if (isset($rows[$co])) {
+                $rows[$co]['wealth'] -= $value;
             }
         }
         // Processor tax it owes (#544) counts against it
