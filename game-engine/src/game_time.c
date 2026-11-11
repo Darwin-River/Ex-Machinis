@@ -26,7 +26,10 @@
 static double g_scale = 1.0;
 static time_t g_real_anchor = 0;
 static double g_game_anchor = 0;
+static double g_epoch = 0;
 static int g_loaded = 0;
+static time_t g_loaded_at = 0;   // real time of the last load
+static int g_owner = 0;          // this program sets the scale (#433)
 
 static ErrorCode_t game_time_query(DbConnection_t* connection, const char* query_text)
 {
@@ -47,26 +50,33 @@ ErrorCode_t game_time_load(void)
     if(result != ENGINE_OK)
         return result;
 
-    // First start: game time begins as real time, at scale 1
-    snprintf(query_text, sizeof(query_text),
-        "INSERT IGNORE INTO game_clock (id, real_anchor, game_anchor, scale) "
-        "VALUES (1, UNIX_TIMESTAMP(), UNIX_TIMESTAMP(), 1)");
-    result = game_time_query(connection, query_text);
+    // First start: game time begins as real time, at scale 1, and the world's
+    // first game second (its epoch) is now. Once the clock has loaded, the
+    // row exists: skip it (#431: one statement every engine loop)
+    if(!g_loaded) {
+        snprintf(query_text, sizeof(query_text),
+            "INSERT IGNORE INTO game_clock (id, real_anchor, game_anchor, scale, epoch) "
+            "VALUES (1, UNIX_TIMESTAMP(), UNIX_TIMESTAMP(), 1, UNIX_TIMESTAMP())");
+        result = game_time_query(connection, query_text);
+    }
 
     if(result == ENGINE_OK)
-        result = game_time_query(connection, "SELECT real_anchor, game_anchor, scale FROM game_clock WHERE id = 1");
+        result = game_time_query(connection,
+            "SELECT real_anchor, game_anchor, scale, IFNULL(epoch, game_anchor) FROM game_clock WHERE id = 1");
 
     if(result == ENGINE_OK)
     {
         MYSQL_RES* db_result = mysql_store_result(connection->hndl);
         MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
 
-        if(row && row[0] && row[1] && row[2] && atof(row[2]) > 0)
+        if(row && row[0] && row[1] && row[2] && row[3] && atof(row[2]) > 0)
         {
             g_real_anchor = (time_t)atoll(row[0]);
             g_game_anchor = atof(row[1]);
             g_scale = atof(row[2]);
+            g_epoch = atof(row[3]);
             g_loaded = 1;
+            g_loaded_at = time(NULL);
         }
         else
         {
@@ -77,6 +87,25 @@ ErrorCode_t game_time_load(void)
     }
 
     return result;
+}
+
+/* The clock as loaded within this real second, else loaded now (#456). For
+   the game engine, which sets the scale itself (game_time_set_scale keeps
+   what it loaded up to date): it loaded the clock on every turn and action,
+   about 78,000 times in 5 minutes on a 3,000-ship world. The events engine
+   loads it afresh, since it never sets it. */
+void game_time_set_owner(int owner)
+{
+    g_owner = owner;
+}
+
+ErrorCode_t game_time_load_recent(void)
+{
+    // Only the program that sets the scale knows its copy is current: with
+    // several game engines (#433), shard 0 sets it and the others read it
+    if(g_owner && g_loaded && time(NULL) == g_loaded_at)
+        return ENGINE_OK;
+    return game_time_load();
 }
 
 ErrorCode_t game_time_set_scale(double scale)
@@ -103,9 +132,18 @@ ErrorCode_t game_time_set_scale(double scale)
         (long long)now, game_now, scale);
     result = game_time_query(connection, query_text);
 
+    // Keep every rate change, so charts can map game time to real time
     if(result == ENGINE_OK)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Game time scale changed from [%f] to [%f]", g_scale, scale);
+        snprintf(query_text, sizeof(query_text),
+            "INSERT INTO game_clock_history (real_time, game_time, scale) VALUES (%lld, %.3f, %.6f)",
+            (long long)now, game_now, scale);
+        result = game_time_query(connection, query_text);
+    }
+
+    if(result == ENGINE_OK)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "NOTICE: game time scale changed from [%f] to [%f]", g_scale, scale);
         g_real_anchor = now;
         g_game_anchor = game_now;
         g_scale = scale;
@@ -125,6 +163,23 @@ double game_time_now(void)
         return (double)time(NULL); // no clock yet: real time
 
     return g_game_anchor + difftime(time(NULL), g_real_anchor) * g_scale;
+}
+
+long long game_time_now_seconds(void)
+{
+    return llround(game_time_now());
+}
+
+double game_time_epoch(void)
+{
+    return g_loaded ? g_epoch : game_time_now();
+}
+
+long long game_time_light_seconds(double distance_km)
+{
+    if(!(distance_km > 0))
+        return 0;
+    return llround(distance_km / LIGHT_SPEED_KM_PER_SECOND);
 }
 
 int game_time_to_real(double game_seconds)

@@ -28,12 +28,11 @@ class PagesTest extends TestCase
         return [
             'home'             => ['/', 'Home'],
             'home alias'       => ['/home', 'Home'],
-            'forth dictionary' => ['/forth-dictionary', 'FORTH Dictionary'],
             'getting started'  => ['/getting-started', 'Getting Started'],
             'about us'         => ['/about-us', 'About Us'],
+            'support'          => ['/support', 'Keep the Lights On'],
             'queries'          => ['/queries', 'Queries'],
             'message'          => ['/message', 'Notification'],
-            'register'         => ['/register', 'Join the Game'],
             'resources'        => ['/resources', 'Resources'],
             'buy orders'       => ['/buys', 'Buy Orders'],
             'sell orders'      => ['/sells', 'Sell Orders'],
@@ -45,24 +44,11 @@ class PagesTest extends TestCase
         ];
     }
 
-    public function testFormValidationHintsRenderLiterally()
+    public function testThereAreNoAccountPages()
     {
-        // The front-end validator reads these attributes. Since Laravel 9,
-        // "@required" is a Blade directive, so the views must escape it.
-        $this->get('/')
-            ->assertOk()
-            ->assertSee('data-constraints="@Email @Required"', false)
-            ->assertSee('data-constraints="@Required"', false);
-
-        $this->get('/register')
-            ->assertOk()
-            ->assertSee('data-constraints="@Email @Required"', false);
-    }
-
-    public function testAuthPagesLoad()
-    {
-        $this->get('/login')->assertOk();
-        $this->get('/password/reset')->assertOk();
+        // No player accounts in Public Forge (#367 step 4)
+        $this->get('/login')->assertNotFound();
+        $this->get('/password/reset')->assertNotFound();
     }
 
     /**

@@ -44,7 +44,15 @@ enum
 
     // Logic configuration
     DB_READ_TIME_ID,
-    MAX_CYCLE_SECONDS,
+    MAX_CYCLE_INSTRUCTIONS,
+    LOAD_INSTRUCTIONS,
+    QUERY_INSTRUCTIONS,
+    ACTION_INSTRUCTIONS,
+    CRASH_LIMIT,
+    CRASH_RESTART_WAIT,
+    CRASH_RESTART_INSTRUCTIONS,
+    EMAIL_ENABLED,
+    POWER_INSTRUCTIONS,
     VM_RESUME_COMMAND,
 
     // Email configuration
@@ -62,6 +70,15 @@ enum
     // Game time: game seconds per real second, and drones' acceleration
     GAME_TIME_SCALE_ID,
     TRAVEL_ACCELERATION_ID,
+
+    // The clock floor (#324 step 20)
+    GAME_TIME_FLOOR_ID,
+    CLOCK_LAG_HIGH_ID,
+    CLOCK_LAG_LOW_ID,
+
+    // Drone turns on several processes (#433)
+    ENGINE_SHARDS_ID,
+    ENGINE_SHARD_ID,
 
     // Max configured parameters
     MAX_CONFIG_PARAM
@@ -289,16 +306,33 @@ void engine_free(void* memory, size_t size);
 *******************************************************************************/
 const char* engine_get_forth_image_path();
 
-/** ****************************************************************************
+/** Instructions a drone's script may run per slice (instruction metering) */
+long long engine_get_max_cycle_instructions();
 
-  @brief      Gets the max number of second each VM can spend processing commands
+/** Instructions the slice about to run may use: a normal slice, or (for a
+    drone still loading its released script) the rest of its load allowance */
+long long engine_get_slice_instructions();
 
-  @param[in]  None
-  
-  @return     Seconds value configured
+/** Flat instruction cost of a query */
+long long engine_get_query_instructions();
 
-*******************************************************************************/
-const int engine_get_max_cycle_seconds();
+/** Flat instruction cost of an action (perform) */
+long long engine_get_action_instructions();
+
+/** False when email is switched off (replies go to drone_messages) */
+bool engine_email_enabled();
+
+/** Instructions per unit of fuel burned for power (0: computing is free) */
+long long engine_get_power_instructions();
+
+/** Crashes in a row that make a launched drone a wreck (0: never) */
+int engine_get_crash_limit();
+
+/** Game seconds before the first restart after a crash (doubles each time) */
+long long engine_get_crash_restart_wait();
+
+/** Instructions charged for each restart after a crash */
+long long engine_get_crash_restart_instructions();
 
 /** ****************************************************************************
 
@@ -312,6 +346,14 @@ const int engine_get_max_cycle_seconds();
 
 *******************************************************************************/
 const char* engine_get_vm_resume_command();
+
+/* Short transactions (#431) */
+void engine_commit_turn_so_far(void);
+/* Several game engines (#433) */
+int engine_shards(void);
+int engine_shard(void);
+void engine_take_order_locks(const int* drones, int count);
+void engine_release_order_lock(void);
 
 /** ****************************************************************************
 
@@ -334,6 +376,8 @@ DbConnection_t* engine_get_db_connection();
 
 *******************************************************************************/
 int engine_get_current_drone_id();
+// Where the drone running now is (#469)
+int engine_get_current_object_id(void);
 
 /** Where the drone running the current command is (object ID) */
 int engine_get_current_drone_object_id();

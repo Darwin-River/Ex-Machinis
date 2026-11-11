@@ -20,10 +20,17 @@
 #include <ctype.h>
 #include <stdbool.h>
 
+#include "compute.h"
 #include "engine.h"
 #include "wrap.h"
 #include "game_time.h"
+#include "vm_meter.h"
+#include "lua_drone.h"
+#include "crash.h"
+#include "db_launch.h"
+#include "protocol.h"
 #include "config.h"
+#include "clock_floor.h"
 #include "db.h"
 
 // The current command ran on the drone's VM (not refused, not a meta command)
@@ -147,15 +154,24 @@ ErrorCode_t engine_init_db()
     engine.db_connection.user = engine.config.params[DB_USER_ID];
     engine.db_connection.password = engine.config.params[DB_PASSWORD_ID];
     engine.db_connection.db_name = engine.config.params[DB_NAME_ID];
+    engine.db_connection.lock = NULL;
+    engine.db_connection.checked_at = 0;
 
 	// db
 	result = db_init(&engine.db_connection);
 
-	// Add columns newer code needs to older databases
-	if(result == ENGINE_OK) db_upgrade_schema();
+	// Only one game-engine per database
+	// One engine per shard (#433): two copies of a shard would split a drone's
+	// input between them; different shards may run side by side
+	static char claim[64] = "game-engine";
+	if(engine_shards() > 1)
+		snprintf(claim, sizeof(claim), "game-engine-shard-%d", engine_shard());
+	if(result == ENGINE_OK) result = db_claim_engine(&engine.db_connection, claim);
 
 	// The master game time scale comes from this engine's configuration
-	if(result == ENGINE_OK) game_time_set_scale(atof(engine.config.params[GAME_TIME_SCALE_ID]));
+	// (shard 0's, with several engines: it alone sets the pace, #433)
+	game_time_set_owner(engine_shard() == 0);
+	if(result == ENGINE_OK && engine_shard() == 0) game_time_set_scale(atof(engine.config.params[GAME_TIME_SCALE_ID]));
 
 	return result;
 }
@@ -360,14 +376,18 @@ static void engine_stamp_commands(void)
         double km = 0;
 
         if(!immediate[i] && engine_get_drone_position(objects[i], position, &km) == ENGINE_OK)
-            delay = game_time_light_delay(km);
+            delay = (int)game_time_light_seconds(km);
 
         if(delay > 0)
-            engine_trace(TRACE_LEVEL_ALWAYS, "Command [%d] reaches its drone at [%s] in [%d] s", ids[i], position, delay);
+            engine_trace(TRACE_LEVEL_ALWAYS, "Command [%d] reaches its drone at [%s] in [%d] game s", ids[i], position, delay);
 
         db_set_command_delivery(&engine.db_connection, ids[i], delay);
     }
 }
+
+/* Set when a crash means the drone's program goes back to its clean copy
+   once this command is done (after the VM is saved) */
+static bool g_restore_release_vm = false;
 
 /** ****************************************************************************
 
@@ -397,10 +417,82 @@ static Bool_t engine_finish_perform(void)
 
     engine_trace(TRACE_LEVEL_ALWAYS, "Action [%d] done for drone [%d]: perform leaves [%d]", action_id, agent_id, code);
 
-    vm_push_result(engine.last_agent.vm, code);
+    if(engine.last_agent.is_lua)
+        lua_drone_set_result(agent_id, code);
+    else
+        vm_push_result(engine.last_agent.vm, code);
     db_set_agent_waiting_action(&engine.db_connection, agent_id, 0);
+
+    // An action that succeeds ends a run of crashes
+    if(code == PERFORM_OK)
+        db_clear_crashes_in_row(&engine.db_connection, agent_id);
     return ENGINE_TRUE;
 }
+
+/** ****************************************************************************
+
+  @brief      After a run ends (it didn't pause), checks whether it was the
+              launched word. If launched returned normally the drone has
+              finished; if it crashed, the drone restarts from its clean copy
+              after a wait that doubles with each crash in a row, or becomes
+              a wreck after too many.
+
+  The outcome is added to the run's output.
+
+  @return     void
+
+*******************************************************************************/
+static void engine_end_launched(void)
+{
+    int agent_id = engine.last_command.agent_id;
+    LaunchState_t state;
+
+    if(db_get_launch_state(&engine.db_connection, agent_id, &state) != ENGINE_OK || !state.running)
+        return;
+
+    int code = engine.last_agent.is_lua ? lua_drone_take_result(agent_id) :
+                                          vm_take_launched_result(engine.last_agent.vm);
+    char msg[256];
+
+    if(code == 0)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] finished its launched word", agent_id);
+        db_record_launched_finished(&engine.db_connection, agent_id);
+        vm_append_output("\nMy launched function has finished.\n");
+        return;
+    }
+
+    int in_row = state.crashes_in_row + 1;
+    long long wait = 0;
+    CrashStep_t step = crash_next_step(in_row, engine_get_crash_limit(), engine_get_crash_restart_wait(), &wait);
+
+    if(step == CRASH_WRECK)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] crashed with error [%d], [%d] in a row: it is a wreck", agent_id, code, in_row);
+        db_record_crash(&engine.db_connection, agent_id, code, in_row, -1);
+        snprintf(msg, sizeof(msg), "\nMy launched function crashed with error %d, %d times in a row. I am a wreck.\n", code, in_row);
+    }
+    else
+    {
+        long long restart_at = game_time_now_seconds() + wait;
+        engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] crashed with error [%d], [%d] in a row: restarts in [%lld] game s", agent_id, code, in_row, wait);
+        db_record_crash(&engine.db_connection, agent_id, code, in_row, restart_at);
+        db_queue_launched(&engine.db_connection, agent_id, restart_at);
+        db_add_agent_instructions(&engine.db_connection, agent_id, engine_get_crash_restart_instructions());
+        g_restore_release_vm = true;
+        // A Lua drone restarts with fresh variables too (#380)
+        if(engine.last_agent.is_lua)
+            lua_drone_forget_state(agent_id);
+        snprintf(msg, sizeof(msg), "\nMy launched function crashed with error %d (%d in a row). Restarting from my clean copy in %lld game seconds.\n", code, in_row, wait);
+    }
+    vm_append_output(msg);
+}
+
+/** The next VM command is a Lua drone's launch (#380) */
+static bool g_lua_launch = false;
+
+/** The budget of the slice about to run (set by engine_process_vm_command) */
+static long long g_slice_instructions = 0;
 
 /** ****************************************************************************
 
@@ -443,7 +535,40 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
     if(strncmp(engine.last_command.code, resume, strlen(resume)) == 0)
         pending_input = db_get_agent_pending_input(&engine.db_connection, engine.last_command.agent_id);
 
-    result = vm_run_command(engine.last_agent.vm, &engine.last_command, out_buf, out_buf_size, &pending_input);
+    // A drone still loading its released script reads it in one slice
+    // (#380 round 33): in 100,000-instruction slices a 100-line script took
+    // about 80 turns, a game day or more at a fast clock. Its allowance is
+    // LOAD_INSTRUCTIONS in all, so a script that loops at the top level
+    // goes back to normal slices once it is used.
+    int loading = 0;
+    long long used_so_far = 0;
+    db_get_agent_loading(&engine.db_connection, engine.last_command.agent_id, &loading, &used_so_far);
+    g_slice_instructions = vm_meter_slice_budget(loading, used_so_far,
+        atoll((const char*)engine.config.params[LOAD_INSTRUCTIONS]), engine_get_max_cycle_instructions());
+
+
+    if(engine.last_agent.is_lua)
+    {
+        // A Lua drone (#380): a piece of its script, its launch, or a resume
+        LuaRun_t kind = g_lua_launch ? LUA_RUN_LAUNCH :
+            strncmp(engine.last_command.code, resume, strlen(resume)) == 0 ? LUA_RUN_RESUME : LUA_RUN_PIECE;
+        g_lua_launch = false;
+        result = lua_drone_command(engine.last_command.agent_id, kind, engine.last_command.code, out_buf, out_buf_size);
+        free(pending_input);
+        pending_input = NULL;
+    }
+    else
+        result = vm_run_command(engine.last_agent.vm, &engine.last_command, out_buf, out_buf_size, &pending_input);
+    g_slice_instructions = 0;
+
+    // Instruction metering: add what this slice used to the drone's total
+    db_add_agent_instructions(&engine.db_connection, engine.last_command.agent_id, vm_meter_used());
+
+    // Power (#324 step 8): burn the fuel those instructions cost
+    long long fuel_due = 0;
+    if(db_take_power_due(&engine.db_connection, engine.last_command.agent_id,
+                         engine_get_power_instructions(), &fuel_due) == ENGINE_OK && fuel_due > 0)
+        protocol_burn_power((int)fuel_due);
 
     // Keep the unread rest of a paused script (NULL clears it)
     db_set_agent_pending_input(&engine.db_connection, engine.last_command.agent_id, pending_input);
@@ -455,6 +580,7 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
         db_set_agent_waiting_action(&engine.db_connection, engine.last_command.agent_id, vm_waiting_action());
 
     AgentInfo_t info;
+    memset(&info, 0, sizeof(info));
     // Update drone info (just in case, we executed a location change)
     if(result == ENGINE_OK)
     {
@@ -475,6 +601,13 @@ ErrorCode_t engine_process_vm_command(char* out_buf, size_t out_buf_size)
         // Update object ID to use it when calculating distances and sending email
         engine.last_agent.object_id = info.object_id;
     }
+    // Only the location was wanted: free the VM the lookup loaded (#380)
+    if(info.vm) vm_free(info.vm);
+
+    // A run of the launched word that has ended: it returned or crashed
+    // (after the refresh above, which loads a VM and may print)
+    if(!vm_is_yield())
+        engine_end_launched();
 
     return result;
 }
@@ -545,6 +678,7 @@ ErrorCode_t engine_process_meta_rename(char* out_buf, size_t out_buf_size)
         }
         // Update agent name to keep the emails chain
         AgentInfo_t info;
+        memset(&info, 0, sizeof(info));
         if(result == ENGINE_OK)
         {
             // Get current values
@@ -563,6 +697,7 @@ ErrorCode_t engine_process_meta_rename(char* out_buf, size_t out_buf_size)
             // Update name to answer using this new one
             sprintf(engine.last_agent.agent_name, "%s", info.agent_name);
         }
+        if(info.vm) vm_free(info.vm);
     }
 
     if(name) engine_free(name, (strlen(name)+1));
@@ -630,7 +765,31 @@ ErrorCode_t engine_process_meta_rebrand(char* out_buf, size_t out_buf_size)
 *******************************************************************************/
 static ErrorCode_t engine_process_meta_launched(char* out_buf, size_t out_buf_size)
 {
+    int agent_id = engine.last_command.agent_id;
+
+    if(engine.last_agent.is_lua)
+    {
+        // A Lua drone (#380): its script is all here; build it and run
+        // launched() (lua_drone.c says so in its output)
+        lua_drone_mark_released(agent_id);
+        db_delete_resume_commands(&engine.db_connection, agent_id);
+        db_set_agent_waiting_action(&engine.db_connection, agent_id, 0);
+        db_set_agent_pending_input(&engine.db_connection, agent_id, NULL);
+        free(db_take_agent_output(&engine.db_connection, agent_id));
+        db_set_launched_running(&engine.db_connection, agent_id, 1);
+        g_lua_launch = true;
+        return engine_process_vm_command(out_buf, out_buf_size);
+    }
+
+    // The program as it is now is the clean copy a crash restarts from
+    db_save_release_vm(&engine.db_connection, agent_id);
+
+    // Back to the prompt: any paused script is dropped, with its resume
     vm_restart(engine.last_agent.vm);
+    db_delete_resume_commands(&engine.db_connection, agent_id);
+    db_set_agent_waiting_action(&engine.db_connection, agent_id, 0);
+    db_set_agent_pending_input(&engine.db_connection, agent_id, NULL);
+    free(db_take_agent_output(&engine.db_connection, agent_id));
 
     bool run = vm_word_defined(engine.last_agent.vm, LAUNCHED_WORD);
 
@@ -641,7 +800,10 @@ static ErrorCode_t engine_process_meta_launched(char* out_buf, size_t out_buf_si
     if(!run)
         return ENGINE_OK;
 
-    snprintf(engine.last_command.code, sizeof(engine.last_command.code), "%s\n", LAUNCHED_WORD);
+    // Run launched inside catch, so a crash leaves its error code on the
+    // stack instead of being lost at the FORTH prompt
+    db_set_launched_running(&engine.db_connection, agent_id, 1);
+    snprintf(engine.last_command.code, sizeof(engine.last_command.code), "' %s catch\n", LAUNCHED_WORD);
     return engine_process_vm_command(out_buf, out_buf_size);
 }
 
@@ -676,14 +838,23 @@ ErrorCode_t engine_process_meta_command(char* out_buf, size_t out_buf_size)
     if(is_abort) {
         engine_trace(TRACE_LEVEL_ALWAYS, "Running abort command at agent [%d]", engine.last_command.agent_id);
         // abort and delete any pending resume
-        vm_abort(engine.last_agent.vm);
+        if(engine.last_agent.is_lua)
+            lua_drone_drop(engine.last_command.agent_id);
+        else
+            vm_abort(engine.last_agent.vm);
         result = db_delete_resume_commands(&engine.db_connection, engine.last_command.agent_id);
         // The script no longer waits for an action (the action itself goes on)
         db_set_agent_waiting_action(&engine.db_connection, engine.last_command.agent_id, 0);
         db_set_agent_pending_input(&engine.db_connection, engine.last_command.agent_id, NULL);
+        db_set_launched_running(&engine.db_connection, engine.last_command.agent_id, 0);
     } else if (strstr(engine.last_command.code, META_COMMAND_RESET)) {
         engine_trace(TRACE_LEVEL_ALWAYS, "Running reset command at agent [%d]", engine.last_command.agent_id);
-        // reset and start with a fresh VM
+        // reset and start with a fresh VM (a Lua drone: no script)
+        if(engine.last_agent.is_lua)
+        {
+            lua_drone_drop(engine.last_command.agent_id);
+            lua_drone_clear_script(engine.last_command.agent_id);
+        }
         vm_reset(engine.last_agent.vm);
         if(engine.last_agent.vm) vm_free(engine.last_agent.vm);
         engine.last_agent.vm = NULL;
@@ -694,6 +865,7 @@ ErrorCode_t engine_process_meta_command(char* out_buf, size_t out_buf_size)
         free(db_take_agent_output(&engine.db_connection, engine.last_command.agent_id));
         db_set_agent_waiting_action(&engine.db_connection, engine.last_command.agent_id, 0);
         db_set_agent_pending_input(&engine.db_connection, engine.last_command.agent_id, NULL);
+        db_set_launched_running(&engine.db_connection, engine.last_command.agent_id, 0);
     } else if (code_len == strlen(META_COMMAND_LAUNCHED) &&
                strncasecmp(code, META_COMMAND_LAUNCHED, code_len) == 0) {
         result = engine_process_meta_launched(out_buf, out_buf_size);
@@ -723,6 +895,13 @@ ErrorCode_t engine_process_command(char* out_buf, size_t out_buf_size)
     if(!out_buf || (out_buf_size == 0)) {
         engine_trace(TRACE_LEVEL_ALWAYS,  "ERROR: Unable to process command (invalid buffer)");
         return ENGINE_INTERNAL_ERROR;
+    }
+
+    // A wreck runs nothing
+    LaunchState_t state;
+    if(db_get_launch_state(&engine.db_connection, engine.last_command.agent_id, &state) == ENGINE_OK && state.wrecked) {
+        engine_send_output("This drone is a wreck: it no longer runs commands.", false);
+        return ENGINE_OK;
     }
 
     // We need to identify if it is a VM command or just a meta-command
@@ -936,6 +1115,83 @@ ErrorCode_t engine_apply_max_cycle_lines()
   @return     Execution result code (ErrorCode_t)
 
 *******************************************************************************/
+/* The clock floor (#324 step 20): slices run since the last load check */
+static time_t g_load_since = 0;
+static long g_load_slices = 0;
+static int g_world_full = 0;
+
+/* Once every CLOCK_CHECK_SECONDS: how far behind the engines run, and the
+   clock's scale from it (see clock_floor.h) */
+static void engine_check_load(void)
+{
+    time_t now = time(NULL);
+    if(!g_load_since) {
+        g_load_since = now;
+        return;
+    }
+    double seconds = difftime(now, g_load_since);
+    if(seconds < CLOCK_CHECK_SECONDS)
+        return;
+
+    // Other shards only report their turns a minute (#433); shard 0 sets
+    // the pace from everyone's
+    long own_per_minute = lround(g_load_slices * 60.0 / seconds);
+    db_record_shard_turns(&engine.db_connection, engine_shard(), own_per_minute, (long long)now);
+    if(engine_shard() != 0) {
+        g_load_since = now;
+        g_load_slices = 0;
+        return;
+    }
+    long others = 0;
+    if(engine_shards() > 1)
+        db_other_shard_turns(&engine.db_connection, engine_shard(), (long long)now - 3 * CLOCK_CHECK_SECONDS, &others);
+    g_load_slices += lround(others * seconds / 60.0);
+
+    long runnable = 0;
+    double oldest_event = 0;
+    int has_event = 0;
+    if(db_load_backlog(&engine.db_connection, &runnable, &oldest_event, &has_event) != ENGINE_OK)
+        return;   // try again next pass
+
+    double scale = game_time_scale();
+    double event_late = has_event ? (game_time_now() - oldest_event) / scale : 0;
+    double lag = clock_floor_lag(runnable, g_load_slices, seconds, event_late);
+    ClockRule_t rule = {
+        atof(engine.config.params[GAME_TIME_SCALE_ID]),
+        atof(engine.config.params[GAME_TIME_FLOOR_ID]),
+        atof(engine.config.params[CLOCK_LAG_HIGH_ID]),
+        atof(engine.config.params[CLOCK_LAG_LOW_ID])
+    };
+    int was_full = g_world_full;
+    double next = clock_floor_next(scale, lag, &rule, &g_world_full);
+    long per_minute = lround(g_load_slices * 60.0 / seconds);
+
+    if(fabs(next - scale) > 1e-9 || g_world_full != was_full)
+        engine_trace(TRACE_LEVEL_ALWAYS, "NOTICE: load check: %ld commands waiting, %ld slices a minute, "
+            "events %.0f s late: %.0f s behind; clock %.3f -> %.3f%s", runnable, per_minute, event_late, lag,
+            scale, next, g_world_full ? " (the world is full: releases queue)" : "");
+    if(fabs(next - scale) > 1e-9)
+        game_time_set_scale(next);
+    db_record_load(&engine.db_connection, rule.target, rule.floor, lag, per_minute, g_world_full, (long long)now);
+
+    g_load_since = now;
+    g_load_slices = 0;
+}
+
+/* Every body's position, stored once a minute (#380): a drone's trip-time
+   queries (704, 705) read them. Before, nothing stored them and a drone
+   couldn't learn how far anything was. */
+static time_t g_positions_at = 0;
+static void engine_store_positions(void)
+{
+    time_t now = time(NULL);
+    if(g_positions_at && difftime(now, g_positions_at) < CLOCK_CHECK_SECONDS)
+        return;
+    g_positions_at = now;
+    db_store_positions(&engine.db_connection, engine_get_travel_acceleration(),
+                       (long long)game_time_now_seconds(), engine_get_object_position);
+}
+
 ErrorCode_t engine_run()
 {
   ErrorCode_t result = ENGINE_OK;
@@ -957,13 +1213,24 @@ ErrorCode_t engine_run()
 
 		engine_trace(TRACE_LEVEL_ALWAYS, "Running engine logic");
 
-        // Read the game clock (shared with the events engine)
-        game_time_load();
+        // Read the game clock (shared with the events engine), and once a
+        // minute set its pace from how far behind the engines run
+        game_time_load_recent();
+        engine_check_load();
 
-        // Signals travel at the speed of light: time when new commands reach
-        // their drones, and send the replies that have reached Earth
-        engine_stamp_commands();
-        db_send_due_outbox(&engine.db_connection, engine.config.params[SEND_EMAIL_SCRIPT_ID]);
+        // The shared work runs in shard 0 only (#433): positions, and, as
+        // signals travel at the speed of light, timing when new commands
+        // reach their drones and sending the replies that have reached Earth,
+        // once a real second (#431 step 1: they were two statements a turn;
+        // a resume, the commonest command, comes in already stamped)
+        static time_t housekept_at = 0;
+        if(engine_shard() == 0)
+            engine_store_positions();
+        if(engine_shard() == 0 && time(NULL) != housekept_at) {
+            housekept_at = time(NULL);
+            engine_stamp_commands();
+            db_send_due_outbox(&engine.db_connection, engine.config.params[SEND_EMAIL_SCRIPT_ID]);
+        }
 
         // start a transaction
         result = db_start_transaction(&engine.db_connection);
@@ -974,7 +1241,22 @@ ErrorCode_t engine_run()
             result = db_get_next_command(&engine.db_connection, &engine.last_command);
         }
 
+        // The drone's own row, read once for the turn (#431 step 2)
+        if(result == ENGINE_OK && engine.last_command.code[0])
+            db_turn_row_load(&engine.db_connection, engine.last_command.agent_id);
+
         if(result == ENGINE_OK)
+        {
+            // Get whole info for agent_id
+            result = db_get_agent_engine_info(&engine.db_connection, 
+                engine.last_command.agent_id,
+                &engine.last_agent);
+        }
+
+        // FORTH reads at most so many characters a line: long lines are
+        // re-wrapped. Not Lua's (#380): wrapping would break its strings
+        // and comments.
+        if(result == ENGINE_OK && !engine.last_agent.is_lua)
         {
             // apply configured max lines per cycle
             result = engine_apply_max_cycle_lines();
@@ -983,15 +1265,6 @@ ErrorCode_t engine_run()
             {
                 engine_send_output("Internal error", false);
             }
-        }
-
-
-        if(result == ENGINE_OK)
-        {
-            // Get whole info for agent_id
-            result = db_get_agent_engine_info(&engine.db_connection, 
-                engine.last_command.agent_id,
-                &engine.last_agent);
         }
 
         if(result == ENGINE_OK)
@@ -1009,6 +1282,7 @@ ErrorCode_t engine_run()
             memset(out_buffer, 0, ENGINE_MAX_BUF_SIZE+1);
             vm_clear_yield();
             g_ran_on_vm = false;
+            g_restore_release_vm = false;
             engine_process_command(out_buffer, ENGINE_MAX_BUF_SIZE);
         } 
 
@@ -1025,6 +1299,13 @@ ErrorCode_t engine_run()
 
                 // When we yield - insert special command to indicate that we need to resume later
                 engine_insert_db_command(engine.config.params[VM_RESUME_COMMAND]);
+                // A drone whose company owes processor tax (#544) thinks at
+                // most a turn a game hour until it has paid: a broke company
+                // can't keep the server busy, and nothing is wrecked for it
+                TurnRow_t* turn = db_turn_row(engine.last_command.agent_id);
+                if(turn && turn->throttled && !turn->loading)
+                    db_delay_resume_commands(&engine.db_connection, engine.last_command.agent_id,
+                                             COMPUTE_THROTTLE_SECONDS);
             }
             else if(g_ran_on_vm)
             {
@@ -1039,15 +1320,34 @@ ErrorCode_t engine_run()
 
         if(result == ENGINE_OK)
         {
-            // Save VM in DB
-            result = db_save_agent_vm(&engine.db_connection, 
-                engine.last_command.agent_id, 
-                engine.last_agent.vm);
+            // Save VM in DB (a Lua drone has none: its Lua stays in memory)
+            if(!engine.last_agent.is_lua)
+                result = db_save_agent_vm(&engine.db_connection, 
+                    engine.last_command.agent_id, 
+                    engine.last_agent.vm);
+
+            // After a crash the program goes back to its clean copy
+            if(result == ENGINE_OK && g_restore_release_vm)
+                result = db_restore_release_vm(&engine.db_connection, engine.last_command.agent_id);
         }
+
+        // Did this pass run a command? Then look for the next one at once
+        Bool_t worked = engine.last_command.code[0] ? ENGINE_TRUE : ENGINE_FALSE;
+        if(worked)
+            g_load_slices++;
 
         // Delete command always to avoid spam when error
         if(engine.last_command.code[0]) {
             result = db_delete_command(&engine.db_connection, &engine.last_command);
+        }
+
+        // What the turn changed in the drone's row, in one statement
+        // (#431 step 3)
+        if((result == ENGINE_OK) || (result == ENGINE_DB_NOT_FOUND_ERROR))
+        {
+            ErrorCode_t written = db_turn_row_flush(&engine.db_connection);
+            if(written != ENGINE_OK)
+                result = written;
         }
 
         // commit or rollback current transaction
@@ -1059,6 +1359,8 @@ ErrorCode_t engine_run()
         {
             result = db_rollback_transaction(&engine.db_connection);
         }
+        db_turn_row_clear();
+        engine_release_order_lock();
 
         // always deallocate VM and command resources
         if(engine.last_agent.vm) vm_free(engine.last_agent.vm);
@@ -1067,7 +1369,10 @@ ErrorCode_t engine_run()
             engine.last_command.email_content = NULL;
         }
 
-		sleep(atoi(engine.config.params[DB_READ_TIME_ID]));
+		// Rest only when there was nothing to run (#324 step 20): sleeping
+		// after every command held the engine to one slice per DB_READ_TIME
+		if(!worked)
+			sleep(atoi(engine.config.params[DB_READ_TIME_ID]));
 	}
 
 	// deallocate resources/Stop modules
@@ -1260,7 +1565,15 @@ void engine_send_output(const char* msg, bool with_pending)
             snprintf(email_info.message, MAX_COMMAND_CODE_SIZE, "%s", msg); // it is quoted later at email module
         snprintf(email_info.email_script, PATH_MAX, "%s", engine.config.params[SEND_EMAIL_SCRIPT_ID]);
 
-        if(db_get_agent_email_info(&engine.db_connection, &email_info) == ENGINE_OK)
+        if(!engine_email_enabled())
+        {
+            // Email is off: keep the reply for the website, which shows it
+            // once it has reached Earth (game time, at the speed of light)
+            long long reaches_earth = game_time_now_seconds() + game_time_light_seconds(email_info.distance);
+            db_add_drone_message(&engine.db_connection, agent_id, reaches_earth,
+                engine.last_command.subject, email_info.message);
+        }
+        else if(db_get_agent_email_info(&engine.db_connection, &email_info) == ENGINE_OK)
         {
             // agent email
             snprintf(email_info.agent_email, 
@@ -1358,18 +1671,52 @@ const char* engine_get_forth_image_path()
     return (const char*)engine.config.params[FORTH_IMAGE_PATH_ID];
 }
 
-/** ****************************************************************************
-
-  @brief      Gets the max number of second each VM can spend processing commands
-
-  @param[in]  None
-  
-  @return     Seconds value configured
-
-*******************************************************************************/
-const int engine_get_max_cycle_seconds()
+/** Instructions a drone's script may run per slice (instruction metering) */
+long long engine_get_max_cycle_instructions()
 {
-    return atoi((const char*)engine.config.params[MAX_CYCLE_SECONDS]);
+    return atoll((const char*)engine.config.params[MAX_CYCLE_INSTRUCTIONS]);
+}
+
+long long engine_get_slice_instructions()
+{
+    return g_slice_instructions > 0 ? g_slice_instructions : engine_get_max_cycle_instructions();
+}
+
+/** Flat instruction cost of a query */
+long long engine_get_query_instructions()
+{
+    return atoll((const char*)engine.config.params[QUERY_INSTRUCTIONS]);
+}
+
+/** Flat instruction cost of an action (perform) */
+long long engine_get_action_instructions()
+{
+    return atoll((const char*)engine.config.params[ACTION_INSTRUCTIONS]);
+}
+
+bool engine_email_enabled()
+{
+    return atoi((const char*)engine.config.params[EMAIL_ENABLED]) != 0;
+}
+
+long long engine_get_power_instructions()
+{
+    return atoll((const char*)engine.config.params[POWER_INSTRUCTIONS]);
+}
+
+int engine_get_crash_limit()
+{
+    return atoi((const char*)engine.config.params[CRASH_LIMIT]);
+}
+
+long long engine_get_crash_restart_wait()
+{
+    return atoll((const char*)engine.config.params[CRASH_RESTART_WAIT]);
+}
+
+long long engine_get_crash_restart_instructions()
+{
+    return atoll((const char*)engine.config.params[CRASH_RESTART_INSTRUCTIONS]);
 }
 
 /** ****************************************************************************
@@ -1386,6 +1733,92 @@ const int engine_get_max_cycle_seconds()
 const char* engine_get_vm_resume_command()
 {
     return (const char*)engine.config.params[VM_RESUME_COMMAND];
+}
+
+/* Commits the turn's work so far and goes on in a new transaction (#431:
+   see protocol_execute) */
+void engine_commit_turn_so_far(void)
+{
+    if(db_commit_transaction(&engine.db_connection) != ENGINE_OK)
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: unable to commit the turn so far");
+    // The action's events are in: other engines may schedule for its drones
+    engine_release_order_lock();
+    if(db_start_transaction(&engine.db_connection) != ENGINE_OK)
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: unable to start the rest of the turn");
+}
+
+/* How many game engines share the drones, and which one this is (#433) */
+int engine_shards(void)
+{
+    const char* v = engine.config.params[ENGINE_SHARDS_ID];
+    int n = v ? atoi(v) : 1;
+    return n > 1 ? n : 1;
+}
+
+int engine_shard(void)
+{
+    const char* v = engine.config.params[ENGINE_SHARD_ID];
+    int k = v ? atoi(v) : 0;
+    int n = engine_shards();
+    return (k >= 0 && k < n) ? k : 0;
+}
+
+/*
+ * The event-order locks (#433). An action's events start after its drones'
+ * latest events, and IDs must keep game-time order within a drone's stock
+ * entry (see protocol_flush_events). With several game engines, two could
+ * schedule events for the same drone at once and interleave them. So before
+ * an engine reads the latest events of the drones an action touches (the
+ * acting drone, and the other drone in a trade), it takes a MySQL named lock
+ * per drone, in drone ID order, and holds them until its turn commits; the
+ * next engine to touch those drones then reads them with these events in.
+ * Engines acting on different drones don't wait for each other. One engine
+ * needs no locks.
+ */
+#define MAX_ORDER_LOCKS 16
+static int g_order_locks[MAX_ORDER_LOCKS];
+static int g_order_lock_count = 0;
+
+static int engine_holds_order_lock(int drone)
+{
+    for(int i = 0; i < g_order_lock_count; i++)
+        if(g_order_locks[i] == drone)
+            return 1;
+    return 0;
+}
+
+void engine_take_order_locks(const int* drones, int count)
+{
+    if(engine_shards() <= 1)
+        return;
+    // Drone ID order, so two engines never wait on each other in a circle
+    int sorted[MAX_ORDER_LOCKS];
+    int n = 0;
+    for(int i = 0; i < count && n < MAX_ORDER_LOCKS; i++)
+        if(drones[i] > 0 && !engine_holds_order_lock(drones[i]))
+            sorted[n++] = drones[i];
+    for(int i = 1; i < n; i++)
+        for(int j = i; j > 0 && sorted[j - 1] > sorted[j]; j--) {
+            int t = sorted[j]; sorted[j] = sorted[j - 1]; sorted[j - 1] = t;
+        }
+    for(int i = 0; i < n && g_order_lock_count < MAX_ORDER_LOCKS; i++) {
+        char name[64];
+        snprintf(name, sizeof(name), "exm_order_%d", sorted[i]);
+        if(db_get_named_lock(&engine.db_connection, name, 30) == ENGINE_OK)
+            g_order_locks[g_order_lock_count++] = sorted[i];
+        else
+            engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: no event-order lock on drone [%d] after 30 s: going on without it", sorted[i]);
+    }
+}
+
+void engine_release_order_lock(void)
+{
+    for(int i = 0; i < g_order_lock_count; i++) {
+        char name[64];
+        snprintf(name, sizeof(name), "exm_order_%d", g_order_locks[i]);
+        db_release_named_lock(&engine.db_connection, name);
+    }
+    g_order_lock_count = 0;
 }
 
 /** ****************************************************************************
@@ -1417,6 +1850,12 @@ DbConnection_t* engine_get_db_connection()
 int engine_get_current_drone_id()
 {
     return engine.last_command.agent_id;
+}
+
+/* Where the drone running now is (its object, #469) */
+int engine_get_current_object_id(void)
+{
+    return engine.last_agent.object_id;
 }
 
 

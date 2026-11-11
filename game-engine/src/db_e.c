@@ -9,6 +9,7 @@
 /******************************* INCLUDES ************************************/
 
 #define _XOPEN_SOURCE
+#include "static_cache.h"
 #include <time.h>
 #include <string.h>
 #include <stdlib.h>
@@ -339,6 +340,7 @@ static void db_row_to_event(MYSQL_ROW row, Event_t* event)
 
     // Convert date obtained to time_t
     event->timestamp = db_date_to_timestamp(row[EVENT_TIMESTAMP_IDX], "%F %T");
+    event->game_t = row[EVENT_GAME_T_IDX]?atoll(row[EVENT_GAME_T_IDX]):0;
 
     engine_trace(TRACE_LEVEL_DEBUG,
         "DATE [%s] => TIMESTAMP [%ld] %s",
@@ -354,7 +356,7 @@ static void db_row_to_event(MYSQL_ROW row, Event_t* event)
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
+ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -365,6 +367,9 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
 
+    db_settled_batch_start();
+    db_batch_writes_discard();
+
     if(result == ENGINE_OK)
     {
         int events_batch_size = engine_get_outcome_events_batch_size();
@@ -374,7 +379,8 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
 
         snprintf(query_text,
             DB_MAX_SQL_QUERY_LEN,
-            "SELECT * FROM events as e where timestamp <= NOW() and outcome = 0 and (select aborted from actions where id = e.action) != 1 ORDER BY timestamp ASC, action ASC, id ASC LIMIT %d;",
+            "SELECT * FROM events as e where game_t <= %lld and outcome = 0 and (select aborted from actions where id = e.action) != 1 ORDER BY game_t ASC, action ASC, id ASC LIMIT %d;",
+            game_time_now_seconds(),   // due in game time (#327)
             events_batch_size);
 
         // run it
@@ -438,6 +444,9 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e))
 
     if(db_result)
         mysql_free_result(db_result);
+
+    if(found)
+        *found = (result == ENGINE_OK) ? rowsNum : 0;
 
     return result;
 }
@@ -751,25 +760,24 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
             "Getting previous event for event_id [%d] and filter type [%d] ...",
             event->event_id, filter);
 
-        // Generate timestamp string from time_t
-        char timestamp_buffer[80];
-        strftime(timestamp_buffer, 80,"%F %T", localtime(&event->timestamp));
-        engine_trace(TRACE_LEVEL_DEBUG,
-                    "TIMESTAMP [%ld] => DATE [%s]",
-                    event->timestamp, timestamp_buffer);
+        // Events are ordered by when they happen in game time (#327)
+        long long game_t = event->game_t;
 
         // Build the query depending on filter type
         switch(filter) {
             case PREVIOUS_EVENT_BY_RESOURCE_INFO:
                 snprintf(query_text,
                     DB_MAX_SQL_QUERY_LEN,
+                    // One step back down events_inventory_time (migration
+                    // 0033, #431): events_inventory read every such event
+                    // the drone ever had and sorted them
                     "SELECT * "
-                    "FROM events "
+                    "FROM events FORCE INDEX (events_inventory_time) "
                     "WHERE drone = %d and resource = %d and installed = %d and locked = %d "
                     "and outcome = %d " // success
                     "and (event_type = 1 or event_type = 2)" // look only for increment and depletion events
-                    "and timestamp <= '%s' order by timestamp DESC, id DESC limit 1;",  //
-                    event->drone_id, event->resource_id, event->installed, event->locked, OUTCOME_OK, timestamp_buffer);
+                    "and game_t <= %lld order by game_t DESC, id DESC limit 1;",  //
+                    event->drone_id, event->resource_id, event->installed, event->locked, OUTCOME_OK, game_t);
                 break;
             case PREVIOUS_EVENT_BY_DRONE:
                 snprintf(query_text,
@@ -778,17 +786,21 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "FROM events "
                     "WHERE drone = %d "
                     "and outcome = %d " // success
-                    "and timestamp < '%s' order by timestamp DESC, id DESC limit 1;",
-                    event->drone_id, OUTCOME_OK, timestamp_buffer);
+                    "and game_t < %lld order by game_t DESC, id DESC limit 1;",
+                    event->drone_id, OUTCOME_OK, game_t);
                 break;
             case PREVIOUS_EVENT_BY_OWNER:
                 snprintf(query_text,
                     DB_MAX_SQL_QUERY_LEN,
-                    "SELECT * from events where drone in "
-                    "(select agent_id from agents where user_id = (select user_id from agents where agent_id = %d)) "
-                    "and outcome = %d " // success
-                    "and timestamp < '%s' order by timestamp DESC, id DESC limit 1;",
-                    event->drone_id, OUTCOME_OK, timestamp_buffer);
+                    // Each of the company's drones' latest event, then the
+                    // latest of those (#422: gathering and sorting all the
+                    // company's events took ~120 ms for the House by day 65)
+                    "SELECT e.* FROM agents a JOIN LATERAL (SELECT * FROM events "
+                    "WHERE drone = a.agent_id AND outcome = %d " // success
+                    "AND game_t < %lld ORDER BY game_t DESC, id DESC LIMIT 1) e ON TRUE "
+                    "WHERE a.company_id = (SELECT company_id FROM agents WHERE agent_id = %d) "
+                    "ORDER BY e.game_t DESC, e.id DESC LIMIT 1;",
+                    OUTCOME_OK, game_t, event->drone_id);
                 break;
             case PREVIOUS_EVENT_BY_SELL_ORDER:
                 snprintf(query_text,
@@ -797,8 +809,8 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "drone = %d and "
                     "event_type = %d and "
                     "outcome = %d and " // success
-                    "resource = %d and timestamp < '%s' order by timestamp DESC, id DESC limit 1;",
-                    event->drone_id, SELL_EVENT_TYPE, OUTCOME_OK, event->resource_id, timestamp_buffer);
+                    "resource = %d and game_t < %lld order by game_t DESC, id DESC limit 1;",
+                    event->drone_id, SELL_EVENT_TYPE, OUTCOME_OK, event->resource_id, game_t);
                 break;
             case PREVIOUS_EVENT_BY_BUY_ORDER:
                 snprintf(query_text,
@@ -807,8 +819,8 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                     "drone = %d and "
                     "event_type = %d and "
                     "outcome = %d and " // success
-                    "resource = %d and timestamp < '%s' order by timestamp DESC, id DESC limit 1;",
-                    event->drone_id, BUY_EVENT_TYPE, OUTCOME_OK, event->resource_id, timestamp_buffer);
+                    "resource = %d and game_t < %lld order by game_t DESC, id DESC limit 1;",
+                    event->drone_id, BUY_EVENT_TYPE, OUTCOME_OK, event->resource_id, game_t);
                 break;
             default:
                 // Unexpected enum value
@@ -879,6 +891,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
             out_event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
             // Convert date obtained to time_t
             out_event->timestamp = db_date_to_timestamp(row[EVENT_TIMESTAMP_IDX], "%F %T");
+            out_event->game_t = row[EVENT_GAME_T_IDX]?atoll(row[EVENT_GAME_T_IDX]):0;
         }
         else
         {
@@ -1043,6 +1056,43 @@ ErrorCode_t db_abort_action(int action_id)
     @return         Execution result
 
 *******************************************************************************/
+/* The events this batch has settled (#446). Only the events engine settles
+   events, all in db_update_event, and a batch is one transaction: so what
+   this list says is what asking MySQL each event's outcome said, without the
+   round trip. A list that fills up says "don't know", and MySQL is asked. */
+#define SETTLED_IN_BATCH_MAX 4096
+static int settled_ids[SETTLED_IN_BATCH_MAX];
+static int settled_count = 0;
+static int settled_overflow = 0;
+
+static void db_note_settled(int event_id)
+{
+    if(settled_count < SETTLED_IN_BATCH_MAX)
+        settled_ids[settled_count++] = event_id;
+    else
+        settled_overflow = 1;
+}
+
+void db_settled_batch_start(void)
+{
+    settled_count = 0;
+    settled_overflow = 0;
+}
+
+ErrorCode_t db_event_settled_in_batch(int event_id, Bool_t* settled)
+{
+    for(int i = settled_count - 1; i >= 0; i--)
+        if(settled_ids[i] == event_id) { *settled = ENGINE_TRUE; return ENGINE_OK; }
+    if(settled_overflow) {
+        int outcome = OUTCOME_NO_OUTCOME;
+        ErrorCode_t result = db_get_event_outcome(event_id, &outcome);
+        *settled = (result == ENGINE_OK && outcome != OUTCOME_NO_OUTCOME) ? ENGINE_TRUE : ENGINE_FALSE;
+        return result;
+    }
+    *settled = ENGINE_FALSE;
+    return ENGINE_OK;
+}
+
 ErrorCode_t db_update_event(Event_t *event)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
@@ -1092,6 +1142,9 @@ ErrorCode_t db_update_event(Event_t *event)
         }
         else
         {
+            if(event->outcome != OUTCOME_NO_OUTCOME)
+                db_note_settled(event->event_id);
+
             engine_trace(TRACE_LEVEL_ALWAYS,
                 "Event [%d] updated with outcome [%d] new_quantity [%d] new_credits [%d] new cargo [%d]",
                 event->event_id, event->outcome, event->new_quantity, event->new_credits, event->new_cargo);
@@ -1307,59 +1360,120 @@ ErrorCode_t db_get_max_drone_cargo(int drone_id, int *capacity)
     @return         Execution result
 
 *******************************************************************************/
+/* Observations and event places are written once per batch (#448): a
+   round trip each was a third of the events engine's writes. Nothing in the
+   events engine reads them back while the batch runs, except a refund's
+   place, and a move changes the place later events record: those flush the
+   places first. A transfer rolled back to its savepoint drops what it added
+   (db_batch_writes_mark / db_batch_writes_undo). */
+#define BATCH_OBSERVATIONS_MAX 4096
+#define BATCH_PLACES_MAX 4096
+typedef struct { int drone; int event; char time[24]; long long game_t; } PendingObservation_t;
+static PendingObservation_t pending_observations[BATCH_OBSERVATIONS_MAX];
+static int pending_observations_count = 0;
+static int pending_places[BATCH_PLACES_MAX];
+static int pending_places_count = 0;
+
+static ErrorCode_t db_run_write(const char* query_text)
+{
+    DbConnection_t* connection = engine_get_db_connection();
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK) return result;
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%.200s...] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    return ENGINE_OK;
+}
+
+ErrorCode_t db_flush_observations(void)
+{
+    ErrorCode_t result = ENGINE_OK;
+    int i = 0;
+    while(result == ENGINE_OK && i < pending_observations_count) {
+        static char query_text[64 * 1024];
+        char* end = query_text;
+        char* limit = query_text + sizeof(query_text) - 128;
+        end += sprintf(end, "INSERT INTO observations (drone, event, time, game_t) VALUES ");
+        int first = i;
+        for(; i < pending_observations_count && end < limit; i++) {
+            PendingObservation_t* o = &pending_observations[i];
+            end += sprintf(end, "%s(%d, %d, '%s', %lld)", i == first ? "" : ",", o->drone, o->event, o->time, o->game_t);
+        }
+        result = db_run_write(query_text);
+    }
+    if(result == ENGINE_OK) pending_observations_count = 0;
+    return result;
+}
+
+ErrorCode_t db_flush_places(void)
+{
+    ErrorCode_t result = ENGINE_OK;
+    int i = 0;
+    while(result == ENGINE_OK && i < pending_places_count) {
+        static char query_text[64 * 1024];
+        char* end = query_text;
+        char* limit = query_text + sizeof(query_text) - 64;
+        end += sprintf(end, "UPDATE events e JOIN agents a ON a.agent_id = e.drone SET e.place = a.object_id WHERE e.id IN (");
+        int first = i;
+        for(; i < pending_places_count && end < limit; i++)
+            end += sprintf(end, "%s%d", i == first ? "" : ",", pending_places[i]);
+        sprintf(end, ")");
+        result = db_run_write(query_text);
+    }
+    if(result == ENGINE_OK) pending_places_count = 0;
+    return result;
+}
+
+ErrorCode_t db_flush_batch_writes(void)
+{
+    ErrorCode_t result = db_flush_places();
+    if(result == ENGINE_OK) result = db_flush_observations();
+    return result;
+}
+
+void db_batch_writes_discard(void)
+{
+    pending_observations_count = 0;
+    pending_places_count = 0;
+}
+
+BatchWritesMark_t db_batch_writes_mark(void)
+{
+    // Room for what the savepoint adds, so no flush inside it writes rows
+    // from before the mark (its rollback would undo them)
+    if(pending_observations_count > BATCH_OBSERVATIONS_MAX / 2) db_flush_observations();
+    if(pending_places_count > BATCH_PLACES_MAX / 2) db_flush_places();
+    BatchWritesMark_t mark = { pending_observations_count, pending_places_count };
+    return mark;
+}
+
+void db_batch_writes_undo(BatchWritesMark_t mark)
+{
+    // Only what was added since the mark. Had a flush written some of it
+    // inside the savepoint, the rollback undid it there
+    if(mark.observations < pending_observations_count) pending_observations_count = mark.observations;
+    if(mark.places < pending_places_count) pending_places_count = mark.places;
+}
+
 ErrorCode_t db_insert_observation(Observation_t* observation)
 {
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    if(!observation)
+        return ENGINE_INTERNAL_ERROR;
 
-    DbConnection_t* connection =  engine_get_db_connection();
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    if(result == ENGINE_OK)
-    {
-        // Sanity check
-        if(!observation)
-            return ENGINE_INTERNAL_ERROR;
+    if(pending_observations_count >= BATCH_OBSERVATIONS_MAX) {
+        ErrorCode_t result = db_flush_observations();
+        if(result != ENGINE_OK) return result;
     }
 
-    char* query_end = query_text;
+    PendingObservation_t* o = &pending_observations[pending_observations_count++];
+    o->drone = observation->drone_id;
+    o->event = observation->event_id;
+    strftime(o->time, sizeof(o->time), "%F %T", localtime(&observation->timestamp));
+    o->game_t = observation->game_t;
+    observation->id = 0;   // not known until the batch is written; unused
 
-    // time_t -> string
-    char timestamp_buffer[80];
-    strftime(timestamp_buffer, 80,"%F %T", localtime(&observation->timestamp));
-    engine_trace(TRACE_LEVEL_DEBUG,
-                "TIMESTAMP [%ld] => DATE [%s]",
-                observation->timestamp, timestamp_buffer);
-
-    query_end += snprintf(query_end,
-        QUERY_SPACE_LEFT,
-        "INSERT INTO observations (drone, event, time) VALUES(%d, %d, '%s')",
-        observation->drone_id,
-        observation->event_id,
-        timestamp_buffer);
-
-    // run it
-    if (mysql_query(connection->hndl, query_text))
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-        result = ENGINE_DB_QUERY_ERROR;
-    }
-    else
-    {
-        // Get auto-increment ID
-        observation->id = mysql_insert_id(connection->hndl);
-
-        engine_trace(TRACE_LEVEL_ALWAYS,
-            "Observation [%d, %d, %d, %s] inserted into DB",
-            observation->id,
-            observation->drone_id,
-            observation->event_id,
-            timestamp_buffer);
-    }
-
-
-    return result;
+    return ENGINE_OK;
 }
 
 /** ****************************************************************************
@@ -1408,8 +1522,8 @@ ErrorCode_t db_delete_event_observations(int event_id)
 
 /** ****************************************************************************
 
-    @brief          Generates observations for any drone at the same orbit than current
-                    drone (event drone)
+    @brief          Records where an observable event happened, so the drones
+                    there see it (no row per drone)
 
     @param[in]      Input event ID
 
@@ -1418,97 +1532,23 @@ ErrorCode_t db_delete_event_observations(int event_id)
 *******************************************************************************/
 ErrorCode_t db_insert_local_observations(Event_t *event)
 {
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    // Sanity check
+    if(!event)
+        return ENGINE_INTERNAL_ERROR;
 
-    DbConnection_t* connection =  engine_get_db_connection();
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    if(result == ENGINE_OK)
-    {
-        // Sanity check
-        if(!event)
-            return ENGINE_INTERNAL_ERROR;
+    // Every drone where the event's drone is sees it (#324 step 20).
+    // No row per drone: the event records its place, and a drone sees
+    // the events at its current place since it arrived there
+    // (agents.arrived_t), worked out when it asks (query 803, the
+    // website). A row per drone grew as events x drones. The place is
+    // written with the batch's others (#448).
+    if(pending_places_count >= BATCH_PLACES_MAX) {
+        ErrorCode_t result = db_flush_places();
+        if(result != ENGINE_OK) return result;
     }
+    pending_places[pending_places_count++] = event->event_id;
 
-
-    if(result == ENGINE_OK)
-    {
-        snprintf(query_text,
-                DB_MAX_SQL_QUERY_LEN,
-                "SELECT agent_id FROM agents WHERE object_id = (SELECT object_id FROM agents where agent_id = %d);",
-                event->drone_id);
-
-        // run it
-        if (mysql_query(connection->hndl, query_text))
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-    }
-
-    MYSQL_RES* db_result = NULL;
-    int rowsNum = 0;
-
-    if(result == ENGINE_OK)
-    {
-        // retrieve the results and delete one by one
-        db_result = mysql_store_result(connection->hndl);
-
-        if(db_result == NULL)
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS,
-                "ERROR: Unable to get local drones for drone_id [%d] (invalid result for query [%s])",
-                event->drone_id,
-                query_text);
-
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-        else if((rowsNum=mysql_num_rows(db_result)) <= 0)
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "None local drone found for drone_id [%d]", event->drone_id);
-        }
-    }
-
-    if((result == ENGINE_OK) && rowsNum)
-    {
-        // iterate results and insert observations entry for each one
-        for(int droneId=0; droneId < rowsNum; droneId++)
-        {
-            MYSQL_ROW row = mysql_fetch_row(db_result);
-            if(row)
-            {
-                Observation_t observation;
-                memset(&observation, 0, sizeof(observation));
-
-                // Fill observation fields
-                observation.event_id = event->event_id;
-                observation.drone_id = row[0]?atoi(row[0]):0;
-                observation.timestamp = time(NULL); // They are at the same object
-                if(observation.drone_id != event->drone_id) {
-                    db_insert_observation(&observation);
-                }
-            }
-            else
-            {
-                // unexpected error - abort
-                engine_trace(TRACE_LEVEL_ALWAYS,
-                    "ERROR: Unable to get row for query [%s] with [%d] rows",
-                    query_text,
-                    rowsNum);
-
-                result = ENGINE_DB_QUERY_ERROR;
-
-                break; // stop for
-            }
-        }
-    }
-
-    if(db_result)
-        mysql_free_result(db_result);
-
-    return result;
+    return ENGINE_OK;
 }
 
 
@@ -1617,7 +1657,7 @@ ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protoc
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_object_info_by_name_x(char* name, ObjectOrbitInfo_t* object)
+static ErrorCode_t db_get_object_info_by_name_x_query(char* name, ObjectOrbitInfo_t* object)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -1722,7 +1762,7 @@ ErrorCode_t db_get_object_info_by_name_x(char* name, ObjectOrbitInfo_t* object)
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_orbit_info_x(ObjectOrbitInfo_t* object)
+static ErrorCode_t db_get_orbit_info_x_query(ObjectOrbitInfo_t* object)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -1899,7 +1939,12 @@ ErrorCode_t db_get_drone_resources(int droneId, DroneResources_t** resources, in
 
         snprintf(query_text,
             DB_MAX_SQL_QUERY_LEN,
-            "select  resources.id as resource_id, resources.name as name, events.locked as locked, resources.mass as mass, events.new_quantity as new_quantity, events.id as event_id  from events left join resources on events.resource = resources.id  left join event_types on event_types.id = events.event_type  join (select max(events.id) as id from events where drone = %d and events.outcome = 1 and (events.event_type = 1 or events.event_type = 2) group by events.resource, events.installed, events.locked ORDER BY id DESC) as events_latest on events_latest.id = events.id   ORDER BY new_quantity;",
+            // What the drone holds, from the holdings table (#431): the same
+            // rows, each kind's newest increment or depletion, that the
+            // history query rebuilt from every event the drone ever had
+            "SELECT resources.id AS resource_id, resources.name AS name, IF(h.locked = -1, NULL, h.locked) AS locked, "
+            "resources.mass AS mass, h.units AS new_quantity, h.event_id AS event_id "
+            "FROM holdings h LEFT JOIN resources ON h.resource = resources.id WHERE h.drone = %d ORDER BY h.units;",
             droneId);
 
         engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
@@ -2048,7 +2093,8 @@ ErrorCode_t db_get_drone_user(int drone_id, User_t* user)
 
         query_end += snprintf(query_end,
             QUERY_SPACE_LEFT,
-            "SELECT * FROM users WHERE user_id = (SELECT user_id FROM agents WHERE agent_id = %d);",
+            "SELECT c.company_id, c.user_id, c.credits FROM companies c "
+            "JOIN agents a ON a.company_id = c.company_id WHERE a.agent_id = %d;",
             drone_id);
 
         // run it
@@ -2064,7 +2110,7 @@ ErrorCode_t db_get_drone_user(int drone_id, User_t* user)
             uint64_t rowsNum = mysql_num_rows(db_result);
             unsigned int fieldsNum = mysql_num_fields(db_result);
 
-            if((db_result == NULL) || (rowsNum != 1) || (fieldsNum != MAX_USER_FIELDS))
+            if((db_result == NULL) || (rowsNum != 1) || (fieldsNum != 3))
             {
                 engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to get user info for DRONE_ID [%d] "
@@ -2081,15 +2127,16 @@ ErrorCode_t db_get_drone_user(int drone_id, User_t* user)
                 MYSQL_ROW row = mysql_fetch_row(db_result);
                 if(row)
                 {
-                    // Pick the row obtained and fill the output info
-                    // For now, only interested in user_id and credits
-                    user->user_id = row[USER_USER_ID_IDX]?atoi(row[USER_USER_ID_IDX]):0;
-                    user->credits = row[USER_CREDITS_IDX]?atoi(row[USER_CREDITS_IDX]):0;
+                    // The drone's company: its ID, its player and its bank account
+                    user->user_id = row[0]?atoi(row[0]):0;
+                    user->player_id = row[1]?atoi(row[1]):0;
+                    user->credits = row[2]?atoi(row[2]):0;
 
                     engine_trace(TRACE_LEVEL_ALWAYS,
-                        "DRONE_ID [%d] USER_ID [%d] CREDITS [%d]",
+                        "DRONE_ID [%d] COMPANY_ID [%d] PLAYER_ID [%d] CREDITS [%d]",
                         drone_id,
                         user->user_id,
+                        user->player_id,
                         user->credits);
                 }
                 else
@@ -2149,7 +2196,7 @@ ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity)
         snprintf(query_text,
             DB_MAX_SQL_QUERY_LEN,
             "select new_quantity from events where drone = %d and resource = %d and (event_type = %d or event_type = %d) and outcome = 1 "
-            "order by timestamp DESC, id DESC limit 1;",
+            "order by game_t DESC, id DESC limit 1;",
             droneId,
             resource_id,
             INCREMENT_INVENTORY_EVENT_TYPE,
@@ -2260,7 +2307,7 @@ ErrorCode_t db_update_user_credits(User_t* user)
         char* query_end = query_text;
 
         query_end += snprintf(query_end, QUERY_SPACE_LEFT,
-            "UPDATE users SET credits = %d where user_id = %d",
+            "UPDATE companies SET credits = %d where company_id = %d",
             user->credits,
             user->user_id);
 
@@ -2317,14 +2364,15 @@ ErrorCode_t db_insert_event_e(Event_t* event)
     query_end += snprintf(query_end,
         QUERY_SPACE_LEFT,
         "INSERT INTO events "
-        "(timestamp, event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
-        "VALUES(CAST(DATE_ADD(NOW(), INTERVAL %d MINUTE) AS DATETIME), %d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
+        "(timestamp, game_t, event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
+        "VALUES(CAST(DATE_ADD(NOW(), INTERVAL %d SECOND) AS DATETIME), %lld, %d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
         event->new_quantity!=NULL_VALUE?", new_quantity":"",
         event->new_credits!=NULL_VALUE?", new_credits":"",
         event->new_location!=NULL_VALUE?", new_location":"",
         event->new_transmission!=NULL_VALUE?", new_transmission":"",
         event->new_cargo!=NULL_VALUE?", new_cargo":"",
-        game_time_to_real(event->delay), // delay is game seconds
+        game_time_to_real(event->delay), // delay is game seconds; real time for the website
+        game_time_now_seconds() + event->delay, // when it happens, in game time
         event->event_type,
         event->action_id,
         event->logged,
@@ -2451,7 +2499,7 @@ ErrorCode_t db_get_pending_action_event(int action_id, int event_type, int exclu
     {
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
             "SELECT * FROM events WHERE action = %d AND event_type = %d AND id <> %d AND outcome = %d "
-            "ORDER BY timestamp ASC, id ASC LIMIT 1",
+            "ORDER BY game_t ASC, id ASC LIMIT 1",
             action_id, event_type, exclude_id, OUTCOME_NO_OUTCOME);
 
         if (mysql_query(connection->hndl, query_text))
@@ -2556,15 +2604,26 @@ ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* ne
         result = ENGINE_LOGIC_ERROR;
 
     // The copy is taken now, when the launch happens. Drone D must still
-    // belong to the player; if it doesn't, the new drone gets a fresh VM.
+    // belong to the company; if it doesn't, the new drone gets a fresh VM.
+    // The new drone joins the launcher's company (and player), beside it.
+    // Its lineage (#324 step 13): the launcher is its parent, one generation
+    // on, and code_from is the drone whose program it got.
     if(result == ENGINE_OK)
     {
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-            "INSERT INTO agents (user_id, name, vm, object_id, hull_type) "
-            "SELECT l.user_id, '%s', "
-            "(SELECT d.vm FROM agents d WHERE d.agent_id = %d AND d.user_id = l.user_id), "
-            "l.object_id, %d FROM agents l WHERE l.agent_id = %d",
-            name, source_id, hull_id, launcher_id);
+            "INSERT INTO agents (user_id, company_id, name, vm, object_id, hull_type, parent_id, generation, code_from, "
+            "language, lua_script, lua_state) "
+            "SELECT l.user_id, l.company_id, '%s', "
+            "(SELECT d.vm FROM agents d WHERE d.agent_id = %d AND d.company_id = l.company_id), "
+            "l.object_id, %d, l.agent_id, l.generation + 1, "
+            "(SELECT d.agent_id FROM agents d WHERE d.agent_id = %d AND d.company_id = l.company_id "
+            "AND (d.vm IS NOT NULL OR d.lua_script IS NOT NULL)), "
+            /* A Lua drone's copy gets its script and saved variables (#380) */
+            "IFNULL((SELECT d.language FROM agents d WHERE d.agent_id = %d AND d.company_id = l.company_id), 'forth'), "
+            "(SELECT d.lua_script FROM agents d WHERE d.agent_id = %d AND d.company_id = l.company_id), "
+            "(SELECT d.lua_state FROM agents d WHERE d.agent_id = %d AND d.company_id = l.company_id) "
+            "FROM agents l WHERE l.agent_id = %d",
+            name, source_id, hull_id, source_id, source_id, source_id, source_id, launcher_id);
         result = db_launch_exec(connection, query_text);
     }
 
@@ -2579,8 +2638,8 @@ ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* ne
     {
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
             "INSERT INTO commands (code, agent_id, created_at, updated_at, subject, email_content, deliver_at) "
-            "VALUES ('%s', %d, NOW(), NOW(), 'Launched', '', UNIX_TIMESTAMP())",
-            META_COMMAND_LAUNCHED, *new_id);
+            "VALUES ('%s', %d, NOW(), NOW(), 'Launched', '', %lld)",
+            META_COMMAND_LAUNCHED, *new_id, game_time_now_seconds());
         result = db_launch_exec(connection, query_text);
     }
 
@@ -2597,7 +2656,8 @@ ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* ne
 
     @param[in]      resource  Resource traded
     @param[in]      units     Units that changed hands
-    @param[in]      credits   Credits paid for them
+    @param[in]      credits   Credits paid for them (by the buyer)
+    @param[in]      tax       Sales tax the seller paid out of them (#380)
     @param[in]      seller    Drone that gave the goods
     @param[in]      buyer     Drone that received them
     @param[in]      location  Where it happened (object ID, -1 if unknown)
@@ -2605,7 +2665,7 @@ ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* ne
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, int buyer, int location)
+ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, int buyer, int location, int tax)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
     DbConnection_t* connection = engine_get_db_connection();
@@ -2616,12 +2676,283 @@ ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, in
 
     if(location >= 0)
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-            "INSERT INTO trades (resource, units, credits, seller, buyer, location) VALUES (%d, %d, %d, %d, %d, %d)",
-            resource, units, credits, seller, buyer, location);
+            "INSERT INTO trades (resource, units, credits, seller, buyer, location, game_t, tax) VALUES (%d, %d, %d, %d, %d, %d, %lld, %d)",
+            resource, units, credits, seller, buyer, location, game_time_now_seconds(), tax);
     else
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-            "INSERT INTO trades (resource, units, credits, seller, buyer) VALUES (%d, %d, %d, %d, %d)",
-            resource, units, credits, seller, buyer);
+            "INSERT INTO trades (resource, units, credits, seller, buyer, game_t, tax) VALUES (%d, %d, %d, %d, %d, %lld, %d)",
+            resource, units, credits, seller, buyer, game_time_now_seconds(), tax);
 
     return db_launch_exec(connection, query_text);
+}
+
+/** ****************************************************************************
+
+    @brief          Gives back to their deposits what a failed mining action
+                    took (#324 step 11)
+
+    Mining takes its units from the place's deposit when it is scheduled. When
+    the action fails, its mining yields (increments of a mined resource that
+    were not applied) go back, and are zeroed so they are given back only once.
+
+    @param[in]      action_id Failed action
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_refund_deposits(int action_id)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK)
+        return result;
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT e.id, e.resource, e.new_quantity, g.object_id FROM events e "
+        "JOIN actions a ON a.id = e.action "
+        "JOIN agents g ON g.agent_id = e.drone "
+        "JOIN resource_effects r ON r.protocol = a.protocol AND r.resource = e.resource "
+        "AND r.event_type = 1 AND r.abundancies = 1 "
+        "WHERE e.action = %d AND e.event_type = 1 AND e.new_quantity > 0 AND e.outcome <> %d",
+        action_id, OUTCOME_OK);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    if(!res)
+        return ENGINE_OK;
+
+    int count = 0;
+    int ids[16], resources[16], quantities[16], objects[16];
+    MYSQL_ROW row;
+    while(count < 16 && (row = mysql_fetch_row(res))) {
+        ids[count] = atoi(row[0]);
+        resources[count] = atoi(row[1]);
+        quantities[count] = atoi(row[2]);
+        objects[count] = row[3] ? atoi(row[3]) : 0;
+        count++;
+    }
+    mysql_free_result(res);
+
+    for(int i = 0; i < count; i++) {
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "UPDATE deposit_state s JOIN deposits d ON d.object_id = s.object_id AND d.resource = s.resource "
+            "SET s.amount = LEAST(d.capacity, s.amount + %d) WHERE s.object_id = %d AND s.resource = %d",
+            quantities[i], objects[i], resources[i]);
+        if(mysql_query(connection->hndl, query_text)) {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+            return ENGINE_DB_QUERY_ERROR;
+        }
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "UPDATE events SET new_quantity = 0, new_cargo = 0 WHERE id = %d", ids[i]);
+        if(mysql_query(connection->hndl, query_text)) {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+            return ENGINE_DB_QUERY_ERROR;
+        }
+        engine_trace(TRACE_LEVEL_ALWAYS, "Deposit of resource [%d] at [%d]: [%d] given back by failed action [%d]",
+            resources[i], objects[i], quantities[i], action_id);
+    }
+    return ENGINE_OK;
+}
+
+/** ****************************************************************************
+
+    @brief          Gives back the fuel a failed push or pull burned
+                    (#380 round 38)
+
+    A pull from a sell order that another drone emptied first (or a push into
+    a buy order that filled first) fails, but its fuel was already burned: a
+    drone in a crowd paid a fuel for every race it lost. The burn (the
+    action's fuel decrement that was applied) is given back as a new fuel
+    increment, so the drone's fuel is as it was.
+
+    @param[in]      action_id Failed push or pull
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_refund_fuel(int action_id)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK)
+        return result;
+
+    // The burn's place may be waiting to be written with the batch (#448)
+    result = db_flush_places();
+    if(result != ENGINE_OK)
+        return result;
+
+    // The applied burn: its drone, time and place, and the protocol's cost
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT e.drone, e.game_t, IFNULL(e.place, 0), r.quantity FROM events e "
+        "JOIN actions a ON a.id = e.action "
+        "JOIN resource_effects r ON r.protocol = a.protocol AND r.resource = %d AND r.event_type = 2 AND r.deplete = 1 "
+        "WHERE e.action = %d AND e.resource = %d AND e.event_type = 2 AND e.outcome = %d "
+        "AND e.installed = 0 AND e.locked = 0 AND a.protocol IN (%d, %d) ORDER BY e.id LIMIT 1",
+        FUEL_RESOURCE_ID, action_id, FUEL_RESOURCE_ID, OUTCOME_OK, PUSH_PROTOCOL_ID, PULL_PROTOCOL_ID);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    if(!res)
+        return ENGINE_OK;
+    MYSQL_ROW row = mysql_fetch_row(res);
+    if(!row) {
+        mysql_free_result(res);
+        return ENGINE_OK;   // nothing burned (it had no fuel, or no cost)
+    }
+    int drone = atoi(row[0]);
+    long long game_t = row[1] ? atoll(row[1]) : 0;
+    int place = atoi(row[2]);
+    int cost = atoi(row[3]);
+    mysql_free_result(res);
+    if(cost <= 0)
+        return ENGINE_OK;
+
+    // The fuel comes back on top of what the drone holds now. Read first,
+    // then inserted (#439): inside INSERT ... SELECT these reads were locking
+    // reads, and the cargo one walks events back from the newest, so it held
+    // a shared lock on the end of the table until the batch committed, and
+    // every new event the game engine wrote waited for it
+    //
+    // Only inventory events (increments and depletions, types 1 and 2) say
+    // what a drone holds (#494). A wait or a share request also names fuel,
+    // with 0 and a cargo of 0: read after one, the refund set the tank to the
+    // refund alone (86 fuel became 1), and the next power bill wrecked the
+    // drone for fuel. The fuel comes from the holdings table (#430), the
+    // cargo from the newest inventory event
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT IFNULL((SELECT h.units FROM holdings h WHERE h.drone = %d AND h.resource = %d AND h.installed = 0 "
+        "AND h.locked = 0), 0), "
+        "IFNULL((SELECT c.new_cargo FROM events c WHERE c.drone = %d AND c.outcome = %d AND c.event_type IN (1, 2) "
+        "ORDER BY c.id DESC LIMIT 1), 0)",
+        drone, FUEL_RESOURCE_ID, drone, OUTCOME_OK);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    long long fuel = 0, cargo = 0;
+    res = mysql_store_result(connection->hndl);
+    if(res) {
+        row = mysql_fetch_row(res);
+        if(row) {
+            fuel = row[0] ? atoll(row[0]) : 0;
+            cargo = row[1] ? atoll(row[1]) : 0;
+        }
+        mysql_free_result(res);
+    }
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "INSERT INTO events (event_type, action, logged, outcome, drone, resource, installed, locked, "
+        "new_quantity, new_credits, new_cargo, game_t, place) "
+        "VALUES (1, 0, 1, %d, %d, %d, 0, 0, %lld, 0, %lld, %lld, %d)",
+        OUTCOME_OK, drone, FUEL_RESOURCE_ID, fuel + cost, cargo + cost, game_t, place);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d]: [%d] fuel given back by failed transfer action [%d]",
+        drone, cost, action_id);
+    return ENGINE_OK;
+}
+
+/** ****************************************************************************
+
+    @brief          Gets a protocol's observable and reportable flags, from a
+                    cache good for a minute (#446): it was a query per event
+
+    @param[in]      protocol_id  The protocol
+    @param[in\out]  protocol     Output struct where we store the flags
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_protocol_flags(int protocol_id, ProtocolInfo_t *protocol)
+{
+    static StaticCache_t cache = { .ttl = 60 };
+    int flags[2];
+    time_t now = time(NULL);
+
+    if(!protocol) return ENGINE_INTERNAL_ERROR;
+    memset(protocol, 0, sizeof(*protocol));
+
+    if(!static_cache_get(&cache, protocol_id, flags, sizeof(flags), now))
+    {
+        char query_text[DB_MAX_SQL_QUERY_LEN+1];
+        DbConnection_t* connection = engine_get_db_connection();
+        ErrorCode_t result = db_reconnect(connection);
+        if(result != ENGINE_OK) return result;
+
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "SELECT observable, reportable FROM protocols WHERE id = %d", protocol_id);
+        if(mysql_query(connection->hndl, query_text))
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            return ENGINE_DB_QUERY_ERROR;
+        }
+
+        MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+        MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+        if(!row || mysql_num_fields(db_result) != 2)
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: No protocol [%d] for its flags", protocol_id);
+            if(db_result) mysql_free_result(db_result);
+            return ENGINE_DB_QUERY_ERROR;
+        }
+        flags[0] = (row[0] && atoi(row[0]) > 0) ? 1 : 0;
+        flags[1] = (row[1] && atoi(row[1]) > 0) ? 1 : 0;
+        mysql_free_result(db_result);
+        static_cache_put(&cache, protocol_id, flags, sizeof(flags), now);
+    }
+
+    protocol->observable = flags[0];
+    protocol->reportable = flags[1];
+    return ENGINE_OK;
+}
+
+/* Objects (bodies and their orbits) don't change while the engines run: from
+   a cache good for a minute (#446). Each reportable event asked for the Sun,
+   the Earth and every body up to the Sun. */
+static StaticCache_t objects_by_id_cache = { .ttl = 60 };
+static StaticCache_t objects_by_name_cache = { .ttl = 60 };
+
+static int object_name_key(const char* name)
+{
+    unsigned int h = 2166136261u;
+    for(; *name; name++) h = (h ^ (unsigned char)*name) * 16777619u;
+    return (int)(h & 0x7fffffff);
+}
+
+ErrorCode_t db_get_object_info_by_name_x(char* name, ObjectOrbitInfo_t* object)
+{
+    time_t now = time(NULL);
+    if(!object || !name) return ENGINE_INTERNAL_ERROR;
+    int key = object_name_key(name);
+    ObjectOrbitInfo_t cached;
+    if(static_cache_get(&objects_by_name_cache, key, &cached, sizeof(cached), now) &&
+       strncmp(cached.object_name, name, sizeof(cached.object_name)) == 0) {
+        *object = cached;
+        return ENGINE_OK;
+    }
+    ErrorCode_t result = db_get_object_info_by_name_x_query(name, object);
+    if(result == ENGINE_OK)
+        static_cache_put(&objects_by_name_cache, key, object, sizeof(*object), now);
+    return result;
+}
+
+ErrorCode_t db_get_orbit_info_x(ObjectOrbitInfo_t* object)
+{
+    time_t now = time(NULL);
+    if(!object) return ENGINE_INTERNAL_ERROR;
+    int id = object->object_id;
+    if(static_cache_get(&objects_by_id_cache, id, object, sizeof(*object), now))
+        return ENGINE_OK;
+    ErrorCode_t result = db_get_orbit_info_x_query(object);
+    if(result == ENGINE_OK && object->object_id == id)
+        static_cache_put(&objects_by_id_cache, id, object, sizeof(*object), now);
+    return result;
 }

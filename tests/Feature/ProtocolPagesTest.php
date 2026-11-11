@@ -26,7 +26,7 @@ class ProtocolPagesTest extends TestCase
 
         // A mining protocol: lock the Worm, burn fuel, unlock, mine ore
         DB::table('protocols')->insert(['id' => 99100, 'name' => 'Test mining', 'parameters' => 0,
-            'description' => '[99100 perform]: Mines test ore.', 'multiplier' => 1]);
+            'description' => 'perform(99100): Mines test ore.', 'multiplier' => 1]);
         $effect = fn ($id, $resource, $type, $locked, $quantity, $time, $mined = 0) => [
             'id' => $id, 'drone' => 0, 'resource' => $resource, 'protocol' => 99100, 'event_type' => $type,
             'local' => 1, 'installed' => 0, 'locked' => $locked, 'deplete' => $type == 2 ? 1 : 0,
@@ -42,7 +42,7 @@ class ProtocolPagesTest extends TestCase
         ]);
 
         DB::table('queries')->insert(['id' => 99200, 'name' => 'Test query', 'parameters' => 1,
-            'description' => '[N R L 99200 query]: Returns a test value.', 'script' => 'SELECT 1;']);
+            'description' => 'ask(99200, N): Returns a test value.', 'script' => 'SELECT 1;']);
     }
 
     public function testDetailsClassifyModulesConsumablesAndProducts()
@@ -68,13 +68,14 @@ class ProtocolPagesTest extends TestCase
             ->assertSee('2 × <a', false)
             ->assertSee('Produces')
             ->assertSee('times how abundant it is')
-            ->assertSee('1 hour of game time');
+            ->assertSee('1 hour of game time')
+            ->assertDontSee('stack');
     }
 
     public function testLaunchStepIsDescribed()
     {
         DB::table('protocols')->insert(['id' => 99101, 'name' => 'Test launch', 'parameters' => 2,
-            'description' => '[D K 99101 perform]: Launches a drone.', 'multiplier' => 0]);
+            'description' => 'perform(99101, D, K): Launches a drone.', 'multiplier' => 0]);
         DB::table('resource_effects')->insert([
             'id' => 99907, 'drone' => 0, 'resource' => -1, 'protocol' => 99101, 'event_type' => 8,
             'local' => 1, 'installed' => 0, 'locked' => 0, 'deplete' => 0, 'abundancies' => 0,
@@ -97,8 +98,9 @@ class ProtocolPagesTest extends TestCase
         $this->get('/queries/99200')
             ->assertOk()
             ->assertSee('<title>Test query - Ex-Machinis</title>', false)
-            ->assertSee('N1 R L 99200 query')
-            ->assertSee('leaves the number of rows it stored', false)
+            ->assertSee('ask(99200, N1)')
+            ->assertSee('a table of rows', false)
+            ->assertDontSee('counted string')
             ->assertDontSee('SELECT 1');
     }
 

@@ -9,11 +9,13 @@
 /******************************* INCLUDES ************************************/
 
 #define _XOPEN_SOURCE
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
 
 #include "db.h"
+#include "game_time.h"
 #include "trace.h"
 #include "engine.h"
 #include "vm.h"
@@ -38,19 +40,39 @@
   @return         void
 
 *******************************************************************************/
+/* How often db_reconnect checks the connection is alive */
+#define DB_CHECK_SECONDS 5
+
 ErrorCode_t db_reconnect(DbConnection_t* connection)
 {
 	ErrorCode_t result = ENGINE_OK;
 
 	if(connection && connection->hndl) {
-		// Check connection status & reconnect if required
-		if(mysql_stat(connection->hndl) == NULL) 
+		// Check connection status & reconnect if required. Not before every
+		// query (#324 step 20): the check is a round trip to the server, and
+		// a busy engine makes dozens of queries a slice. Once every
+		// DB_CHECK_SECONDS is enough to find a lost connection.
+		time_t now = time(NULL);
+		if(connection->checked_at && now - connection->checked_at < DB_CHECK_SECONDS)
+			return ENGINE_OK;
+
+		if(mysql_stat(connection->hndl) != NULL)
+		{
+			connection->checked_at = now;
+		}
+		else
 		{
 			engine_trace(TRACE_LEVEL_ALWAYS,
         		"WARNING: Connection lost with [%s] database, reconnecting...",
         		connection->db_name?connection->db_name:"NULL");
 
 			result = db_init(connection);
+			// A new connection holds no lock: take it again, or stop
+			if(result == ENGINE_OK && connection->lock) {
+				const char* engine = connection->lock;
+				connection->lock = NULL;
+				if(db_claim_engine(connection, engine) != ENGINE_OK) exit(1);
+			}
 		}
 		// else { Connection is alive }
 	}
@@ -62,6 +84,45 @@ ErrorCode_t db_reconnect(DbConnection_t* connection)
 	}
 
 	return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Makes sure only one engine of each kind runs on a database
+
+    Two game engines on one database read the same drone's input at once, and
+    each runs part of it: a script arrives cut up and out of order. That broke
+    the station drones of a whole world (#380, round 31). The engine holds a
+    MySQL named lock for as long as its connection lives; a second engine
+    waits a little for it (the first may be shutting down) and then stops.
+
+    @param[in|out]  connection  An open connection
+    @param[in]      engine      "game-engine" or "events-engine"
+
+    @return         ENGINE_OK when this engine holds the lock
+
+*******************************************************************************/
+ErrorCode_t db_claim_engine(DbConnection_t* connection, const char* engine)
+{
+	if(!connection || !connection->hndl || !engine) return ENGINE_INTERNAL_ERROR;
+
+	char query[256];
+	snprintf(query, sizeof(query), "SELECT GET_LOCK(CONCAT(DATABASE(), '/%s'), 15)", engine);
+	int held = 0;
+	if(mysql_query(connection->hndl, query) == 0) {
+		MYSQL_RES* res = mysql_store_result(connection->hndl);
+		MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+		held = row && row[0] && atoi(row[0]) == 1;
+		if(res) mysql_free_result(res);
+	}
+	if(!held) {
+		engine_trace(TRACE_LEVEL_ALWAYS,
+			"ERROR: another %s is already running on database [%s]: stopping",
+			engine, connection->db_name ? connection->db_name : "NULL");
+		return ENGINE_DB_QUERY_ERROR;
+	}
+	connection->lock = engine;
+	return ENGINE_OK;
 }
 
 /** ****************************************************************************
@@ -176,112 +237,6 @@ static ErrorCode_t db_exec(DbConnection_t* connection, const char* query_text)
 
 /** ****************************************************************************
 
-    @brief          Adds columns newer engines need to databases created
-                    before them: actions.outcome (why an action failed),
-                    agents.waiting_action (the action a paused script waits
-                    for), commands.deliver_at, and the game_clock and outbox
-                    tables
-
-    @return         Execution result
-
-*******************************************************************************/
-/* Adds a column when the table lacks it */
-static ErrorCode_t db_add_column(DbConnection_t* connection, const char* table, const char* column, const char* definition)
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    int missing = 0;
-
-    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "SELECT COUNT(*) FROM information_schema.columns "
-        "WHERE table_schema = DATABASE() AND table_name = '%s' AND column_name = '%s'", table, column);
-
-    if(mysql_query(connection->hndl, query_text))
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-        return ENGINE_DB_QUERY_ERROR;
-    }
-
-    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-    MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
-    missing = (row && row[0] && atoi(row[0]) == 0);
-    if(db_result) mysql_free_result(db_result);
-
-    if(!missing)
-        return ENGINE_OK;
-
-    engine_trace(TRACE_LEVEL_ALWAYS, "Adding the %s.%s column", table, column);
-    snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "ALTER TABLE %s ADD COLUMN %s %s", table, column, definition);
-    return db_exec(connection, query_text);
-}
-
-/* Turns a VARCHAR column into TEXT (older databases) */
-static ErrorCode_t db_make_text_column(DbConnection_t* connection, const char* table, const char* column, const char* definition)
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    int is_varchar = 0;
-
-    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() "
-        "AND table_name = '%s' AND column_name = '%s' AND data_type = 'varchar'", table, column);
-
-    if(mysql_query(connection->hndl, query_text))
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-        return ENGINE_DB_QUERY_ERROR;
-    }
-
-    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-    MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
-    is_varchar = (row && row[0] && atoi(row[0]) > 0);
-    if(db_result) mysql_free_result(db_result);
-
-    if(!is_varchar)
-        return ENGINE_OK;
-
-    engine_trace(TRACE_LEVEL_ALWAYS, "Making %s.%s a TEXT column", table, column);
-    snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "ALTER TABLE %s MODIFY %s %s", table, column, definition);
-    return db_exec(connection, query_text);
-}
-
-ErrorCode_t db_upgrade_schema(void)
-{
-    DbConnection_t* connection = engine_get_db_connection();
-    ErrorCode_t result = db_reconnect(connection);
-
-    if(result == ENGINE_OK)
-        result = db_add_column(connection, "actions", "outcome", "INT NULL");
-
-    if(result == ENGINE_OK)
-        result = db_add_column(connection, "agents", "waiting_action", "INT UNSIGNED NULL");
-
-    // The unread rest of a paused script
-    if(result == ENGINE_OK)
-        result = db_add_column(connection, "agents", "pending_input", "LONGTEXT NULL");
-
-    // Signals travel at the speed of light: when a player's command reaches
-    // its drone (unix seconds), and replies waiting to reach Earth
-    if(result == ENGINE_OK)
-        result = db_add_column(connection, "commands", "deliver_at", "BIGINT NULL");
-
-    // Scripts longer than 2,048 characters (the engine takes up to
-    // MAX_COMMAND_CODE_SIZE), such as a whole library sent in one <reset>
-    if(result == ENGINE_OK)
-        result = db_make_text_column(connection, "commands", "code", "TEXT NOT NULL");
-
-    if(result == ENGINE_OK)
-        result = db_exec(connection, GAME_CLOCK_TABLE_SQL);
-
-    if(result == ENGINE_OK)
-        result = db_exec(connection, OUTBOX_TABLE_SQL);
-
-    if(result == ENGINE_OK)
-        result = db_exec(connection, TRADES_TABLE_SQL);
-
-    return result;
-}
-
-/** ****************************************************************************
-
     @brief          Records why an action failed (the first reason only), so
                     perform can leave it when the action is done
 
@@ -298,5 +253,217 @@ ErrorCode_t db_set_action_outcome(int action_id, int outcome)
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
         "UPDATE actions SET outcome = %d WHERE id = %d AND outcome IS NULL", outcome, action_id);
 
+    return db_exec(engine_get_db_connection(), query_text);
+}
+
+/** ****************************************************************************
+
+    @brief          Makes a drone a wreck (#324 step 8: it ran out of fuel), if
+                    it isn't one already. A wreck runs no more commands.
+
+    @param[in]      drone_id  The drone
+    @param[in]      cause     Why (agents.wreck_cause), e.g. "fuel"
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_wreck_drone(int drone_id, const char* cause)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "UPDATE agents SET wrecked_at = %lld, wreck_cause = '%s', launched_running = 0 "
+        "WHERE agent_id = %d AND wrecked_at IS NULL",
+        game_time_now_seconds(), cause, drone_id);
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] becomes a wreck (%s)", drone_id, cause);
+
+    ErrorCode_t result = db_exec(engine_get_db_connection(), query_text);
+    TurnRow_t* turn = db_turn_row(drone_id);
+    if(result == ENGINE_OK && turn) {
+        turn->wrecked = 1;
+        turn->launched_running = 0;
+    }
+
+    // A company ends when its last drone dies (#324 step 13): its credits
+    // vanish, as when it can't pay its tax
+    if(result == ENGINE_OK) {
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "UPDATE companies c SET c.credits = 0, c.eliminated_at = %lld, c.end_cause = 'drones' "
+            "WHERE c.company_id = (SELECT a.company_id FROM agents a WHERE a.agent_id = %d) "
+            "AND c.eliminated_at IS NULL "
+            "AND NOT EXISTS (SELECT 1 FROM agents w WHERE w.company_id = c.company_id AND w.wrecked_at IS NULL)",
+            game_time_now_seconds(), drone_id);
+        result = db_exec(engine_get_db_connection(), query_text);
+    }
+    return result;
+}
+
+/** ****************************************************************************
+
+  @brief      Whether a drone is on a trip at a game time (#380): its move
+              event (event type 3) is still pending after that time. A drone
+              keeps the place it left until it arrives, so without this check
+              other drones could trade with it all the way to Mars.
+
+  @param[in]  drone_id  The drone
+  @param[in]  game_t    The game time to check
+
+  @return     ENGINE_TRUE when it is in flight (ENGINE_FALSE on a DB error)
+
+*******************************************************************************/
+Bool_t db_drone_in_transit(int drone_id, long long game_t)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+    Bool_t in_transit = ENGINE_FALSE;
+
+    if(db_reconnect(connection) != ENGINE_OK) return ENGINE_FALSE;
+
+    snprintf(query_text, sizeof(query_text),
+        "SELECT 1 FROM events WHERE drone = %d AND event_type = 3 "
+        "AND outcome = 0 AND game_t > %lld LIMIT 1", drone_id, game_t);
+
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return ENGINE_FALSE;
+    }
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    if(db_result) {
+        if(mysql_num_rows(db_result) > 0) in_transit = ENGINE_TRUE;
+        mysql_free_result(db_result);
+    }
+    return in_transit;
+}
+
+/** ****************************************************************************
+
+  @brief      Records a broadcast (#380): what a drone said, where it was and
+              when. Queries 690 and 691 deliver it at the speed of light.
+
+  @param[in]  action_id The broadcast action
+  @param[in]  drone_id  The drone that broadcast it
+  @param[in]  body      The message (at most BROADCAST_MAX_LEN printable chars)
+  @param[in]  game_t    When it was sent (game seconds)
+
+  @return     Execution result
+
+*******************************************************************************/
+ErrorCode_t db_insert_broadcast(int action_id, int drone_id, const char* body, long long game_t)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char escaped[2 * BROADCAST_MAX_LEN + 1];
+    DbConnection_t* connection = engine_get_db_connection();
+
+    if(!body) return ENGINE_INTERNAL_ERROR;
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK) return result;
+
+    mysql_real_escape_string(connection->hndl, escaped, body, strlen(body));
+    snprintf(query_text, sizeof(query_text),
+        "INSERT INTO broadcasts (action_id, drone, company_id, object_id, game_t, body) "
+        "SELECT %d, agent_id, company_id, object_id, %lld, '%s' FROM agents WHERE agent_id = %d",
+        action_id, game_t, escaped, drone_id);
+
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    return ENGINE_OK;
+}
+
+/******************************* THE TURN'S ROW (#431 step 2) ****************/
+
+static TurnRow_t g_turn_row;
+static int g_turn_row_valid = 0;
+
+void db_turn_row_clear(void)
+{
+    free(g_turn_row.pending_input);
+    memset(&g_turn_row, 0, sizeof(g_turn_row));
+    g_turn_row_valid = 0;
+}
+
+TurnRow_t* db_turn_row_current(void)
+{
+    return g_turn_row_valid ? &g_turn_row : NULL;
+}
+
+TurnRow_t* db_turn_row(int agent_id)
+{
+    return (g_turn_row_valid && g_turn_row.agent_id == agent_id) ? &g_turn_row : NULL;
+}
+
+ErrorCode_t db_turn_row_load(DbConnection_t* connection, int agent_id)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+
+    db_turn_row_clear();
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK)
+        return result;
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT launched_running, crashes_in_row, wrecked_at IS NOT NULL, release_vm IS NULL, "
+        "instructions, power_paid, IFNULL(waiting_action, 0), pending_input, "
+        "IFNULL((SELECT c.compute_debt > 0 FROM companies AS c WHERE c.company_id = agents.company_id), 0) "
+        "FROM agents WHERE agent_id = %d",
+        agent_id);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+    if(row) {
+        g_turn_row.agent_id = agent_id;
+        g_turn_row.launched_running = row[0] ? atoi(row[0]) : 0;
+        g_turn_row.crashes_in_row = row[1] ? atoi(row[1]) : 0;
+        g_turn_row.wrecked = row[2] ? atoi(row[2]) : 0;
+        g_turn_row.loading = row[3] ? atoi(row[3]) : 0;
+        g_turn_row.instructions = row[4] ? atoll(row[4]) : 0;
+        g_turn_row.power_paid = row[5] ? atoll(row[5]) : 0;
+        g_turn_row.waiting_action = row[6] ? atoi(row[6]) : 0;
+        // An empty pending input reads as none, as db_get_agent_pending_input did
+        g_turn_row.pending_input = (row[7] && row[7][0]) ? strdup(row[7]) : NULL;
+        g_turn_row.throttled = row[8] ? atoi(row[8]) : 0;
+        g_turn_row_valid = 1;
+    } else {
+        result = ENGINE_DB_NOT_FOUND_ERROR;
+    }
+    if(db_result) mysql_free_result(db_result);
+    return result;
+}
+
+/******************************* SHARE ORDERS (#469) *************************/
+
+int db_company_trading(int company)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT COUNT(*) FROM companies WHERE company_id = %d AND eliminated_at IS NULL", company);
+    if(mysql_query(connection->hndl, query_text))
+        return 0;
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+    int found = (row && row[0]) ? atoi(row[0]) > 0 : 0;
+    if(res) mysql_free_result(res);
+    return found;
+}
+
+ErrorCode_t db_insert_share_request(int action_id, int drone_id, int kind, int share_company, int counterparty,
+                                    int units, int price, long long placed_t)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char other[16];
+    if(counterparty > 0) snprintf(other, sizeof(other), "%d", counterparty);
+    else snprintf(other, sizeof(other), "NULL");
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "INSERT INTO share_requests (action, company, drone, kind, share_company, counterparty, units, price, placed_t) "
+        "SELECT %d, company_id, %d, %d, %d, %s, %d, %d, %lld FROM agents WHERE agent_id = %d",
+        action_id, drone_id, kind, share_company, other, units, price, placed_t, drone_id);
     return db_exec(engine_get_db_connection(), query_text);
 }

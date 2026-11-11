@@ -1,0 +1,51 @@
+/*
+ * Wrecks, plunder and company end (#324 step 12): the database side, in the
+ * events engine. See wreck.h for the arithmetic.
+ */
+#ifndef __EM_DB_WRECK__
+#define __EM_DB_WRECK__
+
+#include "common_types.h"
+
+/** A drone plunders a wreck (event type 11; the wreck's ID is in
+    new_quantity). The wreck must be where the drone is, not yet plundered,
+    and another player's: otherwise sets the event's outcome
+    (OUTCOME_NO_WRECK or OUTCOME_SAME_PLAYER) and returns ENGINE_LOGIC_ERROR.
+    Everything aboard leaves the wreck; the plunderer's share arrives as
+    actions of protocol 35, one per resource, as far as its hold has room.
+    The rest is destroyed. */
+ErrorCode_t db_plunder(Event_t* event);
+
+/** The sales tax rate (#380), in thousandths of a sale: house_rules.sales_tax_permille */
+int db_sales_tax_permille(void);
+
+/** Records the sales tax a company paid on a sale, with its credits after */
+ErrorCode_t db_record_sales_tax(int company, long long amount, long long credits_after);
+
+/* Dividends (#467, part of the stock market #466): what a sale pays the
+   seller's outside shareholders */
+typedef struct
+{
+    int holder;           /* the company holding the shares */
+    long long amount;     /* credits it is paid */
+} Dividend_t;
+#define MAX_DIVIDENDS 1000
+
+/** What a company's sale, `net` credits after sales tax, pays the companies
+    holding its shares (not the company itself): fills out[] (up to max) and
+    *total, and returns how many holders are paid */
+int db_dividends_due(int company, long long net, Dividend_t* out, int max, long long* total);
+
+/** Adds amount (negative: takes it) to a company's credits, with a credit
+    event for the drone given or, when 0, for one of its drones */
+ErrorCode_t db_credit_company(int company, long long amount, int drone, int action, int resource);
+
+/** Pays a dividend to a holder that isn't a party to the sale: its account,
+    a credit event for one of its drones, and the holder's running total */
+ErrorCode_t db_pay_dividend(int company, int holder, long long amount, int action, int resource);
+
+/** Adds a dividend to the holder's running total (shares.dividends), for a
+    holder its caller credits itself */
+ErrorCode_t db_record_dividend(int company, int holder, long long amount);
+
+#endif

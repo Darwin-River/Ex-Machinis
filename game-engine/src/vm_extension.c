@@ -13,6 +13,7 @@
 #include <string.h>
 #include <assert.h>
 #include <limits.h>
+#include <ctype.h>
 
 #include "vm_extension.h"
 #include "engine.h"
@@ -20,6 +21,8 @@
 #include "vm.h"
 #include "db.h"
 #include "protocol.h"
+#include "game_time.h"
+#include "vm_meter.h"
 
 /******************************* DEFINES *************************************/
 
@@ -160,13 +163,22 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryIn
         // allocate an int value
         result = (char*) engine_malloc(MAX_QUERY_VALUE_BUF_LEN);
         sprintf(result, "%d", value);
+    } else if (!strcmp(tag, QUERY_TAG_GAME_NOW)) {
+        // The current game time, in game seconds: queries compare it with the
+        // game_t columns (#327)
+        result = (char*) engine_malloc(MAX_QUERY_VALUE_BUF_LEN);
+        snprintf(result, MAX_QUERY_VALUE_BUF_LEN, "%lld", game_time_now_seconds());
+        engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s, game time [%s]", tag, result);
     } else if (!strcmp(tag, QUERY_TAG_TIME_DELAY)) {
         // Get ligth minutes distance
         char drone_position[MAX_OBJECT_NAME_SIZE];
         double distance;
         AgentInfo_t agent_info;
+        memset(&agent_info, 0, sizeof(agent_info));
         agent_info.agent_id = engine_get_current_drone_id();
         ErrorCode_t error = db_get_agent_engine_info(engine_get_db_connection(), agent_info.agent_id, &agent_info);
+        // Only the location is wanted: free the VM the lookup loaded (#380)
+        if(agent_info.vm) { vm_free(agent_info.vm); agent_info.vm = NULL; }
         if(error != ENGINE_OK) {
             engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Tag %s could not be replaced, unable to get agent info", tag);
             return NULL;
@@ -200,7 +212,21 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryIn
         // Get value from stack parameters
         value = (cell_t)queryInfo->parameterValues[paramId];
 
-        if(!strncmp(tag, "[value_", strlen("[value_")))    {
+        if(!strncmp(tag, "[dvalue_", strlen("[dvalue_")))    {
+
+            // A double (#324 step 9): this parameter is its high cell (it
+            // was on top of the stack), the next one its low cell
+            if(paramId + 1 >= queryInfo->parametersNum) {
+                engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Tag %s needs two parameters from [%d]", tag, paramId + 1);
+                return NULL;
+            }
+            uint32_t bits = ((uint32_t)(queryInfo->parameterValues[paramId] & 0xFFFF) << 16) |
+                            (uint32_t)(queryInfo->parameterValues[paramId + 1] & 0xFFFF);
+            result = (char*) engine_malloc(MAX_QUERY_VALUE_BUF_LEN);
+            snprintf(result, MAX_QUERY_VALUE_BUF_LEN, "%ld", (long)(int32_t)bits);
+            engine_trace(TRACE_LEVEL_ALWAYS, "Tag %s double value [%s]", tag, result);
+
+        } else if(!strncmp(tag, "[value_", strlen("[value_")))    {
 
             // we use directly the value got from stack, as a signed number:
             // a negative value can mean "any" (query 803)
@@ -226,6 +252,19 @@ char* vm_get_new_tag_value(VmExtension_t* v, const char *tag, Queries_t* queryIn
                 vm_read_byte((VirtualMachine_t*)v->h, value+1+i, (unsigned char*)&result[i]);
             }
             result[len] = 0;
+
+            // The string goes straight into SQL, so only allow characters
+            // that can't change the query (issue #322)
+            for(int i=0; i < len; i++) {
+                unsigned char c = (unsigned char)result[i];
+                if(!(isalnum(c) || c == ' ' || c == '-' || c == '_' || c == '.')) {
+                    engine_trace(TRACE_LEVEL_ALWAYS,
+                        "ERROR: Tag %s string has a character that is not allowed in a query: code [%d]",
+                        tag, c);
+                    engine_free(result, len+1);
+                    return NULL;
+                }
+            }
 
             engine_trace(TRACE_LEVEL_ALWAYS, "VM string read [%s] len [%d]", result, len);
 
@@ -335,6 +374,9 @@ static int vm_ext_execute_cb(VmExtension_t * const v)
 {
     engine_trace(TRACE_LEVEL_ALWAYS, "Running execute callback");
 
+    // An action costs a flat number of instructions (its real cost is database work)
+    vm_meter_charge(engine_get_action_instructions());
+
     // pop just the protocol ID from stack
     // and a variable number of parameters depending on DB configuration
     cell_t protocolId;
@@ -424,7 +466,12 @@ static void vm_ext_process_query
         QUERY_TAG_STRING_3,
         QUERY_TAG_STRING_4,
         QUERY_TAG_DRONE_ID,
-        QUERY_TAG_TIME_DELAY
+        QUERY_TAG_TIME_DELAY,
+        QUERY_TAG_GAME_NOW,
+        QUERY_TAG_DVALUE_1,
+        QUERY_TAG_DVALUE_2,
+        QUERY_TAG_DVALUE_3,
+        QUERY_TAG_DVALUE_4
     };
 
     for(int i=0; i < MAX_QUERY_TAGS_NUM; i++) {
@@ -481,6 +528,9 @@ static int vm_ext_query_cb(VmExtension_t * const v)
 
     memset(&queryInfo, 0, sizeof(Queries_t));
     memset(queryOutMsg, 0, LINE_MAX);
+
+    // A query costs a flat number of instructions (its real cost is database work)
+    vm_meter_charge(engine_get_query_instructions());
 
     engine_trace(TRACE_LEVEL_ALWAYS, "Running query callback");
 
@@ -664,6 +714,7 @@ VmExtension_t* vm_extension_new(void)
   // Allocate extension
   if(!v)
     return NULL;
+  memset(v, 0, sizeof(*v));   /* no Lua cells: a FORTH drone's */
 
   v->callbacks_length = vm_ext_callbacks_num(),
   v->callbacks        = callbacks;
@@ -677,6 +728,8 @@ VmExtension_t* vm_extension_new(void)
 /** Number of values on the VM's data stack. */
 size_t vm_extension_depth(VmExtension_t* vmExt)
 {
+  if(vmExt && vmExt->cells)
+    return (size_t)vmExt->depth;
   return vmExt ? embed_depth((embed_t*)vmExt->h) : 0;
 }
 
@@ -692,6 +745,12 @@ size_t vm_extension_depth(VmExtension_t* vmExt)
 *******************************************************************************/
 ErrorCode_t vm_extension_pop(VmExtension_t* vmExt, int* outValue)
 {
+  if(vmExt && outValue && vmExt->cells) {   /* a Lua drone's arguments */
+    if(vmExt->depth < 1)
+      return ENGINE_FORTH_EVAL_ERROR;
+    *outValue = vmExt->cells[--vmExt->depth];
+    return ENGINE_OK;
+  }
   if(vmExt && outValue) {
     *outValue = pop(vmExt);
     if(!vmExt->error)
@@ -713,6 +772,12 @@ ErrorCode_t vm_extension_pop(VmExtension_t* vmExt, int* outValue)
 *******************************************************************************/
 ErrorCode_t vm_extension_push(VmExtension_t* vmExt, int inValue)
 {
+  if(vmExt && vmExt->cells) {   /* perform's result, for a Lua drone */
+    if(vmExt->depth >= vmExt->max_cells)
+      return ENGINE_FORTH_EVAL_ERROR;
+    vmExt->cells[vmExt->depth++] = inValue;
+    return ENGINE_OK;
+  }
   if(vmExt) {
     push(vmExt, (cell_t)inValue);
     if(!vmExt->error) {
@@ -722,4 +787,32 @@ ErrorCode_t vm_extension_push(VmExtension_t* vmExt, int inValue)
   }
 
   return ENGINE_FORTH_EVAL_ERROR;
+}
+
+
+/** ****************************************************************************
+
+  @brief      Reads a counted string from the drone's memory (#380: broadcasts)
+
+*******************************************************************************/
+int vm_extension_read_counted(VmExtension_t* v, int addr, char* out, int max)
+{
+    unsigned char len = 0;
+    if(v && v->cells) {   /* a Lua drone passes the string itself */
+        if(!out || addr < 0 || addr >= v->nstrings || !v->strings[addr]) return -1;
+        size_t n = strlen(v->strings[addr]);
+        if(n > (size_t)max) return -1;
+        memcpy(out, v->strings[addr], n + 1);
+        return (int)n;
+    }
+    if(!v || !out || addr < 0 || addr > 0xFFFF) return -1;
+    if(vm_read_byte((VirtualMachine_t*)v->h, (uint16_t)addr, &len) != ENGINE_OK) return -1;
+    if(len > max) return -1;
+    for(int i = 0; i < len; i++) {
+        unsigned char c = 0;
+        if(vm_read_byte((VirtualMachine_t*)v->h, (uint16_t)(addr + 1 + i), &c) != ENGINE_OK) return -1;
+        out[i] = (char)c;
+    }
+    out[len] = 0;
+    return len;
 }

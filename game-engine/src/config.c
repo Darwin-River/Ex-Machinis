@@ -44,7 +44,15 @@ char conf_param_names[MAX_CONFIG_PARAM+1][MAX_CONF_PARAM_LEN] =
 
     // LOGIC configuration
     "DB_READ_TIME",
-    "MAX_CYCLE_SECONDS",
+    "MAX_CYCLE_INSTRUCTIONS",
+    "LOAD_INSTRUCTIONS",
+    "QUERY_INSTRUCTIONS",
+    "ACTION_INSTRUCTIONS",
+    "CRASH_LIMIT",
+    "CRASH_RESTART_WAIT",
+    "CRASH_RESTART_INSTRUCTIONS",
+    "EMAIL_ENABLED",
+    "POWER_INSTRUCTIONS",
     "VM_RESUME_COMMAND",
 
     // EMAIL configuration
@@ -62,6 +70,15 @@ char conf_param_names[MAX_CONFIG_PARAM+1][MAX_CONF_PARAM_LEN] =
     // GAME TIME configuration
     "GAME_TIME_SCALE",
     "TRAVEL_ACCELERATION",
+
+    // The clock floor
+    "GAME_TIME_FLOOR",
+    "CLOCK_LAG_HIGH",
+    "CLOCK_LAG_LOW",
+
+    // Drone turns on several processes (#433)
+    "ENGINE_SHARDS",
+    "ENGINE_SHARD",
 };
 
 /******************************* LOCAL FUNCTIONS *****************************/

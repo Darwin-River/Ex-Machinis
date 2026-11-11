@@ -1,4 +1,6 @@
-# Welcome to the Shipyard!
+# Shipyard (FORTH, retired)
+
+> **Historical.** These are FORTH scripts from before FORTH was retired (#380). New drones are written in Lua: start from the starter scripts and company designs in [`examples/`](../examples/) and the [players' manual](../documents/players-manual.md).
 
 I'll be using this directory to store and modify bits of useful code for drones as well as scripts for fully functional spacecraft. You can use this as a starting point for coding your own spacecraft.
 

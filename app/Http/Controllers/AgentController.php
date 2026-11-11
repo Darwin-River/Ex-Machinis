@@ -6,6 +6,7 @@ use App\Agent;
 use App\Event;
 use App\EventType;
 use App\Protocol;
+use App\Services\DronePage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
@@ -30,11 +31,11 @@ class AgentController extends Controller
     public function agentsSearch(Request $request)
     {
         $resultsPerPage = Config::get('constants.options.results_per_page');
-        $query = DB::table('agents')->select('agents.agent_id as agent_id', 'agents.name as name', 'hulls.id as hull_id', 'hulls.name as hull_name', 'users.name as owner_name'
-            , 'users.user_id as owner_id',
+        $query = DB::table('agents')->select('agents.agent_id as agent_id', 'agents.name as name', 'hulls.id as hull_id', 'hulls.name as hull_name', 'companies.name as owner_name'
+            , 'companies.company_id as owner_id',
             'objects.object_id AS location_id', 'objects.object_name AS location_name')
             ->leftJoin('hulls', 'agents.hull_type', '=', 'hulls.id')
-            ->leftJoin('users', 'agents.user_id', '=', 'users.user_id')
+            ->leftJoin('companies', 'agents.company_id', '=', 'companies.company_id')
             ->leftJoin('objects', 'agents.object_id', '=', 'objects.object_id');
         if ($request->get('agent_id') !== null)
             $query->where('agents.agent_id', intval($request->get('agent_id')));
@@ -79,7 +80,16 @@ class AgentController extends Controller
               ->leftJoin('event_types', 'events.event_type', '=', 'event_types.id')
               ->join(DB::raw('(SELECT MAX(events.id) AS id FROM events  WHERE drone = ' . $id . ' AND events.outcome = 1 AND (event_type = ' . EventType::TYPE_INCREMENT_INVENTORY . ' OR event_type = ' . EventType::TYPE_DECREMENT_INVENTORY . ')   GROUP BY events.resource ORDER BY id DESC) AS events_latest '), "events_latest.id", '=', 'events.id')//aggregation join
   ->orderBy('new_quantity', 'desc')->havingRaw('new_quantity > 0')->toSql();*/
-        return view('spacecraft.view', compact('agent', 'cargoManifest', 'totalWeight'));
+        // The Drone page (#324 step 16): live state, its line, its code and,
+        // for a wreck, a post-mortem
+        $state = DronePage::state($agent);
+        $code = DronePage::code($agent);
+        $postMortem = DronePage::postMortem($agent);
+        $messages = DronePage::messages($agent);
+        $activity = DronePage::activity($agent);
+        $flight = DronePage::flight($agent);
+
+        return view('spacecraft.view', compact('agent', 'cargoManifest', 'totalWeight', 'state', 'code', 'postMortem', 'messages', 'activity', 'flight'));
     }
 
 

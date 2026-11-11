@@ -13,6 +13,10 @@
 #include <time.h>
 
 #include "event.h"
+#include "db_station.h"
+#include "db_wreck.h"
+#include "db_shares.h"
+#include "wreck.h"
 #include "engine_e.h"
 #include "db.h"
 #include "orbits.h"
@@ -26,7 +30,74 @@
 
 /******************************* GLOBAL VARIABLES ****************************/
 
+// The action of the event being settled (#446): each event asked MySQL for
+// it two or three times (is it aborted, is it a transfer, what protocol).
+// Good for one event_process_outcome call; an abort clears it.
+static Action_t current_action;
+static int current_action_valid = 0;
+
+// When the expired events of each kind were last deleted (#446): the delete
+// ran after every successful event, but what it deletes is days old
+#define EXPIRED_SWEEP_SLOTS 65536
+#define EXPIRED_SWEEP_SECONDS 3600
+typedef struct { int key[5]; time_t at; } ExpiredSweep_t;
+static ExpiredSweep_t expired_sweeps[EXPIRED_SWEEP_SLOTS];
+
 /******************************* LOCAL FUNCTIONS *****************************/
+
+/** ****************************************************************************
+
+  @brief      Gets an event's action, once per event (#446)
+
+  @param[in]  action_id  The action
+  @param[out] action     Its row
+
+  @return     Execution result
+
+*******************************************************************************/
+static ErrorCode_t event_get_action(int action_id, Action_t *action)
+{
+    if(current_action_valid && current_action.action_id == action_id) {
+        *action = current_action;
+        return ENGINE_OK;
+    }
+
+    memset(action, 0, sizeof(*action));
+    action->action_id = action_id;
+    ErrorCode_t result = db_get_action(action);
+    if(result == ENGINE_OK) {
+        current_action = *action;
+        current_action_valid = 1;
+    }
+    return result;
+}
+
+/** ****************************************************************************
+
+  @brief      Whether this kind of event's expired history is due a delete:
+              at most once a real hour per kind (#446)
+
+  @param[in]  event  The event that just succeeded
+
+  @return     1 when the delete should run
+
+*******************************************************************************/
+static int event_expired_sweep_due(Event_t *event)
+{
+    int key[5] = { event->event_type, event->drone_id, event->resource_id, event->installed, event->locked };
+    unsigned int h = 2166136261u;
+    for(int i = 0; i < 5; i++)
+        h = (h ^ (unsigned int)key[i]) * 16777619u;
+    ExpiredSweep_t* slot = &expired_sweeps[h % EXPIRED_SWEEP_SLOTS];
+
+    time_t now = time(NULL);
+    if(slot->at && now - slot->at < EXPIRED_SWEEP_SECONDS && memcmp(slot->key, key, sizeof(key)) == 0)
+        return 0;
+
+    memcpy(slot->key, key, sizeof(key));
+    slot->at = now;
+    return 1;
+}
 
 /** ****************************************************************************
 
@@ -113,6 +184,9 @@ ErrorCode_t event_update_new_cargo_and_quantity
 
         event->new_cargo += total_cargo;
     }
+    // db_get_drone_resources mallocs the list; it leaked once per inventory
+    // event, about 450 MB a game day's worth at full load (#380)
+    free(resources);
 
     event_trace(event);
 
@@ -145,6 +219,12 @@ ErrorCode_t event_update_new_credit(Event_t *event)
         result = ENGINE_INTERNAL_ERROR;
     }
 
+    // Only an event that carries credits uses the company's latest event
+    // (#435): the lookup cost ~11 ms an event with 183 drones, and about
+    // three in four events (depletions, most increments) carry none
+    if(result == ENGINE_OK && !(event->new_credits >= 0 && event->new_credits != NULL_VALUE))
+        return ENGINE_OK;
+
     if(result == ENGINE_OK)
     {
         // search for the last processed event with the same drone
@@ -153,10 +233,8 @@ ErrorCode_t event_update_new_credit(Event_t *event)
 
     if(result == ENGINE_OK)
     {
-        if(event->new_credits >= 0 &&  event->new_credits != NULL_VALUE) {
-          // We obtained and event - do the maths to update new_quantity
-          event->new_credits += previous_event.new_credits;
-        }
+        // We obtained and event - do the maths to update new_quantity
+        event->new_credits += previous_event.new_credits;
     }
 
     if(result == ENGINE_NOT_FOUND)
@@ -227,6 +305,11 @@ Bool_t event_no_cargo_condition(Event_t *event)
     int capacity = 0;
 
     if(event->new_cargo == NULL_VALUE)
+      return ENGINE_FALSE;
+
+    // Taking something out of the hold can't overfill it (#324 step 8: a
+    // drone already over capacity must still be able to burn fuel)
+    if(event->event_type == DECREMENT_INVENTORY_EVENT_TYPE)
       return ENGINE_FALSE;
 
     if(db_get_max_drone_cargo(event->drone_id, &capacity) == ENGINE_OK) {
@@ -418,10 +501,16 @@ ErrorCode_t event_delete_previous_events(Event_t *event)
   ErrorCode_t result = ENGINE_INTERNAL_ERROR;
 
   if(event)
-    result = db_delete_previous_events(event);
+    result = event_expired_sweep_due(event) ? db_delete_previous_events(event) : ENGINE_OK;
 
-  // Purge old actions too
-  db_purge_old_actions();
+  // Purge old actions too: at most once a real minute (#431). It looks for
+  // actions a month old, and ran after every successful event
+  static time_t last_purge = 0;
+  time_t now = time(NULL);
+  if(now - last_purge >= 60) {
+    last_purge = now;
+    db_purge_old_actions();
+  }
 
   return result;
 }
@@ -441,6 +530,7 @@ ErrorCode_t event_abort_action(Event_t *event)
 
     if(event)
         result = db_abort_action(event->action_id);
+    current_action_valid = 0;   // it is aborted now
 
     return result;
 }
@@ -572,8 +662,13 @@ ErrorCode_t event_update_observations(Event_t *event)
     Observation_t observation;
 
     // Get first the flags observable and reportable for current event
+    // From the protocols cache when the action is at hand (#446)
     ProtocolInfo_t protocol;
-    result = db_get_event_observation_info(event, &protocol);
+    Action_t action;
+    if(event_get_action(event->action_id, &action) == ENGINE_OK)
+        result = db_get_protocol_flags(action.protocol_id, &protocol);
+    else
+        result = db_get_event_observation_info(event, &protocol);
 
     if(result == ENGINE_OK)
     {
@@ -582,6 +677,7 @@ ErrorCode_t event_update_observations(Event_t *event)
         observation.event_id = event->event_id;
         observation.drone_id = event->drone_id;
         observation.timestamp = time(NULL); // now for affected drone
+        observation.game_t = game_time_now_seconds();
 
         result = db_insert_observation(&observation);
     }
@@ -611,6 +707,7 @@ ErrorCode_t event_update_observations(Event_t *event)
             observation.event_id = event->event_id;
             observation.drone_id = CENTRAL_DATABASE_DRONE_ID;
             observation.timestamp = time(NULL) + game_time_light_delay(distance); // light time, scaled
+            observation.game_t = game_time_now_seconds() + game_time_light_seconds(distance);
             result = db_insert_observation(&observation);
         }
 
@@ -648,7 +745,7 @@ Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* use
         event->drone_id);
 
     // Check if the drone that generated the action is different from the affected one
-    // and both belong to different users
+    // and both belong to different companies
     if(action->drone_id != event->drone_id) {
         engine_trace(TRACE_LEVEL_ALWAYS,
             "Checking if drones [%d] and [%d] belong to different users",
@@ -864,13 +961,43 @@ ErrorCode_t event_process_market_transaction
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* peer_user, int amount)
+ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* peer_user, int amount, int* tax)
 {
     ErrorCode_t result = ENGINE_OK;
 
-    // Update bank accounts: amount is what user gains (negative when user buys)
+    // Update bank accounts: amount is what user gains (negative when user
+    // buys). The seller pays the sales tax out of the sale (#380): the buyer
+    // pays the full price, the seller gets it less the tax, which goes to
+    // the House
+    User_t* seller = (amount >= 0) ? user : peer_user;
+    *tax = (int)sales_tax(abs(amount), db_sales_tax_permille());
     user->credits += amount;
     peer_user->credits -= amount;
+    seller->credits -= *tax;
+    if(*tax > 0) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Sales tax: user [%d] pays [%d] of [%d] credits", seller->user_id, *tax, abs(amount));
+        db_record_sales_tax(seller->user_id, *tax, seller->credits);
+    }
+
+    // Dividends (#467): the seller's outside shareholders get 0.1% a share of
+    // what the sale earned after tax. The other party to the sale is credited
+    // here, with its own balance; any other holder directly
+    static Dividend_t due[MAX_DIVIDENDS];
+    long long dividends = 0;
+    int holders = db_dividends_due(seller->user_id, (long long)abs(amount) - *tax, due, MAX_DIVIDENDS, &dividends);
+    User_t* buyer = (seller == user) ? peer_user : user;
+    for(int i = 0; i < holders; i++) {
+        seller->credits -= (int)due[i].amount;
+        if(due[i].holder == buyer->user_id) {
+            buyer->credits += (int)due[i].amount;
+            db_record_dividend(seller->user_id, due[i].holder, due[i].amount);
+        } else {
+            db_pay_dividend(seller->user_id, due[i].holder, due[i].amount, user->action_id, event->resource_id);
+        }
+    }
+    if(holders > 0)
+        engine_trace(TRACE_LEVEL_ALWAYS, "Dividends: company [%d] pays [%lld] credits to [%d] holders",
+            seller->user_id, dividends, holders);
 
     engine_trace(TRACE_LEVEL_ALWAYS,
         "Completing market transaction at event [%d], "
@@ -971,10 +1098,7 @@ static ErrorCode_t event_apply(Event_t *event)
 
     // Check that associated action is not aborted - we do not process events for aborted actions
     Action_t action;
-    memset(&action, 0, sizeof(action));
-    action.action_id = event->action_id;
-
-    result = db_get_action(&action);
+    result = event_get_action(event->action_id, &action);
 
     if((result != ENGINE_OK) || action.aborted)
     {
@@ -1010,11 +1134,51 @@ static ErrorCode_t event_apply(Event_t *event)
         return result;
     }
 
+    // The end of a wait (#324 step 14): nothing to do but finish the action,
+    // so the waiting script's perform returns
+    // A share request reaching the Earth exchange (#469): posts an order, or
+    // pulls or pushes shares against another company's order. A refusal is
+    // recorded like any failed event, and perform returns why
+    if(result == ENGINE_OK && event->event_type == SHARE_EVENT_TYPE) {
+        int outcome = db_shares_settle(event);
+        event->outcome = outcome;
+        event->logged = 1;
+        event->new_cargo = NULL_VALUE;
+        event->new_credits = NULL_VALUE;
+        if(outcome != OUTCOME_OK)
+            return ENGINE_LOGIC_ERROR;
+        return db_update_event(event);
+    }
+
+    if(result == ENGINE_OK && event->event_type == WAIT_EVENT_TYPE) {
+        event->outcome = OUTCOME_OK;
+        event->logged = 1;
+        event->new_cargo = NULL_VALUE;
+        event->new_credits = NULL_VALUE;
+        return db_update_event(event);
+    }
+
+    // A broadcast (#380): the message is in broadcasts already; the event
+    // finishes the action and is observed like any other
+    if(result == ENGINE_OK && event->event_type == BROADCAST_EVENT_TYPE) {
+        event->outcome = OUTCOME_OK;
+        event->logged = 1;
+        event->new_cargo = NULL_VALUE;
+        event->new_credits = NULL_VALUE;
+        result = db_update_event(event);
+        if(result == ENGINE_OK) result = event_update_observations(event);
+        return result;
+    }
+
     // If move event, update drone location.  No further action required.
     if(result == ENGINE_OK && event->event_type == MOVE_EVENT_TYPE) {
 
+        // Places waiting to be written are where the drone was (#448)
+        result = db_flush_places();
+
         // Update drone location.
-        result = db_update_agent_object(engine_get_db_connection(), event->drone_id, event->new_location);
+        if(result == ENGINE_OK)
+            result = db_update_agent_object(engine_get_db_connection(), event->drone_id, event->new_location);
 
         // Log result.
         engine_trace(TRACE_LEVEL_ALWAYS,
@@ -1042,6 +1206,26 @@ static ErrorCode_t event_apply(Event_t *event)
 
         result = db_launch_drone(event->drone_id, source_id, event->resource_id, &new_id);
 
+        // Its tank (#324 step 13): the fuel the launcher paid for it when
+        // the launch started arrives in the clone's hold, so it can pay for
+        // its first thinking
+        if(result == ENGINE_OK) {
+            Event_t fuel;
+            memset(&fuel, 0, sizeof(fuel));
+            fuel.event_type = INCREMENT_INVENTORY_EVENT_TYPE;
+            fuel.action_id = event->action_id;
+            fuel.logged = 1;
+            fuel.outcome = OUTCOME_NO_OUTCOME;
+            fuel.drone_id = new_id;
+            fuel.resource_id = FUEL_RESOURCE_ID;
+            fuel.new_quantity = LAUNCH_FUEL;     // the change: the events engine works out the total
+            fuel.new_credits = NULL_VALUE;
+            fuel.new_location = NULL_VALUE;
+            fuel.new_transmission = NULL_VALUE;
+            fuel.new_cargo = LAUNCH_FUEL;        // fuel has mass 1
+            result = db_insert_event_e(&fuel);
+        }
+
         event->outcome = (result == ENGINE_OK) ? OUTCOME_OK : OUTCOME_ACTION_ABORTED;
         event->logged = 1;
         event->new_quantity = (result == ENGINE_OK) ? new_id : NULL_VALUE;
@@ -1055,11 +1239,46 @@ static ErrorCode_t event_apply(Event_t *event)
         return result;
     }
 
-    // Get previous events info
-    // We get (if exist, the previous valid event and the previous by resource event)
+    // An offer to or order from a House station (#324 step 10): recorded for
+    // the hour's batch, which db_station_clear_due clears
+    if(result == ENGINE_OK && (event->event_type == STATION_OFFER_EVENT_TYPE ||
+                               event->event_type == STATION_ORDER_EVENT_TYPE)) {
+        result = db_station_record(event);
+        if(result != ENGINE_OK)
+            return result;   // the caller records the outcome and aborts the action
+
+        event->outcome = OUTCOME_OK;
+        event->logged = 1;
+        event->new_cargo = NULL_VALUE;
+        event->new_credits = NULL_VALUE;
+
+        result = db_update_event(event);
+        if(result == ENGINE_OK) result = event_update_observations(event);
+        return result;
+    }
+
+    // A drone plunders a wreck (#324 step 12): its share of the wreck's
+    // goods and parts arrives as actions of protocol 35
+    if(result == ENGINE_OK && event->event_type == PLUNDER_EVENT_TYPE) {
+        result = db_plunder(event);
+        if(result != ENGINE_OK)
+            return result;   // the caller records the outcome and aborts the action
+
+        event->outcome = OUTCOME_OK;
+        event->logged = 1;
+        event->new_cargo = NULL_VALUE;
+        event->new_credits = NULL_VALUE;
+
+        result = db_update_event(event);
+        if(result == ENGINE_OK) result = event_update_observations(event);
+        return result;
+    }
+
+    // The previous event of this resource, kind and state. (The drone's
+    // previous event was looked up too, for a log line only: the cargo comes
+    // from the holdings. It was the events engine's top cost, #446.)
     if(result == ENGINE_OK)
     {
-        db_get_previous_event(event, PREVIOUS_EVENT_BY_DRONE, &previous_event);
         db_get_previous_event(event, PREVIOUS_EVENT_BY_RESOURCE_INFO, &previous_resource_event);
     }
 
@@ -1067,6 +1286,10 @@ static ErrorCode_t event_apply(Event_t *event)
     {
         market_transaction = event_is_market_transaction(&action, event, &user_info, &peer_user_info);
     }
+
+    // Any two companies may trade (#367 step 1): companies working together
+    // is a legitimate gain, so trades between one player's companies, once
+    // blocked with OUTCOME_SAME_PLAYER (#324 step 4), go through
 
     if((result == ENGINE_OK) && (market_transaction == ENGINE_TRUE))
     {
@@ -1117,7 +1340,8 @@ static ErrorCode_t event_apply(Event_t *event)
     {
         // Do credits transaction and generate events
         if(market_transaction == ENGINE_TRUE) {
-            event_do_market_transaction(event, &user_info, &peer_user_info, transactionAmount);
+            int tax = 0;
+            event_do_market_transaction(event, &user_info, &peer_user_info, transactionAmount, &tax);
 
             // Record the trade for the market volume queries (#249). The
             // amount is what user gains: positive when user's drone sold.
@@ -1127,7 +1351,7 @@ static ErrorCode_t event_apply(Event_t *event)
             db_insert_trade(event->resource_id, tradedUnits, abs(transactionAmount),
                 user_sold ? user_info.current_drone_id : peer_user_info.current_drone_id,
                 user_sold ? peer_user_info.current_drone_id : user_info.current_drone_id,
-                location);
+                location, tax);
         }
         // Update observation entries
         result = event_update_observations(event);
@@ -1159,6 +1383,17 @@ static void event_record_failure(Event_t *event, int outcome)
     // (not when it was aborted for another reason, such as by the player)
     if(outcome != OUTCOME_ACTION_ABORTED)
         db_set_action_outcome(event->action_id, outcome);
+
+    // What a failed mining action took from its deposit goes back (#324 step 11)
+    db_refund_deposits(event->action_id);
+
+    // A drone that can't pay for its power has run dry: it becomes a wreck
+    // (#324 step 8). Only a lack of fuel does that: a power burn that fails
+    // for another reason just leaves the bill unpaid this time.
+    Action_t action;
+    if(outcome == OUTCOME_NO_RESOURCES &&
+       event_get_action(event->action_id, &action) == ENGINE_OK && action.protocol_id == POWER_PROTOCOL_ID)
+        db_wreck_drone(event->drone_id, "fuel");
 }
 
 /** ****************************************************************************
@@ -1182,10 +1417,7 @@ static Bool_t event_get_transfer_partner(Event_t *event, Event_t *partner)
     if(event->event_type != DECREMENT_INVENTORY_EVENT_TYPE)
         return ENGINE_FALSE;
 
-    memset(&action, 0, sizeof(action));
-    action.action_id = event->action_id;
-
-    if(db_get_action(&action) != ENGINE_OK || action.aborted)
+    if(event_get_action(event->action_id, &action) != ENGINE_OK || action.aborted)
         return ENGINE_FALSE;
 
     if(action.protocol_id != PUSH_PROTOCOL_ID && action.protocol_id != PULL_PROTOCOL_ID)
@@ -1195,7 +1427,12 @@ static Bool_t event_get_transfer_partner(Event_t *event, Event_t *partner)
                                    event->event_id, partner) != ENGINE_OK)
         return ENGINE_FALSE;
 
-    return (partner->resource_id == event->resource_id) ? ENGINE_TRUE : ENGINE_FALSE;
+    // The two halves are two drones' (#380 round 38): in a pull of fuel,
+    // the buyer's own fuel cost is a fuel decrement too, and paired with
+    // the buyer's increment it delivered the fuel while the seller's half
+    // failed on its own: an over-pull got its fuel unpaid
+    return (partner->resource_id == event->resource_id && partner->drone_id != event->drone_id)
+        ? ENGINE_TRUE : ENGINE_FALSE;
 }
 
 /** ****************************************************************************
@@ -1226,7 +1463,10 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
     int from_object = -1, to_object = -1;
     if((db_get_event_object_id(event, &from_object) != ENGINE_OK) ||
        (db_get_event_object_id(partner, &to_object) != ENGINE_OK) ||
-       (from_object != to_object))
+       (from_object != to_object) ||
+       // A drone on a trip keeps the place it left until it arrives (#380)
+       db_drone_in_transit(event->drone_id, event->game_t) ||
+       db_drone_in_transit(partner->drone_id, partner->game_t))
     {
         engine_trace(TRACE_LEVEL_ALWAYS,
             "Transfer for action [%d] refused: drone [%d] is at [%d], drone [%d] is at [%d]",
@@ -1234,9 +1474,11 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
 
         event_record_failure(&first, OUTCOME_NO_LOCAL);
         event_record_failure(&second, OUTCOME_ACTION_ABORTED);
+        db_refund_fuel(event->action_id);   // a failed transfer costs no fuel (#380 round 38)
         return ENGINE_LOGIC_ERROR;
     }
 
+    BatchWritesMark_t mark = db_batch_writes_mark();
     result = db_savepoint("SAVEPOINT transfer");
     if(result != ENGINE_OK)
         return result;
@@ -1255,6 +1497,7 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
         event->action_id, event->outcome, partner->outcome);
 
     db_savepoint("ROLLBACK TO SAVEPOINT transfer");
+    db_batch_writes_undo(mark);   // what both halves added to the batch's writes
 
     if(event->outcome != OUTCOME_OK) {
         event_record_failure(&first, event->outcome);
@@ -1263,6 +1506,7 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
         event_record_failure(&first, OUTCOME_ACTION_ABORTED);
         event_record_failure(&second, partner->outcome);
     }
+    db_refund_fuel(event->action_id);   // a failed transfer costs no fuel (#380 round 38)
 
     return ENGINE_LOGIC_ERROR;
 }
@@ -1282,7 +1526,6 @@ ErrorCode_t event_process_outcome(Event_t *event)
 {
     ErrorCode_t result;
     Event_t partner;
-    int outcome = OUTCOME_NO_OUTCOME;
 
     if(event == NULL)
     {
@@ -1291,14 +1534,16 @@ ErrorCode_t event_process_outcome(Event_t *event)
     }
 
     // The batch was read before earlier events ran: skip events already
-    // settled since (e.g. the second half of a transfer)
-    if((db_get_event_outcome(event->event_id, &outcome) == ENGINE_OK) &&
-       (outcome != OUTCOME_NO_OUTCOME))
+    // settled since (e.g. the second half of a transfer). Kept in memory
+    // (#446): only this engine settles events, in this transaction
+    Bool_t settled = ENGINE_FALSE;
+    if((db_event_settled_in_batch(event->event_id, &settled) == ENGINE_OK) && settled)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Event [%d] already processed (outcome [%d])",
-            event->event_id, outcome);
+        engine_trace(TRACE_LEVEL_ALWAYS, "Event [%d] already processed", event->event_id);
         return ENGINE_OK;
     }
+
+    current_action_valid = 0;   // read it afresh for each event
 
     memset(&partner, 0, sizeof(partner));
     if(event_get_transfer_partner(event, &partner) == ENGINE_TRUE)

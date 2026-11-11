@@ -33,8 +33,8 @@ return [
     | Cron Key
     |--------------------------------------------------------------------------
     |
-    | Shared secret for the URLs that cron jobs call (/get-mails/{key} and
-    | /user/send-report/{key}). Those URLs are refused while this is empty.
+    | Shared secret for the URL the scheduler calls (/tick/{key}, also
+    | /get-mails/{key}, its old name). It is refused while this is empty.
     |
     */
 

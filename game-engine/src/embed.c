@@ -15,8 +15,12 @@
 #define MIN(X, Y) ((X) > (Y) ? (Y) : (X))
 
 /* NB. MMU operations could be improved by allowing exceptions to be thrown */
-m_t  embed_mmu_read_cb(embed_t const * const h, m_t addr)       { return ((m_t*)h->m)[addr]; }
-void embed_mmu_write_cb(embed_t * const h, m_t addr, m_t value) { ((m_t*)h->m)[addr] = value; }
+/* A 16-bit cell address can reach 65535 but the core holds EMBED_CORE_SIZE
+ * cells, so every address wraps into the core: player code can never read or
+ * write outside it (issue #322) */
+#define CORE_ADDR(A) ((A) & (EMBED_CORE_SIZE - 1))
+m_t  embed_mmu_read_cb(embed_t const * const h, m_t addr)       { return ((m_t*)h->m)[CORE_ADDR(addr)]; }
+void embed_mmu_write_cb(embed_t * const h, m_t addr, m_t value) { ((m_t*)h->m)[CORE_ADDR(addr)] = value; }
 
 static inline int is_big_endian(void)              { return (*(uint16_t *)"\0\xff" < 0x100); }
 static void embed_normalize(embed_t *h, size_t l)  { assert(h); if(is_big_endian()) embed_buffer_swap(h->m, l); }
@@ -190,6 +194,7 @@ int embed_vm(embed_t * const h) {
 	assert(h);
 	BUILD_BUG_ON (sizeof(m_t)    != sizeof(s_t));
 	BUILD_BUG_ON((sizeof(m_t)*2) != sizeof(d_t));
+	BUILD_BUG_ON(EMBED_CORE_SIZE & (EMBED_CORE_SIZE - 1)); /* CORE_ADDR needs a power of two */
 	embed_opt_t *o = &(h->o);
 	static const m_t delta[] = { 0, 1, -2, -1 }; /* two bit signed value */
 	const embed_mmu_read_t  mr    = o->read;

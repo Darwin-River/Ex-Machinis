@@ -15,6 +15,7 @@
         .players-manual h2 { margin-top: 2.5rem; }
         .players-manual h3, .players-manual h4 { margin-top: 1.75rem; }
         .players-manual pre { background: rgba(255, 255, 255, 0.06); padding: 1rem; overflow-x: auto; }
+        .players-manual pre code { background: transparent !important; color: #e8e8f0 !important; padding: 0; white-space: pre; }
         .players-manual table { margin: 1rem 0; border-collapse: collapse; display: block; overflow-x: auto; }
         .players-manual th, .players-manual td { border: 1px solid rgba(255, 255, 255, 0.2); padding: 0.4rem 0.75rem; }
         .players-manual img { max-width: 100%; height: auto; }
@@ -23,24 +24,11 @@
 @endpush
 @section('content')
     <!-- Breadcrumbs-->
-    <section class="breadcrumbs-modern box-transform-wrap bg-image context-dark"
-             style="background-image: url('/images/bg-breadcrumbs.jpg');">
-        <div class="container">
-            <div class="breadcrumbs-modern-body">
-                <h5 class="breadcrumbs-modern-subtitle"></h5>
-                <h1 class="breadcrumbs-modern-title">Getting Started</h1>
-            </div>
-            <ul class="breadcrumbs-path breadcrumbs-modern-path">
-                <li><a href="/">Home</a></li>
-                <li class="active">Getting Started</li>
-            </ul>
-        </div>
-        <div class="box-transform" style="background-image: url('/images/bg-breadcrumbs.jpg');"></div>
-        <div class="comets comets-left"></div>
-        <div class="comets comets-center"></div>
-        <div class="comets comets-top"></div>
-    </section>
-    <section class="section section-lg bg-default">
+    <x-page-header>
+        <x-slot:title>Getting Started</x-slot:title>
+        <li class="active">Getting Started</li>
+    </x-page-header>
+    <section class="section section-lg">
         <div class="container">
             <div class="row">
                 <div class="col-md-12 col-lg-10 col-xl-9 single-post players-manual">

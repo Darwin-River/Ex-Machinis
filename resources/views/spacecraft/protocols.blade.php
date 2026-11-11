@@ -4,12 +4,12 @@
 @section('content')
 
 
-    <section class="section section-xs section-first bg-default text-md-left">
+    <x-page-header :title="$title" />
+    <section class="section section-xs section-first text-md-left">
 
         <div class="container" id="container">
-            <h1>{{$title}}</h1>
 
-            <p>Protocols allow your spacecraft to mine resources, manufacture products, trade, and move between locations.  They're invoked via the FORTH-based "perform" command, which pulls one or more parameters from the stack.  The first parameter is always the ID of the protocol you want to perform. However, the command may require additional parameters (N1, N2, N3, etc) to further direct its actions.  For example, you can instruct your spacecraft to travel (Protocol ID 5001, which uses its engine) to the Moon (Location ID 10) by sending it the text "&lt;run&gt; 10 5001 perform . &lt;/run&gt;."  Many protocols require specific modules and resources. Click a protocol to see what it needs, what it uses up and makes, and how long it takes.</p>
+            <p>Protocols allow your spacecraft to mine resources, manufacture products, trade, and move between locations. Each description starts with the Lua that runs it: the library function, where there is one, such as <code>mine(kunspar)</code> or <code>push(N, R, D)</code>, and <code>perform(id, ...)</code>, which runs any protocol by its ID with its parameters after it. For example, travel (protocol 5001) to the Moon (location 10) is <code>travel(moon)</code>, or <code>perform(5001, 10)</code>. Many protocols require specific modules and resources. Click a protocol to see what it needs, what it uses up and makes, and how long it takes.</p>
 
             <protocols-table :protocols-list="{{json_encode($protocols)}}" keyword-parameter="{{$keyword}}"></protocols-table>
 

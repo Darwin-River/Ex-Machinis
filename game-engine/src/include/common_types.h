@@ -11,6 +11,7 @@
 
 /******************************* INCLUDES ************************************/
 
+#include <time.h>
 #include <mysql.h>
 #include <linux/limits.h>
 
@@ -65,11 +66,17 @@
 // Word a launched drone runs once, if its copied program defines it
 #define LAUNCHED_WORD         "launched"
 
+// Fuel (#324 step 8): the fuel resource, and the protocol that burns it for
+// power ([N 2 perform], run by the game engine itself)
+#define FUEL_RESOURCE_ID      2061
+#define LAUNCH_FUEL             20   // fuel a clone gets from its launcher (#324 step 13; game data LAUNCH_FUEL)
+#define POWER_PROTOCOL_ID     2
+
 // Special query tags
 #define MAX_QUERY_TAG_LEN      32
-#define MAX_QUERY_TAGS_NUM     15
+#define MAX_QUERY_TAGS_NUM     20
 // Query buffers
-#define MAX_QUERY_VALUE_BUF_LEN  16
+#define MAX_QUERY_VALUE_BUF_LEN  32
 // values
 #define QUERY_TAG_VALUE_1      "[value_1]"
 #define QUERY_TAG_VALUE_2      "[value_2]"
@@ -88,6 +95,13 @@
 // Others
 #define QUERY_TAG_DRONE_ID     "[drone_id]"
 #define QUERY_TAG_TIME_DELAY   "[time_delay]"
+#define QUERY_TAG_GAME_NOW     "[game_now]"   // current game time, game seconds (#327)
+// Double-cell inputs (#324 step 9): [dvalue_N] is a double whose high cell is
+// parameter N (the top of the stack) and low cell parameter N+1
+#define QUERY_TAG_DVALUE_1     "[dvalue_1]"
+#define QUERY_TAG_DVALUE_2     "[dvalue_2]"
+#define QUERY_TAG_DVALUE_3     "[dvalue_3]"
+#define QUERY_TAG_DVALUE_4     "[dvalue_4]"
 // !!! modify MAX_QUERY_TAGS_NUM if more added
 
 
@@ -104,6 +118,24 @@
 #define INCREMENT_CREDITS_EVENT_TYPE   6
 #define DECREMENT_CREDITS_EVENT_TYPE   7
 #define LAUNCH_EVENT_TYPE              8
+#define STATION_OFFER_EVENT_TYPE       9   // an offer to sell to a House station (#324 step 10)
+#define STATION_ORDER_EVENT_TYPE      10   // an order to buy from a House station
+#define STATION_DELIVERY_PROTOCOL_ID  33   // actions that deliver or return station goods
+#define PLUNDER_EVENT_TYPE            11   // a drone plunders a wreck (#324 step 12)
+#define WAIT_EVENT_TYPE               12   // the end of a wait (#324 step 14)
+#define BROADCAST_EVENT_TYPE          13   // a drone broadcasts a message (#380)
+#define BROADCAST_PROTOCOL_ID         40   // [A 40 perform]: broadcast the counted string at A (#380)
+#define BROADCAST_MAX_LEN             80   // characters in a broadcast
+#define SHARE_EVENT_TYPE              14   // a share request reaching the Earth exchange (#469)
+#define SHARE_SELL_ORDER_PROTOCOL_ID  41   // perform(41, company, keep, price): post a sell order for shares
+#define SHARE_BUY_ORDER_PROTOCOL_ID   42   // perform(42, company, want, price): post a buy order for shares
+#define SHARE_PULL_PROTOCOL_ID        43   // perform(43, units, company, seller): buy from a sell order
+#define SHARE_PUSH_PROTOCOL_ID        44   // perform(44, units, company, buyer): sell into a buy order
+#define SHARE_OFFER_PROTOCOL_ID       45   // perform(45, units, price, days): offer new shares (0 units withdraws) (#485)
+#define SHARE_COMMIT_PROTOCOL_ID      46   // perform(46, units, company): commit credits to a company's offering
+#define WAIT_PROTOCOL_ID               3   // [M 3 perform]: wait M game minutes
+#define MAX_WAIT_MINUTES           10080   // a week
+#define PLUNDER_HAUL_PROTOCOL_ID      35   // actions that move plunder out of a wreck and into the plunderer
 
 // Protocols that move goods between drones (decrement here, increment there)
 #define PUSH_PROTOCOL_ID 10
@@ -168,6 +200,8 @@ typedef struct
 	char* user;
 	char* password;
 	char* db_name;
+	time_t checked_at;   // when the connection was last found alive (db_reconnect)
+	const char* lock;    // the engine's lock on its database (db_claim_engine), or NULL
 
 } DbConnection_t;
 
@@ -227,6 +261,7 @@ typedef struct
 	char subject[MAX_COMMAND_CODE_SIZE+1];
 	int object_id;
 	VirtualMachine_t* vm;
+	int is_lua;   // its program is Lua (#380): no FORTH VM is loaded
 } AgentInfo_t;
 
 //-----------------------------------------------------------------------------
@@ -305,9 +340,12 @@ typedef struct
 	unsigned char observable;
 	unsigned char reportable;
 	unsigned char multiplier; // new field to use when none parameters, can receive and optional multiplier
+	int double_params;    // bit mask: parameters taken off the stack as doubles (bit 0 = parameter 1)
 	int travel_from_time; // travel: effects at or after this time (game s)...
 	int travel_shift;     // ...are delayed by this much, to last the trip
 	int launch_delay;     // launch: the program's light time from drone D (game s)
+	int wait_delay;       // wait: how long the drone waits (game s, #324 step 14)
+	int share_delay;      // shares: the light time to the Earth exchange (game s, #469)
 
 } ProtocolInfo_t;
 
@@ -322,6 +360,7 @@ typedef enum
 	PROTOCOL_OBSERVABLE_IDX,
 	PROTOCOL_REPORTABLE_IDX,
 	PROTOCOL_MULTIPLIER_IDX,
+	PROTOCOL_DOUBLE_PARAMS_IDX,   // parameters taken as doubles (#324 step 9)
 
 	// Max fields expected
 	MAX_PROTOCOL_FIELDS
@@ -551,6 +590,10 @@ typedef enum
 	OUTCOME_WRONG_ACCUMULATION_PRICE = -8,
 	OUTCOME_ACTION_ABORTED = -9,
 	OUTCOME_NO_MARKET_ORDER = -10,
+	// -11 and -12 are perform's own codes (below)
+	OUTCOME_SAME_PLAYER = -13,   // a trade between two companies of one player is blocked
+	OUTCOME_NO_STATION = -14,    // no House station here trades that resource that way (#324 step 10)
+	OUTCOME_NO_WRECK = -15,      // no unplundered wreck of that ID where the drone is (#324 step 12)
 
 } Outcome_t;
 
@@ -576,8 +619,10 @@ typedef struct
 	int new_location;
 	int new_transmission;
 	int new_cargo;
-	time_t timestamp;
+	time_t timestamp;   // real time (for the website)
+	long long game_t;   // game time (game seconds): what the engines compare
   int delay; // The delay imposed on the event by the resource effects table.
+  unsigned char burn; // the action's own fuel cost (#380): ordered first at its time
 
 } Event_t;
 
@@ -599,6 +644,7 @@ typedef enum
 	EVENT_NEW_TRANSMISSION_IDX,
 	EVENT_NEW_CARGO_IDX,
 	EVENT_TIMESTAMP_IDX,
+	EVENT_GAME_T_IDX,       // added by migration 0002
 
 	// Max fields expected
 	MAX_EVENT_FIELDS
@@ -614,7 +660,8 @@ typedef struct
 	int id;
 	int drone_id;
 	int event_id;
-	time_t timestamp;
+	time_t timestamp;   // real time when the event becomes visible (website)
+	long long game_t;   // game time when it becomes visible to the drone
 
 } Observation_t;
 
@@ -735,6 +782,10 @@ typedef struct
 	time_t created_at;
 	time_t updated_at;
 	int credits;
+	// Since #324 step 4 the engines load this from companies, not users:
+	// user_id is then the company ID (companies.company_id) and credits its
+	// bank account; player_id is the player who owns the company
+	int player_id;
 	// Internal stuff - not present at DB
 	int current_drone_id; // link user with current drone being managed
 	int action_id; // link with action

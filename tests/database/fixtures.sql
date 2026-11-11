@@ -1,14 +1,18 @@
--- Test fixtures, loaded after game-engine/sql/create_db.sql and
--- game-engine/db-backup/exmachinis_tables.sql. Test data only.
+-- Test fixtures, loaded after game-engine/sql/create_db.sql,
+-- game-engine/db-backup/exmachinis_tables.sql and the migrations. Test data only.
 
 USE `exmachinis`;
 
--- One company (user) with one drone parked at Earth (object 3).
+-- One player who owns one company, with one drone parked at Earth
+-- (object 3). Loaded after the migrations (game-engine/sql/migrate.sh).
 INSERT INTO `users` (`user_id`, `name`, `email`, `credits`)
   VALUES (1, 'Test Company', 'test@example.com', 1000);
 
-INSERT INTO `agents` (`agent_id`, `user_id`, `name`, `object_id`, `hull_type`)
-  VALUES (1, 1, 'Test Drone', 3, 1);
+INSERT INTO `companies` (`company_id`, `user_id`, `name`, `credits`)
+  VALUES (1, 1, 'Test Company', 1000);
+
+INSERT INTO `agents` (`agent_id`, `user_id`, `company_id`, `name`, `object_id`, `hull_type`)
+  VALUES (1, 1, 1, 'Test Drone', 3, 1);
 
 -- One open buy order (event type 5, resource 1) and one open sell order
 -- (event type 4, resource 2). See app/EventType.php.

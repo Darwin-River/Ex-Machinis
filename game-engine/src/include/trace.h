@@ -27,6 +27,7 @@
 //-----------------------------------------------------------------------------
 typedef enum 
 {
+    TRACE_LEVEL_QUIET = -1,  // as a configured level: only lines with ERROR, WARNING or NOTICE
     TRACE_LEVEL_ALWAYS,
     TRACE_LEVEL_LOW,
     TRACE_LEVEL_MEDIUM,

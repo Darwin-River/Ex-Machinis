@@ -9,11 +9,16 @@
 /******************************* INCLUDES ************************************/
 
 #include <string.h>
+#include <math.h>
 #include <stdbool.h>
 #include <assert.h>
 #include <time.h>
 
 #include "vm.h"
+#include "game_time.h"
+#include "vm_meter.h"
+#include "crash.h"
+#include "vm_library.h"
 #include "engine.h"
 #include "trace.h"
 #include "vm_extension.h"
@@ -35,17 +40,7 @@
 char* g_output_buffer = NULL;
 char* g_last_command_output = NULL;
 size_t g_current_size = 0;
-
-// To yield a VM we control time elapsed since we started it, and limit this time
-// When the current command (or resume) started running, in ms (monotonic)
-static long long g_vm_start_ms = 0;
-
-static long long vm_now_ms(void)
-{
-  struct timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-  return (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
-}
+size_t g_output_len = 0; // characters in g_output_buffer
 
 // Last VM is yield
 int g_vm_yield = 0;
@@ -71,15 +66,15 @@ int vm_putc_cb(int ch, void *file)
 
   if(g_output_buffer)
   {
-    int next_pos = strlen(g_output_buffer);
-
-    if(next_pos > g_current_size) {
-      //engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: Max out buffer size [%ld] reached (discarded)", g_current_size);
+    // Keep the last byte for the terminating zero; once full, further output
+    // is dropped (issue #322: the old strlen per character made long output
+    // slow, and the off-by-one could overwrite the terminator)
+    if(g_output_len + 1 >= g_current_size)
       return ch;
-    }
 
-    g_last_command_output = (g_output_buffer + next_pos);
+    g_last_command_output = (g_output_buffer + g_output_len);
     *g_last_command_output = ch;
+    g_output_buffer[++g_output_len] = 0;
   }
 
   return ch;
@@ -94,6 +89,9 @@ int vm_putc_cb(int ch, void *file)
   @return     0 continue, 1 yield
 
 *******************************************************************************/
+/* What the VM returned at the end of the last command (negative: it halted) */
+static int g_last_forth_result = 0;
+
 int vm_yield_cb(void* param) 
 {
   // perform started an action: pause until it is done
@@ -102,13 +100,12 @@ int vm_yield_cb(void* param)
     return 1;
   }
 
-  long long elapsed_ms = vm_now_ms() - g_vm_start_ms;
-  int max_time = engine_get_max_cycle_seconds();
-
-  if(elapsed_ms >= (long long)max_time * 1000) {
-    engine_trace(TRACE_LEVEL_ALWAYS, 
-      "WARNING: VM must yield, ran for [%lld] ms (limit [%d] s), current output buffer [%s]", 
-      elapsed_ms, max_time, g_output_buffer?g_output_buffer:"NULL");
+  // Instruction metering: the slice ends once its budget is used, so the
+  // same script always runs the same instructions per slice
+  if(vm_meter_step()) {
+    engine_trace(TRACE_LEVEL_ALWAYS,
+      "VM yields: used its [%lld] instruction slice, current output buffer [%s]",
+      vm_meter_used(), g_output_buffer?g_output_buffer:"NULL");
 
     g_vm_yield = 1;
 
@@ -139,6 +136,9 @@ static int vm_add_callbacks(VirtualMachine_t* const vm, const bool optimize,  Vm
   static const char *preamble = "only forth definitions system +order\n";
   int r = 0;
 
+  // Setting a VM up isn't the drone's computing: don't meter it
+  vm_meter_start(0);
+
   if((r = embed_eval(vm, preamble)) < 0) {
     engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: evaluation of preamble (%s) returned %d", preamble, r); 
     return r;
@@ -160,6 +160,25 @@ static int vm_add_callbacks(VirtualMachine_t* const vm, const bool optimize,  Vm
     }
 
     engine_trace(TRACE_LEVEL_ALWAYS, "Callback (%s) added to VM", cb[i].name); 
+  }
+
+  // The standard word library (#324 step 9): double-cell words. Added once:
+  // a VM saved with it keeps it
+  if(!vm_word_defined(vm, VM_LIBRARY_MARKER)) {
+    if((r = vm_library_load(vm)) < 0) {
+      engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: loading the word library returned %d", r);
+      return r;
+    }
+    engine_trace(TRACE_LEVEL_ALWAYS, "Word library added to VM");
+  }
+
+  // The game words (#324 step 15), once, after the callbacks they use
+  if(!vm_word_defined(vm, VM_LIBRARY_GAME_MARKER)) {
+    if((r = vm_library_load_game(vm)) < 0) {
+      engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: loading the game words returned %d", r);
+      return r;
+    }
+    engine_trace(TRACE_LEVEL_ALWAYS, "Game words added to VM");
   }
   embed_reset(vm);
   return 0;
@@ -229,8 +248,8 @@ VirtualMachine_t* vm_new(int agent_id)
           vm_engine_options.param = vm_ext;
           embed_opt_set(vm, &vm_engine_options);
 
-          // Time the callback setup below (it runs FORTH too)
-          g_vm_start_ms = vm_now_ms();
+          // The callback setup below runs FORTH too: the engine's own code, unmetered
+          vm_meter_start(0);
 
           // Add all callbacks
           if(vm_add_callbacks(vm, true, vm_ext->callbacks, vm_ext->callbacks_length) < 0) 
@@ -339,16 +358,11 @@ VirtualMachine_t* vm_from_bytes(int agent_id, char* vm_bytes, size_t size)
             vm_engine_options.param = vm_ext;
             embed_opt_set(vm, &vm_engine_options);
 
-            // Time the callback setup below (it runs FORTH too)
-            g_vm_start_ms = vm_now_ms();
-
-            // Add all callbacks
-            if(vm_add_callbacks(vm, true, vm_ext->callbacks, vm_ext->callbacks_length) < 0) 
-            {
-              engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: unable to add VM callbacks"); 
-              vm_free(vm);
-              vm = NULL;
-            }
+            // No FORTH setup here (#324 step 20): the saved core loaded
+            // below already holds the callback words, the word library and
+            // the game words, and replaces the whole of this VM's memory.
+            // Running the setup first cost millions of instructions a slice
+            // for nothing.
           }
         }
 
@@ -427,10 +441,11 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
             g_output_buffer = out_buffer;
             g_last_command_output = g_output_buffer;
             g_current_size = out_size;
+            g_output_len = 0;
             memset(g_output_buffer, 0, g_current_size); 
 
-            // Each command (or resume) gets its own time slice
-            g_vm_start_ms = vm_now_ms();
+            // Each command (or resume) gets its own slice of instructions
+            vm_meter_start(engine_get_slice_instructions());
             g_vm_yield = 0;
 
             // Check if it is a resume / execute command and also if there are pending commands running
@@ -466,6 +481,7 @@ ErrorCode_t vm_run_command(VirtualMachine_t* vm, Command_t* command, char* out_b
 
             const char* rest = input;
             forth_result = vm_run_with_input(vm, &rest);
+            g_last_forth_result = forth_result;
 
             // Keep what the script hasn't read if it paused, else nothing
             if(pending_input)
@@ -572,6 +588,7 @@ void vm_report(VirtualMachine_t* vm)
 
         // clean buffer and point to the beginning
         memset(g_output_buffer, 0, g_current_size); 
+        g_output_len = 0;
     }
 }
 
@@ -589,10 +606,64 @@ int vm_is_yield()
   return g_vm_yield || g_vm_wait_action;
 }
 
+/** Starts a command's output in out_buffer, as vm_run_command does (#380:
+    a Lua drone's run, which has no FORTH VM) */
+void vm_output_begin(char* out_buffer, size_t out_size)
+{
+  g_output_buffer = out_buffer;
+  g_last_command_output = g_output_buffer;
+  g_current_size = out_size;
+  g_output_len = 0;
+  if(g_output_buffer && g_current_size)
+    memset(g_output_buffer, 0, g_current_size);
+}
+
+/** Marks the running script paused because its slice is used up (#380: a
+    Lua drone, whose count hook ends the slice) */
+void vm_slice_yield(void)
+{
+  g_vm_yield = 1;
+}
+
+/** Sends what the script has printed so far and starts afresh (report) */
+void vm_report_output(void)
+{
+  if(g_output_buffer)
+  {
+    engine_vm_output_cb(g_output_buffer);
+    memset(g_output_buffer, 0, g_current_size);
+    g_output_len = 0;
+  }
+}
+
 /** Pauses the running script until the action is done (called by perform). */
 void vm_wait_for_action(int action_id)
 {
   g_vm_wait_action = action_id;
+}
+
+/** Adds text to the current command's output, as the VM's own output does */
+void vm_append_output(const char* text)
+{
+  for(; text && *text; text++)
+    vm_putc_cb((unsigned char)*text, NULL);
+}
+
+/** The result of a run of "' launched catch" that has ended (crash.h):
+    0 when launched returned normally, else its error code. Takes catch's
+    code off the stack. */
+int vm_take_launched_result(VirtualMachine_t* vm)
+{
+  size_t depth = 0;
+  m_t top = 0;
+
+  if(vm && g_last_forth_result >= 0)
+  {
+    depth = embed_depth((forth_t*)vm);
+    if(depth && embed_pop((forth_t*)vm, &top) < 0)
+      depth = 0;
+  }
+  return crash_launched_result(g_last_forth_result, depth, (s_t)top);
 }
 
 /** Pushes a value onto a VM's data stack (perform's result on resume). */
@@ -682,10 +753,12 @@ bool vm_word_defined(VirtualMachine_t* vm, const char* name)
     // Discard anything the lookup prints
     char* saved_buffer = g_output_buffer;
     size_t saved_size = g_current_size;
+    size_t saved_len = g_output_len;
     memset(scratch, 0, sizeof(scratch));
     g_output_buffer = scratch;
-    g_current_size = sizeof(scratch) - 1;
-    g_vm_start_ms = vm_now_ms();
+    g_current_size = sizeof(scratch);
+    g_output_len = 0;
+    vm_meter_start(0);   // the engine's own lookup, unmetered
 
     size_t depth = embed_depth((forth_t*)vm);
     const char* rest = input;
@@ -693,6 +766,7 @@ bool vm_word_defined(VirtualMachine_t* vm, const char* name)
 
     g_output_buffer = saved_buffer;
     g_current_size = saved_size;
+    g_output_len = saved_len;
 
     if(r < 0 || embed_depth((forth_t*)vm) <= depth || embed_pop((forth_t*)vm, &code) < 0)
         return false;
@@ -876,14 +950,17 @@ ErrorCode_t vm_write_datetime(VirtualMachine_t* vm, uint16_t addr, char* date_st
             date_str,
             addr);
 
-        // Times will be placed in memory as two 16-bit values. 
-        // The first value will count the number of days from 1 January 2000, 
-        // The second value will count the number of even seconds (every other second) since midnight. 
+        // Times are placed in memory as two 16-bit values: the game day,
+        // counted from the world's first game second (game day 0), and the
+        // number of even seconds (every other second) into that game day.
+        // Query dates are game times (FROM_UNIXTIME(game_t), #327).
         time_t db_date = db_date_to_timestamp(date_str, OBJECTS_TIMESTAMP_FORMAT);
-        time_t ref_date = db_date_to_timestamp(JANUARY_1_2000_DATE, OBJECTS_TIMESTAMP_FORMAT);
+        long long since_epoch = (long long)db_date - llround(game_time_epoch());
+        if(since_epoch < 0)
+            since_epoch = 0;
 
-        uint16_t days_elapsed = (db_date - ref_date) / (24 * 3600);
-        uint16_t seconds_elapsed = (db_date - ref_date) % (24 * 3600);
+        uint16_t days_elapsed = (uint16_t)(since_epoch / (24 * 3600));
+        uint16_t seconds_elapsed = (uint16_t)(since_epoch % (24 * 3600));
         uint16_t half_seconds_elapsed = (seconds_elapsed / 2);
 
         engine_trace(TRACE_LEVEL_ALWAYS, 

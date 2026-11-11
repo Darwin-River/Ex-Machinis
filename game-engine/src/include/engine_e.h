@@ -277,17 +277,6 @@ const char* engine_get_forth_image_path();
 
 /** ****************************************************************************
 
-  @brief      Gets the max number of second each VM can spend processing commands
-
-  @param[in]  None
-  
-  @return     Seconds value configured
-
-*******************************************************************************/
-const int engine_get_max_cycle_seconds();
-
-/** ****************************************************************************
-
   @brief      Gets the command defined (at config) as VM resume command
               It is an special command that is not executed at the VM, it just 
               indicates that we need to resume VM to continue executing pending commands

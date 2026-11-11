@@ -8,6 +8,7 @@
 
 /******************************* INCLUDES ************************************/
 
+#include "shares.h"
 #include <string.h>
 #include <limits.h>
 #include <time.h>
@@ -20,6 +21,7 @@
 #include "engine.h"
 #include "vm.h"
 #include "game_time.h"
+#include "event_order.h"
 
 /******************************* DEFINES *************************************/
 
@@ -54,30 +56,88 @@ static ErrorCode_t protocol_queue_event(Event_t* event)
   return ENGINE_OK;
 }
 
-/* Game-time order; at the same game time, depletions first. Ties keep the
-   order the effects were worked out in (index). */
-static int protocol_event_order(const void* a, const void* b)
-{
-  const Event_t* x = (const Event_t*)a;
-  const Event_t* y = (const Event_t*)b;
-  int rx = (x->event_type == DECREMENT_INVENTORY_EVENT_TYPE) ? 0 : 1;
-  int ry = (y->event_type == DECREMENT_INVENTORY_EVENT_TYPE) ? 0 : 1;
-
-  if(x->delay != y->delay) return (x->delay < y->delay) ? -1 : 1;
-  if(rx != ry) return rx - ry;
-  return (x->event_id < y->event_id) ? -1 : (x->event_id > y->event_id);
-}
-
 /* Inserts the queued events in game-time order (or drops them) */
 static ErrorCode_t protocol_flush_events(Bool_t insert)
 {
   ErrorCode_t result = ENGINE_OK;
 
-  // event_id isn't set yet: use it to remember the original order
-  for(int i = 0; i < g_pending_count; i++)
-    g_pending_events[i].event_id = i;
+  // Game-time order; at the same game time, fuel burns first and each
+  // equipment check's two halves stay together (event_order.h, #380)
+  if(g_pending_count > 1) {
+    EventKey_t* keys = malloc(sizeof(EventKey_t) * g_pending_count);
+    int* order = malloc(sizeof(int) * g_pending_count);
+    Event_t* sorted = malloc(sizeof(Event_t) * g_pending_count);
+    if(!keys || !order || !sorted) {
+      free(keys); free(order); free(sorted);
+      g_pending_count = 0;
+      return ENGINE_MEMORY_ALLOC_ERROR;
+    }
+    for(int i = 0; i < g_pending_count; i++) {
+      Event_t* e = &g_pending_events[i];
+      keys[i] = (EventKey_t){ e->delay, e->event_type, e->drone_id, e->resource_id,
+                              e->installed, e->locked, e->new_quantity, e->burn };
+    }
+    event_order(keys, g_pending_count, order);
+    for(int i = 0; i < g_pending_count; i++)
+      sorted[i] = g_pending_events[order[i]];
+    memcpy(g_pending_events, sorted, sizeof(Event_t) * g_pending_count);
+    free(keys); free(order); free(sorted);
+  }
 
-  qsort(g_pending_events, g_pending_count, sizeof(Event_t), protocol_event_order);
+  // Never before the drones' other events (#324 step 8). An event stamped
+  // earlier than one already processed would be worked out from older state
+  // and undo it (this engine reads the clock once per loop, and on a fast
+  // clock the events engine can be ahead of that reading). And the inventory
+  // takes the highest event ID of each of a drone's stock entries (resource,
+  // installed, locked) as its latest state, so within an entry IDs must keep
+  // game-time order. So the action starts a game second after the acting
+  // drone's latest event, done or still to come (its script waits for its
+  // own action anyway; this mostly delays power bills until the current
+  // action ends). Another drone it touches, the seller in a pull or the
+  // buyer in a push, only holds it back by events on the entries this action
+  // changes (#380): a pull buys from a drone that is busy mining or
+  // travelling at once, as long as both are at the same place.
+  if(insert && g_pending_count > 0) {
+    game_time_load_recent();
+    int acting = engine_get_current_drone_id();
+    int drones[2 * 8];
+    int n = 0;
+    for(int i = 0; i < g_pending_count && n < (int)(sizeof(drones) / sizeof(drones[0])); i++) {
+      int d = g_pending_events[i].drone_id, seen = 0;
+      for(int j = 0; j < n; j++) seen |= (drones[j] == d);
+      if(!seen) drones[n++] = d;
+    }
+    // With several game engines, one engine at a time touches these drones,
+    // from here to its commit (#433)
+    engine_take_order_locks(drones, n);
+    long long latest = 0, now = game_time_now_seconds();
+    for(int j = 0; j < n; j++) {
+      long long t = 0;
+      if(drones[j] == acting || acting <= 0) {
+        db_get_latest_processed_game_t(&drones[j], 1, &t);
+      } else {
+        // The other drone's stock entries this action changes
+        int res[16], inst[16], lock[16], m = 0;
+        for(int i = 0; i < g_pending_count && m < 16; i++) {
+          Event_t* e = &g_pending_events[i];
+          if(e->drone_id != drones[j] ||
+             (e->event_type != INCREMENT_INVENTORY_EVENT_TYPE && e->event_type != DECREMENT_INVENTORY_EVENT_TYPE))
+            continue;
+          res[m] = e->resource_id; inst[m] = e->installed; lock[m] = e->locked; m++;
+        }
+        if(m > 0)
+          db_get_latest_entry_game_t(drones[j], res, inst, lock, m, &t);
+      }
+      if(t > latest)
+        latest = t;
+    }
+    if(latest >= now) {
+      long long shift = latest + 1 - now;
+      engine_trace(TRACE_LEVEL_ALWAYS, "Action starts [%lld] game s later, after the drones' latest event", shift);
+      for(int i = 0; i < g_pending_count; i++)
+        g_pending_events[i].delay += shift;
+    }
+  }
 
   // Inserted in this order, events that land in the same real second (at
   // a high game time scale) are still processed in game-time order: the
@@ -185,6 +245,35 @@ static ErrorCode_t protocol_plan_launch(ProtocolInfo_t *protocol)
   return ENGINE_OK;
 }
 
+/** ****************************************************************************
+
+  @brief      Checks a wait ([M 3 perform], #324 step 14) and times it: its
+              wait event lands M game minutes from now, so perform returns
+              then. The script pauses meanwhile and runs no instructions.
+
+  @param[in|out]  protocol  Protocol being performed
+
+  @return     ENGINE_OK, or an error when M is out of range (perform is
+              refused)
+
+*******************************************************************************/
+static ErrorCode_t protocol_plan_wait(ProtocolInfo_t *protocol)
+{
+  protocol->wait_delay = 0;
+
+  if(protocol->protocol_id != WAIT_PROTOCOL_ID)
+    return ENGINE_OK;
+
+  int minutes = protocol->parameters[0];
+  if(minutes < 1 || minutes > MAX_WAIT_MINUTES) {
+    engine_trace(TRACE_LEVEL_ALWAYS, "Wait refused: [%d] game minutes (1 to %d)", minutes, MAX_WAIT_MINUTES);
+    return ENGINE_LOGIC_ERROR;
+  }
+  protocol->wait_delay = minutes * 60;
+  engine_trace(TRACE_LEVEL_ALWAYS, "Drone waits [%d] game minutes", minutes);
+  return ENGINE_OK;
+}
+
 /** True when the protocol moves the drone to a location given on the stack */
 static Bool_t protocol_takes_location(ProtocolInfo_t *protocol)
 {
@@ -224,9 +313,16 @@ ErrorCode_t protocol_read_parameters(ProtocolInfo_t *protocol, VmExtension_t* vm
   ErrorCode_t result = ENGINE_OK;
 
   if(protocol && vmExt) {
-    // Store them at array
+    // Store them at array. A parameter marked as a double (#324 step 9)
+    // takes two cells: its high cell (on top of the stack), then its low cell
     for(int i=0; i < protocol->parameters_num; i++) {
       result = vm_extension_pop(vmExt, &protocol->parameters[i]);
+      if(result == ENGINE_OK && (protocol->double_params & (1 << i))) {
+        int low = 0;
+        result = vm_extension_pop(vmExt, &low);
+        protocol->parameters[i] = (int)(int32_t)(((uint32_t)(protocol->parameters[i] & 0xFFFF) << 16) |
+                                                 (uint32_t)(low & 0xFFFF));
+      }
       if(result != ENGINE_OK) {
         engine_trace(TRACE_LEVEL_ALWAYS,
           "ERROR: Unable to retrieve [%d] parameters from stack for protocol ID [%d]",
@@ -488,6 +584,10 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
       newEvent.delay = protocol_effect_delay(protocol, effect->time);
       if(effect->event_type == LAUNCH_EVENT_TYPE)
         newEvent.delay += protocol->launch_delay;
+      if(effect->event_type == WAIT_EVENT_TYPE)
+        newEvent.delay += protocol->wait_delay;
+      if(effect->event_type == SHARE_EVENT_TYPE)
+        newEvent.delay += protocol->share_delay;
 
       newEvent.drone_id = engine_get_current_drone_id();
       // Take into account negative parameters that mean => retrieve it from stack
@@ -535,6 +635,11 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
       // newEvent.processed = 0; // Default memset()
       newEvent.installed = effect->installed;
       newEvent.locked = effect->locked;
+      // The action's own fuel cost: fuel, a fixed amount, from the acting
+      // drone (a transfer's fuel names its amount, and the other drone, on
+      // the stack)
+      newEvent.burn = (effect->resource_id == FUEL_RESOURCE_ID && effect->deplete &&
+                       effect->quantity > 0 && effect->drone_id == 0) ? 1 : 0;
       newEvent.outcome = OUTCOME_NO_OUTCOME;
 
       newEvent.new_quantity = NULL_VALUE;
@@ -564,8 +669,10 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
         newEvent.new_quantity *= -1;
       }
 
-      // Apply multiplier
-      newEvent.new_quantity *= protocol->process_multiplier;
+      // Apply multiplier. Fuel burned is per action, not per unit moved
+      // or made (#324 step 8)
+      if(effect->resource_id != FUEL_RESOURCE_ID)
+        newEvent.new_quantity *= protocol->process_multiplier;
 
       // Apply abundancies when enabled and event type => increases cargo
       if(effect->abundancies  &&  (newEvent.event_type == 1)) {
@@ -588,6 +695,17 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
 
       if(result == ENGINE_OK) {
         newEvent.new_quantity *= abundancies.multiplier;
+
+        // Mining takes from the place's deposit (#324 step 11): at most
+        // what is left, so a mined-out deposit yields nothing until it refills
+        if(effect->abundancies && newEvent.event_type == 1 && newEvent.new_quantity > 0) {
+          int objectId = 0;
+          long long taken = newEvent.new_quantity;
+          if(db_get_event_object_id(&newEvent, &objectId) == ENGINE_OK &&
+             db_take_deposit(objectId, newEvent.resource_id, newEvent.new_quantity, &taken) == ENGINE_OK)
+            newEvent.new_quantity = (int)taken;
+        }
+
         newEvent.new_cargo = (newEvent.new_quantity * resource.resource_mass); // here we reflect the change in mass units
         // A launch carries drone D's ID in new_quantity, not an amount
         if(newEvent.event_type == LAUNCH_EVENT_TYPE)
@@ -929,7 +1047,7 @@ ErrorCode_t protocol_process_effects(ProtocolInfo_t *protocol, int action_id)
   @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
+static ErrorCode_t protocol_execute_action(int protocolId, VmExtension_t* vmExt)
 {
   // Get from DB the rest of information for this protocol ID
   Bool_t actionCreated = ENGINE_FALSE;
@@ -961,6 +1079,74 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
   }
 
   int stack_value;
+
+  // A broadcast (#380): read the message from the drone's memory now, while
+  // the address means something; printable characters only
+  char broadcast[BROADCAST_MAX_LEN + 1];
+  broadcast[0] = 0;
+  if(result == ENGINE_OK && protocol.protocol_id == BROADCAST_PROTOCOL_ID) {
+    int len = vm_extension_read_counted(vmExt, protocol.parameters[0], broadcast, BROADCAST_MAX_LEN);
+    for(int i = 0; i < len; i++)
+      if((unsigned char)broadcast[i] < 32 || (unsigned char)broadcast[i] > 126) len = -1;
+    if(len < 1) {
+      engine_trace(TRACE_LEVEL_ALWAYS, "Broadcast refused: no message of 1 to %d printable characters at [%d]",
+        BROADCAST_MAX_LEN, protocol.parameters[0]);
+      result = ENGINE_LOGIC_ERROR;
+    }
+  }
+
+  // The share exchange (#469). Orders: perform(41|42, company, keep|want,
+  // price), price on top (0 withdraws). Pull, push: perform(43|44, units,
+  // company, other company). The request goes to the Earth exchange at the
+  // speed of light; its Share event settles it there
+  // Offerings of new shares (#485): perform(45, min, units, price, days)
+  // offers the drone's company's, up to units and at least min (#516; 0
+  // units withdraws it; the days ride as the counterparty, the minimum as
+  // the share company), perform(46, units, company) commits to another's
+  int share_kind = protocol.protocol_id == SHARE_SELL_ORDER_PROTOCOL_ID ? 1 :
+                   protocol.protocol_id == SHARE_BUY_ORDER_PROTOCOL_ID ? 2 :
+                   protocol.protocol_id == SHARE_PULL_PROTOCOL_ID ? 3 :
+                   protocol.protocol_id == SHARE_PUSH_PROTOCOL_ID ? 4 :
+                   protocol.protocol_id == SHARE_OFFER_PROTOCOL_ID ? 5 :
+                   protocol.protocol_id == SHARE_COMMIT_PROTOCOL_ID ? 6 : 0;
+  int share_company = 0, share_units = 0, share_price = 0, share_other = 0;
+  if(result == ENGINE_OK && share_kind) {
+    if(share_kind == 5) {
+      share_other = protocol.parameters[0];
+      share_price = protocol.parameters[1];
+      share_units = protocol.parameters[2];
+      share_company = protocol.parameters[3];   /* its minimum (#516) */
+    } else if(share_kind == 6) {
+      share_company = protocol.parameters[0];
+      share_units = protocol.parameters[1];
+    } else if(share_kind <= 2) {
+      share_price = protocol.parameters[0];
+      share_units = protocol.parameters[1];
+      share_company = protocol.parameters[2];
+    } else {
+      share_other = protocol.parameters[0];
+      share_company = protocol.parameters[1];
+      share_units = protocol.parameters[2];
+    }
+    int ok = share_kind == 5 ? (share_units == 0 || (share_units > 0 && share_price > 0 && share_other >= 1 &&
+                                                     share_other <= OFFER_MAX_DAYS &&
+                                                     share_company >= 1 && share_company <= share_units)) :
+             share_kind == 6 ? (share_units > 0 && db_company_trading(share_company)) :
+             share_kind <= 2 ?
+      (share_price == 0 || (share_price > 0 && share_units >= 0 &&
+                            db_company_trading(share_company))) :
+      (share_units > 0 && db_company_trading(share_company) && db_company_trading(share_other));
+    if(!ok) {
+      engine_trace(TRACE_LEVEL_ALWAYS, "Share request refused: kind [%d] company [%d] units [%d] price [%d] other [%d]",
+        share_kind, share_company, share_units, share_price, share_other);
+      result = ENGINE_LOGIC_ERROR;
+    } else {
+      char position[MAX_OBJECT_NAME_SIZE];
+      double km = 0;
+      if(engine_get_drone_position(engine_get_current_object_id(), position, &km) == ENGINE_OK)
+        protocol.share_delay = (int)game_time_light_seconds(km);
+    }
+  }
 
   // Protocols with the multiplier flag (push, pull) always take it, after
   // their parameters: N R D 10 perform (#315). Taking it only when the stack
@@ -1001,12 +1187,26 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
   if(result == ENGINE_OK)
     result = protocol_plan_launch(&protocol);
 
+  if(result == ENGINE_OK)
+    result = protocol_plan_wait(&protocol);
+
   if(result == ENGINE_OK) {
     protocol_plan_travel(&protocol);
     g_pending_count = 0;
     result = protocol_process_effects(&protocol, action.action_id);
     ErrorCode_t flushed = protocol_flush_events(result == ENGINE_OK ? ENGINE_TRUE : ENGINE_FALSE);
     if(result == ENGINE_OK) result = flushed;
+  }
+
+  // The request, for the events engine to settle at Earth (#469)
+  if(result == ENGINE_OK && share_kind)
+    result = db_insert_share_request(action.action_id, engine_get_current_drone_id(), share_kind, share_company,
+                                     share_other, share_units, share_price, game_time_now_seconds());
+
+  if(result == ENGINE_OK && protocol.protocol_id == BROADCAST_PROTOCOL_ID) {
+    game_time_load_recent();
+    result = db_insert_broadcast(action.action_id, engine_get_current_drone_id(), broadcast,
+                                 game_time_now_seconds());
   }
 
   // perform leaves 0 on success or a negative code on failure (like an ior)
@@ -1032,6 +1232,54 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
 
 /** ****************************************************************************
 
+  @brief      Burns fuel for the current drone's computer (#324 step 8): plans
+              the power protocol, [units 2 perform], as an action of its own.
+              The script doesn't wait for it. If the fuel isn't there, the
+              events engine fails the action and the drone becomes a wreck.
+
+  @param[in]  units  Fuel to burn
+
+  @return     Execution result
+
+*******************************************************************************/
+static ErrorCode_t protocol_burn_power_action(int units)
+{
+  ProtocolInfo_t protocol;
+  Action_t action;
+
+  if(units <= 0)
+    return ENGINE_OK;
+
+  memset(&protocol, 0, sizeof(protocol));
+  memset(&action, 0, sizeof(action));
+  protocol.protocol_id = POWER_PROTOCOL_ID;
+  protocol.process_multiplier = 1;
+  protocol.optional_location = -1;
+
+  ErrorCode_t result = db_get_prococol_info(&protocol);
+  if(result == ENGINE_OK)
+    result = protocol_generate_action(&protocol, &action);
+
+  if(result == ENGINE_OK) {
+    protocol.parameters[0] = units;
+    g_pending_count = 0;
+    result = protocol_process_effects(&protocol, action.action_id);
+    ErrorCode_t flushed = protocol_flush_events(result == ENGINE_OK ? ENGINE_TRUE : ENGINE_FALSE);
+    if(result == ENGINE_OK) result = flushed;
+    if(result != ENGINE_OK) {
+      db_delete_action_events(action.action_id);
+      db_abort_action(action.action_id);
+    }
+  }
+
+  engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] burns [%d] fuel for power (action [%d], result [%d])",
+    engine_get_current_drone_id(), units, action.action_id, result);
+
+  return result;
+}
+
+/** ****************************************************************************
+
   @brief      Gets protocol execution message with result information
 
   @param[in]  void
@@ -1042,4 +1290,31 @@ ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
 const char* protocol_get_result_msg()
 {
   return protocolMsg;
+}
+
+/*
+ * Short transactions (#431). A drone's turn was one transaction, from
+ * fetching its command to saving its machine, so every row an action wrote
+ * stayed locked until the turn ended, and anything written earlier in the
+ * turn was locked across the action. Now an action (perform, or the fuel
+ * its thinking burns) commits the turn's work so far, runs, and commits its
+ * own action and events straight away. Locks last only as long as one
+ * action, and the database holds the action as soon as the drone's script
+ * counts on it: a Lua drone's script lives in memory, which a rollback
+ * never undid. A turn that fails after an action keeps the action.
+ */
+ErrorCode_t protocol_execute(int protocolId, VmExtension_t* vmExt)
+{
+  engine_commit_turn_so_far();
+  ErrorCode_t result = protocol_execute_action(protocolId, vmExt);
+  engine_commit_turn_so_far();
+  return result;
+}
+
+ErrorCode_t protocol_burn_power(int units)
+{
+  engine_commit_turn_so_far();
+  ErrorCode_t result = protocol_burn_power_action(units);
+  engine_commit_turn_so_far();
+  return result;
 }

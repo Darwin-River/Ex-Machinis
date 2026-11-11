@@ -59,6 +59,7 @@ typedef enum
 
 *******************************************************************************/
 ErrorCode_t db_reconnect(DbConnection_t* connection);
+ErrorCode_t db_claim_engine(DbConnection_t* connection, const char* engine);
 
 /** ***************************************************************************
 
@@ -139,6 +140,12 @@ ErrorCode_t db_rollback_transaction(DbConnection_t* connection);
 *******************************************************************************/
 ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command);
 
+/* Several game engines (#433) */
+ErrorCode_t db_get_named_lock(DbConnection_t* connection, const char* name, int timeout);
+void db_release_named_lock(DbConnection_t* connection, const char* name);
+void db_record_shard_turns(DbConnection_t* connection, int shard, long per_minute, long long now);
+void db_other_shard_turns(DbConnection_t* connection, int shard, long long since, long* turns);
+
 /** ****************************************************************************
 
     @brief          Inserts given command info into DB
@@ -173,6 +180,9 @@ ErrorCode_t db_delete_command(DbConnection_t* connection, Command_t* command);
     @return         Execution result
 
 *******************************************************************************/
+/** Delays a drone's queued resumes by seconds of game time (#544: a drone
+    whose company owes processor tax thinks at most a turn a game hour) */
+ErrorCode_t db_delay_resume_commands(DbConnection_t* connection, int agent_id, long long seconds);
 ErrorCode_t db_delete_resume_commands(DbConnection_t* connection, int agent_id);
 
 /** ****************************************************************************
@@ -215,6 +225,9 @@ ErrorCode_t db_get_agent_engine_info(DbConnection_t* connection, int agent_id, A
 *******************************************************************************/
 ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMachine_t* vm);
 
+/** Adds a slice's instruction count to the drone's total (agents.instructions) */
+ErrorCode_t db_add_agent_instructions(DbConnection_t* connection, int agent_id, long long instructions);
+
 /** ****************************************************************************
 
     @brief          Updates latest command output in DB
@@ -230,6 +243,7 @@ ErrorCode_t db_update_agent_output(DbConnection_t* connection, int agent_id, cha
 
 /** Appends to the output a paused script has produced so far (agents.OUTPUT). */
 ErrorCode_t db_append_agent_output(DbConnection_t* connection, int agent_id, const char* msg);
+ErrorCode_t db_set_agent_status(DbConnection_t* connection, int agent_id, const char* text, long long game_t);
 
 /** Returns (malloc'd, "" when none) and clears a paused script's collected output. */
 char* db_take_agent_output(DbConnection_t* connection, int agent_id);
@@ -454,6 +468,11 @@ ErrorCode_t db_insert_action(Action_t* action);
 *******************************************************************************/
 ErrorCode_t db_abort_action(int action_id);
 
+/** Gives back to their deposits what a failed mining action took (#324
+    step 11; events engine) */
+ErrorCode_t db_refund_deposits(int action_id);
+ErrorCode_t db_refund_fuel(int action_id);
+
 /** ****************************************************************************
 
     @brief      Gets all the resource effects configured for a given protocol ID
@@ -550,7 +569,15 @@ ErrorCode_t db_delete_event(Event_t* event);
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e));
+/* The clock floor (#324 step 20): the commands that may run now, and the
+   game time of the oldest event that is due and not done */
+ErrorCode_t db_load_backlog(DbConnection_t* connection, long* runnable, double* oldest_event_game_t, int* has_event);
+
+/* Records the last load check in game_clock, for the website */
+ErrorCode_t db_record_load(DbConnection_t* connection, double target, double floor, double lag,
+                           long slices_per_minute, int full, long long checked_at);
+
+ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found);
 
 /** ****************************************************************************
 
@@ -562,6 +589,19 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e));
 
 *******************************************************************************/
 ErrorCode_t db_update_event(Event_t *event);
+
+/** ****************************************************************************
+
+    @brief          Whether this batch has settled an event already (#446)
+
+    @param[in]      event_id  The event
+    @param[out]     settled   ENGINE_TRUE when it has
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_event_settled_in_batch(int event_id, Bool_t* settled);
+void db_settled_batch_start(void);
 
 /** ****************************************************************************
 
@@ -647,6 +687,21 @@ ErrorCode_t db_insert_local_observations(Event_t *event);
 
 /** ****************************************************************************
 
+    @brief          Observations and event places are written once per batch
+                    (#448). Flush before the batch commits; a move flushes the
+                    places first. A savepoint takes a mark, and undoes what was
+                    added since if it rolls back.
+
+*******************************************************************************/
+typedef struct { int observations; int places; } BatchWritesMark_t;
+ErrorCode_t db_flush_batch_writes(void);
+ErrorCode_t db_flush_places(void);
+void db_batch_writes_discard(void);
+BatchWritesMark_t db_batch_writes_mark(void);
+void db_batch_writes_undo(BatchWritesMark_t mark);
+
+/** ****************************************************************************
+
     @brief          Gets whole observation info for a given event (observable, reportable, etc,..)
 
     @param[in]      event    Input event
@@ -656,6 +711,19 @@ ErrorCode_t db_insert_local_observations(Event_t *event);
 
 *******************************************************************************/
 ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protocol);
+
+/** ****************************************************************************
+
+    @brief          Gets a protocol's observable and reportable flags, from a
+                    cache good for a minute (#446)
+
+    @param[in]      protocol_id  The protocol
+    @param[in\out]  protocol     Output struct where we store the flags
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_get_protocol_flags(int protocol_id, ProtocolInfo_t *protocol);
 
 /** ****************************************************************************
 
@@ -680,6 +748,20 @@ ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protoc
 
 *******************************************************************************/
 ErrorCode_t db_get_event_object_id(Event_t *event, int *object_id);
+
+/** Whether a drone is on a trip at a game time: its move is still pending (#380) */
+Bool_t db_drone_in_transit(int drone_id, long long game_t);
+
+/** Records a broadcast: what a drone said, where it was and when (#380) */
+ErrorCode_t db_insert_broadcast(int action_id, int drone_id, const char* body, long long game_t);
+
+/** The share exchange (#469): whether a company is still trading */
+int db_company_trading(int company);
+
+/** Records a share request (kind 1 post a sell order, 2 post a buy order,
+    3 pull, 4 push) for the drone's company, for its Share event to settle */
+ErrorCode_t db_insert_share_request(int action_id, int drone_id, int kind, int share_company, int counterparty,
+                                    int units, int price, long long placed_t);
 
 /** ****************************************************************************
 
@@ -885,46 +967,68 @@ ErrorCode_t db_get_pending_action_event(int action_id, int event_type, int exclu
 /** Runs a SAVEPOINT / ROLLBACK TO SAVEPOINT / RELEASE SAVEPOINT statement */
 ErrorCode_t db_savepoint(const char* statement);
 
-/** The game clock (see game_time.c): one row, id 1 */
-#define GAME_CLOCK_TABLE_SQL \
-    "CREATE TABLE IF NOT EXISTS game_clock (" \
-    " id INT UNSIGNED NOT NULL PRIMARY KEY," \
-    " real_anchor BIGINT NOT NULL," \
-    " game_anchor DOUBLE NOT NULL," \
-    " scale DOUBLE NOT NULL DEFAULT 1)"
+/* The game_clock, outbox and trades tables are created by database
+   migrations (game-engine/sql/migrations/) */
 
-/** Drone replies on their way to Earth: sent at send_at (unix seconds) */
-#define OUTBOX_TABLE_SQL \
-    "CREATE TABLE IF NOT EXISTS outbox (" \
-    " id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY," \
-    " send_at BIGINT NOT NULL," \
-    " user_email VARCHAR(255) NOT NULL," \
-    " subject VARCHAR(2048) NULL," \
-    " agent_name VARCHAR(255) NOT NULL," \
-    " body LONGTEXT NOT NULL," \
-    " INDEX send_at_idx (send_at))"
-
-/* Trades between players (#249): written by the events engine when a push
-   or pull fills another player's market order; read by queries 620 and 621 */
-#define TRADES_TABLE_SQL \
-    "CREATE TABLE IF NOT EXISTS trades (" \
-    " id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY," \
-    " time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP," \
-    " resource INT NOT NULL," \
-    " units INT NOT NULL," \
-    " credits INT NOT NULL," \
-    " seller INT UNSIGNED NOT NULL," \
-    " buyer INT UNSIGNED NOT NULL," \
-    " location INT NULL," \
-    " INDEX trades_resource_time_idx (resource, time))"
-
-ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, int buyer, int location);
-
-/** Adds columns newer engines need to databases created before them */
-ErrorCode_t db_upgrade_schema(void);
+ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, int buyer, int location, int tax);
 
 /** Records why an action failed (first reason only) */
 ErrorCode_t db_set_action_outcome(int action_id, int outcome);
+
+/** The latest game time of these drones' events, done or to come (0: none) */
+ErrorCode_t db_get_latest_processed_game_t(const int* drones, int count, long long* game_t);
+ErrorCode_t db_store_positions(DbConnection_t* connection, double acceleration, long long game_t,
+                               ErrorCode_t (*position)(int, CartesianInfo_t*, char*));
+ErrorCode_t db_get_latest_entry_game_t(int drone, const int* resources, const int* installed,
+                                       const int* locked, int count, long long* game_t);
+
+/** Takes up to `wanted` units from the mining deposit of a resource at a
+    place (#324 step 11), refilled first for the game time since it was last
+    worked out; sets *taken to what it gives (all of it when the place has
+    no deposit of it) */
+ErrorCode_t db_take_deposit(int object_id, int resource, long long wanted, long long* taken);
+
+/** Makes a drone a wreck (e.g. it ran out of fuel) */
+ErrorCode_t db_wreck_drone(int drone_id, const char* cause);
+
+/** ****************************************************************************
+
+    @brief          The drone's own row for the turn being run (#431 step 2).
+                    The game engine read it six or seven times a turn, a
+                    column or two at a time. Now one statement loads what a
+                    turn reads; the engine's functions that write those
+                    columns keep the copy up to date. Cleared when the turn
+                    ends. Columns another program changes during a turn (the
+                    drone's place) are still read from MySQL.
+
+*******************************************************************************/
+typedef struct
+{
+    int agent_id;
+    int launched_running;
+    int crashes_in_row;
+    int wrecked;
+    int loading;            // release_vm IS NULL: the script is still loading
+    long long instructions;
+    long long power_paid;
+    int waiting_action;     // 0: none
+    char* pending_input;    // NULL: none
+    int throttled;          // its company owes processor tax (#544)
+    // Written once, before the turn commits (#431 step 3)
+    int waiting_action_dirty;
+    int pending_input_dirty;
+    int power_paid_dirty;
+    long long instructions_added;
+} TurnRow_t;
+
+ErrorCode_t db_turn_row_load(DbConnection_t* connection, int agent_id);
+void db_turn_row_clear(void);
+// The loaded row, if it is this drone's; NULL otherwise (then ask MySQL)
+TurnRow_t* db_turn_row(int agent_id);
+// The loaded row, whoever's it is (NULL when none)
+TurnRow_t* db_turn_row_current(void);
+// Writes what the turn changed in the row, in one statement (game engine)
+ErrorCode_t db_turn_row_flush(DbConnection_t* connection);
 
 /** Sets (or clears, with 0) the action a drone's script waits for */
 ErrorCode_t db_get_launch_source(DbConnection_t* connection, int launcher_id, int source_id,

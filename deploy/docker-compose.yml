@@ -1,8 +1,8 @@
 # Ex-Machinis: the whole game on one server.
-#   ./setup.sh            first time: writes .env and mail accounts, starts everything
+#   ./setup.sh            first time: writes .env, starts everything
 #   docker compose up -d  later starts, after editing .env or pulling new code
 #
-# Only ports 80/443 (website) and 25 (incoming mail) are published.
+# Only ports 80/443 (the website) are published. There is no email (#367).
 
 name: exmachinis
 
@@ -12,16 +12,37 @@ x-engine-env: &engine-env
   DB_NAME: exmachinis
   DB_USER: exmachinis
   DB_PASSWORD: ${DB_PASSWORD:?run setup.sh first}
-  AGENTS_EMAIL_DOMAIN: ${DOMAIN}
-  MAIL_DOMAIN: ${DOMAIN}
-  # Master game clock (see game-engine/conf/game-engine.conf)
-  GAME_TIME_SCALE: ${GAME_TIME_SCALE:-60}
-  TRAVEL_ACCELERATION: ${TRAVEL_ACCELERATION:-1}
+  # Master game clock (see game-engine/conf/game-engine.conf): 1800, a game
+  # day every 48 real seconds (#380: no test world, every release is live)
+  GAME_TIME_SCALE: ${GAME_TIME_SCALE:-1800}
+  # The clock floor (#324 step 20): the clock slows when the engines fall
+  # behind, never below GAME_TIME_FLOOR (60: one game hour a real minute,
+  # the old live pace; "0": it never floats); behind at the
+  # floor, new releases queue
+  GAME_TIME_FLOOR: ${GAME_TIME_FLOOR:-60}
+  CLOCK_LAG_HIGH: ${CLOCK_LAG_HIGH:-10}
+  CLOCK_LAG_LOW: ${CLOCK_LAG_LOW:-3}
+  # -1: quiet logs (errors, warnings and clock changes only); 0 to 3 log
+  # every step, which at full load is gigabytes a day
+  APP_TRACE_LEVEL: ${ENGINE_TRACE_LEVEL:--1}
+  TRAVEL_ACCELERATION: ${TRAVEL_ACCELERATION:-19.6}
+  # Drone turns on several processes (#433): the game-engine container runs
+  # this many game engines, each with its share of the drones. 1 (the
+  # default) runs one, as before; up to the number of cores is sensible
+  ENGINE_SHARDS: ${ENGINE_SHARDS:-1}
+  # No email (#367 step 5): drones' replies go to drone_messages, which the
+  # website shows
+  EMAIL_ENABLED: "0"
 
 services:
   db:
     image: mysql:8.4
     restart: unless-stopped
+    # Throughput (#324 step 20): no binary log (a busy world wrote gigabytes
+    # an hour of it; backups use mysqldump), and the log flushed to disk
+    # once a second rather than at every commit (a power cut can lose the
+    # last second of play; a crash of MySQL alone loses nothing)
+    command: ["--disable-log-bin", "--innodb-flush-log-at-trx-commit=2"]
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?run setup.sh first}
       MYSQL_DATABASE: exmachinis
@@ -29,16 +50,37 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - db-data:/var/lib/mysql
-      # Loaded only when the database volume is first created.
+      # The base schema, loaded only when the database volume is first
+      # created. Later changes come from the migrate service.
       - ../game-engine/sql/create_db.sql:/docker-entrypoint-initdb.d/01-create_db.sql:ro
       - ../game-engine/db-backup/exmachinis_tables.sql:/docker-entrypoint-initdb.d/02-tables.sql:ro
-      - ../game-engine/sql/game_data.sql:/docker-entrypoint-initdb.d/03-game_data.sql:ro
     healthcheck:
       # Over TCP, so it only passes once the schema has been loaded.
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uexmachinis -p\"$$MYSQL_PASSWORD\" --silent"]
       interval: 5s
       timeout: 5s
       retries: 60
+
+  # Runs on every start, before the website and engines: applies the schema
+  # migrations the database hasn't had yet (game-engine/sql/migrations/),
+  # then loads the current game data, which replaces the reference tables
+  # (resources, protocols, queries...) and leaves players and drones alone.
+  migrate:
+    image: mysql:8.4
+    restart: "no"
+    depends_on:
+      db: {condition: service_healthy}
+    # As root: migrations may create triggers, which MySQL (with its binary
+    # log on) only lets an administrator do
+    environment:
+      DB_HOST: db
+      DB_USER: root
+      DB_NAME: exmachinis
+      MYSQL_PWD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - ../game-engine/sql:/sql:ro
+      - ../game-engine/db-backup:/db-backup:ro
+    entrypoint: ["sh", "-c", "/sql/migrate.sh && mysql -hdb -uroot exmachinis < /sql/game_data.sql && echo 'migrate: game data loaded'"]
 
   app:
     build:
@@ -47,7 +89,7 @@ services:
     image: exmachinis-app
     restart: unless-stopped
     depends_on:
-      db: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
     environment:
       APP_NAME: Ex-Machinis
       APP_ENV: production
@@ -61,24 +103,9 @@ services:
       DB_USERNAME: exmachinis
       DB_PASSWORD: ${DB_PASSWORD}
       CRON_KEY: ${CRON_KEY:?run setup.sh first}
-      REPORTS_DESTINATION: ${ADMIN_EMAIL}
-      # Outgoing mail goes to the mail container; incoming mail is read from
-      # its registrar and catch-all mailboxes over IMAP.
-      MAIL_DRIVER: smtp
-      MAIL_HOST: mail
-      MAIL_PORT: "25"
-      MAIL_ENCRYPTION: tls
-      MAIL_VERIFY_PEER: "false"
-      MAIL_DOMAIN: ${DOMAIN}
-      MAIL_FROM_ADDRESS: services@${DOMAIN}
-      MAIL_FROM_NAME: Ex-Machinis
-      MAIL_INCOMING_HOST: mail
-      MAIL_INCOMING_PORT: "143"
-      MAIL_INCOMING_VALIDATE_CERT: "false"
-      MAIL_REGISTRATION_ACCOUNT: registrar@${DOMAIN}
-      MAIL_REGISTRATION_PASSWORD: ${MAIL_REGISTRATION_PASSWORD:?run setup.sh first}
-      MAIL_CATCHALL_ACCOUNT: catchall@${DOMAIN}
-      MAIL_CATCHALL_PASSWORD: ${MAIL_CATCHALL_PASSWORD:?run setup.sh first}
+      # Code pushes (#553): thousandths of a company's credits per push number, and the most
+      FORGE_PUSH_FEE_PERMILLE: ${FORGE_PUSH_FEE_PERMILLE:-50}
+      FORGE_PUSH_FEE_CAP_PERMILLE: ${FORGE_PUSH_FEE_CAP_PERMILLE:-500}
     volumes:
       - app-storage:/var/www/storage
 
@@ -91,7 +118,7 @@ services:
     init: true
     command: ["/opt/exmachinis/bin/run-engine.sh", "game-engine"]
     depends_on:
-      db: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
     environment: *engine-env
     volumes:
       - engine-logs:/opt/exmachinis/log
@@ -102,7 +129,7 @@ services:
     init: true
     command: ["/opt/exmachinis/bin/run-engine.sh", "events-engine"]
     depends_on:
-      db: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
       game-engine: {condition: service_started}
     environment: *engine-env
     volumes:
@@ -120,39 +147,6 @@ services:
       CRON_KEY: ${CRON_KEY}
     volumes:
       - engine-logs:/opt/exmachinis/log
-
-  mail:
-    image: mailserver/docker-mailserver:15
-    restart: unless-stopped
-    hostname: mail.${DOMAIN}
-    ports:
-      - "25:25"
-    environment:
-      # Containers on this network may send without logging in.
-      PERMIT_DOCKER: connected-networks
-      # IMAP is only used inside Docker; IPv4 also works on hosts without IPv6.
-      DOVECOT_INET_PROTOCOLS: ipv4
-      SSL_TYPE: manual
-      SSL_CERT_PATH: /tmp/docker-mailserver/ssl/cert.pem
-      SSL_KEY_PATH: /tmp/docker-mailserver/ssl/key.pem
-      POSTMASTER_ADDRESS: postmaster@${DOMAIN}
-      ENABLE_OPENDKIM: "1"
-      ENABLE_OPENDMARC: "0"
-      ENABLE_POLICYD_SPF: "0"
-      ENABLE_SPAMASSASSIN: "0"
-      ENABLE_CLAMAV: "0"
-      ENABLE_FAIL2BAN: "0"
-      ENABLE_POSTGREY: "0"
-      ENABLE_AMAVIS: "0"
-      ENABLE_POP3: "0"
-      SPOOF_PROTECTION: "0"
-      LOG_LEVEL: info
-    volumes:
-      - ./mail/config:/tmp/docker-mailserver
-      - mail-data:/var/mail
-      - mail-state:/var/mail-state
-      - mail-logs:/var/log/mail
-    stop_grace_period: 1m
 
   caddy:
     image: caddy:2
@@ -175,8 +169,5 @@ volumes:
   db-data:
   app-storage:
   engine-logs:
-  mail-data:
-  mail-state:
-  mail-logs:
   caddy-data:
   caddy-config:

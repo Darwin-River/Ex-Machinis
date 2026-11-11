@@ -129,6 +129,13 @@ void vm_wait_for_action(int action_id);
 /** Pushes a value onto a VM's data stack (perform's result on resume) */
 void vm_push_result(VirtualMachine_t* vm, int value);
 
+/** The result of a run of "' launched catch" that has ended: 0 when launched
+    returned normally, else its error code (takes catch's code off the stack) */
+int vm_take_launched_result(VirtualMachine_t* vm);
+
+/** Adds text to the current command's output, as the VM's own output does */
+void vm_append_output(const char* text);
+
 /** The action the script paused for in this run, 0 when none */
 int vm_waiting_action(void);
 
@@ -220,5 +227,10 @@ ErrorCode_t vm_write_integer(VirtualMachine_t* vm, uint16_t addr, uint16_t value
 
 *******************************************************************************/
 ErrorCode_t vm_write_datetime(VirtualMachine_t* vm, uint16_t addr, char* date_str);
+
+/** A Lua drone's run (#380): its output, a used-up slice, report */
+void vm_output_begin(char* out_buffer, size_t out_size);
+void vm_slice_yield(void);
+void vm_report_output(void);
 
 #endif // __EM_VM_MODULE__

@@ -6,13 +6,13 @@
                     <input class="form-input input-md" id="keyword" v-model="keyword"
                            type="text"
                            name="keyword">
-                    <label class="form-label rd-input-label" for="keyword">Filter by keyword</label>
+                    <label class="form-label" for="keyword">Filter by keyword</label>
                 </div>
             </div>
 
         </div>
 
-        <div v-bind:class="'mb-4 table-responsive '+(loading?' loading-table ':'') ">
+        <div v-bind:class="'mb-4 table-responsive '+(loading?' loading-table ':'')">
             <table class="table-custom table-custom-bordered">
                 <tr>
                     <th>

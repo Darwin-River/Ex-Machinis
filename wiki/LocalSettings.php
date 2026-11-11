@@ -57,8 +57,9 @@ $wgFavicon = "$wgScriptPath/favicon.ico";
 $wgEnableEmail = true;
 $wgEnableUserEmail = true; # UPO
 
-$wgEmergencyContact = 'david.rozak@darwinriver.com';
-$wgPasswordSender = 'david.rozak@darwinriver.com';
+# The maintainer's address, from the server's environment (#525)
+$wgEmergencyContact = getenv("MW_CONTACT_EMAIL") ?: "wiki@example.com";
+$wgPasswordSender = getenv("MW_CONTACT_EMAIL") ?: "wiki@example.com";
 
 $wgEnotifUserTalk = false; # UPO
 $wgEnotifWatchlist = false; # UPO

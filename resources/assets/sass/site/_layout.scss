@@ -1,0 +1,71 @@
+// Header, page header, sections, footer
+
+.site-header {
+  position: sticky; top: 0; z-index: 1030;
+  background: rgba(11, 15, 26, 0.85);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid $line;
+
+  .navbar { padding-top: 0.6rem; padding-bottom: 0.6rem; }
+  .navbar-brand img { display: block; height: 16px; width: auto; }
+  .nav-link { color: $text !important; font-weight: 500; }
+  .nav-link:hover, .nav-link:focus, .show > .nav-link { color: $thrust !important; }
+  .nav-support { color: $alarm !important; font-size: 1.1rem; line-height: 1.4; }
+  .nav-actions { align-items: center; }
+  .dropdown-menu { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45); }
+
+  @include media-breakpoint-down(md) {
+    .navbar-collapse { padding: 0.5rem 0 1rem; }
+    .dropdown-menu { border: 0; box-shadow: none; background: transparent; padding-left: 1rem; }
+    .nav-actions { align-items: flex-start; }
+    .nav-actions .button { margin-top: 0.5rem; }
+  }
+  @include media-breakpoint-up(lg) {
+    .nav-actions { margin-left: 1rem; }
+    .nav-actions .nav-item + .nav-item { margin-left: 0.5rem; }
+  }
+}
+
+.page-header {
+  padding: 2.5rem 0 2rem;
+  background:
+    radial-gradient(ellipse at 85% -40%, rgba(76, 201, 240, 0.22), transparent 60%),
+    radial-gradient(ellipse at 0% 130%, rgba(255, 181, 71, 0.14), transparent 55%),
+    $space-800;
+  border-bottom: 1px solid $line;
+
+  .page-title { margin: 0; font-size: 2rem; overflow-wrap: anywhere; }
+  .page-subtitle { margin: 0.5rem 0 0; color: $muted; max-width: 46rem; }
+  @include media-breakpoint-up(md) { .page-title { font-size: 2.5rem; } }
+}
+
+.crumbs {
+  display: flex; flex-wrap: wrap; list-style: none; padding: 0; margin: 0 0 0.75rem;
+  font-size: 0.875rem; color: $muted;
+  li + li::before { content: "/"; padding: 0 0.5rem; color: $space-600; }
+  a { color: $muted; }
+  a:hover { color: $thrust; }
+  .active { color: $text; }
+}
+
+// Content sections: the old pages' spacing names, kept so they read the same
+.section { padding: 2.5rem 0; }
+.section-xs { padding: 1.5rem 0; }
+.section-md, .section-lg { padding: 3rem 0; }
+.section-xl { padding: 4rem 0; }
+.section-first { padding-top: 2rem; }
+
+.site-footer {
+  margin-top: 4rem;
+  padding: 3rem 0 1.5rem;
+  background: $space-800;
+  border-top: 1px solid $line;
+  color: $muted;
+
+  .footer-title { font-size: 1rem; text-transform: uppercase; letter-spacing: 0.08em; color: #fff; margin: 0 0 0.75rem; }
+  .footer-links { list-style: none; padding: 0; margin: 0; }
+  .footer-links li { margin: 0.25rem 0; }
+  .footer-links a { color: $text; }
+  .footer-links a:hover { color: $thrust; }
+  .footer-legal { font-size: 0.875rem; border-top: 1px solid $line; padding-top: 1.25rem; margin: 0.5rem 0 0; }
+}

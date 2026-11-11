@@ -2,44 +2,180 @@
 @php $title = $agent->name ; @endphp
 @section('pageTitle', $title)
 @section('content')
-    <section class="breadcrumbs-modern box-transform-wrap bg-image context-dark"
-             style="background-image: url('/images/240907570-huge.jpg');">
-        <div class="container">
-            <div class="breadcrumbs-modern-body">
-                <h5 class="breadcrumbs-modern-subtitle"></h5>
-                <h1 class="breadcrumbs-modern-title">{{$title}}</h1>
-            </div>
-            <ul class="breadcrumbs-path breadcrumbs-modern-path">
-                <li><a href="/">Home</a></li>
-                <li><a href="/spacecraft">Spacecraft</a></li>
-                <li class="active">{{$title}}</li>
-            </ul>
-        </div>
-        <div class="box-transform" style="background-image: url('/images/240907570-huge.jpg');"></div>
-    </section>
+    <x-page-header>
+        <x-slot:title>{{$title}}</x-slot:title>
+        <li><a href="/spacecraft">Spacecraft</a></li>
+        <li class="active">{{$title}}</li>
+    </x-page-header>
 
-    <section class="section section-xs section-first bg-default text-md-left">
-        <div class="container grid-demonstration" id="container">
+    <section class="section section-xs section-first text-md-left">
+        <div class="container" id="container">
+            @include('_flash_message')
             <div class="description-fields">
-                <div class="row row-xxl row-30 row-md-60 ">
+                <div class="row row-30">
                     <div class="col-12 col-sm-6 col mb-0">
                         <b>Spacecraft Id</b>: {{$agent->agent_id}}<br/>
-                        <b>Location</b>: <a
+                        @if($flight)
+                            <b>Location</b>: flying from <a href="{{url('locations/'.$agent->object_id)}}">{{$agent->location->object_name}}</a>
+                            to <a href="{{url('locations/'.$flight['to_id'])}}">{{ $flight['to'] }}</a>, arriving {{ $flight['arrives'] }}<br/>
+                        @else
+                            <b>Location</b>: <a
                                 href="{{url('locations/'.$agent->object_id)}}">{{$agent->location->object_name}}</a><br/>
+                        @endif
 
-                        <b>Owner</b>: <a href="{{url('companies/'.$agent->user_id)}}">{{$agent->user->name}}</a><br/>
+                        <b>Company</b>: {{ $state['company']->name ?? '' }}
+                            {{ ($state['company'] && $state['company']->eliminated_at) ? '(ended)' : '' }}<br/>
+                        <b>Status</b>: {{ $state['status'] }}<br/>
+                        @if($agent->script_status !== null)
+                            <b>Its script says</b> ({{ \App\Services\DronePage::when((int) $agent->script_status_t) }}): {{ $agent->script_status }}<br/>
+                        @endif
+                        <b>Fuel</b>: {{ $state['fuel'] }}
+                            <span>· used in the last game day: {{ $state['fuel_day']['actions'] }} for actions{{ $state['fuel_day']['thinking'] ? ', ' . $state['fuel_day']['thinking'] . ' for thinking (before #544)' : '' }}
+                                (thinking burns no fuel: the company pays processor tax)</span>
+                            @if($state['fuel_day']['by_action'])
+                                <span>({{ collect($state['fuel_day']['by_action'])->map(fn ($u) => $u['what'] . ' ' . $u['fuel'])->implode(', ') }})</span>
+                            @endif<br/>
+                        @if($messages->isNotEmpty())
+                            <b>Last said</b> ({{ \App\Services\DronePage::when($messages->first()->game_t) }}):
+                            <a href="#messages">{{ \Illuminate\Support\Str::limit(trim(preg_replace('/^Location:[^\n]*\n/', '', $messages->first()->body)), 120) }}</a><br/>
+                        @endif
                     </div>
-                    <div class="col-12 col-sm-6 col ">
+                    <div class="col-12 col-sm-6 col">
                         <b>Hull</b>: {{$agent->hull->name}}<br/>
                         <b>Max Cargo</b>: {{$agent->hull->cargo_capacity}} kg.<br/>
 
                         <b>Current Cargo</b>: {{$totalWeight}} kg.<br/>
+                        <b>Generation</b>: {{ $state['generation'] }}
+                            @if($state['parent'])
+                                <span>(launched by <a href="{{ url('spacecraft/' . $state['parent']->agent_id) }}">{{ $state['parent']->name }}</a>)</span>
+                            @endif<br/>
+                        @if($state['clones']->isNotEmpty())
+                            <b>Clones</b>:
+                            @foreach($state['clones'] as $clone)
+                                <a href="{{ url('spacecraft/' . $clone->agent_id) }}">{{ $clone->name }}</a>{{ $clone->wrecked_at ? ' (wreck)' : '' }}{{ $loop->last ? '' : ',' }}
+                            @endforeach<br/>
+                        @endif
+                        <b>Instructions run</b>: {{ number_format($state['instructions']) }}
+                            @if($state['crashes'])
+                                <span>· <b>Crashes</b>: {{ $state['crashes'] }}</span>
+                            @endif<br/>
                     </div>
                 </div>
             </div>
-            <div class="row row-xxl row-30 row-md-60">
+            @if($postMortem)
+                {{-- Post-mortem (#324 step 16) --}}
+                <div class="row row-30">
+                    <div class="col">
+                        <h2 class="">Post-mortem</h2>
+                        <div id="post-mortem-cause" style="white-space: normal; margin-bottom: 1em">{{ $postMortem['cause'] }}</div>
+                    </div>
+                </div>
+                <div class="table-custom-responsive">
+                    <table class="table-ticket">
+                        <tr><th>When</th><th>What</th><th>Result</th><th>Fuel after</th></tr>
+                        @foreach($postMortem['timeline'] as $row)
+                            <tr><td>{{ $row['when'] }}</td><td>{{ $row['what'] }}</td><td>{{ $row['result'] }}</td><td>{{ $row['fuel'] }}</td></tr>
+                        @endforeach
+                    </table>
+                </div>
+                @php($wreckDeals = \App\Services\DronePage::deals((int) $agent->agent_id))
+                @if($wreckDeals)
+                    <h4 class="mt-3">Its last sales and purchases</h4>
+                    <div class="table-custom-responsive">
+                        <table class="table-ticket">
+                            <tr><th>When</th><th>What</th><th>With</th><th>Credits</th></tr>
+                            @foreach($wreckDeals as $row)
+                                <tr><td>{{ $row['when'] }}</td><td>{{ $row['what'] }}</td><td>{{ $row['with'] }}</td><td>{{ $row['credits'] }}</td></tr>
+                            @endforeach
+                        </table>
+                    </div>
+                @endif
+            @endif
+
+            @if($activity)
+                {{-- What a working drone is doing (#380) --}}
+                <div class="row row-30">
+                    <div class="col" id="activity">
+                        <h2 class="">Activity</h2>
+                        <p><b>Now</b>: {{ $activity['now'] ?? $state['status'] }}</p>
+                    </div>
+                </div>
+                @if($activity['timeline'])
+                    <div class="table-custom-responsive">
+                        <table class="table-ticket">
+                            <tr><th>When</th><th>What</th><th>Result</th><th>Fuel after</th></tr>
+                            @foreach($activity['timeline'] as $row)
+                                <tr><td>{{ $row['when'] }}</td><td>{{ $row['what'] }}</td><td>{{ $row['result'] }}</td><td>{{ $row['fuel'] }}</td></tr>
+                            @endforeach
+                        </table>
+                    </div>
+                @endif
+                @if($activity['deals'])
+                    <h4 class="mt-3">Sales and purchases</h4>
+                    <div class="table-custom-responsive">
+                        <table class="table-ticket">
+                            <tr><th>When</th><th>What</th><th>With</th><th>Credits</th></tr>
+                            @foreach($activity['deals'] as $row)
+                                <tr><td>{{ $row['when'] }}</td><td>{{ $row['what'] }}</td><td>{{ $row['with'] }}</td><td>{{ $row['credits'] }}</td></tr>
+                            @endforeach
+                        </table>
+                    </div>
+                @endif
+            @endif
+
+            {{-- What it has said (#367 step 3: public, like its code) --}}
+            <div class="row row-30">
+                <div class="col" id="messages">
+                    <h2 class="">What it said</h2>
+                    @forelse($messages as $message)
+                        <div><small>{{ \App\Services\DronePage::when($message->game_t) }}{{ $message->subject ? ' · ' . $message->subject : '' }}</small></div>
+                        <pre class="p-2" style="white-space: pre-wrap">{{ $message->body }}</pre>
+                    @empty
+                        <p>Nothing yet. What it prints shows here once it reaches Earth.</p>
+                    @endforelse
+                </div>
+            </div>
+
+            {{-- Its code and where it comes from (#324 step 16) --}}
+            <div class="row row-30">
                 <div class="col">
-                    <h2 class="wow fadeInLeft">Cargo Manifest</h2>
+                    <h2 class="">Code</h2>
+                    @if($code)
+                        <div style="white-space: normal; margin-bottom: 1em">
+                            @if($code['inherited'])
+                                Inherited from <a href="{{ url('spacecraft/' . $code['release']->agent_id) }}">drone {{ $code['release']->agent_id }}</a>'s release.
+                            @else
+                                Released {{ $code['release']->created_at }}.
+                            @endif
+                            @if($code['release']->copied_from)
+                                Copied from <a href="{{ url('spacecraft/' . $code['release']->copied_from) }}">drone {{ $code['release']->copied_from }}</a>{{ $code['release']->copied_word ? ' (the word ' . $code['release']->copied_word . ')' : '' }}.
+                            @endif
+                            @if($code['same_as'])
+                                The same code as <a href="{{ url('spacecraft/' . $code['same_as']) }}">drone {{ $code['same_as'] }}</a>'s, released earlier.
+                            @endif
+                            <a class="button button-primary button-sm" href="{{ url('release?copy=' . $agent->agent_id) }}">Copy this code</a>
+                        </div>
+                        <pre id="drone-code" style="white-space: pre-wrap; color: #e6e6e6; background: #2b2b36; padding: 1em; border-radius: 4px">{{ $code['release']->source }}</pre>
+                        @if($code['words'])
+                            <div style="white-space: normal; line-height: 2"><b>Functions</b>:
+                                @foreach($code['words'] as $name => $origin)
+                                    <span class="mr-2"><code>{{ $name }}</code>
+                                        @if($origin)
+                                            <span>(first in <a href="{{ url('spacecraft/' . $origin) }}">drone {{ $origin }}</a>)</span>
+                                        @endif
+                                        <a href="{{ url('release?copy=' . $agent->agent_id . '&word=' . urlencode($name)) }}" title="Copy this function">copy</a></span>
+                                @endforeach
+                            </div>
+                        @endif
+                    @else
+                        <p>This drone's program came by email: it has no released code to show.</p>
+                    @endif
+                </div>
+            </div>
+
+            <div class="row row-30">
+                <div class="col">
+                    <h2 class="">Cargo Manifest</h2>
                 </div>
             </div>
             <div class="table-custom-responsive">
@@ -56,14 +192,14 @@
                             </td>
                             <td>
                                 @if($cargoPlacement->locked)
-                                    <span class="icon mdi mdi-lock" title="resource in use"></span>
+                                    <span class="locked" title="resource in use">in use</span>
                                 @endif
                             </td>
-                            <td><span class="rd-nav-icon mdi mdi-package-down" title="cargo"></span>
+                            <td><span class="meta-label">cargo</span>
                                 {{$cargoPlacement->new_quantity}} units
                             </td>
                             <td>
-                            <td><span class="rd-nav-icon mdi mdi-weight" title="weight"></span>
+                            <td><span class="meta-label">weight</span>
                                 {{$cargoPlacement->new_quantity*$cargoPlacement->mass}} kg
                             </td>
                         <!--     <td>
@@ -74,9 +210,9 @@
                     @endforeach
                 </table>
             </div>
-            <div class="row row-xxl row-30 row-md-60">
+            <div class="row row-30">
                 <div class="col">
-                    <h2 class="wow fadeInLeft">Observed Events</h2>
+                    <h2 class="">Observed Events</h2>
                 </div>
             </div>
             <in-game-events-table

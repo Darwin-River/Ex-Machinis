@@ -15,6 +15,11 @@
 #include <math.h>
 
 #include "db.h"
+#include "static_cache.h"
+
+// Real seconds a cached game-data row stays good (#431): game data reloaded
+// by a deploy reaches running engines within this
+#define STATIC_CACHE_TTL 60
 #include "game_time.h"
 #include "email.h"
 #include "trace.h"
@@ -102,7 +107,10 @@ void db_scape_string(
     unsigned long to_len;
 
     to_len = mysql_real_escape_string(connection->hndl, out, value, strlen(value));
-    out[to_len+1] = '\0';
+    // mysql_real_escape_string ends the string at out[to_len] itself; the
+    // old out[to_len+1] wrote a byte past the buffer for empty input (#380)
+    if(to_len < out_len)
+        out[to_len] = '\0';
 
    engine_trace(TRACE_LEVEL_DEBUG, "Value [%s] scaped now is [%s]", value, out);
 }
@@ -215,6 +223,13 @@ ErrorCode_t db_init(DbConnection_t* connection)
                 // Save connection handler
                 connection->hndl = local_hndl;
 
+                // Several game engines (#433): each statement reads what the
+                // others have committed, so the event-order lock works (under
+                // REPEATABLE READ a transaction keeps its older snapshot)
+                if(engine_shards() > 1 &&
+                   mysql_query(local_hndl, "SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED"))
+                    engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to set READ COMMITTED: %s", mysql_error(local_hndl));
+
             } else {
                  engine_trace(TRACE_LEVEL_ALWAYS,
                  	"ERROR: Unable to conect to DB. "
@@ -277,89 +292,279 @@ void db_stop(DbConnection_t* connection)
     @return         Execution result
 
 *******************************************************************************/
+/* The commands that may run now (FROM commands c LEFT JOIN agents a) */
+static void db_runnable_where_for(char *where, size_t length, int all_shards)
+{
+    // Several game engines (#433): each takes its share of the drones
+    char shard[64] = "";
+    if(!all_shards && engine_shards() > 1)
+        snprintf(shard, sizeof(shard), "c.agent_id %% %d = %d AND ", engine_shards(), engine_shard());
+    snprintf(where, length,
+        "%s"
+        "c.deliver_at IS NOT NULL AND c.deliver_at <= %lld "  // game time (#327)
+        "AND NOT (c.code LIKE '%s%%' AND a.waiting_action IS NOT NULL "
+        "  AND EXISTS (SELECT 1 FROM actions x WHERE x.id = a.waiting_action AND x.aborted = 0) "
+        "  AND EXISTS (SELECT 1 FROM events e WHERE e.action = a.waiting_action AND e.outcome = 0)) "
+        // <launched>, and any new script (a command that isn't a meta
+        // command such as <abort>), waits until the drone's running script
+        // has finished (no resume queued). A released script comes in
+        // pieces of up to 2,048 characters: each piece loads after the one
+        // before, instead of being refused as "another command is running"
+        // (#367: that dropped the rest of any script longer than one piece),
+        // and launched runs once all of it has loaded
+        "AND NOT ((c.code = '%s' OR (c.code NOT LIKE '<%%' AND c.code NOT LIKE '%s%%')) "
+        "  AND EXISTS (SELECT 1 FROM commands r "
+        "  WHERE r.agent_id = c.agent_id AND r.id <> c.id AND r.code LIKE '%s%%'))",
+        shard,
+        game_time_now_seconds(),
+        engine_get_vm_resume_command(),
+        META_COMMAND_LAUNCHED,
+        engine_get_vm_resume_command(),
+        engine_get_vm_resume_command());
+}
+
+/* The commands this engine may run now (its shard's) */
+static void db_runnable_where(char *where, size_t length)
+{
+    db_runnable_where_for(where, length, 0);
+}
+
+/* One number from a query (0 when there's none) */
+static ErrorCode_t db_query_number(DbConnection_t* connection, const char* query_text, double* value, int* found)
+{
+    *value = 0;
+    if(found) *found = 0;
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+    if(row && row[0]) {
+        *value = atof(row[0]);
+        if(found) *found = 1;
+    }
+    if(db_result) mysql_free_result(db_result);
+    return ENGINE_OK;
+}
+
+ErrorCode_t db_load_backlog(DbConnection_t* connection, long* runnable, double* oldest_event_game_t, int* has_event)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char where[1024];
+    double count = 0;
+    ErrorCode_t result = db_reconnect(connection);
+
+    *runnable = 0;
+    *has_event = 0;
+    *oldest_event_game_t = 0;
+    if(result != ENGINE_OK)
+        return result;
+
+    db_runnable_where_for(where, sizeof(where), 1);   // every shard's (#433)
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT COUNT(*) FROM commands c LEFT JOIN agents a ON a.agent_id = c.agent_id WHERE %s", where);
+    result = db_query_number(connection, query_text, &count, NULL);
+    *runnable = (long)count;
+
+    // The oldest event the events engine should have done by now (as its
+    // own query picks them)
+    if(result == ENGINE_OK) {
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "SELECT e.game_t FROM events e WHERE e.game_t <= %lld AND e.outcome = 0 "
+            "AND (SELECT aborted FROM actions WHERE id = e.action) != 1 ORDER BY e.game_t LIMIT 1",
+            game_time_now_seconds());
+        result = db_query_number(connection, query_text, oldest_event_game_t, has_event);
+    }
+    return result;
+}
+
+ErrorCode_t db_record_load(DbConnection_t* connection, double target, double floor, double lag,
+                           long slices_per_minute, int full, long long checked_at)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char floor_text[32];
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result != ENGINE_OK)
+        return result;
+    if(floor > 0 && floor < target)
+        snprintf(floor_text, sizeof(floor_text), "%.6f", floor);
+    else
+        snprintf(floor_text, sizeof(floor_text), "NULL");
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "UPDATE game_clock SET target_scale = %.6f, floor_scale = %s, lag_seconds = %.1f, "
+        "slices_per_minute = %ld, is_full = %d, load_checked_at = %lld WHERE id = 1",
+        target, floor_text, lag, slices_per_minute, full ? 1 : 0, checked_at);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    return ENGINE_OK;
+}
+
+/*
+ * The commands due now, a batch at a time (#432, part of #428): one query
+ * for up to COMMAND_BATCH_SIZE of them, in run order, instead of one query
+ * over every due command for each command run. With 1,000 ships that query
+ * cost ~9 ms a turn (70 ms while a thousand releases loaded) and was the
+ * game engine's biggest cost. Each id is checked again just before it runs
+ * (a lookup by id, with the same rules), so a command that stopped being
+ * runnable is skipped. The batch is refilled when it runs out or is
+ * COMMAND_BATCH_MAX_AGE real seconds old, so a new release still loads first
+ * within about a second.
+ */
+#define COMMAND_BATCH_SIZE 64
+#define COMMAND_BATCH_MAX_AGE 1
+static int g_command_batch[COMMAND_BATCH_SIZE];
+static int g_command_batch_count = 0;
+static int g_command_batch_next = 0;
+static time_t g_command_batch_at = 0;
+
+/* Adds the ids a query returns to the batch, skipping any already in it */
+static ErrorCode_t db_add_to_command_batch(DbConnection_t* connection, const char* query_text)
+{
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    if(res == NULL)
+        return ENGINE_DB_QUERY_ERROR;
+    MYSQL_ROW row;
+    while((row = mysql_fetch_row(res)) && g_command_batch_count < COMMAND_BATCH_SIZE) {
+        int id = atoi(row[0]), known = 0;
+        for(int i = 0; i < g_command_batch_count && !known; i++)
+            known = (g_command_batch[i] == id);
+        if(!known)
+            g_command_batch[g_command_batch_count++] = id;
+    }
+    mysql_free_result(res);
+    return ENGINE_OK;
+}
+
+/* Fills the batch with the ids of the commands due now, in run order: those
+   of drones whose script is still loading first, then the rest by id. Two
+   queries that each stop at the batch size (#454): one sorting every due
+   command, about one per drone, took 25 ms on a 3,000-ship world */
+static ErrorCode_t db_fill_command_batch(DbConnection_t* connection)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char where[1024];
+
+    g_command_batch_count = 0;
+    g_command_batch_next = 0;
+    g_command_batch_at = time(NULL);
+    db_runnable_where(where, sizeof(where));
+
+    // Loading drones (agents_loading, migration 0035), not their resumes
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT c.id FROM agents a STRAIGHT_JOIN commands c ON c.agent_id = a.agent_id "
+        "WHERE (a.release_vm IS NULL) = 1 AND c.code NOT LIKE '%s%%' AND %s ORDER BY c.id LIMIT %d",
+        engine_get_vm_resume_command(), where, COMMAND_BATCH_SIZE);
+    ErrorCode_t result = db_add_to_command_batch(connection, query_text);
+
+    // Then the rest, oldest first (enough to fill the batch past any
+    // loading ones it returns again)
+    if(result == ENGINE_OK && g_command_batch_count < COMMAND_BATCH_SIZE) {
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "SELECT c.id FROM commands c LEFT JOIN agents a ON a.agent_id = c.agent_id "
+            "WHERE %s ORDER BY c.id LIMIT %d",
+            where, COMMAND_BATCH_SIZE + g_command_batch_count);
+        result = db_add_to_command_batch(connection, query_text);
+    }
+    return result;
+}
+
 ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
 {
-	char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-	// always check connection is alive
-	ErrorCode_t result = db_reconnect(connection);
+    // always check connection is alive
+    ErrorCode_t result = db_reconnect(connection);
 
     // Initialize out command
     memset(command, 0, sizeof(Command_t));
     command->command_id = -1;
+    if(result != ENGINE_OK)
+        return result;
 
-	// A command runs once it has reached its drone (deliver_at, see
-	// db_stamp_commands). A script paused by perform resumes only once its action is done (no
-	// unprocessed events, or aborted): hold its resume back until then.
-	// Other commands, such as <abort> or new mail, are never held.
-	snprintf(query_text,
-        DB_MAX_SQL_QUERY_LEN,
-        "SELECT c.id, c.code, c.agent_id, c.subject, c.email_content FROM commands c "
-        "LEFT JOIN agents a ON a.agent_id = c.agent_id "
-        "WHERE c.deliver_at IS NOT NULL AND c.deliver_at <= UNIX_TIMESTAMP() "
-        "AND NOT (c.code LIKE '%s%%' AND a.waiting_action IS NOT NULL "
-        "  AND EXISTS (SELECT 1 FROM actions x WHERE x.id = a.waiting_action AND x.aborted = 0) "
-        "  AND EXISTS (SELECT 1 FROM events e WHERE e.action = a.waiting_action AND e.outcome = 0)) "
-        "ORDER BY c.id LIMIT 1",
-        engine_get_vm_resume_command());
+    // A command runs once it has reached its drone (deliver_at, see
+    // db_stamp_commands). A script paused by perform resumes only once its action is done (no
+    // unprocessed events, or aborted): hold its resume back until then.
+    // <launched> is held while the drone's script is still running. Other
+    // commands, such as <abort> or new mail, are never held.
+    // A script still loading (not yet launched: no release_vm) goes first, so
+    // a new release or test run loads at once instead of waiting a turn per
+    // piece behind every running drone (#380 round 34: tests queued behind 70
+    // drones took 10-20 real minutes to load). Its resumes don't: a script
+    // whose top-level code loops while loading takes turns like any other.
+    char where[1024];
+    db_runnable_where(where, sizeof(where));
 
-    // run it
-    if (mysql_query(connection->hndl, query_text))
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-        result = ENGINE_DB_QUERY_ERROR;
-    }
-    else
-    {
-        // retrieve the result
+    // Take the next batched id that is still runnable; refill once when the
+    // batch is spent or stale
+    for(int refills = 0; ; ) {
+        if(g_command_batch_next >= g_command_batch_count
+           || time(NULL) - g_command_batch_at >= COMMAND_BATCH_MAX_AGE) {
+            if(refills++ > 0)
+                break;
+            result = db_fill_command_batch(connection);
+            if(result != ENGINE_OK)
+                return result;
+            if(g_command_batch_count == 0)
+                break;
+        }
+        int id = g_command_batch[g_command_batch_next++];
+        snprintf(query_text,
+            DB_MAX_SQL_QUERY_LEN,
+            "SELECT c.id, c.code, c.agent_id, c.subject, c.email_content FROM commands c "
+            "LEFT JOIN agents a ON a.agent_id = c.agent_id WHERE c.id = %d AND %s",
+            id, where);
+        if (mysql_query(connection->hndl, query_text))
+        {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            return ENGINE_DB_QUERY_ERROR;
+        }
         MYSQL_RES* db_result = mysql_store_result(connection->hndl);
-
         if(db_result == NULL)
         {
             engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to get next command (no more results)");
-            result = ENGINE_DB_QUERY_ERROR;
+            return ENGINE_DB_QUERY_ERROR;
         }
-        else
+        MYSQL_ROW row = mysql_fetch_row(db_result);
+        if(row)
         {
-            MYSQL_ROW row = mysql_fetch_row(db_result);
-            if(row)
-            {
-                // Read command information
-                command->command_id = atoi(row[0]);
-                command->agent_id = atoi(row[2]);
-                if(row[1] && strlen(row[1]) > MAX_COMMAND_CODE_SIZE)
-                    engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: command [%s] is longer than [%d] characters: cut",
-                        row[0], MAX_COMMAND_CODE_SIZE);
-                snprintf(command->code, sizeof(command->code), "%s", row[1] ? row[1] : "");
-                sprintf(command->subject, "%s", row[3]);
-                command->email_content = engine_malloc(strlen(row[4])+1);
-                sprintf(command->email_content, "%s", row[4]);
+            // Read command information
+            command->command_id = atoi(row[0]);
+            command->agent_id = atoi(row[2]);
+            if(row[1] && strlen(row[1]) > MAX_COMMAND_CODE_SIZE)
+                engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: command [%s] is longer than [%d] characters: cut",
+                    row[0], MAX_COMMAND_CODE_SIZE);
+            snprintf(command->code, sizeof(command->code), "%s", row[1] ? row[1] : "");
+            snprintf(command->subject, sizeof(command->subject), "%s", row[3] ? row[3] : "");
+            command->email_content = engine_malloc(strlen(row[4] ? row[4] : "")+1);
+            sprintf(command->email_content, "%s", row[4] ? row[4] : "");
 
-                engine_trace(TRACE_LEVEL_ALWAYS,
-                	"Command info read from DB: CMD_ID=[%d] COMMAND=[%s] AGENT_ID=[%d] SUBJECT=[%s]",
-                	command->command_id,
-                	command->code,
-                	command->agent_id,
-                    command->subject);
+            engine_trace(TRACE_LEVEL_ALWAYS,
+                "Command info read from DB: CMD_ID=[%d] COMMAND=[%s] AGENT_ID=[%d] SUBJECT=[%s]",
+                command->command_id,
+                command->code,
+                command->agent_id,
+                command->subject);
 
-                engine_trace(TRACE_LEVEL_ALWAYS,
-                    "Command info read from DB: EMAIL_CONTENT=[%s]",
-                    command->email_content);
-            }
-            else
-            {
-            	engine_trace(TRACE_LEVEL_ALWAYS,
-            		"WARNING: No more commands to process");
-
-                result = ENGINE_DB_NOT_FOUND_ERROR;
-            }
+            engine_trace(TRACE_LEVEL_ALWAYS,
+                "Command info read from DB: EMAIL_CONTENT=[%s]",
+                command->email_content);
+            mysql_free_result(db_result);
+            return ENGINE_OK;
         }
-
+        // No longer runnable (deleted, or held back now): the next one
         mysql_free_result(db_result);
     }
 
-
-	return result;
+    engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: No more commands to process");
+    return ENGINE_DB_NOT_FOUND_ERROR;
 }
 
 /** ****************************************************************************
@@ -396,9 +601,14 @@ ErrorCode_t db_insert_command(DbConnection_t* connection, Command_t* command)
     char* query_end = query_text;
 #define QUERY_LEFT (query_size - (size_t)(query_end - query_text))
 
+    // A resume is the drone's own: it is due at once, so it goes in already
+    // stamped instead of waiting for the stamping pass (#431 step 1)
+    const char* resume = engine_get_vm_resume_command();
+    int stamped = resume && strncmp(command->code, resume, strlen(resume)) == 0;
+
     query_end += snprintf(query_end,
         QUERY_LEFT,
-        "INSERT INTO commands (code, agent_id, created_at, updated_at, subject, email_content) VALUES('");
+        "INSERT INTO commands (code, agent_id, created_at, updated_at, subject, email_content, deliver_at) VALUES('");
 
     query_end += mysql_real_escape_string(connection->hndl, query_end, command->code, code_len);
     query_end += snprintf(query_end,
@@ -412,9 +622,10 @@ ErrorCode_t db_insert_command(DbConnection_t* connection, Command_t* command)
         "', '");
 
     query_end += mysql_real_escape_string(connection->hndl, query_end, command->email_content, content_len);
-    query_end += snprintf(query_end,
-        QUERY_LEFT,
-        "')");
+    if(stamped)
+        query_end += snprintf(query_end, QUERY_LEFT, "', %lld)", game_time_now_seconds());
+    else
+        query_end += snprintf(query_end, QUERY_LEFT, "', NULL)");
 #undef QUERY_LEFT
 
     // run it
@@ -488,6 +699,19 @@ ErrorCode_t db_delete_command(DbConnection_t* connection, Command_t* command)
     @return         Execution result
 
 *******************************************************************************/
+ErrorCode_t db_delay_resume_commands(DbConnection_t* connection, int agent_id, long long seconds)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "UPDATE commands SET deliver_at = deliver_at + %lld WHERE agent_id = %d AND code = '%s' AND deliver_at IS NOT NULL",
+        seconds, agent_id, engine_get_vm_resume_command());
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    return ENGINE_OK;
+}
+
 ErrorCode_t db_delete_resume_commands(DbConnection_t* connection, int agent_id)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
@@ -611,7 +835,7 @@ ErrorCode_t db_get_agent_engine_info(DbConnection_t* connection, int agent_id, A
 
     snprintf(query_text,
         DB_MAX_SQL_QUERY_LEN,
-        "SELECT VM, object_id FROM agents WHERE AGENT_ID = %d", agent_id);
+        "SELECT VM, object_id, language = 'lua' FROM agents WHERE AGENT_ID = %d", agent_id);
 
     // run it
     if (mysql_query(connection->hndl, query_text))
@@ -625,7 +849,7 @@ ErrorCode_t db_get_agent_engine_info(DbConnection_t* connection, int agent_id, A
         MYSQL_RES* db_result = mysql_store_result(connection->hndl);
 
         if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||
-            (mysql_num_fields(db_result) != 2))
+            (mysql_num_fields(db_result) != 3))
         {
             engine_trace(TRACE_LEVEL_ALWAYS,
                 "ERROR: Unable to get info for agent [%d] (invalid result)",
@@ -638,8 +862,12 @@ ErrorCode_t db_get_agent_engine_info(DbConnection_t* connection, int agent_id, A
             MYSQL_ROW row = mysql_fetch_row(db_result);
             if(row)
             {
+                // A Lua drone (#380) has no FORTH VM
+                agent->is_lua = row[2] && atoi(row[2]) == 1;
+                if(agent->is_lua)
+                    agent->vm = NULL;
                 // Check if agent has a VM or new one must be created
-                if(row[0] == NULL)
+                else if(row[0] == NULL)
                 {
                     engine_trace(TRACE_LEVEL_ALWAYS,
                         "WARNING: None VM defined for agent [%d], new one created",
@@ -769,6 +997,36 @@ ErrorCode_t db_save_agent_vm(DbConnection_t* connection, int agent_id, VirtualMa
         query_text = NULL;
     }
 
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Sets a drone's own status line (agents.script_status, #380):
+                    what its script says it is doing, shown on its page
+
+*******************************************************************************/
+ErrorCode_t db_set_agent_status(DbConnection_t* connection, int agent_id, const char* text, long long game_t)
+{
+    ErrorCode_t result = db_reconnect(connection);
+    if(!text) return ENGINE_INTERNAL_ERROR;
+
+    char* safe = db_escape_alloc(connection, text);
+    if(!safe) return ENGINE_INTERNAL_ERROR;
+    size_t query_size = strlen(safe) + 160;
+    char* query_text = engine_malloc(query_size);
+    if(!query_text) { free(safe); return ENGINE_INTERNAL_ERROR; }
+
+    snprintf(query_text, query_size,
+        "UPDATE agents SET script_status = '%s', script_status_t = %lld WHERE agent_id = %d",
+        safe, game_t, agent_id);
+    if (mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+
+    engine_free(query_text, query_size);
+    free(safe);
     return result;
 }
 
@@ -926,6 +1184,18 @@ ErrorCode_t db_update_agent_input(DbConnection_t* connection, int agent_id, Comm
             sprintf(new_subject, "%s", command->subject);
             new_input = command->email_content;
         }
+    }
+
+    // Most turns resume a script with the same command as last time: the
+    // row already says so, and the update only waited for its lock, held by
+    // the events engine while it settles a batch (#431: 15 of 19 s of these
+    // updates was lock wait). Write only a change.
+    if(result == ENGINE_OK && new_input && agent_info.input_content
+       && strcmp(agent_info.input_content, new_input) == 0
+       && strcmp(agent_info.subject, new_subject) == 0)
+    {
+        if(agent_info.input_content) engine_free(agent_info.input_content, strlen(agent_info.input_content)+1);
+        return ENGINE_OK;
     }
 
     if(result == ENGINE_OK)
@@ -1147,7 +1417,7 @@ ErrorCode_t db_get_user_info(DbConnection_t* connection, int user_id, char* emai
             MYSQL_RES* db_result = mysql_store_result(connection->hndl);
 
             if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||
-                (mysql_num_fields(db_result) != 2))
+                (mysql_num_fields(db_result) != 3))
             {
                 engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to get EMAIL info for USER_ID [%d] "
@@ -1336,7 +1606,7 @@ ErrorCode_t db_rollback_transaction(DbConnection_t* connection)
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_orbit_info(DbConnection_t* connection, ObjectOrbitInfo_t* object)
+static ErrorCode_t db_get_orbit_info_query(DbConnection_t* connection, ObjectOrbitInfo_t* object)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -1443,7 +1713,7 @@ ErrorCode_t db_get_orbit_info(DbConnection_t* connection, ObjectOrbitInfo_t* obj
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_object_info_by_name(DbConnection_t* connection, char* name, ObjectOrbitInfo_t* object)
+static ErrorCode_t db_get_object_info_by_name_query(DbConnection_t* connection, char* name, ObjectOrbitInfo_t* object)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -1548,7 +1818,7 @@ ErrorCode_t db_get_object_info_by_name(DbConnection_t* connection, char* name, O
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_prococol_info(ProtocolInfo_t* protocol)
+static ErrorCode_t db_get_prococol_info_query(ProtocolInfo_t* protocol)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -1567,7 +1837,8 @@ ErrorCode_t db_get_prococol_info(ProtocolInfo_t* protocol)
     {
         snprintf(query_text,
             DB_MAX_SQL_QUERY_LEN,
-            "SELECT * FROM protocols WHERE id = %d", protocol->protocol_id);
+            "SELECT id, name, parameters, bulk_modifier, description, observable, reportable, multiplier, "
+            "double_params FROM protocols WHERE id = %d", protocol->protocol_id);
 
         // run it
         if (mysql_query(connection->hndl, query_text))
@@ -1600,10 +1871,11 @@ ErrorCode_t db_get_prococol_info(ProtocolInfo_t* protocol)
                     sprintf(protocol->protocol_name, "%s", row[PROTOCOL_NAME_IDX]?row[PROTOCOL_NAME_IDX]:"");
                     protocol->parameters_num = row[PROTOCOL_PARAMETERS_IDX]?atoi(row[PROTOCOL_PARAMETERS_IDX]):0;
                     protocol->bulk_multiplier = row[PROTOCOL_BULK_MODIFIER_IDX]?atoi(row[PROTOCOL_BULK_MODIFIER_IDX]):-1;
-                    sprintf(protocol->protocol_description, "%s", row[PROTOCOL_DESCRIPTION_IDX]?row[PROTOCOL_DESCRIPTION_IDX]:"");
+                    snprintf(protocol->protocol_description, sizeof(protocol->protocol_description), "%s", row[PROTOCOL_DESCRIPTION_IDX]?row[PROTOCOL_DESCRIPTION_IDX]:"");
                     protocol->observable = row[PROTOCOL_OBSERVABLE_IDX]?atoi(row[PROTOCOL_OBSERVABLE_IDX]):0;
                     protocol->reportable = row[PROTOCOL_REPORTABLE_IDX]?atoi(row[PROTOCOL_REPORTABLE_IDX]):0;
                     protocol->multiplier = row[PROTOCOL_MULTIPLIER_IDX]?atoi(row[PROTOCOL_MULTIPLIER_IDX]):0;
+                    protocol->double_params = row[PROTOCOL_DOUBLE_PARAMS_IDX]?atoi(row[PROTOCOL_DOUBLE_PARAMS_IDX]):0;
 
                     engine_trace(TRACE_LEVEL_ALWAYS,
                         "NAME [%s] DESCRIPTION [%s] BULK_MODIFIER [%d] OBSERVABLE [%d] REPORTABLE [%d] MULTIPLIER [%d] "
@@ -1746,7 +2018,7 @@ ErrorCode_t db_abort_action(int action_id)
     @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_resource_effects
+static ErrorCode_t db_get_resource_effects_query
 (
     ProtocolInfo_t* protocol,
     ResourceEffect_t** effects,
@@ -1914,7 +2186,7 @@ ErrorCode_t db_get_resource_effects
     @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_market_effects
+static ErrorCode_t db_get_market_effects_query
 (
     ProtocolInfo_t* protocol,
     MarketEffect_t** effects,
@@ -2076,7 +2348,7 @@ ErrorCode_t db_get_market_effects
     @return     Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_location_effects
+static ErrorCode_t db_get_location_effects_query
 (
     ProtocolInfo_t* protocol,
     LocationEffect_t** effects,
@@ -2236,7 +2508,7 @@ ErrorCode_t db_get_location_effects
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_resource_info(Resource_t* resource)
+static ErrorCode_t db_get_resource_info_db(Resource_t* resource)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -2330,7 +2602,7 @@ ErrorCode_t db_get_resource_info(Resource_t* resource)
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_event_type_info(EventType_t* event_type)
+static ErrorCode_t db_get_event_type_info_db(EventType_t* event_type)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -2438,14 +2710,15 @@ ErrorCode_t db_insert_event(Event_t* event)
     query_end += snprintf(query_end,
         QUERY_SPACE_LEFT,
         "INSERT INTO events "
-        "(timestamp, event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
-        "VALUES(CAST(DATE_ADD(NOW(), INTERVAL %d SECOND) AS DATETIME), %d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
+        "(timestamp, game_t, event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
+        "VALUES(CAST(DATE_ADD(NOW(), INTERVAL %d SECOND) AS DATETIME), %lld, %d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
         event->new_quantity!=NULL_VALUE?", new_quantity":"",
         event->new_credits!=NULL_VALUE?", new_credits":"",
         event->new_location!=NULL_VALUE?", new_location":"",
         event->new_transmission!=NULL_VALUE?", new_transmission":"",
         event->new_cargo!=NULL_VALUE?", new_cargo":"",
-        game_time_to_real(event->delay), // delay is game seconds
+        game_time_to_real(event->delay), // delay is game seconds; real time for the website
+        game_time_now_seconds() + event->delay, // when it happens, in game time
         event->event_type,
         event->action_id,
         event->logged,
@@ -2537,7 +2810,7 @@ ErrorCode_t db_get_previous_resource_event(Event_t* event)
 
     query_end += snprintf(query_end,
         QUERY_SPACE_LEFT,
-        "SELECT * from events where drone = %d and resource = %d order by timestamp desc, id desc limit 1",
+        "SELECT * from events where drone = %d and resource = %d order by game_t desc, id desc limit 1",
         event->drone_id,
         event->resource_id);
 
@@ -2582,6 +2855,7 @@ ErrorCode_t db_get_previous_resource_event(Event_t* event)
                 event->new_location = atoi(row[EVENT_NEW_LOCATION_IDX]);
                 event->new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):-1;
                 event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
+                event->game_t = row[EVENT_GAME_T_IDX]?atoll(row[EVENT_GAME_T_IDX]):0;
 
                 engine_trace(TRACE_LEVEL_ALWAYS,
                     "Event read from DB [%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d] "
@@ -2739,7 +3013,7 @@ ErrorCode_t db_check_company_name(DbConnection_t* connection, char* company_name
 
     snprintf(query_text,
         DB_MAX_SQL_QUERY_LEN,
-        "SELECT name from users where LOWER(NAME) = LOWER('%s')",
+        "SELECT name from companies where LOWER(name) = LOWER('%s')",
         safe_company_name);
 
     // run it
@@ -2838,7 +3112,7 @@ ErrorCode_t db_update_agent_company(DbConnection_t* connection, int agent_id, ch
 
     snprintf(query_text,
         DB_MAX_SQL_QUERY_LEN,
-        "UPDATE users SET NAME = '%s' where USER_ID = (SELECT USER_ID from agents where AGENT_ID = %d)",
+        "UPDATE companies SET name = '%s' where company_id = (SELECT company_id from agents where agent_id = %d)",
         safe_company_name,
         agent_id);
 
@@ -2869,7 +3143,7 @@ ErrorCode_t db_update_agent_company(DbConnection_t* connection, int agent_id, ch
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_get_query_info(Queries_t* queryInfo)
+static ErrorCode_t db_get_query_info_db(Queries_t* queryInfo)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
@@ -2919,9 +3193,9 @@ ErrorCode_t db_get_query_info(Queries_t* queryInfo)
                 {
                     // Pick the fields we need
                     sprintf(queryInfo->name, "%s", row[QUERIES_NAME_IDX]?row[QUERIES_NAME_IDX]:"");
-                    sprintf(queryInfo->description, "%s", row[QUERIES_DESCRIPTION_IDX]?row[QUERIES_DESCRIPTION_IDX]:"");
+                    snprintf(queryInfo->description, sizeof(queryInfo->description), "%s", row[QUERIES_DESCRIPTION_IDX]?row[QUERIES_DESCRIPTION_IDX]:"");
                     queryInfo->parametersNum = row[QUERIES_PARAMETERS_IDX]?atoi(row[QUERIES_PARAMETERS_IDX]):0;
-                    sprintf(queryInfo->script, "%s", row[QUERIES_SCRIPT_IDX]?row[QUERIES_SCRIPT_IDX]:"");
+                    snprintf(queryInfo->script, sizeof(queryInfo->script), "%s", row[QUERIES_SCRIPT_IDX]?row[QUERIES_SCRIPT_IDX]:"");
 
                     engine_trace(TRACE_LEVEL_ALWAYS,
                         "NAME [%s] DESCRIPTION [%s] PARAMETERS [%d] SCRIPT [%s] obtained for QUERY_ID [%d]",
@@ -2968,8 +3242,15 @@ static Bool_t db_vm_field_is_date(int type)
             type == MYSQL_TYPE_DATE) ? ENGINE_TRUE : ENGINE_FALSE;
 }
 
+/** Double-cell columns (#324 step 9): a number column whose name starts with
+    d_ (money, volumes) is stored in two cells, high cell first, so 2@ reads it */
+static Bool_t db_vm_field_is_double(const char* name)
+{
+    return (name && (name[0] == 'd' || name[0] == 'D') && name[1] == '_') ? ENGINE_TRUE : ENGINE_FALSE;
+}
+
 /** Bytes a query result field takes in VM memory (0: not stored) */
-static int db_vm_field_size(int type, const char* value)
+static int db_vm_field_size(int type, const char* value, Bool_t is_double)
 {
     if(db_vm_field_is_text(type)) {
         size_t len = value ? strlen(value) : 0;
@@ -2983,7 +3264,7 @@ static int db_vm_field_size(int type, const char* value)
         case MYSQL_TYPE_INT24: case MYSQL_TYPE_LONGLONG: case MYSQL_TYPE_DECIMAL:
         case MYSQL_TYPE_NEWDECIMAL: case MYSQL_TYPE_FLOAT: case MYSQL_TYPE_DOUBLE:
         case MYSQL_TYPE_YEAR: case MYSQL_TYPE_BIT:
-            return 2;
+            return is_double ? 4 : 2;
         default:
             engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: query field type [%d] not stored in VM memory", type);
             return 0;
@@ -3042,7 +3323,7 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
             }
             else if(!(rowsNum=mysql_num_rows(db_result))) {
                 engine_trace(TRACE_LEVEL_ALWAYS,
-                    "ERROR: No entries found for query [%s]",
+                    "No entries found for query [%s]",
                     queryInfo->finalQuery);
 
                 result = ENGINE_DB_QUERY_ERROR;
@@ -3051,11 +3332,13 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
             {
                 int fieldsNum = mysql_num_fields(db_result);
                 int* fieldTypes = (int*) engine_malloc(fieldsNum * sizeof(int));
+                Bool_t* fieldDouble = (Bool_t*) engine_malloc(fieldsNum * sizeof(Bool_t));
 
                 for(int fieldId=0; fieldId < fieldsNum; fieldId++) {
                     // check the field type and serialize it into VM memory
                     MYSQL_FIELD *field = mysql_fetch_field(db_result);
                     fieldTypes[fieldId] = (int) field->type;
+                    fieldDouble[fieldId] = db_vm_field_is_double(field->name);
 
                     engine_trace(TRACE_LEVEL_ALWAYS,
                         "Query [%s] field[%d] type [%d]",
@@ -3069,7 +3352,8 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
                     fieldsNum);
 
                 // Rows are stored one after another, each field in turn:
-                // numbers as 2-byte cells, dates as 4 bytes, text as a counted
+                // numbers as 2-byte cells (4 bytes for d_ columns: doubles),
+                // dates as 4 bytes, text as a counted
                 // string (a length byte and the characters). Only whole rows
                 // are stored: when the next row doesn't fit, it stops.
                 int currentAddr = queryInfo->resultsArrayAddr;
@@ -3083,7 +3367,7 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
                     // How many bytes this row needs
                     int rowSize = 0;
                     for(int fieldId=0; fieldId < fieldsNum; fieldId++)
-                        rowSize += db_vm_field_size(fieldTypes[fieldId], row[fieldId]);
+                        rowSize += db_vm_field_size(fieldTypes[fieldId], row[fieldId], fieldDouble[fieldId]);
 
                     if(rowSize > remainingOffset) {
                         engine_trace(TRACE_LEVEL_ALWAYS,
@@ -3095,7 +3379,7 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
 
                     for(int fieldId=0; fieldId < fieldsNum && result == ENGINE_OK; fieldId++) {
                         const char* text = row[fieldId] ? row[fieldId] : "";
-                        int size = db_vm_field_size(fieldTypes[fieldId], row[fieldId]);
+                        int size = db_vm_field_size(fieldTypes[fieldId], row[fieldId], fieldDouble[fieldId]);
 
                         if(size == 0)
                             continue; // a type we don't store
@@ -3109,6 +3393,16 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
                         } else if(db_vm_field_is_date(fieldTypes[fieldId])) {
                             result = vm_write_integer(vm, currentAddr, 0);
                             if(result == ENGINE_OK) result = vm_write_integer(vm, currentAddr + 2, 0);
+                        } else if(fieldDouble[fieldId]) {
+                            // Money and volumes: a 32-bit double, high cell
+                            // first (as 2! stores it), clamped to its range
+                            double d = llround(strtod(text, NULL));
+                            if(d > 2147483647.0) d = 2147483647.0;
+                            if(d < -2147483648.0) d = -2147483648.0;
+                            uint32_t bits = (uint32_t)(int32_t)(long long)d;
+                            result = vm_write_integer(vm, currentAddr, (uint16_t)(bits >> 16));
+                            if(result == ENGINE_OK)
+                                result = vm_write_integer(vm, currentAddr + 2, (uint16_t)(bits & 0xFFFF));
                         } else {
                             // Any number (also COUNT, SUM, decimals): rounded
                             // to an integer in one 16-bit cell
@@ -3126,6 +3420,7 @@ ErrorCode_t db_run_vm_query(Queries_t* queryInfo, VirtualMachine_t* vm)
                 }
 
                 if(fieldTypes) engine_free(fieldTypes, fieldsNum * sizeof(int));
+                if(fieldDouble) engine_free(fieldDouble, fieldsNum * sizeof(Bool_t));
             }
 
             if(db_result) mysql_free_result(db_result);
@@ -3396,11 +3691,46 @@ ErrorCode_t db_get_launch_source(DbConnection_t* connection, int launcher_id, in
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "SELECT d.object_id FROM agents l JOIN agents d ON d.user_id = l.user_id "
+        "SELECT d.object_id FROM agents l JOIN agents d ON d.company_id = l.company_id "
         "WHERE l.agent_id = %d AND d.agent_id = %d AND EXISTS (SELECT 1 FROM hulls WHERE id = %d)",
         launcher_id, source_id, kit_id);
 
     return db_query_ints(connection, query_text, source_object, NULL, 1);
+}
+
+/** ****************************************************************************
+
+    @brief          Adds the instructions a drone's script used in a slice to
+                    its running total (agents.instructions; instruction
+                    metering, the basis for power use)
+
+*******************************************************************************/
+ErrorCode_t db_add_agent_instructions(DbConnection_t* connection, int agent_id, long long instructions)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    ErrorCode_t result = db_reconnect(connection);
+
+    if(result != ENGINE_OK || instructions <= 0)
+        return result;
+
+    // Written with the rest of the turn's row (#431 step 3)
+    TurnRow_t* turn = db_turn_row(agent_id);
+    if(turn) {
+        turn->instructions += instructions;
+        turn->instructions_added += instructions;
+        return ENGINE_OK;
+    }
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "UPDATE agents SET instructions = instructions + %lld WHERE agent_id = %d", instructions, agent_id);
+
+    if(mysql_query(connection->hndl, query_text))
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+
+    return result;
 }
 
 /** ****************************************************************************
@@ -3415,6 +3745,18 @@ ErrorCode_t db_set_agent_waiting_action(DbConnection_t* connection, int agent_id
 
     if(result != ENGINE_OK)
         return result;
+
+    // Already so: nothing to write (#431 step 2: a resume cleared a
+    // waiting action that was already clear)
+    TurnRow_t* turn = db_turn_row(agent_id);
+    if(turn && turn->waiting_action == action_id)
+        return ENGINE_OK;
+    if(turn) {
+        // Written with the rest of the turn's row (#431 step 3)
+        turn->waiting_action = action_id;
+        turn->waiting_action_dirty = 1;
+        return ENGINE_OK;
+    }
 
     if(action_id)
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
@@ -3442,6 +3784,11 @@ ErrorCode_t db_get_agent_waiting_action(DbConnection_t* connection, int agent_id
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
     *action_id = 0;
+    TurnRow_t* turn = db_turn_row(agent_id);
+    if(turn) {
+        *action_id = turn->waiting_action;
+        return ENGINE_OK;
+    }
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
         "SELECT waiting_action FROM agents WHERE agent_id = %d", agent_id);
 
@@ -3538,8 +3885,8 @@ ErrorCode_t db_get_unstamped_commands(DbConnection_t* connection, int* ids, int*
 
 /** ****************************************************************************
 
-    @brief          Sets when a command reaches its drone: delay real seconds
-                    from now
+    @brief          Sets when a command reaches its drone: delay game seconds
+                    from now (deliver_at is in game time)
 
 *******************************************************************************/
 ErrorCode_t db_set_command_delivery(DbConnection_t* connection, int command_id, int delay)
@@ -3551,7 +3898,7 @@ ErrorCode_t db_set_command_delivery(DbConnection_t* connection, int command_id, 
         return result;
 
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "UPDATE commands SET deliver_at = UNIX_TIMESTAMP() + %d WHERE id = %d", delay, command_id);
+        "UPDATE commands SET deliver_at = %lld WHERE id = %d", game_time_now_seconds() + delay, command_id);
 
     if(mysql_query(connection->hndl, query_text))
     {
@@ -3670,6 +4017,10 @@ char* db_get_agent_pending_input(DbConnection_t* connection, int agent_id)
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
     char* text = NULL;
 
+    TurnRow_t* turn = db_turn_row(agent_id);
+    if(turn)
+        return turn->pending_input ? strdup(turn->pending_input) : NULL;
+
     if(db_reconnect(connection) != ENGINE_OK)
         return NULL;
 
@@ -3697,6 +4048,25 @@ char* db_get_agent_pending_input(DbConnection_t* connection, int agent_id)
 *******************************************************************************/
 ErrorCode_t db_set_agent_pending_input(DbConnection_t* connection, int agent_id, const char* text)
 {
+    // Already so: nothing to write (#431 step 2: most turns clear an input
+    // that was already clear)
+    TurnRow_t* turn = db_turn_row(agent_id);
+    if(text && !text[0])
+        text = NULL;    // empty reads back as none
+    if(turn && ((!text && !turn->pending_input) ||
+                (text && turn->pending_input && strcmp(text, turn->pending_input) == 0)))
+        return ENGINE_OK;
+    if(turn) {
+        // Written with the rest of the turn's row (#431 step 3)
+        char* copy = text ? strdup(text) : NULL;
+        if(text && !copy)
+            return ENGINE_MEMORY_ALLOC_ERROR;
+        free(turn->pending_input);
+        turn->pending_input = copy;
+        turn->pending_input_dirty = 1;
+        return ENGINE_OK;
+    }
+
     ErrorCode_t result = db_reconnect(connection);
     if(result != ENGINE_OK)
         return result;
@@ -3722,7 +4092,548 @@ ErrorCode_t db_set_agent_pending_input(DbConnection_t* connection, int agent_id,
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to save pending input: %s", mysql_error(connection->hndl));
         result = ENGINE_DB_QUERY_ERROR;
     }
+    else if(turn) {
+        free(turn->pending_input);
+        turn->pending_input = text ? strdup(text) : NULL;
+    }
 
     free(query_text); free(safe);
     return result;
+}
+
+/** ****************************************************************************
+
+    @brief          The latest game time of some drones' events, processed or
+                    still to come (not failed): a new action starts after it,
+                    so each drone's events keep game-time order by ID
+
+    The end of a wait (#324 step 14) doesn't count: it changes nothing, and a
+    waiting drone must still be able to sell, its buyers pulling from it now
+    rather than when it wakes up.
+
+*******************************************************************************/
+ErrorCode_t db_get_latest_processed_game_t(const int* drones, int count, long long* game_t)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    ErrorCode_t result = db_reconnect(engine_get_db_connection());
+
+    *game_t = 0;
+    if(result != ENGINE_OK || count <= 0)
+        return result;
+
+    // Per drone, the newer of its latest pending (0) and latest done (1)
+    // event: "not failed" is just those two outcomes, and each is one step
+    // back down events_drone_game_t (#431: MAX over outcome >= 0 read every
+    // event the drone ever had, ~8 ms a call, ~40 ms for a station drone)
+    DbConnection_t* connection = engine_get_db_connection();
+    for(int i = 0; i < count; i++) {
+        char one[2][320];
+        for(int o = 0; o < 2; o++)
+            snprintf(one[o], sizeof(one[o]),
+                "IFNULL((SELECT e.game_t FROM events e FORCE INDEX (events_drone_game_t) WHERE e.drone = %d "
+                "AND e.outcome = %d AND e.event_type <> %d "
+                /* An aborted action's events never happen (#380 round 35: an aborted
+                   trip's arrival, 159 game hours off, held every later trade with
+                   the drone, and with the Moon Depot, which it sold to, till then) */
+                "AND NOT EXISTS (SELECT 1 FROM actions x WHERE x.id = e.action AND x.aborted = 1) "
+                "ORDER BY e.game_t DESC LIMIT 1), 0)",
+                drones[i], o == 0 ? OUTCOME_NO_OUTCOME : OUTCOME_OK, WAIT_EVENT_TYPE);
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "SELECT GREATEST(%s, %s)", one[0], one[1]);
+        if(mysql_query(connection->hndl, query_text)) {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+            return ENGINE_DB_QUERY_ERROR;
+        }
+        MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+        MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+        if(row && row[0] && atoll(row[0]) > *game_t)
+            *game_t = atoll(row[0]);
+        if(db_result)
+            mysql_free_result(db_result);
+    }
+    return ENGINE_OK;
+}
+
+/** ****************************************************************************
+
+    @brief          Stores where every body is now (#380), and the travel
+                    acceleration: drones' trip-time queries (704, 705) read
+                    them. position(id, out) works a body's position out.
+
+*******************************************************************************/
+ErrorCode_t db_store_positions(DbConnection_t* connection, double acceleration, long long game_t,
+                               ErrorCode_t (*position)(int, CartesianInfo_t*, char*))
+{
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK)
+        return result;
+
+    if(mysql_query(connection->hndl, "SELECT object_id FROM objects WHERE object_id > 0"))
+        return ENGINE_DB_QUERY_ERROR;
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    if(!db_result)
+        return ENGINE_DB_QUERY_ERROR;
+    int count = (int)mysql_num_rows(db_result);
+    int* ids = malloc(sizeof(int) * (count > 0 ? count : 1));
+    MYSQL_ROW row;
+    int n = 0;
+    while(ids && (row = mysql_fetch_row(db_result)))
+        ids[n++] = row[0] ? atoi(row[0]) : 0;
+    mysql_free_result(db_result);
+    if(!ids)
+        return ENGINE_MEMORY_ALLOC_ERROR;
+
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    for(int i = 0; i < n; i++) {
+        CartesianInfo_t at;
+        if(position(ids[i], &at, NULL) != ENGINE_OK)
+            continue;
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "UPDATE objects SET x_coord = %.3f, y_coord = %.3f, z_coord = %.3f, computed_on = FROM_UNIXTIME(%lld) "
+            "WHERE object_id = %d", at.x, at.y, at.z, game_t, ids[i]);
+        if(mysql_query(connection->hndl, query_text))
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+    }
+    free(ids);
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "UPDATE game_clock SET travel_acceleration = %f WHERE id = 1", acceleration);
+    if(mysql_query(connection->hndl, query_text))
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+    return ENGINE_OK;
+}
+
+/** ****************************************************************************
+
+    @brief          The latest game time, done or still to come, of a drone's
+                    events on some of its stock entries (resource, installed,
+                    locked): what holds back an action that changes those
+                    entries of a drone that isn't the one acting (#380)
+
+*******************************************************************************/
+ErrorCode_t db_get_latest_entry_game_t(int drone, const int* resources, const int* installed,
+                                       const int* locked, int count, long long* game_t)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    char list[1024] = "";
+    ErrorCode_t result = db_reconnect(engine_get_db_connection());
+
+    *game_t = 0;
+    if(result != ENGINE_OK || count <= 0)
+        return result;
+
+    for(int i = 0; i < count; i++) {
+        size_t len = strlen(list);
+        snprintf(list + len, sizeof(list) - len, "%s(resource = %d AND installed = %d AND locked = %d)",
+                 i ? " OR " : "", resources[i], installed[i], locked[i]);
+    }
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT IFNULL(MAX(game_t), 0) FROM events WHERE drone = %d AND outcome >= %d AND event_type IN (%d, %d) AND (%s)"
+        " AND NOT EXISTS (SELECT 1 FROM actions x WHERE x.id = events.action AND x.aborted = 1)",
+        drone, OUTCOME_NO_OUTCOME, INCREMENT_INVENTORY_EVENT_TYPE, DECREMENT_INVENTORY_EVENT_TYPE, list);
+
+    DbConnection_t* connection = engine_get_db_connection();
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
+    if(row && row[0])
+        *game_t = atoll(row[0]);
+    if(db_result)
+        mysql_free_result(db_result);
+    return ENGINE_OK;
+}
+
+/** ****************************************************************************
+
+    @brief          Takes units from a mining deposit (#324 step 11)
+
+    A deposit with no state yet is full. The amount is refilled lazily, by
+    refill_per_day for the game time since it was last worked out (a
+    fraction of a unit carries over), up to its capacity.
+
+*******************************************************************************/
+ErrorCode_t db_take_deposit(int object_id, int resource, long long wanted, long long* taken)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+    ErrorCode_t result = db_reconnect(connection);
+    long long now = game_time_now_seconds();
+
+    *taken = wanted;
+    if(result != ENGINE_OK)
+        return result;
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT d.capacity, d.refill_per_day, s.amount, s.refilled_t FROM deposits d "
+        "LEFT JOIN deposit_state s ON s.object_id = d.object_id AND s.resource = d.resource "
+        "WHERE d.object_id = %d AND d.resource = %d", object_id, resource);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+    if(!row) {
+        if(res) mysql_free_result(res);
+        return ENGINE_OK;   // no deposit here: as much as the abundance gives
+    }
+    double capacity = row[0] ? atof(row[0]) : 0;
+    double refill = row[1] ? atof(row[1]) : 0;
+    double amount = row[2] ? atof(row[2]) : capacity;
+    long long since = row[3] ? now - atoll(row[3]) : 0;
+    mysql_free_result(res);
+
+    if(since > 0)
+        amount += refill * (double)since / 86400.0;
+    if(amount > capacity)
+        amount = capacity;
+    if(amount < 0)
+        amount = 0;
+
+    long long available = (long long)amount;   // whole units
+    *taken = wanted < available ? wanted : available;
+    amount -= (double)*taken;
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "INSERT INTO deposit_state (object_id, resource, amount, refilled_t) VALUES (%d, %d, %.6f, %lld) "
+        "ON DUPLICATE KEY UPDATE amount = VALUES(amount), refilled_t = VALUES(refilled_t)",
+        object_id, resource, amount, now);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Deposit of resource [%d] at [%d]: [%lld] of [%lld] wanted taken, [%.1f] left",
+        resource, object_id, *taken, wanted, amount);
+    return ENGINE_OK;
+}
+
+/* db_get_query_info, from the static cache when it has a fresh copy (#431).
+   Only the table's fields are cached: the caller's own (parameter values,
+   results array, final query) are left as they were. */
+typedef struct
+{
+    char name[MAX_QUERIES_NAME_SIZE];
+    char description[MAX_QUERIES_DESCRIPTION_SIZE];
+    int parametersNum;
+    char script[MAX_QUERIES_SCRIPT_SIZE];
+} QueryRow_t;
+
+ErrorCode_t db_get_query_info(Queries_t* queryInfo)
+{
+    static StaticCache_t cache = { .ttl = STATIC_CACHE_TTL };
+    static QueryRow_t row;
+    if(!queryInfo)
+        return ENGINE_INTERNAL_ERROR;
+    time_t now = time(NULL);
+    if(static_cache_get(&cache, queryInfo->id, &row, sizeof(row), now)) {
+        memcpy(queryInfo->name, row.name, sizeof(row.name));
+        memcpy(queryInfo->description, row.description, sizeof(row.description));
+        queryInfo->parametersNum = row.parametersNum;
+        memcpy(queryInfo->script, row.script, sizeof(row.script));
+        return ENGINE_OK;
+    }
+    ErrorCode_t result = db_get_query_info_db(queryInfo);
+    if(result == ENGINE_OK) {
+        memcpy(row.name, queryInfo->name, sizeof(row.name));
+        memcpy(row.description, queryInfo->description, sizeof(row.description));
+        row.parametersNum = queryInfo->parametersNum;
+        memcpy(row.script, queryInfo->script, sizeof(row.script));
+        static_cache_put(&cache, queryInfo->id, &row, sizeof(row), now);
+    }
+    return result;
+}
+
+/* db_get_resource_info, from the static cache when it has a fresh copy (#431) */
+ErrorCode_t db_get_resource_info(Resource_t* resource)
+{
+    static StaticCache_t cache = { .ttl = STATIC_CACHE_TTL };
+    if(!resource)
+        return ENGINE_INTERNAL_ERROR;
+    time_t now = time(NULL);
+    int id = resource->resource_id;
+    if(static_cache_get(&cache, id, resource, sizeof(*resource), now))
+        return ENGINE_OK;
+    ErrorCode_t result = db_get_resource_info_db(resource);
+    if(result == ENGINE_OK)
+        static_cache_put(&cache, id, resource, sizeof(*resource), now);
+    return result;
+}
+
+/* db_get_event_type_info, from the static cache when it has a fresh copy (#431) */
+ErrorCode_t db_get_event_type_info(EventType_t* event_type)
+{
+    static StaticCache_t cache = { .ttl = STATIC_CACHE_TTL };
+    if(!event_type)
+        return ENGINE_INTERNAL_ERROR;
+    time_t now = time(NULL);
+    int id = event_type->event_type_id;
+    if(static_cache_get(&cache, id, event_type, sizeof(*event_type), now))
+        return ENGINE_OK;
+    ErrorCode_t result = db_get_event_type_info_db(event_type);
+    if(result == ENGINE_OK)
+        static_cache_put(&cache, id, event_type, sizeof(*event_type), now);
+    return result;
+}
+
+/* Objects (bodies and their orbits) don't change while the engines run: from
+   a cache good for a minute (#446). Each reportable event asked for the Sun,
+   the Earth and every body up to the Sun. */
+static StaticCache_t objects_by_id_cache = { .ttl = 60 };
+static StaticCache_t objects_by_name_cache = { .ttl = 60 };
+
+static int object_name_key(const char* name)
+{
+    unsigned int h = 2166136261u;
+    for(; *name; name++) h = (h ^ (unsigned char)*name) * 16777619u;
+    return (int)(h & 0x7fffffff);
+}
+
+ErrorCode_t db_get_object_info_by_name(DbConnection_t* connection, char* name, ObjectOrbitInfo_t* object)
+{
+    time_t now = time(NULL);
+    if(!object || !name) return ENGINE_INTERNAL_ERROR;
+    int key = object_name_key(name);
+    ObjectOrbitInfo_t cached;
+    if(static_cache_get(&objects_by_name_cache, key, &cached, sizeof(cached), now) &&
+       strncmp(cached.object_name, name, sizeof(cached.object_name)) == 0) {
+        *object = cached;
+        return ENGINE_OK;
+    }
+    ErrorCode_t result = db_get_object_info_by_name_query(connection, name, object);
+    if(result == ENGINE_OK)
+        static_cache_put(&objects_by_name_cache, key, object, sizeof(*object), now);
+    return result;
+}
+
+ErrorCode_t db_get_orbit_info(DbConnection_t* connection, ObjectOrbitInfo_t* object)
+{
+    time_t now = time(NULL);
+    if(!object) return ENGINE_INTERNAL_ERROR;
+    int id = object->object_id;
+    if(static_cache_get(&objects_by_id_cache, id, object, sizeof(*object), now))
+        return ENGINE_OK;
+    ErrorCode_t result = db_get_orbit_info_query(connection, object);
+    if(result == ENGINE_OK && object->object_id == id)
+        static_cache_put(&objects_by_id_cache, id, object, sizeof(*object), now);
+    return result;
+}
+
+/* A protocol's row and its location effects are game data: from a cache
+   good for a minute (#456). Every action asked MySQL for both, about four
+   statements a turn on a 3,000-ship world. */
+#define CACHED_EFFECTS_MAX 16
+typedef struct { int num; LocationEffect_t rows[CACHED_EFFECTS_MAX]; } CachedEffects_t;
+
+ErrorCode_t db_get_prococol_info(ProtocolInfo_t* protocol)
+{
+    static StaticCache_t cache = { .ttl = 60 };
+    time_t now = time(NULL);
+    ProtocolInfo_t row;
+
+    if(!protocol) return ENGINE_INTERNAL_ERROR;
+    if(static_cache_get(&cache, protocol->protocol_id, &row, sizeof(row), now)) {
+        // Only the fields the query sets: the caller's own stay as they are
+        snprintf(protocol->protocol_name, sizeof(protocol->protocol_name), "%s", row.protocol_name);
+        snprintf(protocol->protocol_description, sizeof(protocol->protocol_description), "%s", row.protocol_description);
+        protocol->parameters_num = row.parameters_num;
+        protocol->bulk_multiplier = row.bulk_multiplier;
+        protocol->observable = row.observable;
+        protocol->reportable = row.reportable;
+        protocol->multiplier = row.multiplier;
+        protocol->double_params = row.double_params;
+        return ENGINE_OK;
+    }
+    ErrorCode_t result = db_get_prococol_info_query(protocol);
+    if(result == ENGINE_OK)
+        static_cache_put(&cache, protocol->protocol_id, protocol, sizeof(*protocol), now);
+    return result;
+}
+
+ErrorCode_t db_get_location_effects(ProtocolInfo_t* protocol, LocationEffect_t** effects, int* effectsNum)
+{
+    static StaticCache_t cache = { .ttl = 60 };
+    time_t now = time(NULL);
+    CachedEffects_t cached;
+
+    if(!protocol || !effects || !effectsNum) return ENGINE_INTERNAL_ERROR;
+    if(static_cache_get(&cache, protocol->protocol_id, &cached, sizeof(cached), now)) {
+        *effectsNum = cached.num;
+        *effects = NULL;
+        if(cached.num > 0) {
+            *effects = (LocationEffect_t*)malloc(sizeof(LocationEffect_t) * (unsigned int)cached.num);
+            if(!*effects) { *effectsNum = 0; return ENGINE_INTERNAL_ERROR; }
+            memcpy(*effects, cached.rows, sizeof(LocationEffect_t) * (unsigned int)cached.num);
+        }
+        return ENGINE_OK;
+    }
+    ErrorCode_t result = db_get_location_effects_query(protocol, effects, effectsNum);
+    if(result == ENGINE_OK && *effectsNum >= 0 && *effectsNum <= CACHED_EFFECTS_MAX) {
+        memset(&cached, 0, sizeof(cached));
+        cached.num = *effectsNum;
+        if(cached.num > 0 && *effects)
+            memcpy(cached.rows, *effects, sizeof(LocationEffect_t) * (unsigned int)cached.num);
+        static_cache_put(&cache, protocol->protocol_id, &cached, sizeof(cached), now);
+    }
+    return result;
+}
+
+/* Resource and market effects are game data too: from the same kind of
+   cache (#431 step 1). Each action read both. */
+#define CACHED_ROWS_MAX 32
+#define DEFINE_CACHED_EFFECTS(name, type) \
+typedef struct { int num; type rows[CACHED_ROWS_MAX]; } name##_cached_t; \
+ErrorCode_t name(ProtocolInfo_t* protocol, type** effects, int* effectsNum) \
+{ \
+    static StaticCache_t cache = { .ttl = 60 }; \
+    time_t now = time(NULL); \
+    name##_cached_t cached; \
+    if(!protocol || !effects || !effectsNum) return ENGINE_INTERNAL_ERROR; \
+    if(static_cache_get(&cache, protocol->protocol_id, &cached, sizeof(cached), now)) { \
+        *effectsNum = cached.num; \
+        *effects = NULL; \
+        if(cached.num > 0) { \
+            *effects = (type*)malloc(sizeof(type) * (unsigned int)cached.num); \
+            if(!*effects) { *effectsNum = 0; return ENGINE_INTERNAL_ERROR; } \
+            memcpy(*effects, cached.rows, sizeof(type) * (unsigned int)cached.num); \
+        } \
+        return ENGINE_OK; \
+    } \
+    ErrorCode_t result = name##_query(protocol, effects, effectsNum); \
+    if(result == ENGINE_OK && *effectsNum >= 0 && *effectsNum <= CACHED_ROWS_MAX) { \
+        memset(&cached, 0, sizeof(cached)); \
+        cached.num = *effectsNum; \
+        if(cached.num > 0 && *effects) \
+            memcpy(cached.rows, *effects, sizeof(type) * (unsigned int)cached.num); \
+        static_cache_put(&cache, protocol->protocol_id, &cached, sizeof(cached), now); \
+    } \
+    return result; \
+}
+
+DEFINE_CACHED_EFFECTS(db_get_resource_effects, ResourceEffect_t)
+DEFINE_CACHED_EFFECTS(db_get_market_effects, MarketEffect_t)
+
+/** ****************************************************************************
+
+    @brief          Writes what the turn changed in the drone's row, in one
+                    statement, before the turn commits (#431 step 3). The
+                    waiting action, unread input, instructions and power paid
+                    were each an UPDATE, the waiting action twice a turn (a
+                    resume clears it, a perform sets it).
+
+*******************************************************************************/
+ErrorCode_t db_turn_row_flush(DbConnection_t* connection)
+{
+    TurnRow_t* turn = db_turn_row_current();
+    if(!turn || !(turn->waiting_action_dirty || turn->pending_input_dirty ||
+                  turn->power_paid_dirty || turn->instructions_added))
+        return ENGINE_OK;
+
+    ErrorCode_t result = db_reconnect(connection);
+    if(result != ENGINE_OK)
+        return result;
+
+    char* safe = (turn->pending_input_dirty && turn->pending_input) ? db_escape_alloc(connection, turn->pending_input) : NULL;
+    if(turn->pending_input_dirty && turn->pending_input && !safe)
+        return ENGINE_MEMORY_ALLOC_ERROR;
+    size_t size = (safe ? strlen(safe) : 0) + 512;
+    char* query_text = malloc(size);
+    if(!query_text) { free(safe); return ENGINE_MEMORY_ALLOC_ERROR; }
+
+    char* end = query_text;
+    const char* sep = "";
+    end += snprintf(end, size, "UPDATE agents SET ");
+#define LEFT (size - (size_t)(end - query_text))
+    if(turn->waiting_action_dirty) {
+        if(turn->waiting_action) end += snprintf(end, LEFT, "%swaiting_action = %d", sep, turn->waiting_action);
+        else end += snprintf(end, LEFT, "%swaiting_action = NULL", sep);
+        sep = ", ";
+    }
+    if(turn->pending_input_dirty) {
+        if(safe) end += snprintf(end, LEFT, "%spending_input = '%s'", sep, safe);
+        else end += snprintf(end, LEFT, "%spending_input = NULL", sep);
+        sep = ", ";
+    }
+    if(turn->instructions_added) {
+        end += snprintf(end, LEFT, "%sinstructions = instructions + %lld", sep, turn->instructions_added);
+        sep = ", ";
+    }
+    if(turn->power_paid_dirty) {
+        end += snprintf(end, LEFT, "%spower_paid = %lld", sep, turn->power_paid);
+        sep = ", ";
+    }
+    snprintf(end, LEFT, " WHERE agent_id = %d", turn->agent_id);
+#undef LEFT
+
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to save drone [%d]'s turn: %s", turn->agent_id, mysql_error(connection->hndl));
+        result = ENGINE_DB_QUERY_ERROR;
+    } else {
+        turn->waiting_action_dirty = turn->pending_input_dirty = turn->power_paid_dirty = 0;
+        turn->instructions_added = 0;
+    }
+    free(query_text);
+    free(safe);
+    return result;
+}
+
+/* A MySQL named lock (#433): waits up to timeout seconds */
+ErrorCode_t db_get_named_lock(DbConnection_t* connection, const char* name, int timeout)
+{
+    char query_text[256];
+    if(db_reconnect(connection) != ENGINE_OK)
+        return ENGINE_DB_CONNECT_ERROR;
+    snprintf(query_text, sizeof(query_text), "SELECT GET_LOCK('%s', %d)", name, timeout);
+    if(mysql_query(connection->hndl, query_text))
+        return ENGINE_DB_QUERY_ERROR;
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+    int got = row && row[0] && atoi(row[0]) == 1;
+    if(res)
+        mysql_free_result(res);
+    return got ? ENGINE_OK : ENGINE_DB_QUERY_ERROR;
+}
+
+void db_release_named_lock(DbConnection_t* connection, const char* name)
+{
+    char query_text[256];
+    snprintf(query_text, sizeof(query_text), "SELECT RELEASE_LOCK('%s')", name);
+    if(mysql_query(connection->hndl, query_text) == 0) {
+        MYSQL_RES* res = mysql_store_result(connection->hndl);
+        if(res)
+            mysql_free_result(res);
+    }
+}
+
+/* A shard's turns a minute, for shard 0's pace (#433; migration 0036) */
+void db_record_shard_turns(DbConnection_t* connection, int shard, long per_minute, long long now)
+{
+    char query_text[256];
+    if(engine_shards() <= 1 || db_reconnect(connection) != ENGINE_OK)
+        return;
+    snprintf(query_text, sizeof(query_text),
+        "INSERT INTO engine_shards (shard, turns_per_minute, checked_at) VALUES (%d, %ld, %lld) "
+        "ON DUPLICATE KEY UPDATE turns_per_minute = VALUES(turns_per_minute), checked_at = VALUES(checked_at)",
+        shard, per_minute, now);
+    if(mysql_query(connection->hndl, query_text))
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+}
+
+/* The other shards' turns a minute, from reports since a real time */
+void db_other_shard_turns(DbConnection_t* connection, int shard, long long since, long* turns)
+{
+    char query_text[256];
+    *turns = 0;
+    snprintf(query_text, sizeof(query_text),
+        "SELECT IFNULL(SUM(turns_per_minute), 0) FROM engine_shards WHERE shard <> %d AND shard < %d AND checked_at >= %lld",
+        shard, engine_shards(), since);
+    if(mysql_query(connection->hndl, query_text))
+        return;
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+    if(row && row[0])
+        *turns = atol(row[0]);
+    if(res)
+        mysql_free_result(res);
 }

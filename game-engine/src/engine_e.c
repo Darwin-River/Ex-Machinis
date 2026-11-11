@@ -18,6 +18,10 @@
 
 #include "event.h"
 #include "engine_e.h"
+#include "db_station.h"
+#include "db_compute.h"
+#include "db_shares.h"
+#include "db_wreck.h"
 #include "game_time.h"
 #include "db.h"
 
@@ -131,12 +135,14 @@ ErrorCode_t engine_init_db()
     engine.db_connection.user = engine.config.params[DB_USER_ID];
     engine.db_connection.password = engine.config.params[DB_PASSWORD_ID];
     engine.db_connection.db_name = engine.config.params[DB_NAME_ID];
+    engine.db_connection.lock = NULL;
+    engine.db_connection.checked_at = 0;
 
 	// db
 	result = db_init(&engine.db_connection);
 
-	// Add columns newer code needs to older databases
-	if(result == ENGINE_OK) db_upgrade_schema();
+	// Only one events-engine per database
+	if(result == ENGINE_OK) result = db_claim_engine(&engine.db_connection, "events-engine");
 
 	// The game clock (its scale is set by the game engine)
 	if(result == ENGINE_OK) game_time_load();
@@ -293,6 +299,7 @@ ErrorCode_t engine_run()
     {
         // reset VM
         engine.last_agent.vm = NULL;
+        int found = 0;
 
         // Read the game clock (the game engine may have changed its scale)
         game_time_load();
@@ -303,7 +310,14 @@ ErrorCode_t engine_run()
         // process outcome events passing callback
         if(result == ENGINE_OK)
         {
-            result = db_get_outcome_events(engine_process_outcome);
+            result = db_get_outcome_events(engine_process_outcome, &found);
+        }
+
+        // Observations and places, written once for the batch (#448)
+        if((result == ENGINE_OK) || (result == ENGINE_DB_NOT_FOUND_ERROR))
+        {
+            ErrorCode_t written = db_flush_batch_writes();
+            if(written != ENGINE_OK) result = written;
         }
 
         // commit or rollback current transaction
@@ -316,8 +330,42 @@ ErrorCode_t engine_run()
             result = db_rollback_transaction(&engine.db_connection);
         }  
 
-        // Wait till next engine execution
-        sleep(atoi(engine.config.params[ENGINE_CHECK_TIME]));
+        // House drop stations (#324 step 10): clear the batches that have
+        // ended. All of it in one transaction, so a batch is paid once or
+        // not at all (a restart picks up what wasn't committed)
+        if(db_start_transaction(&engine.db_connection) == ENGINE_OK)
+        {
+            if(db_station_clear_due() == ENGINE_OK)
+                db_commit_transaction(&engine.db_connection);
+            else
+                db_rollback_transaction(&engine.db_connection);
+        }
+
+        // The share exchange at Earth (#469): once a game hour, in one
+        // transaction, so a batch clears whole or not at all
+        if(db_start_transaction(&engine.db_connection) == ENGINE_OK)
+        {
+            if(db_shares_clear_due() == ENGINE_OK)
+                db_commit_transaction(&engine.db_connection);
+            else
+                db_rollback_transaction(&engine.db_connection);
+        }
+
+        // The processor tax (#544): once a game hour, each company pays for
+        // its drones' thinking, in one transaction
+        if(db_start_transaction(&engine.db_connection) == ENGINE_OK)
+        {
+            if(db_compute_bill_due() == ENGINE_OK)
+                db_commit_transaction(&engine.db_connection);
+            else
+                db_rollback_transaction(&engine.db_connection);
+        }
+
+        // Wait till next engine execution, unless that batch was full: then
+        // more events are due, so go on at once (#324 step 20; one batch per
+        // ENGINE_CHECK_TIME held the engine to a couple of events a second)
+        if(found < engine_get_outcome_events_batch_size())
+            sleep(atoi(engine.config.params[ENGINE_CHECK_TIME]));
     }
 
     // deallocate resources/Stop modules

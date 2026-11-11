@@ -3,14 +3,14 @@
 @section('pageTitle', $title)
 @section('content')
 
-    <section class="section section-xs section-first bg-default text-md-left">
+    <x-page-header :title="$title" />
+    <section class="section section-xs section-first text-md-left">
 
         <div class="container" id="container">
-            <h1>{{$title}}</h1>
 
-            <p>Queries, which are invoked by the FORTH-based "query" command, allow spacecraft to retrieve data from the central database.  The query command pulls at least three parameters from the stack to direct its actions. The first parameter is the ID of the query that is being invoked.  Next, the command pulls a pair of values from the stack that indicate the length (L) and address (R) of the array that will receive the query results.  Additional numbers (N1, N2, etc) and string pointers (S1, S2, etc) may be required to further define the search.</p>
+            <p>Queries let a drone look things up in the game's database: what is in its hold, prices and orders where it is, deposits, trips, the game day and more. Each description starts with the drone library's function that asks it, such as <code>sell_orders(N)</code> or <code>trip_to(P)</code>, which returns plain values or records with named fields (see the players' manual, chapter 8). Then comes <code>ask(id, ...)</code>, which asks any query by its ID, with its parameters after the ID, and returns its rows, each a table of its columns (by position, and by name), or an empty table if the query fails; <code>query(id, ...)</code> is the same but returns <code>nil</code> and a code when it fails.</p>
 
-            <p>When results are returned from a query, they are added to the results arrray (R) in the order indicated, with the data from each field occupying the number of bytes specified within the square brackets. Click a query to see how to call it.</p>
+            <p>The columns of each row come in the order the description lists them. Click a query to see how to call it.</p>
 
             <query-commands-table :queries-list="{{json_encode($queryCommands)}}" keyword-parameter="{{$keyword}}"></query-commands-table>
         </div>
