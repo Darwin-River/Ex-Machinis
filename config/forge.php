@@ -19,4 +19,11 @@ return [
 
     // Longest script the Release page accepts (characters)
     'max_script_length' => 16000,
+
+    // Code pushes (#553): each costs this many thousandths of the company's
+    // credits times the push's number (5%, 10%, 15%...), at most the cap
+    'push_fee_permille' => (int) env('FORGE_PUSH_FEE_PERMILLE', 50),
+    'push_fee_cap_permille' => (int) env('FORGE_PUSH_FEE_CAP_PERMILLE', 500),
+    // Shortest password a release may set
+    'push_password_min' => 6,
 ];

@@ -226,6 +226,8 @@ Every release is live and free, and players learn by releasing a script, watchin
 - **`GAME_TIME_SCALE`** (default 1800) sets how fast game time runs, in game seconds per real second: a game hour every 2 real seconds, a game day every 48.
 - **`GAME_TIME_FLOOR`** (default 60, one game hour a real minute) is how far the clock may slow down when the server is busy. It starts slowing when the engines run more than `CLOCK_LAG_HIGH` (10) real seconds behind, and speeds back up once they are less than `CLOCK_LAG_LOW` (3) behind.
 
+- **`FORGE_PUSH_FEE_PERMILLE`** (default 50) and **`FORGE_PUSH_FEE_CAP_PERMILLE`** (default 500) set what a code push costs (#553): a company's nth push costs n × 50 thousandths of its credits (5%, 10%, 15%...), at most 500 (half).
+
 To change them, edit `deploy/.env` (`nano /opt/exmachinis/deploy/.env`), for example:
 
 ```
@@ -282,6 +284,8 @@ Then open the site and check a drone page, as in step 4 of the install.
 **FORTH was retired after round 38.** From this update the Release page and the API take Lua scripts only; drones already running in FORTH keep running. The update also gives each House station drone its Lua program (the log says "(new program)" for each), and a failed push or pull gives its fuel back. Drones now accelerate at 2 g (`TRAVEL_ACCELERATION` 19.6, was 1), so trips take about a quarter as long; a `TRAVEL_ACCELERATION` in your `deploy/.env` overrides it.
 
 **Engine settings come with the engine image.** The engines read `game-engine/conf/game-engine.conf`, built into their image, so `--build` picks up a change there. Since round 37 thinking costs half the fuel (`POWER_INSTRUCTIONS` 200,000, was 100,000). To set it yourself, add `POWER_INSTRUCTIONS: "100000"` (or any number) to the `environment` of each engine service in `docker-compose.yml`, and keep `power_instructions` in `config/forge.php` the same, since the drone pages quote it. That update also makes every drone's hold 1,000 (migration 0029) and gives each station drone a new program (the log says "(new program)"). The update after round 39 adds `agents.script_status` (migration 0030, for `set_status`) and three queries (615, 655, 845); `migrate` and the game data load do both on start. The update after round 41 adds the `holdings` and `latest_orders` tables and the triggers on `events` that keep them (migration 0031). `migrate` fills them from the history once; that took a few seconds for round 41's 510,000 events. Triggers need the database's root user, which `migrate` runs as. The update after that (#432) makes the events engine settle 100 events per fetch instead of 10 (`OUTCOME_EVENT_BATCH_SIZE` in `events-engine.conf`, which comes with the engine image, so `--build` picks it up).
+
+**Code pushes (#553).** The update after round 58 adds migration 0047 (the push password hash and push count on `companies`, the hash on `launch_queue`, and the `code_pushes` table); `migrate` runs it on start. Companies released before it have no password, so their code can't be pushed.
 
 **Clean up old images** every few updates. Unused images take several gigabytes:
 

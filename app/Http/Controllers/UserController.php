@@ -72,8 +72,26 @@ class UserController extends Controller
             + ['drones' => \App\Services\CompanyHealth::drones((int) $company->company_id)];
         // Its leaderboard place among companies its age or younger (#548)
         $rank = \App\Services\Leaderboard::peerRank((int) $company->company_id);
+        // Code pushes (#553)
+        $pushes = \App\Services\CodePush::summary(\Illuminate\Support\Facades\DB::table('companies')
+            ->where('company_id', $company->company_id)->first());
 
-        return view('user.company', compact('user', 'spacecraft', 'shares', 'rank'));
+        return view('user.company', compact('user', 'spacecraft', 'shares', 'rank', 'pushes'));
+    }
+
+    /** Pushes new code to a company's working drones, with its password (#553) */
+    public function push(\Illuminate\Http\Request $request, $id)
+    {
+        $request->validate(['password' => 'required|string|max:200',
+            'script' => 'required|string|max:' . config('forge.max_script_length')]);
+        $script = str_replace("\r\n", "\n", (string) $request->input('script'));
+        $result = \App\Services\CodePush::push((int) $id, (string) $request->input('password'), $script);
+        if (!$result['ok']) {
+            return back()->withErrors(['push' => $result['error']])->withInput($request->except('password'));
+        }
+        return redirect('/companies/' . (int) $id . '#pushes')->withSuccess('Push ' . $result['number'] . ' is on its way to '
+            . count($result['drones']) . ' drone(s) at the speed of light, for ' . number_format($result['fee'])
+            . ' credits. Each restarts its launched function on the new code when it arrives.');
     }
 
 }

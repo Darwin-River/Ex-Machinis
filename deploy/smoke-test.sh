@@ -182,6 +182,26 @@ wait_for 120 "a thinking drone's company pays processor tax" billed
     fail "the thinking drone lost its fuel or became a wreck"
 echo "ok: thinking costs the company credits, not fuel, and the drone keeps going"
 
+# Code pushes (#553): a company released with a password takes new code,
+# for 5% of its credits; the drone restarts on it
+PUSH_V1=$(printf 'function launched()\n  set_status("smoke-v1")\n  while true do wait(60) end\nend')
+PUSH_V2=$(printf 'function launched()\n  set_status("smoke-v2")\n  while true do wait(60) end\nend')
+curl -fsS -o /dev/null -H 'Accept: application/json' -X POST http://localhost/api/v1/release \
+    --data-urlencode "company_name=Smoke Pusher" --data-urlencode "script=$PUSH_V1" --data-urlencode "password=smoke-pass"
+PUSHER=$(company_drone "Smoke Pusher")
+[ -n "$PUSHER" ] || fail "release did not create the pushed drone"
+PUSH_CO=$(sql "select company_id from agents where agent_id=$PUSHER")
+says() { [ "$(sql "select script_status from agents where agent_id=$PUSHER")" = "$1" ]; }
+wait_for 120 "the drone to be pushed runs its first code" says smoke-v1
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H 'Accept: application/json' -X POST http://localhost/api/v1/companies/$PUSH_CO/push \
+    --data-urlencode "script=$PUSH_V2" --data-urlencode "password=wrong-pass")" = 403 ] || fail "a push with the wrong password was not refused"
+curl -fsS -o /dev/null -H 'Accept: application/json' -X POST http://localhost/api/v1/companies/$PUSH_CO/push \
+    --data-urlencode "script=$PUSH_V2" --data-urlencode "password=smoke-pass" || fail "the push was refused"
+wait_for 120 "the pushed drone runs its new code" says smoke-v2
+[ "$(sql "select concat(c.pushes, ' ', p.fee = FLOOR(GREATEST(p.credits_before, 0) * 50 / 1000)) from companies c join code_pushes p on p.company_id = c.company_id where c.company_id=$PUSH_CO")" = "1 1" ] ||
+    fail "the push did not cost 5% of the company's credits"
+echo "ok: a pushed company's drone restarts on its new code, for 5% of its credits"
+
 # A wreck to plunder later (#324 step 12): a drone whose launched function
 # crashes for the 5th time in a row. (Released first: the first drone
 # plunders its wreck later on)

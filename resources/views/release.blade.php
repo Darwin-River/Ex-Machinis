@@ -52,6 +52,16 @@
                     <input class="form-control" id="company_name" name="company_name" type="text" maxlength="45"
                            value="{{ old('company_name') }}" required>
                 </div>
+                <div class="form-group">
+                    {{-- Code pushes (#553) --}}
+                    <label for="password">Push password (optional)</label>
+                    <input class="form-control" id="password" name="password" type="password" minlength="{{ config('forge.push_password_min') }}"
+                           maxlength="200" autocomplete="new-password">
+                    <small>With a password you can push new code to this company's drones later, from its page or the API,
+                        for a fee: {{ config('forge.push_fee_permille') / 10 }}% of its credits for the first push,
+                        {{ 2 * config('forge.push_fee_permille') / 10 }}% for the second and so on. Without one, its code can
+                        never change. The same password can serve all your companies; it is kept only as a hash.</small>
+                </div>
                 <p><small>Start from a starter script:
                     @foreach($starters as $name => $what)
                         <a href="{{ url('release?starter=' . $name) }}" title="{{ $what }}">{{ ucfirst($name) }}</a>@if(!$loop->last) · @endif
