@@ -389,6 +389,50 @@ local function sell_orders(r)                                                   
 end
 -- The share exchange (#469): orders for company c's shares that can trade
 -- now; units: how many a pull or push can move
+-- The drone's own standing orders for goods that can still trade (#571):
+-- {resource, side ("buy" or "sell"), price, keep (sell) or want (buy)}.
+-- They outlive a code push: a pushed script that doesn't want them calls
+-- cancel_orders() first
+local function standing_orders()                                                  -- 656
+  local list = records(ask(656), {"resource", "side", "price", "quantity"})
+  for _, o in ipairs(list) do
+    if o.side == 2 then o.side, o.keep = "sell", o.quantity else o.side, o.want = "buy", o.quantity end
+  end
+  return list
+end
+-- Cancels the drone's standing orders for goods (#571): orders can't be
+-- deleted, so each is replaced by one that can't trade (a sell order keeping
+-- 1,000,000, a buy order wanting none). Each is an action, like posting one.
+-- Returns how many it cancelled
+local function cancel_orders()
+  local n = 0
+  for _, o in ipairs(standing_orders()) do
+    local r = o.side == "sell" and sell_order(o.price, 1000000, o.resource) or buy_order(o.price, 0, o.resource)
+    if r == 0 then n = n + 1 end
+  end
+  return n
+end
+-- Every company still trading, best sales first, 100 at most (#574):
+-- {company, sales (after tax a day, the 7-day average), count (its shares),
+-- value (what a share is worth; 0 if never traded), age (game days), drones}.
+-- A share earns sales / count a day
+local company_fields = {"company", "sales", "count", "value", "age", "drones"}
+local function companies() return records(ask(653), company_fields) end          -- 653
+-- The same for one company, yours if c is left out (#574)
+local function company_figures(c) return record(ask(654, c or company()), company_fields) end -- 654
+-- What offering n new shares at price would cost your company (#572), from
+-- its sales now: share (the part of its future sales income sold, 0 to 1),
+-- a_day (what the new holders would be paid a day), raised (n * price),
+-- payback_days (days of their dividends to repay what they pay), and
+-- value_now (n shares at today's value price: what net wealth counts against
+-- the company once they are sold, #568; 0 if its shares never traded)
+local function offering_cost(n, price)
+  local f = company_figures() or {sales = 0, count = 1000, value = 0}
+  local share = n / (f.count + n)
+  local a_day = math.max(f.sales, 0) * share
+  return {share = share, a_day = a_day, raised = n * price,
+          payback_days = a_day > 0 and n * price / a_day or math.huge, value_now = n * f.value}
+end
 local function share_sell_orders(c)                                               -- 690
   local list = records(ask(690, c), {"price", "keep", "held", "company"})
   for _, o in ipairs(list) do o.units = math.max(o.held - o.keep, 0) end
@@ -635,12 +679,14 @@ end
 -- Mining Kit's Engine) returned at once, buying nothing
 local kit_tools = {[mining_kit] = {engine_module, 5131, 5221},
                    [factory_kit] = {engine_module, 5201, 5211, 5501}}
-local function has_kit_tools(kit)
+-- The first of the kit's tools the drone lacks, or nil when it has them all
+local function missing_tool(kit)
   for _, t in ipairs(kit_tools[kit] or {engine_module}) do
-    if units(t) == 0 then return false end
+    if units(t) == 0 then return t end
   end
-  return true
+  return nil
 end
+local function has_kit_tools(kit) return missing_tool(kit) == nil end
 local function equip(kit)
   kit = kit or mining_kit
   local clone = lineage().parent > 0
@@ -649,11 +695,11 @@ local function equip(kit)
     if units(kit) > 0 then
       -- That kit is aboard: unpack it (the protocol 20000 above its ID)
       if perform(kit + 20000) ~= 0 then wait(60) end
-    elseif clone and units(engine_module) == 0 then
-      wait(60)   -- a new copy: its parent hands it a kit
+    elseif clone then
+      wait(60)   -- a copy waits for the kit its parent hands it; it never buys one (#570)
     else
       if not said then
-        print("equip: some of the kit's tools are missing: buying kit " .. kit .. " here, or at Earth")
+        print("equip: tool " .. missing_tool(kit) .. " of kit " .. kit .. " is missing: buying the kit here, or at Earth")
         said = true
       end
       buy_here(1, kit)
@@ -835,6 +881,11 @@ _G.compute_tax = compute_tax
 _G.company_age = company_age
 _G.where_to_buy = where_to_buy
 _G.raise_cash = raise_cash
+_G.companies = companies
+_G.company_figures = company_figures
+_G.offering_cost = offering_cost
+_G.standing_orders = standing_orders
+_G.cancel_orders = cancel_orders
 _G.invest_surplus = invest_surplus
 _G.where_to_sell = where_to_sell
 _G.house_demand = house_demand

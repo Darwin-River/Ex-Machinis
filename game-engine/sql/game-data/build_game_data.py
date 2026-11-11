@@ -1387,8 +1387,14 @@ LAST_SHARE_PRICE = ("(SELECT t.price FROM share_trades AS t WHERE t.share_compan
 # What a share is worth (#513): the average of the company's share trades
 # over the last 3 game days, weighted by shares, else its last trade price.
 # As Shares::valuePrices()
-VALUE_SHARE_PRICE = ("IFNULL((SELECT GREATEST(1, ROUND(SUM(v.units * v.price) / SUM(v.units))) FROM share_trades AS v "
-                     "WHERE v.share_company = {c} AND v.game_t > [game_now] - 259200 AND v.units > 0 HAVING SUM(v.units) > 0), "
+# Since #573 the trades also reach back, newest first, until they cover at
+# least half the shares other companies hold (one small trade no longer sets
+# the value). As Shares::valuePrices
+VALUE_SHARE_PRICE = ("IFNULL((SELECT GREATEST(1, ROUND(SUM(v.units * v.price) / SUM(v.units))) FROM "
+                     "(SELECT t.units, t.price, t.game_t, SUM(t.units) OVER (ORDER BY t.id DESC) - t.units AS newer "
+                     "FROM share_trades AS t WHERE t.share_company = {c} AND t.units > 0) AS v "
+                     "WHERE v.game_t > [game_now] - 259200 OR v.newer < (SELECT CEIL(IFNULL(SUM(o.units), 0) / 2) "
+                     "FROM shares AS o WHERE o.company = {c} AND o.holder <> {c} AND o.units > 0) HAVING SUM(v.units) > 0), "
                      + LAST_SHARE_PRICE + ")")
 queries.append((692, 'My shares',
                 'The shares the drone\'s company holds, its own included: company, shares, the dividends they have '
@@ -1484,6 +1490,40 @@ queries.append((706, 'House demand',
                 "FROM house_market AS g JOIN stations AS s ON s.id = g.station_id "
                 "JOIN agents AS a ON a.station_id = s.id AND a.wrecked_at IS NULL "
                 f"WHERE g.side = 1 AND g.resource = [value_1] AND g.from_day <= {TODAY}) AS d ORDER BY d_price DESC, d.place;"))
+# Every company still trading (#574), best sales first: what an investor
+# prices shares by, for companies whether or not their shares are listed.
+# Round 60's Milo could price only what happened to be for sale
+queries.append((653, 'Companies',
+                'Every company still trading, best sales first (100 at most): company, its sales after tax a day '
+                '(7-day average), its shares, what a share is worth (0 if never traded), game days since founded, '
+                'working drones.', 0,
+                "SELECT x.company_id AS company, "
+                f"{DAY_SALES.format(c='x.company_id')} AS d_sales, x.share_count AS count, "
+                f"IFNULL({VALUE_SHARE_PRICE.format(c='x.company_id')}, 0) AS d_value, "
+                "FLOOR(GREATEST(0, [game_now] - IFNULL(x.founded_t, [game_now])) / 86400) AS age, "
+                "(SELECT COUNT(*) FROM agents AS w WHERE w.company_id = x.company_id AND w.wrecked_at IS NULL) AS drones "
+                "FROM companies AS x WHERE x.eliminated_at IS NULL AND x.house = 0 ORDER BY d_sales DESC, x.company_id LIMIT 100;"))
+# One company's figures (#572, #574): the same as a row of 653, for any
+# company (yours, to price an offering of new shares)
+queries.append((654, 'Company figures',
+                'Company N: its sales after tax a day (7-day average), its shares, what a share is worth (0 if '
+                'never traded), game days since founded, working drones.', 1,
+                "SELECT x.company_id AS company, "
+                f"{DAY_SALES.format(c='x.company_id')} AS d_sales, x.share_count AS count, "
+                f"IFNULL({VALUE_SHARE_PRICE.format(c='x.company_id')}, 0) AS d_value, "
+                "FLOOR(GREATEST(0, [game_now] - IFNULL(x.founded_t, [game_now])) / 86400) AS age, "
+                "(SELECT COUNT(*) FROM agents AS w WHERE w.company_id = x.company_id AND w.wrecked_at IS NULL) AS drones "
+                "FROM companies AS x WHERE x.company_id = [value_1];"))
+# The drone's own standing orders for goods (#571): orders can't be deleted,
+# only replaced, and they outlive a code push (round 60: a miner pushed into
+# a foundry kept selling the foundry's inputs). A sell order keeping
+# 1,000,000 or more, or a buy order wanting none, can't trade: cancelled
+queries.append((656, 'My standing orders',
+                'The drone\'s standing orders for goods that can still trade: resource, side (1 buy, 2 sell), '
+                'price, units it keeps (sell) or wants (buy).', 0,
+                "SELECT o.resource, IF(o.event_type = 4, 2, 1) AS side, o.price AS d_price, o.quantity AS d_quantity "
+                "FROM latest_orders AS o WHERE o.drone = [drone_id] AND ((o.event_type = 4 AND o.quantity < 1000000) "
+                "OR (o.event_type = 5 AND o.quantity > 0)) ORDER BY o.resource, o.event_type;"))
 queries.append((698, 'Share count',
                 'Company N\'s shares in all: 1,000 to start, more once it has issued new ones.', 1,
                 "SELECT share_count FROM companies WHERE company_id = [value_1];"))

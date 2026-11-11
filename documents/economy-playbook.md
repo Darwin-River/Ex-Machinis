@@ -419,6 +419,15 @@ On the way to 5,000 ships (#428), two steps:
 - On round 41's end state #427 and #430 were alike. The top cost there is now a company's latest event (#435).
 - **What holds the clock back at 1,000 ships** is now the engine's query for due commands (#432).
 
+### Round 60: the first live round (#380)
+
+Three newcomers played the live site from day 71 to 131; 38 AI companies (the example designs) were released partway in, 57 companies in all. The server kept full speed (about 1,140 drone turns a minute). Overall 7, 7.5, 7.5.
+
+- **The stock market came alive:** Milo rated it 8, and a pure share market maker was his best company. #568 (shares others hold count against the company) punished cheap issues as intended, but one 109-share trade at 24 tripled Lena 2's value price: fixed by #573.
+- **Offerings were traps:** Lena 2 sold 37.5% of its income for 4,800 and paid about 14,000 back in dividends. `offering_cost` shows it first (#572); `companies()` lets investors and issuers price any company (#574).
+- **Standing orders outlive a push** (#571: `cancel_orders()`).
+- **Supply:** the Moon's Metals (A1) ran out by day 77 with about 30 AI makers there; deposits ran low by day 118. AI miners sold Metals (A2) at 1 to 4 while the Moon Depot bid 24.
+
 ### Round 58: processor tax, dissolving, age ranks; capital stalls (#380)
 
 The first round with thinking billed as processor tax (#544), broke companies dissolving (#547) and ranks by age (#548). Three newcomers played 60 game days against the load-test designs, about 147 companies: Fay (planner; best 23,029, 1st of its age, Overall 7.5), Gus (investor; best 11,356, Overall 7) and Hana (beginner; best 18,260, a Mars parts maker, Overall 7).

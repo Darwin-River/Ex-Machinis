@@ -18,21 +18,22 @@
                 commit and pay now. Once every share is committed the shares are issued and the company paid. At the
                 deadline, if at least the offering's minimum is committed, those shares are issued; if not, everyone is
                 refunded. <i>A share a day</i> is the company's sales after tax a day (7-day average) divided by the
-                shares it will have if the offering fills.</div>
+                shares it will have if the offering fills. <i>Income sold</i> is the part of the company's future sales income the
+                new shares take if it fills (#572).</div>
             <div class="table-custom-responsive">
                 <table class="table-ticket" id="share-offerings">
                     <tr><th>Company</th><th>New shares</th><th>At least</th><th>Price</th><th>Raising up to</th><th>Committed</th><th>Hours left</th>
-                        <th>A share a day</th></tr>
+                        <th>A share a day</th><th>Income sold</th></tr>
                     @forelse($exchange['offerings'] as $o)
                         <tr>
                             <td><a href="{{ url('companies/' . $o['company']) }}">{{ $o['name'] }}</a></td>
                             <td>{{ number_format($o['units']) }} <small>(has {{ number_format($o['count']) }})</small></td>
                             <td>{{ number_format($o['min']) }}</td><td>{{ number_format($o['price']) }}</td><td>{{ number_format($o['raise']) }}</td>
                             <td>{{ number_format($o['committed']) }} of {{ number_format($o['units']) }}</td>
-                            <td>{{ $o['hours'] }}</td><td>{{ $o['a_day_after'] }}</td>
+                            <td>{{ $o['hours'] }}</td><td>{{ $o['a_day_after'] }}</td><td>{{ $o['income_percent'] }}%</td>
                         </tr>
                     @empty
-                        <tr><td colspan="8">No open offerings.</td></tr>
+                        <tr><td colspan="9">No open offerings.</td></tr>
                     @endforelse
                 </table>
             </div>
