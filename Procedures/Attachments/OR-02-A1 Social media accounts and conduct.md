@@ -11,7 +11,7 @@
       | Reddit | r/ProgrammingGames, r/lua, r/learnprogramming, r/CSEducation | The project lead, by hand | Big moments only, within each community's rules |
       | itch.io | Not yet set up: a free page pointing at the website | The project lead, by hand | Devlogs copied from the blog |
       | Hacker News | Show HN | The project lead, by hand | One launch post, when the game is ready for a crowd |
-      | Ko-fi | The **Keep the Lights On** page, `/support` on the game's website, and the Ko-fi page it links to (not set up yet) | The project lead | The monthly supporter update, per [FR-01](../SOPs/FR-01%20Raising%20funds%20through%20Ko-fi.md) |
+      | Ko-fi | The **Keep the Lights On** page, `/support` on the game's website, and the Ko-fi page it links to, [ko-fi.com/exmachinis](https://ko-fi.com/exmachinis) | The project lead | The monthly supporter update, per [FR-01](../SOPs/FR-01%20Raising%20funds%20through%20Ko-fi.md) |
       | Blog | `/blog` on the game's website, with an RSS feed at `/blog/feed` | Merged pull requests | Teaching posts, per [OR-01](../SOPs/OR-01%20Writing%20and%20publishing%20blog%20posts.md) |
       | GitHub | [Darwin-River/Ex-Machinis](https://github.com/Darwin-River/Ex-Machinis) | Everyone | Issues, code and SOPs, open to all |
 
