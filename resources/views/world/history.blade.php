@@ -7,7 +7,7 @@
         <div class="container" id="container">
             <div class="mh-intro">
                 What every resource traded for, game day by game day, at each place. Each day's price is the average a
-                unit fetched over all of that day's trades; the shaded band runs from the cheapest unit to the dearest.
+                unit fetched over all of that day's trades; a thin vertical line runs from the cheapest unit to the dearest.
                 The same numbers come from the API's <code>/api/v1/history</code>. Open orders are on the
                 <a href="{{ url('market') }}">Market</a> page.
             </div>

@@ -58,8 +58,8 @@
                 {{-- Price and volume in one chart (#595): price on the left axis, units on the right --}}
                 <div class="mh-card">
                     <h3>{{ $chartTitle }}</h3>
-                    <p class="mh-note">The lines are the average price each game day (left axis); choose one place to see its range
-                        too, and a gap is a day with no trades there. The bars along the bottom are all the units that changed
+                    <p class="mh-note">The dots and lines are the average price each game day (left axis); the thin line through each
+                        dot runs from the cheapest unit traded that day to the dearest. A gap is a day with no trades there. The bars along the bottom are all the units that changed
                         hands each game day at the places chosen (right axis).</p>
                     <div class="mh-legend" id="mh-legend"></div>
                     <div class="mh-chart" id="mh-price" tabindex="0" aria-label="Price a unit and units traded by game day"></div>
@@ -197,9 +197,10 @@
             const units = []; for (let d = first; d <= last; d++) units.push(shown.filter((r) => r.day === d).reduce((s, r) => s + r.units, 0));
             const ufmt = (v) => Math.round(v).toLocaleString('en');
 
-            // Price: an average line per place, and the low-high band for one place
+            // Price: an average line per place, with each day's cheapest-to-dearest
+            // line through its dot (#598)
             const box = $('mh-price');
-            const f = frame(box, 320, Math.max(...shown.map((r) => place ? r.high : r.average)), span, first, fmt,
+            const f = frame(box, 320, Math.max(...shown.map((r) => r.high)), span, first, fmt,
                 {max: Math.max(...units), fmt: ufmt, share: 0.25, label: 'units'});
             const bw = Math.max(1, Math.min(32, (f.W - f.L - f.R) / span * 0.7));
             units.forEach((u, i) => {
@@ -210,25 +211,25 @@
             const at = (p, d) => shown.find((r) => r.place === p && r.day === d);
             places.forEach((p) => {
                 const c = placeColour[p];
-                if (place) {
-                    let seg = [];
-                    const band = () => {
-                        if (!seg.length) return;
-                        const pts = seg.map((r) => `${f.x(r.day)},${f.y(r.high)}`).concat(seg.slice().reverse().map((r) => `${f.x(r.day)},${f.y(r.low)}`));
-                        el('polygon', {points: pts.join(' '), fill: c, 'fill-opacity': 0.18, stroke: 'none'}, f.svg);
-                        seg = [];
-                    };
-                    for (let d = first; d <= last; d++) { const r = at(p, d); if (r) seg.push(r); else band(); }
-                    band();
-                }
                 let path = '', prev = false;
                 for (let d = first; d <= last; d++) {
                     const r = at(p, d);
                     if (r) { path += (prev ? 'L' : 'M') + f.x(d) + ',' + f.y(r.average); prev = true; } else prev = false;
                 }
                 el('path', {d: path, fill: 'none', stroke: c, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round'}, f.svg);
-                for (let d = first; d <= last; d++) {   // a lone day shows as a dot
-                    if (at(p, d) && !at(p, d - 1) && !at(p, d + 1)) el('circle', {cx: f.x(d), cy: f.y(at(p, d).average), r: 2.5, fill: c}, f.svg);
+            });
+            // Each day's range and average (#598): places side by side on a shared day
+            const slot = (f.W - f.L - f.R) / Math.max(1, span - 1);
+            const gap = Math.min(5, slot / (places.length + 1));
+            places.forEach((p, i) => {
+                const c = placeColour[p], dx = (i - (places.length - 1) / 2) * gap;
+                for (let d = first; d <= last; d++) {
+                    const r = at(p, d);
+                    if (!r) continue;
+                    if (r.high > r.low) el('line', {x1: f.x(d) + dx, x2: f.x(d) + dx, y1: f.y(r.high), y2: f.y(r.low),
+                        stroke: c, 'stroke-width': 1.5, 'stroke-opacity': 0.6, 'stroke-linecap': 'round'}, f.svg);
+                    el('circle', {cx: f.x(d) + dx, cy: f.y(r.average), r: span > 120 ? 2 : 3, fill: c,
+                        stroke: 'var(--mh-panel)', 'stroke-width': 1}, f.svg);
                 }
             });
             hover(box, f, first, span, (day, marks) => {
