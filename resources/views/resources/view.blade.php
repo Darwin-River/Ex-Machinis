@@ -26,6 +26,19 @@
                     </p>
                 </div>
             </div>
+            {{-- Its recent price and volume (#597) --}}
+            <div class="row row-30">
+                <div class="col" id="recent-sales">
+                    <h2 class="">Recent sales</h2>
+                    @if($traded)
+                        @include('partials.price-volume-chart', ['chartResource' => (int) $resource->id, 'chartDays' => 30,
+                            'chartTitle' => 'Price a unit and units traded'])
+                        <p style="white-space: normal">Every resource's history is on <a href="{{ url('market/history') }}">Market history</a>.</p>
+                    @else
+                        <p>No trades yet.</p>
+                    @endif
+                </div>
+            </div>
             <div class="row row-30">
                 <div class="col">
                     <h2 class="" style="visibility: visible; animation-name: fadeInLeft;">

@@ -1045,7 +1045,7 @@ else
 end
 ```
 
-Nobody publishes a price list. What a station drone, or any other drone, buys and sells, and at what price, you find out from the market: its orders (`best_bid`, `best_offer`, the Market page's order book) and what goods have sold for (the price board, query 680, `board_price` and `sold`; the Market history page charts every resource's price and volume, day by day, at each place). Prices move: a buyer pays less as its stock fills, and other players' orders come and go. Compare before you buy or sell:
+Nobody publishes a price list. What a station drone, or any other drone, buys and sells, and at what price, you find out from the market: its orders (`best_bid`, `best_offer`, the Market page's order book) and what goods have sold for (the price board, query 680, `board_price` and `sold`; the Market history page charts every resource's price and volume, day by day, at each place, and each resource's own page charts its recent sales). Prices move: a buyer pays less as its stock fills, and other players' orders come and go. Compare before you buy or sell:
 
 ```lua
 function compare_metals()

@@ -68,6 +68,14 @@ class WorldPagesTest extends TestCase
         $this->get('/market/history')->assertOk()->assertSee('Market history')->assertSee('Price a unit')
             ->assertSee('<option value="' . $resource->id . '">' . e($resource->name) . '</option>', false);
         $this->get('/market')->assertOk()->assertSee(url('market/history'));
+
+        // #597: its product page charts it, with no resource menu; an untraded one says so
+        $this->get('/resources/' . $resource->id)->assertOk()->assertSee('id="recent-sales"', false)
+            ->assertSee('const FIXED = ' . $resource->id, false)->assertSee('id="mh-price"', false)
+            ->assertDontSee('id="mh-resource"', false);
+        $untraded = DB::table('resources')->where('id', '<>', $resource->id)
+            ->whereNotIn('id', DB::table('trades')->select('resource'))->value('id');
+        $this->get('/resources/' . $untraded)->assertOk()->assertSee('No trades yet.')->assertDontSee('id="mh-price"', false);
     }
 
     public function testMarketShowsTheBestOrderForEveryResource()
