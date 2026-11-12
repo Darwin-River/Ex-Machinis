@@ -44,7 +44,7 @@
 
    1. <a id="5.1"></a>Setting up deploys (once, by the project lead):
 
-      1. <a id="5.1.1"></a>Make sure the server has `deploy/auto-deploy.sh`; if it doesn't, update it by hand once (`documents/hosting.md`, "Update the game").
+      1. <a id="5.1.1"></a>Make sure the server has `deploy/auto-deploy.sh`; if it doesn't, update it by hand once (`documents/hosting.md`, "Update the game"). Make sure `forge` can write to the backups folder, `/var/backups/exmachinis` (`documents/hosting.md`, "The backup script"): every deploy backs up first, and the script refuses to run without it.
 
       2. <a id="5.1.2"></a>Make the deploy key on the server, lock it to the script, note the server's fingerprint, add the three secrets on GitHub, and delete the key files from the server, as `documents/hosting.md`, "Automatic updates", sets out step by step.
 

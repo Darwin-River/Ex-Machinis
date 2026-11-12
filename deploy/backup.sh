@@ -29,7 +29,8 @@ die() { echo "backup: $*" >&2; exit 1; }
 docker compose ps --status running db | grep -q db || die "the database isn't running (docker compose up -d)"
 
 umask 077
-mkdir -p "$DEST"
+mkdir -p "$DEST" 2>/dev/null ||
+    die "can't write to $BACKUP_DIR. Make it once: sudo mkdir -p $BACKUP_DIR && sudo chown $(id -un):$(id -un) $BACKUP_DIR"
 
 dump() {   # dump <database> <file>
     docker compose exec -T db sh -c \
