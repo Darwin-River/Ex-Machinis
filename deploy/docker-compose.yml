@@ -41,8 +41,12 @@ services:
     # Throughput (#324 step 20): no binary log (a busy world wrote gigabytes
     # an hour of it; backups use mysqldump), and the log flushed to disk
     # once a second rather than at every commit (a power cut can lose the
-    # last second of play; a crash of MySQL alone loses nothing)
-    command: ["--disable-log-bin", "--innodb-flush-log-at-trx-commit=2"]
+    # last second of play; a crash of MySQL alone loses nothing). The
+    # buffer pool is MySQL's cache (#587): left at its 128 MB default, a
+    # world with millions of events read terabytes from disk and the clock
+    # fell to its floor. About half the server's RAM (DB_BUFFER_POOL)
+    command: ["--disable-log-bin", "--innodb-flush-log-at-trx-commit=2",
+              "--innodb-buffer-pool-size=${DB_BUFFER_POOL:-768M}"]
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?run setup.sh first}
       MYSQL_DATABASE: exmachinis
