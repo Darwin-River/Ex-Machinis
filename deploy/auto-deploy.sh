@@ -75,6 +75,7 @@ git merge --ff-only --quiet origin/main
 
 say "3/5 rebuilding and restarting (containers whose code didn't change keep running)"
 cd "$REPO/deploy"
+since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"   # this deploy's migrate output starts here
 docker compose up -d --build --remove-orphans
 
 say "4/5 waiting for the database update (migrate)"
@@ -88,12 +89,17 @@ case "$state" in
     exited*) die "migrate failed ($state): docker compose logs migrate. The schema may be half-updated: restore the backup above before rolling back (hosting.md, \"Restore from a backup\")" ;;
     *) die "migrate didn't finish within 5 minutes ($state)" ;;
 esac
-docker compose logs migrate | grep -q "migrate: game data loaded" || die "migrate exited without loading the game data: docker compose logs migrate"
+# Read the log first, then search it: piping it into grep -q fails under
+# pipefail when grep stops reading early (#586). And only this run's output:
+# the container keeps every past run's.
+migrate_log="$(docker compose logs --no-log-prefix --since "$since" migrate)"
+grep -q "migrate: game data loaded" <<<"$migrate_log" || die "migrate exited without loading the game data: docker compose logs migrate"
 
 say "5/5 checking every service stays up"
 sleep "${DEPLOY_SETTLE_SECONDS:-20}"
+running="$(docker compose ps --status running --services)"
 for service in db app game-engine events-engine scheduler caddy; do
-    docker compose ps --status running --services | grep -qx "$service" || die "$service isn't running: docker compose logs --tail 100 $service"
+    grep -qx "$service" <<<"$running" || die "$service isn't running: docker compose logs --tail 100 $service"
 done
 
 docker image prune -f >/dev/null || true
