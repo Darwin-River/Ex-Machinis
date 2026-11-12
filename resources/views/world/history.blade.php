@@ -15,7 +15,7 @@
         .mh-legend { display: flex; flex-wrap: wrap; gap: 1em; font-size: 13px; color: var(--mh-muted); margin-bottom: .5em; }
         .mh-legend i { display: inline-block; width: 12px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
         .mh-chart { position: relative; min-height: 260px; }
-        .mh-chart.mh-short { min-height: 160px; }
+        .mh-legend i.mh-bar { width: 10px; height: 10px; border-radius: 2px; background: var(--mh-bars); opacity: .55; }
         .mh-chart svg { display: block; overflow: visible; }
         .mh-chart text { fill: var(--mh-muted); font-size: 12px; font-family: inherit; }
         .mh-tip { position: absolute; top: 0; pointer-events: none; background: #111116; border: 1px solid var(--mh-axis);
@@ -62,17 +62,14 @@
                     </label>
                 </div>
 
+                {{-- Price and volume in one chart (#595): price on the left axis, units on the right --}}
                 <div class="mh-card">
-                    <h3>Price a unit</h3>
-                    <p class="mh-note">The average price each game day. Choose one place to see its range too. A gap is a day with no trades there.</p>
+                    <h3>Price a unit and units traded</h3>
+                    <p class="mh-note">The lines are the average price each game day (left axis); choose one place to see its range
+                        too, and a gap is a day with no trades there. The bars along the bottom are all the units that changed
+                        hands each game day at the places chosen (right axis).</p>
                     <div class="mh-legend" id="mh-legend"></div>
-                    <div class="mh-chart" id="mh-price" tabindex="0" aria-label="Price a unit by game day"></div>
-                </div>
-
-                <div class="mh-card">
-                    <h3>Units traded a day</h3>
-                    <p class="mh-note">All the units that changed hands each game day, at the places chosen.</p>
-                    <div class="mh-chart mh-short" id="mh-units" tabindex="0" aria-label="Units traded by game day"></div>
+                    <div class="mh-chart" id="mh-price" tabindex="0" aria-label="Price a unit and units traded by game day"></div>
                 </div>
             @endif
         </div>
@@ -119,26 +116,46 @@
         }
 
         // Shared frame: y ticks from 0 to a round maximum, x across the days shown
-        function frame(box, H, yMax, days, first, yFmt) {
+        function frame(box, H, yMax, days, first, yFmt, right) {
             box.replaceChildren();
             const W = Math.max(280, box.clientWidth);
             const svg = el('svg', {width: '100%', viewBox: `0 0 ${W} ${H}`, role: 'img'}, box);
             const top = niceMax(yMax), ticks = [0, top / 4, top / 2, top * 3 / 4, top];
             const probe = el('text', {}, svg); probe.textContent = yFmt(top);
             const L = Math.ceil(probe.getComputedTextLength()) + 10; probe.remove();
-            const R = 10, B = 24, T = 8;
+            let R = 10;
+            const B = 24, T = 20;
+            if (right) {   // the right axis's labels set its margin (#595)
+                const rp = el('text', {}, svg); rp.textContent = right.fmt(niceMax(right.max));
+                R = Math.ceil(rp.getComputedTextLength()) + 10; rp.remove();
+            }
             const x = (d) => L + (days > 1 ? (d - first) / (days - 1) : 0.5) * (W - L - R);
             const y = (v) => H - B - v / top * (H - B - T);
             ticks.forEach((t) => {
                 el('line', {x1: L, x2: W - R, y1: y(t), y2: y(t), stroke: t ? 'var(--mh-grid)' : 'var(--mh-axis)'}, svg);
                 const lab = el('text', {x: L - 6, y: y(t), dy: '0.32em', 'text-anchor': 'end'}, svg); lab.textContent = yFmt(t);
             });
+            el('text', {x: L - 6, y: 8, 'text-anchor': 'end'}, svg).textContent = 'cr';
+            let yr = null, rtop = 0;
+            if (right) {
+                // The second measure fills the bottom quarter only, so its bars
+                // never cross the lines above: where they would cross means nothing
+                rtop = niceMax(right.max);
+                const band = (H - B - T) * right.share;
+                yr = (v) => H - B - v / rtop * band;
+                [rtop / 2, rtop].forEach((t) => {
+                    el('line', {x1: W - R, x2: W - R + 4, y1: yr(t), y2: yr(t), stroke: 'var(--mh-axis)'}, svg);
+                    const lab = el('text', {x: W - R + 6, y: yr(t), dy: '0.32em', 'text-anchor': 'start'}, svg); lab.textContent = right.fmt(t);
+                });
+                el('line', {x1: W - R, x2: W - R, y1: yr(rtop), y2: yr(0), stroke: 'var(--mh-axis)'}, svg);
+                el('text', {x: W - R + 6, y: yr(rtop) - 12, 'text-anchor': 'start'}, svg).textContent = right.label;
+            }
             const step = Math.max(1, Math.ceil(days / (W < 480 ? 5 : 10)));
             for (let d = first; d < first + days; d += step) {
                 const lab = el('text', {x: x(d), y: H - 6, 'text-anchor': d === first ? 'start' : 'middle'}, svg);
                 lab.textContent = d === first ? 'Day ' + d : d;
             }
-            return {svg, W, H, L, R, B, T, x, y, top};
+            return {svg, W, H, L, R, B, T, x, y, top, yr, rtop};
         }
 
         function hover(box, f, first, days, onDay) {
@@ -173,7 +190,7 @@
             const place = $('mh-place').value, days = Number($('mh-days').value);
             const shown = rows.filter((r) => !place || String(r.place) === place);
             const legend = $('mh-legend'); legend.replaceChildren();
-            if (!shown.length) { empty($('mh-price'), 'No trades in this period.'); empty($('mh-units'), 'No trades in this period.'); return; }
+            if (!shown.length) { empty($('mh-price'), 'No trades in this period.'); return; }
             const last = Math.max(TODAY, ...rows.map((r) => r.day)), first = Math.max(0, last - days + 1), span = last - first + 1;
             const places = [...new Set(shown.map((r) => r.place))].sort((a, b) => a - b);
             places.forEach((p) => {
@@ -181,10 +198,24 @@
                 i.style.background = placeColour[p]; s.appendChild(i);
                 s.appendChild(document.createTextNode(shown.find((r) => r.place === p).place_name)); legend.appendChild(s);
             });
+            const ub = document.createElement('span'), ui = document.createElement('i');
+            ui.className = 'mh-bar'; ub.appendChild(ui); ub.appendChild(document.createTextNode('Units traded (right axis)'));
+            legend.appendChild(ub);
+
+            // Units: one bar a day, all places chosen together, in the bottom band (#595)
+            const units = []; for (let d = first; d <= last; d++) units.push(shown.filter((r) => r.day === d).reduce((s, r) => s + r.units, 0));
+            const ufmt = (v) => Math.round(v).toLocaleString('en');
 
             // Price: an average line per place, and the low-high band for one place
             const box = $('mh-price');
-            const f = frame(box, 260, Math.max(...shown.map((r) => place ? r.high : r.average)), span, first, fmt);
+            const f = frame(box, 320, Math.max(...shown.map((r) => place ? r.high : r.average)), span, first, fmt,
+                {max: Math.max(...units), fmt: ufmt, share: 0.25, label: 'units'});
+            const bw = Math.max(1, Math.min(32, (f.W - f.L - f.R) / span * 0.7));
+            units.forEach((u, i) => {
+                if (!u) return;
+                el('rect', {x: f.x(first + i) - bw / 2, width: bw, y: f.yr(u), height: f.yr(0) - f.yr(u),
+                    rx: Math.min(2, bw / 2), fill: 'var(--mh-bars)', 'fill-opacity': 0.55}, f.svg);
+            });
             const at = (p, d) => shown.find((r) => r.place === p && r.day === d);
             places.forEach((p) => {
                 const c = placeColour[p];
@@ -218,20 +249,9 @@
                         ? `${name}: ${fmt(r.average)} a unit (${fmt(r.low)} to ${fmt(r.high)}), ${r.units.toLocaleString('en')} units`
                         : `${name}: no trades`});
                 });
+                lines.push({text: `Units traded: ${ufmt(units[day - first])}`});
                 return lines;
             });
-
-            // Units: one bar a day, all places chosen together
-            const ubox = $('mh-units');
-            const units = []; for (let d = first; d <= last; d++) units.push(shown.filter((r) => r.day === d).reduce((s, r) => s + r.units, 0));
-            const g = frame(ubox, 160, Math.max(...units), span, first, (v) => Math.round(v).toLocaleString('en'));
-            const bw = Math.max(1, Math.min(32, (g.W - g.L - g.R) / span * 0.7));
-            units.forEach((u, i) => {
-                if (!u) return;
-                const h = g.y(0) - g.y(u);
-                el('rect', {x: g.x(first + i) - bw / 2, width: bw, y: g.y(u), height: h, rx: Math.min(2, bw / 2), fill: 'var(--mh-bars)'}, g.svg);
-            });
-            hover(ubox, g, first, span, (day) => [{text: 'Game day ' + day}, {text: units[day - first].toLocaleString('en') + ' units'}]);
         }
 
         async function load() {
@@ -243,7 +263,7 @@
                 rows = await res.json();
             } catch (e) {
                 rows = [];
-                empty($('mh-price'), 'The history did not load. Try again in a minute.'); empty($('mh-units'), '');
+                empty($('mh-price'), 'The history did not load. Try again in a minute.');
                 return;
             } finally { $('mh-price').removeAttribute('aria-busy'); }
             const sel = $('mh-place'), keep = sel.value;
