@@ -29,6 +29,10 @@ class CompanyChartsTest extends TestCase
         $buyer = $this->release('Spenders');
         $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
         $today = intdiv(World::gameNow() - $epoch, 86400);
+        // Founded 5 game days ago: the chart starts no earlier than that
+        DB::table('companies')->where('company_id', $seller->company_id)->update(['founded_t' => World::gameNow() - 5 * 86400]);
+        $this->assertCount(6, $this->getJson('/api/v1/companies/' . $seller->company_id . '/earnings?days=30')->json(),
+            'from its founding day, not 30 days back');
         // Yesterday it sold 10 for 100 (5 tax) and bought 4 for 30; today it sold 2 for 20 (1 tax)
         $at = fn ($day) => $epoch + $day * 86400 + 3600;
         DB::table('trades')->insert([
