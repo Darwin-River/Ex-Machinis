@@ -60,6 +60,13 @@ int main(void)
           offer_check(300, 150, 5, 7, 1000, 0) == OFFER_OK);
     check("a minimum of 0 or past the maximum is refused", offer_check(300, 0, 5, 7, 1000, 0) == OFFER_BAD &&
           offer_check(300, 301, 5, 7, 1000, 0) == OFFER_BAD);
+    // #599: others may hold at most half a company
+    check("others holding half is within the cap", !shares_over_cap(500, 1000));
+    check("others holding one share past half is over it", shares_over_cap(501, 1000));
+    check("no outside holders is never over", !shares_over_cap(0, 1000));
+    check("an offering of 1,000 new shares to a company of 1,000 would make it half theirs",
+          !shares_over_cap(0 + 1000, 1000 + 1000));
+    check("the same offering when others already hold 100 would pass the cap", shares_over_cap(100 + 1000, 1000 + 1000));
     check("at the deadline, the minimum or more issues what was committed",
           offer_issues(150, 150) == 150 && offer_issues(277, 150) == 277);
     check("short of the minimum, nothing is issued", offer_issues(149, 150) == 0 && offer_issues(0, 1) == 0);

@@ -85,7 +85,10 @@ class UserController extends Controller
         // Its code and revisions (#594): the drones' pages link here
         $code = \App\Services\CompanyCode::of((int) $company->company_id);
 
-        return view('user.company', compact('user', 'spacecraft', 'shares', 'rank', 'pushes', 'stats', 'code'));
+        // Today's game day, for its share price chart (#600)
+        $today = \App\Services\MarketHistory::today();
+
+        return view('user.company', compact('user', 'spacecraft', 'shares', 'rank', 'pushes', 'stats', 'code', 'today'));
     }
 
     /** Pushes new code to a company's working drones, with its password (#553) */

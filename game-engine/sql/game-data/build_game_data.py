@@ -1490,29 +1490,39 @@ queries.append((706, 'House demand',
                 "FROM house_market AS g JOIN stations AS s ON s.id = g.station_id "
                 "JOIN agents AS a ON a.station_id = s.id AND a.wrecked_at IS NULL "
                 f"WHERE g.side = 1 AND g.resource = [value_1] AND g.from_day <= {TODAY}) AS d ORDER BY d_price DESC, d.place;"))
+# #599: the shares other companies hold in x (an offering, or x selling its
+# own, may not take them past half), and how many game days of sales its
+# 7-day average covers (fewer for a young company: round 62's players priced
+# offerings on a day or two of sales and sold far too cheaply)
+COMPANY_OUTSIDE_HISTORY = ("IFNULL((SELECT SUM(o.units) FROM shares AS o WHERE o.company = x.company_id "
+                           "AND o.holder <> x.company_id AND o.units > 0), 0) AS outside, "
+                           "GREATEST(1, LEAST(7, FLOOR(GREATEST(0, [game_now] - IFNULL(x.founded_t, [game_now])) / 86400))) AS history")
 # Every company still trading (#574), best sales first: what an investor
 # prices shares by, for companies whether or not their shares are listed.
 # Round 60's Milo could price only what happened to be for sale
 queries.append((653, 'Companies',
-                'Every company still trading, best sales first (100 at most): company, its sales after tax a day '
-                '(7-day average), its shares, what a share is worth (0 if never traded), game days since founded, '
-                'working drones.', 0,
+                'Every company still trading, best sales first (100 at most): company, sales after tax a day '
+                '(7-day average), shares, a share\'s worth (0 if never traded), days since founded, working drones, '
+                'shares others hold, days of sales averaged.', 0,
                 "SELECT x.company_id AS company, "
                 f"{DAY_SALES.format(c='x.company_id')} AS d_sales, x.share_count AS count, "
                 f"IFNULL({VALUE_SHARE_PRICE.format(c='x.company_id')}, 0) AS d_value, "
                 "FLOOR(GREATEST(0, [game_now] - IFNULL(x.founded_t, [game_now])) / 86400) AS age, "
-                "(SELECT COUNT(*) FROM agents AS w WHERE w.company_id = x.company_id AND w.wrecked_at IS NULL) AS drones "
+                "(SELECT COUNT(*) FROM agents AS w WHERE w.company_id = x.company_id AND w.wrecked_at IS NULL) AS drones, "
+                f"{COMPANY_OUTSIDE_HISTORY} "
                 "FROM companies AS x WHERE x.eliminated_at IS NULL AND x.house = 0 ORDER BY d_sales DESC, x.company_id LIMIT 100;"))
 # One company's figures (#572, #574): the same as a row of 653, for any
 # company (yours, to price an offering of new shares)
 queries.append((654, 'Company figures',
                 'Company N: its sales after tax a day (7-day average), its shares, what a share is worth (0 if '
-                'never traded), game days since founded, working drones.', 1,
+                'never traded), game days since founded, working drones, shares other companies hold, game days of '
+                'sales the average covers.', 1,
                 "SELECT x.company_id AS company, "
                 f"{DAY_SALES.format(c='x.company_id')} AS d_sales, x.share_count AS count, "
                 f"IFNULL({VALUE_SHARE_PRICE.format(c='x.company_id')}, 0) AS d_value, "
                 "FLOOR(GREATEST(0, [game_now] - IFNULL(x.founded_t, [game_now])) / 86400) AS age, "
-                "(SELECT COUNT(*) FROM agents AS w WHERE w.company_id = x.company_id AND w.wrecked_at IS NULL) AS drones "
+                "(SELECT COUNT(*) FROM agents AS w WHERE w.company_id = x.company_id AND w.wrecked_at IS NULL) AS drones, "
+                f"{COMPANY_OUTSIDE_HISTORY} "
                 "FROM companies AS x WHERE x.company_id = [value_1];"))
 # The drone's own standing orders for goods (#571): orders can't be deleted,
 # only replaced, and they outlive a code push (round 60: a miner pushed into

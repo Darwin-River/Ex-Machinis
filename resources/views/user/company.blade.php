@@ -77,6 +77,10 @@
                 @endif
             </p>
 
+            {{-- Its earnings by game day (#600): what investors judge it by --}}
+            <h2 id="earnings">Earnings</h2>
+            @include('partials.earnings-chart', ['earningsCompany' => $user->user_id, 'earningsDays' => 30])
+
             <div class="row row-30">
                 <div class="col">
                     <h2 class="">Spacecraft</h2>
@@ -212,11 +216,34 @@
             {{-- The stock market (#471) --}}
             <div class="row row-30">
                 <div class="col">
-                    <h2 class="">Shares</h2>
+                    <h2 class="" id="shares">Shares</h2>
                     <p>{{ number_format($shares['count']) }} shares, each paying its part of the company's sales income after tax.
                         Last trade price: <b>{{ $shares['price'] !== null ? number_format($shares['price']) . ' credits' : 'never traded' }}</b>.</p>
+                    {{-- How much of it others hold (#599): offerings and its own sales stop at half --}}
+                    <p id="outside-share" @class(['health-banner' => $shares['outside_share'] >= \App\Services\Shares::WARN_OUTSIDE])>
+                        Held by other companies: <b>{{ round($shares['outside_share'] * 100) }}%</b>
+                        ({{ number_format($shares['outside']) }} of {{ number_format($shares['count']) }} shares), so
+                        {{ round($shares['outside_share'] * 100) }}% of its sales income after tax goes to them.
+                        @if($shares['outside_share'] >= $shares['max_outside'])
+                            That is the most others may hold: it can't offer new shares or sell its own.
+                        @elseif($shares['outside_share'] >= \App\Services\Shares::WARN_OUTSIDE)
+                            Others may hold at most {{ round($shares['max_outside'] * 100) }}%: think twice before selling more.
+                        @else
+                            Others may hold at most {{ round($shares['max_outside'] * 100) }}%.
+                        @endif
+                    </p>
                 </div>
             </div>
+            {{-- Its share price by game day (#600), in the price charts' style --}}
+            @if(\Illuminate\Support\Facades\DB::table('share_trades')->where('share_company', $user->user_id)->where('units', '>', 0)->exists())
+                @include('partials.price-volume-chart', ['chartResource' => 0, 'chartDays' => 60, 'chartTitle' => 'Share price and shares traded',
+                    'chartSource' => url('api/v1/shares/' . $user->user_id . '/history'), 'chartPer' => 'share', 'chartUnits' => 'shares',
+                    'chartPlaceMenu' => false, 'places' => [(int) $user->user_id], 'today' => $today,
+                    'chartNote' => 'The dot is the average price a share changed hands at each game day (left axis); the thin line '
+                        . 'through it runs from the cheapest trade that day to the dearest. The bars are the shares traded (right axis).'])
+            @else
+                <p id="share-price-none">Its shares have never traded, so there is no share price to chart yet.</p>
+            @endif
             <div class="table-custom-responsive">
                 <table class="table-ticket">
                     <tr><th>Holder</th><th>Shares</th><th>Dividends paid</th></tr>

@@ -73,6 +73,8 @@ function raise()
   if p < raise_min then return end
   local u = math.ceil(need / p)
   if u > c then return end
+  -- Others may hold at most half the company (#599): an offering past that is refused
+  if offering_cost(u, p).over_cap then return end
   offer_shares(u, p, raise_days, math.ceil(u / 2))
 end
 

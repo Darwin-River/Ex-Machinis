@@ -350,6 +350,16 @@ class ApiController extends Controller
         return response()->json(Shares::history($id));
     }
 
+    /** A company's sales, purchases and net by game day (#600) */
+    public function companyEarnings(Request $request, int $id): JsonResponse
+    {
+        if (!DB::table('companies')->where('company_id', $id)->exists()) {
+            return $this->notFound('There is no such company.');
+        }
+        $days = is_numeric($request->query('days')) ? (int) $request->query('days') : 30;
+        return response()->json(\App\Services\CompanyEarnings::daily($id, $days));
+    }
+
     /** A company's credits and net wealth once a game day (#380 round 36) */
     public function companyHistory(int $id): JsonResponse
     {

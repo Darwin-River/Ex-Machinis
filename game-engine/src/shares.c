@@ -45,6 +45,15 @@ int offer_check(long long units, long long min, long long price, long long days,
     return OFFER_OK;
 }
 
+int shares_over_cap(long long outside, long long count)
+{
+    if(outside <= 0)
+        return 0;
+    if(count <= 0)
+        return 1;
+    return outside * 1000 > count * SHARES_MAX_OUTSIDE_PERMILLE;
+}
+
 long long offer_issues(long long committed, long long min)
 {
     return (committed > 0 && committed >= min) ? committed : 0;
