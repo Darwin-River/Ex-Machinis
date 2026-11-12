@@ -47,6 +47,29 @@ class DronePageTest extends TestCase
             ->assertSee('Diggers')->assertSee('Generation');
     }
 
+    /** #591: status and cargo before the code, which is collapsed; the company is a link */
+    public function testDronePageShowsStatusAndCargoBeforeItsCode()
+    {
+        $agent = \App\Services\Release::release(\App\User::create(['name' => 'Order', 'email' => uniqid() . '@example.com',
+            'password' => bcrypt('secret-password')]), 'Ordered Co', "function launched()\n  print('hi')\nend");
+        $html = $this->get('/spacecraft/' . $agent->agent_id)->assertOk()
+            ->assertSee('href="' . url('companies/' . $agent->company_id) . '"', false)
+            ->assertSee('<details id="code-details">', false)->getContent();
+        $this->assertLessThan(strpos($html, 'id="code-details"'), strpos($html, 'id="cargo"'), 'cargo comes before the code');
+        $this->assertLessThan(strpos($html, 'id="cargo"'), strpos($html, '<b>Status</b>'), 'status comes first');
+    }
+
+    public function testCodeWithNestedTablesDoesNotBlankThePage()
+    {
+        // #592: Lua's {{2031, 1}} reads as a Vue mustache unless the block is v-pre
+        $script = "local r = {{2031, 1}}\nfunction launched()\n  print(r[1][1])\nend";
+        $agent = \App\Services\Release::release(\App\User::create(['name' => 'Nest', 'email' => uniqid() . '@example.com',
+            'password' => bcrypt('secret-password')]), 'Nested Co', $script);
+        $this->get('/spacecraft/' . $agent->agent_id)->assertOk()->assertSee('<pre id="drone-code" v-pre', false);
+        $this->actingAs(\App\User::find($agent->user_id) ?? \App\User::first())
+            ->get('/release?copy=' . $agent->agent_id)->assertOk()->assertSee('<textarea v-pre', false);
+    }
+
     public function testCopyThisCodeRecordsWhereItCameFrom()
     {
         $original = Release::release($this->player('a@example.com'), 'Diggers', self::SCRIPT);

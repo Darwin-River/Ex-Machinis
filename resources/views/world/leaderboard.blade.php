@@ -1,5 +1,12 @@
 @extends('layouts.app')
 @section('pageTitle', 'Leaderboard')
+@push('styles')
+    <style>
+        /* Numbers right-aligned, negatives marked (#591) */
+        #all-time .num, #rising .num { text-align: right; font-variant-numeric: tabular-nums; }
+        #all-time .negative, #rising .negative { color: #ff7b72; }
+    </style>
+@endpush
 @section('content')
     {{-- The leaderboard (#324 step 18) --}}
     <x-page-header :title="'Leaderboard'" />
@@ -34,11 +41,11 @@
                         <h3>{{ $title }}</h3>
                         <div class="table-custom-responsive">
                             <table class="table-ticket" id="{{ $board['id'] }}">
-                                <tr><th>#</th><th>Company</th><th>Age (game days)</th><th>Working drones</th><th>{{ $board['key'] === 'gain' ? 'Gain' : 'Net wealth' }}</th></tr>
+                                <tr><th>#</th><th>Company</th><th class="num">Age (game days)</th><th class="num">Working drones</th><th class="num">{{ $board['key'] === 'gain' ? 'Gain' : 'Net wealth' }}</th></tr>
                                 @forelse($board['rows'] as $i => $row)
                                     <tr>
-                                        <td>{{ $i + 1 }}</td><td>{{ $row['company'] }}</td><td>{{ number_format($row['age'], 1) }}</td>
-                                        <td>{{ $row['drones'] }}</td><td>{{ number_format($row[$board['key']]) }}</td>
+                                        <td>{{ $i + 1 }}</td><td><a href="{{ url('/companies/' . $row['company_id']) }}">{{ $row['company'] }}</a></td><td class="num">{{ number_format($row['age'], 1) }}</td>
+                                        <td class="num">{{ $row['drones'] }}</td><td class="num {{ $row[$board['key']] < 0 ? 'negative' : '' }}">{{ number_format($row[$board['key']]) }}</td>
                                     </tr>
                                 @empty
                                     <tr><td colspan="5">{{ $maxAge === null ? 'Nobody yet.' : 'No company that young.' }}</td></tr>

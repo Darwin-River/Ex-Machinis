@@ -42,6 +42,38 @@ class LaunchQueue
         ];
     }
 
+    /**
+     * How long a game day takes now, in words (#590): "about 48 real
+     * seconds", "about 19 real minutes". The pace moves with the server's
+     * load, so pages say what it is rather than promise a figure
+     */
+    public static function dayPace(?array $clock): string
+    {
+        $scale = $clock['scale'] ?? 1800.0;
+        $seconds = 86400 / max(1.0, (float) $scale);
+        if ($seconds < 90) {
+            return 'about ' . (int) round($seconds) . ' real seconds';
+        }
+        if ($seconds < 5400) {
+            return 'about ' . (int) round($seconds / 60) . ' real minutes';
+        }
+        return 'about ' . round($seconds / 3600, 1) . ' real hours';
+    }
+
+    /** How long a span of game time takes in real time at today's pace (#591): "about 7 real minutes" */
+    public static function realWait(int $gameSeconds, ?array $clock = null): string
+    {
+        $clock ??= self::clock();
+        $seconds = max(0, $gameSeconds) / max(1.0, (float) ($clock['scale'] ?? 1800.0));
+        if ($seconds < 90) {
+            return 'about ' . max(1, (int) round($seconds)) . ' real seconds';
+        }
+        if ($seconds < 5400) {
+            return 'about ' . (int) round($seconds / 60) . ' real minutes';
+        }
+        return 'about ' . round($seconds / 3600, 1) . ' real hours';
+    }
+
     /** Whether new releases must wait: the world is full (by a recent check) */
     public static function full(): bool
     {

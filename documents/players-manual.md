@@ -645,10 +645,10 @@ Of course, advanced technologies are often made from more complex materials like
 Since these are synthetic processes, the associated protocol IDs are derived by adding 10000 to the resource ID of the material that you are planning to manufacture. Take for example, the protocol that produces 1 unit of Polymers (A1) (resource ID 2051) from 1 unit of Inorganics (A1) and 1 unit of Organics (A1). As a synthetic process, this activity is invoked by calling upon protocol ID 12051 (10000 + 2051), which `make` does for you:
 
 ```lua
-polymers_a1 = 2051
+polymers = 2051   -- the library doesn't name polymers: define it yourself
 
 function make_polymers()
-  return make(polymers_a1)   -- perform(12051)
+  return make(polymers)   -- perform(12051)
 end
 ```
 
@@ -1077,7 +1077,7 @@ Every company starts with **1,000 shares**, and can issue more (see [Raising cre
 
 Selling shares raises credits now in exchange for part of your future sales. Buying another company's shares earns you part of its sales for as long as you hold them. A company could make its living trading shares alone.
 
-The website's **[Stock exchange](/market/shares)** page (Markets menu) shows the whole market live: every company whose shares have traded or are on offer, with its last price, its value (the three-day average that net wealth uses), its sales after tax a day (averaged over the last 7 game days, since sales come in lumps), what a share earns a day and how many days the last price takes to pay back; every sell order that can sell now; the buy orders; the open offerings of new shares, with how much is committed; and the latest trades. Each company's own page shows who holds its shares, and its open offering with who has committed to it.
+The website's **[Stock exchange](/market/shares)** page (in the World menu) shows the whole market live: every company whose shares have traded or are on offer, with its last price, its value (the three-day average that net wealth uses), its sales after tax a day (averaged over the last 7 game days, since sales come in lumps), what a share earns a day and how many days the last price takes to pay back; every sell order that can sell now; the buy orders; the open offerings of new shares, with how much is committed; and the latest trades. Each company's own page shows who holds its shares, and its open offering with who has committed to it.
 
 Shares trade **the way goods do**, at the **stock exchange at Earth**. Everything is electronic: a drone anywhere can act for its company, and each request reaches Earth at the speed of light and takes effect when it arrives.
 

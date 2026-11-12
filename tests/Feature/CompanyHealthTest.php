@@ -54,7 +54,7 @@ class CompanyHealthTest extends TestCase
         // The API and the company page show it
         $this->getJson('/api/v1/companies/' . $company)->assertOk()->assertJsonPath('health.working', 1)
             ->assertJsonPath('health.at_risk', false);
-        $this->get('/companies/' . $company)->assertOk()->assertSee('Health: 1 working drone');
+        $this->get('/companies/' . $company)->assertOk()->assertSee('id="health"', false)->assertSee('1 working drone');
     }
 
     public function testACompanyWhoseDronesStopWorkingIsStalled()

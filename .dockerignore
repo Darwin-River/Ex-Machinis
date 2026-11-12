@@ -19,7 +19,9 @@ game-engine/src/embed/*.o
 game-engine/src/embed/*.a
 game-engine/src/embed/*.blk
 game-engine/src/embed/embed
-# The website shows the players' manual (Getting Started); nothing else
+# The website shows the players' manual (Getting Started) and the blog
+# (#589: leaving the posts out emptied the live blog and its RSS feed)
 documents/*
 !documents/players-manual.md
 !documents/images
+!documents/blog

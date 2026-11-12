@@ -1,6 +1,20 @@
 @extends('layouts.app')
 @php $title = $user->name ; @endphp
 @section('pageTitle', $title)
+@push('styles')
+    <style>
+        /* The company at a glance (#591) */
+        .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 0 0 8px; }
+        .stat { border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 12px 14px; text-align: left; }
+        .stat-label { font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.75; }
+        .stat-value { font-size: 1.6em; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.3; }
+        .stat-value small { font-size: 0.55em; font-weight: 400; opacity: 0.8; }
+        .stat-negative { color: #ff7b72; }
+        .stat-link { font-size: 0.85em; }
+        .stat-meta { font-size: 0.85em; opacity: 0.75; margin-bottom: 1.5em; }
+        .health-banner { border-left: 4px solid #e3b341; background: rgba(227,179,65,0.12); padding: 10px 14px; margin: 0 0 12px; }
+    </style>
+@endpush
 @section('content')
     <x-page-header>
         <x-slot:title>{{$title}}</x-slot:title>
@@ -9,30 +23,57 @@
     </x-page-header>
     <section class="section section-xs section-first text-md-left">
         <div class="container" id="container">
-            <div class="description-fields">
-                <div class="row row-30">
-                    <div class="col-12 col-lg-12 col mb-0">
-                        <b>Company Id</b>: <span style="font-weight: normal">{{$user->user_id}}</span><br/>
-                    </div>
-                    <div class="col-12 col-lg-12 col mb-0">
-                        <b>Founded on</b>: <span
-                                style="font-weight: normal">{{ \Carbon\Carbon::parse($user->created_at)->format('l, F j, Y') }}</span><br/>
-
-                    </div>
-                    <div class="col-12 col-lg-12 col">
-
-                        <b>Credits: </b><span style="font-weight: normal">{{$user->credits}}</span><br/>
-                        @if($rank)
-                            {{-- Ranked only among companies its age or younger (#548) --}}
-                            <b>Leaderboard: </b><span style="font-weight: normal" id="peer-rank">{{ $rank['rank'] }} of {{ $rank['of'] }}
-                                {{ $rank['of'] === 1 ? 'company' : 'companies' }} up to {{ number_format($rank['age'], 1) }} game days old
-                                (its age)</span>
-                            (<a href="{{ url('leaderboard') . '?max_age=' . $rank['age'] }}">compare</a>)<br/>
-                        @endif
-
-                    </div>
-                </div>
+            {{-- The company at a glance (#591): its score first, then what it has --}}
+            @php($h = $shares['health'])
+            <div class="stat-row" id="company-stats">
+                <div class="stat"><div class="stat-label">Net wealth</div>
+                    <div class="stat-value {{ ($stats['wealth'] ?? 0) < 0 ? 'stat-negative' : '' }}">{{ $stats['wealth'] === null ? 'ended' : number_format($stats['wealth']) }}</div></div>
+                <div class="stat"><div class="stat-label">Credits</div>
+                    <div class="stat-value">{{ number_format($user->credits) }}</div></div>
+                <div class="stat"><div class="stat-label">Drones</div>
+                    <div class="stat-value">{{ number_format($stats['working']) }}<small>{{ $stats['drones'] > $stats['working'] ? ' + ' . ($stats['drones'] - $stats['working']) . ' wrecked' : ' working' }}</small></div></div>
+                <div class="stat"><div class="stat-label">Rank, its age or younger</div>
+                    <div class="stat-value" id="peer-rank">@if($rank){{ $rank['rank'] }}<small> of {{ $rank['of'] }}</small>@else — @endif</div>
+                    @if($rank)<a class="stat-link" href="{{ url('leaderboard') . '?max_age=' . $rank['age'] }}">compare</a>@endif</div>
+                <div class="stat"><div class="stat-label">Age</div>
+                    <div class="stat-value">{{ number_format($stats['age'], 1) }}<small> game days</small></div></div>
             </div>
+            <p class="stat-meta">Company {{ $user->user_id }} · released {{ \Carbon\Carbon::parse($user->created_at)->format('F j, Y') }}</p>
+
+            {{-- Health and running costs (#537, #544), in their own section (#591) --}}
+            <h2 id="health">Health</h2>
+            @if($h['at_risk'] || $h['stalled'])
+                <div class="health-banner" id="health-banner">
+                    @if($h['at_risk'])<strong>At risk:</strong> {{ $h['at_risk_reason'] }}. A warning, not a verdict.<br>@endif
+                    @if($h['stalled'])<strong>Stalled:</strong> none of its drones has bought, sold or made anything for {{ $h['idle'] }} game hours.@endif
+                </div>
+            @endif
+            <p id="company-health">{{ $h['working'] }} working {{ \Illuminate\Support\Str::plural('drone', $h['working']) }}{{ $h['wrecked'] ? ', ' . $h['wrecked'] . ' wrecked' : '' }}.
+                Fuel aboard: {{ number_format($h['fuel']) }} (the least, {{ number_format($h['lowest']) }}); {{ number_format($h['used']) }} used over the last game day.
+                {{ $h['days'] >= 0 ? 'A drone runs dry in about ' . $h['days'] . ' game ' . \Illuminate\Support\Str::plural('day', $h['days']) . ' at that rate.' : "No drone's fuel is falling." }}</p>
+            @if($h['stalled'] || collect($h['drones'])->contains(fn ($d) => $d['idle'] >= 24))
+                <ul id="idle-drones">
+                    @foreach($h['drones'] as $d)
+                        @if($d['idle'] >= 24)
+                            @php($says = $d['status'] ? ', says "' . $d['status'] . '"' : '')
+                            @php($holds = count($d['holds']) ? ', holds ' . collect($d['holds'])->map(fn ($x) => number_format($x['units']) . ' ' . $x['resource'])->implode(', ') : '')
+                            <li><a href="{{ url('/spacecraft/' . $d['drone']) }}">{{ $d['name'] }}</a>: idle {{ $d['idle'] }}
+                                game hours{{ $says }}{{ $holds }}</li>
+                        @endif
+                    @endforeach
+                </ul>
+            @endif
+            @php($pt = $shares['compute'])
+            <p id="processor-tax">Processor tax: {{ number_format($pt['tax_day']) }} credits over the last game day for
+                {{ number_format($pt['instructions_day']) }} instructions ({{ $pt['per_million'] }} credits a million).
+                @if($pt['debt'] > 0)
+                    <strong>It owes {{ number_format($pt['debt']) }}</strong>: a drone of its whose turn runs out thinks again only a game hour later, until it has paid.
+                @endif
+                @if($pt['broke_days'] !== null)
+                    <strong>Broke</strong> for {{ $pt['broke_days'] }} game days{{ $pt['dissolves_in'] !== null ? ': it dissolves in ' . $pt['dissolves_in'] . ' game days unless it earns credits, and its drones become wrecks' : '' }}.
+                @endif
+            </p>
+
             <div class="row row-30">
                 <div class="col">
                     <h2 class="">Spacecraft</h2>
@@ -62,8 +103,8 @@
                                 @if(!$agent->hull || !$agent->hull->cargo_capacity)
                                     <span class="text-nowrap">no cargo capacity</span>
                                 @else
-                                    <span class="text-nowrap">{{( $agent->getCurrentCargoWeight())}}
-                                        / {{$agent->hull->cargo_capacity}} Kg</span>
+                                    <span class="text-nowrap">{{ number_format($agent->getCurrentCargoWeight()) }}
+                                        / {{ number_format($agent->hull->cargo_capacity) }} kg</span>
                                 @endif
 
                             </td>
@@ -76,42 +117,6 @@
             <div class="row row-30">
                 <div class="col">
                     <h2 class="">Shares</h2>
-                    {{-- What its drones' thinking costs it (#544) --}}
-                    @php($pt = $shares['compute'])
-                    <p id="processor-tax">Processor tax: {{ number_format($pt['tax_day']) }} credits over the last game day for
-                        {{ number_format($pt['instructions_day']) }} instructions ({{ $pt['per_million'] }} credits a million).
-                        @if($pt['debt'] > 0)
-                            <strong>It owes {{ number_format($pt['debt']) }}</strong>: a drone of its whose turn runs out thinks again only a game hour later, until it has paid.
-                        @endif
-                        @if($pt['broke_days'] !== null)
-                            <strong>Broke</strong> for {{ $pt['broke_days'] }} game days{{ $pt['dissolves_in'] !== null ? ': it dissolves in ' . $pt['dissolves_in'] . ' game days unless it earns credits, and its drones become wrecks' : '' }}.
-                        @endif
-                    </p>
-                    {{-- Whether it can keep its drones flying (#537) --}}
-                    @php($h = $shares['health'])
-                    <p id="company-health">Health: {{ $h['working'] }} working {{ \Illuminate\Support\Str::plural('drone', $h['working']) }}{{ $h['wrecked'] ? ', ' . $h['wrecked'] . ' wrecked' : '' }};
-                        {{ number_format($h['fuel']) }} fuel aboard (the least, {{ $h['lowest'] }}), {{ number_format($h['used']) }} used over the last game day;
-                        {{ $h['days'] >= 0 ? 'a drone runs dry in about ' . $h['days'] . ' game ' . \Illuminate\Support\Str::plural('day', $h['days']) . ' at that rate' : "no drone's fuel is falling" }};
-                        {{ number_format($h['credits']) }} credits.
-                        @if($h['at_risk'])
-                            <strong>At risk:</strong> {{ $h['at_risk_reason'] }}. A warning, not a verdict.
-                        @endif
-                        @if($h['stalled'])
-                            <strong>Stalled:</strong> none of its drones has bought, sold or made anything for {{ $h['idle'] }} game hours.
-                        @endif
-                    </p>
-                    @if($h['stalled'] || collect($h['drones'])->contains(fn ($d) => $d['idle'] >= 24))
-                        <ul id="idle-drones">
-                            @foreach($h['drones'] as $d)
-                                @if($d['idle'] >= 24)
-                                    @php($says = $d['status'] ? ', says "' . $d['status'] . '"' : '')
-                                    @php($holds = count($d['holds']) ? ', holds ' . collect($d['holds'])->map(fn ($x) => $x['units'] . ' ' . $x['resource'])->implode(', ') : '')
-                                    <li><a href="{{ url('/spacecraft/' . $d['drone']) }}">{{ $d['name'] }}</a>: idle {{ $d['idle'] }}
-                                        game hours{{ $says }}{{ $holds }}</li>
-                                @endif
-                            @endforeach
-                        </ul>
-                    @endif
                     <p>{{ number_format($shares['count']) }} shares, each paying its part of the company's sales income after tax.
                         Last trade price: <b>{{ $shares['price'] !== null ? number_format($shares['price']) . ' credits' : 'never traded' }}</b>.</p>
                 </div>
@@ -210,7 +215,7 @@
                     {{ csrf_field() }}
                     <div class="form-group">
                         <label for="push-script">New script (Lua)</label>
-                        <textarea class="form-control" id="push-script" name="script" rows="10" spellcheck="false"
+                        <textarea v-pre class="form-control" id="push-script" name="script" rows="10" spellcheck="false"
                                   style="font-family: monospace" maxlength="{{ config('forge.max_script_length') }}"
                                   required>{{ old('script') }}</textarea>
                     </div>

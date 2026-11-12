@@ -17,17 +17,21 @@
                         <b>Spacecraft Id</b>: {{$agent->agent_id}}<br/>
                         @if($flight)
                             <b>Location</b>: flying from <a href="{{url('locations/'.$agent->object_id)}}">{{$agent->location->object_name}}</a>
-                            to <a href="{{url('locations/'.$flight['to_id'])}}">{{ $flight['to'] }}</a>, arriving {{ $flight['arrives'] }}<br/>
+                            to <a href="{{url('locations/'.$flight['to_id'])}}">{{ $flight['to'] }}</a>, arriving {{ $flight['arrives'] }}
+                            ({{ \App\Services\LaunchQueue::realWait((int) $flight['arrives_game_time'] - (int) \App\Services\World::gameNow()) }} from now)<br/>
                         @else
                             <b>Location</b>: <a
                                 href="{{url('locations/'.$agent->object_id)}}">{{$agent->location->object_name}}</a><br/>
                         @endif
 
-                        <b>Company</b>: {{ $state['company']->name ?? '' }}
+                        <b>Company</b>: @if($state['company'])<a href="{{ url('companies/' . $state['company']->company_id) }}">{{ $state['company']->name }}</a>@endif
                             {{ ($state['company'] && $state['company']->eliminated_at) ? '(ended)' : '' }}<br/>
                         <b>Status</b>: {{ $state['status'] }}<br/>
+                        @if($activity && !empty($activity['now']))
+                            <b>Now</b>: {{ $activity['now'] }}<br/>
+                        @endif
                         @if($agent->script_status !== null)
-                            <b>Its script says</b> ({{ \App\Services\DronePage::when((int) $agent->script_status_t) }}): {{ $agent->script_status }}<br/>
+                            <b>Its script says</b> ({{ \App\Services\DronePage::when((int) $agent->script_status_t) }}): <span v-pre>{{ $agent->script_status }}</span><br/>
                         @endif
                         <b>Fuel</b>: {{ $state['fuel'] }}
                             <span>· used in the last game day: {{ $state['fuel_day']['actions'] }} for actions{{ $state['fuel_day']['thinking'] ? ', ' . $state['fuel_day']['thinking'] . ' for thinking (before #544)' : '' }}
@@ -37,14 +41,13 @@
                             @endif<br/>
                         @if($messages->isNotEmpty())
                             <b>Last said</b> ({{ \App\Services\DronePage::when($messages->first()->game_t) }}):
-                            <a href="#messages">{{ \Illuminate\Support\Str::limit(trim(preg_replace('/^Location:[^\n]*\n/', '', $messages->first()->body)), 120) }}</a><br/>
+                            <a href="#messages" v-pre>{{ \Illuminate\Support\Str::limit(trim(preg_replace('/^Location:[^\n]*\n/', '', $messages->first()->body)), 120) }}</a><br/>
                         @endif
                     </div>
                     <div class="col-12 col-sm-6 col">
                         <b>Hull</b>: {{$agent->hull->name}}<br/>
-                        <b>Max Cargo</b>: {{$agent->hull->cargo_capacity}} kg.<br/>
+                        <b>Cargo</b>: {{ number_format($totalWeight) }} of {{ number_format($agent->hull->cargo_capacity) }} kg (<a href="#cargo">manifest</a>)<br/>
 
-                        <b>Current Cargo</b>: {{$totalWeight}} kg.<br/>
                         <b>Generation</b>: {{ $state['generation'] }}
                             @if($state['parent'])
                                 <span>(launched by <a href="{{ url('spacecraft/' . $state['parent']->agent_id) }}">{{ $state['parent']->name }}</a>)</span>
@@ -92,6 +95,42 @@
                 @endif
             @endif
 
+            <div class="row row-30">
+                <div class="col">
+                    <h2 class="" id="cargo">Cargo</h2>
+                </div>
+            </div>
+            <div class="table-custom-responsive">
+                <table class="table-ticket">
+                    @if(sizeof($cargoManifest) == 0)
+                        <tr>
+                            <td colspan="4"> No cargo loaded</td>
+                        </tr>
+                    @endif
+                    @foreach($cargoManifest as $cargoPlacement)
+                        <tr>
+                            <td>
+                                <a href="{{url('/resources/'.$cargoPlacement->resource_id)}}">{{$cargoPlacement->name}}</a>
+                            </td>
+                            <td>
+                                @if($cargoPlacement->locked)
+                                    <span class="locked" title="resource in use">in use</span>
+                                @endif
+                            </td>
+                            <td><span class="meta-label">cargo</span>
+                                {{ number_format($cargoPlacement->new_quantity) }} units
+                            </td>
+                            <td><span class="meta-label">weight</span>
+                                {{ number_format($cargoPlacement->new_quantity * $cargoPlacement->mass) }} kg
+                            </td>
+                        <!--     <td>
+                                Unit Mass: {{$cargoPlacement->mass}} kg
+
+                            </td>-->
+                        </tr>
+                    @endforeach
+                </table>
+            </div>
             @if($activity)
                 {{-- What a working drone is doing (#380) --}}
                 <div class="row row-30">
@@ -123,13 +162,23 @@
                 @endif
             @endif
 
-            {{-- What it has said (#367 step 3: public, like its code) --}}
+            {{-- What it has said (#367 step 3: public, like its code); repeats collapsed (#591) --}}
             <div class="row row-30">
                 <div class="col" id="messages">
                     <h2 class="">What it said</h2>
-                    @forelse($messages as $message)
-                        <div><small>{{ \App\Services\DronePage::when($message->game_t) }}{{ $message->subject ? ' · ' . $message->subject : '' }}</small></div>
-                        <pre class="p-2" style="white-space: pre-wrap">{{ $message->body }}</pre>
+                    @php($said = [])
+                    @foreach($messages as $message)
+                        @php($last = count($said) - 1)
+                        @if($last >= 0 && $said[$last]['body'] === $message->body && $said[$last]['subject'] === $message->subject)
+                            @php($said[$last]['count']++)
+                            @php($said[$last]['first'] = $message->game_t)
+                        @else
+                            @php($said[] = ['body' => $message->body, 'subject' => $message->subject, 'last' => $message->game_t, 'first' => $message->game_t, 'count' => 1])
+                        @endif
+                    @endforeach
+                    @forelse($said as $m)
+                        <div><small>{{ \App\Services\DronePage::when($m['last']) }}{{ $m['subject'] ? ' · ' . $m['subject'] : '' }}{{ $m['count'] > 1 ? ' · said ' . $m['count'] . ' times since ' . \App\Services\DronePage::when($m['first']) : '' }}</small></div>
+                        <pre class="p-2" v-pre style="white-space: pre-wrap">{{ $m['body'] }}</pre>
                     @empty
                         <p>Nothing yet. What it prints shows here once it reaches Earth.</p>
                     @endforelse
@@ -140,6 +189,9 @@
             <div class="row row-30">
                 <div class="col">
                     <h2 class="">Code</h2>
+                    {{-- Collapsed by default (#591): status and cargo come first --}}
+                    <details id="code-details">
+                    <summary>Show its code</summary>
                     @if($code)
                         <div style="white-space: normal; margin-bottom: 1em">
                             @if($code['inherited'])
@@ -155,7 +207,7 @@
                             @endif
                             <a class="button button-primary button-sm" href="{{ url('release?copy=' . $agent->agent_id) }}">Copy this code</a>
                         </div>
-                        <pre id="drone-code" style="white-space: pre-wrap; color: #e6e6e6; background: #2b2b36; padding: 1em; border-radius: 4px">{{ $code['release']->source }}</pre>
+                        <pre id="drone-code" v-pre style="white-space: pre-wrap; color: #e6e6e6; background: #2b2b36; padding: 1em; border-radius: 4px">{{ $code['release']->source }}</pre>
                         @if($code['words'])
                             <div style="white-space: normal; line-height: 2"><b>Functions</b>:
                                 @foreach($code['words'] as $name => $origin)
@@ -170,46 +222,10 @@
                     @else
                         <p>This drone's program came by email: it has no released code to show.</p>
                     @endif
+                    </details>
                 </div>
             </div>
 
-            <div class="row row-30">
-                <div class="col">
-                    <h2 class="">Cargo Manifest</h2>
-                </div>
-            </div>
-            <div class="table-custom-responsive">
-                <table class="table-ticket">
-                    @if(sizeof($cargoManifest) == 0)
-                        <tr>
-                            <td colspan="4"> No cargo loaded</td>
-                        </tr>
-                    @endif
-                    @foreach($cargoManifest as $cargoPlacement)
-                        <tr>
-                            <td>
-                                <a href="{{url('/resources/'.$cargoPlacement->resource_id)}}">{{$cargoPlacement->name}}</a>
-                            </td>
-                            <td>
-                                @if($cargoPlacement->locked)
-                                    <span class="locked" title="resource in use">in use</span>
-                                @endif
-                            </td>
-                            <td><span class="meta-label">cargo</span>
-                                {{$cargoPlacement->new_quantity}} units
-                            </td>
-                            <td>
-                            <td><span class="meta-label">weight</span>
-                                {{$cargoPlacement->new_quantity*$cargoPlacement->mass}} kg
-                            </td>
-                        <!--     <td>
-                                Unit Mass: {{$cargoPlacement->mass}} kg
-
-                            </td>-->
-                        </tr>
-                    @endforeach
-                </table>
-            </div>
             <div class="row row-30">
                 <div class="col">
                     <h2 class="">Observed Events</h2>

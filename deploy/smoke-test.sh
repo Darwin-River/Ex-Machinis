@@ -125,6 +125,10 @@ no_tax() { sql "update house_rules set sales_tax_permille = 0"; }
 no_tax
 # The image must carry the players' manual (Getting Started renders it)
 wait_for 60 "Getting Started shows the players' manual" sh -c "curl -fsS http://localhost/getting-started | grep -q 'chapter-4-issuing-commands'"
+# The blog's posts ship in the image (#589: .dockerignore once left them out,
+# and the live blog and its feed were empty)
+wait_for 30 "the Blog page lists its posts" sh -c "curl -fsS http://localhost/blog | grep -q 'blog/1-state-machines'"
+wait_for 30 "the blog's RSS feed has posts" sh -c "curl -fsS http://localhost/blog/feed | grep -q '<item>'"
 wait_for 120 "the scheduler's tick succeeds" sh -c "docker compose logs app | grep -q 'GET /tick/[^ ]* HTTP/1.1\" 200'"
 wait_for 60 "the Release page answers" sh -c "curl -fsS http://localhost/release | grep -q 'no account needed'"
 for page in register login web-register; do

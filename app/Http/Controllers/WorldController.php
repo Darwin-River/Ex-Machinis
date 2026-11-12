@@ -18,6 +18,13 @@ class WorldController extends Controller
         $trades = World::trades();
         $sells = World::orders(4);
         $buys = World::orders(5);
+        // One resource's book, or all (#591: the whole book ran to 600 rows)
+        $bookResources = collect($sells)->merge($buys)->pluck('resource_name', 'resource')->sort()->all();
+        $bookResource = is_numeric($request->query('resource')) ? (int) $request->query('resource') : null;
+        if ($bookResource !== null) {
+            $sells = array_values(array_filter($sells, fn ($o) => (int) $o['resource'] === $bookResource));
+            $buys = array_values(array_filter($buys, fn ($o) => (int) $o['resource'] === $bookResource));
+        }
         // The House's demand (#550): one good everywhere, or the bids closest to full
         $houseResource = is_numeric($request->query('house')) ? (int) $request->query('house') : null;
         $demand = \App\Services\HouseMarket::demand($houseResource);
@@ -26,7 +33,8 @@ class WorldController extends Controller
             usort($demand, fn ($a, $b) => [$a['left'] / $a['daily'], $a['resource']] <=> [$b['left'] / $b['daily'], $b['resource']]);
             $demand = array_slice($demand, 0, 30);
         }
-        return view('world.market', compact('trades', 'sells', 'buys', 'demand', 'houseGoods', 'houseResource'));
+        return view('world.market', compact('trades', 'sells', 'buys', 'demand', 'houseGoods', 'houseResource',
+            'bookResources', 'bookResource'));
     }
 
     /** Market history (#380): charts of prices and volumes, drawn from /api/v1/history */
