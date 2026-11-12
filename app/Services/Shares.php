@@ -67,6 +67,15 @@ class Shares
         return $out;
     }
 
+    /**
+     * The most of a company others may hold (#599): the engine's
+     * SHARES_MAX_OUTSIDE_PERMILLE / 1000. Keep the two in step
+     */
+    public const MAX_OUTSIDE = 0.5;
+
+    /** From this much held by others, the company page warns (#599) */
+    public const WARN_OUTSIDE = 0.3;
+
     /** The game days of trades a share's value averages over (#513) */
     public const VALUE_DAYS = 3;
 
@@ -137,11 +146,18 @@ class Shares
         $ended = $holdings->isEmpty() ? [] : DB::table('companies')->whereIn('company_id', $holdings->pluck('company')->all())
             ->whereNotNull('eliminated_at')->pluck('company_id')->flip()->all();
 
+        $count = (int) (DB::table('companies')->where('company_id', $company)->value('share_count') ?? self::PER_COMPANY);
+        $outside = (int) $holders->filter(fn ($h) => (int) $h->holder !== $company)->sum('units');
         return [
             'price' => $prices[$company] ?? null,
+            // #599: how much of it other companies hold; offerings and the
+            // company's own sales stop at MAX_OUTSIDE
+            'outside' => $outside,
+            'outside_share' => $count > 0 ? round($outside / $count, 3) : 0,
+            'max_outside' => self::MAX_OUTSIDE,
             // What a share counts for in net wealth (#513): the last 3 days' average
             'value_price' => $values[$company] ?? null,
-            'count' => (int) (DB::table('companies')->where('company_id', $company)->value('share_count') ?? self::PER_COMPANY),
+            'count' => $count,
             'offering' => self::offerings($company)[0] ?? null,
             'holders' => $holders->map(fn ($h) => ['company' => (int) $h->holder, 'name' => $name($h->holder),
                 'units' => (int) $h->units, 'dividends' => (int) $h->dividends])->all(),
@@ -324,14 +340,22 @@ class Shares
         foreach (DB::table('share_trades')->where('share_company', $company)->where('units', '>', 0)->orderBy('id')
                      ->get(['game_t', 'price', 'units']) as $t) {
             $day = (int) floor(((int) $t->game_t - $epoch) / 86400);
-            $d = $out[$day] ?? ['day' => $day, 'low' => (int) $t->price, 'high' => (int) $t->price, 'last' => 0, 'units' => 0];
+            $d = $out[$day] ?? ['day' => $day, 'low' => (int) $t->price, 'high' => (int) $t->price, 'last' => 0, 'units' => 0,
+                'credits' => 0, 'trades' => 0];
             $d['low'] = min($d['low'], (int) $t->price);
             $d['high'] = max($d['high'], (int) $t->price);
             $d['last'] = (int) $t->price;
             $d['units'] += (int) $t->units;
+            $d['credits'] += (int) $t->units * (int) $t->price;
+            $d['trades']++;
             $out[$day] = $d;
         }
-        return array_values($out);
+        // The day's average, weighted by shares (#600), and the company as
+        // the one "place": the price chart's row format
+        $name = (string) DB::table('companies')->where('company_id', $company)->value('name');
+        return array_values(array_map(fn ($d) => array_diff_key($d, ['credits' => 0]) + [
+            'average' => round($d['credits'] / max(1, $d['units']), 1),
+            'place' => $company, 'place_name' => $name], $out));
     }
 
     /**

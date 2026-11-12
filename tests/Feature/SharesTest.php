@@ -214,8 +214,10 @@ class SharesTest extends TestCase
                 'game_t' => (int) $epoch + ($day - $ago) * 86400 + 3600 * ($price % 5 + 1)]);
         }
         $history = $this->getJson('/api/v1/shares/' . $issuer->company_id . '/history')->assertOk()->json();
-        $this->assertSame([['day' => $day - 2, 'low' => 9, 'high' => 12, 'last' => 9, 'units' => 40],
-            ['day' => $day - 1, 'low' => 15, 'high' => 15, 'last' => 15, 'units' => 5]], $history);
+        // #600: the day's average weighted by shares, trades, and the company as the chart's one "place"
+        $place = ['place' => (int) $issuer->company_id, 'place_name' => 'History Co'];
+        $this->assertEquals([['day' => $day - 2, 'low' => 9, 'high' => 12, 'last' => 9, 'units' => 40, 'trades' => 2, 'average' => 11.3] + $place,
+            ['day' => $day - 1, 'low' => 15, 'high' => 15, 'last' => 15, 'units' => 5, 'trades' => 1, 'average' => 15] + $place], $history);
         $this->getJson('/api/v1/shares/999999/history')->assertNotFound();
         $names = array_column($this->getJson('/api/v1/shares')->assertOk()->json('companies'), 'name');
         $this->assertContains('History Co', $names);

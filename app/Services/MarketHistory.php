@@ -16,7 +16,13 @@ class MarketHistory
     {
         $places = DB::table('trades')->whereNotNull('location')->distinct()->orderBy('location')->pluck('location')
             ->map(fn ($id) => (int) $id);
+        return ['places' => $places, 'today' => self::today()];
+    }
+
+    /** Today's game day */
+    public static function today(): int
+    {
         $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
-        return ['places' => $places, 'today' => intdiv(max(0, World::gameNow() - $epoch), 86400)];
+        return intdiv(max(0, World::gameNow() - $epoch), 86400);
     }
 }

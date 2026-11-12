@@ -1,36 +1,24 @@
 {{--
     The price and volume chart (#595), shared by Market history and each
-    product page (#597). Takes:
+    product page (#597), and a company's share price (#600). Takes:
       $chartResource  a resource ID to chart, or null for a resource menu ($resources)
       $places, $today the places' colour order and today's game day (MarketHistory::frame())
       $chartDays      the period shown first; $chartTitle the card's heading
+    and, for another series in the same row format, optionally:
+      $chartSource    the URL its rows come from (instead of /api/v1/history)
+      $chartPer       what a price is for ('unit'), $chartUnits what the bars count ('units')
+      $chartNote      the card's note; $chartPlaceMenu false hides the place menu
 --}}
-@push('styles')
-    <style>
-        .mh { --mh-text: #e9e9ef; --mh-muted: #a3a6b2; --mh-grid: #34353f; --mh-axis: #828590; --mh-panel: #24242c;
-              --mh-bars: #8b93a7; color: var(--mh-text); }
-        .mh-intro { white-space: normal; margin-bottom: 1em; max-width: 70ch; }
-        .mh-controls { display: flex; flex-wrap: wrap; gap: 1em; margin: 1em 0; }
-        .mh-controls label { display: grid; gap: .25em; font-size: 14px; color: var(--mh-muted); }
-        .mh-controls select { background: var(--mh-panel); color: var(--mh-text); border: 1px solid var(--mh-axis);
-              border-radius: 4px; padding: .3em .5em; font: inherit; font-size: 15px; max-width: 100%; }
-        .mh-card { background: var(--mh-panel); border: 1px solid var(--mh-grid); border-radius: 6px; padding: 1em; margin-bottom: 1.25em; }
-        .mh-card h3 { font-size: 18px; margin: 0; }
-        .mh-note { color: var(--mh-muted); font-size: 14px; margin: .25em 0 .75em; white-space: normal; max-width: 70ch; }
-        .mh-legend { display: flex; flex-wrap: wrap; gap: 1em; font-size: 13px; color: var(--mh-muted); margin-bottom: .5em; }
-        .mh-legend i { display: inline-block; width: 12px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
-        .mh-chart { position: relative; min-height: 260px; }
-        .mh-legend i.mh-bar { width: 10px; height: 10px; border-radius: 2px; background: var(--mh-bars); opacity: .55; }
-        .mh-chart svg { display: block; overflow: visible; }
-        .mh-chart text { fill: var(--mh-muted); font-size: 12px; font-family: inherit; }
-        .mh-tip { position: absolute; top: 0; pointer-events: none; background: #111116; border: 1px solid var(--mh-axis);
-              border-radius: 4px; padding: .3em .6em; font-size: 13px; line-height: 1.5; white-space: nowrap; z-index: 2; color: var(--mh-text); }
-        .mh-tip div:first-child { color: var(--mh-muted); }
-        .mh-tip i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
-        .mh-empty { display: flex; align-items: center; justify-content: center; min-height: inherit; color: var(--mh-muted); font-size: 14px; }
-        .mh-chart:focus-visible { outline: 2px solid var(--mh-axis); outline-offset: 2px; }
-    </style>
-@endpush
+@php
+    $chartSource = $chartSource ?? null;
+    $chartPer = $chartPer ?? 'unit';
+    $chartUnits = $chartUnits ?? 'units';
+    $chartPlaceMenu = $chartPlaceMenu ?? true;
+    $chartNote = $chartNote ?? 'The dots and lines are the average price each game day (left axis); the thin line through each '
+        . 'dot runs from the cheapest unit traded that day to the dearest. A gap is a day with no trades there. The bars along '
+        . 'the bottom are all the units that changed hands each game day at the places chosen (right axis).';
+@endphp
+@include('partials.chart-styles')
 <div class="mh">
                 <div class="mh-controls">
                     @if($chartResource === null)
@@ -42,7 +30,7 @@
                         </select>
                     </label>
                     @endif
-                    <label for="mh-place">Place
+                    <label for="mh-place" @if(!$chartPlaceMenu) hidden @endif>Place
                         <select id="mh-place"><option value="">All places</option></select>
                     </label>
                     <label for="mh-days">Period
@@ -58,11 +46,9 @@
                 {{-- Price and volume in one chart (#595): price on the left axis, units on the right --}}
                 <div class="mh-card">
                     <h3>{{ $chartTitle }}</h3>
-                    <p class="mh-note">The dots and lines are the average price each game day (left axis); the thin line through each
-                        dot runs from the cheapest unit traded that day to the dearest. A gap is a day with no trades there. The bars along the bottom are all the units that changed
-                        hands each game day at the places chosen (right axis).</p>
+                    <p class="mh-note">{{ $chartNote }}</p>
                     <div class="mh-legend" id="mh-legend"></div>
-                    <div class="mh-chart" id="mh-price" tabindex="0" aria-label="Price a unit and units traded by game day"></div>
+                    <div class="mh-chart" id="mh-price" tabindex="0" aria-label="{{ $chartTitle }} by game day"></div>
                 </div>
 </div>
 
@@ -77,6 +63,7 @@
         const fmt = (v) => v >= 100 ? Math.round(v).toLocaleString('en') : (Math.round(v * 10) / 10).toLocaleString('en');
         const TODAY = @json($today);
         const FIXED = @json($chartResource);   // a product page charts its own resource (#597)
+        const SOURCE = @json($chartSource), PER = @json($chartPer), UNITS = @json($chartUnits);   // #600
         let rows = [], placeColour = {};
 
         function el(name, attrs, parent) {
@@ -142,9 +129,13 @@
                 el('text', {x: W - R + 6, y: yr(rtop) - 12, 'text-anchor': 'start'}, svg).textContent = right.label;
             }
             const step = Math.max(1, Math.ceil(days / (W < 480 ? 5 : 10)));
+            let clear = 0;   // a label never overlaps the one before (round 62: "Day 603615" at 390 px)
             for (let d = first; d < first + days; d += step) {
                 const lab = el('text', {x: x(d), y: H - 6, 'text-anchor': d === first ? 'start' : 'middle'}, svg);
                 lab.textContent = d === first ? 'Day ' + d : d;
+                const w = lab.getComputedTextLength(), left = d === first ? x(d) : x(d) - w / 2;
+                if (left < clear) { lab.remove(); continue; }
+                clear = left + w + 8;
             }
             return {svg, W, H, L, R, B, T, x, y, top, yr, rtop};
         }
@@ -179,10 +170,10 @@
 
         function draw() {
             const place = $('mh-place').value, days = Number($('mh-days').value);
-            const shown = rows.filter((r) => !place || String(r.place) === place);
+            const last = Math.max(TODAY, ...rows.map((r) => r.day)), first = Math.max(0, last - days + 1), span = last - first + 1;
+            const shown = rows.filter((r) => (!place || String(r.place) === place) && r.day >= first);
             const legend = $('mh-legend'); legend.replaceChildren();
             if (!shown.length) { empty($('mh-price'), 'No trades in this period.'); return; }
-            const last = Math.max(TODAY, ...rows.map((r) => r.day)), first = Math.max(0, last - days + 1), span = last - first + 1;
             const places = [...new Set(shown.map((r) => r.place))].sort((a, b) => a - b);
             places.forEach((p) => {
                 const s = document.createElement('span'), i = document.createElement('i');
@@ -190,7 +181,7 @@
                 s.appendChild(document.createTextNode(shown.find((r) => r.place === p).place_name)); legend.appendChild(s);
             });
             const ub = document.createElement('span'), ui = document.createElement('i');
-            ui.className = 'mh-bar'; ub.appendChild(ui); ub.appendChild(document.createTextNode('Units traded (right axis)'));
+            ui.className = 'mh-bar'; ub.appendChild(ui); ub.appendChild(document.createTextNode(UNITS[0].toUpperCase() + UNITS.slice(1) + ' traded (right axis)'));
             legend.appendChild(ub);
 
             // Units: one bar a day, all places chosen together, in the bottom band (#595)
@@ -201,7 +192,7 @@
             // line through its dot (#598)
             const box = $('mh-price');
             const f = frame(box, 320, Math.max(...shown.map((r) => r.high)), span, first, fmt,
-                {max: Math.max(...units), fmt: ufmt, share: 0.25, label: 'units'});
+                {max: Math.max(...units), fmt: ufmt, share: 0.25, label: UNITS});
             const bw = Math.max(1, Math.min(32, (f.W - f.L - f.R) / span * 0.7));
             units.forEach((u, i) => {
                 if (!u) return;
@@ -238,10 +229,10 @@
                     const r = at(p, day), name = shown.find((q) => q.place === p).place_name;
                     if (r) el('circle', {cx: f.x(day), cy: f.y(r.average), r: 4, fill: placeColour[p], stroke: 'var(--mh-panel)', 'stroke-width': 2}, marks);
                     lines.push({colour: placeColour[p], text: r
-                        ? `${name}: ${fmt(r.average)} a unit (${fmt(r.low)} to ${fmt(r.high)}), ${r.units.toLocaleString('en')} units`
+                        ? `${name}: ${fmt(r.average)} a ${PER} (${fmt(r.low)} to ${fmt(r.high)}), ${r.units.toLocaleString('en')} ${UNITS}`
                         : `${name}: no trades`});
                 });
-                lines.push({text: `Units traded: ${ufmt(units[day - first])}`});
+                lines.push({text: `${UNITS[0].toUpperCase() + UNITS.slice(1)} traded: ${ufmt(units[day - first])}`});
                 return lines;
             });
         }
@@ -250,7 +241,8 @@
             const resource = FIXED ?? $('mh-resource').value, days = $('mh-days').value;
             $('mh-price').setAttribute('aria-busy', 'true');
             try {
-                const res = await fetch(`{{ url('api/v1/history') }}?resource=${encodeURIComponent(resource)}&days=${encodeURIComponent(days)}`);
+                const res = await fetch(SOURCE ? `${SOURCE}?days=${encodeURIComponent(days)}`
+                    : `{{ url('api/v1/history') }}?resource=${encodeURIComponent(resource)}&days=${encodeURIComponent(days)}`);
                 if (!res.ok) throw new Error(res.status);
                 rows = await res.json();
             } catch (e) {

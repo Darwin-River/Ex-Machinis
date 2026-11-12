@@ -416,7 +416,7 @@ end
 -- {company, sales (after tax a day, the 7-day average), count (its shares),
 -- value (what a share is worth; 0 if never traded), age (game days), drones}.
 -- A share earns sales / count a day
-local company_fields = {"company", "sales", "count", "value", "age", "drones"}
+local company_fields = {"company", "sales", "count", "value", "age", "drones", "outside", "history"}
 local function companies() return records(ask(653), company_fields) end          -- 653
 -- The same for one company, yours if c is left out (#574)
 local function company_figures(c) return record(ask(654, c or company()), company_fields) end -- 654
@@ -426,12 +426,22 @@ local function company_figures(c) return record(ask(654, c or company()), compan
 -- payback_days (days of their dividends to repay what they pay), and
 -- value_now (n shares at today's value price: what net wealth counts against
 -- the company once they are sold, #568; 0 if its shares never traded)
+-- #599 adds: outside_now and outside_after (the part of the company other
+-- companies hold, 0 to 1, now and if every share offered were taken),
+-- over_cap (true if outside_after passes MAX_OUTSIDE: offer_shares would be
+-- refused), history (game days of sales behind a_day, up to 7) and thin
+-- (true when that is under 7: a young company's sales are a poor guide, and
+-- round 62's players all sold too cheaply on one or two days of them)
+local MAX_OUTSIDE = 0.5
 local function offering_cost(n, price)
-  local f = company_figures() or {sales = 0, count = 1000, value = 0}
+  local f = company_figures() or {sales = 0, count = 1000, value = 0, outside = 0, history = 1}
   local share = n / (f.count + n)
   local a_day = math.max(f.sales, 0) * share
+  local outside_after = (f.outside + n) / (f.count + n)
   return {share = share, a_day = a_day, raised = n * price,
-          payback_days = a_day > 0 and n * price / a_day or math.huge, value_now = n * f.value}
+          payback_days = a_day > 0 and n * price / a_day or math.huge, value_now = n * f.value,
+          outside_now = f.outside / f.count, outside_after = outside_after,
+          over_cap = outside_after > MAX_OUTSIDE, history = f.history, thin = f.history < 7}
 end
 local function share_sell_orders(c)                                               -- 690
   local list = records(ask(690, c), {"price", "keep", "held", "company"})

@@ -99,6 +99,13 @@ static ErrorCode_t sh_house_orders(long long now)
     return result;
 }
 
+/* The shares of a company that other companies hold (#599) */
+static long long sh_outside(int company)
+{
+    return sh_value(0, "SELECT IFNULL(SUM(units), 0) FROM shares WHERE company = %d AND holder <> %d AND units > 0",
+                    company, company);
+}
+
 /* Moves units of a company's shares from seller to buyer */
 static ErrorCode_t sh_move(int company, int seller, int buyer, long long units)
 {
@@ -120,6 +127,7 @@ static int sh_outcome(int check)
         case SHARE_ABOVE_WANT:  return OUTCOME_RESOURCES_UPPER_LIMIT;
         case SHARE_NO_CREDITS:  return OUTCOME_NO_CREDITS;
         case SHARE_NOT_HELD:    return OUTCOME_NO_RESOURCES;
+        case SHARE_OVER_CAP:    return OUTCOME_RESOURCES_UPPER_LIMIT;
         default:                return OUTCOME_NO_MARKET_ORDER;
     }
 }
@@ -190,10 +198,14 @@ static int sh_offer(int company, int drone, int action, long long units, long lo
     }
     long long count = sh_value(SHARES_PER_COMPANY, "SELECT share_count FROM companies WHERE company_id = %d", company);
     int check = offer_check(units, min, price, days, count, open);
+    // #599: if every share offered were taken, others would hold no more than
+    // the cap allows
+    if(check == OFFER_OK && shares_over_cap(sh_outside(company) + units, count + units))
+        check = OFFER_OVER_CAP;
     if(check != OFFER_OK) {
         engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d]'s offering of [%lld] (at least [%lld]) at [%lld] for [%lld] days "
             "refused ([%d])", company, units, min, price, days, check);
-        return check == OFFER_TOO_MANY ? OUTCOME_RESOURCES_UPPER_LIMIT :
+        return (check == OFFER_TOO_MANY || check == OFFER_OVER_CAP) ? OUTCOME_RESOURCES_UPPER_LIMIT :
                check == OFFER_ALREADY_OPEN ? OUTCOME_ACTION_ABORTED : OUTCOME_NO_MARKET_ORDER;
     }
     ErrorCode_t result = sh_exec("INSERT INTO share_offerings (company, units, min_units, price, deadline_t, drone, action, placed_t) "
@@ -305,6 +317,11 @@ int db_shares_settle(Event_t* event)
     long long buyer_held = sh_value(0, "SELECT units FROM shares WHERE company = %d AND holder = %d", shares, buyer);
     long long credits = sh_value(0, "SELECT credits FROM companies WHERE company_id = %d", buyer);
     int check = share_trade_check(side, units, order_price, limit, seller_held, buyer_held, credits);
+    // #599: a company selling its own shares can't leave others holding past the cap
+    if(check == SHARE_OK && seller == shares &&
+       shares_over_cap(sh_outside(shares) + units,
+                       sh_value(SHARES_PER_COMPANY, "SELECT share_count FROM companies WHERE company_id = %d", shares)))
+        check = SHARE_OVER_CAP;
     if(check != SHARE_OK) {
         engine_trace(TRACE_LEVEL_ALWAYS, "Shares: [%lld] of company [%d]'s shares from [%d] to [%d] refused ([%d])",
             units, shares, seller, buyer, check);
