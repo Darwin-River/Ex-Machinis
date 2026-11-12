@@ -88,6 +88,10 @@ jobs:
       - name: Install dependencies and build the engines
         if: github.event_name != 'pull_request' || matrix.name == 'round'
         run: |
+          # The runner's own MySQL server isn't used (the service container is),
+          # and upgrading it fails while the container holds port 3306: its
+          # postinst can't start it (Nov 2026, 8.4.11 -> 8.4.13). Remove it first
+          sudo apt-get purge -y -qq mysql-server mysql-server-core || true
           sudo apt-get update -qq && sudo apt-get install -y -qq libconfig-dev libmysqlclient-dev
           composer install --no-interaction --no-progress --prefer-dist
           make -C game-engine/src all
