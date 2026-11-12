@@ -185,44 +185,26 @@
                 </div>
             </div>
 
-            {{-- Its code and where it comes from (#324 step 16) --}}
+            {{-- Its code is its company's (#594): shown, with its revisions, on the company page --}}
             <div class="row row-30">
-                <div class="col">
+                <div class="col" id="code">
                     <h2 class="">Code</h2>
-                    {{-- Collapsed by default (#591): status and cargo come first --}}
-                    <details id="code-details">
-                    <summary>Show its code</summary>
-                    @if($code)
-                        <div style="white-space: normal; margin-bottom: 1em">
-                            @if($code['inherited'])
-                                Inherited from <a href="{{ url('spacecraft/' . $code['release']->agent_id) }}">drone {{ $code['release']->agent_id }}</a>'s release.
+                    @if($code && $state['company'])
+                        @php($lastPush = \App\Services\CompanyCode::latestPush((int) $state['company']->company_id))
+                        <p style="white-space: normal">
+                            Every drone of {{ $state['company']->name }} runs the same code:
+                            <a href="{{ url('companies/' . $state['company']->company_id . '#code') }}">see it, where it came from and its revisions on the company page</a>.
+                            @if($lastPush)
+                                Its newest revision is push {{ $lastPush['number'] }}, sent {{ $lastPush['when'] }}; a push reaches each drone at the speed of light.
                             @else
-                                Released {{ $code['release']->created_at }}.
+                                It still runs the code it was released with.
                             @endif
-                            @if($code['release']->copied_from)
-                                Copied from <a href="{{ url('spacecraft/' . $code['release']->copied_from) }}">drone {{ $code['release']->copied_from }}</a>{{ $code['release']->copied_word ? ' (the word ' . $code['release']->copied_word . ')' : '' }}.
-                            @endif
-                            @if($code['same_as'])
-                                The same code as <a href="{{ url('spacecraft/' . $code['same_as']) }}">drone {{ $code['same_as'] }}</a>'s, released earlier.
-                            @endif
-                            <a class="button button-primary button-sm" href="{{ url('release?copy=' . $agent->agent_id) }}">Copy this code</a>
-                        </div>
-                        <pre id="drone-code" v-pre style="white-space: pre-wrap; color: #e6e6e6; background: #2b2b36; padding: 1em; border-radius: 4px">{{ $code['release']->source }}</pre>
-                        @if($code['words'])
-                            <div style="white-space: normal; line-height: 2"><b>Functions</b>:
-                                @foreach($code['words'] as $name => $origin)
-                                    <span class="mr-2"><code>{{ $name }}</code>
-                                        @if($origin)
-                                            <span>(first in <a href="{{ url('spacecraft/' . $origin) }}">drone {{ $origin }}</a>)</span>
-                                        @endif
-                                        <a href="{{ url('release?copy=' . $agent->agent_id . '&word=' . urlencode($name)) }}" title="Copy this function">copy</a></span>
-                                @endforeach
-                            </div>
-                        @endif
+                        </p>
+                    @elseif($code)
+                        <p>It runs the code released with <a href="{{ url('spacecraft/' . $code['release']->agent_id) }}">drone {{ $code['release']->agent_id }}</a>.</p>
                     @else
                         <p>This drone's program came by email: it has no released code to show.</p>
                     @endif
-                    </details>
                 </div>
             </div>
 

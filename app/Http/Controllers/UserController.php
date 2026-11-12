@@ -82,7 +82,10 @@ class UserController extends Controller
         $pushes = \App\Services\CodePush::summary(\Illuminate\Support\Facades\DB::table('companies')
             ->where('company_id', $company->company_id)->first());
 
-        return view('user.company', compact('user', 'spacecraft', 'shares', 'rank', 'pushes', 'stats'));
+        // Its code and revisions (#594): the drones' pages link here
+        $code = \App\Services\CompanyCode::of((int) $company->company_id);
+
+        return view('user.company', compact('user', 'spacecraft', 'shares', 'rank', 'pushes', 'stats', 'code'));
     }
 
     /** Pushes new code to a company's working drones, with its password (#553) */

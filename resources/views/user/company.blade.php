@@ -13,6 +13,9 @@
         .stat-link { font-size: 0.85em; }
         .stat-meta { font-size: 0.85em; opacity: 0.75; margin-bottom: 1.5em; }
         .health-banner { border-left: 4px solid #e3b341; background: rgba(227,179,65,0.12); padding: 10px 14px; margin: 0 0 12px; }
+        /* Code revisions (#594) */
+        #code-revisions .num { text-align: right !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        #code-revisions td:first-child { color: #fff !important; white-space: nowrap; }
     </style>
 @endpush
 @section('content')
@@ -113,6 +116,99 @@
                 </table>
             </div>
 
+            {{-- Its code and its revisions (#594): every drone of the company runs it --}}
+            <div class="row row-30">
+                <div class="col">
+                    <h2 class="" id="code">Code</h2>
+                </div>
+            </div>
+            @if($code)
+                @php($current = $code['current'])
+                <div style="white-space: normal; margin-bottom: 1em">
+                    Every drone of this company runs this code.
+                    @if($current['number'] === 0)
+                        It is the code it was released with ({{ $code['release']->created_at }}).
+                    @else
+                        It is push {{ $current['number'] }} (sent {{ $current['when'] }}): a push reaches each drone at the speed of light.
+                    @endif
+                    @if($code['release']->copied_from)
+                        Its release was copied from <a href="{{ url('spacecraft/' . $code['release']->copied_from) }}">drone {{ $code['release']->copied_from }}</a>{{ $code['release']->copied_word ? ' (the function ' . $code['release']->copied_word . ')' : '' }}.
+                    @endif
+                    @if($code['same_as'])
+                        Its release had the same code as <a href="{{ url('spacecraft/' . $code['same_as']) }}">drone {{ $code['same_as'] }}</a>'s, released earlier.
+                    @endif
+                    @php($copy = 'release?copy=' . $code['release']->agent_id . ($current['number'] ? '&push=' . $current['number'] : ''))
+                    <a class="button button-primary button-sm" href="{{ url($copy) }}">Copy this code</a>
+                </div>
+                <details id="company-code-details">
+                    <summary>Show the code ({{ number_format(substr_count(rtrim($current['script']), "\n") + 1) }} lines)</summary>
+                    <pre id="company-code" v-pre style="white-space: pre-wrap; color: #e6e6e6; background: #2b2b36; padding: 1em; border-radius: 4px">{{ $current['script'] }}</pre>
+                </details>
+                @if($code['words'])
+                    <div style="white-space: normal; line-height: 2"><b>Functions</b>:
+                        @foreach($code['words'] as $name => $origin)
+                            <span class="mr-2 text-nowrap"><code>{{ $name }}</code>
+                                @if($origin)
+                                    <span>(first in <a href="{{ url('spacecraft/' . $origin) }}">drone {{ $origin }}</a>)</span>
+                                @endif
+                                <a href="{{ url($copy . '&word=' . urlencode($name)) }}" title="Copy this function">copy</a></span>
+                        @endforeach
+                    </div>
+                @endif
+                @if(count($code['revisions']) > 1)
+                    <h4 class="mt-3">Revisions</h4>
+                    <div class="table-custom-responsive">
+                        <table class="table-ticket" id="code-revisions">
+                            <tr><th>Revision</th><th>When</th><th class="num">Fee</th><th class="num">Drones</th><th>Code</th></tr>
+                            @foreach(array_reverse($code['revisions']) as $r)
+                                <tr><td>{{ $r['label'] }}{{ $r['number'] === $current['number'] ? ' (running)' : '' }}</td><td>{{ $r['when'] }}</td>
+                                    <td class="num">{{ $r['fee'] === null ? '' : number_format($r['fee']) . ' cr (' . $r['percent'] . '%)' }}</td>
+                                    <td class="num">{{ $r['drones'] ?? '' }}</td>
+                                    <td style="white-space: normal"><details><summary>Show</summary>
+                                        <pre v-pre style="white-space: pre-wrap; color: #e6e6e6; background: #2b2b36; padding: .5em; border-radius: 4px">{{ $r['script'] }}</pre>
+                                        <a href="{{ url('release?copy=' . $code['release']->agent_id . ($r['number'] ? '&push=' . $r['number'] : '')) }}">Copy this revision</a>
+                                    </details></td></tr>
+                            @endforeach
+                        </table>
+                    </div>
+                @endif
+            @else
+                <p>This company's program came by email: it has no released code to show.</p>
+            @endif
+
+            {{-- Code pushes (#553): new code for its drones, with the password it was released with --}}
+            <h3 class="mt-4" id="pushes">Push new code</h3>
+            @include('_flash_message')
+            @if(!$pushes['enabled'])
+                <p style="white-space: normal">This company was released without a push password, so its code can't change.</p>
+            @else
+                <p style="white-space: normal">
+                    Its owner can push new code to its working drones with the password it was released with. The code
+                    travels from Earth to each drone at the speed of light; the drone then drops what it was running and
+                    starts the new code's <code>launched()</code> with fresh variables, keeping its hold and its place.
+                    Pushed {{ $pushes['count'] }} {{ $pushes['count'] === 1 ? 'time' : 'times' }}. The next push costs
+                    {{ $pushes['next_fee_percent'] }}% of its credits: {{ number_format($pushes['next_fee']) }} now.
+                </p>
+                @if($errors->has('push'))
+                    <div class="alert alert-danger">{{ $errors->first('push') }}</div>
+                @endif
+                <form method="POST" action="{{ url('/companies/' . $user->user_id . '/push') }}">
+                    {{ csrf_field() }}
+                    <div class="form-group">
+                        <label for="push-script">New script (Lua)</label>
+                        <textarea v-pre class="form-control" id="push-script" name="script" rows="10" spellcheck="false"
+                                  style="font-family: monospace" maxlength="{{ config('forge.max_script_length') }}"
+                                  required>{{ old('script') }}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="push-password">Password</label>
+                        <input class="form-control" id="push-password" name="password" type="password" maxlength="200"
+                               autocomplete="current-password" required>
+                    </div>
+                    <button class="button button-primary" type="submit">Push for {{ number_format($pushes['next_fee']) }} credits</button>
+                </form>
+            @endif
+
             {{-- The stock market (#471) --}}
             <div class="row row-30">
                 <div class="col">
@@ -195,49 +291,6 @@
                 </div>
             @endif
 
-            {{-- Code pushes (#553): new code for its drones, with the password it was released with --}}
-            <h3 class="mt-4" id="pushes">Code pushes</h3>
-            @include('_flash_message')
-            @if(!$pushes['enabled'])
-                <p style="white-space: normal">This company was released without a push password, so its code can't change.</p>
-            @else
-                <p style="white-space: normal">
-                    Its owner can push new code to its working drones with the password it was released with. The code
-                    travels from Earth to each drone at the speed of light; the drone then drops what it was running and
-                    starts the new code's <code>launched()</code> with fresh variables, keeping its hold and its place.
-                    Pushed {{ $pushes['count'] }} {{ $pushes['count'] === 1 ? 'time' : 'times' }}. The next push costs
-                    {{ $pushes['next_fee_percent'] }}% of its credits: {{ number_format($pushes['next_fee']) }} now.
-                </p>
-                @if($errors->has('push'))
-                    <div class="alert alert-danger">{{ $errors->first('push') }}</div>
-                @endif
-                <form method="POST" action="{{ url('/companies/' . $user->user_id . '/push') }}">
-                    {{ csrf_field() }}
-                    <div class="form-group">
-                        <label for="push-script">New script (Lua)</label>
-                        <textarea v-pre class="form-control" id="push-script" name="script" rows="10" spellcheck="false"
-                                  style="font-family: monospace" maxlength="{{ config('forge.max_script_length') }}"
-                                  required>{{ old('script') }}</textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="push-password">Password</label>
-                        <input class="form-control" id="push-password" name="password" type="password" maxlength="200"
-                               autocomplete="current-password" required>
-                    </div>
-                    <button class="button button-primary" type="submit">Push for {{ number_format($pushes['next_fee']) }} credits</button>
-                </form>
-                @if(count($pushes['log']))
-                    <div class="table-custom-responsive mt-3">
-                        <table class="table-ticket" id="push-log">
-                            <tr><th>#</th><th>When</th><th>Fee</th><th>Drones</th></tr>
-                            @foreach($pushes['log'] as $p)
-                                <tr><td>{{ $p['number'] }}</td><td>{{ $p['when'] }}</td>
-                                    <td>{{ number_format($p['fee']) }} ({{ $p['percent'] }}%)</td><td>{{ $p['drones'] }}</td></tr>
-                            @endforeach
-                        </table>
-                    </div>
-                @endif
-            @endif
         </div>
 
 

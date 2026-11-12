@@ -70,7 +70,7 @@ class CodePushTest extends TestCase
             ->assertJsonPath('fee', 950)->assertJsonPath('fee_percent', 10);
         $this->getJson("/api/v1/companies/$id")->assertJsonPath('pushes.count', 2)
             ->assertJsonPath('pushes.next_fee_percent', 15)->assertJsonPath('pushes.log.0.fee', 950);
-        $this->get("/companies/$id")->assertOk()->assertSee('Code pushes')->assertSee('Pushed 2 times');
+        $this->get("/companies/$id")->assertOk()->assertSee('Push new code')->assertSee('id="code-revisions"', false)->assertSee('Pushed 2 times');
     }
 
     public function testNoCreditsNoFeeAndTheCapHolds()

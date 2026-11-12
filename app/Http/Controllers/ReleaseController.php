@@ -34,7 +34,11 @@ class ReleaseController extends Controller
                     ->where('a.agent_id', $copiedFrom)->value('c.start_kit');
                 $kit = array_search((int) $started, Release::KITS, true) ?: $kit;
                 $copiedWord = request()->filled('word') ? (string) request('word') : null;
-                $starter = $copiedWord !== null ? Provenance::wordSource($release->source, $copiedWord) : $release->source;
+                // A pushed revision of its company's code (#594), or the release
+                $source = request()->filled('push')
+                    ? \App\Services\CompanyCode::script((int) $release->company_id, (int) request('push')) : null;
+                $source = $source ?? $release->source;
+                $starter = $copiedWord !== null ? Provenance::wordSource($source, $copiedWord) : $source;
                 if ($starter === null) {
                     $copiedWord = null;
                 }
