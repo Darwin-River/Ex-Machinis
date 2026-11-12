@@ -12,6 +12,19 @@ long long dividend_for(long long net, long long units, long long total)
     return net * units / total;
 }
 
+long long dividend_pool(long long carry, long long profit, long long* carry_after)
+{
+    if(carry > 0)
+        carry = 0;
+    long long total = carry + profit;
+    if(total > 0) {
+        *carry_after = 0;
+        return total;
+    }
+    *carry_after = total;
+    return 0;
+}
+
 int share_trade_check(int side, long long units, long long price, long long limit,
                       long long seller_held, long long buyer_held, long long buyer_credits)
 {

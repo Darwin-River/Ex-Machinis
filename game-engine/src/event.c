@@ -979,25 +979,9 @@ ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* pe
         db_record_sales_tax(seller->user_id, *tax, seller->credits);
     }
 
-    // Dividends (#467): the seller's outside shareholders get 0.1% a share of
-    // what the sale earned after tax. The other party to the sale is credited
-    // here, with its own balance; any other holder directly
-    static Dividend_t due[MAX_DIVIDENDS];
-    long long dividends = 0;
-    int holders = db_dividends_due(seller->user_id, (long long)abs(amount) - *tax, due, MAX_DIVIDENDS, &dividends);
-    User_t* buyer = (seller == user) ? peer_user : user;
-    for(int i = 0; i < holders; i++) {
-        seller->credits -= (int)due[i].amount;
-        if(due[i].holder == buyer->user_id) {
-            buyer->credits += (int)due[i].amount;
-            db_record_dividend(seller->user_id, due[i].holder, due[i].amount);
-        } else {
-            db_pay_dividend(seller->user_id, due[i].holder, due[i].amount, user->action_id, event->resource_id);
-        }
-    }
-    if(holders > 0)
-        engine_trace(TRACE_LEVEL_ALWAYS, "Dividends: company [%d] pays [%lld] credits to [%d] holders",
-            seller->user_id, dividends, holders);
+    // Dividends (#467) are no longer paid out of each sale: since #603 the
+    // events engine settles them once a game day from the company's profit
+    // (db_shares.c)
 
     engine_trace(TRACE_LEVEL_ALWAYS,
         "Completing market transaction at event [%d], "

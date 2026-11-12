@@ -10,8 +10,9 @@
     <div class="mh-card">
         <h3>Earnings</h3>
         <p class="mh-note">Each game day: the bars above the line are what the company's sales brought in after sales tax; the
-            bars below it are what it paid for goods and equipment. The line is the difference. Processor tax and code push
-            fees aren't trades and aren't shown.</p>
+            bars below it are what it paid for goods and equipment. The line is the difference: its profit, from which,
+            once any earlier losses are made up, other holders of its shares are paid their dividends each day. Processor
+            tax and code push fees aren't trades and aren't shown.</p>
         <div class="mh-controls">
             <label for="ce-days">Period
                 <select id="ce-days">
@@ -106,7 +107,8 @@ document.addEventListener('DOMContentLoaded', function () {
             mark.setAttribute('cx', x(i)); mark.setAttribute('cy', y(r.net)); mark.setAttribute('visibility', 'visible');
             tip.replaceChildren();
             [[null, 'Game day ' + r.day], [IN, `Sales after tax: ${num(r.sales)} (tax ${num(r.tax)})`],
-             [OUT, `Spent on goods: ${num(r.purchases)}`], [null, `Net: ${num(r.net)} · ${r.trades} trades`]].forEach(([c, t]) => {
+             [OUT, `Spent on goods: ${num(r.purchases)}`], [null, `Net: ${num(r.net)} · ${r.trades} trades`],
+             [null, `Dividends paid: ${num(r.dividends || 0)}`]].forEach(([c, t]) => {
                 const d = document.createElement('div');
                 if (c) { const sw = document.createElement('i'); sw.style.background = c; d.appendChild(sw); }
                 d.appendChild(document.createTextNode(t)); tip.appendChild(d);
@@ -127,9 +129,10 @@ document.addEventListener('DOMContentLoaded', function () {
             show((box.dataset.i === undefined ? span - 1 : Number(box.dataset.i)) + (ev.key === 'ArrowLeft' ? -1 : 1));
         };
 
-        const s = rows.reduce((a, r) => ({sales: a.sales + r.sales, purchases: a.purchases + r.purchases}), {sales: 0, purchases: 0});
+        const s = rows.reduce((a, r) => ({sales: a.sales + r.sales, purchases: a.purchases + r.purchases,
+            dividends: a.dividends + (r.dividends || 0)}), {sales: 0, purchases: 0, dividends: 0});
         $('ce-total').textContent = `Over these ${span} game days: sales after tax ${num(s.sales)}, spent on goods ${num(s.purchases)}, `
-            + `net ${num(s.sales - s.purchases)} credits (${num((s.sales - s.purchases) / span)} a day).`;
+            + `net ${num(s.sales - s.purchases)} credits (${num((s.sales - s.purchases) / span)} a day); dividends paid to other holders ${num(s.dividends)}.`;
     }
 
     async function load() {

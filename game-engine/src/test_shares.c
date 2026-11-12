@@ -60,6 +60,14 @@ int main(void)
           offer_check(300, 150, 5, 7, 1000, 0) == OFFER_OK);
     check("a minimum of 0 or past the maximum is refused", offer_check(300, 0, 5, 7, 1000, 0) == OFFER_BAD &&
           offer_check(300, 301, 5, 7, 1000, 0) == OFFER_BAD);
+    // #603: dividends from profit, losses carried forward
+    long long carry = 0;
+    check("a profitable day with no losses behind it pays it all", dividend_pool(0, 500, &carry) == 500 && carry == 0);
+    check("a loss pays nothing and is carried", dividend_pool(0, -300, &carry) == 0 && carry == -300);
+    check("a later profit makes it up first", dividend_pool(-300, 200, &carry) == 0 && carry == -100);
+    check("and pays only what is left", dividend_pool(-100, 250, &carry) == 150 && carry == 0);
+    check("breaking even exactly pays nothing", dividend_pool(-100, 100, &carry) == 0 && carry == 0);
+    check("a carry is never above 0", dividend_pool(50, 10, &carry) == 10 && carry == 0);
     // #599: others may hold at most half a company
     check("others holding half is within the cap", !shares_over_cap(500, 1000));
     check("others holding one share past half is over it", shares_over_cap(501, 1000));

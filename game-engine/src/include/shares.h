@@ -14,6 +14,17 @@
    a loss or for no shares. */
 long long dividend_for(long long net, long long units, long long total);
 
+/* Dividends from profit (#603): a company's profit for a game day first
+   makes up the losses carried forward (`carry`, 0 or below); what is left
+   above 0 is shared among its holders, and the carry is then 0. A day that
+   leaves the total at 0 or below pays nothing and carries it. Returns what
+   is shared out (0 or more) and sets `*carry_after`. */
+long long dividend_pool(long long carry, long long profit, long long* carry_after);
+
+/* The days a profit history is logged for, without paying, when a company is
+   first settled (#603): share prices need a profit history from the start */
+#define DIVIDEND_LOG_DAYS 7
+
 /* The share exchange (#469): shares trade the way goods do. The two
    sides of a standing order */
 #define SHARE_SELL 1
@@ -36,8 +47,8 @@ int share_trade_check(int side, long long units, long long price, long long limi
                       long long seller_held, long long buyer_held, long long buyer_credits);
 
 /* The House's asking price a share (#469): 30 game days of dividends at the
-   rate of the company's sales income after tax over the last game day, for
-   a company with `total` shares, at least 1 */
+   rate of the company's profit a day (#603; its sales after tax until then),
+   for a company with `total` shares, at least 1 */
 long long house_share_price(long long net_sales_last_day, long long total);
 
 /* Offerings of new shares (#485). Why one is refused (0: it goes through) */

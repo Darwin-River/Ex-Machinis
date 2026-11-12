@@ -2,7 +2,7 @@
 -- stock market #466): the miner starter that also sells part of its
 -- company. It equips itself with the Mining Kit (Engine, Worm and Refinery).
 -- Every company has 1,000 shares, each paying its holder 0.1% of the
--- company's sales income. This one keeps share_keep of its own and offers
+-- company's profit (#603). This one keeps share_keep of its own and offers
 -- the rest at the Earth exchange for share_days of their dividends, re-priced
 -- each game day from what it sold over the last week (with no sales, it
 -- withdraws the offer):
@@ -32,12 +32,12 @@ share_days = 30    -- asks this many days of a share's income (about what
 grow_listed = 6500 -- grows at this instead, once it has sold shares
 
 -- Its sell order for its own shares, at share_days of what a share earns
--- (0.1% of a day's sales after tax), averaged over the last 7 game days
+-- (its part of a day's profit, #603), averaged over the last 7 game days
 -- so a slow day doesn't give the company away. Once a game day, from its
 -- third day of income on, share_step more at a time. No sales, no price:
 -- price 0 withdraws the order
 share_day, shares_out = -1, 0
-incomes = {}       -- a day's sales after tax, the last 7 game days
+incomes = {}       -- a day's profit (sales after tax less purchases), the last 7 game days
 share_step = 50    -- offers at most this many more shares a day, so later
                    -- ones sell at the higher prices a growing income earns
 function list_shares()
@@ -49,7 +49,7 @@ function list_shares()
   end
   shares_out = 1000 - held
   local e = earnings(24)
-  table.insert(incomes, math.max(e.sales - e.taxes, 0))
+  table.insert(incomes, math.max(e.net, 0))   -- its profit: what dividends are paid from (#603)
   if #incomes > 7 then table.remove(incomes, 1) end
   if #incomes >= 3 then
     local total = 0

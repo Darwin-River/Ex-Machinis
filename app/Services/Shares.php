@@ -8,8 +8,9 @@ use InvalidArgumentException;
 /**
  * Shares (#467, step 1 of the stock market #466). Each company starts with
  * 1,000 shares, and more once it issues new ones (#485, companies.share_count);
- * a share pays its holder its part of the company's sales income after
- * sales tax (the events engine pays them at every sale). A company starts
+ * a share pays its holder its part of the company's profit, which the
+ * events engine settles once a game day (#603; until then, its sales after
+ * tax, paid at every sale). A company starts
  * holding all its own (migration 0038).
  */
 class Shares
@@ -202,6 +203,26 @@ class Shares
     }
 
     /**
+     * Companies' profit a day (#603), what dividends are paid from: the
+     * average of the game days settled in the last 7 (company_profits), 0 for
+     * a company with none yet: company => credits (negative for a loss)
+     */
+    public static function dayProfits(array $ids): array
+    {
+        if (!$ids) {
+            return [];
+        }
+        $since = MarketHistory::today() - 7;
+        $rows = DB::table('company_profits')->whereIn('company', $ids)->where('day', '>=', $since)->groupBy('company')
+            ->get(['company', DB::raw('FLOOR(SUM(profit) / COUNT(*)) AS profit')])->pluck('profit', 'company')->all();
+        $out = [];
+        foreach ($ids as $id) {
+            $out[$id] = (int) ($rows[$id] ?? 0);
+        }
+        return $out;
+    }
+
+    /**
      * Open offerings of new shares (#485), soonest deadline first, with what
      * is committed so far: one company's (its page) or every company's
      */
@@ -222,11 +243,13 @@ class Shares
             ->whereIn('m.company', $ids)->orderByDesc('m.units')->get(['m.company', 'm.investor', 'c.name', 'm.units'])
             ->groupBy('company');
         $sales = self::daySales($ids);
+        $profits = self::dayProfits($ids);
 
-        return $offers->map(function ($o) use ($commits, $sales, $now) {
+        return $offers->map(function ($o) use ($commits, $sales, $profits, $now) {
             $in = $commits[$o->company] ?? collect();
             $committed = (int) $in->sum('units');
-            $net = max(0, (int) ($sales[$o->company] ?? 0));
+            // Dividends come from profit (#603)
+            $net = max(0, (int) ($profits[$o->company] ?? 0));
             $after = (int) $o->share_count + (int) $o->units;
             return ['company' => (int) $o->company, 'name' => $o->name, 'count' => (int) $o->share_count,
                 // The fewest it issues at its deadline (#516); NULL: all of them
@@ -234,8 +257,9 @@ class Shares
                 'price' => (int) $o->price, 'raise' => (int) $o->units * (int) $o->price,
                 'committed' => $committed, 'left' => (int) $o->units - $committed,
                 'hours' => (int) max(0, ceil(($o->deadline_t - $now) / 3600)),
-                'sales' => $net, 'a_day_after' => round($net / $after, 2),
-                // What it sells (#572): the part of its future sales income the
+                'sales' => max(0, (int) ($sales[$o->company] ?? 0)), 'profit' => (int) ($profits[$o->company] ?? 0),
+                'a_day_after' => round($net / $after, 2),
+                // What it sells (#572): the part of its future profit the
                 // new shares take if it fills, and what they'd be paid a day now
                 'income_percent' => round(100 * (int) $o->units / $after, 1),
                 'dividends_a_day' => round($net * (int) $o->units / $after, 1),
@@ -263,6 +287,7 @@ class Shares
         $prices = self::lastPrices();
         $values = self::valuePrices();
         $sales = self::daySales($ids);
+        $profits = self::dayProfits($ids);
         $outside = $ids ? DB::table('shares')->whereIn('company', $ids)->whereColumn('holder', '<>', 'company')
             ->groupBy('company')->get(['company', DB::raw('SUM(units) AS units'), DB::raw('SUM(dividends) AS dividends')])
             ->keyBy('company')->all() : [];
@@ -278,10 +303,10 @@ class Shares
         $names = DB::table('companies')->whereIn('company_id', array_merge($ids, $orders->pluck('company')->all(),
             $trades->pluck('seller')->all(), $trades->pluck('buyer')->all()))->pluck('name', 'company_id')->all();
         $name = fn ($id) => $names[$id] ?? "Company $id";
-        // A share earns its part of the company's sales after tax (#485)
+        // A share earns its part of the company's profit (#603; sales after tax until then, #485)
         $counts = $ids ? DB::table('companies')->whereIn('company_id', $ids)->pluck('share_count', 'company_id')->all() : [];
         $count = fn ($id) => (int) ($counts[$id] ?? self::PER_COMPANY);
-        $aDay = fn ($id) => max(0, (int) ($sales[$id] ?? 0)) / $count($id);
+        $aDay = fn ($id) => max(0, (int) ($profits[$id] ?? 0)) / $count($id);
         $days = fn ($price, $id) => $aDay($id) > 0 ? (int) ceil($price / $aDay($id)) : null;
 
         $companies = [];
@@ -294,7 +319,8 @@ class Shares
             $price = $prices[$id] ?? null;
             $companies[] = ['company' => $id, 'name' => $name($id), 'price' => $price,
                 'value_price' => $values[$id] ?? null, 'count' => $count($id),
-                'sales' => max(0, (int) ($sales[$id] ?? 0)), 'a_day' => round($aDay($id), 2),
+                'sales' => max(0, (int) ($sales[$id] ?? 0)), 'profit' => (int) ($profits[$id] ?? 0),
+                'a_day' => round($aDay($id), 2),
                 'payback' => $price !== null ? $days($price, $id) : null,
                 'held_by_others' => (int) ($outside[$id]->units ?? 0),
                 'dividends_paid' => (int) ($outside[$id]->dividends ?? 0), 'health' => $health[$id] ?? null];

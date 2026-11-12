@@ -35,7 +35,7 @@ raise_after = 7    -- game days of income it waits for before raising
 raise_horizon = 30 -- days of a share's income (after the raise) its price is
 grow_raised = 6500 -- the credits it raises up to, for a copy
 
--- A day's sales after tax, the last 7 game days, once a game day
+-- A day's profit (sales after tax less purchases, #603), the last 7 game days, once a game day
 raise_day, incomes = -1, {}
 function a_week()
   local total = 0
@@ -54,7 +54,7 @@ function raise()
   if today() == raise_day then return end
   raise_day = today()
   local e = earnings(24)
-  table.insert(incomes, math.max(e.sales - e.taxes, 0))
+  table.insert(incomes, math.max(e.net, 0))   -- its profit: what dividends are paid from (#603)
   if #incomes > 7 then table.remove(incomes, 1) end
   if not founder or #incomes < raise_after or units(cruiser_kit) > 0 then return end
   -- A small raise finds backers sooner (#488): it raises at most raise_cap

@@ -45,10 +45,14 @@ class CompanyChartsTest extends TestCase
         ]);
         $rows = $this->getJson('/api/v1/companies/' . $seller->company_id . '/earnings?days=3')->assertOk()->json();
         $this->assertCount(3, $rows, 'every day listed, trades or not');
-        $this->assertSame(['day' => $today - 2, 'sales' => 0, 'tax' => 0, 'purchases' => 0, 'net' => 0, 'trades' => 0], $rows[0]);
-        $this->assertSame(['day' => $today - 1, 'sales' => 95, 'tax' => 5, 'purchases' => 30, 'net' => 65, 'trades' => 2], $rows[1]);
+        $this->assertSame(['day' => $today - 2, 'sales' => 0, 'tax' => 0, 'purchases' => 0, 'net' => 0, 'trades' => 0, 'dividends' => 0], $rows[0]);
+        $this->assertSame(['day' => $today - 1, 'sales' => 95, 'tax' => 5, 'purchases' => 30, 'net' => 65, 'trades' => 2, 'dividends' => 0], $rows[1]);
         $this->assertSame([19, 1, 0, 19], [$rows[2]['sales'], $rows[2]['tax'], $rows[2]['purchases'], $rows[2]['net']]);
         $this->getJson('/api/v1/companies/999999/earnings')->assertNotFound();
+        // #603: what it paid other holders from yesterday's profit
+        DB::table('company_profits')->insert(['company' => $seller->company_id, 'day' => $today - 1, 'sales' => 95,
+            'purchases' => 30, 'profit' => 65, 'paid' => 19, 'holders' => 1]);
+        $this->assertSame(19, $this->getJson('/api/v1/companies/' . $seller->company_id . '/earnings?days=3')->json('1.dividends'));
 
         // The page charts it
         $this->get('/companies/' . $seller->company_id)->assertOk()->assertSee('id="earnings"', false)

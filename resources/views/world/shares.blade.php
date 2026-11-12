@@ -7,7 +7,8 @@
         <div class="container" id="container">
             <div style="white-space: normal; margin-bottom: 1em">
                 Every company starts with 1,000 shares, and more once it issues new ones to raise credits; each share pays
-                its holder its part of the company's sales income after tax.
+                its holder its part of the company's profit, paid once a game day: its sales after tax less what it paid
+                for goods and equipment, after making up any losses (#603).
                 Shares trade at the Earth exchange: a drone buys by pulling from a sell order and sells by pushing into
                 a buy order, wherever it is. See <a href="{{ url('players-manual') }}#shares-and-the-stock-exchange">Shares
                 and the stock exchange</a> in the players' manual. Everything here is live.
@@ -17,8 +18,8 @@
             <div style="white-space: normal; margin-bottom: 1em">Companies raising credits by issuing new shares. Investors
                 commit and pay now. Once every share is committed the shares are issued and the company paid. At the
                 deadline, if at least the offering's minimum is committed, those shares are issued; if not, everyone is
-                refunded. <i>A share a day</i> is the company's sales after tax a day (7-day average) divided by the
-                shares it will have if the offering fills. <i>Income sold</i> is the part of the company's future sales income the
+                refunded. <i>A share a day</i> is the company's profit a day (7-day average) divided by the
+                shares it will have if the offering fills. <i>Income sold</i> is the part of the company's future profit the
                 new shares take if it fills (#572).</div>
             <div class="table-custom-responsive">
                 <table class="table-ticket" id="share-offerings">
@@ -40,7 +41,7 @@
 
             <h3 class="mt-4">Companies</h3>
             <div style="white-space: normal; margin-bottom: 1em">Companies whose shares have traded, are on offer, or are
-                held by others, busiest first. <i>Sales a day</i> is sales after tax averaged over the last 7 game days (sales come in lumps); <i>A share a day</i> is that divided by its shares;
+                held by others, busiest first. <i>Sales a day</i> is sales after tax and <i>Profit a day</i> is sales after tax less what it paid for goods and equipment, each averaged over the last 7 game days (they come in lumps); dividends are paid from profit, so <i>A share a day</i> is profit divided by its shares;
                 <i>Pays back</i> is how many days of that the last price comes to. <i>Value</i> is what a share counts for in net
                 wealth: the average price of its trades over the last 3 game days, weighted by shares, or the last price if
                 none traded then, so one odd trade doesn't move every holder's wealth. <i>Health</i> is whether it can keep its
@@ -50,7 +51,7 @@
                 made anything for a game day.</div>
             <div class="table-custom-responsive">
                 <table class="table-ticket" id="share-companies">
-                    <tr><th>Company</th><th>Shares</th><th>Last price</th><th>Value</th><th>Sales a day</th><th>A share a day</th><th>Pays back</th>
+                    <tr><th>Company</th><th>Shares</th><th>Last price</th><th>Value</th><th>Sales a day</th><th>Profit a day</th><th>A share a day</th><th>Pays back</th>
                         <th>Held by others</th><th>Dividends paid</th><th>Health</th></tr>
                     @forelse($exchange['companies'] as $c)
                         <tr>
@@ -59,6 +60,7 @@
                             <td>{{ $c['price'] !== null ? number_format($c['price']) : 'never traded' }}</td>
                             <td>{{ $c['value_price'] !== null ? number_format($c['value_price']) : '–' }}</td>
                             <td>{{ number_format($c['sales']) }}</td>
+                            <td>{{ number_format($c['profit']) }}</td>
                             <td>{{ $c['a_day'] }}</td>
                             <td>{{ $c['payback'] !== null ? $c['payback'] . ' days' : '–' }}</td>
                             <td>{{ number_format($c['held_by_others']) }}</td>
@@ -79,7 +81,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="10">No company has traded or offered shares yet.</td></tr>
+                        <tr><td colspan="11">No company has traded or offered shares yet.</td></tr>
                     @endforelse
                 </table>
             </div>

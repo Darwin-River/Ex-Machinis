@@ -223,6 +223,13 @@ class SharesTest extends TestCase
         $this->assertContains('History Co', $names);
     }
 
+    /** A settled game day of profit (#603): what a share earns from now on */
+    private function profitDay(int $company, int $profit): void
+    {
+        DB::table('company_profits')->insert(['company' => $company, 'day' => \App\Services\MarketHistory::today() - 1,
+            'sales' => max(0, $profit), 'purchases' => max(0, -$profit), 'profit' => $profit]);
+    }
+
     public function testTheStockExchangePageShowsEveryCompanysShares()
     {
         $user = User::create(['name' => 'Investor', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
@@ -230,9 +237,11 @@ class SharesTest extends TestCase
         $investor = Release::release($user, 'Investor Co', 'function launched() end');
         $this->dayOld($issuer->company_id);
         $this->trade($issuer->company_id, $issuer->company_id, $investor->company_id, 40, 15);
-        // The issuer sold 3,000 credits' worth today (300 tax): a share earns 2.7 a day
+        // The issuer sold 3,000 credits' worth today (300 tax), and made 2,700 profit yesterday:
+        // a share earns 2.7 a day (#603: dividends come from profit)
         DB::table('trades')->insert(['resource' => 2011, 'units' => 10, 'credits' => 3000, 'tax' => 300,
             'seller' => $issuer->agent_id, 'buyer' => $investor->agent_id, 'game_t' => \App\Services\World::gameNow() - 60]);
+        $this->profitDay((int) $issuer->company_id, 2700);
         // It offers 260 more (keeps 700); the investor wants 100 in all
         DB::table('share_orders')->insert(['company' => $issuer->company_id, 'share_company' => $issuer->company_id,
             'side' => 1, 'price' => 81, 'limit_units' => 700, 'placed_t' => 0]);
@@ -265,6 +274,7 @@ class SharesTest extends TestCase
         $this->trade($issuer->company_id, $issuer->company_id, $investor->company_id, 40, 15);
         DB::table('trades')->insert(['resource' => 2011, 'units' => 10, 'credits' => 3000, 'tax' => 300,
             'seller' => $issuer->agent_id, 'buyer' => $investor->agent_id, 'game_t' => \App\Services\World::gameNow() - 60]);
+        $this->profitDay((int) $issuer->company_id, 2700);
         $row = collect(Shares::exchange()['companies'])->firstWhere('company', $issuer->company_id);
         $this->assertSame([2000, 1.35, 12], [$row['count'], $row['a_day'], $row['payback']]);
         $this->assertSame(2000, Shares::summary($issuer->company_id)['count']);
@@ -294,6 +304,7 @@ class SharesTest extends TestCase
             'units' => 120, 'credits' => 1200, 'placed_t' => 0]);
         DB::table('trades')->insert(['resource' => 2011, 'units' => 10, 'credits' => 3300, 'tax' => 300,
             'seller' => $issuer->agent_id, 'buyer' => $investor->agent_id, 'game_t' => \App\Services\World::gameNow() - 60]);
+        $this->profitDay((int) $issuer->company_id, 3000);
 
         $o = collect(Shares::exchange()['offerings'])->firstWhere('company', $issuer->company_id);
         $this->assertSame([5000, 120, 380, 5, 2.0], [$o['raise'], $o['committed'], $o['left'], $o['hours'], $o['a_day_after']]);
