@@ -45,9 +45,7 @@ class WorldController extends Controller
             ->where('t.game_t', '>=', World::gameNow() - 365 * 86400)->groupBy('t.resource', 'r.name')
             ->orderByRaw('SUM(t.credits) DESC')->get(['t.resource AS id', 'r.name']);
         // Each place keeps one colour: the places trades happen at, in ID order
-        $places = DB::table('trades')->whereNotNull('location')->distinct()->orderBy('location')->pluck('location')->map(fn ($id) => (int) $id);
-        $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
-        $today = intdiv(max(0, World::gameNow() - $epoch), 86400);
+        ['places' => $places, 'today' => $today] = \App\Services\MarketHistory::frame();
         return view('world.history', compact('resources', 'places', 'today'));
     }
 

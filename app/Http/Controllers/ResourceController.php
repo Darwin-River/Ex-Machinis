@@ -30,8 +30,11 @@ class ResourceController extends Controller
     public function view($id)
     {
         $resource = Resource::findOrFail($id);
+        // Its recent price and volume (#597): the Market history chart, for this resource
+        $traded = DB::table('trades')->where('resource', $resource->id)->exists();
+        ['places' => $places, 'today' => $today] = \App\Services\MarketHistory::frame();
 
-        return view('resources.view', compact('resource'));
+        return view('resources.view', compact('resource', 'traded', 'places', 'today'));
     }
 
     /**
