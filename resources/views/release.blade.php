@@ -8,8 +8,8 @@
             @include('_flash_message')
 
             <p>Write your drone's program and release it: anyone can, no account needed. Each release starts a new
-                company with one drone in orbit around Earth, the kit you choose and
-                {{ number_format(config('forge.starting_credits')) }} credits. The drone loads your script, then runs
+                company with one drone in orbit around Earth, 100 fuel and
+                {{ number_format(config('forge.starting_credits')) }} credits; its script buys its equipment. The drone loads your script, then runs
                 your <code>launched</code> function on its own. You go to its page, where everything it does and says is
                 public: keep the link to follow it.</p>
             <p>Write it in Lua and define <code>function launched() ... end</code>. If <code>launched</code> crashes, the drone
@@ -17,9 +17,10 @@
                 it a wreck.</p>
             <p><b>Break, learn, repeat.</b> Release early, release often: there is no test world, every release
                 is real, and it costs nothing. Release a first version, watch it on its page, and when you see what goes wrong, release a
-                better one as a new company. A drone can't be changed once released, and a failed company costs you
-                nothing but the lesson. Game time runs fast (a game day in about a minute), so you see how a drone
-                does in minutes.</p>
+                better one as a new company. Release with a push password and you can also send a running company new
+                code later, for a fee. A failed company costs you nothing but the lesson. Game time runs fast: a game
+                day passes in {{ \App\Services\LaunchQueue::dayPace($clock) }} right now (it slows when the server is
+                busy), so you see how a drone does while you watch.</p>
 
             @if($clock && $clock['full'])
                 <div class="alert alert-warning mt-3" style="white-space: normal">
@@ -74,7 +75,7 @@
                     one at a time, or none at all. Each starter equips itself.</small></p>
                 <div class="form-group">
                     <label for="script">Script (Lua)</label>
-                    <textarea class="form-control" id="script" name="script" rows="16" spellcheck="false"
+                    <textarea v-pre class="form-control" id="script" name="script" rows="16" spellcheck="false"
                               style="font-family: monospace"
                               maxlength="{{ config('forge.max_script_length') }}" required>{{ old('script', $starter ?? "function launched()\n  print(\"Hello from orbit\")\nend") }}</textarea>
                 </div>

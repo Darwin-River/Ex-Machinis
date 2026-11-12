@@ -122,7 +122,11 @@ class LeaderboardTest extends TestCase
         $this->get('/leaderboard?max_age=10')->assertOk()->assertSee('Young Co')->assertDontSee('Old Rich Co');
         $this->getJson('/api/v1/leaderboard?max_age=10&limit=500')->assertOk()
             ->assertJsonFragment(['company' => 'Young Co'])->assertJsonMissing(['company' => 'Old Rich Co']);
-        $this->get('/companies/' . $young->company_id)->assertOk()->assertSee('game days old', false);
+        // The company page's stat row (#591): net wealth, and its rank among its age
+        $this->get('/companies/' . $young->company_id)->assertOk()->assertSee('Net wealth')
+            ->assertSee('Rank, its age or younger')->assertSee(' of ' . $rank['of'], false);
+        // Leaderboard names link to their companies (#591)
+        $this->get('/leaderboard?max_age=10')->assertSee('href="' . url('/companies/' . $young->company_id) . '"', false);
         $this->getJson('/api/v1/companies/' . $young->company_id)->assertOk()->assertJsonPath('peer_rank.rank', $rank['rank']);
     }
 }

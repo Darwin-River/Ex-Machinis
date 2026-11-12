@@ -218,4 +218,16 @@ class HouseMarketTest extends TestCase
         $this->assertSame('<launched>', end($codes));
         $this->assertSame([], HouseStations::ensure(), 'once is enough');
     }
+
+    /** #591: the Market page has jump links and filters its order book by resource */
+    public function testTheMarketPageFiltersTheOrderBook()
+    {
+        HouseStations::ensure();
+        HouseMarket::refresh();
+        $this->get('/market')->assertOk()->assertSee('href="#house-demand"', false)->assertSee('Still buying today');
+        $html = $this->get('/market?resource=4311')->assertOk()->getContent();
+        $this->assertStringContainsString('Pumps (A1)', $html);
+        $book = substr($html, strpos($html, 'id="order-book"'), strpos($html, 'id="house-demand"') - strpos($html, 'id="order-book"'));
+        $this->assertStringNotContainsString('<td class="resource">Metals (A1)</td>', $book, 'only pumps in the book');
+    }
 }

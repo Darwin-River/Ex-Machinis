@@ -11,8 +11,8 @@ use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * The Drone page (#324 step 16): live state, code and where it comes from,
- * "Copy this code" and "Copy this word", and post-mortems for wrecks.
+ * The Drone page (#324 step 16): live state and post-mortems for wrecks; its
+ * code, where it comes from and "Copy this code" are on its company's page (#594).
  */
 class DronePageTest extends TestCase
 {
@@ -41,10 +41,53 @@ class DronePageTest extends TestCase
     public function testDronePageShowsItsCodeAndState()
     {
         $agent = Release::release($this->player('a@example.com'), 'Diggers', self::SCRIPT);
+        // #594: the code is the company's, shown on its page; the drone page links there
         $this->get('/spacecraft/' . $agent->agent_id)->assertOk()
-            ->assertSee('Copy this code')->assertSee('function dig(n) -- n units', false)
-            ->assertSee('release?copy=' . $agent->agent_id . '&amp;word=dig', false)
+            ->assertSee('companies/' . $agent->company_id . '#code', false)->assertDontSee('function dig(n) -- n units', false)
             ->assertSee('Diggers')->assertSee('Generation');
+        $this->get('/companies/' . $agent->company_id)->assertOk()
+            ->assertSee('id="code"', false)->assertSee('Copy this code')->assertSee('function dig(n) -- n units', false)
+            ->assertSee('release?copy=' . $agent->agent_id . '&amp;word=dig', false);
+    }
+
+    /** #591: status and cargo before the code, which is collapsed; the company is a link */
+    public function testDronePageShowsStatusAndCargoBeforeItsCode()
+    {
+        $agent = \App\Services\Release::release(\App\User::create(['name' => 'Order', 'email' => uniqid() . '@example.com',
+            'password' => bcrypt('secret-password')]), 'Ordered Co', "function launched()\n  print('hi')\nend");
+        $html = $this->get('/spacecraft/' . $agent->agent_id)->assertOk()
+            ->assertSee('href="' . url('companies/' . $agent->company_id) . '"', false)
+            ->getContent();
+        $this->assertLessThan(strpos($html, 'id="code"'), strpos($html, 'id="cargo"'), 'cargo comes before the code');
+        $this->assertLessThan(strpos($html, 'id="cargo"'), strpos($html, '<b>Status</b>'), 'status comes first');
+    }
+
+    public function testCodeWithNestedTablesDoesNotBlankThePage()
+    {
+        // #592: Lua's {{2031, 1}} reads as a Vue mustache unless the block is v-pre
+        $script = "local r = {{2031, 1}}\nfunction launched()\n  print(r[1][1])\nend";
+        $agent = \App\Services\Release::release(\App\User::create(['name' => 'Nest', 'email' => uniqid() . '@example.com',
+            'password' => bcrypt('secret-password')]), 'Nested Co', $script);
+        $this->get('/companies/' . $agent->company_id)->assertOk()->assertSee('<pre id="company-code" v-pre', false);
+        $this->actingAs(\App\User::find($agent->user_id) ?? \App\User::first())
+            ->get('/release?copy=' . $agent->agent_id)->assertOk()->assertSee('<textarea v-pre', false);
+    }
+
+    /** #594: the company page shows each push's code; copying a revision copies that code */
+    public function testTheCompanyPageShowsItsCodeRevisions()
+    {
+        $agent = Release::release($this->player('a@example.com'), 'Revisers', self::SCRIPT);
+        $pushed = "function launched()\n  print('second try')\nend\n";
+        DB::table('code_pushes')->insert(['company_id' => $agent->company_id, 'number' => 1,
+            'game_t' => \App\Services\World::gameNow(), 'credits_before' => 0, 'permille' => 50, 'fee' => 0,
+            'drones' => 1, 'script' => $pushed]);
+        $this->get('/companies/' . $agent->company_id)->assertOk()
+            ->assertSee('It is push 1', false)->assertSee("print('second try')")
+            ->assertSee('id="code-revisions"', false)->assertSee('Release')->assertSee('function dig(n) -- n units', false)
+            ->assertSee('release?copy=' . $agent->agent_id . '&amp;push=1', false);
+        $this->get('/spacecraft/' . $agent->agent_id)->assertSee('newest revision is push 1');
+        $this->get('/release?copy=' . $agent->agent_id . '&push=1')->assertOk()->assertSee("print('second try')");
+        $this->get('/release?copy=' . $agent->agent_id)->assertOk()->assertSee('  dig(5)', false);
     }
 
     public function testCopyThisCodeRecordsWhereItCameFrom()
@@ -60,7 +103,7 @@ class DronePageTest extends TestCase
             'copied_from' => $original->agent_id]);
         $copy = DB::table('releases')->orderBy('id', 'desc')->first();
         $this->assertSame($original->agent_id, (int) $copy->copied_from);
-        $this->get('/spacecraft/' . $copy->agent_id)->assertSee('Copied from');
+        $this->get('/companies/' . $copy->company_id)->assertSee('was copied from');
     }
 
     public function testPastedCodeAndWordsAreTracedToTheirFirstRelease()
@@ -71,18 +114,18 @@ class DronePageTest extends TestCase
         $pasted = Release::release($this->player('b@example.com'), 'Pasters', "function dig(n)\nend\nfunction launched() dig(5)\nend");
         $mixed = Release::release($this->player('c@example.com'), 'Mixers', "function dig(n) -- a\nend\nfunction launched()\n  dig(7)\nend");
 
-        $this->get('/spacecraft/' . $pasted->agent_id)->assertSee('The same code as');
-        $this->get('/spacecraft/' . $mixed->agent_id)->assertSee('first in <a href="' . url('spacecraft/' . $original->agent_id), false);
+        $this->get('/companies/' . $pasted->company_id)->assertSee('had the same code as');
+        $this->get('/companies/' . $mixed->company_id)->assertSee('first in <a href="' . url('spacecraft/' . $original->agent_id), false);
         $this->assertNull(Provenance::wordOrigins(Provenance::releaseOf($mixed->agent_id))['launched']);
     }
 
-    public function testACloneShowsTheCodeItInherited()
+    public function testACloneLinksToItsCompanysCode()
     {
         $parent = Release::release($this->player('a@example.com'), 'Diggers', self::SCRIPT);
         $cloneId = DB::table('agents')->insertGetId(['user_id' => $parent->user_id, 'company_id' => $parent->company_id,
             'name' => 'SN-CLONE-1', 'object_id' => 3, 'hull_type' => 1,
             'parent_id' => $parent->agent_id, 'code_from' => $parent->agent_id, 'generation' => 1]);
-        $this->get('/spacecraft/' . $cloneId)->assertOk()->assertSee('Inherited from')->assertSee('function dig(n) -- n units', false);
+        $this->get('/spacecraft/' . $cloneId)->assertOk()->assertSee('companies/' . $parent->company_id . '#code', false);
         $this->get('/spacecraft/' . $parent->agent_id)->assertSee('SN-CLONE-1');
     }
 

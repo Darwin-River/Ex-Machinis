@@ -70,13 +70,22 @@ class UserController extends Controller
         $shares['compute'] = \App\Services\ProcessorTax::of((int) $company->company_id);
         $shares['health'] = \App\Services\CompanyHealth::of((int) $company->company_id)
             + ['drones' => \App\Services\CompanyHealth::drones((int) $company->company_id)];
-        // Its leaderboard place among companies its age or younger (#548)
-        $rank = \App\Services\Leaderboard::peerRank((int) $company->company_id);
+        // Its leaderboard place among companies its age or younger (#548),
+        // and its net wealth, the game's score, at the top of the page (#591)
+        $board = \App\Services\Leaderboard::wealth();
+        $rank = \App\Services\Leaderboard::peerRank((int) $company->company_id, $board);
+        $stats = ['wealth' => $board[$company->company_id]['wealth'] ?? null,
+            'age' => \App\Services\Leaderboard::age(\Illuminate\Support\Facades\DB::table('companies')
+                ->where('company_id', $company->company_id)->value('founded_t'), \App\Services\World::gameNow()),
+            'working' => $spacecraft->whereNull('wrecked_at')->count(), 'drones' => $spacecraft->count()];
         // Code pushes (#553)
         $pushes = \App\Services\CodePush::summary(\Illuminate\Support\Facades\DB::table('companies')
             ->where('company_id', $company->company_id)->first());
 
-        return view('user.company', compact('user', 'spacecraft', 'shares', 'rank', 'pushes'));
+        // Its code and revisions (#594): the drones' pages link here
+        $code = \App\Services\CompanyCode::of((int) $company->company_id);
+
+        return view('user.company', compact('user', 'spacecraft', 'shares', 'rank', 'pushes', 'stats', 'code'));
     }
 
     /** Pushes new code to a company's working drones, with its password (#553) */

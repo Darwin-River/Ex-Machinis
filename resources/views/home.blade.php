@@ -57,7 +57,8 @@
                         <li><b>Write a script.</b> Start from a starter script or the <a href="{{ url('getting-started') }}">manual</a>. No account needed.</li>
                         <li><b>Release it.</b> It becomes a new company with one drone in orbit around Earth.</li>
                         <li><b>Watch it.</b> Its page shows where it goes, what it does, and what goes wrong.</li>
-                        <li><b>Release a better one.</b> A game day passes in under a minute, so ten versions make a good evening.</li>
+                        <li><b>Release a better one, or push the fix to the one you have.</b> A game day passes in
+                            {{ \App\Services\LaunchQueue::dayPace($clock) }} right now, so you see each version at work quickly.</li>
                     </ol>
                     <p><a href="{{ url('blog') }}">Read the strategy blog</a> for drones that worked.</p>
                 </div>

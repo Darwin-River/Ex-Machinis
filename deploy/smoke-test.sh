@@ -125,6 +125,10 @@ no_tax() { sql "update house_rules set sales_tax_permille = 0"; }
 no_tax
 # The image must carry the players' manual (Getting Started renders it)
 wait_for 60 "Getting Started shows the players' manual" sh -c "curl -fsS http://localhost/getting-started | grep -q 'chapter-4-issuing-commands'"
+# The blog's posts ship in the image (#589: .dockerignore once left them out,
+# and the live blog and its feed were empty)
+wait_for 30 "the Blog page lists its posts" sh -c "curl -fsS http://localhost/blog | grep -q 'blog/1-state-machines'"
+wait_for 30 "the blog's RSS feed has posts" sh -c "curl -fsS http://localhost/blog/feed | grep -q '<item>'"
 wait_for 120 "the scheduler's tick succeeds" sh -c "docker compose logs app | grep -q 'GET /tick/[^ ]* HTTP/1.1\" 200'"
 wait_for 60 "the Release page answers" sh -c "curl -fsS http://localhost/release | grep -q 'no account needed'"
 for page in register login web-register; do
@@ -687,12 +691,15 @@ wait_for 60 "drone finished its launched function" finished $DRONE_ID
 wait_for 60 "the seller saw its order at Earth and its wait ended" replied $FORGE_DRONE "sell-and-wait 0 $FORGE_DRONE 0"
 wait_for 30 "the seller's launched function has finished" replied $FORGE_DRONE "has finished"
 
-# The Drone page (#324 step 16): a released drone shows its code and a Copy
-# button; a wreck has a post-mortem in plain words
-FORGE_PAGE=$(fetch "http://localhost/spacecraft/$FORGE_DRONE")
-grep -qF "forge-release-" <<<"$FORGE_PAGE" || fail "the drone page doesn't show the released code"
-grep -qF "release?copy=$FORGE_DRONE" <<<"$FORGE_PAGE" || fail "the drone page has no Copy this code link"
-echo "ok: the drone page shows its code, with a Copy this code link"
+# A released drone's code is on its company's page (#594), with a Copy
+# button, and the drone page links there; a wreck has a post-mortem in plain words
+FORGE_CO=$(sql "select company_id from agents where agent_id=$FORGE_DRONE")
+grep -qF "companies/$FORGE_CO#code" <<<"$(fetch "http://localhost/spacecraft/$FORGE_DRONE")" ||
+    fail "the drone page doesn't link to its company's code"
+FORGE_PAGE=$(fetch "http://localhost/companies/$FORGE_CO")
+grep -qF "forge-release-" <<<"$FORGE_PAGE" || fail "the company page doesn't show the released code"
+grep -qF "release?copy=$FORGE_DRONE" <<<"$FORGE_PAGE" || fail "the company page has no Copy this code link"
+echo "ok: the company page shows its code, with a Copy this code link, and the drone page links there"
 grep -qF "Its launched function crashed" <<<"$(fetch "http://localhost/spacecraft/$DRY")" || fail "no post-mortem for the drone that crashed"
 echo "ok: wrecks have post-mortems"
 

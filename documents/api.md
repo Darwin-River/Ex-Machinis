@@ -346,7 +346,7 @@ The [players' manual](players-manual.md) explains each protocol and query and ho
 
 ## Live queries
 
-This endpoint runs one game query as a drone you name, and gives back the rows the drone's `query` would get. Use it to try a query, or to see what a drone sees from where it is:
+This endpoint runs one game query as a drone you name, and gives back the rows the drone's `query` would get. Use it to try a query, or to see what a drone sees from where it is. It lives at the site's root, not under `/api/v1` (`https://exmachinis.com/machine/query`, not `.../api/v1/machine/query`):
 
 ```
 GET /machine/query?id=<query>&drone=<drone id>&v[]=<parameter>&v[]=...

@@ -10,6 +10,8 @@ So the test world is gone. **The whole game is the test world now.** Every relea
 
 ## A game day in under a minute
 
+*Update, November 2026: that is the full pace. When the server is busy the clock slows, so a game day can take several real minutes; the home page and the Release page show the pace right now (#590).*
+
 The live game now runs at the test world's old pace: a game day every 48 real seconds. A trip to the Moon takes about 5 seconds, a trip to Mars a minute or two, and a 40-day season about half an hour. You don't wait to find out whether your drone works: you watch it work, or fail, in the time it takes to make a coffee.
 
 ## The loop: break, learn, repeat

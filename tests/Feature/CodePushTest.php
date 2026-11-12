@@ -70,7 +70,7 @@ class CodePushTest extends TestCase
             ->assertJsonPath('fee', 950)->assertJsonPath('fee_percent', 10);
         $this->getJson("/api/v1/companies/$id")->assertJsonPath('pushes.count', 2)
             ->assertJsonPath('pushes.next_fee_percent', 15)->assertJsonPath('pushes.log.0.fee', 950);
-        $this->get("/companies/$id")->assertOk()->assertSee('Code pushes')->assertSee('Pushed 2 times');
+        $this->get("/companies/$id")->assertOk()->assertSee('Push new code')->assertSee('id="code-revisions"', false)->assertSee('Pushed 2 times');
     }
 
     public function testNoCreditsNoFeeAndTheCapHolds()
@@ -140,5 +140,15 @@ class CodePushTest extends TestCase
         $this->assertSame(['drone' => $drone, 'side' => 'sell', 'price' => 4, 'keep' => 5],
             array_intersect_key($push['orders'][0], array_flip(['drone', 'side', 'price', 'keep'])));
         $this->assertStringContainsString('cancel_orders()', $push['orders_note']);
+    }
+
+    /** #590: the Release page states the pace now, not "about a minute"; it offers no kit choice */
+    public function testTheReleasePageStatesThePaceNow()
+    {
+        DB::table('game_clock')->where('id', 1)->update(['scale' => 72]);
+        $this->assertSame('about 20 real minutes', \App\Services\LaunchQueue::dayPace(['scale' => 72]));
+        $this->assertSame('about 48 real seconds', \App\Services\LaunchQueue::dayPace(['scale' => 1800]));
+        $this->assertSame('about 7 real minutes', \App\Services\LaunchQueue::realWait(420 * 60, ['scale' => 60]));
+        $this->get('/release')->assertOk()->assertDontSee('the kit you choose')->assertDontSee('a game day in about a minute');
     }
 }
