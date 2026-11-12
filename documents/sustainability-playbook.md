@@ -114,7 +114,7 @@ Keep this table current. "Owner" is an account or organisation, not a person's p
 | Server | Hetzner project, running [exmachinis.com](https://exmachinis.com) ([hosting.md](hosting.md)) | David Rozak | |
 | Domain | `exmachinis.com`, at its registrar | David Rozak | |
 | Deploy key | The repository's `DEPLOY_SSH_KEY` secret; the server locks it to `deploy/auto-deploy.sh` ([AD-03](../Procedures/SOPs/AD-03%20Deploying%20to%20the%20live%20server.md)) | David Rozak | GitHub Actions, to deploy only. Revoke per AD-03 §5.6 |
-| Ko-fi | ko-fi.com/ (not set up yet) | | |
+| Ko-fi | [ko-fi.com/exmachinis](https://ko-fi.com/exmachinis) | David Rozak | |
 | Bluesky, Mastodon | | | |
 | AI subscription | | | |
 | Shared passwords | A password manager's shared vault (Bitwarden's free organisation plan holds two people) | | |

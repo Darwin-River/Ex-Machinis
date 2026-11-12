@@ -3,9 +3,9 @@
 // The "Keep the lights on" page, /support (#522). Update once a month:
 // see documents/sustainability-playbook.md, "The monthly hour".
 return [
-    // The Ko-fi page's name, as in https://ko-fi.com/<name>. Blank until the
-    // account exists: the page then says Ko-fi is coming soon.
-    'kofi' => env('KOFI_NAME', ''),
+    // The Ko-fi page's name, as in https://ko-fi.com/<name> (#584). Blank
+    // makes the page say Ko-fi is coming soon.
+    'kofi' => env('KOFI_NAME', 'exmachinis'),
 
     // What the game costs to run each month, in US dollars
     'costs' => [
