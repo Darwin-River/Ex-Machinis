@@ -220,6 +220,20 @@
                     <p>{{ number_format($shares['count']) }} shares, each paying its part of the company's profit once a game day
                         (its sales after tax less what it paid for goods and equipment, after making up earlier losses: see Earnings).
                         Last trade price: <b>{{ $shares['price'] !== null ? number_format($shares['price']) . ' credits' : 'never traded' }}</b>.</p>
+                    {{-- What a share earns, judged over 30 days, and the losses before dividends resume (#607) --}}
+                    <p id="share-earnings">Profit a day: <b>{{ number_format($shares['profit30']) }}</b> over the last
+                        {{ \App\Services\Shares::PROFIT_DAYS }} game days ({{ number_format($shares['profit']) }} over the last 7).
+                        @if($shares['carried_loss'] > 0)
+                            <b>No dividends until it makes {{ number_format($shares['carried_loss']) }} more profit</b>{{ $shares['carry_days'] !== null
+                                ? ', about ' . $shares['carry_days'] . ' ' . \Illuminate\Support\Str::plural('day', $shares['carry_days']) . ' at that rate' : '' }}:
+                            earlier losses are made up first.
+                        @else
+                            It has no losses to make up: each profitable day pays dividends.
+                        @endif
+                        @if($shares['payback'] !== null)
+                            At the last price a share pays itself back in about {{ $shares['payback'] }} game days.
+                        @endif
+                    </p>
                     {{-- How much of it others hold (#599): offerings and its own sales stop at half --}}
                     <p id="outside-share" @class(['health-banner' => $shares['outside_share'] >= \App\Services\Shares::WARN_OUTSIDE])>
                         Held by other companies: <b>{{ round($shares['outside_share'] * 100) }}%</b>

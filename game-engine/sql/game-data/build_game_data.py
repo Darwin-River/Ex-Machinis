@@ -1421,6 +1421,16 @@ DAY_SALES = ("FLOOR(IFNULL((SELECT SUM(t.credits - t.tax) FROM agents AS a JOIN 
 # of the game days settled in the last 7 (company_profits), 0 before any
 DAY_PROFIT = ("IFNULL((SELECT FLOOR(SUM(p.profit) / COUNT(*)) FROM company_profits AS p WHERE p.company = {c} "
               "AND p.day >= FLOOR(([game_now] - (SELECT g.epoch FROM game_clock AS g WHERE g.id = 1)) / 86400) - 7), 0)")
+# The same over 30 game days (#607): the figure shares are judged by, since
+# a company that buys a hull or a load makes its profit in lumps (round 63:
+# one company's 7-day profit swung from 648 to -54). And the losses it must
+# still make up before dividends resume (companies.dividend_carry, positive)
+PROFIT30 = ("IFNULL((SELECT FLOOR(SUM(p.profit) / COUNT(*)) FROM company_profits AS p WHERE p.company = {c} "
+            "AND p.day >= FLOOR(([game_now] - (SELECT g.epoch FROM game_clock AS g WHERE g.id = 1)) / 86400) - 30), 0)")
+CARRIED = "IFNULL((SELECT GREATEST(0, -k.dividend_carry) FROM companies AS k WHERE k.company_id = {c}), 0)"
+LONG_PROFIT = "{p} AS d_profit30, {k} AS d_carried"
+def long_profit(c):
+    return LONG_PROFIT.format(p=PROFIT30.format(c=c), k=CARRIED.format(c=c))
 # Every company's shares on offer (#473): the sell orders that can sell
 # now, cheapest first, with the company's sales income after tax over the
 # last game day (what its dividends come from: 0.1% a share). Rows: company,
@@ -1428,10 +1438,12 @@ DAY_PROFIT = ("IFNULL((SELECT FLOOR(SUM(p.profit) / COUNT(*)) FROM company_profi
 queries.append((696, 'Shares for sale',
                 'Every sell order for shares at the Earth exchange that can sell now, cheapest first (50 at most): '
                 'company, price, units for sale, seller, the company\'s sales after tax a day (7-day average), its profit a day '
-                '(7-day average; what dividends are paid from).', 0,
+                '(7-day average; what dividends are paid from), its profit a day (30-day average), losses it must make up '
+                'before it pays dividends.', 0,
                 "SELECT o.share_company AS company, o.price AS d_price, IFNULL(s.units, 0) - o.limit_units AS units, "
                 "o.company AS seller, "
-                f"{DAY_SALES.format(c='o.share_company')} AS d_sales, {DAY_PROFIT.format(c='o.share_company')} AS d_profit "
+                f"{DAY_SALES.format(c='o.share_company')} AS d_sales, {DAY_PROFIT.format(c='o.share_company')} AS d_profit, "
+                f"{long_profit('o.share_company')} "
                 "FROM share_orders AS o INNER JOIN companies AS c ON c.company_id = o.company AND c.eliminated_at IS NULL "
                 "INNER JOIN companies AS sc ON sc.company_id = o.share_company AND sc.eliminated_at IS NULL "
                 "LEFT JOIN shares AS s ON s.company = o.share_company AND s.holder = o.company "
@@ -1441,14 +1453,15 @@ queries.append((696, 'Shares for sale',
 queries.append((697, 'Share offerings',
                 'Open offerings of new shares, soonest deadline first (50 at most): company, most new shares, price, '
                 'shares left, game hours left, its share count, its sales after tax a day (7-day average), shares '
-                'my company committed, fewest it issues, its profit a day (7-day average).', 0,
+                'my company committed, fewest it issues, its profit a day (7-day average), its profit a day (30-day '
+                'average), losses it must make up before it pays dividends.', 0,
                 "SELECT o.company AS company, o.units AS units, o.price AS d_price, o.units - IFNULL((SELECT SUM(m.units) FROM "
                 "share_commitments AS m WHERE m.company = o.company), 0) AS left_units, "
                 "GREATEST(0, CEIL((o.deadline_t - [game_now]) / 3600)) AS hours, "
                 f"c.share_count AS count, {DAY_SALES.format(c='o.company')} AS d_sales, "
                 f"IFNULL((SELECT m.units FROM share_commitments AS m WHERE m.company = o.company AND m.investor = {MY_COMPANY}), 0) AS mine, "
                 "IFNULL(o.min_units, o.units) AS min_units, "
-                f"{DAY_PROFIT.format(c='o.company')} AS d_profit "
+                f"{DAY_PROFIT.format(c='o.company')} AS d_profit, {long_profit('o.company')} "
                 "FROM share_offerings AS o INNER JOIN companies AS c ON c.company_id = o.company AND c.eliminated_at IS NULL "
                 "WHERE o.deadline_t > [game_now] ORDER BY o.deadline_t, o.company LIMIT 50;"))
 # A company's health (#537): its drones, their fuel and how fast it falls,
@@ -1503,14 +1516,15 @@ queries.append((706, 'House demand',
 COMPANY_OUTSIDE_HISTORY = ("IFNULL((SELECT SUM(o.units) FROM shares AS o WHERE o.company = x.company_id "
                            "AND o.holder <> x.company_id AND o.units > 0), 0) AS outside, "
                            "GREATEST(1, LEAST(7, FLOOR(GREATEST(0, [game_now] - IFNULL(x.founded_t, [game_now])) / 86400))) AS history, "
-                           + DAY_PROFIT.format(c='x.company_id') + " AS d_profit")
+                           + DAY_PROFIT.format(c='x.company_id') + " AS d_profit, " + long_profit('x.company_id'))
 # Every company still trading (#574), best sales first: what an investor
 # prices shares by, for companies whether or not their shares are listed.
 # Round 60's Milo could price only what happened to be for sale
 queries.append((653, 'Companies',
                 'Every company still trading, best sales first (100 at most): company, sales after tax a day '
                 '(7-day average), shares, a share\'s worth (0 if never traded), days since founded, working drones, '
-                'shares others hold, days of sales averaged, profit a day.', 0,
+                'shares others hold, days of sales averaged, profit a day (7-day average), profit a day (30-day average), '
+                'losses it must make up before it pays dividends.', 0,
                 "SELECT x.company_id AS company, "
                 f"{DAY_SALES.format(c='x.company_id')} AS d_sales, x.share_count AS count, "
                 f"IFNULL({VALUE_SHARE_PRICE.format(c='x.company_id')}, 0) AS d_value, "
@@ -1523,7 +1537,8 @@ queries.append((653, 'Companies',
 queries.append((654, 'Company figures',
                 'Company N: its sales after tax a day (7-day average), its shares, what a share is worth (0 if '
                 'never traded), game days since founded, working drones, shares other companies hold, game days of '
-                'sales the average covers, its profit a day (7-day average; what dividends are paid from).', 1,
+                'sales the average covers, its profit a day (7-day average; what dividends are paid from), its profit a day '
+                '(30-day average), losses it must make up before it pays dividends.', 1,
                 "SELECT x.company_id AS company, "
                 f"{DAY_SALES.format(c='x.company_id')} AS d_sales, x.share_count AS count, "
                 f"IFNULL({VALUE_SHARE_PRICE.format(c='x.company_id')}, 0) AS d_value, "

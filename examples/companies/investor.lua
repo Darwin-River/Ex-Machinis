@@ -70,7 +70,7 @@ function study()
   for _, o in ipairs(shares_for_sale()) do
     if not seen[o.company] then
       seen[o.company] = true
-      if not paid[o.company] then learn(o.company, math.max(o.profit, 0) / share_count(o.company)) end
+      if not paid[o.company] then learn(o.company, math.max(o.profit30, 0) / share_count(o.company)) end
     end
   end
   for c, a_day in pairs(paid) do learn(c, a_day) end
@@ -125,12 +125,12 @@ function sell()
 end
 
 -- Offerings of new shares (#485): what a new share is worth over `days`
--- days, on the company's last day of sales spread over its shares once the
--- offering fills, and counting the sales of one more drone (what a raise is
--- usually for)
+-- days, on the company's profit a day (30-day average, #607) spread over
+-- its shares once the offering fills, counting the profit of one more drone
+-- (what a raise is usually for), less the losses it must make up first
 function offering_worth(o, days)
   local n = math.max(#company_drones(o.company), 1)
-  return days * math.max(o.profit, 0) * (n + 1) / n / (o.count + o.units)
+  return math.max(days * math.max(o.profit30, 0) * (n + 1) / n - o.carried, 0) / (o.count + o.units)
 end
 -- Commit up to `budget` credits to one offering at a time (#488): the one
 -- it has already backed while it is open, else the open offering worth its

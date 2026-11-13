@@ -155,9 +155,10 @@ function invest()
   invest_day = today()
   local free = credits() - invest_above
   for _, o in ipairs(shares_for_sale()) do
-    local a_day = math.max(o.profit, 0) / share_count(o.company)
+    -- days to pay its price back: losses made up first, then 30-day profit (#607)
+    local back = payback_days(o.price, share_count(o.company), o.profit30, o.carried)
     if o.seller == o.company and o.company ~= company() and o.price > 0
-        and o.price <= a_day * invest_days then
+        and back <= invest_days then
       local n = math.min(o.units, free // o.price, (invest_cap - put_in) // o.price)
       if n * o.price >= 25 then
         pull_shares(n, o.company, o.seller)
@@ -172,12 +173,12 @@ function invest()
 end
 
 -- Offerings of new shares (#485): what a new share is worth over `days`
--- days, on the company's last day of sales spread over its shares once the
--- offering fills, and counting the sales of one more drone (what a raise is
--- usually for)
+-- days, on the company's profit a day (30-day average, #607) spread over
+-- its shares once the offering fills, counting the profit of one more drone
+-- (what a raise is usually for), less the losses it must make up first
 function offering_worth(o, days)
   local n = math.max(#company_drones(o.company), 1)
-  return days * math.max(o.profit, 0) * (n + 1) / n / (o.count + o.units)
+  return math.max(days * math.max(o.profit30, 0) * (n + 1) / n - o.carried, 0) / (o.count + o.units)
 end
 -- Commit up to `budget` credits to one offering at a time (#488): the one
 -- it has already backed while it is open, else the open offering worth its
