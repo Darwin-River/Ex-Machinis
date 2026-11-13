@@ -22,4 +22,20 @@ long long compute_credits_due(long long unbilled, long long per_credit, long lon
    bill): all of it if it can, else what it has (never below 0) */
 long long compute_pay(long long credits, long long owed);
 
+/* The congestion tax (#620): while the clock runs slower than its target
+   because the engines can't keep up, thinking costs more, by how many times
+   slower it runs (target / scale), from 1 to at most `cap` (a cap of 1 or
+   less, or an unknown scale: 1) */
+double compute_congestion(double scale, double target, double cap);
+
+/* A company's share of the congestion (#620): a company that thinks little
+   isn't the load, so it pays only part of it. 1 + (congestion - 1) times its
+   instructions over the last game day as a share of `full_at` (at most all
+   of it); `full_at` 0 or less: everyone pays all of it */
+double compute_company_congestion(double congestion, long long day_instructions, long long full_at);
+
+/* The rate a million instructions at `congestion` times the `base` rate,
+   rounded (0 stays 0) */
+long long compute_congested_rate(long long base, double congestion);
+
 #endif

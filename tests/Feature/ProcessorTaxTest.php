@@ -38,8 +38,9 @@ class ProcessorTaxTest extends TestCase
         $before = Leaderboard::wealth()[$company]['wealth'];
         DB::table('companies')->where('company_id', $company)->update(['compute_debt' => 10]);
 
+        DB::table('compute_clock')->where('id', 1)->update(['rate_now' => null, 'congestion' => null]);
         $this->assertSame(['instructions_day' => 3000000, 'tax_day' => 45, 'debt' => 10, 'throttled' => true, 'per_million' => 15,
-            'broke_days' => null, 'dissolves_in' => null], ProcessorTax::of($company));
+            'base_per_million' => 15, 'congestion' => 1.0, 'broke_days' => null, 'dissolves_in' => null], ProcessorTax::of($company));
         // What it owes counts against its net wealth
         $this->assertSame($before - 10, Leaderboard::wealth()[$company]['wealth']);
         $this->getJson('/api/v1/companies/' . $company)->assertOk()->assertJsonPath('compute.tax_day', 45)
@@ -71,5 +72,59 @@ class ProcessorTaxTest extends TestCase
             'wreck_cause' => 'dissolved']);
         $this->get('/spacecraft/' . $agent->agent_id)->assertOk()
             ->assertSee('had no credits for 50 game days straight, so it dissolved');
+    }
+
+    /**
+     * #620: while the clock runs slowed, the processor tax rises by how many
+     * times slower, up to the cap; the rate billed now shows on the company
+     * page, in the API's compute and clock, and to drones (query 651)
+     */
+    public function testTheCongestionTaxShows()
+    {
+        $user = User::create(['name' => 'Fleet', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
+        $company = (int) Release::release($user, 'Big Fleet', 'function launched() end')->company_id;
+        DB::table('house_rules')->updateOrInsert(['id' => 1], ['tax_period' => 0, 'tax_grace' => 0, 'tax_flat' => 0,
+            'tax_permille' => 0, 'plunder_share' => 50, 'compute_tax_per_million' => 15, 'congestion_cap' => 10,
+            'congestion_full_at' => 5000000]);
+        DB::table('compute_clock')->updateOrInsert(['id' => 1], ['billed_t' => 0, 'rate_now' => 150, 'congestion' => 10]);
+
+        $c = ProcessorTax::congestion();
+        $this->assertSame(['rate' => 150, 'base' => 15, 'congestion' => 10.0, 'cap' => 10.0, 'full_at' => 5000000], $c);
+        $this->assertSame(150, ProcessorTax::rate(), 'the rate a busy company pays now');
+        // A company that thought little pays little of it: 0.3 million a day of 5 million is 6% of the rise
+        $this->assertEqualsWithDelta(1.54, ProcessorTax::companyCongestion(10, 300000, 5000000), 1e-9);
+        $this->assertSame(10.0, (float) ProcessorTax::companyCongestion(10, 27000000, 5000000));
+        $this->assertSame(1.0, ProcessorTax::companyCongestion(1, 27000000, 5000000));
+        DB::table('compute_bills')->insert(['company_id' => $company, 'charged_t' => World::gameNow() - 3600,
+            'instructions' => 300000, 'amount' => 5, 'paid' => 5, 'debt_after' => 0]);
+        $of = ProcessorTax::of($company);
+        $this->assertSame([23, 15, 1.54], [$of['per_million'], $of['base_per_million'], $of['congestion']], 'a lone drone: about 23');
+        // A busy fleet pays all of it
+        DB::table('compute_bills')->where('company_id', $company)->update(['instructions' => 27000000]);
+        $of = ProcessorTax::of($company);
+        $this->assertSame([150, 15, 10.0], [$of['per_million'], $of['base_per_million'], $of['congestion']]);
+
+        $this->get('/companies/' . $company)->assertOk()
+            ->assertSee('150 credits a million now: 10 times the usual 15 while the clock runs slowed');
+        $this->getJson('/api/v1/companies/' . $company)->assertOk()
+            ->assertJsonPath('compute.per_million', 150)->assertJsonPath('compute.congestion', 10);
+        // (the clock shows the rate for a busy company)
+        $this->getJson('/api/v1/clock')->assertOk()
+            ->assertJsonPath('processor_tax.per_million', 150)->assertJsonPath('processor_tax.base_per_million', 15);
+
+        // Drones read it too: query 651's rate is the one billed now
+        $sql = DB::table('queries')->where('id', 651)->value('script');
+        if ($sql !== null) {
+            $this->assertStringContainsString('compute_clock', $sql);
+        }
+
+        // Back at the target pace: the usual rate, and no note
+        DB::table('compute_clock')->where('id', 1)->update(['rate_now' => 15, 'congestion' => 1]);
+        $this->assertSame(15, ProcessorTax::rate());
+        $this->get('/companies/' . $company)->assertOk()->assertSee('(15 credits a million)', false)
+            ->assertDontSee('while the clock runs slowed');
+        // Before the first bill since #620: the base rate
+        DB::table('compute_clock')->where('id', 1)->update(['rate_now' => null, 'congestion' => null]);
+        $this->assertSame(15, ProcessorTax::rate());
     }
 }

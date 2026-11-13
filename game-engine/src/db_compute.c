@@ -69,8 +69,22 @@ ErrorCode_t db_compute_bill_due(void)
     if(hour <= cp_value(0, "SELECT billed_t FROM compute_clock WHERE id = 1"))
         return ENGINE_OK;
 
-    long long per_credit = compute_instructions_per_credit(
-        cp_value(0, "SELECT compute_tax_per_million FROM house_rules WHERE id = 1"));
+    // The congestion tax (#620): while the clock runs slower than its target
+    // because the engines can't keep up, thinking costs that many times more
+    // (up to house_rules.congestion_cap)
+    long long base = cp_value(0, "SELECT compute_tax_per_million FROM house_rules WHERE id = 1");
+    double scale = cp_value(0, "SELECT ROUND(1000 * scale) FROM game_clock WHERE id = 1") / 1000.0;
+    double target = cp_value(0, "SELECT ROUND(1000 * IFNULL(target_scale, scale)) FROM game_clock WHERE id = 1") / 1000.0;
+    double cap = cp_value(0, "SELECT IFNULL(congestion_cap, 0) FROM house_rules WHERE id = 1");
+    double congestion = compute_congestion(scale, target, cap);
+    long long rate = compute_congested_rate(base, congestion);        // the top rate, for a busy company
+    long long full_at = cp_value(0, "SELECT IFNULL(congestion_full_at, 0) FROM house_rules WHERE id = 1");
+    long long per_credit = compute_instructions_per_credit(base);      // each company's own, below
+    if(cp_exec("UPDATE compute_clock SET rate_now = %lld, congestion = %.3f WHERE id = 1", rate, congestion) != ENGINE_OK)
+        return ENGINE_DB_QUERY_ERROR;
+    if(congestion > 1)
+        engine_trace(TRACE_LEVEL_ALWAYS, "Processor tax: %lld credits a million (%.2f times %lld: the clock runs at %.0f of %.0f)",
+            rate, congestion, base, scale, target);
     ErrorCode_t result = ENGINE_OK;
     static Bill_t bills[MAX_COMPANIES];
     int n = 0;
@@ -86,8 +100,18 @@ ErrorCode_t db_compute_bill_due(void)
         if(!res)
             return ENGINE_DB_QUERY_ERROR;
         MYSQL_ROW row;
+        int rate_company = -1;
         while(result == ENGINE_OK && (row = mysql_fetch_row(res))) {
             int drone = atoi(row[0]), company = atoi(row[1]);
+            // A company's own rate (#620): its share of the congestion, by
+            // how much its drones thought over the last game day
+            if(company != rate_company) {
+                rate_company = company;
+                long long day = cp_value(0, "SELECT IFNULL(SUM(instructions), 0) FROM compute_bills "
+                                            "WHERE company_id = %d AND charged_t > %lld", company, now - 86400);
+                per_credit = compute_instructions_per_credit(
+                    compute_congested_rate(base, compute_company_congestion(congestion, day, full_at)));
+            }
             long long billed = 0;
             long long due = compute_credits_due(atoll(row[2]), per_credit, &billed);
             if(due <= 0)

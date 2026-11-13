@@ -53,6 +53,9 @@ class ApiController extends Controller
             'slowed' => $scale !== null && isset($clock['target']) && $scale < $clock['target'] * 0.999,
             'world_full' => $clock['full'] ?? false,
             'releases_waiting' => $clock['waiting'] ?? 0,
+            // The congestion tax (#620): thinking costs more while the clock runs slowed
+            'processor_tax' => (fn ($c) => ['per_million' => $c['rate'], 'base_per_million' => $c['base'],
+                'congestion' => $c['congestion'], 'cap' => $c['cap']])(\App\Services\ProcessorTax::congestion()),
             'engine' => [
                 'running' => $seen !== null && $seen < 180,
                 'last_seen_seconds_ago' => $seen,
