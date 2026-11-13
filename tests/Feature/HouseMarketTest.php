@@ -167,36 +167,55 @@ class HouseMarketTest extends TestCase
         $this->assertLessThan($bid, $lower);
     }
 
-    /** #550: how much more the House takes today, at what bid, and when it refills */
+    /**
+     * #550: how much more the House takes today, at what bid, and when it
+     * refills. #608: as its buy order on the book says, and how much was
+     * sold into it today
+     */
     public function testHouseDemandShowsWhatItStillTakesToday()
     {
         HouseStations::ensure();
         $drone = (int) DB::table('agents')->where('station_id', 2)->value('agent_id');
         $this->atDay(10.75);
-        $pumps = fn () => collect(HouseMarket::demand(4311, 10))->first();
-        $d = $pumps();
+        $pumps = fn ($company = null) => collect(HouseMarket::demand(4311, 10, $company))->first();
         $listed = (int) DB::table('house_market')->where('station_id', 2)->where('resource', 4311)->where('side', 1)->value('price');
         $daily = (int) DB::table('house_market')->where('station_id', 2)->where('resource', 4311)->where('side', 1)->value('daily_units');
         $keep = max(1, intdiv((int) DB::table('house_market')->where('station_id', 2)->where('resource', 4311)->where('side', 2)->value('daily_units'), 4));
+        DB::table('events')->where('drone', $drone)->where('event_type', 5)->where('resource', 4311)->delete();
+        DB::table('latest_orders')->where('drone', $drone)->where('event_type', 5)->where('resource', 4311)->delete();
+        $d = $pumps();
+        $this->assertSame([0, 0], [$d['price'], $d['left']], 'no order on the book: no bid, whatever the day\'s demand');
+        $this->assertSame($daily, $d['daily']);
+
+        HouseMarket::refresh();
+        $d = $pumps();
         $this->assertSame($listed, $d['price'], 'nothing bought yet: the listed price');
         $this->assertSame($daily, $d['left']);
         $this->assertSame(6, $d['hours'], 'it refills at the start of the next game day');
+        $this->assertSame([0, 0, null], [$d['sold'], $d['mine'], $d['empty_hours']]);
 
-        // Half a day's demand bought (above the stock it keeps to sell): a lower bid, half left
+        // Half a day's demand bought (above the stock it keeps to sell), from
+        // one company today: half left, the bid it posted until the next tick
         $half = intdiv($daily, 2);
         DB::table('events')->insert(['event_type' => 1, 'action' => 0, 'logged' => 1, 'outcome' => 1, 'drone' => $drone,
             'resource' => 4311, 'installed' => 0, 'locked' => 0, 'new_quantity' => $keep + $half, 'new_cargo' => 0]);
-        $d = $pumps();
+        $seller = DB::table('agents')->whereNull('station_id')->whereNotNull('company_id')->first(['agent_id', 'company_id']);
+        DB::table('trades')->insert(['resource' => 4311, 'units' => $half, 'credits' => $half * $listed, 'tax' => 0,
+            'seller' => $seller->agent_id, 'buyer' => $drone, 'location' => 10, 'game_t' => \App\Services\World::gameNow() - 3600]);
+        $d = $pumps((int) $seller->company_id);
         $this->assertSame($daily - $half, $d['left']);
-        $this->assertSame($listed - intdiv($listed * $half, 2 * $daily), $d['price']);
+        $this->assertSame($listed, $d['price'], 'the order on the book until the House posts again');
+        $this->assertSame([$half, $half], [$d['sold'], $d['mine']]);
+        // 18 game hours gone, half sold: the rest goes in about 18 more
+        $this->assertSame((int) ceil(($daily - $half) * 18 * 3600 / $half / 3600), $d['empty_hours']);
         HouseMarket::refresh();
-        $posted = (int) DB::table('events')->where('drone', $drone)->where('event_type', 5)->where('resource', 4311)
-            ->orderBy('id', 'desc')->value('new_credits');
-        $this->assertSame($posted, $d['price'], 'the same as the bid it posts');
+        $d = $pumps();
+        $this->assertSame($listed - intdiv($listed * $half, 2 * $daily), $d['price'], 'its new bid, once posted');
+        $this->assertSame(0, $d['mine'], 'no company asked');
 
-        $this->getJson('/api/v1/house-demand?resource=4311&place=10')->assertOk()
-            ->assertJsonPath('0.left', $daily - $half)->assertJsonPath('0.place_name', 'Moon');
-        $this->get('/market?house=4311')->assertOk()->assertSee('House demand')
+        $this->getJson('/api/v1/house-demand?resource=4311&place=10&company=' . $seller->company_id)->assertOk()
+            ->assertJsonPath('0.left', $daily - $half)->assertJsonPath('0.place_name', 'Moon')->assertJsonPath('0.mine', $half);
+        $this->get('/market?house=4311')->assertOk()->assertSee('House demand')->assertSee('Sold today')
             ->assertSee(number_format($daily - $half) . ' of ' . number_format($daily));
     }
 
@@ -225,6 +244,11 @@ class HouseMarketTest extends TestCase
         HouseStations::ensure();
         HouseMarket::refresh();
         $this->get('/market')->assertOk()->assertSee('href="#house-demand"', false)->assertSee('Still buying today');
+        // #609: where fuel is on sale now, and where it isn't
+        $fuel = \App\Services\World::fuelForSale();
+        $this->assertSame(count($fuel['selling']) + count($fuel['none']), DB::table('stations')->count(),
+            'every exchange is either selling fuel or listed as not');
+        $this->get('/market')->assertSee('id="fuel-for-sale"', false)->assertSee('Fuel on sale now');
         $html = $this->get('/market?resource=4311')->assertOk()->getContent();
         $this->assertStringContainsString('Pumps (A1)', $html);
         $book = substr($html, strpos($html, 'id="order-book"'), strpos($html, 'id="house-demand"') - strpos($html, 'id="order-book"'));

@@ -33,8 +33,9 @@ class WorldController extends Controller
             usort($demand, fn ($a, $b) => [$a['left'] / $a['daily'], $a['resource']] <=> [$b['left'] / $b['daily'], $b['resource']]);
             $demand = array_slice($demand, 0, 30);
         }
+        $fuel = World::fuelForSale();
         return view('world.market', compact('trades', 'sells', 'buys', 'demand', 'houseGoods', 'houseResource',
-            'bookResources', 'bookResource'));
+            'bookResources', 'bookResource', 'fuel'));
     }
 
     /** Market history (#380): charts of prices and volumes, drawn from /api/v1/history */

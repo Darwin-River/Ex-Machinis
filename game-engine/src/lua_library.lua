@@ -23,7 +23,10 @@ local rods = 3011
 
 -- A fuel floor (#380 round 36: Sven 2 sold its last fuel away in a deep
 -- build): once set, at or below it make (but fuel), mine, refine and push
--- refuse with -30, so the fuel left is for buying fuel
+-- of fuel refuse with -30, so the fuel left is for buying fuel. Selling
+-- other goods (a push) goes on: it brings in the credits to buy fuel with
+-- (#609: round 63's trader reached Earth with 12 fuel under a floor of 15,
+-- couldn't sell its 136 metals into a bid of 28, and flew them back)
 local floor_fuel = 0
 local function fuel_floor(n) floor_fuel = n or 0 end
 local function floored()
@@ -42,7 +45,7 @@ local function make(resource)
 end
 local function wait(minutes) return perform(3, minutes) end
 local function push(n, resource, drone)
-  if floored() then return -30 end
+  if resource == fuel and floored() then return -30 end
   return perform(10, n, resource, drone)
 end
 local function pull(n, resource, drone) return perform(11, n, resource, drone) end
@@ -416,14 +419,18 @@ end
 -- {company, sales (after tax a day, the 7-day average), count (its shares),
 -- value (what a share is worth; 0 if never traded), age (game days), drones,
 -- outside (shares others hold, #599), history (days of sales averaged),
--- profit (a day, the 7-day average: what dividends are paid from, #603)}.
--- A share earns profit / count a day
-local company_fields = {"company", "sales", "count", "value", "age", "drones", "outside", "history", "profit"}
+-- profit (a day, the 7-day average: what dividends are paid from, #603),
+-- profit30 (a day, the 30-day average: what to judge a share by, since
+-- profit comes in lumps, #607) and carried (losses it must make up before
+-- it pays any dividend, #607). A share earns profit30 / count a day once
+-- carried is made up: see payback_days
+local company_fields = {"company", "sales", "count", "value", "age", "drones", "outside", "history", "profit",
+                        "profit30", "carried"}
 local function companies() return records(ask(653), company_fields) end          -- 653
 -- The same for one company, yours if c is left out (#574)
 local function company_figures(c) return record(ask(654, c or company()), company_fields) end -- 654
 -- What offering n new shares at price would cost your company (#572), from
--- its profit now (#603): share (the part of its future profit sold, 0 to 1),
+-- its profit now (#603; the 30-day average, #607): share (the part of its future profit sold, 0 to 1),
 -- a_day (what the new holders would be paid a day), raised (n * price),
 -- payback_days (days of their dividends to repay what they pay), and
 -- value_now (n shares at today's value price: what net wealth counts against
@@ -435,13 +442,21 @@ local function company_figures(c) return record(ask(654, c or company()), compan
 -- (true when that is under 7: a young company's sales are a poor guide, and
 -- round 62's players all sold too cheaply on one or two days of them)
 local MAX_OUTSIDE = 0.5
+-- Game days of dividends a share bought at price takes to pay it back
+-- (#607), for a company with count shares, its 30-day profit a day and its
+-- carried loss: the loss is made up first, then each share earns
+-- profit30 / count a day. math.huge when it makes no profit
+local function payback_days(price, count, profit30, carried)
+  if (profit30 or 0) <= 0 then return math.huge end
+  return ((carried or 0) + price * count) / profit30
+end
 local function offering_cost(n, price)
-  local f = company_figures() or {profit = 0, count = 1000, value = 0, outside = 0, history = 1}
+  local f = company_figures() or {profit = 0, profit30 = 0, carried = 0, count = 1000, value = 0, outside = 0, history = 1}
   local share = n / (f.count + n)
-  local a_day = math.max(f.profit, 0) * share
+  local a_day = math.max(f.profit30, 0) * share
   local outside_after = (f.outside + n) / (f.count + n)
-  return {share = share, a_day = a_day, raised = n * price,
-          payback_days = a_day > 0 and n * price / a_day or math.huge, value_now = n * f.value,
+  return {share = share, a_day = a_day, raised = n * price, carried = f.carried,
+          payback_days = payback_days(price, f.count + n, f.profit30, f.carried), value_now = n * f.value,
           outside_now = f.outside / f.count, outside_after = outside_after,
           over_cap = outside_after > MAX_OUTSIDE, history = f.history, thin = f.history < 7}
 end
@@ -469,29 +484,64 @@ end
 -- Every company's shares on offer now, cheapest first (#473): company,
 -- price, units, seller, sales (the company's income after tax a day,
 -- averaged over the last 7 game days) and profit (the same for its profit:
--- each share earns its part of that, #603)
+-- each share earns its part of that, #603), profit30 and carried (as in
+-- companies(), #607)
 local function shares_for_sale()                                                  -- 696
-  return records(ask(696), {"company", "price", "units", "seller", "sales", "profit"})
+  return records(ask(696), {"company", "price", "units", "seller", "sales", "profit", "profit30", "carried"})
 end
 -- Every open offering of new shares, soonest deadline first (#485): company,
 -- units offered, price, left (not yet committed), hours (game hours left),
 -- count (its shares now), sales (its income after tax over the last game
 -- day), mine (shares your company has committed), min (the fewest it issues
 -- at its deadline, #516: units for an all-or-nothing offering) and profit (a
--- day, the 7-day average; each share earns profit / count of it, #603)
+-- day, the 7-day average; each share earns profit / count of it, #603),
+-- profit30 and carried (as in companies(), #607)
 local function share_offerings()                                                  -- 697
-  return records(ask(697), {"company", "units", "price", "left", "hours", "count", "sales", "mine", "min", "profit"})
+  return records(ask(697), {"company", "units", "price", "left", "hours", "count", "sales", "mine", "min", "profit",
+                            "profit30", "carried"})
 end
 -- Company c's shares in all: 1,000 to start, more after it issues new ones
 local function share_count(c)                                                     -- 698
   local row = ask(698, c)[1]
   return row and row[1] or 1000
 end
+-- Sell the shares your company holds into bids that pay more than days
+-- (default 60) of their dividends (#610): a bid above what a share will
+-- earn back in that time is worth taking. A share's dividends are judged
+-- as in payback_days: the 30-day profit, after the carried loss. Skips
+-- sales under 25 credits (each request burns a unit of fuel). Returns the
+-- credits it asked for. Round 63: bids for shares sat unanswered for 400
+-- game days, and holders couldn't tell what they could sell for
+local function answer_bids(days)
+  days = days or 60
+  local got, mine = 0, company()
+  for _, h in ipairs(shares_held()) do
+    if h.company ~= mine and h.units > 0 then
+      local f = company_figures(h.company)
+      local left = h.units
+      local bids = share_buy_orders(h.company)
+      table.sort(bids, function(a, b) return a.price > b.price end)
+      for _, b in ipairs(bids) do
+        if left <= 0 then break end
+        if b.company ~= mine and b.units > 0 and f
+            and payback_days(b.price, f.count, f.profit30, f.carried) > days then
+          local n = math.min(left, b.units)
+          if n * b.price >= 25 then
+            push_shares(n, h.company, b.company)
+            left, got = left - n, got + n * b.price
+          end
+        end
+      end
+    end
+  end
+  return got
+end
 -- Put credits above keep into other companies' shares (#551): the open
 -- offerings of new shares and the listed shares that pay their price back
 -- soonest, within days (default 40) of a share's income, best first. A
--- share's income is its part of the company's profit a day (the 7-day
--- average, #603; an offering's spread over its shares once it fills). At
+-- share's income is its part of the company's profit a day (the 30-day
+-- average, after making up its carried loss: payback_days, #603, #607; an
+-- offering's spread over its shares once it fills). At
 -- most cap credits in one call; skips buys under 25 credits (each request
 -- burns a unit of fuel) unless one completes an offering. A request reaches
 -- Earth at the speed of light, from anywhere. Returns the credits it put
@@ -503,17 +553,15 @@ local function invest_surplus(keep, days, cap)
   if free < 25 then return 0 end
   local picks, mine = {}, company()
   for _, o in ipairs(share_offerings()) do
-    local a_day = math.max(o.profit, 0) / (o.count + o.units)
-    if o.company ~= mine and o.left > 0 and o.price > 0 and a_day > 0 then
-      table.insert(picks, {offering = true, company = o.company, price = o.price, units = o.left,
-                           days = o.price / a_day})
+    local d = payback_days(o.price, o.count + o.units, o.profit30, o.carried)
+    if o.company ~= mine and o.left > 0 and o.price > 0 and d < math.huge then
+      table.insert(picks, {offering = true, company = o.company, price = o.price, units = o.left, days = d})
     end
   end
   for _, o in ipairs(shares_for_sale()) do
-    local a_day = math.max(o.profit, 0) / share_count(o.company)
-    if o.company ~= mine and o.seller ~= mine and o.units > 0 and o.price > 0 and a_day > 0 then
-      table.insert(picks, {company = o.company, seller = o.seller, price = o.price, units = o.units,
-                           days = o.price / a_day})
+    local d = o.price > 0 and payback_days(o.price, share_count(o.company), o.profit30, o.carried) or math.huge
+    if o.company ~= mine and o.seller ~= mine and o.units > 0 and d < math.huge then
+      table.insert(picks, {company = o.company, seller = o.seller, price = o.price, units = o.units, days = d})
     end
   end
   table.sort(picks, function(a, b) return a.days < b.days end)
@@ -810,11 +858,15 @@ end
 -- The House's demand for r (#550), at each exchange that buys it, best bid
 -- first: {place, price (its bid now), left (units it still takes today),
 -- daily (its day's demand), listed (its bid with nothing bought today),
--- hours (game hours until it refills)}. Its bid falls toward half of listed
--- as it fills and stops at a full day's demand; what it bought goes down to
--- the surface at the start of each game day, and the bid refills
+-- hours (game hours until it refills), sold (units sold into it today), mine
+-- (of those, by your company) and empty_hours (game hours until it has
+-- bought its fill at today's pace; -1 when none sold today)}. price and left
+-- are its live buy order's, as sell_here would find it (#608; price 0: no
+-- bid). Its bid falls toward half of listed as it fills and stops at a full
+-- day's demand; what it bought goes down to the surface at the start of
+-- each game day, and the bid refills
 local function house_demand(r)                                                    -- 706
-  return records(ask(706, r), {"place", "price", "left", "daily", "listed", "hours"})
+  return records(ask(706, r), {"place", "price", "left", "daily", "listed", "hours", "sold", "mine", "empty_hours"})
 end
 local function orbiting(p) return column(ask(710, p or location())) end           -- 710
 local function drones_at(p) return column(ask(720, p or location())) end          -- 720
@@ -897,6 +949,8 @@ _G.raise_cash = raise_cash
 _G.companies = companies
 _G.company_figures = company_figures
 _G.offering_cost = offering_cost
+_G.payback_days = payback_days
+_G.answer_bids = answer_bids
 _G.standing_orders = standing_orders
 _G.cancel_orders = cancel_orders
 _G.invest_surplus = invest_surplus

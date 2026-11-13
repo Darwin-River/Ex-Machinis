@@ -123,6 +123,31 @@ class Shares
     }
 
     /**
+     * The best open bid for each company's shares (#610), leaving out
+     * $holder's own: company => ['price', 'units', 'by', 'by_name']. A buy
+     * order bids while its company holds fewer than it wants. Round 63's
+     * Wilma: standing bids sat unanswered for about 400 game days
+     */
+    public static function bestBids(array $companies, ?int $holder = null): array
+    {
+        if (!$companies) {
+            return [];
+        }
+        $rows = DB::table('share_orders AS o')->join('companies AS c', 'c.company_id', '=', 'o.company')
+            ->leftJoin('shares AS s', fn ($j) => $j->on('s.company', '=', 'o.share_company')->on('s.holder', '=', 'o.company'))
+            ->whereIn('o.share_company', $companies)->where('o.side', 2)->whereNull('c.eliminated_at')
+            ->when($holder !== null, fn ($q) => $q->where('o.company', '<>', $holder))
+            ->whereRaw('IFNULL(s.units, 0) < o.limit_units')->orderByDesc('o.price')
+            ->get(['o.share_company', 'o.company', 'c.name', 'o.price', DB::raw('o.limit_units - IFNULL(s.units, 0) AS units')]);
+        $out = [];
+        foreach ($rows as $r) {
+            $out[(int) $r->share_company] ??= ['price' => (int) $r->price, 'units' => (int) $r->units,
+                'by' => (int) $r->company, 'by_name' => $r->name];
+        }
+        return $out;
+    }
+
+    /**
      * What a company's shares and share holdings come to (#471), for its page
      * and the API: its last trade price, who holds its shares, the standing
      * orders for them, what it holds of others, and recent trades
@@ -148,9 +173,26 @@ class Shares
             ->whereNotNull('eliminated_at')->pluck('company_id')->flip()->all();
 
         $count = (int) (DB::table('companies')->where('company_id', $company)->value('share_count') ?? self::PER_COMPANY);
+        // #610: only the orders that can trade now (a sell order whose
+        // company holds no more than it keeps sells nothing: round 63's
+        // Wilma saw "keeps 0" orders of holders with none)
+        $held = DB::table('shares')->where('company', $company)->pluck('units', 'holder')->all();
+        $orders = $orders->filter(fn ($o) => (int) $o->side === 1
+            ? (int) ($held[$o->company] ?? 0) > (int) $o->limit_units
+            : (int) ($held[$o->company] ?? 0) < (int) $o->limit_units)->values();
+        $bids = self::bestBids($holdings->pluck('company')->map(fn ($c) => (int) $c)->all(), $company);
+        $now = World::gameNow();
         $outside = (int) $holders->filter(fn ($h) => (int) $h->holder !== $company)->sum('units');
+        $long = self::longProfits([$company])[$company];
         return [
             'price' => $prices[$company] ?? null,
+            // #607: what a share earns judged over 30 days, and the losses
+            // to make up before any dividend is paid
+            'profit' => self::dayProfits([$company])[$company],
+            'profit30' => $long['profit30'],
+            'carried_loss' => $long['carried'],
+            'carry_days' => self::carryDays($long),
+            'payback' => isset($prices[$company]) ? self::paybackDays((int) $prices[$company], $count, $long) : null,
             // #599: how much of it other companies hold; offerings and the
             // company's own sales stop at MAX_OUTSIDE
             'outside' => $outside,
@@ -164,18 +206,22 @@ class Shares
                 'units' => (int) $h->units, 'dividends' => (int) $h->dividends])->all(),
             'orders' => $orders->map(fn ($o) => ['company' => (int) $o->company, 'name' => $name($o->company),
                 'side' => (int) $o->side === 1 ? 'sell' : 'buy', 'price' => (int) $o->price,
-                ((int) $o->side === 1 ? 'keep' : 'want') => (int) $o->limit_units])->all(),
+                ((int) $o->side === 1 ? 'keep' : 'want') => (int) $o->limit_units,
+                'units' => abs((int) ($held[$o->company] ?? 0) - (int) $o->limit_units)])->all(),
             'holdings' => $holdings->map(fn ($h) => ['company' => (int) $h->company, 'name' => $name($h->company),
                 'units' => (int) $h->units, 'dividends' => (int) $h->dividends,
                 'price' => $prices[(int) $h->company] ?? null, 'value_price' => $values[(int) $h->company] ?? null,
                 'ended' => isset($ended[(int) $h->company]),
+                // #610: the best price another company bids for them now, and how many it takes
+                'best_bid' => $bids[(int) $h->company] ?? null,
                 // An ended company's shares are worth nothing (#493); others
                 // count at the 3-day average (#513)
                 'value' => isset($ended[(int) $h->company]) ? 0
                     : (int) $h->units * ($values[(int) $h->company] ?? 0)])->all(),
             'trades' => $trades->map(fn ($t) => ['seller' => (int) $t->seller, 'seller_name' => $name($t->seller),
                 'buyer' => (int) $t->buyer, 'buyer_name' => $name($t->buyer), 'units' => (int) $t->units,
-                'price' => (int) $t->price, 'game_t' => (int) $t->game_t])->all(),
+                'price' => (int) $t->price, 'game_t' => (int) $t->game_t,
+                'days_ago' => intdiv(max(0, $now - (int) $t->game_t), 86400)])->all(),
         ];
     }
 
@@ -222,6 +268,55 @@ class Shares
         return $out;
     }
 
+    /** Game days a share's earnings are judged over (#607) */
+    public const PROFIT_DAYS = 30;
+
+    /**
+     * Companies' profit a day over the last 30 game days settled (#607) and
+     * the losses they must still make up before dividends resume
+     * (companies.dividend_carry, shown positive): company => ['profit30',
+     * 'carried']. Round 63: the 7-day profit swung from 648 to -54 for one
+     * company and read -82 for one earning 360 a day, and nothing showed
+     * that a company that had just bought a hull would pay nothing for weeks
+     */
+    public static function longProfits(array $ids): array
+    {
+        if (!$ids) {
+            return [];
+        }
+        $since = MarketHistory::today() - self::PROFIT_DAYS;
+        $rows = DB::table('company_profits')->whereIn('company', $ids)->where('day', '>=', $since)->groupBy('company')
+            ->get(['company', DB::raw('FLOOR(SUM(profit) / COUNT(*)) AS profit')])->pluck('profit', 'company')->all();
+        $carry = DB::table('companies')->whereIn('company_id', $ids)->pluck('dividend_carry', 'company_id')->all();
+        $out = [];
+        foreach ($ids as $id) {
+            $out[$id] = ['profit30' => (int) ($rows[$id] ?? 0), 'carried' => max(0, -(int) ($carry[$id] ?? 0))];
+        }
+        return $out;
+    }
+
+    /**
+     * Game days of dividends a share bought at price takes to pay it back
+     * (#607): first the company's carried loss is made up, then each share
+     * earns its part of the 30-day profit. Null when that profit is 0 or less
+     */
+    public static function paybackDays(int $price, int $count, array $long): ?int
+    {
+        if ($long['profit30'] <= 0) {
+            return null;
+        }
+        return (int) ceil(($long['carried'] + $price * $count) / $long['profit30']);
+    }
+
+    /** Game days of 30-day profit a company needs to make up its carried loss (#607); null if it isn't making any */
+    public static function carryDays(array $long): ?int
+    {
+        if ($long['carried'] <= 0) {
+            return 0;
+        }
+        return $long['profit30'] > 0 ? (int) ceil($long['carried'] / $long['profit30']) : null;
+    }
+
     /**
      * Open offerings of new shares (#485), soonest deadline first, with what
      * is committed so far: one company's (its page) or every company's
@@ -244,12 +339,14 @@ class Shares
             ->groupBy('company');
         $sales = self::daySales($ids);
         $profits = self::dayProfits($ids);
+        $long = self::longProfits($ids);
 
-        return $offers->map(function ($o) use ($commits, $sales, $profits, $now) {
+        return $offers->map(function ($o) use ($commits, $sales, $profits, $long, $now) {
             $in = $commits[$o->company] ?? collect();
             $committed = (int) $in->sum('units');
-            // Dividends come from profit (#603)
-            $net = max(0, (int) ($profits[$o->company] ?? 0));
+            // Dividends come from profit (#603), judged over 30 days (#607)
+            $l = $long[$o->company];
+            $net = max(0, $l['profit30']);
             $after = (int) $o->share_count + (int) $o->units;
             return ['company' => (int) $o->company, 'name' => $o->name, 'count' => (int) $o->share_count,
                 // The fewest it issues at its deadline (#516); NULL: all of them
@@ -258,7 +355,9 @@ class Shares
                 'committed' => $committed, 'left' => (int) $o->units - $committed,
                 'hours' => (int) max(0, ceil(($o->deadline_t - $now) / 3600)),
                 'sales' => max(0, (int) ($sales[$o->company] ?? 0)), 'profit' => (int) ($profits[$o->company] ?? 0),
+                'profit30' => $l['profit30'], 'carried_loss' => $l['carried'],
                 'a_day_after' => round($net / $after, 2),
+                'payback' => self::paybackDays((int) $o->price, $after, $l),
                 // What it sells (#572): the part of its future profit the
                 // new shares take if it fills, and what they'd be paid a day now
                 'income_percent' => round(100 * (int) $o->units / $after, 1),
@@ -288,6 +387,7 @@ class Shares
         $values = self::valuePrices();
         $sales = self::daySales($ids);
         $profits = self::dayProfits($ids);
+        $long = self::longProfits($ids);
         $outside = $ids ? DB::table('shares')->whereIn('company', $ids)->whereColumn('holder', '<>', 'company')
             ->groupBy('company')->get(['company', DB::raw('SUM(units) AS units'), DB::raw('SUM(dividends) AS dividends')])
             ->keyBy('company')->all() : [];
@@ -303,11 +403,13 @@ class Shares
         $names = DB::table('companies')->whereIn('company_id', array_merge($ids, $orders->pluck('company')->all(),
             $trades->pluck('seller')->all(), $trades->pluck('buyer')->all()))->pluck('name', 'company_id')->all();
         $name = fn ($id) => $names[$id] ?? "Company $id";
-        // A share earns its part of the company's profit (#603; sales after tax until then, #485)
+        // A share earns its part of the company's profit (#603; sales after
+        // tax until then, #485), judged over 30 days after making up the
+        // company's carried loss (#607)
         $counts = $ids ? DB::table('companies')->whereIn('company_id', $ids)->pluck('share_count', 'company_id')->all() : [];
         $count = fn ($id) => (int) ($counts[$id] ?? self::PER_COMPANY);
-        $aDay = fn ($id) => max(0, (int) ($profits[$id] ?? 0)) / $count($id);
-        $days = fn ($price, $id) => $aDay($id) > 0 ? (int) ceil($price / $aDay($id)) : null;
+        $aDay = fn ($id) => max(0, $long[$id]['profit30']) / $count($id);
+        $days = fn ($price, $id) => self::paybackDays((int) $price, $count($id), $long[$id]);
 
         $companies = [];
         // Whether each can keep its drones flying (#537): about 20 ms a
@@ -320,6 +422,8 @@ class Shares
             $companies[] = ['company' => $id, 'name' => $name($id), 'price' => $price,
                 'value_price' => $values[$id] ?? null, 'count' => $count($id),
                 'sales' => max(0, (int) ($sales[$id] ?? 0)), 'profit' => (int) ($profits[$id] ?? 0),
+                'profit30' => $long[$id]['profit30'], 'carried_loss' => $long[$id]['carried'],
+                'carry_days' => self::carryDays($long[$id]),
                 'a_day' => round($aDay($id), 2),
                 'payback' => $price !== null ? $days($price, $id) : null,
                 'held_by_others' => (int) ($outside[$id]->units ?? 0),
@@ -350,7 +454,9 @@ class Shares
                 'seller' => (int) $t->seller, 'seller_name' => $name((int) $t->seller),
                 'buyer' => (int) $t->buyer, 'buyer_name' => $name((int) $t->buyer),
                 'units' => (int) $t->units, 'price' => (int) $t->price,
-                'when' => DronePage::when((int) $t->game_t)])->all(),
+                'when' => DronePage::when((int) $t->game_t),
+                // #610: round 63's "recent" trades were 400 game days old
+                'days_ago' => intdiv(max(0, $now - (int) $t->game_t), 86400)])->all(),
         ];
     }
 

@@ -81,4 +81,70 @@ class CompanyChartsTest extends TestCase
         \App\Services\Shares::transfer((int) $issuer->company_id, (int) $issuer->company_id, (int) $investor->company_id, 150);
         $page()->assertSee('Held by other companies: <b>50%</b>', false)->assertSee("it can't offer new shares or sell its own", false);
     }
+
+    /** #607: a share is judged by 30 days of profit and the losses still to make up */
+    public function testCarriedLossAndThirtyDayProfit()
+    {
+        $issuer = $this->release('Lumpy');
+        $investor = $this->release('Patient');
+        $c = (int) $issuer->company_id;
+        $today = \App\Services\MarketHistory::today();
+        // 20 days ago it earned 6,000 in a day; the last 7 days it made 100 a
+        // day; and a hull bought yesterday left 1,500 of losses to make up
+        DB::table('company_profits')->insert(['company' => $c, 'day' => $today - 20, 'sales' => 6000, 'purchases' => 0, 'profit' => 6000]);
+        foreach (range(1, 7) as $d) {
+            DB::table('company_profits')->insert(['company' => $c, 'day' => $today - $d, 'sales' => 100, 'purchases' => 0, 'profit' => 100]);
+        }
+        DB::table('companies')->where('company_id', $c)->update(['dividend_carry' => -1500]);
+
+        $long = \App\Services\Shares::longProfits([$c])[$c];
+        $this->assertSame(['profit30' => 837, 'carried' => 1500], $long, '(6,000 + 700) / 8 settled days');
+        $this->assertSame(2, \App\Services\Shares::carryDays($long));
+        // At 10 a share of 1,000: 1,500 to make up, then 10,000 to earn back
+        $this->assertSame((int) ceil(11500 / 837), \App\Services\Shares::paybackDays(10, 1000, $long));
+        $this->assertNull(\App\Services\Shares::paybackDays(10, 1000, ['profit30' => 0, 'carried' => 0]));
+
+        \App\Services\Shares::transfer($c, $c, (int) $investor->company_id, 100);
+        DB::table('share_trades')->insert(['share_company' => $c, 'seller' => $c, 'buyer' => $investor->company_id,
+            'units' => 100, 'price' => 10, 'game_t' => World::gameNow()]);
+        $this->get('/companies/' . $c)->assertOk()->assertSee('id="share-earnings"', false)
+            ->assertSee('No dividends until it makes 1,500 more profit', false)->assertSee('about 2 days at that rate');
+        $row = collect(\App\Services\Shares::exchange()['companies'])->firstWhere('company', $c);
+        $this->assertSame([837, 1500, 2, 14], [$row['profit30'], $row['carried_loss'], $row['carry_days'], $row['payback']]);
+        $this->get('/market/shares')->assertOk()->assertSee('Losses to make up');
+
+        // Made up: dividends resume
+        DB::table('companies')->where('company_id', $c)->update(['dividend_carry' => 0]);
+        $this->get('/companies/' . $c)->assertSee('It has no losses to make up');
+    }
+
+    /** #610: a holder sees the best bid for its shares; dead orders are hidden; trades say how old they are */
+    public function testHoldersSeeTheBestBidAndOnlyLiveOrders()
+    {
+        $issuer = $this->release('Bid Upon');
+        $holder = $this->release('Holders');
+        $bidder = $this->release('Bidders');
+        $other = $this->release('Low Bidders');
+        [$i, $h, $b, $o] = array_map(fn ($a) => (int) $a->company_id, [$issuer, $holder, $bidder, $other]);
+        \App\Services\Shares::transfer($i, $i, $h, 100);
+        $order = fn ($c, $side, $price, $limit) => DB::table('share_orders')->insert(['company' => $c, 'share_company' => $i,
+            'side' => $side, 'price' => $price, 'limit_units' => $limit, 'placed_t' => 0]);
+        $order($b, 2, 30, 40);     // wants 40: bids for 40
+        $order($o, 2, 20, 50);     // a lower bid
+        $order($h, 2, 99, 100);    // the holder's own bid: it holds all it wants, and it is its own
+        $order($o, 1, 25, 0);      // a sell order of a company holding none: dead
+
+        $sum = \App\Services\Shares::summary($h);
+        $this->assertSame(['price' => 30, 'units' => 40, 'by' => $b, 'by_name' => 'Bidders'], $sum['holdings'][0]['best_bid']);
+        $orders = \App\Services\Shares::summary($i)['orders'];
+        $this->assertSame([[$o, 'buy', 50], [$b, 'buy', 40]],
+            array_map(fn ($x) => [$x['company'], $x['side'], $x['units']], $orders), 'the dead sell order and the filled bid are hidden');
+
+        DB::table('share_trades')->insert(['share_company' => $i, 'seller' => $i, 'buyer' => $h, 'units' => 100,
+            'price' => 12, 'game_t' => World::gameNow() - 400 * 86400]);
+        $this->assertSame(400, \App\Services\Shares::summary($i)['trades'][0]['days_ago']);
+        $this->get('/companies/' . $h)->assertOk()->assertSee('Best bid now')->assertSee('30 for up to 40 (Bidders)');
+        $this->get('/companies/' . $i)->assertSee('400 game days ago');
+        $this->get('/market/shares')->assertOk()->assertSee('400 game days ago');
+    }
 }

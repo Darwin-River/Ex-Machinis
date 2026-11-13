@@ -247,9 +247,10 @@ function launched() end
 function invest_spare(above, days)
   local free, spent = credits() - above, 0
   for _, o in ipairs(shares_for_sale()) do
-    local a_day = math.max(o.profit, 0) / share_count(o.company)
+    -- days to pay its price back: losses made up first, then 30-day profit (#607)
+    local back = payback_days(o.price, share_count(o.company), o.profit30, o.carried)
     if o.seller == o.company and o.company ~= company() and o.price > 0
-        and o.price <= a_day * days then
+        and back <= days then
       local n = math.min(o.units, free // o.price)
       if n * o.price >= 25 then
         pull_shares(n, o.company, o.seller)

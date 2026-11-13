@@ -54,7 +54,7 @@
 // queries table
 #define MAX_QUERIES_NAME_SIZE          45
 #define MAX_QUERIES_DESCRIPTION_SIZE  255
-#define MAX_QUERIES_SCRIPT_SIZE      2000
+#define MAX_QUERIES_SCRIPT_SIZE      4000  // queries.script (migration 0049)
 
 // meta-commands supported
 #define META_COMMAND_ABORT    "<abort>"

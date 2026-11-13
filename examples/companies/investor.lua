@@ -1,8 +1,8 @@
 -- Investor: a company design for Public Forge, in Lua (#473, the stock
 -- market #466). It needs no equipment: it never mines or makes
 -- anything. It stays at Earth and lives on shares.
--- Every company's shares pay their holders 0.1% a share of the company's
--- sales income. Once a game day the investor learns what a share of each
+-- Every company's shares pay their holders their part of the company's
+-- profit, once a game day (#603). Once a game day the investor learns what a share of each
 -- company pays a day: from the dividends it has had where it holds shares,
 -- else from the company's sales a day over the last week (shares_for_sale() lists
 -- them), smoothed over about a week. It looks ahead (#475 step 3):
@@ -11,7 +11,9 @@
 -- - from another holder it pays no more than buy_days: no premium for
 --   growth, so it doesn't bid up shares between investors;
 -- - it offers what it holds at sell_days of a share's income, never under
---   what it paid, and always keeps fuel_money for fuel (#496);
+--   what it paid, and always keeps fuel_money for fuel (#496), and sells
+--   into any bid worth more than sell_days of a share's dividends
+--   (answer_bids, #610: bids for shares used to go unanswered);
 -- - once a day it commits to offerings of new shares (#485) worth buy_days
 --   of a share's income once filled, counting one more drone's sales, one
 --   offering at a time until it fills or lapses (#488).
@@ -70,7 +72,7 @@ function study()
   for _, o in ipairs(shares_for_sale()) do
     if not seen[o.company] then
       seen[o.company] = true
-      if not paid[o.company] then learn(o.company, math.max(o.profit, 0) / share_count(o.company)) end
+      if not paid[o.company] then learn(o.company, math.max(o.profit30, 0) / share_count(o.company)) end
     end
   end
   for c, a_day in pairs(paid) do learn(c, a_day) end
@@ -125,12 +127,12 @@ function sell()
 end
 
 -- Offerings of new shares (#485): what a new share is worth over `days`
--- days, on the company's last day of sales spread over its shares once the
--- offering fills, and counting the sales of one more drone (what a raise is
--- usually for)
+-- days, on the company's profit a day (30-day average, #607) spread over
+-- its shares once the offering fills, counting the profit of one more drone
+-- (what a raise is usually for), less the losses it must make up first
 function offering_worth(o, days)
   local n = math.max(#company_drones(o.company), 1)
-  return days * math.max(o.profit, 0) * (n + 1) / n / (o.count + o.units)
+  return math.max(days * math.max(o.profit30, 0) * (n + 1) / n - o.carried, 0) / (o.count + o.units)
 end
 -- Commit up to `budget` credits to one offering at a time (#488): the one
 -- it has already backed while it is open, else the open offering worth its
@@ -166,13 +168,13 @@ end
 
 started = false
 function launched()
-  fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
+  fuel_floor(15)   -- make, mine, refine and pushing fuel stop at 15 fuel: it keeps enough to buy more (#496)
   go(earth)
   last_day = -1
   while true do
     if units(fuel) < low_fuel then buy_here(40, fuel) end
     if today() ~= last_day then
-      study(); sell()
+      study(); sell(); answer_bids(sell_days)
       back_offerings(math.min(spend, credits() - math.max(cash_floor, fuel_money)), buy_days)
       last_day = today()
     end

@@ -186,49 +186,59 @@ class HouseMarket
     /**
      * The House's demand (#550): for each exchange and good it buys, its bid
      * now, the units it still takes today, its day's demand, its listed price
-     * and the game hours until it refills. As wanted() and query 706: it buys
-     * up to a day's demand above what it keeps to sell, its bid falls to half
-     * the listed price at a full day's demand bought, and what it bought goes
-     * down to the surface at the start of the next game day (station.lua).
+     * and the game hours until it refills. Since #608 the bid and the units
+     * come from the station drone's live buy order, as the order book counts
+     * them (ApiController::movable): round 63's Xavi flew rods to Earth and
+     * the Moon on a demand worked out from the House's holdings while its
+     * posted order wanted none. Also the units sold into it today (`sold`),
+     * by `$company` (`mine`), and the game hours until it runs out at
+     * today's pace (`empty_hours`, null when nothing has sold today).
      * Rows: place, place_name, resource, resource_name, price, left, daily,
-     * listed, hours
+     * listed, hours, sold, mine, empty_hours
      */
-    public static function demand(?int $resource = null, ?int $place = null): array
+    public static function demand(?int $resource = null, ?int $place = null, ?int $company = null): array
     {
         $db = DB::connection();
         $today = self::today($db);
+        $now = self::gameNow($db);
         $epoch = (float) ($db->table('game_clock')->where('id', 1)->value('epoch') ?? 0);
-        $hours = (int) max(0, ceil(($epoch + ($today + 1) * 86400 - self::gameNow($db)) / 3600));
+        $dayStart = (int) ($epoch + $today * 86400);
+        $hours = (int) max(0, ceil(($dayStart + 86400 - $now) / 3600));
+        $elapsed = max(1, $now - $dayStart);
         $stations = $db->table('agents AS a')->join('stations AS s', 's.id', '=', 'a.station_id')
             ->leftJoin('objects AS o', 'o.object_id', '=', 's.object_id')->whereNull('a.wrecked_at')
             ->when($place !== null, fn ($q) => $q->where('s.object_id', $place))
             ->get(['a.agent_id', 's.id AS station_id', 's.object_id', 'o.object_name']);
         $names = $db->table('resources')->pluck('name', 'id')->all();
+        $movable = \App\Http\Controllers\ApiController::movable(HouseStations::BUY_ORDER_EVENT);
         $out = [];
         foreach ($stations as $st) {
             $goods = $db->table('house_market')->where('station_id', $st->station_id)->where('from_day', '<=', $today)
-                ->when($resource !== null, fn ($q) => $q->where('resource', $resource))
-                ->get(['resource', 'side', 'price', 'daily_units']);
-            $keep = [];
-            foreach ($goods as $g) {
-                if ((int) $g->side === 2) {
-                    $keep[(int) $g->resource] = max(1, intdiv(max(1, (int) $g->daily_units), 4));
-                }
+                ->where('side', 1)->when($resource !== null, fn ($q) => $q->where('resource', $resource))
+                ->get(['resource', 'price', 'daily_units']);
+            if ($goods->isEmpty()) {
+                continue;
             }
-            $held = $db->table('holdings')->where('drone', $st->agent_id)->whereIn('installed', [0, 1])->whereIn('locked', [0, 1])
-                ->when($resource !== null, fn ($q) => $q->where('resource', $resource))
-                ->groupBy('resource')->selectRaw('resource, SUM(units) AS units')->pluck('units', 'resource')->all();
+            $orders = collect($db->select("SELECT o.resource, o.price, o.quantity, $movable AS movable FROM latest_orders AS o
+                WHERE o.drone = ? AND o.event_type = ?" . ($resource !== null ? ' AND o.resource = ?' : ''),
+                array_values(array_filter([(int) $st->agent_id, HouseStations::BUY_ORDER_EVENT, $resource], fn ($v) => $v !== null))))
+                ->keyBy('resource');
+            $sold = $db->table('trades AS t')->leftJoin('agents AS s', 's.agent_id', '=', 't.seller')
+                ->where('t.buyer', $st->agent_id)->where('t.game_t', '>=', $dayStart)
+                ->when($resource !== null, fn ($q) => $q->where('t.resource', $resource))->groupBy('t.resource')
+                ->selectRaw('t.resource, SUM(t.units) AS units, SUM(IF(s.company_id = ?, t.units, 0)) AS mine', [$company ?? 0])
+                ->get()->keyBy('resource');
             foreach ($goods as $g) {
-                if ((int) $g->side !== 1) {
-                    continue;
-                }
                 $r = (int) $g->resource;
-                $daily = max(1, (int) $g->daily_units);
-                $listed = (int) $g->price;
-                $bought = min(max(0, (int) ($held[$r] ?? 0) - ($keep[$r] ?? 0)), $daily);
+                $o = $orders[$r] ?? null;
+                $left = $o ? max(0, (int) $o->quantity - (int) $o->movable) : 0;
+                $soldToday = (int) ($sold[$r]->units ?? 0);
                 $out[] = ['place' => (int) $st->object_id, 'place_name' => $st->object_name, 'resource' => $r,
-                    'resource_name' => $names[$r] ?? "Resource $r", 'price' => max(1, $listed - intdiv($listed * $bought, 2 * $daily)),
-                    'left' => $daily - $bought, 'daily' => $daily, 'listed' => $listed, 'hours' => $hours];
+                    'resource_name' => $names[$r] ?? "Resource $r",
+                    'price' => $left > 0 ? (int) $o->price : 0, 'left' => $left,
+                    'daily' => max(1, (int) $g->daily_units), 'listed' => (int) $g->price, 'hours' => $hours,
+                    'sold' => $soldToday, 'mine' => (int) ($sold[$r]->mine ?? 0),
+                    'empty_hours' => $soldToday > 0 && $left > 0 ? (int) ceil($left * $elapsed / $soldToday / 3600) : null];
             }
         }
         usort($out, fn ($a, $b) => [$a['resource'], $b['price'], $a['place']] <=> [$b['resource'], $a['price'], $b['place']]);

@@ -184,7 +184,9 @@ class ApiController extends Controller
      * A drone's stock a pull or push can move (#502), for an order of the
      * type (4 sell, 5 buy) on latest_orders AS o: its free holding, less its
      * pending depletions (a seller) or plus its pending accumulations (a
-     * buyer). The same as the order-book queries' (build_game_data.py movable)
+     * buyer). The same as the order-book queries' (build_game_data.py movable).
+     * An aborted action's events stay pending for ever and never happen: not
+     * counted (#612)
      */
     public static function movable(int $type): string
     {
@@ -193,7 +195,8 @@ class ApiController extends Controller
                     AND h.installed = 0 AND h.locked = 0), 0) $sign
                  IFNULL((SELECT ABS(SUM(e.new_quantity)) FROM events AS e FORCE INDEX (events_inventory)
                     WHERE e.drone = o.drone AND e.resource = o.resource AND e.installed = 0 AND e.locked = 0
-                    AND e.outcome = 0 AND e.event_type = $pending), 0))";
+                    AND e.outcome = 0 AND e.event_type = $pending
+                    AND NOT EXISTS (SELECT 1 FROM actions AS x WHERE x.id = e.action AND x.aborted = 1)), 0))";
     }
 
     public function orders(Request $request): JsonResponse
@@ -323,12 +326,13 @@ class ApiController extends Controller
     /**
      * The House's demand (#550): for each exchange and good it buys, its bid
      * now, the units it still takes today, its day's demand, its listed price
-     * and the game hours until it refills. ?resource= and ?place= narrow it
+     * and the game hours until it refills. ?resource= and ?place= narrow it;
+     * ?company= counts that company's sales into it today (`mine`, #608)
      */
     public function houseDemand(Request $request): JsonResponse
     {
         $int = fn ($k) => is_numeric($request->query($k)) ? (int) $request->query($k) : null;
-        return response()->json(HouseMarket::demand($int('resource'), $int('place')));
+        return response()->json(HouseMarket::demand($int('resource'), $int('place'), $int('company')));
     }
 
     /**

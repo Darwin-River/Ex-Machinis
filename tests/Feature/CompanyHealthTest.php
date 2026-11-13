@@ -95,4 +95,19 @@ class CompanyHealthTest extends TestCase
         $this->assertSame('no working drone', $h['at_risk_reason']);
         $this->assertFalse($h['stalled']);
     }
+
+    /** #609: a drone with no fuel is stuck, however many credits its company has */
+    public function testADroneWithNoFuelIsAtRisk()
+    {
+        $user = User::create(['name' => 'Health', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
+        $agent = Release::release($user, 'Dry Tanks', 'function launched() end');
+        $company = (int) $agent->company_id;
+        DB::table('companies')->where('company_id', $company)->update(['credits' => 2400]);
+        $this->fuelEvent((int) $agent->agent_id, 2, 0, 3600);
+        $h = CompanyHealth::of($company);
+        $this->assertSame(0, $h['lowest']);
+        $this->assertTrue($h['at_risk'], 'stranded with 2,400 credits');
+        $this->assertStringContainsString('no fuel left', $h['at_risk_reason']);
+        $this->get('/companies/' . $company)->assertOk()->assertSee('no fuel left');
+    }
 }

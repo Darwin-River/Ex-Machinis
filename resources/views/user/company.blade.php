@@ -220,6 +220,20 @@
                     <p>{{ number_format($shares['count']) }} shares, each paying its part of the company's profit once a game day
                         (its sales after tax less what it paid for goods and equipment, after making up earlier losses: see Earnings).
                         Last trade price: <b>{{ $shares['price'] !== null ? number_format($shares['price']) . ' credits' : 'never traded' }}</b>.</p>
+                    {{-- What a share earns, judged over 30 days, and the losses before dividends resume (#607) --}}
+                    <p id="share-earnings">Profit a day: <b>{{ number_format($shares['profit30']) }}</b> over the last
+                        {{ \App\Services\Shares::PROFIT_DAYS }} game days ({{ number_format($shares['profit']) }} over the last 7).
+                        @if($shares['carried_loss'] > 0)
+                            <b>No dividends until it makes {{ number_format($shares['carried_loss']) }} more profit</b>{{ $shares['carry_days'] !== null
+                                ? ', about ' . $shares['carry_days'] . ' ' . \Illuminate\Support\Str::plural('day', $shares['carry_days']) . ' at that rate' : '' }}:
+                            earlier losses are made up first.
+                        @else
+                            It has no losses to make up: each profitable day pays dividends.
+                        @endif
+                        @if($shares['payback'] !== null)
+                            At the last price a share pays itself back in about {{ $shares['payback'] }} game days.
+                        @endif
+                    </p>
                     {{-- How much of it others hold (#599): offerings and its own sales stop at half --}}
                     <p id="outside-share" @class(['health-banner' => $shares['outside_share'] >= \App\Services\Shares::WARN_OUTSIDE])>
                         Held by other companies: <b>{{ round($shares['outside_share'] * 100) }}%</b>
@@ -282,11 +296,12 @@
                 <h4>Orders at the Earth exchange</h4>
                 <div class="table-custom-responsive">
                     <table class="table-ticket">
-                        <tr><th>Company</th><th>Order</th><th>Price</th><th>Limit</th></tr>
+                        <tr><th>Company</th><th>Order</th><th>Price</th><th>Limit</th><th>Shares it trades now</th></tr>
                         @foreach($shares['orders'] as $o)
                             <tr><td><a href="{{ url('/companies/'.$o['company']) }}">{{ $o['name'] }}</a></td>
                                 <td>{{ $o['side'] }}</td><td>{{ number_format($o['price']) }}</td>
-                                <td>{{ $o['side'] === 'sell' ? 'keeps ' . $o['keep'] : 'wants ' . $o['want'] }}</td></tr>
+                                <td>{{ $o['side'] === 'sell' ? 'keeps ' . $o['keep'] : 'wants ' . $o['want'] }}</td>
+                                <td>{{ number_format($o['units']) }}</td></tr>
                         @endforeach
                     </table>
                 </div>
@@ -295,12 +310,14 @@
                 <h4>Shares it holds in other companies</h4>
                 <div class="table-custom-responsive">
                     <table class="table-ticket">
-                        <tr><th>Company</th><th>Shares</th><th>Last price</th><th>Value</th><th>Dividends received</th></tr>
+                        <tr><th>Company</th><th>Shares</th><th>Last price</th><th>Value</th><th>Dividends received</th><th>Best bid now</th></tr>
                         @foreach($shares['holdings'] as $h)
                             <tr><td><a href="{{ url('/companies/'.$h['company']) }}">{{ $h['name'] }}</a></td>
                                 <td>{{ number_format($h['units']) }}</td>
                                 <td>{{ $h['ended'] ? 'ended: worth nothing' : ($h['price'] !== null ? number_format($h['price']) : '-') }}</td>
-                                <td>{{ number_format($h['value']) }}</td><td>{{ number_format($h['dividends']) }}</td></tr>
+                                <td>{{ number_format($h['value']) }}</td><td>{{ number_format($h['dividends']) }}</td>
+                                {{-- #610: what it could sell them for now --}}
+                                <td>{{ $h['best_bid'] ? number_format($h['best_bid']['price']) . ' for up to ' . number_format($h['best_bid']['units']) . ' (' . $h['best_bid']['by_name'] . ')' : 'no bids' }}</td></tr>
                         @endforeach
                     </table>
                 </div>
@@ -309,9 +326,10 @@
                 <h4>Recent trades in its shares</h4>
                 <div class="table-custom-responsive">
                     <table class="table-ticket">
-                        <tr><th>Seller</th><th>Buyer</th><th>Shares</th><th>Price</th></tr>
+                        <tr><th>When</th><th>Seller</th><th>Buyer</th><th>Shares</th><th>Price</th></tr>
                         @foreach($shares['trades'] as $t)
-                            <tr><td><a href="{{ url('/companies/'.$t['seller']) }}">{{ $t['seller_name'] }}</a></td>
+                            <tr><td>{{ $t['days_ago'] === 0 ? 'today' : $t['days_ago'] . ' game ' . \Illuminate\Support\Str::plural('day', $t['days_ago']) . ' ago' }}</td>
+                                <td><a href="{{ url('/companies/'.$t['seller']) }}">{{ $t['seller_name'] }}</a></td>
                                 <td><a href="{{ url('/companies/'.$t['buyer']) }}">{{ $t['buyer_name'] }}</a></td>
                                 <td>{{ number_format($t['units']) }}</td><td>{{ number_format($t['price']) }}</td></tr>
                         @endforeach

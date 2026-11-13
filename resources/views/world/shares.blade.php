@@ -18,7 +18,7 @@
             <div style="white-space: normal; margin-bottom: 1em">Companies raising credits by issuing new shares. Investors
                 commit and pay now. Once every share is committed the shares are issued and the company paid. At the
                 deadline, if at least the offering's minimum is committed, those shares are issued; if not, everyone is
-                refunded. <i>A share a day</i> is the company's profit a day (7-day average) divided by the
+                refunded. <i>A share a day</i> is the company's profit a day (30-day average) divided by the
                 shares it will have if the offering fills. <i>Income sold</i> is the part of the company's future profit the
                 new shares take if it fills (#572).</div>
             <div class="table-custom-responsive">
@@ -41,8 +41,8 @@
 
             <h3 class="mt-4">Companies</h3>
             <div style="white-space: normal; margin-bottom: 1em">Companies whose shares have traded, are on offer, or are
-                held by others, busiest first. <i>Sales a day</i> is sales after tax and <i>Profit a day</i> is sales after tax less what it paid for goods and equipment, each averaged over the last 7 game days (they come in lumps); dividends are paid from profit, so <i>A share a day</i> is profit divided by its shares;
-                <i>Pays back</i> is how many days of that the last price comes to. <i>Value</i> is what a share counts for in net
+                held by others, busiest first. <i>Sales a day</i> is sales after tax, averaged over the last 7 game days. <i>Profit a day</i> is sales after tax less what it paid for goods and equipment, averaged over the last 30 game days, since a company that buys a hull or a load makes it in lumps. Dividends are paid from profit, but only once earlier losses are made up: <i>Losses to make up</i> is how much more profit the company must make before it pays any. <i>A share a day</i> is profit divided by its shares, and
+                <i>Pays back</i> is how many days of profit it takes to make up those losses and then earn back the last price. <i>Value</i> is what a share counts for in net
                 wealth: the average price of its trades over the last 3 game days, weighted by shares, or the last price if
                 none traded then, so one odd trade doesn't move every holder's wealth. <i>Health</i> is whether it can keep its
                 drones flying: the game days until its first drone runs dry at the last day's fall in fuel, and
@@ -51,7 +51,7 @@
                 made anything for a game day.</div>
             <div class="table-custom-responsive">
                 <table class="table-ticket" id="share-companies">
-                    <tr><th>Company</th><th>Shares</th><th>Last price</th><th>Value</th><th>Sales a day</th><th>Profit a day</th><th>A share a day</th><th>Pays back</th>
+                    <tr><th>Company</th><th>Shares</th><th>Last price</th><th>Value</th><th>Sales a day</th><th>Profit a day</th><th>Losses to make up</th><th>A share a day</th><th>Pays back</th>
                         <th>Held by others</th><th>Dividends paid</th><th>Health</th></tr>
                     @forelse($exchange['companies'] as $c)
                         <tr>
@@ -60,7 +60,8 @@
                             <td>{{ $c['price'] !== null ? number_format($c['price']) : 'never traded' }}</td>
                             <td>{{ $c['value_price'] !== null ? number_format($c['value_price']) : '–' }}</td>
                             <td>{{ number_format($c['sales']) }}</td>
-                            <td>{{ number_format($c['profit']) }}</td>
+                            <td>{{ number_format($c['profit30']) }}</td>
+                            <td>{{ $c['carried_loss'] > 0 ? number_format($c['carried_loss']) : '–' }}</td>
                             <td>{{ $c['a_day'] }}</td>
                             <td>{{ $c['payback'] !== null ? $c['payback'] . ' days' : '–' }}</td>
                             <td>{{ number_format($c['held_by_others']) }}</td>
@@ -128,7 +129,7 @@
                     <tr><th>When</th><th>Shares of</th><th>Units</th><th>Price</th><th>Seller</th><th>Buyer</th></tr>
                     @forelse($exchange['trades'] as $t)
                         <tr>
-                            <td>{{ $t['when'] }}</td>
+                            <td>{{ $t['when'] }} ({{ $t['days_ago'] === 0 ? 'today' : $t['days_ago'] . ' game ' . \Illuminate\Support\Str::plural('day', $t['days_ago']) . ' ago' }})</td>
                             <td><a href="{{ url('companies/' . $t['company']) }}">{{ $t['name'] }}</a></td>
                             <td>{{ number_format($t['units']) }}</td><td>{{ number_format($t['price']) }}</td>
                             <td><a href="{{ url('companies/' . $t['seller']) }}">{{ $t['seller_name'] }}</a></td>

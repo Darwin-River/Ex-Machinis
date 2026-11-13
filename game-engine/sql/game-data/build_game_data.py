@@ -833,13 +833,17 @@ def movable(drone, resource, event_type):
     # A drone's free stock of a resource (holdings: not installed, not
     # locked), less what is on its way out (a sell order: pending depletions)
     # or plus what is on its way in (a buy order: pending accumulations).
-    # Pending events are outcome 0 and carry the change (#502)
+    # Pending events are outcome 0 and carry the change (#502). An aborted
+    # action's events stay outcome 0 for ever and never happen (#612: the
+    # Earth and Moon exchanges' fuel and metals vanished from the book
+    # behind them, round 63's fuel shortage)
     sign, pending = ('-', 2) if event_type == 4 else ('+', 1)
     return (f"(IFNULL((SELECT h.units FROM holdings AS h WHERE h.drone = {drone} AND h.resource = {resource} "
             f"AND h.installed = 0 AND h.locked = 0), 0) {sign} "
             f"IFNULL((SELECT ABS(SUM(p.new_quantity)) FROM events AS p FORCE INDEX (events_inventory) "
             f"WHERE p.drone = {drone} AND p.resource = {resource} AND p.installed = 0 AND p.locked = 0 "
-            f"AND p.outcome = 0 AND p.event_type = {pending}), 0))")
+            f"AND p.outcome = 0 AND p.event_type = {pending} "
+            "AND NOT EXISTS (SELECT 1 FROM actions AS x WHERE x.id = p.action AND x.aborted = 1)), 0))")
 
 
 EVENT_COL = "SELECT {c} FROM events WHERE outcome = 1 AND id = [value_1];"
@@ -1421,17 +1425,27 @@ DAY_SALES = ("FLOOR(IFNULL((SELECT SUM(t.credits - t.tax) FROM agents AS a JOIN 
 # of the game days settled in the last 7 (company_profits), 0 before any
 DAY_PROFIT = ("IFNULL((SELECT FLOOR(SUM(p.profit) / COUNT(*)) FROM company_profits AS p WHERE p.company = {c} "
               "AND p.day >= FLOOR(([game_now] - (SELECT g.epoch FROM game_clock AS g WHERE g.id = 1)) / 86400) - 7), 0)")
+# The same over 30 game days (#607): the figure shares are judged by, since
+# a company that buys a hull or a load makes its profit in lumps (round 63:
+# one company's 7-day profit swung from 648 to -54). And the losses it must
+# still make up before dividends resume (companies.dividend_carry, positive)
+PROFIT30 = ("IFNULL((SELECT FLOOR(SUM(p.profit) / COUNT(*)) FROM company_profits AS p WHERE p.company = {c} "
+            "AND p.day >= FLOOR(([game_now] - (SELECT g.epoch FROM game_clock AS g WHERE g.id = 1)) / 86400) - 30), 0)")
+CARRIED = "IFNULL((SELECT GREATEST(0, -k.dividend_carry) FROM companies AS k WHERE k.company_id = {c}), 0)"
+LONG_PROFIT = "{p} AS d_profit30, {k} AS d_carried"
+def long_profit(c):
+    return LONG_PROFIT.format(p=PROFIT30.format(c=c), k=CARRIED.format(c=c))
 # Every company's shares on offer (#473): the sell orders that can sell
 # now, cheapest first, with the company's sales income after tax over the
 # last game day (what its dividends come from: 0.1% a share). Rows: company,
 # price, units, seller, sales
 queries.append((696, 'Shares for sale',
-                'Every sell order for shares at the Earth exchange that can sell now, cheapest first (50 at most): '
-                'company, price, units for sale, seller, the company\'s sales after tax a day (7-day average), its profit a day '
-                '(7-day average; what dividends are paid from).', 0,
+                'Share sell orders that can sell now, cheapest first (50): company, price, units, seller, its sales a '
+                'day (7-day), profit a day (7-day), profit a day (30-day), losses to make up before dividends.', 0,
                 "SELECT o.share_company AS company, o.price AS d_price, IFNULL(s.units, 0) - o.limit_units AS units, "
                 "o.company AS seller, "
-                f"{DAY_SALES.format(c='o.share_company')} AS d_sales, {DAY_PROFIT.format(c='o.share_company')} AS d_profit "
+                f"{DAY_SALES.format(c='o.share_company')} AS d_sales, {DAY_PROFIT.format(c='o.share_company')} AS d_profit, "
+                f"{long_profit('o.share_company')} "
                 "FROM share_orders AS o INNER JOIN companies AS c ON c.company_id = o.company AND c.eliminated_at IS NULL "
                 "INNER JOIN companies AS sc ON sc.company_id = o.share_company AND sc.eliminated_at IS NULL "
                 "LEFT JOIN shares AS s ON s.company = o.share_company AND s.holder = o.company "
@@ -1439,16 +1453,16 @@ queries.append((696, 'Shares for sale',
 # Offerings of new shares (#485): every open offering, and a company's
 # share count
 queries.append((697, 'Share offerings',
-                'Open offerings of new shares, soonest deadline first (50 at most): company, most new shares, price, '
-                'shares left, game hours left, its share count, its sales after tax a day (7-day average), shares '
-                'my company committed, fewest it issues, its profit a day (7-day average).', 0,
+                'Open offerings, soonest first (50): company, new shares, price, left, hours left, share count, sales '
+                'a day (7-day), mine committed, fewest issued, profit a day (7-day), profit a day (30-day), losses to '
+                'make up.', 0,
                 "SELECT o.company AS company, o.units AS units, o.price AS d_price, o.units - IFNULL((SELECT SUM(m.units) FROM "
                 "share_commitments AS m WHERE m.company = o.company), 0) AS left_units, "
                 "GREATEST(0, CEIL((o.deadline_t - [game_now]) / 3600)) AS hours, "
                 f"c.share_count AS count, {DAY_SALES.format(c='o.company')} AS d_sales, "
                 f"IFNULL((SELECT m.units FROM share_commitments AS m WHERE m.company = o.company AND m.investor = {MY_COMPANY}), 0) AS mine, "
                 "IFNULL(o.min_units, o.units) AS min_units, "
-                f"{DAY_PROFIT.format(c='o.company')} AS d_profit "
+                f"{DAY_PROFIT.format(c='o.company')} AS d_profit, {long_profit('o.company')} "
                 "FROM share_offerings AS o INNER JOIN companies AS c ON c.company_id = o.company AND c.eliminated_at IS NULL "
                 "WHERE o.deadline_t > [game_now] ORDER BY o.deadline_t, o.company LIMIT 50;"))
 # A company's health (#537): its drones, their fuel and how fast it falls,
@@ -1482,19 +1496,31 @@ queries.append((699, 'Company health',
 # game hours until it refills. It buys up to a day's demand above what it
 # keeps to sell; its bid falls to half its listed price at a full day's
 # demand bought, and what it bought goes down to the surface at the start of
-# the next game day (station.lua's ship). As App\Services\HouseMarket::demand
-HOUSE_KEEP = ("IFNULL((SELECT GREATEST(1, FLOOR(GREATEST(1, k.daily_units) / 4)) FROM house_market AS k "
-              f"WHERE k.station_id = g.station_id AND k.resource = g.resource AND k.side = 2 AND k.from_day <= {TODAY} LIMIT 1), 0)")
+# the next game day (station.lua's ship). Since #608 the bid and the units
+# come from the station drone's live buy order, as the order book counts
+# them (round 63: a demand worked out from the House's holdings sent rods to
+# Earth while its order wanted none); plus the units sold into it today, by
+# your company, and the game hours left at today's pace (-1: none sold). As
+# App\Services\HouseMarket::demand
+DAY_START = "((SELECT epoch FROM game_clock WHERE id = 1) + " + TODAY + " * 86400)"
 queries.append((706, 'House demand',
-                'Where the House buys resource N: place, its bid now, units it still takes today, its day\'s demand, '
-                'its listed price, game hours until it refills.', 1,
-                "SELECT d.place, GREATEST(1, d.listed - FLOOR(d.listed * d.bought / (2 * d.daily))) AS d_price, "
-                "d.daily - d.bought AS left_units, d.daily, d.listed AS d_listed, "
-                f"CEIL(((SELECT epoch FROM game_clock WHERE id = 1) + ({TODAY} + 1) * 86400 - [game_now]) / 3600) AS hours "
+                'Where the House buys resource N: place, bid now (0: none), units it still takes today, day\'s demand, '
+                'listed price, hours to refill, sold into it today, by my company, hours until full at today\'s pace '
+                '(-1: none sold).', 1,
+                "SELECT d.place, IF(d.left_units > 0, d.bid, 0) AS d_price, d.left_units, d.daily, d.listed AS d_listed, "
+                f"CEIL(({DAY_START} + 86400 - [game_now]) / 3600) AS hours, d.sold, d.mine, "
+                f"IF(d.sold > 0 AND d.left_units > 0, CEIL(d.left_units * GREATEST(1, [game_now] - {DAY_START}) / d.sold / 3600), -1) AS empty_hours "
                 "FROM (SELECT s.object_id AS place, g.price AS listed, GREATEST(1, g.daily_units) AS daily, "
-                f"LEAST(GREATEST(0, {holding('a.agent_id', 'g.resource')} - {HOUSE_KEEP}), GREATEST(1, g.daily_units)) AS bought "
+                "IFNULL(o.price, 0) AS bid, "
+                f"GREATEST(0, IFNULL(o.quantity, 0) - {movable('a.agent_id', 'g.resource', 5)}) AS left_units, "
+                f"(SELECT IFNULL(SUM(t.units), 0) FROM trades AS t WHERE t.buyer = a.agent_id AND t.resource = g.resource "
+                f"AND t.game_t >= {DAY_START}) AS sold, "
+                f"(SELECT IFNULL(SUM(t.units), 0) FROM trades AS t JOIN agents AS w ON w.agent_id = t.seller "
+                f"WHERE t.buyer = a.agent_id AND t.resource = g.resource AND t.game_t >= {DAY_START} "
+                f"AND w.company_id = {MY_COMPANY}) AS mine "
                 "FROM house_market AS g JOIN stations AS s ON s.id = g.station_id "
                 "JOIN agents AS a ON a.station_id = s.id AND a.wrecked_at IS NULL "
+                "LEFT JOIN latest_orders AS o ON o.drone = a.agent_id AND o.resource = g.resource AND o.event_type = 5 "
                 f"WHERE g.side = 1 AND g.resource = [value_1] AND g.from_day <= {TODAY}) AS d ORDER BY d_price DESC, d.place;"))
 # #599: the shares other companies hold in x (an offering, or x selling its
 # own, may not take them past half), and how many game days of sales its
@@ -1503,14 +1529,14 @@ queries.append((706, 'House demand',
 COMPANY_OUTSIDE_HISTORY = ("IFNULL((SELECT SUM(o.units) FROM shares AS o WHERE o.company = x.company_id "
                            "AND o.holder <> x.company_id AND o.units > 0), 0) AS outside, "
                            "GREATEST(1, LEAST(7, FLOOR(GREATEST(0, [game_now] - IFNULL(x.founded_t, [game_now])) / 86400))) AS history, "
-                           + DAY_PROFIT.format(c='x.company_id') + " AS d_profit")
+                           + DAY_PROFIT.format(c='x.company_id') + " AS d_profit, " + long_profit('x.company_id'))
 # Every company still trading (#574), best sales first: what an investor
 # prices shares by, for companies whether or not their shares are listed.
 # Round 60's Milo could price only what happened to be for sale
 queries.append((653, 'Companies',
-                'Every company still trading, best sales first (100 at most): company, sales after tax a day '
-                '(7-day average), shares, a share\'s worth (0 if never traded), days since founded, working drones, '
-                'shares others hold, days of sales averaged, profit a day.', 0,
+                'Companies trading, best sales first (100): company, sales a day (7-day), shares, a share\'s worth, '
+                'age, drones, shares others hold, days averaged, profit a day (7-day), profit a day (30-day), losses '
+                'to make up before dividends.', 0,
                 "SELECT x.company_id AS company, "
                 f"{DAY_SALES.format(c='x.company_id')} AS d_sales, x.share_count AS count, "
                 f"IFNULL({VALUE_SHARE_PRICE.format(c='x.company_id')}, 0) AS d_value, "
@@ -1521,9 +1547,8 @@ queries.append((653, 'Companies',
 # One company's figures (#572, #574): the same as a row of 653, for any
 # company (yours, to price an offering of new shares)
 queries.append((654, 'Company figures',
-                'Company N: its sales after tax a day (7-day average), its shares, what a share is worth (0 if '
-                'never traded), game days since founded, working drones, shares other companies hold, game days of '
-                'sales the average covers, its profit a day (7-day average; what dividends are paid from).', 1,
+                'Company N: sales a day (7-day), shares, a share\'s worth, age, drones, shares others hold, days '
+                'averaged, profit a day (7-day), profit a day (30-day), losses to make up before dividends.', 1,
                 "SELECT x.company_id AS company, "
                 f"{DAY_SALES.format(c='x.company_id')} AS d_sales, x.share_count AS count, "
                 f"IFNULL({VALUE_SHARE_PRICE.format(c='x.company_id')}, 0) AS d_value, "
@@ -1735,9 +1760,12 @@ queries = [(q[0], q[1], (q[2] if q[0] == 612 else q[2].rstrip() + ' Money and vo
             q[3], q[4]) if q[0] in DOUBLE_QUERIES else q for q in queries]
 
 queries.sort()
+# queries.script holds 4,000 characters (migration 0049), as does the
+# engine's buffer (MAX_QUERIES_SCRIPT_SIZE); description 255. A longer one
+# failed the load (#611: the game data stopped loading at 2,000)
 for q in queries:
-    if len(q[4]) > 2000:
-        note(f'query {q[0]}: SQL is {len(q[4])} characters (the column holds 2000)')
+    if len(q[4]) > 4000 or len(q[2]) > 255:
+        sys.exit(f'query {q[0]}: SQL is {len(q[4])} characters (at most 4000), description {len(q[2])} (at most 255)')
 
 # --- write ------------------------------------------------------------------------
 
@@ -1755,7 +1783,7 @@ lines = [
     '-- databases have the column unsigned',
     'ALTER TABLE `resource_effects` MODIFY `quantity` INT NULL;',
     "-- Query 803's SQL is longer than the old 512-character column",
-    'ALTER TABLE `queries` MODIFY `script` VARCHAR(2000) NOT NULL;',
+    'ALTER TABLE `queries` MODIFY `script` VARCHAR(4000) NOT NULL;',
     '-- What each drone holds: the sum over each state (installed, locked) of',
     '-- its latest inventory event, from the holdings table (#430, migration',
     '-- 0031: triggers on events keep it by the same rule)',
