@@ -365,6 +365,19 @@ class ApiController extends Controller
     }
 
     /** A company's sales, purchases and net by game day (#600) */
+    /**
+     * Its code's lineage (#616): each revision's parents (the earlier code it
+     * carries, with shares) and new code, and the other companies' revisions
+     * that carry its code
+     */
+    public function companyLineage(int $id): JsonResponse
+    {
+        if (!DB::table('companies')->where('company_id', $id)->exists()) {
+            return $this->notFound('There is no such company.');
+        }
+        return response()->json(\App\Services\CodeLineage::ofCompany($id) ?? ['revisions' => [], 'children' => []]);
+    }
+
     public function companyEarnings(Request $request, int $id): JsonResponse
     {
         if (!DB::table('companies')->where('company_id', $id)->exists()) {

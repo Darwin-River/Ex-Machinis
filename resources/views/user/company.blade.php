@@ -16,6 +16,9 @@
         /* Code revisions (#594) */
         #code-revisions .num { text-align: right !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
         #code-revisions td:first-child { color: #fff !important; white-space: nowrap; }
+        /* Code lineage (#616) */
+        #lineage .num { text-align: right !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        #lineage td:first-child { white-space: nowrap; }
     </style>
 @endpush
 @section('content')
@@ -178,6 +181,46 @@
                 @endif
             @else
                 <p>This company's program came by email: it has no released code to show.</p>
+            @endif
+
+            {{-- Code lineage (#616): the earlier code each revision carries, and who carries its code --}}
+            @if($lineage)
+                <h3 class="mt-4" id="lineage-heading">Lineage</h3>
+                <div style="white-space: normal; margin-bottom: .5em">
+                    The earlier code each revision carries, compared function by function with every earlier release and push,
+                    and with the starter and example scripts. A revision can have several parents. <b>New</b> is the share of its code
+                    no earlier revision explains.
+                </div>
+                <div class="table-custom-responsive">
+                    <table class="table-ticket" id="lineage">
+                        <tr><th>Revision</th><th>Parents (share of its code)</th><th class="num">New</th></tr>
+                        @foreach($lineage['revisions'] as $r)
+                            <tr><td>{{ $r['label'] }}</td>
+                                <td style="white-space: normal">
+                                    @if($r['new_share'] === null)
+                                        Being worked out.
+                                    @elseif(!$r['parents'])
+                                        None: all its code is new.
+                                    @else
+                                        @foreach($r['parents'] as $p)
+                                            <a href="{{ $p['url'] }}">{{ $p['label'] }}</a> {{ round($p['share'] * 100) }}%{{ $loop->last ? '' : ',' }}
+                                        @endforeach
+                                    @endif
+                                </td>
+                                <td class="num">{{ $r['new_share'] === null ? '' : round($r['new_share'] * 100) . '%' }}</td></tr>
+                        @endforeach
+                    </table>
+                </div>
+                <p style="white-space: normal" id="lineage-children">
+                    @if($lineage['children'])
+                        <b>Carried on by</b>:
+                        @foreach($lineage['children'] as $c)
+                            <a href="{{ $c['url'] }}">{{ $c['label'] }}</a> ({{ round($c['share'] * 100) }}%){{ $loop->last ? '' : ',' }}
+                        @endforeach
+                    @else
+                        No other company's code carries this company's yet.
+                    @endif
+                </p>
             @endif
 
             {{-- Code pushes (#553): new code for its drones, with the password it was released with --}}

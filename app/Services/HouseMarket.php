@@ -37,6 +37,12 @@ class HouseMarket
             return self::refresh();
         } finally {
             Leaderboard::dailyIfDue();
+            // Code lineage (#616): new releases' and pushes' parents, a few each tick
+            try {
+                CodeLineage::catchUp();
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
     }
 
