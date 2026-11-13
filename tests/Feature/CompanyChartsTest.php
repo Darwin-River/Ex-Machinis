@@ -117,4 +117,34 @@ class CompanyChartsTest extends TestCase
         DB::table('companies')->where('company_id', $c)->update(['dividend_carry' => 0]);
         $this->get('/companies/' . $c)->assertSee('It has no losses to make up');
     }
+
+    /** #610: a holder sees the best bid for its shares; dead orders are hidden; trades say how old they are */
+    public function testHoldersSeeTheBestBidAndOnlyLiveOrders()
+    {
+        $issuer = $this->release('Bid Upon');
+        $holder = $this->release('Holders');
+        $bidder = $this->release('Bidders');
+        $other = $this->release('Low Bidders');
+        [$i, $h, $b, $o] = array_map(fn ($a) => (int) $a->company_id, [$issuer, $holder, $bidder, $other]);
+        \App\Services\Shares::transfer($i, $i, $h, 100);
+        $order = fn ($c, $side, $price, $limit) => DB::table('share_orders')->insert(['company' => $c, 'share_company' => $i,
+            'side' => $side, 'price' => $price, 'limit_units' => $limit, 'placed_t' => 0]);
+        $order($b, 2, 30, 40);     // wants 40: bids for 40
+        $order($o, 2, 20, 50);     // a lower bid
+        $order($h, 2, 99, 100);    // the holder's own bid: it holds all it wants, and it is its own
+        $order($o, 1, 25, 0);      // a sell order of a company holding none: dead
+
+        $sum = \App\Services\Shares::summary($h);
+        $this->assertSame(['price' => 30, 'units' => 40, 'by' => $b, 'by_name' => 'Bidders'], $sum['holdings'][0]['best_bid']);
+        $orders = \App\Services\Shares::summary($i)['orders'];
+        $this->assertSame([[$o, 'buy', 50], [$b, 'buy', 40]],
+            array_map(fn ($x) => [$x['company'], $x['side'], $x['units']], $orders), 'the dead sell order and the filled bid are hidden');
+
+        DB::table('share_trades')->insert(['share_company' => $i, 'seller' => $i, 'buyer' => $h, 'units' => 100,
+            'price' => 12, 'game_t' => World::gameNow() - 400 * 86400]);
+        $this->assertSame(400, \App\Services\Shares::summary($i)['trades'][0]['days_ago']);
+        $this->get('/companies/' . $h)->assertOk()->assertSee('Best bid now')->assertSee('30 for up to 40 (Bidders)');
+        $this->get('/companies/' . $i)->assertSee('400 game days ago');
+        $this->get('/market/shares')->assertOk()->assertSee('400 game days ago');
+    }
 }

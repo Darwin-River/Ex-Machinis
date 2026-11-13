@@ -129,7 +129,7 @@
                     <tr><th>When</th><th>Shares of</th><th>Units</th><th>Price</th><th>Seller</th><th>Buyer</th></tr>
                     @forelse($exchange['trades'] as $t)
                         <tr>
-                            <td>{{ $t['when'] }}</td>
+                            <td>{{ $t['when'] }} ({{ $t['days_ago'] === 0 ? 'today' : $t['days_ago'] . ' game ' . \Illuminate\Support\Str::plural('day', $t['days_ago']) . ' ago' }})</td>
                             <td><a href="{{ url('companies/' . $t['company']) }}">{{ $t['name'] }}</a></td>
                             <td>{{ number_format($t['units']) }}</td><td>{{ number_format($t['price']) }}</td>
                             <td><a href="{{ url('companies/' . $t['seller']) }}">{{ $t['seller_name'] }}</a></td>

@@ -505,6 +505,37 @@ local function share_count(c)                                                   
   local row = ask(698, c)[1]
   return row and row[1] or 1000
 end
+-- Sell the shares your company holds into bids that pay more than days
+-- (default 60) of their dividends (#610): a bid above what a share will
+-- earn back in that time is worth taking. A share's dividends are judged
+-- as in payback_days: the 30-day profit, after the carried loss. Skips
+-- sales under 25 credits (each request burns a unit of fuel). Returns the
+-- credits it asked for. Round 63: bids for shares sat unanswered for 400
+-- game days, and holders couldn't tell what they could sell for
+local function answer_bids(days)
+  days = days or 60
+  local got, mine = 0, company()
+  for _, h in ipairs(shares_held()) do
+    if h.company ~= mine and h.units > 0 then
+      local f = company_figures(h.company)
+      local left = h.units
+      local bids = share_buy_orders(h.company)
+      table.sort(bids, function(a, b) return a.price > b.price end)
+      for _, b in ipairs(bids) do
+        if left <= 0 then break end
+        if b.company ~= mine and b.units > 0 and f
+            and payback_days(b.price, f.count, f.profit30, f.carried) > days then
+          local n = math.min(left, b.units)
+          if n * b.price >= 25 then
+            push_shares(n, h.company, b.company)
+            left, got = left - n, got + n * b.price
+          end
+        end
+      end
+    end
+  end
+  return got
+end
 -- Put credits above keep into other companies' shares (#551): the open
 -- offerings of new shares and the listed shares that pay their price back
 -- soonest, within days (default 40) of a share's income, best first. A
@@ -919,6 +950,7 @@ _G.companies = companies
 _G.company_figures = company_figures
 _G.offering_cost = offering_cost
 _G.payback_days = payback_days
+_G.answer_bids = answer_bids
 _G.standing_orders = standing_orders
 _G.cancel_orders = cancel_orders
 _G.invest_surplus = invest_surplus

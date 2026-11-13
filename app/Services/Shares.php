@@ -123,6 +123,31 @@ class Shares
     }
 
     /**
+     * The best open bid for each company's shares (#610), leaving out
+     * $holder's own: company => ['price', 'units', 'by', 'by_name']. A buy
+     * order bids while its company holds fewer than it wants. Round 63's
+     * Wilma: standing bids sat unanswered for about 400 game days
+     */
+    public static function bestBids(array $companies, ?int $holder = null): array
+    {
+        if (!$companies) {
+            return [];
+        }
+        $rows = DB::table('share_orders AS o')->join('companies AS c', 'c.company_id', '=', 'o.company')
+            ->leftJoin('shares AS s', fn ($j) => $j->on('s.company', '=', 'o.share_company')->on('s.holder', '=', 'o.company'))
+            ->whereIn('o.share_company', $companies)->where('o.side', 2)->whereNull('c.eliminated_at')
+            ->when($holder !== null, fn ($q) => $q->where('o.company', '<>', $holder))
+            ->whereRaw('IFNULL(s.units, 0) < o.limit_units')->orderByDesc('o.price')
+            ->get(['o.share_company', 'o.company', 'c.name', 'o.price', DB::raw('o.limit_units - IFNULL(s.units, 0) AS units')]);
+        $out = [];
+        foreach ($rows as $r) {
+            $out[(int) $r->share_company] ??= ['price' => (int) $r->price, 'units' => (int) $r->units,
+                'by' => (int) $r->company, 'by_name' => $r->name];
+        }
+        return $out;
+    }
+
+    /**
      * What a company's shares and share holdings come to (#471), for its page
      * and the API: its last trade price, who holds its shares, the standing
      * orders for them, what it holds of others, and recent trades
@@ -148,6 +173,15 @@ class Shares
             ->whereNotNull('eliminated_at')->pluck('company_id')->flip()->all();
 
         $count = (int) (DB::table('companies')->where('company_id', $company)->value('share_count') ?? self::PER_COMPANY);
+        // #610: only the orders that can trade now (a sell order whose
+        // company holds no more than it keeps sells nothing: round 63's
+        // Wilma saw "keeps 0" orders of holders with none)
+        $held = DB::table('shares')->where('company', $company)->pluck('units', 'holder')->all();
+        $orders = $orders->filter(fn ($o) => (int) $o->side === 1
+            ? (int) ($held[$o->company] ?? 0) > (int) $o->limit_units
+            : (int) ($held[$o->company] ?? 0) < (int) $o->limit_units)->values();
+        $bids = self::bestBids($holdings->pluck('company')->map(fn ($c) => (int) $c)->all(), $company);
+        $now = World::gameNow();
         $outside = (int) $holders->filter(fn ($h) => (int) $h->holder !== $company)->sum('units');
         $long = self::longProfits([$company])[$company];
         return [
@@ -172,18 +206,22 @@ class Shares
                 'units' => (int) $h->units, 'dividends' => (int) $h->dividends])->all(),
             'orders' => $orders->map(fn ($o) => ['company' => (int) $o->company, 'name' => $name($o->company),
                 'side' => (int) $o->side === 1 ? 'sell' : 'buy', 'price' => (int) $o->price,
-                ((int) $o->side === 1 ? 'keep' : 'want') => (int) $o->limit_units])->all(),
+                ((int) $o->side === 1 ? 'keep' : 'want') => (int) $o->limit_units,
+                'units' => abs((int) ($held[$o->company] ?? 0) - (int) $o->limit_units)])->all(),
             'holdings' => $holdings->map(fn ($h) => ['company' => (int) $h->company, 'name' => $name($h->company),
                 'units' => (int) $h->units, 'dividends' => (int) $h->dividends,
                 'price' => $prices[(int) $h->company] ?? null, 'value_price' => $values[(int) $h->company] ?? null,
                 'ended' => isset($ended[(int) $h->company]),
+                // #610: the best price another company bids for them now, and how many it takes
+                'best_bid' => $bids[(int) $h->company] ?? null,
                 // An ended company's shares are worth nothing (#493); others
                 // count at the 3-day average (#513)
                 'value' => isset($ended[(int) $h->company]) ? 0
                     : (int) $h->units * ($values[(int) $h->company] ?? 0)])->all(),
             'trades' => $trades->map(fn ($t) => ['seller' => (int) $t->seller, 'seller_name' => $name($t->seller),
                 'buyer' => (int) $t->buyer, 'buyer_name' => $name($t->buyer), 'units' => (int) $t->units,
-                'price' => (int) $t->price, 'game_t' => (int) $t->game_t])->all(),
+                'price' => (int) $t->price, 'game_t' => (int) $t->game_t,
+                'days_ago' => intdiv(max(0, $now - (int) $t->game_t), 86400)])->all(),
         ];
     }
 
@@ -416,7 +454,9 @@ class Shares
                 'seller' => (int) $t->seller, 'seller_name' => $name((int) $t->seller),
                 'buyer' => (int) $t->buyer, 'buyer_name' => $name((int) $t->buyer),
                 'units' => (int) $t->units, 'price' => (int) $t->price,
-                'when' => DronePage::when((int) $t->game_t)])->all(),
+                'when' => DronePage::when((int) $t->game_t),
+                // #610: round 63's "recent" trades were 400 game days old
+                'days_ago' => intdiv(max(0, $now - (int) $t->game_t), 86400)])->all(),
         ];
     }
 

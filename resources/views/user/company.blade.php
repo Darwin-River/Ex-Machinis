@@ -296,11 +296,12 @@
                 <h4>Orders at the Earth exchange</h4>
                 <div class="table-custom-responsive">
                     <table class="table-ticket">
-                        <tr><th>Company</th><th>Order</th><th>Price</th><th>Limit</th></tr>
+                        <tr><th>Company</th><th>Order</th><th>Price</th><th>Limit</th><th>Shares it trades now</th></tr>
                         @foreach($shares['orders'] as $o)
                             <tr><td><a href="{{ url('/companies/'.$o['company']) }}">{{ $o['name'] }}</a></td>
                                 <td>{{ $o['side'] }}</td><td>{{ number_format($o['price']) }}</td>
-                                <td>{{ $o['side'] === 'sell' ? 'keeps ' . $o['keep'] : 'wants ' . $o['want'] }}</td></tr>
+                                <td>{{ $o['side'] === 'sell' ? 'keeps ' . $o['keep'] : 'wants ' . $o['want'] }}</td>
+                                <td>{{ number_format($o['units']) }}</td></tr>
                         @endforeach
                     </table>
                 </div>
@@ -309,12 +310,14 @@
                 <h4>Shares it holds in other companies</h4>
                 <div class="table-custom-responsive">
                     <table class="table-ticket">
-                        <tr><th>Company</th><th>Shares</th><th>Last price</th><th>Value</th><th>Dividends received</th></tr>
+                        <tr><th>Company</th><th>Shares</th><th>Last price</th><th>Value</th><th>Dividends received</th><th>Best bid now</th></tr>
                         @foreach($shares['holdings'] as $h)
                             <tr><td><a href="{{ url('/companies/'.$h['company']) }}">{{ $h['name'] }}</a></td>
                                 <td>{{ number_format($h['units']) }}</td>
                                 <td>{{ $h['ended'] ? 'ended: worth nothing' : ($h['price'] !== null ? number_format($h['price']) : '-') }}</td>
-                                <td>{{ number_format($h['value']) }}</td><td>{{ number_format($h['dividends']) }}</td></tr>
+                                <td>{{ number_format($h['value']) }}</td><td>{{ number_format($h['dividends']) }}</td>
+                                {{-- #610: what it could sell them for now --}}
+                                <td>{{ $h['best_bid'] ? number_format($h['best_bid']['price']) . ' for up to ' . number_format($h['best_bid']['units']) . ' (' . $h['best_bid']['by_name'] . ')' : 'no bids' }}</td></tr>
                         @endforeach
                     </table>
                 </div>
@@ -323,9 +326,10 @@
                 <h4>Recent trades in its shares</h4>
                 <div class="table-custom-responsive">
                     <table class="table-ticket">
-                        <tr><th>Seller</th><th>Buyer</th><th>Shares</th><th>Price</th></tr>
+                        <tr><th>When</th><th>Seller</th><th>Buyer</th><th>Shares</th><th>Price</th></tr>
                         @foreach($shares['trades'] as $t)
-                            <tr><td><a href="{{ url('/companies/'.$t['seller']) }}">{{ $t['seller_name'] }}</a></td>
+                            <tr><td>{{ $t['days_ago'] === 0 ? 'today' : $t['days_ago'] . ' game ' . \Illuminate\Support\Str::plural('day', $t['days_ago']) . ' ago' }}</td>
+                                <td><a href="{{ url('/companies/'.$t['seller']) }}">{{ $t['seller_name'] }}</a></td>
                                 <td><a href="{{ url('/companies/'.$t['buyer']) }}">{{ $t['buyer_name'] }}</a></td>
                                 <td>{{ number_format($t['units']) }}</td><td>{{ number_format($t['price']) }}</td></tr>
                         @endforeach
