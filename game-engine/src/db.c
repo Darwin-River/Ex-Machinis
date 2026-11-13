@@ -443,8 +443,9 @@ static ErrorCode_t db_add_to_command_batch(DbConnection_t* connection, const cha
     return ENGINE_OK;
 }
 
-/* Fills the batch with the ids of the commands due now, in run order: those
-   of drones whose script is still loading first, then the rest by id. Two
+/* Fills the batch with the ids of the commands due now, in run order: the
+   House's station drones' first (#633), then those of drones whose script
+   is still loading, then the rest by id. Two
    queries that each stop at the batch size (#454): one sorting every due
    command, about one per drone, took 25 ms on a 3,000-ship world */
 static ErrorCode_t db_fill_command_batch(DbConnection_t* connection)
@@ -457,12 +458,24 @@ static ErrorCode_t db_fill_command_batch(DbConnection_t* connection)
     g_command_batch_at = time(NULL);
     db_runnable_where(where, sizeof(where));
 
+    // The House's station drones first (#633): they keep the exchanges
+    // stocked, and behind 695 player drones on a slowed clock each of their
+    // turns came game hours late, so they restocked about once every 8 game
+    // hours instead of every hour and Earth sold out of raw goods. There are
+    // a handful, waiting a game hour between rounds, so this costs players
+    // little
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT c.id FROM agents a STRAIGHT_JOIN commands c ON c.agent_id = a.agent_id "
+        "WHERE a.station_id IS NOT NULL AND %s ORDER BY c.id LIMIT %d", where, COMMAND_BATCH_SIZE);
+    ErrorCode_t result = db_add_to_command_batch(connection, query_text);
+
     // Loading drones (agents_loading, migration 0035), not their resumes
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
         "SELECT c.id FROM agents a STRAIGHT_JOIN commands c ON c.agent_id = a.agent_id "
         "WHERE (a.release_vm IS NULL) = 1 AND c.code NOT LIKE '%s%%' AND %s ORDER BY c.id LIMIT %d",
         engine_get_vm_resume_command(), where, COMMAND_BATCH_SIZE);
-    ErrorCode_t result = db_add_to_command_batch(connection, query_text);
+    if(result == ENGINE_OK)
+        result = db_add_to_command_batch(connection, query_text);
 
     // Then the rest, oldest first (enough to fill the batch past any
     // loading ones it returns again)
