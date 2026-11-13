@@ -833,13 +833,17 @@ def movable(drone, resource, event_type):
     # A drone's free stock of a resource (holdings: not installed, not
     # locked), less what is on its way out (a sell order: pending depletions)
     # or plus what is on its way in (a buy order: pending accumulations).
-    # Pending events are outcome 0 and carry the change (#502)
+    # Pending events are outcome 0 and carry the change (#502). An aborted
+    # action's events stay outcome 0 for ever and never happen (#612: the
+    # Earth and Moon exchanges' fuel and metals vanished from the book
+    # behind them, round 63's fuel shortage)
     sign, pending = ('-', 2) if event_type == 4 else ('+', 1)
     return (f"(IFNULL((SELECT h.units FROM holdings AS h WHERE h.drone = {drone} AND h.resource = {resource} "
             f"AND h.installed = 0 AND h.locked = 0), 0) {sign} "
             f"IFNULL((SELECT ABS(SUM(p.new_quantity)) FROM events AS p FORCE INDEX (events_inventory) "
             f"WHERE p.drone = {drone} AND p.resource = {resource} AND p.installed = 0 AND p.locked = 0 "
-            f"AND p.outcome = 0 AND p.event_type = {pending}), 0))")
+            f"AND p.outcome = 0 AND p.event_type = {pending} "
+            "AND NOT EXISTS (SELECT 1 FROM actions AS x WHERE x.id = p.action AND x.aborted = 1)), 0))")
 
 
 EVENT_COL = "SELECT {c} FROM events WHERE outcome = 1 AND id = [value_1];"

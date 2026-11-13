@@ -144,6 +144,12 @@ class ApiTest extends TestCase
         // ...and when it takes the rest the order is no longer listed
         $event(2, -4, ['outcome' => 0, 'game_t' => $now + 60]);
         $this->assertSame(0, $units());
+        // #612: an aborted action's events never happen, though they stay
+        // pending for ever: they hid the House's fuel at Earth and the Moon
+        DB::table('events')->where('drone', $seller->agent_id)->where('outcome', 0)->delete();
+        $action = DB::table('actions')->insertGetId(['drone' => $seller->agent_id, 'aborted' => 1]);
+        $event(2, -8, ['outcome' => 0, 'game_t' => $now - 86400, 'action' => $action]);
+        $this->assertSame(8, $units(), 'the aborted export takes nothing');
     }
 
     public function testOrdersOfOneCompany()

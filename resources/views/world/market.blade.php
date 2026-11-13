@@ -18,6 +18,19 @@
                 <a href="{{ url('market/history') }}">Market history</a>.
             </div>
 
+            {{-- Where fuel is on sale now (#609): round 63's drones stranded where none was --}}
+            <p id="fuel-for-sale" @class(['health-banner' => $fuel['none']]) style="white-space: normal">
+                <b>Fuel on sale now:</b>
+                @forelse($fuel['selling'] as $f)
+                    {{ $f['place'] }} {{ number_format($f['units']) }} from {{ $f['price'] }} cr{{ $loop->last ? '.' : ';' }}
+                @empty
+                    nowhere.
+                @endforelse
+                @if($fuel['none'])
+                    No fuel on sale at {{ implode(', ', $fuel['none']) }}: a drone there with an empty tank waits until someone sells some.
+                @endif
+            </p>
+
             {{-- Jump links (#591): the page is long --}}
             <nav class="page-jumps" style="white-space: normal; margin-bottom: 1em">
                 Jump to: <a href="#order-book">Order book</a> · <a href="#house-demand">House demand</a> · <a href="#trades-heading">Recent trades</a>

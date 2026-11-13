@@ -23,7 +23,10 @@ local rods = 3011
 
 -- A fuel floor (#380 round 36: Sven 2 sold its last fuel away in a deep
 -- build): once set, at or below it make (but fuel), mine, refine and push
--- refuse with -30, so the fuel left is for buying fuel
+-- of fuel refuse with -30, so the fuel left is for buying fuel. Selling
+-- other goods (a push) goes on: it brings in the credits to buy fuel with
+-- (#609: round 63's trader reached Earth with 12 fuel under a floor of 15,
+-- couldn't sell its 136 metals into a bid of 28, and flew them back)
 local floor_fuel = 0
 local function fuel_floor(n) floor_fuel = n or 0 end
 local function floored()
@@ -42,7 +45,7 @@ local function make(resource)
 end
 local function wait(minutes) return perform(3, minutes) end
 local function push(n, resource, drone)
-  if floored() then return -30 end
+  if resource == fuel and floored() then return -30 end
   return perform(10, n, resource, drone)
 end
 local function pull(n, resource, drone) return perform(11, n, resource, drone) end

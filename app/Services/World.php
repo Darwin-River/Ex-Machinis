@@ -206,6 +206,29 @@ class World
     }
 
     /**
+     * Fuel on sale now, by place (#609): what a pull can take there, as the
+     * order book counts it, and the cheapest price; and the exchanges selling
+     * none. Round 63: only the Mars Exchange showed fuel for most of the
+     * round, and drones stranded without a word. Rows: [place, units, price];
+     * then the House exchanges with none
+     */
+    public static function fuelForSale(): array
+    {
+        $movable = \App\Http\Controllers\ApiController::movable(4);
+        $rows = DB::select("SELECT p.object_name AS place, SUM(b.movable - b.quantity) AS units, MIN(b.price) AS price
+            FROM (SELECT o.drone, o.price, o.quantity, $movable AS movable FROM latest_orders AS o
+                  WHERE o.resource = ? AND o.event_type = 4 AND o.is_open = 1) AS b
+            JOIN agents AS a ON a.agent_id = b.drone AND a.wrecked_at IS NULL
+            LEFT JOIN objects AS p ON p.object_id = a.object_id
+            WHERE b.movable > b.quantity GROUP BY p.object_name ORDER BY price, place", [\App\Services\Release::FUEL]);
+        $selling = array_map(fn ($r) => ['place' => $r->place, 'units' => (int) $r->units, 'price' => (int) $r->price], $rows);
+        $exchanges = DB::table('stations AS s')->join('objects AS o', 'o.object_id', '=', 's.object_id')
+            ->orderBy('o.object_name')->pluck('o.object_name')->all();
+        $none = array_values(array_diff($exchanges, array_column($selling, 'place')));
+        return ['selling' => $selling, 'none' => $none];
+    }
+
+    /**
      * The planets where they are now (top-down, distances on a log scale) and,
      * for each, the working drones and wrecks around it (its moons included)
      */

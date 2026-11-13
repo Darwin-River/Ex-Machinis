@@ -131,7 +131,7 @@ end
 - Tell your company's other drones: `broadcast` a message ("Fuel wanted at Phobos") so your courier reading the messages (`events_earth(message_event)`) knows where to go. Messages are private to a company: other companies' drones can't read them.
 - **Fuel couriers** are the other side of this trade: drones that carry fuel to where others work and run low, look for fuel buy orders there (`best_bid(fuel)`) and push fuel into them for profit. Every stranded drone is a customer.
 
-**`fuel_floor(n)`** (built in, #380 round 36): at or below n fuel, `make` (but for fuel), `mine`, `refine` and `push` (so `sell_here`) return -30, so a long build or a selling spree can't spend the fuel you need to buy more. Call it in `launched`: `fuel_floor(15)`. (It isn't a saved variable, so `launched` sets it again after a restart.)
+**`fuel_floor(n)`** (built in, #380 round 36): at or below n fuel, `make` (but for fuel), `mine`, `refine` and pushing fuel (so selling it with `sell_here`) return -30, so a long build or a selling spree can't spend the fuel you need to buy more. Selling other goods still works (#609): it brings in the credits for fuel. Call it in `launched`: `fuel_floor(15)`. (It isn't a saved variable, so `launched` sets it again after a restart.)
 
 - Round 36: a factory's nine-step build took its tank from 50 to 3, and the failure path's pushes spent the rest; it became a wreck with 5,517 credits in the bank.
 - Check for -30 where you build: `if make(rods) == -30 then refuel() end`.

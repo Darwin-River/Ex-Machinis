@@ -19,8 +19,10 @@ use Illuminate\Support\Facades\DB;
  * - days: game days until its first drone runs dry at the last game day's
  *   net fall in fuel (used less bought); -1 when no drone's fuel is falling
  * - credits: what it has to buy more
- * - at_risk: no working drone, or a drone that runs dry within 3 game days
- *   while the company has under 500 credits; at_risk_reason says which
+ * - at_risk: no working drone, a working drone with no fuel left (#609:
+ *   round 63's Wilma 3 sat at the Moon with 0 fuel and 2,400 credits, and
+ *   wasn't flagged), or a drone that runs dry within 3 game days while the
+ *   company has under 500 credits; at_risk_reason says which
  * - idle (#540): game hours since any of its working drones last gained or
  *   spent goods other than fuel (bought, sold, mined, refined or made), up to
  *   IDLE_LOOKBACK days; stalled when that is a game day or more. Dev 6 and
@@ -90,6 +92,9 @@ class CompanyHealth
         }
         if (($h['dissolves_in'] ?? null) !== null) {
             return "it has had no credits for {$h['broke_days']} game days, and dissolves in {$h['dissolves_in']} unless it earns some";
+        }
+        if (($h['lowest'] ?? 1) <= 0) {
+            return 'a drone has no fuel left: it can\'t fly or trade until someone sells it fuel where it is';
         }
         if ($h['days'] >= 0 && $h['days'] <= self::RISK_DAYS && $h['credits'] < self::RISK_CREDITS) {
             return "a drone runs dry in about {$h['days']} game " . ($h['days'] === 1 ? 'day' : 'days')

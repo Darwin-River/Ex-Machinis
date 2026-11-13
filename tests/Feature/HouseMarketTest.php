@@ -244,6 +244,11 @@ class HouseMarketTest extends TestCase
         HouseStations::ensure();
         HouseMarket::refresh();
         $this->get('/market')->assertOk()->assertSee('href="#house-demand"', false)->assertSee('Still buying today');
+        // #609: where fuel is on sale now, and where it isn't
+        $fuel = \App\Services\World::fuelForSale();
+        $this->assertSame(count($fuel['selling']) + count($fuel['none']), DB::table('stations')->count(),
+            'every exchange is either selling fuel or listed as not');
+        $this->get('/market')->assertSee('id="fuel-for-sale"', false)->assertSee('Fuel on sale now');
         $html = $this->get('/market?resource=4311')->assertOk()->getContent();
         $this->assertStringContainsString('Pumps (A1)', $html);
         $book = substr($html, strpos($html, 'id="order-book"'), strpos($html, 'id="house-demand"') - strpos($html, 'id="order-book"'));
