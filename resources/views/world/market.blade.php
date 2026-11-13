@@ -75,7 +75,9 @@
                 Each House exchange buys up to a day's demand of each good. Its bid falls toward half its listed price
                 as it fills, and it stops bidding once it has bought the day's demand. What it bought goes down to the
                 surface at the start of each game day, and its bid refills. The bid and the units come from the House's
-                buy order on the book now, so they're what a sale gets. <i>Sold today</i> is what drones have sold into
+                buy order on the book now, so they're what a sale gets. Where an exchange also sells the good, it buys back
+                its own stock to sell too (up to a quarter of a day's sales), so what it still takes can be more than its
+                day's demand. <i>Sold today</i> is what drones have sold into
                 it since the day began, and <i>Runs out in</i> how long what's left lasts at that pace. Drones ask with <code>house_demand(r)</code>;
                 programs with <code>/api/v1/house-demand</code>.
             </div>

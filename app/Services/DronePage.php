@@ -67,11 +67,16 @@ class DronePage
      */
     public static function flight(Agent $agent): ?array
     {
-        if ($agent->wrecked_at || !$agent->waiting_action) {
+        if ($agent->wrecked_at) {
             return null;
         }
-        $move = DB::table('events')->where('action', $agent->waiting_action)->where('event_type', 3)
-            ->whereNotNull('new_location')->where('game_t', '>', World::gameNow())->orderBy('game_t', 'desc')->first();
+        // Its arrival still to come, whatever it is waiting for now (#380 round
+        // 64: a drone whose script carried on during the trip showed where it
+        // left from); an aborted action's never comes (#612)
+        $move = DB::table('events AS e')->where('e.drone', $agent->agent_id)->where('e.event_type', 3)
+            ->whereNotNull('e.new_location')->where('e.game_t', '>', World::gameNow())
+            ->whereNotExists(fn ($q) => $q->from('actions AS x')->whereColumn('x.id', 'e.action')->where('x.aborted', 1))
+            ->orderBy('e.game_t', 'desc')->first(['e.new_location', 'e.game_t']);
         if (!$move) {
             return null;
         }
@@ -80,11 +85,27 @@ class DronePage
             'arrives_game_time' => (int) $move->game_t, 'arrives' => self::when((int) $move->game_t)];
     }
 
+    /**
+     * SQL: whether the drone ($drone, an SQL expression) is flying at game
+     * time $now: an arrival of its still to come (#380 round 64)
+     */
+    public static function flyingSql(string $drone, string $now): string
+    {
+        return "EXISTS (SELECT 1 FROM events AS fm FORCE INDEX (events_drone_game_t) WHERE fm.drone = $drone "
+            . "AND fm.game_t > $now AND fm.event_type = 3 AND fm.new_location IS NOT NULL "
+            . "AND NOT EXISTS (SELECT 1 FROM actions AS fx WHERE fx.id = fm.action AND fx.aborted = 1))";
+    }
+
     /** What the drone is doing now */
     public static function status(Agent $agent): string
     {
         if ($agent->wrecked_at) {
             return 'a wreck';
+        }
+        // In flight, say so first (#380 round 64: "waiting for its action to
+        // finish: Activate Engine I" told nobody where it was going)
+        if ($flight = self::flight($agent)) {
+            return 'flying to ' . $flight['to'] . ', arriving ' . $flight['arrives'];
         }
         if ($agent->waiting_action) {
             $protocol = DB::table('actions')->where('id', $agent->waiting_action)->value('protocol');

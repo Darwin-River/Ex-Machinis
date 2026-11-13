@@ -85,6 +85,8 @@ curl -s -X POST $B/check -H 'Content-Type: application/json' \
   "ok": true,
   "error": null,
   "warning": "Your script uses frobnicate (line 2), which nothing defines: ... Your script sets ask: a name the game already uses. ...",
+  "undefined": [{"line": 2, "name": "frobnicate"}],
+  "clean": false,
   "language": "lua"
 }
 ```
@@ -94,6 +96,8 @@ curl -s -X POST $B/check -H 'Content-Type: application/json' \
 | `ok` | whether the Release page would take the script |
 | `error` | why not, if it wouldn't. For example: no `launched` function, a FORTH script, a line too long, or a script that doesn't compile (`"Line 12: unexpected symbol near '='"`) |
 | `warning` | the Release page's warnings: names the script uses that nothing defines (calling one crashes the drone), and names of the game's own that the script sets (`best_bid = 30`) |
+| `undefined` | the names the script uses that nothing defines, `{line, name}`: calling one crashes the drone (reading one gives `nil`) |
+| `clean` | `true` only with no `error` and no `warning`. A script that checks before it releases should test `clean`, not `ok`: `ok` is true for a script that would release but crash (#380 round 64) |
 | `language` | `lua` for a Lua script (`forth` for a retired FORTH one, which `ok` refuses) |
 | `length`, `max_length` | the script's length in characters, and the most a release or push takes (16,000; #557). Over it, `ok` is false; within a tenth of it, `warning` says so. Comments count: cut those you don't need |
 | `push` | with `company`: `{enabled, password_set, number, credits, fee_percent, fee, drones, orders, orders_note}`, what pushing this script to the company would cost now and how many working drones would get it (null for no such company). `orders` lists each drone's standing orders for goods, `{drone, resource, name, side, price, keep or want}`: they outlive the push (#571). The fee is worked out on the company's credits when the push is sent, so it changes as they do |
@@ -207,7 +211,7 @@ Use this to see what a drone is doing. It gives what the drone's page shows:
 
 | Field | Meaning |
 |---|---|
-| `place`, `place_id` | where it is (an object ID, as the game's functions use); while it flies, where it left from |
+| `place`, `place_id` | where it is (an object ID, as the game's functions use); while it flies, where it left from (`flying_to` says where it is going, and `status` reads "flying to …, arriving …", #380 round 64) |
 | `flying_to` | while it flies: `{place_id, place, arrives, arrives_game_time}`; otherwise null |
 | `status` | what it's doing, in words: `loading its script (3 pieces to go)` and `about to launch` before it starts, `running its launched function`, `waiting for its action to finish: ...`, `a wreck` |
 | `script_status` | what its script says it is doing: `{text, set, set_game_time}`, the line it last set with `set_status(text)` and when; null if it never set one. A drone that sits still can say why ("waiting for metals: none on sale here") |
@@ -289,9 +293,9 @@ Each exchange's demand (what the House buys) and supply (what it sells) has its 
 
 Drones see these orders only where they are, through `best_bid`, `best_offer` and queries 600 and 610. The API shows every place at once, which helps you decide where to send a company.
 
-### `GET /house-demand?resource=4311&place=10&company=87`: what the House still buys today
+### `GET /house-demand?resource=4311&place=Mars&company=87`: what the House still buys today
 
-For each exchange and good it buys (#550): its bid now, how many more units it takes today, its day's demand, its listed price (its bid with nothing bought today), the game hours until it refills, the units sold into it today (`sold`), how many of those the company `?company=` sold (`mine`), and the game hours until it has bought its fill at today's pace (`empty_hours`, null when none sold today). `price` and `left` are the House's buy order on the book now, as `/orders` lists it and a sale would find it (#608); `price` is 0 when it isn't bidding. Leave out `resource` or `place` for all of them.
+For each exchange and good it buys (#550; `resource` and `place` narrow it down, and `place` takes an ID or a name such as `Mars`, a name it doesn't know being a 404, #380 round 64): its bid now, how many more units it takes today, its day's demand, its listed price (its bid with nothing bought today), the game hours until it refills, the units sold into it today (`sold`), how many of those the company `?company=` sold (`mine`), and the game hours until it has bought its fill at today's pace (`empty_hours`, null when none sold today). `price` and `left` are the House's buy order on the book now, as `/orders` lists it and a sale would find it (#608); `price` is 0 when it isn't bidding. Leave out `resource` or `place` for all of them.
 
 ```json
 [{"place": 4, "place_name": "Mars", "resource": 3101, "resource_name": "Springs (A1)",
@@ -299,7 +303,7 @@ For each exchange and good it buys (#550): its bid now, how many more units it t
   "sold": 6, "mine": 4, "empty_hours": 40}]
 ```
 
-Each House exchange buys up to `daily` units of a good a game day. Its bid falls toward half of `listed` as it fills, and it stops bidding once it has bought the day's demand (`left` 0). What it bought goes down to the surface at the start of each game day (`hours` from now), and the bid refills. Drones ask the same with `house_demand(r)`.
+Each House exchange buys up to `daily` units of a good a game day. Its bid falls toward half of `listed` as it fills, and it stops bidding once it has bought the day's demand (`left` 0). Where an exchange also sells the good, it buys back its own stock to sell too (up to a quarter of a day's sales), so `left` can be more than `daily` there (#380 round 64). What it bought goes down to the surface at the start of each game day (`hours` from now), and the bid refills. Drones ask the same with `house_demand(r)`.
 
 ### `GET /trades?limit=50`: the latest trades
 
