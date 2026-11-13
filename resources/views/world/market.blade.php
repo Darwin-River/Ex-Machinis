@@ -61,7 +61,9 @@
             <div style="white-space: normal; margin-bottom: 1em">
                 Each House exchange buys up to a day's demand of each good. Its bid falls toward half its listed price
                 as it fills, and it stops bidding once it has bought the day's demand. What it bought goes down to the
-                surface at the start of each game day, and its bid refills. Drones ask with <code>house_demand(r)</code>;
+                surface at the start of each game day, and its bid refills. The bid and the units come from the House's
+                buy order on the book now, so they're what a sale gets. <i>Sold today</i> is what drones have sold into
+                it since the day began, and <i>Runs out in</i> how long what's left lasts at that pace. Drones ask with <code>house_demand(r)</code>;
                 programs with <code>/api/v1/house-demand</code>.
             </div>
             <form method="get" action="{{ url()->current() }}#house-demand" style="white-space: normal; margin-bottom: 1em">
@@ -75,16 +77,18 @@
             </form>
             <div class="table-custom-responsive">
                 <table class="table-ticket" id="house-demand-table">
-                    <tr><th>Resource</th><th>Where</th><th class="num">Bid now</th><th class="num">Listed</th><th class="num">Still buying today</th><th>Refills in</th></tr>
+                    <tr><th>Resource</th><th>Where</th><th class="num">Bid now</th><th class="num">Listed</th><th class="num">Still buying today</th><th class="num">Sold today</th><th>Runs out in</th><th>Refills in</th></tr>
                     @forelse($demand as $d)
                         <tr>
                             <td>{{ $d['resource_name'] }}</td><td>{{ $d['place_name'] }}</td>
-                            <td class="num">{{ number_format($d['price']) }} cr</td><td class="num">{{ number_format($d['listed']) }} cr</td>
+                            <td class="num">{{ $d['left'] > 0 ? number_format($d['price']) . ' cr' : 'no bid' }}</td><td class="num">{{ number_format($d['listed']) }} cr</td>
                             <td class="num">{{ number_format($d['left']) }} of {{ number_format($d['daily']) }}</td>
+                            <td class="num">{{ number_format($d['sold']) }}</td>
+                            <td>{{ $d['empty_hours'] !== null ? $d['empty_hours'] . ' game ' . ($d['empty_hours'] === 1 ? 'hour' : 'hours') : ($d['left'] > 0 ? '–' : 'bought its fill') }}</td>
                             <td>{{ $d['hours'] }} game {{ $d['hours'] === 1 ? 'hour' : 'hours' }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="6">The House buys none of it.</td></tr>
+                        <tr><td colspan="8">The House buys none of it.</td></tr>
                     @endforelse
                 </table>
             </div>

@@ -289,13 +289,14 @@ Each exchange's demand (what the House buys) and supply (what it sells) has its 
 
 Drones see these orders only where they are, through `best_bid`, `best_offer` and queries 600 and 610. The API shows every place at once, which helps you decide where to send a company.
 
-### `GET /house-demand?resource=4311&place=10`: what the House still buys today
+### `GET /house-demand?resource=4311&place=10&company=87`: what the House still buys today
 
-For each exchange and good it buys (#550): its bid now, how many more units it takes today, its day's demand, its listed price (its bid with nothing bought today) and the game hours until it refills. Leave out `resource` or `place` for all of them.
+For each exchange and good it buys (#550): its bid now, how many more units it takes today, its day's demand, its listed price (its bid with nothing bought today), the game hours until it refills, the units sold into it today (`sold`), how many of those the company `?company=` sold (`mine`), and the game hours until it has bought its fill at today's pace (`empty_hours`, null when none sold today). `price` and `left` are the House's buy order on the book now, as `/orders` lists it and a sale would find it (#608); `price` is 0 when it isn't bidding. Leave out `resource` or `place` for all of them.
 
 ```json
 [{"place": 4, "place_name": "Mars", "resource": 3101, "resource_name": "Springs (A1)",
-  "price": 315, "left": 30, "daily": 36, "listed": 343, "hours": 16}]
+  "price": 315, "left": 30, "daily": 36, "listed": 343, "hours": 16,
+  "sold": 6, "mine": 4, "empty_hours": 40}]
 ```
 
 Each House exchange buys up to `daily` units of a good a game day. Its bid falls toward half of `listed` as it fills, and it stops bidding once it has bought the day's demand (`left` 0). What it bought goes down to the surface at the start of each game day (`hours` from now), and the bid refills. Drones ask the same with `house_demand(r)`.

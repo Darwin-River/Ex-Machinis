@@ -824,11 +824,15 @@ end
 -- The House's demand for r (#550), at each exchange that buys it, best bid
 -- first: {place, price (its bid now), left (units it still takes today),
 -- daily (its day's demand), listed (its bid with nothing bought today),
--- hours (game hours until it refills)}. Its bid falls toward half of listed
--- as it fills and stops at a full day's demand; what it bought goes down to
--- the surface at the start of each game day, and the bid refills
+-- hours (game hours until it refills), sold (units sold into it today), mine
+-- (of those, by your company) and empty_hours (game hours until it has
+-- bought its fill at today's pace; -1 when none sold today)}. price and left
+-- are its live buy order's, as sell_here would find it (#608; price 0: no
+-- bid). Its bid falls toward half of listed as it fills and stops at a full
+-- day's demand; what it bought goes down to the surface at the start of
+-- each game day, and the bid refills
 local function house_demand(r)                                                    -- 706
-  return records(ask(706, r), {"place", "price", "left", "daily", "listed", "hours"})
+  return records(ask(706, r), {"place", "price", "left", "daily", "listed", "hours", "sold", "mine", "empty_hours"})
 end
 local function orbiting(p) return column(ask(710, p or location())) end           -- 710
 local function drones_at(p) return column(ask(720, p or location())) end          -- 720

@@ -1495,19 +1495,31 @@ queries.append((699, 'Company health',
 # game hours until it refills. It buys up to a day's demand above what it
 # keeps to sell; its bid falls to half its listed price at a full day's
 # demand bought, and what it bought goes down to the surface at the start of
-# the next game day (station.lua's ship). As App\Services\HouseMarket::demand
-HOUSE_KEEP = ("IFNULL((SELECT GREATEST(1, FLOOR(GREATEST(1, k.daily_units) / 4)) FROM house_market AS k "
-              f"WHERE k.station_id = g.station_id AND k.resource = g.resource AND k.side = 2 AND k.from_day <= {TODAY} LIMIT 1), 0)")
+# the next game day (station.lua's ship). Since #608 the bid and the units
+# come from the station drone's live buy order, as the order book counts
+# them (round 63: a demand worked out from the House's holdings sent rods to
+# Earth while its order wanted none); plus the units sold into it today, by
+# your company, and the game hours left at today's pace (-1: none sold). As
+# App\Services\HouseMarket::demand
+DAY_START = "((SELECT epoch FROM game_clock WHERE id = 1) + " + TODAY + " * 86400)"
 queries.append((706, 'House demand',
-                'Where the House buys resource N: place, its bid now, units it still takes today, its day\'s demand, '
-                'its listed price, game hours until it refills.', 1,
-                "SELECT d.place, GREATEST(1, d.listed - FLOOR(d.listed * d.bought / (2 * d.daily))) AS d_price, "
-                "d.daily - d.bought AS left_units, d.daily, d.listed AS d_listed, "
-                f"CEIL(((SELECT epoch FROM game_clock WHERE id = 1) + ({TODAY} + 1) * 86400 - [game_now]) / 3600) AS hours "
+                'Where the House buys resource N: place, its bid now (0: no bid), units it still takes today, its day\'s '
+                'demand, its listed price, game hours until it refills, units sold into it today, units my company sold '
+                'into it today, game hours until it runs out at today\'s pace (-1: none sold today).', 1,
+                "SELECT d.place, IF(d.left_units > 0, d.bid, 0) AS d_price, d.left_units, d.daily, d.listed AS d_listed, "
+                f"CEIL(({DAY_START} + 86400 - [game_now]) / 3600) AS hours, d.sold, d.mine, "
+                f"IF(d.sold > 0 AND d.left_units > 0, CEIL(d.left_units * GREATEST(1, [game_now] - {DAY_START}) / d.sold / 3600), -1) AS empty_hours "
                 "FROM (SELECT s.object_id AS place, g.price AS listed, GREATEST(1, g.daily_units) AS daily, "
-                f"LEAST(GREATEST(0, {holding('a.agent_id', 'g.resource')} - {HOUSE_KEEP}), GREATEST(1, g.daily_units)) AS bought "
+                "IFNULL(o.price, 0) AS bid, "
+                f"GREATEST(0, IFNULL(o.quantity, 0) - {movable('a.agent_id', 'g.resource', 5)}) AS left_units, "
+                f"(SELECT IFNULL(SUM(t.units), 0) FROM trades AS t WHERE t.buyer = a.agent_id AND t.resource = g.resource "
+                f"AND t.game_t >= {DAY_START}) AS sold, "
+                f"(SELECT IFNULL(SUM(t.units), 0) FROM trades AS t JOIN agents AS w ON w.agent_id = t.seller "
+                f"WHERE t.buyer = a.agent_id AND t.resource = g.resource AND t.game_t >= {DAY_START} "
+                f"AND w.company_id = {MY_COMPANY}) AS mine "
                 "FROM house_market AS g JOIN stations AS s ON s.id = g.station_id "
                 "JOIN agents AS a ON a.station_id = s.id AND a.wrecked_at IS NULL "
+                "LEFT JOIN latest_orders AS o ON o.drone = a.agent_id AND o.resource = g.resource AND o.event_type = 5 "
                 f"WHERE g.side = 1 AND g.resource = [value_1] AND g.from_day <= {TODAY}) AS d ORDER BY d_price DESC, d.place;"))
 # #599: the shares other companies hold in x (an offering, or x selling its
 # own, may not take them past half), and how many game days of sales its

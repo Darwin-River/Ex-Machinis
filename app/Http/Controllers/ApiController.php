@@ -323,12 +323,13 @@ class ApiController extends Controller
     /**
      * The House's demand (#550): for each exchange and good it buys, its bid
      * now, the units it still takes today, its day's demand, its listed price
-     * and the game hours until it refills. ?resource= and ?place= narrow it
+     * and the game hours until it refills. ?resource= and ?place= narrow it;
+     * ?company= counts that company's sales into it today (`mine`, #608)
      */
     public function houseDemand(Request $request): JsonResponse
     {
         $int = fn ($k) => is_numeric($request->query($k)) ? (int) $request->query($k) : null;
-        return response()->json(HouseMarket::demand($int('resource'), $int('place')));
+        return response()->json(HouseMarket::demand($int('resource'), $int('place'), $int('company')));
     }
 
     /**
