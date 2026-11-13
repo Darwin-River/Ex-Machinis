@@ -47,6 +47,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware('throttle:api-read')->get('shares/{id}/history', 'ApiController@shareHistory')->whereNumber('id');
     Route::middleware('throttle:api-read')->get('companies/{id}/history', 'ApiController@companyHistory')->whereNumber('id');
     Route::middleware('throttle:api-read')->get('companies/{id}/earnings', 'ApiController@companyEarnings')->whereNumber('id');
+    Route::middleware('throttle:api-read')->get('companies/{id}/lineage', 'ApiController@companyLineage')->whereNumber('id');
     Route::middleware('throttle:api-read')->post('check', 'ApiController@check');
     Route::middleware('throttle:api-write')->post('release', 'ApiController@release');
 });
