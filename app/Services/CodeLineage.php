@@ -432,7 +432,7 @@ class CodeLineage
             return 0;
         }
         $done = 0;
-        if (self::$examplesChecked < time() - 3600) {
+        if (self::$examplesChecked < time() - 3600 || !DB::table('code_revisions')->whereNotNull('example')->exists()) {
             $done += self::syncExamples();
             self::$examplesChecked = time();
         }
@@ -580,5 +580,95 @@ class CodeLineage
             ->map(fn ($ls, $child) => $row($others[$child], $ls->sum('share')) + ['t' => (int) $others[$child]->game_t])
             ->sortBy('t')->values()->map(fn ($c) => array_diff_key($c, ['t' => 0, 'example' => 0]))->all();
         return ['revisions' => $revisions, 'children' => $children];
+    }
+
+    /** Ages for the lineage map's heat map (#618), in game days */
+    public const MAP_AGES = [1, 2, 3, 5, 7, 10, 15, 20, 30, 45, 60, 90, 120, 180, 270, 365, 500, 750, 1000];
+
+    /**
+     * The whole lineage as a graph, for the map (#618): nodes (worked-out
+     * revisions: id, company_id, push, example, label, day (game day; null
+     * for examples), size, new, parents [[id, share], …]), lanes (one per
+     * company or example, families together: each company follows the one
+     * its release mainly came from, in release order: name, company_id,
+     * example, url), ages, and each company's net wealth at those ages
+     * (Leaderboard::atAges: wealth, gap, rank)
+     */
+    public static function graph(): array
+    {
+        if (!Schema::hasTable('code_revisions')) {
+            return ['nodes' => [], 'lanes' => [], 'ages' => self::MAP_AGES, 'companies' => []];
+        }
+        $epoch = (float) (DB::table('game_clock')->where('id', 1)->value('epoch') ?? 0);
+        $revs = DB::table('code_revisions')->whereNotNull('new_share')->orderByRaw('game_t IS NOT NULL, game_t, id')->get()->keyBy('id');
+        $parents = DB::table('code_parents')->orderBy('revision_id')->orderBy('rank_no')->get()->groupBy('revision_id');
+        $names = DB::table('companies')->whereIn('company_id', $revs->pluck('company_id')->filter()->unique()->all())
+            ->pluck('name', 'company_id')->all();
+
+        // Lanes: examples first, each followed by the families descended from it
+        $laneOf = fn ($r) => $r->example !== null ? 'x:' . $r->example : 'c:' . $r->company_id;
+        $kids = [];
+        $roots = [];
+        foreach ($revs as $r) {
+            if ($r->example !== null) {
+                $roots[] = $laneOf($r);
+                continue;
+            }
+            if ((int) $r->push_number !== 0) {
+                continue;
+            }
+            $main = $parents[$r->id][0] ?? null;
+            if ($main && isset($revs[$main->parent_id])) {
+                $kids[$laneOf($revs[$main->parent_id])][] = $laneOf($r);
+            } else {
+                $roots[] = $laneOf($r);
+            }
+        }
+        $order = [];
+        $visit = function ($lane) use (&$visit, &$order, $kids) {
+            if (isset($order[$lane])) {
+                return;
+            }
+            $order[$lane] = count($order);
+            foreach ($kids[$lane] ?? [] as $k) {
+                $visit($k);
+            }
+        };
+        foreach ($roots as $lane) {
+            $visit($lane);
+        }
+        foreach ($revs as $r) {
+            $visit($laneOf($r));   // a company whose release isn't worked out yet: at the end
+        }
+        $lanes = [];
+        foreach (array_keys($order) as $lane) {
+            [$kind, $key] = explode(':', $lane, 2);
+            if ($kind === 'x') {
+                [$dir, $name] = explode('/', $key, 2);
+                $lanes[] = ['name' => '[' . $name . ']', 'company_id' => null, 'example' => $key,
+                    'url' => "https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/{$key}.lua"];
+            } else {
+                $lanes[] = ['name' => $names[$key] ?? ('company ' . $key), 'company_id' => (int) $key, 'example' => null,
+                    'url' => url('/companies/' . $key)];
+            }
+        }
+        $nodes = [];
+        foreach ($revs as $r) {
+            $label = $r->example !== null ? '[' . explode('/', $r->example, 2)[1] . ']'
+                : ($names[$r->company_id] ?? 'company ' . $r->company_id) . ((int) $r->push_number ? ' push ' . $r->push_number : '');
+            $nodes[] = ['id' => (int) $r->id, 'company_id' => $r->company_id === null ? null : (int) $r->company_id,
+                'push' => (int) $r->push_number, 'example' => $r->example, 'label' => $label, 'lane' => $order[$laneOf($r)],
+                'day' => $r->game_t === null ? null : round(((int) $r->game_t - $epoch) / 86400, 3),
+                'size' => (int) $r->size, 'new' => round((float) $r->new_share, 3),
+                'parents' => ($parents[$r->id] ?? collect())->filter(fn ($p) => isset($revs[$p->parent_id]))
+                    ->map(fn ($p) => [(int) $p->parent_id, round((float) $p->share, 3)])->values()->all()];
+        }
+        $wealth = [];
+        foreach (Leaderboard::atAges(self::MAP_AGES) as $co => $w) {
+            if (isset($names[$co])) {
+                $wealth[$co] = $w;
+            }
+        }
+        return ['nodes' => $nodes, 'lanes' => $lanes, 'ages' => self::MAP_AGES, 'companies' => $wealth];
     }
 }

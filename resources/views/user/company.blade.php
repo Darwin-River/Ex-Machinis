@@ -189,7 +189,7 @@
                 <div style="white-space: normal; margin-bottom: .5em">
                     The earlier code each revision carries, compared function by function with every earlier release and push,
                     and with the starter and example scripts. A revision can have several parents. <b>New</b> is the share of its code
-                    no earlier revision explains.
+                    no earlier revision explains. <a href="{{ url('lineage') . '?company=' . $user->user_id }}">See it on the lineage map</a>.
                 </div>
                 <div class="table-custom-responsive">
                     <table class="table-ticket" id="lineage">

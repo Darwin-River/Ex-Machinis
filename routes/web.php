@@ -73,6 +73,7 @@ Route::get('/market/history', 'WorldController@history');
 Route::get('/market/shares', 'WorldController@shares');
 Route::get('/map', 'WorldController@map');
 Route::get('/leaderboard', 'WorldController@leaderboard');
+Route::get('/lineage', 'WorldController@lineage');
 Route::get('/machine/queries', 'WorldController@machineQueries');
 Route::get('/machine/protocols', 'WorldController@machineProtocols');
 Route::get('/machine/query', 'WorldController@machineQuery')->middleware('throttle:240,1');

@@ -69,6 +69,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                             <a class="dropdown-item" href="{{ url('market/shares') }}">Stock exchange</a>
                             <a class="dropdown-item" href="{{ url('map') }}">Map</a>
                             <a class="dropdown-item" href="{{ url('leaderboard') }}">Leaderboard</a>
+                            <a class="dropdown-item" href="{{ url('lineage') }}">Lineage</a>
                             <a class="dropdown-item" href="{{ url('events') }}">Events</a>
                         </div>
                     </li>

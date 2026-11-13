@@ -378,6 +378,12 @@ class ApiController extends Controller
         return response()->json(\App\Services\CodeLineage::ofCompany($id) ?? ['revisions' => [], 'children' => []]);
     }
 
+    /** The whole code lineage as a graph (#618): what the Lineage page draws */
+    public function lineage(): JsonResponse
+    {
+        return response()->json(\App\Services\CodeLineage::graph());
+    }
+
     public function companyEarnings(Request $request, int $id): JsonResponse
     {
         if (!DB::table('companies')->where('company_id', $id)->exists()) {
