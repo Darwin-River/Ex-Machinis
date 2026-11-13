@@ -101,7 +101,7 @@ test: $(EXE_PATH)/lua-check check_doc_lua.sh test_orbits.c orbits.c test_wrap.c 
 	$(OBJS_PATH)/test_static_cache
 	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/test_shares test_shares.c shares.c
 	$(OBJS_PATH)/test_shares
-	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/test_compute test_compute.c compute.c
+	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/test_compute test_compute.c compute.c -lm
 	$(OBJS_PATH)/test_compute
 	# The Lua drones' library and the Lua starters compile (#380)
 	for f in lua_library.lua ../../examples/starters/*.lua ../../examples/companies/*.lua; do $(EXE_PATH)/lua-check < $$f || { echo "$$f doesn't compile"; exit 1; }; done

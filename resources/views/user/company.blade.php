@@ -71,7 +71,7 @@
             @endif
             @php($pt = $shares['compute'])
             <p id="processor-tax">Processor tax: {{ number_format($pt['tax_day']) }} credits over the last game day for
-                {{ number_format($pt['instructions_day']) }} instructions ({{ $pt['per_million'] }} credits a million).
+                {{ number_format($pt['instructions_day']) }} instructions ({{ $pt['per_million'] }} credits a million{{ ($pt['congestion'] ?? 1) > 1 ? ' now: ' . $pt['congestion'] . ' times the usual ' . $pt['base_per_million'] . ' while the clock runs slowed' : '' }}).
                 @if($pt['debt'] > 0)
                     <strong>It owes {{ number_format($pt['debt']) }}</strong>: a drone of its whose turn runs out thinks again only a game hour later, until it has paid.
                 @endif

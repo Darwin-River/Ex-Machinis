@@ -1321,10 +1321,14 @@ queries.append((652, 'Company age',
                 'Company N\'s age: whole game days since it was founded.', 1,
                 "SELECT FLOOR(GREATEST(0, [game_now] - IFNULL(founded_t, [game_now])) / 86400) FROM companies WHERE company_id = [value_1];"))
 queries.append((651, 'My processor tax',
-                'compute_tax(): the processor tax, credits a million instructions; what the company paid for its '
+                'compute_tax(): the processor tax, credits a million now (more while the clock runs slowed, #620); what the company paid for its '
                 'drones\' thinking over the last game day, instructions billed, what it owes, game days broke (-1: '
                 'not broke).', 0,
-                "SELECT h.compute_tax_per_million AS per_million, "
+                # #620: its own rate, base x its share of the congestion (compute_company_congestion)
+                "SELECT ROUND(h.compute_tax_per_million * (1 + (GREATEST(1, IFNULL((SELECT k.congestion FROM compute_clock AS k "
+                "WHERE k.id = 1), 1)) - 1) * IF(h.congestion_full_at <= 0, 1, LEAST(1, (SELECT IFNULL(SUM(b.instructions), 0) "
+                "FROM compute_bills AS b WHERE b.company_id = c.company_id AND b.charged_t > [game_now] - 86400) "
+                "/ h.congestion_full_at)))) AS per_million, "
                 "(SELECT IFNULL(SUM(b.amount), 0) FROM compute_bills AS b WHERE b.company_id = c.company_id "
                 "AND b.charged_t > [game_now] - 86400) AS d_tax, "
                 "(SELECT IFNULL(SUM(b.instructions), 0) FROM compute_bills AS b WHERE b.company_id = c.company_id "
