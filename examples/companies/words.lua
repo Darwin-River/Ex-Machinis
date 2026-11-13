@@ -247,7 +247,7 @@ function launched() end
 function invest_spare(above, days)
   local free, spent = credits() - above, 0
   for _, o in ipairs(shares_for_sale()) do
-    local a_day = math.max(o.sales, 0) / share_count(o.company)
+    local a_day = math.max(o.profit, 0) / share_count(o.company)
     if o.seller == o.company and o.company ~= company() and o.price > 0
         and o.price <= a_day * days then
       local n = math.min(o.units, free // o.price)

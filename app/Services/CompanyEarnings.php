@@ -18,7 +18,8 @@ class CompanyEarnings
     /**
      * The last $days game days (not before it was founded), oldest first,
      * every day listed: day, sales
-     * (after tax), tax, purchases, net (sales - purchases), trades
+     * (after tax), tax, purchases, net (sales - purchases), trades, dividends
+     * (paid to other holders from that day's profit, #603)
      */
     public static function daily(int $company, int $days): array
     {
@@ -33,7 +34,7 @@ class CompanyEarnings
 
         $rows = [];
         for ($d = $first; $d <= $today; $d++) {
-            $rows[$d] = ['day' => $d, 'sales' => 0, 'tax' => 0, 'purchases' => 0, 'net' => 0, 'trades' => 0];
+            $rows[$d] = ['day' => $d, 'sales' => 0, 'tax' => 0, 'purchases' => 0, 'net' => 0, 'trades' => 0, 'dividends' => 0];
         }
         // The drones a company has had: its sales and purchases are theirs
         $drones = DB::table('agents')->where('company_id', $company)->pluck('agent_id')->all();
@@ -59,6 +60,14 @@ class CompanyEarnings
         }
         foreach ($rows as &$r) {
             $r['net'] = $r['sales'] - $r['purchases'];
+        }
+        unset($r);
+        // The dividends it paid other holders from each day's profit (#603)
+        foreach (DB::table('company_profits')->where('company', $company)->where('day', '>=', $first)
+                     ->get(['day', 'paid']) as $p) {
+            if (isset($rows[(int) $p->day])) {
+                $rows[(int) $p->day]['dividends'] = (int) $p->paid;
+            }
         }
         return array_values($rows);
     }

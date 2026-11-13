@@ -217,13 +217,14 @@
             <div class="row row-30">
                 <div class="col">
                     <h2 class="" id="shares">Shares</h2>
-                    <p>{{ number_format($shares['count']) }} shares, each paying its part of the company's sales income after tax.
+                    <p>{{ number_format($shares['count']) }} shares, each paying its part of the company's profit once a game day
+                        (its sales after tax less what it paid for goods and equipment, after making up earlier losses: see Earnings).
                         Last trade price: <b>{{ $shares['price'] !== null ? number_format($shares['price']) . ' credits' : 'never traded' }}</b>.</p>
                     {{-- How much of it others hold (#599): offerings and its own sales stop at half --}}
                     <p id="outside-share" @class(['health-banner' => $shares['outside_share'] >= \App\Services\Shares::WARN_OUTSIDE])>
                         Held by other companies: <b>{{ round($shares['outside_share'] * 100) }}%</b>
                         ({{ number_format($shares['outside']) }} of {{ number_format($shares['count']) }} shares), so
-                        {{ round($shares['outside_share'] * 100) }}% of its sales income after tax goes to them.
+                        {{ round($shares['outside_share'] * 100) }}% of its profit goes to them as dividends.
                         @if($shares['outside_share'] >= $shares['max_outside'])
                             That is the most others may hold: it can't offer new shares or sell its own.
                         @elseif($shares['outside_share'] >= \App\Services\Shares::WARN_OUTSIDE)
@@ -263,8 +264,8 @@
                     {{ number_format($o['committed']) }} committed so far, {{ $o['hours'] }} game hours left. Once every
                     share is committed they are issued and the company paid. At the deadline, if at least
                     {{ number_format($o['min']) }} are committed, those are issued; if not, everyone is refunded.
-                    If it fills, the new shares take {{ $o['income_percent'] }}% of the company's future sales income:
-                    about {{ number_format($o['dividends_a_day'], 1) }} credits a day at today's sales (#572).</p>
+                    If it fills, the new shares take {{ $o['income_percent'] }}% of the company's future profit:
+                    about {{ number_format($o['dividends_a_day'], 1) }} credits a day at today's profit (#572).</p>
                 @if(count($o['investors']))
                     <div class="table-custom-responsive">
                         <table class="table-ticket">

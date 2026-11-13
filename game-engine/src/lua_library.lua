@@ -414,14 +414,16 @@ local function cancel_orders()
 end
 -- Every company still trading, best sales first, 100 at most (#574):
 -- {company, sales (after tax a day, the 7-day average), count (its shares),
--- value (what a share is worth; 0 if never traded), age (game days), drones}.
--- A share earns sales / count a day
-local company_fields = {"company", "sales", "count", "value", "age", "drones", "outside", "history"}
+-- value (what a share is worth; 0 if never traded), age (game days), drones,
+-- outside (shares others hold, #599), history (days of sales averaged),
+-- profit (a day, the 7-day average: what dividends are paid from, #603)}.
+-- A share earns profit / count a day
+local company_fields = {"company", "sales", "count", "value", "age", "drones", "outside", "history", "profit"}
 local function companies() return records(ask(653), company_fields) end          -- 653
 -- The same for one company, yours if c is left out (#574)
 local function company_figures(c) return record(ask(654, c or company()), company_fields) end -- 654
 -- What offering n new shares at price would cost your company (#572), from
--- its sales now: share (the part of its future sales income sold, 0 to 1),
+-- its profit now (#603): share (the part of its future profit sold, 0 to 1),
 -- a_day (what the new holders would be paid a day), raised (n * price),
 -- payback_days (days of their dividends to repay what they pay), and
 -- value_now (n shares at today's value price: what net wealth counts against
@@ -434,9 +436,9 @@ local function company_figures(c) return record(ask(654, c or company()), compan
 -- round 62's players all sold too cheaply on one or two days of them)
 local MAX_OUTSIDE = 0.5
 local function offering_cost(n, price)
-  local f = company_figures() or {sales = 0, count = 1000, value = 0, outside = 0, history = 1}
+  local f = company_figures() or {profit = 0, count = 1000, value = 0, outside = 0, history = 1}
   local share = n / (f.count + n)
-  local a_day = math.max(f.sales, 0) * share
+  local a_day = math.max(f.profit, 0) * share
   local outside_after = (f.outside + n) / (f.count + n)
   return {share = share, a_day = a_day, raised = n * price,
           payback_days = a_day > 0 and n * price / a_day or math.huge, value_now = n * f.value,
@@ -465,19 +467,20 @@ local function share_trades(c)                                                  
   return records(ask(694, c), {"price", "units", "seller", "buyer", "day"})
 end
 -- Every company's shares on offer now, cheapest first (#473): company,
--- price, units, seller, and sales (the company's income after tax
--- a day, averaged over the last 7 game days; each share earns its part of it)
+-- price, units, seller, sales (the company's income after tax a day,
+-- averaged over the last 7 game days) and profit (the same for its profit:
+-- each share earns its part of that, #603)
 local function shares_for_sale()                                                  -- 696
-  return records(ask(696), {"company", "price", "units", "seller", "sales"})
+  return records(ask(696), {"company", "price", "units", "seller", "sales", "profit"})
 end
 -- Every open offering of new shares, soonest deadline first (#485): company,
 -- units offered, price, left (not yet committed), hours (game hours left),
 -- count (its shares now), sales (its income after tax over the last game
--- day; each share earns sales / count of it), mine (shares your company has
--- committed), min (the fewest it issues at its deadline, #516: units for an
--- all-or-nothing offering)
+-- day), mine (shares your company has committed), min (the fewest it issues
+-- at its deadline, #516: units for an all-or-nothing offering) and profit (a
+-- day, the 7-day average; each share earns profit / count of it, #603)
 local function share_offerings()                                                  -- 697
-  return records(ask(697), {"company", "units", "price", "left", "hours", "count", "sales", "mine", "min"})
+  return records(ask(697), {"company", "units", "price", "left", "hours", "count", "sales", "mine", "min", "profit"})
 end
 -- Company c's shares in all: 1,000 to start, more after it issues new ones
 local function share_count(c)                                                     -- 698
@@ -487,8 +490,8 @@ end
 -- Put credits above keep into other companies' shares (#551): the open
 -- offerings of new shares and the listed shares that pay their price back
 -- soonest, within days (default 40) of a share's income, best first. A
--- share's income is its part of the company's sales after tax a day (the
--- 7-day average; an offering's spread over its shares once it fills). At
+-- share's income is its part of the company's profit a day (the 7-day
+-- average, #603; an offering's spread over its shares once it fills). At
 -- most cap credits in one call; skips buys under 25 credits (each request
 -- burns a unit of fuel) unless one completes an offering. A request reaches
 -- Earth at the speed of light, from anywhere. Returns the credits it put
@@ -500,14 +503,14 @@ local function invest_surplus(keep, days, cap)
   if free < 25 then return 0 end
   local picks, mine = {}, company()
   for _, o in ipairs(share_offerings()) do
-    local a_day = math.max(o.sales, 0) / (o.count + o.units)
+    local a_day = math.max(o.profit, 0) / (o.count + o.units)
     if o.company ~= mine and o.left > 0 and o.price > 0 and a_day > 0 then
       table.insert(picks, {offering = true, company = o.company, price = o.price, units = o.left,
                            days = o.price / a_day})
     end
   end
   for _, o in ipairs(shares_for_sale()) do
-    local a_day = math.max(o.sales, 0) / share_count(o.company)
+    local a_day = math.max(o.profit, 0) / share_count(o.company)
     if o.company ~= mine and o.seller ~= mine and o.units > 0 and o.price > 0 and a_day > 0 then
       table.insert(picks, {company = o.company, seller = o.seller, price = o.price, units = o.units,
                            days = o.price / a_day})

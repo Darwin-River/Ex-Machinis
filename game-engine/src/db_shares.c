@@ -84,11 +84,11 @@ static ErrorCode_t sh_house_orders(long long now)
 
     ErrorCode_t result = ENGINE_OK;
     for(int i = 0; i < n && result == ENGINE_OK; i++) {
-        // A day's sales, averaged over the last 7 game days (#492)
-        long long net = sh_value(0, "SELECT IFNULL(SUM(t.credits - t.tax), 0) FROM agents a "
-                                    "JOIN trades t ON t.seller = a.agent_id AND t.game_t > %lld "
-                                    "WHERE a.company_id = %d",
-                                 now - 7 * 86400, companies[i]) / 7;
+        // A day's profit, averaged over the last 7 game days settled (#603;
+        // its sales after tax until then, #492): what dividends are paid from
+        long long net = sh_value(0, "SELECT IFNULL(FLOOR(SUM(profit) / COUNT(*)), 0) FROM company_profits "
+                                    "WHERE company = %d AND day >= (SELECT FLOOR((%lld - epoch) / 86400) FROM game_clock "
+                                    "WHERE id = 1) - 7", companies[i], now);
         result = sh_exec("INSERT INTO share_orders (company, share_company, side, price, limit_units, placed_t) "
                          "VALUES (%d, %d, %d, %lld, 0, %lld) ON DUPLICATE KEY UPDATE price = VALUES(price), "
                          "limit_units = 0, placed_t = VALUES(placed_t)",
@@ -346,6 +346,129 @@ int db_shares_settle(Event_t* event)
     return result == ENGINE_OK ? OUTCOME_OK : OUTCOME_ACTION_ABORTED;
 }
 
+/******************************* DIVIDENDS FROM PROFIT (#603) *****************/
+
+/* A trade's value for profit: what was paid, except between two companies
+   of one owner, where it counts at the market's price (what units of that
+   resource fetched between different owners over the 7 game days before
+   `to`, or failing any, the trade's own price): a player can't move profit
+   out of reach of one company's shareholders by trading with their other */
+#define SH_TRADE_VALUE(to) \
+    "IF(sc.company_id <> IFNULL(bc.company_id, 0) AND sc.user_id = IFNULL(bc.user_id, 0), " \
+    "ROUND(t.units * IFNULL((SELECT SUM(m.credits) / SUM(m.units) FROM trades m " \
+    "JOIN agents ms ON ms.agent_id = m.seller JOIN companies mcs ON mcs.company_id = ms.company_id " \
+    "JOIN agents mb ON mb.agent_id = m.buyer JOIN companies mcb ON mcb.company_id = mb.company_id " \
+    "WHERE m.resource = t.resource AND m.units > 0 AND m.game_t >= " to " - 604800 AND m.game_t < " to " " \
+    "AND mcs.user_id <> mcb.user_id), t.credits / GREATEST(t.units, 1))), t.credits)"
+
+/* A company's sales after tax and purchases over [from, to) */
+static void sh_day_figures(int company, long long from, long long to, long long* sales, long long* purchases)
+{
+    char to_text[32];
+    snprintf(to_text, sizeof(to_text), "%lld", to);
+    char query[2048];
+    // Sales: its drones sold; purchases: its drones bought
+    snprintf(query, sizeof(query),
+             "SELECT IFNULL(FLOOR(SUM(" SH_TRADE_VALUE("%s") " - t.tax)), 0) FROM trades t "
+             "JOIN agents sa ON sa.agent_id = t.seller JOIN companies sc ON sc.company_id = sa.company_id "
+             "LEFT JOIN agents ba ON ba.agent_id = t.buyer LEFT JOIN companies bc ON bc.company_id = ba.company_id "
+             "WHERE sc.company_id = %d AND t.game_t >= %lld AND t.game_t < %lld",
+             to_text, to_text, company, from, to);
+    *sales = sh_value(0, "%s", query);
+    // The same valuation with the roles turned round: sc is the buyer here
+    snprintf(query, sizeof(query),
+             "SELECT IFNULL(FLOOR(SUM(" SH_TRADE_VALUE("%s") ")), 0) FROM trades t "
+             "JOIN agents sa ON sa.agent_id = t.buyer JOIN companies sc ON sc.company_id = sa.company_id "
+             "LEFT JOIN agents ba ON ba.agent_id = t.seller LEFT JOIN companies bc ON bc.company_id = ba.company_id "
+             "WHERE sc.company_id = %d AND t.game_t >= %lld AND t.game_t < %lld",
+             to_text, to_text, company, from, to);
+    *purchases = sh_value(0, "%s", query);
+}
+
+/* Settles one company's dividends for game day `day`: works out its profit,
+   makes up losses carried, pays its other holders their part of the rest
+   (never more than its credits), and logs the day. With `log_only` it only
+   logs (the days before profit dividends began) */
+static ErrorCode_t sh_settle_day(int company, long long epoch, long long day, long long* carry, int log_only)
+{
+    long long from = epoch + day * 86400, sales = 0, purchases = 0;
+    sh_day_figures(company, from, from + 86400, &sales, &purchases);
+    long long profit = sales - purchases, before = *carry, paid = 0;
+    int holders = 0;
+    ErrorCode_t result = ENGINE_OK;
+    if(!log_only) {
+        long long pool = dividend_pool(*carry, profit, carry);
+        static Dividend_t due[MAX_DIVIDENDS];
+        long long total = 0;
+        holders = pool > 0 ? db_dividends_due(company, pool, due, MAX_DIVIDENDS, &total) : 0;
+        long long credits = sh_value(0, "SELECT credits FROM companies WHERE company_id = %d", company);
+        long long scale_to = total > credits ? (credits > 0 ? credits : 0) : total;
+        for(int h = 0; h < holders && result == ENGINE_OK; h++) {
+            long long amount = (total > 0 && scale_to < total) ? due[h].amount * scale_to / total : due[h].amount;
+            if(amount <= 0)
+                continue;
+            result = db_credit_company(company, -amount, 0, 0, FUEL_RESOURCE_ID);
+            if(result == ENGINE_OK)
+                result = db_pay_dividend(company, due[h].holder, amount, 0, FUEL_RESOURCE_ID);
+            paid += amount;
+        }
+    }
+    if(result == ENGINE_OK)
+        result = sh_exec("INSERT INTO company_profits (company, day, sales, purchases, profit, carry_before, paid, holders, logged_only) "
+                         "VALUES (%d, %lld, %lld, %lld, %lld, %lld, %lld, %d, %d) ON DUPLICATE KEY UPDATE sales = VALUES(sales), "
+                         "purchases = VALUES(purchases), profit = VALUES(profit), carry_before = VALUES(carry_before), "
+                         "paid = VALUES(paid), holders = VALUES(holders), logged_only = VALUES(logged_only)",
+                         company, day, sales, purchases, profit, before, paid, holders, log_only);
+    if(paid > 0)
+        engine_trace(TRACE_LEVEL_ALWAYS, "Dividends: company [%d] day [%lld] profit [%lld] carry [%lld] pays [%lld] to [%d] holders",
+            company, day, profit, before, paid, holders);
+    return result;
+}
+
+/* Once a game day, each trading company's dividends for the days not yet
+   settled, up to yesterday (#603). A company never settled logs the last
+   DIVIDEND_LOG_DAYS without paying, and is paid from then on */
+static ErrorCode_t sh_settle_dividends(long long now)
+{
+    long long epoch = sh_value(0, "SELECT FLOOR(epoch) FROM game_clock WHERE id = 1");
+    long long today = (now - epoch) / 86400;
+    MYSQL_RES* res = sh_select("SELECT company_id, IFNULL(dividend_day, -1), dividend_carry, "
+                               "FLOOR((IFNULL(founded_t, %lld) - %lld) / 86400) FROM companies "
+                               "WHERE eliminated_at IS NULL AND house = 0 AND (dividend_day IS NULL OR dividend_day < %lld) "
+                               "LIMIT %d", now, epoch, today - 1, MAX_BOOK);
+    if(!res)
+        return ENGINE_DB_QUERY_ERROR;
+    struct { int company; long long settled, carry, founded; } due[MAX_BOOK];
+    int n = 0;
+    MYSQL_ROW row;
+    while(n < MAX_BOOK && (row = mysql_fetch_row(res))) {
+        due[n].company = atoi(row[0]);
+        due[n].settled = atoll(row[1]);
+        due[n].carry = atoll(row[2]);
+        due[n].founded = row[3] ? atoll(row[3]) : 0;
+        n++;
+    }
+    mysql_free_result(res);
+
+    ErrorCode_t result = ENGINE_OK;
+    for(int i = 0; i < n && result == ENGINE_OK; i++) {
+        int first_time = due[i].settled < 0;
+        // Never more than DIVIDEND_LOG_DAYS back, nor before it was founded
+        long long start = first_time ? today - DIVIDEND_LOG_DAYS : due[i].settled + 1;
+        if(start < today - DIVIDEND_LOG_DAYS)
+            start = today - DIVIDEND_LOG_DAYS;
+        if(start < due[i].founded)
+            start = due[i].founded;
+        long long carry = first_time ? 0 : due[i].carry;
+        for(long long d = start; d < today && result == ENGINE_OK; d++)
+            result = sh_settle_day(due[i].company, epoch, d, &carry, first_time);
+        if(result == ENGINE_OK)
+            result = sh_exec("UPDATE companies SET dividend_day = %lld, dividend_carry = %lld WHERE company_id = %d",
+                             today - 1, carry, due[i].company);
+    }
+    return result;
+}
+
 ErrorCode_t db_shares_clear_due(void)
 {
     long long now = game_time_now_seconds();
@@ -353,9 +476,13 @@ ErrorCode_t db_shares_clear_due(void)
     if(hour <= sh_value(0, "SELECT cleared_t FROM share_exchange WHERE id = 1"))
         return ENGINE_OK;
 
+    // Dividends from profit (#603), for each game day just ended: before the
+    // House prices its shares on them
+    ErrorCode_t result = sh_settle_dividends(now);
     // Once a game hour: the House re-posts its sell orders at today's prices,
     // and an ended company's orders go
-    ErrorCode_t result = sh_house_orders(now);
+    if(result == ENGINE_OK)
+        result = sh_house_orders(now);
     if(result == ENGINE_OK)
         result = sh_exec("DELETE o FROM share_orders o JOIN companies c ON c.company_id = o.company "
                          "WHERE c.eliminated_at IS NOT NULL");
