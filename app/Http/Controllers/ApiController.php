@@ -79,8 +79,8 @@ class ApiController extends Controller
             'name' => $company->name,
             'credits' => (int) $company->credits,
             'net_wealth' => $wealth,
-            // Game days since it was founded, and its leaderboard place among
-            // companies its age or younger (#548)
+            // Game days since it was founded, and its place among every company
+            // at its age: its wealth now against theirs when they were as old (#548, #614)
             'age_days' => Leaderboard::age($company->founded_t, World::gameNow()),
             'peer_rank' => Leaderboard::peerRank((int) $company->company_id, $board),
             'ended' => $company->eliminated_at !== null,
@@ -270,10 +270,20 @@ class ApiController extends Controller
     /** Net wealth, richest first */
     public function leaderboard(Request $request): JsonResponse
     {
+        $limit = min(500, max(1, (int) $request->query('limit', 50)));
+        // Every company at the same age (#614): its net wealth when it was that old
+        if (is_numeric($request->query('age'))) {
+            $board = Leaderboard::atAge(min(100000, max(0, round((float) $request->query('age'), 1))), $limit);
+            return response()->json(['age' => $board['age'], 'of' => $board['of'], 'too_young' => $board['too_young'],
+                'ended_before' => $board['ended_before'], 'companies' => array_map(fn ($r) => [
+                    'company_id' => $r['company_id'], 'company' => $r['company'], 'net_wealth_at_age' => $r['wealth'],
+                    'net_wealth' => $r['now'], 'ended' => $r['ended'], 'age_days' => $r['age'], 'gap_days' => $r['gap'],
+                ], $board['rows'])]);
+        }
         return response()->json(array_map(fn ($r) => [
             'company_id' => $r['company_id'], 'company' => $r['company'], 'drones' => $r['drones'],
             'net_wealth' => $r['wealth'], 'released_drone' => $r['drone'], 'age_days' => $r['age'],
-        ], Leaderboard::allTime(min(500, max(1, (int) $request->query('limit', 50))),
+        ], Leaderboard::allTime($limit,
             is_numeric($request->query('max_age')) ? max(0, (float) $request->query('max_age')) : null)));
     }
 

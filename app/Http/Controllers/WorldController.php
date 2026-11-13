@@ -61,12 +61,16 @@ class WorldController extends Controller
     public function leaderboard(\Illuminate\Http\Request $request)
     {
         Leaderboard::snapshotIfDue();
-        // Only companies up to this many game days old (#548)
+        // Only companies up to this many game days old (#548): kept for old links
         $maxAge = is_numeric($request->query('max_age')) ? max(0, (float) $request->query('max_age')) : null;
+        // Every company at the same age (#614), from its history
+        $age = is_numeric($request->query('age')) ? min(100000, max(0, round((float) $request->query('age'), 1))) : null;
+        $board = Leaderboard::wealth();
+        $atAge = $age === null ? null : Leaderboard::atAge($age, 100, $board);
         $allTime = Leaderboard::allTime(50, $maxAge);
         $rising = Leaderboard::rising(50, $maxAge);
         $kit = Leaderboard::kitValue(Leaderboard::prices());
-        return view('world.leaderboard', compact('allTime', 'rising', 'kit', 'maxAge'));
+        return view('world.leaderboard', compact('allTime', 'rising', 'kit', 'maxAge', 'age', 'atAge'));
     }
 
     /** The game's queries: how many parameters each takes (#380) */

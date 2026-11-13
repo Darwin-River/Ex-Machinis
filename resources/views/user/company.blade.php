@@ -35,9 +35,9 @@
                     <div class="stat-value">{{ number_format($user->credits) }}</div></div>
                 <div class="stat"><div class="stat-label">Drones</div>
                     <div class="stat-value">{{ number_format($stats['working']) }}<small>{{ $stats['drones'] > $stats['working'] ? ' + ' . ($stats['drones'] - $stats['working']) . ' wrecked' : ' working' }}</small></div></div>
-                <div class="stat"><div class="stat-label">Rank, its age or younger</div>
+                <div class="stat"><div class="stat-label">Rank at its age</div>
                     <div class="stat-value" id="peer-rank">@if($rank){{ $rank['rank'] }}<small> of {{ $rank['of'] }}</small>@else — @endif</div>
-                    @if($rank)<a class="stat-link" href="{{ url('leaderboard') . '?max_age=' . $rank['age'] }}">compare</a>@endif</div>
+                    @if($rank)<a class="stat-link" href="{{ url('leaderboard') . '?age=' . $rank['age'] }}">compare</a>@endif</div>
                 <div class="stat"><div class="stat-label">Age</div>
                     <div class="stat-value">{{ number_format($stats['age'], 1) }}<small> game days</small></div></div>
             </div>
