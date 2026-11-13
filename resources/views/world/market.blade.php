@@ -33,7 +33,7 @@
 
             {{-- Jump links (#591): the page is long --}}
             <nav class="page-jumps" style="white-space: normal; margin-bottom: 1em">
-                Jump to: <a href="#order-book">Order book</a> · <a href="#house-demand">House demand</a> · <a href="#trades-heading">Recent trades</a>
+                Jump to: <a href="#order-book">Order book</a> · <a href="#house-demand">House demand</a> · <a href="#house-supply">House supply</a> · <a href="#trades-heading">Recent trades</a>
             </nav>
 
             <h3 id="order-book">Order book</h3>
@@ -104,6 +104,43 @@
                         </tr>
                     @empty
                         <tr><td colspan="8">The House buys none of it.</td></tr>
+                    @endforelse
+                </table>
+            </div>
+
+            {{-- What the House sells, and when it restocks (#630; round 64: supply ran out with no word of when it came back) --}}
+            <h3 class="mt-4" id="house-supply">House supply</h3>
+            <div style="white-space: normal; margin-bottom: 1em">
+                Each House exchange sells goods from stock its station drone brings up from the surface. In rounds,
+                about every game hour or two, it tops each good it sells back up to a quarter of a day's supply. A good
+                that sells out is back, up to that, at its next round. <i>On sale</i> is what a purchase can take now,
+                <i>Restocked</i> when it last brought this good up, and <i>Next round</i> when its next round is due, from
+                how often its rounds have come over the last two game days. Drones ask with <code>house_supply(r)</code>;
+                programs with <code>/api/v1/house-supply</code>.
+            </div>
+            <form method="get" action="{{ url()->current() }}#house-supply" style="white-space: normal; margin-bottom: 1em">
+                <select name="supply" aria-label="A good the House sells">
+                    <option value="">The goods closest to sold out</option>
+                    @foreach($supplyGoods as $id => $name)
+                        <option value="{{ $id }}" {{ $supplyResource === (int) $id ? 'selected' : '' }}>{{ $name }}</option>
+                    @endforeach
+                </select>
+                <button type="submit">Show</button>
+            </form>
+            <div class="table-custom-responsive">
+                <table class="table-ticket" id="house-supply-table">
+                    <tr><th>Resource</th><th>Where</th><th class="num">Price</th><th class="num">On sale</th><th class="num">Sold today</th><th>Restocked</th><th>Next round</th></tr>
+                    @forelse($supply as $s)
+                        <tr>
+                            <td>{{ $s['resource_name'] }}</td><td>{{ $s['place_name'] }}</td>
+                            <td class="num">{{ $s['on_sale'] > 0 ? number_format($s['price']) . ' cr' : 'sold out' }}</td>
+                            <td class="num">{{ number_format($s['on_sale']) }} of {{ number_format($s['refill_to']) }}</td>
+                            <td class="num">{{ number_format($s['sold']) }}</td>
+                            <td>{{ $s['last_restock_hours'] !== null ? $s['last_restock_hours'] . ' game hours ago' : 'not in two game days' }}</td>
+                            <td>{{ $s['next_hours'] === null ? '–' : ($s['next_hours'] <= 0 ? 'due now' : 'in ' . $s['next_hours'] . ' game hours') }}{{ $s['round_hours'] !== null ? ' (every ' . $s['round_hours'] . ')' : '' }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="7">The House sells none of it.</td></tr>
                     @endforelse
                 </table>
             </div>

@@ -33,9 +33,17 @@ class WorldController extends Controller
             usort($demand, fn ($a, $b) => [$a['left'] / $a['daily'], $a['resource']] <=> [$b['left'] / $b['daily'], $b['resource']]);
             $demand = array_slice($demand, 0, 30);
         }
+        // What the House sells, and when it restocks (#630): one good everywhere, or the goods closest to sold out
+        $supplyResource = is_numeric($request->query('supply')) ? (int) $request->query('supply') : null;
+        $supply = \App\Services\HouseMarket::supply($supplyResource);
+        $supplyGoods = collect($supply)->pluck('resource_name', 'resource')->sort()->all();
+        if ($supplyResource === null) {
+            usort($supply, fn ($a, $b) => [$a['on_sale'] / $a['refill_to'], $a['resource']] <=> [$b['on_sale'] / $b['refill_to'], $b['resource']]);
+            $supply = array_slice($supply, 0, 30);
+        }
         $fuel = World::fuelForSale();
         return view('world.market', compact('trades', 'sells', 'buys', 'demand', 'houseGoods', 'houseResource',
-            'bookResources', 'bookResource', 'fuel'));
+            'bookResources', 'bookResource', 'fuel', 'supply', 'supplyGoods', 'supplyResource'));
     }
 
     /** Market history (#380): charts of prices and volumes, drawn from /api/v1/history */
