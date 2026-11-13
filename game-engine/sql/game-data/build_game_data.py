@@ -1440,10 +1440,8 @@ def long_profit(c):
 # last game day (what its dividends come from: 0.1% a share). Rows: company,
 # price, units, seller, sales
 queries.append((696, 'Shares for sale',
-                'Every sell order for shares at the Earth exchange that can sell now, cheapest first (50 at most): '
-                'company, price, units for sale, seller, the company\'s sales after tax a day (7-day average), its profit a day '
-                '(7-day average; what dividends are paid from), its profit a day (30-day average), losses it must make up '
-                'before it pays dividends.', 0,
+                'Share sell orders that can sell now, cheapest first (50): company, price, units, seller, its sales a '
+                'day (7-day), profit a day (7-day), profit a day (30-day), losses to make up before dividends.', 0,
                 "SELECT o.share_company AS company, o.price AS d_price, IFNULL(s.units, 0) - o.limit_units AS units, "
                 "o.company AS seller, "
                 f"{DAY_SALES.format(c='o.share_company')} AS d_sales, {DAY_PROFIT.format(c='o.share_company')} AS d_profit, "
@@ -1455,10 +1453,9 @@ queries.append((696, 'Shares for sale',
 # Offerings of new shares (#485): every open offering, and a company's
 # share count
 queries.append((697, 'Share offerings',
-                'Open offerings of new shares, soonest deadline first (50 at most): company, most new shares, price, '
-                'shares left, game hours left, its share count, its sales after tax a day (7-day average), shares '
-                'my company committed, fewest it issues, its profit a day (7-day average), its profit a day (30-day '
-                'average), losses it must make up before it pays dividends.', 0,
+                'Open offerings, soonest first (50): company, new shares, price, left, hours left, share count, sales '
+                'a day (7-day), mine committed, fewest issued, profit a day (7-day), profit a day (30-day), losses to '
+                'make up.', 0,
                 "SELECT o.company AS company, o.units AS units, o.price AS d_price, o.units - IFNULL((SELECT SUM(m.units) FROM "
                 "share_commitments AS m WHERE m.company = o.company), 0) AS left_units, "
                 "GREATEST(0, CEIL((o.deadline_t - [game_now]) / 3600)) AS hours, "
@@ -1507,9 +1504,9 @@ queries.append((699, 'Company health',
 # App\Services\HouseMarket::demand
 DAY_START = "((SELECT epoch FROM game_clock WHERE id = 1) + " + TODAY + " * 86400)"
 queries.append((706, 'House demand',
-                'Where the House buys resource N: place, its bid now (0: no bid), units it still takes today, its day\'s '
-                'demand, its listed price, game hours until it refills, units sold into it today, units my company sold '
-                'into it today, game hours until it runs out at today\'s pace (-1: none sold today).', 1,
+                'Where the House buys resource N: place, bid now (0: none), units it still takes today, day\'s demand, '
+                'listed price, hours to refill, sold into it today, by my company, hours until full at today\'s pace '
+                '(-1: none sold).', 1,
                 "SELECT d.place, IF(d.left_units > 0, d.bid, 0) AS d_price, d.left_units, d.daily, d.listed AS d_listed, "
                 f"CEIL(({DAY_START} + 86400 - [game_now]) / 3600) AS hours, d.sold, d.mine, "
                 f"IF(d.sold > 0 AND d.left_units > 0, CEIL(d.left_units * GREATEST(1, [game_now] - {DAY_START}) / d.sold / 3600), -1) AS empty_hours "
@@ -1537,10 +1534,9 @@ COMPANY_OUTSIDE_HISTORY = ("IFNULL((SELECT SUM(o.units) FROM shares AS o WHERE o
 # prices shares by, for companies whether or not their shares are listed.
 # Round 60's Milo could price only what happened to be for sale
 queries.append((653, 'Companies',
-                'Every company still trading, best sales first (100 at most): company, sales after tax a day '
-                '(7-day average), shares, a share\'s worth (0 if never traded), days since founded, working drones, '
-                'shares others hold, days of sales averaged, profit a day (7-day average), profit a day (30-day average), '
-                'losses it must make up before it pays dividends.', 0,
+                'Companies trading, best sales first (100): company, sales a day (7-day), shares, a share\'s worth, '
+                'age, drones, shares others hold, days averaged, profit a day (7-day), profit a day (30-day), losses '
+                'to make up before dividends.', 0,
                 "SELECT x.company_id AS company, "
                 f"{DAY_SALES.format(c='x.company_id')} AS d_sales, x.share_count AS count, "
                 f"IFNULL({VALUE_SHARE_PRICE.format(c='x.company_id')}, 0) AS d_value, "
@@ -1551,10 +1547,8 @@ queries.append((653, 'Companies',
 # One company's figures (#572, #574): the same as a row of 653, for any
 # company (yours, to price an offering of new shares)
 queries.append((654, 'Company figures',
-                'Company N: its sales after tax a day (7-day average), its shares, what a share is worth (0 if '
-                'never traded), game days since founded, working drones, shares other companies hold, game days of '
-                'sales the average covers, its profit a day (7-day average; what dividends are paid from), its profit a day '
-                '(30-day average), losses it must make up before it pays dividends.', 1,
+                'Company N: sales a day (7-day), shares, a share\'s worth, age, drones, shares others hold, days '
+                'averaged, profit a day (7-day), profit a day (30-day), losses to make up before dividends.', 1,
                 "SELECT x.company_id AS company, "
                 f"{DAY_SALES.format(c='x.company_id')} AS d_sales, x.share_count AS count, "
                 f"IFNULL({VALUE_SHARE_PRICE.format(c='x.company_id')}, 0) AS d_value, "
@@ -1766,9 +1760,12 @@ queries = [(q[0], q[1], (q[2] if q[0] == 612 else q[2].rstrip() + ' Money and vo
             q[3], q[4]) if q[0] in DOUBLE_QUERIES else q for q in queries]
 
 queries.sort()
+# queries.script holds 4,000 characters (migration 0049), as does the
+# engine's buffer (MAX_QUERIES_SCRIPT_SIZE); description 255. A longer one
+# failed the load (#611: the game data stopped loading at 2,000)
 for q in queries:
-    if len(q[4]) > 2000:
-        note(f'query {q[0]}: SQL is {len(q[4])} characters (the column holds 2000)')
+    if len(q[4]) > 4000 or len(q[2]) > 255:
+        sys.exit(f'query {q[0]}: SQL is {len(q[4])} characters (at most 4000), description {len(q[2])} (at most 255)')
 
 # --- write ------------------------------------------------------------------------
 
@@ -1786,7 +1783,7 @@ lines = [
     '-- databases have the column unsigned',
     'ALTER TABLE `resource_effects` MODIFY `quantity` INT NULL;',
     "-- Query 803's SQL is longer than the old 512-character column",
-    'ALTER TABLE `queries` MODIFY `script` VARCHAR(2000) NOT NULL;',
+    'ALTER TABLE `queries` MODIFY `script` VARCHAR(4000) NOT NULL;',
     '-- What each drone holds: the sum over each state (installed, locked) of',
     '-- its latest inventory event, from the holdings table (#430, migration',
     '-- 0031: triggers on events keep it by the same rule)',
