@@ -345,15 +345,42 @@ class ApiController extends Controller
     public function houseDemand(Request $request): JsonResponse
     {
         $int = fn ($k) => is_numeric($request->query($k)) ? (int) $request->query($k) : null;
-        // A place by name too, as /orders takes it (#380 round 64: ?place=Mars was ignored, and every place came back)
-        $place = $int('place');
-        if ($place === null && $request->filled('place')) {
-            $place = DB::table('objects')->where('object_name', (string) $request->query('place'))->value('object_id');
-            if ($place === null) {
-                return $this->notFound('There is no place called ' . $request->query('place') . '.');
-            }
+        [$place, $missing] = $this->placeParam($request);
+        if ($missing) {
+            return $missing;
         }
-        return response()->json(HouseMarket::demand($int('resource'), $place === null ? null : (int) $place, $int('company')));
+        return response()->json(HouseMarket::demand($int('resource'), $place, $int('company')));
+    }
+
+    /**
+     * What the House sells (#630): at each exchange and good, its price, the
+     * units on sale now, what it refills to, today's sales, and when it last
+     * restocked and next will
+     */
+    public function houseSupply(Request $request): JsonResponse
+    {
+        [$place, $missing] = $this->placeParam($request);
+        if ($missing) {
+            return $missing;
+        }
+        return response()->json(HouseMarket::supply(is_numeric($request->query('resource')) ? (int) $request->query('resource') : null, $place));
+    }
+
+    /**
+     * ?place= as an ID or a name, as /orders takes it (#380 round 64: ?place=Mars
+     * was ignored, and every place came back): [place ID or null, a 404 for a
+     * name the game doesn't know or null]
+     */
+    private function placeParam(Request $request): array
+    {
+        if (is_numeric($request->query('place'))) {
+            return [(int) $request->query('place'), null];
+        }
+        if (!$request->filled('place')) {
+            return [null, null];
+        }
+        $place = DB::table('objects')->where('object_name', (string) $request->query('place'))->value('object_id');
+        return $place === null ? [null, $this->notFound('There is no place called ' . $request->query('place') . '.')] : [(int) $place, null];
     }
 
     /**

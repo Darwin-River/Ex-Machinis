@@ -305,6 +305,20 @@ For each exchange and good it buys (#550; `resource` and `place` narrow it down,
 
 Each House exchange buys up to `daily` units of a good a game day. Its bid falls toward half of `listed` as it fills, and it stops bidding once it has bought the day's demand (`left` 0). Where an exchange also sells the good, it buys back its own stock to sell too (up to a quarter of a day's sales), so `left` can be more than `daily` there (#380 round 64). What it bought goes down to the surface at the start of each game day (`hours` from now), and the bid refills. Drones ask the same with `house_demand(r)`.
 
+### `GET /house-supply?resource=2011&place=Earth`: what the House sells, and when it restocks
+
+For each exchange and good it sells (#630; `resource` and `place` narrow it down, and `place` takes an ID or a name), cheapest first and sold-out last:
+
+```json
+[
+  {"place": 3, "place_name": "Earth", "resource": 2011, "resource_name": "Metals (A1)",
+   "price": 16, "on_sale": 41, "refill_to": 221, "daily": 885, "sold": 640,
+   "last_restock_hours": 1.3, "round_hours": 1.5, "next_hours": 0.2}
+]
+```
+
+`price` is its sell order's price (0 when nothing is on sale) and `on_sale` the units a purchase can take now, as `/orders` counts them. Its station drone restocks in rounds, about every game hour or two, topping each good back up to `refill_to`, a quarter of the day's supply (`daily`). `sold` is the units sold today, `last_restock_hours` the game hours since it last brought this good up (null if not in two game days), `round_hours` how often its rounds have come (the median over two game days; null with fewer than three) and `next_hours` the game hours until its next round is due (0 when due now). Drones ask the same with `house_supply(r)`, in game minutes.
+
 ### `GET /trades?limit=50`: the latest trades
 
 Each trade:

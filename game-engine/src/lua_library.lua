@@ -870,6 +870,12 @@ end
 local function house_demand(r)                                                    -- 706
   return records(ask(706, r), {"place", "price", "left", "daily", "listed", "hours", "sold", "mine", "empty_hours"})
 end
+-- What the House sells of r, where, and when it restocks (#630): price 0 when
+-- sold out; times in game minutes, -1 when unknown
+local function house_supply(r)                                                    -- 707
+  return records(ask(707, r), {"place", "price", "on_sale", "refill_to", "daily", "sold",
+                               "last_minutes", "round_minutes", "next_minutes"})
+end
 local function orbiting(p) return column(ask(710, p or location())) end           -- 710
 local function drones_at(p) return column(ask(720, p or location())) end          -- 720
 local function wrecks_at(p)                                                       -- 721
@@ -957,6 +963,7 @@ _G.standing_orders = standing_orders
 _G.cancel_orders = cancel_orders
 _G.invest_surplus = invest_surplus
 _G.where_to_sell = where_to_sell
+_G.house_supply = house_supply
 _G.house_demand = house_demand
 _G.share_count = share_count
 _G.ask = ask

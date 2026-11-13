@@ -1530,6 +1530,18 @@ queries.append((706, 'House demand',
                 "JOIN agents AS a ON a.station_id = s.id AND a.wrecked_at IS NULL "
                 "LEFT JOIN latest_orders AS o ON o.drone = a.agent_id AND o.resource = g.resource AND o.event_type = 5 "
                 f"WHERE g.side = 1 AND g.resource = [value_1] AND g.from_day <= {TODAY}) AS d ORDER BY d_price DESC, d.place;"))
+# The House's supply (#630): what it sells of resource N, where, and when its
+# station restocks. Stored once a real minute by the website's tick
+# (App\Services\HouseMarket::storeSupply), since its rounds are worked out
+# from the station's imports. Times in game minutes, -1 when unknown.
+queries.append((707, 'House supply',
+                'Where the House sells resource N: place, price (0: sold out), units on sale, what it refills to, '
+                'day\'s supply, sold today, minutes since restocked, between rounds, until the next (-1: unknown).', 1,
+                "SELECT place, price AS d_price, on_sale, refill_to, daily, sold, "
+                "IF(last_restock_t IS NULL, -1, FLOOR(([game_now] - last_restock_t) / 60)) AS last_minutes, "
+                "IFNULL(FLOOR(round_seconds / 60), -1) AS round_minutes, "
+                "IF(next_round_t IS NULL, -1, GREATEST(0, CEIL((next_round_t - [game_now]) / 60))) AS next_minutes "
+                "FROM house_supply WHERE resource = [value_1] ORDER BY price = 0, price, place;"))
 # #599: the shares other companies hold in x (an offering, or x selling its
 # own, may not take them past half), and how many game days of sales its
 # 7-day average covers (fewer for a young company: round 62's players priced
@@ -1883,7 +1895,7 @@ QUERY_FUNCS = {
     '640': 'deposits()', '650': 'taxes()', '655': 'earnings(H)', '660': 'wrecks()', '661': 'wreck_hold(W)',
     '670': 'my_clones()', '671': 'lineage()', '680': 'price_board(N)', '682': 'sales(N, D)', '695': 'recipe(R)',
     '700': 'place_name(N)', '701': 'place_type(N)', '702': 'orbits(N)', '703': 'position(N)',
-    '704': 'trip_to(P)', '705': 'trip_between(A, B)', '710': 'orbiting(N)', '720': 'drones_at(N)',
+    '704': 'trip_to(P)', '705': 'trip_between(A, B)', '706': 'house_demand(N)', '707': 'house_supply(N)', '710': 'orbiting(N)', '720': 'drones_at(N)',
     '721': 'crowd(P)', '730': 'minerals(N)', '800': 'events_affecting(N)', '801': 'local_events()',
     '803': 'events_here(T)', '804': 'events_earth(T)', '820': 'event_drone(N)', '844': 'message(N)',
     '845': 'event(N)',

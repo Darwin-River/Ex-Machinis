@@ -219,6 +219,68 @@ class HouseMarketTest extends TestCase
             ->assertSee(number_format($daily - $half) . ' of ' . number_format($daily));
     }
 
+    /**
+     * #630: what the House sells, how much is on sale, what it refills to,
+     * and when its station restocks: its rounds of imports
+     */
+    public function testHouseSupplyShowsStockAndRestocking()
+    {
+        HouseStations::ensure();
+        $drone = (int) DB::table('agents')->where('station_id', 2)->value('agent_id');
+        $this->atDay(10.75);
+        $now = \App\Services\World::gameNow();
+        $daily = (int) DB::table('house_market')->where('station_id', 2)->where('resource', 2011)->where('side', 2)->value('daily_units');
+        // Three rounds of imports, 1.5 game hours apart, the last an hour ago
+        foreach ([4, 2.5, 1] as $hoursAgo) {
+            foreach ([2011 => 0, 4311 => 300] as $resource => $later) {
+                $action = DB::table('actions')->insertGetId(['drone' => $drone, 'protocol' => HouseMarket::IMPORT_PROTOCOL, 'multiplier' => 1, 'aborted' => 0]);
+                DB::table('events')->insert(['event_type' => 1, 'action' => $action, 'logged' => 1, 'outcome' => 1, 'drone' => $drone,
+                    'resource' => $resource, 'installed' => 0, 'locked' => 0, 'new_quantity' => 1, 'new_cargo' => 0,
+                    'game_t' => (int) ($now - $hoursAgo * 3600 + $later)]);
+            }
+        }
+        // It holds 30 Metals (A1) now (an event sets the total) and posts its sell order
+        DB::table('events')->insert(['event_type' => 1, 'action' => 0, 'logged' => 1, 'outcome' => 1, 'drone' => $drone,
+            'resource' => 2011, 'installed' => 0, 'locked' => 0, 'new_quantity' => 30, 'new_cargo' => 0, 'game_t' => $now - 600]);
+        HouseMarket::refresh();
+        // 7 sold today
+        $buyer = DB::table('agents')->whereNull('station_id')->value('agent_id');
+        DB::table('trades')->insert(['resource' => 2011, 'units' => 7, 'credits' => 7 * 40, 'tax' => 0,
+            'seller' => $drone, 'buyer' => $buyer, 'location' => 10, 'game_t' => $now - 1800]);
+
+        $m = collect(HouseMarket::supply(2011, 10))->first();
+        $this->assertSame(10, $m['place']);
+        $this->assertSame(30, $m['on_sale'], 'what its sell order offers');
+        $this->assertGreaterThan(0, $m['price']);
+        $this->assertSame(max(1, intdiv($daily, 4)), $m['refill_to'], 'a quarter of the day\'s supply');
+        $this->assertSame(7, $m['sold']);
+        $this->assertSame(1.0, $m['last_restock_hours']);
+        $this->assertSame(1.5, $m['round_hours'], 'its rounds come every 1.5 game hours');
+        $this->assertSame(0.5, $m['next_hours'], 'the next is due in half an hour');
+
+        // Sold out: price 0, and listed last
+        DB::table('events')->insert(['event_type' => 2, 'action' => 0, 'logged' => 1, 'outcome' => 1, 'drone' => $drone,
+            'resource' => 2011, 'installed' => 0, 'locked' => 0, 'new_quantity' => 0, 'new_cargo' => 0, 'game_t' => $now - 60]);
+        $m = collect(HouseMarket::supply(2011, 10))->first();
+        $this->assertSame([0, 0], [$m['on_sale'], $m['price']]);
+
+        // Drones read it from the stored table (query 707): times in game minutes
+        $this->assertTrue(HouseMarket::storeSupply());
+        $this->assertFalse(HouseMarket::storeSupply(), 'once a real minute');
+        $sql = str_replace(['[game_now]', '[value_1]'], [(string) $now, '2011'],
+            (string) DB::table('queries')->where('id', 707)->value('script'));
+        if ($sql !== '') {
+            $row = collect(DB::select($sql))->firstWhere('place', 10);
+            $this->assertSame([0, 60, 90, 30], [(int) $row->on_sale, (int) $row->last_minutes, (int) $row->round_minutes, (int) $row->next_minutes]);
+        }
+
+        $this->getJson('/api/v1/house-supply?resource=2011&place=Moon')->assertOk()
+            ->assertJsonPath('0.place_name', 'Moon')->assertJsonPath('0.round_hours', 1.5)->assertJsonPath('0.refill_to', max(1, intdiv($daily, 4)));
+        $this->getJson('/api/v1/house-supply?place=Atlantis')->assertNotFound();
+        $this->get('/market?supply=2011')->assertOk()->assertSee('House supply')->assertSee('sold out')
+            ->assertSee('in 0.5 game hours (every 1.5)');
+    }
+
     public function testAStationDroneOnAnOldProgramGetsTheNewOne()
     {
         HouseStations::ensure();
