@@ -203,6 +203,35 @@ class Leaderboard
     {
         $board ??= self::wealth();
         $now = World::gameNow();
+        [$companies, $points] = self::lines($board);
+        $rows = [];
+        $tooYoung = $endedBefore = 0;
+        foreach ($companies as $co => $c) {
+            $p = $points[$co];
+            $ended = $c->eliminated_at !== null || !isset($board[$co]);
+            $at = self::readAt($p, $p[0][0] + $age);
+            if ($at === null) {
+                $ended ? $endedBefore++ : $tooYoung++;
+                continue;
+            }
+            $rows[] = ['company_id' => (int) $co, 'company' => $c->name, 'wealth' => $at[0], 'gap' => $at[1],
+                'now' => $ended ? null : $board[$co]['wealth'], 'ended' => $ended,
+                'age' => self::age($c->founded_t, $ended && $c->eliminated_at !== null ? (int) $c->eliminated_at : $now),
+                'drones' => $ended ? 0 : $board[$co]['drones']];
+        }
+        usort($rows, fn ($a, $b) => [$b['wealth'], $a['company_id']] <=> [$a['wealth'], $b['company_id']]);
+        return ['age' => $age, 'rows' => $limit === null ? $rows : array_slice($rows, 0, $limit),
+            'of' => count($rows), 'too_young' => $tooYoung, 'ended_before' => $endedBefore];
+    }
+
+    /**
+     * Every company (but the House) and its net wealth line (#614):
+     * [companies by id, company_id => [[game day, wealth], …]], from 0 on
+     * the day it was founded, through its daily history, to its wealth now
+     * while it trades
+     */
+    private static function lines(array $board): array
+    {
         $epoch = (float) (DB::table('game_clock')->where('id', 1)->value('epoch') ?? 0);
         $dayOf = fn ($t) => ($t - $epoch) / 86400;
         $companies = DB::table('companies')->where('house', 0)->whereNotNull('founded_t')
@@ -219,27 +248,40 @@ class Leaderboard
                 }
             }
         }
-        $rows = [];
-        $tooYoung = $endedBefore = 0;
+        $today = $dayOf(World::gameNow());
         foreach ($companies as $co => $c) {
-            $p = $points[$co];
-            $ended = $c->eliminated_at !== null || !isset($board[$co]);
-            if (!$ended) {
-                $p[] = [$dayOf($now), $board[$co]['wealth']];   // its wealth now ends the line
+            if ($c->eliminated_at === null && isset($board[$co])) {
+                $points[$co][] = [$today, $board[$co]['wealth']];   // its wealth now ends the line
             }
-            $at = self::readAt($p, $p[0][0] + $age);
-            if ($at === null) {
-                $ended ? $endedBefore++ : $tooYoung++;
-                continue;
-            }
-            $rows[] = ['company_id' => (int) $co, 'company' => $c->name, 'wealth' => $at[0], 'gap' => $at[1],
-                'now' => $ended ? null : $board[$co]['wealth'], 'ended' => $ended,
-                'age' => self::age($c->founded_t, $ended && $c->eliminated_at !== null ? (int) $c->eliminated_at : $now),
-                'drones' => $ended ? 0 : $board[$co]['drones']];
         }
-        usort($rows, fn ($a, $b) => [$b['wealth'], $a['company_id']] <=> [$a['wealth'], $b['company_id']]);
-        return ['age' => $age, 'rows' => $limit === null ? $rows : array_slice($rows, 0, $limit),
-            'of' => count($rows), 'too_young' => $tooYoung, 'ended_before' => $endedBefore];
+        return [$companies, $points];
+    }
+
+    /**
+     * Each company's net wealth at each of $ages (#618, the lineage map's
+     * heat map), read once: company_id => [wealth => [one per age, null
+     * where it never reached it], gap => […], rank => [[rank, of] or null]]
+     */
+    public static function atAges(array $ages, ?array $board = null): array
+    {
+        [$companies, $points] = self::lines($board ?? self::wealth());
+        $out = [];
+        foreach ($companies as $co => $c) {
+            foreach ($ages as $i => $age) {
+                $at = self::readAt($points[$co], $points[$co][0][0] + $age);
+                $out[$co]['wealth'][$i] = $at[0] ?? null;
+                $out[$co]['gap'][$i] = $at[1] ?? null;
+                $out[$co]['rank'][$i] = null;
+            }
+        }
+        foreach ($ages as $i => $age) {
+            $have = array_filter(array_keys($out), fn ($co) => $out[$co]['wealth'][$i] !== null);
+            usort($have, fn ($a, $b) => [$out[$b]['wealth'][$i], $a] <=> [$out[$a]['wealth'][$i], $b]);
+            foreach ($have as $r => $co) {
+                $out[$co]['rank'][$i] = [$r + 1, count($have)];
+            }
+        }
+        return $out;
     }
 
     /** [value, gap] at day $t on a line of [day, value] points, or null past its last point */

@@ -43,6 +43,7 @@
                     from its daily history: so a company that had longer to grow is compared as it was then.
                     {{ number_format($atAge['of']) }} {{ $atAge['of'] === 1 ? 'company has' : 'companies have' }} reached this age{{ $atAge['too_young'] ? '; ' . number_format($atAge['too_young']) . ' still trading haven\'t yet' : '' }}{{ $atAge['ended_before'] ? '; ' . number_format($atAge['ended_before']) . ' ended before it' : '' }}.
                     A figure marked ~ is read between history points more than a day apart.
+                    The <a href="{{ url('lineage') }}">lineage map</a> colours every company's code by this rank.
                 </p>
                 <div class="table-custom-responsive" style="margin-bottom: 2em">
                     <table class="table-ticket" id="at-age">

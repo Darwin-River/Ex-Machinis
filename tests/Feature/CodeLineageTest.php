@@ -157,4 +157,56 @@ LUA;
         CodeLineage::catchUp();
         $this->assertNotNull(CodeLineage::ofCompany($co)['revisions'][0]['new_share']);
     }
+
+    /**
+     * #618: the lineage map's graph: nodes with their parents, lanes with
+     * each family after the code it came from, and each company's net
+     * wealth rank at the map's ages
+     */
+    public function testTheMapsGraphAndPage()
+    {
+        DB::table('code_parents')->delete();
+        DB::table('code_genes')->delete();
+        DB::table('code_revisions')->delete();
+        $now = time();
+        DB::table('game_clock')->delete();
+        DB::table('game_clock')->insert(['id' => 1, 'real_anchor' => $now, 'game_anchor' => $now, 'scale' => 1, 'epoch' => $now - 1000 * 86400]);
+        $player = User::create(['name' => 'Map', 'email' => 'map@example.com', 'password' => bcrypt('secret-password')]);
+        $release = function (string $name, string $src, int $daysAgo) use ($player, $now) {
+            $co = Release::release($player, $name, $src)->company_id;
+            DB::table('companies')->where('company_id', $co)->update(['founded_t' => $now - $daysAgo * 86400]);
+            return $co;
+        };
+        $a = $release('Alpha Co', self::ALPHA, 40);
+        $g = $release('Gamma Co', self::GAMMA, 35);
+        $b = $release('Beta Co', self::BETA, 30);
+        $ab = $release('Both Co', self::ALPHA . "\n" . self::BETA, 20);
+        DB::table('companies')->where('company_id', $ab)->increment('credits', 900);
+        while (CodeLineage::catchUp() > 0) {
+        }
+
+        $graph = CodeLineage::graph();
+        $node = fn ($co) => collect($graph['nodes'])->firstWhere('company_id', $co);
+        $this->assertCount(2, $node($ab)['parents'], 'Both Co has two parents');
+        $this->assertEqualsCanonicalizing([$node($a)['id'], $node($b)['id']], array_column($node($ab)['parents'], 0));
+        $this->assertEqualsWithDelta(980.0, $node($ab)['day'], 0.01, 'game day 980: founded 20 days before day 1000');
+        $lane = fn ($co) => array_search($co, array_column($graph['lanes'], 'company_id'), true);
+        $main = collect($graph['nodes'])->firstWhere('id', $node($ab)['parents'][0][0])['company_id'];
+        $this->assertSame($b, $main, 'Beta explains more of it than Alpha');
+        $this->assertSame($lane($b) + 1, $lane($ab), 'Both Co comes after the family it mainly came from');
+        $this->assertLessThan($lane($g), $lane($a), 'roots in time order');
+        $this->assertSame(url('/companies/' . $a), $graph['lanes'][$lane($a)]['url']);
+        $this->assertNotEmpty(array_filter($graph['lanes'], fn ($l) => $l['example'] === 'starters/miner'), 'the examples are lanes too');
+        $this->assertSame(CodeLineage::MAP_AGES, $graph['ages']);
+        $i = array_search(10, $graph['ages'], true);
+        $this->assertNotNull($graph['companies'][$ab]['wealth'][$i], 'Both Co reached 10 days');
+        $this->assertNull($graph['companies'][$ab]['wealth'][array_search(30, $graph['ages'], true)], 'but not 30');
+        $this->assertSame($graph['companies'][$ab]['rank'][$i][1], collect($graph['companies'])->filter(fn ($c) => $c['rank'][$i] !== null)->count());
+
+        $this->get('/lineage')->assertOk()->assertSee('id="plate"', false)->assertSee('"label":"Both Co"', false)
+            ->assertSee('href="' . url('lineage') . '"', false);
+        $this->getJson('/api/v1/lineage')->assertOk()->assertJsonPath('ages', CodeLineage::MAP_AGES)
+            ->assertJsonFragment(['label' => 'Both Co']);
+        $this->get('/companies/' . $ab)->assertSee('lineage?company=' . $ab, false);
+    }
 }

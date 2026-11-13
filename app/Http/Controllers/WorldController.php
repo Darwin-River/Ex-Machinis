@@ -73,6 +73,12 @@ class WorldController extends Controller
         return view('world.leaderboard', compact('allTime', 'rising', 'kit', 'maxAge', 'age', 'atAge'));
     }
 
+    /** The lineage map (#618): every release and push, with the earlier code each carries */
+    public function lineage()
+    {
+        return view('world.lineage', ['graph' => \App\Services\CodeLineage::graph()]);
+    }
+
     /** The game's queries: how many parameters each takes (#380) */
     public function machineQueries()
     {
