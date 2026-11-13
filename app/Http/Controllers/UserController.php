@@ -70,7 +70,7 @@ class UserController extends Controller
         $shares['compute'] = \App\Services\ProcessorTax::of((int) $company->company_id);
         $shares['health'] = \App\Services\CompanyHealth::of((int) $company->company_id)
             + ['drones' => \App\Services\CompanyHealth::drones((int) $company->company_id)];
-        // Its leaderboard place among companies its age or younger (#548),
+        // Its place among every company at its age (#548, #614),
         // and its net wealth, the game's score, at the top of the page (#591)
         $board = \App\Services\Leaderboard::wealth();
         $rank = \App\Services\Leaderboard::peerRank((int) $company->company_id, $board);

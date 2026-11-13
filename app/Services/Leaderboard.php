@@ -21,10 +21,12 @@ use Illuminate\Support\Facades\Schema;
  * starter kit is worth its contents. Rising is the gain over the last real week, from the hourly
  * snapshots.
  *
- * Age (#548): game days since the company was founded (founded_t). Either
- * board can compare only companies up to a given age, so a new company isn't
- * eclipsed by ones that simply had longer to grow; a company's page ranks it
- * among companies its age or younger.
+ * Age (#548): game days since the company was founded (founded_t). The At
+ * age board (#614) ranks every company by its net wealth when it was a given
+ * age, from its daily history (company_days), so a young company is compared
+ * with older ones as they were at its age, and an older one's early days still
+ * count; a company's page ranks its wealth now among every company's wealth at
+ * the same age.
  */
 class Leaderboard
 {
@@ -188,10 +190,82 @@ class Leaderboard
     }
 
     /**
-     * A company's place on the all-time board among companies its age or
-     * younger (#548): [rank, of, age], or null when it isn't on the board
-     * (ended, or the House). An older company that simply had longer to grow
-     * doesn't count against it.
+     * Every company's net wealth when it was $age game days old (#614):
+     * rows (richest first) of company_id, company, wealth (at that age),
+     * now (its net wealth now; null once ended), ended, age (now), gap (game
+     * days between the two history points it was read between: 1 or less is
+     * day by day), and how many companies are too_young to have reached it or
+     * ended_before it. It is read from the daily history, from 0 on the day
+     * the company was founded (a fresh release is worth 0) to its wealth now,
+     * linearly between points.
+     */
+    public static function atAge(float $age, ?int $limit = null, ?array $board = null): array
+    {
+        $board ??= self::wealth();
+        $now = World::gameNow();
+        $epoch = (float) (DB::table('game_clock')->where('id', 1)->value('epoch') ?? 0);
+        $dayOf = fn ($t) => ($t - $epoch) / 86400;
+        $companies = DB::table('companies')->where('house', 0)->whereNotNull('founded_t')
+            ->get(['company_id', 'name', 'founded_t', 'eliminated_at'])->keyBy('company_id');
+        $points = [];
+        foreach ($companies as $co => $c) {
+            $points[$co] = [[$dayOf((int) $c->founded_t), 0]];
+        }
+        if (Schema::hasTable('company_days')) {
+            foreach (DB::table('company_days')->orderBy('company_id')->orderBy('day')
+                         ->get(['company_id', 'day', 'net_wealth']) as $d) {
+                if (isset($points[$d->company_id]) && $d->day > $points[$d->company_id][0][0]) {
+                    $points[$d->company_id][] = [(float) $d->day, (int) $d->net_wealth];
+                }
+            }
+        }
+        $rows = [];
+        $tooYoung = $endedBefore = 0;
+        foreach ($companies as $co => $c) {
+            $p = $points[$co];
+            $ended = $c->eliminated_at !== null || !isset($board[$co]);
+            if (!$ended) {
+                $p[] = [$dayOf($now), $board[$co]['wealth']];   // its wealth now ends the line
+            }
+            $at = self::readAt($p, $p[0][0] + $age);
+            if ($at === null) {
+                $ended ? $endedBefore++ : $tooYoung++;
+                continue;
+            }
+            $rows[] = ['company_id' => (int) $co, 'company' => $c->name, 'wealth' => $at[0], 'gap' => $at[1],
+                'now' => $ended ? null : $board[$co]['wealth'], 'ended' => $ended,
+                'age' => self::age($c->founded_t, $ended && $c->eliminated_at !== null ? (int) $c->eliminated_at : $now),
+                'drones' => $ended ? 0 : $board[$co]['drones']];
+        }
+        usort($rows, fn ($a, $b) => [$b['wealth'], $a['company_id']] <=> [$a['wealth'], $b['company_id']]);
+        return ['age' => $age, 'rows' => $limit === null ? $rows : array_slice($rows, 0, $limit),
+            'of' => count($rows), 'too_young' => $tooYoung, 'ended_before' => $endedBefore];
+    }
+
+    /** [value, gap] at day $t on a line of [day, value] points, or null past its last point */
+    private static function readAt(array $points, float $t): ?array
+    {
+        $last = end($points);
+        if ($t > $last[0] + 0.05) {        // ages are to a tenth of a day
+            return null;
+        }
+        for ($i = 1, $n = count($points); $i < $n; $i++) {
+            [$d1, $v1] = $points[$i - 1];
+            [$d2, $v2] = $points[$i];
+            if ($t <= $d2) {
+                $f = $d2 > $d1 ? ($t - $d1) / ($d2 - $d1) : 1;
+                return [(int) round($v1 + max(0, min(1, $f)) * ($v2 - $v1)), round($d2 - $d1, 1)];
+            }
+        }
+        return [(int) $last[1], 0.0];
+    }
+
+    /**
+     * A company's place among every company at its age (#548, #614): its net
+     * wealth now ranked against each other company's net wealth when that one
+     * was as old ([rank, of, age]), or null when it isn't on the board (ended,
+     * or the House). A company that simply had longer to grow is compared as
+     * it was at this one's age.
      */
     public static function peerRank(int $companyId, ?array $rows = null): ?array
     {
@@ -200,10 +274,9 @@ class Leaderboard
             return null;
         }
         $me = $rows[$companyId];
-        $peers = array_values(self::upTo($rows, $me['age']));
-        usort($peers, fn ($a, $b) => [$b['wealth'], $a['drone']] <=> [$a['wealth'], $b['drone']]);
-        $rank = 1 + (int) array_search($companyId, array_column($peers, 'company_id'), true);
-        return ['rank' => $rank, 'of' => count($peers), 'age' => $me['age']];
+        $board = self::atAge($me['age'], null, $rows);
+        $rank = 1 + (int) array_search($companyId, array_column($board['rows'], 'company_id'), true);
+        return ['rank' => $rank, 'of' => $board['of'], 'age' => $me['age']];
     }
 
     /** Takes the hourly snapshot when it is due; returns whether it did */
@@ -227,8 +300,9 @@ class Leaderboard
 
     /**
      * Net wealth over time (#380 round 36): once a game day, every company's
-     * credits and net wealth (company_days). The last 60 game days are kept
-     * day by day, older ones every 10th day. Returns whether it took one.
+     * credits and net wealth (company_days). Every day is kept (#614: the At
+     * age board reads each company's history day by day; until then days
+     * older than 60 were thinned to every 10th). Returns whether it took one.
      */
     public static function dailyIfDue(): bool
     {
@@ -250,7 +324,6 @@ class Leaderboard
         foreach (array_chunk($rows, 500) as $chunk) {
             DB::table('company_days')->insertOrIgnore($chunk);
         }
-        DB::table('company_days')->where('day', '<', $today - 60)->whereRaw('MOD(day, 10) <> 0')->delete();
         return true;
     }
 
