@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@php $title = 'Release a Script' ; @endphp
+@php $title = 'Release a drone' ; @endphp
 @section('pageTitle', $title)
 @section('content')
     <x-page-header :title="$title" />

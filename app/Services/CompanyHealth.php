@@ -58,12 +58,17 @@ class CompanyHealth
             . "FROM agents AS a WHERE a.company_id = $company AND a.wrecked_at IS NULL) AS d";
     }
 
-    /** When a drone last gained or spent goods other than fuel (#540), or NULL */
+    /**
+     * When a drone last gained or spent goods other than fuel (#540), or NULL;
+     * now while it is flying (#380 round 64: a drone three game days into a
+     * flight to Deimos was flagged "Stalled: idle 33 game hours")
+     */
     public static function lastWorkSql(string $drone, string $now): string
     {
-        return "(SELECT w.game_t FROM events AS w FORCE INDEX (events_drone_game_t) WHERE w.drone = $drone "
+        return "IF(" . DronePage::flyingSql($drone, $now) . ", $now, "
+            . "(SELECT w.game_t FROM events AS w FORCE INDEX (events_drone_game_t) WHERE w.drone = $drone "
             . "AND w.outcome = 1 AND w.game_t > $now - " . (self::IDLE_LOOKBACK * 86400) . " AND w.game_t <= $now "
-            . "AND w.event_type IN (1, 2) AND w.resource <> " . self::FUEL . " ORDER BY w.game_t DESC LIMIT 1)";
+            . "AND w.event_type IN (1, 2) AND w.resource <> " . self::FUEL . " ORDER BY w.game_t DESC LIMIT 1))";
     }
 
     /** One company's health */

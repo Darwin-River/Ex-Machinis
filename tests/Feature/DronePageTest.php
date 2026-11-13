@@ -225,7 +225,8 @@ class DronePageTest extends TestCase
         $this->getJson('/api/v1/drones/' . $agent->agent_id)->assertOk()->assertJsonPath('place_id', $from)
             ->assertJsonPath('flying_to.place_id', $to)->assertJsonPath('flying_to.arrives', $when);
 
-        // Once there, it isn't flying any more
+        // Once there (its arrival time has passed), it isn't flying any more
+        DB::table('events')->where('action', $flight)->update(['game_t' => \App\Services\World::gameNow() - 60, 'outcome' => 1]);
         DB::table('agents')->where('agent_id', $agent->agent_id)->update(['waiting_action' => null]);
         $this->getJson('/api/v1/drones/' . $agent->agent_id)->assertOk()->assertJsonPath('flying_to', null);
     }

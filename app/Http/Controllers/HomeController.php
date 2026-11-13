@@ -170,7 +170,7 @@ class HomeController extends Controller
                 ->select('le.id as event', 'le.timestamp as time', DB::raw($observer . ' as drone')));
         }
 
-        $query = DB::table('events')->select('events.timestamp', 'acting_agents.name as acting_agent_name', 'acting_agents.company_id as acting_company_id', 'acting_companies.name as acting_company_name',
+        $query = DB::table('events')->select('events.timestamp', 'events.game_t', 'events.event_type', 'acting_agents.name as acting_agent_name', 'acting_agents.company_id as acting_company_id', 'acting_companies.name as acting_company_name',
             'acting_agents.agent_id as acting_agent_id', 'acting_agents.name as acting_agent_name', 'protocols.name as protocol_name', 'affected_companies.name as affected_company_name', 'affected_companies.company_id as affected_company_id',
             'event_types.name as event_type_name', 'affected_agents.agent_id as affected_agent_id', 'affected_agents.name as affected_agent_name', 'resources.id as resource_id',
             'resources.name as resource_name', 'events.locked', 'events.new_quantity', 'events.new_credits', 'events.new_location', 'objects.object_id', 'objects.object_name', 'observations.drone as observing_drone')
@@ -208,7 +208,16 @@ class HomeController extends Controller
             $inGameEvents = ['current_page' => 1, 'data' => $inGameEvents, 'per_page' => 10, 'total' => sizeof($inGameEvents), 'to' => sizeof($inGameEvents), 'preve_page_url' => null, 'from' => 1];
         } else
             $inGameEvents = $query->paginate($resultsPerPage);
-        // var_dump($spaceObjects);exit;
+        // Game time, as the rest of the site writes it (#380 round 64: real US time stood out)
+        $when = function ($e) {
+            $e->when = $e->game_t !== null ? \App\Services\DronePage::when((int) $e->game_t) : null;
+            return $e;
+        };
+        if (is_array($inGameEvents)) {
+            $inGameEvents['data'] = $inGameEvents['data']->map($when);
+        } else {
+            $inGameEvents->getCollection()->transform($when);
+        }
 
         return response()->json($inGameEvents, 200);
     }

@@ -40,7 +40,7 @@
                         {{resource.description}}
                     </td>
                     <td>
-                        {{resource.mass}} Kg
+                        {{resource.mass}} kg
                     </td>
                 </tr>
             </table>

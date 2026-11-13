@@ -59,11 +59,11 @@
                     <a v-bind:href="'/resources/'+props.rowData.affected_resource_id">{{props.rowData.affected_resource_name}}</a>
                 </div></template>
                 <template #timestamp="props"><div>
-                    {{ formatDateTime(props.rowData.timestamp) }}
+                    {{ props.rowData.when || formatDateTime(props.rowData.timestamp) }}
                 </div></template>
                 <template #event_type_name="props"><div>
-                    {{props.rowData.event_type_name}} <span v-if="props.rowData.new_quantity">{{props.rowData.new_quantity}} units</span><span
-                        v-if="props.rowData.new_credits"> {{props.rowData.new_credits}} credits</span><span
+                    {{props.rowData.event_type_name}} <span v-if="[1, 2].includes(Number(props.rowData.event_type)) && props.rowData.new_quantity !== null">{{props.rowData.new_quantity}} {{ props.rowData.new_quantity == 1 ? 'unit' : 'units' }}</span><span
+                        v-if="[6, 7].includes(Number(props.rowData.event_type)) && props.rowData.new_credits !== null"> {{props.rowData.new_credits}} credits</span><span
                         v-if="props.rowData.object_name"><a v-bind:href="/locations/+props.rowData.object_id">{{props.rowData.object_name}}</a></span>
                 </div></template>
             </data-table>

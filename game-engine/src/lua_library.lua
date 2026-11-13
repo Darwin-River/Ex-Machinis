@@ -447,7 +447,9 @@ local MAX_OUTSIDE = 0.5
 -- carried loss: the loss is made up first, then each share earns
 -- profit30 / count a day. math.huge when it makes no profit
 local function payback_days(price, count, profit30, carried)
-  if (profit30 or 0) <= 0 then return math.huge end
+  -- No price (a company whose shares never traded is worth 0 a share): no
+  -- payback to work out (#380 round 64: it read 0 days, and looked best)
+  if (profit30 or 0) <= 0 or (price or 0) <= 0 then return math.huge end
   return ((carried or 0) + price * count) / profit30
 end
 local function offering_cost(n, price)

@@ -1483,9 +1483,13 @@ def company_health_sql(company, now):
         "IFNULL(MIN(IF(d.fall > 0, FLOOR(d.fuel / d.fall), NULL)), -1) AS days, "
         f"IFNULL((SELECT c.credits FROM companies AS c WHERE c.company_id = {company}), 0) AS d_credits, "
         f"IF(COUNT(d.agent_id) = 0, -1, FLOOR(({now} - IFNULL(MAX(d.last_t), {now} - 864000)) / 3600)) AS idle "
-        f"FROM (SELECT a.agent_id, (SELECT w.game_t FROM events AS w FORCE INDEX (events_drone_game_t) WHERE w.drone = a.agent_id "
+        # A drone in flight counts as working (#380 round 64; DronePage::flyingSql)
+        f"FROM (SELECT a.agent_id, IF(EXISTS (SELECT 1 FROM events AS fm FORCE INDEX (events_drone_game_t) WHERE fm.drone = a.agent_id "
+        f"AND fm.game_t > {now} AND fm.event_type = 3 AND fm.new_location IS NOT NULL AND NOT EXISTS (SELECT 1 FROM actions AS fx "
+        f"WHERE fx.id = fm.action AND fx.aborted = 1)), {now}, "
+        f"(SELECT w.game_t FROM events AS w FORCE INDEX (events_drone_game_t) WHERE w.drone = a.agent_id "
         f"AND w.outcome = 1 AND w.game_t > {now} - 864000 AND w.game_t <= {now} AND w.event_type IN (1, 2) "
-        "AND w.resource <> 2061 ORDER BY w.game_t DESC LIMIT 1) AS last_t, "
+        "AND w.resource <> 2061 ORDER BY w.game_t DESC LIMIT 1)) AS last_t, "
         "IFNULL((SELECT f.units FROM holdings AS f WHERE f.drone = a.agent_id "
         "AND f.resource = 2061 AND f.installed = 0 AND f.locked = 0), 0) AS fuel, "
         + fall('x.prev > x.q') + " AS used, " + fall('x.prev IS NOT NULL') + " AS fall "
@@ -1493,7 +1497,7 @@ def company_health_sql(company, now):
 queries.append((699, 'Company health',
                 'Company N: working drones, wrecked drones, fuel aboard, the least aboard one, fuel used over the '
                 'last game day, days until one runs dry (-1: none), credits, game hours since its drones last '
-                'traded or made goods.', 1,
+                'traded, made goods or flew.', 1,
                 company_health_sql('[value_1]', '[game_now]')))
 # The House's demand (#550): at each exchange that buys good N, its bid now,
 # the units it still takes today, its day's demand, its listed price and the

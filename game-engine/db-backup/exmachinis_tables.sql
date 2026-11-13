@@ -67,7 +67,7 @@ CREATE TABLE `hulls` (
 
 LOCK TABLES `hulls` WRITE;
 /*!40000 ALTER TABLE `hulls` DISABLE KEYS */;
-INSERT INTO `hulls` VALUES (1,'Mosquitto',NULL,500,2,2,1,0,0),(2,'Humming Bird',NULL,5000,4,3,2,1,0);
+INSERT INTO `hulls` VALUES (1,'Mosquito',NULL,500,2,2,1,0,0),(2,'Humming Bird',NULL,5000,4,3,2,1,0);
 /*!40000 ALTER TABLE `hulls` ENABLE KEYS */;
 UNLOCK TABLES;
 

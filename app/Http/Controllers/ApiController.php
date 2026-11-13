@@ -345,7 +345,15 @@ class ApiController extends Controller
     public function houseDemand(Request $request): JsonResponse
     {
         $int = fn ($k) => is_numeric($request->query($k)) ? (int) $request->query($k) : null;
-        return response()->json(HouseMarket::demand($int('resource'), $int('place'), $int('company')));
+        // A place by name too, as /orders takes it (#380 round 64: ?place=Mars was ignored, and every place came back)
+        $place = $int('place');
+        if ($place === null && $request->filled('place')) {
+            $place = DB::table('objects')->where('object_name', (string) $request->query('place'))->value('object_id');
+            if ($place === null) {
+                return $this->notFound('There is no place called ' . $request->query('place') . '.');
+            }
+        }
+        return response()->json(HouseMarket::demand($int('resource'), $place === null ? null : (int) $place, $int('company')));
     }
 
     /**
@@ -436,6 +444,11 @@ class ApiController extends Controller
             'ok' => $problem === null,
             'error' => $problem,
             'warning' => $warning,
+            // Names it uses that nothing defines: calling one crashes the drone
+            // (#380 round 64: Bram's check-then-release chain shipped one on ok
+            // alone). clean: no error and no warning
+            'undefined' => Release::isLua($script) ? Release::luaUndefinedNames($script) : [],
+            'clean' => $problem === null && $warning === null,
             'language' => Release::isLua($script) ? 'lua' : 'forth',   // #380
             'length' => $length,
             'max_length' => $max,

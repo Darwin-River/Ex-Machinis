@@ -302,7 +302,8 @@ class Shares
      */
     public static function paybackDays(int $price, int $count, array $long): ?int
     {
-        if ($long['profit30'] <= 0) {
+        // No price (never traded): no payback to work out (#380 round 64: it read 0 days)
+        if ($long['profit30'] <= 0 || $price <= 0) {
             return null;
         }
         return (int) ceil(($long['carried'] + $price * $count) / $long['profit30']);

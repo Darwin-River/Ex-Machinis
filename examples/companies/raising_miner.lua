@@ -28,6 +28,7 @@ dry_tries = 12     -- dry tries at the Moon before trying Phobos (a large
                    -- number keeps it at the Moon)
 rest = 240         -- game minutes to rest when both Mars moons are dry
 hold_cap = 16      -- metals it keeps on offer to other drones
+min_ask = 12       -- the least it asks where nobody bids (metals sold for 18 to 20 in round 64)
 raise_days = 10    -- days an offering stays open
 raise_cap = 2500   -- the most it raises at a time: it raises again for the rest
 raise_min = 5      -- never sells new shares for less than this
@@ -92,11 +93,13 @@ end
 function market() if site() == moon then return moon else return mars end end
 
 -- Its asking price, from the market here: halfway between the best bid and
--- the cheapest other seller; with no bid, a unit under the cheapest seller;
--- with no seller, half as much again as the best bid; 0 where nobody trades it
+-- the cheapest other seller; with no bid, the cheapest seller's price (not a
+-- unit under it: round 64's miners undercut one another down to 2 credits
+-- where nobody bid), and never under min_ask; with no seller, half as much
+-- again as the best bid; 0 where nobody trades it
 function ask_price(metal)
   local bid, offer = sell_price(metal), buy_price(metal)
-  if bid == 0 then return math.max(offer - 1, 0) end
+  if bid == 0 then return offer > 0 and math.max(offer, min_ask) or 0 end
   if offer == 0 then return bid + bid // 2 end
   return (bid + offer) // 2
 end
@@ -271,14 +274,16 @@ end
 -- launched() may run again (after a crash, or if the engine restarts):
 -- equip passes once the tools are unpacked, and a drone that
 -- has already chosen its site keeps it
-started = false
+-- started: the drone that chose its site. A copy inherits its parent's
+-- number, so it chooses afresh (#380 round 64: copies kept their parent's site)
+started = 0
 function launched()
   fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
   equip(mining_kit)   -- buys a kit at Earth and unpacks it (a copy waits for the one it is handed; #506)
-  if not started then
+  if started ~= me() then
     founder = not copy
     if copy then site_no = me() % 3 else site_no = 0 end
-    copy, started = true, true
+    copy, started = true, me()
   end
   go(site())
   offer()

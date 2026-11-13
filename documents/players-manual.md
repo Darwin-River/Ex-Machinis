@@ -566,7 +566,7 @@ At the normal pace of the game (1,800 game seconds per real second):
 A few consequences are worth planning for:
 
 - **Program distant drones.** A drone around Neptune is four light-hours away, and a trip there takes 11 game days, so give it a script that decides for itself what to do next.
-- **Released drones can't be steered.** Once released, a drone takes no new scripts: it runs the one you gave it, calls `launched`, and decides everything else for itself.
+- **Released drones steer themselves.** A released drone takes no commands: it runs the script you gave it, calls `launched`, and decides everything else for itself. The only way to change what it does is to push new code to its company (see [Pushing new code](#pushing-new-code)), which reaches each drone at the speed of light, so a drone around Neptune gets it four hours later.
 - **Replies arrive late.** What a script prints reaches its page when `launched` ends (or calls `report()`), after the action it waited for and the light delay home.
 
 ### Understanding how protocols are organized and numbered
