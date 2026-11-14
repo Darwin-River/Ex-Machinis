@@ -130,9 +130,23 @@ class CodePush
         if (!$company) {
             return null;
         }
-        [$permille, $fee] = self::nextFee($company);
         $drones = DB::table('agents')->where('company_id', $companyId)->whereNull('wrecked_at')
             ->whereNull('station_id')->where('language', 'lua')->count();
+        // The new rules (#653): a seedling's owner reprograms it for a flat fee
+        // on its debt; a matured company's code is locked
+        if ((int) $company->seedling === 1) {
+            $fee = Seedlings::pushFee($company);
+            return ['seedling' => true, 'enabled' => $company->eliminated_at === null && $drones > 0,
+                'number' => (int) $company->pushes + 1, 'fee' => $fee, 'debt' => (int) $company->debt,
+                'debt_after' => (int) $company->debt + $fee, 'drones' => $drones,
+                'note' => 'Its owner reprograms a seedling from the account page or POST /api/v1/seedlings/'
+                    . $companyId . '/push: the fee goes on its debt (the first push is free).'];
+        }
+        if ($company->owner_id !== null) {
+            return ['seedling' => false, 'enabled' => false, 'drones' => $drones,
+                'note' => 'This company has matured: its code is locked and can\'t be pushed to.'];
+        }
+        [$permille, $fee] = self::nextFee($company);
         // Each drone's standing orders for goods (#571): they outlive the push
         $ids = DB::table('agents')->where('company_id', $companyId)->whereNull('wrecked_at')->whereNull('station_id')
             ->pluck('agent_id')->all();

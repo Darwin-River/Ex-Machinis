@@ -32,6 +32,12 @@ class PlayerShares
 {
     public const COUNT = 1000;
 
+    /** Can players trade this company's shares: a matured company of the new rules, still trading? */
+    public static function tradable(int $company): bool
+    {
+        return self::company($company) !== null;
+    }
+
     /** A matured company of the new rules, still trading, or null */
     private static function company(int $company): ?object
     {
