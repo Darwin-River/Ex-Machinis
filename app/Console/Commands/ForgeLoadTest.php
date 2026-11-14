@@ -102,7 +102,7 @@ class ForgeLoadTest extends Command
             $have = (int) DB::table('companies')->where('name', 'like', "$design %")->count();
             // The kit its header asks for (#473: the listed miner mines);
             // the factory kit otherwise
-            $kit = preg_match('/Release it with the Mining Kit/', $script) ? 'mining' : 'factory';
+            $kit = preg_match('/(Release it|equips itself)\s+(--\s*)?with\s+(--\s*)?the Mining Kit/', $script) ? 'mining' : 'factory';
             for ($i = 1; $i <= $n; $i++) {
                 Release::release($owner, "$design " . ($have + $i), $script, null, null, null, $kit);
             }

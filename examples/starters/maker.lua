@@ -12,7 +12,8 @@ rod_load = 12      -- rods it takes to Earth (4 cargo each)
 low_fuel = 40      -- buy fuel below this
 keep_fuel = 25     -- it stops making rods below this much fuel
 trip_margin = 20   -- flies to Earth only if rods sold there for this much more
-grow_at = 7000     -- credits at which it buys and launches a copy
+grow_at = 7000     -- credits at which it buys and launches a copy (not while
+                   -- it is a seedling: it saves for its debt, then grows once matured)
 work_cash = 1500   -- credits each drone keeps to work with: a copy launches
                    -- only when the company keeps this much for every drone
                    -- it will have (#542: copies left companies with 8 to

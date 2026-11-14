@@ -1,4 +1,4 @@
--- Miner: a starter script for Public Forge, in Lua (#380). Release it
+-- Miner: a starter script for Public Forge, in Lua (#380). It equips itself
 -- with the Mining Kit (Engine, Worm and Refinery).
 -- It mines the richer of kunspar and wolfite at the Moon, refines it, and
 -- keeps standing sell orders for its metals, priced halfway between the
@@ -17,7 +17,8 @@
 low_fuel = 40      -- get fuel when below this
 dry_tries = 12     -- dry tries at the Moon before trying Phobos (a large
                    -- number keeps it at the Moon)
-grow_at = 7000     -- credits at which it buys and launches a copy
+grow_at = 7000     -- credits at which it buys and launches a copy (not while
+                   -- it is a seedling: it saves for its debt, then grows once matured)
                    -- (6500 at least: a hull is 3000, a kit 2000,
                    -- and 1500 left to work with)
 work_cash = 1500   -- credits each drone keeps to work with: a copy launches
