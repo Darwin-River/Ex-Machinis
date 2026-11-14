@@ -20,19 +20,24 @@ class AccountController extends Controller
 
     public function signup(Request $request)
     {
-        $request->validate(['name' => 'required|string|max:64', 'password' => 'required|string|max:200|confirmed']);
+        $request->validate(['name' => 'required|string|max:64', 'email' => 'required|string|max:255',
+            'password' => 'required|string|max:200|confirmed']);
         if (!Players::maySignUp((string) $request->ip())) {
             return back()->withErrors(['name' => 'Too many new accounts from your address this hour. Try again later.'])->withInput($request->except('password', 'password_confirmation'));
         }
         try {
-            $user = Players::create((string) $request->input('name'), (string) $request->input('password'));
+            $user = Players::create((string) $request->input('name'), (string) $request->input('password'),
+                (string) $request->input('email'));
         } catch (\InvalidArgumentException $e) {
             return back()->withErrors(['name' => $e->getMessage()])->withInput($request->except('password', 'password_confirmation'));
         }
         Players::countSignUp((string) $request->ip());
         Auth::login($user);
         $request->session()->regenerate();
-        return redirect('/account')->withSuccess('Welcome, ' . $user->login . '! Your account is ready.');
+        $sent = Players::sendVerification($user);
+        return redirect('/account')->withSuccess('Welcome, ' . $user->login . '! '
+            . ($sent ? 'We have sent a link to your e-mail address: open it to verify your account.'
+                     : 'We couldn\'t send the link to verify your e-mail address just now: send it again from this page.'));
     }
 
     public function showLogin()
@@ -67,6 +72,34 @@ class AccountController extends Controller
             return redirect('/login');
         }
         return view('account.show', ['account' => Players::summary($user)]);
+    }
+
+    /** The link from the e-mail: verifies the address (the route checks the signature) */
+    public function verify(Request $request, int $id, string $hash)
+    {
+        $user = Players::verify($id, $hash);
+        if (!$user) {
+            return redirect(Auth::check() ? '/account' : '/login')->with('error', 'That link doesn\'t verify an account.');
+        }
+        return redirect(Auth::check() ? '/account' : '/login')
+            ->withSuccess('Your e-mail address is verified: your credits for buying shares are in your account.');
+    }
+
+    /** Sends the verification link again (a few times an hour) */
+    public function resendVerification(Request $request)
+    {
+        $user = $this->player();
+        if (!$user) {
+            return redirect('/login');
+        }
+        $key = 'verify-mail|' . $user->user_id;
+        if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($key, 3)) {
+            return redirect('/account')->with('error', 'We have sent the link several times this hour. Check your spam folder, or try again later.');
+        }
+        \Illuminate\Support\Facades\RateLimiter::hit($key, 3600);
+        return Players::sendVerification($user)
+            ? redirect('/account')->withSuccess('We have sent the link again.')
+            : redirect('/account')->with('error', 'We couldn\'t send the link just now. Try again later.');
     }
 
     /** A new API token, shown once */

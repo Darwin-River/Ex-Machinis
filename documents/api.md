@@ -459,9 +459,10 @@ The new rules (#635) give players accounts. They are being built step by step an
 
 | Request | What it does |
 |---|---|
-| `POST /accounts` `{name, password}` | makes an account (#636): a name of 3 to 32 letters, digits, spaces, dots, dashes or underscores (not your real name: it is public), and a password of at least 8 characters. It answers 201 with `{token, name, credits, share_credits, class_group, teaches, since}`: `share_credits` are the starting credits (5,000) that can only buy shares. One address may make 3 accounts an hour (429 after that); a name that is taken, or a password that is too short, answers 422 with `error` |
+| `POST /accounts` `{name, email, password}` | makes an account (#636): a name of 3 to 32 letters, digits, spaces, dots, dashes or underscores (not your real name: it is public), an e-mail address (private, one account per address) and a password of at least 8 characters. It answers 201 with `{token, verification_sent, name, email, verified, credits, share_credits, class_group, teaches, since}`, and sends a link to the address: opening it verifies the account and brings its 5,000 `share_credits`, which can only buy shares. One address may make 3 accounts an hour (429 after that); a name or address that is taken, or a password that is too short, answers 422 with `error` |
 | `POST /login` `{name, password}` | a new token for the account, with the same fields; the old token stops working. 401 if the name and password don't match |
-| `GET /account` | the token's account, sent as `Authorization: Bearer <token>`: `{name, credits, share_credits, class_group, teaches, since}`. `class_group` is the pupil's group (`{id, name}`) or null; `teaches`, the teacher's groups (`{id, name, pupils}`). 401 without a valid token |
+| `GET /account` | the token's account, sent as `Authorization: Bearer <token>`: `{name, email, verified, credits, share_credits, class_group, teaches, since}`. `class_group` is the pupil's group (`{id, name}`) or null; `teaches`, the teacher's groups (`{id, name, pupils}`). 401 without a valid token |
+| `POST /account/verify` | sends the verification link again (3 times an hour at most): `{verification_sent}`. 409 if the account is verified already |
 
-Class groups are made on the website, from the account page.
+Class groups are made on the website, from a verified account's page. Pupils' accounts have no e-mail address and are verified through their teacher's.
 

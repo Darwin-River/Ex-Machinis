@@ -86,6 +86,9 @@ Route::middleware('new-rules')->group(function () {
     Route::post('/logout', 'AccountController@logout');
     Route::get('/account', 'AccountController@show');
     Route::post('/account/token', 'AccountController@token');
+    Route::get('/account/verify/{id}/{hash}', 'AccountController@verify')->whereNumber('id')
+        ->middleware('signed:relative')->name('account.verify');
+    Route::post('/account/verify', 'AccountController@resendVerification');
     Route::post('/account/classes', 'AccountController@createClassGroup');
     Route::get('/account/classes/{id}', 'AccountController@classGroup')->whereNumber('id');
     Route::post('/account/classes/{id}/reset', 'AccountController@resetPupil')->whereNumber('id');

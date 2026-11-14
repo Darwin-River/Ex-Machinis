@@ -1,6 +1,7 @@
 -- Player accounts (#636, step 1 of the new rules in #635): a player signs up
--- with a name and a password (no e-mail yet), and starts with credits that
--- can only buy shares. Teachers make class groups of pseudonymous accounts.
+-- with a name, a password and an e-mail address, and once the address is
+-- verified gets credits that can only buy shares. Teachers make class
+-- groups of pseudonymous accounts.
 -- Everything here is used only while FORGE_NEW_RULES is on; the live game
 -- is unchanged until the reset (#642).
 
@@ -14,7 +15,8 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
--- Credits that can only buy shares (#636): every account starts with some
+-- Credits that can only buy shares (#636): an account gets them when its
+-- e-mail address is verified, a pupil's when the account is made
 SET @have := (SELECT COUNT(*) FROM information_schema.columns
               WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'share_credits');
 SET @sql := IF(@have = 0,
@@ -44,8 +46,20 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
--- Player accounts have no e-mail address yet: e-mail may be empty (MySQL's
--- unique index allows any number of NULLs)
+-- When the account's e-mail address was verified (#636): one account per
+-- address, and the starting share credits come with verifying it
+SET @have := (SELECT COUNT(*) FROM information_schema.columns
+              WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'email_verified_at');
+SET @sql := IF(@have = 0,
+    'ALTER TABLE users ADD COLUMN email_verified_at TIMESTAMP NULL COMMENT ''When the account''''s e-mail address was verified (#636)''',
+    'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Pupils' accounts in a class group have no e-mail address (their teacher's
+-- is verified): e-mail may be empty (MySQL's unique index allows any number
+-- of NULLs)
 ALTER TABLE users MODIFY email VARCHAR(255) NULL;
 
 CREATE TABLE IF NOT EXISTS class_groups (

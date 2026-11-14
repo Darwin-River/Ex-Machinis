@@ -8,9 +8,22 @@
             @include('_flash_message')
             @include('account._errors')
             <h2 class="h4">{{ $account['name'] }}</h2>
+            @if(!$account['verified'])
+                <div class="alert alert-warning" style="white-space: normal">
+                    Verify your e-mail address ({{ $account['email'] }}): open the link we sent to it. Verifying brings
+                    your account its {{ number_format(config('forge.player_share_credits')) }} credits for buying shares.
+                    <form method="POST" action="{{ url('account/verify') }}" class="mt-2">
+                        {{ csrf_field() }}
+                        <button class="button button-secondary button-sm" type="submit">Send the link again</button>
+                    </form>
+                </div>
+            @endif
             <table class="table table-sm" style="max-width: 32rem">
                 <tr><th scope="row">Credits</th><td class="text-right">{{ number_format($account['credits']) }}</td></tr>
                 <tr><th scope="row">Credits for buying shares</th><td class="text-right">{{ number_format($account['share_credits']) }}</td></tr>
+                @if($account['email'])
+                    <tr><th scope="row">E-mail (only you see it)</th><td class="text-right">{{ $account['email'] }}{{ $account['verified'] ? '' : ' (not verified)' }}</td></tr>
+                @endif
                 @if($account['class_group'])
                     <tr><th scope="row">Class group</th><td class="text-right">{{ $account['class_group']['name'] }}</td></tr>
                 @endif
@@ -30,11 +43,11 @@
                 <button class="button button-secondary button-sm" type="submit">Make a new API token</button>
             </form>
 
-            @if(!$account['class_group'])
+            @if(!$account['class_group'] && $account['verified'])
                 <h3 class="h5 mt-4">Class groups</h3>
                 <p>Teaching a class? Make a class group: accounts for your pupils, named after the group ("Orbit 1",
-                    "Orbit 2"...) with passwords you hand out. No names or e-mail addresses, and the group trades shares
-                    only within itself, with its own leaderboards.</p>
+                    "Orbit 2"...) with passwords you hand out. Your pupils need no e-mail addresses and give no names,
+                    and the group trades shares only within itself, with its own leaderboards.</p>
                 @if(count($account['teaches']))
                     <ul>
                         @foreach($account['teaches'] as $group)
