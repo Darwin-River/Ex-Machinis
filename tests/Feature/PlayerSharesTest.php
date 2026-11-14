@@ -147,10 +147,18 @@ class PlayerSharesTest extends TestCase
         PlayerShares::cancel($owner, PlayerShares::book($id)['sell'][0]['id']);
         PlayerShares::order($owner, $id, 'sell', 5, $p['high']);
         $r = PlayerShares::order($buyer, $id, 'buy', 5, $p['high']);
-        $this->assertSame(0, $r['traded'], 'it has no ordinary credits');
-        $this->assertSame(5, $r['standing']);
-        PlayerShares::cancel($buyer, $r['order']);
+        $this->assertFalse($r['ok'], 'it has no ordinary credits, so the order can\'t stand (#665)');
+        $this->assertSame(422, $r['status']);
         $this->assertSame([], PlayerShares::of($buyer)['orders']);
+        // Nor can buy orders commit more starting credits than it has
+        $left = $this->credits($buyer)[1];
+        $this->assertSame(422, PlayerShares::order($buyer, $id, 'buy', intdiv($left, $p['low']) + 1, $p['low'])['status']);
+        // The book shows only orders within today's range
+        $stale = DB::table('player_share_orders')->insertGetId(['user_id' => $owner->user_id, 'company_id' => $id,
+            'side' => 'sell', 'units' => 1, 'price' => $p['low'] - 1, 'created_at' => now()]);
+        $this->assertNotContains($stale, array_column(PlayerShares::book($id)['sell'], 'id'));
+        // and a bank purchase of no shares says so
+        $this->assertSame(422, PlayerShares::buyFromBank($buyer, $id, 0)['status']);
 
         // The account page and the company page show it
         $this->actingAs($buyer)->get('/account')->assertOk()->assertSee('Traded Co')->assertSee('Your shares');
@@ -167,7 +175,7 @@ class PlayerSharesTest extends TestCase
         $group = Players::createClassGroup($teacher, 'Nebula', 1);
         $pupil = User::where('login', 'Nebula 1')->first();
         PlayerShares::order($owner, $id, 'sell', 10, $p['sells_at']);
-        $r = PlayerShares::order($pupil, $id, 'buy', 5, $p['sells_at']);
+        $r = PlayerShares::order($pupil, $id, 'buy', 2, $p['sells_at']);
         $this->assertSame(0, $r['traded'], 'the public sells to the public');
         $this->assertSame(0, PlayerShares::held((int) $pupil->user_id, $id));
         $this->assertNotNull($group['id']);
