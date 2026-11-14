@@ -66,6 +66,7 @@ class HomeController extends Controller
         if (config('forge.new_rules')) {
             \App\Services\PlayerShares::settleBankPayments();
             \App\Services\PlayerShares::payDividends();
+            \App\Services\PlayerBoards::startMonth();
         }
         return response('ok');
     }

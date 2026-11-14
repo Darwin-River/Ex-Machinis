@@ -7,6 +7,24 @@
         <div class="container">
             @include('_flash_message')
             @include('account._errors')
+            @if($digest = session('digest'))
+                <div class="alert alert-info" id="digest" style="white-space: normal">
+                    <b>While you were away</b> (since {{ $digest['since'] }}):
+                    <ul class="mb-0">
+                        @foreach($digest['companies'] as $c)
+                            <li>{{ $c['name'] }}{{ $c['seedling'] ? ' (seedling)' : '' }} sold {{ number_format($c['sales']) }} and bought
+                                {{ number_format($c['purchases']) }} credits' worth.</li>
+                        @endforeach
+                        @if($digest['dividends'])<li>Your shares paid you {{ number_format($digest['dividends']) }} credits in dividends.</li>@endif
+                        @if($digest['bank_paid'])<li>The bank paid you {{ number_format($digest['bank_paid']) }} credits for shares you sold it.</li>@endif
+                        @foreach($digest['same_owner_deals'] as $f)
+                            <li>{{ $f['company'] }} dealt with {{ $f['with'] }}, a company of yours: flagged on both pages.</li>
+                        @endforeach
+                        @foreach(array_slice($digest['news'], 0, 5) as $n)<li>News: {{ $n['text'] }}</li>@endforeach
+                        @if(!$digest['companies'] && !$digest['dividends'] && !$digest['bank_paid'] && !$digest['news'])<li>Nothing new.</li>@endif
+                    </ul>
+                </div>
+            @endif
             <h2 class="h4">{{ $account['name'] }}</h2>
             @if(!$account['verified'])
                 <div class="alert alert-warning" style="white-space: normal">

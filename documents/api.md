@@ -497,5 +497,12 @@ A matured company's 1,000 shares are its player's, and players trade them. The b
 
 Under the new rules a drone of a seedling or a player's company can't withdraw, cut or worsen its standing order (a buy order lower, a sell order higher) in its first 12 game hours: such an order fails with -19. Messages (`broadcast`) are read only within the sender's company: to ask other companies for help, post a high buy order.
 
+### Player boards and the digest (#640)
+
+| Request | What it gives |
+|---|---|
+| `GET /players` | `{class_group, month, wealth, season}`: players ranked by wealth (credits and starting credits, plus shares at cash-out value) and by this real month's growth, each `{name, wealth, credits, shares, start, growth_percent}`. `?class=ID` gives a class group's own boards, with its member's or teacher's token |
+| `GET /account/digest` | what happened since the token's account last looked: `{since, companies, dividends, bank_paid, same_owner_deals, news}`. It then counts as seen; `?peek=1` leaves it unseen |
+
 Class groups are made on the website, from a verified account's page. Pupils' accounts have no e-mail address and are verified through their teacher's.
 

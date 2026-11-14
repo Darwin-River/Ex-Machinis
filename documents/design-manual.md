@@ -682,6 +682,12 @@ Step 4 of the new rules (#635).
 - **Messages are private to a company** (since round 40, #380): a broadcast is found and read (queries 803, 804, 844, 845) only by drones of the company whose drone sent it, and the website's news says one was sent, not what it said.
 - **Dealings.** While `FORGE_NEW_RULES` is on, a company's page (and `GET /api/v1/companies/{id}/dealings`) lists the other companies (not the House) its drones have traded with or plundered, or that plundered its wrecks, with trades, units, credits and plunders (`App\Services\Dealings`). A company with the same owner is flagged **Same owner** and listed first: a matured company's locked code could favour its owner's other company at its other shareholders' cost, and this shows it.
 
+#### Player boards and the digest (#640)
+Step 5 of the new rules (#635), only while `FORGE_NEW_RULES` is on (`App\Services\PlayerBoards`).
+
+- **Wealth**: a player's credits and starting credits, plus their shares at cash-out value. `/players` (in the World menu) and `GET /api/v1/players` rank players by it, and by this real month's growth: wealth now less wealth at the month's start (`player_wealth_months`, recorded by the website's tick the first time it sees an account in a month), over the start counted as at least `forge.season_floor` (5,000). A class group's accounts have their own boards, which only its members and teacher see (`?class=`); a pupil sees their class's by default. The company boards (`/leaderboard`, at the same age too) stay.
+- **While you were away**: on logging in, a player's account page shows what happened since they last looked (`users.last_seen_t`, or the last game day): each of their companies' sales and purchases, the dividends their shares paid, what the bank paid them, deals between two of their own companies, and the news (`HouseMarket::news`, which the website and the API read alike). `GET /api/v1/account/digest` gives the same (`?peek=1` leaves it unseen).
+
 #### Table: class_groups
 A teacher's class group (#636): up to `forge.class_group_max` (40) pupils' accounts, made by the teacher from their verified account's page and named after the group ("Orbit 1", "Orbit 2"...), each with a generated password shown once. The teacher can give a pupil a new password (the old one, and the pupil's API token, stop working). Under the new rules a class group trades shares only within itself and has its own leaderboards (#638, #640).
 * id [INT] - The table index.
