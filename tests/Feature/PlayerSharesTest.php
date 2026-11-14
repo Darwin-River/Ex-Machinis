@@ -232,5 +232,8 @@ class PlayerSharesTest extends TestCase
         $this->postJson("/api/v1/player-shares/$id/bank/sell", ['units' => 2], $h)->assertOk()->assertJsonPath('units', 2);
         $this->postJson("/api/v1/player-shares/$id/bank/buy", ['units' => 1], $h)->assertOk();
         $this->postJson("/api/v1/player-shares/$id/bank/sell", ['units' => 2])->assertStatus(401);
+        // Only a matured company's shares trade, and only it has prices (#652)
+        $seedling = Seedlings::start($owner, 'Api Seedling', "function launched() wait(60) end")['company'];
+        $this->getJson("/api/v1/player-shares/$seedling")->assertNotFound();
     }
 }

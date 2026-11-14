@@ -83,6 +83,13 @@ class SeedlingsTest extends TestCase
         $this->assertTrue(Seedlings::start($owner, 'Busy 6', self::SCRIPT)['ok']);
     }
 
+    public function testTheReleasePageExplainsSeedlings()
+    {
+        // #656: the new rules' copy, and no push password
+        $this->get('/release')->assertOk()->assertSee('Every release is a seedling')->assertSee('5,500')
+            ->assertDontSee('Push password')->assertDontSee('starter=trader')->assertSee('starter=miner');
+    }
+
     public function testClosingASeedling()
     {
         $owner = $this->player('Closer');
@@ -97,6 +104,9 @@ class SeedlingsTest extends TestCase
         $a = DB::table('agents')->where('agent_id', $drone)->first();
         $this->assertNotNull($a->wrecked_at);
         $this->assertNotNull($a->plundered_at, 'nobody can plunder what it held');
+        // Its post-mortem says it was closed, not plundered (#654)
+        $this->get("/spacecraft/$drone")->assertOk()->assertSee('Its player closed its seedling')
+            ->assertDontSee('it was plundered by');
         $this->assertFalse(Seedlings::close($owner, $id)['ok'], 'once');
         // Only its own player
         $other = $this->player('Not Mine');
@@ -113,18 +123,21 @@ class SeedlingsTest extends TestCase
         $result = Seedlings::reprogram($owner, $id, "function launched() wait(120) end");
         $this->assertTrue($result['ok']);
         $c = $this->company($id);
-        $this->assertSame(5600, (int) $c->debt);
+        $this->assertSame(5500, (int) $c->debt, 'its first push is free (#658)');
         $this->assertSame(3000, (int) $c->credits, 'its credits untouched');
         $this->assertSame(1, (int) $c->pushes);
         $this->assertGreaterThan($before, DB::table('commands')->where('agent_id', $drone)->count(), 'the code is on its way');
-        $this->assertSame(100, (int) DB::table('code_pushes')->where('company_id', $id)->value('fee'));
+        $this->assertSame(0, (int) DB::table('code_pushes')->where('company_id', $id)->value('fee'));
         $this->assertSame(422, Seedlings::reprogram($owner, $id, 'function nope(')['status']);
 
         // The old password push is not for seedlings
         $this->assertSame(403, CodePush::push($id, 'whatever', self::SCRIPT)['status']);
         $this->actingAs($owner)->post("/seedlings/$id/push", ['script' => "function launched() wait(30) end"])
             ->assertSessionHas('success');
-        $this->assertSame(5700, (int) $this->company($id)->debt);
+        $this->assertSame(5600, (int) $this->company($id)->debt, 'the next costs the fee');
+        // The push preview says so (#653)
+        $this->postJson('/api/v1/check', ['script' => self::SCRIPT, 'company' => $id])->assertOk()
+            ->assertJsonPath('push.seedling', true)->assertJsonPath('push.fee', 100)->assertJsonPath('push.debt_after', 5700);
     }
 
     public function testMaturing()
@@ -191,10 +204,11 @@ class SeedlingsTest extends TestCase
         $made = $this->postJson('/api/v1/release', ['company_name' => 'Api Sprout', 'script' => self::SCRIPT], $h)
             ->assertCreated()->assertJsonPath('seedling', true)->assertJsonPath('debt', 5500)->assertJsonPath('claim_code', null);
         $id = $made->json('company.id');
+        $this->getJson("/api/v1/companies/$id")->assertOk()->assertJsonPath('seedling', true)->assertJsonPath('debt', 5500);
         $this->getJson('/api/v1/seedlings', $h)->assertOk()->assertJsonPath('seedlings.0.company_id', $id)
             ->assertJsonPath('seedlings.0.can_mature', false)->assertJsonPath('slots.used', 1);
         $this->postJson("/api/v1/seedlings/$id/push", ['script' => "function launched() wait(5) end"], $h)->assertOk()
-            ->assertJsonPath('debt', 5600);
+            ->assertJsonPath('debt', 5500);
         $this->postJson("/api/v1/seedlings/$id/mature", [], $h)->assertStatus(409);
         DB::table('companies')->where('company_id', $id)->update(['credits' => 6000]);
         $this->postJson("/api/v1/seedlings/$id/mature", [], $h)->assertOk()->assertJsonPath('shares', 1000);

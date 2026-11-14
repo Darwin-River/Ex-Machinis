@@ -62,6 +62,7 @@ end
 -- a post that would change nothing costs no fuel
 metals_sold = {metals_a1, metals_a2, metals_a3, inorganics_a2}
 function offer()
+  if house_only() then return end   -- a seedling's orders: only the House trades with it, and sells straight to the House (#658)
   for _, metal in ipairs(metals_sold) do
     local price = ask_price(metal)
     if price > 0 then sell_order_if_changed(price, 0, metal) end
@@ -187,6 +188,7 @@ function grow_line()
 end
 
 function reinvest()
+  if house_only() then return end   -- a seedling keeps its credits for its debt: it grows once it has matured (#658)
   if grow_until > 0 and today() > grow_until and units(mining_kit) == 0 and units(factory_kit) == 0 then return end
   if units(mining_kit) > 0 then equip_clone(); fill_to(60); return end
   if units(cruiser_kit) == 0 then

@@ -47,11 +47,14 @@ return [
 
     // Seedlings (#637): every company starts as one, lent its hull and its
     // starting credits (starting_credits) by the bank, plus a fee; it owes all
-    // three until it matures. Its trading limits are in house_rules
+    // three until it matures. Its trading limits are in house_rules. #658:
+    // the hull counts at about what the House pays for a kit (999), and the
+    // fee is smaller, so a working seedling can mature in 10 to 20 game days
+    // (round 65's companies held 2,900 on average at 10 game days)
     'seedling_max' => (int) env('FORGE_SEEDLING_MAX', 5),
-    'seedling_hull_value' => (int) env('FORGE_SEEDLING_HULL_VALUE', 2000),
-    'seedling_fee' => (int) env('FORGE_SEEDLING_FEE', 500),
-    // What reprogramming a seedling adds to its debt
+    'seedling_hull_value' => (int) env('FORGE_SEEDLING_HULL_VALUE', 1000),
+    'seedling_fee' => (int) env('FORGE_SEEDLING_FEE', 200),
+    // What reprogramming a seedling adds to its debt (its first push is free)
     'seedling_push_fee' => (int) env('FORGE_SEEDLING_PUSH_FEE', 100),
     // Game days a closed seedling's slot stays taken
     'seedling_slot_days' => 1,

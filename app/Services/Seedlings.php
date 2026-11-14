@@ -116,6 +116,12 @@ class Seedlings
         return [$company, null];
     }
 
+    /** What reprogramming the seedling adds to its debt: the first push is free (#658) */
+    public static function pushFee(object $company): int
+    {
+        return (int) $company->pushes === 0 ? 0 : (int) config('forge.seedling_push_fee');
+    }
+
     /** Reprograms a seedling: its working drones start over on the script, and the fee goes on its debt */
     public static function reprogram(User $owner, int $companyId, string $script): array
     {
@@ -131,7 +137,7 @@ class Seedlings
         if (!$drones) {
             return ['ok' => false, 'status' => 409, 'error' => 'This seedling has no working drone to reprogram.'];
         }
-        $fee = (int) config('forge.seedling_push_fee');
+        $fee = self::pushFee($company);
         return DB::transaction(function () use ($company, $companyId, $script, $drones, $fee) {
             $done = DB::table('companies')->where('company_id', $companyId)->where('pushes', $company->pushes)
                 ->update(['debt' => DB::raw('debt + ' . $fee), 'pushes' => DB::raw('pushes + 1')]);

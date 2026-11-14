@@ -147,6 +147,12 @@ end
 -- launched() may run again (after a crash, or if the engine restarts):
 -- unpack passes once the tools are unpacked, and go stays put if already there
 function launched()
+  -- A seedling trades only with the House, and the House's prices leave a
+  -- trader no margin (#658): say so, rather than nap for ever
+  while house_only() do
+    set_status("A seedling trades only with the House, so a Trader has nothing to do: release the Miner, Refiner or Maker instead")
+    wait(1440)
+  end
   fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
   -- It needs only an Engine to fly (#506): it buys one at Earth (577 or so)
   -- and keeps the rest of its credits to trade with

@@ -13,7 +13,7 @@
                     <ul class="mb-0">
                         @foreach($digest['companies'] as $c)
                             <li>{{ $c['name'] }}{{ $c['seedling'] ? ' (seedling)' : '' }} sold {{ number_format($c['sales']) }} and bought
-                                {{ number_format($c['purchases']) }} credits' worth.</li>
+                                {{ number_format($c['purchases']) }} credits' worth.@if(($c['ended'] ?? null) === 'closed') You closed it.@elseif($c['ended'] ?? null) It has ended.@endif</li>
                         @endforeach
                         @if($digest['dividends'])<li>Your shares paid you {{ number_format($digest['dividends']) }} credits in dividends.</li>@endif
                         @if($digest['bank_paid'])<li>The bank paid you {{ number_format($digest['bank_paid']) }} credits for shares you sold it.</li>@endif

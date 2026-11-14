@@ -100,19 +100,29 @@ class PlayerBoards
     public static function digest(User $user, bool $mark = true): array
     {
         $now = World::gameNow();
-        $since = (int) (DB::table('users')->where('user_id', $user->user_id)->value('last_seen_t') ?? $now - 86400);
+        $row = DB::table('users')->where('user_id', $user->user_id)->first(['last_seen_t', 'last_seen_trade']);
+        // A new account's first look starts when it was made (#655)
+        $since = (int) ($row->last_seen_t ?? $now - 86400);
+        $lastTrade = (int) (DB::table('trades')->max('id') ?? 0);
         $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
         $sinceDay = intdiv($since - $epoch, 86400);
-        $companies = DB::table('companies')->where('owner_id', $user->user_id)->whereNull('eliminated_at')
-            ->get(['company_id', 'name', 'seedling']);
+        // Its companies, and those that closed or ended since the last look (#655)
+        $companies = DB::table('companies')->where('owner_id', $user->user_id)
+            ->where(fn ($q) => $q->whereNull('eliminated_at')->orWhere('eliminated_at', '>', $since))
+            ->get(['company_id', 'name', 'seedling', 'eliminated_at', 'end_cause']);
+        // Trades by id when there is a mark: one recorded after the last look
+        // counts even if its game time was earlier (#655)
+        $newer = fn ($q) => $row->last_seen_trade !== null ? $q->where('t.id', '>', (int) $row->last_seen_trade)
+            : $q->where('t.game_t', '>', $since);
         $earned = [];
         foreach ($companies as $c) {
             $sales = (int) DB::table('trades as t')->join('agents as a', 'a.agent_id', '=', 't.seller')
-                ->where('a.company_id', $c->company_id)->where('t.game_t', '>', $since)->sum(DB::raw('t.credits - t.tax'));
+                ->where('a.company_id', $c->company_id)->where($newer)->sum(DB::raw('t.credits - t.tax'));
             $bought = (int) DB::table('trades as t')->join('agents as a', 'a.agent_id', '=', 't.buyer')
-                ->where('a.company_id', $c->company_id)->where('t.game_t', '>', $since)->sum('t.credits');
+                ->where('a.company_id', $c->company_id)->where($newer)->sum('t.credits');
             $earned[] = ['company_id' => (int) $c->company_id, 'name' => $c->name, 'seedling' => (int) $c->seedling === 1,
-                'sales' => $sales, 'purchases' => $bought];
+                'sales' => $sales, 'purchases' => $bought,
+                'ended' => $c->eliminated_at !== null ? ($c->end_cause === 'closed' ? 'closed' : 'ended') : null];
         }
         $flags = [];
         foreach ($companies as $c) {
@@ -129,10 +139,20 @@ class PlayerBoards
             'bank_paid' => (int) DB::table('bank_payments')->where('user_id', $user->user_id)->where('paid_t', '>', $since)->sum('paid'),
             'same_owner_deals' => $flags,
             'news' => array_values(array_filter(HouseMarket::news(), fn ($n) => $n['to_day'] > $sinceDay)),
+            // Where the next look starts, once this one is shown
+            'until_t' => $now,
+            'until_trade' => $lastTrade,
         ];
         if ($mark) {
-            DB::table('users')->where('user_id', $user->user_id)->update(['last_seen_t' => $now]);
+            self::markSeen($user, $digest);
         }
         return $digest;
+    }
+
+    /** The player has seen this digest: the next starts where it ended (#655) */
+    public static function markSeen(User $user, array $digest): void
+    {
+        DB::table('users')->where('user_id', $user->user_id)
+            ->update(['last_seen_t' => $digest['until_t'], 'last_seen_trade' => $digest['until_trade']]);
     }
 }

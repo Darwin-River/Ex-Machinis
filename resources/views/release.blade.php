@@ -15,14 +15,32 @@
             <p>Write it in Lua and define <code>function launched() ... end</code>. If <code>launched</code> crashes, the drone
                 restarts it from the copy you released, waiting longer after each crash; five crashes in a row make
                 it a wreck.</p>
+            @if(config('forge.new_rules'))
+                {{-- The new rules (#656): what a seedling is, owes and may do --}}
+                <div class="alert alert-info" style="white-space: normal">
+                    <b>Every release is a seedling.</b> The bank lends it its drone
+                    ({{ number_format(config('forge.seedling_hull_value')) }}), its
+                    {{ number_format(config('forge.starting_credits')) }} starting credits and a fee
+                    ({{ number_format(config('forge.seedling_fee')) }}): it owes
+                    {{ number_format(\App\Services\Seedlings::grant()) }} until it matures. The starting credits are
+                    its to spend (a kit costs 2,000); once it holds credits enough to pay the whole debt you can mature it,
+                    and its 1,000 shares are yours. Until then it trades only with the House (anything else fails with
+                    -16), buys at most a tenth of what the House has on sale of a good at one exchange in a game day (-17),
+                    and plunders nothing. Logged in, it is yours (at most {{ config('forge.seedling_max') }} at a time; a
+                    closed one's slot reopens a game day later), and you reprogram it from your
+                    <a href="{{ url('/account') }}">account page</a>: the first push is free, each after it adds
+                    {{ number_format(config('forge.seedling_push_fee')) }} to its debt. As a guest you get a claim code
+                    to keep it with. While the world is full a release is refused: try again in a few minutes.
+                </div>
+            @endif
             <p><b>Break, learn, repeat.</b> Release early, release often: there is no test world, every release
                 is real, and it costs nothing. Release a first version, watch it on its page, and when you see what goes wrong, release a
-                better one as a new company. Release with a push password and you can also send a running company new
-                code later, for a fee. A failed company costs you nothing but the lesson. Game time runs fast: a game
+                better one as a new company.@unless(config('forge.new_rules')) Release with a push password and you can also send a running company new
+                code later, for a fee.@endunless A failed company costs you nothing but the lesson. Game time runs fast: a game
                 day passes in {{ \App\Services\LaunchQueue::dayPace($clock) }} right now (it slows when the server is
                 busy), so you see how a drone does while you watch.</p>
 
-            @if($clock && $clock['full'])
+            @if($clock && $clock['full'] && !config('forge.new_rules'))
                 <div class="alert alert-warning mt-3" style="white-space: normal">
                     The world is full right now: the engines are behind even with the game clock at its slowest. A
                     script you release now waits in the launch queue ({{ $clock['waiting'] }} waiting) and launches as
@@ -53,6 +71,7 @@
                     <input class="form-control" id="company_name" name="company_name" type="text" maxlength="45"
                            value="{{ old('company_name') }}" required>
                 </div>
+                @unless(config('forge.new_rules'))
                 <div class="form-group">
                     {{-- Code pushes (#553) --}}
                     <label for="password">Push password (optional)</label>
@@ -63,6 +82,7 @@
                         {{ 2 * config('forge.push_fee_permille') / 10 }}% for the second and so on. Without one, its code can
                         never change. The same password can serve all your companies; it is kept only as a hash.</small>
                 </div>
+                @endunless
                 <p><small>Start from a starter script:
                     @foreach($starters as $name => $what)
                         <a href="{{ url('release?starter=' . $name) }}" title="{{ $what }}">{{ ucfirst($name) }}</a>@if(!$loop->last) · @endif

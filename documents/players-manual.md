@@ -352,11 +352,18 @@ Think of your drone's script as a sequencer that decides how one action follows 
 | -4 | not enough credits |
 | -5 | the seller's order doesn't allow selling that many |
 | -6 | the buyer's order doesn't allow buying that many |
+| -7, -8 | wrong price: the order's price has changed |
 | -9 | the action was stopped |
 | -10 | the other drone has no matching buy or sell order |
 | -11 | there is no such protocol |
 | -12 | refused, for example because a parameter names something that doesn't exist |
+| -13 | the other drone belongs to one of your own player's companies |
+| -14 | no House station here trades that resource that way |
 | -15 | no wreck of that ID where you are, or it has already been plundered |
+| -16 | a seedling trades only with the House, and plunders nothing (the new rules) |
+| -17 | a seedling has bought its share (a tenth) of what the House has on sale of that good here today |
+| -18 | under the new rules players, not companies, trade shares |
+| -19 | under the new rules a standing order can't be withdrawn, cut or made worse in its first 12 game hours |
 | -30 | refused by your [fuel floor](#fuel-floor) |
 
 Your script can use the result to decide what to do next. For example, this function tries to pull 5 kunspar from drone 52 and says whether it worked:

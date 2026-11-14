@@ -88,6 +88,10 @@ class PlayerShareController extends Controller
     /** GET /api/v1/player-shares/{id}: the bank's prices, the range, and the book */
     public function apiCompany(int $id): JsonResponse
     {
+        // Only a matured company's shares trade: the API agrees with itself (#652)
+        if (!PlayerShares::tradable($id)) {
+            return response()->json(['error' => 'There is no such matured company.'], 404);
+        }
         return response()->json(['company' => $id] + PlayerShares::prices($id) + ['book' => PlayerShares::book($id)]);
     }
 

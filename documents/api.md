@@ -136,7 +136,7 @@ curl -s -X POST $B/release -H 'Content-Type: application/json' \
 }
 ```
 
-**When the world is full** (the server can't keep up), the release waits its turn and launches when there is room. The response is then `202 Accepted`:
+**When the world is full** (the server can't keep up), the release waits its turn and launches when there is room. The response is then `202 Accepted` (a seedling under the new rules isn't queued: it answers `503` with `error`, and you try again in a few minutes):
 
 ```json
 {"queued": true, "place_in_line": 3, "company_name": "Ada Fuel 1"}
@@ -178,7 +178,7 @@ Each company's credits, net wealth and working drones, taken once a game day, ol
 
 ### `GET /companies?name=<name>` and `GET /companies/{id}`
 
-Use these to look up a company.
+Use these to look up a company. Under the new rules it also says whether it is a `seedling`, its `debt` to the bank, and whether it has `matured`.
 
 ```json
 {
@@ -453,9 +453,9 @@ print(name, ":", company.get("credits"), "credits, net wealth", company.get("net
 - **Release often, not all at once.** Release a version, watch it, and release the next. Don't flood the world: other people play here too, and a full world slows the clock and makes everyone's releases wait.
 - **Name your companies** so you can find them again, for example `Ada Fuel 1`, `Ada Fuel 2`. Names are unique and public.
 
-## Player accounts (coming with the new rules)
+## Player accounts (the new rules)
 
-The new rules (#635) give players accounts. They are being built step by step and are **not on the live site yet**: until the world is reset (#642), these calls answer 404.
+The new rules (#635) give players accounts. They are live; a server that has them switched off (`FORGE_NEW_RULES`) answers these calls 404.
 
 | Request | What it does |
 |---|---|
@@ -466,13 +466,13 @@ The new rules (#635) give players accounts. They are being built step by step an
 
 ### Seedlings (#637)
 
-Under the new rules every release is a **seedling**. `POST /release` with an account's token starts one for that account; without a token it is a guest's, and the answer's `claim_code` (shown once) lets an account claim it. The answer has `seedling: true` and `debt`: what it owes the bank for its drone, its starting credits and a fee (5,500). A seedling trades only with the House (a trade with anyone else fails with -16), buys at most a tenth of the House's stock of a good at one exchange in a game day (-17 after that), and plunders nothing. An account has at most 5 seedlings at a time. Each call below needs `Authorization: Bearer <token>`:
+Under the new rules every release is a **seedling**. `POST /release` with an account's token starts one for that account; without a token it is a guest's, and the answer's `claim_code` (shown once) lets an account claim it. The answer has `seedling: true` and `debt`: what it owes the bank for its drone (1,000), its starting credits (3,000) and a fee (200): 4,200. The 3,000 credits are the seedling's to spend (a kit costs 2,000); to mature it must hold credits enough to pay the whole debt, so it has to earn about 3,200 more than it spends. A seedling trades only with the House (a trade with anyone else fails with -16), buys at most a tenth of what the House has on sale of a good at one exchange in a game day (-17 after that: `buy_here` then tries less), and plunders nothing. An account has at most 5 seedlings at a time; a closed seedling's slot reopens a game day after it closed. Each call below needs `Authorization: Bearer <token>`:
 
 | Request | What it does |
 |---|---|
 | `GET /seedlings` | the account's seedlings `{company_id, name, drone, credits, debt, can_mature}` and matured `companies` `{company_id, name, drone, credits, ended}`, its `slots` (`{used, max}`) and the `grant` a new seedling owes |
 | `POST /seedlings/claim` `{code}` | claims a guest's seedling with its code |
-| `POST /seedlings/{id}/push` `{script}` | new code for the seedling's drones; the fee (100) goes on its debt: `{number, fee, drones, debt}` |
+| `POST /seedlings/{id}/push` `{script}` | new code for the seedling's drones; the first push is free, and each after it adds 100 to its debt: `{number, fee, drones, debt}`. `POST /check` with `company` previews it: `push` is `{seedling: true, enabled, number, fee, debt, debt_after, drones}` (for a matured company, `enabled: false`: its code is locked) |
 | `POST /seedlings/{id}/close` | closes it: it leaves the game with all it holds, and its debt is cancelled |
 | `POST /seedlings/{id}/mature` | once it holds enough credits to pay its debt (and the account is verified): it repays, its code is locked for good, and the account gets its 1,000 shares: `{company, name, repaid, shares}`. 409 while it can't pay |
 
@@ -482,7 +482,7 @@ A matured company's 1,000 shares are its player's, and players trade them. The b
 
 | Request | What it does |
 |---|---|
-| `GET /player-shares/{id}` | company `{id}`'s `buys_at` (cash-out value), `sells_at` (the bank's selling price), the range players trade in (`low`, `high`), `bank_holds`, and the `book`: players' standing orders, `sell` cheapest first and `buy` dearest first, each `{id, units, price, by}` |
+| `GET /player-shares/{id}` | 404 unless `{id}` is a matured company. Its `buys_at` (cash-out value), `sells_at` (the bank's selling price), the range players trade in (`low`, `high`), `bank_holds`, and the `book`: players' standing orders, `sell` cheapest first and `buy` dearest first, each `{id, units, price, by}` |
 | `GET /account/shares` | the account's `holdings` `{company_id, name, units, cash_out, value}`, standing `orders` `{id, company_id, name, side, units, price}` and `bank_payments` still due `{id, company_id, name, units, price_at_sale, due}` |
 | `POST /player-shares/{id}/orders` `{side, units, price}` | posts an order to `buy` or `sell`; it trades at once against the orders it meets (at their price) and the rest stands: `{traded, credits, standing, order}`. 422 when the price is outside the range or you don't hold what you'd sell |
 | `POST /player-shares/orders/{order}/cancel` | cancels your standing order |
@@ -495,14 +495,14 @@ A matured company's 1,000 shares are its player's, and players trade them. The b
 |---|---|
 | `GET /companies/{id}/dealings` | `{company, dealings}`: the other companies (not the House) its drones have traded with or plundered, or that plundered its wrecks, `{company_id, name, trades, units, credits, plunders, same_owner}`. `same_owner` is true for a company with the same player behind it; those come first |
 
-Under the new rules a drone of a seedling or a player's company can't withdraw, cut or worsen its standing order (a buy order lower, a sell order higher) in its first 12 game hours: such an order fails with -19. Messages (`broadcast`) are read only within the sender's company: to ask other companies for help, post a high buy order.
+Under the new rules a drone of a seedling or a player's company can't withdraw, cut or worsen its standing order (a buy order lower, a sell order higher) in its first 12 game hours: such an order fails with -19. The hours run from when the order took its present terms: posting the same order again doesn't restart them. Messages (`broadcast`) are read only within the sender's company: to ask other companies for help, post a high buy order.
 
 ### Player boards and the digest (#640)
 
 | Request | What it gives |
 |---|---|
 | `GET /players` | `{class_group, month, wealth, season}`: players ranked by wealth (credits and starting credits, plus shares at cash-out value) and by this real month's growth, each `{name, wealth, credits, shares, start, growth_percent}`. `?class=ID` gives a class group's own boards, with its member's or teacher's token |
-| `GET /account/digest` | what happened since the token's account last looked: `{since, companies, dividends, bank_paid, same_owner_deals, news}`. It then counts as seen; `?peek=1` leaves it unseen |
+| `GET /account/digest` | what happened since the token's account last looked (at the earliest, since it was made): `{since, companies, dividends, bank_paid, same_owner_deals, news}`. `companies` includes those that closed or ended since (`ended`: `closed` or `ended`), and counts every trade recorded since. It then counts as seen; `?peek=1` leaves it unseen. On the website it counts as seen once the account page shows it |
 
 Class groups are made on the website, from a verified account's page. Pupils' accounts have no e-mail address and are verified through their teacher's.
 
