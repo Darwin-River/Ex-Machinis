@@ -99,6 +99,9 @@ class Players
             'credits' => 0,
             'share_credits' => $classGroup === null ? 0 : (int) config('forge.player_share_credits'),
             'class_group_id' => $classGroup,
+            // Its first digest starts now (#655)
+            'last_seen_t' => World::gameNow(),
+            'last_seen_trade' => (int) (DB::table('trades')->max('id') ?? 0),
             'created_at' => now(),
             'updated_at' => now(),
         ]);

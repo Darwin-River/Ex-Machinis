@@ -54,8 +54,8 @@ class AccountController extends Controller
         }
         Auth::login($user);
         $request->session()->regenerate();
-        // While you were away (#640)
-        $request->session()->flash('digest', \App\Services\PlayerBoards::digest($user));
+        // While you were away (#640): seen only once the account page shows it (#655)
+        $request->session()->flash('digest', \App\Services\PlayerBoards::digest($user, false));
         return redirect()->intended('/account');
     }
 
@@ -72,6 +72,9 @@ class AccountController extends Controller
         $user = $this->player();
         if (!$user) {
             return redirect('/login');
+        }
+        if (is_array($digest = session('digest'))) {
+            \App\Services\PlayerBoards::markSeen($user, $digest);
         }
         return view('account.show', ['account' => Players::summary($user), 'mine' => \App\Services\Seedlings::of($user),
             'portfolio' => \App\Services\PlayerShares::of($user)]);

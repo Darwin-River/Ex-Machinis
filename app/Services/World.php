@@ -99,12 +99,13 @@ class World
                 'spacecraft/' . $e->new_quantity);
         }
 
-        $why = ['fuel' => 'it ran out of fuel', 'crashes' => 'its program kept crashing', 'tax' => "its company couldn't pay its tax"];
+        $why = ['fuel' => 'it ran out of fuel', 'crashes' => 'its program kept crashing', 'tax' => "its company couldn't pay its tax",
+            'closed' => 'its player closed its seedling'];
         foreach (DB::table('agents')->whereNotNull('wrecked_at')->orderBy('wrecked_at', 'desc')->limit($limit)->get() as $a) {
             $add((int) $a->wrecked_at, "{$a->name} became a wreck: " . ($why[$a->wreck_cause] ?? 'it died') . '.', 'spacecraft/' . $a->agent_id);
         }
 
-        $plundered = DB::table('agents')->whereNotNull('plundered_at')->orderBy('plundered_at', 'desc')->limit($limit)->get();
+        $plundered = DB::table('agents')->whereNotNull('plundered_at')->whereNotNull('plundered_by')->orderBy('plundered_at', 'desc')->limit($limit)->get();
         $names = self::names('agents', 'agent_id', 'name', $plundered->pluck('plundered_by')->all());
         foreach ($plundered as $a) {
             $add((int) $a->plundered_at, ($names[$a->plundered_by] ?? 'A drone') . " plundered the wreck of {$a->name}.", 'spacecraft/' . $a->agent_id);

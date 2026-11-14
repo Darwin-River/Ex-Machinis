@@ -351,10 +351,17 @@ class DronePage
                 $cause = "Its company, $name, had no credits for $days game days straight, so it dissolved on $when "
                     . 'and all its drones became wrecks, with what they carried, for anyone to plunder.';
                 break;
+            case 'closed':
+                $name = DB::table('companies')->where('company_id', $agent->company_id)->value('name');
+                $cause = "Its player closed its seedling, $name, on $when: it left the game with all it held, "
+                    . 'and its debt was cancelled. Its wreck holds nothing anyone can take.';
+                break;
             default:
                 $cause = "It became a wreck on $when.";
         }
-        if ($agent->plundered_at) {
+        // A wreck nobody may plunder (a seedling's, #637) is marked plundered
+        // by nobody: that isn't an attack (#654)
+        if ($agent->plundered_at && $agent->plundered_by) {
             $by = Agent::where('agent_id', $agent->plundered_by)->first();
             $cause .= ' On ' . self::when((int) $agent->plundered_at) . ' it was plundered by ' . ($by ? $by->name : 'another drone') . '.';
         }

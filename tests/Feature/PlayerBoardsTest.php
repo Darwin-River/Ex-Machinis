@@ -98,6 +98,25 @@ class PlayerBoardsTest extends TestCase
         $this->get('/account')->assertDontSee('While you were away');
         $this->assertNotNull(DB::table('users')->where('user_id', $p->user_id)->value('last_seen_t'));
 
+        // Seen only when shown (#655): logging in alone leaves it for later
+        $seen = DB::table('users')->where('user_id', $p->user_id)->value('last_seen_t');
+        DB::table('users')->where('user_id', $p->user_id)->update(['last_seen_t' => $seen - 3600]);
+        $this->post('/logout');
+        $this->post('/login', ['name' => 'Away Player', 'password' => 'long-enough']);
+        $this->assertEquals($seen - 3600, DB::table('users')->where('user_id', $p->user_id)->value('last_seen_t'));
+
+        // A trade recorded after the last look counts, whatever its game time;
+        // a closed seedling stays in until it has been seen (#655)
+        $drone = (int) DB::table('agents')->where('company_id', $co)->value('agent_id');
+        $mark = (int) DB::table('trades')->max('id');
+        DB::table('users')->where('user_id', $p->user_id)->update(['last_seen_trade' => $mark]);
+        DB::table('trades')->insert(['resource' => 1, 'units' => 1, 'credits' => 53, 'seller' => 1, 'buyer' => $drone,
+            'game_t' => 0, 'tax' => 0]);
+        Seedlings::close($p, $co);
+        $d = PlayerBoards::digest($p, false);
+        $this->assertSame(53, $d['companies'][0]['purchases']);
+        $this->assertSame('closed', $d['companies'][0]['ended']);
+
         $h = ['Authorization' => 'Bearer ' . Players::issueToken($p)];
         $this->getJson('/api/v1/account/digest?peek=1', $h)->assertOk()->assertJsonStructure(['since', 'companies', 'dividends',
             'bank_paid', 'same_owner_deals', 'news']);

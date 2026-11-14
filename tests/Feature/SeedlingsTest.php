@@ -97,6 +97,9 @@ class SeedlingsTest extends TestCase
         $a = DB::table('agents')->where('agent_id', $drone)->first();
         $this->assertNotNull($a->wrecked_at);
         $this->assertNotNull($a->plundered_at, 'nobody can plunder what it held');
+        // Its post-mortem says it was closed, not plundered (#654)
+        $this->get("/spacecraft/$drone")->assertOk()->assertSee('Its player closed its seedling')
+            ->assertDontSee('it was plundered by');
         $this->assertFalse(Seedlings::close($owner, $id)['ok'], 'once');
         // Only its own player
         $other = $this->player('Not Mine');
