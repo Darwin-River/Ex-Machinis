@@ -87,7 +87,7 @@ class SeedlingsTest extends TestCase
     {
         // #656: the new rules' copy, and no push password
         $this->get('/release')->assertOk()->assertSee('Every release is a seedling')->assertSee('5,500')
-            ->assertDontSee('Push password');
+            ->assertDontSee('Push password')->assertDontSee('starter=trader')->assertSee('starter=miner');
     }
 
     public function testClosingASeedling()

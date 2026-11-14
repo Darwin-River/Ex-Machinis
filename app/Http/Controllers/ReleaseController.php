@@ -21,6 +21,10 @@ class ReleaseController extends Controller
         // A starter script (#324 step 15) fills the form when asked for, or
         // a drone's code or one of its words (#324 step 16: "Copy this code")
         $starters = Release::STARTERS;
+        // A seedling can't trade with other drones, so the Trader has nothing to do (#658)
+        if (config('forge.new_rules')) {
+            unset($starters['trader']);
+        }
         $starter = Release::starter((string) request('starter'));
         $kit = Release::STARTER_KITS[preg_replace('/\.lua$/', '', (string) request('starter'))] ?? 'mining';
         $copiedFrom = null;
