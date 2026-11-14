@@ -61,6 +61,10 @@ class HomeController extends Controller
         // Markets that move (#380 round 36): the House's orders at today's
         // prices
         \App\Services\HouseMarket::tick();
+        // The new rules (#638): the bank pays for shares sold to it when due
+        if (config('forge.new_rules')) {
+            \App\Services\PlayerShares::settleBankPayments();
+        }
         return response('ok');
     }
 

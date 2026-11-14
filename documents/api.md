@@ -476,5 +476,18 @@ Under the new rules every release is a **seedling**. `POST /release` with an acc
 | `POST /seedlings/{id}/close` | closes it: it leaves the game with all it holds, and its debt is cancelled |
 | `POST /seedlings/{id}/mature` | once it holds enough credits to pay its debt (and the account is verified): it repays, its code is locked for good, and the account gets its 1,000 shares: `{company, name, repaid, shares}`. 409 while it can't pay |
 
+### Players' shares and the bank (#638)
+
+A matured company's 1,000 shares are its player's, and players trade them. The bank always buys a company's shares at its **cash-out value** (what its credits, goods and drones are worth, less its debts, a share), paying 30 game days later at the lower of that value and the value then. It sells the shares it holds at its **selling price**: cash-out value plus a share's last 30 game days of dividends. Players trade with each other between 0.8 and 1.25 times the bank's selling price; an account's starting credits pay only at or below the bank's selling price. The calls that act need `Authorization: Bearer <token>`:
+
+| Request | What it does |
+|---|---|
+| `GET /player-shares/{id}` | company `{id}`'s `buys_at` (cash-out value), `sells_at` (the bank's selling price), the range players trade in (`low`, `high`), `bank_holds`, and the `book`: players' standing orders, `sell` cheapest first and `buy` dearest first, each `{id, units, price, by}` |
+| `GET /account/shares` | the account's `holdings` `{company_id, name, units, cash_out, value}`, standing `orders` `{id, company_id, name, side, units, price}` and `bank_payments` still due `{id, company_id, name, units, price_at_sale, due}` |
+| `POST /player-shares/{id}/orders` `{side, units, price}` | posts an order to `buy` or `sell`; it trades at once against the orders it meets (at their price) and the rest stands: `{traded, credits, standing, order}`. 422 when the price is outside the range or you don't hold what you'd sell |
+| `POST /player-shares/orders/{order}/cancel` | cancels your standing order |
+| `POST /player-shares/{id}/bank/sell` `{units}` | sells shares to the bank: `{units, price_now, due, due_t}` |
+| `POST /player-shares/{id}/bank/buy` `{units}` | buys shares the bank holds at its selling price: `{units, price, cost}` |
+
 Class groups are made on the website, from a verified account's page. Pupils' accounts have no e-mail address and are verified through their teacher's.
 

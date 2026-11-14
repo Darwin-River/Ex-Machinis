@@ -97,6 +97,11 @@ Route::middleware('new-rules')->group(function () {
     Route::post('/seedlings/{id}/push', 'SeedlingController@reprogram')->whereNumber('id');
     Route::post('/seedlings/{id}/close', 'SeedlingController@close')->whereNumber('id');
     Route::post('/seedlings/{id}/mature', 'SeedlingController@mature')->whereNumber('id');
+    // Players' shares and the bank (#638)
+    Route::post('/companies/{id}/bank/sell', 'PlayerShareController@sellToBank')->whereNumber('id');
+    Route::post('/companies/{id}/bank/buy', 'PlayerShareController@buyFromBank')->whereNumber('id');
+    Route::post('/companies/{id}/share-orders', 'PlayerShareController@order')->whereNumber('id');
+    Route::post('/share-orders/{order}/cancel', 'PlayerShareController@cancel')->whereNumber('order');
 });
 Route::get('/release', 'ReleaseController@show');
 Route::post('/release', 'ReleaseController@store');

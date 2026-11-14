@@ -63,4 +63,11 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['new-rules', 'throttle:api-write'])->post('seedlings/{id}/push', 'SeedlingApiController@reprogram')->whereNumber('id');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('seedlings/{id}/close', 'SeedlingApiController@close')->whereNumber('id');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('seedlings/{id}/mature', 'SeedlingApiController@mature')->whereNumber('id');
+    // Players' shares and the bank (#638)
+    Route::middleware(['new-rules', 'throttle:api-read'])->get('player-shares/{id}', 'PlayerShareController@apiCompany')->whereNumber('id');
+    Route::middleware(['new-rules', 'throttle:api-read'])->get('account/shares', 'PlayerShareController@apiMine');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/{id}/bank/sell', 'PlayerShareController@apiSellToBank')->whereNumber('id');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/{id}/bank/buy', 'PlayerShareController@apiBuyFromBank')->whereNumber('id');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/{id}/orders', 'PlayerShareController@apiOrder')->whereNumber('id');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/orders/{order}/cancel', 'PlayerShareController@apiCancel')->whereNumber('order');
 });

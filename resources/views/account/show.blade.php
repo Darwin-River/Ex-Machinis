@@ -31,6 +31,44 @@
             <p>Your credits are what your shares and companies have earned you. The credits for buying shares came with
                 your account: they can only buy shares.</p>
 
+            <h3 class="h5 mt-4" id="shares">Your shares</h3>
+            @if(count($portfolio['holdings']))
+                <table class="table table-sm">
+                    <thead><tr><th scope="col">Company</th><th scope="col" class="text-right">Shares</th>
+                        <th scope="col" class="text-right">Cash-out value</th></tr></thead>
+                    <tbody>
+                    @foreach($portfolio['holdings'] as $h)
+                        <tr><td><a href="{{ url('companies/' . $h['company_id']) }}#player-shares">{{ $h['name'] }}</a></td>
+                            <td class="text-right">{{ number_format($h['units']) }}</td>
+                            <td class="text-right">{{ number_format($h['value']) }}</td></tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            @else
+                <p>None yet: mature a seedling, or buy shares on a matured company's page.</p>
+            @endif
+            @if(count($portfolio['orders']))
+                <p>Your standing orders:</p>
+                <ul>
+                    @foreach($portfolio['orders'] as $o)
+                        <li>{{ $o['side'] === 'buy' ? 'Buy' : 'Sell' }} {{ number_format($o['units']) }} of
+                            <a href="{{ url('companies/' . $o['company_id']) }}#player-shares">{{ $o['name'] }}</a> at {{ number_format($o['price']) }}
+                            <form method="POST" action="{{ url('share-orders/' . $o['id'] . '/cancel') }}" class="d-inline">
+                                {{ csrf_field() }}<button class="button button-secondary button-sm" type="submit">Cancel</button>
+                            </form></li>
+                    @endforeach
+                </ul>
+            @endif
+            @if(count($portfolio['bank_payments']))
+                <p>The bank owes you for shares you sold it:</p>
+                <ul>
+                    @foreach($portfolio['bank_payments'] as $b)
+                        <li>{{ number_format($b['units']) }} of {{ $b['name'] }}: paid {{ $b['due'] }}, at most
+                            {{ number_format($b['price_at_sale']) }} a share</li>
+                    @endforeach
+                </ul>
+            @endif
+
             <h3 class="h5 mt-4" id="seedlings">Your seedlings</h3>
             <p>Every company starts as a seedling: <a href="{{ url('release') }}">release a drone</a> and the bank lends it
                 its drone and starting credits, plus a fee ({{ number_format($mine['grant']) }} credits in all). A seedling

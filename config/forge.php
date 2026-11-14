@@ -53,4 +53,17 @@ return [
     'seedling_slot_days' => 1,
     // Seedlings a guest (no account) may start from one address in a real day
     'seedling_guest_per_day' => (int) env('FORGE_SEEDLING_GUEST_PER_DAY', 5),
+
+    // Shares and the bank (#638). Cash-out value counts each working drone's
+    // hull at seedling_hull_value, falling to 0 over hull_life_days game days,
+    // and nothing for a drone with no fuel that bought none in stranded_days
+    'hull_life_days' => (int) env('FORGE_HULL_LIFE_DAYS', 365),
+    'stranded_days' => 3,
+    // Game days the bank takes to pay for shares sold to it
+    'bank_pay_days' => (int) env('FORGE_BANK_PAY_DAYS', 30),
+    // Players trade shares between these times the bank's selling price
+    'share_range_low' => (float) env('FORGE_SHARE_RANGE_LOW', 0.8),
+    'share_range_high' => (float) env('FORGE_SHARE_RANGE_HIGH', 1.25),
+    // Thousandths of a matured company's daily profit paid out as dividends
+    'dividend_permille' => (int) env('FORGE_DIVIDEND_PERMILLE', 500),
 ];
