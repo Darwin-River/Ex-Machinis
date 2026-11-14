@@ -16,4 +16,10 @@ ErrorCode_t db_seedling_transfer_outcome(Event_t* from, Event_t* to, int place, 
 /* After a transfer went through: what a seedling (company > 0) bought from the House */
 ErrorCode_t db_seedling_record_buy(int company, Event_t* to, int place);
 
+/* The minimum order life (#639) for an order event (sell 4, buy 5): 0, or
+   OUTCOME_ORDER_LOCKED when its drone's company plays by the new rules and
+   the order would withdraw, cut or worsen its standing order too soon
+   (house_rules.order_lock_hours) */
+int db_order_lock_outcome(Event_t* event);
+
 #endif

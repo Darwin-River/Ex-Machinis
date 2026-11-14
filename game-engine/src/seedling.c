@@ -27,3 +27,15 @@ int seedling_transfer_outcome(SeedlingSide_t from, SeedlingSide_t to, long long 
         return OUTCOME_SEEDLING_CAP;
     return 0;
 }
+
+int order_lock_outcome(int buy, long long prev_price, long long prev_units, long long new_price, long long new_units,
+                       long long age, long long lock)
+{
+    if(age >= lock)
+        return 0;
+    if(new_units < prev_units)
+        return OUTCOME_ORDER_LOCKED;
+    if(buy ? new_price < prev_price : new_price > prev_price)
+        return OUTCOME_ORDER_LOCKED;
+    return 0;
+}

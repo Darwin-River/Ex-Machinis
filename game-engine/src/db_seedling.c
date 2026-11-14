@@ -109,3 +109,35 @@ ErrorCode_t db_seedling_record_buy(int company, Event_t* to, int place)
     }
     return ENGINE_OK;
 }
+
+int db_order_lock_outcome(Event_t* event)
+{
+    if(event->event_type != SELL_EVENT_TYPE && event->event_type != BUY_EVENT_TYPE)
+        return 0;
+    DbConnection_t* connection = engine_get_db_connection();
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT o.price, o.quantity, e.game_t FROM latest_orders o JOIN events e ON e.id = o.event_id "
+        "JOIN agents a ON a.agent_id = o.drone JOIN companies c ON c.company_id = a.company_id "
+        "WHERE o.drone = %d AND o.resource = %d AND o.event_type = %d AND o.is_open = 1 "
+        "AND (c.seedling = 1 OR c.owner_id IS NOT NULL)",
+        event->drone_id, event->resource_id, event->event_type);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return 0;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+    int outcome = 0;
+    if(row && row[0] && row[1] && row[2]) {
+        long long lock = sd_value(12, "SELECT order_lock_hours FROM house_rules WHERE id = 1") * 3600;
+        outcome = order_lock_outcome(event->event_type == BUY_EVENT_TYPE, atoll(row[0]), atoll(row[1]),
+                                     (long long)event->new_credits, (long long)event->new_quantity,
+                                     (long long)event->game_t - atoll(row[2]), lock);
+        if(outcome)
+            engine_trace(TRACE_LEVEL_ALWAYS, "Order event [%d] of drone [%d] refused: its order of %s game hours "
+                "can't yet be withdrawn, cut or worsened", event->event_id, event->drone_id, row[2]);
+    }
+    if(res) mysql_free_result(res);
+    return outcome;
+}

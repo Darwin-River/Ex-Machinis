@@ -455,6 +455,9 @@ ErrorCode_t event_validate_event_conditions
         //h.  The Accumulation Price for items being added to the cargo bay of a non-allied ship is less than
         // or equal to the price the player has set for those items.
         event->outcome = OUTCOME_WRONG_ACCUMULATION_PRICE;
+    } else if(db_order_lock_outcome(event) != 0) {
+        // i.  Under the new rules an order stands for its first game hours (#639)
+        event->outcome = OUTCOME_ORDER_LOCKED;
     } else {
         event->outcome = OUTCOME_OK;
         result = ENGINE_OK;

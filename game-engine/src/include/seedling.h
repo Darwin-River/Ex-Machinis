@@ -26,4 +26,13 @@ int seedling_transfer_outcome(SeedlingSide_t from, SeedlingSide_t to, long long 
 /* The most a seedling may buy in a game day from a House stock of `stock` */
 long long seedling_buy_cap(long long stock, int cap_permille);
 
+/* The minimum order life (#639): may a drone of a new-rules company replace
+   its standing order (posted `age` game seconds ago, at prev_price for
+   prev_units) with one at new_price for new_units? Within `lock` seconds it
+   may not withdraw it, cut its units, or make it worse for the other side
+   (a buy order lower, a sell order higher): 0 when it may, else
+   OUTCOME_ORDER_LOCKED. `buy` is 1 for a buy order, 0 for a sell order. */
+int order_lock_outcome(int buy, long long prev_price, long long prev_units, long long new_price, long long new_units,
+                       long long age, long long lock);
+
 #endif

@@ -109,6 +109,33 @@
                 @endif
             @endif
 
+            {{-- The new rules (#639): who it deals with --}}
+            @if($dealings !== null)
+                <h2 id="dealings">Dealt with</h2>
+                @if(count($dealings))
+                    <p>The companies its drones have traded with or plundered, or that plundered its wrecks (the House aside).
+                        <b>Same owner</b> marks a company with the same player behind it: read its code to see whether it
+                        favours its owner's other companies.</p>
+                    <table class="table table-sm">
+                        <thead><tr><th scope="col">Company</th><th scope="col" class="text-right">Trades</th>
+                            <th scope="col" class="text-right">Units</th><th scope="col" class="text-right">Credits</th>
+                            <th scope="col" class="text-right">Plunders</th><th scope="col"></th></tr></thead>
+                        <tbody>
+                        @foreach($dealings as $d)
+                            <tr><td><a href="{{ url('companies/' . $d['company_id']) }}">{{ $d['name'] }}</a></td>
+                                <td class="text-right">{{ number_format($d['trades']) }}</td>
+                                <td class="text-right">{{ number_format($d['units']) }}</td>
+                                <td class="text-right">{{ number_format($d['credits']) }}</td>
+                                <td class="text-right">{{ number_format($d['plunders']) }}</td>
+                                <td>@if($d['same_owner'])<span class="badge badge-warning">Same owner</span>@endif</td></tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                @else
+                    <p>It hasn't dealt with another company yet.</p>
+                @endif
+            @endif
+
             {{-- Health and running costs (#537, #544), in their own section (#591) --}}
             <h2 id="health">Health</h2>
             @if($h['at_risk'] || $h['stalled'])

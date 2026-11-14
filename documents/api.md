@@ -489,5 +489,13 @@ A matured company's 1,000 shares are its player's, and players trade them. The b
 | `POST /player-shares/{id}/bank/sell` `{units}` | sells shares to the bank: `{units, price_now, due, due_t}` |
 | `POST /player-shares/{id}/bank/buy` `{units}` | buys shares the bank holds at its selling price: `{units, price, cost}` |
 
+### Who a company deals with (#639)
+
+| Request | What it gives |
+|---|---|
+| `GET /companies/{id}/dealings` | `{company, dealings}`: the other companies (not the House) its drones have traded with or plundered, or that plundered its wrecks, `{company_id, name, trades, units, credits, plunders, same_owner}`. `same_owner` is true for a company with the same player behind it; those come first |
+
+Under the new rules a drone of a seedling or a player's company can't withdraw, cut or worsen its standing order (a buy order lower, a sell order higher) in its first 12 game hours: such an order fails with -19. Messages (`broadcast`) are read only within the sender's company: to ask other companies for help, post a high buy order.
+
 Class groups are made on the website, from a verified account's page. Pupils' accounts have no e-mail address and are verified through their teacher's.
 
