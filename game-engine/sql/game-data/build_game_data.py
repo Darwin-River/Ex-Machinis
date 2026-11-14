@@ -1239,6 +1239,30 @@ def place_factor(st, rid):
 STATION_GOODS = [(st, rid, side, price if rid in FIXED_PRICES else
                   max(1, min(MAX_LISTED, round(price * place_factor(st, rid)))), daily, day)
                  for st, rid, side, price, daily, day in STATION_GOODS]
+# A kit is no cheaper than its parts (#657, round 66: a Mining Kit cost 2,000
+# at Earth, and its parts sold to the House for 2,283 at the Moon and 2,331
+# at Mars after tax, so a seedling could buy kits and flip them). Wherever
+# an exchange would pay more for a kit's parts than KIT_PARTS_SHARE of the
+# kit's price, its bids for them come down to fit, leaving room for the
+# market's swings. The kits keep their price: it is a new company's start.
+KIT_PARTS_SHARE = 0.8
+_kit_price = min(price for _, rid, side, price, _, _ in STATION_GOODS if rid == MINING_KIT and side == SELLS)
+_kit_price = min([_kit_price] + [price for _, rid, side, price, _, _ in STATION_GOODS if rid == FACTORY_KIT and side == SELLS])
+_bid_cut = {}   # (station, resource): factor
+for st in (1, 2, 3):
+    bids = {rid: price for s_, rid, side, price, _, _ in STATION_GOODS if s_ == st and side == BUYS}
+    for kit, (_, _, parts) in KITS.items():
+        total = sum(bids.get(part, 0) for part in parts)
+        if total > _kit_price * KIT_PARTS_SHARE:
+            factor = _kit_price * KIT_PARTS_SHARE / total
+            for part in parts:
+                _bid_cut[(st, part)] = min(factor, _bid_cut.get((st, part), 1.0))
+STATION_GOODS = [(st, rid, side, max(1, int(price * _bid_cut.get((st, rid), 1.0))) if side == BUYS else price, daily, day)
+                 for st, rid, side, price, daily, day in STATION_GOODS]
+for st in (1, 2, 3):
+    bids = {rid: price for s_, rid, side, price, _, _ in STATION_GOODS if s_ == st and side == BUYS}
+    for kit, (_, _, parts) in KITS.items():
+        assert sum(bids.get(part, 0) for part in parts) <= _kit_price, f'station {st}: kit {kit} parts bid above its price'
 # No exchange buys a good for as much as it sells it for (a free loop for
 # whoever trades both), and every price fits the station drone's one cell
 _sides = {}
