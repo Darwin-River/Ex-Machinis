@@ -30,7 +30,12 @@ class DronePage
         -9 => 'it was stopped',
         -10 => 'the other drone had no matching order',
         -13 => "the other drone belongs to one of the same player's companies",
+        -14 => 'no House station here trades that resource that way',
         -15 => 'no such wreck here (or already plundered)',
+        -16 => 'a seedling trades only with the House (and plunders nothing)',
+        -17 => "a seedling may buy only a tenth of the House's goods on sale here in a game day",
+        -18 => 'under the new rules players, not companies, trade shares',
+        -19 => "a new-rules order can't be withdrawn, cut or made worse in its first 12 game hours",
     ];
 
     /** FORTH error codes a crash can leave, in plain words */

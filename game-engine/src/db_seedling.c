@@ -75,10 +75,15 @@ ErrorCode_t db_seedling_transfer_outcome(Event_t* from, Event_t* to, int place, 
     long long stock = 0, bought = 0;
     int permille = 100;
     if(b.seedling && a.house && a.company != b.company) {
-        stock = sd_value(0, "SELECT COALESCE(SUM(units), 0) FROM holdings WHERE drone = %d AND resource = %d "
-                            "AND installed = 0 AND locked = 0", from->drone_id, from->resource_id);
+        // What the House has on sale here (its sell order's units above the
+        // stock it keeps, as the market shows them), plus what this seedling
+        // has bought today: the day's cap doesn't shrink as it buys (#651)
         bought = sd_value(0, "SELECT units FROM seedling_buys WHERE company_id = %d AND place = %d AND resource = %d "
                              "AND day = %lld", b.company, place, to->resource_id, (long long)(to->game_t / 86400));
+        stock = bought + sd_value(0, "SELECT GREATEST(IFNULL((SELECT h.units FROM holdings h WHERE h.drone = o.drone "
+                                     "AND h.resource = o.resource AND h.installed = 0 AND h.locked = 0), 0) - o.quantity, 0) "
+                                     "FROM latest_orders o WHERE o.drone = %d AND o.resource = %d AND o.event_type = %d",
+                                     from->drone_id, from->resource_id, SELL_EVENT_TYPE);
         permille = (int)sd_value(100, "SELECT seedling_buy_permille FROM house_rules WHERE id = 1");
     }
     *outcome = seedling_transfer_outcome(a, b, units, stock, bought, permille);
@@ -117,7 +122,14 @@ int db_order_lock_outcome(Event_t* event)
     DbConnection_t* connection = engine_get_db_connection();
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "SELECT o.price, o.quantity, e.game_t FROM latest_orders o JOIN events e ON e.id = o.event_id "
+        // The lock runs from when the order took its present terms: posting
+        // the same order again doesn't restart it (#650)
+        "SELECT o.price, o.quantity, (SELECT MIN(e.game_t) FROM events e WHERE e.drone = o.drone "
+        "AND e.resource = o.resource AND e.event_type = o.event_type AND e.outcome = 1 "
+        "AND e.id > IFNULL((SELECT MAX(x.id) FROM events x WHERE x.drone = o.drone AND x.resource = o.resource "
+        "AND x.event_type = o.event_type AND x.outcome = 1 "
+        "AND (x.new_credits <> o.price OR x.new_quantity <> o.quantity)), 0)) "
+        "FROM latest_orders o "
         "JOIN agents a ON a.agent_id = o.drone JOIN companies c ON c.company_id = a.company_id "
         "WHERE o.drone = %d AND o.resource = %d AND o.event_type = %d AND o.is_open = 1 "
         "AND (c.seedling = 1 OR c.owner_id IS NOT NULL)",

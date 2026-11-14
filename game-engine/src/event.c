@@ -455,9 +455,6 @@ ErrorCode_t event_validate_event_conditions
         //h.  The Accumulation Price for items being added to the cargo bay of a non-allied ship is less than
         // or equal to the price the player has set for those items.
         event->outcome = OUTCOME_WRONG_ACCUMULATION_PRICE;
-    } else if(db_order_lock_outcome(event) != 0) {
-        // i.  Under the new rules an order stands for its first game hours (#639)
-        event->outcome = OUTCOME_ORDER_LOCKED;
     } else {
         event->outcome = OUTCOME_OK;
         result = ENGINE_OK;
@@ -1106,6 +1103,15 @@ static ErrorCode_t event_apply(Event_t *event)
     // These events - are just marked with outcome = OK and registered at observations table
     if((result == ENGINE_OK) && ((event->event_type == SELL_EVENT_TYPE) || (event->event_type == BUY_EVENT_TYPE)))
     {
+        // Under the new rules an order stands for its first game hours (#639):
+        // checked here, as market events skip the conditions below (#650)
+        int lock_outcome = db_order_lock_outcome(event);
+        if(lock_outcome != 0)
+        {
+            event->outcome = lock_outcome;   // the caller records the failure
+            return ENGINE_LOGIC_ERROR;
+        }
+
         engine_trace(TRACE_LEVEL_ALWAYS,
           "Market event [%d], no processing done, only observations table updated",
           event->event_id,

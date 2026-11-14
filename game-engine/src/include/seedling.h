@@ -18,7 +18,9 @@ typedef struct {
    House (or its own company), or OUTCOME_SEEDLING_CAP when a seedling buying
    from the House would take more today than cap_permille thousandths of the
    House's stock (at least 1 unit). `from` gives up `units`, `to` receives
-   them; `house_stock` is what the House drone holds now, and `bought_today`
+   them; `house_stock` is what the House has on sale there
+   (its sell order's units above the stock it keeps) plus what this seedling
+   bought today (#651), and `bought_today`
    what the receiving seedling bought of it at that exchange today. */
 int seedling_transfer_outcome(SeedlingSide_t from, SeedlingSide_t to, long long units,
                               long long house_stock, long long bought_today, int cap_permille);

@@ -193,7 +193,7 @@ local function board_price(resource, place)
 end
 
 -- Buy up to n here, cheapest first, from whoever sells; 0 when it bought
--- any. It reads the sell orders afresh before each pull (#502: each pull
+-- any, else why not (-12 when nobody sells, or the last refusal's code). It reads the sell orders afresh before each pull (#502: each pull
 -- waits for the drone's next turn, so by its fourth pull a list read once
 -- was hours old, and other buyers had taken what it listed). A seller that
 -- refuses is skipped for the next (#380 round 35: buying from the same
@@ -201,7 +201,8 @@ end
 -- tries, each an action. With max_price it buys only from sellers asking
 -- at most that a unit (#503: once the cheap sellers ran out it paid 49)
 local function buy_here(n, resource, max_price)
-  local result, tries, mine, refused, only = -12, 0, me(), {}, house_only()
+  local result, tries, mine, refused, only, failed = -12, 0, me(), {}, house_only(), nil
+  local cap
   while n > 0 and tries < 6 do
     local seller, avail
     for _, o in ipairs(ask(610, resource)) do
@@ -209,19 +210,25 @@ local function buy_here(n, resource, max_price)
       if may_trade(o[4], mine, only) and not refused[o[4]] and o[3] > o[2] then seller, avail = o[4], o[3] - o[2]; break end
     end
     if not seller then break end
-    local take = math.min(n, avail)
+    local take = math.min(n, avail, cap or avail)
     tries = tries + 1
-    if pull(take, resource, seller) == 0 then n = n - take; result = 0 else refused[seller] = true end
+    local r = pull(take, resource, seller)
+    if r == 0 then n = n - take; result = 0
+    elseif r == -17 and take > 1 then cap = take // 2; failed = r   -- over a seedling's daily cap: try less
+    else refused[seller] = true; failed = r end
   end
+  -- Nothing bought: why the last seller refused (such as -17, a seedling's
+  -- cap), or -12 when nobody here sells (#651)
+  if result ~= 0 and failed then return failed end
   return result
 end
 
 -- Sell up to n here, best price first, to whoever buys; 0 when it sold
--- any. A buyer that refuses is skipped for the next; at most 6 tries
+-- any, else why not (-12 when nobody buys, or the last refusal's code). A buyer that refuses is skipped for the next; at most 6 tries
 local function sell_here(n, resource)
   -- Reads the buy orders afresh before each push, as buy_here does (#502),
   -- and skips a buyer that refused
-  local result, tries, mine, refused, only = -12, 0, me(), {}, house_only()
+  local result, tries, mine, refused, only, failed = -12, 0, me(), {}, house_only(), nil
   while n > 0 and tries < 6 do
     local buyer, want
     for _, o in ipairs(ask(600, resource)) do
@@ -230,8 +237,10 @@ local function sell_here(n, resource)
     local take = buyer and math.min(n, want, units(resource)) or 0
     if take <= 0 then break end
     tries = tries + 1
-    if push(take, resource, buyer) == 0 then n = n - take; result = 0 else refused[buyer] = true end
+    local r = push(take, resource, buyer)
+    if r == 0 then n = n - take; result = 0 else refused[buyer] = true; failed = r end
   end
+  if result ~= 0 and failed then return failed end
   return result
 end
 
