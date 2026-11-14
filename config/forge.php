@@ -66,4 +66,8 @@ return [
     'share_range_high' => (float) env('FORGE_SHARE_RANGE_HIGH', 1.25),
     // Thousandths of a matured company's daily profit paid out as dividends
     'dividend_permille' => (int) env('FORGE_DIVIDEND_PERMILLE', 500),
+
+    // The season board (#640): growth this month as a share of a player's
+    // wealth at its start, counted as at least this
+    'season_floor' => 5000,
 ];

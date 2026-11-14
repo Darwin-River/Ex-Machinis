@@ -63,6 +63,9 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['new-rules', 'throttle:api-write'])->post('seedlings/{id}/push', 'SeedlingApiController@reprogram')->whereNumber('id');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('seedlings/{id}/close', 'SeedlingApiController@close')->whereNumber('id');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('seedlings/{id}/mature', 'SeedlingApiController@mature')->whereNumber('id');
+    // Player boards and the digest (#640)
+    Route::middleware(['new-rules', 'throttle:api-read'])->get('players', 'PlayerBoardController@api');
+    Route::middleware(['new-rules', 'throttle:api-read'])->get('account/digest', 'PlayerBoardController@digest');
     // Who a company deals with (#639)
     Route::middleware(['new-rules', 'throttle:api-read'])->get('companies/{id}/dealings', fn ($id) => response()->json(
         ['company' => (int) $id, 'dealings' => \App\Services\Dealings::of((int) $id)]))->whereNumber('id');

@@ -54,6 +54,8 @@ class AccountController extends Controller
         }
         Auth::login($user);
         $request->session()->regenerate();
+        // While you were away (#640)
+        $request->session()->flash('digest', \App\Services\PlayerBoards::digest($user));
         return redirect()->intended('/account');
     }
 
