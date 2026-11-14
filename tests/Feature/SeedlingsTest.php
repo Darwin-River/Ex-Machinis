@@ -83,6 +83,13 @@ class SeedlingsTest extends TestCase
         $this->assertTrue(Seedlings::start($owner, 'Busy 6', self::SCRIPT)['ok']);
     }
 
+    public function testTheReleasePageExplainsSeedlings()
+    {
+        // #656: the new rules' copy, and no push password
+        $this->get('/release')->assertOk()->assertSee('Every release is a seedling')->assertSee('5,500')
+            ->assertDontSee('Push password');
+    }
+
     public function testClosingASeedling()
     {
         $owner = $this->player('Closer');
@@ -197,6 +204,7 @@ class SeedlingsTest extends TestCase
         $made = $this->postJson('/api/v1/release', ['company_name' => 'Api Sprout', 'script' => self::SCRIPT], $h)
             ->assertCreated()->assertJsonPath('seedling', true)->assertJsonPath('debt', 5500)->assertJsonPath('claim_code', null);
         $id = $made->json('company.id');
+        $this->getJson("/api/v1/companies/$id")->assertOk()->assertJsonPath('seedling', true)->assertJsonPath('debt', 5500);
         $this->getJson('/api/v1/seedlings', $h)->assertOk()->assertJsonPath('seedlings.0.company_id', $id)
             ->assertJsonPath('seedlings.0.can_mature', false)->assertJsonPath('slots.used', 1);
         $this->postJson("/api/v1/seedlings/$id/push", ['script' => "function launched() wait(5) end"], $h)->assertOk()

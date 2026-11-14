@@ -87,6 +87,10 @@ class ApiController extends Controller
             'age_days' => Leaderboard::age($company->founded_t, World::gameNow()),
             'peer_rank' => Leaderboard::peerRank((int) $company->company_id, $board),
             'ended' => $company->eliminated_at !== null,
+            // The new rules (#656): a seedling and what it owes, or matured
+            'seedling' => (int) ($company->seedling ?? 0) === 1,
+            'debt' => (int) ($company->debt ?? 0),
+            'matured' => ($company->matured_t ?? null) !== null,
             'drones' => $drones->map(fn (Agent $a) => $this->droneSummary($a))->all(),
             // The stock market (#471): its share price, holders, orders, trades
             // and the shares it holds in others
