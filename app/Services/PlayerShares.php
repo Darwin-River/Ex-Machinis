@@ -308,7 +308,64 @@ class PlayerShares
             ->get(['b.id', 'b.company_id', 'c.name', 'b.units', 'b.price_at_sale', 'b.due_t'])
             ->map(fn ($b) => ['id' => (int) $b->id, 'company_id' => (int) $b->company_id, 'name' => $b->name,
                 'units' => (int) $b->units, 'price_at_sale' => (int) $b->price_at_sale, 'due' => DronePage::when((int) $b->due_t)])->all();
-        return ['holdings' => $holdings, 'orders' => $orders, 'bank_payments' => $due];
+        $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
+        $today = intdiv(World::gameNow() - $epoch, 86400);
+        $dividends = (int) DB::table('player_dividends')->where('user_id', $user->user_id)->where('day', '>=', $today - 30)->sum('amount');
+        return ['holdings' => $holdings, 'orders' => $orders, 'bank_payments' => $due, 'dividends_30_days' => $dividends];
+    }
+
+    /**
+     * Pays matured companies' dividends for the game days the events engine
+     * has settled (company_profits): forge.dividend_permille of each day's
+     * profit after losses carried, never more than the company's credits,
+     * to its holders by their shares: players' accounts, and the bank (which
+     * keeps what its shares earn). Days before it matured are not paid.
+     * Returns how many company-days it paid.
+     */
+    public static function payDividends(): int
+    {
+        $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
+        $permille = (int) config('forge.dividend_permille');
+        $paid = 0;
+        $companies = DB::table('companies')->where('seedling', 0)->whereNotNull('owner_id')->whereNotNull('matured_t')
+            ->whereNull('eliminated_at')->get(['company_id', 'matured_t', 'player_dividend_day']);
+        foreach ($companies as $c) {
+            $from = $c->player_dividend_day !== null ? (int) $c->player_dividend_day
+                : intdiv((int) $c->matured_t - $epoch, 86400);
+            $days = DB::table('company_profits')->where('company', $c->company_id)->where('day', '>', $from)
+                ->orderBy('day')->get(['day', 'profit', 'carry_before']);
+            foreach ($days as $d) {
+                DB::transaction(function () use ($c, $d, $permille) {
+                    $pool = max(0, min(0, (int) $d->carry_before) + (int) $d->profit);
+                    $due = intdiv($pool * $permille, 1000);
+                    $credits = (int) DB::table('companies')->where('company_id', $c->company_id)->lockForUpdate()->value('credits');
+                    $due = min($due, max(0, $credits));
+                    $holders = DB::table('player_shares')->where('company_id', $c->company_id)->where('units', '>', 0)
+                        ->get(['user_id', 'units'])->map(fn ($h) => [(int) $h->user_id, (int) $h->units])->all();
+                    $bank = (int) (DB::table('bank_shares')->where('company_id', $c->company_id)->value('units') ?? 0);
+                    if ($bank > 0) {
+                        $holders[] = [null, $bank];
+                    }
+                    $total = 0;
+                    foreach ($holders as [$user, $units]) {
+                        $amount = intdiv($due * $units, self::COUNT);
+                        if ($amount <= 0) {
+                            continue;
+                        }
+                        if ($user !== null) {
+                            DB::table('users')->where('user_id', $user)->update(['credits' => DB::raw('credits + ' . $amount)]);
+                        }
+                        DB::table('player_dividends')->insert(['company_id' => $c->company_id, 'user_id' => $user,
+                            'day' => (int) $d->day, 'units' => $units, 'amount' => $amount]);
+                        $total += $amount;
+                    }
+                    DB::table('companies')->where('company_id', $c->company_id)->update([
+                        'credits' => DB::raw('credits - ' . $total), 'player_dividend_day' => (int) $d->day]);
+                });
+                $paid++;
+            }
+        }
+        return $paid;
     }
 
     /**
