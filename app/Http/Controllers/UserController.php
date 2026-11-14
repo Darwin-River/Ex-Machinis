@@ -61,7 +61,10 @@ class UserController extends Controller
         $company = Company::where('company_id', '=', $id)->firstOrFail();
         // The view shows the company's ID, name, start date and bank account
         $user = (object) ['user_id' => $company->company_id, 'name' => $company->name,
-            'created_at' => $company->created_at, 'credits' => $company->credits];
+            'created_at' => $company->created_at, 'credits' => $company->credits,
+            // The new rules (#637): a seedling's debt, or when it matured
+            'seedling' => (int) ($company->seedling ?? 0), 'debt' => (int) ($company->debt ?? 0),
+            'matured_t' => $company->matured_t ?? null];
 
         $spacecraft = Agent::with('hull')->with('location')->with('lastEVents')->where('company_id', '=', $id)->get();
 

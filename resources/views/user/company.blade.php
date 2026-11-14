@@ -45,6 +45,13 @@
                     <div class="stat-value">{{ number_format($stats['age'], 1) }}<small> game days</small></div></div>
             </div>
             <p class="stat-meta">Company {{ $user->user_id }} · released {{ \Carbon\Carbon::parse($user->created_at)->format('F j, Y') }}</p>
+            {{-- The new rules (#637) --}}
+            @if((int) ($user->seedling ?? 0) === 1)
+                <p class="stat-meta" id="seedling">A seedling: it owes the bank {{ number_format((int) $user->debt) }} credits, and
+                    trades only with the House until it matures.</p>
+            @elseif(($user->matured_t ?? null) !== null)
+                <p class="stat-meta" id="seedling">Matured on {{ \App\Services\DronePage::when((int) $user->matured_t) }}: its code is locked for good.</p>
+            @endif
 
             {{-- Health and running costs (#537, #544), in their own section (#591) --}}
             <h2 id="health">Health</h2>

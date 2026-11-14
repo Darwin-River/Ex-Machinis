@@ -62,6 +62,14 @@ class CodePush
         if (!$company || (int) $company->house === 1) {
             return ['ok' => false, 'status' => 404, 'error' => 'There is no such company.'];
         }
+        // Under the new rules (#635), a seedling is reprogrammed by its player
+        // (Seedlings::reprogram), and a matured company's code is locked
+        if ((int) ($company->seedling ?? 0) === 1) {
+            return ['ok' => false, 'status' => 403, 'error' => 'A seedling is reprogrammed by its player, from their account.'];
+        }
+        if (($company->owner_id ?? null) !== null) {
+            return ['ok' => false, 'status' => 403, 'error' => 'A mature company\'s code is locked: nobody can push to it.'];
+        }
         if ($company->push_password === null) {
             return ['ok' => false, 'status' => 403,
                 'error' => 'This company was released without a password, so no code can be pushed to it.'];
@@ -93,17 +101,23 @@ class CodePush
             DB::table('code_pushes')->insert(['company_id' => $companyId, 'number' => $number,
                 'game_t' => World::gameNow(), 'credits_before' => (int) $company->credits, 'permille' => $permille,
                 'fee' => $fee, 'drones' => count($drones), 'script' => $script]);
-            $pieces = Release::chunks($script);
-            foreach ($drones as $drone) {
-                Command::create(['code' => '<reset>', 'agent_id' => $drone, 'subject' => 'Push', 'email_content' => '']);
-                foreach ($pieces as $piece) {
-                    Command::create(['code' => $piece, 'agent_id' => $drone, 'subject' => 'Push', 'email_content' => '']);
-                }
-                Command::create(['code' => '<launched>', 'agent_id' => $drone, 'subject' => 'Push', 'email_content' => '']);
-            }
+            self::send($drones, $script);
             return ['ok' => true, 'number' => $number, 'fee' => $fee, 'permille' => $permille, 'drones' => $drones,
                 'next_permille' => self::permille($number)];
         });
+    }
+
+    /** Sends a script to drones: each starts over on it when it arrives */
+    public static function send(array $drones, string $script): void
+    {
+        $pieces = Release::chunks($script);
+        foreach ($drones as $drone) {
+            Command::create(['code' => '<reset>', 'agent_id' => $drone, 'subject' => 'Push', 'email_content' => '']);
+            foreach ($pieces as $piece) {
+                Command::create(['code' => $piece, 'agent_id' => $drone, 'subject' => 'Push', 'email_content' => '']);
+            }
+            Command::create(['code' => '<launched>', 'agent_id' => $drone, 'subject' => 'Push', 'email_content' => '']);
+        }
     }
 
     /**

@@ -464,5 +464,17 @@ The new rules (#635) give players accounts. They are being built step by step an
 | `GET /account` | the token's account, sent as `Authorization: Bearer <token>`: `{name, email, verified, credits, share_credits, class_group, teaches, since}`. `class_group` is the pupil's group (`{id, name}`) or null; `teaches`, the teacher's groups (`{id, name, pupils}`). 401 without a valid token |
 | `POST /account/verify` | sends the verification link again (3 times an hour at most): `{verification_sent}`. 409 if the account is verified already |
 
+### Seedlings (#637)
+
+Under the new rules every release is a **seedling**. `POST /release` with an account's token starts one for that account; without a token it is a guest's, and the answer's `claim_code` (shown once) lets an account claim it. The answer has `seedling: true` and `debt`: what it owes the bank for its drone, its starting credits and a fee (5,500). A seedling trades only with the House (a trade with anyone else fails with -16), buys at most a tenth of the House's stock of a good at one exchange in a game day (-17 after that), and plunders nothing. An account has at most 5 seedlings at a time. Each call below needs `Authorization: Bearer <token>`:
+
+| Request | What it does |
+|---|---|
+| `GET /seedlings` | the account's seedlings `{company_id, name, drone, credits, debt, can_mature}` and matured `companies` `{company_id, name, drone, credits, ended}`, its `slots` (`{used, max}`) and the `grant` a new seedling owes |
+| `POST /seedlings/claim` `{code}` | claims a guest's seedling with its code |
+| `POST /seedlings/{id}/push` `{script}` | new code for the seedling's drones; the fee (100) goes on its debt: `{number, fee, drones, debt}` |
+| `POST /seedlings/{id}/close` | closes it: it leaves the game with all it holds, and its debt is cancelled |
+| `POST /seedlings/{id}/mature` | once it holds enough credits to pay its debt (and the account is verified): it repays, its code is locked for good, and the account gets its 1,000 shares: `{company, name, repaid, shares}`. 409 while it can't pay |
+
 Class groups are made on the website, from a verified account's page. Pupils' accounts have no e-mail address and are verified through their teacher's.
 

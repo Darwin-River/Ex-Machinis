@@ -31,6 +31,65 @@
             <p>Your credits are what your shares and companies have earned you. The credits for buying shares came with
                 your account: they can only buy shares.</p>
 
+            <h3 class="h5 mt-4" id="seedlings">Your seedlings</h3>
+            <p>Every company starts as a seedling: <a href="{{ url('release') }}">release a drone</a> and the bank lends it
+                its drone and starting credits, plus a fee ({{ number_format($mine['grant']) }} credits in all). A seedling
+                trades only with the House, and you can change its code whenever you like (each change adds
+                {{ number_format(config('forge.seedling_push_fee')) }} to its debt). Once it holds enough to pay its debt,
+                mature it: it repays, its code is locked for good, and its 1,000 shares are yours. Close one at any time:
+                it leaves the game and its debt is cancelled. You have {{ $mine['slots']['used'] }} of
+                {{ $mine['slots']['max'] }} seedling slots in use.</p>
+            @if(count($mine['seedlings']))
+                <table class="table table-sm">
+                    <thead><tr><th scope="col">Seedling</th><th scope="col" class="text-right">Credits</th>
+                        <th scope="col" class="text-right">Owes</th><th scope="col"></th></tr></thead>
+                    <tbody>
+                    @foreach($mine['seedlings'] as $seed)
+                        <tr>
+                            <td><a href="{{ url('companies/' . $seed['company_id']) }}">{{ $seed['name'] }}</a></td>
+                            <td class="text-right">{{ number_format($seed['credits']) }}</td>
+                            <td class="text-right">{{ number_format($seed['debt']) }}</td>
+                            <td class="text-right">
+                                @if($seed['can_mature'] && $account['verified'])
+                                    <form method="POST" action="{{ url('seedlings/' . $seed['company_id'] . '/mature') }}" class="d-inline"
+                                          onsubmit="return confirm('Mature this seedling? Its code is locked for good.')">
+                                        {{ csrf_field() }}<button class="button button-primary button-sm" type="submit">Mature</button>
+                                    </form>
+                                @endif
+                                <form method="POST" action="{{ url('seedlings/' . $seed['company_id'] . '/close') }}" class="d-inline"
+                                      onsubmit="return confirm('Close this seedling? It leaves the game with all it holds.')">
+                                    {{ csrf_field() }}<button class="button button-secondary button-sm" type="submit">Close</button>
+                                </form>
+                            </td>
+                        </tr>
+                        <tr><td colspan="4">
+                            <details><summary>Change its code</summary>
+                                <form method="POST" action="{{ url('seedlings/' . $seed['company_id'] . '/push') }}" class="mt-2">
+                                    {{ csrf_field() }}
+                                    <textarea class="form-control" name="script" rows="8" maxlength="{{ config('forge.max_script_length') }}"
+                                              aria-label="New code for {{ $seed['name'] }}" required></textarea>
+                                    <button class="button button-secondary button-sm mt-2" type="submit">Send the new code</button>
+                                </form>
+                            </details>
+                        </td></tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            @endif
+            @if(count($mine['companies']))
+                <p>Your matured companies:
+                    @foreach($mine['companies'] as $co)
+                        <a href="{{ url('companies/' . $co['company_id']) }}">{{ $co['name'] }}</a>{{ $co['ended'] ? ' (ended)' : '' }}{{ $loop->last ? '' : ',' }}
+                    @endforeach
+                </p>
+            @endif
+            <form method="POST" action="{{ url('seedlings/claim') }}" class="form-inline mb-3">
+                {{ csrf_field() }}
+                <label class="mr-2" for="claim">Released as a guest? Claim it with its code:</label>
+                <input class="form-control mr-2 mb-2" id="claim" name="code" type="text" maxlength="64" required>
+                <button class="button button-secondary button-sm mb-2" type="submit">Claim</button>
+            </form>
+
             <h3 class="h5 mt-4">The API</h3>
             <p>Programs act for your account through the <a href="{{ url('getting-started') }}">API</a> with a token, sent
                 as <code>Authorization: Bearer</code> and the token. A new token replaces the old one.</p>

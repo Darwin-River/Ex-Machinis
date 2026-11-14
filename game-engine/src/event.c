@@ -12,6 +12,7 @@
 #include <limits.h>
 #include <time.h>
 
+#include "db_seedling.h"
 #include "event.h"
 #include "db_station.h"
 #include "db_wreck.h"
@@ -1462,6 +1463,18 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
         return ENGINE_LOGIC_ERROR;
     }
 
+    // A seedling trades only with the House, and buys at most its share of
+    // the House's stock here in a game day (#637)
+    int seedling_outcome = 0, seedling_buyer = 0;
+    if(db_seedling_transfer_outcome(event, partner, from_object, &seedling_outcome, &seedling_buyer) == ENGINE_OK &&
+       seedling_outcome != 0)
+    {
+        event_record_failure(&first, seedling_outcome);
+        event_record_failure(&second, OUTCOME_ACTION_ABORTED);
+        db_refund_fuel(event->action_id);   // a refused transfer costs no fuel
+        return ENGINE_LOGIC_ERROR;
+    }
+
     BatchWritesMark_t mark = db_batch_writes_mark();
     result = db_savepoint("SAVEPOINT transfer");
     if(result != ENGINE_OK)
@@ -1473,6 +1486,7 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
 
     if(result == ENGINE_OK) {
         db_savepoint("RELEASE SAVEPOINT transfer");
+        db_seedling_record_buy(seedling_buyer, partner, from_object);
         return ENGINE_OK;
     }
 
