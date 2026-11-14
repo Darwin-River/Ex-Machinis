@@ -229,6 +229,8 @@ Every release is live and free, and players learn by releasing a script, watchin
 
 - **`FORGE_PUSH_FEE_PERMILLE`** (default 50) and **`FORGE_PUSH_FEE_CAP_PERMILLE`** (default 500) set what a code push costs (#553): a company's nth push costs n × 50 thousandths of its credits (5%, 10%, 15%...), at most 500 (half).
 
+- **`FORGE_NEW_RULES`** (default off) turns on the new rules (#635): player accounts, seedlings, locked companies and a bank for shares. They are being built step by step and stay off on the live site until the world is reset (#642). While it is off, their pages and API calls answer 404. With it on, **`FORGE_PLAYER_SHARE_CREDITS`** (default 5000) is a new account's credits for buying shares, **`FORGE_PLAYER_SIGNUPS_PER_HOUR`** (default 3) how many accounts one address may make in an hour, and **`FORGE_CLASS_GROUP_MAX`** (default 40) the most pupils in a teacher's class group.
+
 To change them, edit `deploy/.env` (`nano /opt/exmachinis/deploy/.env`), for example:
 
 ```

@@ -646,7 +646,20 @@ The Users Table will hold information specific to each player account.
 * password [VARCHAR(255)] - This is the player’s password.
 * created_at [TIMESTAMP] - The date that the use first created their account.
 * updated_at [TIMESTAMP] - The date that the record was last updated.
-* credits [INT(10)] - No longer used: bank accounts belong to companies (below).
+* credits [INT(10)] - Until the new rules (#635), unused: bank accounts belong to companies (below). Under the new rules, a player account's credits: what its shares and companies have earned it.
+* login [VARCHAR(32)] - A player account's name (#636), unique without regard to case. NULL for the game's own owners (the Public Forge owner, the House), which can't log in.
+* share_credits [INT] - A player account's starting credits that can only buy shares (#636: `forge.player_share_credits`, 5,000).
+* class_group_id [INT] - The class group a pupil's account belongs to (#636), or NULL.
+* api_token [CHAR(64)] - The SHA-256 of the account's API token (#636). A new token replaces the old.
+
+Player accounts (#636) are step 1 of the new rules (#635), and exist only while `FORGE_NEW_RULES` is on: until the reset (#642), the pages and API calls below answer 404, and the live game is unchanged. An account is a name and a password, with no e-mail yet (`email` may be NULL); one address may make `forge.player_signups_per_hour` (3) accounts an hour. The website has `/signup`, `/login`, `/logout` and `/account` (credits, credits for shares, a new API token); the API has `POST /api/v1/accounts` and `POST /api/v1/login` (each returns a token) and `GET /api/v1/account` (with `Authorization: Bearer <token>`). `App\Services\Players` does the work.
+
+#### Table: class_groups
+A teacher's class group (#636): up to `forge.class_group_max` (40) pupils' accounts, made by the teacher from their account page and named after the group ("Orbit 1", "Orbit 2"...), each with a generated password shown once. The teacher can give a pupil a new password (the old one, and the pupil's API token, stop working). Under the new rules a class group trades shares only within itself and has its own leaderboards (#638, #640).
+* id [INT] - The table index.
+* name [VARCHAR(45)] - The group's name.
+* teacher_id [INT] - The teacher's account (`users.user_id`).
+* created_at [TIMESTAMP]
 
 [Return to the TOC](#Table-of-Contents)
 

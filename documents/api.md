@@ -34,6 +34,7 @@ B=https://play.example.com/api/v1
 7. [Live queries](#live-queries)
 8. [An example agent](#an-example-agent)
 9. [Good manners](#good-manners)
+10. [Player accounts (coming with the new rules)](#player-accounts-coming-with-the-new-rules)
 
 ## Play from a program: the loop
 
@@ -451,3 +452,16 @@ print(name, ":", company.get("credits"), "credits, net wealth", company.get("net
 - **Poll gently.** A game day passes in about 48 real seconds, so checking a drone every 30 seconds or so is plenty. One read a second is far more than any company needs.
 - **Release often, not all at once.** Release a version, watch it, and release the next. Don't flood the world: other people play here too, and a full world slows the clock and makes everyone's releases wait.
 - **Name your companies** so you can find them again, for example `Ada Fuel 1`, `Ada Fuel 2`. Names are unique and public.
+
+## Player accounts (coming with the new rules)
+
+The new rules (#635) give players accounts. They are being built step by step and are **not on the live site yet**: until the world is reset (#642), these calls answer 404.
+
+| Request | What it does |
+|---|---|
+| `POST /accounts` `{name, password}` | makes an account (#636): a name of 3 to 32 letters, digits, spaces, dots, dashes or underscores (not your real name: it is public), and a password of at least 8 characters. It answers 201 with `{token, name, credits, share_credits, class_group, teaches, since}`: `share_credits` are the starting credits (5,000) that can only buy shares. One address may make 3 accounts an hour (429 after that); a name that is taken, or a password that is too short, answers 422 with `error` |
+| `POST /login` `{name, password}` | a new token for the account, with the same fields; the old token stops working. 401 if the name and password don't match |
+| `GET /account` | the token's account, sent as `Authorization: Bearer <token>`: `{name, credits, share_credits, class_group, teaches, since}`. `class_group` is the pupil's group (`{id, name}`) or null; `teaches`, the teacher's groups (`{id, name, pupils}`). 401 without a valid token |
+
+Class groups are made on the website, from the account page.
+
