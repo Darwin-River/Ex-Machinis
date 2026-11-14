@@ -37,6 +37,17 @@ int main(void)
     check("but not 2", seedling_transfer_outcome(house, seed, 2, 3, 0, 100) == OUTCOME_SEEDLING_CAP);
     check("selling to the House has no cap", seedling_transfer_outcome(seed, house, 1000000, 5, 1000, 100) == 0);
 
+    // The minimum order life (#639): 12 game hours
+    long long h = 3600, lock = 12 * h;
+    check("a young buy order can rise", order_lock_outcome(1, 50, 10, 60, 10, h, lock) == 0);
+    check("or want more", order_lock_outcome(1, 50, 10, 50, 20, h, lock) == 0);
+    check("but not fall", order_lock_outcome(1, 50, 10, 40, 10, h, lock) == OUTCOME_ORDER_LOCKED);
+    check("nor be withdrawn", order_lock_outcome(1, 50, 10, 0, 0, h, lock) == OUTCOME_ORDER_LOCKED);
+    check("nor be cut", order_lock_outcome(1, 50, 10, 50, 5, h, lock) == OUTCOME_ORDER_LOCKED);
+    check("a young sell order can get cheaper", order_lock_outcome(0, 50, 10, 40, 10, h, lock) == 0);
+    check("but not dearer", order_lock_outcome(0, 50, 10, 60, 10, h, lock) == OUTCOME_ORDER_LOCKED);
+    check("after 12 game hours anything goes", order_lock_outcome(1, 50, 10, 0, 0, lock, lock) == 0);
+
     printf("%s\n", failures ? "FAILED" : "all passed");
     return failures ? 1 : 0;
 }

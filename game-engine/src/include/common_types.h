@@ -597,6 +597,7 @@ typedef enum
 	OUTCOME_SEEDLING_HOUSE_ONLY = -16, // a seedling trades only with the House, and plunders nothing (#637)
 	OUTCOME_SEEDLING_CAP = -17,  // a seedling has bought its share of the House's stock here today (#637)
 	OUTCOME_PLAYERS_SHARES = -18, // under the new rules players, not companies, trade shares (#638)
+	OUTCOME_ORDER_LOCKED = -19,  // a new-rules order can't be withdrawn, cut or worsened in its first game hours (#639)
 
 } Outcome_t;
 

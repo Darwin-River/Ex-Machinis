@@ -103,7 +103,9 @@ class UserController extends Controller
                 'cash_out' => \App\Services\PlayerShares::cashOut((int) $id),
             ];
         }
-        return view('user.company', compact('user', 'spacecraft', 'shares', 'rank', 'pushes', 'stats', 'code', 'today', 'lineage', 'playerShares'));
+        // The new rules (#639): who it deals with, same-owner deals flagged
+        $dealings = config('forge.new_rules') ? \App\Services\Dealings::of((int) $id) : null;
+        return view('user.company', compact('user', 'spacecraft', 'shares', 'rank', 'pushes', 'stats', 'code', 'today', 'lineage', 'playerShares', 'dealings'));
     }
 
     /** Pushes new code to a company's working drones, with its password (#553) */
