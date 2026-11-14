@@ -110,11 +110,11 @@ services:
       # Code pushes (#553): thousandths of a company's credits per push number, and the most
       FORGE_PUSH_FEE_PERMILLE: ${FORGE_PUSH_FEE_PERMILLE:-50}
       FORGE_PUSH_FEE_CAP_PERMILLE: ${FORGE_PUSH_FEE_CAP_PERMILLE:-500}
-      # The new rules (#635): on for the trial on the live server (#642).
-      # FORGE_TRIAL_AUTO_VERIFY verifies new accounts at once while there is
-      # no mail service: turn it off, with mail set up, before the real launch
+      # The new rules (#635): on (#642). FORGE_TRIAL_AUTO_VERIFY=true verifies
+      # new accounts at once, for a server with no mail service (off: the game
+      # sends a link, hosting.md)
       FORGE_NEW_RULES: ${FORGE_NEW_RULES:-true}
-      FORGE_TRIAL_AUTO_VERIFY: ${FORGE_TRIAL_AUTO_VERIFY:-true}
+      FORGE_TRIAL_AUTO_VERIFY: ${FORGE_TRIAL_AUTO_VERIFY:-false}
       FORGE_PLAYER_SHARE_CREDITS: ${FORGE_PLAYER_SHARE_CREDITS:-5000}
       FORGE_PLAYER_SIGNUPS_PER_HOUR: ${FORGE_PLAYER_SIGNUPS_PER_HOUR:-3}
       FORGE_CLASS_GROUP_MAX: ${FORGE_CLASS_GROUP_MAX:-40}
