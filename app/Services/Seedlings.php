@@ -17,14 +17,14 @@ use Illuminate\Support\Str;
  * it (it leaves the game with all it holds, and its debt is cancelled). Once
  * it holds enough credits to pay its debt, its player may mature it: it
  * repays, becomes a company in its own right, and the player receives its
- * 1,000 shares. A player has at most forge.seedling_max seedlings at a time;
+ * 100 shares. A player has at most forge.seedling_max seedlings at a time;
  * a closed one's slot reopens after forge.seedling_slot_days game days.
  * Anyone may start one as a guest, and claim it into an account with its
  * claim code.
  */
 class Seedlings
 {
-    public const SHARES = 1000;
+    public const SHARES = PlayerShares::COUNT;   // 100 (#667)
 
     /** What a new seedling owes: its hull, its starting credits and the fee */
     public static function grant(): int
@@ -165,15 +165,29 @@ class Seedlings
         DB::transaction(function () use ($companyId, $now) {
             DB::table('agents')->where('company_id', $companyId)->whereNull('wrecked_at')
                 ->update(['wrecked_at' => $now, 'wreck_cause' => 'closed', 'launched_running' => 0]);
-            // Its wrecks hold nothing anyone can take
+            // Its wrecks hold nothing anyone can take, and show an empty hold (#666)
             DB::table('agents')->where('company_id', $companyId)->whereNull('plundered_at')->update(['plundered_at' => $now]);
+            DB::table('holdings')->whereIn('drone', DB::table('agents')->where('company_id', $companyId)->select('agent_id'))->delete();
+            DB::table('latest_orders')->whereIn('drone', DB::table('agents')->where('company_id', $companyId)->select('agent_id'))->delete();
             DB::table('companies')->where('company_id', $companyId)->update(['credits' => 0, 'debt' => 0,
                 'eliminated_at' => $now, 'end_cause' => 'closed', 'broke_since' => null]);
         });
         return ['ok' => true, 'company' => $companyId, 'name' => $company->name];
     }
 
-    /** Matures a seedling that holds enough to pay its debt: it repays, and its 1,000 shares are the player's */
+    /** Credits a seedling must hold above its debt to mature (#664) */
+    public static function matureMargin(): int
+    {
+        return max(0, (int) config('forge.seedling_mature_margin'));
+    }
+
+    /** Does the seedling hold its debt and the working margin, less what it owes in processor tax? */
+    public static function canMature(object $company): bool
+    {
+        return (int) $company->credits - (int) $company->compute_debt >= (int) $company->debt + self::matureMargin();
+    }
+
+    /** Matures a seedling that holds enough to pay its debt: it repays, and its 100 shares are the player's */
     public static function mature(User $owner, int $companyId): array
     {
         if (!Players::verified($owner)) {
@@ -184,13 +198,15 @@ class Seedlings
             return ['ok' => false, 'status' => $error[0], 'error' => $error[1]];
         }
         $debt = (int) $company->debt;
-        if ((int) $company->credits - (int) $company->compute_debt < $debt) {
+        $margin = self::matureMargin();
+        if (!self::canMature($company)) {
             return ['ok' => false, 'status' => 409, 'error' => 'It holds ' . number_format((int) $company->credits)
-                . ' credits and owes ' . number_format($debt) . ': it can mature once it can pay its debt.'];
+                . ' credits and owes ' . number_format($debt) . ': it can mature once it holds its debt and '
+                . number_format($margin) . ' more to work with (' . number_format($debt + $margin) . ').'];
         }
-        return DB::transaction(function () use ($owner, $companyId, $company, $debt) {
+        return DB::transaction(function () use ($owner, $companyId, $company, $debt, $margin) {
             $done = DB::table('companies')->where('company_id', $companyId)->where('seedling', 1)
-                ->where('credits', '>=', $debt)->update(['credits' => DB::raw('credits - ' . $debt), 'debt' => 0,
+                ->where('credits', '>=', $debt + $margin)->update(['credits' => DB::raw('credits - ' . $debt), 'debt' => 0,
                     'seedling' => 0, 'matured_t' => World::gameNow()]);
             if (!$done) {
                 return ['ok' => false, 'status' => 409, 'error' => 'It can\'t pay its debt now: try again.'];
@@ -211,7 +227,7 @@ class Seedlings
             'seedlings' => $rows->where('seedling', 1)->map(fn ($c) => [
                 'company_id' => (int) $c->company_id, 'name' => $c->name, 'drone' => $drone($c->company_id),
                 'credits' => (int) $c->credits, 'debt' => (int) $c->debt,
-                'can_mature' => (int) $c->credits - (int) $c->compute_debt >= (int) $c->debt,
+                'can_mature' => self::canMature($c),
             ])->values()->all(),
             'companies' => $rows->where('seedling', 0)->map(fn ($c) => [
                 'company_id' => (int) $c->company_id, 'name' => $c->name, 'drone' => $drone($c->company_id),

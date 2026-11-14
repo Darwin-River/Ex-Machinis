@@ -347,7 +347,7 @@ Think of your drone's script as a sequencer that decides how one action follows 
 |---|---|
 | 0 | done |
 | -1 | the other drone is not at the same place |
-| -2 | not enough of a resource in the cargo hold |
+| -2 | not enough of a resource in the cargo hold (or, for `go`, no Engine to fly with) |
 | -3 | not enough room in the cargo hold |
 | -4 | not enough credits |
 | -5 | the seller's order doesn't allow selling that many |
@@ -356,14 +356,14 @@ Think of your drone's script as a sequencer that decides how one action follows 
 | -9 | the action was stopped |
 | -10 | the other drone has no matching buy or sell order |
 | -11 | there is no such protocol |
-| -12 | refused, for example because a parameter names something that doesn't exist |
-| -13 | the other drone belongs to one of your own player's companies |
-| -14 | no House station here trades that resource that way |
+| -12 | refused, for example because a parameter names something that doesn't exist; from `buy_here` or `sell_here`, nobody here sells or buys it |
+| -13 | no longer used: two of one player's companies may trade (under the new rules their dealings are flagged) |
+| -14 | no House station here trades that resource that way (from a `push` or `pull` aimed at a station) |
 | -15 | no wreck of that ID where you are, or it has already been plundered |
 | -16 | a seedling trades only with the House, and plunders nothing (the new rules) |
-| -17 | a seedling has bought its share (a tenth) of what the House has on sale of that good here today |
+| -17 | a seedling has bought its share (a tenth) of what the House has on sale of that good here today: its own cap, which resets each game day |
 | -18 | under the new rules players, not companies, trade shares |
-| -19 | under the new rules a standing order can't be withdrawn, cut or made worse in its first 12 game hours |
+| -19 | under the new rules an open standing order can't be withdrawn, cut or made worse in its first 12 game hours (a buy order lower or wanting fewer, a sell order dearer or keeping more back) |
 | -30 | refused by your [fuel floor](#fuel-floor) |
 
 Your script can use the result to decide what to do next. For example, this function tries to pull 5 kunspar from drone 52 and says whether it worked:

@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Players' shares and the bank (#638, step 3 of the new rules in #635).
  *
- * A matured company's 1,000 shares are its player's (#637), and players trade
+ * A matured company's 100 shares (#667) are its player's (#637), and players trade
  * them. The price that anchors everything is the company's cash-out value: its
  * credits, plus what the House would pay for its goods and equipment where
  * they are now, plus each working drone's hull at a fixed value that falls
@@ -30,7 +30,9 @@ use Illuminate\Support\Facades\DB;
  */
 class PlayerShares
 {
-    public const COUNT = 1000;
+    // A matured company's shares: 100 since #667, so each is worth enough to
+    // price in whole credits (1,000 made it 2 to 15 credits)
+    public const COUNT = 100;
 
     /** Can players trade this company's shares: a matured company of the new rules, still trading? */
     public static function tradable(int $company): bool
@@ -190,7 +192,10 @@ class PlayerShares
             return self::fail(404, 'There is no such matured company.');
         }
         $p = self::prices($company);
-        if ($units < 1 || $p['bank_holds'] < $units) {
+        if ($units < 1) {
+            return self::fail(422, 'Buy at least 1 whole share.');   // #665
+        }
+        if ($p['bank_holds'] < $units) {
             return self::fail(409, 'The bank holds ' . $p['bank_holds'] . ' of its shares.');
         }
         $cost = $units * $p['sells_at'];
@@ -272,11 +277,33 @@ class PlayerShares
                 $spent += $n * $at;
             }
             $id = null;
-            if ($traded < $units) {
-                $id = DB::table('player_share_orders')->insertGetId(['user_id' => $me, 'company_id' => $company,
-                    'side' => $side, 'units' => $units - $traded, 'price' => $price, 'created_at' => now()]);
+            $standing = $units - $traded;
+            $note = null;
+            // What stands of a buy order can't commit more than the account
+            // can pay (#665): its buy orders together, with starting credits
+            // only at or below the bank's selling price
+            if ($standing > 0 && $side === 'buy') {
+                $row = DB::table('users')->where('user_id', $me)->first(['credits', 'share_credits']);
+                $can = (int) $row->credits + ($price <= $p['sells_at'] ? (int) $row->share_credits : 0);
+                $committed = (int) DB::table('player_share_orders')->where('user_id', $me)->where('side', 'buy')
+                    ->sum(DB::raw('units * price'));
+                if ($committed + $standing * $price > $can) {
+                    if ($traded === 0) {
+                        return self::fail(422, 'You can\'t pay for that: your buy orders would commit '
+                            . number_format($committed + $standing * $price) . ' credits, and you have ' . number_format($can)
+                            . ' to buy at that price' . ($price > $p['sells_at'] ? ' (starting credits pay only at or below the bank\'s price, '
+                            . $p['sells_at'] . ')' : '') . '.');
+                    }
+                    $note = 'The rest didn\'t stand: you can\'t pay for it.';
+                    $standing = 0;
+                }
             }
-            return ['ok' => true, 'traded' => $traded, 'credits' => $spent, 'standing' => $units - $traded, 'order' => $id];
+            if ($standing > 0) {
+                $id = DB::table('player_share_orders')->insertGetId(['user_id' => $me, 'company_id' => $company,
+                    'side' => $side, 'units' => $standing, 'price' => $price, 'created_at' => now()]);
+            }
+            return ['ok' => true, 'traded' => $traded, 'credits' => $spent, 'standing' => $standing, 'order' => $id]
+                + ($note ? ['note' => $note] : []);
         });
     }
 
@@ -285,11 +312,46 @@ class PlayerShares
         return DB::table('player_share_orders')->where('id', $order)->where('user_id', $user->user_id)->delete() > 0;
     }
 
-    /** A company's standing orders, best first on each side */
+    /**
+     * Who holds a matured company's shares (#666): players by name, and the
+     * bank, most first: [['name', 'units', 'bank']]
+     */
+    public static function holders(int $company): array
+    {
+        $rows = DB::table('player_shares as s')->join('users as u', 'u.user_id', '=', 's.user_id')
+            ->where('s.company_id', $company)->where('s.units', '>', 0)->orderByDesc('s.units')
+            ->get(['u.login', 's.units'])->map(fn ($r) => ['name' => $r->login, 'units' => (int) $r->units, 'bank' => false])->all();
+        $bank = (int) (DB::table('bank_shares')->where('company_id', $company)->value('units') ?? 0);
+        if ($bank > 0) {
+            $rows[] = ['name' => 'The bank', 'units' => $bank, 'bank' => true];
+            usort($rows, fn ($a, $b) => $b['units'] <=> $a['units']);
+        }
+        return $rows;
+    }
+
+    /**
+     * Every matured company still trading, for the stock exchange page and
+     * API (#666): id, name, its prices, the bank's shares, and its holders
+     */
+    public static function market(): array
+    {
+        return DB::table('companies')->where('seedling', 0)->whereNotNull('owner_id')->whereNotNull('matured_t')
+            ->whereNull('eliminated_at')->orderBy('name')->get(['company_id', 'name'])
+            ->map(fn ($c) => ['company' => (int) $c->company_id, 'name' => $c->name]
+                + self::prices((int) $c->company_id) + ['holders' => self::holders((int) $c->company_id)])->all();
+    }
+
+    /**
+     * A company's standing orders, best first on each side: those within
+     * the range players trade in now. An order the range has moved away from
+     * can't trade, so it isn't shown until the range comes back (#665)
+     */
     public static function book(int $company): array
     {
+        $p = self::prices($company);
         $rows = fn ($side, $dir) => DB::table('player_share_orders as o')->join('users as u', 'u.user_id', '=', 'o.user_id')
-            ->where('o.company_id', $company)->where('o.side', $side)->orderBy('o.price', $dir)->orderBy('o.id')
+            ->where('o.company_id', $company)->where('o.side', $side)->whereBetween('o.price', [$p['low'], $p['high']])
+            ->orderBy('o.price', $dir)->orderBy('o.id')
             ->limit(20)->get(['o.id', 'o.units', 'o.price', 'u.login as by'])
             ->map(fn ($o) => ['id' => (int) $o->id, 'units' => (int) $o->units, 'price' => (int) $o->price, 'by' => $o->by])->all();
         return ['sell' => $rows('sell', 'asc'), 'buy' => $rows('buy', 'desc')];

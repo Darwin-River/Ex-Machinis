@@ -27,7 +27,7 @@ class PlayerSharesTest extends TestCase
         config(['forge.new_rules' => true, 'forge.seedling_hull_value' => 2000, 'forge.seedling_fee' => 500,
             'forge.starting_credits' => 3000, 'forge.player_share_credits' => 5000, 'forge.bank_pay_days' => 30,
             'forge.share_range_low' => 0.8, 'forge.share_range_high' => 1.25, 'forge.hull_life_days' => 365,
-            'forge.dividend_permille' => 500, 'forge.seedling_max' => 5]);
+            'forge.dividend_permille' => 500, 'forge.seedling_max' => 5, 'forge.seedling_mature_margin' => 0]);
         Mail::fake();
     }
 
@@ -66,7 +66,7 @@ class PlayerSharesTest extends TestCase
         $this->assertSame(100000, $v['credits']);
         $this->assertGreaterThan(1900, $v['hulls'], 'its drone, fuelled and new');
         $this->assertLessThanOrEqual(2000, $v['hulls']);
-        $this->assertSame(intdiv($v['total'], 1000), $v['per_share']);
+        $this->assertSame(intdiv($v['total'], PlayerShares::COUNT), $v['per_share']);
         $p = PlayerShares::prices($id);
         $this->assertSame($v['per_share'], $p['buys_at']);
         $this->assertSame($p['buys_at'], $p['sells_at'], 'no profit yet, so no dividends');
@@ -82,8 +82,8 @@ class PlayerSharesTest extends TestCase
         $today = intdiv(World::gameNow() - $epoch, 86400);
         DB::table('company_profits')->insert(['company' => $id, 'day' => $today - 1, 'sales' => 40000, 'purchases' => 0,
             'profit' => 40000, 'carry_before' => 0, 'paid' => 0, 'holders' => 0, 'logged_only' => 0]);
-        $this->assertSame(20, PlayerShares::dividends30($id), 'half of 40,000 over 1,000 shares');
-        $this->assertSame(PlayerShares::prices($id)['buys_at'] + 20, PlayerShares::prices($id)['sells_at']);
+        $this->assertSame(200, PlayerShares::dividends30($id), 'half of 40,000 over 100 shares');
+        $this->assertSame(PlayerShares::prices($id)['buys_at'] + 200, PlayerShares::prices($id)['sells_at']);
     }
 
     public function testTheBankBuysLaterAtTheLowerValueAndSellsWhatItHolds()
@@ -91,11 +91,11 @@ class PlayerSharesTest extends TestCase
         $owner = $this->player('Seller');
         $id = $this->matured($owner, 'Bank Co', 100000);
         $price = PlayerShares::cashOut($id)['per_share'];
-        $r = PlayerShares::sellToBank($owner, $id, 400);
+        $r = PlayerShares::sellToBank($owner, $id, 40);
         $this->assertTrue($r['ok']);
-        $this->assertSame(600, PlayerShares::held((int) $owner->user_id, $id));
-        $this->assertSame(400, PlayerShares::prices($id)['bank_holds']);
-        $this->assertSame(422, PlayerShares::sellToBank($owner, $id, 601)['status']);
+        $this->assertSame(60, PlayerShares::held((int) $owner->user_id, $id));
+        $this->assertSame(40, PlayerShares::prices($id)['bank_holds']);
+        $this->assertSame(422, PlayerShares::sellToBank($owner, $id, 61)['status']);
 
         // Not paid before it is due
         PlayerShares::settleBankPayments();
@@ -106,18 +106,18 @@ class PlayerSharesTest extends TestCase
         $this->assertSame(1, PlayerShares::settleBankPayments());
         $lower = PlayerShares::cashOut($id)['per_share'];
         $this->assertLessThan($price, $lower);
-        $this->assertSame(400 * $lower, $this->credits($owner)[0]);
+        $this->assertSame(40 * $lower, $this->credits($owner)[0]);
         PlayerShares::settleBankPayments();
-        $this->assertSame(400 * $lower, $this->credits($owner)[0], 'paid once');
+        $this->assertSame(40 * $lower, $this->credits($owner)[0], 'paid once');
 
         // Another player buys from the bank at its selling price, starting credits first
         $buyer = $this->player('Bank Buyer');
         $sells = PlayerShares::prices($id)['sells_at'];
-        $r = PlayerShares::buyFromBank($buyer, $id, 10);
+        $r = PlayerShares::buyFromBank($buyer, $id, 2);
         $this->assertTrue($r['ok']);
-        $this->assertSame([0, 5000 - 10 * $sells], $this->credits($buyer));
-        $this->assertSame(390, PlayerShares::prices($id)['bank_holds']);
-        $this->assertSame(409, PlayerShares::buyFromBank($buyer, $id, 391)['status']);
+        $this->assertSame([0, 5000 - 2 * $sells], $this->credits($buyer));
+        $this->assertSame(38, PlayerShares::prices($id)['bank_holds']);
+        $this->assertSame(409, PlayerShares::buyFromBank($buyer, $id, 39)['status']);
     }
 
     public function testPlayersTradeWithinTheRange()
@@ -138,7 +138,7 @@ class PlayerSharesTest extends TestCase
         $this->assertSame(0, $r['standing']);
         $this->assertSame(4 * $p['sells_at'], $r['credits'], 'at the standing order\'s price');
         $this->assertSame(4, PlayerShares::held((int) $buyer->user_id, $id));
-        $this->assertSame(996, PlayerShares::held((int) $owner->user_id, $id));
+        $this->assertSame(96, PlayerShares::held((int) $owner->user_id, $id));
         $this->assertSame(4 * $p['sells_at'], $this->credits($owner)[0], 'the seller is paid in credits');
         $this->assertSame([0, 5000 - 4 * $p['sells_at']], $this->credits($buyer), 'starting credits at the bank\'s price');
         $this->assertSame(6, PlayerShares::book($id)['sell'][0]['units']);
@@ -147,10 +147,18 @@ class PlayerSharesTest extends TestCase
         PlayerShares::cancel($owner, PlayerShares::book($id)['sell'][0]['id']);
         PlayerShares::order($owner, $id, 'sell', 5, $p['high']);
         $r = PlayerShares::order($buyer, $id, 'buy', 5, $p['high']);
-        $this->assertSame(0, $r['traded'], 'it has no ordinary credits');
-        $this->assertSame(5, $r['standing']);
-        PlayerShares::cancel($buyer, $r['order']);
+        $this->assertFalse($r['ok'], 'it has no ordinary credits, so the order can\'t stand (#665)');
+        $this->assertSame(422, $r['status']);
         $this->assertSame([], PlayerShares::of($buyer)['orders']);
+        // Nor can buy orders commit more starting credits than it has
+        $left = $this->credits($buyer)[1];
+        $this->assertSame(422, PlayerShares::order($buyer, $id, 'buy', intdiv($left, $p['low']) + 1, $p['low'])['status']);
+        // The book shows only orders within today's range
+        $stale = DB::table('player_share_orders')->insertGetId(['user_id' => $owner->user_id, 'company_id' => $id,
+            'side' => 'sell', 'units' => 1, 'price' => $p['low'] - 1, 'created_at' => now()]);
+        $this->assertNotContains($stale, array_column(PlayerShares::book($id)['sell'], 'id'));
+        // and a bank purchase of no shares says so
+        $this->assertSame(422, PlayerShares::buyFromBank($buyer, $id, 0)['status']);
 
         // The account page and the company page show it
         $this->actingAs($buyer)->get('/account')->assertOk()->assertSee('Traded Co')->assertSee('Your shares');
@@ -167,7 +175,7 @@ class PlayerSharesTest extends TestCase
         $group = Players::createClassGroup($teacher, 'Nebula', 1);
         $pupil = User::where('login', 'Nebula 1')->first();
         PlayerShares::order($owner, $id, 'sell', 10, $p['sells_at']);
-        $r = PlayerShares::order($pupil, $id, 'buy', 5, $p['sells_at']);
+        $r = PlayerShares::order($pupil, $id, 'buy', 2, $p['sells_at']);
         $this->assertSame(0, $r['traded'], 'the public sells to the public');
         $this->assertSame(0, PlayerShares::held((int) $pupil->user_id, $id));
         $this->assertNotNull($group['id']);
@@ -187,9 +195,9 @@ class PlayerSharesTest extends TestCase
         $owner = $this->player('Earner');
         $id = $this->matured($owner, 'Dividend Co', 100000);
         $partner = $this->player('Partner');
-        DB::table('player_shares')->where('user_id', $owner->user_id)->where('company_id', $id)->update(['units' => 700]);
-        DB::table('player_shares')->insert(['user_id' => $partner->user_id, 'company_id' => $id, 'units' => 200]);
-        DB::table('bank_shares')->insert(['company_id' => $id, 'units' => 100]);
+        DB::table('player_shares')->where('user_id', $owner->user_id)->where('company_id', $id)->update(['units' => 70]);
+        DB::table('player_shares')->insert(['user_id' => $partner->user_id, 'company_id' => $id, 'units' => 20]);
+        DB::table('bank_shares')->insert(['company_id' => $id, 'units' => 10]);
         $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
         $matured = intdiv((int) DB::table('companies')->where('company_id', $id)->value('matured_t') - $epoch, 86400);
         $day = fn ($d, $profit, $carry) => DB::table('company_profits')->insert(['company' => $id, 'day' => $d,
@@ -221,12 +229,17 @@ class PlayerSharesTest extends TestCase
         $owner = $this->player('Api Founder');
         $id = $this->matured($owner, 'Api Co', 100000);
         $h = ['Authorization' => 'Bearer ' . Players::issueToken($owner)];
+        // The company's API shows players' shares and its locked code (#666)
+        $this->getJson("/api/v1/companies/$id")->assertOk()->assertJsonPath('shares.count', PlayerShares::COUNT)
+            ->assertJsonPath('shares.holders.0.name', 'Api Founder')->assertJsonPath('pushes.locked', true);
+        $this->getJson('/api/v1/shares')->assertOk()->assertJsonPath('player_shares.0.company', $id);
+        $this->get('/market/shares')->assertOk()->assertSee('Api Co');
         $this->getJson("/api/v1/player-shares/$id")->assertOk()->assertJsonPath('company', $id)
             ->assertJsonStructure(['buys_at', 'sells_at', 'low', 'high', 'bank_holds', 'book' => ['sell', 'buy']]);
         $sells = PlayerShares::prices($id)['sells_at'];
         $order = $this->postJson("/api/v1/player-shares/$id/orders", ['side' => 'sell', 'units' => 3, 'price' => $sells], $h)
             ->assertOk()->assertJsonPath('standing', 3)->json('order');
-        $this->getJson('/api/v1/account/shares', $h)->assertOk()->assertJsonPath('holdings.0.units', 1000)
+        $this->getJson('/api/v1/account/shares', $h)->assertOk()->assertJsonPath('holdings.0.units', 100)
             ->assertJsonPath('orders.0.id', $order);
         $this->postJson("/api/v1/player-shares/orders/$order/cancel", [], $h)->assertOk();
         $this->postJson("/api/v1/player-shares/$id/bank/sell", ['units' => 2], $h)->assertOk()->assertJsonPath('units', 2);

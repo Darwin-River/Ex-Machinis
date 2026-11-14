@@ -181,6 +181,18 @@ class CodePush
     /** What the company page and API say about pushes */
     public static function summary(object $company): array
     {
+        // The new rules (#666): a seedling's owner reprograms it for a flat
+        // fee on its debt (the first free); a matured company's code is locked
+        if ((int) ($company->seedling ?? 0) === 1) {
+            $fee = Seedlings::pushFee($company);
+            return ['enabled' => $company->eliminated_at === null, 'seedling' => true, 'count' => (int) $company->pushes,
+                'next_fee' => $fee, 'debt' => (int) $company->debt, 'debt_after' => (int) $company->debt + $fee,
+                'log' => self::log((int) $company->company_id)];
+        }
+        if (($company->owner_id ?? null) !== null) {
+            return ['enabled' => false, 'locked' => true, 'count' => (int) $company->pushes,
+                'log' => self::log((int) $company->company_id)];
+        }
         [$permille, $fee] = self::nextFee($company);
         return ['enabled' => $company->push_password !== null, 'count' => (int) $company->pushes,
             'next_fee_percent' => $permille / 10, 'next_fee' => $fee, 'log' => self::log((int) $company->company_id)];

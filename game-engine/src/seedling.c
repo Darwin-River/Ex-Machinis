@@ -33,7 +33,10 @@ int order_lock_outcome(int buy, long long prev_price, long long prev_units, long
 {
     if(age >= lock)
         return 0;
-    if(new_units < prev_units)
+    // A buy order's units are what it wants: fewer is a cut. A sell order's
+    // are the stock it keeps: more is a cut, and withdrawing one keeps all
+    // (1,000,000) (#662)
+    if(buy ? new_units < prev_units : new_units > prev_units)
         return OUTCOME_ORDER_LOCKED;
     if(buy ? new_price < prev_price : new_price > prev_price)
         return OUTCOME_ORDER_LOCKED;

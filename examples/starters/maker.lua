@@ -12,7 +12,8 @@ rod_load = 12      -- rods it takes to Earth (4 cargo each)
 low_fuel = 40      -- buy fuel below this
 keep_fuel = 25     -- it stops making rods below this much fuel
 trip_margin = 20   -- flies to Earth only if rods sold there for this much more
-grow_at = 7000     -- credits at which it buys and launches a copy
+grow_at = 7000     -- credits at which it buys and launches a copy (not while
+                   -- it is a seedling: it saves for its debt, then grows once matured)
 work_cash = 1500   -- credits each drone keeps to work with: a copy launches
                    -- only when the company keeps this much for every drone
                    -- it will have (#542: copies left companies with 8 to
@@ -39,11 +40,16 @@ end
 function spare() return math.max(credits() - cash_floor, 0) end
 
 -- Metals for a batch, as many as the spare credits pay for (at most 30 a unit)
+-- A seedling buys at most a tenth of what the House has on sale here in a
+-- game day (-17): once it has, it waits for the next day here instead of
+-- asking again and again (round 67)
+capped_day = -1
 function stock_up()
   if units(metals_a1) >= 2 then return end
+  if capped_day == today() then wait(240); return end
   local n = math.min(batch, spare() // 30)
   if n > 0 then
-    buy_here(n, metals_a1)
+    if buy_here(n, metals_a1) == -17 then capped_day = today() end
     wait(60)
   end
 end

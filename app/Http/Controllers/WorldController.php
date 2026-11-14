@@ -62,7 +62,9 @@ class WorldController extends Controller
     public function shares()
     {
         $exchange = \App\Services\Shares::exchange();
-        return view('world.shares', compact('exchange'));
+        // The new rules (#666): matured companies' shares, which players trade
+        $playerMarket = config('forge.new_rules') ? \App\Services\PlayerShares::market() : null;
+        return view('world.shares', compact('exchange', 'playerMarket'));
     }
 
     /** The leaderboard (#324 step 18): net wealth, all time and Rising */

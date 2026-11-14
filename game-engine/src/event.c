@@ -1495,7 +1495,9 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
 
     if(result == ENGINE_OK) {
         db_savepoint("RELEASE SAVEPOINT transfer");
-        db_seedling_record_buy(seedling_buyer, partner, from_object);
+        // What was bought: the untouched copy, as the applied event now holds
+        // the buyer's whole stock (#663)
+        db_seedling_record_buy(seedling_buyer, &second, from_object);
         return ENGINE_OK;
     }
 
