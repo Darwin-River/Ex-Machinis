@@ -103,6 +103,15 @@ class PlayerAccountsTest extends TestCase
         $this->assertStringNotContainsString('star@example.com', $this->get('/leaderboard')->getContent(), 'the address is private');
     }
 
+    /** A trial without a mail service (#642): accounts are verified at once */
+    public function testATrialVerifiesAtOnce()
+    {
+        config(['forge.trial_auto_verify' => true]);
+        $user = Players::create('Trial Player', 'long-enough', 'trial@example.com');
+        $this->assertTrue(Players::verified($user));
+        $this->assertSame(5000, (int) DB::table('users')->where('user_id', $user->user_id)->value('share_credits'));
+    }
+
     public function testResendingTheLink()
     {
         $user = Players::create('Slow Reader', 'long-enough', 'slow@example.com');

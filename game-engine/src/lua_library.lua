@@ -122,20 +122,40 @@ local function trip(place)
   return -1
 end
 
--- The cheapest other drone's sell order here: price, drone, units it will sell
+-- A seedling trades only with the House (#637): the House's station drones
+-- here, as a set, when this drone's company is a seedling; nil when it may
+-- trade with anyone (query 708)
+local function house_only()
+  local rows = ask(708)
+  if not rows[1] or rows[1][1] ~= 1 then return nil end
+  local stations = {}
+  for _, r in ipairs(rows) do
+    if r[2] and r[2] > 0 then stations[r[2]] = true end
+  end
+  return stations
+end
+
+-- May this drone trade with drone d? (only: house_only()'s answer)
+local function may_trade(d, mine, only)
+  return d ~= mine and (only == nil or only[d] == true)
+end
+
+-- The cheapest other drone's sell order here (the House's only, for a
+-- seedling): price, drone, units it will sell
 local function best_offer(resource)
-  local mine = me()
+  local mine, only = me(), house_only()
   for _, o in ipairs(ask(610, resource)) do
-    if o[4] ~= mine then return o[1], o[4], math.max(o[3] - o[2], 0) end
+    if may_trade(o[4], mine, only) then return o[1], o[4], math.max(o[3] - o[2], 0) end
   end
   return 0, 0, 0
 end
 
--- The best other drone's buy order here: price, drone, units it will buy
+-- The best other drone's buy order here (the House's only, for a seedling):
+-- price, drone, units it will buy
 local function best_bid(resource)
-  local mine = me()
+  local mine, only = me(), house_only()
   for _, o in ipairs(ask(600, resource)) do
-    if o[4] ~= mine then return o[1], o[4], math.max(o[2] - o[3], 0) end
+    if may_trade(o[4], mine, only) then return o[1], o[4], math.max(o[2] - o[3], 0) end
   end
   return 0, 0, 0
 end
@@ -181,12 +201,12 @@ end
 -- tries, each an action. With max_price it buys only from sellers asking
 -- at most that a unit (#503: once the cheap sellers ran out it paid 49)
 local function buy_here(n, resource, max_price)
-  local result, tries, mine, refused = -12, 0, me(), {}
+  local result, tries, mine, refused, only = -12, 0, me(), {}, house_only()
   while n > 0 and tries < 6 do
     local seller, avail
     for _, o in ipairs(ask(610, resource)) do
       if max_price and o[1] > max_price then break end
-      if o[4] ~= mine and not refused[o[4]] and o[3] > o[2] then seller, avail = o[4], o[3] - o[2]; break end
+      if may_trade(o[4], mine, only) and not refused[o[4]] and o[3] > o[2] then seller, avail = o[4], o[3] - o[2]; break end
     end
     if not seller then break end
     local take = math.min(n, avail)
@@ -201,11 +221,11 @@ end
 local function sell_here(n, resource)
   -- Reads the buy orders afresh before each push, as buy_here does (#502),
   -- and skips a buyer that refused
-  local result, tries, mine, refused = -12, 0, me(), {}
+  local result, tries, mine, refused, only = -12, 0, me(), {}, house_only()
   while n > 0 and tries < 6 do
     local buyer, want
     for _, o in ipairs(ask(600, resource)) do
-      if o[4] ~= mine and not refused[o[4]] and o[2] > o[3] then buyer, want = o[4], o[2] - o[3]; break end
+      if may_trade(o[4], mine, only) and not refused[o[4]] and o[2] > o[3] then buyer, want = o[4], o[2] - o[3]; break end
     end
     local take = buyer and math.min(n, want, units(resource)) or 0
     if take <= 0 then break end
@@ -982,6 +1002,7 @@ _G.equip = equip
 _G.deposit = deposit
 _G.go = go
 _G.trip = trip
+_G.house_only = house_only
 _G.best_offer = best_offer
 _G.best_bid = best_bid
 _G.sell_price = sell_price

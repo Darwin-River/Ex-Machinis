@@ -1542,6 +1542,16 @@ queries.append((707, 'House supply',
                 "IFNULL(FLOOR(round_seconds / 60), -1) AS round_minutes, "
                 "IF(next_round_t IS NULL, -1, GREATEST(0, CEIL((next_round_t - [game_now]) / 60))) AS next_minutes "
                 "FROM house_supply WHERE resource = [value_1] ORDER BY price = 0, price, place;"))
+# #637: a seedling trades only with the House. One row per House station
+# drone where this drone is: whether its company is a seedling (1 or 0), and
+# the station drone (a seedling's buy_here, sell_here, best_offer and
+# best_bid deal only with these)
+queries.append((708, 'House only',
+                'Whether this drone\'s company is a seedling (1: it trades only with the House), and each House station '
+                'drone where it is, one row each.', 0,
+                "SELECT c.seedling, s.agent_id FROM agents AS me INNER JOIN companies AS c ON c.company_id = me.company_id "
+                "LEFT JOIN agents AS s ON s.object_id = me.object_id AND s.station_id IS NOT NULL AND s.wrecked_at IS NULL "
+                "WHERE me.agent_id = [drone_id];"))
 # #599: the shares other companies hold in x (an offering, or x selling its
 # own, may not take them past half), and how many game days of sales its
 # 7-day average covers (fewer for a young company: round 62's players priced
@@ -1891,7 +1901,7 @@ QUERY_FUNCS = {
     '400': 'resource_name(N)', '401': 'unit_mass(N)', '410': 'best_sites(N)', '500': 'protocol_name(N)',
     '501': 'protocol_minutes(N)', '510': 'consumes(N)', '511': 'produces(N)', '512': 'retains(N)',
     '520': 'consumers(N)', '521': 'producers(N)', '522': 'users(N)', '600': 'buy_orders(N)',
-    '610': 'sell_orders(N)', '690': 'share_sell_orders(N)', '691': 'share_buy_orders(N)', '692': 'shares_held()', '693': 'shareholders(N)', '694': 'share_trades(N)', '696': 'shares_for_sale()', '697': 'share_offerings()', '698': 'share_count(N)', '699': 'company_health(N)', '651': 'compute_tax()', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
+    '610': 'sell_orders(N)', '690': 'share_sell_orders(N)', '691': 'share_buy_orders(N)', '692': 'shares_held()', '693': 'shareholders(N)', '694': 'share_trades(N)', '696': 'shares_for_sale()', '697': 'share_offerings()', '698': 'share_count(N)', '699': 'company_health(N)', '651': 'compute_tax()', '708': 'house_only()', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
     '640': 'deposits()', '650': 'taxes()', '655': 'earnings(H)', '660': 'wrecks()', '661': 'wreck_hold(W)',
     '670': 'my_clones()', '671': 'lineage()', '680': 'price_board(N)', '682': 'sales(N, D)', '695': 'recipe(R)',
     '700': 'place_name(N)', '701': 'place_type(N)', '702': 'orbits(N)', '703': 'position(N)',
