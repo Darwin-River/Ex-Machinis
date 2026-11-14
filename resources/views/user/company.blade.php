@@ -77,6 +77,13 @@
                         </div>
                     @endforeach
                 </div>
+                {{-- Who holds its shares (#666): players and the bank --}}
+                <table class="table table-sm" id="player-share-holders"><tbody>
+                    <tr><th>Holder</th><th class="text-right">Shares</th></tr>
+                    @foreach(\App\Services\PlayerShares::holders((int) $user->user_id) as $holder)
+                        <tr><td>{{ $holder['name'] }}</td><td class="text-right">{{ number_format($holder['units']) }}</td></tr>
+                    @endforeach
+                </tbody></table>
                 @if($playerShares['held'] !== null)
                     <p>You hold {{ number_format($playerShares['held']) }} of its shares.</p>
                     <form method="POST" action="{{ url('companies/' . $user->user_id . '/share-orders') }}" class="form-inline mb-2">
@@ -84,7 +91,7 @@
                         <label class="sr-only" for="ps-side">Buy or sell</label>
                         <select class="form-control mr-2 mb-2" id="ps-side" name="side"><option value="buy">Buy</option><option value="sell">Sell</option></select>
                         <label class="mr-2" for="ps-units">shares</label>
-                        <input class="form-control mr-2 mb-2" id="ps-units" name="units" type="number" min="1" max="1000" value="10" required>
+                        <input class="form-control mr-2 mb-2" id="ps-units" name="units" type="number" min="1" max="100" value="1" required>
                         <label class="mr-2" for="ps-price">at</label>
                         <input class="form-control mr-2 mb-2" id="ps-price" name="price" type="number" min="{{ $playerShares['low'] }}"
                                max="{{ $playerShares['high'] }}" value="{{ $playerShares['sells_at'] }}" required>
@@ -93,7 +100,7 @@
                     <form method="POST" action="{{ url('companies/' . $user->user_id . '/bank/sell') }}" class="form-inline mb-2">
                         {{ csrf_field() }}
                         <label class="mr-2" for="bank-sell">Sell to the bank:</label>
-                        <input class="form-control mr-2 mb-2" id="bank-sell" name="units" type="number" min="1" max="1000" required>
+                        <input class="form-control mr-2 mb-2" id="bank-sell" name="units" type="number" min="1" max="100" required>
                         <button class="button button-secondary button-sm mb-2" type="submit">Sell</button>
                     </form>
                     @if($playerShares['bank_holds'] > 0)
@@ -313,6 +320,19 @@
                 </p>
             @endif
 
+            @php($newRules = (int) ($user->seedling ?? 0) === 1 || ($user->owner_id ?? null) !== null)
+            @if($newRules)
+                {{-- The new rules (#666): reprogramming a seedling, or a matured company's locked code --}}
+                <h3 class="mt-4" id="pushes">New code</h3>
+                @if(!empty($pushes['seedling']))
+                    <p style="white-space: normal">Its owner reprograms this seedling from their
+                        <a href="{{ url('account') }}#seedlings">account page</a> (or the API). Pushed {{ $pushes['count'] }}
+                        {{ $pushes['count'] === 1 ? 'time' : 'times' }}; the next push adds {{ number_format($pushes['next_fee']) }}
+                        credits to its debt{{ $pushes['next_fee'] === 0 ? ' (the first is free)' : '' }}.</p>
+                @else
+                    <p style="white-space: normal">This company has matured: its code is locked for good.</p>
+                @endif
+            @else
             {{-- Code pushes (#553): new code for its drones, with the password it was released with --}}
             <h3 class="mt-4" id="pushes">Push new code</h3>
             @include('_flash_message')
@@ -468,6 +488,7 @@
                         @endforeach
                     </table>
                 </div>
+            @endif
             @endif
 
         </div>

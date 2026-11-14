@@ -165,8 +165,10 @@ class Seedlings
         DB::transaction(function () use ($companyId, $now) {
             DB::table('agents')->where('company_id', $companyId)->whereNull('wrecked_at')
                 ->update(['wrecked_at' => $now, 'wreck_cause' => 'closed', 'launched_running' => 0]);
-            // Its wrecks hold nothing anyone can take
+            // Its wrecks hold nothing anyone can take, and show an empty hold (#666)
             DB::table('agents')->where('company_id', $companyId)->whereNull('plundered_at')->update(['plundered_at' => $now]);
+            DB::table('holdings')->whereIn('drone', DB::table('agents')->where('company_id', $companyId)->select('agent_id'))->delete();
+            DB::table('latest_orders')->whereIn('drone', DB::table('agents')->where('company_id', $companyId)->select('agent_id'))->delete();
             DB::table('companies')->where('company_id', $companyId)->update(['credits' => 0, 'debt' => 0,
                 'eliminated_at' => $now, 'end_cause' => 'closed', 'broke_since' => null]);
         });

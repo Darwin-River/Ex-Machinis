@@ -313,6 +313,35 @@ class PlayerShares
     }
 
     /**
+     * Who holds a matured company's shares (#666): players by name, and the
+     * bank, most first: [['name', 'units', 'bank']]
+     */
+    public static function holders(int $company): array
+    {
+        $rows = DB::table('player_shares as s')->join('users as u', 'u.user_id', '=', 's.user_id')
+            ->where('s.company_id', $company)->where('s.units', '>', 0)->orderByDesc('s.units')
+            ->get(['u.login', 's.units'])->map(fn ($r) => ['name' => $r->login, 'units' => (int) $r->units, 'bank' => false])->all();
+        $bank = (int) (DB::table('bank_shares')->where('company_id', $company)->value('units') ?? 0);
+        if ($bank > 0) {
+            $rows[] = ['name' => 'The bank', 'units' => $bank, 'bank' => true];
+            usort($rows, fn ($a, $b) => $b['units'] <=> $a['units']);
+        }
+        return $rows;
+    }
+
+    /**
+     * Every matured company still trading, for the stock exchange page and
+     * API (#666): id, name, its prices, the bank's shares, and its holders
+     */
+    public static function market(): array
+    {
+        return DB::table('companies')->where('seedling', 0)->whereNotNull('owner_id')->whereNotNull('matured_t')
+            ->whereNull('eliminated_at')->orderBy('name')->get(['company_id', 'name'])
+            ->map(fn ($c) => ['company' => (int) $c->company_id, 'name' => $c->name]
+                + self::prices((int) $c->company_id) + ['holders' => self::holders((int) $c->company_id)])->all();
+    }
+
+    /**
      * A company's standing orders, best first on each side: those within
      * the range players trade in now. An order the range has moved away from
      * can't trade, so it isn't shown until the range comes back (#665)

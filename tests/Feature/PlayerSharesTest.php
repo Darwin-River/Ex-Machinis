@@ -229,6 +229,11 @@ class PlayerSharesTest extends TestCase
         $owner = $this->player('Api Founder');
         $id = $this->matured($owner, 'Api Co', 100000);
         $h = ['Authorization' => 'Bearer ' . Players::issueToken($owner)];
+        // The company's API shows players' shares and its locked code (#666)
+        $this->getJson("/api/v1/companies/$id")->assertOk()->assertJsonPath('shares.count', PlayerShares::COUNT)
+            ->assertJsonPath('shares.holders.0.name', 'Api Founder')->assertJsonPath('pushes.locked', true);
+        $this->getJson('/api/v1/shares')->assertOk()->assertJsonPath('player_shares.0.company', $id);
+        $this->get('/market/shares')->assertOk()->assertSee('Api Co');
         $this->getJson("/api/v1/player-shares/$id")->assertOk()->assertJsonPath('company', $id)
             ->assertJsonStructure(['buys_at', 'sells_at', 'low', 'high', 'bank_holds', 'book' => ['sell', 'buy']]);
         $sells = PlayerShares::prices($id)['sells_at'];

@@ -105,6 +105,7 @@ class SeedlingsTest extends TestCase
         $a = DB::table('agents')->where('agent_id', $drone)->first();
         $this->assertNotNull($a->wrecked_at);
         $this->assertNotNull($a->plundered_at, 'nobody can plunder what it held');
+        $this->assertSame(0, DB::table('holdings')->where('drone', $drone)->count(), 'its hold is empty (#666)');
         // Its post-mortem says it was closed, not plundered (#654)
         $this->get("/spacecraft/$drone")->assertOk()->assertSee('Its player closed its seedling')
             ->assertDontSee('it was plundered by');
@@ -211,7 +212,8 @@ class SeedlingsTest extends TestCase
         $made = $this->postJson('/api/v1/release', ['company_name' => 'Api Sprout', 'script' => self::SCRIPT], $h)
             ->assertCreated()->assertJsonPath('seedling', true)->assertJsonPath('debt', 5500)->assertJsonPath('claim_code', null);
         $id = $made->json('company.id');
-        $this->getJson("/api/v1/companies/$id")->assertOk()->assertJsonPath('seedling', true)->assertJsonPath('debt', 5500);
+        $this->getJson("/api/v1/companies/$id")->assertOk()->assertJsonPath('seedling', true)->assertJsonPath('debt', 5500)
+            ->assertJsonPath('pushes.seedling', true)->assertJsonPath('pushes.next_fee', 0)->assertJsonPath('shares.count', 0);
         $this->getJson('/api/v1/seedlings', $h)->assertOk()->assertJsonPath('seedlings.0.company_id', $id)
             ->assertJsonPath('seedlings.0.can_mature', false)->assertJsonPath('slots.used', 1);
         $this->postJson("/api/v1/seedlings/$id/push", ['script' => "function launched() wait(5) end"], $h)->assertOk()

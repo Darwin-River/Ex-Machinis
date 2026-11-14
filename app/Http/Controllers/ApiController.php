@@ -94,7 +94,10 @@ class ApiController extends Controller
             'drones' => $drones->map(fn (Agent $a) => $this->droneSummary($a))->all(),
             // The stock market (#471): its share price, holders, orders, trades
             // and the shares it holds in others
-            'shares' => Shares::summary((int) $company->company_id),
+            // Under the new rules (#666): players' shares and the bank, and
+            // what the company would fetch if sold off now
+            'shares' => ($company->owner_id ?? null) !== null || (int) ($company->seedling ?? 0) === 1
+                ? self::newRulesShares($company) : Shares::summary((int) $company->company_id),
             // Code pushes (#553): whether it takes them, what the next costs, and each so far
             'pushes' => \App\Services\CodePush::summary($company),
             // What its drones' thinking costs it (#544)
@@ -104,6 +107,18 @@ class ApiController extends Controller
                 // and each working drone: idle hours, last status, hold (#540)
                 + ['drones' => \App\Services\CompanyHealth::drones((int) $company->company_id)],
         ]);
+    }
+
+    /** A new-rules company's shares (#666): none for a seedling; a matured one's prices and holders */
+    private static function newRulesShares(object $company): array
+    {
+        $id = (int) $company->company_id;
+        $cash = \App\Services\PlayerShares::cashOut($id);
+        if ((int) $company->seedling === 1 || $company->matured_t === null) {
+            return ['count' => 0, 'cash_out' => $cash['total'], 'holders' => []];
+        }
+        return ['count' => \App\Services\PlayerShares::COUNT, 'cash_out' => $cash['total']]
+            + \App\Services\PlayerShares::prices($id) + ['holders' => \App\Services\PlayerShares::holders($id)];
     }
 
     /**
@@ -394,7 +409,12 @@ class ApiController extends Controller
      */
     public function shares(Request $request): JsonResponse
     {
-        return response()->json(Shares::exchange(min(200, max(1, (int) $request->query('trades', 25)))));
+        $out = Shares::exchange(min(200, max(1, (int) $request->query('trades', 25))));
+        // The new rules (#666): matured companies' shares, which players trade
+        if (config('forge.new_rules')) {
+            $out['player_shares'] = \App\Services\PlayerShares::market();
+        }
+        return response()->json($out);
     }
 
     /** A company's share price by game day (#551): low, high, last and shares traded */

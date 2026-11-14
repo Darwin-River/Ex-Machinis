@@ -5,6 +5,29 @@
     <x-page-header :title="'Stock exchange'" />
     <section class="section section-xs section-first text-md-left">
         <div class="container" id="container">
+            @if($playerMarket !== null)
+                {{-- The new rules (#666): matured companies' shares, traded by players and the bank --}}
+                <h3>Players' shares</h3>
+                <div style="white-space: normal; margin-bottom: 1em">Each matured company has {{ \App\Services\PlayerShares::COUNT }}
+                    shares. The bank buys them at their cash-out value (paid {{ config('forge.bank_pay_days') }} game days later at the
+                    lower of that value and the value then) and sells the ones it holds at its selling price; players trade between
+                    the range's prices. Trade on a company's page, or through the API.</div>
+                <div class="table-custom-responsive">
+                    <table class="table-ticket" id="player-share-market">
+                        <tr><th>Company</th><th>Cash-out</th><th>Bank sells at</th><th>Range</th><th>Bank holds</th><th>Largest holder</th></tr>
+                        @forelse($playerMarket as $m)
+                            <tr><td><a href="{{ url('companies/' . $m['company']) }}#player-shares">{{ $m['name'] }}</a></td>
+                                <td>{{ number_format($m['buys_at']) }}</td><td>{{ number_format($m['sells_at']) }}</td>
+                                <td>{{ number_format($m['low']) }}&ndash;{{ number_format($m['high']) }}</td>
+                                <td>{{ number_format($m['bank_holds']) }}</td>
+                                <td>{{ $m['holders'][0]['name'] ?? '' }}</td></tr>
+                        @empty
+                            <tr><td colspan="6">No company has matured yet.</td></tr>
+                        @endforelse
+                    </table>
+                </div>
+                <h3 class="mt-4">Before the new rules</h3>
+            @endif
             <div style="white-space: normal; margin-bottom: 1em">
                 Every company starts with 1,000 shares, and more once it issues new ones to raise credits; each share pays
                 its holder its part of the company's profit, paid once a game day: its sales after tax less what it paid
