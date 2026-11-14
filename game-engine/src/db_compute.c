@@ -194,6 +194,12 @@ ErrorCode_t db_compute_bill_due(void)
         for(int i = 0; i < g && result == ENGINE_OK; i++) {
             result = cp_exec("UPDATE agents SET wrecked_at = %lld, wreck_cause = 'dissolved', launched_running = 0 "
                              "WHERE company_id = %d AND wrecked_at IS NULL", now, gone[i]);
+            // A seedling's wrecks leave the game with what they held: nobody
+            // plunders them (#637)
+            if(result == ENGINE_OK)
+                result = cp_exec("UPDATE agents a JOIN companies c ON c.company_id = a.company_id "
+                                 "SET a.plundered_at = %lld WHERE c.company_id = %d AND c.seedling = 1 "
+                                 "AND a.plundered_at IS NULL", now, gone[i]);
             if(result == ENGINE_OK)
                 result = cp_exec("UPDATE companies SET credits = 0, eliminated_at = %lld, end_cause = 'dissolved', "
                                  "broke_since = NULL WHERE company_id = %d", now, gone[i]);

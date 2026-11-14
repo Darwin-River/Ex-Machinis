@@ -93,6 +93,29 @@ class ReleaseController extends Controller
         $copiedWord = $copiedFrom !== null && $request->filled('copied_word')
             ? mb_substr((string) $request->input('copied_word'), 0, 64) : null;
 
+        // The new rules (#637): every release is a seedling, the logged-in
+        // player's or a guest's (with a claim code)
+        if (config('forge.new_rules')) {
+            if (LaunchQueue::full()) {
+                return back()->withErrors(['company_name' => 'The world is full right now: try again in a few minutes.'])->withInput();
+            }
+            $player = \Illuminate\Support\Facades\Auth::user();
+            $player = $player && $player->login !== null ? $player : null;
+            $made = \App\Services\Seedlings::start($player, (string) $request->input('company_name'), $script, (string) $request->ip());
+            if (!$made['ok']) {
+                return back()->withErrors(['company_name' => $made['error']])->withInput();
+            }
+            $agent = $made['agent'];
+            $redirect = redirect('/spacecraft/' . $agent->agent_id)->withSuccess('Released! ' . $request->input('company_name')
+                . ' is a seedling: it owes the bank ' . number_format(\App\Services\Seedlings::grant())
+                . ' credits for its drone, its starting credits and a fee, and trades only with the House until it matures. '
+                . 'Its drone ' . $agent->name . ' is loading your script.')
+                ->with('warning', Release::redefinedWarning($script));
+            return $made['claim_code'] === null ? $redirect
+                : $redirect->with('info', 'You released it as a guest. To keep it, make an account and claim it with this code (it won\'t be shown again): '
+                    . $made['claim_code']);
+        }
+
         // A password lets its owner push new code later (#553): kept as a hash
         $hash = \App\Services\CodePush::hash($request->filled('password') ? (string) $request->input('password') : null);
 

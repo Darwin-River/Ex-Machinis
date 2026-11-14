@@ -40,4 +40,17 @@ return [
     'player_signups_per_hour' => (int) env('FORGE_PLAYER_SIGNUPS_PER_HOUR', 3),
     // Most pupils' accounts in one class group
     'class_group_max' => (int) env('FORGE_CLASS_GROUP_MAX', 40),
+
+    // Seedlings (#637): every company starts as one, lent its hull and its
+    // starting credits (starting_credits) by the bank, plus a fee; it owes all
+    // three until it matures. Its trading limits are in house_rules
+    'seedling_max' => (int) env('FORGE_SEEDLING_MAX', 5),
+    'seedling_hull_value' => (int) env('FORGE_SEEDLING_HULL_VALUE', 2000),
+    'seedling_fee' => (int) env('FORGE_SEEDLING_FEE', 500),
+    // What reprogramming a seedling adds to its debt
+    'seedling_push_fee' => (int) env('FORGE_SEEDLING_PUSH_FEE', 100),
+    // Game days a closed seedling's slot stays taken
+    'seedling_slot_days' => 1,
+    // Seedlings a guest (no account) may start from one address in a real day
+    'seedling_guest_per_day' => (int) env('FORGE_SEEDLING_GUEST_PER_DAY', 5),
 ];

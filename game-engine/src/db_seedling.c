@@ -1,0 +1,111 @@
+/*
+ * Seedlings (#637): the database side of their trading rules. See
+ * db_seedling.h and seedling.h.
+ */
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "db.h"
+#include "db_seedling.h"
+#include "engine.h"
+#include "seedling.h"
+#include "trace.h"
+
+/* The first column of the first row as a number (dflt when none or on error) */
+static long long sd_value(long long dflt, const char* fmt, ...)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+    va_list args;
+
+    va_start(args, fmt);
+    vsnprintf(query_text, DB_MAX_SQL_QUERY_LEN, fmt, args);
+    va_end(args);
+
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return dflt;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+    long long value = (row && row[0]) ? atoll(row[0]) : dflt;
+    if(res) mysql_free_result(res);
+    return value;
+}
+
+/* Both sides of a transfer in one query: each drone's company, and whether it
+   is a seedling or the House */
+static void sd_sides(int from, int to, SeedlingSide_t* a, SeedlingSide_t* b)
+{
+    SeedlingSide_t none = {0, 0, 0};
+    *a = none;
+    *b = none;
+    DbConnection_t* connection = engine_get_db_connection();
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT a.agent_id, c.company_id, c.seedling, c.house FROM agents a "
+        "JOIN companies c ON c.company_id = a.company_id WHERE a.agent_id IN (%d, %d)", from, to);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    MYSQL_ROW row;
+    while(res && (row = mysql_fetch_row(res))) {
+        SeedlingSide_t side = {row[1] ? atoi(row[1]) : 0, row[2] ? atoi(row[2]) : 0, row[3] ? atoi(row[3]) : 0};
+        int drone = row[0] ? atoi(row[0]) : 0;
+        if(drone == from) *a = side;
+        if(drone == to) *b = side;
+    }
+    if(res) mysql_free_result(res);
+}
+
+ErrorCode_t db_seedling_transfer_outcome(Event_t* from, Event_t* to, int place, int* outcome, int* buy_company)
+{
+    *outcome = 0;
+    *buy_company = 0;
+    SeedlingSide_t a, b;
+    sd_sides(from->drone_id, to->drone_id, &a, &b);
+    if(!a.seedling && !b.seedling)
+        return ENGINE_OK;
+
+    long long units = llabs((long long)to->new_quantity);
+    long long stock = 0, bought = 0;
+    int permille = 100;
+    if(b.seedling && a.house && a.company != b.company) {
+        stock = sd_value(0, "SELECT COALESCE(SUM(units), 0) FROM holdings WHERE drone = %d AND resource = %d "
+                            "AND installed = 0 AND locked = 0", from->drone_id, from->resource_id);
+        bought = sd_value(0, "SELECT units FROM seedling_buys WHERE company_id = %d AND place = %d AND resource = %d "
+                             "AND day = %lld", b.company, place, to->resource_id, (long long)(to->game_t / 86400));
+        permille = (int)sd_value(100, "SELECT seedling_buy_permille FROM house_rules WHERE id = 1");
+    }
+    *outcome = seedling_transfer_outcome(a, b, units, stock, bought, permille);
+    if(*outcome != 0)
+        engine_trace(TRACE_LEVEL_ALWAYS,
+            "Transfer for action [%d] refused (%d): drone [%d] (company %d) to drone [%d] (company %d), "
+            "a seedling trades only with the House, up to its share of the stock (%lld units, %lld bought today)",
+            from->action_id, *outcome, from->drone_id, a.company, to->drone_id, b.company, stock, bought);
+    else if(b.seedling && a.house && a.company != b.company)
+        *buy_company = b.company;
+    return ENGINE_OK;
+}
+
+ErrorCode_t db_seedling_record_buy(int company, Event_t* to, int place)
+{
+    if(company <= 0)
+        return ENGINE_OK;
+    long long units = llabs((long long)to->new_quantity);
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "INSERT INTO seedling_buys (company_id, place, resource, day, units) VALUES (%d, %d, %d, %lld, %lld) "
+        "ON DUPLICATE KEY UPDATE units = units + VALUES(units)",
+        company, place, to->resource_id, (long long)(to->game_t / 86400), units);
+    DbConnection_t* connection = engine_get_db_connection();
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    return ENGINE_OK;
+}

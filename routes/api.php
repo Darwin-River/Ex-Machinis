@@ -57,4 +57,10 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['new-rules', 'throttle:api-write'])->post('login', 'AccountApiController@login');
     Route::middleware(['new-rules', 'throttle:api-read'])->get('account', 'AccountApiController@show');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('account/verify', 'AccountApiController@resendVerification');
+    // Seedlings (#637)
+    Route::middleware(['new-rules', 'throttle:api-read'])->get('seedlings', 'SeedlingApiController@index');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('seedlings/claim', 'SeedlingApiController@claim');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('seedlings/{id}/push', 'SeedlingApiController@reprogram')->whereNumber('id');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('seedlings/{id}/close', 'SeedlingApiController@close')->whereNumber('id');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('seedlings/{id}/mature', 'SeedlingApiController@mature')->whereNumber('id');
 });

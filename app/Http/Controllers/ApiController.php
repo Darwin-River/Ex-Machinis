@@ -499,6 +499,28 @@ class ApiController extends Controller
         }
         $name = (string) $request->input('company_name');
         $kit = $request->input('kit');
+        // The new rules (#637): every release is a seedling, the token's
+        // account's or a guest's (with a claim code)
+        if (config('forge.new_rules')) {
+            if (LaunchQueue::full()) {
+                return response()->json(['error' => 'The world is full right now: try again in a few minutes.'], 503);
+            }
+            $player = \App\Services\Players::byToken($request->bearerToken());
+            $made = \App\Services\Seedlings::start($player, $name, $script, (string) $request->ip());
+            if (!$made['ok']) {
+                return response()->json(['error' => $made['error']], $made['status']);
+            }
+            $agent = $made['agent'];
+            return response()->json([
+                'seedling' => true,
+                'debt' => \App\Services\Seedlings::grant(),
+                'claim_code' => $made['claim_code'],
+                'company' => ['id' => (int) $agent->company_id, 'name' => $name],
+                'drone' => ['id' => (int) $agent->agent_id, 'name' => $agent->name],
+                'page' => url('spacecraft/' . $agent->agent_id),
+                'warning' => Release::redefinedWarning($script),
+            ], 201);
+        }
         // A password lets its owner push new code later (#553): kept as a hash
         $hash = \App\Services\CodePush::hash($request->filled('password') ? (string) $request->input('password') : null);
         if (LaunchQueue::full()) {

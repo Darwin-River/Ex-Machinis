@@ -594,6 +594,8 @@ typedef enum
 	OUTCOME_SAME_PLAYER = -13,   // a trade between two companies of one player is blocked
 	OUTCOME_NO_STATION = -14,    // no House station here trades that resource that way (#324 step 10)
 	OUTCOME_NO_WRECK = -15,      // no unplundered wreck of that ID where the drone is (#324 step 12)
+	OUTCOME_SEEDLING_HOUSE_ONLY = -16, // a seedling trades only with the House, and plunders nothing (#637)
+	OUTCOME_SEEDLING_CAP = -17,  // a seedling has bought its share of the House's stock here today (#637)
 
 } Outcome_t;
 

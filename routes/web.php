@@ -92,6 +92,11 @@ Route::middleware('new-rules')->group(function () {
     Route::post('/account/classes', 'AccountController@createClassGroup');
     Route::get('/account/classes/{id}', 'AccountController@classGroup')->whereNumber('id');
     Route::post('/account/classes/{id}/reset', 'AccountController@resetPupil')->whereNumber('id');
+    // Seedlings (#637)
+    Route::post('/seedlings/claim', 'SeedlingController@claim');
+    Route::post('/seedlings/{id}/push', 'SeedlingController@reprogram')->whereNumber('id');
+    Route::post('/seedlings/{id}/close', 'SeedlingController@close')->whereNumber('id');
+    Route::post('/seedlings/{id}/mature', 'SeedlingController@mature')->whereNumber('id');
 });
 Route::get('/release', 'ReleaseController@show');
 Route::post('/release', 'ReleaseController@store');
