@@ -37,12 +37,6 @@
             @endif
 
 
-            @if ($errors->any() && \Illuminate\Support\Facades\Auth::user())
-                <div class="alert alert-danger fade show mt-3">
-                    <button type="button" class="close" data-dismiss="alert">×</button>
-                    Por favor chequee errores en el formulario
-                </div>
-            @endif
         </div>
     </div>
 </div>

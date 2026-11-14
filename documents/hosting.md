@@ -229,6 +229,10 @@ Every release is live and free, and players learn by releasing a script, watchin
 
 - **`FORGE_PUSH_FEE_PERMILLE`** (default 50) and **`FORGE_PUSH_FEE_CAP_PERMILLE`** (default 500) set what a code push costs (#553): a company's nth push costs n × 50 thousandths of its credits (5%, 10%, 15%...), at most 500 (half).
 
+- **`FORGE_NEW_RULES`** (default off) turns on the new rules (#635): player accounts, seedlings, locked companies and a bank for shares. They are being built step by step and stay off on the live site until the world is reset (#642). While it is off, their pages and API calls answer 404. With it on, **`FORGE_PLAYER_SHARE_CREDITS`** (default 5000) is a new account's credits for buying shares, **`FORGE_PLAYER_SIGNUPS_PER_HOUR`** (default 3) how many accounts one address may make in an hour, and **`FORGE_CLASS_GROUP_MAX`** (default 40) the most pupils in a teacher's class group.
+
+- **Mail** (`MAIL_DRIVER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_ENCRYPTION`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`): with the new rules on, a player account's e-mail address is verified by a link sent to it (#636). Set `MAIL_DRIVER=smtp` and an SMTP service's host, port, user name and password to send them. The game sends nothing else. Left at the default (`MAIL_DRIVER=log`), the links are only written to the website's log, so nobody can verify an account: set mail up before turning the new rules on.
+
 To change them, edit `deploy/.env` (`nano /opt/exmachinis/deploy/.env`), for example:
 
 ```

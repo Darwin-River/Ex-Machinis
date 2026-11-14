@@ -641,12 +641,26 @@ The following tables are used to record basic data about the players, their dron
 #### Table: users
 The Users Table will hold information specific to each player account.
 * id [INT(5)] -  This is the table index. Max 65,534 (FFFF).
-* email [VARCHAR(255)] - The email that the player uses to communicate with her drones.
+* email [VARCHAR(255)] - A player account's e-mail address (#636), in lower case: one account per address, private to the account, used only to verify it. NULL for pupils' accounts in a class group.
 * name [VARCHAR(45)] - This is the in-game name that is used by the player.
 * password [VARCHAR(255)] - This is the player’s password.
 * created_at [TIMESTAMP] - The date that the use first created their account.
 * updated_at [TIMESTAMP] - The date that the record was last updated.
-* credits [INT(10)] - No longer used: bank accounts belong to companies (below).
+* credits [INT(10)] - Until the new rules (#635), unused: bank accounts belong to companies (below). Under the new rules, a player account's credits: what its shares and companies have earned it.
+* login [VARCHAR(32)] - A player account's name (#636), unique without regard to case; it logs in with this, not its e-mail address. NULL for the game's own owners (the Public Forge owner, the House), which can't log in.
+* share_credits [INT] - A player account's starting credits that can only buy shares (#636: `forge.player_share_credits`, 5,000), given when its e-mail address is verified.
+* class_group_id [INT] - The class group a pupil's account belongs to (#636), or NULL.
+* api_token [CHAR(64)] - The SHA-256 of the account's API token (#636). A new token replaces the old.
+* email_verified_at [TIMESTAMP] - When the account's e-mail address was verified (#636), or NULL.
+
+Player accounts (#636) are step 1 of the new rules (#635), and exist only while `FORGE_NEW_RULES` is on: until the reset (#642), the pages and API calls below answer 404, and the live game is unchanged. An account is a name, a password and an e-mail address, one account per address (kept in lower case, private to its account); one IP address may make `forge.player_signups_per_hour` (3) accounts an hour. A link sent to the address (signed, good for 2 real days, `/account/verify/{id}/{hash}`) verifies it, and the first time brings the account its `forge.player_share_credits`; it can be sent again 3 times an hour. Pupils' accounts in a class group have no address (`email` NULL), count as verified through their teacher's, and get their share credits when made; only a verified account can make a class group. The website has `/signup`, `/login`, `/logout` and `/account` (credits, credits for shares, the address and whether it is verified, a new API token); the API has `POST /api/v1/accounts` and `POST /api/v1/login` (each returns a token), `GET /api/v1/account` (with `Authorization: Bearer <token>`) and `POST /api/v1/account/verify`. `App\Services\Players` does the work; mail goes through the `MAIL_*` settings (hosting.md).
+
+#### Table: class_groups
+A teacher's class group (#636): up to `forge.class_group_max` (40) pupils' accounts, made by the teacher from their verified account's page and named after the group ("Orbit 1", "Orbit 2"...), each with a generated password shown once. The teacher can give a pupil a new password (the old one, and the pupil's API token, stop working). Under the new rules a class group trades shares only within itself and has its own leaderboards (#638, #640).
+* id [INT] - The table index.
+* name [VARCHAR(45)] - The group's name.
+* teacher_id [INT] - The teacher's account (`users.user_id`).
+* created_at [TIMESTAMP]
 
 [Return to the TOC](#Table-of-Contents)
 

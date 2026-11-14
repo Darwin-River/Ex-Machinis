@@ -88,6 +88,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 </ul>
                 <ul class="navbar-nav nav-actions">
                     <li class="nav-item"><a class="nav-link nav-support" href="{{ url('support') }}" title="Keep the lights on">&#9829;<span class="d-lg-none"> Keep the lights on</span></a></li>
+                    @if(config('forge.new_rules'))
+                        {{-- Player accounts (#636) --}}
+                        @if(auth()->check() && auth()->user()->login !== null)
+                            <li class="nav-item"><a class="nav-link" href="{{ url('account') }}">{{ auth()->user()->login }}</a></li>
+                        @else
+                            <li class="nav-item"><a class="nav-link" href="{{ url('login') }}">Log in</a></li>
+                        @endif
+                    @endif
                     <li class="nav-item"><a class="button button-primary button-sm" href="{{ url('release') }}">Release a drone</a></li>
                 </ul>
             </div>

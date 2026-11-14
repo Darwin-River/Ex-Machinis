@@ -77,6 +77,22 @@ Route::get('/lineage', 'WorldController@lineage');
 Route::get('/machine/queries', 'WorldController@machineQueries');
 Route::get('/machine/protocols', 'WorldController@machineProtocols');
 Route::get('/machine/query', 'WorldController@machineQuery')->middleware('throttle:240,1');
+// Player accounts (#636): only while the new rules (#635) are on
+Route::middleware('new-rules')->group(function () {
+    Route::get('/signup', 'AccountController@showSignup');
+    Route::post('/signup', 'AccountController@signup');
+    Route::get('/login', 'AccountController@showLogin')->name('login');
+    Route::post('/login', 'AccountController@login')->middleware('throttle:20,1');
+    Route::post('/logout', 'AccountController@logout');
+    Route::get('/account', 'AccountController@show');
+    Route::post('/account/token', 'AccountController@token');
+    Route::get('/account/verify/{id}/{hash}', 'AccountController@verify')->whereNumber('id')
+        ->middleware('signed:relative')->name('account.verify');
+    Route::post('/account/verify', 'AccountController@resendVerification');
+    Route::post('/account/classes', 'AccountController@createClassGroup');
+    Route::get('/account/classes/{id}', 'AccountController@classGroup')->whereNumber('id');
+    Route::post('/account/classes/{id}/reset', 'AccountController@resetPupil')->whereNumber('id');
+});
 Route::get('/release', 'ReleaseController@show');
 Route::post('/release', 'ReleaseController@store');
 

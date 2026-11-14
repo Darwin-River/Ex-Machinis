@@ -52,4 +52,9 @@ Route::prefix('v1')->group(function () {
     Route::middleware('throttle:api-read')->get('lineage', 'ApiController@lineage');
     Route::middleware('throttle:api-read')->post('check', 'ApiController@check');
     Route::middleware('throttle:api-write')->post('release', 'ApiController@release');
+    // Player accounts (#636): only while the new rules (#635) are on
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('accounts', 'AccountApiController@create');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('login', 'AccountApiController@login');
+    Route::middleware(['new-rules', 'throttle:api-read'])->get('account', 'AccountApiController@show');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('account/verify', 'AccountApiController@resendVerification');
 });

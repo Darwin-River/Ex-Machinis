@@ -110,6 +110,21 @@ services:
       # Code pushes (#553): thousandths of a company's credits per push number, and the most
       FORGE_PUSH_FEE_PERMILLE: ${FORGE_PUSH_FEE_PERMILLE:-50}
       FORGE_PUSH_FEE_CAP_PERMILLE: ${FORGE_PUSH_FEE_CAP_PERMILLE:-500}
+      # The new rules (#635): off until the reset (#642)
+      FORGE_NEW_RULES: ${FORGE_NEW_RULES:-false}
+      FORGE_PLAYER_SHARE_CREDITS: ${FORGE_PLAYER_SHARE_CREDITS:-5000}
+      FORGE_PLAYER_SIGNUPS_PER_HOUR: ${FORGE_PLAYER_SIGNUPS_PER_HOUR:-3}
+      FORGE_CLASS_GROUP_MAX: ${FORGE_CLASS_GROUP_MAX:-40}
+      # Mail for verifying player accounts' e-mail addresses (#636): an SMTP
+      # server to send through. Unset, the links are only written to the log
+      MAIL_DRIVER: ${MAIL_DRIVER:-log}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_ENCRYPTION: ${MAIL_ENCRYPTION:-tls}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-noreply@exmachinis.com}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Ex Machinis}
     volumes:
       - app-storage:/var/www/storage
 
