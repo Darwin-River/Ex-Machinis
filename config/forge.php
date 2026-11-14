@@ -33,6 +33,10 @@ return [
     'new_rules' => (bool) env('FORGE_NEW_RULES', false),
     // A new player account's credits that can only buy shares (#636)
     'player_share_credits' => (int) env('FORGE_PLAYER_SHARE_CREDITS', 5000),
+    // For a trial without a mail service (#642): new accounts count as
+    // verified at once and get their share credits. Turn it off, with mail
+    // set up (hosting.md), before the game opens for real
+    'trial_auto_verify' => (bool) env('FORGE_TRIAL_AUTO_VERIFY', false),
     // Shortest password an account may have
     'player_password_min' => 8,
     // New accounts one address may make in an hour (#636: e-mail isn't

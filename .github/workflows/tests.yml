@@ -99,6 +99,11 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Build images and run the end-to-end smoke test
+        # The smoke test checks the old rules (password pushes, trades
+        # between players' companies, plunder): the new rules (#635), on in
+        # deploy/docker-compose.yml for the live trial, are tested by phpunit
+        env:
+          FORGE_NEW_RULES: "false"
         run: deploy/smoke-test.sh
 
       - name: Logs on failure

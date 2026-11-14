@@ -102,6 +102,10 @@ class Players
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        // A trial without mail (#642): verified at once
+        if ($classGroup === null && config('forge.trial_auto_verify')) {
+            self::verify($id, sha1($email));
+        }
         return User::where('user_id', $id)->firstOrFail();
     }
 
