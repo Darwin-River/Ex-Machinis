@@ -56,6 +56,9 @@ return [
     'seedling_fee' => (int) env('FORGE_SEEDLING_FEE', 200),
     // What reprogramming a seedling adds to its debt (its first push is free)
     'seedling_push_fee' => (int) env('FORGE_SEEDLING_PUSH_FEE', 100),
+    // Credits a seedling must hold above its debt to mature (#664), so it
+    // isn't left broke
+    'seedling_mature_margin' => (int) env('FORGE_SEEDLING_MATURE_MARGIN', 500),
     // Game days a closed seedling's slot stays taken
     'seedling_slot_days' => 1,
     // Seedlings a guest (no account) may start from one address in a real day
@@ -72,7 +75,8 @@ return [
     'share_range_low' => (float) env('FORGE_SHARE_RANGE_LOW', 0.8),
     'share_range_high' => (float) env('FORGE_SHARE_RANGE_HIGH', 1.25),
     // Thousandths of a matured company's daily profit paid out as dividends
-    'dividend_permille' => (int) env('FORGE_DIVIDEND_PERMILLE', 500),
+    // (#667: a quarter, so maturing a company pays its founder out more slowly)
+    'dividend_permille' => (int) env('FORGE_DIVIDEND_PERMILLE', 250),
 
     // The season board (#640): growth this month as a share of a player's
     // wealth at its start, counted as at least this

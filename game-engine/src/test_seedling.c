@@ -46,6 +46,9 @@ int main(void)
     check("nor be cut", order_lock_outcome(1, 50, 10, 50, 5, h, lock) == OUTCOME_ORDER_LOCKED);
     check("a young sell order can get cheaper", order_lock_outcome(0, 50, 10, 40, 10, h, lock) == 0);
     check("but not dearer", order_lock_outcome(0, 50, 10, 60, 10, h, lock) == OUTCOME_ORDER_LOCKED);
+    check("nor keep more back (#662)", order_lock_outcome(0, 50, 10, 50, 20, h, lock) == OUTCOME_ORDER_LOCKED);
+    check("nor be withdrawn (keep all)", order_lock_outcome(0, 50, 10, 50, 1000000, h, lock) == OUTCOME_ORDER_LOCKED);
+    check("but may keep less back", order_lock_outcome(0, 50, 10, 50, 5, h, lock) == 0);
     check("after 12 game hours anything goes", order_lock_outcome(1, 50, 10, 0, 0, lock, lock) == 0);
 
     printf("%s\n", failures ? "FAILED" : "all passed");

@@ -31,7 +31,8 @@ long long seedling_buy_cap(long long stock, int cap_permille);
 /* The minimum order life (#639): may a drone of a new-rules company replace
    its standing order (posted `age` game seconds ago, at prev_price for
    prev_units) with one at new_price for new_units? Within `lock` seconds it
-   may not withdraw it, cut its units, or make it worse for the other side
+   may not withdraw it, cut its units (a buy order's wanted units lower,
+   a sell order's kept stock higher), or make it worse for the other side
    (a buy order lower, a sell order higher): 0 when it may, else
    OUTCOME_ORDER_LOCKED. `buy` is 1 for a buy order, 0 for a sell order. */
 int order_lock_outcome(int buy, long long prev_price, long long prev_units, long long new_price, long long new_units,

@@ -125,7 +125,7 @@ class WorldReset
     /**
      * Matured companies the bank owns, running the starter scripts in turn:
      * each starts with the starting credits, owes nothing, and the bank holds
-     * its 1,000 shares. Returns [company id => name]
+     * its 100 shares. Returns [company id => name]
      */
     public static function startBankCompanies(int $n): array
     {

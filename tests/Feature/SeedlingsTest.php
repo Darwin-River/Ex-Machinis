@@ -30,7 +30,8 @@ class SeedlingsTest extends TestCase
         parent::setUp();
         config(['forge.new_rules' => true, 'forge.seedling_max' => 5, 'forge.seedling_hull_value' => 2000,
             'forge.seedling_fee' => 500, 'forge.seedling_push_fee' => 100, 'forge.starting_credits' => 3000,
-            'forge.seedling_guest_per_day' => 5, 'forge.player_share_credits' => 5000]);
+            'forge.seedling_guest_per_day' => 5, 'forge.player_share_credits' => 5000,
+            'forge.seedling_mature_margin' => 500]);
         RateLimiter::clear('guest-seedling|127.0.0.1');
         Mail::fake();
     }
@@ -145,6 +146,12 @@ class SeedlingsTest extends TestCase
         $owner = $this->player('Harvester');
         $id = Seedlings::start($owner, 'Ripe Co', self::SCRIPT)['company'];
         $this->assertSame(409, Seedlings::mature($owner, $id)['status'], 'it can\'t pay its debt yet');
+        // Its debt alone isn't enough: it keeps 500 to work with (#664)
+        DB::table('companies')->where('company_id', $id)->update(['credits' => 5800]);
+        $this->assertFalse(Seedlings::of($owner)['seedlings'][0]['can_mature']);
+        $r = Seedlings::mature($owner, $id);
+        $this->assertSame(409, $r['status']);
+        $this->assertStringContainsString('6,000', $r['error']);
 
         DB::table('companies')->where('company_id', $id)->update(['credits' => 8000]);
         $this->actingAs($owner)->get('/account')->assertSee('>Mature<', false);
@@ -159,7 +166,7 @@ class SeedlingsTest extends TestCase
         $this->assertSame(0, (int) $c->debt);
         $this->assertSame(2500, (int) $c->credits, 'it repaid 5,500');
         $this->assertNotNull($c->matured_t);
-        $this->assertSame(1000, (int) DB::table('player_shares')->where('user_id', $owner->user_id)->where('company_id', $id)->value('units'));
+        $this->assertSame(100, (int) DB::table('player_shares')->where('user_id', $owner->user_id)->where('company_id', $id)->value('units'));
         $this->get('/companies/' . $id)->assertSee('its code is locked for good');
         $this->assertSame(403, CodePush::push($id, 'whatever', self::SCRIPT)['status'], 'nobody can push to it');
         $this->assertSame(409, Seedlings::reprogram($owner, $id, self::SCRIPT)['status']);
@@ -211,7 +218,7 @@ class SeedlingsTest extends TestCase
             ->assertJsonPath('debt', 5500);
         $this->postJson("/api/v1/seedlings/$id/mature", [], $h)->assertStatus(409);
         DB::table('companies')->where('company_id', $id)->update(['credits' => 6000]);
-        $this->postJson("/api/v1/seedlings/$id/mature", [], $h)->assertOk()->assertJsonPath('shares', 1000);
+        $this->postJson("/api/v1/seedlings/$id/mature", [], $h)->assertOk()->assertJsonPath('shares', 100);
         $this->getJson('/api/v1/seedlings', $h)->assertJsonPath('companies.0.company_id', $id)->assertJsonCount(0, 'seedlings');
         $this->getJson('/api/v1/seedlings')->assertStatus(401);
 

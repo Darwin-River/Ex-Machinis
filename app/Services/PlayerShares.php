@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Players' shares and the bank (#638, step 3 of the new rules in #635).
  *
- * A matured company's 1,000 shares are its player's (#637), and players trade
+ * A matured company's 100 shares (#667) are its player's (#637), and players trade
  * them. The price that anchors everything is the company's cash-out value: its
  * credits, plus what the House would pay for its goods and equipment where
  * they are now, plus each working drone's hull at a fixed value that falls
@@ -30,7 +30,9 @@ use Illuminate\Support\Facades\DB;
  */
 class PlayerShares
 {
-    public const COUNT = 1000;
+    // A matured company's shares: 100 since #667, so each is worth enough to
+    // price in whole credits (1,000 made it 2 to 15 credits)
+    public const COUNT = 100;
 
     /** Can players trade this company's shares: a matured company of the new rules, still trading? */
     public static function tradable(int $company): bool
