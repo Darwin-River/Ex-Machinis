@@ -17,6 +17,10 @@ class Dealings
     public static function of(int $company, int $limit = 20): array
     {
         $owner = DB::table('companies')->where('company_id', $company)->value('owner_id');
+        // The bank's own companies (#642) share the game's owner: not a player's dealings
+        if ($owner !== null && DB::table('users')->where('user_id', $owner)->whereNull('login')->exists()) {
+            $owner = null;
+        }
         $rows = [];
         $add = function ($other, $name, $otherOwner, string $kind, int $n, int $units, int $credits) use (&$rows, $owner) {
             $r = $rows[$other] ?? ['company_id' => (int) $other, 'name' => $name, 'trades' => 0, 'units' => 0,

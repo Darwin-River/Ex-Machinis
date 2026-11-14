@@ -229,9 +229,9 @@ Every release is live and free, and players learn by releasing a script, watchin
 
 - **`FORGE_PUSH_FEE_PERMILLE`** (default 50) and **`FORGE_PUSH_FEE_CAP_PERMILLE`** (default 500) set what a code push costs (#553): a company's nth push costs n × 50 thousandths of its credits (5%, 10%, 15%...), at most 500 (half).
 
-- **`FORGE_NEW_RULES`** turns on the new rules (#635): player accounts, seedlings, locked companies and a bank for shares. While it is off, their pages and API calls answer 404. It is off by default in the website's own settings, and **on in `deploy/docker-compose.yml`** for the trial on the live server (#642). **`FORGE_TRIAL_AUTO_VERIFY`** (on in `deploy/docker-compose.yml` for the trial) counts new accounts as verified at once, since the server has no mail service yet: set up mail (below) and turn it off before the game opens for real. With it on, **`FORGE_PLAYER_SHARE_CREDITS`** (default 5000) is a new account's credits for buying shares, **`FORGE_PLAYER_SIGNUPS_PER_HOUR`** (default 3) how many accounts one address may make in an hour, and **`FORGE_CLASS_GROUP_MAX`** (default 40) the most pupils in a teacher's class group.
+- **`FORGE_NEW_RULES`** turns on the new rules (#635): player accounts, seedlings, locked companies and a bank for shares. While it is off, their pages and API calls answer 404. It is off by default in the website's own settings, and **on in `deploy/docker-compose.yml`** (#642). **`FORGE_TRIAL_AUTO_VERIFY`** (off by default) counts new accounts as verified at once: turn it on only for a server with no mail service (below), as the trial on the live server did. With it on, **`FORGE_PLAYER_SHARE_CREDITS`** (default 5000) is a new account's credits for buying shares, **`FORGE_PLAYER_SIGNUPS_PER_HOUR`** (default 3) how many accounts one address may make in an hour, and **`FORGE_CLASS_GROUP_MAX`** (default 40) the most pupils in a teacher's class group.
 
-- **Seedlings** (#637), with the new rules on: **`FORGE_SEEDLING_MAX`** (default 5) seedlings an account may have at once, **`FORGE_SEEDLING_HULL_VALUE`** (2000) and **`FORGE_SEEDLING_FEE`** (500), which with a release's 3,000 starting credits make what a seedling owes, **`FORGE_SEEDLING_PUSH_FEE`** (100) what each change of its code adds to that, and **`FORGE_SEEDLING_GUEST_PER_DAY`** (5) seedlings a guest may start from one address in a day. How much of the House's stock a seedling may buy in a game day is `house_rules.seedling_buy_permille` (100, a tenth) in the database.
+- **Seedlings** (#637), with the new rules on: **`FORGE_SEEDLING_MAX`** (default 5) seedlings an account may have at once, **`FORGE_SEEDLING_HULL_VALUE`** (1000) and **`FORGE_SEEDLING_FEE`** (200), which with a release's 3,000 starting credits make what a seedling owes (4,200), **`FORGE_SEEDLING_PUSH_FEE`** (100) what each change of its code after the first (which is free) adds to that, and **`FORGE_SEEDLING_GUEST_PER_DAY`** (5) seedlings a guest may start from one address in a day. How much of the House's stock a seedling may buy in a game day is `house_rules.seedling_buy_permille` (100, a tenth) in the database.
 
 - **Shares and the bank** (#638), with the new rules on: **`FORGE_BANK_PAY_DAYS`** (30) game days the bank takes to pay for shares sold to it, **`FORGE_SHARE_RANGE_LOW`** and **`FORGE_SHARE_RANGE_HIGH`** (0.8 and 1.25) the range players trade shares in, as times the bank's selling price, **`FORGE_DIVIDEND_PERMILLE`** (500) the thousandths of a matured company's profit paid out as dividends, and **`FORGE_HULL_LIFE_DAYS`** (365) the game days over which a hull's value in a company's cash-out value falls to nothing.
 
@@ -376,6 +376,25 @@ Until the three secrets exist, the Deploy workflow only notes that automatic upd
    ```sh
    git checkout main && git pull --ff-only
    ```
+
+### Reset the world for the new rules (once)
+
+The new rules (#635) open on a fresh world (#642). `forge:reset` ends every company the playtests made, but keeps it browsable: its page, its history, its code lineage, the lineage map and the at-age boards still show it, marked as ended by the reset. Its drones become wrecks nobody can plunder, with nothing aboard and no orders or work queued. The old share market's open orders go, every deposit is full again, and the launch queue empties. Player accounts stay, with no credits and their starting share credits back (`--delete-accounts` deletes them instead). Then the bank starts a few matured companies running the Miner, Refiner and Maker starters (`--bank=3`), so players have shares to buy on day one. The House's stations are untouched.
+
+Run it once, after the update that brings it:
+
+```sh
+cd /opt/exmachinis
+deploy/backup.sh                                              # 1. a backup first: the only way back
+cd deploy
+docker compose stop game-engine events-engine scheduler      # 2. the engines stopped
+docker compose exec app php artisan forge:reset               # 3. what it would change (nothing yet)
+docker compose exec app php artisan forge:reset --force       # 4. the reset
+docker compose start game-engine events-engine scheduler     # 5. the engines again
+docker compose ps                                             # 6. all running
+```
+
+Then open `/players` and `/release`: the bank's companies are on the boards, and a release starts a seedling. To undo it, restore the backup from step 1 ([Restore from a backup](#restore-from-a-backup)).
 
 ## Back up the game
 
