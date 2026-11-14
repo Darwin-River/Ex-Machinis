@@ -665,6 +665,14 @@ Step 2 of the new rules (#635), only while `FORGE_NEW_RULES` is on. Every releas
 
 `App\Services\Seedlings` does the work. The website: the Release page, the account page's seedlings (mature, close, change the code, claim a guest's) and the company page's line. The API: `POST /release` (with a player's token, or as a guest), `GET /seedlings`, `POST /seedlings/claim`, `POST /seedlings/{id}/push`, `/close` and `/mature`.
 
+#### Players' shares and the bank (#638)
+Step 3 of the new rules (#635), only while `FORGE_NEW_RULES` is on (`App\Services\PlayerShares`). A matured company's shares are its players' (`player_shares`); companies don't trade them.
+
+- **Cash-out value** (a share): the company's credits, plus its drones' goods and equipment at the House's open bid where each drone is (`latest_orders`, event type 5, of the station drone at that place), plus each working drone's hull at `forge.seedling_hull_value` falling to 0 over `forge.hull_life_days` (365) game days from its first event, less its debts (processor tax owed), over 1,000. A drone with no fuel aboard that has bought none in `forge.stranded_days` (3) game days counts no hull. It never depends on the price of trades in the company's shares.
+- **The bank buys** a matured company's shares at cash-out value. The shares go to it at once (`bank_shares`), and it pays `forge.bank_pay_days` (30) game days later, at the lower of the cash-out value on the day of the sale and on the day it pays (`bank_payments`, settled by the website's tick).
+- **The bank sells** only shares it holds, at its selling price: cash-out value plus a share's dividends over the last 30 game days, estimated as `forge.dividend_permille` (500) thousandths of the company's positive daily profit (`company_profits`) over 1,000. The selling price is quoted even when it holds none.
+- **Players trade** through standing orders (`player_share_orders`): a new order trades at once against the best orders on the other side it meets, at their price, and the rest stands. Prices go between `forge.share_range_low` (0.8) and `forge.share_range_high` (1.25) times the bank's selling price. A class group's accounts trade only with each other. An account's starting credits (`share_credits`) pay only at or below the bank's selling price; ordinary credits pay the rest. Every trade is in `player_share_trades`.
+
 #### Table: class_groups
 A teacher's class group (#636): up to `forge.class_group_max` (40) pupils' accounts, made by the teacher from their verified account's page and named after the group ("Orbit 1", "Orbit 2"...), each with a generated password shown once. The teacher can give a pupil a new password (the old one, and the pupil's API token, stop working). Under the new rules a class group trades shares only within itself and has its own leaderboards (#638, #640).
 * id [INT] - The table index.

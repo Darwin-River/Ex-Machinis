@@ -93,7 +93,17 @@ class UserController extends Controller
         // Today's game day, for its share price chart (#600)
         $today = \App\Services\MarketHistory::today();
 
-        return view('user.company', compact('user', 'spacecraft', 'shares', 'rank', 'pushes', 'stats', 'code', 'today', 'lineage'));
+        // The new rules (#638): a matured company's shares, the bank's prices and the players' book
+        $playerShares = null;
+        if (config('forge.new_rules') && $company->owner_id !== null && (int) $company->seedling === 0 && $company->matured_t !== null) {
+            $viewer = \Illuminate\Support\Facades\Auth::user();
+            $playerShares = \App\Services\PlayerShares::prices((int) $id) + [
+                'book' => \App\Services\PlayerShares::book((int) $id),
+                'held' => $viewer && $viewer->login !== null ? \App\Services\PlayerShares::held((int) $viewer->user_id, (int) $id) : null,
+                'cash_out' => \App\Services\PlayerShares::cashOut((int) $id),
+            ];
+        }
+        return view('user.company', compact('user', 'spacecraft', 'shares', 'rank', 'pushes', 'stats', 'code', 'today', 'lineage', 'playerShares'));
     }
 
     /** Pushes new code to a company's working drones, with its password (#553) */

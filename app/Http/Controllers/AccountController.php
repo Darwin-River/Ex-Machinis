@@ -71,7 +71,8 @@ class AccountController extends Controller
         if (!$user) {
             return redirect('/login');
         }
-        return view('account.show', ['account' => Players::summary($user), 'mine' => \App\Services\Seedlings::of($user)]);
+        return view('account.show', ['account' => Players::summary($user), 'mine' => \App\Services\Seedlings::of($user),
+            'portfolio' => \App\Services\PlayerShares::of($user)]);
     }
 
     /** The link from the e-mail: verifies the address (the route checks the signature) */

@@ -53,6 +53,62 @@
                 <p class="stat-meta" id="seedling">Matured on {{ \App\Services\DronePage::when((int) $user->matured_t) }}: its code is locked for good.</p>
             @endif
 
+            {{-- The new rules (#638): players' shares and the bank --}}
+            @if($playerShares)
+                <h2 id="player-shares">Shares</h2>
+                <p>The bank buys this company's shares at their cash-out value,
+                    <b>{{ number_format($playerShares['buys_at']) }}</b> a share now (its credits
+                    {{ number_format($playerShares['cash_out']['credits']) }}, goods {{ number_format($playerShares['cash_out']['goods']) }}
+                    and hulls {{ number_format($playerShares['cash_out']['hulls']) }}, less debts
+                    {{ number_format($playerShares['cash_out']['debts']) }}), paying {{ config('forge.bank_pay_days') }} game days later at
+                    the lower of that value and the value then. It sells the shares it holds
+                    ({{ number_format($playerShares['bank_holds']) }}) at <b>{{ number_format($playerShares['sells_at']) }}</b>.
+                    Players trade between {{ number_format($playerShares['low']) }} and {{ number_format($playerShares['high']) }} a share.</p>
+                <div class="row">
+                    @foreach(['sell' => 'Offered', 'buy' => 'Wanted'] as $side => $label)
+                        <div class="col-md-6"><h3 class="h6">{{ $label }} by players</h3>
+                            @if(count($playerShares['book'][$side]))
+                                <table class="table table-sm"><tbody>
+                                @foreach($playerShares['book'][$side] as $o)
+                                    <tr><td>{{ $o['by'] }}</td><td class="text-right">{{ number_format($o['units']) }}</td><td class="text-right">at {{ number_format($o['price']) }}</td></tr>
+                                @endforeach
+                                </tbody></table>
+                            @else <p><small>None</small></p> @endif
+                        </div>
+                    @endforeach
+                </div>
+                @if($playerShares['held'] !== null)
+                    <p>You hold {{ number_format($playerShares['held']) }} of its shares.</p>
+                    <form method="POST" action="{{ url('companies/' . $user->user_id . '/share-orders') }}" class="form-inline mb-2">
+                        {{ csrf_field() }}
+                        <label class="sr-only" for="ps-side">Buy or sell</label>
+                        <select class="form-control mr-2 mb-2" id="ps-side" name="side"><option value="buy">Buy</option><option value="sell">Sell</option></select>
+                        <label class="mr-2" for="ps-units">shares</label>
+                        <input class="form-control mr-2 mb-2" id="ps-units" name="units" type="number" min="1" max="1000" value="10" required>
+                        <label class="mr-2" for="ps-price">at</label>
+                        <input class="form-control mr-2 mb-2" id="ps-price" name="price" type="number" min="{{ $playerShares['low'] }}"
+                               max="{{ $playerShares['high'] }}" value="{{ $playerShares['sells_at'] }}" required>
+                        <button class="button button-secondary button-sm mb-2" type="submit">Post the order</button>
+                    </form>
+                    <form method="POST" action="{{ url('companies/' . $user->user_id . '/bank/sell') }}" class="form-inline mb-2">
+                        {{ csrf_field() }}
+                        <label class="mr-2" for="bank-sell">Sell to the bank:</label>
+                        <input class="form-control mr-2 mb-2" id="bank-sell" name="units" type="number" min="1" max="1000" required>
+                        <button class="button button-secondary button-sm mb-2" type="submit">Sell</button>
+                    </form>
+                    @if($playerShares['bank_holds'] > 0)
+                        <form method="POST" action="{{ url('companies/' . $user->user_id . '/bank/buy') }}" class="form-inline mb-2">
+                            {{ csrf_field() }}
+                            <label class="mr-2" for="bank-buy">Buy from the bank:</label>
+                            <input class="form-control mr-2 mb-2" id="bank-buy" name="units" type="number" min="1" max="{{ $playerShares['bank_holds'] }}" required>
+                            <button class="button button-secondary button-sm mb-2" type="submit">Buy</button>
+                        </form>
+                    @endif
+                @else
+                    <p><a href="{{ url('login') }}">Log in</a> to trade its shares.</p>
+                @endif
+            @endif
+
             {{-- Health and running costs (#537, #544), in their own section (#591) --}}
             <h2 id="health">Health</h2>
             @if($h['at_risk'] || $h['stalled'])
