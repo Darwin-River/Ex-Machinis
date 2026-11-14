@@ -596,6 +596,7 @@ typedef enum
 	OUTCOME_NO_WRECK = -15,      // no unplundered wreck of that ID where the drone is (#324 step 12)
 	OUTCOME_SEEDLING_HOUSE_ONLY = -16, // a seedling trades only with the House, and plunders nothing (#637)
 	OUTCOME_SEEDLING_CAP = -17,  // a seedling has bought its share of the House's stock here today (#637)
+	OUTCOME_PLAYERS_SHARES = -18, // under the new rules players, not companies, trade shares (#638)
 
 } Outcome_t;
 

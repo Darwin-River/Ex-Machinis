@@ -47,6 +47,9 @@
             @else
                 <p>None yet: mature a seedling, or buy shares on a matured company's page.</p>
             @endif
+            @if($portfolio['dividends_30_days'] > 0)
+                <p>Your shares have paid you {{ number_format($portfolio['dividends_30_days']) }} credits in dividends over the last 30 game days.</p>
+            @endif
             @if(count($portfolio['orders']))
                 <p>Your standing orders:</p>
                 <ul>

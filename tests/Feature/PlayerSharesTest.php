@@ -182,6 +182,40 @@ class PlayerSharesTest extends TestCase
         $this->get('/companies/' . $seed)->assertDontSee('id="player-shares"', false);
     }
 
+    public function testDividendsArePaidToShareholders()
+    {
+        $owner = $this->player('Earner');
+        $id = $this->matured($owner, 'Dividend Co', 100000);
+        $partner = $this->player('Partner');
+        DB::table('player_shares')->where('user_id', $owner->user_id)->where('company_id', $id)->update(['units' => 700]);
+        DB::table('player_shares')->insert(['user_id' => $partner->user_id, 'company_id' => $id, 'units' => 200]);
+        DB::table('bank_shares')->insert(['company_id' => $id, 'units' => 100]);
+        $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
+        $matured = intdiv((int) DB::table('companies')->where('company_id', $id)->value('matured_t') - $epoch, 86400);
+        $day = fn ($d, $profit, $carry) => DB::table('company_profits')->insert(['company' => $id, 'day' => $d,
+            'sales' => max(0, $profit), 'purchases' => 0, 'profit' => $profit, 'carry_before' => $carry, 'paid' => 0,
+            'holders' => 0, 'logged_only' => 0]);
+        $day($matured, 50000, 0);          // the day it matured: not paid
+        $day($matured + 1, 10000, 0);      // half of 10,000
+        $day($matured + 2, 4000, -3000);   // losses carried first: half of 1,000
+        $day($matured + 3, -2000, 0);      // a loss pays nothing
+
+        $this->assertSame(3, PlayerShares::payDividends());
+        $this->assertSame(0, PlayerShares::payDividends(), 'each day once');
+        // 5,000 + 500 = 5,500 shared 70% / 20% / 10% (the bank's stays with the bank)
+        $this->assertSame(3500 + 350, $this->credits($owner)[0]);
+        $this->assertSame(1000 + 100, $this->credits($partner)[0]);
+        $this->assertSame(500 + 50, (int) DB::table('player_dividends')->whereNull('user_id')->where('company_id', $id)->sum('amount'));
+        $this->assertSame(100000 - 5500, (int) DB::table('companies')->where('company_id', $id)->value('credits'));
+        $this->actingAs($partner)->get('/account')->assertSee('paid you 1,100 credits in dividends');
+
+        // Never more than its credits
+        DB::table('companies')->where('company_id', $id)->update(['credits' => 1000]);
+        $day($matured + 4, 100000, 0);
+        PlayerShares::payDividends();
+        $this->assertSame(0, (int) DB::table('companies')->where('company_id', $id)->value('credits'));
+    }
+
     public function testTheApi()
     {
         $owner = $this->player('Api Founder');
