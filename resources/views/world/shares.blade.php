@@ -12,20 +12,43 @@
                     shares. The bank buys them at their cash-out value (paid {{ config('forge.bank_pay_days') }} game days later at the
                     lower of that value and the value then) and sells the ones it holds at its selling price; players trade between
                     the range's prices. Trade on a company's page, or through the API.</div>
+                {{-- One row a company (#699): what a share is worth, what it pays, what players paid, and its health --}}
+                @include('partials.ex-charts')
                 <div class="table-custom-responsive">
                     <table class="table-ticket" id="player-share-market">
-                        <tr><th>Company</th><th>Cash-out</th><th>Bank sells at</th><th>Range</th><th>Bank holds</th><th>Largest holder</th></tr>
-                        @forelse($playerMarket as $m)
-                            <tr><td><a href="{{ url('companies/' . $m['company']) }}#player-shares">{{ $m['name'] }}</a></td>
-                                <td>{{ number_format($m['buys_at']) }}</td><td>{{ number_format($m['sells_at']) }}</td>
-                                <td>{{ number_format($m['low']) }}&ndash;{{ number_format($m['high']) }}</td>
-                                <td>{{ number_format($m['bank_holds']) }}</td>
-                                <td>{{ $m['holders'][0]['name'] ?? '' }}</td></tr>
+                        <tr><th>Company</th><th class="text-right">Cash-out a share</th><th>30 game days</th><th class="text-right">Dividends a share, 30 days</th>
+                            <th class="text-right">Yield</th><th class="text-right">Last players' price</th><th class="text-right">Bank sells at</th><th>Health</th></tr>
+                        @forelse($playerMarket as $i => $m)
+                            <tr><td><a href="{{ url('companies/' . $m['company']) }}#player-shares">{{ $m['name'] }}</a>
+                                    @if(!empty($m['holders'][0]['name']))<br><small class="text-muted">mostly {{ $m['holders'][0]['name'] }}</small>@endif</td>
+                                <td class="text-right">{{ number_format($m['buys_at']) }}</td>
+                                <td class="share-spark" data-spark="{{ $i }}">{{ count($m['spark']) ? '' : '–' }}</td>
+                                <td class="text-right">{{ number_format($m['dividends30']) }}</td>
+                                <td class="text-right">{{ $m['yield_percent'] === null ? '–' : $m['yield_percent'] . '%' }}</td>
+                                <td class="text-right">@if($m['last_price'] !== null){{ number_format($m['last_price']) }}
+                                        <small>{{ $m['premium_percent'] > 0 ? '+' . $m['premium_percent'] . '% premium' : ($m['premium_percent'] < 0 ? $m['premium_percent'] . '% discount' : 'at cash-out') }}</small>@else never traded @endif</td>
+                                <td class="text-right">{{ number_format($m['sells_at']) }}</td>
+                                <td style="white-space: normal" title="{{ $m['health_note'] }}">@if($m['stalled'])<strong style="color: #ff8a7a">stalled</strong>@elseif($m['at_risk'])<strong>at risk</strong>@else steady @endif</td></tr>
                         @empty
-                            <tr><td colspan="6">No company has matured yet.</td></tr>
+                            <tr><td colspan="8">No company has matured yet.</td></tr>
                         @endforelse
                     </table>
                 </div>
+                <p class="ex-src">Cash-out is what the bank pays for a share; its selling price adds the share's dividends over 30 game days.
+                    Yield is those dividends against cash-out. The premium or discount is the last price players paid against today's cash-out.
+                    Players trade between {{ (int) round(config('forge.share_range_low') * 100) }}% and {{ (int) round(config('forge.share_range_high') * 100) }}% of the selling price.
+                    Data: <code>GET /api/v1/shares</code> and <code>GET /api/v1/companies/{id}/history</code> (cash_out_share).</p>
+                <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    const X = window.ExCharts, M = @json($playerMarket);
+                    document.querySelectorAll('#player-share-market [data-spark]').forEach((td) => {
+                        const m = M[Number(td.dataset.spark)];
+                        if (!m.spark.length) return;
+                        td.replaceChildren(X.spark(m.spark.map((p) => p.v), {line: true, width: 100, height: 24, label: m.name + "'s cash-out a share",
+                            tip: (v, i) => [m.name, `Game day ${m.spark[i].day}: cash-out ${X.num(v)} a share`]}));
+                    });
+                });
+                </script>
                 {{-- The latest trades between players (#676) --}}
                 <h3 class="mt-4">Latest trades</h3>
                 <div class="table-custom-responsive">

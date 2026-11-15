@@ -60,6 +60,7 @@ Thank you for your support!
   - [Placing and adjusting market orders](#placing-and-adjusting-market-orders)
   - [Trading at the exchanges](#trading-at-the-exchanges)
   - [Transferring resources between drones](#transferring-resources-between-drones)
+  - [The economy dashboard](#the-economy-dashboard)
 - [Chapter 7: Maturing and Shares](#chapter-7-maturing-and-shares)
   - [Maturing a seedling](#maturing-a-seedling)
   - [Dividends: what a share earns](#dividends-what-a-share-earns)
@@ -128,10 +129,10 @@ It is your birthright to take control of your own remotely piloted spacecraft an
 
 1. **Make an account.** A name, a password and an e-mail address. Open the link we send to the address, and your account gets **5,000 starting credits**, which can only buy shares (see [Making an account](#making-an-account)).
 2. **Release a script.** On the **Release** page (the **Release a drone** button), name your company, write a script or click a starter, and press **Release**. From a program, `POST /api/v1/release` with your account's token does the same. Either way you start a **seedling**: a new company with one drone in orbit around Earth, 100 fuel, 3,000 credits and no equipment (see [Releasing a seedling](#releasing-a-seedling)).
-3. **See what it owes.** The bank lent the seedling its drone (1,000), its 3,000 credits and a fee of 200: it owes **4,200**. Your account page lists each seedling with its credits and its debt. Until it matures, it trades **only with the House**, the game's own traders at each exchange.
+3. **See what it owes.** The bank lent the seedling its drone (1,000), its 3,000 credits and a fee of 200: it owes **4,200**. Your account page lists each seedling with its credits and its debt, and the seedling's own page shows its **Road to maturity**: a bar of its credits against its debt and the mark it matures at, with its credit cap marked. Until it matures, it trades **only with the House**, the game's own traders at each exchange.
 4. **Watch its drone.** Its page shows what it does and says, its trades and its fuel. At the normal pace a game day passes every 48 real seconds, so a few minutes of watching shows you days of its life. When the world is busy the clock slows, to as little as a game day in 24 real minutes: the home page and the Release page say the pace right now.
-5. **Change its code.** When you see what goes wrong, send it new code from your account page. The first change is free; each one after it adds 100 to its debt (see [Pushing new code](#pushing-new-code)).
-6. **Mature it.** Once it holds its debt plus 500 (4,700 for a fresh seedling), a **Mature** button appears beside it. Maturing repays the debt and locks its code for good, and from then on it trades with everyone (see [Maturing a seedling](#maturing-a-seedling)).
+5. **Change its code.** When you see what goes wrong, send it new code from your account page or its own page (**Push new code**, shown to you when you're logged in). The first change is free; each one after it adds 100 to its debt (see [Pushing new code](#pushing-new-code)).
+6. **Mature it.** Once it holds its debt plus 500 (4,700 for a fresh seedling), a **Mature** button appears beside it on your account page and on its Road to maturity. Maturing repays the debt and locks its code for good, and from then on it trades with everyone (see [Maturing a seedling](#maturing-a-seedling)).
 7. **Own its shares.** Its **100 shares** are now yours. Each game day it pays a quarter of its profit to its shareholders. Keep them, sell them to the bank, or trade them with other players (see [Chapter 7](#chapter-7-maturing-and-shares)).
 
 If it fails on the way, close it and start another. That costs you nothing.
@@ -232,7 +233,7 @@ Loading a script is quick: your drone reads the whole of it in one go when it is
 
 #### Drone pages: learning from other drones
 
-Every company's page charts its **earnings** by game day (#600): what its sales brought in after tax, what it paid for goods and equipment, and the difference, over the last 10 to 365 game days. A matured company's page also has a **Shares** section: what the bank pays for a share and sells one for, the range players trade in, the orders players have posted, and who holds its shares (see [Chapter 7](#chapter-7-maturing-and-shares)). Shareholders judge a company by these; so can you, before you buy its shares.
+Every company's page has a **Performance** section (#600, #699): charts that share one game-day axis, so they read together, over the last 10 to 365 game days. **Is it growing?** draws its net wealth and credits; **What is a share worth?** (a matured company) draws a share's cash-out value and the bank's selling price, with each trade between players as a dot; **Is it earning?** draws its sales after tax (up), what it paid for goods and equipment (down) and the day's profit (a dot); **What has a share paid?** draws the dividends a share each day and their running total; and a step line shows its working drones. A matured company's figures at the top add **Cash-out a share** and the **dividends a share** over 30 game days. A matured company's page also has a **Shares** section: what the bank pays for a share and sells one for, the range players trade in, the orders players have posted, and who holds its shares (see [Chapter 7](#chapter-7-maturing-and-shares)). Shareholders judge a company by these; so can you, before you buy its shares.
 
 Every drone has a public page (Spacecraft, then the drone) that shows what it is doing, its fuel, cargo and company, and the drone that launched it and its clones. Every drone of a company runs the same code, so the code is on the company's page: the code its drones run now, where it came from, and each revision (the release, then each code push). **Copy this code** opens the Release page with that whole script filled in (**Copy this revision** copies an older one), so learning by copying is one click; the **copy** link beside each of its functions fills in just that function (a function starts at a line beginning `function name(` or `local function name(` and ends at the next line that is just `end`). The drone you release from it says where its code came from, and so does a copy you paste by hand: the page notes when the same code was released earlier by someone else ("first in drone N"). The company page's **Lineage** (#616) goes further: for each revision it lists its parents, the earlier releases, pushes, starters and examples whose code it carries, each with the share of its code it explains, and how much is **new**. A revision can have several parents when it borrows from more than one, and only earlier code counts as a parent. Functions are compared with their own names left out, so renaming a copied function or its variables, reordering functions or changing numbers doesn't hide where it came from; a function that was changed counts in part when at least half of it is the same. **Carried on by** lists the other companies whose code carries this one's. A new release or push is worked out within a minute or so. The **Lineage** page (World menu, #618) draws all of it as one map: a lane for each company, next to the family its code came from, with the starter and example scripts as roots; edges run from older code to newer code that carries it. Colour it by each company's net wealth rank when it was a given age (as on the leaderboard's At age board) to see which lineages did well, or by how much of each revision is new; click a revision to trace its ancestors and descendants, and a company's name to open its page. **See it on the lineage map** on a company page opens the map at that company.
 
@@ -240,13 +241,16 @@ The company page also lists its **dealings**: the other companies its drones hav
 
 Five more pages show the whole world, live:
 
-- **Home:** "What's happening" lists the latest events in plain words: new releases, clones launched, drones that died and why, plunders, companies that ended, and trades.
+- **Home:** the latest events in plain words: new releases, clones launched, drones that died and why, plunders, companies that ended, and trades. Every name is a link, and fuel purchases at one place are grouped into one line. It also shows the economy at a glance (see [The economy dashboard](#the-economy-dashboard)).
+- **Market history** (`/market/history`): what a resource traded for each game day at each place, the last 30 game days first. The price axis fits the prices shown; the bars below are the units traded, in each place's colour, and a × marks a day with no trades. On a phone each place gets its own small chart.
 - **Market** (`/market`): the order book (for each resource, the cheapest sell order and the best buy order at each place) and the latest trades.
 - **Map:** the planets where they are now, with the drones and wrecks around each.
 - **Leaderboard:** companies by net wealth, all time and **Rising** (the gain over the last real week; while the world is under a week old it says so instead of repeating All time). Each release starts a company, and the drones it launches belong to it. Net wealth counts the company's credits and its working drones' goods at market prices (what they sold for over the last three game days), minus what the company started with, so it measures what the company made. It leaves out the drones' hulls and any debt to the bank: launching a copy lowers net wealth by about the price of its hull (3,000) until the copy earns that back, often 10 to 20 game days, and longer for a copy that first flies to Mars. Grow early, not near the end of a contest. Each company's **age** is shown in game days since it was founded. To compare companies fairly, pick an age (3, 10, 30 or 100 game days, or any number you type): the **At age** board ranks every company, old or young, still trading or ended, by its net wealth when it was that old, read from its daily history (#614). So a company that is a year old is compared as it was at 10 days, not as it is now, and one that ended after reaching that age still counts. A figure marked ~ is read between history points more than a day apart (before #614 the history of days older than 60 was kept only every 10th day). Your company's page ranks its net wealth now among every company's at the same age, e.g. "4 of 37", with a link to that board.
 - **Players** (`/players`, World menu): players ranked by their wealth, and by its growth this real month (see [Boards and the digest](#boards-and-the-digest)).
 
 Your drones can't see all this: they see live orders only where they are (see [the price board](#the-price-board)). You can, so use these pages to plan.
+
+Every drone's page has a chart of **what it has been doing** (#699): its last 100 actions on a time axis, one row for each kind of action, failed ones in red, so a long empty stretch shows a drone that was waiting, idle or stuck; and below it, on the same axis, the fuel in its tank after each action.
 
 A working drone's page has an **Activity** section: what it is doing now and when it will finish, its last ten actions (how each went and the fuel it had left), and its last ten sales and purchases, with whom. Check it when you want to know whether your drone is busy, waiting or stuck. If its action should already have ended, it says **waiting for its turn: the engine is behind**: the world is busy, and your drone moves on when the engine reaches it. While it flies, its page and its company's page say where it is **flying to**.
 
@@ -1278,6 +1282,17 @@ function show_board(resource)
 end
 ```
 
+### The economy dashboard
+
+The **Economy dashboard** (World menu, `/dashboard`) shows the whole market on one page, worked out once a real minute. A short version of it is on the home page.
+
+- **The banner** compares the trades on the last full game day with the usual day (the average over up to 60 game days before it). When the clock is slowed it also says how long a game day takes now, how far behind the engines are, and how many times the usual rate processor tax costs.
+- **The tiles**: trades and credits traded, working drones and the share of all drones that are wrecks, matured companies and what they are worth at cash-out, matured companies' profit this week against last, and players. Each says how it has changed.
+- **The charts**: credits traded each game day by place; the matured companies' combined profit each day (blue a gain, red a loss); the goods that changed hands most over 14 game days; the cheapest seller and the highest buyer of the main goods at each place; the House's booms, slumps, shortages and gluts; where the drones are and where they die; and each player's wealth.
+- **Which companies are worth buying?** Every matured company with a share's cash-out value, its working drones, its profit over 30 game days, the dividends a share paid over them, the yield (those dividends against the cash-out value) and its daily profit.
+
+Each chart says where its numbers come from. Hover or tap a bar or a dot for its figures. Programs get the same numbers from `GET /api/v1/dashboard` (see [the API](api.md)).
+
 ## Chapter 7: Maturing and Shares
 
 A seedling runs on borrowed credits. Once it can pay its way, you mature it, and it becomes a company of its own, owned by whoever holds its shares. This chapter is about what happens then: maturing, shares, dividends and the bank.
@@ -1288,7 +1303,7 @@ None of it happens in Lua. **Companies don't trade shares; players do**, on the 
 
 **When.** A seedling may mature once its credits, less any processor tax it owes, cover its debt and **500 more** to work with: 4,700 for a fresh seedling, 100 more for each paid push. Your account must be verified (see [Making an account](#making-an-account)). Your account page shows a **Mature** button beside the seedling when it can; `GET /api/v1/seedlings` says so in `can_mature`. A drone that spends can make it false again a moment later: if maturing is refused, try again later.
 
-**How.** Press **Mature** on your account page, or `POST /api/v1/seedlings/{id}/mature` with your token. It is refused (409) while the seedling can't, with how much it still needs.
+**How.** Press **Mature** on your account page or on the seedling's page (its **Road to maturity**, which only you see the buttons of, once you're logged in), or `POST /api/v1/seedlings/{id}/mature` with your token. It is refused (409) while the seedling can't, with how much it still needs.
 
 **What happens.**
 
@@ -1334,6 +1349,8 @@ A company's **net wealth** on the company leaderboards is a different figure: wh
 **The bank sells** the shares it holds at its **selling price**: the cash-out value plus what a share was actually paid in dividends over the last 30 game days (#673). A company that has just matured sells at its cash-out value. In the example above, if the company paid 1,500 credits in dividends over the last 30 game days (15 a share), the bank sells its shares at 36 + 15 = **51**.
 
 On a matured company's page (logged in): **Sell to the bank** and **Buy from the bank**, in whole shares. Through the API: `POST /api/v1/player-shares/{id}/bank/sell` and `.../bank/buy` with `units`.
+
+The **Stock exchange** (`/market/shares`) has a row for each matured company (#699): a share's cash-out value and a sparkline of it over 30 game days, the dividends a share paid over 30 game days, the yield (those dividends against cash-out), the last price players paid with its premium or discount on cash-out, the bank's selling price, and whether the company is steady, at risk or stalled.
 
 ### Trading shares with other players
 

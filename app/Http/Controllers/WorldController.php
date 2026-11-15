@@ -64,8 +64,37 @@ class WorldController extends Controller
         $exchange = \App\Services\Shares::exchange();
         // The new rules (#666): matured companies' shares, which players trade
         $playerMarket = config('forge.new_rules') ? \App\Services\PlayerShares::market() : null;
+        if ($playerMarket) {
+            // One row a company (#699): a share's cash-out over 30 game days,
+            // its dividends and yield, the last price players paid against
+            // cash-out, and whether it has stalled
+            $today = \App\Services\MarketHistory::today();
+            $hasCash = \Illuminate\Support\Facades\Schema::hasColumn('company_days', 'cash_out');
+            foreach ($playerMarket as &$m) {
+                $id = $m['company'];
+                $m['dividends30'] = $m['sells_at'] - $m['buys_at'];
+                $m['yield_percent'] = $m['buys_at'] > 0 ? round(100 * $m['dividends30'] / $m['buys_at'], 1) : null;
+                $m['spark'] = $hasCash ? DB::table('company_days')->where('company_id', $id)->where('day', '>', $today - 30)
+                    ->whereNotNull('cash_out')->orderBy('day')->get(['day', 'cash_out'])
+                    ->map(fn ($r) => ['day' => (int) $r->day, 'v' => intdiv(max(0, (int) $r->cash_out), \App\Services\PlayerShares::COUNT)])->all() : [];
+                $last = DB::table('player_share_trades')->where('company_id', $id)->orderByDesc('id')->first(['price', 'game_t']);
+                $m['last_price'] = $last ? (int) $last->price : null;
+                $m['premium_percent'] = $last && $m['buys_at'] > 0 ? (int) round(100 * ($last->price - $m['buys_at']) / $m['buys_at']) : null;
+                $h = \App\Services\CompanyHealth::of($id);
+                $m['stalled'] = (bool) $h['stalled'];
+                $m['at_risk'] = (bool) $h['at_risk'];
+                $m['health_note'] = $h['stalled'] ? $h['stalled_reason'] : ($h['at_risk'] ? $h['at_risk_reason'] : null);
+            }
+            unset($m);
+        }
         $playerTrades = config('forge.new_rules') ? \App\Services\PlayerShares::trades() : [];
         return view('world.shares', compact('exchange', 'playerMarket', 'playerTrades'));
+    }
+
+    /** The economy dashboard (#698): is the market busy, are companies making money, who is winning */
+    public function dashboard()
+    {
+        return view('world.dashboard', ['dash' => \App\Services\Dashboard::full()]);
     }
 
     /** The leaderboard (#324 step 18): net wealth, all time and Rising */

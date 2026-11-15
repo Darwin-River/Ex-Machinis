@@ -371,8 +371,17 @@ class Leaderboard
             return false;
         }
         $credits = DB::table('companies')->pluck('credits', 'company_id')->all();
+        // A matured company's cash-out value that day (#699, migration 0066)
+        $cashOut = [];
+        if (Schema::hasColumn('company_days', 'cash_out')) {
+            foreach (DB::table('companies')->where('seedling', 0)->whereNotNull('owner_id')->whereNotNull('matured_t')
+                         ->whereNull('eliminated_at')->pluck('company_id') as $id) {
+                $cashOut[(int) $id] = PlayerShares::cashOut((int) $id)['total'];
+            }
+        }
         $rows = array_map(fn ($r) => ['company_id' => $r['company_id'], 'day' => $today,
-            'credits' => (int) ($credits[$r['company_id']] ?? 0), 'net_wealth' => $r['wealth'], 'drones' => $r['drones']],
+            'credits' => (int) ($credits[$r['company_id']] ?? 0), 'net_wealth' => $r['wealth'], 'drones' => $r['drones']]
+            + ($cashOut ? ['cash_out' => $cashOut[$r['company_id']] ?? null] : []),
             array_values(self::wealth()));
         foreach (array_chunk($rows, 500) as $chunk) {
             DB::table('company_days')->insertOrIgnore($chunk);
@@ -383,9 +392,27 @@ class Leaderboard
     /** A company's net wealth by game day, oldest first */
     public static function history(int $companyId): array
     {
-        return DB::table('company_days')->where('company_id', $companyId)->orderBy('day')
-            ->get(['day', 'credits', 'net_wealth', 'drones'])
-            ->map(fn ($d) => ['day' => (int) $d->day, 'credits' => (int) $d->credits,
-                'net_wealth' => (int) $d->net_wealth, 'drones' => (int) $d->drones])->all();
+        $hasCash = Schema::hasColumn('company_days', 'cash_out');
+        $rows = DB::table('company_days')->where('company_id', $companyId)->orderBy('day')
+            ->get(array_merge(['day', 'credits', 'net_wealth', 'drones'], $hasCash ? ['cash_out'] : []));
+        // The bank's selling price that day (#699): a share's cash-out value
+        // plus its dividends over the 30 game days before, as
+        // PlayerShares::prices works it out now
+        $paid = DB::table('player_dividends')->where('company_id', $companyId)->groupBy('day')
+            ->selectRaw('day, SUM(amount) AS amount')->pluck('amount', 'day')->all();
+        return $rows->map(function ($d) use ($paid, $hasCash) {
+            $cash = $hasCash && $d->cash_out !== null ? (int) $d->cash_out : null;
+            $share = $cash === null ? null : intdiv(max(0, $cash), PlayerShares::COUNT);
+            $div = 0;
+            foreach ($paid as $day => $amount) {
+                if ($day >= (int) $d->day - 30 && $day < (int) $d->day) {
+                    $div += (int) $amount;
+                }
+            }
+            return ['day' => (int) $d->day, 'credits' => (int) $d->credits,
+                'net_wealth' => (int) $d->net_wealth, 'drones' => (int) $d->drones,
+                'cash_out' => $cash, 'cash_out_share' => $share,
+                'bank_sells_at' => $share === null ? null : $share + intdiv($div, PlayerShares::COUNT)];
+        })->all();
     }
 }

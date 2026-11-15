@@ -139,6 +139,9 @@
                     @endforeach
                 </table>
             </div>
+            {{-- Its actions and fuel over time (#699) --}}
+            @include('partials.drone-activity', ['droneId' => $agent->agent_id])
+
             @if($activity)
                 {{-- What a working drone is doing (#380) --}}
                 <div class="row row-30">

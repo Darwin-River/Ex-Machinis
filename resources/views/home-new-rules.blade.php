@@ -1,0 +1,113 @@
+@extends('layouts.app')
+@section('pageTitle', 'Home')
+@push('styles')
+    <style>
+        /* The home page for the new rules (#697) */
+        .home-hero { padding: 3.5rem 0 2.5rem; }
+        .home-hero h1 { font-size: 2.6rem; line-height: 1.1; margin: 0 0 1rem; }
+        .home-lead { font-size: 1.15rem; color: #c3c9d8; max-width: 34em; white-space: normal; }
+        .home-code { background: #0f1424; border: 1px solid #263052; border-radius: 10px; padding: 16px 18px; margin: 0;
+              font: 14px/1.6 "JetBrains Mono", ui-monospace, monospace; color: #cfe3ff; white-space: pre; overflow-x: auto; }
+        .home-code .k { color: #4cc9f0; } .home-code .c { color: #8b95ad; }
+        .home-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 0 0 2.5rem; padding: 0; list-style: none; }
+        .home-step { background: #111729; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px 18px; }
+        .home-step .n { color: #ffb547; font-weight: 700; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; }
+        .home-step h2 { font-size: 1.15rem; margin: 6px 0; }
+        .home-step p { margin: 0; color: #c3c9d8; font-size: 15px; white-space: normal; }
+        .home-clock { color: #c3c9d8; font-size: 15px; margin: 0 0 1.5rem; white-space: normal; }
+        #feed { width: 100%; }
+        #feed td { white-space: normal; vertical-align: top; }
+        #feed td:first-child { white-space: nowrap; color: #9aa3b8; padding-right: 1em; }
+        @media (max-width: 991px) { .home-steps { grid-template-columns: 1fr 1fr; } .home-hero h1 { font-size: 2rem; } }
+        @media (max-width: 480px) { .home-steps { grid-template-columns: 1fr; } #feed td:first-child { white-space: normal; } }
+    </style>
+@endpush
+@section('content')
+    @php($n = fn ($v) => number_format($v))
+    <section class="home-hero">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-7 mb-4 mb-lg-0">
+                    <p class="hero-kicker">Free &middot; multiplayer &middot; open source</p>
+                    <h1>Write the code.<br>Your drones run the company.</h1>
+                    <p class="home-lead">A space-trading game you play in Lua. The bank lends your first company, a
+                        <b>seedling</b>, a drone and {{ $n($seedling['credits']) }} credits; make it earn back the
+                        {{ $n($seedling['grant']) }} it owes and its {{ $seedling['shares'] }} shares are yours, and if it crashes,
+                        close it and it costs you nothing. <b>Break, learn, repeat.</b></p>
+                    <div class="hero-actions">
+                        <a class="button button-primary button-lg" href="{{ url('release') }}">Start a seedling (free)</a>
+                        <a class="button button-secondary button-lg" href="{{ url('getting-started') }}">Getting started</a>
+                    </div>
+                    <p class="mt-3 mb-0"><a href="{{ url('signup') }}">Make an account</a> to keep what you start: it's free.</p>
+                </div>
+                <div class="col-lg-5">
+<pre class="home-code" v-pre aria-label="A sketch of the Miner starter script"><span class="c">-- A sketch of the Miner starter</span>
+<span class="k">function</span> launched()
+  go(moon)
+  <span class="k">while</span> true <span class="k">do</span>
+    dig(richer(kunspar, wolfite), 100)
+    go(market())
+    sell_out(metals())   <span class="c">-- to the House</span>
+    refuel()
+  <span class="k">end</span>
+<span class="k">end</span>
+<span class="c">-- press Release, then watch its page</span></pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section pt-0">
+        <div class="container">
+            @if (session('status'))
+                <div class="alert alert-success">{{ session('status') }}</div>
+            @endif
+            <ol class="home-steps" id="home-steps">
+                <li class="home-step"><div class="n">Step 1</div><h2>Pick a starter</h2>
+                    <p>Miner, Refiner or Maker on the <a href="{{ url('release') }}">Release</a> page. Each explains itself in comments.</p></li>
+                <li class="home-step"><div class="n">Step 2</div><h2>Start a seedling</h2>
+                    <p>The bank lends it a drone ({{ $n($seedling['hull']) }}), {{ $n($seedling['credits']) }} credits and a
+                        {{ $n($seedling['fee']) }} fee: it owes {{ $n($seedling['grant']) }}.</p></li>
+                <li class="home-step"><div class="n">Step 3</div><h2>Watch and fix</h2>
+                    <p>Its page shows what went wrong. Push a fix (the first is free), or close it and try again.</p></li>
+                <li class="home-step"><div class="n">Step 4</div><h2>Mature it</h2>
+                    <p>At {{ $n($seedling['mature_at']) }} credits (its debt and {{ $n($seedling['margin']) }} to work with)
+                        it repays the bank, and its {{ $seedling['shares'] }} shares are yours.</p></li>
+            </ol>
+
+            {{-- The game clock in one plain line, honest when it is slowed (#697) --}}
+            @php($s = $status)
+            <p class="home-clock" id="game-clock"><b>Game clock:</b>
+                @if(!$clock)
+                    a game day takes about 48 real seconds.
+                @elseif($s['slowed'])
+                    slowed: a game day takes {{ \App\Services\LaunchQueue::dayPace($clock) }} now, not the usual
+                    {{ str_replace('about ', '', \App\Services\LaunchQueue::dayPace(['scale' => $clock['target']])) }}, because the engines are behind{{ $s['engine']['behind_seconds'] !== null ? ' (' . $n($s['engine']['behind_seconds']) . ' real seconds)' : '' }}.
+                    Give a seedling a while.
+                @else
+                    a game day takes {{ \App\Services\LaunchQueue::dayPace($clock) }}, so you see your code at work within minutes.
+                @endif
+                @if($clock && $clock['full'])
+                    <b>The world is full:</b> new releases wait their turn ({{ $clock['waiting'] }} waiting).
+                @endif
+            </p>
+
+            {{-- The economy at a glance (#698) --}}
+            <h2 class="h4">The economy</h2>
+            @include('partials.dashboard-strip', ['dash' => $dash, 'dashLink' => true])
+
+            <h2 class="h4 mt-4">Just now</h2>
+            @if(empty($feed))
+                <p>Nothing has happened yet.</p>
+            @else
+                <table class="table-ticket" id="feed" v-pre>
+                    @foreach($feed as $item)
+                        <tr><td>{{ $item['when'] }}</td><td>{!! $item['html'] !!}</td></tr>
+                    @endforeach
+                </table>
+                <p class="mt-2"><a href="{{ url('market') }}">The market</a> &middot; <a href="{{ url('leaderboard') }}">Leaderboard</a>
+                    &middot; <a href="{{ url('blog') }}">Strategy blog</a></p>
+            @endif
+        </div>
+    </section>
+@endsection

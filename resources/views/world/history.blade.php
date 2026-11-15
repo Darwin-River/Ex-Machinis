@@ -15,7 +15,7 @@
             @if($resources->isEmpty())
                 <p>No trades yet.</p>
             @else
-                @include('partials.price-volume-chart', ['chartResource' => null, 'chartDays' => 60, 'chartTitle' => 'Price a unit and units traded'])
+                @include('partials.price-volume-chart', ['chartResource' => null, 'chartDays' => 30, 'chartTitle' => 'Price a unit and units traded'])
             @endif
         </div>
     </section>

@@ -12,6 +12,22 @@
         .stat-negative { color: #ff7b72; }
         .stat-link { font-size: 0.85em; }
         .stat-meta { font-size: 0.85em; opacity: 0.75; margin-bottom: 1.5em; }
+        /* Seedling or matured, and the road to maturity (#697) */
+        .co-badge { display: inline-block; font-size: 0.85rem; font-weight: 700; padding: 3px 10px; border-radius: 99px; vertical-align: middle;
+              background: rgba(76, 201, 240, 0.16); color: #4cc9f0; font-family: system-ui, sans-serif; letter-spacing: 0.02em; }
+        .co-badge-matured { background: rgba(90, 209, 154, 0.16); color: #5ad19a; }
+        .road { background: #111729; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px 18px; margin: 0 0 16px; white-space: normal; }
+        .road h2 { font-size: 1.25rem; margin: 0 0 6px; }
+        .road-bar { position: relative; height: 16px; background: #263052; border-radius: 99px; margin: 30px 0 30px; }
+        .road-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; background: linear-gradient(90deg, #ffb547, #ffd08a); }
+        .road-mark { position: absolute; top: -6px; bottom: -6px; width: 2px; background: #e6e9f2; }
+        .road-mark span { position: absolute; left: 50%; transform: translateX(-50%); font-size: 12px; color: #c3c9d8; white-space: nowrap; }
+        .road-mark.up span { bottom: 100%; margin-bottom: 2px; } .road-mark.down span { top: 100%; margin-top: 2px; }
+        .road-mark.cap { background: #ff6b6b; }
+        .road-mark.edge-r span { left: auto; right: 0; transform: none; } .road-mark.edge-l span { left: 0; transform: none; }
+        .road-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; margin-top: 12px; }
+        .road-actions form { margin: 0; }
+        .road-actions details { flex-basis: 100%; }
         .health-banner { border-left: 4px solid #e3b341; background: rgba(227,179,65,0.12); padding: 10px 14px; margin: 0 0 12px; }
         /* Wide tables scroll sideways inside the page on a phone, not the page (#692) */
         .table-scroll, .table-custom-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }        /* Code revisions (#594) */
@@ -23,8 +39,10 @@
     </style>
 @endpush
 @section('content')
-    <x-page-header>
-        <x-slot:title>{{$title}}</x-slot:title>
+    {{-- Seedling or matured, and whose (#697) --}}
+    @php($badge = ($user->eliminated_at ?? null) !== null ? null : ((int) ($user->seedling ?? 0) === 1 ? 'Seedling' : (($user->matured_t ?? null) !== null ? 'Matured' : null)))
+    <x-page-header :subtitle="$owner ? 'Owned by ' . $owner : null">
+        <x-slot:title>{{$title}}@if($badge) <span @class(['co-badge', 'co-badge-matured' => $badge === 'Matured']) id="company-badge">{{ $badge }}</span>@endif</x-slot:title>
         <li><a href="/companies">Companies</a></li>
         <li class="active">{{$title}}</li>
     </x-page-header>
@@ -37,8 +55,19 @@
                     <div class="stat-value {{ ($stats['wealth'] ?? 0) < 0 ? 'stat-negative' : '' }}">{{ $stats['wealth'] === null ? 'ended' : number_format($stats['wealth']) }}</div></div>
                 <div class="stat"><div class="stat-label">Credits</div>
                     <div class="stat-value">{{ number_format($user->credits) }}</div></div>
+                @if($road)
+                    <div class="stat" id="owes-the-bank"><div class="stat-label">Owes the bank</div>
+                        <div class="stat-value">{{ number_format($road['debt']) }}</div></div>
+                @endif
                 <div class="stat"><div class="stat-label">Drones</div>
                     <div class="stat-value">{{ number_format($stats['working']) }}<small>{{ $stats['drones'] > $stats['working'] ? ' + ' . ($stats['drones'] - $stats['working']) . ' wrecked' : ' working' }}</small></div></div>
+                @if(isset($stats['cash_out']))
+                    <div class="stat" id="stat-cash-out"><div class="stat-label">Cash-out a share</div>
+                        <div class="stat-value">{{ number_format($stats['cash_out']) }}</div>
+                        <a class="stat-link" href="#player-shares">the bank's prices</a></div>
+                    <div class="stat" id="stat-dividends"><div class="stat-label">Dividends a share, 30 days</div>
+                        <div class="stat-value">{{ number_format($stats['dividends30']) }}</div></div>
+                @endif
                 <div class="stat"><div class="stat-label">Rank at its age</div>
                     <div class="stat-value" id="peer-rank">@if($rank){{ $rank['rank'] }}<small> of {{ $rank['of'] }}</small>@else — @endif</div>
                     @if($rank)<a class="stat-link" href="{{ url('leaderboard') . '?age=' . $rank['age'] }}">compare</a>@endif</div>
@@ -61,8 +90,58 @@
                 <p class="stat-meta" id="seedling">Matured on {{ \App\Services\DronePage::when((int) $user->matured_t) }}: its code is locked for good.</p>
             @endif
 
+            @if($road)
+                {{-- The road to maturity (#697): its credits against its debt and the mark it matures at --}}
+                @php($scale = max($road['mature_at'], $road['cap'] ?? 0, $road['credits'], 1) * 1.04)
+                @php($at = fn ($v) => round(min(100, max(0, $v / $scale * 100)), 2))
+                @php($edge = fn ($v) => $at($v) > 85 ? 'edge-r' : ($at($v) < 12 ? 'edge-l' : ''))
+                @php($toGo = max(0, $road['mature_at'] + $road['owed_tax'] - $road['credits']))
+                <section class="road" id="road-to-maturity">
+                    <h2>Road to maturity</h2>
+                    <div>It holds <b>{{ number_format($road['credits']) }}</b> credits. It can mature at
+                        <b>{{ number_format($road['mature_at']) }}</b>: its debt of {{ number_format($road['debt']) }}, plus
+                        {{ number_format($road['margin']) }} to work with{{ $road['owed_tax'] > 0 ? ', and the ' . number_format($road['owed_tax']) . ' processor tax it owes' : '' }}.
+                        @if($road['can_mature']) <b>It can mature now.</b> @else {{ number_format($toGo) }} to go. @endif</div>
+                    <div class="road-bar" role="img" aria-label="{{ number_format($road['credits']) }} of {{ number_format($road['mature_at']) }} credits, {{ min(100, (int) floor(100 * $road['credits'] / max(1, $road['mature_at']))) }} percent">
+                        <div class="road-fill" style="width: {{ $at($road['credits']) }}%"></div>
+                        <div class="road-mark up {{ $edge($road['debt']) }}" style="left: {{ $at($road['debt']) }}%"><span>debt {{ number_format($road['debt']) }}</span></div>
+                        <div class="road-mark down {{ $edge($road['mature_at']) }}" style="left: {{ $at($road['mature_at']) }}%"><span>mature at {{ number_format($road['mature_at']) }}</span></div>
+                        @if($road['cap'])
+                            <div class="road-mark cap up {{ $edge($road['cap']) }}" style="left: {{ $at($road['cap']) }}%" title="Its credit cap: what it earns above this goes to the bank"><span>cap {{ number_format($road['cap']) }}</span></div>
+                        @endif
+                    </div>
+                    @if($road['cap'])
+                        <p class="mb-2"><small>Its credit cap is {{ number_format($road['cap']) }}: what it earns above that goes to the bank, so mature it before it gets there.</small></p>
+                    @endif
+                    @if($h['stalled'])
+                        <div class="health-banner" id="stalled-banner"><strong>It has stalled:</strong> {{ $h['stalled_reason'] }}.
+                            It won't reach the mark like this. See <a href="#health">Health</a> for what its drones last said, then push a fix or close it.</div>
+                    @endif
+                    @if($road['owner'])
+                        <div class="road-actions" id="seedling-actions">
+                            @if($road['can_mature'])
+                                <form method="POST" action="{{ url('seedlings/' . $user->user_id . '/mature') }}">{{ csrf_field() }}
+                                    <button class="button button-primary" type="submit">Mature it</button></form>
+                            @endif
+                            <form method="POST" action="{{ url('seedlings/' . $user->user_id . '/close') }}"
+                                  onsubmit="return confirm('Close this seedling? It leaves the game with all it holds, and its debt is cancelled.')">{{ csrf_field() }}
+                                <button class="button button-secondary" type="submit">Close it (debt cancelled)</button></form>
+                            <details id="seedling-push">
+                                <summary class="button button-secondary" style="display: inline-block">Push new code {{ $road['push_fee'] === 0 ? '(the first is free)' : '(adds ' . number_format($road['push_fee']) . ' to its debt)' }}</summary>
+                                <form method="POST" action="{{ url('seedlings/' . $user->user_id . '/push') }}" class="mt-2">{{ csrf_field() }}
+                                    <label for="seedling-script">New script (Lua): its working drones drop what they run and start it</label>
+                                    <textarea v-pre class="form-control" id="seedling-script" name="script" rows="10" spellcheck="false"
+                                              maxlength="{{ config('forge.max_script_length') }}" required>{{ $code['current']['script'] ?? '' }}</textarea>
+                                    <button class="button button-primary mt-2" type="submit">Push it</button>
+                                </form>
+                            </details>
+                        </div>
+                    @endif
+                </section>
+            @endif
+
             {{-- Stalled, at the top where a buyer looks first (#689) --}}
-            @if($h['stalled'])
+            @if($h['stalled'] && !$road)
                 <div class="health-banner" id="stalled-banner"><strong>Stalled:</strong> {{ $h['stalled_reason'] }}.
                     See <a href="#health">Health</a> for which drones and what they last said.</div>
             @endif
@@ -205,9 +284,9 @@
                 @endif
             </p>
 
-            {{-- Its earnings by game day (#600): what investors judge it by --}}
-            <h2 id="earnings">Earnings</h2>
-            @include('partials.earnings-chart', ['earningsCompany' => $user->user_id, 'earningsDays' => 30])
+            {{-- Its performance by game day (#600, #699): what investors judge it by --}}
+            <h2 id="performance">Performance</h2>
+            @include('partials.company-performance', ['perf' => $perf, 'companyId' => (int) $user->user_id])
 
             <div class="row row-30">
                 <div class="col">

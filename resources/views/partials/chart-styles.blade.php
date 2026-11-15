@@ -23,6 +23,9 @@
         .mh-tip div:first-child { color: var(--mh-muted); }
         .mh-tip i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
         .mh-empty { display: flex; align-items: center; justify-content: center; min-height: inherit; color: var(--mh-muted); font-size: 14px; }
+        .mh-multiple { min-height: 200px; }
+        .mh-multiple-title { font-size: 14px; font-weight: 600; margin: .75em 0 .25em; color: var(--mh-text); }
+        .mh-chart .mh-chart { min-height: 200px; }
         .mh-chart:focus-visible { outline: 2px solid var(--mh-axis); outline-offset: 2px; }
     </style>
 @endpush

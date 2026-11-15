@@ -29,6 +29,7 @@ This document lays out the plans for developing Ex Machinis, an online space sim
   * [Trading, orders and the House](#Rules-trading)
   * [Running costs and failure](#Rules-costs)
   * [Boards, the digest and dealings](#Rules-boards)
+  * [The economy dashboard](#Rules-dashboard)
   * [Failure codes](#Rules-failure-codes)
   * [Where each number is set](#Rules-numbers)
 * [General Mechanics](#General-Mechanics)
@@ -210,6 +211,7 @@ This section is the whole rulebook of the live game in one place: what a player 
 - **When.** Once a seedling's credits, less any processor tax it owes, cover its debt and **500 more** to work with, a verified player may mature it (#664). `can_mature` says so; it can turn false a moment later if the drone spends, so the player tries again.
 - **What happens.** It repays its debt; its code is **locked for good** (nobody can push to it, ever); it trades with everyone; and its player gets its **100 shares** (#667; 1,000 until then).
 - **After.** A matured company runs until it fails. Its starters launch copies once matured, which spends credits on hulls and kits and lowers its cash-out for a while. Two of one player's matured companies may trade with each other: their dealings are flagged.
+- **On the website** (#697). A company's title carries a **Seedling** or **Matured** badge and its owner. A live seedling's page shows its **Road to maturity**: a bar of its credits against its debt and the mature mark (debt + `forge.seedling_mature_margin`), with its credit cap marked (`Seedlings::creditCap`), a plain-words warning when it has stalled, and, for its logged-in owner only, **Mature it** (when it can), **Push new code** (the first is free) and **Close it**, through the account's seedling routes. "Owes the bank" is among its figures. Under the new rules the home page pitches the seedling, with its four steps' numbers taken from the config, the economy at a glance and a short feed in which every name is a link and fuel purchases at a place are grouped; the old rules keep the old home page.
 - **Time to mature** (round 68, 1,800×): an unchanged Miner 33 to 50 game days; a Refiner changed to mine wolfite about 37; a Maker that roams for metals about 66.
 
 <a name="Rules-shares"></a>
@@ -245,6 +247,14 @@ This section is the whole rulebook of the live game in one place: what a player 
 - **The digest.** On the account page (and `GET /account/digest`), what happened since the player last looked: each company's sales and purchases, what a seedling sent the bank over its cap, dividends, the bank's payments, same-owner dealings and the news (#640, #655, #672).
 - **Dealings.** A company's page lists the companies it has traded with or plundered, and flags those with the same player behind them (#639). The bank's own companies aren't flagged.
 - **The company boards** (net wealth: growth since the start, without hulls or debt) and the lineage map stay as they were.
+
+<a name="Rules-dashboard"></a>
+### The economy dashboard
+- **What it is for** (#698): whether the market is busy, whether companies make money, what trades where, and who is winning, on one page (`/dashboard`, in the World menu) and in the API (`GET /api/v1/dashboard`). The home page shows its banner and tiles.
+- **Worked out on the server** (`App\Services\Dashboard`), and cached for 60 real seconds, so page views never run its queries: at most one view a minute does.
+- **The norm** is the average game day over up to 60 game days before the last full one. The banner calls the market quiet below half of it, and when the clock is slowed it says the pace, the engines' lag and processor tax's multiplier, from the same data as `/api/v1/clock`.
+- **Counting.** Drones are players' drones: the House's station drones are left out, and so are a closed seedling's, which leave the game. A matured company's profit counts from the day it matured. Yield is a share's dividends over 30 game days against its cash-out value.
+- **Charts** are inline SVG drawn in the page by one small kit (`resources/views/partials/ex-charts.blade.php`), in the colours of the price charts: blue, orange, green, gold, pink and violet in that fixed order, checked for colour-blind readers against the dark panel. Losses are red, wrecks grey. Every chart says where its numbers come from and has tooltips; the page is one column on a phone, with no sideways scroll.
 
 <a name="Rules-failure-codes"></a>
 ### Failure codes
@@ -990,7 +1000,7 @@ There are no player accounts (#367 step 4: login, sign-up, password resets, invi
 
 * **Net wealth** = the company's credits + the goods aboard its working drones (installed and locked included; wrecks' holds don't count) at the market price + the shares it holds in other companies at their value price (#513: `Shares::valuePrices`, the last 3 game days' share trades averaged by units, else the last trade; #471: `Shares::holdingsValue`; never traded counts 0, its own shares nothing) − the company's starter package: its starting credits (`forge.starting_credits`), starting fuel at the House price and its kit (both kits' contents are worth 2,400). A fresh release is worth 0, so wealth is what it made.
 * **The market price** of a good (#380) is what it sold for, a unit, over the last three game days (`trades`, `Leaderboard::MARKET_DAYS`); a good that hasn't traded lately falls back to the exchanges' price list (`station_goods`: the least a station pays, else the least it asks), which players don't see. Until #380 it was always that House price. A packed kit is worth its contents (the increments of its unpack protocol, 25901 or 25902), so unpacking it changes nothing.
-* **By game day** (#380 round 36: players kept their own notes): `company_days` (migration 0028) holds each company's credits, net wealth and working drones once a game day, taken on the tick (`Leaderboard::dailyIfDue`), every day kept (#614: the At age board reads it day by day; until then days older than 60 were thinned to every 10th, so earlier history has 10-day gaps). `/api/v1/companies/{id}/history` returns them.
+* **By game day** (#380 round 36: players kept their own notes): `company_days` (migration 0028) holds each company's credits, net wealth and working drones once a game day, taken on the tick (`Leaderboard::dailyIfDue`), every day kept (#614: the At age board reads it day by day; until then days older than 60 were thinned to every 10th, so earlier history has 10-day gaps). `/api/v1/companies/{id}/history` returns them. Since #699 (migration 0066, `company_days.cash_out`) the snapshot also stores a matured company's cash-out value (`PlayerShares::cashOut`'s total, NULL for other companies and earlier days); the history adds a share's (`cash_out_share`) and the bank's selling price that day (`bank_sells_at`: a share's cash-out plus its `player_dividends` over the 30 game days before). The company page charts them on one game-day axis with net wealth, credits, earnings, dividends a share and working drones (`partials/company-performance`); the Stock exchange page draws each matured company's 30-day cash-out as a sparkline beside its dividends, yield, last players' price against cash-out and health; a drone's page draws its last 100 actions (`/api/v1/drones/{id}/timeline`) as an activity strip and its fuel after each; Market history fits its price axis to the prices shown, stacks units by place in a band below, marks days with no trades, opens at 30 days and draws one small chart a place at phone width.
 * **Rising** is the gain over the last real week: wealth now − the company's latest snapshot at least 7 days old (0 for a company started within the week). The website takes a snapshot of every company's wealth once a real hour (`wealth_snapshots`, migrations 0014 and 0017), when the scheduler's tick calls it (`/tick`, every few seconds) or when the leaderboard is viewed.
 * Both boards show the top 50: the company, its working drones, and wealth or gain.
 

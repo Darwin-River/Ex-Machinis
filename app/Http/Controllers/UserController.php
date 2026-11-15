@@ -120,7 +120,44 @@ class UserController extends Controller
         }
         // The new rules (#639): who it deals with, same-owner deals flagged
         $dealings = config('forge.new_rules') ? \App\Services\Dealings::of((int) $id) : null;
-        return view('user.company', compact('user', 'spacecraft', 'shares', 'rank', 'pushes', 'stats', 'code', 'today', 'lineage', 'playerShares', 'dealings'));
+        // Its owner, for the title (#697)
+        $owner = $company->owner_id !== null
+            ? \Illuminate\Support\Facades\DB::table('users')->where('user_id', $company->owner_id)->value('login') : null;
+        // A live seedling's road to maturity (#697): its credits against its
+        // debt, the mark it matures at and its credit cap, and what its owner can do
+        $road = null;
+        if ((int) ($company->seedling ?? 0) === 1 && $company->eliminated_at === null) {
+            $row = \Illuminate\Support\Facades\DB::table('companies')->where('company_id', $id)->first();
+            $viewer = \Illuminate\Support\Facades\Auth::user();
+            $debt = (int) $row->debt;
+            $road = ['credits' => (int) $row->credits, 'debt' => $debt, 'owed_tax' => (int) $row->compute_debt,
+                'mature_at' => $debt + \App\Services\Seedlings::matureMargin(), 'margin' => \App\Services\Seedlings::matureMargin(),
+                'cap' => \App\Services\Seedlings::creditCap($row), 'can_mature' => \App\Services\Seedlings::canMature($row),
+                'push_fee' => \App\Services\Seedlings::pushFee($row),
+                'owner' => $viewer && $viewer->login !== null && $row->owner_id !== null && (int) $viewer->user_id === (int) $row->owner_id];
+        }
+        // Its performance on one game-day axis (#699): net wealth and credits,
+        // cash-out a share against the bank's price and players' trades,
+        // earnings, dividends and working drones
+        $epoch = (int) (\Illuminate\Support\Facades\DB::table('game_clock')->where('id', 1)->value('epoch') ?? 0);
+        $matured = $company->owner_id !== null && (int) $company->seedling === 0 && $company->matured_t !== null;
+        $perf = [
+            'today' => $today,
+            'history' => \App\Services\Leaderboard::history((int) $id),
+            'earnings' => \App\Services\CompanyEarnings::daily((int) $id, \App\Services\CompanyEarnings::MAX_DAYS),
+            'shares' => $matured || config('forge.new_rules') ? \App\Services\PlayerShares::COUNT : max(1, (int) $shares['count']),
+            'matured' => $matured,
+            'trades' => $matured ? array_map(fn ($t) => ['day' => intdiv(max(0, $t['game_time'] - $epoch), 86400), 'price' => $t['price'],
+                'units' => $t['units'], 'seller' => $t['seller_name'], 'buyer' => $t['buyer_name']],
+                \App\Services\PlayerShares::trades((int) $id, 500)) : [],
+        ];
+        if ($playerShares) {
+            // Cash-out a share and its dividends over 30 game days, at the top (#699)
+            $stats['cash_out'] = $playerShares['buys_at'];
+            $stats['dividends30'] = \App\Services\PlayerShares::dividends30((int) $id);
+        }
+        return view('user.company', compact('user', 'spacecraft', 'shares', 'rank', 'pushes', 'stats', 'code', 'today', 'lineage',
+            'playerShares', 'dealings', 'owner', 'road', 'perf'));
     }
 
     /** Pushes new code to a company's working drones, with its password (#553) */

@@ -40,10 +40,23 @@ class HomeController extends Controller
      */
     public function index()
     {
-        // What's happening in the world (#324 step 17)
-        $feed = \App\Services\World::feed();
         // The game clock, live (#324 step 20)
         $clock = \App\Services\LaunchQueue::clock();
+        if (config('forge.new_rules')) {
+            // The home page for the new rules (#697): the pitch, the four
+            // steps with the numbers in force, the economy at a glance (#698)
+            // and a short feed with fuel purchases grouped
+            $seedling = ['grant' => \App\Services\Seedlings::grant(),
+                'mature_at' => \App\Services\Seedlings::grant() + \App\Services\Seedlings::matureMargin(),
+                'margin' => \App\Services\Seedlings::matureMargin(), 'shares' => \App\Services\Seedlings::SHARES,
+                'credits' => (int) config('forge.starting_credits'), 'hull' => (int) config('forge.seedling_hull_value'),
+                'fee' => (int) config('forge.seedling_fee')];
+            return view('home-new-rules', ['feed' => \App\Services\World::feedGrouped(8), 'clock' => $clock,
+                'status' => \App\Services\LaunchQueue::status(), 'seedling' => $seedling,
+                'dash' => \App\Services\Dashboard::compact()]);
+        }
+        // What's happening in the world (#324 step 17)
+        $feed = \App\Services\World::feed();
         return view('home', compact('feed', 'clock'));
     }
 
