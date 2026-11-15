@@ -57,6 +57,10 @@ int main(void)
     check("above it the excess goes to the bank", seedling_over_cap(9000, 4200, 2000) == 600);
     check("no cap when it is 0", seedling_over_cap(90000, 4200, 0) == 0);
     check("nor for a company with no debt", seedling_over_cap(90000, 0, 2000) == 0);
+    // Push fees don't raise it (#684): two paid pushes on 4,200 still cap at 8,400
+    check("the cap's base leaves out push fees", seedling_cap_base(4400, 200) == 4200);
+    check("so pushes keep the cap", seedling_over_cap(8600, seedling_cap_base(4400, 200), 2000) == 200);
+    check("and the base is never below 0", seedling_cap_base(100, 200) == 0);
 
     printf("%s\n", failures ? "FAILED" : "all passed");
     return failures ? 1 : 0;

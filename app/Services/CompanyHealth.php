@@ -28,6 +28,14 @@ use Illuminate\Support\Facades\DB;
  *   IDLE_LOOKBACK days; stalled when that is a game day or more. Dev 6 and
  *   Ezra 6 (round 57) sat "short of credits" for 20 game days before their
  *   owners noticed
+ * - idle_drones (#689): working drones idle a game day or more;
+ *   last_sale: game hours since it last sold anything (up to IDLE_LOOKBACK
+ *   days; null when it is younger than that and has never sold). Round 69's
+ *   company 161 had 39 drones, most idle 26 to 240 game hours and no sale for
+ *   days, yet idle 0 and not stalled: one drone making alloys was enough.
+ *   Now it is stalled too when at least half its drones are idle, or when it
+ *   has sold nothing for STALLED_SALE_HOURS (once it is that old);
+ *   stalled_reason says which
  */
 class CompanyHealth
 {
@@ -36,6 +44,7 @@ class CompanyHealth
     public const RISK_CREDITS = 500;
     public const STALLED_HOURS = 24;
     public const IDLE_LOOKBACK = 10;   // game days
+    public const STALLED_SALE_HOURS = 72;
 
     /** The per-drone fuel figures for the SQL: c (company id) and now are placeholders */
     public static function sql(string $company, string $now): string
@@ -79,10 +88,44 @@ class CompanyHealth
         $health = ['working' => (int) $row->working, 'wrecked' => (int) $row->wrecked, 'fuel' => (int) $row->fuel,
             'lowest' => (int) $row->lowest, 'used' => (int) $row->used, 'days' => (int) $row->days,
             'credits' => (int) $row->d_credits, 'idle' => (int) $row->idle] + ProcessorTax::broke($company);
-        $health['stalled'] = $health['working'] > 0 && $health['idle'] >= self::STALLED_HOURS;
-        $health['at_risk_reason'] = self::riskReason($health);
+        // Its drones idle a game day or more, and its last sale (#689)
+        $health['idle_drones'] = (int) DB::selectOne("SELECT COUNT(*) AS n FROM (SELECT " . self::lastWorkSql('a.agent_id', (string) $now)
+            . " AS last_t FROM agents AS a WHERE a.company_id = ? AND a.wrecked_at IS NULL) AS d "
+            . "WHERE d.last_t IS NULL OR d.last_t <= ?", [$company, $now - self::STALLED_HOURS * 3600])->n;
+        $lookback = self::IDLE_LOOKBACK * 86400;
+        $sold = DB::table('trades AS t')->join('agents AS a', 'a.agent_id', '=', 't.seller')->where('a.company_id', $company)
+            ->where('t.game_t', '>', $now - $lookback)->where('t.game_t', '<=', $now)->max('t.game_t');
+        $founded = (int) (DB::table('companies')->where('company_id', $company)->value('founded_t') ?? $now);
+        $health['last_sale'] = $sold !== null ? (int) floor(($now - (int) $sold) / 3600)
+            : ($now - $founded >= $lookback ? self::IDLE_LOOKBACK * 24 : null);
+        // An ended company is neither stalled nor at risk: it has ended (#686)
+        $ended = DB::table('companies')->where('company_id', $company)->whereNotNull('eliminated_at')->exists();
+        $health['stalled_reason'] = $ended ? null : self::stalledReason($health, $now - $founded);
+        $health['stalled'] = $health['stalled_reason'] !== null;
+        $health['at_risk_reason'] = $ended ? null : self::riskReason($health);
         $health['at_risk'] = $health['at_risk_reason'] !== null;
         return $health;
+    }
+
+    /** Why a company is stalled (#540, #689), or null */
+    public static function stalledReason(array $h, int $age): ?string
+    {
+        if ($h['working'] === 0) {
+            return null;
+        }
+        if ($h['idle'] >= self::STALLED_HOURS) {
+            return "none of its drones has bought, sold or made anything for {$h['idle']} game hours";
+        }
+        if ($h['working'] > 1 && $h['idle_drones'] * 2 >= $h['working']) {
+            return "{$h['idle_drones']} of its {$h['working']} drones have bought, sold or made nothing for a game day or more";
+        }
+        if ($age >= self::STALLED_SALE_HOURS * 3600
+            && ($h['last_sale'] === null || $h['last_sale'] >= self::STALLED_SALE_HOURS)) {
+            return $h['last_sale'] === null ? 'it has never sold anything'
+                : ($h['last_sale'] >= self::IDLE_LOOKBACK * 24 ? 'it has sold nothing for ' . self::IDLE_LOOKBACK . ' game days or more'
+                    : "it has sold nothing for {$h['last_sale']} game hours");
+        }
+        return null;
     }
 
     /**

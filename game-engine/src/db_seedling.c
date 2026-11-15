@@ -157,11 +157,13 @@ int db_order_lock_outcome(Event_t* event)
 long long db_seedling_skim(int company, long long credits, long long game_t)
 {
     // Only a seedling (debt 0 otherwise); its cap in thousandths of its debt
+    // without the push fees (#684): what it was lent at the start
     long long debt = sd_value(0, "SELECT IF(seedling = 1, debt, 0) FROM companies WHERE company_id = %d", company);
     if(debt <= 0)
         return 0;
+    long long fees = sd_value(0, "SELECT IFNULL(SUM(fee), 0) FROM code_pushes WHERE company_id = %d", company);
     int permille = (int)sd_value(0, "SELECT seedling_credit_cap_permille FROM house_rules WHERE id = 1");
-    long long over = seedling_over_cap(credits, debt, permille);
+    long long over = seedling_over_cap(credits, seedling_cap_base(debt, fees), permille);
     if(over <= 0)
         return 0;
     char query_text[DB_MAX_SQL_QUERY_LEN+1];

@@ -61,6 +61,32 @@ class PlayerBoardsTest extends TestCase
 
         $this->get('/players')->assertOk()->assertSee('Grower One')->assertSee('This month');
         $this->getJson('/api/v1/players')->assertOk()->assertJsonPath('wealth.0.name', 'Grower One')->assertJsonPath('class_group', null);
+
+        // #687: shares sold to the bank still count until it pays
+        $before = PlayerBoards::wealths()[$grower->user_id]['wealth'];
+        \App\Services\PlayerShares::sellToBank($grower, $co, 40);
+        $w = PlayerBoards::wealths()[$grower->user_id];
+        $this->assertGreaterThan(0, $w['bank_due']);
+        $this->assertSame($before, $w['wealth'], 'no drop while the bank owes it');
+        $this->get('/players')->assertOk()->assertSee('due from the bank');
+        // Growth percentages have thousands separators
+        $this->get('/players')->assertSee(number_format(collect(PlayerBoards::boards()['season'])->firstWhere('name', 'Grower One')['growth_percent'], 1) . '%');
+    }
+
+    /** #687: a start below the floor counts as the floor: holding the floor is no growth */
+    public function testGrowthFromAZeroStart()
+    {
+        $this->assertSame(0.0, PlayerBoards::growth(0, 5000, 5000), 'not +100%');
+        $this->assertSame(0.0, PlayerBoards::growth(0, 3000, 5000));
+        $this->assertSame(60.0, PlayerBoards::growth(1000, 8000, 5000));
+        $this->assertSame(-50.0, PlayerBoards::growth(6000, 3000, 5000));
+        $this->assertSame(20.0, PlayerBoards::growth(10000, 12000, 5000));
+    }
+
+    /** #687: the footer links the Players page */
+    public function testTheFooterLinksThePlayersPage()
+    {
+        $this->get('/players')->assertOk()->assertSee('Company leaderboard')->assertSee('href="' . url('players') . '"', false);
     }
 
     public function testAClassGroupHasItsOwnBoards()

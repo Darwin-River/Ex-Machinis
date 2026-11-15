@@ -30,7 +30,7 @@
             <div class="row">
                 {{-- config/support.php (#522) --}}
                 <div class="col-md-12 col-lg-10 col-xl-9 single-post support-page">
-                    <p>Ex Machinis is free to play, with no accounts, no ads and nothing to buy. If you enjoy it, you can chip in to keep the servers running. Support pays for running costs only; anything beyond them goes back into the game.</p>
+                    <p>Ex Machinis is free to play, with a free account, no ads and nothing to buy. If you enjoy it, you can chip in to keep the servers running. Support pays for running costs only; anything beyond them goes back into the game.</p>
 
                     <h2>What it costs each month</h2>
                     <table>

@@ -172,7 +172,8 @@ class ApiController extends Controller
             'messages' => DronePage::messages($agent, 50)->map(fn ($m) => [
                 'when' => DronePage::when((int) $m->game_t), 'game_time' => (int) $m->game_t,
                 'subject' => $m->subject, 'body' => $m->body])->all(),
-            'post_mortem' => $postMortem ? ['cause' => $postMortem['cause'] ?? null] : null,
+            'post_mortem' => $postMortem ? ['headline' => $postMortem['headline'], 'cause' => $postMortem['cause'] ?? null,
+                'failure' => $postMortem['failure']] : null,
             'script' => $code ? $code['release']->source : null,
         ]);
     }
@@ -587,10 +588,13 @@ class ApiController extends Controller
             'status' => DronePage::status($a),
             // What its script says it is doing (set_status, #380)
             'script_status' => $a->script_status !== null ? ['text' => $a->script_status,
-                'set' => DronePage::when((int) $a->script_status_t), 'set_game_time' => (int) $a->script_status_t] : null,
+                'set' => DronePage::when((int) $a->script_status_t), 'set_game_time' => (int) $a->script_status_t,
+                'ago' => DronePage::ago((int) $a->script_status_t)] : null,
             // While it flies, place is where it left from; this says where it is going
             'flying_to' => ($f = DronePage::flight($a)) ? ['place_id' => $f['to_id'], 'place' => $f['to'],
                 'arrives' => $f['arrives'], 'arrives_game_time' => $f['arrives_game_time']] : null,
+            // and its destination's name, or null when it isn't flying (#689)
+            'destination' => $f ? $f['to'] : null,
             'fuel' => (int) (DB::table('sqInventory')->where('drone', $a->agent_id)->where('resource', DronePage::FUEL)->max('units') ?? 0),
             'wrecked' => $a->wrecked_at !== null,
             'wreck_cause' => $a->wreck_cause,

@@ -151,4 +151,27 @@ class PagesTest extends TestCase
             ->assertOk()
             ->assertJsonStructure(['current_page', 'data', 'total']);
     }
+
+    /** #690: the copy follows the live clock, and the new rules need an account */
+    public function testCopyFollowsTheClockAndTheRules()
+    {
+        $this->assertStringContainsString('within a few minutes', \App\Services\LaunchQueue::watchNote(['scale' => 1800]));
+        $this->assertStringContainsString('the world is busy', \App\Services\LaunchQueue::watchNote(['scale' => 60]));
+        $this->get('/')->assertOk()->assertDontSee('quickly');
+        config(['forge.new_rules' => true]);
+        $this->get('/')->assertOk()->assertDontSee('No account needed')->assertSee('Make an account');
+        $this->get('/release')->assertOk()->assertDontSee('no account needed');
+        $this->get('/about-us')->assertOk()->assertDontSee('no accounts');
+        $this->get('/support')->assertOk()->assertDontSee('no accounts');
+    }
+
+    /** #690: the queries page has no typos, and points to the right chapter */
+    public function testTheQueriesPageReadsWell()
+    {
+        $sql = file_get_contents(base_path('game-engine/sql/game_data.sql'));
+        foreach (['Spaecraft', 'Spacraft', 'Retuns', 'compony', 'were Company ID', 'Until #544'] as $typo) {
+            $this->assertStringNotContainsString($typo, $sql);
+        }
+        $this->get('/queries')->assertOk()->assertSee('chapter 9')->assertDontSee('chapter 8');
+    }
 }

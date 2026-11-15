@@ -34,8 +34,12 @@ class UserController extends Controller
     {
         $resultsPerPage = Config::get('constants.options.results_per_page');
         // Companies (#324 step 4); the JSON keeps the user_id key for the page's links
-        $query = DB::table('companies')->select('companies.company_id AS user_id', 'companies.name AS name', DB::raw('DATEDIFF(NOW(),companies.created_at) AS age')
-            , DB::raw('COUNT(agents.agent_id) AS agents'), DB::raw('IFNULL(companies.credits,0) AS credits'))
+        // Age in game days, not real ones (#692: a 4-day-old company read "4")
+        $now = (int) \App\Services\World::gameNow();
+        $query = DB::table('companies')->select('companies.company_id AS user_id', 'companies.name AS name',
+                DB::raw("ROUND(GREATEST(0, $now - IFNULL(companies.founded_t, $now)) / 86400, 1) AS age"),
+                DB::raw('COUNT(agents.agent_id) AS agents'), DB::raw('IFNULL(companies.credits,0) AS credits'),
+                DB::raw('companies.eliminated_at IS NOT NULL AS ended'))
             ->leftJoin('agents', 'agents.company_id', '=', 'companies.company_id')->groupBy('companies.company_id');
         if ($request->get('user_id') !== null)
             $query->where('companies.company_id', intval($request->get('user_id')));
@@ -44,8 +48,18 @@ class UserController extends Controller
         if ($request->get('sort')) {
             $sortParts = explode('|', $request->get('sort'));
             $query->orderBy($sortParts[0], $sortParts[1]);
+        } else {
+            // Working companies first, then those that ended (#692)
+            $query->orderBy('ended')->orderBy('companies.company_id');
         }
         $spaceObjects = $query->paginate($resultsPerPage);
+        // Credits with thousands separators, and an ended company marked (#692)
+        $spaceObjects->getCollection()->transform(function ($c) {
+            $c->credits = number_format((int) $c->credits);
+            $c->name = $c->ended ? $c->name . ' (ended)' : $c->name;
+            $c->ended = (bool) $c->ended;
+            return $c;
+        });
         // var_dump($spaceObjects);exit;
 
         return response()->json($spaceObjects, 200);
@@ -64,7 +78,8 @@ class UserController extends Controller
             'created_at' => $company->created_at, 'credits' => $company->credits,
             // The new rules (#637): a seedling's debt, or when it matured
             'seedling' => (int) ($company->seedling ?? 0), 'debt' => (int) ($company->debt ?? 0),
-            'matured_t' => $company->matured_t ?? null];
+            'matured_t' => $company->matured_t ?? null, 'owner_id' => $company->owner_id ?? null,
+            'eliminated_at' => $company->eliminated_at ?? null, 'end_cause' => $company->end_cause ?? null];
 
         $spacecraft = Agent::with('hull')->with('location')->with('lastEVents')->where('company_id', '=', $id)->get();
 

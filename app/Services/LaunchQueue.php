@@ -60,6 +60,17 @@ class LaunchQueue
         return 'about ' . round($seconds / 3600, 1) . ' real hours';
     }
 
+    /**
+     * What the pace means for watching a drone (#690): quick at the normal
+     * pace, but no promise of "quickly" when a game day takes minutes
+     */
+    public static function watchNote(?array $clock): string
+    {
+        $seconds = 86400 / max(1.0, (float) ($clock['scale'] ?? 1800.0));
+        return $seconds <= 120 ? 'so you see each version at work within a few minutes'
+            : 'slower than the usual 48 real seconds because the world is busy, so give each version a while';
+    }
+
     /** How long a span of game time takes in real time at today's pace (#591): "about 7 real minutes" */
     public static function realWait(int $gameSeconds, ?array $clock = null): string
     {

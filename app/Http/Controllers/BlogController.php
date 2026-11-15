@@ -42,7 +42,8 @@ class BlogController extends Controller
 
     public function index()
     {
-        $posts = self::posts();
+        // Newest first (#690), as the feed has it
+        $posts = array_reverse(self::posts(), true);
         return view('pages.blog', compact('posts'));
     }
 

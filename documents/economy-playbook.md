@@ -84,9 +84,9 @@ Since the reset (#642) the live game plays by the new rules (#635): seedlings, m
 | Dividends | `FORGE_DIVIDEND_PERMILLE` | half of profit | a quarter | Round 67's founders were paid back so fast that maturing an unchanged starter was close to risk-free (#667). |
 | Cash-out goods | `PlayerShares::cashOut` | the House's live bid | its listed bid for the game day | Cash-out swung 15 to 30% within minutes; buying from the bank on a dip was a near-free gain (#670). |
 | The bank's premium | `PlayerShares::dividends30` | 30 days of profit, estimated | 30 days of dividends paid | A just-matured company sold at +31% on seedling profit (#673). |
-| A seedling's credit cap | `house_rules.seedling_credit_cap_permille` | none | twice its debt | Round 68's seedlings hoarded 12,000 to 48,000 credits and turned them into shares at maturing (#672). |
+| A seedling's credit cap | `house_rules.seedling_credit_cap_permille` | none | twice its debt less push fees (#684) | Round 68's seedlings hoarded 12,000 to 48,000 credits and turned them into shares at maturing (#672). |
 | A kit's parts | `build_game_data.py` (`KIT_PARTS_SHARE`) | House bid up to 2,331 for a 2,000 kit's parts | at most 80% of the kit's price | Seedlings could flip kits for profit (#657). |
-| The Maker starter as a seedling | `examples/starters/maker.lua` | buys metals where it is | buys where the House has most on sale | The Moon's metals sold out to matured makers every day, so seedling makers starved (#671). |
+| The Maker starter as a seedling | `examples/starters/maker.lua` | buys metals where it is | buys where a unit costs least, counting the trip and its daily cap, and looks before its first move | The Moon's metals sold out to matured makers every day, so seedling makers starved (#671); then it flew past cheaper metals to the exchange with the most on sale (#688). |
 
 Open questions: the Maker earns far more than the Miner or Refiner; maturing an unchanged starter still adds 3,000 to 5,000 of wealth for nothing at stake; a matured Miner or Refiner starter spends its credits on copies at once, lowering its cash-out.
 
@@ -789,7 +789,7 @@ What to watch in the next round: whether the engines keep 1,800× with the usual
 
 Round 39's newcomers lost money to things their drones couldn't see. Hana 1 sat at Earth making valves for 636 while the Moon paid 1,061: its plan B counted idle rounds, and every valve it built reset the count. Fay 2 planned builds on metals at 1 credit from a miner with 2 units and was left with half-built parts. Everyone wanted best bid and ask by place, stock levels, profit and loss, and an idle reason. What changed:
 
-- **Every question has a name** in the Lua library (about 50 functions: `hold()`, `sell_orders(r)`, `trip_to(p)`, `price_board(r)`, `deposits()`, `wrecks()`, `event(id)`...), returning records with named fields. The manual's chapter 8 teaches the names; query numbers are for the rest.
+- **Every question has a name** in the Lua library (about 50 functions: `hold()`, `sell_orders(r)`, `trip_to(p)`, `price_board(r)`, `deposits()`, `wrecks()`, `event(id)`...), returning records with named fields. The manual's chapter 9 teaches the names; query numbers are for the rest.
 - **`quotes(r)`**: best bid and ask, the units at each, and the stock on sale, for every exchange: live here, an hour old elsewhere (query 615 rebuilds the order book as it stood then). `stock(r, place)` is the stock alone. A plan B can now compare places before it flies (`better_place` in `lua-functions.md`).
 - **`cost_to_buy(n, r)`** and **`sale_value(n, r)`**: the whole lot, in depth, before a build starts.
 - **`earnings(hours)`**: the company's sales, taxes, purchases and net, by good.

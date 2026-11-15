@@ -284,4 +284,60 @@ class PlayerSharesTest extends TestCase
         $seedling = Seedlings::start($owner, 'Api Seedling', "function launched() wait(60) end")['company'];
         $this->getJson("/api/v1/player-shares/$seedling")->assertNotFound();
     }
+
+    /** #683: selling to the bank trims sell orders; sell orders never offer more than held; own orders never cross */
+    public function testSellOrdersFollowHoldingsAndNeverCrossOwnOrders()
+    {
+        $owner = $this->player('Trim Founder');
+        $id = $this->matured($owner, 'Trim Co', 100000);
+        $p = PlayerShares::prices($id);
+        PlayerShares::order($owner, $id, 'sell', 60, $p['high']);
+        PlayerShares::order($owner, $id, 'sell', 30, $p['sells_at']);
+        $this->assertSame(422, PlayerShares::order($owner, $id, 'sell', 20, $p['high'])['status'], 'only 10 not yet offered');
+
+        $r = PlayerShares::sellToBank($owner, $id, 50);
+        $this->assertTrue($r['ok']);
+        $this->assertSame(40, $r['orders_trimmed']);
+        $orders = PlayerShares::of($owner)['orders'];
+        $this->assertSame(50, array_sum(array_column($orders, 'units')), 'no more offered than held');
+        $this->assertSame([50], array_values(array_column(array_filter($orders, fn ($o) => $o['price'] === $p['high']), 'units')),
+            'the oldest order keeps the rest');
+        $this->assertSame([], array_values(array_filter($orders, fn ($o) => $o['price'] === $p['sells_at'])), 'the newest order went first');
+
+        // A buy at or above its own sell crosses: refused
+        DB::table('users')->where('user_id', $owner->user_id)->update(['credits' => 1000000]);
+        $buy = PlayerShares::order($owner, $id, 'buy', 1, $p['high']);
+        $this->assertSame(422, $buy['status']);
+        $this->assertStringContainsString('cross', $buy['error']);
+        // Below its own sell it stands; then a sell at or below that buy is refused
+        $this->assertTrue(PlayerShares::order($owner, $id, 'buy', 1, $p['low'])['ok']);
+        $this->assertSame(422, PlayerShares::order($owner, $id, 'sell', 1, $p['low'])['status']);
+    }
+
+    /** #686: no old-rules leftovers on a matured or ended company's page; the bank named in trades */
+    public function testNoOldRulesLeftovers()
+    {
+        $owner = $this->player('Tidy Founder');
+        $id = $this->matured($owner, 'Tidy Co', 100000);
+        $this->get('/companies/' . $id)->assertOk()->assertSee('its code is locked for good')
+            ->assertDontSee('never traded')->assertDontSee('push password')->assertDontSee('No dividends until')
+            ->assertDontSee('id="shares"', false);
+
+        // A sale to the bank: the bank is named, on the site and in the API
+        PlayerShares::sellToBank($owner, $id, 3);
+        $t = PlayerShares::trades($id)[0];
+        $this->assertSame([null, 'The bank', true, false], [$t['buyer'], $t['buyer_name'], $t['buyer_is_bank'], $t['seller_is_bank']]);
+        $this->get('/market/shares')->assertOk()->assertSee('The bank')
+            ->assertDontSee('Every company starts with 1,000 shares')->assertDontSee('No company has traded or offered shares yet');
+        $this->getJson("/api/v1/player-shares/$id")->assertJsonPath('trades.0.buyer_name', 'The bank')
+            ->assertJsonPath('trades.0.buyer_is_bank', true);
+
+        // A closed seedling owes nothing and isn't at risk
+        $seed = Seedlings::start($owner, 'Closed Co', "function launched() wait(60) end")['company'];
+        Seedlings::close($owner, $seed);
+        DB::table('companies')->where('company_id', $seed)->update(['debt' => 5500]);   // as a world reset leaves it
+        $this->get('/companies/' . $seed)->assertOk()->assertSee('it owes nothing')->assertDontSee('it owes the bank')
+            ->assertDontSee('At risk');
+        $this->assertFalse(\App\Services\CompanyHealth::of($seed)['at_risk']);
+    }
 }

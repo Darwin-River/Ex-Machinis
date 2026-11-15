@@ -13,7 +13,8 @@
         .stat-link { font-size: 0.85em; }
         .stat-meta { font-size: 0.85em; opacity: 0.75; margin-bottom: 1.5em; }
         .health-banner { border-left: 4px solid #e3b341; background: rgba(227,179,65,0.12); padding: 10px 14px; margin: 0 0 12px; }
-        /* Code revisions (#594) */
+        /* Wide tables scroll sideways inside the page on a phone, not the page (#692) */
+        .table-scroll, .table-custom-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }        /* Code revisions (#594) */
         #code-revisions .num { text-align: right !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
         #code-revisions td:first-child { color: #fff !important; white-space: nowrap; }
         /* Code lineage (#616) */
@@ -46,11 +47,24 @@
             </div>
             <p class="stat-meta">Company {{ $user->user_id }} · released {{ \Carbon\Carbon::parse($user->created_at)->format('F j, Y') }}</p>
             {{-- The new rules (#637) --}}
-            @if((int) ($user->seedling ?? 0) === 1)
+            @php($ended = ($user->eliminated_at ?? null) !== null)
+            @if($ended)
+                {{-- An ended company owes nothing and risks nothing (#686) --}}
+                @php($endWhy = ['closed' => 'its player closed it', 'reset' => 'the world was reset', 'tax' => "it couldn't pay its tax",
+                    'dissolved' => 'it had no credits for too long', 'drones' => 'it lost its last drone'][$user->end_cause ?? ''] ?? null)
+                <p class="stat-meta" id="seedling">It ended on {{ \App\Services\DronePage::when((int) $user->eliminated_at) }}{{ $endWhy ? ': ' . $endWhy : '' }}.
+                    @if((int) ($user->seedling ?? 0) === 1) It was a seedling: its debt was cancelled, and it owes nothing. @endif</p>
+            @elseif((int) ($user->seedling ?? 0) === 1)
                 <p class="stat-meta" id="seedling">A seedling: it owes the bank {{ number_format((int) $user->debt) }} credits, and
                     trades only with the House until it matures.</p>
             @elseif(($user->matured_t ?? null) !== null)
                 <p class="stat-meta" id="seedling">Matured on {{ \App\Services\DronePage::when((int) $user->matured_t) }}: its code is locked for good.</p>
+            @endif
+
+            {{-- Stalled, at the top where a buyer looks first (#689) --}}
+            @if($h['stalled'])
+                <div class="health-banner" id="stalled-banner"><strong>Stalled:</strong> {{ $h['stalled_reason'] }}.
+                    See <a href="#health">Health</a> for which drones and what they last said.</div>
             @endif
 
             {{-- The new rules (#638): players' shares and the bank --}}
@@ -84,7 +98,7 @@
                     <table class="table table-sm" id="player-share-trades"><tbody>
                         @foreach($recentTrades as $t)
                             <tr><td>{{ $t['when'] }}</td><td class="text-right">{{ number_format($t['units']) }}</td>
-                                <td class="text-right">at {{ number_format($t['price']) }}</td><td>{{ $t['seller'] }} to {{ $t['buyer'] }}</td></tr>
+                                <td class="text-right">at {{ number_format($t['price']) }}</td><td>{{ $t['seller_name'] }} to {{ $t['buyer_name'] }}</td></tr>
                         @endforeach
                     </tbody></table>
                 @endif
@@ -134,7 +148,7 @@
                     <p>The companies its drones have traded with or plundered, or that plundered its wrecks (the House aside).
                         <b>Same owner</b> marks a company with the same player behind it: read its code to see whether it
                         favours its owner's other companies.</p>
-                    <table class="table table-sm">
+                    <div class="table-scroll" id="dealings-table"><table class="table table-sm">
                         <thead><tr><th scope="col">Company</th><th scope="col" class="text-right">Trades</th>
                             <th scope="col" class="text-right">Units</th><th scope="col" class="text-right">Credits</th>
                             <th scope="col" class="text-right">Plunders</th><th scope="col"></th></tr></thead>
@@ -148,7 +162,7 @@
                                 <td>@if($d['same_owner'])<span class="badge badge-warning">Same owner</span>@endif</td></tr>
                         @endforeach
                         </tbody>
-                    </table>
+                    </table></div>
                 @else
                     <p>It hasn't dealt with another company yet.</p>
                 @endif
@@ -159,12 +173,15 @@
             @if($h['at_risk'] || $h['stalled'])
                 <div class="health-banner" id="health-banner">
                     @if($h['at_risk'])<strong>At risk:</strong> {{ $h['at_risk_reason'] }}. A warning, not a verdict.<br>@endif
-                    @if($h['stalled'])<strong>Stalled:</strong> none of its drones has bought, sold or made anything for {{ $h['idle'] }} game hours.@endif
+                    @if($h['stalled'])<strong>Stalled:</strong> {{ $h['stalled_reason'] }}.@endif
                 </div>
             @endif
             <p id="company-health">{{ $h['working'] }} working {{ \Illuminate\Support\Str::plural('drone', $h['working']) }}{{ $h['wrecked'] ? ', ' . $h['wrecked'] . ' wrecked' : '' }}.
                 Fuel aboard: {{ number_format($h['fuel']) }} (the least, {{ number_format($h['lowest']) }}); {{ number_format($h['used']) }} used over the last game day.
-                {{ $h['days'] >= 0 ? 'A drone runs dry in about ' . $h['days'] . ' game ' . \Illuminate\Support\Str::plural('day', $h['days']) . ' at that rate.' : "No drone's fuel is falling." }}</p>
+                {{ $h['days'] >= 0 ? 'A drone runs dry in about ' . $h['days'] . ' game ' . \Illuminate\Support\Str::plural('day', $h['days']) . ' at that rate.' : "No drone's fuel is falling." }}
+                @php($lookback = \App\Services\CompanyHealth::IDLE_LOOKBACK)
+                {{ $h['last_sale'] === null ? 'It has sold nothing yet.' : ($h['last_sale'] >= $lookback * 24 ? 'It has sold nothing for ' . $lookback . ' game days or more.'
+                    : 'Its last sale: ' . $h['last_sale'] . ' game ' . \Illuminate\Support\Str::plural('hour', $h['last_sale']) . ' ago.') }}</p>
             @if($h['stalled'] || collect($h['drones'])->contains(fn ($d) => $d['idle'] >= 24))
                 <ul id="idle-drones">
                     @foreach($h['drones'] as $d)
@@ -214,8 +231,11 @@
                             <span class="meta-label">hull</span> {{$agent->hull?$agent->hull->name:'no hull'}}
                             </td>
                             <td>
-                                <span class="meta-label">location</span> <a
-                                        href="{{url('locations/'.$agent->location->object_id)}}">{{$agent->location->object_name}}</a>
+                                {{-- In flight: where it is going, not where it left (#689) --}}
+                                @php($flight = \App\Services\DronePage::flight($agent))
+                                <span class="meta-label">location</span> @if($flight)flying to <a
+                                        href="{{url('locations/'.$flight['to_id'])}}">{{ $flight['to'] }}</a>@else<a
+                                        href="{{url('locations/'.$agent->location->object_id)}}">{{$agent->location->object_name}}</a>@endif
                             </td>
                             <td><span class="meta-label">cargo</span>
                                 @if(!$agent->hull || !$agent->hull->cargo_capacity)
@@ -272,7 +292,7 @@
                 @endif
                 @if(count($code['revisions']) > 1)
                     <h4 class="mt-3">Revisions</h4>
-                    <div class="table-custom-responsive">
+                    <div class="table-custom-responsive table-scroll">
                         <table class="table-ticket" id="code-revisions">
                             <tr><th>Revision</th><th>When</th><th class="num">Fee</th><th class="num">Drones</th><th>Code</th></tr>
                             @foreach(array_reverse($code['revisions']) as $r)
@@ -331,11 +351,13 @@
                 </p>
             @endif
 
-            @php($newRules = (int) ($user->seedling ?? 0) === 1 || ($user->owner_id ?? null) !== null)
+            @php($newRules = (int) ($user->seedling ?? 0) === 1 || ($user->owner_id ?? null) !== null || ($user->matured_t ?? null) !== null)
             @if($newRules)
                 {{-- The new rules (#666): reprogramming a seedling, or a matured company's locked code --}}
                 <h3 class="mt-4" id="pushes">New code</h3>
-                @if(!empty($pushes['seedling']))
+                @if($ended)
+                    <p style="white-space: normal">It has ended: its code can't change.</p>
+                @elseif(!empty($pushes['seedling']))
                     <p style="white-space: normal">Its owner reprograms this seedling from their
                         <a href="{{ url('account') }}#seedlings">account page</a> (or the API). Pushed {{ $pushes['count'] }}
                         {{ $pushes['count'] === 1 ? 'time' : 'times' }}; the next push adds {{ number_format($pushes['next_fee']) }}

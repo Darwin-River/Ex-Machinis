@@ -71,6 +71,8 @@ Route::get('/events/search', 'HomeController@InGameEventsSearch');
 Route::get('/market', 'WorldController@market');
 Route::get('/market/history', 'WorldController@history');
 Route::get('/market/shares', 'WorldController@shares');
+// The stock exchange's old short address (#692: GET /shares was a 404)
+Route::redirect('/shares', '/market/shares', 301);
 Route::get('/map', 'WorldController@map');
 Route::get('/leaderboard', 'WorldController@leaderboard');
 Route::get('/lineage', 'WorldController@lineage');

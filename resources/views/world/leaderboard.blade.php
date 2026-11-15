@@ -66,6 +66,12 @@
                           'Rising this week' => ['rows' => $rising, 'key' => 'gain', 'id' => 'rising']] as $title => $board)
                     <div class="col-12 col-lg-6">
                         <h3>{{ $title }}</h3>
+                        @if($board['id'] === 'rising' && !($hasAWeek ?? true))
+                            {{-- #692: under a week old, Rising only repeated All time --}}
+                            <p id="rising-young">The world is less than a week old, so every company started this week:
+                                its gain this week is its net wealth, and Rising would repeat All time. It starts once
+                                the world is a week old.</p>
+                        @else
                         <div class="table-custom-responsive">
                             <table class="table-ticket" id="{{ $board['id'] }}">
                                 <tr><th>#</th><th>Company</th><th class="num">Age (game days)</th><th class="num">Working drones</th><th class="num">{{ $board['key'] === 'gain' ? 'Gain' : 'Net wealth' }}</th></tr>
@@ -79,6 +85,7 @@
                                 @endforelse
                             </table>
                         </div>
+                        @endif
                     </div>
                 @endforeach
             </div>

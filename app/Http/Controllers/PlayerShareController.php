@@ -136,6 +136,10 @@ class PlayerShareController extends Controller
         if (is_int($v)) {
             return $v;
         }
+        // A whole number sent as a JSON float, 1.0 (#692), is a whole number
+        if (is_float($v) && is_finite($v) && floor($v) === $v && abs($v) < PHP_INT_MAX) {
+            return (int) $v;
+        }
         return is_string($v) && preg_match('/^-?\d+$/', trim($v)) ? (int) $v : 0;
     }
 

@@ -194,7 +194,36 @@ class PlayerShares
             DB::table('player_share_trades')->insert(['company_id' => $company, 'seller_id' => $user->user_id,
                 'buyer_id' => null, 'units' => $units, 'price' => $price, 'game_t' => $now]);
         });
-        return ['ok' => true, 'units' => $units, 'price_now' => $price, 'due' => DronePage::when($due), 'due_t' => $due];
+        // Its sell orders can't offer shares it no longer holds (#683)
+        $trimmed = self::trimSellOrders((int) $user->user_id, $company);
+        return ['ok' => true, 'units' => $units, 'price_now' => $price, 'due' => DronePage::when($due), 'due_t' => $due,
+            'orders_trimmed' => $trimmed];
+    }
+
+    /**
+     * Cuts an account's sell orders for a company so that together they
+     * never offer more shares than it holds (#683): the newest orders shrink
+     * or go first. Returns how many shares it took off its orders.
+     */
+    public static function trimSellOrders(int $user, int $company): int
+    {
+        $over = (int) DB::table('player_share_orders')->where('user_id', $user)->where('company_id', $company)
+            ->where('side', 'sell')->sum('units') - self::held($user, $company);
+        $cut = 0;
+        if ($over <= 0) {
+            return 0;
+        }
+        foreach (DB::table('player_share_orders')->where('user_id', $user)->where('company_id', $company)
+                     ->where('side', 'sell')->orderByDesc('id')->get(['id', 'units']) as $o) {
+            $n = min($over - $cut, (int) $o->units);
+            $n === (int) $o->units ? DB::table('player_share_orders')->where('id', $o->id)->delete()
+                : DB::table('player_share_orders')->where('id', $o->id)->update(['units' => (int) $o->units - $n]);
+            $cut += $n;
+            if ($cut >= $over) {
+                break;
+            }
+        }
+        return $cut;
     }
 
     /** Buys shares the bank holds, at its selling price */
@@ -241,8 +270,24 @@ class PlayerShares
                 . $p['high'] . ' a share now.');
         }
         $me = (int) $user->user_id;
-        if ($side === 'sell' && self::held($me, $company) < $units) {
-            return self::fail(422, 'You don\'t hold that many of its shares.');
+        if ($side === 'sell') {
+            // Its sell orders together never offer more than it holds (#683)
+            $offered = (int) DB::table('player_share_orders')->where('user_id', $me)->where('company_id', $company)
+                ->where('side', 'sell')->sum('units');
+            if (self::held($me, $company) - $offered < $units) {
+                return self::fail(422, $offered > 0 ? 'You don\'t hold that many of its shares that aren\'t already in your sell orders ('
+                    . $offered . ' are).' : 'You don\'t hold that many of its shares.');
+            }
+        }
+        // Nor do its own buy and sell orders cross (#683): it would trade with itself
+        $mine = DB::table('player_share_orders')->where('user_id', $me)->where('company_id', $company)
+            ->where('side', $side === 'buy' ? 'sell' : 'buy');
+        $crosses = $side === 'buy' ? (clone $mine)->where('price', '<=', $price)->min('price')
+            : (clone $mine)->where('price', '>=', $price)->max('price');
+        if ($crosses !== null) {
+            return self::fail(422, 'You have an order to ' . ($side === 'buy' ? 'sell' : 'buy') . ' its shares at '
+                . (int) $crosses . ': ' . ($side === 'buy' ? 'a buy at ' . $price . ' or more' : 'a sell at ' . $price . ' or less')
+                . ' would cross it. Cancel that order first, or change your price.');
         }
         return DB::transaction(function () use ($me, $company, $side, $units, $price, $p) {
             $traded = 0;
@@ -344,7 +389,9 @@ class PlayerShares
     /**
      * The latest trades of matured companies' shares between players (#676),
      * newest first: one company's, or every company's: [company, name,
-     * units, price, seller, buyer, when, game_time]
+     * units, price, seller, buyer, seller_name, buyer_name, seller_is_bank,
+     * buyer_is_bank, when, game_time]. The bank is a side with no account:
+     * seller or buyer null, its name "The bank" (#686: the side was blank)
      */
     public static function trades(?int $company = null, int $limit = 25): array
     {
@@ -357,6 +404,8 @@ class PlayerShares
             ->get(['t.company_id', 'c.name', 't.units', 't.price', 's.login as seller', 'b.login as buyer', 't.game_t'])
             ->map(fn ($t) => ['company' => (int) $t->company_id, 'name' => $t->name, 'units' => (int) $t->units,
                 'price' => (int) $t->price, 'seller' => $t->seller, 'buyer' => $t->buyer,
+                'seller_name' => $t->seller ?? 'The bank', 'buyer_name' => $t->buyer ?? 'The bank',
+                'seller_is_bank' => $t->seller === null, 'buyer_is_bank' => $t->buyer === null,
                 'when' => DronePage::when((int) $t->game_t), 'game_time' => (int) $t->game_t])->all();
     }
 

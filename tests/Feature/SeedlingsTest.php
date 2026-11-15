@@ -98,6 +98,14 @@ class SeedlingsTest extends TestCase
         $this->assertSame(750, $s['to_bank']);
         $this->actingAs($owner)->get('/account')->assertOk()->assertSee('11,000')->assertSee('750');
         $this->assertSame(750, \App\Services\PlayerBoards::digest($owner, false)['companies'][0]['to_bank']);
+
+        // #684: push fees go on its debt but don't raise the cap
+        $this->assertTrue(Seedlings::reprogram($owner, $id, self::SCRIPT)['ok'], 'the first push is free');
+        $this->assertTrue(Seedlings::reprogram($owner, $id, self::SCRIPT)['ok']);
+        $this->assertTrue(Seedlings::reprogram($owner, $id, self::SCRIPT)['ok']);
+        $s = Seedlings::of($owner)['seedlings'][0];
+        $this->assertSame(5700, $s['debt'], 'two paid pushes of 100');
+        $this->assertSame(11000, $s['credit_cap'], 'still twice its 5,500 starting debt');
     }
 
     public function testTheReleasePageExplainsSeedlings()

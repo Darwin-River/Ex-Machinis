@@ -20,6 +20,14 @@ class BlogPageTest extends TestCase
         }
     }
 
+    /** #690: the index lists the newest post first */
+    public function testTheIndexListsTheNewestFirst()
+    {
+        $slugs = array_keys(BlogController::posts());
+        $html = $this->get('/blog')->assertOk()->getContent();
+        $this->assertLessThan(strpos($html, '/blog/' . $slugs[0] . '"'), strpos($html, '/blog/' . end($slugs) . '"'));
+    }
+
     public function testAPostRendersItsMarkdownAndLinksToTheNext()
     {
         $this->get('/blog/1-state-machines')->assertOk()

@@ -31,7 +31,7 @@
                             <b>Now</b>: {{ $activity['now'] }}<br/>
                         @endif
                         @if($agent->script_status !== null)
-                            <b>Its script says</b> ({{ \App\Services\DronePage::when((int) $agent->script_status_t) }}): <span v-pre>{{ $agent->script_status }}</span><br/>
+                            <b>Its script says</b> (set {{ \App\Services\DronePage::ago((int) $agent->script_status_t) }}, {{ \App\Services\DronePage::when((int) $agent->script_status_t) }}):<span v-pre>{{ $agent->script_status }}</span><br/>
                         @endif
                         <b>Fuel</b>: {{ $state['fuel'] }}
                             <span>· used in the last game day: {{ $state['fuel_day']['actions'] }} for actions{{ $state['fuel_day']['thinking'] ? ', ' . $state['fuel_day']['thinking'] . ' for thinking (before #544)' : '' }}
@@ -69,15 +69,23 @@
                 {{-- Post-mortem (#324 step 16) --}}
                 <div class="row row-30">
                     <div class="col">
-                        <h2 class="">Post-mortem</h2>
+                        <h2 class="">Post-mortem: {{ $postMortem['headline'] }}</h2>
                         <div id="post-mortem-cause" style="white-space: normal; margin-bottom: 1em">{{ $postMortem['cause'] }}</div>
+                        @if($postMortem['failure'])
+                            {{-- The failing action, picked out of the waits (#692) --}}
+                            <div id="post-mortem-failure" class="health-banner" style="white-space: normal; margin-bottom: 1em;
+                                border-left: 4px solid #e3b341; background: rgba(227,179,65,0.12); padding: 10px 14px">
+                                <strong>Its last failure:</strong> {{ $postMortem['failure']['what'] }} on {{ $postMortem['failure']['when'] }}:
+                                {{ $postMortem['failure']['result'] }}.</div>
+                        @endif
                     </div>
                 </div>
                 <div class="table-custom-responsive">
                     <table class="table-ticket">
                         <tr><th>When</th><th>What</th><th>Result</th><th>Fuel after</th></tr>
                         @foreach($postMortem['timeline'] as $row)
-                            <tr><td>{{ $row['when'] }}</td><td>{{ $row['what'] }}</td><td>{{ $row['result'] }}</td><td>{{ $row['fuel'] }}</td></tr>
+                            <tr @if($row['failed'] ?? false) class="failed-action" style="background: rgba(227,179,65,0.18); font-weight: 600" @endif>
+                                <td>{{ $row['when'] }}</td><td>{{ $row['what'] }}</td><td>{{ $row['result'] }}</td><td>{{ $row['fuel'] }}</td></tr>
                         @endforeach
                     </table>
                 </div>
@@ -118,7 +126,7 @@
                                 @endif
                             </td>
                             <td><span class="meta-label">cargo</span>
-                                {{ number_format($cargoPlacement->new_quantity) }} units
+                                {{ number_format($cargoPlacement->new_quantity) }} {{ \Illuminate\Support\Str::plural('unit', (int) $cargoPlacement->new_quantity) }}
                             </td>
                             <td><span class="meta-label">weight</span>
                                 {{ number_format($cargoPlacement->new_quantity * $cargoPlacement->mass) }} kg

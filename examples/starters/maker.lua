@@ -1,7 +1,8 @@
 -- Maker: a starter script for Public Forge, in Lua (#380). It equips itself with
 -- the Factory Kit (Engine, Smelter, Chemical Reactor and Spider).
 -- It buys Metals (A1) at the Moon wherever they are cheapest (as a seedling,
--- from the House wherever it has most on sale), makes them
+-- from the House where a batch costs least, counting the trip and its
+-- tenth-a-day cap), makes them
 -- into alloys and the alloys into rods, and sells the rods wherever they
 -- pay best: at the Moon if the best bid there is close to what rods fetched
 -- at Earth yesterday (the price board), else it flies a load to Earth.
@@ -42,32 +43,40 @@ function spare() return math.max(credits() - cash_floor, 0) end
 
 -- Metals for a batch, as many as the spare credits pay for (at most 30 a unit)
 -- A seedling buys only from the House, and at most a tenth of what it has on
--- sale at an exchange in a game day (-17). Once it has, or when the House
--- there has next to none left (round 68: the Moon's sold out to the matured
--- makers every day), it flies to the exchange whose House has most on sale,
--- and waits for the next day only when none has any (#671)
+-- sale at an exchange in a game day (-17). So it asks house_supply() where
+-- the House sells metals and picks the place where a unit costs least: the
+-- price, plus the round trip (fuel, and 10 credits a game hour) shared over
+-- what its tenth lets it buy there (#688: round 69's Maker flew to the Moon
+-- first, found none, and flew on to Mars for the most on sale, past Earth's
+-- cheaper ones). It waits for the next day only when none sells any (#671)
 capped_at = {}
-function house_left(place)
+function metals_place()
+  local best, best_each = nil, math.huge
   for _, h in ipairs(house_supply(metals_a1)) do
-    if h.place == place then return h.on_sale end
+    local n = math.min(batch, h.on_sale // 10)   -- what its cap lets it buy there today
+    if h.price > 0 and n >= 2 and capped_at[h.place] ~= today() then
+      local trip = 0
+      if h.place ~= location() then
+        local t = trip_to(h.place)
+        trip = 30 + (t and t.hours * 2 or 0) * 10   -- 10 fuel at about 3, and the hours there and back
+      end
+      local each = h.price + trip / n
+      if each < best_each then best, best_each = h.place, each end
+    end
   end
-  return 0
+  return best
 end
 function stock_up()
   if units(metals_a1) >= 2 then return end
-  if house_only() and (capped_at[location()] == today() or house_left(location()) < 10) then
-    local best, most = nil, 9
-    for _, p in ipairs({earth, mars, moon}) do
-      local n = house_left(p)
-      if capped_at[p] ~= today() and n > most then best, most = p, n end
-    end
+  if house_only() then
+    local best = metals_place()
     if not best then
       set_status("no metals on sale from the House: waiting for tomorrow's")
       wait(240)
       return
     end
     if best ~= location() then
-      set_status("buying metals at " .. place_name(best) .. ": " .. most .. " on sale there")
+      set_status("buying metals at " .. place_name(best))
       go(best)
     end
   end
@@ -132,7 +141,7 @@ function haul()
   go(market)
   if units(fuel) < 60 then raise_cash(150); buy_here(30, fuel); wait(120) end
   sell_rods()
-  go(moon)
+  if not house_only() then go(moon) end   -- a seedling picks its next exchange in stock_up
 end
 
 -- Growth: with grow_at credits, buy a Mining Cruiser kit and a Factory Kit
@@ -264,6 +273,8 @@ end
 function launched()
   fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
   equip(factory_kit)   -- buys a kit at Earth and unpacks it (a copy waits for the one it is handed; #506)
-  go(moon)
+  -- A seedling looks where the House sells metals first (stock_up does);
+  -- a matured company buys from anyone, and the Moon's miners sell cheapest
+  if not house_only() then go(moon) end
   while true do work() end
 end
