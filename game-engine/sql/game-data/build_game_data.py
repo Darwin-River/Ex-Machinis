@@ -435,7 +435,7 @@ for pid, rec in sorted(recipes.items(), key=lambda kv: int(kv[0])):
                 f'{sum(rec["inputs"].values())} {"modules" if pid.startswith("16") else "components"} '
                 f'(see its protocol page).' + tail)
     flags = econ_prot[pid][5:8] if pid in econ_prot else ['1', '1', '0']
-    protocols[pid] = [pid, name[:45], '0', '100', desc[:255]] + list(flags)
+    protocols[pid] = [pid, name[:45], '0', '100', desc] + list(flags)   # fit() cuts it at a sentence (#690)
     add_effects(pid, production_effects(tool, total, rec))
 
 # House station drones (#380): the House trades as a drone, by the same
@@ -550,13 +550,13 @@ add_effects(BROADCAST_PROTOCOL, [
 SHARE_EVENT = 14
 for pid, verb, args, what in (
         ('41', 'Post share sell order', 'C K P', 'posts a sell order for company C\'s shares at P credits each, '
-         'selling while the drone\'s company holds more than K (P 0 withdraws it)'),
+         'selling while its company holds more than K (P 0 withdraws it)'),
         ('42', 'Post share buy order', 'C W P', 'posts a buy order for company C\'s shares at P credits each, '
-         'buying while the drone\'s company holds fewer than W (P 0 withdraws it)'),
+         'buying while its company holds fewer than W (P 0 withdraws it)'),
         ('43', 'Pull shares', 'N C S', 'buys N of company C\'s shares from company S\'s sell order, at its price'),
         ('44', 'Push shares', 'N C B', 'sells N of company C\'s shares into company B\'s buy order, at its price')):
     protocols[pid] = [pid, verb, '3', '100',
-                      f'[{args} {pid} perform]: {what}, at the Earth exchange (it gets there at the speed of light).',
+                      f'[{args} {pid} perform]: Old rules only: {what}, at the Earth exchange. It gets there at the speed of light.',
                       '1', '1', '0']
     add_effects(pid, [
         {'time': 0, 'drone': 0, 'resource': FUEL, 'event_type': SHARE_EVENT, 'local': 1, 'installed': 0,
@@ -642,8 +642,8 @@ for pid in sorted(protocols, key=int):
 # isn't there, the drone becomes a wreck.
 protocols[POWER_PROTOCOL] = [
     POWER_PROTOCOL, 'Burn power', '1', '100',
-    '[N 2 perform]: Burns N fuel. Until #544 the engine performed it to pay for a drone\'s thinking; '
-    'now the company pays processor tax in credits, and the engine no longer burns fuel for thinking.',
+    '[N 2 perform]: Burns N fuel. The engine once performed it to pay for a drone\'s thinking; '
+    'now the company pays processor tax in credits, and thinking burns no fuel.',
     '0', '0', '0']
 add_effects(POWER_PROTOCOL, [{'time': 0, 'drone': 0, 'resource': FUEL, 'event_type': 2, 'local': 1,
                               'installed': 0, 'locked': 0, 'deplete': 1, 'abundancies': 0, 'quantity': -1}])
@@ -929,12 +929,12 @@ for r in qsheet[1:]:
     desc = QUERY_DESC.get(qid) or re.sub(r'^\[[^\]]*\]:\s*', '', econ_q.get(qid, {}).get('description', '')) or r[4].strip()
     if desc and not desc.endswith('.'):
         desc += '.'
-    queries.append((int(qid), name[:45], f'[{usage}]: {desc}'[:255], params, script))
+    queries.append((int(qid), name[:45], f'[{usage}]: {desc}', params, script))
 for qid in sorted(set(econ_q) - set(sheet_ids), key=int):
     params, script = QUERY_SQL.get(qid, (econ_q[qid]['parameters'], econ_q[qid]['script']))
     desc = QUERY_DESC.get(qid) or re.sub(r'^\[[^\]]*\]:\s*', '', econ_q[qid]['description'])
     queries.append((int(qid), econ_q[qid]['name'][:45],
-                    f'[{"N " * params}R L {qid} query]: {desc}'[:255], params, script.replace('exmachinis.', '')))
+                    f'[{"N " * params}R L {qid} query]: {desc}', params, script.replace('exmachinis.', '')))
     note(f'query {qid} "{econ_q[qid]["name"]}" is only in economy.xlsx: kept')
 # The advanced events query (#149): events this spacecraft has observed (as
 # acting/affected drone or once their light has reached it: the observations
@@ -1727,11 +1727,11 @@ def double_event_ids(q):
     qid, name, desc, params, script = q
     if qid in (800, 801, 802, 803, 804):
         script = re.sub(r'^SELECT (e\.)?id ', lambda m: f'SELECT {m.group(1) or ""}id AS d_id ', script)
-        return (qid, name, (desc.rstrip() + EVENT_ID_NOTE)[:255], params, script)
+        return (qid, name, desc.rstrip() + EVENT_ID_NOTE, params, script)
     if 810 <= qid <= 849 and '[value_1]' in script:
         script = script.replace('[value_1]', '[dvalue_1]')
         desc = desc.rstrip() + ' N is an event ID, a double (2 cells) as an event list (800-804) leaves it with 2@.'
-        return (qid, name, desc[:255], 2, script)
+        return (qid, name, desc, 2, script)
     return q
 queries = [double_event_ids(q) for q in queries]
 
@@ -1820,7 +1820,7 @@ queries.append((845, 'Event details',
 
 # Queries whose money or volume columns are double cells: say so
 DOUBLE_QUERIES = {101, 600, 601, 610, 611, 612, 620, 621, 841}  # 630 says so itself
-queries = [(q[0], q[1], (q[2] if q[0] == 612 else q[2].rstrip() + ' Money and volumes are double cells (2@).')[:255],
+queries = [(q[0], q[1], (q[2] if q[0] == 612 else q[2].rstrip() + ' Money and volumes are double cells (2@).'),
             q[3], q[4]) if q[0] in DOUBLE_QUERIES else q for q in queries]
 
 queries.sort()
@@ -1828,8 +1828,8 @@ queries.sort()
 # engine's buffer (MAX_QUERIES_SCRIPT_SIZE); description 255. A longer one
 # failed the load (#611: the game data stopped loading at 2,000)
 for q in queries:
-    if len(q[4]) > 4000 or len(q[2]) > 255:
-        sys.exit(f'query {q[0]}: SQL is {len(q[4])} characters (at most 4000), description {len(q[2])} (at most 255)')
+    if len(q[4]) > 4000:   # its description is cut to fit at a sentence below (fit, #690)
+        sys.exit(f'query {q[0]}: SQL is {len(q[4])} characters (at most 4000)')
 
 # --- write ------------------------------------------------------------------------
 
@@ -1965,6 +1965,22 @@ def lua_description(desc, kind):
     return desc
 
 
+# Typos in economy.xlsx's query descriptions (#690), mended here
+TYPOS = [(r'\bSpaecraft\b', 'Spacecraft'), (r'\bSpacraft\b', 'Spacecraft'), (r'\bRetuns\b', 'Returns'),
+         (r'\bcompony\b', 'company'), (r'\bwere Company ID\b', 'where Company ID'), (r'\bReturn the Company ID\b', 'Returns the Company ID')]
+
+
+def plain(desc):
+    """Player-facing text without the typos, or issue numbers such as (#380)
+    or ', #620)' (#690): the pages are for players, the numbers for us"""
+    for old, new in TYPOS:
+        desc = re.sub(old, new, desc)
+    desc = re.sub(r'\s*\(#\d+(?:,\s*#\d+)*\)', '', desc)
+    desc = re.sub(r',\s*#\d+(?:,\s*#\d+)*(?=\))', '', desc)
+    desc = re.sub(r'\(#\d+(?:,\s*#\d+)*[:;,]\s*', '(', desc)
+    return desc
+
+
 def fit(desc, limit=250):
     """At most limit characters, cut after a whole sentence: the engine keeps
     descriptions in 255-byte buffers (MAX_PROTOCOL_DESCRIPTION_SIZE)"""
@@ -1976,8 +1992,8 @@ def fit(desc, limit=250):
 
 resources_by_id = {int(r['id']) for r in resources.values()}
 for p in protocols.values():
-    p[4] = fit(lua_description(p[4], 'perform'))
-queries = [(q[0], q[1], fit(lua_description(q[2], 'query')), q[3], q[4]) for q in queries]
+    p[4] = fit(plain(lua_description(p[4], 'perform')))
+queries = [(q[0], q[1], fit(plain(lua_description(q[2], 'query'))), q[3], q[4]) for q in queries]
 
 table('protocols', ['id', 'name', 'parameters', 'bulk_modifier', 'description', 'observable', 'reportable', 'multiplier',
                     'double_params'],

@@ -7,7 +7,8 @@
         <div class="container" id="container">
             @include('_flash_message')
 
-            <p>Write your drone's program and release it: anyone can, no account needed. Each release starts a new
+            <p>Write your drone's program and release it: @if(config('forge.new_rules'))log in first to release it into your
+                account (a guest's release must be claimed into an account to keep it).@else anyone can, no account needed.@endif Each release starts a new
                 company with one drone in orbit around Earth, 100 fuel and
                 {{ number_format(config('forge.starting_credits')) }} credits; its script buys its equipment. The drone loads your script, then runs
                 your <code>launched</code> function on its own. You go to its page, where everything it does and says is
@@ -39,8 +40,7 @@
                 is real, and it costs nothing. Release a first version, watch it on its page, and when you see what goes wrong, release a
                 better one as a new company.@unless(config('forge.new_rules')) Release with a push password and you can also send a running company new
                 code later, for a fee.@endunless A failed company costs you nothing but the lesson. Game time runs fast: a game
-                day passes in {{ \App\Services\LaunchQueue::dayPace($clock) }} right now (it slows when the server is
-                busy), so you see how a drone does while you watch.</p>
+                day passes in {{ \App\Services\LaunchQueue::dayPace($clock) }} right now, {{ \App\Services\LaunchQueue::watchNote($clock) }}.</p>
 
             @if($clock && $clock['full'] && !config('forge.new_rules'))
                 <div class="alert alert-warning mt-3" style="white-space: normal">
