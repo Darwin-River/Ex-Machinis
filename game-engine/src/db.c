@@ -3713,6 +3713,40 @@ ErrorCode_t db_get_launch_source(DbConnection_t* connection, int launcher_id, in
 
 /** ****************************************************************************
 
+    @brief          Whether the launching drone's company has as many working
+                    drones as it may (#682): house_rules.fleet_cap, counting
+                    launches already performed but not yet arrived. The House's
+                    own companies are never capped.
+
+    @param[out]     capped  1 when another launch must be refused
+    @param[out]     cap     The cap (0: none)
+
+*******************************************************************************/
+ErrorCode_t db_launch_fleet_capped(DbConnection_t* connection, int launcher_id, int* capped, int* cap)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    int values[3] = {0, 0, 0};
+
+    *capped = 0;
+    *cap = 0;
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT IFNULL((SELECT fleet_cap FROM house_rules WHERE id = 1), 0), c.house, "
+        "(SELECT COUNT(*) FROM agents w WHERE w.company_id = c.company_id AND w.wrecked_at IS NULL) + "
+        "(SELECT COUNT(*) FROM events e JOIN agents d ON d.agent_id = e.drone "
+        " WHERE d.company_id = c.company_id AND e.event_type = %d AND e.outcome = 0) "
+        "FROM agents l JOIN companies c ON c.company_id = l.company_id WHERE l.agent_id = %d",
+        LAUNCH_EVENT_TYPE, launcher_id);
+
+    ErrorCode_t result = db_query_ints(connection, query_text, values, NULL, 3);
+    if(result != ENGINE_OK)
+        return result;
+    *cap = values[0];
+    *capped = (values[0] > 0 && values[1] == 0 && values[2] >= values[0]) ? 1 : 0;
+    return ENGINE_OK;
+}
+
+/** ****************************************************************************
+
     @brief          Adds the instructions a drone's script used in a slice to
                     its running total (agents.instructions; instruction
                     metering, the basis for power use)

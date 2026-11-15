@@ -598,6 +598,7 @@ typedef enum
 	OUTCOME_SEEDLING_CAP = -17,  // a seedling has bought its share of the House's stock here today (#637)
 	OUTCOME_PLAYERS_SHARES = -18, // under the new rules players, not companies, trade shares (#638)
 	OUTCOME_ORDER_LOCKED = -19,  // a new-rules order can't be withdrawn, cut or worsened in its first game hours (#639)
+	OUTCOME_FLEET_CAP = -20,     // the company has as many working drones as it may (house_rules.fleet_cap, #682)
 
 } Outcome_t;
 

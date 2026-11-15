@@ -772,6 +772,16 @@ local function wreck_hold(w) return records(ask(661, w), {"resource", "units"}) 
 local function lineage()                                                          -- 671
   return record(ask(671), {"parent", "generation"}) or {parent = 0, generation = 0}
 end
+-- The company's fleet (#682): {drones (working), cap (the most it may have;
+-- 0: no limit), coming (launches on their way)}. fleet_full() is true when
+-- a launch would be refused (-20): check it before buying a kit to launch
+local function fleet()                                                            -- 709
+  return record(ask(709), {"drones", "cap", "coming"}) or {drones = 1, cap = 0, coming = 0}
+end
+local function fleet_full()
+  local f = fleet()
+  return f.cap > 0 and f.drones + f.coming >= f.cap
+end
 
 -- Equips the drone (#506): a released drone starts with credits and no
 -- equipment. Until it has tools (an Engine), it unpacks a kit aboard, or
@@ -973,6 +983,8 @@ _G.wait = wait
 _G.push = push
 _G.pull = pull
 _G.launch = launch
+_G.fleet = fleet
+_G.fleet_full = fleet_full
 _G.plunder = plunder
 _G.jettison = jettison
 _G.broadcast = broadcast

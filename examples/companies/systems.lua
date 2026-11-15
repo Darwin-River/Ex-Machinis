@@ -149,6 +149,7 @@ function reinvest()
   if units(factory_kit) > 0 then equip_clone(); fuel_to(60); return end
   if units(cruiser_kit) == 0 then
     if company_age() >= 24 or credits() < 7000 then return end  -- its first 24 game days (#549)
+    if fleet_full() then return end   -- the company has all the drones it may have (#682)
     get_one(cruiser_kit)
     if units(cruiser_kit) == 0 then return end
   end

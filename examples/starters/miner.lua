@@ -194,6 +194,7 @@ function reinvest()
   if units(mining_kit) > 0 then equip_clone(); fill_to(60); return end
   if units(cruiser_kit) == 0 then
     if credits() < grow_line() then return end
+    if fleet_full() then return end   -- the company has all the drones it may have (#682)
     get_one(cruiser_kit)
     if units(cruiser_kit) == 0 then return end
   end

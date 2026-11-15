@@ -159,6 +159,7 @@ function reinvest()
   if house_only() then return end   -- a seedling keeps its credits for its debt: it grows once it has matured (#658)
   if grow_until > 0 and today() > grow_until and units(mining_kit) == 0 and units(factory_kit) == 0 then return end
   if credits() < grow_line() then return end   -- keeps work_cash for every drone
+  if fleet_full() then return end   -- the company has all the drones it may have (#682)
   get_one(cruiser_kit)
   get_one(factory_kit)
   if units(cruiser_kit) == 0 or units(factory_kit) == 0 then return end
