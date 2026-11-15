@@ -767,6 +767,19 @@ static ErrorCode_t engine_process_meta_launched(char* out_buf, size_t out_buf_si
 {
     int agent_id = engine.last_command.agent_id;
 
+    // A drone on a trip starts its code where it arrives (#675): new code
+    // pushed mid-flight ran at once from the place the drone had left (it
+    // keeps that place until it arrives), so round 68's drone, two days
+    // into a trip to Deimos, set off again from Earth. Its launched() waits
+    // for the trip to end
+    long long arrival = db_drone_arrival(agent_id, game_time_now_seconds());
+    if(arrival > 0)
+    {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Agent [%d] is on a trip: launched() waits for its arrival at [%lld]",
+            agent_id, arrival);
+        return db_queue_launched(&engine.db_connection, agent_id, arrival + 1);
+    }
+
     if(engine.last_agent.is_lua)
     {
         // A Lua drone (#380): its script is all here; build it and run
