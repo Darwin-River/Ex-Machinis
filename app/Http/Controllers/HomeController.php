@@ -110,6 +110,10 @@ class HomeController extends Controller
 
         $html = (string) (new MarkdownConverter($environment))->convert($markdown);
 
+        // The manual's anchors, <a name="slug"></a>, come out escaped like all
+        // other HTML: only that exact form becomes an anchor again (#678)
+        $html = preg_replace('/&lt;a name=(?:"|&quot;)([A-Za-z0-9_-]+)(?:"|&quot;)&gt;&lt;\/a&gt;/', '<a id="$1"></a>', $html);
+
         // Images are served by /getting-started/images; other documents are on GitHub
         $html = preg_replace('/src="images\//', 'src="/getting-started/images/', $html);
         return preg_replace('/href="(?!https?:|#|\/)([\w.-]+\.md)/', 'href="' . self::REPOSITORY_DOCS . '$1', $html);

@@ -3,7 +3,8 @@
 The API gives programs what the website gives people. It is for your own tools: scripts that watch your companies, dashboards, and AI agents that play the game. With it you can check a script, release a company, and follow your drones, all as JSON.
 
 - **Base address:** `https://<the game's domain>/api/v1`. On a server you run yourself, that is your own domain.
-- **No account and no key**, just as on the website. Everything the API shows is already public on the website.
+- **Reading needs no key.** Everything the API shows is already public on the website.
+- **Your account's token** (`Authorization: Bearer <token>`) makes a release your seedling, and is needed for your account, seedlings and shares: see [Player accounts](#player-accounts-the-new-rules). Without one, a release is a guest's seedling.
 - **Same rules as the website.** A release made through the API is checked exactly as on the Release page, and it becomes a company like any other.
 - **Rate limits, per IP address:**
   - 120 reads a minute;
@@ -101,11 +102,11 @@ curl -s -X POST $B/check -H 'Content-Type: application/json' \
 | `clean` | `true` only with no `error` and no `warning`. A script that checks before it releases should test `clean`, not `ok`: `ok` is true for a script that would release but crash (#380 round 64) |
 | `language` | `lua` for a Lua script (`forth` for a retired FORTH one, which `ok` refuses) |
 | `length`, `max_length` | the script's length in characters, and the most a release or push takes (16,000; #557). Over it, `ok` is false; within a tenth of it, `warning` says so. Comments count: cut those you don't need |
-| `push` | with `company`: `{enabled, password_set, number, credits, fee_percent, fee, drones, orders, orders_note}`, what pushing this script to the company would cost now and how many working drones would get it (null for no such company). `orders` lists each drone's standing orders for goods, `{drone, resource, name, side, price, keep or want}`: they outlive the push (#571). The fee is worked out on the company's credits when the push is sent, so it changes as they do |
+| `push` | with `company`: for a seedling `{seedling: true, enabled, number, fee, debt, debt_after, drones, note}`; for a matured company `{seedling: false, enabled: false, note}` (its code is locked); with the new rules off, `{enabled, password_set, number, credits, fee_percent, fee, drones, orders, orders_note}`, what pushing this script to the company would cost now and how many working drones would get it (null for no such company). `orders` lists each drone's standing orders for goods, `{drone, resource, name, side, price, keep or want}`: they outlive the push (#571). The fee is worked out on the company's credits when the push is sent, so it changes as they do |
 
 ### `POST /release`: release a company
 
-Every release is live, and free: the only limit is 10 a minute per address. To try a fix, release it again as a new company and follow its drone (`GET /drones/{id}`), or, if you released the company with a `password`, push the fix to it (`POST /companies/{id}/push`, below).
+Every release is live, and free: it starts a **seedling**, lent its drone and credits by the bank (see [Seedlings](#seedlings-637)). Send your account's token to make it yours; without one it is a guest's, with a `claim_code`. To try a fix, push it to the seedling (`POST /seedlings/{id}/push`), or release it again as a new seedling and follow its drone (`GET /drones/{id}`). The only limit is 10 releases a minute per address, and 5 seedlings an account.
 
 **Fields:**
 
@@ -114,7 +115,7 @@ Every release is live, and free: the only limit is 10 a minute per address. To t
 | `company_name` | yes | 3 to 45 characters, not already taken |
 | `script` | yes | must define `launched`; at most 16,000 characters (#557), comments included |
 | `kit` | no | ignored since #506: a company starts with 3,000 credits and no kit, and its script equips itself (`equip(mining_kit)`) |
-| `password` | no | at least 6 characters: lets you push new code to the company later (#553). The game keeps only its hash. Without one, the company's code never changes |
+| `password` | no | only on a server with the new rules off: at least 6 characters, for pushing new code with `POST /companies/{id}/push` later (#553). Under the new rules a seedling's code is changed by its player |
 
 **Example:**
 
@@ -123,34 +124,29 @@ curl -s -X POST $B/release -H 'Content-Type: application/json' \
   -d '{"company_name": "Ada Fuel 1", "script": "function launched() print(\"hello\") end"}'
 ```
 
-**Response:** `201 Created`.
+**Response:** `201 Created`, with the seedling, what it owes, and (for a guest) its claim code, shown once:
 
 ```json
 {
-  "queued": false,
+  "seedling": true,
+  "debt": 4200,
+  "claim_code": null,
   "company": {"id": 109, "name": "Ada Fuel 1"},
   "drone": {"id": 207, "name": "SN949636"},
   "page": "https://play.example.com/spacecraft/207",
-  "warning": null,
-  "push_password": true
+  "warning": null
 }
 ```
 
-**When the world is full** (the server can't keep up), the release waits its turn and launches when there is room. The response is then `202 Accepted` (a seedling under the new rules isn't queued: it answers `503` with `error`, and you try again in a few minutes):
-
-```json
-{"queued": true, "place_in_line": 3, "company_name": "Ada Fuel 1"}
-```
-
-Look the company up by name later.
+**When the world is full** (the server can't keep up), a release is refused with `503` and an `error`: try again in a few minutes. (On a server with the new rules off, the release waits its turn instead, answering `202 Accepted` with `{"queued": true, "place_in_line": 3, "company_name": "Ada Fuel 1"}`.)
 
 **Errors:** `422` with the reason. For example:
 - `"The company name has already been taken."`
 - `"Your script must define the function launched ..."`, or `"FORTH has been retired: write your drone in Lua. ..."`
 
-### `POST /companies/{id}/push`: push new code to a company
+### `POST /companies/{id}/push`: push new code to a company (new rules off)
 
-With the password the company was released with (#553), sends every working drone of the company a new script. It travels from Earth to each drone at the speed of light; when it arrives, the drone drops what it was running and starts the new script's `launched()` with fresh variables, keeping its hold, place and equipment.
+Under the new rules this call is refused (403): a seedling's code is changed by its player with `POST /seedlings/{id}/push` (see [Seedlings](#seedlings-637)), and a matured company's code is locked. On a server with the new rules off, with the password the company was released with (#553), sends every working drone of the company a new script. It travels from Earth to each drone at the speed of light; when it arrives, the drone drops what it was running and starts the new script's `launched()` with fresh variables, keeping its hold, place and equipment.
 
 **Fields:** `password`, `script` (checked as a release's is, at most 16,000 characters). To see the fee first, `POST /check` with `company` (#558).
 
@@ -197,7 +193,7 @@ Use these to look up a company. Under the new rules it also says whether it is a
 
 | Field | Meaning |
 |---|---|
-| `pushes` | code pushes (#553): `{enabled, count, next_fee_percent, next_fee, log: [{number, when, game_time, fee, percent, drones}]}`. `enabled` is false for a company released without a push password |
+| `pushes` | code pushes: for a seedling `{seedling: true, enabled, count, next_fee, debt, debt_after, log}`, for a matured company `{enabled: false, locked: true, count, log}`; with the new rules off (#553), `{enabled, count, next_fee_percent, next_fee, log: [{number, when, game_time, fee, percent, drones}]}`, `enabled` false for a company released without a push password |
 | `net_wealth` | the leaderboard's measure: credits plus goods at market prices plus shares held in other companies at the average price of their most recent trades, weighted by shares: the last three game days' trades, and further back until they cover at least half the shares other companies hold (#573), else the last trade price plus credits committed to offerings of new shares, less its own shares held by other companies at the same value price (#568), less what it started with (3,000 credits and 100 fuel). The drones themselves don't count, so launching a copy lowers it by about a hull's price until the copy earns that back |
 | `age_days` | game days since the company was founded |
 | `peer_rank` | its place among every company at its age (#614): its net wealth now ranked against each company's net wealth when that one was `age` game days old, `{rank, of, age}` (`of`: how many companies have reached that age, this one included); null once it has ended |
