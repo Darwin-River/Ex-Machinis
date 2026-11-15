@@ -169,6 +169,17 @@ class Leaderboard
      * Rising: the gain over the last real week (since the latest snapshot at
      * least a week old; a company that started within the week, since 0)
      */
+    /**
+     * Has any company still trading a snapshot a real week old (#692)? If
+     * not (a world under a week old), Rising is the same as All time
+     */
+    public static function hasAWeek(): bool
+    {
+        return Schema::hasColumn('wealth_snapshots', 'company_id') && DB::table('wealth_snapshots as s')
+            ->join('companies as c', 'c.company_id', '=', 's.company_id')->whereNull('c.eliminated_at')
+            ->where('s.taken_at', '<=', now()->subDays(7))->exists();
+    }
+
     public static function rising(int $limit = 50, ?float $maxAge = null): array
     {
         $since = now()->subDays(7);

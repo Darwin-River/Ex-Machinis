@@ -153,7 +153,9 @@ class HomeController extends Controller
      */
     public function inGameEvents()
     {
-        return view('in-game-events');
+        // Nothing observed yet: say so, and where to look instead (#692)
+        $empty = !DB::table('observations')->where('drone', 0)->exists();
+        return view('in-game-events', compact('empty'));
     }
 
     /**

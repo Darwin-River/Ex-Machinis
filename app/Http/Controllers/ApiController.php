@@ -172,7 +172,8 @@ class ApiController extends Controller
             'messages' => DronePage::messages($agent, 50)->map(fn ($m) => [
                 'when' => DronePage::when((int) $m->game_t), 'game_time' => (int) $m->game_t,
                 'subject' => $m->subject, 'body' => $m->body])->all(),
-            'post_mortem' => $postMortem ? ['cause' => $postMortem['cause'] ?? null] : null,
+            'post_mortem' => $postMortem ? ['headline' => $postMortem['headline'], 'cause' => $postMortem['cause'] ?? null,
+                'failure' => $postMortem['failure']] : null,
             'script' => $code ? $code['release']->source : null,
         ]);
     }

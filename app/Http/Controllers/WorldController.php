@@ -80,8 +80,9 @@ class WorldController extends Controller
         $atAge = $age === null ? null : Leaderboard::atAge($age, 100, $board);
         $allTime = Leaderboard::allTime(50, $maxAge);
         $rising = Leaderboard::rising(50, $maxAge);
+        $hasAWeek = Leaderboard::hasAWeek();
         $kit = Leaderboard::kitValue(Leaderboard::prices());
-        return view('world.leaderboard', compact('allTime', 'rising', 'kit', 'maxAge', 'age', 'atAge'));
+        return view('world.leaderboard', compact('allTime', 'rising', 'hasAWeek', 'kit', 'maxAge', 'age', 'atAge'));
     }
 
     /** The lineage map (#618): every release and push, with the earlier code each carries */

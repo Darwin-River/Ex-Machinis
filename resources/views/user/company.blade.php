@@ -13,7 +13,8 @@
         .stat-link { font-size: 0.85em; }
         .stat-meta { font-size: 0.85em; opacity: 0.75; margin-bottom: 1.5em; }
         .health-banner { border-left: 4px solid #e3b341; background: rgba(227,179,65,0.12); padding: 10px 14px; margin: 0 0 12px; }
-        /* Code revisions (#594) */
+        /* Wide tables scroll sideways inside the page on a phone, not the page (#692) */
+        .table-scroll, .table-custom-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }        /* Code revisions (#594) */
         #code-revisions .num { text-align: right !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
         #code-revisions td:first-child { color: #fff !important; white-space: nowrap; }
         /* Code lineage (#616) */
@@ -147,7 +148,7 @@
                     <p>The companies its drones have traded with or plundered, or that plundered its wrecks (the House aside).
                         <b>Same owner</b> marks a company with the same player behind it: read its code to see whether it
                         favours its owner's other companies.</p>
-                    <table class="table table-sm">
+                    <div class="table-scroll" id="dealings-table"><table class="table table-sm">
                         <thead><tr><th scope="col">Company</th><th scope="col" class="text-right">Trades</th>
                             <th scope="col" class="text-right">Units</th><th scope="col" class="text-right">Credits</th>
                             <th scope="col" class="text-right">Plunders</th><th scope="col"></th></tr></thead>
@@ -161,7 +162,7 @@
                                 <td>@if($d['same_owner'])<span class="badge badge-warning">Same owner</span>@endif</td></tr>
                         @endforeach
                         </tbody>
-                    </table>
+                    </table></div>
                 @else
                     <p>It hasn't dealt with another company yet.</p>
                 @endif
@@ -291,7 +292,7 @@
                 @endif
                 @if(count($code['revisions']) > 1)
                     <h4 class="mt-3">Revisions</h4>
-                    <div class="table-custom-responsive">
+                    <div class="table-custom-responsive table-scroll">
                         <table class="table-ticket" id="code-revisions">
                             <tr><th>Revision</th><th>When</th><th class="num">Fee</th><th class="num">Drones</th><th>Code</th></tr>
                             @foreach(array_reverse($code['revisions']) as $r)

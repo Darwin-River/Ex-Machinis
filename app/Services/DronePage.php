@@ -38,6 +38,16 @@ class DronePage
         -19 => "a new-rules order can't be withdrawn, cut or made worse in its first 12 game hours",
     ];
 
+    /** Why a drone became a wreck (agents.wreck_cause), in plain words for the post-mortem's headline (#692) */
+    public const WRECK_CAUSES = [
+        'fuel' => 'It ran out of fuel',
+        'crashes' => 'Its program kept crashing',
+        'tax' => "Its company couldn't pay its tax",
+        'dissolved' => 'Its company had no credits for too long',
+        'closed' => 'Its player closed its seedling',
+        'reset' => 'The world was reset',
+    ];
+
     /** FORTH error codes a crash can leave, in plain words */
     public const ERRORS = [
         -1 => 'it stopped itself (abort)',
@@ -378,6 +388,9 @@ class DronePage
                 $cause = "Its player closed its seedling, $name, on $when: it left the game with all it held, "
                     . 'and its debt was cancelled. Its wreck holds nothing anyone can take.';
                 break;
+            case 'reset':
+                $cause = "It was retired on $when, when the world was reset for the new rules.";
+                break;
             default:
                 $cause = "It became a wreck on $when.";
         }
@@ -399,7 +412,18 @@ class DronePage
             ];
         }
         usort($timeline, fn ($a, $b) => $b['game_t'] <=> $a['game_t']);
+        // The failing action, picked out of the waits (#692): its last
+        // failure or crash, marked in the timeline and named up top
+        $failure = null;
+        foreach ($timeline as $i => $row) {
+            $failed = $row['what'] === 'Crash' || str_starts_with($row['result'], 'failed');
+            $timeline[$i]['failed'] = $failed && $failure === null;
+            if ($failed && $failure === null) {
+                $failure = $row;
+            }
+        }
 
-        return ['cause' => $cause, 'timeline' => $timeline];
+        return ['headline' => self::WRECK_CAUSES[$agent->wreck_cause] ?? 'It became a wreck', 'cause' => $cause,
+            'failure' => $failure, 'timeline' => $timeline];
     }
 }
