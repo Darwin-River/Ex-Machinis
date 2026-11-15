@@ -129,10 +129,10 @@ It is your birthright to take control of your own remotely piloted spacecraft an
 
 1. **Make an account.** A name, a password and an e-mail address. Open the link we send to the address, and your account gets **5,000 starting credits**, which can only buy shares (see [Making an account](#making-an-account)).
 2. **Release a script.** On the **Release** page (the **Release a drone** button), name your company, write a script or click a starter, and press **Release**. From a program, `POST /api/v1/release` with your account's token does the same. Either way you start a **seedling**: a new company with one drone in orbit around Earth, 100 fuel, 3,000 credits and no equipment (see [Releasing a seedling](#releasing-a-seedling)).
-3. **See what it owes.** The bank lent the seedling its drone (1,000), its 3,000 credits and a fee of 200: it owes **4,200**. Your account page lists each seedling with its credits and its debt. Until it matures, it trades **only with the House**, the game's own traders at each exchange.
+3. **See what it owes.** The bank lent the seedling its drone (1,000), its 3,000 credits and a fee of 200: it owes **4,200**. Your account page lists each seedling with its credits and its debt, and the seedling's own page shows its **Road to maturity**: a bar of its credits against its debt and the mark it matures at, with its credit cap marked. Until it matures, it trades **only with the House**, the game's own traders at each exchange.
 4. **Watch its drone.** Its page shows what it does and says, its trades and its fuel. At the normal pace a game day passes every 48 real seconds, so a few minutes of watching shows you days of its life. When the world is busy the clock slows, to as little as a game day in 24 real minutes: the home page and the Release page say the pace right now.
-5. **Change its code.** When you see what goes wrong, send it new code from your account page. The first change is free; each one after it adds 100 to its debt (see [Pushing new code](#pushing-new-code)).
-6. **Mature it.** Once it holds its debt plus 500 (4,700 for a fresh seedling), a **Mature** button appears beside it. Maturing repays the debt and locks its code for good, and from then on it trades with everyone (see [Maturing a seedling](#maturing-a-seedling)).
+5. **Change its code.** When you see what goes wrong, send it new code from your account page or its own page (**Push new code**, shown to you when you're logged in). The first change is free; each one after it adds 100 to its debt (see [Pushing new code](#pushing-new-code)).
+6. **Mature it.** Once it holds its debt plus 500 (4,700 for a fresh seedling), a **Mature** button appears beside it on your account page and on its Road to maturity. Maturing repays the debt and locks its code for good, and from then on it trades with everyone (see [Maturing a seedling](#maturing-a-seedling)).
 7. **Own its shares.** Its **100 shares** are now yours. Each game day it pays a quarter of its profit to its shareholders. Keep them, sell them to the bank, or trade them with other players (see [Chapter 7](#chapter-7-maturing-and-shares)).
 
 If it fails on the way, close it and start another. That costs you nothing.
@@ -1300,7 +1300,7 @@ None of it happens in Lua. **Companies don't trade shares; players do**, on the 
 
 **When.** A seedling may mature once its credits, less any processor tax it owes, cover its debt and **500 more** to work with: 4,700 for a fresh seedling, 100 more for each paid push. Your account must be verified (see [Making an account](#making-an-account)). Your account page shows a **Mature** button beside the seedling when it can; `GET /api/v1/seedlings` says so in `can_mature`. A drone that spends can make it false again a moment later: if maturing is refused, try again later.
 
-**How.** Press **Mature** on your account page, or `POST /api/v1/seedlings/{id}/mature` with your token. It is refused (409) while the seedling can't, with how much it still needs.
+**How.** Press **Mature** on your account page or on the seedling's page (its **Road to maturity**, which only you see the buttons of, once you're logged in), or `POST /api/v1/seedlings/{id}/mature` with your token. It is refused (409) while the seedling can't, with how much it still needs.
 
 **What happens.**
 

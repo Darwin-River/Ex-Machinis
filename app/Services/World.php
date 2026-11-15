@@ -66,22 +66,27 @@ class World
     }
 
     /**
-     * What happened lately, newest first: [game_t, when, text, link]. Each
-     * kind is read on its own (the latest few), then they are merged.
+     * What happened lately, newest first: [game_t, when, text, link, html,
+     * kind, place]. Each kind is read on its own (the latest few), then they
+     * are merged. `html` is the text with every name a link (#697); `kind`
+     * is fuel for a purchase of fuel, which the home page groups.
      */
     public static function feed(int $limit = 30): array
     {
         $items = [];
-        $add = function (int $t, string $text, ?string $link = null) use (&$items) {
-            $items[] = ['game_t' => $t, 'text' => $text, 'link' => $link];
+        $add = function (int $t, string $text, ?string $link = null, ?string $html = null, string $kind = 'event', $place = null) use (&$items) {
+            $items[] = ['game_t' => $t, 'text' => $text, 'link' => $link, 'html' => $html ?? e($text), 'kind' => $kind, 'place' => $place];
         };
+        $a = fn (?string $name, string $path) => '<a href="' . e(url($path)) . '">' . e($name) . '</a>';
 
         foreach (DB::table('releases as r')->join('companies as c', 'c.company_id', '=', 'r.company_id')
                      ->join('agents as a', 'a.agent_id', '=', 'r.agent_id')
-                     ->select('r.created_at', 'c.name as company', 'a.name', 'a.agent_id', 'r.copied_from', 'r.same_as')
+                     ->select('r.created_at', 'c.name as company', 'c.company_id', 'a.name', 'a.agent_id', 'r.copied_from', 'r.same_as')
                      ->orderBy('r.id', 'desc')->limit($limit)->get() as $r) {
             $how = $r->copied_from ? ', with code copied from drone ' . $r->copied_from : '';
-            $add(self::gameTimeOf($r->created_at), "{$r->company} released a new drone, {$r->name}{$how}.", 'spacecraft/' . $r->agent_id);
+            $add(self::gameTimeOf($r->created_at), "{$r->company} released a new drone, {$r->name}{$how}.", 'spacecraft/' . $r->agent_id,
+                $a($r->company, 'companies/' . $r->company_id) . ' released a new drone, ' . $a($r->name, 'spacecraft/' . $r->agent_id)
+                . ($r->copied_from ? ', with code copied from ' . $a('drone ' . $r->copied_from, 'spacecraft/' . $r->copied_from) : '') . '.');
         }
 
         // Broadcasts (#380): messages are private to a company (after round
@@ -89,39 +94,56 @@ class World
         $said = DB::table('broadcasts as b')->leftJoin('agents as a', 'a.agent_id', '=', 'b.drone')
             ->orderBy('b.id', 'desc')->limit($limit)->get(['b.drone', 'b.game_t', 'a.name']);
         foreach ($said as $b) {
-            $add((int) $b->game_t, ($b->name ?? 'A drone') . ' sent a message to its company.', 'spacecraft/' . $b->drone);
+            $add((int) $b->game_t, ($b->name ?? 'A drone') . ' sent a message to its company.', 'spacecraft/' . $b->drone,
+                $a($b->name ?? 'A drone', 'spacecraft/' . $b->drone) . ' sent a message to its company.');
         }
 
         $launches = DB::table('events')->where('event_type', 8)->where('outcome', 1)->orderBy('id', 'desc')->limit($limit)->get();
         $names = self::names('agents', 'agent_id', 'name', array_merge($launches->pluck('drone')->all(), $launches->pluck('new_quantity')->all()));
         foreach ($launches as $e) {
             $add((int) $e->game_t, ($names[$e->drone] ?? 'A drone') . ' launched a clone, ' . ($names[$e->new_quantity] ?? 'a new drone') . '.',
-                'spacecraft/' . $e->new_quantity);
+                'spacecraft/' . $e->new_quantity,
+                $a($names[$e->drone] ?? 'A drone', 'spacecraft/' . $e->drone) . ' launched a clone, '
+                . $a($names[$e->new_quantity] ?? 'a new drone', 'spacecraft/' . $e->new_quantity) . '.');
         }
 
         $why = ['fuel' => 'it ran out of fuel', 'crashes' => 'its program kept crashing', 'tax' => "its company couldn't pay its tax",
             'closed' => 'its player closed its seedling'];
-        foreach (DB::table('agents')->whereNotNull('wrecked_at')->orderBy('wrecked_at', 'desc')->limit($limit)->get() as $a) {
-            $add((int) $a->wrecked_at, "{$a->name} became a wreck: " . ($why[$a->wreck_cause] ?? 'it died') . '.', 'spacecraft/' . $a->agent_id);
+        foreach (DB::table('agents')->whereNotNull('wrecked_at')->orderBy('wrecked_at', 'desc')->limit($limit)->get() as $w) {
+            $cause = $why[$w->wreck_cause] ?? 'it died';
+            $add((int) $w->wrecked_at, "{$w->name} became a wreck: $cause.", 'spacecraft/' . $w->agent_id,
+                $a($w->name, 'spacecraft/' . $w->agent_id) . ' became a wreck: ' . e($cause) . '.');
         }
 
         $plundered = DB::table('agents')->whereNotNull('plundered_at')->whereNotNull('plundered_by')->orderBy('plundered_at', 'desc')->limit($limit)->get();
         $names = self::names('agents', 'agent_id', 'name', $plundered->pluck('plundered_by')->all());
-        foreach ($plundered as $a) {
-            $add((int) $a->plundered_at, ($names[$a->plundered_by] ?? 'A drone') . " plundered the wreck of {$a->name}.", 'spacecraft/' . $a->agent_id);
+        foreach ($plundered as $p) {
+            $add((int) $p->plundered_at, ($names[$p->plundered_by] ?? 'A drone') . " plundered the wreck of {$p->name}.", 'spacecraft/' . $p->agent_id,
+                $a($names[$p->plundered_by] ?? 'A drone', 'spacecraft/' . $p->plundered_by) . ' plundered the wreck of '
+                . $a($p->name, 'spacecraft/' . $p->agent_id) . '.');
         }
 
         $ends = ['tax' => "couldn't pay its tax and was eliminated", 'drones' => 'lost its last drone'];
         foreach (DB::table('companies')->whereNotNull('eliminated_at')->orderBy('eliminated_at', 'desc')->limit($limit)->get() as $c) {
-            $add((int) $c->eliminated_at, "{$c->name} " . ($ends[$c->end_cause] ?? 'ended') . '.');
+            $end = $ends[$c->end_cause] ?? 'ended';
+            $add((int) $c->eliminated_at, "{$c->name} $end.", null, $a($c->name, 'companies/' . $c->company_id) . ' ' . e($end) . '.');
         }
 
         $trades = DB::table('trades')->whereNotNull('game_t')->orderBy('id', 'desc')->limit($limit)->get();
         $drones = self::names('agents', 'agent_id', 'name', array_merge($trades->pluck('seller')->all(), $trades->pluck('buyer')->all()));
         $resources = self::names('resources', 'id', 'name', $trades->pluck('resource')->all());
+        $places = self::names('objects', 'object_id', 'object_name', $trades->pluck('location')->all());
         foreach ($trades as $t) {
-            $add((int) $t->game_t, ($drones[$t->buyer] ?? 'A drone') . " bought {$t->units} " . ($resources[$t->resource] ?? 'units')
-                . ' from ' . ($drones[$t->seller] ?? 'another drone') . ' for ' . number_format($t->credits) . ' credits.');
+            $what = "{$t->units} " . ($resources[$t->resource] ?? 'units');
+            $where = $t->location && isset($places[$t->location]) ? ' at ' . $a($places[$t->location], 'locations/' . $t->location) : '';
+            $add((int) $t->game_t, ($drones[$t->buyer] ?? 'A drone') . " bought $what"
+                . ' from ' . ($drones[$t->seller] ?? 'another drone') . ' for ' . number_format($t->credits) . ' credits.', null,
+                $a($drones[$t->buyer] ?? 'A drone', 'spacecraft/' . $t->buyer) . ' bought ' . $a($what, 'resources/' . $t->resource)
+                . ' from ' . $a($drones[$t->seller] ?? 'another drone', 'spacecraft/' . $t->seller) . $where
+                . ' for ' . number_format($t->credits) . ' credits.',
+                (int) $t->resource === Release::FUEL ? 'fuel' : 'trade',
+                $t->location ? ['id' => (int) $t->location, 'name' => $places[$t->location] ?? null, 'units' => (int) $t->units,
+                    'credits' => (int) $t->credits] : null);
         }
 
         usort($items, fn ($a, $b) => $b['game_t'] <=> $a['game_t']);
@@ -130,6 +152,42 @@ class World
             $item['when'] = DronePage::when($item['game_t']);
         }
         return $items;
+    }
+
+    /**
+     * The home page's "Just now" (#697): the latest few things, with fuel
+     * purchases at a place grouped into one line where its latest one was
+     */
+    public static function feedGrouped(int $limit = 8): array
+    {
+        $out = [];
+        $fuelAt = [];
+        foreach (self::feed(40) as $item) {
+            if ($item['kind'] === 'fuel' && $item['place']) {
+                $key = $item['place']['id'];
+                if (isset($fuelAt[$key])) {
+                    $g = &$out[$fuelAt[$key]];
+                    $g['count']++;
+                    $g['units'] += $item['place']['units'];
+                    $g['credits'] += $item['place']['credits'];
+                    unset($g);
+                    continue;
+                }
+                $fuelAt[$key] = count($out);
+                $item += ['count' => 1, 'units' => $item['place']['units'], 'credits' => $item['place']['credits']];
+            }
+            $out[] = $item;
+        }
+        foreach ($out as &$item) {
+            if ($item['kind'] === 'fuel' && ($item['count'] ?? 1) > 1) {
+                $place = '<a href="' . e(url('locations/' . $item['place']['id'])) . '">' . e($item['place']['name'] ?? 'one place') . '</a>';
+                $item['html'] = $item['count'] . ' fuel purchases at ' . $place . ': ' . number_format($item['units']) . ' fuel for '
+                    . number_format($item['credits']) . ' credits. The latest: ' . $item['html'];
+                $item['text'] = strip_tags($item['html']);
+            }
+        }
+        unset($item);
+        return array_slice($out, 0, $limit);
     }
 
     public static function trades(int $limit = 30): array
