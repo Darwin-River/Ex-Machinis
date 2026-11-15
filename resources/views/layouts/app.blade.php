@@ -64,6 +64,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="nav-world" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">World</a>
                         <div class="dropdown-menu" aria-labelledby="nav-world">
+                            <a class="dropdown-item" href="{{ url('dashboard') }}">Economy dashboard</a>
                             <a class="dropdown-item" href="{{ url('market') }}">Market</a>
                             <a class="dropdown-item" href="{{ url('market/history') }}">Market history</a>
                             <a class="dropdown-item" href="{{ url('market/shares') }}">Stock exchange</a>

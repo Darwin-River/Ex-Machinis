@@ -25,6 +25,8 @@ Route::middleware(['auth:api', 'throttle:60,1'])->get('/user', function (Request
 */
 Route::prefix('v1')->group(function () {
     Route::middleware('throttle:api-read')->get('clock', 'ApiController@clock');
+    // The economy dashboard (#698): worked out once a minute
+    Route::middleware('throttle:api-read')->get('dashboard', 'ApiController@dashboard');
     Route::middleware('throttle:api-read')->get('companies', 'ApiController@company');
     Route::middleware('throttle:api-read')->get('companies/{id}', 'ApiController@company')->whereNumber('id');
     Route::middleware('throttle:api-read')->get('drones/{id}', 'ApiController@drone')->whereNumber('id');

@@ -60,6 +60,7 @@ Thank you for your support!
   - [Placing and adjusting market orders](#placing-and-adjusting-market-orders)
   - [Trading at the exchanges](#trading-at-the-exchanges)
   - [Transferring resources between drones](#transferring-resources-between-drones)
+  - [The economy dashboard](#the-economy-dashboard)
 - [Chapter 7: Maturing and Shares](#chapter-7-maturing-and-shares)
   - [Maturing a seedling](#maturing-a-seedling)
   - [Dividends: what a share earns](#dividends-what-a-share-earns)
@@ -1277,6 +1278,17 @@ function show_board(resource)
   end
 end
 ```
+
+### The economy dashboard
+
+The **Economy dashboard** (World menu, `/dashboard`) shows the whole market on one page, worked out once a real minute. A short version of it is on the home page.
+
+- **The banner** compares the trades on the last full game day with the usual day (the average over up to 60 game days before it). When the clock is slowed it also says how long a game day takes now, how far behind the engines are, and how many times the usual rate processor tax costs.
+- **The tiles**: trades and credits traded, working drones and the share of all drones that are wrecks, matured companies and what they are worth at cash-out, matured companies' profit this week against last, and players. Each says how it has changed.
+- **The charts**: credits traded each game day by place; the matured companies' combined profit each day (blue a gain, red a loss); the goods that changed hands most over 14 game days; the cheapest seller and the highest buyer of the main goods at each place; the House's booms, slumps, shortages and gluts; where the drones are and where they die; and each player's wealth.
+- **Which companies are worth buying?** Every matured company with a share's cash-out value, its working drones, its profit over 30 game days, the dividends a share paid over them, the yield (those dividends against the cash-out value) and its daily profit.
+
+Each chart says where its numbers come from. Hover or tap a bar or a dot for its figures. Programs get the same numbers from `GET /api/v1/dashboard` (see [the API](api.md)).
 
 ## Chapter 7: Maturing and Shares
 

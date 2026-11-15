@@ -30,39 +30,14 @@ class ApiController extends Controller
     /** The game clock and whether the world has room for a release */
     public function clock(): JsonResponse
     {
-        $now = World::gameNow();
-        $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
-        $clock = LaunchQueue::clock();
-        $scale = $clock['scale'] ?? null;
-        // The game engine records its pace once a game minute or so
-        // (load_checked_at, real time): a stale record means it has stopped,
-        // and drones are waiting (#380 round 35: a stall looked like a slow drone)
-        $load = DB::table('game_clock')->where('id', 1)->first(['load_checked_at', 'slices_per_minute', 'lag_seconds']);
-        $seen = ($load && $load->load_checked_at) ? max(0, time() - (int) $load->load_checked_at) : null;
-        return response()->json([
-            'game_time' => $now,
-            'game_day' => round(($now - $epoch) / 86400, 3),
-            'when' => DronePage::when($now),
-            'scale' => $scale,
-            'real_seconds_per_game_day' => $scale ? (int) round(86400 / $scale) : null,
-            // The pace it runs at when the engines keep up, and whether it's
-            // slower now (#418: players took the pace now for the usual one)
-            'target_scale' => $clock['target'] ?? $scale,
-            'target_real_seconds_per_game_day' => ($clock['target'] ?? $scale) ? (int) round(86400 / ($clock['target'] ?? $scale)) : null,
-            'floor_scale' => $clock['floor'] ?? null,
-            'slowed' => $scale !== null && isset($clock['target']) && $scale < $clock['target'] * 0.999,
-            'world_full' => $clock['full'] ?? false,
-            'releases_waiting' => $clock['waiting'] ?? 0,
-            // The congestion tax (#620): thinking costs more while the clock runs slowed
-            'processor_tax' => (fn ($c) => ['per_million' => $c['rate'], 'base_per_million' => $c['base'],
-                'congestion' => $c['congestion'], 'cap' => $c['cap']])(\App\Services\ProcessorTax::congestion()),
-            'engine' => [
-                'running' => $seen !== null && $seen < 180,
-                'last_seen_seconds_ago' => $seen,
-                'turns_per_minute' => $load && $load->slices_per_minute !== null ? (int) $load->slices_per_minute : null,
-                'behind_seconds' => $load && $load->lag_seconds !== null ? (float) $load->lag_seconds : null,
-            ],
-        ]);
+        // Shared with the economy dashboard (#698)
+        return response()->json(LaunchQueue::status());
+    }
+
+    /** The economy dashboard (#698): the same figures as /dashboard, kept for a minute */
+    public function dashboard(): JsonResponse
+    {
+        return response()->json(\App\Services\Dashboard::full());
     }
 
     /** A company by ID, or by name with ?name= */

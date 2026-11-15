@@ -68,6 +68,12 @@ class WorldController extends Controller
         return view('world.shares', compact('exchange', 'playerMarket', 'playerTrades'));
     }
 
+    /** The economy dashboard (#698): is the market busy, are companies making money, who is winning */
+    public function dashboard()
+    {
+        return view('world.dashboard', ['dash' => \App\Services\Dashboard::full()]);
+    }
+
     /** The leaderboard (#324 step 18): net wealth, all time and Rising */
     public function leaderboard(\Illuminate\Http\Request $request)
     {

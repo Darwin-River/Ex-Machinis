@@ -29,6 +29,7 @@ This document lays out the plans for developing Ex Machinis, an online space sim
   * [Trading, orders and the House](#Rules-trading)
   * [Running costs and failure](#Rules-costs)
   * [Boards, the digest and dealings](#Rules-boards)
+  * [The economy dashboard](#Rules-dashboard)
   * [Failure codes](#Rules-failure-codes)
   * [Where each number is set](#Rules-numbers)
 * [General Mechanics](#General-Mechanics)
@@ -245,6 +246,14 @@ This section is the whole rulebook of the live game in one place: what a player 
 - **The digest.** On the account page (and `GET /account/digest`), what happened since the player last looked: each company's sales and purchases, what a seedling sent the bank over its cap, dividends, the bank's payments, same-owner dealings and the news (#640, #655, #672).
 - **Dealings.** A company's page lists the companies it has traded with or plundered, and flags those with the same player behind them (#639). The bank's own companies aren't flagged.
 - **The company boards** (net wealth: growth since the start, without hulls or debt) and the lineage map stay as they were.
+
+<a name="Rules-dashboard"></a>
+### The economy dashboard
+- **What it is for** (#698): whether the market is busy, whether companies make money, what trades where, and who is winning, on one page (`/dashboard`, in the World menu) and in the API (`GET /api/v1/dashboard`). The home page shows its banner and tiles.
+- **Worked out on the server** (`App\Services\Dashboard`), and cached for 60 real seconds, so page views never run its queries: at most one view a minute does.
+- **The norm** is the average game day over up to 60 game days before the last full one. The banner calls the market quiet below half of it, and when the clock is slowed it says the pace, the engines' lag and processor tax's multiplier, from the same data as `/api/v1/clock`.
+- **Counting.** Drones are players' drones: the House's station drones are left out, and so are a closed seedling's, which leave the game. A matured company's profit counts from the day it matured. Yield is a share's dividends over 30 game days against its cash-out value.
+- **Charts** are inline SVG drawn in the page by one small kit (`resources/views/partials/ex-charts.blade.php`), in the colours of the price charts: blue, orange, green, gold, pink and violet in that fixed order, checked for colour-blind readers against the dark panel. Losses are red, wrecks grey. Every chart says where its numbers come from and has tooltips; the page is one column on a phone, with no sideways scroll.
 
 <a name="Rules-failure-codes"></a>
 ### Failure codes
