@@ -64,7 +64,8 @@ class UserController extends Controller
             'created_at' => $company->created_at, 'credits' => $company->credits,
             // The new rules (#637): a seedling's debt, or when it matured
             'seedling' => (int) ($company->seedling ?? 0), 'debt' => (int) ($company->debt ?? 0),
-            'matured_t' => $company->matured_t ?? null];
+            'matured_t' => $company->matured_t ?? null, 'owner_id' => $company->owner_id ?? null,
+            'eliminated_at' => $company->eliminated_at ?? null, 'end_cause' => $company->end_cause ?? null];
 
         $spacecraft = Agent::with('hull')->with('location')->with('lastEVents')->where('company_id', '=', $id)->get();
 

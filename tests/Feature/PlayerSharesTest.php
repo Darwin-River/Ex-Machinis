@@ -313,4 +313,31 @@ class PlayerSharesTest extends TestCase
         $this->assertTrue(PlayerShares::order($owner, $id, 'buy', 1, $p['low'])['ok']);
         $this->assertSame(422, PlayerShares::order($owner, $id, 'sell', 1, $p['low'])['status']);
     }
+
+    /** #686: no old-rules leftovers on a matured or ended company's page; the bank named in trades */
+    public function testNoOldRulesLeftovers()
+    {
+        $owner = $this->player('Tidy Founder');
+        $id = $this->matured($owner, 'Tidy Co', 100000);
+        $this->get('/companies/' . $id)->assertOk()->assertSee('its code is locked for good')
+            ->assertDontSee('never traded')->assertDontSee('push password')->assertDontSee('No dividends until')
+            ->assertDontSee('id="shares"', false);
+
+        // A sale to the bank: the bank is named, on the site and in the API
+        PlayerShares::sellToBank($owner, $id, 3);
+        $t = PlayerShares::trades($id)[0];
+        $this->assertSame([null, 'The bank', true, false], [$t['buyer'], $t['buyer_name'], $t['buyer_is_bank'], $t['seller_is_bank']]);
+        $this->get('/market/shares')->assertOk()->assertSee('The bank')
+            ->assertDontSee('Every company starts with 1,000 shares')->assertDontSee('No company has traded or offered shares yet');
+        $this->getJson("/api/v1/player-shares/$id")->assertJsonPath('trades.0.buyer_name', 'The bank')
+            ->assertJsonPath('trades.0.buyer_is_bank', true);
+
+        // A closed seedling owes nothing and isn't at risk
+        $seed = Seedlings::start($owner, 'Closed Co', "function launched() wait(60) end")['company'];
+        Seedlings::close($owner, $seed);
+        DB::table('companies')->where('company_id', $seed)->update(['debt' => 5500]);   // as a world reset leaves it
+        $this->get('/companies/' . $seed)->assertOk()->assertSee('it owes nothing')->assertDontSee('it owes the bank')
+            ->assertDontSee('At risk');
+        $this->assertFalse(\App\Services\CompanyHealth::of($seed)['at_risk']);
+    }
 }

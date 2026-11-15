@@ -34,9 +34,9 @@
                         @forelse($playerTrades as $t)
                             <tr><td>{{ $t['when'] }}</td><td><a href="{{ url('companies/' . $t['company']) }}#player-shares">{{ $t['name'] }}</a></td>
                                 <td>{{ number_format($t['units']) }}</td><td>{{ number_format($t['price']) }}</td>
-                                <td>{{ $t['seller'] }}</td><td>{{ $t['buyer'] }}</td></tr>
+                                <td>{{ $t['seller_name'] }}</td><td>{{ $t['buyer_name'] }}</td></tr>
                         @empty
-                            <tr><td colspan="6">No player has traded a share with another yet.</td></tr>
+                            <tr><td colspan="6">No matured company's shares have traded yet.</td></tr>
                         @endforelse
                     </table>
                 </div>
@@ -44,13 +44,20 @@
                 <p style="white-space: normal"><i>The rest of this page is the old world's stock exchange, kept for its history:
                     under the new rules players trade matured companies' shares above, and companies trade none.</i></p>
             @endif
+            @php($archive = $playerMarket !== null)
             <div style="white-space: normal; margin-bottom: 1em">
+                @if($archive)
+                    {{-- #686: the old world's exchange, in the past tense --}}
+                    Under the old rules companies traded shares with each other: each started with 1,000, and could issue
+                    more to raise credits. Shares traded at the Earth exchange, from drones' sell and buy orders.
+                @else
                 Every company starts with 1,000 shares, and more once it issues new ones to raise credits; each share pays
                 its holder its part of the company's profit, paid once a game day: its sales after tax less what it paid
                 for goods and equipment, after making up any losses (#603).
                 Shares trade at the Earth exchange: a drone buys by pulling from a sell order and sells by pushing into
                 a buy order, wherever it is. See <a href="{{ url('players-manual') }}#shares-and-the-stock-exchange">Shares
                 and the stock exchange</a> in the players' manual. Everything here is live.
+                @endif
             </div>
 
             <h3>Offerings of new shares</h3>
@@ -121,7 +128,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="11">No company has traded or offered shares yet.</td></tr>
+                        <tr><td colspan="12">{{ $archive ? 'None.' : 'No company has traded or offered shares yet.' }}</td></tr>
                     @endforelse
                 </table>
             </div>

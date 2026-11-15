@@ -46,7 +46,14 @@
             </div>
             <p class="stat-meta">Company {{ $user->user_id }} · released {{ \Carbon\Carbon::parse($user->created_at)->format('F j, Y') }}</p>
             {{-- The new rules (#637) --}}
-            @if((int) ($user->seedling ?? 0) === 1)
+            @php($ended = ($user->eliminated_at ?? null) !== null)
+            @if($ended)
+                {{-- An ended company owes nothing and risks nothing (#686) --}}
+                @php($endWhy = ['closed' => 'its player closed it', 'reset' => 'the world was reset', 'tax' => "it couldn't pay its tax",
+                    'dissolved' => 'it had no credits for too long', 'drones' => 'it lost its last drone'][$user->end_cause ?? ''] ?? null)
+                <p class="stat-meta" id="seedling">It ended on {{ \App\Services\DronePage::when((int) $user->eliminated_at) }}{{ $endWhy ? ': ' . $endWhy : '' }}.
+                    @if((int) ($user->seedling ?? 0) === 1) It was a seedling: its debt was cancelled, and it owes nothing. @endif</p>
+            @elseif((int) ($user->seedling ?? 0) === 1)
                 <p class="stat-meta" id="seedling">A seedling: it owes the bank {{ number_format((int) $user->debt) }} credits, and
                     trades only with the House until it matures.</p>
             @elseif(($user->matured_t ?? null) !== null)
@@ -90,7 +97,7 @@
                     <table class="table table-sm" id="player-share-trades"><tbody>
                         @foreach($recentTrades as $t)
                             <tr><td>{{ $t['when'] }}</td><td class="text-right">{{ number_format($t['units']) }}</td>
-                                <td class="text-right">at {{ number_format($t['price']) }}</td><td>{{ $t['seller'] }} to {{ $t['buyer'] }}</td></tr>
+                                <td class="text-right">at {{ number_format($t['price']) }}</td><td>{{ $t['seller_name'] }} to {{ $t['buyer_name'] }}</td></tr>
                         @endforeach
                     </tbody></table>
                 @endif
@@ -343,11 +350,13 @@
                 </p>
             @endif
 
-            @php($newRules = (int) ($user->seedling ?? 0) === 1 || ($user->owner_id ?? null) !== null)
+            @php($newRules = (int) ($user->seedling ?? 0) === 1 || ($user->owner_id ?? null) !== null || ($user->matured_t ?? null) !== null)
             @if($newRules)
                 {{-- The new rules (#666): reprogramming a seedling, or a matured company's locked code --}}
                 <h3 class="mt-4" id="pushes">New code</h3>
-                @if(!empty($pushes['seedling']))
+                @if($ended)
+                    <p style="white-space: normal">It has ended: its code can't change.</p>
+                @elseif(!empty($pushes['seedling']))
                     <p style="white-space: normal">Its owner reprograms this seedling from their
                         <a href="{{ url('account') }}#seedlings">account page</a> (or the API). Pushed {{ $pushes['count'] }}
                         {{ $pushes['count'] === 1 ? 'time' : 'times' }}; the next push adds {{ number_format($pushes['next_fee']) }}

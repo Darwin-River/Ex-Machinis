@@ -98,9 +98,11 @@ class CompanyHealth
         $founded = (int) (DB::table('companies')->where('company_id', $company)->value('founded_t') ?? $now);
         $health['last_sale'] = $sold !== null ? (int) floor(($now - (int) $sold) / 3600)
             : ($now - $founded >= $lookback ? self::IDLE_LOOKBACK * 24 : null);
-        $health['stalled_reason'] = self::stalledReason($health, $now - $founded);
+        // An ended company is neither stalled nor at risk: it has ended (#686)
+        $ended = DB::table('companies')->where('company_id', $company)->whereNotNull('eliminated_at')->exists();
+        $health['stalled_reason'] = $ended ? null : self::stalledReason($health, $now - $founded);
         $health['stalled'] = $health['stalled_reason'] !== null;
-        $health['at_risk_reason'] = self::riskReason($health);
+        $health['at_risk_reason'] = $ended ? null : self::riskReason($health);
         $health['at_risk'] = $health['at_risk_reason'] !== null;
         return $health;
     }

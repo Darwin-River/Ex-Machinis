@@ -389,7 +389,9 @@ class PlayerShares
     /**
      * The latest trades of matured companies' shares between players (#676),
      * newest first: one company's, or every company's: [company, name,
-     * units, price, seller, buyer, when, game_time]
+     * units, price, seller, buyer, seller_name, buyer_name, seller_is_bank,
+     * buyer_is_bank, when, game_time]. The bank is a side with no account:
+     * seller or buyer null, its name "The bank" (#686: the side was blank)
      */
     public static function trades(?int $company = null, int $limit = 25): array
     {
@@ -402,6 +404,8 @@ class PlayerShares
             ->get(['t.company_id', 'c.name', 't.units', 't.price', 's.login as seller', 'b.login as buyer', 't.game_t'])
             ->map(fn ($t) => ['company' => (int) $t->company_id, 'name' => $t->name, 'units' => (int) $t->units,
                 'price' => (int) $t->price, 'seller' => $t->seller, 'buyer' => $t->buyer,
+                'seller_name' => $t->seller ?? 'The bank', 'buyer_name' => $t->buyer ?? 'The bank',
+                'seller_is_bank' => $t->seller === null, 'buyer_is_bank' => $t->buyer === null,
                 'when' => DronePage::when((int) $t->game_t), 'game_time' => (int) $t->game_t])->all();
     }
 
