@@ -5,8 +5,8 @@
 -- events; the website reads both tables where it shows old history (a
 -- drone's timeline and post-mortem, the events page, a hull's age).
 --
--- The events engine calls archive_events once a real minute (db_e.c,
--- db_archive_events), a window of ids at a time. An event moves when it is
+-- The events engine calls archive_events (db_e.c, db_archive_due: a pass
+-- at most once a real minute), a window of ids at a time. An event moves when it is
 -- settled (outcome not 0), older than house_rules.events_archive_days game
 -- days (and than the oldest event still to settle), its action has nothing
 -- left to settle, and nothing the engines look up can need it. For a
@@ -105,6 +105,17 @@ CREATE PROCEDURE archive_events(IN from_id INT UNSIGNED, IN span INT UNSIGNED, I
 proc: BEGIN
     DECLARE now_t, cutoff, oldest BIGINT;
     DECLARE ceiling, hi INT UNSIGNED;
+    DECLARE k_drone, k_resource INT UNSIGNED;
+    DECLARE k_installed, k_locked TINYINT;
+    DECLARE done INT DEFAULT 0;
+    DECLARE drones CURSOR FOR
+        SELECT DISTINCT drone FROM events WHERE id >= from_id AND id < hi AND outcome = 1 AND game_t < cutoff
+        AND drone IS NOT NULL;
+    DECLARE kinds CURSOR FOR
+        SELECT DISTINCT drone, resource, installed, locked FROM events WHERE id >= from_id AND id < hi
+        AND outcome = 1 AND game_t < cutoff AND event_type IN (1, 2)
+        AND drone IS NOT NULL AND resource IS NOT NULL AND installed IS NOT NULL AND locked IS NOT NULL;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         SET @events_archiving = 0;
@@ -144,6 +155,39 @@ proc: BEGIN
     END IF;
     SET hi = LEAST(from_id + span, ceiling);
 
+    -- The latest success of each drone, and of each inventory kind, in the
+    -- window, at the cutoff (by game time, then id): one step back down an
+    -- index each. (Asked once a row inside the INSERT, MySQL read the
+    -- drone's whole history each time and sorted it: 5 to 10 s a window on
+    -- a load world's backlog)
+    DROP TEMPORARY TABLE IF EXISTS archive_keep_drone, archive_keep_kind;
+    CREATE TEMPORARY TABLE archive_keep_drone (drone INT UNSIGNED PRIMARY KEY, id INT UNSIGNED);
+    CREATE TEMPORARY TABLE archive_keep_kind (drone INT UNSIGNED, resource INT UNSIGNED, installed TINYINT,
+        locked TINYINT, id INT UNSIGNED, PRIMARY KEY (drone, resource, installed, locked));
+    SET done = 0;
+    OPEN drones;
+    each_drone: LOOP
+        FETCH drones INTO k_drone;
+        IF done THEN LEAVE each_drone; END IF;
+        INSERT INTO archive_keep_drone VALUES (k_drone,
+            (SELECT n.id FROM events n FORCE INDEX (events_drone_game_t)
+             WHERE n.drone = k_drone AND n.outcome = 1 AND n.game_t <= cutoff
+             ORDER BY n.game_t DESC, n.id DESC LIMIT 1));
+    END LOOP;
+    CLOSE drones;
+    SET done = 0;
+    OPEN kinds;
+    each_kind: LOOP
+        FETCH kinds INTO k_drone, k_resource, k_installed, k_locked;
+        IF done THEN LEAVE each_kind; END IF;
+        INSERT INTO archive_keep_kind VALUES (k_drone, k_resource, k_installed, k_locked,
+            (SELECT n.id FROM events n FORCE INDEX (events_inventory_time)
+             WHERE n.drone = k_drone AND n.resource = k_resource AND n.installed = k_installed
+             AND n.locked = k_locked AND n.outcome = 1 AND n.game_t <= cutoff AND n.event_type IN (1, 2)
+             ORDER BY n.game_t DESC, n.id DESC LIMIT 1));
+    END LOOP;
+    CLOSE kinds;
+
     INSERT INTO events_archive
     SELECT e.* FROM events e
     WHERE e.id >= from_id AND e.id < hi AND e.outcome <> 0 AND e.game_t < cutoff
@@ -153,16 +197,14 @@ proc: BEGIN
                JOIN actions x ON x.id = p.action
                WHERE p.action = e.action AND p.outcome = 0 AND IFNULL(x.aborted, 0) <> 1))
       AND (e.outcome <> 1 OR (
-          -- the drone's latest success
-          EXISTS (SELECT 1 FROM events n FORCE INDEX (events_drone_game_t)
-                  WHERE n.drone = e.drone AND n.outcome = 1 AND n.game_t >= e.game_t AND n.game_t <= cutoff
-                  AND n.id > e.id)
-          -- the latest inventory event of its kind
-          AND (e.event_type NOT IN (1, 2) OR EXISTS (SELECT 1 FROM events n FORCE INDEX (events_inventory_time)
-                  WHERE n.drone = e.drone AND n.resource = e.resource AND n.installed <=> e.installed
-                  AND n.locked <=> e.locked AND n.outcome = 1 AND n.event_type IN (1, 2)
-                  AND n.game_t >= e.game_t AND n.game_t <= cutoff AND n.id > e.id))
-          -- the latest order of its kind
+          -- the latest of its kind at the cutoff is newer by id too: the
+          -- drone's latest success, and an inventory event's latest of its
+          -- drone, resource, installed, locked
+          (SELECT k.id FROM archive_keep_drone k WHERE k.drone = e.drone) > e.id
+          AND (e.event_type NOT IN (1, 2) OR (SELECT k.id FROM archive_keep_kind k WHERE k.drone = e.drone
+                  AND k.resource = e.resource AND k.installed = e.installed AND k.locked = e.locked) > e.id)
+          -- the latest order of its kind (any newer one up to the cutoff:
+          -- by id along events_orders, a step or two)
           AND (e.event_type NOT IN (4, 5) OR EXISTS (SELECT 1 FROM events n FORCE INDEX (events_orders)
                   WHERE n.drone = e.drone AND n.resource = e.resource AND n.event_type = e.event_type
                   AND n.outcome = 1 AND n.game_t >= e.game_t AND n.game_t <= cutoff AND n.id > e.id))
@@ -179,6 +221,7 @@ proc: BEGIN
         WHERE e.id >= from_id AND e.id < hi AND a.id >= from_id AND a.id < hi;
         SET @events_archiving = 0;
     END IF;
+    DROP TEMPORARY TABLE IF EXISTS archive_keep_drone, archive_keep_kind;
 
     SET next_id = IF(hi >= ceiling, 0, hi);
 END //
