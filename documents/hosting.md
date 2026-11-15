@@ -438,6 +438,7 @@ Settings, as environment variables:
 |---|---|---|
 | `BACKUP_DIR` | `/var/backups/exmachinis` | where backups go |
 | `KEEP_DAYS` | 14 | how many days of backups to keep |
+| `KEEP_COUNT` | 5 | at most this many backups are kept on the server, the newest; before each backup the oldest go if the disk lacks room for twice the newest |
 | `RCLONE_REMOTE` | (none) | also copy each backup off the server (below) |
 
 ### Back up every night
@@ -584,7 +585,7 @@ To keep the downtime short when moving on purpose:
 
 **If the disk fills up**, check these in order:
 - old images: `docker image prune -a -f`;
-- old backups: lower `KEEP_DAYS`;
+- old backups: `ls -1d /var/backups/exmachinis/20*` lists them, oldest first; remove all but the newest few with `ls -1d /var/backups/exmachinis/20* | head -n -3 | xargs rm -rf`. The backup script keeps at most `KEEP_COUNT` (5) and those under `KEEP_DAYS` (14) days old, and before each backup it removes the oldest to make room for twice the newest one's size; if that isn't enough it stops, and so does the deploy (#701);
 - the engines' logs, which are cleared after 7 days on their own: `docker compose exec game-engine du -sh /opt/exmachinis/log`.
 
 **Run one engine of each kind per database.** Two game engines on one database would each run part of every drone's input. So an engine takes a lock on its database when it starts. If a second one starts, it stops with "another game-engine is already running on database [...]" in its log (`docker compose logs game-engine`). That means the database is already being served by another server or container: stop one of them. A restarted engine waits up to 15 seconds for the old one's lock.
