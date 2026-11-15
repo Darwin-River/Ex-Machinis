@@ -31,6 +31,8 @@
 
 ******************************************************************************/
 
+#include <time.h>
+#include "query_cache.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -433,6 +435,26 @@ static int lua_replace_tag(char** sql, const char* tag, const char* value)
     return 0;
 }
 
+/* The shared cache of Lua query results (#694): LUA_QUERY_CACHE_MS real
+   milliseconds for answers about the world (500 if unset; 0: off) */
+static QueryCache_t g_query_cache = { .free_value = (QueryCacheFree_t)mysql_free_result };
+static int lua_query_cache_ms(void)
+{
+    static int ms = -1;
+    if(ms < 0) {
+        const char* v = getenv("LUA_QUERY_CACHE_MS");
+        ms = v && *v ? atoi(v) : 500;
+        if(ms < 0) ms = 0;
+    }
+    return ms;
+}
+static long long lua_now_ms(void)
+{
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return t.tv_sec * 1000LL + t.tv_nsec / 1000000;
+}
+
 /* query(id, ...): the arguments in the order FORTH pushes them (the last on
    top: [value_1]). A [dvalue_k] is one Lua number. A [string_k] is a Lua
    string (letters, digits, spaces, - _ .). Returns the rows: each a table
@@ -521,6 +543,40 @@ static int l_query(lua_State* L)
             lua_replace_tag(&sql, tag, s);
         }
     }
+    /* An answer about the world may be shared (#694): the key is the SQL
+       before the drone and the time are put in, with its place or drone */
+    int qc_ttl = 0;
+    QueryCacheScope_t qc_scope = query_cache_policy(q.id, lua_query_cache_ms(), &qc_ttl);
+    char* qc_key = NULL;
+    MYSQL_RES* r = NULL;
+    int shared = 0;
+    if(qc_scope != QC_NONE)
+    {
+        size_t kl = strlen(sql) + 48;
+        qc_key = malloc(kl);
+        int key_ok = qc_key && query_cache_key(qc_key, kl, qc_scope, sql, engine_get_current_drone_id(),
+                                               engine_get_current_drone_object_id());
+        if(key_ok)
+        {
+            r = (MYSQL_RES*)query_cache_get(&g_query_cache, qc_key, lua_now_ms());
+            if(r)
+            {
+                mysql_data_seek(r, 0);
+                shared = 1;
+            }
+        }
+        if(shared || !key_ok)
+        {
+            free(qc_key);
+            qc_key = NULL;
+        }
+    }
+    if(shared)
+    {
+        free(sql);
+        goto build;
+    }
+
     snprintf(value, sizeof(value), "%d", engine_get_current_drone_id());
     lua_replace_tag(&sql, QUERY_TAG_DRONE_ID, value);
     snprintf(value, sizeof(value), "%lld", game_time_now_seconds());
@@ -537,12 +593,20 @@ static int l_query(lua_State* L)
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Lua query [%d] failed: [%s]", q.id, sql);
         free(sql);
+        free(qc_key);
         lua_pushnil(L);
         lua_pushinteger(L, -2);   /* the query failed, as for FORTH */
         return 2;
     }
     free(sql);
-    MYSQL_RES* r = mysql_store_result(c->hndl);
+    r = mysql_store_result(c->hndl);
+    if(qc_key && r)
+    {
+        query_cache_put(&g_query_cache, qc_key, r, qc_ttl, lua_now_ms());
+        shared = 1;   /* the cache owns it now */
+    }
+    free(qc_key);
+build:
     lua_newtable(L);
     if(!r)
         return 1;
@@ -577,7 +641,8 @@ static int l_query(lua_State* L)
         }
         lua_rawseti(L, -2, ++n);
     }
-    mysql_free_result(r);
+    if(!shared)
+        mysql_free_result(r);
     return 1;
 }
 
