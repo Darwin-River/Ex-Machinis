@@ -220,7 +220,7 @@ Not sure where to begin? The Release page offers three starter scripts: click **
 
 - **Miner** (Mining Kit): mines kunspar or wolfite on the Moon, whichever has more left there (`richer`); if more than 30 drones are already at the Moon (`crowd_limit`), it starts at the quieter of Phobos and Deimos instead, refines it and sells the metals (and wolfite's Inorganics A2). Once matured, it offers them to other drones first, halfway between the best buy order and the cheapest other sell order, and sells the rest into the best buy orders. If the Moon's deposit stays dry (twelve tries in a row: other miners got there first) and fewer drones work at Phobos than at the Moon, it moves to Mars's moons. Once matured and able to afford copies of itself, two in three of them make the trip to Mars's moons (about 2 to 3 game days) and sell at the Mars Exchange. It buys its fuel wherever it's cheapest; where nobody sells it (Phobos and Deimos), it posts a fuel buy order at 7, waits two game hours for a courier, then flies to the Mars Exchange if none came. A seedling's order brings no courier: only the House and its own drones may trade with it.
 - **Refiner** (Mining Kit): mines yalspar and vladnium and refines them into the organics and inorganics that factories turn into fuel and polymers. It sells them the same way.
-- **Maker** (Factory Kit): buys metals at the Moon wherever they're cheapest (as a seedling, from the House, wherever it has most on sale, #671), makes them into alloys and rods, and sells the rods where they pay best: at the Moon, or at Earth when rods fetch enough more there to pay for the trip. Once matured, with enough credits it launches a copy of itself. Its `invest` step, from the old rules, buys nothing now, since companies can't trade shares (-18); `invest_cap = 0` turns it off.
+- **Maker** (Factory Kit): buys metals where they cost least. As a seedling it asks `house_supply` where the House sells them before it flies anywhere, and picks the exchange where a unit costs least once the trip is shared over what its daily cap lets it buy there (#688); once matured it buys at the Moon from whoever is cheapest. It makes them into alloys and rods, and sells the rods where they pay best: at the Moon, or at Earth when rods fetch enough more there to pay for the trip. Once matured, with enough credits it launches a copy of itself. Its `invest` step, from the old rules, buys nothing now, since companies can't trade shares (-18); `invest_cap = 0` turns it off.
 
 The **Trader** starter (`trader.lua`) isn't offered under the new rules: it makes its living buying from other drones, and a seedling can't.
 
@@ -1204,21 +1204,26 @@ Until it matures, a seedling **trades only with the House** (#637): the station 
 
 **The daily buying cap (-17).** From the House at one exchange, a seedling buys at most **a tenth of what the House has on sale** of a good there (its sell order's units above the stock it keeps), counting what the seedling has already bought there that game day (#651, #663). If the Moon Depot has 40 Metals (A1) on sale and your seedling has bought none today, it can buy 4 there (a tenth, rounded down; at least 1). Past its cap, a pull fails with -17. The cap is the seedling's own (other seedlings' buying doesn't use it up), it is counted for each good at each exchange, and it starts again each game day. `buy_here` asks for no more than the cap at first, and after a -17 tries one unit at a time until it is refused. **Selling to the House has no cap**, though the House only buys a day's demand of each good (see [How much more will the House buy?](#house-demand)).
 
-So a seedling that needs more of something than one exchange will sell it today should spread its buying: `house_supply(r)` shows how many units the House has on sale (`on_sale`) at each exchange, and `buy_here` returns -17 when the cap stopped it buying any. The Maker starter does this with its metals:
+So a seedling that needs more of something than one exchange will sell it today should spread its buying: `house_supply(r)` shows how many units the House has on sale (`on_sale`) at each exchange, and `buy_here` returns -17 when the cap stopped it buying any. The Maker starter does this with its metals, before its first trip and each time it runs out. It weighs each exchange's price, the trip there and back, and what its tenth lets it buy there:
 
 ```lua
--- A seedling's metals: buy here, and once capped here (-17), fly to the
--- exchange where the House has the most on sale
-function buy_metals(n)
-  if buy_here(n, metals_a1) ~= -17 then return end
-  local best, most = nil, 0
+-- Where a seedling buys metals: the House exchange where a unit costs
+-- least, the round trip shared over what the cap lets it buy there
+function metals_place()
+  local best, best_each = nil, math.huge
   for _, h in ipairs(house_supply(metals_a1)) do
-    if h.place ~= location() and h.on_sale > most then best, most = h.place, h.on_sale end
+    local n = math.min(20, h.on_sale // 10)   -- a tenth of what is on sale
+    if h.price > 0 and n >= 2 then
+      local trip = 0
+      if h.place ~= location() then
+        local t = trip_to(h.place)
+        trip = 30 + (t and t.hours * 2 or 0) * 10   -- fuel, and 10 credits a game hour
+      end
+      local each = h.price + trip / n
+      if each < best_each then best, best_each = h.place, each end
+    end
   end
-  if best then
-    go(best)
-    buy_here(n, metals_a1)
-  end
+  return best
 end
 ```
 

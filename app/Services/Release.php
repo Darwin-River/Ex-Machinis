@@ -63,7 +63,7 @@ class Release
         'miner' => 'Mines kunspar on the Moon, refines it and sells the metals to the Moon Depot.',
         'refiner' => 'Brews fuel on the Moon from yalspar and vladnium, and sells what it doesn\'t need to other drones.',
         'trader' => 'Buys metals from miners on the Moon when the price board says Mars or Earth pays enough more, and hauls them to whichever pays most.',
-        'maker' => 'Buys metals on the Moon where they are cheapest, makes alloys and rods, and sells them where they pay best.',
+        'maker' => 'Buys metals where they cost least (as a seedling, it checks what the House has on sale before it flies), makes alloys and rods, and sells them where they pay best.',
     ];
 
     /** A starter script's source, or null for an unknown name ("maker" or "maker.lua") */
