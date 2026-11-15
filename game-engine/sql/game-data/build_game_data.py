@@ -1576,6 +1576,16 @@ queries.append((708, 'House only',
                 "SELECT c.seedling, s.agent_id FROM agents AS me INNER JOIN companies AS c ON c.company_id = me.company_id "
                 "LEFT JOIN agents AS s ON s.object_id = me.object_id AND s.station_id IS NOT NULL AND s.wrecked_at IS NULL "
                 "WHERE me.agent_id = [drone_id];"))
+# #682: a company may have at most house_rules.fleet_cap working drones (0:
+# no cap; the House's companies are never capped). A launch past it is
+# refused with -20, so a script checks before it buys a kit to launch
+queries.append((709, 'My fleet',
+                'This drone\'s company: working drones, the most it may have (0: no limit), and launches on their way.', 0,
+                "SELECT (SELECT COUNT(*) FROM agents AS w WHERE w.company_id = me.company_id AND w.wrecked_at IS NULL) AS drones, "
+                "IF(c.house = 1, 0, IFNULL((SELECT r.fleet_cap FROM house_rules AS r WHERE r.id = 1), 0)) AS cap, "
+                "(SELECT COUNT(*) FROM events AS e INNER JOIN agents AS d ON d.agent_id = e.drone "
+                "WHERE d.company_id = me.company_id AND e.event_type = 8 AND e.outcome = 0) AS coming "
+                "FROM agents AS me INNER JOIN companies AS c ON c.company_id = me.company_id WHERE me.agent_id = [drone_id];"))
 # #599: the shares other companies hold in x (an offering, or x selling its
 # own, may not take them past half), and how many game days of sales its
 # 7-day average covers (fewer for a young company: round 62's players priced

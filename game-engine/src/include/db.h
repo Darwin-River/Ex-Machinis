@@ -1033,6 +1033,11 @@ TurnRow_t* db_turn_row_current(void);
 ErrorCode_t db_turn_row_flush(DbConnection_t* connection);
 
 /** Sets (or clears, with 0) the action a drone's script waits for */
+/* The most working drones a company may have (house_rules.fleet_cap, #682;
+   0: no cap) and how many it has, counting launches still on their way.
+   *capped is 1 when the launcher's company may launch no more: never for
+   the House's own companies */
+ErrorCode_t db_launch_fleet_capped(DbConnection_t* connection, int launcher_id, int* capped, int* cap);
 ErrorCode_t db_get_launch_source(DbConnection_t* connection, int launcher_id, int source_id,
                                  int kit_id, int* source_object);
 ErrorCode_t db_set_agent_waiting_action(DbConnection_t* connection, int agent_id, int action_id);

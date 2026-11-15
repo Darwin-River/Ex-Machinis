@@ -215,6 +215,10 @@ static void protocol_plan_travel(ProtocolInfo_t *protocol)
               the player's drones (perform is refused)
 
 *******************************************************************************/
+/* What perform leaves when a plan refuses it: PERFORM_REFUSED, or a
+   reason of its own such as the fleet cap's -20 */
+static int g_perform_code = PERFORM_REFUSED;
+
 static ErrorCode_t protocol_plan_launch(ProtocolInfo_t *protocol)
 {
   protocol->launch_delay = 0;
@@ -230,6 +234,16 @@ static ErrorCode_t protocol_plan_launch(ProtocolInfo_t *protocol)
                           source, kit, &source_object) != ENGINE_OK) {
     engine_trace(TRACE_LEVEL_ALWAYS,
       "Launch refused: resource [%d] is not a ship kit or drone [%d] isn't the player's", kit, source);
+    return ENGINE_LOGIC_ERROR;
+  }
+
+  // A company may have only so many working drones (#682): perform
+  // returns -20 and the kit stays in the hold
+  int capped = 0, cap = 0;
+  if(db_launch_fleet_capped(engine_get_db_connection(), engine_get_current_drone_id(), &capped, &cap) == ENGINE_OK &&
+     capped) {
+    engine_trace(TRACE_LEVEL_ALWAYS, "Launch refused: the company has its [%d] working drones", cap);
+    g_perform_code = OUTCOME_FLEET_CAP;
     return ENGINE_LOGIC_ERROR;
   }
 
@@ -1184,6 +1198,7 @@ static ErrorCode_t protocol_execute_action(int protocolId, VmExtension_t* vmExt)
     }
   }
 
+  g_perform_code = PERFORM_REFUSED;
   if(result == ENGINE_OK)
     result = protocol_plan_launch(&protocol);
 
@@ -1216,7 +1231,7 @@ static ErrorCode_t protocol_execute_action(int protocolId, VmExtension_t* vmExt)
   } else if((result != ENGINE_OK) && (actionCreated == ENGINE_TRUE)) {
     // Refused when performed (e.g. a parameter names something that doesn't
     // exist). Missing parameters never get here: popping them throws -4.
-    vm_extension_push(vmExt, PERFORM_REFUSED);
+    vm_extension_push(vmExt, g_perform_code);
     // delete any event for current action
     db_delete_action_events(action.action_id);
     // abort action
