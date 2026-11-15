@@ -90,10 +90,10 @@ class PlayerShares
                 continue;
             }
             // When the drone was made never changes: kept, as the lookup walks
-            // every one of its events (#723: a dashboard rebuild took 90 s)
+            // every one of its events, archived or not (#723: a dashboard rebuild took 90 s; #694)
             $born = Cache::get("drone_born:{$a->agent_id}");
             if ($born === null) {
-                $born = DB::table('events')->where('drone', $a->agent_id)->min('game_t');
+                $born = EventHistory::firstGameT((int) $a->agent_id);
                 if ($born !== null) {
                     Cache::forever("drone_born:{$a->agent_id}", (int) $born);
                 }

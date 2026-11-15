@@ -222,45 +222,51 @@ class HomeController extends Controller
         // What the drone has seen (the Central Database, drone 0, by default):
         // its observation rows (acting or affected, or once the light got
         // there) and, worked out here, the events where it is since it
-        // arrived (#324 step 20: no longer a row per drone)
+        // arrived (#324 step 20: no longer a row per drone). Events a month
+        // old are in events_archive (#694): the same query runs on each
+        // table, and the two are listed as one
         $observer = (int) ($request->get('observing_agent') ?? 0);
-        $seen = DB::table('observations')->select('event', 'time', 'drone')->where('drone', $observer);
-        if ($observer > 0 && Schema::hasColumn('events', 'place')) {
-            $seen->union(DB::table('events as le')
-                ->join('agents as me', function ($join) use ($observer) {
-                    $join->on('le.place', '=', 'me.object_id')->where('me.agent_id', '=', $observer);
-                })
-                ->whereColumn('le.game_t', '>=', 'me.arrived_t')
-                ->where('le.game_t', '<=', \App\Services\World::gameNow())
-                ->select('le.id as event', 'le.timestamp as time', DB::raw($observer . ' as drone')));
-        }
+        $branch = function (string $table) use ($observer, $request) {
+            $seen = DB::table('observations')->select('event', 'time', 'drone')->where('drone', $observer);
+            if ($observer > 0) {
+                $seen->union(DB::table($table . ' as le')
+                    ->join('agents as me', function ($join) use ($observer) {
+                        $join->on('le.place', '=', 'me.object_id')->where('me.agent_id', '=', $observer);
+                    })
+                    ->whereColumn('le.game_t', '>=', 'me.arrived_t')
+                    ->where('le.game_t', '<=', \App\Services\World::gameNow())
+                    ->select('le.id as event', 'le.timestamp as time', DB::raw($observer . ' as drone')));
+            }
 
-        $query = DB::table('events')->select('events.timestamp', 'events.game_t', 'events.event_type', 'acting_agents.name as acting_agent_name', 'acting_agents.company_id as acting_company_id', 'acting_companies.name as acting_company_name',
-            'acting_agents.agent_id as acting_agent_id', 'acting_agents.name as acting_agent_name', 'protocols.name as protocol_name', 'affected_companies.name as affected_company_name', 'affected_companies.company_id as affected_company_id',
-            'event_types.name as event_type_name', 'affected_agents.agent_id as affected_agent_id', 'affected_agents.name as affected_agent_name', 'resources.id as resource_id',
-            'resources.name as resource_name', 'events.locked', 'events.new_quantity', 'events.new_credits', 'events.new_location', 'objects.object_id', 'objects.object_name', 'observations.drone as observing_drone')
-            ->joinSub($seen, 'observations', 'events.id', '=', 'observations.event') //obligatory to be observed
-            ->leftJoin('actions', 'events.action', '=', 'actions.id')
-            ->leftJoin('agents as acting_agents', 'actions.drone', '=', 'acting_agents.agent_id')
-            ->leftJoin('companies as acting_companies', 'acting_agents.company_id', '=', 'acting_companies.company_id')
-            ->leftJoin('protocols', 'actions.protocol', '=', 'protocols.id')
-            ->leftJoin('event_types', 'events.event_type', '=', 'event_types.id')
-            ->leftJoin('agents as affected_agents', 'events.drone', '=', 'affected_agents.agent_id')
-            ->leftJoin('companies as affected_companies', 'affected_agents.company_id', '=', 'affected_companies.company_id')
-            ->leftJoin('resources', 'events.resource', '=', 'resources.id')
-            ->leftJoin('objects', 'events.new_location', '=', 'objects.object_id');
-        //basic restrictions
-        $query->where([/*['observations.drone', '=', 0],*/ ['observations.time', '<=', Carbon::now()->toDateTimeString()]]);
-        if ($request->get('keyword') !== null)
-            $query->where(function ($query) use ($request) {
-                $query->where('affected_agents.name', 'LIKE', "%" . $request->get('keyword') . "%")
-                    ->orWhere('acting_agents.name', 'LIKE', "%" . $request->get('keyword') . "%")
-                    ->orWhere('protocols.name', 'LIKE', "%" . $request->get('keyword') . "%")
-                    ->orWhere('affected_companies.name', 'LIKE', "%" . $request->get('keyword') . "%")
-                    ->orWhere('resources.name', 'LIKE', "%" . $request->get('keyword') . "%")
-                    ->orWhere('event_types.name', 'LIKE', "%" . $request->get('keyword') . "%")
-                    ->orWhere('object_name', 'LIKE', "%" . $request->get('keyword') . "%");
-            });
+            $query = DB::table($table . ' as events')->select('events.timestamp', 'events.game_t', 'events.event_type', 'acting_agents.name as acting_agent_name', 'acting_agents.company_id as acting_company_id', 'acting_companies.name as acting_company_name',
+                'acting_agents.agent_id as acting_agent_id', 'protocols.name as protocol_name', 'affected_companies.name as affected_company_name', 'affected_companies.company_id as affected_company_id',
+                'event_types.name as event_type_name', 'affected_agents.agent_id as affected_agent_id', 'affected_agents.name as affected_agent_name', 'resources.id as resource_id',
+                'resources.name as resource_name', 'events.locked', 'events.new_quantity', 'events.new_credits', 'events.new_location', 'objects.object_id', 'objects.object_name', 'observations.drone as observing_drone', 'observations.time as time')
+                ->joinSub($seen, 'observations', 'events.id', '=', 'observations.event') //obligatory to be observed
+                ->leftJoin('actions', 'events.action', '=', 'actions.id')
+                ->leftJoin('agents as acting_agents', 'actions.drone', '=', 'acting_agents.agent_id')
+                ->leftJoin('companies as acting_companies', 'acting_agents.company_id', '=', 'acting_companies.company_id')
+                ->leftJoin('protocols', 'actions.protocol', '=', 'protocols.id')
+                ->leftJoin('event_types', 'events.event_type', '=', 'event_types.id')
+                ->leftJoin('agents as affected_agents', 'events.drone', '=', 'affected_agents.agent_id')
+                ->leftJoin('companies as affected_companies', 'affected_agents.company_id', '=', 'affected_companies.company_id')
+                ->leftJoin('resources', 'events.resource', '=', 'resources.id')
+                ->leftJoin('objects', 'events.new_location', '=', 'objects.object_id');
+            //basic restrictions
+            $query->where([/*['observations.drone', '=', 0],*/ ['observations.time', '<=', Carbon::now()->toDateTimeString()]]);
+            if ($request->get('keyword') !== null)
+                $query->where(function ($query) use ($request) {
+                    $query->where('affected_agents.name', 'LIKE', "%" . $request->get('keyword') . "%")
+                        ->orWhere('acting_agents.name', 'LIKE', "%" . $request->get('keyword') . "%")
+                        ->orWhere('protocols.name', 'LIKE', "%" . $request->get('keyword') . "%")
+                        ->orWhere('affected_companies.name', 'LIKE', "%" . $request->get('keyword') . "%")
+                        ->orWhere('resources.name', 'LIKE', "%" . $request->get('keyword') . "%")
+                        ->orWhere('event_types.name', 'LIKE', "%" . $request->get('keyword') . "%")
+                        ->orWhere('object_name', 'LIKE', "%" . $request->get('keyword') . "%");
+                });
+            return $query;
+        };
+        $query = DB::query()->fromSub($branch('events')->unionAll($branch(\App\Services\EventHistory::ARCHIVE)), 'seen_events');
 
         if ($request->get('sort')) {
             $sortParts = explode('|', $request->get('sort'));

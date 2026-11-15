@@ -297,6 +297,8 @@ Then open the site and check a drone page, as in step 4 of the install.
 
 **Code pushes (#553).** The update after round 58 adds migration 0047 (the push password hash and push count on `companies`, the hash on `launch_queue`, and the `code_pushes` table); `migrate` runs it on start. Companies released before it have no password, so their code can't be pushed.
 
+**Old events move to an archive (#694).** The update that adds migration 0065 creates `events_archive` and `house_rules.events_archive_days` (30). From then on the events engine moves settled events older than 30 game days out of `events` once a real minute, for at most a second at a time, so the engines don't slow down as history grows. Drone pages and the events page read both tables. The migration itself only creates the table (it takes a moment). The first runs then move most of the old history, about RATE_PLACEHOLDER rows a real minute, while the game goes on: weeks of history take a few hours, and the engines run a little slower until it is done. The events engine's log says how it is going (`docker compose logs events-engine | grep Archived`: the rows moved each minute). Watch it once: the count of rows left in `events` should fall (`docker compose exec -T db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot exmachinis -e "SELECT COUNT(*) FROM events"'`). To pause it, set the age to 0 (`UPDATE house_rules SET events_archive_days = 0`); to put it back, 30.
+
 **Clean up old images** every few updates. Unused images take several gigabytes:
 
 ```sh
@@ -587,6 +589,7 @@ To keep the downtime short when moving on purpose:
 **If the disk fills up**, check these in order:
 - old images: `docker image prune -a -f`;
 - old backups: `ls -1d /var/backups/exmachinis/20*` lists them, oldest first; remove all but the newest few with `ls -1d /var/backups/exmachinis/20* | head -n -3 | xargs rm -rf`. The backup script keeps at most `KEEP_COUNT` (5) and those under `KEEP_DAYS` (14) days old, and before each backup it removes the oldest to make room for twice the newest one's size; if that isn't enough it stops, and so does the deploy (#701);
+- the game's history, which is kept for good in `events_archive` and `observations` (#694; a few hundred bytes an event): check with `docker compose exec -T db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot exmachinis -e "SELECT table_name, ROUND((data_length + index_length) / 1e9, 1) AS gb FROM information_schema.tables WHERE table_schema = DATABASE() ORDER BY gb DESC LIMIT 5"'`. Deleting the oldest archived events (by `game_t`) loses only what drone pages and the events page show of that time;
 - the engines' logs, which are cleared after 7 days on their own: `docker compose exec game-engine du -sh /opt/exmachinis/log`.
 
 **Run one engine of each kind per database.** Two game engines on one database would each run part of every drone's input. So an engine takes a lock on its database when it starts. If a second one starts, it stops with "another game-engine is already running on database [...]" in its log (`docker compose logs game-engine`). That means the database is already being served by another server or container: stop one of them. A restarted engine waits up to 15 seconds for the old one's lock.

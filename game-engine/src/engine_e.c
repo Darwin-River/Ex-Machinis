@@ -367,6 +367,10 @@ ErrorCode_t engine_run()
                 db_rollback_transaction(&engine.db_connection);
         }
 
+        // Once a real minute: old settled events move to events_archive, so
+        // the engines' table stays small (#694), and month-old actions go
+        db_archive_due();
+
         // Wait till next engine execution, unless that batch was full: then
         // more events are due, so go on at once (#324 step 20; one batch per
         // ENGINE_CHECK_TIME held the engine to a couple of events a second)

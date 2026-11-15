@@ -1622,7 +1622,7 @@ Each call costs as much as a question, so set it when the reason changes, not ev
 
 ### Searching the events you've seen
 
-`events_here(type)` lists the events of one type (1 added to a hold, 2 removed, 3 moved, 13 a message...) that the drone has seen where it is, newest first; `events_earth(type)` those reported to the Earth database that it can know of. Information travels at the speed of light, so a drone only knows about events that affected it, events at the place where it is now since it got there (it forgets what it saw at places it has left), and events whose light has reached it. `event(id)` tells you everything about one event:
+`events_here(type)` lists the events of one type (1 added to a hold, 2 removed, 3 moved, 13 a message...) that the drone has seen where it is, newest first; `events_earth(type)` those reported to the Earth database that it can know of. Information travels at the speed of light, so a drone only knows about events that affected it, events at the place where it is now since it got there (it forgets what it saw at places it has left), and events whose light has reached it. Drones remember about the last 30 game days: older events are archived, and these lists and `event(id)` no longer find them (a drone's page on the website still shows its whole history). `event(id)` tells you everything about one event:
 
 ```lua
 function last_delivery()
