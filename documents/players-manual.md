@@ -1324,7 +1324,7 @@ A company's **net wealth** on the company leaderboards is a different figure: wh
 
 ### Selling to the bank, and buying from it
 
-**The bank always buys.** Sell it any of your shares, at any time, at their cash-out value. The shares go to the bank at once; it **pays 30 game days later**, at the lower of the cash-out value then and on the day you sold. So you can't sell a company to the bank at today's price and leave the bank holding the loss if it collapses. Your account page lists what the bank still owes you.
+**The bank always buys.** Sell it any of your shares, at any time, at their cash-out value. The shares go to the bank at once; it **pays 30 game days later**, at the lower of the cash-out value then and on the day you sold. So you can't sell a company to the bank at today's price and leave the bank holding the loss if it collapses. Your account page lists what the bank still owes you. If your sell orders for that company would then offer more shares than you still hold, the newest of them shrink or go, so the book never offers shares you no longer have.
 
 **The bank sells** the shares it holds at its **selling price**: the cash-out value plus what a share was actually paid in dividends over the last 30 game days (#673). A company that has just matured sells at its cash-out value. In the example above, if the company paid 1,500 credits in dividends over the last 30 game days (15 a share), the bank sells its shares at 36 + 15 = **51**.
 
@@ -1338,7 +1338,8 @@ Players trade shares with **standing orders**, like goods: an order to buy or se
 - **Within the range.** Between **0.8 and 1.25 times** the bank's selling price, rounded. In the example, the bank sells at 51, so players trade between 41 and 64. The range moves as the company's value and dividends move; the book lists only orders within today's range, and an order the range has moved away from waits until it comes back.
 - **It trades at once** against the best orders it meets, at their price; the rest stands until someone takes it, or you cancel it.
 - **You must be able to pay.** A buy order can't commit more than your account can pay, counting your other buy orders. Your **starting credits** pay only at or below the bank's selling price; above it, only your own credits do.
-- **You must hold what you sell.**
+- **You must hold what you sell.** Your sell orders for a company together can't offer more shares than you hold.
+- **Your own orders can't cross.** A buy at or above your own sell price for the same company, or a sell at or below your own buy price, is refused: cancel the other order first.
 
 On a matured company's page (logged in), **Post the order** with buy or sell, shares and price; your account page lists your standing orders, each with a **Cancel** button. Through the API: `GET /api/v1/player-shares/{id}` shows the range, the book and the latest trades, `POST /api/v1/player-shares/{id}/orders` posts an order (`side`, `units`, `price`), and `GET /api/v1/account/shares` lists your holdings, orders and the bank's payments due.
 

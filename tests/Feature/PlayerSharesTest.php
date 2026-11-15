@@ -284,4 +284,33 @@ class PlayerSharesTest extends TestCase
         $seedling = Seedlings::start($owner, 'Api Seedling', "function launched() wait(60) end")['company'];
         $this->getJson("/api/v1/player-shares/$seedling")->assertNotFound();
     }
+
+    /** #683: selling to the bank trims sell orders; sell orders never offer more than held; own orders never cross */
+    public function testSellOrdersFollowHoldingsAndNeverCrossOwnOrders()
+    {
+        $owner = $this->player('Trim Founder');
+        $id = $this->matured($owner, 'Trim Co', 100000);
+        $p = PlayerShares::prices($id);
+        PlayerShares::order($owner, $id, 'sell', 60, $p['high']);
+        PlayerShares::order($owner, $id, 'sell', 30, $p['sells_at']);
+        $this->assertSame(422, PlayerShares::order($owner, $id, 'sell', 20, $p['high'])['status'], 'only 10 not yet offered');
+
+        $r = PlayerShares::sellToBank($owner, $id, 50);
+        $this->assertTrue($r['ok']);
+        $this->assertSame(40, $r['orders_trimmed']);
+        $orders = PlayerShares::of($owner)['orders'];
+        $this->assertSame(50, array_sum(array_column($orders, 'units')), 'no more offered than held');
+        $this->assertSame([50], array_values(array_column(array_filter($orders, fn ($o) => $o['price'] === $p['high']), 'units')),
+            'the oldest order keeps the rest');
+        $this->assertSame([], array_values(array_filter($orders, fn ($o) => $o['price'] === $p['sells_at'])), 'the newest order went first');
+
+        // A buy at or above its own sell crosses: refused
+        DB::table('users')->where('user_id', $owner->user_id)->update(['credits' => 1000000]);
+        $buy = PlayerShares::order($owner, $id, 'buy', 1, $p['high']);
+        $this->assertSame(422, $buy['status']);
+        $this->assertStringContainsString('cross', $buy['error']);
+        // Below its own sell it stands; then a sell at or below that buy is refused
+        $this->assertTrue(PlayerShares::order($owner, $id, 'buy', 1, $p['low'])['ok']);
+        $this->assertSame(422, PlayerShares::order($owner, $id, 'sell', 1, $p['low'])['status']);
+    }
 }
