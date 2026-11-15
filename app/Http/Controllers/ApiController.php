@@ -424,6 +424,8 @@ class ApiController extends Controller
         // The new rules (#666): matured companies' shares, which players trade
         if (config('forge.new_rules')) {
             $out['player_shares'] = \App\Services\PlayerShares::market();
+            // and the latest trades of them between players (#676)
+            $out['player_share_trades'] = \App\Services\PlayerShares::trades(null, min(200, max(1, (int) $request->query('trades', 25))));
         }
         return response()->json($out);
     }

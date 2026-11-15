@@ -77,6 +77,17 @@
                         </div>
                     @endforeach
                 </div>
+                {{-- Its latest trades between players (#676) --}}
+                @php($recentTrades = \App\Services\PlayerShares::trades((int) $user->user_id, 10))
+                @if(count($recentTrades))
+                    <h3 class="h6">Latest trades</h3>
+                    <table class="table table-sm" id="player-share-trades"><tbody>
+                        @foreach($recentTrades as $t)
+                            <tr><td>{{ $t['when'] }}</td><td class="text-right">{{ number_format($t['units']) }}</td>
+                                <td class="text-right">at {{ number_format($t['price']) }}</td><td>{{ $t['seller'] }} to {{ $t['buyer'] }}</td></tr>
+                        @endforeach
+                    </tbody></table>
+                @endif
                 {{-- Who holds its shares (#666): players and the bank --}}
                 <table class="table table-sm" id="player-share-holders"><tbody>
                     <tr><th>Holder</th><th class="text-right">Shares</th></tr>

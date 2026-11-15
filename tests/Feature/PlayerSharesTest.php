@@ -163,6 +163,14 @@ class PlayerSharesTest extends TestCase
         $this->assertSame([0, 5000 - 4 * $p['sells_at']], $this->credits($buyer), 'starting credits at the bank\'s price');
         $this->assertSame(6, PlayerShares::book($id)['sell'][0]['units']);
 
+        // The trade is public (#676): the stock exchange, the API and the company page
+        $t = PlayerShares::trades($id)[0];
+        $this->assertSame([4, $p['sells_at'], 'Founder', 'Investor'], [$t['units'], $t['price'], $t['seller'], $t['buyer']]);
+        $this->getJson("/api/v1/player-shares/$id")->assertOk()->assertJsonPath('trades.0.buyer', 'Investor');
+        $this->getJson('/api/v1/shares')->assertOk()->assertJsonPath('player_share_trades.0.company', $id);
+        $this->get('/market/shares')->assertOk()->assertSee('Latest trades')->assertSee('Investor');
+        $this->get('/companies/' . $id)->assertOk()->assertSee('id="player-share-trades"', false);
+
         // Above the bank's selling price, starting credits can't pay
         PlayerShares::cancel($owner, PlayerShares::book($id)['sell'][0]['id']);
         PlayerShares::order($owner, $id, 'sell', 5, $p['high']);

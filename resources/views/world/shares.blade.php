@@ -26,6 +26,20 @@
                         @endforelse
                     </table>
                 </div>
+                {{-- The latest trades between players (#676) --}}
+                <h3 class="mt-4">Latest trades</h3>
+                <div class="table-custom-responsive">
+                    <table class="table-ticket" id="player-share-trades">
+                        <tr><th>When</th><th>Company</th><th>Shares</th><th>Price</th><th>Seller</th><th>Buyer</th></tr>
+                        @forelse($playerTrades as $t)
+                            <tr><td>{{ $t['when'] }}</td><td><a href="{{ url('companies/' . $t['company']) }}#player-shares">{{ $t['name'] }}</a></td>
+                                <td>{{ number_format($t['units']) }}</td><td>{{ number_format($t['price']) }}</td>
+                                <td>{{ $t['seller'] }}</td><td>{{ $t['buyer'] }}</td></tr>
+                        @empty
+                            <tr><td colspan="6">No player has traded a share with another yet.</td></tr>
+                        @endforelse
+                    </table>
+                </div>
                 <h3 class="mt-4">Before the new rules</h3>
                 <p style="white-space: normal"><i>The rest of this page is the old world's stock exchange, kept for its history:
                     under the new rules players trade matured companies' shares above, and companies trade none.</i></p>

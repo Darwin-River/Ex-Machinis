@@ -64,7 +64,8 @@ class WorldController extends Controller
         $exchange = \App\Services\Shares::exchange();
         // The new rules (#666): matured companies' shares, which players trade
         $playerMarket = config('forge.new_rules') ? \App\Services\PlayerShares::market() : null;
-        return view('world.shares', compact('exchange', 'playerMarket'));
+        $playerTrades = config('forge.new_rules') ? \App\Services\PlayerShares::trades() : [];
+        return view('world.shares', compact('exchange', 'playerMarket', 'playerTrades'));
     }
 
     /** The leaderboard (#324 step 18): net wealth, all time and Rising */

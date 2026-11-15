@@ -199,7 +199,7 @@ You can send a seedling's drones new code whenever you like, without starting ov
 
 - **The first push is free; each after it adds 100 to the seedling's debt.** So each one also raises what it needs to mature by 100. To see what a push would cost before you send it, check the script with the company's ID: `POST /api/v1/check` with `company` returns the fee (#558).
 - **It travels at the speed of light.** The new code goes from Earth to each working drone of the company, arriving after the time light takes to cross the distance: about a second at the Moon, minutes at Mars.
-- **The drone starts over on it.** When it arrives, the drone drops what it was running and calls the new code's `launched()`, with fresh variables. It keeps its hold, its place and its equipment. An action under way finishes. A copy forgets anything its parent told it in a variable: use `lineage()` to tell a copy from the released drone.
+- **The drone starts over on it.** When it arrives, the drone drops what it was running and calls the new code's `launched()`, with fresh variables. It keeps its hold, its place and its equipment. An action under way finishes, and a drone on a trip finishes the trip first: its new `launched()` starts where it arrives (#675). A copy forgets anything its parent told it in a variable: use `lineage()` to tell a copy from the released drone.
 - **Everyone can see it.** The company's page and the API list each push, so anyone can see when a company's code changed.
 - **A script can be at most 16,000 characters**, comments included, for a push as for a release (#557). `/check` reports its length.
 - **Put what must happen at once first.** The new `launched()` starts from the top: code that must run straight away (a price change, say) belongs before a long trip, or it waits for the trip (round 59).
@@ -1337,7 +1337,7 @@ Players trade shares with **standing orders**, like goods: an order to buy or se
 - **You must be able to pay.** A buy order can't commit more than your account can pay, counting your other buy orders. Your **starting credits** pay only at or below the bank's selling price; above it, only your own credits do.
 - **You must hold what you sell.**
 
-On a matured company's page (logged in), **Post the order** with buy or sell, shares and price; your account page lists your standing orders, each with a **Cancel** button. Through the API: `GET /api/v1/player-shares/{id}` shows the range and the book, `POST /api/v1/player-shares/{id}/orders` posts an order (`side`, `units`, `price`), and `GET /api/v1/account/shares` lists your holdings, orders and the bank's payments due.
+On a matured company's page (logged in), **Post the order** with buy or sell, shares and price; your account page lists your standing orders, each with a **Cancel** button. Through the API: `GET /api/v1/player-shares/{id}` shows the range, the book and the latest trades, `POST /api/v1/player-shares/{id}/orders` posts an order (`side`, `units`, `price`), and `GET /api/v1/account/shares` lists your holdings, orders and the bank's payments due.
 
 **Which to use?** Selling to a player can pay more than the bank, and pays at once. Selling to the bank always works, but pays in 30 game days at what the company is worth then. Buying from the bank costs its selling price; a player may sell for less.
 

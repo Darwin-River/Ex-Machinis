@@ -339,6 +339,39 @@ Bool_t db_drone_in_transit(int drone_id, long long game_t)
 
 /** ****************************************************************************
 
+  @brief      When a drone's trip ends (#675): the game time of its last move
+              event (event type 3) still pending after game_t, or 0 when it
+              isn't on a trip
+
+*******************************************************************************/
+long long db_drone_arrival(int drone_id, long long game_t)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+    long long arrival = 0;
+
+    if(db_reconnect(connection) != ENGINE_OK) return 0;
+
+    snprintf(query_text, sizeof(query_text),
+        "SELECT MAX(game_t) FROM events WHERE drone = %d AND event_type = 3 "
+        "AND outcome = 0 AND game_t > %lld", drone_id, game_t);
+
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return 0;
+    }
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    if(db_result) {
+        MYSQL_ROW row = mysql_fetch_row(db_result);
+        if(row && row[0]) arrival = atoll(row[0]);
+        mysql_free_result(db_result);
+    }
+    return arrival;
+}
+
+/** ****************************************************************************
+
   @brief      Records a broadcast (#380): what a drone said, where it was and
               when. Queries 690 and 691 deliver it at the speed of light.
 

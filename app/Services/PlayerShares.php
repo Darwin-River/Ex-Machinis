@@ -342,6 +342,25 @@ class PlayerShares
     }
 
     /**
+     * The latest trades of matured companies' shares between players (#676),
+     * newest first: one company's, or every company's: [company, name,
+     * units, price, seller, buyer, when, game_time]
+     */
+    public static function trades(?int $company = null, int $limit = 25): array
+    {
+        return DB::table('player_share_trades as t')
+            ->join('companies as c', 'c.company_id', '=', 't.company_id')
+            ->leftJoin('users as s', 's.user_id', '=', 't.seller_id')
+            ->leftJoin('users as b', 'b.user_id', '=', 't.buyer_id')
+            ->when($company !== null, fn ($q) => $q->where('t.company_id', $company))
+            ->orderByDesc('t.id')->limit($limit)
+            ->get(['t.company_id', 'c.name', 't.units', 't.price', 's.login as seller', 'b.login as buyer', 't.game_t'])
+            ->map(fn ($t) => ['company' => (int) $t->company_id, 'name' => $t->name, 'units' => (int) $t->units,
+                'price' => (int) $t->price, 'seller' => $t->seller, 'buyer' => $t->buyer,
+                'when' => DronePage::when((int) $t->game_t), 'game_time' => (int) $t->game_t])->all();
+    }
+
+    /**
      * Every matured company still trading, for the stock exchange page and
      * API (#666): id, name, its prices, the bank's shares, and its holders
      */
