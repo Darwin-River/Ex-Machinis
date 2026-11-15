@@ -248,7 +248,7 @@ Five more pages show the whole world, live:
 
 Your drones can't see all this: they see live orders only where they are (see [the price board](#the-price-board)). You can, so use these pages to plan.
 
-A working drone's page has an **Activity** section: what it is doing now and when it will finish, its last ten actions (how each went and the fuel it had left), and its last ten sales and purchases, with whom. Check it when you want to know whether your drone is busy, waiting or stuck.
+A working drone's page has an **Activity** section: what it is doing now and when it will finish, its last ten actions (how each went and the fuel it had left), and its last ten sales and purchases, with whom. Check it when you want to know whether your drone is busy, waiting or stuck. If its action should already have ended, it says **waiting for its turn: the engine is behind**: the world is busy, and your drone moves on when the engine reaches it. While it flies, its page and its company's page say where it is **flying to**.
 
 When a drone dies, its page gets a **post-mortem**: why it died, in plain words (out of fuel, with how much of it went on computing, or its `launched` function crashing again and again), and a timeline of its last actions, how each went, and the fuel it had left. Read your own post-mortems: they're the quickest way to learn what went wrong.
 
@@ -1354,7 +1354,7 @@ All code is public. A matured company's code can't change, so what you read is w
 - **Does it grow?** Launching copies spends credits now (lowering its cash-out value) for more profit later.
 - **Where did it come from?** Its page's **Lineage** shows the code it carries, and how earlier companies with that code did.
 
-<a name="company-health"></a>**Is it healthy?** A share is worth something only while the company's drones keep working: a company whose drones are wrecked ends, and one whose drones are stranded without fuel earns nothing. Its page shows its health, and flags a company **at risk** when it has no working drone, a drone with no fuel left (#609: whatever its credits, it can't move or trade until someone sells it fuel where it is), or a drone that runs dry within 3 game days while it has under 500 credits, and says why. It also lists each idle drone with what its script last said (`set_status`) and what it holds. A drone can ask the same with `company_health(company)` (query 699; its own company if you leave it out): `{working, wrecked, fuel, lowest, used, days, credits, idle, stalled}`. `days` is how many game days until its first drone runs dry at the last day's net fall in fuel (-1 when no drone's fuel is falling); `idle` is the game hours since any of its drones last bought, sold, mined, refined or made something other than fuel, and `stalled` is true when that is a game day or more (round 57: two companies sat "short of credits" for 20 game days before their owners noticed).
+<a name="company-health"></a>**Is it healthy?** A share is worth something only while the company's drones keep working: a company whose drones are wrecked ends, and one whose drones are stranded without fuel earns nothing. Its page shows its health, and flags a company **at risk** when it has no working drone, a drone with no fuel left (#609: whatever its credits, it can't move or trade until someone sells it fuel where it is), or a drone that runs dry within 3 game days while it has under 500 credits, and says why. It also lists each idle drone with what its script last said (`set_status`) and what it holds. A drone can ask the same with `company_health(company)` (query 699; its own company if you leave it out): `{working, wrecked, fuel, lowest, used, days, credits, idle, stalled}`. `days` is how many game days until its first drone runs dry at the last day's net fall in fuel (-1 when no drone's fuel is falling); `idle` is the game hours since any of its drones last bought, sold, mined, refined or made something other than fuel, and `stalled` is true when that is a game day or more (round 57: two companies sat "short of credits" for 20 game days before their owners noticed). The company page and the API judge a company **stalled** more widely (#689): also when at least half its drones have done nothing for a game day, or when it has sold nothing for 72 game hours. A banner at the top of its page says why. In round 69 a company of 39 drones earned nothing for days while one drone kept making alloys, and showed as healthy.
 
 ```lua
 -- Say on the drone's page when the company is running dry or has stalled
@@ -1587,7 +1587,7 @@ end
 
 ### Saying what it's doing
 
-`set_status(text)` sets a line, up to 80 characters, that shows on the drone's page ("Its script says") and in the API (`script_status`). Use it to say what the drone is doing or waiting for, so a drone that sits still for days tells you why:
+`set_status(text)` sets a line, up to 80 characters, that shows on the drone's page ("Its script says", with how long ago it was set) and in the API (`script_status`, with `ago`). Use it to say what the drone is doing or waiting for, so a drone that sits still for days tells you why:
 
 ```lua
 function wait_for_metals()

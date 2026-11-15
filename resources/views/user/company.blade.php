@@ -53,6 +53,12 @@
                 <p class="stat-meta" id="seedling">Matured on {{ \App\Services\DronePage::when((int) $user->matured_t) }}: its code is locked for good.</p>
             @endif
 
+            {{-- Stalled, at the top where a buyer looks first (#689) --}}
+            @if($h['stalled'])
+                <div class="health-banner" id="stalled-banner"><strong>Stalled:</strong> {{ $h['stalled_reason'] }}.
+                    See <a href="#health">Health</a> for which drones and what they last said.</div>
+            @endif
+
             {{-- The new rules (#638): players' shares and the bank --}}
             @if($playerShares)
                 <h2 id="player-shares">Shares</h2>
@@ -159,12 +165,15 @@
             @if($h['at_risk'] || $h['stalled'])
                 <div class="health-banner" id="health-banner">
                     @if($h['at_risk'])<strong>At risk:</strong> {{ $h['at_risk_reason'] }}. A warning, not a verdict.<br>@endif
-                    @if($h['stalled'])<strong>Stalled:</strong> none of its drones has bought, sold or made anything for {{ $h['idle'] }} game hours.@endif
+                    @if($h['stalled'])<strong>Stalled:</strong> {{ $h['stalled_reason'] }}.@endif
                 </div>
             @endif
             <p id="company-health">{{ $h['working'] }} working {{ \Illuminate\Support\Str::plural('drone', $h['working']) }}{{ $h['wrecked'] ? ', ' . $h['wrecked'] . ' wrecked' : '' }}.
                 Fuel aboard: {{ number_format($h['fuel']) }} (the least, {{ number_format($h['lowest']) }}); {{ number_format($h['used']) }} used over the last game day.
-                {{ $h['days'] >= 0 ? 'A drone runs dry in about ' . $h['days'] . ' game ' . \Illuminate\Support\Str::plural('day', $h['days']) . ' at that rate.' : "No drone's fuel is falling." }}</p>
+                {{ $h['days'] >= 0 ? 'A drone runs dry in about ' . $h['days'] . ' game ' . \Illuminate\Support\Str::plural('day', $h['days']) . ' at that rate.' : "No drone's fuel is falling." }}
+                @php($lookback = \App\Services\CompanyHealth::IDLE_LOOKBACK)
+                {{ $h['last_sale'] === null ? 'It has sold nothing yet.' : ($h['last_sale'] >= $lookback * 24 ? 'It has sold nothing for ' . $lookback . ' game days or more.'
+                    : 'Its last sale: ' . $h['last_sale'] . ' game ' . \Illuminate\Support\Str::plural('hour', $h['last_sale']) . ' ago.') }}</p>
             @if($h['stalled'] || collect($h['drones'])->contains(fn ($d) => $d['idle'] >= 24))
                 <ul id="idle-drones">
                     @foreach($h['drones'] as $d)
@@ -214,8 +223,11 @@
                             <span class="meta-label">hull</span> {{$agent->hull?$agent->hull->name:'no hull'}}
                             </td>
                             <td>
-                                <span class="meta-label">location</span> <a
-                                        href="{{url('locations/'.$agent->location->object_id)}}">{{$agent->location->object_name}}</a>
+                                {{-- In flight: where it is going, not where it left (#689) --}}
+                                @php($flight = \App\Services\DronePage::flight($agent))
+                                <span class="meta-label">location</span> @if($flight)flying to <a
+                                        href="{{url('locations/'.$flight['to_id'])}}">{{ $flight['to'] }}</a>@else<a
+                                        href="{{url('locations/'.$agent->location->object_id)}}">{{$agent->location->object_name}}</a>@endif
                             </td>
                             <td><span class="meta-label">cargo</span>
                                 @if(!$agent->hull || !$agent->hull->cargo_capacity)

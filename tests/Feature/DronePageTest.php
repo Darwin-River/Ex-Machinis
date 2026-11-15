@@ -223,12 +223,32 @@ class DronePageTest extends TestCase
         $this->get('/spacecraft/' . $agent->agent_id)->assertOk()
             ->assertSee('flying from')->assertSee($toName . '</a>, arriving ' . $when, false)->assertSee(': flying to ' . $toName);
         $this->getJson('/api/v1/drones/' . $agent->agent_id)->assertOk()->assertJsonPath('place_id', $from)
-            ->assertJsonPath('flying_to.place_id', $to)->assertJsonPath('flying_to.arrives', $when);
+            ->assertJsonPath('flying_to.place_id', $to)->assertJsonPath('flying_to.arrives', $when)
+            ->assertJsonPath('destination', $toName);
+        // #689: its company's page says where it is going, not where it left
+        $this->get('/companies/' . $agent->company_id)->assertOk()->assertSee('flying to <a', false);
 
         // Once there (its arrival time has passed), it isn't flying any more
         DB::table('events')->where('action', $flight)->update(['game_t' => \App\Services\World::gameNow() - 60, 'outcome' => 1]);
         DB::table('agents')->where('agent_id', $agent->agent_id)->update(['waiting_action' => null]);
-        $this->getJson('/api/v1/drones/' . $agent->agent_id)->assertOk()->assertJsonPath('flying_to', null);
+        $this->getJson('/api/v1/drones/' . $agent->agent_id)->assertOk()->assertJsonPath('flying_to', null)
+            ->assertJsonPath('destination', null);
+    }
+
+    /** #689: an action that should have ended says the engine is behind; the script's line says how old it is */
+    public function testAStaleActionSaysTheEngineIsBehind()
+    {
+        $agent = Release::release($this->player('a@example.com'), 'Behind', self::SCRIPT);
+        $now = \App\Services\World::gameNow();
+        $busy = DB::table('actions')->insertGetId(['drone' => $agent->agent_id, 'protocol' => 11100, 'multiplier' => 1, 'aborted' => 0]);
+        DB::table('events')->insert(['event_type' => 1, 'action' => $busy, 'logged' => 1, 'outcome' => 0, 'drone' => $agent->agent_id,
+            'resource' => 1, 'installed' => 0, 'locked' => 0, 'new_quantity' => 5, 'new_cargo' => 5, 'game_t' => $now - 2 * 86400]);
+        DB::table('agents')->where('agent_id', $agent->agent_id)->update(['waiting_action' => $busy,
+            'script_status' => 'mining', 'script_status_t' => $now - 3 * 86400]);
+        $this->get('/spacecraft/' . $agent->agent_id)->assertOk()
+            ->assertSee('waiting for its turn, the engine is behind')->assertDontSee('game hours from now')
+            ->assertSee('set 3 game days ago');
+        $this->getJson('/api/v1/drones/' . $agent->agent_id)->assertJsonPath('script_status.ago', '3 game days ago');
     }
 
     public function testAWreckGetsAPostMortem()

@@ -84,6 +84,43 @@ class CompanyHealthTest extends TestCase
         $this->assertFalse($h['stalled']);
     }
 
+    /** #689: one busy drone among many idle ones, or no sales for days, is stalled too */
+    public function testMostDronesIdleOrNoSalesIsStalled()
+    {
+        $user = User::create(['name' => 'Health', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);
+        $agent = Release::release($user, 'Mostly Idle', 'function launched() end');
+        $company = (int) $agent->company_id;
+        // Three drones: one made something an hour ago, two did nothing
+        foreach ([1, 2] as $n) {
+            $more = Release::release($user, 'Mostly Idle ' . $n, 'function launched() end');
+            DB::table('agents')->where('agent_id', $more->agent_id)->update(['company_id' => $company]);
+        }
+        DB::table('events')->insert(['event_type' => 1, 'action' => 0, 'outcome' => 1, 'drone' => $agent->agent_id,
+            'resource' => 2011, 'installed' => 0, 'locked' => 0, 'new_quantity' => 16, 'game_t' => World::gameNow() - 3600]);
+        $h = CompanyHealth::of($company);
+        $this->assertSame([1, 2], [$h['idle'], $h['idle_drones']]);
+        $this->assertTrue($h['stalled']);
+        $this->assertSame('2 of its 3 drones have bought, sold or made nothing for a game day or more', $h['stalled_reason']);
+        $this->get('/companies/' . $company)->assertOk()->assertSee('id="stalled-banner"', false)->assertSee('2 of its 3 drones');
+
+        // One drone, busy, but nothing sold in the 4 game days since it started
+        $solo = Release::release($user, 'Never Sells', 'function launched() end');
+        DB::table('companies')->where('company_id', $solo->company_id)->update(['founded_t' => World::gameNow() - 4 * 86400]);
+        DB::table('events')->insert(['event_type' => 1, 'action' => 0, 'outcome' => 1, 'drone' => $solo->agent_id,
+            'resource' => 2011, 'installed' => 0, 'locked' => 0, 'new_quantity' => 16, 'game_t' => World::gameNow() - 3600]);
+        $h = CompanyHealth::of((int) $solo->company_id);
+        $this->assertNull($h['last_sale']);
+        $this->assertSame('it has never sold anything', $h['stalled_reason']);
+        // A sale two days ago: still too long ago? No: under 72 game hours
+        DB::table('trades')->insert(['resource' => 2011, 'units' => 1, 'credits' => 10, 'seller' => $solo->agent_id,
+            'buyer' => $agent->agent_id, 'location' => 3, 'game_t' => World::gameNow() - 48 * 3600]);
+        $h = CompanyHealth::of((int) $solo->company_id);
+        $this->assertSame(48, $h['last_sale']);
+        $this->assertFalse($h['stalled']);
+        $this->getJson('/api/v1/companies/' . $solo->company_id)->assertJsonPath('health.last_sale', 48)
+            ->assertJsonPath('health.stalled_reason', null);
+    }
+
     public function testACompanyWithNoWorkingDroneIsAtRisk()
     {
         $user = User::create(['name' => 'Health', 'email' => uniqid() . '@example.com', 'password' => bcrypt('secret-password')]);

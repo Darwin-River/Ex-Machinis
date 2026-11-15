@@ -60,6 +60,21 @@ class DronePage
         return sprintf('day %d, %02d:%02d', intdiv($since, 86400), intdiv($since % 86400, 3600), intdiv($since % 3600, 60));
     }
 
+    /** How long ago a game time was, in game days or hours: "3 game days ago" (#689) */
+    public static function ago(int $gameT): string
+    {
+        $s = max(0, World::gameNow() - $gameT);
+        if ($s >= 86400) {
+            $n = intdiv($s, 86400);
+            return $n . ' game ' . ($n === 1 ? 'day' : 'days') . ' ago';
+        }
+        if ($s >= 3600) {
+            $n = intdiv($s, 3600);
+            return $n . ' game ' . ($n === 1 ? 'hour' : 'hours') . ' ago';
+        }
+        return 'within the last game hour';
+    }
+
     public static function protocolName(int $id): string
     {
         return (string) (DB::table('protocols')->where('id', $id)->value('name') ?? "protocol $id");
@@ -269,10 +284,17 @@ class DronePage
             $action = DB::table('actions')->where('id', $agent->waiting_action)->first();
             $end = DB::table('events')->where('action', $agent->waiting_action)->max('game_t');
             if ($action) {
-                $hours = $end ? max(0, ((int) $end - World::gameNow()) / 3600) : null;
+                $hours = $end ? ((int) $end - World::gameNow()) / 3600 : null;
                 $flight = self::flight($agent);
-                $now = self::protocolName((int) $action->protocol) . ($flight ? ': flying to ' . $flight['to'] : '')
-                    . ($end ? ', until ' . self::when((int) $end) . sprintf(' (%s game hours from now)', number_format($hours, 1)) : '');
+                $now = self::protocolName((int) $action->protocol) . ($flight ? ': flying to ' . $flight['to'] : '');
+                if ($end && $hours <= 0) {
+                    // Its action should have ended: the engine hasn't given it
+                    // its turn yet (#689: "0.0 game hours from now" for two days)
+                    $now .= ', due to end ' . self::when((int) $end) . ' (' . self::ago((int) $end)
+                        . '): waiting for its turn, the engine is behind';
+                } elseif ($end) {
+                    $now .= ', until ' . self::when((int) $end) . sprintf(' (%s game hours from now)', number_format($hours, 1));
+                }
             }
         }
 
