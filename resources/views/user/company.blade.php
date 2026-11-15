@@ -61,6 +61,13 @@
                 @endif
                 <div class="stat"><div class="stat-label">Drones</div>
                     <div class="stat-value">{{ number_format($stats['working']) }}<small>{{ $stats['drones'] > $stats['working'] ? ' + ' . ($stats['drones'] - $stats['working']) . ' wrecked' : ' working' }}</small></div></div>
+                @if(isset($stats['cash_out']))
+                    <div class="stat" id="stat-cash-out"><div class="stat-label">Cash-out a share</div>
+                        <div class="stat-value">{{ number_format($stats['cash_out']) }}</div>
+                        <a class="stat-link" href="#player-shares">the bank's prices</a></div>
+                    <div class="stat" id="stat-dividends"><div class="stat-label">Dividends a share, 30 days</div>
+                        <div class="stat-value">{{ number_format($stats['dividends30']) }}</div></div>
+                @endif
                 <div class="stat"><div class="stat-label">Rank at its age</div>
                     <div class="stat-value" id="peer-rank">@if($rank){{ $rank['rank'] }}<small> of {{ $rank['of'] }}</small>@else — @endif</div>
                     @if($rank)<a class="stat-link" href="{{ url('leaderboard') . '?age=' . $rank['age'] }}">compare</a>@endif</div>
@@ -277,9 +284,9 @@
                 @endif
             </p>
 
-            {{-- Its earnings by game day (#600): what investors judge it by --}}
-            <h2 id="earnings">Earnings</h2>
-            @include('partials.earnings-chart', ['earningsCompany' => $user->user_id, 'earningsDays' => 30])
+            {{-- Its performance by game day (#600, #699): what investors judge it by --}}
+            <h2 id="performance">Performance</h2>
+            @include('partials.company-performance', ['perf' => $perf, 'companyId' => (int) $user->user_id])
 
             <div class="row row-30">
                 <div class="col">

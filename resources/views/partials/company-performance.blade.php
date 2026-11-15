@@ -1,0 +1,131 @@
+{{--
+    A company's performance (#699), every chart on one game-day axis so they
+    read together: net wealth and credits; a share's cash-out value against
+    the bank's selling price, with players' trades as dots; earnings (#600:
+    sales up, purchases down, the day's profit a dot); dividends a share and
+    their running total; working drones. Takes $perf (UserController) and
+    $companyId. The data is in the page; the API gives the same.
+--}}
+@include('partials.ex-charts')
+@push('styles')
+    <style>
+        .perf-card { margin-bottom: 14px; }
+        .perf-card h3 { font-size: 17px; margin: 0; }
+    </style>
+@endpush
+@php($hasCash = collect($perf['history'])->contains(fn ($r) => $r['cash_out_share'] !== null) || count($perf['trades']))
+@php($hasDiv = collect($perf['earnings'])->contains(fn ($r) => $r['dividends'] > 0))
+<div class="mh" id="company-performance">
+    <div class="mh-controls">
+        <label for="perf-days">Period
+            <select id="perf-days">
+                @foreach([10, 30, 60, 365] as $d)
+                    <option value="{{ $d }}" @selected($d === 60)>Last {{ $d }} game days</option>
+                @endforeach
+            </select>
+        </label>
+    </div>
+    <div class="mh-card perf-card">
+        <h3>Is it growing?</h3>
+        <p class="mh-note">Net wealth and credits at each game day's snapshot. The gap between them is mostly the goods and
+            equipment aboard its drones, at market prices.</p>
+        <div class="ex-legend" id="perf-wealth-legend"></div>
+        <div class="ex-chart" id="perf-wealth" aria-label="Net wealth and credits by game day"></div>
+        <p class="ex-src">Data: <code>GET /api/v1/companies/{{ $companyId }}/history</code> (net_wealth, credits)</p>
+    </div>
+    @if($hasCash)
+        <div class="mh-card perf-card">
+            <h3>What is a share worth?</h3>
+            <p class="mh-note">A share's cash-out value, what the bank pays for it, and the bank's selling price (cash-out plus
+                30 days of dividends) at each game day's snapshot; each dot is a trade between players at its price.
+                Cash-out is recorded from the day a company matures.</p>
+            <div class="ex-legend" id="perf-cash-legend"></div>
+            <div class="ex-chart" id="perf-cash" aria-label="Cash-out a share, the bank's price and players' trades"></div>
+            <p class="ex-src">Data: <code>GET /api/v1/companies/{{ $companyId }}/history</code> (cash_out_share, bank_sells_at) and
+                <code>GET /api/v1/player-shares/{{ $companyId }}</code></p>
+        </div>
+    @endif
+    <div class="mh-card perf-card" id="earnings">
+        <h3>Is it earning?</h3>
+        <p class="mh-note">Each game day: sales after sales tax (up) and what it paid for goods and equipment (down); the dot
+            is the day's profit. Processor tax and push fees aren't trades and aren't shown.</p>
+        <div class="ex-legend" id="ce-legend"></div>
+        <div class="ex-chart" id="ce-chart" aria-label="Earnings by game day"></div>
+        <p class="ex-src" id="ce-total"></p>
+        <p class="ex-src">Data: <code>GET /api/v1/companies/{{ $companyId }}/earnings</code></p>
+    </div>
+    @if($hasDiv)
+        <div class="mh-card perf-card">
+            <h3>What has a share paid?</h3>
+            <p class="mh-note">Dividends a share from each game day's profit (bars), and their running total since the period began (line below).</p>
+            <div class="ex-chart" id="perf-div" aria-label="Dividends a share by game day"></div>
+            <div class="ex-chart" id="perf-div-total" aria-label="Dividends a share, running total"></div>
+            <p class="ex-src">Data: <code>GET /api/v1/companies/{{ $companyId }}/earnings</code> (dividends, over {{ $perf['shares'] }} shares)</p>
+        </div>
+    @endif
+    <div class="mh-card perf-card">
+        <h3>How many drones does it run?</h3>
+        <div class="ex-chart" id="perf-drones" aria-label="Working drones by game day"></div>
+        <p class="ex-src">Data: <code>GET /api/v1/companies/{{ $companyId }}/history</code> (drones)</p>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const X = window.ExCharts, C = X.COLOURS, P = @json($perf), $ = (id) => document.getElementById(id);
+    const L = 64;   // one left margin, so every chart's days line up
+    X.legend($('perf-wealth-legend'), [{name: 'Net wealth', colour: C[0], kind: 'line'}, {name: 'Credits', colour: C[2], kind: 'line'}]);
+    if ($('perf-cash-legend')) X.legend($('perf-cash-legend'), [{name: 'Cash-out a share', colour: C[0], kind: 'line'},
+        {name: "Bank's selling price", colour: C[3], kind: 'line'}, {name: "Players' trades", colour: C[4], kind: 'dot'}]);
+    X.legend($('ce-legend'), [{name: 'Sales after tax', colour: C[0]}, {name: 'Spent on goods', colour: C[1]}, {name: 'Profit', colour: '#e9e9ef', kind: 'dot'}]);
+
+    function draw() {
+        const days = Number($('perf-days').value), last = P.today;
+        const born = P.earnings.length ? P.earnings[0].day : last;
+        const first = Math.max(born, last - days + 1);
+        const o = {first, last, L};
+        const inRange = (r) => r.day >= first && r.day <= last;
+        const hist = P.history.filter(inRange), earn = P.earnings.filter(inRange);
+
+        X.lines($('perf-wealth'), [
+            {name: 'Net wealth', colour: C[0], points: hist.map((r) => ({day: r.day, v: r.net_wealth}))},
+            {name: 'Credits', colour: C[2], points: hist.map((r) => ({day: r.day, v: r.credits}))}],
+            Object.assign({H: 220, unit: 'cr', fromZero: false, empty: 'No daily snapshot in this period yet.'}, o));
+
+        if ($('perf-cash')) {
+            const trades = P.trades.filter(inRange);
+            X.lines($('perf-cash'), [
+                {name: 'Cash-out a share', colour: C[0], points: hist.map((r) => ({day: r.day, v: r.cash_out_share}))},
+                {name: "Bank's selling price", colour: C[3], dash: '5 3', points: hist.map((r) => ({day: r.day, v: r.bank_sells_at}))},
+                {name: 'Trade', colour: C[4], dotsOnly: true, r: 4, points: trades.map((t) => ({day: t.day, v: t.price,
+                    label: `${t.units} at ${t.price} (${t.seller} to ${t.buyer})`}))}],
+                Object.assign({H: 200, unit: 'cr', fromZero: false, empty: 'No cash-out recorded in this period.'}, o));
+        }
+
+        X.diverging($('ce-chart'), earn.map((r) => ({day: r.day, up: r.sales, down: r.purchases, dot: r.net, r})),
+            Object.assign({H: 240, unit: 'cr', dots: true, empty: 'No sales or purchases in this period.',
+                tip: (r, day) => r ? ['Game day ' + day, {colour: C[0], text: `Sales after tax: ${X.num(r.r.sales)} (tax ${X.num(r.r.tax)})`},
+                    {colour: C[1], text: `Spent on goods: ${X.num(r.r.purchases)}`}, `Profit: ${X.num(r.r.net)} · ${r.r.trades} trades`,
+                    `Dividends paid: ${X.num(r.r.dividends)}`] : ['Game day ' + day]}, o));
+        const s = earn.reduce((a, r) => ({sales: a.sales + r.sales, purchases: a.purchases + r.purchases, dividends: a.dividends + r.dividends}),
+            {sales: 0, purchases: 0, dividends: 0});
+        $('ce-total').textContent = earn.length ? `Over these ${earn.length} game days: sales after tax ${X.num(s.sales)}, spent on goods `
+            + `${X.num(s.purchases)}, profit ${X.num(s.sales - s.purchases)} (${X.num((s.sales - s.purchases) / earn.length)} a day); `
+            + `dividends paid ${X.num(s.dividends)}.` : '';
+
+        if ($('perf-div')) {
+            let run = 0;
+            const per = earn.map((r) => ({day: r.day, v: r.dividends / P.shares}));
+            X.diverging($('perf-div'), per.map((r) => ({day: r.day, up: r.v})), Object.assign({H: 140, unit: 'cr', n: 3,
+                upColour: C[2], empty: 'No dividends in this period.',
+                tip: (r, day) => ['Game day ' + day, `Dividends a share: ${r ? (Math.round(r.up * 100) / 100).toLocaleString('en') : 0}`]}, o));
+            X.lines($('perf-div-total'), [{name: 'Dividends a share so far', colour: C[2],
+                points: per.map((r) => ({day: r.day, v: Math.round((run += r.v) * 100) / 100}))}], Object.assign({H: 130, unit: 'cr', n: 3}, o));
+        }
+
+        X.step($('perf-drones'), hist.map((r) => ({day: r.day, v: r.drones})),
+            Object.assign({H: 120, name: 'Working drones', yFmt: (v) => String(v), empty: 'No daily snapshot in this period yet.'}, o));
+    }
+    $('perf-days').addEventListener('change', draw);
+    X.onResize($('company-performance'), draw);
+});
+</script>

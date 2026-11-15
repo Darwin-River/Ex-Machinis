@@ -47,7 +47,8 @@ window.ExCharts = (function () {
         const a = Math.abs(v);
         if (a >= 1e6) return (v / 1e6).toLocaleString('en', {maximumFractionDigits: 1}) + 'M';
         if (a >= 1e4) return (v / 1e3).toLocaleString('en', {maximumFractionDigits: 1}) + 'k';
-        return Math.round(v).toLocaleString('en');
+        if (a < 1e-9) return '0';
+        return v.toLocaleString('en', {maximumFractionDigits: a < 10 ? 2 : 0});
     };
 
     function el(name, attrs, parent) {
@@ -89,10 +90,10 @@ window.ExCharts = (function () {
     }
 
     // Even ticks from lo to hi (lo may be below 0): a round step, about n of them
-    function ticks(lo, hi, n) {
+    function ticks(lo, hi, n, minStep) {
         if (hi <= lo) hi = lo + 1;
         const raw = (hi - lo) / Math.max(1, n), p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p;
-        const step = (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * p;
+        const step = Math.max(minStep || 0, (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * p);
         const a = Math.floor(lo / step) * step, b = Math.ceil(hi / step) * step, out = [];
         for (let v = a; v <= b + step / 2; v += step) out.push(Math.round(v * 1e6) / 1e6);
         return out;
@@ -117,7 +118,7 @@ window.ExCharts = (function () {
     function frame(box, first, last, opts) {
         const {W, H, svg} = svgIn(box, opts.H || 220);
         const T = 16, B = 22, R = 10, L = opts.L || 56;
-        const tk = ticks(opts.lo ?? 0, opts.hi, opts.n || 4), lo = tk[0], hi = tk[tk.length - 1];
+        const tk = ticks(opts.lo ?? 0, Math.max(opts.hi, (opts.lo ?? 0) + (opts.minStep || 1)), opts.n || 4, opts.minStep), lo = tk[0], hi = tk[tk.length - 1];
         const span = Math.max(1, last - first);
         const slot = (W - L - R) / (span + 1);
         const x = (d) => L + slot / 2 + (d - first) * slot;
@@ -203,8 +204,8 @@ window.ExCharts = (function () {
     /** Bars up and down from zero a day: rows [{day, up, down, dot}] (down is a positive number drawn below) */
     function diverging(box, rows, opts) {
         if (!rows.length || !rows.some((r) => r.up || r.down || r.dot)) return empty(box, opts.empty || 'Nothing in this period.');
-        const hi = Math.max(1, ...rows.map((r) => Math.max(r.up || 0, r.dot || 0)));
-        const lo = Math.min(-1, ...rows.map((r) => Math.min(-(r.down || 0), r.dot || 0)));
+        const hi = Math.max(0, ...rows.map((r) => Math.max(r.up || 0, r.dot || 0)));
+        const lo = Math.min(0, ...rows.map((r) => Math.min(-(r.down || 0), r.dot || 0)));
         const f = frame(box, opts.first ?? rows[0].day, opts.last ?? rows[rows.length - 1].day, Object.assign({lo, hi}, opts));
         const w = Math.max(1, Math.min(22, f.slot - 2));
         rows.forEach((r) => {
@@ -256,7 +257,7 @@ window.ExCharts = (function () {
     /** A step line a day: points [{day, v}] */
     function step(box, points, opts) {
         if (!points.length) return empty(box, opts.empty || 'Nothing in this period.');
-        const f = frame(box, opts.first, opts.last, Object.assign({lo: 0, hi: Math.max(1, ...points.map((p) => p.v)), n: 3}, opts));
+        const f = frame(box, opts.first, opts.last, Object.assign({lo: 0, hi: Math.max(1, ...points.map((p) => p.v)), n: 3, minStep: 1}, opts));
         let path = '';
         points.forEach((p, i) => {
             const x0 = f.x(p.day) - f.slot / 2, x1 = f.x(p.day) + f.slot / 2;
@@ -335,17 +336,21 @@ window.ExCharts = (function () {
         const w = opts.width || 120, h = opts.height || 26, n = Math.max(1, values.length), bw = w / n;
         const svg = el('svg', {viewBox: `0 0 ${w} ${h}`, width: w, height: h, role: 'img', 'aria-label': opts.label || ''});
         svg.style.display = 'inline-block'; svg.style.verticalAlign = 'middle'; svg.style.width = w + 'px';
-        const lo = Math.min(0, ...values), hi = Math.max(0, ...values), range = Math.max(1, hi - lo);
-        const Y = (v) => 1 + (hi - v) / range * (h - 2);
-        el('line', {x1: 0, x2: w, y1: Y(0), y2: Y(0), stroke: GREY}, svg);
+        // Bars from zero; a line (a price) fitted to its own range
+        const lo = opts.line ? Math.min(...values) : Math.min(0, ...values), hi = opts.line ? Math.max(...values) : Math.max(0, ...values);
+        const range = Math.max(opts.line ? 1e-9 : 1, hi - lo);
+        const Y = (v) => hi === lo ? h / 2 : 2 + (hi - v) / range * (h - 4);
+        if (!opts.line) el('line', {x1: 0, x2: w, y1: Y(0), y2: Y(0), stroke: GREY}, svg);
         values.forEach((v, i) => {
-            el('rect', {x: i * bw + 0.5, y: Math.min(Y(0), Y(v)), width: Math.max(1, bw - 1), height: Math.max(0.75, Math.abs(Y(v) - Y(0))),
+            if (!opts.line) el('rect', {x: i * bw + 0.5, y: Math.min(Y(0), Y(v)), width: Math.max(1, bw - 1), height: Math.max(0.75, Math.abs(Y(v) - Y(0))),
                 fill: opts.line ? 'transparent' : (v >= 0 ? COLOURS[0] : NEG)}, svg);
             if (opts.tip) tip(el('rect', {x: i * bw, y: 0, width: bw, height: h, fill: 'transparent'}, svg), opts.tip(v, i));
         });
         if (opts.line) {
             const pts = values.map((v, i) => (i * bw + bw / 2) + ',' + Y(v)).join(' ');
-            svg.insertBefore(el('polyline', {points: pts, fill: 'none', stroke: COLOURS[0], 'stroke-width': 1.5}), svg.firstChild.nextSibling);
+            svg.insertBefore(el('polyline', {points: pts, fill: 'none', stroke: COLOURS[0], 'stroke-width': 1.5}), svg.firstChild);
+            const lastV = values[values.length - 1];
+            el('circle', {cx: (values.length - 1) * bw + bw / 2, cy: Y(lastV), r: 2.5, fill: COLOURS[0]}, svg);
         }
         return svg;
     }

@@ -168,9 +168,11 @@ Under the new rules this call is refused (403): a seedling's code is changed by 
 Each company's credits, net wealth and working drones, taken once a game day, oldest first. Every day is kept (#614); before that, days older than 60 were kept only every 10th day, so older history has 10-day gaps.
 
 ```json
-[{"day": 12, "credits": 3605, "net_wealth": 2890, "drones": 1},
- {"day": 13, "credits": 4120, "net_wealth": 3410, "drones": 1}]
+[{"day": 12, "credits": 3605, "net_wealth": 2890, "drones": 1, "cash_out": null, "cash_out_share": null, "bank_sells_at": null},
+ {"day": 13, "credits": 4120, "net_wealth": 3410, "drones": 1, "cash_out": 5240, "cash_out_share": 52, "bank_sells_at": 55}]
 ```
+
+Since #699, a matured company's rows also carry its **cash-out value** that day: `cash_out` (the whole company's: credits, goods at the House's bid, hulls, less debts, as the bank values it), `cash_out_share` (a share's, over its 100 shares) and `bank_sells_at` (the bank's selling price that day: `cash_out_share` plus the dividends a share paid over the 30 game days before). They are recorded in the daily snapshot of each matured company; a seedling's rows, an old-rules company's, and days before the change (migration 0066) have `null`.
 
 ### `GET /companies?name=<name>` and `GET /companies/{id}`
 
