@@ -980,6 +980,10 @@ ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* pe
         db_record_sales_tax(seller->user_id, *tax, seller->credits);
     }
 
+    // A seedling's credits above its cap go to the bank (#672): no point
+    // hoarding as a seedling, since maturing turns its credits into shares
+    seller->credits -= (int)db_seedling_skim(seller->user_id, seller->credits, event->game_t);
+
     // Dividends (#467) are no longer paid out of each sale: since #603 the
     // events engine settles them once a game day from the company's profit
     // (db_shares.c)

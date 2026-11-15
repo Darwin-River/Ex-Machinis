@@ -12,7 +12,7 @@
                     <b>While you were away</b> (since {{ $digest['since'] }}):
                     <ul class="mb-0">
                         @foreach($digest['companies'] as $c)
-                            <li>{{ $c['name'] }}{{ $c['seedling'] ? ' (seedling)' : '' }} sold {{ number_format($c['sales']) }} and bought
+                            <li>{{ $c['name'] }}{{ $c['seedling'] ? ' (seedling)' : '' }}@if(!empty($c['to_bank'])) gave the bank {{ number_format($c['to_bank']) }} over its cap,@endif sold {{ number_format($c['sales']) }} and bought
                                 {{ number_format($c['purchases']) }} credits' worth.@if(($c['ended'] ?? null) === 'closed') You closed it.@elseif($c['ended'] ?? null) It has ended.@endif</li>
                         @endforeach
                         @if($digest['dividends'])<li>Your shares paid you {{ number_format($digest['dividends']) }} credits in dividends.</li>@endif
@@ -93,21 +93,27 @@
             <h3 class="h5 mt-4" id="seedlings">Your seedlings</h3>
             <p>Every company starts as a seedling: <a href="{{ url('release') }}">release a drone</a> and the bank lends it
                 its drone and starting credits, plus a fee ({{ number_format($mine['grant']) }} credits in all). A seedling
-                trades only with the House, and you can change its code whenever you like (each change adds
-                {{ number_format(config('forge.seedling_push_fee')) }} to its debt). Once it holds enough to pay its debt,
-                mature it: it repays, its code is locked for good, and its 1,000 shares are yours. Close one at any time:
+                trades only with the House, and you can change its code whenever you like (the first change is free; each
+                after it adds {{ number_format(config('forge.seedling_push_fee')) }} to its debt). Once it holds its debt and
+                {{ number_format(\App\Services\Seedlings::matureMargin()) }} more, mature it: it repays, its code is locked for
+                good, and its {{ \App\Services\PlayerShares::COUNT }} shares are yours. A seedling holds at most
+                {{ \App\Services\Seedlings::capPermille() / 1000 }} times its debt: what it earns above that goes to the bank,
+                so mature it once it can. Close one at any time:
                 it leaves the game and its debt is cancelled. You have {{ $mine['slots']['used'] }} of
                 {{ $mine['slots']['max'] }} seedling slots in use.</p>
             @if(count($mine['seedlings']))
                 <table class="table table-sm">
                     <thead><tr><th scope="col">Seedling</th><th scope="col" class="text-right">Credits</th>
-                        <th scope="col" class="text-right">Owes</th><th scope="col"></th></tr></thead>
+                        <th scope="col" class="text-right">Owes</th><th scope="col" class="text-right">Holds at most</th>
+                        <th scope="col" class="text-right">To the bank</th><th scope="col"></th></tr></thead>
                     <tbody>
                     @foreach($mine['seedlings'] as $seed)
                         <tr>
                             <td><a href="{{ url('companies/' . $seed['company_id']) }}">{{ $seed['name'] }}</a></td>
                             <td class="text-right">{{ number_format($seed['credits']) }}</td>
                             <td class="text-right">{{ number_format($seed['debt']) }}</td>
+                            <td class="text-right">{{ $seed['credit_cap'] ? number_format($seed['credit_cap']) : '' }}</td>
+                            <td class="text-right">{{ number_format($seed['to_bank']) }}</td>
                             <td class="text-right">
                                 @if($seed['can_mature'] && $account['verified'])
                                     <form method="POST" action="{{ url('seedlings/' . $seed['company_id'] . '/mature') }}" class="d-inline"

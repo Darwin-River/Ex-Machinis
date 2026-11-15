@@ -175,6 +175,25 @@ class Seedlings
         return ['ok' => true, 'company' => $companyId, 'name' => $company->name];
     }
 
+    /** A seedling's credit cap in thousandths of its debt (#672; 0: none) */
+    public static function capPermille(): int
+    {
+        return (int) (DB::table('house_rules')->where('id', 1)->value('seedling_credit_cap_permille') ?? 0);
+    }
+
+    /** The most credits this seedling may hold (#672), or null when there's no cap */
+    public static function creditCap(object $company): ?int
+    {
+        $permille = self::capPermille();
+        return $permille > 0 && (int) $company->debt > 0 ? intdiv((int) $company->debt * $permille, 1000) : null;
+    }
+
+    /** What went to the bank from a seedling over its cap (#672), since a game time */
+    public static function toBank(int $company, int $since = 0): int
+    {
+        return (int) DB::table('seedling_skims')->where('company_id', $company)->where('game_t', '>', $since)->sum('amount');
+    }
+
     /** Credits a seedling must hold above its debt to mature (#664) */
     public static function matureMargin(): int
     {
@@ -228,6 +247,8 @@ class Seedlings
                 'company_id' => (int) $c->company_id, 'name' => $c->name, 'drone' => $drone($c->company_id),
                 'credits' => (int) $c->credits, 'debt' => (int) $c->debt,
                 'can_mature' => self::canMature($c),
+                // Its credit cap and what went over it to the bank (#672)
+                'credit_cap' => self::creditCap($c), 'to_bank' => self::toBank((int) $c->company_id),
             ])->values()->all(),
             'companies' => $rows->where('seedling', 0)->map(fn ($c) => [
                 'company_id' => (int) $c->company_id, 'name' => $c->name, 'drone' => $drone($c->company_id),

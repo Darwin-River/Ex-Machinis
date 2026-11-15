@@ -72,17 +72,37 @@ class PlayerSharesTest extends TestCase
         $this->assertSame($p['buys_at'], $p['sells_at'], 'no profit yet, so no dividends');
         $this->assertSame((int) floor($p['sells_at'] * 0.8), $p['low']);
 
+        // Goods count at the House's listed bid for the game day where the
+        // drone is, not its live bid (#670): it doesn't flicker
+        $drone = (int) DB::table('agents')->where('company_id', $id)->value('agent_id');
+        $place = (int) DB::table('agents')->where('agent_id', $drone)->value('object_id');
+        $station = (int) DB::table('stations')->max('id') + 1;
+        DB::table('stations')->insert(['id' => $station, 'name' => 'Test Exchange', 'object_id' => $place]);
+        DB::table('station_goods')->insert(['station_id' => $station, 'resource' => 2011, 'side' => 1, 'price' => 20,
+            'daily_units' => 100, 'from_day' => 0, 'steady' => 1]);
+        DB::table('holdings')->updateOrInsert(['drone' => $drone, 'resource' => 2011, 'installed' => 0, 'locked' => 0],
+            ['units' => 10, 'event_id' => 0]);
+        $listed = (int) DB::table('house_market')->where('station_id', $station)->where('resource', 2011)->where('side', 1)->value('price');
+        $this->assertGreaterThan(0, $listed);
+        $this->assertSame(10 * $listed, PlayerShares::cashOut($id)['goods']);
+        DB::table('holdings')->where('drone', $drone)->where('resource', 2011)->delete();
+
         // A stranded drone's hull counts nothing
         $drone = (int) DB::table('agents')->where('company_id', $id)->value('agent_id');
         DB::table('holdings')->where('drone', $drone)->where('resource', \App\Services\Release::FUEL)->update(['units' => 0]);
         $this->assertSame(0, PlayerShares::cashOut($id)['hulls']);
 
-        // Profit raises the bank's selling price by a share's dividends
+        // Profit alone doesn't raise the bank's selling price: only dividends
+        // actually paid since maturing do (#673)
         $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
         $today = intdiv(World::gameNow() - $epoch, 86400);
         DB::table('company_profits')->insert(['company' => $id, 'day' => $today - 1, 'sales' => 40000, 'purchases' => 0,
             'profit' => 40000, 'carry_before' => 0, 'paid' => 0, 'holders' => 0, 'logged_only' => 0]);
-        $this->assertSame(200, PlayerShares::dividends30($id), 'half of 40,000 over 100 shares');
+        $this->assertSame(0, PlayerShares::dividends30($id), 'nothing paid yet');
+        $this->assertSame(PlayerShares::prices($id)['buys_at'], PlayerShares::prices($id)['sells_at']);
+        DB::table('player_dividends')->insert(['company_id' => $id, 'user_id' => $owner->user_id, 'day' => $today - 1,
+            'units' => 100, 'amount' => 20000]);
+        $this->assertSame(200, PlayerShares::dividends30($id), '20,000 paid over 100 shares');
         $this->assertSame(PlayerShares::prices($id)['buys_at'] + 200, PlayerShares::prices($id)['sells_at']);
     }
 
@@ -245,6 +265,13 @@ class PlayerSharesTest extends TestCase
         $this->postJson("/api/v1/player-shares/$id/bank/sell", ['units' => 2], $h)->assertOk()->assertJsonPath('units', 2);
         $this->postJson("/api/v1/player-shares/$id/bank/buy", ['units' => 1], $h)->assertOk();
         $this->postJson("/api/v1/player-shares/$id/bank/sell", ['units' => 2])->assertStatus(401);
+        // Whole numbers only, and clear messages (#674)
+        $this->postJson("/api/v1/player-shares/$id/orders", ['side' => 'buy', 'units' => 1, 'price' => 70.5], $h)->assertStatus(422);
+        $this->postJson("/api/v1/player-shares/$id/orders", ['side' => 'buy', 'units' => 0.5, 'price' => 70], $h)->assertStatus(422);
+        $this->postJson("/api/v1/player-shares/$id/bank/sell", ['units' => 0], $h)->assertStatus(422)
+            ->assertJsonPath('error', 'Sell at least 1 whole share.');
+        $this->postJson("/api/v1/player-shares/$id/bank/sell", ['units' => 0.5], $h)->assertStatus(422)
+            ->assertJsonPath('error', 'Sell at least 1 whole share.');
         // Only a matured company's shares trade, and only it has prices (#652)
         $seedling = Seedlings::start($owner, 'Api Seedling', "function launched() wait(60) end")['company'];
         $this->getJson("/api/v1/player-shares/$seedling")->assertNotFound();

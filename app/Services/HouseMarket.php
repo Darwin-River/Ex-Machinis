@@ -419,7 +419,7 @@ class HouseMarket
         return $clock ? (int) round($clock->game_anchor + (time() - $clock->real_anchor) * $clock->scale) : time();
     }
 
-    private static function today($db): int
+    public static function today($db): int
     {
         $clock = $db->table('game_clock')->where('id', 1)->first();
         if (!$clock) {

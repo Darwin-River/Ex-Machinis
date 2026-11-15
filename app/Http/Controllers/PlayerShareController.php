@@ -105,20 +105,37 @@ class PlayerShareController extends Controller
     public function apiSellToBank(Request $request, int $id): JsonResponse
     {
         $user = $this->apiPlayer($request);
-        return $user ? $this->json(PlayerShares::sellToBank($user, $id, (int) $request->input('units'))) : $this->unauthorized();
+        return $user ? $this->json(PlayerShares::sellToBank($user, $id, self::whole($request, 'units'))) : $this->unauthorized();
     }
 
     public function apiBuyFromBank(Request $request, int $id): JsonResponse
     {
         $user = $this->apiPlayer($request);
-        return $user ? $this->json(PlayerShares::buyFromBank($user, $id, (int) $request->input('units'))) : $this->unauthorized();
+        return $user ? $this->json(PlayerShares::buyFromBank($user, $id, self::whole($request, 'units'))) : $this->unauthorized();
     }
 
     public function apiOrder(Request $request, int $id): JsonResponse
     {
         $user = $this->apiPlayer($request);
-        return $user ? $this->json(PlayerShares::order($user, $id, (string) $request->input('side'),
-            (int) $request->input('units'), (int) $request->input('price'))) : $this->unauthorized();
+        if (!$user) {
+            return $this->unauthorized();
+        }
+        // Whole shares at a whole number of credits (#674: 70.5 was stored as 70)
+        if (self::whole($request, 'units') < 1 || self::whole($request, 'price') < 1) {
+            return response()->json(['error' => 'An order is a whole number of shares, at least 1, at a whole number of credits, at least 1.'], 422);
+        }
+        return $this->json(PlayerShares::order($user, $id, (string) $request->input('side'),
+            self::whole($request, 'units'), self::whole($request, 'price')));
+    }
+
+    /** A whole number from the request, or 0 when it isn't one (0.5, "abc") */
+    private static function whole(Request $request, string $key): int
+    {
+        $v = $request->input($key);
+        if (is_int($v)) {
+            return $v;
+        }
+        return is_string($v) && preg_match('/^-?\d+$/', trim($v)) ? (int) $v : 0;
     }
 
     public function apiCancel(Request $request, int $order): JsonResponse

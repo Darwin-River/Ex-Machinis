@@ -27,6 +27,8 @@
                     </table>
                 </div>
                 <h3 class="mt-4">Before the new rules</h3>
+                <p style="white-space: normal"><i>The rest of this page is the old world's stock exchange, kept for its history:
+                    under the new rules players trade matured companies' shares above, and companies trade none.</i></p>
             @endif
             <div style="white-space: normal; margin-bottom: 1em">
                 Every company starts with 1,000 shares, and more once it issues new ones to raise credits; each share pays

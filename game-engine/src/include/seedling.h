@@ -38,4 +38,9 @@ long long seedling_buy_cap(long long stock, int cap_permille);
 int order_lock_outcome(int buy, long long prev_price, long long prev_units, long long new_price, long long new_units,
                        long long age, long long lock);
 
+/* What a seedling holding `credits` must give the bank (#672): what is above
+   cap_permille thousandths of its debt (0 when below it, or when cap_permille
+   is 0: no cap) */
+long long seedling_over_cap(long long credits, long long debt, int cap_permille);
+
 #endif

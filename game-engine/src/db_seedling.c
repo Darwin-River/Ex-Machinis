@@ -153,3 +153,25 @@ int db_order_lock_outcome(Event_t* event)
     if(res) mysql_free_result(res);
     return outcome;
 }
+
+long long db_seedling_skim(int company, long long credits, long long game_t)
+{
+    // Only a seedling (debt 0 otherwise); its cap in thousandths of its debt
+    long long debt = sd_value(0, "SELECT IF(seedling = 1, debt, 0) FROM companies WHERE company_id = %d", company);
+    if(debt <= 0)
+        return 0;
+    int permille = (int)sd_value(0, "SELECT seedling_credit_cap_permille FROM house_rules WHERE id = 1");
+    long long over = seedling_over_cap(credits, debt, permille);
+    if(over <= 0)
+        return 0;
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "INSERT INTO seedling_skims (company_id, game_t, amount) VALUES (%d, %lld, %lld)", company, game_t, over);
+    DbConnection_t* connection = engine_get_db_connection();
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return 0;
+    }
+    engine_trace(TRACE_LEVEL_ALWAYS, "Seedling [%d] over its cap: %lld credits go to the bank", company, over);
+    return over;
+}

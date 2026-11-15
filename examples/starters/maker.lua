@@ -1,6 +1,7 @@
 -- Maker: a starter script for Public Forge, in Lua (#380). It equips itself with
 -- the Factory Kit (Engine, Smelter, Chemical Reactor and Spider).
--- It buys Metals (A1) at the Moon wherever they are cheapest, makes them
+-- It buys Metals (A1) at the Moon wherever they are cheapest (as a seedling,
+-- from the House wherever it has most on sale), makes them
 -- into alloys and the alloys into rods, and sells the rods wherever they
 -- pay best: at the Moon if the best bid there is close to what rods fetched
 -- at Earth yesterday (the price board), else it flies a load to Earth.
@@ -40,16 +41,39 @@ end
 function spare() return math.max(credits() - cash_floor, 0) end
 
 -- Metals for a batch, as many as the spare credits pay for (at most 30 a unit)
--- A seedling buys at most a tenth of what the House has on sale here in a
--- game day (-17): once it has, it waits for the next day here instead of
--- asking again and again (round 67)
-capped_day = -1
+-- A seedling buys only from the House, and at most a tenth of what it has on
+-- sale at an exchange in a game day (-17). Once it has, or when the House
+-- there has next to none left (round 68: the Moon's sold out to the matured
+-- makers every day), it flies to the exchange whose House has most on sale,
+-- and waits for the next day only when none has any (#671)
+capped_at = {}
+function house_left(place)
+  for _, h in ipairs(house_supply(metals_a1)) do
+    if h.place == place then return h.on_sale end
+  end
+  return 0
+end
 function stock_up()
   if units(metals_a1) >= 2 then return end
-  if capped_day == today() then wait(240); return end
+  if house_only() and (capped_at[location()] == today() or house_left(location()) < 10) then
+    local best, most = nil, 9
+    for _, p in ipairs({earth, mars, moon}) do
+      local n = house_left(p)
+      if capped_at[p] ~= today() and n > most then best, most = p, n end
+    end
+    if not best then
+      set_status("no metals on sale from the House: waiting for tomorrow's")
+      wait(240)
+      return
+    end
+    if best ~= location() then
+      set_status("buying metals at " .. place_name(best) .. ": " .. most .. " on sale there")
+      go(best)
+    end
+  end
   local n = math.min(batch, spare() // 30)
   if n > 0 then
-    if buy_here(n, metals_a1) == -17 then capped_day = today() end
+    if buy_here(n, metals_a1) == -17 then capped_at[location()] = today() end
     wait(60)
   end
 end
