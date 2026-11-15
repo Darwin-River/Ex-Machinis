@@ -84,7 +84,7 @@ Since the reset (#642) the live game plays by the new rules (#635): seedlings, m
 | Dividends | `FORGE_DIVIDEND_PERMILLE` | half of profit | a quarter | Round 67's founders were paid back so fast that maturing an unchanged starter was close to risk-free (#667). |
 | Cash-out goods | `PlayerShares::cashOut` | the House's live bid | its listed bid for the game day | Cash-out swung 15 to 30% within minutes; buying from the bank on a dip was a near-free gain (#670). |
 | The bank's premium | `PlayerShares::dividends30` | 30 days of profit, estimated | 30 days of dividends paid | A just-matured company sold at +31% on seedling profit (#673). |
-| A seedling's credit cap | `house_rules.seedling_credit_cap_permille` | none | twice its debt | Round 68's seedlings hoarded 12,000 to 48,000 credits and turned them into shares at maturing (#672). |
+| A seedling's credit cap | `house_rules.seedling_credit_cap_permille` | none | twice its debt less push fees (#684) | Round 68's seedlings hoarded 12,000 to 48,000 credits and turned them into shares at maturing (#672). |
 | A kit's parts | `build_game_data.py` (`KIT_PARTS_SHARE`) | House bid up to 2,331 for a 2,000 kit's parts | at most 80% of the kit's price | Seedlings could flip kits for profit (#657). |
 | The Maker starter as a seedling | `examples/starters/maker.lua` | buys metals where it is | buys where the House has most on sale | The Moon's metals sold out to matured makers every day, so seedling makers starved (#671). |
 

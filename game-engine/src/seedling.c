@@ -43,6 +43,11 @@ int order_lock_outcome(int buy, long long prev_price, long long prev_units, long
     return 0;
 }
 
+long long seedling_cap_base(long long debt, long long push_fees)
+{
+    return debt > push_fees ? debt - push_fees : 0;
+}
+
 long long seedling_over_cap(long long credits, long long debt, int cap_permille)
 {
     if(cap_permille <= 0 || debt <= 0)

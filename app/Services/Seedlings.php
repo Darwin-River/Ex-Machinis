@@ -181,11 +181,22 @@ class Seedlings
         return (int) (DB::table('house_rules')->where('id', 1)->value('seedling_credit_cap_permille') ?? 0);
     }
 
+    /**
+     * What the cap is a multiple of (#684): its debt without the push fees,
+     * that is what it was lent at the start (hull, credits and fee). Based on
+     * the whole debt, each paid push raised the cap by twice its fee.
+     */
+    public static function capBase(object $company): int
+    {
+        $fees = (int) DB::table('code_pushes')->where('company_id', $company->company_id)->sum('fee');
+        return max(0, (int) $company->debt - $fees);
+    }
+
     /** The most credits this seedling may hold (#672), or null when there's no cap */
     public static function creditCap(object $company): ?int
     {
         $permille = self::capPermille();
-        return $permille > 0 && (int) $company->debt > 0 ? intdiv((int) $company->debt * $permille, 1000) : null;
+        return $permille > 0 && (int) $company->debt > 0 ? intdiv(self::capBase($company) * $permille, 1000) : null;
     }
 
     /** What went to the bank from a seedling over its cap (#672), since a game time */

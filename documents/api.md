@@ -466,7 +466,7 @@ Under the new rules every release is a **seedling**. `POST /release` with an acc
 
 | Request | What it does |
 |---|---|
-| `GET /seedlings` | the account's seedlings `{company_id, name, drone, credits, debt, can_mature}` (`can_mature`: it holds its debt and 500 more; it can turn false again a moment later if its drone spends), its `credit_cap` and what went `to_bank` over it: a seedling holds at most twice its debt, and what a sale would take above that goes to the bank, so mature it once it can and matured `companies` `{company_id, name, drone, credits, ended}`, its `slots` (`{used, max}`) and the `grant` a new seedling owes |
+| `GET /seedlings` | the account's seedlings `{company_id, name, drone, credits, debt, can_mature}` (`can_mature`: it holds its debt and 500 more; it can turn false again a moment later if its drone spends), its `credit_cap` and what went `to_bank` over it: a seedling holds at most twice what it was lent at the start (its debt without push fees, #684), and what a sale would take above that goes to the bank, so mature it once it can and matured `companies` `{company_id, name, drone, credits, ended}`, its `slots` (`{used, max}`) and the `grant` a new seedling owes |
 | `POST /seedlings/claim` `{code}` | claims a guest's seedling with its code |
 | `POST /seedlings/{id}/push` `{script}` | new code for the seedling's drones; the first push is free, and each after it adds 100 to its debt: `{number, fee, drones, debt}`. `POST /check` with `company` previews it: `push` is `{seedling: true, enabled, number, fee, debt, debt_after, drones}` (for a matured company, `enabled: false`: its code is locked) |
 | `POST /seedlings/{id}/close` | closes it: it leaves the game with all it holds, and its debt is cancelled |

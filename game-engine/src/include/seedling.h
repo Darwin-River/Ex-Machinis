@@ -43,4 +43,8 @@ int order_lock_outcome(int buy, long long prev_price, long long prev_units, long
    is 0: no cap) */
 long long seedling_over_cap(long long credits, long long debt, int cap_permille);
 
+/* What the credit cap is a multiple of (#684): the debt without the push
+   fees, so paying for a push doesn't raise the cap */
+long long seedling_cap_base(long long debt, long long push_fees);
+
 #endif

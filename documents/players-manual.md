@@ -179,7 +179,7 @@ A script can be at most 16,000 characters, comments included (#557). A release c
 - **it trades only with the House** (the station drones at the exchanges) and its own company's drones. A trade with anyone else fails with -16 (see [Trading at the exchanges](#trading-at-the-exchanges));
 - **it buys at most a tenth** of what the House has on sale of a good at one exchange in a game day (-17 after that). Selling to the House has no such cap;
 - **it plunders nothing**, and nobody can plunder its wrecks (see [Wrecks and plunder](#wrecks-and-plunder));
-- **it holds at most twice its debt** in credits: 8,400 for a fresh seedling. When a sale would take it over, the excess goes to the bank. So there is no point in waiting to mature it.
+- **it holds at most twice what it was lent** in credits: 8,400, however often you push (push fees go on its debt but don't raise the cap). When a sale would take it over, the excess goes to the bank. So there is no point in waiting to mature it.
 
 You can run **at most 5 seedlings** at a time. A closed seedling's slot reopens a game day after you close it.
 
@@ -787,7 +787,7 @@ The Miner, Refiner and Maker starters do this once their company has matured and
 
 **Eight drones at most.** A company may have at most **8 working drones**. A launch that would take it past them fails with -20, and the kit stays in the hold, so check `fleet_full()` before you buy a kit to launch: it is true when the company has all the drones it may (counting launches still on their way). `fleet()` gives the numbers: `{drones, cap, coming}`. The starters do this. Past eight, a company grows by working better, not by adding drones: the cap keeps the world running at full speed for everyone.
 
-**Growing a seedling.** A seedling may launch copies too: they belong to the same company, so they trade only with the House as well. But every credit it spends on a copy is one it must earn back before it can mature, and its daily buying cap at an exchange applies to hulls and kits as to anything else the House sells. Its credits are capped at twice its debt (8,400 for a fresh seedling), and what a sale would take past that goes to the bank. That is why the starters launch nothing until they have matured: a seedling's quickest route to growing is usually to mature first.
+**Growing a seedling.** A seedling may launch copies too: they belong to the same company, so they trade only with the House as well. But every credit it spends on a copy is one it must earn back before it can mature, and its daily buying cap at an exchange applies to hulls and kits as to anything else the House sells. Its credits are capped at twice what it was lent (8,400; push fees don't raise it), and what a sale would take past that goes to the bank. That is why the starters launch nothing until they have matured: a seedling's quickest route to growing is usually to mature first.
 
 **Keep money to work with.** A copy costs about 5,000 (a hull and a kit). Launch it only when your company will still have enough left to buy its inputs and fuel: the starters grow at 6,500 or more, leaving 1,500. A company left with less than its own cash floor can't buy anything, and every drone in it stops.
 
@@ -1294,7 +1294,7 @@ None of it happens in Lua. **Companies don't trade shares; players do**, on the 
 
 **After.** A matured company runs until it fails. Its drones can now sell to other players' standing orders and post their own, buy from anyone, and plunder wrecks. The starters launch copies once matured, which spends credits on hulls and kits and lowers the company's cash-out value for a while (see below). Two of one player's matured companies may trade with each other; their dealings are flagged on both companies' pages and in your digest.
 
-**Don't wait.** A seedling holds at most twice its debt, so what it earns past that goes to the bank. Mature it as soon as you can.
+**Don't wait.** A seedling holds at most twice what it was lent (8,400), so what it earns past that goes to the bank. Mature it as soon as you can.
 
 ### Dividends: what a share earns
 
