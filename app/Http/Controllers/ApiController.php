@@ -382,7 +382,18 @@ class ApiController extends Controller
         if ($missing) {
             return $missing;
         }
-        return response()->json(HouseMarket::supply(is_numeric($request->query('resource')) ? (int) $request->query('resource') : null, $place));
+        // ?resource= as an ID or a name, "Metals (A1)" or Lua's metals_a1 (#674:
+        // a name was ignored, and every resource came back)
+        $resource = $request->query('resource');
+        if ($resource !== null && $resource !== '' && !is_numeric($resource)) {
+            $key = fn ($n) => preg_replace('/[^a-z0-9]+/', '', strtolower((string) $n));
+            $id = DB::table('resources')->pluck('name', 'id')->search(fn ($n) => $key($n) === $key($resource));
+            if ($id === false) {
+                return $this->notFound('There is no resource called ' . $resource . '.');
+            }
+            $resource = $id;
+        }
+        return response()->json(HouseMarket::supply($resource === null || $resource === '' ? null : (int) $resource, $place));
     }
 
     /**

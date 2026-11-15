@@ -265,6 +265,13 @@ class PlayerSharesTest extends TestCase
         $this->postJson("/api/v1/player-shares/$id/bank/sell", ['units' => 2], $h)->assertOk()->assertJsonPath('units', 2);
         $this->postJson("/api/v1/player-shares/$id/bank/buy", ['units' => 1], $h)->assertOk();
         $this->postJson("/api/v1/player-shares/$id/bank/sell", ['units' => 2])->assertStatus(401);
+        // Whole numbers only, and clear messages (#674)
+        $this->postJson("/api/v1/player-shares/$id/orders", ['side' => 'buy', 'units' => 1, 'price' => 70.5], $h)->assertStatus(422);
+        $this->postJson("/api/v1/player-shares/$id/orders", ['side' => 'buy', 'units' => 0.5, 'price' => 70], $h)->assertStatus(422);
+        $this->postJson("/api/v1/player-shares/$id/bank/sell", ['units' => 0], $h)->assertStatus(422)
+            ->assertJsonPath('error', 'Sell at least 1 whole share.');
+        $this->postJson("/api/v1/player-shares/$id/bank/sell", ['units' => 0.5], $h)->assertStatus(422)
+            ->assertJsonPath('error', 'Sell at least 1 whole share.');
         // Only a matured company's shares trade, and only it has prices (#652)
         $seedling = Seedlings::start($owner, 'Api Seedling', "function launched() wait(60) end")['company'];
         $this->getJson("/api/v1/player-shares/$seedling")->assertNotFound();

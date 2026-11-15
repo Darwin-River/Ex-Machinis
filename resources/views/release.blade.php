@@ -24,7 +24,9 @@
                     ({{ number_format(config('forge.seedling_fee')) }}): it owes
                     {{ number_format(\App\Services\Seedlings::grant()) }} until it matures. The starting credits are
                     its to spend (a kit costs 2,000); once it holds credits enough to pay the whole debt and {{ number_format(config('forge.seedling_mature_margin')) }} more to work with, you can mature it,
-                    and its {{ \App\Services\PlayerShares::COUNT }} shares are yours. Until then it trades only with the House (anything else fails with
+                    and its {{ \App\Services\PlayerShares::COUNT }} shares are yours. A seedling holds at most
+                    {{ \App\Services\Seedlings::capPermille() / 1000 }} times its debt: what it earns above that goes to the bank, so
+                    mature it once it can. Until then it trades only with the House (anything else fails with
                     -16), buys at most a tenth of what the House has on sale of a good at one exchange in a game day (-17),
                     and plunders nothing. Logged in, it is yours (at most {{ config('forge.seedling_max') }} at a time; a
                     closed one's slot reopens a game day later), and you reprogram it from your

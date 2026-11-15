@@ -111,6 +111,9 @@ class CodePush
     public static function send(array $drones, string $script): void
     {
         $pieces = Release::chunks($script);
+        // The old code's status line goes with it (#674: "hauling 12 rods to
+        // Earth" stayed for 175 game days after two pushes)
+        DB::table('agents')->whereIn('agent_id', $drones)->update(['script_status' => null, 'script_status_t' => null]);
         foreach ($drones as $drone) {
             Command::create(['code' => '<reset>', 'agent_id' => $drone, 'subject' => 'Push', 'email_content' => '']);
             foreach ($pieces as $piece) {

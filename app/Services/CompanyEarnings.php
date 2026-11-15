@@ -62,11 +62,19 @@ class CompanyEarnings
             $r['net'] = $r['sales'] - $r['purchases'];
         }
         unset($r);
-        // The dividends it paid other holders from each day's profit (#603)
+        // The dividends it paid other holders from each day's profit (#603),
+        // or under the new rules what it paid its players and the bank (#674:
+        // the column stayed 0 for a matured company)
         foreach (DB::table('company_profits')->where('company', $company)->where('day', '>=', $first)
                      ->get(['day', 'paid']) as $p) {
             if (isset($rows[(int) $p->day])) {
                 $rows[(int) $p->day]['dividends'] = (int) $p->paid;
+            }
+        }
+        foreach (DB::table('player_dividends')->where('company_id', $company)->where('day', '>=', $first)
+                     ->groupBy('day')->selectRaw('day, SUM(amount) AS paid')->get() as $p) {
+            if (isset($rows[(int) $p->day])) {
+                $rows[(int) $p->day]['dividends'] += (int) $p->paid;
             }
         }
         return array_values($rows);

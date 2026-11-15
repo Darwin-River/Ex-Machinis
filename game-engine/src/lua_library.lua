@@ -202,7 +202,16 @@ end
 -- at most that a unit (#503: once the cheap sellers ran out it paid 49)
 local function buy_here(n, resource, max_price)
   local result, tries, mine, refused, only, failed = -12, 0, me(), {}, house_only(), nil
+  -- A seedling's -17 cap is a tenth of what the House has on sale here a
+  -- game day: it asks for no more than that at first, and after a -17 one
+  -- unit at a time until refused (#674: halving from 1,000 used up its six
+  -- tries above the cap, and got 3 of about 5)
   local cap
+  if only then
+    for _, h in ipairs(ask(707, resource)) do      -- house_supply: place, price, on_sale...
+      if h[1] == location() then cap = math.max(1, h[3] // 10) end
+    end
+  end
   while n > 0 and tries < 6 do
     local seller, avail
     for _, o in ipairs(ask(610, resource)) do
@@ -214,7 +223,7 @@ local function buy_here(n, resource, max_price)
     tries = tries + 1
     local r = pull(take, resource, seller)
     if r == 0 then n = n - take; result = 0
-    elseif r == -17 and take > 1 then cap = take // 2; failed = r   -- over a seedling's daily cap: try less
+    elseif r == -17 and take > 1 then cap = 1; failed = r   -- over a seedling's daily cap: one at a time
     else refused[seller] = true; failed = r end
   end
   -- Nothing bought: why the last seller refused (such as -17, a seedling's
@@ -246,9 +255,12 @@ end
 
 local buy_from_station, sell_to_station = buy_here, sell_here
 
+-- Sells all of a resource aboard here: what sell_here returns, or 0 with
+-- none aboard (#674: it returned nil)
 local function sell_all(resource)
   local n = units(resource)
-  if n > 0 then sell_here(n, resource) end
+  if n > 0 then return sell_here(n, resource) end
+  return 0
 end
 
 -- Orders stay up until the drone posts another for the same resource and

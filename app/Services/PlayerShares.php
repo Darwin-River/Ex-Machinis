@@ -178,7 +178,10 @@ class PlayerShares
         if (!self::company($company)) {
             return self::fail(404, 'The bank buys only shares of a matured company that is still trading.');
         }
-        if ($units < 1 || self::held((int) $user->user_id, $company) < $units) {
+        if ($units < 1) {
+            return self::fail(422, 'Sell at least 1 whole share.');   // #674
+        }
+        if (self::held((int) $user->user_id, $company) < $units) {
             return self::fail(422, 'You don\'t hold that many of its shares.');
         }
         $price = self::cashOut($company)['per_share'];
