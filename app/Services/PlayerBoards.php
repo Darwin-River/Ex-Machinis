@@ -9,18 +9,23 @@ use Illuminate\Support\Facades\DB;
  * Player boards and the digest (#640, step 5 of the new rules in #635).
  *
  * - A player's wealth: their credits and starting credits, plus their shares
- *   at cash-out value.
+ *   at cash-out value, plus what the bank still owes them for shares sold to
+ *   it (#687: at the lower of the price on the day of the sale and the
+ *   cash-out value now, as it will pay; wealth fell by the whole sale until
+ *   the bank paid, 163,000 for one player in round 69).
  * - The wealth board ranks players by it; the monthly season board by how
  *   much it grew this real month, as a share of their wealth at its start
- *   (counted as at least forge.season_floor, 5,000). A class group's
- *   accounts have their own boards, apart from everyone else's.
+ *   (counted as at least forge.season_floor, 5,000). Growth counts only
+ *   what they made above that floor (#687: a player who started the month
+ *   at 0 and held 5,000 grew 100%). A class group's accounts have their own
+ *   boards, apart from everyone else's.
  * - The "while you were away" digest: what a player's companies and shares
  *   brought in since they last looked, the bank's payments, deals between
  *   their own companies, and the news.
  */
 class PlayerBoards
 {
-    /** Each player account's wealth: [user_id => [name, credits, shares, wealth, class_group_id]] */
+    /** Each player account's wealth: [user_id => [name, credits, shares, bank_due, wealth, class_group_id]] */
     public static function wealths(?int $classGroup = null, bool $everyone = false): array
     {
         $q = DB::table('users')->whereNotNull('login');
@@ -31,6 +36,8 @@ class PlayerBoards
         $price = [];
         $holdings = DB::table('player_shares')->whereIn('user_id', $users->pluck('user_id'))->where('units', '>', 0)
             ->get(['user_id', 'company_id', 'units'])->groupBy('user_id');
+        $payments = DB::table('bank_payments')->whereIn('user_id', $users->pluck('user_id'))->whereNull('paid_t')
+            ->get(['user_id', 'company_id', 'units', 'price_at_sale'])->groupBy('user_id');
         $out = [];
         foreach ($users as $u) {
             $shares = 0;
@@ -38,9 +45,15 @@ class PlayerBoards
                 $price[$h->company_id] ??= PlayerShares::cashOut((int) $h->company_id)['per_share'];
                 $shares += (int) $h->units * $price[$h->company_id];
             }
+            // What the bank owes it, at what the bank would pay now (#687)
+            $due = 0;
+            foreach ($payments[$u->user_id] ?? [] as $b) {
+                $price[$b->company_id] ??= PlayerShares::cashOut((int) $b->company_id)['per_share'];
+                $due += (int) $b->units * min((int) $b->price_at_sale, $price[$b->company_id]);
+            }
             $credits = (int) $u->credits + (int) $u->share_credits;
-            $out[(int) $u->user_id] = ['name' => $u->login, 'credits' => $credits, 'shares' => $shares,
-                'wealth' => $credits + $shares, 'class_group_id' => $u->class_group_id === null ? null : (int) $u->class_group_id];
+            $out[(int) $u->user_id] = ['name' => $u->login, 'credits' => $credits, 'shares' => $shares, 'bank_due' => $due,
+                'wealth' => $credits + $shares + $due, 'class_group_id' => $u->class_group_id === null ? null : (int) $u->class_group_id];
         }
         return $out;
     }
@@ -78,17 +91,28 @@ class PlayerBoards
         $rows = [];
         foreach ($wealths as $id => $w) {
             $start = isset($starts[$id]) ? (int) $starts[$id] : $w['wealth'];
-            $rows[] = $w + ['user_id' => $id, 'start' => $start,
-                'growth_percent' => round(100 * ($w['wealth'] - $start) / max($start, $floor), 1)];
+            $rows[] = $w + ['user_id' => $id, 'start' => $start, 'growth_percent' => self::growth($start, $w['wealth'], $floor)];
         }
         $wealth = $rows;
         usort($wealth, fn ($a, $b) => [$b['wealth'], $a['user_id']] <=> [$a['wealth'], $b['user_id']]);
         $season = $rows;
         usort($season, fn ($a, $b) => [$b['growth_percent'], $b['wealth']] <=> [$a['growth_percent'], $a['wealth']]);
         $strip = fn ($r) => ['name' => $r['name'], 'wealth' => $r['wealth'], 'credits' => $r['credits'],
-            'shares' => $r['shares'], 'start' => $r['start'], 'growth_percent' => $r['growth_percent']];
+            'shares' => $r['shares'], 'bank_due' => $r['bank_due'], 'start' => $r['start'], 'growth_percent' => $r['growth_percent']];
         return ['month' => self::month(), 'wealth' => array_map($strip, array_slice($wealth, 0, $limit)),
             'season' => array_map($strip, array_slice($season, 0, $limit))];
+    }
+
+    /**
+     * A month's growth in percent (#687): from its start counted as at least
+     * the floor (or its wealth now, if that is less), over the start counted
+     * as at least the floor. So holding the floor is no growth, and a player
+     * who started at 0 and holds 5,000 grew 0%, not 100%
+     */
+    public static function growth(int $start, int $wealth, int $floor): float
+    {
+        $from = max($start, min($wealth, $floor));
+        return round(100 * ($wealth - $from) / max($start, $floor, 1), 1);
     }
 
     /**

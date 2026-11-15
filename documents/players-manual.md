@@ -103,7 +103,7 @@ This is the whole game. Each line is explained where it first matters to you.
 5. Your account starts with 5,000 credits that can only buy shares. Each game day a matured company pays a quarter of its profit to its shareholders.
 6. Trade shares with players within a published range, or sell them to the bank for their cash-out value, paid 30 game days later at the lower of the two values.
 7. All code is public. A matured company can't change, but it can react to prices and orders, so read its code before you buy.
-8. You're ranked by your wealth, and each real month by its growth.
+8. You're ranked by your wealth, and each real month by its growth, on the Players page.
 
 ### Your fortune awaits!
 
@@ -1376,10 +1376,10 @@ The **at risk** flag is a warning, not a verdict: a company at risk may sell its
 
 ### Boards and the digest
 
-**Your wealth** is your account's credits and starting credits, plus your shares at their cash-out value. The **Players** page (`/players`, World menu; `GET /api/v1/players`) ranks players two ways (#640):
+**Your wealth** is your account's credits and starting credits, plus your shares at their cash-out value, plus what the bank still owes you for shares you sold it (at the lower of the sale price and the cash-out value now, as the bank will pay). So selling to the bank doesn't drop you down the board while you wait to be paid; the Players page shows how much of your wealth is due from the bank. The **Players** page (`/players`, World menu; `GET /api/v1/players`) ranks players two ways (#640):
 
 - by **wealth**;
-- by **this real month's growth**: your wealth now over your wealth at the start of the month, counted as at least 5,000. So everyone starts each month level, however rich they were.
+- by **this real month's growth**: what your wealth grew this month, over your wealth at the start of the month counted as at least 5,000. Only what you made above 5,000 counts: a player who started the month with nothing and now holds their 5,000 starting credits has grown 0%. So everyone starts each month level, however rich they were.
 
 The company boards (the Leaderboard, by net wealth) and the Lineage map stay as they were.
 

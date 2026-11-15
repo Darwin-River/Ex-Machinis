@@ -122,7 +122,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         <li><a href="{{ url('release') }}">Release a drone</a></li>
                         <li><a href="{{ url('getting-started') }}">Getting started</a></li>
                         <li><a href="{{ url('blog') }}">Strategy blog</a></li>
-                        <li><a href="{{ url('leaderboard') }}">Leaderboard</a></li>
+                        <li><a href="{{ url('leaderboard') }}">Company leaderboard</a></li>
+                        @if(config('forge.new_rules'))<li><a href="{{ url('players') }}">Players</a></li>@endif
                     </ul>
                 </div>
                 <div class="col-6 col-md-3 mb-4">
