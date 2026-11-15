@@ -22,4 +22,9 @@ ErrorCode_t db_seedling_record_buy(int company, Event_t* to, int place);
    (house_rules.order_lock_hours) */
 int db_order_lock_outcome(Event_t* event);
 
+/* A seedling's credits above its cap (house_rules.seedling_credit_cap_permille
+   of its debt, #672) after a sale: returns what goes to the bank, and records
+   it (seedling_skims). 0 for any other company */
+long long db_seedling_skim(int company, long long credits, long long game_t);
+
 #endif

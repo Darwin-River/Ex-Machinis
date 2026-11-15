@@ -122,6 +122,8 @@ class PlayerBoards
                 ->where('a.company_id', $c->company_id)->where($newer)->sum('t.credits');
             $earned[] = ['company_id' => (int) $c->company_id, 'name' => $c->name, 'seedling' => (int) $c->seedling === 1,
                 'sales' => $sales, 'purchases' => $bought,
+                // A seedling's credits over its cap, gone to the bank (#672)
+                'to_bank' => (int) $c->seedling === 1 ? Seedlings::toBank((int) $c->company_id, $since) : 0,
                 'ended' => $c->eliminated_at !== null ? ($c->end_cause === 'closed' ? 'closed' : 'ended') : null];
         }
         $flags = [];

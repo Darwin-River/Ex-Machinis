@@ -51,6 +51,13 @@ int main(void)
     check("but may keep less back", order_lock_outcome(0, 50, 10, 50, 5, h, lock) == 0);
     check("after 12 game hours anything goes", order_lock_outcome(1, 50, 10, 0, 0, lock, lock) == 0);
 
+    // The credit cap (#672): twice the debt
+    check("a seedling under its cap keeps all", seedling_over_cap(8000, 4200, 2000) == 0);
+    check("and at it", seedling_over_cap(8400, 4200, 2000) == 0);
+    check("above it the excess goes to the bank", seedling_over_cap(9000, 4200, 2000) == 600);
+    check("no cap when it is 0", seedling_over_cap(90000, 4200, 0) == 0);
+    check("nor for a company with no debt", seedling_over_cap(90000, 0, 2000) == 0);
+
     printf("%s\n", failures ? "FAILED" : "all passed");
     return failures ? 1 : 0;
 }

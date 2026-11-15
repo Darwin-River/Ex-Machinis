@@ -42,3 +42,11 @@ int order_lock_outcome(int buy, long long prev_price, long long prev_units, long
         return OUTCOME_ORDER_LOCKED;
     return 0;
 }
+
+long long seedling_over_cap(long long credits, long long debt, int cap_permille)
+{
+    if(cap_permille <= 0 || debt <= 0)
+        return 0;
+    long long cap = debt * (long long)cap_permille / 1000;
+    return credits > cap ? credits - cap : 0;
+}

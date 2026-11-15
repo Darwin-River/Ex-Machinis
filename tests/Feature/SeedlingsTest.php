@@ -84,6 +84,22 @@ class SeedlingsTest extends TestCase
         $this->assertTrue(Seedlings::start($owner, 'Busy 6', self::SCRIPT)['ok']);
     }
 
+    public function testASeedlingsCreditsAreCapped()
+    {
+        // #672: at most twice its debt; the events engine sends a sale's excess
+        // to the bank and records it, and the account page and API show it
+        DB::table('house_rules')->updateOrInsert(['id' => 1], ['tax_period' => 0, 'tax_grace' => 0, 'tax_flat' => 0,
+            'tax_permille' => 0, 'plunder_share' => 50, 'compute_tax_per_million' => 15, 'seedling_credit_cap_permille' => 2000]);
+        $owner = $this->player('Capped Grower');
+        $id = Seedlings::start($owner, 'Capped Co', self::SCRIPT)['company'];
+        DB::table('seedling_skims')->insert(['company_id' => $id, 'game_t' => World::gameNow() + 60, 'amount' => 750]);
+        $s = Seedlings::of($owner)['seedlings'][0];
+        $this->assertSame(11000, $s['credit_cap'], 'twice its 5,500 debt');
+        $this->assertSame(750, $s['to_bank']);
+        $this->actingAs($owner)->get('/account')->assertOk()->assertSee('11,000')->assertSee('750');
+        $this->assertSame(750, \App\Services\PlayerBoards::digest($owner, false)['companies'][0]['to_bank']);
+    }
+
     public function testTheReleasePageExplainsSeedlings()
     {
         // #656: the new rules' copy, and no push password
