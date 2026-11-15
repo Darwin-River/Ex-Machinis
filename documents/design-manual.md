@@ -20,6 +20,17 @@ This document lays out the plans for developing Ex Machinis, an online space sim
     * [Physics Engine](#Physics-Engine)
     * [Event Engine](#Event-Engine)
     * [Game Database](#Game-Database)
+* [The Rules of Play](#The-Rules-of-Play)
+  * [In eight lines](#Rules-in-eight-lines)
+  * [Accounts](#Rules-accounts)
+  * [Seedlings](#Rules-seedlings)
+  * [Maturing](#Rules-maturing)
+  * [Shares, the bank and dividends](#Rules-shares)
+  * [Trading, orders and the House](#Rules-trading)
+  * [Running costs and failure](#Rules-costs)
+  * [Boards, the digest and dealings](#Rules-boards)
+  * [Failure codes](#Rules-failure-codes)
+  * [Where each number is set](#Rules-numbers)
 * [General Mechanics](#General-Mechanics)
   * [All objects are defined by their orbits](#All-objects-are-defined-by-their-orbits)
   * [Game time runs on a master clock](#Game-time-runs-on-a-master-clock)
@@ -156,6 +167,142 @@ The Event Engine is a small C++ application, which runs continuously in the back
 The Game Database is a server-side database that holds all game-related data. The database facilitates communications between the Mail Handler, Game Engine, and other applications that are running on the server.  It is also a rich source of data for players and their drones.
 
 The schema starts from `game-engine/sql/create_db.sql` and `game-engine/db-backup/exmachinis_tables.sql`. Every later change is a numbered migration in `game-engine/sql/migrations/`, applied in order by `game-engine/sql/migrate.sh`, which records each in the `schema_version` table. In Docker the `migrate` service runs it on every start, before the website and engines, and then loads `game_data.sql`; CI runs it before the tests. The engines no longer change the schema themselves. See the migrations folder's README for how to add one.
+
+[Return to the TOC](#Table-of-Contents)
+
+<a name="The-Rules-of-Play"></a>
+## The Rules of Play
+
+This section is the whole rulebook of the live game in one place: what a player can do, what it costs, and the numbers behind it, each with the issue that set it. The live game has played by these rules (the new rules, #635, behind `FORGE_NEW_RULES`) since the reset of 14 November 2026 (#642). The sections further down explain how each rule is built; this one says what the rules are. When a rule or a number changes, change it here in the same pull request.
+
+<a name="Rules-in-eight-lines"></a>
+### In eight lines
+1. You write Lua code; your drones run it on their own in a shared, live world.
+2. Start a seedling for free: the bank lends it a drone and some cash. Run up to five; close one at any time and its debt is cancelled. Failing is free.
+3. A seedling trades only with the House (the game's own traders at each exchange), and you can change its code whenever you like.
+4. When it holds its debt and a little more, you may mature it: its code is locked for good, it can trade with everyone, and you get its 100 shares.
+5. Your account starts with 5,000 credits that can only buy shares. Each game day a matured company pays a quarter of its profit to its shareholders.
+6. Trade shares with players within a published range, or sell them to the bank for their cash-out value, paid 30 game days later at the lower of the two values.
+7. All code is public. A matured company can't change, but it can react to prices and orders, so read its code before you buy.
+8. You're ranked by your wealth, and each real month by its growth.
+
+<a name="Rules-accounts"></a>
+### Accounts
+- **An account** is a name (3 to 32 letters, digits, spaces, dots, dashes or underscores, public), a password (at least 8 characters) and an e-mail address (private, one account per address). One address may make 3 accounts an hour (#636).
+- **Verifying** the address (a link sent to it, good for 2 real days) brings the account its **5,000 starting credits**, which can only buy shares, and only at or below the bank's selling price (#636, #638). An account must be verified to mature a seedling.
+- **Class groups.** A verified teacher makes a group of up to 40 pupils' accounts, named after the group, with passwords shown once. Pupils have no e-mail address, get their starting credits at once, trade shares only with their own group, and have their own boards (#636, #640).
+- **Guests.** Anyone may start a seedling without an account (5 from one address in a real day); it comes with a claim code, shown once, that brings it into an account (#637).
+- **Credits.** An account's credits are what its shares earn it (dividends, sales to players and the bank). They buy shares at any price within the range.
+
+<a name="Rules-seedlings"></a>
+### Seedlings
+- **Every release is a seedling** (#637). The bank lends it its drone, valued at **1,000** (about what the House pays for a kit), its **3,000** starting credits and a **200** fee: it owes **4,200** (#658). Its drone starts at Earth with 100 fuel and no equipment; a kit costs 2,000.
+- **At most 5 seedlings** an account; a closed seedling's slot reopens **1 game day** after it closed.
+- **It trades only with the House** (and its own company's drones): any other trade fails with **-16**. It plunders nothing, and its wrecks can't be plundered.
+- **A daily cap on buying.** From the House at one exchange, a seedling buys at most **a tenth of what the House has on sale** there (its sell order's units above the stock it keeps) in a game day, counting what it has already bought there today; past that, **-17** (#651, #663). Selling to the House has no cap.
+- **A cap on credits.** A seedling holds at most **twice its debt** (8,400 for a fresh one). When a sale would take it over, the excess goes to the bank (#672), so there is no point delaying maturing.
+- **Reprogramming.** Its player pushes new code from their account or the API; its drones start over on it with fresh variables, keeping their holds and places. **The first push is free; each after it adds 100 to its debt** (#658). `POST /check` previews the fee.
+- **Closing.** Its player can close it at any time: its drones become wrecks with empty holds, nobody can plunder them, and its debt is cancelled.
+- **Starters as seedlings.** The Miner, Refiner and Maker starters work as seedlings: they sell straight to the House, post no standing orders, and launch no copies until matured. The Maker buys its metals wherever the House has most on sale (#671). The Trader needs other drones to trade with, so it isn't offered under the new rules.
+
+<a name="Rules-maturing"></a>
+### Maturing
+- **When.** Once a seedling's credits, less any processor tax it owes, cover its debt and **500 more** to work with, a verified player may mature it (#664). `can_mature` says so; it can turn false a moment later if the drone spends, so the player tries again.
+- **What happens.** It repays its debt; its code is **locked for good** (nobody can push to it, ever); it trades with everyone; and its player gets its **100 shares** (#667; 1,000 until then).
+- **After.** A matured company runs until it fails. Its starters launch copies once matured, which spends credits on hulls and kits and lowers its cash-out for a while. Two of one player's matured companies may trade with each other: their dealings are flagged.
+- **Time to mature** (round 68, 1,800×): an unchanged Miner 33 to 50 game days; a Refiner changed to mine wolfite about 37; a Maker that roams for metals about 66.
+
+<a name="Rules-shares"></a>
+### Shares, the bank and dividends
+- **100 shares** a matured company (#667). Companies never trade shares under the new rules: every share action by or for a seedling's or a player's company fails with **-18** (#638).
+- **Cash-out value**, a share: the company's credits, plus its goods and equipment at the House's listed bid for the game day where each drone is (#670), plus each working drone's hull (1,000, falling to 0 over 365 game days; nothing for a drone with no fuel that has bought none in 3 game days), less its debts, over 100.
+- **The bank buys** any player's shares at cash-out value. The shares go to it at once; it pays **30 game days** later, at the lower of the cash-out value then and on the day of the sale.
+- **The bank sells** the shares it holds at its **selling price**: cash-out value plus what a share was actually paid in dividends over the last 30 game days (#673). A company that has just matured sells at cash-out value.
+- **Players trade** with standing orders, in whole shares at whole credits, between **0.8 and 1.25 times** the bank's selling price (rounded). A new order trades at once against the best orders it meets, at their price; the rest stands. The book lists only orders within today's range. A buy order can't commit more than the account can pay; starting credits pay only at or below the bank's selling price (#665).
+- **Dividends.** Each game day a matured company pays **a quarter of its profit** (sales after tax less purchases, after making up earlier losses; never more than its credits) to its shareholders by their shares: players' accounts, and the bank for the shares it holds (#667; half until then). The day it matured isn't paid.
+- **The bank's companies.** At the reset the bank started three matured companies (Bank Miner, Bank Refiner, Bank Maker) running the starters, and holds their shares, so players had shares to buy on day one (#642).
+
+<a name="Rules-trading"></a>
+### Trading, orders and the House
+- **Trades.** A drone trades by pulling from another drone's sell order or pushing into its buy order, at the same place. The seller pays **5% sales tax** (`sales_tax_permille`, 50).
+- **The House** keeps a station drone at each exchange (Earth, the Moon, Mars) that buys at three quarters of a good's value and sells at half as much again, so players beat it both ways; its prices move by place and over time (booms, slumps, shortages and gluts), and it restocks during the day (#380, #630). It bids at most **80% of a kit's price** for the kit's parts at any exchange, so kits can't be flipped (#657). Kits cost 2,000.
+- **The minimum order life.** A drone of a seedling or a matured player's company can't withdraw, cut or worsen an **open** standing order for its first **12 game hours**: a buy order lower or wanting fewer, a sell order dearer or keeping more back, or either withdrawn, fails with **-19** (#639, #650, #662). The hours run from when the order took its present terms; posting the same order again doesn't restart them. So a distress bid can't lure rescuers and vanish.
+- **Messages are private.** A broadcast is read only by the sender's company's drones; to ask other companies for help, post a high buy order.
+
+<a name="Rules-costs"></a>
+### Running costs and failure
+- **Fuel.** Actions burn fuel; a drone that can't pay for an action's fuel runs dry and becomes a wreck. A failed transfer costs no fuel. `fuel_floor(n)` keeps a reserve.
+- **Processor tax.** A company pays **15 credits a million instructions** its drones run (#544), rising up to **10 times** while the game clock runs slowed, for companies that think the most (#620).
+- **Broke companies.** A company with no credits for **50 game days** in a row dissolves: its drones become wrecks, holds and all, for anyone to plunder (#547). The House never does.
+- **Crashes.** A drone whose `launched` crashes restarts from its code, waiting longer each time; **five crashes in a row** make it a wreck.
+- **Plunder.** A drone at a wreck plunders it once and takes **half** of each resource aboard (`plunder_share`, 50). Seedlings plunder nothing and their wrecks can't be plundered.
+- **The clock** runs at **1,800 times** real time (a game day every 48 real seconds), slowing as far as 60 times when the engines fall behind; at the floor the world is full and new seedlings are refused until there is room.
+
+<a name="Rules-boards"></a>
+### Boards, the digest and dealings
+- **Wealth**, a player's: credits and starting credits, plus shares at cash-out value. `/players` ranks players by wealth, and by this real month's growth over their wealth at its start (counted as at least 5,000) (#640).
+- **The digest.** On the account page (and `GET /account/digest`), what happened since the player last looked: each company's sales and purchases, what a seedling sent the bank over its cap, dividends, the bank's payments, same-owner dealings and the news (#640, #655, #672).
+- **Dealings.** A company's page lists the companies it has traded with or plundered, and flags those with the same player behind them (#639). The bank's own companies aren't flagged.
+- **The company boards** (net wealth: growth since the start, without hulls or debt) and the lineage map stay as they were.
+
+<a name="Rules-failure-codes"></a>
+### Failure codes
+What `perform` (and each action word) returns when an action fails. The full list is in the players' manual's table and in [the Lua reference](lua-functions.md).
+
+| Code | Meaning |
+|---|---|
+| -1 | the other drone isn't at the same place |
+| -2 | not enough of a resource aboard (or, for `go`, no Engine) |
+| -3 | no room in the hold |
+| -4 | not enough credits |
+| -5, -6 | the order doesn't allow selling or buying that many |
+| -7, -8 | wrong price |
+| -9 | the action was stopped |
+| -10 | no matching order |
+| -12 | refused when performed (from `buy_here`/`sell_here`: nobody here sells or buys it) |
+| -14 | no House station here trades that resource that way |
+| -15 | no such wreck here, or already plundered |
+| -16 | a seedling trades only with the House, and plunders nothing |
+| -17 | a seedling's daily buying cap at this exchange |
+| -18 | players, not companies, trade shares under the new rules |
+| -19 | an open order can't be withdrawn, cut or worsened in its first 12 game hours |
+| -30 | refused by the drone's fuel floor |
+
+<a name="Rules-numbers"></a>
+### Where each number is set
+`config/forge.php` reads each `FORGE_*` setting from the environment; `deploy/docker-compose.yml` gives the live server's defaults, which win over the config file's, so change both together (#661). `house_rules` is a one-row table the engines read.
+
+| Rule | Value | Set in |
+|---|---|---|
+| New rules on | on | `FORGE_NEW_RULES` |
+| Accounts verified at once (servers without mail) | off | `FORGE_TRIAL_AUTO_VERIFY` |
+| Starting credits for shares | 5,000 | `FORGE_PLAYER_SHARE_CREDITS` |
+| Accounts from one address an hour | 3 | `FORGE_PLAYER_SIGNUPS_PER_HOUR` |
+| Pupils in a class group | 40 | `FORGE_CLASS_GROUP_MAX` |
+| Seedlings an account | 5 | `FORGE_SEEDLING_MAX` |
+| Game days a closed seedling's slot stays taken | 1 | `forge.seedling_slot_days` |
+| Guest seedlings from one address a real day | 5 | `FORGE_SEEDLING_GUEST_PER_DAY` |
+| A seedling's hull, lent | 1,000 | `FORGE_SEEDLING_HULL_VALUE` |
+| A seedling's starting credits, lent | 3,000 | `forge.starting_credits` |
+| A seedling's fee | 200 | `FORGE_SEEDLING_FEE` |
+| A push after the first | +100 debt | `FORGE_SEEDLING_PUSH_FEE` |
+| Credits to mature, above the debt | 500 | `FORGE_SEEDLING_MATURE_MARGIN` |
+| A seedling's credit cap | 2× debt | `house_rules.seedling_credit_cap_permille` (2000) |
+| A seedling's daily buying cap | a tenth of what's on sale | `house_rules.seedling_buy_permille` (100) |
+| Minimum order life | 12 game hours | `house_rules.order_lock_hours` |
+| Shares a matured company | 100 | `PlayerShares::COUNT` |
+| Dividends | a quarter of daily profit | `FORGE_DIVIDEND_PERMILLE` (250) |
+| The bank pays after | 30 game days | `FORGE_BANK_PAY_DAYS` |
+| Players' trading range | 0.8 to 1.25 × the bank's price | `FORGE_SHARE_RANGE_LOW`, `FORGE_SHARE_RANGE_HIGH` |
+| A hull's life, in cash-out | 365 game days | `FORGE_HULL_LIFE_DAYS` |
+| A drone counts as stranded after | 3 game days | `forge.stranded_days` |
+| The season board's floor | 5,000 | `forge.season_floor` |
+| Sales tax | 5% | `house_rules.sales_tax_permille` (50) |
+| Processor tax | 15 a million instructions | `house_rules.compute_tax_per_million` |
+| Congestion: the most the processor tax rises | 10× | `house_rules.congestion_cap` |
+| Broke days before dissolving | 50 | `house_rules.dissolve_days` |
+| A plunderer's share | 50% | `house_rules.plunder_share` |
+| Starting fuel | 100 | `forge.starting_fuel` |
 
 [Return to the TOC](#Table-of-Contents)
 
@@ -653,7 +800,7 @@ The Users Table will hold information specific to each player account.
 * api_token [CHAR(64)] - The SHA-256 of the account's API token (#636). A new token replaces the old.
 * email_verified_at [TIMESTAMP] - When the account's e-mail address was verified (#636), or NULL.
 
-Player accounts (#636) are step 1 of the new rules (#635), and exist only while `FORGE_NEW_RULES` is on: until the reset (#642), the pages and API calls below answer 404, and the live game is unchanged. An account is a name, a password and an e-mail address, one account per address (kept in lower case, private to its account); one IP address may make `forge.player_signups_per_hour` (3) accounts an hour. A link sent to the address (signed, good for 2 real days, `/account/verify/{id}/{hash}`) verifies it, and the first time brings the account its `forge.player_share_credits`; it can be sent again 3 times an hour. Pupils' accounts in a class group have no address (`email` NULL), count as verified through their teacher's, and get their share credits when made; only a verified account can make a class group. The website has `/signup`, `/login`, `/logout` and `/account` (credits, credits for shares, the address and whether it is verified, a new API token); the API has `POST /api/v1/accounts` and `POST /api/v1/login` (each returns a token), `GET /api/v1/account` (with `Authorization: Bearer <token>`) and `POST /api/v1/account/verify`. `App\Services\Players` does the work; mail goes through the `MAIL_*` settings (hosting.md).
+Player accounts (#636) are step 1 of the new rules (#635), and exist only while `FORGE_NEW_RULES` is on (it is on live since the reset, #642; with it off, the pages and API calls below answer 404). The rules themselves are in [The Rules of Play](#The-Rules-of-Play). An account is a name, a password and an e-mail address, one account per address (kept in lower case, private to its account); one IP address may make `forge.player_signups_per_hour` (3) accounts an hour. A link sent to the address (signed, good for 2 real days, `/account/verify/{id}/{hash}`) verifies it, and the first time brings the account its `forge.player_share_credits`; it can be sent again 3 times an hour. Pupils' accounts in a class group have no address (`email` NULL), count as verified through their teacher's, and get their share credits when made; only a verified account can make a class group. The website has `/signup`, `/login`, `/logout` and `/account` (credits, credits for shares, the address and whether it is verified, a new API token); the API has `POST /api/v1/accounts` and `POST /api/v1/login` (each returns a token), `GET /api/v1/account` (with `Authorization: Bearer <token>`) and `POST /api/v1/account/verify`. `App\Services\Players` does the work; mail goes through the `MAIL_*` settings (hosting.md).
 
 #### Seedlings (#637)
 Step 2 of the new rules (#635), only while `FORGE_NEW_RULES` is on. Every release is a **seedling**: the logged-in player's, or a guest's (with a claim code shown once, which a player claims it into their account with, `guest_key` keeping its SHA-256). The bank lends it its hull (`forge.seedling_hull_value`, 1,000: about what the House pays for a kit) and its starting credits (`forge.starting_credits`, 3,000), plus a fee (`forge.seedling_fee`, 200), and it owes all three (`companies.debt`, 4,200). #658 cut it from 5,500, the hull's 2,000 and a fee of 500, after round 66's testers came nowhere near maturing: round 65's companies held 2,900 credits on average at 10 game days, 2 of 8 over 4,200, so a working seedling can mature in 10 to 20 game days. Its first push is free, each after it adds `forge.seedling_push_fee` (100) to its debt. The Miner, Refiner and Maker starters, as seedlings, post no standing orders (only the House trades with them: they sell straight into its bids) and launch no copies until they have matured (and do launch them once matured, which spends the company's credits on hulls and kits and lowers its cash-out for a while); as a seedling the Maker buys its metals where the House has most on sale, as the Moon's sold out to matured makers every day in round 68 (#671); the Trader, which needs other drones to trade with, says it has nothing to do and isn't offered on the Release page under the new rules. The House bids less for a kit's parts than 80% of the kit's price at every exchange (#657: they sold for 2,283 at the Moon, more than the 2,000 kit). A player has at most `forge.seedling_max` (5) seedlings; a closed one's slot stays taken for `forge.seedling_slot_days` (1) game day. A guest may start `forge.seedling_guest_per_day` (5) from one address in a real day. While the world is full, a new-rules release is refused rather than queued.

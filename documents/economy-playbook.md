@@ -71,6 +71,25 @@ The game data a world's owner can change (`game-engine/sql/game-data/build_game_
 
 Levers not yet tried: House prices for parts and systems (lesson 9), deposit refill per mineral, station budgets at Earth and the Moon, the tax rate and grace period.
 
+### The new rules' levers (rounds 66 to 68)
+
+Since the reset (#642) the live game plays by the new rules (#635): seedlings, maturing and players' shares. Every rule and number is in the design manual's [Rules of Play](design-manual.md#The-Rules-of-Play). The levers changed so far in playtests, and what each did:
+
+| Lever | Where | From | To | Effect |
+|---|---|---|---|---|
+| A seedling's debt | `FORGE_SEEDLING_HULL_VALUE`, `FORGE_SEEDLING_FEE` | 5,500 (hull 2,000, fee 500) | 4,200 (hull 1,000, fee 200) | Round 66: nobody matured in an hour. Round 67: nine seedlings matured in 15 to 26 game days (#658). |
+| A seedling's first push | `Seedlings::pushFee` | 100 on its debt | free, then 100 | Fixing a first draft costs nothing (#658). |
+| Maturing margin | `FORGE_SEEDLING_MATURE_MARGIN` | 0 | 500 | Round 67's companies matured with 32 to 207 credits; round 68's first tries all worked (#664). |
+| Shares a company | `PlayerShares::COUNT` | 1,000 | 100 | A share was worth 2 to 15 credits and prices moved in 15 to 25% steps; now tens to hundreds of credits (#667). |
+| Dividends | `FORGE_DIVIDEND_PERMILLE` | half of profit | a quarter | Round 67's founders were paid back so fast that maturing an unchanged starter was close to risk-free (#667). |
+| Cash-out goods | `PlayerShares::cashOut` | the House's live bid | its listed bid for the game day | Cash-out swung 15 to 30% within minutes; buying from the bank on a dip was a near-free gain (#670). |
+| The bank's premium | `PlayerShares::dividends30` | 30 days of profit, estimated | 30 days of dividends paid | A just-matured company sold at +31% on seedling profit (#673). |
+| A seedling's credit cap | `house_rules.seedling_credit_cap_permille` | none | twice its debt | Round 68's seedlings hoarded 12,000 to 48,000 credits and turned them into shares at maturing (#672). |
+| A kit's parts | `build_game_data.py` (`KIT_PARTS_SHARE`) | House bid up to 2,331 for a 2,000 kit's parts | at most 80% of the kit's price | Seedlings could flip kits for profit (#657). |
+| The Maker starter as a seedling | `examples/starters/maker.lua` | buys metals where it is | buys where the House has most on sale | The Moon's metals sold out to matured makers every day, so seedling makers starved (#671). |
+
+Open questions: the Maker earns far more than the Miner or Refiner; maturing an unchanged starter still adds 3,000 to 5,000 of wealth for nothing at stake; a matured Miner or Refiner starter spends its credits on copies at once, lowering its cash-out.
+
 ## Lessons learned
 
 1. **Tax gains, not holdings.** Taxing a company's whole assessed wealth charged a new company for the starter kit's equipment (about 3,000 credits at House prices): about 20 credits a game day, more than most earned. Tax what it made beyond its starter package.

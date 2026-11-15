@@ -41,5 +41,11 @@ class GettingStartedTest extends TestCase
         $this->assertStringContainsString('<table>', $html);
         $this->assertStringNotContainsString('For maintainers', $html);
         $this->assertStringNotContainsString('<script>', $html);
+
+        // The manual's anchors become anchors; any other HTML stays escaped (#678)
+        $html = HomeController::renderPlayersManual("<a name=\"running-low\"></a>**Fuel.**\n\n<a name=\"x\" onclick=\"y\"></a>\n");
+        $this->assertStringContainsString('<a id="running-low"></a>', $html);
+        $this->assertStringContainsString('&lt;a name="x" onclick="y"&gt;', $html, 'escaped, not an element');
+        $this->assertStringNotContainsString('<a name="x"', $html);
     }
 }
