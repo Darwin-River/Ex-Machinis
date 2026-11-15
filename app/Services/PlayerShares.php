@@ -57,14 +57,18 @@ class PlayerShares
         if (!$c || $c->eliminated_at !== null) {
             return ['total' => 0, 'per_share' => 0, 'credits' => 0, 'goods' => 0, 'hulls' => 0, 'debts' => 0];
         }
-        // Goods and equipment at the House's bid where each drone is
+        // Goods and equipment at the House's bid for the game day where each
+        // drone is: the price the exchange lists that day (house_market), not
+        // its live bid, which falls as it buys and recovers as it restocks.
+        // Valued live, cash-out swung 15 to 30% within minutes with no trade
+        // behind it, and the bank's prices with it (#670)
         $goods = (int) DB::table('holdings as h')
             ->join('agents as a', 'a.agent_id', '=', 'h.drone')
-            ->join('agents as s', fn ($j) => $j->on('s.object_id', '=', 'a.object_id')->whereNotNull('s.station_id')->whereNull('s.wrecked_at'))
-            ->join('latest_orders as o', fn ($j) => $j->on('o.drone', '=', 's.agent_id')->on('o.resource', '=', 'h.resource'))
+            ->join('stations as st', 'st.object_id', '=', 'a.object_id')
+            ->join('house_market as m', fn ($j) => $j->on('m.station_id', '=', 'st.id')->on('m.resource', '=', 'h.resource'))
             ->where('a.company_id', $company)->whereNull('a.wrecked_at')->where('h.units', '>', 0)
-            ->where('o.event_type', 5)->where('o.price', '>', 0)->where('o.is_open', 1)
-            ->sum(DB::raw('h.units * o.price'));
+            ->where('m.side', 1)->where('m.price', '>', 0)->where('m.from_day', '<=', HouseMarket::today(DB::connection()))
+            ->sum(DB::raw('h.units * m.price'));
 
         // Hulls: a fixed value falling with age, nothing for a stranded drone
         $now = World::gameNow();
@@ -90,14 +94,19 @@ class PlayerShares
             'credits' => $credits, 'goods' => $goods, 'hulls' => $hulls, 'debts' => $debts];
     }
 
-    /** A share's dividends over the last 30 game days, estimated from the company's profit */
+    /**
+     * A share's dividends over the last 30 game days: what the company
+     * actually paid its holders since it matured (#673). It was estimated
+     * from profit, so a company just matured sold at a premium earned while
+     * it was a seedling, before it had paid anything (round 68: +31%)
+     */
     public static function dividends30(int $company): int
     {
         $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
         $today = intdiv(World::gameNow() - $epoch, 86400);
-        $profit = (int) DB::table('company_profits')->where('company', $company)
-            ->where('day', '>=', $today - 30)->where('day', '<', $today)->where('profit', '>', 0)->sum('profit');
-        return intdiv($profit * (int) config('forge.dividend_permille'), 1000 * self::COUNT);
+        $paid = (int) DB::table('player_dividends')->where('company_id', $company)
+            ->where('day', '>=', $today - 30)->where('day', '<', $today)->sum('amount');
+        return intdiv($paid, self::COUNT);
     }
 
     /**
