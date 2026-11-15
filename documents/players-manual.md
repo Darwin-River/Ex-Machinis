@@ -1337,7 +1337,7 @@ Players trade shares with **standing orders**, like goods: an order to buy or se
 - **You must be able to pay.** A buy order can't commit more than your account can pay, counting your other buy orders. Your **starting credits** pay only at or below the bank's selling price; above it, only your own credits do.
 - **You must hold what you sell.**
 
-On a matured company's page (logged in), **Post the order** with buy or sell, shares and price; your account page lists your standing orders, each with a **Cancel** button. Through the API: `GET /api/v1/player-shares/{id}` shows the range and the book, `POST /api/v1/player-shares/{id}/orders` posts an order (`side`, `units`, `price`), and `GET /api/v1/account/shares` lists your holdings, orders and the bank's payments due.
+On a matured company's page (logged in), **Post the order** with buy or sell, shares and price; your account page lists your standing orders, each with a **Cancel** button. Through the API: `GET /api/v1/player-shares/{id}` shows the range, the book and the latest trades, `POST /api/v1/player-shares/{id}/orders` posts an order (`side`, `units`, `price`), and `GET /api/v1/account/shares` lists your holdings, orders and the bank's payments due.
 
 **Which to use?** Selling to a player can pay more than the bank, and pays at once. Selling to the bank always works, but pays in 30 game days at what the company is worth then. Buying from the bank costs its selling price; a player may sell for less.
 

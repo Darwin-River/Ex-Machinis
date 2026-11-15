@@ -92,7 +92,8 @@ class PlayerShareController extends Controller
         if (!PlayerShares::tradable($id)) {
             return response()->json(['error' => 'There is no such matured company.'], 404);
         }
-        return response()->json(['company' => $id] + PlayerShares::prices($id) + ['book' => PlayerShares::book($id)]);
+        return response()->json(['company' => $id] + PlayerShares::prices($id) + ['book' => PlayerShares::book($id),
+            'trades' => PlayerShares::trades($id, 20)]);
     }
 
     /** GET /api/v1/account/shares */
