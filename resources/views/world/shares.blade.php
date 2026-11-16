@@ -11,7 +11,10 @@
                 <div style="white-space: normal; margin-bottom: 1em">Each matured company has {{ \App\Services\PlayerShares::COUNT }}
                     shares. The bank buys them at their cash-out value (paid {{ config('forge.bank_pay_days') }} game days later at the
                     lower of that value and the value then) and sells the ones it holds at its selling price; players trade between
-                    the range's prices. Trade on a company's page, or through the API.</div>
+                    the range's prices. Trade on a company's page, or through the API.
+                    <span class="text-muted">As of {{ \App\Services\DronePage::when($asOf ?? \App\Services\World::gameNow()) }}; worked out again each minute.</span></div>
+                @php($stale = \App\Services\Dashboard::staleNote($asOf ?? null))
+                @if($stale)<div class="econ-banner econ-warn" id="shares-stale" role="status">{{ $stale }}</div>@endif
                 {{-- One row a company (#699): what a share is worth, what it pays, what players paid, and its health --}}
                 @include('partials.ex-charts')
                 {{-- What Health means, here by the table it describes (#717: it was only in the old rules' section) --}}
@@ -52,7 +55,7 @@
                     Players trade between {{ (int) round(config('forge.share_range_low') * 100) }}% and {{ (int) round(config('forge.share_range_high') * 100) }}% of the selling price.
                     The 30-day lines share one scale (<span id="share-spark-scale">a percent scale</span>): each is the change in cash-out from
                     its first day, in percent, with that day's level dashed, so a steady share is a flat line whatever its price. Hover a line for the credits.
-                    Data: <code>GET /api/v1/shares</code> and <code>GET /api/v1/companies/{id}/history</code> (cash_out_share).</p>
+                    Data: <code>GET /api/v1/player-shares/{id}</code> and <code>GET /api/v1/companies/{id}/history</code> (cash_out_share).</p>
                 <script>
                 document.addEventListener('DOMContentLoaded', function () {
                     const X = window.ExCharts, M = @json($playerMarket);
@@ -80,7 +83,7 @@
                 });
                 </script>
                 {{-- The latest trades between players (#676) --}}
-                <h3 class="mt-4">Latest trades</h3>
+                <h3 class="mt-4">Latest trades between players</h3>
                 <div class="table-custom-responsive">
                     <table class="table-ticket" id="player-share-trades">
                         <tr><th>When</th><th>Company</th><th>Shares</th><th>Price</th><th>Seller</th><th>Buyer</th></tr>

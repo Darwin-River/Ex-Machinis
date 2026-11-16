@@ -12,14 +12,17 @@ use Illuminate\Support\Facades\DB;
  *
  * Every figure is worked out here, on the server. A page view never waits
  * for it (#723): it gets the last one worked out, and if that is older than
- * TTL real seconds, one rebuild starts after the response has gone, never
- * two at once (a lock). On the live database a rebuild took about 90 real
+ * TTL real seconds, the scheduler rebuilds it (Kept::keepAll, #738),
+ * never two at once (a lock). On the live database a rebuild took about 90 real
  * seconds; with a 60-second cache, each view after it ran out started one
  * of its own, which kept MySQL busy and slowed the game from round 70.
  * Game days count from the world's first (game_clock.epoch).
  */
 class Dashboard
 {
+    /** Real seconds behind the clock after which a kept page says it is old (#738) */
+    public const STALE_REAL_SECONDS = 600;
+
     /** Real seconds after which a view starts a rebuild of the dashboard */
     public const TTL = 120;
 
@@ -48,36 +51,44 @@ class Dashboard
     }
 
     /**
-     * The last $key worked out, starting a rebuild after the response when
-     * it is older than TTL. Only the very first view, with nothing kept yet,
-     * waits for one.
+     * How far behind the world's clock figures worked out at game time $at
+     * are, as a note for the page, or null when they are under
+     * STALE_REAL_SECONDS of real time (or a game day) old (#738)
      */
-    private static function kept(string $key, callable $work): array
+    public static function staleNote(?int $at): ?string
     {
-        $kept = Cache::get($key);
-        if (is_array($kept) && isset($kept['data'], $kept['at'])) {
-            if (time() - (int) $kept['at'] >= self::TTL) {
-                defer(fn () => self::rebuild($key, $work));
-            }
-            return $kept['data'];
-        }
-        return self::rebuild($key, $work) ?? $work();
-    }
-
-    /** Works $key out again under a lock; null when another rebuild holds it */
-    public static function rebuild(string $key, callable $work): ?array
-    {
-        $lock = Cache::lock("$key:building", 600);
-        if (!$lock->get()) {
+        if ($at === null) {
             return null;
         }
-        try {
-            $data = $work();
-            Cache::forever($key, ['data' => $data, 'at' => time()]);
-            return $data;
-        } finally {
-            $lock->release();
+        // Old: more than STALE_REAL_SECONDS of real time behind, or a game
+        // day when the clock runs slow (#738: at 1,800x a rebuild every two
+        // real minutes is 2.5 game days, and a game day's threshold always warned)
+        $scale = (float) (DB::table('game_clock')->where('id', 1)->value('scale') ?? 1);
+        $behind = World::gameNow() - $at;
+        if ($behind < max(86400, self::STALE_REAL_SECONDS * $scale)) {
+            return null;
         }
+        $days = (int) floor($behind / 86400);
+        return 'These figures are ' . $days . ' game day' . ($days === 1 ? '' : 's')
+            . ' old: they are worked out again each minute, and this copy has not been yet.';
+    }
+
+    /** The banner and tiles worked out now (the scheduler's rebuild, Kept::keepAll) */
+    public static function summaryNow(): array
+    {
+        return self::summary();
+    }
+
+    /** Everything worked out now (the scheduler's rebuild, Kept::keepAll) */
+    public static function buildNow(): array
+    {
+        return self::build();
+    }
+
+    /** The last $key worked out (Kept), rebuilt by the scheduler once TTL old */
+    private static function kept(string $key, callable $work): array
+    {
+        return Kept::get($key, self::TTL, $work);
     }
 
     /** Today's game day, and the game time it started at */
@@ -123,6 +134,7 @@ class Dashboard
         $slowed = (bool) $clock['slowed'];
         return [
             'as_of' => DronePage::when(World::gameNow()),
+            'as_of_t' => World::gameNow(),
             'today' => $today,
             'banner' => [
                 'day' => $full,
@@ -258,11 +270,12 @@ class Dashboard
     private static function matured(): array
     {
         [$epoch] = self::today();
-        return DB::table('companies AS c')->leftJoin('users AS u', 'u.user_id', '=', 'c.owner_id')
+        $rows = DB::table('companies AS c')->leftJoin('users AS u', 'u.user_id', '=', 'c.owner_id')
             ->where('c.seedling', 0)->whereNotNull('c.owner_id')->whereNotNull('c.matured_t')->whereNull('c.eliminated_at')
-            ->orderBy('c.company_id')->get(['c.company_id', 'c.name', 'c.matured_t', 'u.login'])
-            ->map(function ($c) use ($epoch) {
-                $cash = PlayerShares::cashOut((int) $c->company_id);
+            ->orderBy('c.company_id')->get(['c.company_id', 'c.name', 'c.matured_t', 'u.login']);
+        $cashOuts = PlayerShares::cashOuts($rows->pluck('company_id')->all());
+        return $rows->map(function ($c) use ($epoch, $cashOuts) {
+                $cash = $cashOuts[(int) $c->company_id];
                 return ['company' => (int) $c->company_id, 'name' => $c->name, 'owner' => $c->login,
                     'matured_day' => intdiv(max(0, (int) $c->matured_t - $epoch), 86400),
                     'cash_out_total' => (int) $cash['total'], 'cash_out' => (int) $cash['per_share']];
@@ -382,9 +395,10 @@ class Dashboard
     {
         [, $today] = self::today();
         $out = [];
+        $dividends = PlayerShares::dividends30Many(array_column($matured, 'company'));
         foreach ($matured as $c) {
             $days = array_values(array_filter($daily[$c['company']] ?? [], fn ($r) => $r['day'] > $today - 30));
-            $div = PlayerShares::dividends30($c['company']);
+            $div = $dividends[$c['company']];
             $out[] = [
                 'company' => $c['company'], 'name' => $c['name'], 'owner' => $c['owner'],
                 'cash_out' => $c['cash_out'],

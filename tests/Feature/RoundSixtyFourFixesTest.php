@@ -106,7 +106,7 @@ class RoundSixtyFourFixesTest extends TestCase
         $id = DB::table('events')->insertGetId(['event_type' => 2, 'action' => 0, 'logged' => 1, 'outcome' => 1, 'drone' => $drone->agent_id,
             'resource' => 2011, 'installed' => 0, 'locked' => 0, 'new_quantity' => 0, 'new_cargo' => 0, 'game_t' => $now - 60,
             'timestamp' => now()->subMinute()]);
-        DB::table('observations')->insert(['event' => $id, 'drone' => 0, 'time' => now()->subMinute()]);
+        DB::table('observations')->insert(['event' => $id, 'drone' => 0, 'time' => now()->subMinute(), 'game_t' => $now - 60]);
         $row = collect($this->getJson('/events/search')->assertOk()->json('data'))->firstWhere('affected_agent_id', $drone->agent_id);
         $this->assertNotNull($row);
         $this->assertSame(DronePage::when($now - 60), $row['when']);

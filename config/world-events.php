@@ -53,4 +53,9 @@ return [
         'label' => 'Steady cash-out',
         'text' => 'Cash-out counts goods at a 7-day average of the House\'s best bid anywhere, not the bid where each drone happens to be, so it no longer swings 20 to 30% a game day.',
     ],
+    [
+        'key' => 'outage-overload', 'kind' => 'outage', 'day' => 3074, 'to_day' => 3249, 'issue' => 742,
+        'label' => 'Outage',
+        'text' => 'The world stopped while the database was overloaded and then repaired (#731, #736): no trades and no daily figures from game day 3074 to 3249, so the charts are empty there.',
+    ],
 ];

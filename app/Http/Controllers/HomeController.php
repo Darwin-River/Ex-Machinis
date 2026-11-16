@@ -23,6 +23,9 @@ use League\CommonMark\MarkdownConverter;
 
 class HomeController extends Controller
 {
+    /** The latest events the events page searches and lists (#726) */
+    public const EVENTS_WINDOW = 500;
+
     /**
      * Create a new controller instance.
      *
@@ -80,8 +83,22 @@ class HomeController extends Controller
             \App\Services\PlayerShares::settleBankPayments();
             \App\Services\PlayerShares::payDividends();
             \App\Services\PlayerBoards::startMonth();
+            \App\Services\PlayerShares::dropEndedOrders();
         }
         return response('ok');
+    }
+
+    /**
+     * The scheduler's keeper (#738): rebuilds each kept figure (the
+     * dashboard, the stock exchange) once it is its TTL old, so a page view
+     * never waits for one. Called once a real minute, apart from the tick,
+     * since a rebuild can take a minute or more on the live database
+     */
+    public function keep($key)
+    {
+        $this->requireCronKey($key);
+        @set_time_limit(600);
+        return response()->json(\App\Services\Kept::keepAll());
     }
 
     /** Where the players' manual and its images live */
@@ -218,28 +235,33 @@ class HomeController extends Controller
     public function InGameEventsSearch(Request $request)
     {
         $resultsPerPage = Config::get('constants.options.results_per_page');
+        $now = \App\Services\World::gameNow();
 
         // What the drone has seen (the Central Database, drone 0, by default):
-        // its observation rows (acting or affected, or once the light got
-        // there) and, worked out here, the events where it is since it
-        // arrived (#324 step 20: no longer a row per drone)
+        // its observation rows once the light got there and, worked out here,
+        // the events where it is since it arrived (#324 step 20: no longer a
+        // row per drone). Only the latest EVENTS_WINDOW of each, by index
+        // (#726: with 19 million events the search counted and sorted every
+        // row it could see, and never answered)
         $observer = (int) ($request->get('observing_agent') ?? 0);
-        $seen = DB::table('observations')->select('event', 'time', 'drone')->where('drone', $observer);
-        if ($observer > 0 && Schema::hasColumn('events', 'place')) {
-            $seen->union(DB::table('events as le')
-                ->join('agents as me', function ($join) use ($observer) {
-                    $join->on('le.place', '=', 'me.object_id')->where('me.agent_id', '=', $observer);
-                })
-                ->whereColumn('le.game_t', '>=', 'me.arrived_t')
-                ->where('le.game_t', '<=', \App\Services\World::gameNow())
-                ->select('le.id as event', 'le.timestamp as time', DB::raw($observer . ' as drone')));
+        $seen = DB::table('observations')->where('drone', $observer)->where('game_t', '<=', $now)
+            ->orderByDesc('game_t')->limit(self::EVENTS_WINDOW)->pluck('game_t', 'event')->all();
+        $me = $observer > 0 ? DB::table('agents')->where('agent_id', $observer)->first(['object_id', 'arrived_t']) : null;
+        if ($me && $me->object_id !== null && Schema::hasColumn('events', 'place')) {
+            $seen += DB::table('events')->where('place', $me->object_id)->where('game_t', '>=', (int) $me->arrived_t)
+                ->where('game_t', '<=', $now)->orderByDesc('game_t')->limit(self::EVENTS_WINDOW)->pluck('game_t', 'id')->all();
         }
+        arsort($seen);
+        $seen = array_slice($seen, 0, self::EVENTS_WINDOW, true);
 
-        $query = DB::table('events')->select('events.timestamp', 'events.game_t', 'events.event_type', 'acting_agents.name as acting_agent_name', 'acting_agents.company_id as acting_company_id', 'acting_companies.name as acting_company_name',
-            'acting_agents.agent_id as acting_agent_id', 'acting_agents.name as acting_agent_name', 'protocols.name as protocol_name', 'affected_companies.name as affected_company_name', 'affected_companies.company_id as affected_company_id',
+        // The details, from events or, once a month old, events_archive (#694)
+        $keyword = $request->get('keyword');
+        $details = function (string $table) use ($seen, $keyword) {
+        $query = DB::table($table . ' as events')->select('events.id', 'events.timestamp', 'events.game_t', 'events.event_type', 'acting_agents.name as acting_agent_name', 'acting_agents.company_id as acting_company_id', 'acting_companies.name as acting_company_name',
+            'acting_agents.agent_id as acting_agent_id', 'protocols.name as protocol_name', 'affected_companies.name as affected_company_name', 'affected_companies.company_id as affected_company_id',
             'event_types.name as event_type_name', 'affected_agents.agent_id as affected_agent_id', 'affected_agents.name as affected_agent_name', 'resources.id as resource_id',
-            'resources.name as resource_name', 'events.locked', 'events.new_quantity', 'events.new_credits', 'events.new_location', 'objects.object_id', 'objects.object_name', 'observations.drone as observing_drone')
-            ->joinSub($seen, 'observations', 'events.id', '=', 'observations.event') //obligatory to be observed
+            'resources.name as resource_name', 'events.locked', 'events.new_quantity', 'events.new_credits', 'events.new_location', 'objects.object_id', 'objects.object_name')
+            ->whereIn('events.id', array_keys($seen) ?: [0])
             ->leftJoin('actions', 'events.action', '=', 'actions.id')
             ->leftJoin('agents as acting_agents', 'actions.drone', '=', 'acting_agents.agent_id')
             ->leftJoin('companies as acting_companies', 'acting_agents.company_id', '=', 'acting_companies.company_id')
@@ -249,44 +271,45 @@ class HomeController extends Controller
             ->leftJoin('companies as affected_companies', 'affected_agents.company_id', '=', 'affected_companies.company_id')
             ->leftJoin('resources', 'events.resource', '=', 'resources.id')
             ->leftJoin('objects', 'events.new_location', '=', 'objects.object_id');
-        //basic restrictions
-        $query->where([/*['observations.drone', '=', 0],*/ ['observations.time', '<=', Carbon::now()->toDateTimeString()]]);
-        if ($request->get('keyword') !== null)
-            $query->where(function ($query) use ($request) {
-                $query->where('affected_agents.name', 'LIKE', "%" . $request->get('keyword') . "%")
-                    ->orWhere('acting_agents.name', 'LIKE', "%" . $request->get('keyword') . "%")
-                    ->orWhere('protocols.name', 'LIKE', "%" . $request->get('keyword') . "%")
-                    ->orWhere('affected_companies.name', 'LIKE', "%" . $request->get('keyword') . "%")
-                    ->orWhere('resources.name', 'LIKE', "%" . $request->get('keyword') . "%")
-                    ->orWhere('event_types.name', 'LIKE', "%" . $request->get('keyword') . "%")
-                    ->orWhere('object_name', 'LIKE', "%" . $request->get('keyword') . "%");
+        if ($keyword !== null && $keyword !== '') {
+            $like = '%' . addcslashes($keyword, '%_\\') . '%';
+            $query->where(function ($query) use ($like) {
+                foreach (['affected_agents.name', 'acting_agents.name', 'protocols.name', 'affected_companies.name',
+                             'resources.name', 'event_types.name', 'objects.object_name'] as $column) {
+                    $query->orWhere($column, 'LIKE', $like);
+                }
             });
+        }
+        return $query->get();
+        };
+        $found = $details('events');
+        if (count($found) < count($seen) && Schema::hasTable('events_archive')) {
+            $found = $found->concat($details('events_archive'));
+        }
+        // Newest first by when it happened, the time each row shows (#743:
+        // sorted by when it was seen, a 19:54 row sat among 20:24 ones);
+        // ?sort=timestamp|asc for oldest first
+        $rows = $found->each(fn ($e) => $e->observed_t = $seen[$e->id] ?? null);
+        $sort = explode('|', (string) $request->get('sort'));
+        $dir = $sort[0] === 'timestamp' && ($sort[1] ?? '') === 'asc' ? 'asc' : 'desc';
+        $rows = $rows->sortBy([['game_t', $dir], ['id', $dir]]);
+        $rows = $rows->values();
 
-        if ($request->get('sort')) {
-            $sortParts = explode('|', $request->get('sort'));
-            $query->orderBy($sortParts[0], $sortParts[1]);
-        } else
-            $query->orderBy('time', 'desc');
-        if ($request->get('limit')) {
-            // $query->take($request->get('limit'));
-            $inGameEvents = $query->take(10)->get();
-            $inGameEvents = ['current_page' => 1, 'data' => $inGameEvents, 'per_page' => 10, 'total' => sizeof($inGameEvents), 'to' => sizeof($inGameEvents), 'preve_page_url' => null, 'from' => 1];
-        } else
-            $inGameEvents = $query->paginate($resultsPerPage);
         // Game time, as the rest of the site writes it (#380 round 64: real US time stood out)
         $when = function ($e) {
             $e->when = $e->game_t !== null ? \App\Services\DronePage::when((int) $e->game_t) : null;
             return $e;
         };
-        if (is_array($inGameEvents)) {
-            $inGameEvents['data'] = $inGameEvents['data']->map($when);
-        } else {
-            $inGameEvents->getCollection()->transform($when);
+        if ($request->get('limit')) {
+            $page = $rows->take(10)->map($when)->values();
+            return response()->json(['current_page' => 1, 'data' => $page, 'per_page' => 10, 'total' => $page->count(),
+                'to' => $page->count(), 'prev_page_url' => null, 'from' => 1, 'window' => self::EVENTS_WINDOW], 200);
         }
-
-        return response()->json($inGameEvents, 200);
+        $current = max(1, (int) $request->get('page', 1));
+        $page = new \Illuminate\Pagination\LengthAwarePaginator($rows->forPage($current, $resultsPerPage)->map($when)->values(),
+            $rows->count(), $resultsPerPage, $current, ['path' => $request->url(), 'query' => $request->query()]);
+        return response()->json($page->toArray() + ['window' => self::EVENTS_WINDOW], 200);
     }
-
     /**
      * Displays the About Us information page
      * @return View

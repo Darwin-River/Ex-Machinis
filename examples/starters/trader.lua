@@ -1,4 +1,4 @@
--- Trader: a starter script for Public Forge, in Lua (#380). It buys an
+-- Trader: a starter script for Ex Machinis, in Lua. It buys an
 -- Engine at Earth, all it needs, and trades with the rest of its credits.
 -- It works the Moon, where the miners offer their metals to other drones.
 -- The House's prices move (each exchange its own way: booms, slumps,

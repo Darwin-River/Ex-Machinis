@@ -48,7 +48,16 @@ class PlayerShares
     private static function company(int $company): ?object
     {
         $c = DB::table('companies')->where('company_id', $company)->first();
-        return $c && (int) $c->seedling === 0 && $c->owner_id !== null && $c->matured_t !== null ? $c : null;
+        // An ended company's shares are worth nothing and don't trade (#743:
+        // the bank took them at 0, and orders on them stayed listed)
+        return $c && (int) $c->seedling === 0 && $c->owner_id !== null && $c->matured_t !== null && $c->eliminated_at === null ? $c : null;
+    }
+
+    /** Takes down the share orders of companies that have ended (#743), on the tick; how many went */
+    public static function dropEndedOrders(): int
+    {
+        return DB::table('player_share_orders')->whereIn('company_id',
+            DB::table('companies')->whereNotNull('eliminated_at')->select('company_id'))->delete();
     }
 
     /**
@@ -57,9 +66,27 @@ class PlayerShares
      */
     public static function cashOut(int $company): array
     {
-        $c = DB::table('companies')->where('company_id', $company)->first();
-        if (!$c || $c->eliminated_at !== null) {
-            return ['total' => 0, 'per_share' => 0, 'credits' => 0, 'goods' => 0, 'hulls' => 0, 'debts' => 0];
+        return self::cashOuts([$company])[$company];
+    }
+
+    /**
+     * cashOut() for several companies at once (#726: the stock exchange
+     * page worked each out on its own, two or three queries a drone, and
+     * took 4.5 to 7 real seconds on the live database): [company => cash-out]
+     */
+    public static function cashOuts(array $companies): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $companies)));
+        $zero = ['total' => 0, 'per_share' => 0, 'credits' => 0, 'goods' => 0, 'hulls' => 0, 'debts' => 0];
+        $out = array_fill_keys($ids, $zero);
+        if (!$ids) {
+            return $out;
+        }
+        $rows = DB::table('companies')->whereIn('company_id', $ids)->whereNull('eliminated_at')
+            ->get(['company_id', 'credits', 'compute_debt', 'debt'])->keyBy('company_id');
+        $live = $rows->keys()->map(fn ($id) => (int) $id)->all();
+        if (!$live) {
+            return $out;
         }
         // Goods and equipment at a steady price, wherever they are (#685):
         // each good's best listed House bid anywhere, averaged over the last
@@ -69,11 +96,11 @@ class PlayerShares
         // goods counted 0), and buying from the bank on a low and selling
         // back on a high paid 28% in a game day (round 70)
         $bids = self::bestBids();
-        $goods = 0;
+        $goods = array_fill_keys($live, 0);
         foreach (DB::table('holdings as h')->join('agents as a', 'a.agent_id', '=', 'h.drone')
-                     ->where('a.company_id', $company)->whereNull('a.wrecked_at')->where('h.units', '>', 0)
-                     ->groupBy('h.resource')->selectRaw('h.resource, SUM(h.units) AS units')->get() as $h) {
-            $goods += (int) $h->units * ($bids[(int) $h->resource] ?? 0);
+                     ->whereIn('a.company_id', $live)->whereNull('a.wrecked_at')->where('h.units', '>', 0)
+                     ->groupBy('a.company_id', 'h.resource')->selectRaw('a.company_id, h.resource, SUM(h.units) AS units')->get() as $h) {
+            $goods[(int) $h->company_id] += (int) $h->units * ($bids[(int) $h->resource] ?? 0);
         }
 
         // Hulls: a fixed value falling with age, nothing for a stranded drone
@@ -81,32 +108,58 @@ class PlayerShares
         $hullValue = (int) config('forge.seedling_hull_value');
         $life = max(1, (int) config('forge.hull_life_days')) * 86400;
         $strandedSince = $now - (int) config('forge.stranded_days') * 86400;
-        $hulls = 0;
-        foreach (DB::table('agents')->where('company_id', $company)->whereNull('wrecked_at')->get(['agent_id']) as $a) {
-            $fuel = (int) DB::table('holdings')->where('drone', $a->agent_id)->where('resource', Release::FUEL)
-                ->where('installed', 0)->where('locked', 0)->sum('units');
-            if ($fuel <= 0 && !DB::table('events')->where('drone', $a->agent_id)->where('resource', Release::FUEL)
-                    ->where('event_type', 1)->where('outcome', 1)->where('game_t', '>', $strandedSince)->exists()) {
-                continue;
+        $drones = DB::table('agents')->whereIn('company_id', $live)->whereNull('wrecked_at')
+            ->pluck('company_id', 'agent_id')->map(fn ($c) => (int) $c)->all();
+        $hulls = array_fill_keys($live, 0);
+        if ($drones) {
+            $fuel = DB::table('holdings')->whereIn('drone', array_keys($drones))->where('resource', Release::FUEL)
+                ->where('installed', 0)->where('locked', 0)->where('units', '>', 0)
+                ->pluck('drone')->map(fn ($d) => (int) $d)->flip()->all();
+            // A drone with no fuel aboard still counts if it bought some lately
+            $empty = array_values(array_diff(array_keys($drones), array_keys($fuel)));
+            $bought = $empty ? DB::table('events')->whereIn('drone', $empty)->where('resource', Release::FUEL)
+                ->where('event_type', 1)->where('outcome', 1)->where('game_t', '>', $strandedSince)
+                ->distinct()->pluck('drone')->map(fn ($d) => (int) $d)->flip()->all() : [];
+            $flying = array_values(array_filter(array_keys($drones), fn ($d) => isset($fuel[$d]) || isset($bought[$d])));
+            foreach (self::born($flying, $now) as $drone => $born) {
+                $hulls[$drones[$drone]] += (int) floor($hullValue * max(0, 1 - ($now - $born) / $life));
             }
-            // When the drone was made never changes: kept, as the lookup walks
-            // every one of its events (#723: a dashboard rebuild took 90 s)
-            $born = Cache::get("drone_born:{$a->agent_id}");
-            if ($born === null) {
-                $born = DB::table('events')->where('drone', $a->agent_id)->min('game_t');
-                if ($born !== null) {
-                    Cache::forever("drone_born:{$a->agent_id}", (int) $born);
-                }
-            }
-            $born = (int) ($born ?? $now);
-            $hulls += (int) floor($hullValue * max(0, 1 - ($now - $born) / $life));
         }
 
-        $credits = (int) $c->credits;
-        $debts = (int) $c->compute_debt + (int) $c->debt;
-        $total = $credits + $goods + $hulls - $debts;
-        return ['total' => $total, 'per_share' => max(0, intdiv(max(0, $total), self::COUNT)),
-            'credits' => $credits, 'goods' => $goods, 'hulls' => $hulls, 'debts' => $debts];
+        foreach ($rows as $id => $c) {
+            $id = (int) $id;
+            $credits = (int) $c->credits;
+            $debts = (int) $c->compute_debt + (int) $c->debt;
+            $total = $credits + $goods[$id] + $hulls[$id] - $debts;
+            $out[$id] = ['total' => $total, 'per_share' => max(0, intdiv(max(0, $total), self::COUNT)),
+                'credits' => $credits, 'goods' => $goods[$id], 'hulls' => $hulls[$id], 'debts' => $debts];
+        }
+        return $out;
+    }
+
+    /**
+     * When each drone was made: its first event's game time, or $now for
+     * one with none. It never changes, so it is kept: the lookup walks every
+     * one of a drone's events (#723: a dashboard rebuild took 90 s)
+     */
+    private static function born(array $drones, int $now): array
+    {
+        if (!$drones) {
+            return [];
+        }
+        $kept = Cache::many(array_map(fn ($d) => "drone_born:$d", $drones));
+        $born = [];
+        foreach ($drones as $d) {
+            $t = $kept["drone_born:$d"] ?? null;
+            if ($t === null) {
+                $t = EventHistory::firstGameT((int) $d);   // archived or not (#694)
+                if ($t !== null) {
+                    Cache::forever("drone_born:$d", (int) $t);
+                }
+            }
+            $born[$d] = $t !== null ? (int) $t : $now;
+        }
+        return $born;
     }
 
     /** Game days over which cash-out averages each good's best House bid (#685) */
@@ -165,11 +218,25 @@ class PlayerShares
      */
     public static function dividends30(int $company): int
     {
+        return self::dividends30Many([$company])[$company];
+    }
+
+    /** dividends30() for several companies at once: [company => credits a share] */
+    public static function dividends30Many(array $companies): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $companies)));
+        $out = array_fill_keys($ids, 0);
+        if (!$ids) {
+            return $out;
+        }
         $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
         $today = intdiv(World::gameNow() - $epoch, 86400);
-        $paid = (int) DB::table('player_dividends')->where('company_id', $company)
-            ->where('day', '>=', $today - 30)->where('day', '<', $today)->sum('amount');
-        return intdiv($paid, self::COUNT);
+        foreach (DB::table('player_dividends')->whereIn('company_id', $ids)->where('day', '>=', $today - 30)
+                     ->where('day', '<', $today)->groupBy('company_id')
+                     ->selectRaw('company_id, SUM(amount) AS paid')->get() as $r) {
+            $out[(int) $r->company_id] = intdiv((int) $r->paid, self::COUNT);
+        }
+        return $out;
     }
 
     /**
@@ -180,12 +247,31 @@ class PlayerShares
      */
     public static function prices(int $company, ?array $cash = null): array
     {
-        $buys = ($cash ?? self::cashOut($company))['per_share'];
-        $sells = $buys + self::dividends30($company);
+        return self::quote(($cash ?? self::cashOut($company))['per_share'], self::dividends30($company),
+            self::bankHolds([$company])[$company]);
+    }
+
+    /** prices() from its parts: a share's cash-out, its dividends30() and the bank's shares */
+    private static function quote(int $buys, int $dividends30, int $bankHolds): array
+    {
+        $sells = $buys + $dividends30;
         return ['buys_at' => $buys, 'sells_at' => $sells,
             'low' => (int) floor($sells * (float) config('forge.share_range_low')),
             'high' => (int) ceil($sells * (float) config('forge.share_range_high')),
-            'bank_holds' => (int) (DB::table('bank_shares')->where('company_id', $company)->value('units') ?? 0)];
+            'bank_holds' => $bankHolds];
+    }
+
+    /** The shares the bank holds of each company: [company => units] */
+    private static function bankHolds(array $companies): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $companies)));
+        $out = array_fill_keys($ids, 0);
+        if ($ids) {
+            foreach (DB::table('bank_shares')->whereIn('company_id', $ids)->pluck('units', 'company_id') as $id => $units) {
+                $out[(int) $id] = (int) $units;
+            }
+        }
+        return $out;
     }
 
     public static function held(int $user, int $company): int
@@ -241,7 +327,9 @@ class PlayerShares
     public static function sellToBank(User $user, int $company, int $units): array
     {
         if (!self::company($company)) {
-            return self::fail(404, 'The bank buys only shares of a matured company that is still trading.');
+            return self::fail(404, DB::table('companies')->where('company_id', $company)->whereNotNull('eliminated_at')->exists()
+                ? 'That company has ended: its shares are worth nothing, and nobody buys them.'
+                : 'The bank buys only shares of a matured company that is still trading.');
         }
         if ($units < 1) {
             return self::fail(422, 'Sell at least 1 whole share.');   // #674
@@ -443,15 +531,30 @@ class PlayerShares
      */
     public static function holders(int $company): array
     {
-        $rows = DB::table('player_shares as s')->join('users as u', 'u.user_id', '=', 's.user_id')
-            ->where('s.company_id', $company)->where('s.units', '>', 0)->orderByDesc('s.units')
-            ->get(['u.login', 's.units'])->map(fn ($r) => ['name' => $r->login, 'units' => (int) $r->units, 'bank' => false])->all();
-        $bank = (int) (DB::table('bank_shares')->where('company_id', $company)->value('units') ?? 0);
-        if ($bank > 0) {
-            $rows[] = ['name' => 'The bank', 'units' => $bank, 'bank' => true];
-            usort($rows, fn ($a, $b) => $b['units'] <=> $a['units']);
+        return self::holdersMany([$company])[$company];
+    }
+
+    /** holders() for several companies at once: [company => holders] */
+    private static function holdersMany(array $companies, ?array $bank = null): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $companies)));
+        $out = array_fill_keys($ids, []);
+        if (!$ids) {
+            return $out;
         }
-        return $rows;
+        foreach (DB::table('player_shares as s')->join('users as u', 'u.user_id', '=', 's.user_id')
+                     ->whereIn('s.company_id', $ids)->where('s.units', '>', 0)->orderByDesc('s.units')->orderBy('s.user_id')
+                     ->get(['s.company_id', 'u.login', 's.units']) as $r) {
+            $out[(int) $r->company_id][] = ['name' => $r->login, 'units' => (int) $r->units, 'bank' => false];
+        }
+        $bank ??= self::bankHolds($ids);
+        foreach ($ids as $id) {
+            if (($bank[$id] ?? 0) > 0) {
+                $out[$id][] = ['name' => 'The bank', 'units' => $bank[$id], 'bank' => true];
+                usort($out[$id], fn ($a, $b) => $b['units'] <=> $a['units']);
+            }
+        }
+        return $out;
     }
 
     /**
@@ -479,14 +582,75 @@ class PlayerShares
 
     /**
      * Every matured company still trading, for the stock exchange page and
-     * API (#666): id, name, its prices, the bank's shares, and its holders
+     * API (#666): id, name, its prices, the bank's shares, and its holders.
+     * A handful of queries for them all (#726), not several a company
      */
     public static function market(): array
     {
-        return DB::table('companies')->where('seedling', 0)->whereNotNull('owner_id')->whereNotNull('matured_t')
-            ->whereNull('eliminated_at')->orderBy('name')->get(['company_id', 'name'])
-            ->map(fn ($c) => ['company' => (int) $c->company_id, 'name' => $c->name]
-                + self::prices((int) $c->company_id) + ['holders' => self::holders((int) $c->company_id)])->all();
+        $companies = DB::table('companies')->where('seedling', 0)->whereNotNull('owner_id')->whereNotNull('matured_t')
+            ->whereNull('eliminated_at')->orderBy('name')->get(['company_id', 'name']);
+        $ids = $companies->pluck('company_id')->map(fn ($id) => (int) $id)->all();
+        $cash = self::cashOuts($ids);
+        $dividends = self::dividends30Many($ids);
+        $bank = self::bankHolds($ids);
+        $holders = self::holdersMany($ids, $bank);
+        return $companies->map(fn ($c) => ['company' => (int) $c->company_id, 'name' => $c->name]
+            + self::quote($cash[(int) $c->company_id]['per_share'], $dividends[(int) $c->company_id], $bank[(int) $c->company_id])
+            + ['holders' => $holders[(int) $c->company_id]])->all();
+    }
+
+    /** Game days a trade between players stays recent enough to quote its premium (#716) */
+    public const PREMIUM_DAYS = 7;
+
+    /**
+     * The stock exchange page's table (#699): market(), and for each company
+     * its dividends and yield over 30 game days, its cash-out a share over
+     * them (spark), the last trade between two players against cash-out, and
+     * its health; best yield first. Its queries cover every company at once
+     * (#726); the page keeps it a minute (StockExchange)
+     */
+    public static function board(): array
+    {
+        $market = self::market();
+        $ids = array_column($market, 'company');
+        $now = World::gameNow();
+        $today = MarketHistory::today();
+        $spark = array_fill_keys($ids, []);
+        if ($ids && \Illuminate\Support\Facades\Schema::hasColumn('company_days', 'cash_out')) {
+            foreach (DB::table('company_days')->whereIn('company_id', $ids)->where('day', '>', $today - 30)
+                         ->whereNotNull('cash_out')->orderBy('company_id')->orderBy('day')->get(['company_id', 'day', 'cash_out']) as $r) {
+                $spark[(int) $r->company_id][] = ['day' => (int) $r->day, 'v' => intdiv(max(0, (int) $r->cash_out), self::COUNT)];
+            }
+        }
+        // The last trade between two players (#716): the bank's trades are at
+        // its own prices, and an old trade says little about today's, so the
+        // premium is shown only for a recent one
+        $last = $ids ? DB::table('player_share_trades as t')
+            ->joinSub(DB::table('player_share_trades')->whereIn('company_id', $ids)->whereNotNull('seller_id')->whereNotNull('buyer_id')
+                ->groupBy('company_id')->selectRaw('MAX(id) AS id'), 'l', 'l.id', '=', 't.id')
+            ->get(['t.company_id', 't.price', 't.game_t'])->keyBy('company_id')->all() : [];
+        $health = CompanyHealth::many($ids);
+        foreach ($market as &$m) {
+            $id = $m['company'];
+            $l = $last[$id] ?? null;
+            $h = $health[$id];
+            $m['dividends30'] = $m['sells_at'] - $m['buys_at'];
+            $m['yield_percent'] = $m['buys_at'] > 0 ? round(100 * $m['dividends30'] / $m['buys_at'], 1) : null;
+            $m['spark'] = $spark[$id];
+            $m['last_price'] = $l ? (int) $l->price : null;
+            $m['last_days_ago'] = $l ? intdiv(max(0, $now - (int) $l->game_t), 86400) : null;
+            $m['premium_percent'] = $l && $m['buys_at'] > 0 && $m['last_days_ago'] <= self::PREMIUM_DAYS
+                ? (int) round(100 * ($l->price - $m['buys_at']) / $m['buys_at']) : null;
+            $m['stalled'] = (bool) $h['stalled'];
+            $m['at_risk'] = (bool) $h['at_risk'];
+            $m['failing'] = $h['failing_reason'] !== null;
+            $m['health_note'] = $h['stalled'] ? $h['stalled_reason'] : ($h['at_risk'] ? $h['at_risk_reason'] : $h['failing_reason']);
+        }
+        unset($m);
+        // Best yield first (#716: the table was alphabetical); no yield last
+        usort($market, fn ($a, $b) => [$b['yield_percent'] === null ? 0 : 1, $b['yield_percent'] ?? 0, $a['name']]
+            <=> [$a['yield_percent'] === null ? 0 : 1, $a['yield_percent'] ?? 0, $b['name']]);
+        return $market;
     }
 
     /**

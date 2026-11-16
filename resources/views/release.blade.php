@@ -66,7 +66,7 @@
                         <ul>
                             <li>Its credits are its to spend (a kit costs 2,000). To mature it must hold its whole debt and
                                 {{ $n(config('forge.seedling_mature_margin')) }} more to work with.</li>
-                            <li>It holds at most {{ \App\Services\Seedlings::capPermille() / 1000 }} times its debt: what it earns above that goes to the bank, so mature it once it can.</li>
+                            <li>It holds at most {{ \App\Services\Seedlings::capPermille() / 1000 }} times what it was lent at the start (push fees aside): what it earns above that goes to the bank, so mature it once it can.</li>
                             <li>Until it matures it trades only with the House (anything else fails with -16), buys at most a tenth of what
                                 the House has on sale of a good at one exchange in a game day (-17), and plunders nothing.</li>
                             <li>Logged in, it is yours: at most {{ config('forge.seedling_max') }} at a time, and a closed one's slot reopens a game day later.

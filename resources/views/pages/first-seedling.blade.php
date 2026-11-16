@@ -57,7 +57,7 @@
 @endpush
 @section('content')
     @php($n = fn ($v) => number_format($v))
-    <x-page-header :title="'Your first seedling'" :subtitle="'Five minutes from a starter script to a company of your own: pick a starter, start it, read its page, push a fix, mature it.'">
+    <x-page-header :title="'Your first seedling'" :subtitle="'Five minutes to start a seedling from a starter script, and about an hour of play until it is a company of your own: pick a starter, start it, read its page, push a fix, mature it.'">
         <li class="active">Getting started</li>
     </x-page-header>
     <section class="section section-xs section-first">
@@ -97,7 +97,7 @@
                     </div>
                     <p class="fs-note">Not sure? The <b>Miner</b> is the simplest: dig, refine, sell, repeat. The Trader starter
                         isn't offered to seedlings: it buys from other drones, and a seedling trades only with the House.
-                        Times are from a playtest at the normal pace, unchanged code.</p>
+                        Times are from a playtest at the normal pace (48 real seconds a game day), unchanged code; a crowded world takes longer.</p>
                 </li>
 
                 <li class="fs-step" id="start">
@@ -138,10 +138,10 @@
                         of light; it starts over on it, keeping its hold and its place. The first push is free, each after it adds
                         {{ $n($seedling['push_fee']) }} to the debt. For example, the Miner sells its metals where the House pays most
                         after the trip there. If the <a href="{{ url('market') }}">Market board</a> shows Earth paying far more while
-                        your Miner keeps selling close by, tell it its time is worth less, so the longer trip wins:</p>
+                        your Miner keeps selling close by, tell it its time is worth even less, so the longer trip wins:</p>
 <pre class="fs-code" v-pre aria-label="A one-line fix to the Miner"><span class="c">-- what a game hour of its time is worth, in credits: it flies further to sell when this is lower</span>
-<del>- hour_value = 10</del>
-<ins>+ hour_value = 4</ins></pre>
+<del>- hour_value = 4</del>
+<ins>+ hour_value = 2</ins></pre>
                     <p>A trip to Earth from Phobos takes a few game days each way, so check that the price pays for it. A fix that doesn't
                         work is fine: push another, or <b>close</b> the seedling. Its debt is cancelled, and a game day later its slot is
                         free (you run up to {{ $seedling['max'] }} at a time). Break, learn, repeat.</p>

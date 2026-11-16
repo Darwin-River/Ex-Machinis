@@ -48,9 +48,23 @@ class Seedlings
             return null;
         }
         $max = (int) config('forge.seedling_max');
-        return self::slotsInUse((int) $owner->user_id) >= $max
-            ? "You have $max seedlings already (a closed one's slot reopens after a game day). Mature or close one first."
-            : null;
+        if (self::slotsInUse((int) $owner->user_id) < $max) {
+            return null;
+        }
+        // Say which slots are taken, and when a held one frees (#743: "You
+        // have 5 seedlings already" read wrong with 4 running and a wreck's
+        // slot still held)
+        $since = World::gameNow() - (int) config('forge.seedling_slot_days') * 86400;
+        $mine = DB::table('companies')->where('owner_id', $owner->user_id)->where('seedling', 1);
+        $live = (clone $mine)->whereNull('eliminated_at')->count();
+        $held = (clone $mine)->where('eliminated_at', '>', $since)->min('eliminated_at');
+        $closed = (clone $mine)->where('eliminated_at', '>', $since)->count();
+        $text = "All $max of your seedling slots are in use: $live running";
+        if ($closed > 0) {
+            $text .= ", and $closed that ended within the last game day (a slot reopens a game day after its seedling ends; the next at "
+                . DronePage::when((int) $held + (int) config('forge.seedling_slot_days') * 86400) . ')';
+        }
+        return $text . '. Mature or close one first.';
     }
 
     /**

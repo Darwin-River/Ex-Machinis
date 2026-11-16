@@ -40,7 +40,7 @@
 @endpush
 @section('content')
     {{-- Seedling or matured, and whose (#697) --}}
-    @php($badge = ($user->eliminated_at ?? null) !== null ? null : ((int) ($user->seedling ?? 0) === 1 ? 'Seedling' : (($user->matured_t ?? null) !== null ? 'Matured' : null)))
+    @php($badge = ($user->eliminated_at ?? null) !== null ? 'Ended' : ((int) ($user->seedling ?? 0) === 1 ? 'Seedling' : (($user->matured_t ?? null) !== null ? 'Matured' : null)))
     <x-page-header :subtitle="$owner ? 'Owned by ' . $owner : null">
         <x-slot:title>{{$title}}@if($badge) <span @class(['co-badge', 'co-badge-matured' => $badge === 'Matured']) id="company-badge">{{ $badge }}</span>@endif</x-slot:title>
         <li><a href="/companies">Companies</a></li>
@@ -249,6 +249,10 @@
 
             {{-- Health and running costs (#537, #544), in their own section (#591) --}}
             <h2 id="health">Health</h2>
+            @if($ended)
+                {{-- An ended company has no health to report (#741: it said "sold nothing for 10 game days or more") --}}
+                <p id="company-health">It has ended: its drones are wrecks, and it does nothing more.</p>
+            @else
             @if($h['at_risk'] || $h['stalled'] || $h['failing_reason'])
                 <div class="health-banner" id="health-banner">
                     @if($h['at_risk'])<strong>At risk:</strong> {{ $h['at_risk_reason'] }}. A warning, not a verdict.<br>@endif
@@ -276,6 +280,7 @@
                     @endforeach
                 </ul>
             @endif
+            @endif
             @php($pt = $shares['compute'])
             <p id="processor-tax">Processor tax: {{ number_format($pt['tax_day']) }} credits over the last game day for
                 {{ number_format($pt['instructions_day']) }} instructions ({{ $pt['per_million'] }} credits a million{{ ($pt['congestion'] ?? 1) > 1 ? ' now: ' . $pt['congestion'] . ' times the usual ' . $pt['base_per_million'] . ' while the clock runs slowed' : '' }}).
@@ -291,20 +296,23 @@
             <h2 id="performance">Performance</h2>
             @include('partials.company-performance', ['perf' => $perf, 'companyId' => (int) $user->user_id])
 
+            {{-- Its working drones, its wrecks folded away below (#726: 106
+                 "spacecraft" for a company with 8 working drones) --}}
+            @php($wrecks = $spacecraft->whereNotNull('wrecked_at'))
             <div class="row row-30">
                 <div class="col">
-                    <h2 class="">Spacecraft</h2>
+                    <h2 class="" id="drones">Drones</h2>
                 </div>
             </div>
 
             <div class="table-custom-responsive">
                 <table class="table-ticket">
-                    @if(sizeof($spacecraft) == 0)
+                    @if($spacecraft->whereNull('wrecked_at')->isEmpty())
                         <tr>
-                            <td colspan="4"> No spacecraft present.</td>
+                            <td colspan="4">No working drones.</td>
                         </tr>
                     @endif
-                    @foreach($spacecraft as $agent)
+                    @foreach($spacecraft->whereNull('wrecked_at') as $agent)
                         <tr>
                             <td>
                                 <a href="{{url('/spacecraft/'.$agent->agent_id)}}">{{$agent->name}}</a>
@@ -332,6 +340,24 @@
                     @endforeach
                 </table>
             </div>
+            @if($wrecks->isNotEmpty())
+                <details id="wrecks" style="margin-top: 1em">
+                    <summary>{{ number_format($wrecks->count()) }} {{ \Illuminate\Support\Str::plural('wreck', $wrecks->count()) }}</summary>
+                    <div class="table-custom-responsive">
+                        <table class="table-ticket">
+                            @foreach($wrecks->sortByDesc('wrecked_at') as $agent)
+                                <tr>
+                                    <td><a href="{{url('/spacecraft/'.$agent->agent_id)}}">{{$agent->name}}</a></td>
+                                    <td><span class="meta-label">hull</span> {{$agent->hull?$agent->hull->name:'no hull'}}</td>
+                                    <td><span class="meta-label">location</span> @if($agent->location)<a
+                                            href="{{url('locations/'.$agent->location->object_id)}}">{{$agent->location->object_name}}</a>@endif</td>
+                                    <td><span class="meta-label">wrecked</span> {{ lcfirst(\App\Services\DronePage::WRECK_CAUSES[$agent->wreck_cause] ?? 'It became a wreck') }}</td>
+                                </tr>
+                            @endforeach
+                        </table>
+                    </div>
+                </details>
+            @endif
 
             {{-- Its code and its revisions (#594): every drone of the company runs it --}}
             <div class="row row-30">

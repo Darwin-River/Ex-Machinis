@@ -1,4 +1,4 @@
--- Miner: a starter script for Public Forge, in Lua (#380). It equips itself
+-- Miner: a starter script for Ex Machinis, in Lua. It equips itself
 -- with the Mining Kit (Engine, Worm and Refinery).
 -- It mines the richer of kunspar and wolfite at the Moon, refines it, and
 -- keeps standing sell orders for its metals, priced halfway between the
@@ -37,8 +37,11 @@ crowd_limit = 30   -- drones at the Moon past which the drone you release
 rest = 240         -- game minutes to rest when both Mars moons are dry
 hold_cap = 16      -- metals it keeps on offer to other drones
 min_ask = 12       -- the least it asks where nobody bids (metals sold for 18 to 20 in round 64)
-hour_value = 10    -- what a game hour of its time is worth, in credits: it
-                   -- flies further to sell when this is lower
+hour_value = 4     -- what a game hour of its time is worth, in credits: it
+                   -- flies further to sell when this is lower (#740: at 10,
+                   -- a miner at Phobos or Deimos sold at Mars for 2 to 5 a
+                   -- metal; at 4 it flies to Earth and matured in 55 to 69
+                   -- game days in round 71)
 haul_at = 60       -- metals still aboard after selling at which it flies
                    -- them to the best bidder elsewhere (#713)
 

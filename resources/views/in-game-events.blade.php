@@ -13,6 +13,10 @@
                     A drone's own actions, trades and messages are on its page (its <b>Activity</b>), the home page's feed
                     has the latest news, and the <a href="{{ url('market') }}">Market</a> shows the trades at each exchange.</p>
             @endif
+            {{-- #726: the page lists and searches the latest events only, so it answers on a world of millions --}}
+            <p id="events-window" style="white-space: normal">The latest {{ number_format(\App\Http\Controllers\HomeController::EVENTS_WINDOW) }}
+                events to reach Earth's central database, newest first: what drones did that others can see. The keyword
+                searches these. A drone's own history is on its page (its <b>Activity</b>).</p>
             <in-game-events-table
                     :results-per-page="{{Config::get('constants.options.results_per_page')}}"></in-game-events-table>
         </div>

@@ -389,10 +389,8 @@ class Leaderboard
         // A matured company's cash-out value that day (#699, migration 0066)
         $cashOut = [];
         if (Schema::hasColumn('company_days', 'cash_out')) {
-            foreach (DB::table('companies')->where('seedling', 0)->whereNotNull('owner_id')->whereNotNull('matured_t')
-                         ->whereNull('eliminated_at')->pluck('company_id') as $id) {
-                $cashOut[(int) $id] = PlayerShares::cashOut((int) $id)['total'];
-            }
+            $cashOut = array_map(fn ($c) => $c['total'], PlayerShares::cashOuts(DB::table('companies')->where('seedling', 0)
+                ->whereNotNull('owner_id')->whereNotNull('matured_t')->whereNull('eliminated_at')->pluck('company_id')->all()));
         }
         $rows = array_map(fn ($r) => ['company_id' => $r['company_id'], 'day' => $today,
             'credits' => (int) ($credits[$r['company_id']] ?? 0), 'net_wealth' => $r['wealth'], 'drones' => $r['drones']]

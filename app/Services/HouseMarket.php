@@ -120,6 +120,12 @@ class HouseMarket
         $goods = $db->table('house_market')->where('station_id', $stationId)->where('from_day', '<=', $today)
             ->orderBy('resource')->orderBy('side')->get(['resource', 'side', 'price', 'daily_units']);
         $units = self::holdings($db, $agentId);
+        // Units on their way in (its own imports, sales into it not yet
+        // settled): the order book counts them as held (ApiController::movable),
+        // so a target that left them out read `left` 0 until they landed (#739)
+        foreach (self::incoming($db, $agentId) as $r => $n) {
+            $units[$r] = ($units[$r] ?? 0) + $n;
+        }
         $stock = [];
         foreach ($goods as $g) {
             if ((int) $g->side === 2) {
@@ -139,21 +145,47 @@ class HouseMarket
             $keep = $stock[$resource] ?? 0;
             $held = $units[$resource] ?? 0;
             $bought = max(0, $held - $keep);
-            if ($bought <= $daily) {
-                $bid = max(1, $price - intdiv($price * $bought, 2 * $daily));
+            // Its lowest bid (#739): half the listed price
+            $floor = self::bidFloor($price);
+            if ($bought < $daily) {
+                $bid = max($floor, $price - intdiv($price * $bought, 2 * $daily));
                 $wanted[HouseStations::BUY_ORDER_EVENT][$resource] = [$daily + $keep, $bid];
                 continue;
             }
             // Overstocked (#691): its station ships what it bought down once
-            // a game day, so it can hold more than a day's demand. It still
-            // takes a quarter of a day's demand more, at a bid falling on
-            // from half the price (half at a full day bought, a quarter at
-            // two, ...), so a seller always finds a buyer, at a price that
-            // says the House has plenty
-            $bid = max(1, intdiv($price * $daily, 2 * $bought));
-            $wanted[HouseStations::BUY_ORDER_EVENT][$resource] = [$held + max(1, intdiv($daily, 4)), $bid];
+            // a game day, so it can hold more than a day's demand, and its own
+            // unsold stock counts too. It still takes a quarter of a day's
+            // demand more at a time, at half the listed price: until #739 the
+            // bid fell on below half (a quarter at two days' worth, ...), and
+            // round 71 found Mars bidding 2 to 5 for metals and Earth 67 for
+            // rods listed at 181, so seedlings sold for nothing
+            $wanted[HouseStations::BUY_ORDER_EVENT][$resource] = [$held + max(1, intdiv($daily, 4)), $floor];
         }
         return $wanted;
+    }
+
+    /** The lowest the House bids for a good listed at $price (#739): half, at least 1 */
+    public static function bidFloor(int $price): int
+    {
+        return max(1, intdiv($price + 1, 2));
+    }
+
+    /**
+     * Units on their way into a drone's free stock, by resource: its pending
+     * increments, as the order book counts them (ApiController::movable)
+     */
+    public static function incoming($db, int $agentId): array
+    {
+        // events_drone_game_t (drone, outcome, game_t): only its pending events
+        $rows = $db->select('SELECT e.resource, ABS(SUM(e.new_quantity)) AS n FROM events AS e FORCE INDEX (events_drone_game_t)
+            WHERE e.drone = ? AND e.installed = 0 AND e.locked = 0 AND e.outcome = 0 AND e.event_type = 1
+              AND NOT EXISTS (SELECT 1 FROM actions AS x WHERE x.id = e.action AND x.aborted = 1)
+            GROUP BY e.resource', [$agentId]);
+        $out = [];
+        foreach ($rows as $r) {
+            $out[(int) $r->resource] = (int) $r->n;
+        }
+        return $out;
     }
 
     /** Posts a station drone's changed orders */

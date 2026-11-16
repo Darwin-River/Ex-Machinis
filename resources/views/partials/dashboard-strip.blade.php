@@ -30,6 +30,10 @@
     $signed = fn (int $v) => ($v > 0 ? '+' : ($v < 0 ? '−' : '')) . number_format(abs($v));
 @endphp
 <div class="econ" id="economy">
+    @php($stale = \App\Services\Dashboard::staleNote($dash['as_of_t'] ?? null))
+    @if($stale)
+        <div class="econ-banner econ-warn" id="economy-stale" role="status">{{ $stale }}</div>
+    @endif
     <div @class(['econ-banner', 'econ-warn' => $b['quiet'] || $b['slowed']]) id="economy-banner" role="status">
         {{ $b['text'] }}
     </div>

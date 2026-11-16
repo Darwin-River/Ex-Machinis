@@ -241,25 +241,28 @@ class HouseMarketTest extends TestCase
             return collect(HouseMarket::demand(4311, 10))->first();
         };
 
-        // Exactly a day's demand bought: half the price, nothing left today
+        $floor = HouseMarket::bidFloor($listed);
+        $quarter = max(1, intdiv($daily, 4));
+
+        // Exactly a day's demand bought: overstocked, a quarter of a day more at half the price
         $d = $hold($keep + $daily);
-        $this->assertSame([0, 0], [$d['price'], $d['left']], 'a full day bought: the day\'s demand is met');
+        $this->assertSame([$floor, $quarter], [$d['price'], $d['left']], 'a full day bought: it still buys');
 
-        // A unit more: a quarter of a day's demand more, at about half (the
-        // bid carries on from where it was)
-        $d = $hold($keep + $daily + 1);
-        $this->assertSame(max(1, intdiv($daily, 4)), $d['left']);
-        $this->assertSame(max(1, intdiv($listed * $daily, 2 * ($daily + 1))), $d['price']);
-        $this->assertLessThanOrEqual(intdiv($listed, 2) + 1, $d['price']);
-
-        // Two days' demand bought: a quarter of its price, still a quarter of a day more
+        // Two days' demand bought: still half the price (#739: it fell to a quarter)
         $d = $hold($keep + 2 * $daily);
-        $this->assertSame(max(1, intdiv($daily, 4)), $d['left']);
-        $this->assertSame(max(1, intdiv($listed, 4)), $d['price']);
+        $this->assertSame([$floor, $quarter], [$d['price'], $d['left']]);
 
-        // Far overstocked: the bid bottoms out at 1, and it still buys
+        // Far overstocked: never under half the listed price (#739: it fell to 1)
         $d = $hold($keep + 10000 * $daily);
-        $this->assertSame([1, max(1, intdiv($daily, 4))], [$d['price'], $d['left']]);
+        $this->assertSame([$floor, $quarter], [$d['price'], $d['left']]);
+
+        // Units on their way in count as held: left never reads 0 while they land (#739)
+        DB::table('events')->insert(['event_type' => 1, 'action' => null, 'logged' => 1, 'outcome' => 0, 'drone' => $drone,
+            'resource' => 4311, 'installed' => 0, 'locked' => 0, 'new_quantity' => 3 * $daily, 'new_cargo' => 0,
+            'game_t' => \App\Services\World::gameNow() + 3600]);
+        HouseMarket::refresh();
+        $d = collect(HouseMarket::demand(4311, 10))->first();
+        $this->assertSame([$floor, $quarter], [$d['price'], $d['left']]);
     }
 
     /**
