@@ -1245,6 +1245,13 @@ ErrorCode_t engine_run()
             db_send_due_outbox(&engine.db_connection, engine.config.params[SEND_EMAIL_SCRIPT_ID]);
         }
 
+        // No command yet this pass: a pass that fails before fetching one
+        // must not take the last pass's command for work done (#703: with
+        // the database gone the engine re-deleted one command thousands of
+        // times a second, never resting, and filled the disk with its log)
+        engine.last_command.code[0] = 0;
+        engine.last_command.command_id = -1;
+
         // start a transaction
         result = db_start_transaction(&engine.db_connection);
 
@@ -1384,7 +1391,16 @@ ErrorCode_t engine_run()
 
 		// Rest only when there was nothing to run (#324 step 20): sleeping
 		// after every command held the engine to one slice per DB_READ_TIME
-		if(!worked)
+		// The connection to MySQL lost (#703): check it at once next pass,
+		// so db_reconnect makes a new one, and rest a second first rather
+		// than failing thousands of times a second
+		unsigned int db_errno = engine.db_connection.hndl ? mysql_errno(engine.db_connection.hndl) : 0;
+		if(db_errno == 2006 || db_errno == 2013 || db_errno == 2055)   // gone away, lost, lost at a stage
+		{
+			engine.db_connection.checked_at = 0;
+			sleep(1);
+		}
+		else if(!worked)
 			sleep(atoi(engine.config.params[DB_READ_TIME_ID]));
 	}
 

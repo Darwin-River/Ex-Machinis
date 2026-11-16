@@ -6,6 +6,12 @@
 
 name: exmachinis
 
+# Each engine's own output, capped whatever the server's Docker settings
+# (#703: an engine that lost the database wrote gigabytes of errors)
+x-engine-logging: &engine-logging
+  driver: json-file
+  options: {max-size: "50m", max-file: "3"}
+
 x-engine-env: &engine-env
   DB_HOST: db
   DB_PORT: "3306"
@@ -158,6 +164,7 @@ services:
     environment: *engine-env
     volumes:
       - engine-logs:/opt/exmachinis/log
+    logging: *engine-logging
 
   events-engine:
     image: exmachinis-engine
@@ -170,6 +177,7 @@ services:
     environment: *engine-env
     volumes:
       - engine-logs:/opt/exmachinis/log
+    logging: *engine-logging
 
   scheduler:
     image: exmachinis-engine
