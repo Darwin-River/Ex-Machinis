@@ -156,7 +156,7 @@
             </form>
 
             <h3 class="h5 mt-4">The API</h3>
-            <p>Programs act for your account through the <a href="{{ url('getting-started') }}">API</a> with a token, sent
+            <p>Programs act for your account through the <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/api.md">API</a> with a token, sent
                 as <code>Authorization: Bearer</code> and the token. A new token replaces the old one.</p>
             @if($token = session('token'))
                 <div class="alert alert-info" style="white-space: normal">Your new token (copy it now: it won't be shown

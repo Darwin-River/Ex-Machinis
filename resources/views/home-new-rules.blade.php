@@ -36,7 +36,7 @@
                         close it and it costs you nothing. <b>Break, learn, repeat.</b></p>
                     <div class="hero-actions">
                         <a class="button button-primary button-lg" href="{{ url('release') }}">Start a seedling (free)</a>
-                        <a class="button button-secondary button-lg" href="{{ url('getting-started') }}">Getting started</a>
+                        <a class="button button-secondary button-lg" href="{{ url('getting-started') }}">Your first seedling (5 minutes)</a>
                     </div>
                     <p class="mt-3 mb-0"><a href="{{ url('signup') }}">Make an account</a> to keep what you start: it's free.</p>
                 </div>
@@ -51,7 +51,7 @@
     refuel()
   <span class="k">end</span>
 <span class="k">end</span>
-<span class="c">-- press Release, then watch its page</span></pre>
+<span class="c">-- press Start seedling, then watch its page</span></pre>
                 </div>
             </div>
         </div>
@@ -64,7 +64,7 @@
             @endif
             <ol class="home-steps" id="home-steps">
                 <li class="home-step"><div class="n">Step 1</div><h2>Pick a starter</h2>
-                    <p>Miner, Refiner or Maker on the <a href="{{ url('release') }}">Release</a> page. Each explains itself in comments.</p></li>
+                    <p>Miner, Refiner or Maker on the <a href="{{ url('release') }}">Start a seedling</a> page. Each explains itself in comments.</p></li>
                 <li class="home-step"><div class="n">Step 2</div><h2>Start a seedling</h2>
                     <p>The bank lends it a drone ({{ $n($seedling['hull']) }}), {{ $n($seedling['credits']) }} credits and a
                         {{ $n($seedling['fee']) }} fee: it owes {{ $n($seedling['grant']) }}.</p></li>

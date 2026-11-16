@@ -54,7 +54,7 @@ class WorldPagesTest extends TestCase
         DB::table('station_goods')->insert(['station_id' => 901, 'resource' => $resource, 'side' => 1, 'price' => 20, 'daily_units' => 200, 'from_day' => 0]);
         DB::table('trades')->insert(['resource' => $resource, 'units' => 10, 'credits' => 90, 'seller' => $seller->agent_id,
             'buyer' => $buyer->agent_id, 'location' => 3, 'game_t' => World::gameNow()]);
-        $this->get('/market')->assertOk()->assertSee('Order book')->assertSee($seller->name)->assertSee($buyer->name)
+        $this->get('/market')->assertOk()->assertSee('Where is each good cheapest')->assertSee($seller->name)->assertSee($buyer->name)
             ->assertDontSee('Test Depot')->assertDontSee('House stations');
     }
 
@@ -107,7 +107,12 @@ class WorldPagesTest extends TestCase
         $ours = array_filter($orders, fn ($o) => (int) $o['drone'] === $drones[2]->agent_id);
         $this->assertNotEmpty($ours, 'the highest bidder is shown');
         $this->assertEmpty(array_filter($orders, fn ($o) => (int) $o['drone'] === $drones[1]->agent_id), 'a lower bid is not');
-        $this->get('/market')->assertOk()->assertSee($drones[0]->name)->assertSee($drones[2]->name)->assertDontSee($drones[1]->name);
+        // #721: a good's page lists every order for it, best first; the Market page has one row a good
+        $this->get('/resources/' . $low->first())->assertOk()->assertSee('id="order-book"', false)
+            ->assertSee($drones[0]->name)->assertSee($drones[2]->name)->assertSee('12 cr');
+        \Illuminate\Support\Facades\Cache::forget('market-board');
+        $row = \App\Services\MarketBoard::row(3011);
+        $this->assertSame(225, $row['best_bid']['price']);
     }
 
     public function testMapShowsWhereTheDronesAre()

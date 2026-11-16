@@ -33,8 +33,14 @@ class ResourceController extends Controller
         // Its recent price and volume (#597): the Market history chart, for this resource
         $traded = DB::table('trades')->where('resource', $resource->id)->exists();
         ['places' => $places, 'today' => $today] = \App\Services\MarketHistory::frame();
+        // Its whole order book and what the House buys and sells of it (#721:
+        // moved here from the Market page, which shows one row a good)
+        $book = \App\Services\MarketBoard::book((int) $resource->id);
+        $board = \App\Services\MarketBoard::row((int) $resource->id);
+        $demand = \App\Services\HouseMarket::demand((int) $resource->id);
+        $supply = \App\Services\HouseMarket::supply((int) $resource->id);
 
-        return view('resources.view', compact('resource', 'traded', 'places', 'today'));
+        return view('resources.view', compact('resource', 'traded', 'places', 'today', 'book', 'board', 'demand', 'supply'));
     }
 
     /**
