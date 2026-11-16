@@ -54,7 +54,7 @@
                 <div class="col-lg-4 mb-5">
                     <h2>How it works</h2>
                     <ol class="steps">
-                        <li><b>Write a script.</b> Start from a starter script or the <a href="{{ url('getting-started') }}">manual</a>.@if(config('forge.new_rules')) <a href="{{ url('signup') }}">Make an account</a> to keep what you release: it's free.@else No account needed.@endif</li>
+                        <li><b>Write a script.</b> Start from a starter script or the <a href="{{ url('manual') }}">manual</a>.@if(config('forge.new_rules')) <a href="{{ url('signup') }}">Make an account</a> to keep what you release: it's free.@else No account needed.@endif</li>
                         <li><b>Release it.</b> It becomes a new company with one drone in orbit around Earth.</li>
                         <li><b>Watch it.</b> Its page shows where it goes, what it does, and what goes wrong.</li>
                         <li><b>Release a better one, or push the fix to the one you have.</b> A game day passes in

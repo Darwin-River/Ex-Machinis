@@ -56,7 +56,9 @@ class DashboardTest extends TestCase
         DB::table('trades')->insert(['resource' => 2011, 'units' => 10, 'credits' => 4321, 'tax' => 21,
             'seller' => $drone($id), 'buyer' => $drone($buyer), 'location' => 3, 'game_t' => $epoch + ($today - 1) * 86400 + 3600]);
         // It matured two days ago, so yesterday's sale was a matured company's
-        DB::table('companies')->where('company_id', $id)->update(['matured_t' => $epoch + ($today - 2) * 86400]);
+        // (founded five days ago: a company is founded before it matures)
+        DB::table('companies')->where('company_id', $id)->update(['matured_t' => $epoch + ($today - 2) * 86400,
+            'founded_t' => $epoch + ($today - 5) * 86400]);
         return [$id, $today];
     }
 
@@ -77,7 +79,8 @@ class DashboardTest extends TestCase
         $mine = collect($d['companies'])->firstWhere('company', $id);
         $this->assertNotNull($mine, 'every matured company is in the table');
         $this->assertSame('Dash Owner', $mine['owner']);
-        $this->assertSame(1, count($mine['daily_profit']), 'one a day since it was founded (today)');
+        $this->assertSame(6, count($mine['daily_profit']), 'one a day since it was founded, five days ago');
+        $this->assertSame(4300, $mine['profit30'], 'the same sale as the profit chart (#716)');
         // Its sale after tax, as the matured companies' profit that day
         $this->assertSame(4300, collect($d['matured_profit'])->firstWhere('day', $today - 1)['sales']);
         $this->assertContains('Dash Owner', array_column($d['players'], 'name'));
@@ -99,7 +102,7 @@ class DashboardTest extends TestCase
         $this->get('/dashboard')->assertOk()
             ->assertSee('Economy dashboard')->assertSee('id="economy-banner"', false)
             ->assertSee('Is the market busy?')->assertSee('Which companies are worth buying?')
-            ->assertSee('Who is winning?')->assertSee('Data: <code>GET /api/v1/news</code>', false)
+            ->assertSee('Who is winning?')->assertSee('id="dash-news"', false)
             ->assertSee(url('companies/' . $id), false)
             ->assertSee('window.ExCharts', false);
         // In the menu, under World

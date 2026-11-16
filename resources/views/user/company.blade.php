@@ -249,10 +249,12 @@
 
             {{-- Health and running costs (#537, #544), in their own section (#591) --}}
             <h2 id="health">Health</h2>
-            @if($h['at_risk'] || $h['stalled'])
+            @if($h['at_risk'] || $h['stalled'] || $h['failing_reason'])
                 <div class="health-banner" id="health-banner">
                     @if($h['at_risk'])<strong>At risk:</strong> {{ $h['at_risk_reason'] }}. A warning, not a verdict.<br>@endif
-                    @if($h['stalled'])<strong>Stalled:</strong> {{ $h['stalled_reason'] }}.@endif
+                    @if($h['stalled'])<strong>Stalled:</strong> {{ $h['stalled_reason'] }}.<br>@endif
+                    {{-- A loop that keeps failing looks idle (#715): say what fails --}}
+                    @if($h['failing_reason'])<strong id="failing">Failing:</strong> {{ $h['failing_reason'] }}. Its drones' pages say why each failed.@endif
                 </div>
             @endif
             <p id="company-health">{{ $h['working'] }} working {{ \Illuminate\Support\Str::plural('drone', $h['working']) }}{{ $h['wrecked'] ? ', ' . $h['wrecked'] . ' wrecked' : '' }}.
@@ -261,14 +263,15 @@
                 @php($lookback = \App\Services\CompanyHealth::IDLE_LOOKBACK)
                 {{ $h['last_sale'] === null ? 'It has sold nothing yet.' : ($h['last_sale'] >= $lookback * 24 ? 'It has sold nothing for ' . $lookback . ' game days or more.'
                     : 'Its last sale: ' . $h['last_sale'] . ' game ' . \Illuminate\Support\Str::plural('hour', $h['last_sale']) . ' ago.') }}</p>
-            @if($h['stalled'] || collect($h['drones'])->contains(fn ($d) => $d['idle'] >= 24))
+            @if($h['stalled'] || collect($h['drones'])->contains(fn ($d) => $d['idle'] >= 24 || $d['failing']))
                 <ul id="idle-drones">
                     @foreach($h['drones'] as $d)
-                        @if($d['idle'] >= 24)
+                        @if($d['idle'] >= 24 || $d['failing'])
                             @php($says = $d['status'] ? ', says "' . $d['status'] . '"' : '')
                             @php($holds = count($d['holds']) ? ', holds ' . collect($d['holds'])->map(fn ($x) => number_format($x['units']) . ' ' . $x['resource'])->implode(', ') : '')
-                            <li><a href="{{ url('/spacecraft/' . $d['drone']) }}">{{ $d['name'] }}</a>: idle {{ $d['idle'] }}
-                                game hours{{ $says }}{{ $holds }}</li>
+                            @php($state = implode(', ', array_filter([$d['idle'] >= 24 ? 'idle ' . $d['idle'] . ' game hours' : null,
+                                $d['failing'] ? 'failing: ' . $d['failing'] : null])))
+                            <li><a href="{{ url('/spacecraft/' . $d['drone']) }}">{{ $d['name'] }}</a>: {{ $state }}{{ $says }}{{ $holds }}</li>
                         @endif
                     @endforeach
                 </ul>

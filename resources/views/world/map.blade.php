@@ -9,22 +9,50 @@
                 The planets where they are now, seen from above (distances on a log scale). Each shows the working
                 drones and the wrecks around it, its moons included.
             </div>
-            <svg viewBox="-80 0 760 600" width="100%" style="max-width: 760px" role="img" aria-label="solar system map">
+            <svg viewBox="-90 -15 780 635" width="100%" style="max-width: 760px" role="img" aria-label="solar system map">
                 <circle cx="300" cy="300" r="8" fill="#f5c542"/>
                 @foreach($planets as $p)
                     <circle cx="300" cy="300" r="{{ $p['r'] }}" fill="none" stroke="#3a3a48" stroke-width="1"/>
                 @endforeach
+                {{-- Each label outward from the Sun, nudged clear of the labels and dots already placed (#716: Mars's ran over the Sun
+                     and Mercury). Planets with drones are placed first, so theirs keep the best spot --}}
+                @php
+                    $labels = [];
+                    $boxes = [[292, 292, 308, 308]];   // the Sun
+                    foreach ($planets as $q) {
+                        $boxes[] = [$q['x'] - 6, $q['y'] - 6, $q['x'] + 6, $q['y'] + 6];
+                    }
+                    $order = $planets;
+                    usort($order, fn ($a, $b) => [$b['working'] + $b['wrecks'], $a['r']] <=> [$a['working'] + $a['wrecks'], $b['r']]);
+                    foreach ($order as $q) {
+                        $text = $q['name'] . ($q['working'] || $q['wrecks'] ? ' (' . $q['working'] . ($q['wrecks'] ? ', ' . $q['wrecks'] . ' wrecks' : '') . ')' : '');
+                        $dx = $q['x'] - 300; $dy = $q['y'] - 300; $len = max(1, sqrt($dx * $dx + $dy * $dy));
+                        $ux = $dx / $len; $uy = $dy / $len;
+                        $anchor = $ux > 0.35 ? 'start' : ($ux < -0.35 ? 'end' : 'middle');
+                        $w = 6.6 * mb_strlen($text);
+                        $x = $q['x'] + $ux * 10;
+                        $base = $q['y'] + $uy * 12 + 4;
+                        $box = null;
+                        foreach ([0, 14, -14, 28, -28, 42, -42] as $nudge) {
+                            $y = $base + $nudge;
+                            $x0 = $anchor === 'start' ? $x : ($anchor === 'end' ? $x - $w : $x - $w / 2);
+                            $box = [$x0, $y - 10, $x0 + $w, $y + 3];
+                            $clear = true;
+                            foreach ($boxes as $b) {
+                                if ($box[0] < $b[2] && $box[2] > $b[0] && $box[1] < $b[3] && $box[3] > $b[1]) { $clear = false; break; }
+                            }
+                            if ($clear) break;
+                        }
+                        $boxes[] = $box;
+                        $labels[$q['id']] = ['x' => round($x, 1), 'y' => round($box[3] - 3, 1), 'anchor' => $anchor, 'text' => $text];
+                    }
+                @endphp
                 @foreach($planets as $p)
+                    @php($l = $labels[$p['id']])
                     <a href="{{ url('locations/' . $p['id']) }}">
                         <circle cx="{{ $p['x'] }}" cy="{{ $p['y'] }}" r="{{ $p['working'] ? 6 : 4 }}"
                                 fill="{{ $p['working'] ? '#4fc3f7' : '#8a8a99' }}"/>
-                        @php
-                            $label = $p['name'];
-                            if ($p['working'] || $p['wrecks']) {
-                                $label .= ' (' . $p['working'] . ($p['wrecks'] ? ', ' . $p['wrecks'] . ' wrecks' : '') . ')';
-                            }
-                        @endphp
-                        <text x="{{ $p['x'] + 10 }}" y="{{ $p['y'] + 4 }}" fill="#e6e6e6" font-size="12">{{ $label }}</text>
+                        <text x="{{ $l['x'] }}" y="{{ $l['y'] }}" fill="#e6e6e6" font-size="12" text-anchor="{{ $l['anchor'] }}">{{ $l['text'] }}</text>
                     </a>
                 @endforeach
             </svg>
