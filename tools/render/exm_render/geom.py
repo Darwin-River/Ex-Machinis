@@ -10,6 +10,7 @@ from __future__ import annotations
 import math
 
 import bmesh
+import bpy
 from mathutils import Matrix, Vector
 
 
@@ -108,3 +109,25 @@ def ring(bm, centre: Vector, axis: Vector, r: float, thickness: float, width: fl
     """A flat band around an axis, e.g. a tank clamp."""
     m = frame(centre, axis)
     lathe(bm, [(r, -width / 2), (r + thickness, -width / 2), (r + thickness, width / 2), (r, width / 2), (r, -width / 2)], mat, m, seg)
+
+
+def make_object(name: str, bm, mats, parent=None, matrix=None) -> bpy.types.Object:
+    """Turn a bmesh into a smooth-shaded, lightly bevelled object."""
+    mesh = bpy.data.meshes.new(name)
+    bm.to_mesh(mesh)
+    bm.free()
+    for m in mats:
+        mesh.materials.append(m)
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+    mesh.set_sharp_from_angle(angle=math.radians(35))
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    obj.parent = parent
+    if matrix is not None:
+        obj.matrix_local = matrix
+    bev = obj.modifiers.new("Bevel", "BEVEL")
+    bev.width = 0.006
+    bev.segments = 2
+    bev.limit_method = "ANGLE"
+    return obj

@@ -92,6 +92,9 @@ def light_and_frame(scene: bpy.types.Scene, shot: Shot, albedo: float, radius: f
     _sun(shot.phase, shot.sun_elevation, 4.0)
     if shot.fill_light > 0:
         _sun(0.0, 5.0, 4.0 * shot.fill_light, "Fill")
+    if scene.get("exm_rim"):
+        _sun(160.0, 35.0, scene["exm_rim"], "Rim")
+    _backdrop_exposure(scene)
 
     cam_data = bpy.data.cameras.new("Camera")
     cam_data.lens = shot.focal
@@ -127,3 +130,44 @@ def light_and_frame(scene: bpy.types.Scene, shot: Shot, albedo: float, radius: f
     # Shift is a fraction of the long side; offset is a fraction of each side.
     cam_data.shift_x = -shot.offset[0] * shot.width / long_side
     cam_data.shift_y = -shot.offset[1] * shot.height / long_side
+
+
+# The website's page background (#0b0f1a), in linear RGB.
+SITE_BACKGROUND = (0.0033, 0.0048, 0.0103)
+# A soft, cool environment for catalogue shots, so metal has something to reflect.
+ENVIRONMENT = (0.05, 0.055, 0.07)
+
+
+def reflections(scene: bpy.types.Scene, colour=ENVIRONMENT) -> None:
+    """Give a transparent-background shot an environment for metal to reflect."""
+    bg = scene.world.node_tree.nodes["Background"]
+    bg.inputs["Color"].default_value = (*colour, 1)
+    bg.inputs["Strength"].default_value = 1.0
+
+
+def studio(scene: bpy.types.Scene, colour=SITE_BACKGROUND, rim: float = 3.0) -> None:
+    """A catalogue look: a flat backdrop in the site's colour and a rim light.
+
+    The backdrop is seen by the camera only, so it never tints the subject.
+    Call before light_and_frame, which adds the key and fill lights.
+    """
+    nt = scene.world.node_tree
+    bg = nt.nodes["Background"]
+    path = nt.nodes.new("ShaderNodeLightPath")
+    mix = nt.nodes.new("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    mix.inputs["A"].default_value = (*ENVIRONMENT, 1)  # what shiny surfaces reflect
+    mix.inputs["B"].default_value = (*colour, 1)
+    nt.links.new(path.outputs["Is Camera Ray"], mix.inputs["Factor"])
+    nt.links.new(mix.outputs["Result"], bg.inputs["Color"])
+    bg.inputs["Strength"].default_value = 1.0
+    scene.world["exm_backdrop"] = True
+    scene["exm_rim"] = rim
+
+
+def _backdrop_exposure(scene: bpy.types.Scene) -> None:
+    """Keep a studio backdrop at the site colour whatever the exposure."""
+    if not scene.world.get("exm_backdrop"):
+        return
+    bg = scene.world.node_tree.nodes["Background"]
+    bg.inputs["Strength"].default_value = 1.0 / (2.0 ** scene.view_settings.exposure)

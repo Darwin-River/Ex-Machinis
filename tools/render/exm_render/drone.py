@@ -20,7 +20,7 @@ import numpy as np
 from mathutils import Vector
 
 from . import drone_parts as parts
-from . import geom, materials
+from . import geom, materials, resources
 
 FACES = {
     "top": Vector((0, 0, 1)),
@@ -32,7 +32,7 @@ FACES = {
 
 @dataclass
 class Mount:
-    part: str  # a key of drone_parts.SIDE_PARTS
+    part: str  # a key of drone_parts.SIDE_PARTS, or a module's resource id or name (see resources.py)
     bay: int  # first bay, counting from the aft end
     face: str  # top, bottom, port or starboard
     span: int = 1  # number of bays it covers
@@ -77,27 +77,6 @@ def _truss(bm, W: float, nodes: list[float]) -> None:
         geom.strut(bm, Vector((x, -h, h)), Vector((x, h, -h)), 0.02 * W, parts.TRUSS)
 
 
-def _object(name: str, bm, mats, parent, matrix=None) -> bpy.types.Object:
-    mesh = bpy.data.meshes.new(name)
-    bm.to_mesh(mesh)
-    bm.free()
-    for m in mats:
-        mesh.materials.append(m)
-    for poly in mesh.polygons:
-        poly.use_smooth = True
-    mesh.set_sharp_from_angle(angle=math.radians(35))
-    obj = bpy.data.objects.new(name, mesh)
-    bpy.context.scene.collection.objects.link(obj)
-    obj.parent = parent
-    if matrix is not None:
-        obj.matrix_local = matrix
-    bev = obj.modifiers.new("Bevel", "BEVEL")
-    bev.width = 0.006
-    bev.segments = 2
-    bev.limit_method = "ANGLE"
-    return obj
-
-
 def _plume(parent, W: float, p: DroneParams, mat) -> None:
     """A faint exhaust plume behind each engine."""
     bm = bmesh.new()
@@ -114,7 +93,7 @@ def _plume(parent, W: float, p: DroneParams, mat) -> None:
         m = geom.frame(Vector((x0, c.y, c.z)), Vector((-1, 0, 0)), Vector((0, 0, 1)))
         prof = [(exit_r * (1 + 1.6 * t), 6 * es * t) for t in np.linspace(0, 1, 16)]
         geom.lathe(bm, prof, 0, m, seg=32)
-    obj = _object("Exhaust", bm, [mat], parent)
+    obj = geom.make_object("Exhaust", bm, [mat], parent)
     obj.modifiers.clear()
     obj["exm_plume_length"] = 6 * es
 
@@ -139,21 +118,20 @@ def build(p: DroneParams) -> tuple[bpy.types.Object, float]:
     _truss(bm, W, nodes)
     for b in p.core_tanks:
         parts.core_tank(bm, nodes[b], nodes[b + 1], W, p.core_foil)
-    _object("Truss", bm, mats, body)
+    geom.make_object("Truss", bm, mats, body)
 
     bm = bmesh.new()
     parts.engine_block(bm, W, p.engines, p.engine_size, p.firing)
     if p.rcs:
         parts.rcs_quads(bm, W, L)
-    _object("Propulsion", bm, mats, body)
+    geom.make_object("Propulsion", bm, mats, body)
 
     bm = bmesh.new()
     parts.bow(bm, W, L, p.bow, rng)
-    _object("Bow", bm, mats, body)
+    geom.make_object("Bow", bm, mats, body)
 
     for i, mt in enumerate(p.mounts):
-        if mt.part not in parts.SIDE_PARTS:
-            raise SystemExit(f"Unknown part '{mt.part}'. Known: {', '.join(parts.SIDE_PARTS)}")
+        builder = parts.SIDE_PARTS.get(mt.part) or resources.module_builder(mt.part)
         if mt.bay < 0 or mt.bay + mt.span > p.bays:
             raise SystemExit(f"Mount {mt.part} on bays {mt.bay}-{mt.bay + mt.span - 1} is off the truss (bays 0-{p.bays - 1})")
         xs = nodes[mt.bay:mt.bay + mt.span + 1]
@@ -161,8 +139,8 @@ def build(p: DroneParams) -> tuple[bpy.types.Object, float]:
         n = FACES[mt.face]
         frame = geom.frame(Vector((xm, 0, 0)) + n * (W / 2), n, Vector((1, 0, 0)))
         bm = bmesh.new()
-        parts.SIDE_PARTS[mt.part](bm, [x - xm for x in xs], W, np.random.default_rng(p.seed * 101 + i), mt.foil)
-        _object(f"{mt.part.title()} {i + 1} ({mt.face})", bm, mats, body, frame)
+        builder(bm, [x - xm for x in xs], W, np.random.default_rng(p.seed * 101 + i), mt.foil)
+        geom.make_object(f"{str(mt.part).title()} {i + 1} ({mt.face})", bm, mats, body, frame)
 
     if p.firing:
         _plume(body, W, p, materials.exhaust())

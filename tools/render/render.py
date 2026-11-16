@@ -24,7 +24,7 @@ import bpy  # noqa: E402
 import numpy as np  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
-from exm_render import asteroid, drone, drone_presets, materials, presets, scene, starfield  # noqa: E402
+from exm_render import asteroid, drone, drone_presets, materials, presets, resources, scene, starfield  # noqa: E402
 
 DEFAULT_OUT = HERE / "output"
 
@@ -49,7 +49,8 @@ def _shot_args(p: argparse.ArgumentParser, phase: float, fill_light: float, view
     p.add_argument("--offset", type=float, nargs=2, default=(0.0, 0.0), metavar=("X", "Y"), help="move the subject off-centre, fraction of the frame")
     p.add_argument("--exposure", type=float, default=0.0, help="extra stops of exposure")
     p.add_argument("--fill-light", type=float, default=fill_light, help="faint light from the camera, 0..1")
-    p.add_argument("--background", choices=("stars", "black", "transparent"), default="stars")
+    p.add_argument("--background", choices=("stars", "black", "transparent", "studio"), default="stars",
+                   help="studio is a flat backdrop near the website's colour")
     p.add_argument("--stars", type=float, default=0.6, help="star brightness")
     p.add_argument("--format", choices=("png", "jpg"), default="png")
     p.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
@@ -70,6 +71,10 @@ def parse(argv: list[str]) -> argparse.Namespace:
     d.set_defaults(sun_elevation=40.0)
     d.add_argument("--firing", action="store_true", help="engines lit, with exhaust plumes")
     d.add_argument("--accent", type=float, nargs=3, metavar=("R", "G", "B"), help="accent paint colour, linear 0..1")
+
+    r = sub.add_parser("resource", help="in-game resources; names are ids, names, 'systems', 'modules' or 'all'")
+    _shot_args(r, phase=40.0, fill_light=0.25, view_elevation=28.0)
+    r.set_defaults(sun_elevation=40.0, size="square", background="transparent", fill=0.8)
     return ap.parse_args(argv)
 
 
@@ -147,11 +152,35 @@ def render_drone(name: str, args: argparse.Namespace) -> Path:
     return shoot(sc, args, params.name, params.seed, 0.3, radius, np.array(corners))
 
 
+def resource_rotation(seed: int) -> tuple[float, float, float]:
+    # Three-quarter view of the front (-Y) and right-hand end (+X).
+    return (0.0, 0.0, -32.0)
+
+
+def render_resource(name: str, args: argparse.Namespace) -> list[Path]:
+    outs = []
+    for res in resources.find(name):
+        sc = scene.reset()
+        if args.background == "studio":
+            scene.studio(sc)
+        else:
+            sc["exm_rim"] = 3.0
+            scene.reflections(sc)
+        obj = resources.build(res, args.seed or 0)
+        rot = args.rotation or resource_rotation(res.id)
+        obj.rotation_euler = tuple(math.radians(v) for v in rot)
+        bpy.context.view_layer.update()
+        corners = np.array([obj.matrix_world @ Vector(c) for c in obj.bound_box])
+        outs.append(shoot(sc, args, f"{res.id}-{res.slug}", res.id, 0.3, 1.0, corners))
+    return outs
+
+
 def main(argv: list[str]) -> None:
     args = parse(argv)
     names, render = {
         "asteroid": (presets.all_names, render_asteroid),
         "drone": (drone_presets.all_names, render_drone),
+        "resource": (lambda: [f"{r.id}  {r.name}" for r in resources.find("all")], render_resource),
     }[args.kind]
     if args.list or not args.names:
         print("\n".join(names()))

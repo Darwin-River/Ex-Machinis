@@ -77,6 +77,26 @@ PRESETS: dict[str, DroneParams] = {
             M("dish", 2, "top"), M("sensor", 2, "bottom"), M("module", 1, "top", foil=True),
         ],
     ),
+    # The game's starter kits, built from their actual modules (resources.py).
+    # Mining Kit I: Engine (A1), Worm (A1) and Refinery (A1).
+    "mining-kit-1": DroneParams(
+        name="Mining Kit I", seed=5901, bays=4, engines=1, engine_size=1.0, bow="dock",
+        mounts=[
+            M("tank", 0, "port"), M("tank", 0, "starboard"),
+            M("worm", 1, "bottom", span=2), M("refinery", 1, "top", span=2),
+            M("radiator", 1, "port", span=2), M("sensor", 3, "starboard"), M("dish", 3, "top"),
+        ],
+    ),
+    # Factory Kit I: Engine (A1), Smelter (A1), Chemical Reactor (A1) and Spider (A1).
+    "factory-kit-1": DroneParams(
+        name="Factory Kit I", seed=5902, bays=4, engines=1, engine_size=1.0, bow="dock",
+        mounts=[
+            M("tank", 0, "top"), M("tank", 0, "bottom"),
+            M("smelter", 1, "top"), M("chemical reactor", 2, "top"),
+            M("spider", 1, "port"), M("radiator", 1, "starboard", span=2),
+            M("module", 1, "bottom", span=2, foil=True), M("sensor", 3, "bottom"),
+        ],
+    ),
 }
 
 
