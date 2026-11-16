@@ -171,7 +171,7 @@ def _shape_radius(dirs: np.ndarray, p: AsteroidParams, rng: np.random.Generator)
     if p.waist > 0:
         # Pinch around x = 0 to make two lobes, and size the lobes unequally.
         xb = x + p.bend * z
-        r *= 1.0 - p.waist * np.exp(-((xb / 0.42) ** 2))
+        r *= 1.0 - p.waist * np.exp(-((xb / 0.5) ** 2))
         r *= np.where(xb < 0, p.lobe_ratio, 1.0) ** (np.abs(xb) ** 0.5)
 
     r *= 1.0 + p.lump * _fbm(wdirs, p.lump_scale, o2, octaves=4)

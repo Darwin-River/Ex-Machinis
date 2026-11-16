@@ -61,7 +61,7 @@ PRESETS: dict[str, tuple[AsteroidParams, str]] = {
         craters=40, crater_max=12.0, crater_depth=0.1, boulders=80, boulder_size=0.025,
     ), "cometary"),
     "churyumov-gerasimenko": (AsteroidParams(
-        name="Churyumov-Gerasimenko", seed=199, axes=(1.0, 0.68, 0.6), waist=0.36, lobe_ratio=0.78,
+        name="Churyumov-Gerasimenko", seed=199, axes=(1.0, 0.68, 0.6), waist=0.26, lobe_ratio=0.8,
         bend=0.35, warp=0.18, lump=0.08, ridge=0.06, ridge_scale=4.0,
         craters=25, crater_max=8.0, crater_depth=0.08, boulders=300, boulder_size=0.02,
     ), "cometary"),
