@@ -14,6 +14,7 @@
         <div v-bind:class="'mb-4 table-responsive '+(loading?' loading-table ':'')">
             <table class="table-custom table-custom-bordered">
                 <tr>
+                    <th class="resource-thumb"><span class="sr-only">Picture</span></th>
                     <th>
                         Id
                     </th>
@@ -28,6 +29,11 @@
                     </th>
                 </tr>
                 <tr v-for="resource in filteredResources">
+                    <td class="resource-thumb">
+                        <a v-if="resource.thumb" v-bind:href="'/resources/'+resource.id" tabindex="-1" aria-hidden="true">
+                            <img v-bind:src="resource.thumb" alt="" width="48" height="48" loading="lazy">
+                        </a>
+                    </td>
                     <td>
                         {{resource.id}}
                     </td>
@@ -81,5 +87,7 @@
 </script>
 
 <style scoped>
-
+    /* The resource's thumbnail (#707): a still of its turntable */
+    .resource-thumb { width: 64px; padding-top: 4px; padding-bottom: 4px; }
+    .resource-thumb img { display: block; width: 48px; height: 48px; }
 </style>

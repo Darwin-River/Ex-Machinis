@@ -88,6 +88,8 @@ Each resource page shows its system or module slowly turning: an animated WebP, 
 
 `--site` writes `html/images/resources/<id>.webp` (one full turn, 40 frames at 10 a second, 400×400, transparent) and `<id>-still.webp`, which the page picks up by itself. Each turntable is about 200 KB and takes a minute or two to render; all 121 take about three hours. Commit the new files with the change that needed them. The page shows no picture for a resource without one.
 
+It also writes `<id>-thumb.webp`, a 96×96 still cropped to the object, for the resource list's thumbnails (shown at 48 px). `render.py resource --thumbs` remakes every thumbnail from the stills already there, without rendering.
+
 `--spin FRAMES` makes a turntable of any resource at any size, with `--fps` and `--quality` (WebP, 0–100). It needs `ffmpeg`.
 
 ### Modules on drones

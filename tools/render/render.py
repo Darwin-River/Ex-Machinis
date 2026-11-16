@@ -84,8 +84,10 @@ def parse(argv: list[str]) -> argparse.Namespace:
     r = sub.add_parser("resource", help="in-game resources; names are ids, names, 'systems', 'modules' or 'all'")
     _shot_args(r, phase=40.0, fill_light=0.25, view_elevation=28.0)
     r.set_defaults(sun_elevation=40.0, size="square", background="transparent", fill=0.8)
+    r.add_argument("--thumbs", action="store_true",
+                   help="only remake the resource list's thumbnails (<id>-thumb.webp) from the stills already in html/images/resources")
     r.add_argument("--site", action="store_true",
-                   help="write the resource pages' turntables: html/images/resources/<id>.webp and <id>-still.webp")
+                   help="write the resource pages' turntables: html/images/resources/<id>.webp, <id>-still.webp and <id>-thumb.webp")
     return ap.parse_args(argv)
 
 
@@ -100,6 +102,35 @@ def drone_rotation(seed: int) -> tuple[float, float, float]:
     # away to the left, rolled a little so the top and one side both show.
     rng = np.random.default_rng(seed + 77)
     return (rng.uniform(12, 30), rng.uniform(-6, 6), rng.uniform(135, 155))
+
+
+THUMB_SIZE = 96  # shown at 48 px on the resource list, sharp on high-density screens
+
+
+def thumbnail(still: Path) -> Path:
+    """Make <id>-thumb.webp, the resource list's small picture, from <id>-still.webp.
+
+    It is cropped to the object's outline (plus a little room), so the
+    object fills the thumbnail instead of the turntable's wide margins.
+    """
+    from PIL import Image
+
+    thumb = still.with_name(still.name.replace("-still.webp", "-thumb.webp"))
+    im = Image.open(still).convert("RGBA")
+    box = im.getchannel("A").point(lambda a: 255 if a > 8 else 0).getbbox() or (0, 0, *im.size)
+    cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
+    half = max(box[2] - box[0], box[3] - box[1]) * 0.56
+    square = im.crop((round(cx - half), round(cy - half), round(cx + half), round(cy + half)))
+    square.resize((THUMB_SIZE, THUMB_SIZE), Image.LANCZOS).save(thumb, "WEBP", quality=85)
+    return thumb
+
+
+def make_thumbnails() -> None:
+    """Remake every resource-list thumbnail from the stills in SITE_IMAGES."""
+    stills = sorted(SITE_IMAGES.glob("*-still.webp"))
+    for still in stills:
+        thumbnail(still)
+    print(f"made {len(stills)} thumbnails in {SITE_IMAGES}")
 
 
 def spin(sc, args: argparse.Namespace, obj, out: Path, still: Path) -> None:
@@ -119,6 +150,8 @@ def spin(sc, args: argparse.Namespace, obj, out: Path, still: Path) -> None:
                                  "-lossless", "0", "-quality", str(args.quality), "-loop", "0", str(out)], check=True)
         subprocess.run(common + ["-i", str(Path(tmp) / "f0000.png"), "-frames:v", "1", "-c:v", "libwebp", *alpha,
                                  "-quality", str(args.quality + 10), str(still)], check=True)
+    if getattr(args, "site", False):
+        thumbnail(still)
     obj.rotation_euler.z = base
 
 
@@ -222,6 +255,9 @@ def render_resource(name: str, args: argparse.Namespace) -> list[Path]:
 
 def main(argv: list[str]) -> None:
     args = parse(argv)
+    if getattr(args, "thumbs", False):
+        make_thumbnails()
+        return
     if getattr(args, "site", False):
         args.out_dir = SITE_IMAGES
         args.spin = args.spin or 40
