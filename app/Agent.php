@@ -385,16 +385,13 @@ class Agent extends Model
      */
     public function getCurrentCargoWeight()
     {
-        $lastInventoryEvent = Event::where('drone', '=', $this->agent_id)->where('outcome', '=', 1)->where('new_cargo', '>=', 0)->where(function ($q) {
-            $q->where('event_type', EventType::TYPE_DECREMENT_INVENTORY)
-                ->orWhere('event_type', EventType::TYPE_INCREMENT_INVENTORY);
-        })->orderBy('id', 'desc')->first();
-       /* echo  Event::where('drone', '=', $this->agent_id)->where('outcome', '=', 1)->where('new_cargo', '>=', 0)->where(function ($q) {
-                $q->where('event_type', EventType::TYPE_DECREMENT_INVENTORY)
-                    ->orWhere('event_type', EventType::TYPE_INCREMENT_INVENTORY);
-            })->orderBy('id', 'desc')->toSql();*/
-        if (!$lastInventoryEvent)
-            return 0;
-        return $lastInventoryEvent->new_cargo === null ? 0 : max(0, $lastInventoryEvent->new_cargo);
+        // From holdings (each drone's current stock, kept by triggers; #430),
+        // not its newest inventory event: walking a drone's events newest
+        // first, for each of a company's 100+ drones, took the company page
+        // 20 s on the live database (#729)
+        return (int) \Illuminate\Support\Facades\DB::table('holdings AS h')
+            ->join('resources AS r', 'r.id', '=', 'h.resource')
+            ->where('h.drone', $this->agent_id)->where('h.units', '>', 0)
+            ->sum(\Illuminate\Support\Facades\DB::raw('h.units * r.mass'));
     }
 }

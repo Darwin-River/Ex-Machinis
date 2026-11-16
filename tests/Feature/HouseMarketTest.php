@@ -215,8 +215,51 @@ class HouseMarketTest extends TestCase
 
         $this->getJson('/api/v1/house-demand?resource=4311&place=10&company=' . $seller->company_id)->assertOk()
             ->assertJsonPath('0.left', $daily - $half)->assertJsonPath('0.place_name', 'Moon')->assertJsonPath('0.mine', $half);
-        $this->get('/market?house=4311')->assertOk()->assertSee('House demand')->assertSee('Sold today')
+        $this->get('/market?house=4311')->assertRedirect('/market/house?house=4311');
+        $this->get('/market/house?house=4311')->assertOk()->assertSee('What does the House still buy today?')->assertSee('Sold today')
             ->assertSee(number_format($daily - $half) . ' of ' . number_format($daily));
+    }
+
+    /**
+     * #691: an overstocked House (more than a day's demand bought, its
+     * station not yet having shipped it down) still buys, a quarter of a
+     * day's demand more at a time, at a bid falling on from half its price
+     */
+    public function testAnOverstockedHouseStillBuysForLess()
+    {
+        HouseStations::ensure();
+        $drone = (int) DB::table('agents')->where('station_id', 2)->value('agent_id');
+        $this->atDay(10.75);
+        $row = fn ($side) => DB::table('house_market')->where('station_id', 2)->where('resource', 4311)->where('side', $side)->first();
+        $listed = (int) $row(1)->price;
+        $daily = (int) $row(1)->daily_units;
+        $keep = max(1, intdiv((int) $row(2)->daily_units, 4));
+        $hold = function (int $units) use ($drone) {
+            DB::table('events')->insert(['event_type' => 1, 'action' => 0, 'logged' => 1, 'outcome' => 1, 'drone' => $drone,
+                'resource' => 4311, 'installed' => 0, 'locked' => 0, 'new_quantity' => $units, 'new_cargo' => 0]);
+            HouseMarket::refresh();
+            return collect(HouseMarket::demand(4311, 10))->first();
+        };
+
+        // Exactly a day's demand bought: half the price, nothing left today
+        $d = $hold($keep + $daily);
+        $this->assertSame([0, 0], [$d['price'], $d['left']], 'a full day bought: the day\'s demand is met');
+
+        // A unit more: a quarter of a day's demand more, at about half (the
+        // bid carries on from where it was)
+        $d = $hold($keep + $daily + 1);
+        $this->assertSame(max(1, intdiv($daily, 4)), $d['left']);
+        $this->assertSame(max(1, intdiv($listed * $daily, 2 * ($daily + 1))), $d['price']);
+        $this->assertLessThanOrEqual(intdiv($listed, 2) + 1, $d['price']);
+
+        // Two days' demand bought: a quarter of its price, still a quarter of a day more
+        $d = $hold($keep + 2 * $daily);
+        $this->assertSame(max(1, intdiv($daily, 4)), $d['left']);
+        $this->assertSame(max(1, intdiv($listed, 4)), $d['price']);
+
+        // Far overstocked: the bid bottoms out at 1, and it still buys
+        $d = $hold($keep + 10000 * $daily);
+        $this->assertSame([1, max(1, intdiv($daily, 4))], [$d['price'], $d['left']]);
     }
 
     /**
@@ -266,7 +309,11 @@ class HouseMarketTest extends TestCase
 
         // Drones read it from the stored table (query 707): times in game minutes
         $this->assertTrue(HouseMarket::storeSupply());
-        $this->assertFalse(HouseMarket::storeSupply(), 'once a real minute');
+        $this->assertFalse(HouseMarket::storeSupply(), 'not twice in a tick');
+        // #710: and again on the next tick, a few real seconds on (it was a
+        // real minute: more than a game day at the normal pace)
+        DB::table('house_supply')->update(['updated_at' => now()->subSeconds(HouseMarket::SUPPLY_EVERY + 1)]);
+        $this->assertTrue(HouseMarket::storeSupply(), 'the next tick stores it again');
         $sql = str_replace(['[game_now]', '[value_1]'], [(string) $now, '2011'],
             (string) DB::table('queries')->where('id', 707)->value('script'));
         if ($sql !== '') {
@@ -277,7 +324,8 @@ class HouseMarketTest extends TestCase
         $this->getJson('/api/v1/house-supply?resource=2011&place=Moon')->assertOk()
             ->assertJsonPath('0.place_name', 'Moon')->assertJsonPath('0.round_hours', 1.5)->assertJsonPath('0.refill_to', max(1, intdiv($daily, 4)));
         $this->getJson('/api/v1/house-supply?place=Atlantis')->assertNotFound();
-        $this->get('/market?supply=2011')->assertOk()->assertSee('House supply')->assertSee('sold out')
+        $this->get('/market?supply=2011')->assertRedirect('/market/house?supply=2011');
+        $this->get('/market/house?supply=2011')->assertOk()->assertSee('What does the House have on sale?')->assertSee('sold out')
             ->assertSee('in 0.5 game hours (every 1.5)');
     }
 
@@ -300,20 +348,22 @@ class HouseMarketTest extends TestCase
         $this->assertSame([], HouseStations::ensure(), 'once is enough');
     }
 
-    /** #591: the Market page has jump links and filters its order book by resource */
+    /** #591, #721: the Market page links the House's demand and supply, and a good's book is on its page */
     public function testTheMarketPageFiltersTheOrderBook()
     {
         HouseStations::ensure();
         HouseMarket::refresh();
-        $this->get('/market')->assertOk()->assertSee('href="#house-demand"', false)->assertSee('Still buying today');
+        $this->get('/market')->assertOk()->assertSee('href="' . url('market/house') . '"', false);
+        $this->get('/market/house')->assertOk()->assertSee('id="house-demand"', false)->assertSee('Still buying today')
+            ->assertSee('id="house-supply"', false);
         // #609: where fuel is on sale now, and where it isn't
         $fuel = \App\Services\World::fuelForSale();
         $this->assertSame(count($fuel['selling']) + count($fuel['none']), DB::table('stations')->count(),
             'every exchange is either selling fuel or listed as not');
         $this->get('/market')->assertSee('id="fuel-for-sale"', false)->assertSee('Fuel on sale now');
-        $html = $this->get('/market?resource=4311')->assertOk()->getContent();
-        $this->assertStringContainsString('Pumps (A1)', $html);
-        $book = substr($html, strpos($html, 'id="order-book"'), strpos($html, 'id="house-demand"') - strpos($html, 'id="order-book"'));
-        $this->assertStringNotContainsString('<td class="resource">Metals (A1)</td>', $book, 'only pumps in the book');
+        // The old filter goes to the good's page, which has its book and the House's prices for it
+        $this->get('/market?resource=4311')->assertStatus(301)->assertRedirect('/resources/4311#order-book');
+        $this->get('/resources/4311')->assertOk()->assertSee('Pumps (A1)')->assertSee('id="good-house"', false)
+            ->assertSee('Who sells it, and who buys it?');
     }
 }

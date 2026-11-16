@@ -14,38 +14,68 @@
                     the range's prices. Trade on a company's page, or through the API.</div>
                 {{-- One row a company (#699): what a share is worth, what it pays, what players paid, and its health --}}
                 @include('partials.ex-charts')
+                {{-- What Health means, here by the table it describes (#717: it was only in the old rules' section) --}}
+                <div style="white-space: normal; margin-bottom: 1em" id="health-meaning"><i>Health</i> is whether the company
+                    is still working: <i>at risk</i> when it has no working drone, a drone with no fuel, or a drone that runs dry
+                    within {{ \App\Services\CompanyHealth::RISK_DAYS }} game days while it has under
+                    {{ number_format(\App\Services\CompanyHealth::RISK_CREDITS) }} credits; <i>stalled</i> when its drones have bought, sold or
+                    made nothing for a game day, half or more of them have and it hasn't sold for a game day, or (once it is
+                    {{ \App\Services\CompanyHealth::STALLED_GRACE_DAYS }} game days old) it has sold nothing for
+                    {{ \App\Services\CompanyHealth::STALLED_SALE_HOURS }} game hours; and <i>failing</i> when its drones keep trying an action
+                    that fails (over the last game day). Each is a warning, not a verdict: hover it, or see the company's page, for why.
+                    Sorted by yield, highest first.</div>
                 <div class="table-custom-responsive">
                     <table class="table-ticket" id="player-share-market">
-                        <tr><th>Company</th><th class="text-right">Cash-out a share</th><th>30 game days</th><th class="text-right">Dividends a share, 30 days</th>
-                            <th class="text-right">Yield</th><th class="text-right">Last players' price</th><th class="text-right">Bank sells at</th><th>Health</th></tr>
+                        <tr><th>Company</th><th class="text-right">Cash-out a share</th><th>Cash-out change, 30 game days</th><th class="text-right">Dividends a share, 30 days</th>
+                            <th class="text-right">Yield, 30 days</th><th class="text-right">Last price between players</th><th class="text-right">Bank sells at</th><th>Health</th></tr>
                         @forelse($playerMarket as $i => $m)
                             <tr><td><a href="{{ url('companies/' . $m['company']) }}#player-shares">{{ $m['name'] }}</a>
-                                    @if(!empty($m['holders'][0]['name']))<br><small class="text-muted">mostly {{ $m['holders'][0]['name'] }}</small>@endif</td>
+                                    @if(!empty($m['holders'][0]['name']))<br><small class="text-muted">mostly {{ $m['holders'][0]['bank'] ? 'the bank' : $m['holders'][0]['name'] }}</small>@endif</td>
                                 <td class="text-right">{{ number_format($m['buys_at']) }}</td>
                                 <td class="share-spark" data-spark="{{ $i }}">{{ count($m['spark']) ? '' : '–' }}</td>
                                 <td class="text-right">{{ number_format($m['dividends30']) }}</td>
                                 <td class="text-right">{{ $m['yield_percent'] === null ? '–' : $m['yield_percent'] . '%' }}</td>
                                 <td class="text-right">@if($m['last_price'] !== null){{ number_format($m['last_price']) }}
-                                        <small>{{ $m['premium_percent'] > 0 ? '+' . $m['premium_percent'] . '% premium' : ($m['premium_percent'] < 0 ? $m['premium_percent'] . '% discount' : 'at cash-out') }}</small>@else never traded @endif</td>
+                                        <br><small>{{ $m['last_days_ago'] === 0 ? 'today' : $m['last_days_ago'] . ' game ' . \Illuminate\Support\Str::plural('day', $m['last_days_ago']) . ' ago' }}@if($m['premium_percent'] !== null),
+                                        {{ $m['premium_percent'] > 0 ? '+' . $m['premium_percent'] . '% premium' : ($m['premium_percent'] < 0 ? '−' . abs($m['premium_percent']) . '% discount' : 'at cash-out') }}@endif</small>@else no trade between players @endif</td>
                                 <td class="text-right">{{ number_format($m['sells_at']) }}</td>
-                                <td style="white-space: normal" title="{{ $m['health_note'] }}">@if($m['stalled'])<strong style="color: #ff8a7a">stalled</strong>@elseif($m['at_risk'])<strong>at risk</strong>@else steady @endif</td></tr>
+                                <td style="white-space: normal" title="{{ $m['health_note'] }}">@if($m['stalled'])<strong style="color: #ff8a7a">stalled</strong>@elseif($m['at_risk'])<strong>at risk</strong>@elseif($m['failing'])<strong>failing</strong>@else steady @endif</td></tr>
                         @empty
                             <tr><td colspan="8">No company has matured yet.</td></tr>
                         @endforelse
                     </table>
                 </div>
                 <p class="ex-src">Cash-out is what the bank pays for a share; its selling price adds the share's dividends over 30 game days.
-                    Yield is those dividends against cash-out. The premium or discount is the last price players paid against today's cash-out.
+                    Yield is those dividends over the last 30 game days against cash-out. The last price is the last trade between two players
+                    (the bank's trades are at its own prices); its premium or discount against today's cash-out is shown only for a trade in the last
+                    {{ \App\Http\Controllers\WorldController::PREMIUM_DAYS }} game days.
                     Players trade between {{ (int) round(config('forge.share_range_low') * 100) }}% and {{ (int) round(config('forge.share_range_high') * 100) }}% of the selling price.
+                    The 30-day lines share one scale (<span id="share-spark-scale">a percent scale</span>): each is the change in cash-out from
+                    its first day, in percent, with that day's level dashed, so a steady share is a flat line whatever its price. Hover a line for the credits.
                     Data: <code>GET /api/v1/shares</code> and <code>GET /api/v1/companies/{id}/history</code> (cash_out_share).</p>
                 <script>
                 document.addEventListener('DOMContentLoaded', function () {
                     const X = window.ExCharts, M = @json($playerMarket);
+                    // One percent scale for every row (#720): each line is the change
+                    // from its first day with a value, so a 38-credit share moving by 3
+                    // no longer looks as wild as a 1,500-credit one moving by 300
+                    const pct = (m) => {
+                        const base = (m.spark.find((p) => p.v > 0) || {}).v;
+                        return m.spark.map((p) => base ? (p.v / base - 1) * 100 : 0);
+                    };
+                    const all = M.flatMap((m) => pct(m));
+                    const lo = Math.min(0, ...all), hi = Math.max(0, ...all);
+                    if (all.length) document.getElementById('share-spark-scale').textContent =
+                        `from ${lo < 0 ? '−' : ''}${Math.round(Math.abs(lo))}% to +${Math.round(hi)}%`;
+                    const sign = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(Math.round(v * 10) / 10) + '%';
                     document.querySelectorAll('#player-share-market [data-spark]').forEach((td) => {
                         const m = M[Number(td.dataset.spark)];
                         if (!m.spark.length) return;
-                        td.replaceChildren(X.spark(m.spark.map((p) => p.v), {line: true, width: 100, height: 24, label: m.name + "'s cash-out a share",
-                            tip: (v, i) => [m.name, `Game day ${m.spark[i].day}: cash-out ${X.num(v)} a share`]}));
+                        const p = pct(m);
+                        td.replaceChildren(X.spark(p, {line: true, width: 100, height: 24, lo, hi, base: 0,
+                            label: m.name + "'s cash-out a share, change from its first day",
+                            tip: (v, i) => [m.name, `Game day ${m.spark[i].day}: cash-out ${X.num(m.spark[i].v)} a share`,
+                                `${sign(v)} since game day ${m.spark[0].day}`]}));
                     });
                 });
                 </script>
@@ -63,8 +93,10 @@
                         @endforelse
                     </table>
                 </div>
-                <h3 class="mt-4">Before the new rules</h3>
-                <p style="white-space: normal"><i>The rest of this page is the old world's stock exchange, kept for its history:
+                {{-- The old world's exchange, folded away (#717: 2,500 px of it on a phone) --}}
+                <details class="mt-4" id="before-new-rules">
+                <summary><h3 class="d-inline">Before the new rules</h3></summary>
+                <p style="white-space: normal"><i>The old world's stock exchange, kept for its history:
                     under the new rules players trade matured companies' shares above, and companies trade none.</i></p>
             @endif
             @php($archive = $playerMarket !== null)
@@ -209,6 +241,9 @@
                     @endforelse
                 </table>
             </div>
+            @if($archive)
+                </details>
+            @endif
         </div>
     </section>
 @endsection

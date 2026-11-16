@@ -150,7 +150,8 @@ function launched()
   -- A seedling trades only with the House, and the House's prices leave a
   -- trader no margin (#658): say so, rather than nap for ever
   while house_only() do
-    set_status("A seedling trades only with the House, so a Trader has nothing to do: release the Miner, Refiner or Maker instead")
+    -- A status line holds 80 characters (#715: this was cut at "release th")
+    set_status("A seedling trades only with the House: nothing to trade. Release a Miner instead")
     wait(1440)
   end
   fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)

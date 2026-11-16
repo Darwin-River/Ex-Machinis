@@ -22,8 +22,14 @@ Route::get('/', 'HomeController@index')->name('Ex-Machinis');
 Route::get('/home', 'HomeController@index')->name('home');
 
 //static pages
-Route::get('/getting-started', 'HomeController@playersManual');
-Route::get('/getting-started/images/{file}', 'HomeController@playersManualImage')->where('file', '[A-Za-z0-9_-]+\.(png|jpg|jpeg|gif|svg)');
+// The first-seedling guide (#719); the players' manual moved to /manual, and
+// the guide sends an old /getting-started#anchor link on to the manual
+Route::get('/getting-started', 'HomeController@firstSeedling');
+Route::get('/manual', 'HomeController@playersManual');
+Route::get('/manual/images/{file}', 'HomeController@playersManualImage')->where('file', '[A-Za-z0-9_-]+\.(png|jpg|jpeg|gif|svg)');
+Route::get('/getting-started/images/{file}', 'HomeController@oldManualImage')->where('file', '[A-Za-z0-9_-]+\.(png|jpg|jpeg|gif|svg)');
+Route::redirect('/players-manual', '/manual', 301);
+Route::redirect('/getting-started/manual', '/manual', 301);
 Route::get('/about-us', 'HomeController@aboutUs');
 Route::get('/support', 'HomeController@support');
 Route::get('/blog', 'BlogController@index');
@@ -69,6 +75,8 @@ Route::get('/events/search', 'HomeController@InGameEventsSearch');
 
 //releasing a script (#324 step 6)
 Route::get('/market', 'WorldController@market');
+// The House's demand and supply, from the Market page (#721)
+Route::get('/market/house', 'WorldController@house');
 Route::get('/market/history', 'WorldController@history');
 Route::get('/market/shares', 'WorldController@shares');
 // The economy dashboard (#698)

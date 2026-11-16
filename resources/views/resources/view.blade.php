@@ -7,48 +7,117 @@
     $hasPicture = is_file(public_path($picture . '.webp'));
 @endphp
 @section('pageTitle', $title)
+@include('partials.market-styles')
+@push('styles')
+    <style>
+        .rv-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0 0 .5rem; }
+        .rv-tile { background: #111729; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+        .rv-tile small { display: block; color: #9aa3b8; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+        .rv-tile b { display: block; font-family: "Space Grotesk", system-ui, sans-serif; font-size: 1.45rem; line-height: 1.3; font-variant-numeric: tabular-nums; }
+        .rv-tile span { display: block; color: #c3c9d8; font-size: 13px; }
+        .rv-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .rv-sides > div { min-width: 0; }
+        @media (max-width: 860px) { .rv-tiles { grid-template-columns: 1fr 1fr; } .rv-sides { grid-template-columns: 1fr; } }
+    </style>
+@endpush
 @section('content')
     <x-page-header>
         <x-slot:title>{{$title}}</x-slot:title>
-        <li><a href="/resources">Resources</a></li>
+        <li><a href="/market">Market</a></li>
         <li class="active">{{$title}}</li>
     </x-page-header>
-
+    @php($n = fn ($v) => number_format($v))
     <section class="section section-xs section-first text-md-left">
 
         <div class="container" id="container">
-            <div class="row">
-                <div class="col-12 {{ $hasPicture ? 'col-md-7 col-lg-8' : '' }}">
-                    <div class="row row-30 description-fields">
-                        <div class="col-12 col-lg-6 col mb-0 mb-lg-4">
-                            <b>Id: </b>{{$resource->id}}<br/>
-                        </div>
-                        <div class="col-12 col-lg-6">
-                            <b>Unit Mass: </b>{{$resource->mass}} kg.<br/>
-                        </div>
+            @if($hasPicture)
+                <div class="row align-items-center">
+                    <div class="col-12 col-md-7 col-lg-8">
+                        <p class="mk-lead">{{ $resource->description }}</p>
                     </div>
-                    <div class="row">
-                        <div class="col">
-                            <p>
-                                {{$resource->description}}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                @if($hasPicture)
                     <div class="col-12 col-md-5 col-lg-4 mb-4 text-center resource-picture">
                         <picture>
                             <source srcset="{{ url($picture . '-still.webp') }}" media="(prefers-reduced-motion: reduce)">
                             <img src="{{ url($picture . '.webp') }}" alt="{{ $resource->name }}, turning slowly"
-                                 width="400" height="400" style="width: 100%; max-width: min(400px, 70vw); height: auto;">
+                                 width="400" height="400" style="width: 100%; max-width: min(320px, 70vw); height: auto;">
                         </picture>
                     </div>
-                @endif
+                </div>
+            @else
+                <p class="mk-lead">{{ $resource->description }}</p>
+            @endif
+            {{-- At a glance, from the Market page's board (#721) --}}
+            <div class="rv-tiles" id="good-tiles">
+                <div class="rv-tile"><small>Cheapest seller</small>
+                    <b>{{ $board && $board['cheapest'] ? $n($board['cheapest']['price']) : '–' }}</b>
+                    <span>{{ $board && $board['cheapest'] ? $board['cheapest']['place'] . ', ' . $n($board['cheapest']['units']) . ' on sale' : 'nobody sells it' }}</span></div>
+                <div class="rv-tile"><small>Best buyer</small>
+                    <b>{{ $board && $board['best_bid'] ? $n($board['best_bid']['price']) : '–' }}</b>
+                    <span>{{ $board && $board['best_bid'] ? $board['best_bid']['place'] . ', wants ' . $n($board['best_bid']['units']) : 'nobody buys it' }}</span></div>
+                <div class="rv-tile"><small>Traded, 7 game days</small>
+                    <b>{{ $n($board['units'] ?? 0) }}</b>
+                    <span>{{ $board && $board['average'] !== null ? 'average ' . $board['average'] . ' a unit' : 'no trades' }}{{ $board && $board['change_percent'] !== null ? ', ' . ($board['change_percent'] > 0 ? '+' : ($board['change_percent'] < 0 ? '−' : '')) . abs($board['change_percent']) . '% on the week before' : '' }}</span></div>
+                <div class="rv-tile"><small>Resource</small><b>{{ $resource->id }}</b><span>{{ $resource->mass }} kg a unit</span></div>
             </div>
+
+            {{-- Every open order for it (#721: moved here from the Market page) --}}
+            <h2 class="h4 mt-4" id="order-book">Who sells it, and who buys it?</h2>
+            <div class="rv-sides">
+                @foreach(['sell' => ['Selling', 'Seller', 'Nobody sells it right now.'], 'buy' => ['Buying', 'Buyer', 'Nobody buys it right now.']] as $side => [$heading, $who, $none])
+                    <div>
+                        <h3 class="h6 mt-2">{{ $heading }}, best first</h3>
+                        <div class="mk-scroll">
+                            <table class="mk-table mk-cards" id="{{ $side }}-orders">
+                                <thead><tr><th>{{ $who }}</th><th class="num">Price</th><th class="num">Units</th><th>Where</th></tr></thead>
+                                <tbody>
+                                @forelse($book[$side] as $o)
+                                    <tr>
+                                        <td><a href="{{ url('spacecraft/' . $o['drone']) }}">{{ $o['drone_name'] }}</a>@if($o['house'])<span class="mk-tag">House</span>@endif</td>
+                                        <td class="num" data-label="Price">{{ $n($o['price']) }} cr</td>
+                                        <td class="num" data-label="Units">{{ $n($o['units']) }}</td>
+                                        <td data-label="Where">{{ $o['place'] }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="4">{{ $none }}</td></tr>
+                                @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+            <p class="mk-src">Data: <code>GET /api/v1/orders?side=sell&amp;resource={{ $resource->id }}</code> and <code>?side=buy</code></p>
+
+            @if($demand || $supply)
+                {{-- What the House buys and sells of it (#550, #630) --}}
+                <h2 class="h4 mt-4" id="house">What does the House buy and sell of it?</h2>
+                <div class="mk-scroll">
+                    <table class="mk-table mk-cards" id="good-house">
+                        <thead><tr><th>Where</th><th class="num">Bid now</th><th class="num">Still buying today</th><th class="num">Asks</th><th class="num">On sale</th></tr></thead>
+                        <tbody>
+                        @php($supplyAt = collect($supply)->keyBy('place_name'))
+                        @foreach(collect($demand)->pluck('place_name')->merge($supplyAt->keys())->unique()->sort() as $place)
+                            @php($d = collect($demand)->firstWhere('place_name', $place))
+                            @php($s = $supplyAt->get($place))
+                            <tr>
+                                <td>{{ $place }}</td>
+                                <td class="num" data-label="Bid now">{{ $d ? ($d['left'] > 0 ? $n($d['price']) . ' cr' : 'no bid') : '–' }}</td>
+                                <td class="num" data-label="Still buying today">{{ $d ? $n($d['left']) . ' of ' . $n($d['daily']) : '–' }}</td>
+                                <td class="num" data-label="Asks">{{ $s ? ($s['on_sale'] > 0 ? $n($s['price']) . ' cr' : 'sold out') : '–' }}</td>
+                                <td class="num" data-label="On sale">{{ $s ? $n($s['on_sale']) . ' of ' . $n($s['refill_to']) : '–' }}</td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <p class="mk-src">Data: <code>GET /api/v1/house-demand?resource={{ $resource->id }}</code> and <code>/house-supply?resource={{ $resource->id }}</code>.
+                    Every good's: <a href="{{ url('market/house') }}">House demand and supply</a>.</p>
+            @endif
+
             {{-- Its recent price and volume (#597) --}}
-            <div class="row row-30">
+            <div class="row row-30 mt-4">
                 <div class="col" id="recent-sales">
-                    <h2 class="">Recent sales</h2>
+                    <h2 class="h4">What has it sold for?</h2>
                     @if($traded)
                         @include('partials.price-volume-chart', ['chartResource' => (int) $resource->id, 'chartDays' => 30,
                             'chartTitle' => 'Price a unit and units traded'])
@@ -56,24 +125,6 @@
                     @else
                         <p>No trades yet.</p>
                     @endif
-                </div>
-            </div>
-            <div class="row row-30">
-                <div class="col">
-                    <h2 class="" style="visibility: visible; animation-name: fadeInLeft;">
-                        Buy Orders</h2>
-                    <resource-orders-table :resource-id="{{$resource->id}}"
-                                           data-url="/buys/search?resource={{$resource->id}}&type={{App\EventType::BUY_RESOURCE}}"
-                                           :operation="{{\App\EventType::BUY_RESOURCE}}"></resource-orders-table>
-                </div>
-            </div>
-            <div class="row row-30">
-                <div class="col">
-                    <h2 class="" style="visibility: visible; animation-name: fadeInLeft;">
-                        Sell Orders</h2>
-                    <resource-orders-table :resource-id="{{$resource->id}}"
-                                           data-url="/sells/search?resource={{$resource->id}}&type={{App\EventType::BUY_RESOURCE}}"
-                                           :operation="{{\App\EventType::BUY_RESOURCE}}"></resource-orders-table>
                 </div>
             </div>
         </div>

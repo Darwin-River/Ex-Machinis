@@ -133,7 +133,7 @@ class DronePageTest extends TestCase
     {
         $agent = Release::release($this->player('a@example.com'), 'Diggers', self::SCRIPT);
         $buyer = Release::release($this->player('b@example.com'), 'Buyers', self::SCRIPT);
-        $now = time();
+        $now = \App\Services\World::gameNow();   // game time: the clock can run ahead of real time
         // A mining run under way (its events end in two game hours), and a
         // finished one
         $done = DB::table('actions')->insertGetId(['drone' => $agent->agent_id, 'protocol' => 11100, 'multiplier' => 1, 'aborted' => 0]);
@@ -238,6 +238,12 @@ class DronePageTest extends TestCase
     /** #689: an action that should have ended says the engine is behind; the script's line says how old it is */
     public function testAStaleActionSaysTheEngineIsBehind()
     {
+        // A game clock with the engine running (CI's database starts with none)
+        if (!DB::table('game_clock')->where('id', 1)->exists()) {
+            $t = time();
+            DB::table('game_clock')->insert(['id' => 1, 'real_anchor' => $t, 'game_anchor' => $t, 'scale' => 60,
+                'epoch' => $t - 100 * 86400]);
+        }
         $agent = Release::release($this->player('a@example.com'), 'Behind', self::SCRIPT);
         $now = \App\Services\World::gameNow();
         $busy = DB::table('actions')->insertGetId(['drone' => $agent->agent_id, 'protocol' => 11100, 'multiplier' => 1, 'aborted' => 0]);
@@ -245,9 +251,15 @@ class DronePageTest extends TestCase
             'resource' => 1, 'installed' => 0, 'locked' => 0, 'new_quantity' => 5, 'new_cargo' => 5, 'game_t' => $now - 2 * 86400]);
         DB::table('agents')->where('agent_id', $agent->agent_id)->update(['waiting_action' => $busy,
             'script_status' => 'mining', 'script_status_t' => $now - 3 * 86400]);
+        // The clock slowed: the engine is behind
+        DB::table('game_clock')->where('id', 1)->update(['target_scale' => DB::raw('scale * 3'), 'load_checked_at' => time()]);
         $this->get('/spacecraft/' . $agent->agent_id)->assertOk()
             ->assertSee('waiting for its turn, the engine is behind')->assertDontSee('game hours from now')
             ->assertSee('set 3 game days ago');
+        // At its pace, with the engine running, it isn't (#715)
+        DB::table('game_clock')->where('id', 1)->update(['target_scale' => DB::raw('scale'), 'load_checked_at' => time()]);
+        $this->get('/spacecraft/' . $agent->agent_id)->assertOk()
+            ->assertDontSee('the engine is behind')->assertSee('it ends on its next turn');
         $this->getJson('/api/v1/drones/' . $agent->agent_id)->assertJsonPath('script_status.ago', '3 game days ago');
     }
 

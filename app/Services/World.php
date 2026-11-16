@@ -242,23 +242,31 @@ class World
      * 5, stock below the wanted maximum): the best one for each resource at
      * each place, by resource. Round 30: a plain top 25 by resource ID left
      * out everything past the metals, so nobody saw Earth's rod buyer.
+     * $hereOnly: only orders whose drone is still where it posted them and
+     * isn't flying (#716: a buy order posted at Mars by a drone on its way to
+     * Phobos showed the dashboard a crossed book at Mars).
      */
-    public static function orders(int $type, int $limit = 300): array
+    public static function orders(int $type, int $limit = 300, bool $hereOnly = false): array
     {
-        $open = $type === 4 ? 'IFNULL(i.units, 0) - e.new_quantity > 0' : 'e.new_quantity - IFNULL(i.units, 0) > 0';
+        // From latest_orders (each drone's newest order, its units and
+        // is_open kept by triggers; #430, #434), not from events: grouping
+        // every order event by drone and resource walked all 19 million
+        // events on the live database each time the dashboard or the Market
+        // page was worked out (#723)
+        $here = $hereOnly
+            ? ' AND (o.place IS NULL OR o.place = a.object_id) AND NOT ' . DronePage::flyingSql('o.drone', (string) self::gameNow())
+            : '';
         $best = $type === 4 ? 'ASC' : 'DESC';
         $rows = DB::select(
             "SELECT * FROM (
-               SELECT e.drone, a.name AS drone_name, e.resource, r.name AS resource_name, e.new_credits AS price,
-                      ABS(IFNULL(i.units, 0) - e.new_quantity) AS units, o.object_name AS place,
-                      ROW_NUMBER() OVER (PARTITION BY e.resource, a.object_id ORDER BY e.new_credits $best, e.id) AS n
-               FROM events e
-               JOIN (SELECT MAX(id) AS id FROM events WHERE event_type = ? AND outcome = 1 GROUP BY drone, resource) l ON l.id = e.id
-               JOIN agents a ON a.agent_id = e.drone AND a.wrecked_at IS NULL
-               LEFT JOIN resources r ON r.id = e.resource
-               LEFT JOIN objects o ON o.object_id = a.object_id
-               LEFT JOIN sqInventory i ON i.drone = e.drone AND i.resource = e.resource
-               WHERE $open) b
+               SELECT o.drone, a.name AS drone_name, o.resource, r.name AS resource_name, o.price,
+                      ABS(IFNULL(o.units, 0) - o.quantity) AS units, p.object_name AS place,
+                      ROW_NUMBER() OVER (PARTITION BY o.resource, a.object_id ORDER BY o.price $best, o.event_id) AS n
+               FROM latest_orders o
+               JOIN agents a ON a.agent_id = o.drone AND a.wrecked_at IS NULL
+               LEFT JOIN resources r ON r.id = o.resource
+               LEFT JOIN objects p ON p.object_id = a.object_id
+               WHERE o.event_type = ? AND o.is_open = 1$here) b
              WHERE n = 1 ORDER BY resource, place LIMIT " . (int) $limit,
             [$type]);
         return array_map(function ($r) { $r = (array) $r; unset($r['n']); return $r; }, $rows);
@@ -298,9 +306,10 @@ class World
         $min = log10(max(1, (float) $planets->min('semimajor_axis')));
         $max = log10(max(1, (float) $planets->max('semimajor_axis')));
 
-        // Each drone's body: a moon counts for its planet
+        // Each drone's body: a moon counts for its planet. Players' drones
+        // only, as the dashboard counts them (#716)
         $counts = [];
-        foreach (DB::table('agents as a')->leftJoin('objects as o', 'o.object_id', '=', 'a.object_id')
+        foreach (self::playerDrones()->leftJoin('objects as o', 'o.object_id', '=', 'a.object_id')
                      ->select('a.object_id', 'o.object_type', 'o.central_body_object_id', DB::raw('a.wrecked_at IS NULL AS working'))->get() as $d) {
             $body = ($d->object_type !== 'Planet' && $d->central_body_object_id) ? (int) $d->central_body_object_id : (int) $d->object_id;
             $counts[$body][$d->working ? 'working' : 'wrecks'] = ($counts[$body][$d->working ? 'working' : 'wrecks'] ?? 0) + 1;
@@ -321,12 +330,27 @@ class World
         return $out;
     }
 
-    /** Places with drones, busiest first: name, working drones, wrecks */
+    /**
+     * Players' drones (#716: the map, the dashboard and the home page counted
+     * 154, 148 and 148 working): every drone but the House's station drones
+     * and a closed seedling's, which left the game. One definition for the
+     * map, the places table and API, the dashboard and the home page.
+     * A query on agents AS a.
+     */
+    public static function playerDrones(): \Illuminate\Database\Query\Builder
+    {
+        return DB::table('agents AS a')->whereNull('a.station_id')
+            ->where(fn ($q) => $q->whereNull('a.wreck_cause')->orWhere('a.wreck_cause', '<>', 'closed'));
+    }
+
+    /** Places with players' drones, busiest first: name, working drones, wrecks */
     public static function places(): array
     {
-        return array_map(fn ($r) => (array) $r, DB::select(
-            'SELECT o.object_id, o.object_name, SUM(a.wrecked_at IS NULL) AS working, SUM(a.wrecked_at IS NOT NULL) AS wrecks
-             FROM agents a JOIN objects o ON o.object_id = a.object_id GROUP BY o.object_id, o.object_name
-             ORDER BY working DESC, wrecks DESC LIMIT 50'));
+        return self::playerDrones()->join('objects AS o', 'o.object_id', '=', 'a.object_id')
+            ->groupBy('o.object_id', 'o.object_name')
+            ->selectRaw('o.object_id, o.object_name, SUM(a.wrecked_at IS NULL) AS working, SUM(a.wrecked_at IS NOT NULL) AS wrecks')
+            ->orderByDesc('working')->orderByDesc('wrecks')->limit(50)->get()
+            ->map(fn ($r) => ['object_id' => (int) $r->object_id, 'object_name' => $r->object_name,
+                'working' => (int) $r->working, 'wrecks' => (int) $r->wrecks])->all();
     }
 }

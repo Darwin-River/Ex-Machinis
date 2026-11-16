@@ -65,6 +65,10 @@ fi
 
 trap 'die "a step failed (line $LINENO). Logs: cd $REPO/deploy && docker compose logs --tail 100 app game-engine events-engine migrate"' ERR
 
+# What the database spends its time on, before anything restarts (#694)
+say "the database's busiest statements since it started:"
+"$REPO/deploy/db-report.sh" | sed 's/^/    /' || true
+
 say "1/5 backing up"
 "$REPO/deploy/backup.sh"
 

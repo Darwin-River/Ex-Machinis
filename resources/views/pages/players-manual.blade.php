@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('pageTitle', 'Getting Started')
+@section('pageTitle', 'Manual')
 @push('styles')
     <style>
         /* The theme centres text and hides list markers: not for a manual */
@@ -25,8 +25,9 @@
 @section('content')
     <!-- Breadcrumbs-->
     <x-page-header>
-        <x-slot:title>Getting Started</x-slot:title>
-        <li class="active">Getting Started</li>
+        <x-slot:title>Players' manual</x-slot:title>
+        <li><a href="{{ url('getting-started') }}">Getting started</a></li>
+        <li class="active">Manual</li>
     </x-page-header>
     <section class="section section-lg">
         <div class="container">

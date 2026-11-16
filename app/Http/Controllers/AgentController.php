@@ -58,7 +58,7 @@ class AgentController extends Controller
      */
     public function view($id)
     {
-        $agent = Agent::where('agent_id', '=', $id)->with('hull')->with('user')->with('location')->with('lastEvents')->first();
+        $agent = Agent::where('agent_id', '=', $id)->with('hull')->with('user')->with('location')->first();
         if (!$agent)
             abort(404);
 

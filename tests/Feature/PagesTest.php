@@ -28,7 +28,10 @@ class PagesTest extends TestCase
         return [
             'home'             => ['/', 'Home'],
             'home alias'       => ['/home', 'Home'],
-            'getting started'  => ['/getting-started', 'Getting Started'],
+            'getting started'  => ['/getting-started', 'Your first seedling'],
+            'manual'           => ['/manual', 'Manual'],
+            'market'           => ['/market', 'Market'],
+            'house market'     => ['/market/house', 'House demand and supply'],
             'about us'         => ['/about-us', 'About Us'],
             'support'          => ['/support', 'Keep the Lights On'],
             'queries'          => ['/queries', 'Queries'],

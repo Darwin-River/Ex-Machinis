@@ -59,7 +59,7 @@ class ApiController extends Controller
             'net_wealth' => $wealth,
             // Game days since it was founded, and its place among every company
             // at its age: its wealth now against theirs when they were as old (#548, #614)
-            'age_days' => Leaderboard::age($company->founded_t, World::gameNow()),
+            'age_days' => Leaderboard::age($company->founded_t, min(World::gameNow(), (int) ($company->eliminated_at ?? PHP_INT_MAX))),   // stops when it ended (#716)
             'peer_rank' => Leaderboard::peerRank((int) $company->company_id, $board),
             'ended' => $company->eliminated_at !== null,
             // The new rules (#656): a seedling and what it owes, or matured
@@ -451,6 +451,21 @@ class ApiController extends Controller
             return $this->notFound('There is no such company.');
         }
         return response()->json(Leaderboard::history($id));
+    }
+
+    /** The world's events (#720): rule changes, outages and repairs, oldest first */
+    public function worldEvents(): JsonResponse
+    {
+        return response()->json(\App\Services\WorldEvents::all());
+    }
+
+    /** A company's own events (#720): matured, pushes, share sales and big trades, its end */
+    public function companyEvents(int $id): JsonResponse
+    {
+        if (!DB::table('companies')->where('company_id', $id)->exists()) {
+            return $this->notFound('There is no such company.');
+        }
+        return response()->json(['company' => $id, 'events' => \App\Services\WorldEvents::company($id)]);
     }
 
     public function queries(): JsonResponse

@@ -10,6 +10,9 @@
       dots()     a dot plot of two values a row (best ask and best bid)
       spark()    a sparkline, bars up and down
     Every mark has a tooltip (hover, or focus and arrow keys on a day chart).
+    A day chart takes opts.marks (#720): events drawn as thin labelled
+    vertical lines, a stretch (an outage) as a grey band, from
+    WorldEvents::marks(); its tooltip on that day says what happened.
     The colours pass the colour-blind checks against the dark panel; a place
     or good keeps its colour whatever else is shown.
 --}}
@@ -27,6 +30,7 @@
         .ex-chart text { fill: var(--mh-muted, #a3a6b2); font-size: 12px; font-family: inherit; }
         .ex-chart text.ex-strong { fill: var(--mh-text, #e9e9ef); }
         .ex-chart:focus-visible { outline: 2px solid #828590; outline-offset: 2px; }
+        .ex-none { color: var(--mh-muted, #a3a6b2); font-size: 14px; margin: .25em 0; white-space: normal; }
         .ex-src { color: var(--mh-muted, #a3a6b2); font-size: 12px; margin: .5em 0 0; white-space: normal; }
         .ex-src code { color: inherit; }
         .ex-legend { display: flex; flex-wrap: wrap; gap: .4em 1em; font-size: 13px; color: var(--mh-muted, #a3a6b2); margin-bottom: .4em; }
@@ -34,6 +38,14 @@
         .ex-legend i.ex-dot { border-radius: 50%; }
         .ex-legend i.ex-ring { border-radius: 50%; background: transparent !important; border: 2px solid; }
         .ex-legend i.ex-line { height: 3px; width: 14px; vertical-align: 3px; }
+        .ex-legend i.ex-band { width: 14px; opacity: .4; }
+        /* Event marks (#720): a label with a halo of the panel's colour, so a line under it doesn't cut it */
+        .ex-chart text.ex-mark, .mh-chart text.ex-mark { font-size: 11px; paint-order: stroke; stroke: var(--mh-panel, #1d2029);
+              stroke-width: 3px; stroke-linejoin: round; }
+        .ex-marks-key { color: var(--mh-muted, #a3a6b2); font-size: 12px; margin: .35em 0 0; white-space: normal; }
+        .ex-marks-key i { display: inline-block; width: 14px; height: 0; vertical-align: 3px; margin: 0 4px 0 2px; border-top: 2px dashed; }
+        .ex-marks-key i.ex-company { border-top-style: dotted; }
+        .ex-marks-key i.ex-band { height: 9px; border: 0; vertical-align: -1px; background: rgba(130, 133, 144, 0.35); }
     </style>
 @endpush
 <script>
@@ -105,9 +117,10 @@ window.ExCharts = (function () {
         return {W, H, svg: el('svg', {viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': box.getAttribute('aria-label') || ''}, box)};
     }
 
+    // Nothing to draw: one line saying so, not an empty chart (#716: "No dividends" drawn on a 0 to 1 axis)
     function empty(box, text) {
         box.replaceChildren();
-        const d = document.createElement('div'); d.className = 'mh-empty'; d.style.minHeight = '120px'; d.textContent = text; box.appendChild(d);
+        const d = document.createElement('p'); d.className = 'ex-none'; d.textContent = text; box.appendChild(d);
     }
 
     /**
@@ -130,31 +143,105 @@ window.ExCharts = (function () {
         });
         if (opts.unit) el('text', {x: L - 6, y: 4, 'text-anchor': 'end'}, svg).textContent = opts.unit;
         const every = Math.max(1, Math.ceil((span + 1) / (W < 480 ? 4 : 9)));
-        let clear = 0;
+        let clear = Infinity;
         for (let d = last; d >= first; d -= every) {   // from the newest day back, so today is always labelled
             const lab = el('text', {x: x(d), y: H - 5, 'text-anchor': 'middle'}, svg);
             lab.textContent = (d === last || d - every < first ? 'day ' : '') + d;
             const w = lab.getComputedTextLength();
-            if (x(d) + w / 2 > W) lab.setAttribute('text-anchor', 'end');
-            if (clear && x(d) + w / 2 > clear) { lab.remove(); continue; }
-            clear = x(d) - w / 2 - 8;
+            // Its left and right edges as drawn: a label pushed in from the
+            // right edge is end-anchored, so it reaches a whole width left
+            // (#716: "2201day 2208", the next label drawn under it)
+            let left = x(d) - w / 2, right = x(d) + w / 2;
+            if (right > W) { lab.setAttribute('text-anchor', 'end'); lab.setAttribute('x', W); left = W - w; right = W; }
+            if (right > clear) { lab.remove(); continue; }
+            clear = left - 8;
         }
-        return {svg, W, H, T, B, L, R, x, y, slot, lo, hi, first, last};
+        const f = {svg, W, H, T, B, L, R, x, y, slot, lo, hi, first, last, bottom: H - B};
+        f.marks = opts.marks ? markLayer(f, opts.marks) : null;
+        return f;
+    }
+
+    // Event marks (#720): the world's events and a company's own, from
+    // WorldEvents::marks(): [{day, to_day, kind, scope, label, text}]. A
+    // rule change or repair is a dashed line, a company's own event a dotted
+    // one, and a stretch (an outage) a grey band; each is labelled at the
+    // top where there is room, and the day's tooltip says what happened.
+    const MARK = {rule: '#e0a43a', repair: '#4fb38f', outage: '#a3a6b2', company: '#c9cbd6'};
+    const markColour = (m) => m.scope === 'company' ? MARK.company : (MARK[m.kind] || MARK.rule);
+    /**
+     * Draws marks behind a chart's data. f: {svg, x (game day to x), first,
+     * last, T (top), bottom (y of the floor), W, L, R, slot (px a day)}.
+     * Returns {front() to draw the labels over the data, lines(day) for the
+     * tooltip}; null when none is in the chart's days.
+     */
+    function markLayer(f, marks) {
+        const shown = (marks || []).filter((m) => (m.to_day ?? m.day) >= f.first && m.day <= f.last);
+        if (!shown.length) return null;
+        const g = el('g', {class: 'ex-marks'}, f.svg), lo = f.L, hi = f.W - f.R, half = (f.slot || 0) / 2;
+        const clip = (v) => Math.max(lo, Math.min(hi, v));
+        shown.forEach((m) => {
+            if (m.to_day !== null && m.to_day !== undefined && m.to_day > m.day) {
+                const a = clip(f.x(Math.max(f.first, m.day)) - half), b = clip(f.x(Math.min(f.last, m.to_day)) + half);
+                el('rect', {x: a, y: f.T, width: Math.max(2, b - a), height: f.bottom - f.T, fill: '#828590', 'fill-opacity': 0.2}, g);
+            } else {
+                const px = f.x(m.day);
+                el('line', {x1: px, x2: px, y1: f.T, y2: f.bottom, stroke: markColour(m), 'stroke-width': 1,
+                    'stroke-dasharray': m.scope === 'company' ? '1 3' : '4 3', 'stroke-opacity': 0.85}, g);
+            }
+        });
+        function front() {
+            // The world's labels first, then the company's; each in the first
+            // of a few rows where it doesn't touch another, or left off
+            const rows = [[], [], []].slice(0, f.H < 160 ? 1 : f.W < 480 ? 2 : 3), fg = el('g', {class: 'ex-mark-labels'}, f.svg);
+            const order = shown.filter((m) => m.scope !== 'company').concat(shown.filter((m) => m.scope === 'company'));
+            order.forEach((m) => {
+                const band = m.to_day !== null && m.to_day !== undefined && m.to_day > m.day;
+                const px = band ? (clip(f.x(Math.max(f.first, m.day)) - half) + clip(f.x(Math.min(f.last, m.to_day)) + half)) / 2 : f.x(m.day);
+                const t = el('text', {class: 'ex-mark', y: 0}, fg);
+                t.style.fill = markColour(m);   // over the kit's grey text
+                t.textContent = m.label;
+                const w = t.getComputedTextLength();
+                let anchor = 'start', left = px + 3;
+                if (band) { anchor = 'middle'; left = px - w / 2; }
+                else if (px + 3 + w > hi) { anchor = 'end'; left = px - 3 - w; }
+                if (left < lo) left = lo;
+                const r = rows.findIndex((row) => row.every(([a, b]) => left + w + 6 < a || left > b + 6));
+                if (r < 0) { t.remove(); return; }
+                rows[r].push([left, left + w]);
+                t.setAttribute('text-anchor', anchor);
+                t.setAttribute('x', anchor === 'middle' ? left + w / 2 : anchor === 'end' ? left + w : left);
+                t.setAttribute('y', f.T + 10 + r * 13);
+            });
+        }
+        // The marks at a day: on it, a stretch over it, or (days a few px
+        // wide) close enough to have been aimed at
+        const near = Math.max(0, Math.round(6 / Math.max(1, f.slot || 1)));
+        function lines(day) {
+            return shown.filter((m) => {
+                const end = m.to_day ?? m.day;
+                return end > m.day ? day >= m.day && day <= end : Math.abs(m.day - day) <= near;
+            }).map((m) => ({colour: markColour(m), text: (m.to_day > m.day ? `${m.label} (game days ${m.day}–${m.to_day})` : m.day !== day
+                ? `${m.label} (game day ${m.day})` : m.label) + ': ' + m.text}));
+        }
+        return {front, lines, shown};
     }
 
     // Hover and arrow keys over a day chart: a rule, and the day's lines
     function dayHover(box, f, linesFor) {
+        if (f.marks) f.marks.front();
         const rule = el('line', {y1: f.T, y2: f.H - f.B, stroke: AXIS, visibility: 'hidden'}, f.svg);
         const hit = el('rect', {x: f.L, y: 0, width: f.W - f.L - f.R, height: f.H - f.B, fill: 'transparent'}, f.svg);
         const at = (d, cx, cy) => {
             d = Math.max(f.first, Math.min(f.last, d));
             rule.setAttribute('x1', f.x(d)); rule.setAttribute('x2', f.x(d)); rule.setAttribute('visibility', 'visible');
-            showTip(linesFor(d), cx, cy); box.dataset.day = d;
+            showTip(linesFor(d).concat(f.marks ? f.marks.lines(d) : []), cx, cy); box.dataset.day = d;
         };
-        hit.addEventListener('pointermove', (ev) => {
+        const point = (ev) => {
             const r = f.svg.getBoundingClientRect(), px = (ev.clientX - r.left) / r.width * f.W;
             at(Math.round(f.first + (px - f.L - f.slot / 2) / f.slot), ev.clientX, ev.clientY);
-        });
+        };
+        hit.addEventListener('pointermove', point);
+        hit.addEventListener('pointerdown', point);   // a tap on a phone
         const off = () => { hideTip(); rule.setAttribute('visibility', 'hidden'); };
         hit.addEventListener('pointerleave', off);
         box.tabIndex = 0;
@@ -174,6 +261,24 @@ window.ExCharts = (function () {
         return el('rect', Object.assign({x: x - w / 2, y: top, width: w, height: Math.max(0.75, h), rx: Math.min(2, w / 3), fill}, extra || {}), svg);
     }
 
+    // Today's game day isn't over (#716: drawn as a full bar, it read as a
+    // collapse): its bars are faded and hatched, and its tooltip says so
+    let hatchN = 0;
+    function partialBar(svg, x, w, y0, y1, fill) {
+        const r = bar(svg, x, w, y0, y1, fill, {'fill-opacity': 0.45});
+        if (!r) return r;
+        let id = svg.dataset.hatch;
+        if (!id) {
+            id = svg.dataset.hatch = 'ex-hatch-' + (++hatchN);
+            const p = el('pattern', {id, width: 5, height: 5, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)'}, el('defs', {}, svg));
+            el('line', {x1: 0, y1: 0, x2: 0, y2: 5, stroke: '#e9e9ef', 'stroke-width': 1.5, 'stroke-opacity': 0.55}, p);
+        }
+        const top = Math.min(y0, y1), h = Math.abs(y1 - y0);
+        el('rect', {x: x - w / 2, y: top, width: w, height: Math.max(0.75, h), fill: `url(#${id})`}, svg);
+        return r;
+    }
+    const SO_FAR = ' (so far: the day isn\'t over)';
+
     /** Stacked bars a day: days [{day, values: [..by series]}], series [{name, colour}] */
     function stacked(box, days, series, opts) {
         if (!days.length || !days.some((d) => d.values.some((v) => v > 0))) return empty(box, opts.empty || 'Nothing in this period.');
@@ -186,14 +291,14 @@ window.ExCharts = (function () {
                 if (v <= 0) return;
                 const y0 = f.y(acc), y1 = f.y(acc + v);
                 // a 1px gap between segments where there is room
-                bar(f.svg, f.x(d.day), w, y0 - (acc > 0 && y0 - y1 > 3 ? 1 : 0), y1, series[i].colour);
+                (d.day === opts.partial ? partialBar : bar)(f.svg, f.x(d.day), w, y0 - (acc > 0 && y0 - y1 > 3 ? 1 : 0), y1, series[i].colour);
                 acc += v;
             });
         });
         const byDay = Object.fromEntries(days.map((d) => [d.day, d]));
         dayHover(box, f, (day) => {
             const d = byDay[day];
-            const lines = ['Game day ' + day + (opts.dayNote ? opts.dayNote(d) : '')];
+            const lines = ['Game day ' + day + (day === opts.partial ? SO_FAR : '') + (opts.dayNote ? opts.dayNote(d) : '')];
             series.forEach((s, i) => { if (d && d.values[i]) lines.push({colour: s.colour, text: `${s.name}: ${num(d.values[i])}`}); });
             if (d) lines.push('Total: ' + num(d.values.reduce((a, b) => a + b, 0)) + (opts.unitWord ? ' ' + opts.unitWord : ''));
             return lines;
@@ -209,26 +314,49 @@ window.ExCharts = (function () {
         const f = frame(box, opts.first ?? rows[0].day, opts.last ?? rows[rows.length - 1].day, Object.assign({lo, hi}, opts));
         const w = Math.max(1, Math.min(22, f.slot - 2));
         rows.forEach((r) => {
-            if (r.up) bar(f.svg, f.x(r.day), w, f.y(0), f.y(r.up), opts.upColour || COLOURS[0]);
-            if (r.down) bar(f.svg, f.x(r.day), w, f.y(0), f.y(-r.down), opts.downColour || COLOURS[1]);
+            const b = r.day === opts.partial ? partialBar : bar;
+            if (r.up) b(f.svg, f.x(r.day), w, f.y(0), f.y(r.up), opts.upColour || COLOURS[0]);
+            if (r.down) b(f.svg, f.x(r.day), w, f.y(0), f.y(-r.down), opts.downColour || COLOURS[1]);
         });
         if (opts.dots) rows.forEach((r) => {
             if (r.dot === null || r.dot === undefined || (!r.up && !r.down && !r.dot)) return;
             el('circle', {cx: f.x(r.day), cy: f.y(r.dot), r: f.slot > 9 ? 4 : 2.5, fill: '#e9e9ef', stroke: '#24242c', 'stroke-width': 1.5}, f.svg);
         });
         const byDay = Object.fromEntries(rows.map((r) => [r.day, r]));
-        dayHover(box, f, (day) => opts.tip(byDay[day], day));
+        dayHover(box, f, (day) => {
+            const lines = opts.tip(byDay[day], day);
+            if (day === opts.partial && lines.length && typeof lines[0] === 'string') lines[0] += SO_FAR;
+            return lines;
+        });
         return f;
     }
 
-    /** Lines a day: series [{name, colour, points: [{day, v}], dots?: true, dash?}] */
+    /**
+     * Lines a day: series [{name, colour, points: [{day, v}], dots?: true, dash?,
+     * band?: [{day, lo, hi}]}]; a band is a shaded range behind its line
+     * (#720: cash-out's least and most over the days averaged)
+     */
     function lines(box, series, opts) {
-        const all = series.flatMap((s) => s.points.map((p) => p.v)).filter((v) => v !== null && v !== undefined);
+        const all = series.flatMap((s) => s.points.map((p) => p.v).concat((s.band || []).flatMap((b) => [b.lo, b.hi])))
+            .filter((v) => v !== null && v !== undefined);
         if (!all.length) return empty(box, opts.empty || 'Nothing in this period.');
         let lo = Math.min(...all), hi = Math.max(...all);
         if (opts.fromZero !== false && lo >= 0) lo = 0;
         if (hi === lo) hi = lo + 1;
         const f = frame(box, opts.first, opts.last, Object.assign({lo, hi}, opts));
+        series.forEach((s) => {
+            if (!s.band) return;
+            // One shape a run of days with a range, behind every line
+            let run = [];
+            const flush = () => {
+                if (run.length) el('path', {d: run.map((b, i) => (i ? 'L' : 'M') + f.x(b.day) + ',' + f.y(b.hi)).join('')
+                    + run.slice().reverse().map((b) => 'L' + f.x(b.day) + ',' + f.y(b.lo)).join('') + 'Z',
+                    fill: s.colour, 'fill-opacity': 0.2, stroke: 'none'}, f.svg);
+                run = [];
+            };
+            s.band.forEach((b) => { if (b.lo === null || b.lo === undefined || b.day < opts.first || b.day > opts.last) flush(); else run.push(b); });
+            flush();
+        });
         series.forEach((s) => {
             let path = '', prev = false;
             s.points.forEach((p) => {
@@ -310,6 +438,7 @@ window.ExCharts = (function () {
     function dots(box, title, rows, opts) {
         const rh = 22, H = rows.length * rh + 30;
         const {W, svg} = svgIn(box, H);
+        if (!svg.getAttribute('aria-label')) svg.setAttribute('aria-label', title + ': ' + opts.aName + ' and ' + opts.bName + ' by place');   // #716
         el('text', {x: 0, y: 12, class: 'ex-strong', 'font-weight': 600}, svg).textContent = title;
         const vals = rows.flatMap((r) => [r.a, r.b]).filter((v) => v !== null && v !== undefined);
         const tk = ticks(0, Math.max(1, ...vals), 3), top = tk[tk.length - 1], lw = 70;
@@ -330,17 +459,25 @@ window.ExCharts = (function () {
         });
     }
 
-    /** A sparkline of bars up and down (an SVG element), with a tooltip a bar */
+    /**
+     * A sparkline of bars up and down (an SVG element), with a tooltip a bar;
+     * opts.line draws a line instead. opts.lo/hi: a scale shared by a table's rows
+     */
     function spark(values, opts) {
         opts = opts || {};
         const w = opts.width || 120, h = opts.height || 26, n = Math.max(1, values.length), bw = w / n;
         const svg = el('svg', {viewBox: `0 0 ${w} ${h}`, width: w, height: h, role: 'img', 'aria-label': opts.label || ''});
         svg.style.display = 'inline-block'; svg.style.verticalAlign = 'middle'; svg.style.width = w + 'px';
-        // Bars from zero; a line (a price) fitted to its own range
-        const lo = opts.line ? Math.min(...values) : Math.min(0, ...values), hi = opts.line ? Math.max(...values) : Math.max(0, ...values);
+        // Bars from zero; a line fitted to its own range. opts.lo and opts.hi
+        // give every row of a table one scale instead (#720: a 38-credit
+        // share wobbling by 3 looked as dramatic as a 1,500-credit one)
+        const lo = opts.lo ?? (opts.line ? Math.min(...values) : Math.min(0, ...values));
+        const hi = opts.hi ?? (opts.line ? Math.max(...values) : Math.max(0, ...values));
         const range = Math.max(opts.line ? 1e-9 : 1, hi - lo);
-        const Y = (v) => hi === lo ? h / 2 : 2 + (hi - v) / range * (h - 4);
+        const Y = (v) => hi === lo ? h / 2 : 2 + (hi - Math.max(lo, Math.min(hi, v))) / range * (h - 4);
         if (!opts.line) el('line', {x1: 0, x2: w, y1: Y(0), y2: Y(0), stroke: GREY}, svg);
+        // A line's reference level (0%: where it started)
+        const baseLine = opts.line && opts.base !== undefined && el('line', {x1: 0, x2: w, y1: Y(opts.base), y2: Y(opts.base), stroke: GREY, 'stroke-dasharray': '2 2'}, svg);
         values.forEach((v, i) => {
             if (!opts.line) el('rect', {x: i * bw + 0.5, y: Math.min(Y(0), Y(v)), width: Math.max(1, bw - 1), height: Math.max(0.75, Math.abs(Y(v) - Y(0))),
                 fill: opts.line ? 'transparent' : (v >= 0 ? COLOURS[0] : NEG)}, svg);
@@ -348,7 +485,7 @@ window.ExCharts = (function () {
         });
         if (opts.line) {
             const pts = values.map((v, i) => (i * bw + bw / 2) + ',' + Y(v)).join(' ');
-            svg.insertBefore(el('polyline', {points: pts, fill: 'none', stroke: COLOURS[0], 'stroke-width': 1.5}), svg.firstChild);
+            svg.insertBefore(el('polyline', {points: pts, fill: 'none', stroke: COLOURS[0], 'stroke-width': 1.5}), baseLine ? baseLine.nextSibling : svg.firstChild);
             const lastV = values[values.length - 1];
             el('circle', {cx: (values.length - 1) * bw + bw / 2, cy: Y(lastV), r: 2.5, fill: COLOURS[0]}, svg);
         }
@@ -372,7 +509,7 @@ window.ExCharts = (function () {
     }
 
     return {COLOURS, GREY, NEG, num, short, el, tip, showTip, hideTip, ticks, frame, stacked, diverging, lines, step,
-        hbars, dots, spark, onResize, legend, empty};
+        hbars, dots, spark, onResize, legend, empty, markLayer, markColour};
 })();
 </script>
 @endonce

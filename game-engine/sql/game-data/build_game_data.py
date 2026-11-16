@@ -1527,8 +1527,9 @@ queries.append((699, 'Company health',
 # the units it still takes today, its day's demand, its listed price and the
 # game hours until it refills. It buys up to a day's demand above what it
 # keeps to sell; its bid falls to half its listed price at a full day's
-# demand bought, and what it bought goes down to the surface at the start of
-# the next game day (station.lua's ship). Since #608 the bid and the units
+# demand bought, and past that it takes a quarter of a day's demand more at
+# a time at a bid falling on from half (#691). What it bought goes down to
+# the surface once a game day (station.lua's ship). Since #608 the bid and the units
 # come from the station drone's live buy order, as the order book counts
 # them (round 63: a demand worked out from the House's holdings sent rods to
 # Earth while its order wanted none); plus the units sold into it today, by
@@ -1555,8 +1556,9 @@ queries.append((706, 'House demand',
                 "LEFT JOIN latest_orders AS o ON o.drone = a.agent_id AND o.resource = g.resource AND o.event_type = 5 "
                 f"WHERE g.side = 1 AND g.resource = [value_1] AND g.from_day <= {TODAY}) AS d ORDER BY d_price DESC, d.place;"))
 # The House's supply (#630): what it sells of resource N, where, and when its
-# station restocks. Stored once a real minute by the website's tick
-# (App\Services\HouseMarket::storeSupply), since its rounds are worked out
+# station restocks. Stored on each of the website's ticks (every 5 real
+# seconds; once a real minute, more than a game day, until #710) by
+# App\Services\HouseMarket::storeSupply, since its rounds are worked out
 # from the station's imports. Times in game minutes, -1 when unknown.
 queries.append((707, 'House supply',
                 'Where the House sells resource N: place, price (0: sold out), units on sale, what it refills to, '
@@ -1769,19 +1771,26 @@ def holding_asof(drone, resource, t):
     return f"(SELECT IFNULL(SUM({latest_inventory(drone, resource, t)}), 0) FROM {KINDS})"
 
 
-ASOF = ("WITH a AS (SELECT g.agent_id, g.object_id, g.company_id, g.arrived_t, "
-        f"IF(g.object_id = {HERE_}, [game_now], [game_now] - {BOARD_LAG}) AS t FROM agents g "
-        f"WHERE g.wrecked_at IS NULL AND NOT {flying('g.agent_id')}), "
-        "l AS (SELECT e.drone, MAX(e.id) AS id FROM events e INNER JOIN a ON a.agent_id = e.drone "
-        "WHERE e.outcome = 1 AND e.event_type IN (4, 5) AND e.resource = [value_1] AND e.game_t <= a.t "
-        "GROUP BY e.drone, e.event_type) "
-        "SELECT a.object_id AS place, IF(o.event_type = 5, 1, 2) AS side, o.new_credits AS price, "
-        "ABS(i.units - o.new_quantity) AS units, o.drone, IF(a.t = [game_now], 0, 1) AS hours_old "
-        "FROM l INNER JOIN events o ON o.id = l.id INNER JOIN a ON a.agent_id = l.drone "
-        f"JOIN LATERAL (SELECT {holding_asof('a.agent_id', '[value_1]', 'a.t')} AS units) i "
-        "WHERE IFNULL(a.arrived_t, 0) <= a.t AND IF(o.event_type = 4, i.units > o.new_quantity, "
-        "i.units < o.new_quantity AND (SELECT c.credits FROM companies c WHERE c.company_id = a.company_id) "
-        ">= o.new_credits) ORDER BY place, side, price;")
+# #708: the live world's events grew to 19 million rows and this query took
+# 11 s a call, 60% of MySQL's time. It now reads the current-state table
+# latest_orders (each drone's open orders, kept by triggers with the units
+# it holds and its place) instead of rebuilding each drone's past from
+# events. Elsewhere it shows an order as it stands only once it is an hour
+# old (unchanged for BOARD_LAG), and only drones that arrived there an hour
+# ago: what the board would have shown an hour ago, near enough. An order
+# changed within the hour elsewhere is left out until it is an hour old.
+ASOF = ("SELECT o.place, IF(o.event_type = 5, 1, 2) AS side, o.price, ABS(o.units - o.quantity) AS units, "
+        f"o.drone, IF(o.place = me.object_id, 0, 1) AS hours_old "
+        "FROM latest_orders AS o FORCE INDEX (latest_orders_open) "
+        "INNER JOIN agents AS me ON me.agent_id = [drone_id] "
+        "INNER JOIN agents AS a ON a.agent_id = o.drone AND a.wrecked_at IS NULL "
+        "INNER JOIN events AS e ON e.id = o.event_id "
+        "WHERE o.resource = [value_1] AND o.event_type IN (4, 5) AND o.is_open = 1 "
+        f"AND (o.place = me.object_id OR (e.game_t <= [game_now] - {BOARD_LAG} "
+        f"AND IFNULL(a.arrived_t, 0) <= [game_now] - {BOARD_LAG})) "
+        f"AND NOT {flying('o.drone')} "
+        "AND (o.event_type = 4 OR (SELECT c.credits FROM companies c WHERE c.company_id = a.company_id) >= o.price) "
+        "ORDER BY o.place, side, o.price;")
 queries.append((615, 'Orders everywhere',
                 '[N R L 615 query]: Every exchange\'s orders for resource N: live where the drone is, an hour old '
                 'elsewhere. Rows: place, side (1 buy, 2 sell), price, units on offer or wanted, drone, hours old.', 1,

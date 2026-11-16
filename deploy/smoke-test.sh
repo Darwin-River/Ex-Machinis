@@ -704,12 +704,15 @@ grep -qF "Its launched function crashed" <<<"$(fetch "http://localhost/spacecraf
 echo "ok: wrecks have post-mortems"
 
 # Home, Market and Map (#324 step 17): the feed tells what happened, the
-# Market shows the order book and trades (no House price list), the Map where the drones are
+# Market shows the goods board and trades (no House price list), each good's
+# page its order book (#721), the Map where the drones are
 grep -qF "became a wreck" <<<"$(fetch http://localhost/)" || fail "the home page's feed doesn't report the wrecks"
 MARKET_PAGE=$(fetch http://localhost/market)
-grep -qF "Order book" <<<"$MARKET_PAGE" || fail "the market page doesn't show the order book"
+grep -qF "Where is each good cheapest" <<<"$MARKET_PAGE" || fail "the market page doesn't show the goods board"
 ! grep -qF "House stations" <<<"$MARKET_PAGE" || fail "the market page shows the House's price list (#380: players find prices in the order book)"
-grep -qF "spacecraft/$FORGE_DRONE" <<<"$MARKET_PAGE" || fail "the market page doesn't show the trades"
+FUEL_PAGE=$(fetch http://localhost/resources/2061)
+grep -qF 'id="order-book"' <<<"$FUEL_PAGE" || fail "a good's page doesn't show its order book"
+grep -qF "spacecraft/$FORGE_DRONE" <<<"$MARKET_PAGE$FUEL_PAGE" || fail "the market pages don't show the trades"
 grep -qF ">Moon<" <<<"$(fetch http://localhost/map)" || fail "the map doesn't list the Moon among the places with drones"
 echo "ok: the home feed, market and map show the world"
 # The leaderboard (#324 step 18, companies since #367 step 2) ranks the

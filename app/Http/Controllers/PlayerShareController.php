@@ -31,6 +31,9 @@ class PlayerShareController extends Controller
         if (!$user = $this->webPlayer()) {
             return redirect('/login');
         }
+        if ($e = self::notWhole($request)) {
+            return back()->with('error', $e);
+        }
         $r = PlayerShares::sellToBank($user, $id, (int) $request->input('units'));
         return $this->back($r, $r['ok'] ? 'The bank has your ' . $r['units'] . ' shares: it pays ' . $r['due']
             . ', at the lower of ' . number_format($r['price_now']) . ' a share and their cash-out value then.' : '');
@@ -41,6 +44,9 @@ class PlayerShareController extends Controller
         if (!$user = $this->webPlayer()) {
             return redirect('/login');
         }
+        if ($e = self::notWhole($request)) {
+            return back()->with('error', $e);
+        }
         $r = PlayerShares::buyFromBank($user, $id, (int) $request->input('units'));
         return $this->back($r, $r['ok'] ? 'You bought ' . $r['units'] . ' shares from the bank for ' . number_format($r['cost']) . ' credits.' : '');
     }
@@ -49,6 +55,9 @@ class PlayerShareController extends Controller
     {
         if (!$user = $this->webPlayer()) {
             return redirect('/login');
+        }
+        if ($e = self::notWhole($request)) {
+            return back()->with('error', $e);
         }
         $r = PlayerShares::order($user, $id, (string) $request->input('side'), (int) $request->input('units'), (int) $request->input('price'));
         return $this->back($r, $r['ok'] ? $r['traded'] . ' shares traded now' . ($r['standing'] ? ', and an order for '
@@ -106,12 +115,18 @@ class PlayerShareController extends Controller
     public function apiSellToBank(Request $request, int $id): JsonResponse
     {
         $user = $this->apiPlayer($request);
+        if ($user && ($e = self::notWhole($request))) {
+            return response()->json(['error' => $e], 422);
+        }
         return $user ? $this->json(PlayerShares::sellToBank($user, $id, self::whole($request, 'units'))) : $this->unauthorized();
     }
 
     public function apiBuyFromBank(Request $request, int $id): JsonResponse
     {
         $user = $this->apiPlayer($request);
+        if ($user && ($e = self::notWhole($request))) {
+            return response()->json(['error' => $e], 422);
+        }
         return $user ? $this->json(PlayerShares::buyFromBank($user, $id, self::whole($request, 'units'))) : $this->unauthorized();
     }
 
@@ -121,12 +136,34 @@ class PlayerShareController extends Controller
         if (!$user) {
             return $this->unauthorized();
         }
+        if ($e = self::notWhole($request)) {
+            return response()->json(['error' => $e], 422);
+        }
         // Whole shares at a whole number of credits (#674: 70.5 was stored as 70)
         if (self::whole($request, 'units') < 1 || self::whole($request, 'price') < 1) {
             return response()->json(['error' => 'An order is a whole number of shares, at least 1, at a whole number of credits, at least 1.'], 422);
         }
         return $this->json(PlayerShares::order($user, $id, (string) $request->input('side'),
             self::whole($request, 'units'), self::whole($request, 'price')));
+    }
+
+    /**
+     * Why the request's units or price isn't a whole number, or null (#715:
+     * 1.5 shares answered "Buy at least 1 whole share.")
+     */
+    private static function notWhole(Request $request): ?string
+    {
+        foreach (['units' => 'Shares are whole', 'price' => 'Prices are whole credits'] as $key => $what) {
+            $v = $request->input($key);
+            if ($v === null || $v === '' || is_int($v) || !is_numeric($v)) {
+                continue;
+            }
+            if ((float) $v != floor((float) $v)) {
+                return $what . ': ' . (is_string($v) ? trim($v) : rtrim(rtrim(sprintf('%.6F', $v), '0'), '.'))
+                    . " isn't a whole number.";
+            }
+        }
+        return null;
     }
 
     /** A whole number from the request, or 0 when it isn't one (0.5, "abc") */

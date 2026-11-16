@@ -103,13 +103,19 @@ class CompanyHealthTest extends TestCase
         $this->assertSame('2 of its 3 drones have bought, sold or made nothing for a game day or more', $h['stalled_reason']);
         $this->get('/companies/' . $company)->assertOk()->assertSee('id="stalled-banner"', false)->assertSee('2 of its 3 drones');
 
-        // One drone, busy, but nothing sold in the 4 game days since it started
+        // One drone, busy, but nothing sold in the 4 game days since it
+        // started: a new company's grace (#715: a 4-day-old seedling mining
+        // its first load was "stalled")
         $solo = Release::release($user, 'Never Sells', 'function launched() end');
         DB::table('companies')->where('company_id', $solo->company_id)->update(['founded_t' => World::gameNow() - 4 * 86400]);
         DB::table('events')->insert(['event_type' => 1, 'action' => 0, 'outcome' => 1, 'drone' => $solo->agent_id,
             'resource' => 2011, 'installed' => 0, 'locked' => 0, 'new_quantity' => 16, 'game_t' => World::gameNow() - 3600]);
         $h = CompanyHealth::of((int) $solo->company_id);
         $this->assertNull($h['last_sale']);
+        $this->assertFalse($h['stalled'], 'under ' . CompanyHealth::STALLED_GRACE_DAYS . ' game days old: not stalled yet');
+        // Past the grace, still no sale: stalled
+        DB::table('companies')->where('company_id', $solo->company_id)->update(['founded_t' => World::gameNow() - 8 * 86400]);
+        $h = CompanyHealth::of((int) $solo->company_id);
         $this->assertSame('it has never sold anything', $h['stalled_reason']);
         // A sale two days ago: still too long ago? No: under 72 game hours
         DB::table('trades')->insert(['resource' => 2011, 'units' => 1, 'credits' => 10, 'seller' => $solo->agent_id,

@@ -310,7 +310,11 @@ ErrorCode_t engine_run()
         // process outcome events passing callback
         if(result == ENGINE_OK)
         {
+            event_batch_start();
             result = db_get_outcome_events(engine_process_outcome, &found);
+            // A passing database error (#711): roll the batch back and try again
+            if(result == ENGINE_OK && event_batch_retry())
+                result = ENGINE_DB_QUERY_ERROR;
         }
 
         // Observations and places, written once for the batch (#448)
@@ -328,7 +332,9 @@ ErrorCode_t engine_run()
         else
         {
             result = db_rollback_transaction(&engine.db_connection);
-        }  
+            // Give the database a moment before the retry (#711)
+            if(event_batch_retry()) sleep(1);
+        }
 
         // House drop stations (#324 step 10): clear the batches that have
         // ended. All of it in one transaction, so a batch is paid once or

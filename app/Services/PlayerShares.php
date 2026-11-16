@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -10,8 +11,8 @@ use Illuminate\Support\Facades\DB;
  *
  * A matured company's 100 shares (#667) are its player's (#637), and players trade
  * them. The price that anchors everything is the company's cash-out value: its
- * credits, plus what the House would pay for its goods and equipment where
- * they are now, plus each working drone's hull at a fixed value that falls
+ * credits, plus its goods and equipment at each good's best House bid
+ * anywhere, averaged over 7 game days (#685), plus each working drone's hull at a fixed value that falls
  * with age (nothing for a drone with no fuel aboard that hasn't bought any
  * for forge.stranded_days game days), less what it owes, a share. It never
  * depends on the price of trades in its shares.
@@ -33,6 +34,9 @@ class PlayerShares
     // A matured company's shares: 100 since #667, so each is worth enough to
     // price in whole credits (1,000 made it 2 to 15 credits)
     public const COUNT = 100;
+
+    /** Game days of an account's own share trades its page and GET /account/shares list (#715) */
+    public const FILLS_DAYS = 7;
 
     /** Can players trade this company's shares: a matured company of the new rules, still trading? */
     public static function tradable(int $company): bool
@@ -57,18 +61,20 @@ class PlayerShares
         if (!$c || $c->eliminated_at !== null) {
             return ['total' => 0, 'per_share' => 0, 'credits' => 0, 'goods' => 0, 'hulls' => 0, 'debts' => 0];
         }
-        // Goods and equipment at the House's bid for the game day where each
-        // drone is: the price the exchange lists that day (house_market), not
-        // its live bid, which falls as it buys and recovers as it restocks.
-        // Valued live, cash-out swung 15 to 30% within minutes with no trade
-        // behind it, and the bank's prices with it (#670)
-        $goods = (int) DB::table('holdings as h')
-            ->join('agents as a', 'a.agent_id', '=', 'h.drone')
-            ->join('stations as st', 'st.object_id', '=', 'a.object_id')
-            ->join('house_market as m', fn ($j) => $j->on('m.station_id', '=', 'st.id')->on('m.resource', '=', 'h.resource'))
-            ->where('a.company_id', $company)->whereNull('a.wrecked_at')->where('h.units', '>', 0)
-            ->where('m.side', 1)->where('m.price', '>', 0)->where('m.from_day', '<=', HouseMarket::today(DB::connection()))
-            ->sum(DB::raw('h.units * m.price'));
+        // Goods and equipment at a steady price, wherever they are (#685):
+        // each good's best listed House bid anywhere, averaged over the last
+        // BID_DAYS game days (bestBids). Valued at the bid where each drone
+        // happened to be (#670), cash-out swung 20 to 30% a game day as drones
+        // flew between exchanges and the Mars moons (where nothing is bid, so
+        // goods counted 0), and buying from the bank on a low and selling
+        // back on a high paid 28% in a game day (round 70)
+        $bids = self::bestBids();
+        $goods = 0;
+        foreach (DB::table('holdings as h')->join('agents as a', 'a.agent_id', '=', 'h.drone')
+                     ->where('a.company_id', $company)->whereNull('a.wrecked_at')->where('h.units', '>', 0)
+                     ->groupBy('h.resource')->selectRaw('h.resource, SUM(h.units) AS units')->get() as $h) {
+            $goods += (int) $h->units * ($bids[(int) $h->resource] ?? 0);
+        }
 
         // Hulls: a fixed value falling with age, nothing for a stranded drone
         $now = World::gameNow();
@@ -83,7 +89,16 @@ class PlayerShares
                     ->where('event_type', 1)->where('outcome', 1)->where('game_t', '>', $strandedSince)->exists()) {
                 continue;
             }
-            $born = (int) (DB::table('events')->where('drone', $a->agent_id)->min('game_t') ?? $now);
+            // When the drone was made never changes: kept, as the lookup walks
+            // every one of its events (#723: a dashboard rebuild took 90 s)
+            $born = Cache::get("drone_born:{$a->agent_id}");
+            if ($born === null) {
+                $born = DB::table('events')->where('drone', $a->agent_id)->min('game_t');
+                if ($born !== null) {
+                    Cache::forever("drone_born:{$a->agent_id}", (int) $born);
+                }
+            }
+            $born = (int) ($born ?? $now);
             $hulls += (int) floor($hullValue * max(0, 1 - ($now - $born) / $life));
         }
 
@@ -92,6 +107,54 @@ class PlayerShares
         $total = $credits + $goods + $hulls - $debts;
         return ['total' => $total, 'per_share' => max(0, intdiv(max(0, $total), self::COUNT)),
             'credits' => $credits, 'goods' => $goods, 'hulls' => $hulls, 'debts' => $debts];
+    }
+
+    /** Game days over which cash-out averages each good's best House bid (#685) */
+    public const BID_DAYS = 7;
+
+    /**
+     * Records today's best listed House bid anywhere for each good it buys
+     * (house_market, side 1) in house_best_bids, once a game day, on the
+     * website's tick, and keeps the last 30 game days. Returns whether it
+     * recorded.
+     */
+    public static function recordBestBids(): bool
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('house_best_bids')) {
+            return false;
+        }
+        $today = HouseMarket::today(DB::connection());
+        if (DB::table('house_best_bids')->where('day', $today)->exists()) {
+            return false;
+        }
+        $rows = DB::table('house_market')->where('side', 1)->where('price', '>', 0)->where('from_day', '<=', $today)
+            ->groupBy('resource')->selectRaw('resource, MAX(price) AS price')->get()
+            ->map(fn ($r) => ['day' => $today, 'resource' => (int) $r->resource, 'price' => (int) $r->price])->all();
+        DB::table('house_best_bids')->insertOrIgnore($rows);
+        DB::table('house_best_bids')->where('day', '<', $today - 30)->delete();
+        return true;
+    }
+
+    /**
+     * Each good's best listed House bid anywhere, averaged over the last
+     * BID_DAYS game days that have one recorded, today included: [resource
+     * => credits]. A recorded day with no bid for a good counts 0. Cached
+     * for a real minute.
+     */
+    public static function bestBids(): array
+    {
+        $today = HouseMarket::today(DB::connection());
+        return Cache::remember("best_bids:$today", 60, function () use ($today) {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('house_best_bids')) {
+                return [];
+            }
+            self::recordBestBids();
+            $from = $today - self::BID_DAYS + 1;
+            $days = max(1, DB::table('house_best_bids')->whereBetween('day', [$from, $today])->distinct()->count('day'));
+            return DB::table('house_best_bids')->whereBetween('day', [$from, $today])->groupBy('resource')
+                ->selectRaw('resource, SUM(price) AS total')->get()
+                ->mapWithKeys(fn ($r) => [(int) $r->resource => intdiv((int) $r->total, $days)])->all();
+        });
     }
 
     /**
@@ -111,11 +174,13 @@ class PlayerShares
 
     /**
      * The bank's prices for a company's shares and the range players trade
-     * in: ['buys_at', 'sells_at', 'low', 'high', 'bank_holds']
+     * in: ['buys_at', 'sells_at', 'low', 'high', 'bank_holds']. $cash: its
+     * cashOut() already worked out, so a page that shows its parts quotes the
+     * same figures (#716: the company page's credits differed from its tile)
      */
-    public static function prices(int $company): array
+    public static function prices(int $company, ?array $cash = null): array
     {
-        $buys = self::cashOut($company)['per_share'];
+        $buys = ($cash ?? self::cashOut($company))['per_share'];
         $sells = $buys + self::dividends30($company);
         return ['buys_at' => $buys, 'sells_at' => $sells,
             'low' => (int) floor($sells * (float) config('forge.share_range_low')),
@@ -285,9 +350,12 @@ class PlayerShares
         $crosses = $side === 'buy' ? (clone $mine)->where('price', '<=', $price)->min('price')
             : (clone $mine)->where('price', '>=', $price)->max('price');
         if ($crosses !== null) {
+            // The standing order's price is what a new one must stay clear of
+            // (#715: it quoted the new order's own price, "a buy at 600 or
+            // more would cross it" against a sell at 50)
             return self::fail(422, 'You have an order to ' . ($side === 'buy' ? 'sell' : 'buy') . ' its shares at '
-                . (int) $crosses . ': ' . ($side === 'buy' ? 'a buy at ' . $price . ' or more' : 'a sell at ' . $price . ' or less')
-                . ' would cross it. Cancel that order first, or change your price.');
+                . (int) $crosses . ': ' . ($side === 'buy' ? 'a buy at ' . (int) $crosses . ' or more' : 'a sell at ' . (int) $crosses . ' or less')
+                . ' would cross it. Cancel that order first, or ' . ($side === 'buy' ? 'bid under ' : 'ask over ') . (int) $crosses . '.');
         }
         return DB::transaction(function () use ($me, $company, $side, $units, $price, $p) {
             $traded = 0;
@@ -437,7 +505,34 @@ class PlayerShares
         return ['sell' => $rows('sell', 'asc'), 'buy' => $rows('buy', 'desc')];
     }
 
-    /** An account's shares, orders and payments due from the bank */
+    /**
+     * An account's share trades since a game time, newest first (#715:
+     * nothing told a player when an order filled): company_id, name, side
+     * (bought or sold), units, price, with (the other side's name, or "the
+     * bank"), when, ago, game_time
+     */
+    public static function fills(int $user, int $since, int $limit = 20): array
+    {
+        return DB::table('player_share_trades as t')->join('companies as c', 'c.company_id', '=', 't.company_id')
+            ->leftJoin('users as s', 's.user_id', '=', 't.seller_id')->leftJoin('users as b', 'b.user_id', '=', 't.buyer_id')
+            ->where(fn ($q) => $q->where('t.seller_id', $user)->orWhere('t.buyer_id', $user))
+            ->where('t.game_t', '>', $since)->orderByDesc('t.id')->limit($limit)
+            ->get(['t.company_id', 'c.name', 't.seller_id', 't.units', 't.price', 't.game_t', 's.login as seller', 'b.login as buyer'])
+            ->map(function ($t) use ($user) {
+                $sold = (int) $t->seller_id === $user;
+                return ['company_id' => (int) $t->company_id, 'name' => $t->name, 'side' => $sold ? 'sold' : 'bought',
+                    'units' => (int) $t->units, 'price' => (int) $t->price,
+                    'with' => ($sold ? $t->buyer : $t->seller) ?? 'the bank',
+                    'when' => DronePage::when((int) $t->game_t), 'ago' => DronePage::ago((int) $t->game_t), 'game_time' => (int) $t->game_t];
+            })->all();
+    }
+
+    /**
+     * An account's shares, orders and payments due from the bank, and its
+     * share trades over the last FILLS_DAYS game days (#715). Each order
+     * says whether it can trade now: one outside the range players trade
+     * in (out_of_range) stands, but can't fill until the range comes back
+     */
     public static function of(User $user): array
     {
         $holdings = DB::table('player_shares as s')->join('companies as c', 'c.company_id', '=', 's.company_id')
@@ -447,10 +542,16 @@ class PlayerShares
                 return ['company_id' => (int) $h->company_id, 'name' => $h->name, 'units' => (int) $h->units,
                     'cash_out' => $p['buys_at'], 'value' => (int) $h->units * $p['buys_at']];
             })->all();
+        $range = [];
         $orders = DB::table('player_share_orders as o')->join('companies as c', 'c.company_id', '=', 'o.company_id')
             ->where('o.user_id', $user->user_id)->orderBy('o.id')->get(['o.id', 'o.company_id', 'c.name', 'o.side', 'o.units', 'o.price'])
-            ->map(fn ($o) => ['id' => (int) $o->id, 'company_id' => (int) $o->company_id, 'name' => $o->name,
-                'side' => $o->side, 'units' => (int) $o->units, 'price' => (int) $o->price])->all();
+            ->map(function ($o) use (&$range) {
+                $p = $range[$o->company_id] ??= self::tradable((int) $o->company_id) ? self::prices((int) $o->company_id) : null;
+                return ['id' => (int) $o->id, 'company_id' => (int) $o->company_id, 'name' => $o->name,
+                    'side' => $o->side, 'units' => (int) $o->units, 'price' => (int) $o->price,
+                    'low' => $p['low'] ?? null, 'high' => $p['high'] ?? null,
+                    'out_of_range' => $p === null || (int) $o->price < $p['low'] || (int) $o->price > $p['high']];
+            })->all();
         $due = DB::table('bank_payments as b')->join('companies as c', 'c.company_id', '=', 'b.company_id')
             ->where('b.user_id', $user->user_id)->whereNull('b.paid_t')->orderBy('b.due_t')
             ->get(['b.id', 'b.company_id', 'c.name', 'b.units', 'b.price_at_sale', 'b.due_t'])
@@ -459,7 +560,8 @@ class PlayerShares
         $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
         $today = intdiv(World::gameNow() - $epoch, 86400);
         $dividends = (int) DB::table('player_dividends')->where('user_id', $user->user_id)->where('day', '>=', $today - 30)->sum('amount');
-        return ['holdings' => $holdings, 'orders' => $orders, 'bank_payments' => $due, 'dividends_30_days' => $dividends];
+        return ['holdings' => $holdings, 'orders' => $orders, 'bank_payments' => $due, 'dividends_30_days' => $dividends,
+            'fills' => self::fills((int) $user->user_id, World::gameNow() - self::FILLS_DAYS * 86400)];
     }
 
     /**

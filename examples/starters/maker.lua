@@ -5,7 +5,8 @@
 -- tenth-a-day cap), makes them
 -- into alloys and the alloys into rods, and sells the rods wherever they
 -- pay best: at the Moon if the best bid there is close to what rods fetched
--- at Earth yesterday (the price board), else it flies a load to Earth.
+-- at Earth yesterday (the price board), else it flies a load to Earth. As a
+-- seedling, where the House pays most for them after the trip.
 -- With grow_at credits it launches a copy of itself. Credits above
 -- invest_above it puts into other companies' shares (see invest()).
 
@@ -68,6 +69,13 @@ function metals_place()
 end
 function stock_up()
   if units(metals_a1) >= 2 then return end
+  -- Too few credits for two metals: rest a while (#713: a broke maker went
+  -- round this loop without a pause, paying processor tax for every turn)
+  if spare() < 60 then
+    set_status("short of credits for metals")
+    wait(120)
+    return
+  end
   if house_only() then
     local best = metals_place()
     if not best then
@@ -117,19 +125,45 @@ end
 -- matches what Earth pays: its best bid an hour ago (quotes), or what rods
 -- traded for there yesterday if that was more. (#503: the board price alone
 -- was 0 for rods that hadn't traded at Earth yet, so it sold at the Moon's
--- low bid)
+-- low bid.) A seedling asks house_rods() instead
 function sell_here_pays()
+  if house_only() then return house_rods() == location() end
   local bid = sell_price(rods)
   local at_earth = quotes(rods)[earth]
   local earth_pays = math.max(at_earth and at_earth.bid or 0, board_price(rods, earth))
   return bid > 0 and bid + trip_margin >= earth_pays
 end
 
+-- Where the House pays most for the rods aboard, for a seedling, which
+-- sells only to the House (#713: round 70's seedling hauled rods between
+-- Earth and Mars and sold none. It chose by every drone's bids, an hour old
+-- (quotes, where_to_sell), which it may not sell to, while the House at
+-- Earth had bought its fill: sell_here returned -12 there, and it flew on).
+-- At each exchange: the House's bid now for as many as it still takes today
+-- (house_demand), less the 5% sales tax and, elsewhere, the round trip (10
+-- fuel at about 3, and 10 credits a game hour); nil when none comes out ahead
+function house_rods()
+  local n, best, best_net = units(rods), nil, 0
+  for _, d in ipairs(house_demand(rods)) do
+    local take = math.min(n, d.left)
+    if d.price > 0 and take > 0 then
+      local net = d.price * take * 95 // 100
+      if d.place ~= location() then
+        local t = trip_to(d.place)
+        net = net - 30 - (t and t.hours * 2 or 0) * 10
+      end
+      if net > best_net then best, best_net = d.place, net end
+    end
+  end
+  return best
+end
+
 -- Where to sell the rods aboard: Earth, unless another place pays more for
 -- them after the round trip (where_to_sell; #542: round 57's Makers carried
 -- rods nobody bid for at Earth or the Moon for up to 18 days, while Mars
--- bid 155)
+-- bid 155). A seedling: house_rods(), nil when no House bid pays the trip
 function market_for_rods()
+  if house_only() then return house_rods() end
   local best = where_to_sell(rods, math.max(units(rods), 1))[1]
   if best and best.place ~= moon and best.net > 0 then return best.place end
   return earth
@@ -137,6 +171,11 @@ end
 
 function haul()
   local market = market_for_rods()
+  if not market then   -- a seedling, and no House bid pays the trip: wait for one (#713)
+    set_status("no House bid for " .. units(rods) .. " rods pays the trip: waiting")
+    wait(120)
+    return
+  end
   set_status("hauling " .. units(rods) .. " rods to " .. place_name(market))
   go(market)
   if units(fuel) < 60 then raise_cash(150); buy_here(30, fuel); wait(120) end

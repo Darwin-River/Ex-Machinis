@@ -18,6 +18,7 @@ int main(void)
     assert(query_cache_policy(615, 500, &ttl) == QC_PLACE);
     assert(query_cache_policy(680, 500, &ttl) == QC_WORLD);
     assert(query_cache_policy(708, 500, &ttl) == QC_DRONE_PLACE && ttl == 2000);
+    assert(query_cache_policy(699, 500, &ttl) == QC_WORLD && ttl == 10000);   /* company health (#725) */
     assert(query_cache_policy(212, 500, &ttl) == QC_NONE);   // units(): its own hold
     assert(query_cache_policy(207, 500, &ttl) == QC_NONE);   // now(): the time moves
 
