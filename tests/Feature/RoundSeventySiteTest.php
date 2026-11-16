@@ -237,6 +237,31 @@ class RoundSeventySiteTest extends TestCase
         $this->assertSame(77, $digest['share_fills'][0]['price']);
     }
 
+    /** #741: a failure now and then isn't failing: 3 times or more, and a fifth of the tries */
+    public function testOneFailureAmongManyIsNotFailing()
+    {
+        [, $id] = $this->matured();
+        $d = $this->drone($id);
+        $now = World::gameNow();
+        $act = function (int $outcome, int $h) use ($d, $now) {
+            $a = DB::table('actions')->insertGetId(['drone' => $d, 'protocol' => 3, 'multiplier' => 1, 'aborted' => 0, 'outcome' => $outcome]);
+            DB::table('events')->insert(['event_type' => 1, 'action' => $a, 'logged' => 1, 'outcome' => $outcome === -19 ? -19 : 1, 'drone' => $d,
+                'resource' => 2011, 'installed' => 0, 'locked' => 0, 'new_quantity' => 0, 'game_t' => $now - $h * 600]);
+        };
+        // 2 failures in 20 tries: not failing
+        foreach (range(1, 18) as $h) { $act(1, $h); }
+        $act(-19, 19); $act(-19, 20);
+        $this->assertSame([], CompanyHealth::of($id)['failing']);
+        // 3 failures in 21: still under a fifth
+        $act(-19, 21);
+        $this->assertSame([], CompanyHealth::of($id)['failing']);
+        // 6 in 24: a quarter, failing, "6 of 24 times"
+        $act(-19, 22); $act(-19, 23); $act(-19, 24);
+        $health = CompanyHealth::of($id);
+        $this->assertSame([6, 24], [$health['failing'][0]['times'], $health['failing'][0]['tries']]);
+        $this->assertStringContainsString('failed 6 of 24 times', $health['failing_reason']);
+    }
+
     /** #715: health counts failing actions, and half its drones idle isn't stalled while it sells */
     public function testHealthSeesFailingLoops()
     {
@@ -250,8 +275,8 @@ class RoundSeventySiteTest extends TestCase
         }
         $health = CompanyHealth::of($id);
         $this->assertSame(3, $health['failing'][0]['times']);
-        $this->assertStringContainsString('failed 3 times over the last game day', $health['failing_reason']);
-        $this->get('/companies/' . $id)->assertOk()->assertSee('id="failing"', false)->assertSee('failed 3 times');
+        $this->assertStringContainsString('failed all 3 times over the last game day', $health['failing_reason']);
+        $this->get('/companies/' . $id)->assertOk()->assertSee('id="failing"', false)->assertSee('failed all 3 times');
 
         // Two drones, one idle: half idle, but it sold within the game day
         $more = Seedlings::start($owner, 'R70 More', 'function launched() wait(60) end')['company'];

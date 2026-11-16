@@ -52,7 +52,7 @@ class CompanyHealth
     public const RISK_CREDITS = 500;
     public const STALLED_HOURS = 24;
     public const IDLE_LOOKBACK = 10;   // game days
-    public const STALLED_SALE_HOURS = 72;
+    public const STALLED_SALE_HOURS = 168;   // #741: 72 flagged Makers that sell a batch every 4 to 7 game days
     public const STALLED_GRACE_DAYS = 7;
 
     /** The per-drone fuel figures for the SQL: c (company id) and now are placeholders */
@@ -143,32 +143,45 @@ class CompanyHealth
         return null;
     }
 
+    /** An action is failing when it failed at least this many times over the last game day (#741) */
+    public const FAIL_MIN = 3;
+    /** ... and at least this share of its tries (#741: one race on an order marked 7 of 18 companies failing) */
+    public const FAIL_SHARE = 0.2;
+
     /**
-     * The actions a company's working drones (or one drone's) tried and
-     * failed over the last game day, most first (#715): [what, times,
-     * why]. Planned actions and power bills aren't counted; nor is an
-     * action its player stopped.
+     * The actions a company's working drones (or one drone's) keep failing
+     * over the last game day, most first (#715): [what, times, tries, why].
+     * Failing means FAIL_MIN times or more and FAIL_SHARE of its tries or
+     * more (#741: until round 71 one failure was enough, and a race lost on
+     * another drone's order marked the best earners "failing"). Planned
+     * actions and power bills aren't counted; nor is an action its player
+     * stopped.
      */
     public static function failing(int $company, ?int $now = null, ?int $drone = null): array
     {
         $now ??= (int) World::gameNow();
-        $rows = DB::select("SELECT x.protocol, MIN(x.outcome) AS outcome, COUNT(DISTINCT x.id) AS n
+        $failed = 'x.outcome < 0 AND x.outcome <> -9';
+        $rows = DB::select("SELECT x.protocol, MIN(CASE WHEN $failed THEN x.outcome END) AS outcome,
+                COUNT(DISTINCT CASE WHEN $failed THEN x.id END) AS n, COUNT(DISTINCT x.id) AS tries
             FROM agents AS a JOIN events AS e FORCE INDEX (events_drone_game_t) ON e.drone = a.agent_id
               AND e.game_t > ? AND e.game_t <= ?
-            JOIN actions AS x ON x.id = e.action AND x.drone = a.agent_id AND x.outcome < 0 AND x.outcome <> -9 AND x.protocol <> 2
+            JOIN actions AS x ON x.id = e.action AND x.drone = a.agent_id AND x.protocol <> 2
             WHERE a.company_id = ? AND a.wrecked_at IS NULL" . ($drone !== null ? ' AND a.agent_id = ' . (int) $drone : '') . "
-            GROUP BY x.protocol ORDER BY n DESC, x.protocol LIMIT 5", [$now - 86400, $now, $company]);
+            GROUP BY x.protocol HAVING n >= ? AND n >= ? * tries ORDER BY n DESC, x.protocol LIMIT 5",
+            [$now - 86400, $now, $company, self::FAIL_MIN, self::FAIL_SHARE]);
         return array_map(fn ($r) => ['what' => DronePage::protocolName((int) $r->protocol), 'times' => (int) $r->n,
-            'why' => DronePage::OUTCOMES[(int) $r->outcome] ?? 'it failed'], $rows);
+            'tries' => (int) $r->tries, 'why' => DronePage::OUTCOMES[(int) $r->outcome] ?? 'it failed'], $rows);
     }
 
-    /** "Make Alloys failed 6 times over the last game day (not enough ...)", or null (#715) */
+    /** "Make Alloys failed 6 of 8 times over the last game day (not enough ...)", or null (#715, #741) */
     public static function failingReason(array $failing): ?string
     {
         if (!$failing) {
             return null;
         }
-        return implode('; ', array_map(fn ($f) => $f['what'] . ' failed ' . ($f['times'] === 1 ? 'once' : $f['times'] . ' times')
+        return implode('; ', array_map(fn ($f) => $f['what'] . ' failed ' . ($f['times'] === ($f['tries'] ?? $f['times'])
+            ? ($f['times'] === 1 ? 'once' : 'all ' . $f['times'] . ' times')
+            : $f['times'] . ' of ' . $f['tries'] . ' times')
             . ' over the last game day (' . $f['why'] . ')', $failing));
     }
 
