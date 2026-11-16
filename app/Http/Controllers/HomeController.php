@@ -87,6 +87,19 @@ class HomeController extends Controller
         return response('ok');
     }
 
+    /**
+     * The scheduler's keeper (#738): rebuilds each kept figure (the
+     * dashboard, the stock exchange) once it is its TTL old, so a page view
+     * never waits for one. Called once a real minute, apart from the tick,
+     * since a rebuild can take a minute or more on the live database
+     */
+    public function keep($key)
+    {
+        $this->requireCronKey($key);
+        @set_time_limit(600);
+        return response()->json(\App\Services\Kept::keepAll());
+    }
+
     /** Where the players' manual and its images live */
     private const PLAYERS_MANUAL = 'documents/players-manual.md';
     private const MANUAL_IMAGES = 'documents/images';

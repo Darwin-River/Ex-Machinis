@@ -12,8 +12,8 @@ use Illuminate\Support\Facades\DB;
  *
  * Every figure is worked out here, on the server. A page view never waits
  * for it (#723): it gets the last one worked out, and if that is older than
- * TTL real seconds, one rebuild starts after the response has gone, never
- * two at once (a lock). On the live database a rebuild took about 90 real
+ * TTL real seconds, the scheduler rebuilds it (Kept::keepAll, #738),
+ * never two at once (a lock). On the live database a rebuild took about 90 real
  * seconds; with a 60-second cache, each view after it ran out started one
  * of its own, which kept MySQL busy and slowed the game from round 70.
  * Game days count from the world's first (game_clock.epoch).
@@ -47,7 +47,38 @@ class Dashboard
         return self::kept('dashboard:full', fn () => self::build());
     }
 
-    /** The last $key worked out (Kept), rebuilt after the response once TTL old */
+    /**
+     * How far behind the world's clock figures worked out at game time $at
+     * are, as a note for the page, or null when they are under a game day
+     * old (#738)
+     */
+    public static function staleNote(?int $at): ?string
+    {
+        if ($at === null) {
+            return null;
+        }
+        $behind = World::gameNow() - $at;
+        if ($behind < 86400) {
+            return null;
+        }
+        $days = (int) floor($behind / 86400);
+        return 'These figures are ' . $days . ' game day' . ($days === 1 ? '' : 's')
+            . ' old: they are worked out again each minute, and this copy has not been yet.';
+    }
+
+    /** The banner and tiles worked out now (the scheduler's rebuild, Kept::keepAll) */
+    public static function summaryNow(): array
+    {
+        return self::summary();
+    }
+
+    /** Everything worked out now (the scheduler's rebuild, Kept::keepAll) */
+    public static function buildNow(): array
+    {
+        return self::build();
+    }
+
+    /** The last $key worked out (Kept), rebuilt by the scheduler once TTL old */
     private static function kept(string $key, callable $work): array
     {
         return Kept::get($key, self::TTL, $work);
@@ -96,6 +127,7 @@ class Dashboard
         $slowed = (bool) $clock['slowed'];
         return [
             'as_of' => DronePage::when(World::gameNow()),
+            'as_of_t' => World::gameNow(),
             'today' => $today,
             'banner' => [
                 'day' => $full,
