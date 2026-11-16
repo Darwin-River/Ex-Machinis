@@ -56,17 +56,23 @@ ErrorCode_t db_reconnect(DbConnection_t* connection)
 		if(connection->checked_at && now - connection->checked_at < DB_CHECK_SECONDS)
 			return ENGINE_OK;
 
-		if(mysql_stat(connection->hndl) != NULL)
+		// mysql_ping, not mysql_stat (#703): on a lost connection
+		// mysql_stat returns the error text, not NULL, so the engine never
+		// reconnected and failed every query until it was restarted
+		if(mysql_ping(connection->hndl) == 0)
 		{
 			connection->checked_at = now;
 		}
 		else
 		{
 			engine_trace(TRACE_LEVEL_ALWAYS,
-        		"WARNING: Connection lost with [%s] database, reconnecting...",
-        		connection->db_name?connection->db_name:"NULL");
+        		"WARNING: Connection lost with [%s] database (%s), reconnecting...",
+        		connection->db_name?connection->db_name:"NULL", mysql_error(connection->hndl));
 
+			MYSQL* old = connection->hndl;
 			result = db_init(connection);
+			if(result == ENGINE_OK && connection->hndl != old)
+				mysql_close(old);   // the dead one
 			// A new connection holds no lock: take it again, or stop
 			if(result == ENGINE_OK && connection->lock) {
 				const char* engine = connection->lock;
