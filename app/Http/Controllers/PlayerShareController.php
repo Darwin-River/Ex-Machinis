@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\Players;
 use App\Services\PlayerShares;
+use App\Services\TradeScripts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -82,6 +83,54 @@ class PlayerShareController extends Controller
     private function apiPlayer(Request $request): ?\App\User
     {
         return Players::byToken($request->bearerToken());
+    }
+
+    // The account trading script (#768)
+
+    public function saveTradeScript(Request $request)
+    {
+        if (!$user = $this->webPlayer()) {
+            return redirect('/login');
+        }
+        $r = TradeScripts::save($user, (string) $request->input('code'), $request->boolean('enabled'));
+        return $this->back($r, ($r['removed'] ?? false) ? 'Your trading script is removed.'
+            : ($request->boolean('enabled') ? 'Your trading script is saved, and runs every few real minutes.' : 'Your trading script is saved, switched off.'));
+    }
+
+    public function runTradeScript()
+    {
+        if (!$user = $this->webPlayer()) {
+            return redirect('/login');
+        }
+        $out = TradeScripts::run($user);
+        return $out === null ? back()->with('error', 'You have no trading script to run.')
+            : back()->withSuccess('Your trading script ran: ' . implode('; ', $out ?: ['it did nothing']) . '.');
+    }
+
+    public function apiTradeScript(Request $request): JsonResponse
+    {
+        $user = $this->apiPlayer($request);
+        return $user ? response()->json(TradeScripts::of($user) ?? ['code' => null, 'enabled' => false, 'runs' => 0, 'last_run' => null, 'log' => []])
+            : $this->unauthorized();
+    }
+
+    public function apiSaveTradeScript(Request $request): JsonResponse
+    {
+        $user = $this->apiPlayer($request);
+        if (!$user) {
+            return $this->unauthorized();
+        }
+        return $this->json(TradeScripts::save($user, (string) $request->input('code'), $request->boolean('enabled')));
+    }
+
+    public function apiRunTradeScript(Request $request): JsonResponse
+    {
+        $user = $this->apiPlayer($request);
+        if (!$user) {
+            return $this->unauthorized();
+        }
+        $out = TradeScripts::run($user);
+        return $out === null ? response()->json(['error' => 'You have no trading script to run.'], 404) : response()->json(['lines' => $out]);
     }
 
     private function json(array $r): JsonResponse

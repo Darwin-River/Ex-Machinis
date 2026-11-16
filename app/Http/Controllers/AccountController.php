@@ -77,7 +77,9 @@ class AccountController extends Controller
             \App\Services\PlayerBoards::markSeen($user, $digest);
         }
         return view('account.show', ['account' => Players::summary($user), 'mine' => \App\Services\Seedlings::of($user),
-            'portfolio' => \App\Services\PlayerShares::of($user)]);
+            'portfolio' => \App\Services\PlayerShares::of($user),
+            // The account trading script (#768)
+            'tradeScript' => \App\Services\TradeScripts::available() ? (\App\Services\TradeScripts::of($user) ?? ['code' => '', 'enabled' => false, 'runs' => 0, 'last_run' => null, 'log' => []]) : null]);
     }
 
     /** The link from the e-mail: verifies the address (the route checks the signature) */

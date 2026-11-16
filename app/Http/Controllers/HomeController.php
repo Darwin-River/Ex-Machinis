@@ -102,6 +102,8 @@ class HomeController extends Controller
         // Pegged share orders follow the bank's prices (#766)
         if (config('forge.new_rules')) {
             $done['pegged_orders_moved'] = \App\Services\PlayerShares::repeg();
+            // Players' trading scripts (#768), each at most every forge.trade_script_every real seconds
+            $done['trade_scripts_run'] = \App\Services\TradeScripts::runAll();
         }
         return response()->json($done);
     }

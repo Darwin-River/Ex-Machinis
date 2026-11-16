@@ -116,6 +116,9 @@ Route::middleware('new-rules')->group(function () {
     Route::post('/companies/{id}/bank/buy', 'PlayerShareController@buyFromBank')->whereNumber('id');
     Route::post('/companies/{id}/share-orders', 'PlayerShareController@order')->whereNumber('id');
     Route::post('/share-orders/{order}/cancel', 'PlayerShareController@cancel')->whereNumber('order');
+    // The account trading script (#768)
+    Route::post('/account/trade-script', 'PlayerShareController@saveTradeScript');
+    Route::post('/account/trade-script/run', 'PlayerShareController@runTradeScript');
 });
 Route::get('/release', 'ReleaseController@show');
 Route::post('/release', 'ReleaseController@store');

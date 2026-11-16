@@ -115,6 +115,37 @@
                 </ul>
             @endif
 
+            {{-- The account trading script (#768): Lua that trades your shares while you're away --}}
+            @if($tradeScript !== null)
+                <h3 class="h5 mt-4" id="trade-script">Your trading script</h3>
+                <p>A Lua script that trades your shares for you. Every few real minutes it is given the share market and your
+                    account (<code>trade(market)</code>) and can <code>buy</code>, <code>sell</code>, post pegged orders, <code>cancel</code>,
+                    and buy from or sell to the bank, under the same rules as you, at most 20 actions a run. What it keeps in
+                    <code>memory</code> is there next run. Start from <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/traders/value.lua">the
+                    value trader</a>, and see the <a href="{{ url('manual') }}#trading-script">manual</a>.</p>
+                <form method="POST" action="{{ url('account/trade-script') }}">
+                    {{ csrf_field() }}
+                    <label class="sr-only" for="trade-code">Your trading script</label>
+                    <textarea class="form-control mb-2" id="trade-code" name="code" rows="12" style="font-family: monospace"
+                              placeholder="function trade(market) ... end">{{ $tradeScript['code'] }}</textarea>
+                    <label class="mr-3"><input type="checkbox" name="enabled" value="1" @checked($tradeScript['enabled'])> Run it every few real minutes</label>
+                    <button class="button button-secondary button-sm" type="submit">Save</button>
+                </form>
+                @if($tradeScript['code'] !== '')
+                    <form method="POST" action="{{ url('account/trade-script/run') }}" class="d-inline">
+                        {{ csrf_field() }}<button class="button button-secondary button-sm mt-2" type="submit">Run it once now</button>
+                    </form>
+                    <p class="mt-2"><small class="text-muted">It has run {{ number_format($tradeScript['runs']) }} times{{ $tradeScript['last_run'] ? ', last ' . $tradeScript['last_run'] : '' }}.</small></p>
+                    @if(count($tradeScript['log']))
+                        <ul id="trade-script-log">
+                            @foreach(array_slice($tradeScript['log'], 0, 5) as $run)
+                                <li>{{ $run['when'] }}: {{ implode('; ', $run['lines']) }}</li>
+                            @endforeach
+                        </ul>
+                    @endif
+                @endif
+            @endif
+
             <h3 class="h5 mt-4" id="seedlings">Your seedlings</h3>
             <p>Every company starts as a seedling: <a href="{{ url('release') }}">release a drone</a> and the bank lends it
                 its drone and starting credits, plus a fee ({{ number_format($mine['grant']) }} credits in all). A seedling
