@@ -36,6 +36,12 @@
 *******************************************************************************/
 ErrorCode_t event_process_outcome(Event_t *event);
 
+/* A batch of events (#711): event_batch_start before it; event_batch_retry
+   after it says a passing database error stopped it, so the engine rolls it
+   back and runs it again rather than failing the actions it touched */
+void event_batch_start(void);
+Bool_t event_batch_retry(void);
+
 /** ****************************************************************************
 
   @brief      Trace a given event info

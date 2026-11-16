@@ -303,6 +303,9 @@ static Bool_t protocol_takes_location(ProtocolInfo_t *protocol)
   return takes;
 }
 
+/* The latest effect time of the protocol being planned (#714) */
+static int g_last_effect_time = 0;
+
 /** Game seconds after the action starts that an effect takes place */
 static int protocol_effect_delay(ProtocolInfo_t *protocol, int time)
 {
@@ -654,6 +657,12 @@ ErrorCode_t protocol_process_resource_effect(ResourceEffect_t *effect, ProtocolI
       // the stack)
       newEvent.burn = (effect->resource_id == FUEL_RESOURCE_ID && effect->deplete &&
                        effect->quantity > 0 && effect->drone_id == 0) ? 1 : 0;
+      // A pull of fuel pays its fuel after the fuel arrives (#714): a drone
+      // with an empty tank docked at an exchange could never buy any, as
+      // the pull's own burn came first and failed
+      if(newEvent.burn && protocol->protocol_id == PULL_PROTOCOL_ID &&
+         protocol->parameters_num > 1 && protocol->parameters[1] == FUEL_RESOURCE_ID)
+        newEvent.delay = protocol_effect_delay(protocol, g_last_effect_time + 1);
       newEvent.outcome = OUTCOME_NO_OUTCOME;
 
       newEvent.new_quantity = NULL_VALUE;
@@ -909,6 +918,10 @@ ErrorCode_t protocol_process_resource_effects(ProtocolInfo_t *protocol, int acti
     int effectsNum = 0;
 
     db_get_resource_effects(protocol, &resourceEffects, &effectsNum);
+
+    g_last_effect_time = 0;
+    for(int effectId=0; effectId < effectsNum; effectId++)
+      if(resourceEffects[effectId].time > g_last_effect_time) g_last_effect_time = resourceEffects[effectId].time;
 
     for(int effectId=0; effectId < effectsNum; effectId++) {
       result = protocol_process_resource_effect(&resourceEffects[effectId], protocol, action_id);

@@ -14,7 +14,9 @@ use Illuminate\Support\Facades\DB;
  * posted here, on the website's tick, as the drone's program did:
  * - what it sells: at today's price, all but its fuel reserve;
  * - what it buys: from today's price with no stock bought to half at a full
- *   day's demand, for up to a day's demand above the stock it keeps to sell.
+ *   day's demand, for up to a day's demand above the stock it keeps to sell;
+ *   beyond that, a quarter of a day's demand more at a time, at a bid
+ *   falling on from half (#691), so it never stops buying.
  * Only orders whose price or quantity changed are posted. The drone's
  * program (resources/house/station.lua) keeps the stock and ships down what
  * it bought.
@@ -36,7 +38,13 @@ class HouseMarket
         try {
             return self::refresh();
         } finally {
-            Leaderboard::dailyIfDue();
+            // Each in its own try, so one failing doesn't stop the others
+            // (#710: the drones' house_supply must not wait on the record)
+            try {
+                Leaderboard::dailyIfDue();
+            } catch (\Throwable $e) {
+                report($e);
+            }
             // What the House sells and when it restocks, for drones (#630)
             try {
                 self::storeSupply();
@@ -123,9 +131,21 @@ class HouseMarket
             }
             $daily = max(1, (int) $g->daily_units);
             $keep = $stock[$resource] ?? 0;
-            $bought = min(max(0, ($units[$resource] ?? 0) - $keep), $daily);
-            $bid = max(1, $price - intdiv($price * $bought, 2 * $daily));
-            $wanted[HouseStations::BUY_ORDER_EVENT][$resource] = [$daily + $keep, $bid];
+            $held = $units[$resource] ?? 0;
+            $bought = max(0, $held - $keep);
+            if ($bought <= $daily) {
+                $bid = max(1, $price - intdiv($price * $bought, 2 * $daily));
+                $wanted[HouseStations::BUY_ORDER_EVENT][$resource] = [$daily + $keep, $bid];
+                continue;
+            }
+            // Overstocked (#691): its station ships what it bought down once
+            // a game day, so it can hold more than a day's demand. It still
+            // takes a quarter of a day's demand more, at a bid falling on
+            // from half the price (half at a full day bought, a quarter at
+            // two, ...), so a seller always finds a buyer, at a price that
+            // says the House has plenty
+            $bid = max(1, intdiv($price * $daily, 2 * $bought));
+            $wanted[HouseStations::BUY_ORDER_EVENT][$resource] = [$held + max(1, intdiv($daily, 4)), $bid];
         }
         return $wanted;
     }
@@ -205,6 +225,9 @@ class HouseMarket
      * posted order wanted none. Also the units sold into it today (`sold`),
      * by `$company` (`mine`), and the game hours until it runs out at
      * today's pace (`empty_hours`, null when nothing has sold today).
+     * Since #691 an overstocked House (a full day's demand bought) still
+     * takes a quarter of a day's demand more at a time, at a bid below half
+     * its listed price, so `left` is 0 only between its tick's postings.
      * Rows: place, place_name, resource, resource_name, price, left, daily,
      * listed, hours, sold, mine, empty_hours
      */
@@ -359,8 +382,19 @@ class HouseMarket
     }
 
     /**
-     * Stores supply() for the drones' query 707 (house_supply), once a real
-     * minute, on the website's tick (#630). Returns whether it did.
+     * Real seconds between stores of house_supply (#710). It was a real
+     * minute, but at the normal pace that is more than a game day (one
+     * every 48 real seconds): drones saw Mars's fuel on sale unchanged from
+     * 12:11 to 22:41 while GET /house-supply moved, and the next round,
+     * stored as a game time, long past (next_minutes 0). Now every 10 real
+     * seconds (about 5 game hours): each store rewrites the table, and the
+     * world was slowing as it grew, so not on every 5-second tick.
+     */
+    public const SUPPLY_EVERY = 10;
+
+    /**
+     * Stores supply() for the drones' query 707 (house_supply), on each of
+     * the website's ticks (#630, #710). Returns whether it did.
      */
     public static function storeSupply(): bool
     {
@@ -368,7 +402,7 @@ class HouseMarket
             return false;
         }
         $last = DB::table('house_supply')->max('updated_at');
-        if ($last !== null && strtotime($last) > time() - 60) {
+        if ($last !== null && strtotime($last) > time() - self::SUPPLY_EVERY) {
             return false;
         }
         $now = self::gameNow(DB::connection());

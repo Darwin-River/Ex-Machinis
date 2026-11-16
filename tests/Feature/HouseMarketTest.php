@@ -220,6 +220,48 @@ class HouseMarketTest extends TestCase
     }
 
     /**
+     * #691: an overstocked House (more than a day's demand bought, its
+     * station not yet having shipped it down) still buys, a quarter of a
+     * day's demand more at a time, at a bid falling on from half its price
+     */
+    public function testAnOverstockedHouseStillBuysForLess()
+    {
+        HouseStations::ensure();
+        $drone = (int) DB::table('agents')->where('station_id', 2)->value('agent_id');
+        $this->atDay(10.75);
+        $row = fn ($side) => DB::table('house_market')->where('station_id', 2)->where('resource', 4311)->where('side', $side)->first();
+        $listed = (int) $row(1)->price;
+        $daily = (int) $row(1)->daily_units;
+        $keep = max(1, intdiv((int) $row(2)->daily_units, 4));
+        $hold = function (int $units) use ($drone) {
+            DB::table('events')->insert(['event_type' => 1, 'action' => 0, 'logged' => 1, 'outcome' => 1, 'drone' => $drone,
+                'resource' => 4311, 'installed' => 0, 'locked' => 0, 'new_quantity' => $units, 'new_cargo' => 0]);
+            HouseMarket::refresh();
+            return collect(HouseMarket::demand(4311, 10))->first();
+        };
+
+        // Exactly a day's demand bought: half the price, nothing left today
+        $d = $hold($keep + $daily);
+        $this->assertSame([0, 0], [$d['price'], $d['left']], 'a full day bought: the day\'s demand is met');
+
+        // A unit more: a quarter of a day's demand more, at about half (the
+        // bid carries on from where it was)
+        $d = $hold($keep + $daily + 1);
+        $this->assertSame(max(1, intdiv($daily, 4)), $d['left']);
+        $this->assertSame(max(1, intdiv($listed * $daily, 2 * ($daily + 1))), $d['price']);
+        $this->assertLessThanOrEqual(intdiv($listed, 2) + 1, $d['price']);
+
+        // Two days' demand bought: a quarter of its price, still a quarter of a day more
+        $d = $hold($keep + 2 * $daily);
+        $this->assertSame(max(1, intdiv($daily, 4)), $d['left']);
+        $this->assertSame(max(1, intdiv($listed, 4)), $d['price']);
+
+        // Far overstocked: the bid bottoms out at 1, and it still buys
+        $d = $hold($keep + 10000 * $daily);
+        $this->assertSame([1, max(1, intdiv($daily, 4))], [$d['price'], $d['left']]);
+    }
+
+    /**
      * #630: what the House sells, how much is on sale, what it refills to,
      * and when its station restocks: its rounds of imports
      */
@@ -266,7 +308,11 @@ class HouseMarketTest extends TestCase
 
         // Drones read it from the stored table (query 707): times in game minutes
         $this->assertTrue(HouseMarket::storeSupply());
-        $this->assertFalse(HouseMarket::storeSupply(), 'once a real minute');
+        $this->assertFalse(HouseMarket::storeSupply(), 'not twice in a tick');
+        // #710: and again on the next tick, a few real seconds on (it was a
+        // real minute: more than a game day at the normal pace)
+        DB::table('house_supply')->update(['updated_at' => now()->subSeconds(HouseMarket::SUPPLY_EVERY + 1)]);
+        $this->assertTrue(HouseMarket::storeSupply(), 'the next tick stores it again');
         $sql = str_replace(['[game_now]', '[value_1]'], [(string) $now, '2011'],
             (string) DB::table('queries')->where('id', 707)->value('script'));
         if ($sql !== '') {

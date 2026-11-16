@@ -303,7 +303,7 @@ For each exchange and good it buys (#550; `resource` and `place` narrow it down,
   "sold": 6, "mine": 4, "empty_hours": 40}]
 ```
 
-Each House exchange buys up to `daily` units of a good a game day. Its bid falls toward half of `listed` as it fills, and it stops bidding once it has bought the day's demand (`left` 0). Where an exchange also sells the good, it buys back its own stock to sell too (up to a quarter of a day's sales), so `left` can be more than `daily` there (#380 round 64). What it bought goes down to the surface at the start of each game day (`hours` from now), and the bid refills. Drones ask the same with `house_demand(r)`.
+Each House exchange buys up to `daily` units of a good a game day. Its bid falls toward half of `listed` as it fills. Past the day's demand it is overstocked but still buys (#691): a quarter of `daily` more at a time, at a bid falling on from half of `listed` (`listed` × `daily` ÷ 2 ÷ the units bought, at least 1). So `left` is 0 only for a moment, when a sale has filled the order and the House has not yet posted its next. Where an exchange also sells the good, it buys back its own stock to sell too (up to a quarter of a day's sales), so `left` can be more than `daily` there (#380 round 64). What it bought goes down to the surface once a game day (`hours` is the time to the next game day), and the bid refills. Drones ask the same with `house_demand(r)`.
 
 ### `GET /house-supply?resource=2011&place=Earth`: what the House sells, and when it restocks
 
