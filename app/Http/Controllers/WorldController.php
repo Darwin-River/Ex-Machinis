@@ -16,18 +16,41 @@ class WorldController extends Controller
     /** Game days a players' trade stays recent enough to set a premium or discount against cash-out (#716) */
     public const PREMIUM_DAYS = 7;
 
+    /**
+     * The Market page (#721): the goods board, one row per good, and where
+     * fuel is on sale. Round 70: it was 28,300 pixels of order tables. A
+     * good's whole order book is on its own page; the House's demand and
+     * supply on /market/house. Old links with ?resource= go to the good's
+     * page, and ?house= or ?supply= to the House page
+     */
     public function market(\Illuminate\Http\Request $request)
     {
-        $trades = World::trades();
-        $sells = World::orders(4);
-        $buys = World::orders(5);
-        // One resource's book, or all (#591: the whole book ran to 600 rows)
-        $bookResources = collect($sells)->merge($buys)->pluck('resource_name', 'resource')->sort()->all();
-        $bookResource = is_numeric($request->query('resource')) ? (int) $request->query('resource') : null;
-        if ($bookResource !== null) {
-            $sells = array_values(array_filter($sells, fn ($o) => (int) $o['resource'] === $bookResource));
-            $buys = array_values(array_filter($buys, fn ($o) => (int) $o['resource'] === $bookResource));
+        if (is_numeric($request->query('resource'))) {
+            return redirect('/resources/' . (int) $request->query('resource') . '#order-book', 301);
         }
+        if ($request->hasAny(['house', 'supply'])) {
+            return redirect('/market/house?' . http_build_query($request->only(['house', 'supply'])), 301);
+        }
+        $filter = (string) $request->query('show', 'traded');
+        $filter = array_key_exists($filter, \App\Services\MarketBoard::FILTERS) ? $filter : 'traded';
+        $all = \App\Services\MarketBoard::all();
+        $rows = \App\Services\MarketBoard::filtered($filter);
+        // How many goods each chip shows
+        $counts = [];
+        foreach (array_keys(\App\Services\MarketBoard::FILTERS) as $f) {
+            $counts[$f] = count(\App\Services\MarketBoard::filtered($f));
+        }
+        // Each place keeps one colour: the places on the board, in ID order
+        $places = collect($all)->flatMap(fn ($r) => $r['places'])->pluck('place', 'place_id')->sortKeys()->all();
+        $goods = collect($all)->pluck('name', 'resource')->sort()->all();
+        $trades = World::trades(10);
+        $fuel = World::fuelForSale();
+        return view('world.market', compact('rows', 'filter', 'counts', 'places', 'goods', 'trades', 'fuel'));
+    }
+
+    /** The House's demand and supply (#550, #630), moved off the Market page (#721) */
+    public function house(\Illuminate\Http\Request $request)
+    {
         // The House's demand (#550): one good everywhere, or the bids closest to full
         $houseResource = is_numeric($request->query('house')) ? (int) $request->query('house') : null;
         $demand = \App\Services\HouseMarket::demand($houseResource);
@@ -44,9 +67,7 @@ class WorldController extends Controller
             usort($supply, fn ($a, $b) => [$a['on_sale'] / $a['refill_to'], $a['resource']] <=> [$b['on_sale'] / $b['refill_to'], $b['resource']]);
             $supply = array_slice($supply, 0, 30);
         }
-        $fuel = World::fuelForSale();
-        return view('world.market', compact('trades', 'sells', 'buys', 'demand', 'houseGoods', 'houseResource',
-            'bookResources', 'bookResource', 'fuel', 'supply', 'supplyGoods', 'supplyResource'));
+        return view('world.house', compact('demand', 'houseGoods', 'houseResource', 'supply', 'supplyGoods', 'supplyResource'));
     }
 
     /** Market history (#380): charts of prices and volumes, drawn from /api/v1/history */
