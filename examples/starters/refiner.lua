@@ -1,4 +1,4 @@
--- Refiner: a starter script for Public Forge, in Lua (#380). It equips itself
+-- Refiner: a starter script for Ex Machinis, in Lua. It equips itself
 -- with the Mining Kit (Engine, Worm and Refinery).
 -- It mines yalspar and vladnium and refines them into what the factories
 -- need to brew fuel and make polymers: Organics (A1) and Inorganics (A1),

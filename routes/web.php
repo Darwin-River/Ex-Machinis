@@ -122,4 +122,6 @@ Route::post('/release', 'ReleaseController@store');
 
 // The scheduler's tick (#367 step 5); /get-mails is its old name
 Route::get('/tick/{key}', 'HomeController@tick');
+// The scheduler's keeper (#738): rebuilds the dashboard and the stock exchange
+Route::get('/keep/{key}', 'HomeController@keep');
 Route::get('/get-mails/{key}', 'HomeController@tick');

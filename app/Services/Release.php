@@ -60,8 +60,8 @@ class Release
 
     /** The starter scripts, in Lua (FORTH was retired after round 38, #380) */
     public const STARTERS = [
-        'miner' => 'Mines kunspar on the Moon, refines it and sells the metals to the Moon Depot.',
-        'refiner' => 'Brews fuel on the Moon from yalspar and vladnium, and sells what it doesn\'t need to other drones.',
+        'miner' => 'Mines kunspar or wolfite at the Moon (or Phobos and Deimos when the Moon is crowded), refines it and sells the metals to the House where it pays most after the trip.',
+        'refiner' => 'Mines yalspar and vladnium and refines them into the organics and inorganics the factories need, and sells them to the House.',
         'trader' => 'Buys metals from miners on the Moon when the price board says Mars or Earth pays enough more, and hauls them to whichever pays most.',
         'maker' => 'Buys metals where they cost least (as a seedling, it checks what the House has on sale before it flies), makes alloys and rods, and sells them where they pay best.',
     ];
@@ -70,18 +70,19 @@ class Release
      * The starters as cards (#719), on the Start a seedling page and the
      * first-seedling guide: the kit each buys, what it does in a line, and
      * how long an unchanged one took to mature in a playtest at the normal
-     * pace (the players' manual, "Starter scripts")
+     * pace, 48 real seconds a game day (the players' manual, "Starter
+     * scripts"; #740: round 71's times, the earlier ones were too hopeful)
      */
     public const STARTER_CARDS = [
         'miner' => ['kit' => 'Mining Kit', 'role' => 'Mine and sell',
             'line' => 'Mines kunspar or wolfite at the Moon, refines it and sells the metals to the House.',
-            'mature' => '33 to 50 game days'],
+            'mature' => 'about 55 to 70 game days (45 to 55 real minutes)'],
         'refiner' => ['kit' => 'Mining Kit', 'role' => 'Mine and refine',
             'line' => 'Mines yalspar and vladnium and refines them into the organics and inorganics factories need.',
-            'mature' => 'about 37 game days (changed to mine wolfite)'],
+            'mature' => 'over 80 game days (over an hour)'],
         'maker' => ['kit' => 'Factory Kit', 'role' => 'Buy, make and sell',
             'line' => 'Buys metals where the House sells them cheapest, makes alloys and rods, and sells the rods where they pay best.',
-            'mature' => 'about 66 game days'],
+            'mature' => 'about 70 game days (about 55 real minutes)'],
         'trader' => ['kit' => 'Mining Kit', 'role' => 'Buy low, sell high',
             'line' => 'Buys metals from miners on the Moon and hauls them to whichever exchange pays most.',
             'mature' => 'not for a seedling'],

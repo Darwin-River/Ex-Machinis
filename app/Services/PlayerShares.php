@@ -48,7 +48,16 @@ class PlayerShares
     private static function company(int $company): ?object
     {
         $c = DB::table('companies')->where('company_id', $company)->first();
-        return $c && (int) $c->seedling === 0 && $c->owner_id !== null && $c->matured_t !== null ? $c : null;
+        // An ended company's shares are worth nothing and don't trade (#743:
+        // the bank took them at 0, and orders on them stayed listed)
+        return $c && (int) $c->seedling === 0 && $c->owner_id !== null && $c->matured_t !== null && $c->eliminated_at === null ? $c : null;
+    }
+
+    /** Takes down the share orders of companies that have ended (#743), on the tick; how many went */
+    public static function dropEndedOrders(): int
+    {
+        return DB::table('player_share_orders')->whereIn('company_id',
+            DB::table('companies')->whereNotNull('eliminated_at')->select('company_id'))->delete();
     }
 
     /**
@@ -318,7 +327,9 @@ class PlayerShares
     public static function sellToBank(User $user, int $company, int $units): array
     {
         if (!self::company($company)) {
-            return self::fail(404, 'The bank buys only shares of a matured company that is still trading.');
+            return self::fail(404, DB::table('companies')->where('company_id', $company)->whereNotNull('eliminated_at')->exists()
+                ? 'That company has ended: its shares are worth nothing, and nobody buys them.'
+                : 'The bank buys only shares of a matured company that is still trading.');
         }
         if ($units < 1) {
             return self::fail(422, 'Sell at least 1 whole share.');   // #674

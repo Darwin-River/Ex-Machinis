@@ -109,9 +109,14 @@ local function deposit(mineral)
   return 0
 end
 
--- Travel unless already there
+-- Travel unless already there. With no Engine aboard it doesn't try:
+-- Activate Engine burns its 5 fuel before it finds the Engine missing
+-- (#743: a fresh drone's go(moon) returned -2 and cost 5 fuel). A query
+-- that failed (no answer) is no reason not to try
 local function go(place)
   if place == location() then return 0 end
+  local rows = query(212, engine_module)
+  if rows and rows[1] and rows[1][1] == 0 then return -2 end
   return travel(place)
 end
 
@@ -200,6 +205,24 @@ end
 -- small miner lot again and again stalled factories for days); at most 6
 -- tries, each an action. With max_price it buys only from sellers asking
 -- at most that a unit (#503: once the cheap sellers ran out it paid 49)
+-- What this drone bought from the House today, by resource and place, for
+-- buy_here's first request under a seedling's cap (#743: it asked for a
+-- tenth of the stock as if it had bought none, and the first pull after a
+-- buy failed with -17, a game hour lost each time)
+local house_bought = {}
+local function bought_today(resource)
+  local k = resource .. '@' .. location()
+  local b = house_bought[k]
+  if b and b.day == today() then return b.n end
+  return 0
+end
+local function note_bought(resource, n)
+  local k = resource .. '@' .. location()
+  local b = house_bought[k]
+  if not b or b.day ~= today() then b = {day = today(), n = 0}; house_bought[k] = b end
+  b.n = b.n + n
+end
+
 local function buy_here(n, resource, max_price)
   local result, tries, mine, refused, only, failed = -12, 0, me(), {}, house_only(), nil
   -- A seedling's -17 cap is a tenth of what the House has on sale here a
@@ -212,7 +235,7 @@ local function buy_here(n, resource, max_price)
   local cap
   if only then
     for _, h in ipairs(ask(707, resource)) do      -- house_supply: place, price, on_sale...
-      if h[1] == location() then cap = math.max(least, h[3] // 10) end
+      if h[1] == location() then cap = math.max(least, h[3] // 10 - bought_today(resource)) end
     end
   end
   while n > 0 and tries < 6 do
@@ -225,7 +248,7 @@ local function buy_here(n, resource, max_price)
     local take = math.max(math.min(n, avail, cap or avail), math.min(least, avail))
     tries = tries + 1
     local r = pull(take, resource, seller)
-    if r == 0 then n = n - take; result = 0
+    if r == 0 then n = n - take; result = 0; if only then note_bought(resource, take) end
     elseif r == -17 and take > least then cap = math.max(least, take // 2); failed = r   -- over a seedling's daily cap: halve it
     else refused[seller] = true; failed = r end
   end
@@ -803,8 +826,11 @@ local kit_tools = {[mining_kit] = {engine_module, 5131, 5221},
 local function missing_tool(kit)
   for _, t in ipairs(kit_tools[kit] or {engine_module}) do
     local rows = query(212, t)
-    if not rows then return false end
-    if (rows[1] and rows[1][1] or 0) == 0 then return t end
+    -- Query 212 always answers one row (a SUM): none is a query that
+    -- failed too (#743: round 71's seedlings still said a tool was missing,
+    -- and bought nothing)
+    if not rows or not rows[1] or rows[1][1] == nil then return false end
+    if rows[1][1] == 0 then return t end
   end
   return nil
 end
@@ -826,10 +852,11 @@ local function equip(kit)
       clone = true
       wait(60)
     else
-      -- Missing for a game minute too: a tool is out of the hold for a
-      -- game second while it is put to work or put back (the Engine, at
-      -- each end of a flight), and a drone restarted then saw it gone (#726)
-      wait(1)
+      -- Missing for a game hour too: a tool is out of the hold for a
+      -- moment while it is put to work or put back (the Engine, at each end
+      -- of a flight), and a drone restarted then saw it gone (#726; #743: a
+      -- game minute wasn't always long enough)
+      wait(60)
       if missing_tool(kit) == lacks then
         if not said then
           print("equip: tool " .. lacks .. " of kit " .. kit .. " is missing: buying the kit here, or at Earth")

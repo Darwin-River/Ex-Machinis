@@ -100,17 +100,11 @@ class RoundSeventyLeftoversTest extends TestCase
         $this->assertNotNull(Cache::get('market:shares:1'));
     }
 
-    /** 1: past its TTL the last one is served, and rebuilt after the response */
-    public function testKeptServesTheLastAndRebuildsAfter()
+    /** 1: past its TTL the last one is served; a view never rebuilds it, the scheduler's keeper does (#738) */
+    public function testKeptServesTheLastAndTheKeeperRebuildsIt()
     {
         Cache::forever('leftover:kept', ['data' => ['old'], 'at' => time() - 100]);
         $this->assertSame(['old'], Kept::get('leftover:kept', 60, fn () => ['new']));
-        app(\Illuminate\Support\Defer\DeferredCallbackCollection::class)->invoke();
-        $this->assertSame(['new'], Cache::get('leftover:kept')['data']);
-        // Fresh: no rebuild
-        $this->assertSame(['new'], Kept::get('leftover:kept', 60, fn () => ['newer']));
-        app(\Illuminate\Support\Defer\DeferredCallbackCollection::class)->invoke();
-        $this->assertSame(['new'], Cache::get('leftover:kept')['data']);
         // Nothing kept: the first view waits for it
         $this->assertSame(['first'], Kept::get('leftover:none', 60, fn () => ['first']));
     }
@@ -140,7 +134,7 @@ class RoundSeventyLeftoversTest extends TestCase
     public function testEquipTrustsOnlyAToolThatIsReallyMissing()
     {
         $lua = file_get_contents(base_path('game-engine/src/lua_library.lua'));
-        $this->assertStringContainsString('if not rows then return false end', $lua);
+        $this->assertStringContainsString('if not rows or not rows[1] or rows[1][1] == nil then return false end', $lua);
         $this->assertStringContainsString('if missing_tool(kit) == lacks then', $lua);
         $this->assertStringContainsString('if missing_tool(kit) == lacks then',
             file_get_contents(base_path('game-engine/src/lua_library.c')), 'the engine\'s copy is rebuilt');

@@ -83,8 +83,22 @@ class HomeController extends Controller
             \App\Services\PlayerShares::settleBankPayments();
             \App\Services\PlayerShares::payDividends();
             \App\Services\PlayerBoards::startMonth();
+            \App\Services\PlayerShares::dropEndedOrders();
         }
         return response('ok');
+    }
+
+    /**
+     * The scheduler's keeper (#738): rebuilds each kept figure (the
+     * dashboard, the stock exchange) once it is its TTL old, so a page view
+     * never waits for one. Called once a real minute, apart from the tick,
+     * since a rebuild can take a minute or more on the live database
+     */
+    public function keep($key)
+    {
+        $this->requireCronKey($key);
+        @set_time_limit(600);
+        return response()->json(\App\Services\Kept::keepAll());
     }
 
     /** Where the players' manual and its images live */
@@ -272,12 +286,13 @@ class HomeController extends Controller
         if (count($found) < count($seen) && Schema::hasTable('events_archive')) {
             $found = $found->concat($details('events_archive'));
         }
-        // When each was seen, newest first; Time sorts by when it happened
+        // Newest first by when it happened, the time each row shows (#743:
+        // sorted by when it was seen, a 19:54 row sat among 20:24 ones);
+        // ?sort=timestamp|asc for oldest first
         $rows = $found->each(fn ($e) => $e->observed_t = $seen[$e->id] ?? null);
         $sort = explode('|', (string) $request->get('sort'));
-        $rows = $sort[0] === 'timestamp'
-            ? $rows->sortBy([['game_t', ($sort[1] ?? '') === 'asc' ? 'asc' : 'desc'], ['id', ($sort[1] ?? '') === 'asc' ? 'asc' : 'desc']])
-            : $rows->sortBy([['observed_t', 'desc'], ['id', 'desc']]);
+        $dir = $sort[0] === 'timestamp' && ($sort[1] ?? '') === 'asc' ? 'asc' : 'desc';
+        $rows = $rows->sortBy([['game_t', $dir], ['id', $dir]]);
         $rows = $rows->values();
 
         // Game time, as the rest of the site writes it (#380 round 64: real US time stood out)

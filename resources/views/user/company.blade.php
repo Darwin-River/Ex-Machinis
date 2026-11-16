@@ -40,7 +40,7 @@
 @endpush
 @section('content')
     {{-- Seedling or matured, and whose (#697) --}}
-    @php($badge = ($user->eliminated_at ?? null) !== null ? null : ((int) ($user->seedling ?? 0) === 1 ? 'Seedling' : (($user->matured_t ?? null) !== null ? 'Matured' : null)))
+    @php($badge = ($user->eliminated_at ?? null) !== null ? 'Ended' : ((int) ($user->seedling ?? 0) === 1 ? 'Seedling' : (($user->matured_t ?? null) !== null ? 'Matured' : null)))
     <x-page-header :subtitle="$owner ? 'Owned by ' . $owner : null">
         <x-slot:title>{{$title}}@if($badge) <span @class(['co-badge', 'co-badge-matured' => $badge === 'Matured']) id="company-badge">{{ $badge }}</span>@endif</x-slot:title>
         <li><a href="/companies">Companies</a></li>
@@ -249,6 +249,10 @@
 
             {{-- Health and running costs (#537, #544), in their own section (#591) --}}
             <h2 id="health">Health</h2>
+            @if($ended)
+                {{-- An ended company has no health to report (#741: it said "sold nothing for 10 game days or more") --}}
+                <p id="company-health">It has ended: its drones are wrecks, and it does nothing more.</p>
+            @else
             @if($h['at_risk'] || $h['stalled'] || $h['failing_reason'])
                 <div class="health-banner" id="health-banner">
                     @if($h['at_risk'])<strong>At risk:</strong> {{ $h['at_risk_reason'] }}. A warning, not a verdict.<br>@endif
@@ -275,6 +279,7 @@
                         @endif
                     @endforeach
                 </ul>
+            @endif
             @endif
             @php($pt = $shares['compute'])
             <p id="processor-tax">Processor tax: {{ number_format($pt['tax_day']) }} credits over the last game day for

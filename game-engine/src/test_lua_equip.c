@@ -20,13 +20,14 @@ static int failures = 0;
 /* The pretend drone: what it holds, which reads of units() fail or read 0
    for a while, and what it printed and performed */
 static const char* world =
-    "t_hold = {} t_fail = {} t_blink = {} t_printed = {} t_performed = {} t_parent = 0\n"
+    "t_hold = {} t_fail = {} t_blink = {} t_empty = {} t_printed = {} t_performed = {} t_parent = 0\n"
     "function query(id, ...)\n"
     "  local a = {...}\n"
     "  if id == 212 then\n"
     "    local r = a[1]\n"
     "    if (t_fail[r] or 0) > 0 then t_fail[r] = t_fail[r] - 1 return nil, -2 end\n"
     "    if (t_blink[r] or 0) > 0 then t_blink[r] = t_blink[r] - 1 return {{0}} end\n"
+    "    if (t_empty[r] or 0) > 0 then t_empty[r] = t_empty[r] - 1 return {} end\n"
     "    return {{t_hold[r] or 0}}\n"
     "  elseif id == 671 then return {{t_parent, 1}}\n"
     "  elseif id == 205 then return {{77}}\n"
@@ -105,6 +106,11 @@ int main(void)
     /* The Engine reads 0 once (a game second at the end of a flight) */
     snprintf(setup, sizeof(setup), "%s t_blink[5001] = 1", tools);
     scenario(library, "a tool out of the hold for a moment is not missing", setup,
+             "return #t_printed == 0, t_printed[1] or ''");
+
+    /* The query answers no row (it failed too, #743): not missing */
+    snprintf(setup, sizeof(setup), "%s t_empty[5001] = 3", tools);
+    scenario(library, "a query with no row is not a missing tool", setup,
              "return #t_printed == 0, t_printed[1] or ''");
 
     /* The kit aboard: unpacked, nothing said */

@@ -94,18 +94,32 @@ class WorldController extends Controller
     /**
      * Everything the stock exchange page shows (#726: worked out on each
      * view, it took 4.5 to 7 real seconds on the live database): the last
-     * one worked out, rebuilt after the response once SHARES_TTL old (Kept)
+     * one worked out, rebuilt by the scheduler once SHARES_TTL old (Kept)
      */
     public static function sharesPage(): array
     {
+        return \App\Services\Kept::get(self::sharesKey(), self::SHARES_TTL, fn () => self::sharesWork());
+    }
+
+    /** Where the stock exchange page is kept (one copy under each set of rules) */
+    public static function sharesKey(): string
+    {
+        return 'market:shares:' . (int) (bool) config('forge.new_rules');
+    }
+
+    /** The stock exchange page's figures, worked out now */
+    public static function sharesWork(): array
+    {
         $newRules = (bool) config('forge.new_rules');
-        return \App\Services\Kept::get('market:shares:' . (int) $newRules, self::SHARES_TTL, fn () => [
+        return [
             'exchange' => \App\Services\Shares::exchange(),
             // The new rules (#666): matured companies' shares, which players
             // trade, a row a company (#699), best yield first (#716)
             'playerMarket' => $newRules ? \App\Services\PlayerShares::board() : null,
             'playerTrades' => $newRules ? \App\Services\PlayerShares::trades() : [],
-        ]);
+            // When it was worked out, shown on the page (#738)
+            'asOf' => World::gameNow(),
+        ];
     }
 
     /** The economy dashboard (#698): is the market busy, are companies making money, who is winning */
