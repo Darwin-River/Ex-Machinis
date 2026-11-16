@@ -93,7 +93,7 @@ This is the whole game. Each line is explained where it first matters to you.
 2. Start a seedling for free: the bank lends it a drone and some cash. Run up to five; close one at any time and its debt is cancelled. Failing is free.
 3. A seedling trades only with the House (the game's own traders at each exchange), and you can change its code whenever you like.
 4. When it holds its debt and a little more, you may mature it: its code is locked for good, it can trade with everyone, and you get its 100 shares.
-5. Your account starts with 5,000 credits that can only buy shares. Each game day a matured company pays a quarter of its profit to its shareholders.
+5. Your account starts with 5,000 credits that can only buy shares. Each game day a matured company pays a quarter of its profit to its shareholders. Its profit is its sales less the goods it bought: equipment and drones it buys (modules, kits and hulls) are an investment, not a loss (#759).
 6. Trade shares with players within a published range, or sell them to the bank for their cash-out value, paid 30 game days later at the lower of the two values.
 7. All code is public. A matured company can't change, but it can react to prices and orders, so read its code before you buy.
 8. You're ranked by your wealth, and each real month by its growth, on the Players page.

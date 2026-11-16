@@ -15,6 +15,9 @@ class CompanyEarnings
     /** The longest span asked for, in game days */
     public const MAX_DAYS = 365;
 
+    /** Resources from this ID on are equipment: modules, kits and hulls (#759; the engine's EQUIPMENT_FROM) */
+    public const EQUIPMENT_FROM = 5000;
+
     /**
      * The last $days game days (not before it was founded), oldest first,
      * every day listed: day, sales
@@ -34,7 +37,7 @@ class CompanyEarnings
 
         $rows = [];
         for ($d = $first; $d <= $today; $d++) {
-            $rows[$d] = ['day' => $d, 'sales' => 0, 'tax' => 0, 'purchases' => 0, 'net' => 0, 'trades' => 0, 'dividends' => 0];
+            $rows[$d] = ['day' => $d, 'sales' => 0, 'tax' => 0, 'purchases' => 0, 'invested' => 0, 'net' => 0, 'trades' => 0, 'dividends' => 0];
         }
         // The drones a company has had: its sales and purchases are theirs
         $drones = DB::table('agents')->where('company_id', $company)->pluck('agent_id')->all();
@@ -49,11 +52,18 @@ class CompanyEarnings
                     $rows[(int) $r->day]['trades'] += (int) $r->n;
                 }
             }
+            // What it bought: goods, and equipment (modules, kits and hulls,
+            // resources from EQUIPMENT_FROM), an investment rather than a
+            // cost, kept out of its profit as the events engine keeps it out
+            // of the profit dividends are paid from (#759)
+            $equip = self::EQUIPMENT_FROM;
             foreach (DB::table('trades AS t')->whereIn('t.buyer', $drones)->where('t.game_t', '>=', $since)
                          ->groupBy(DB::raw($day))
-                         ->get([DB::raw("$day AS day"), DB::raw('SUM(t.credits) AS credits'), DB::raw('COUNT(*) AS n')]) as $r) {
+                         ->get([DB::raw("$day AS day"), DB::raw("SUM(IF(t.resource < $equip, t.credits, 0)) AS goods"),
+                             DB::raw("SUM(IF(t.resource >= $equip, t.credits, 0)) AS equipment"), DB::raw('COUNT(*) AS n')]) as $r) {
                 if (isset($rows[(int) $r->day])) {
-                    $rows[(int) $r->day]['purchases'] += (int) $r->credits;
+                    $rows[(int) $r->day]['purchases'] += (int) $r->goods;
+                    $rows[(int) $r->day]['invested'] += (int) $r->equipment;
                     $rows[(int) $r->day]['trades'] += (int) $r->n;
                 }
             }

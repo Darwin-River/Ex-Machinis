@@ -56,7 +56,7 @@
     <div class="mh-card perf-card" id="earnings">
         <h3>Is it earning?</h3>
         <p class="mh-note">Each game day: sales after sales tax (up) and what it paid for goods and equipment (down); the dot
-            is the day's profit. Processor tax and push fees aren't trades and aren't shown.</p>
+            is the day's profit. Equipment and drones it bought (modules, kits and hulls) are an investment, not counted against profit: the tooltip shows them (#759). Processor tax and push fees aren't trades and aren't shown.</p>
         <div class="ex-legend" id="ce-legend"></div>
         <div class="ex-chart" id="ce-chart" aria-label="Earnings by game day"></div>
         <p class="ex-src" id="ce-total"></p>
@@ -142,12 +142,13 @@ document.addEventListener('DOMContentLoaded', function () {
             Object.assign({H: 240, unit: 'cr', dots: true, empty: 'No sales or purchases in this period.',
                 tip: (r, day) => r ? ['Game day ' + day, {colour: C[0], text: `Sales after tax: ${X.num(r.r.sales)} (tax ${X.num(r.r.tax)})`},
                     {colour: C[1], text: `Spent on goods: ${X.num(r.r.purchases)}`}, `Profit: ${X.num(r.r.net)} · ${r.r.trades} trades`,
+                    ...(r.r.invested ? [`Invested in equipment and drones: ${X.num(r.r.invested)} (not counted against profit)`] : []),
                     `Dividends paid: ${X.num(r.r.dividends)}`] : ['Game day ' + day]}, o));
-        const s = earn.reduce((a, r) => ({sales: a.sales + r.sales, purchases: a.purchases + r.purchases, dividends: a.dividends + r.dividends}),
-            {sales: 0, purchases: 0, dividends: 0});
+        const s = earn.reduce((a, r) => ({sales: a.sales + r.sales, purchases: a.purchases + r.purchases, dividends: a.dividends + r.dividends,
+            invested: a.invested + (r.invested || 0)}), {sales: 0, purchases: 0, dividends: 0, invested: 0});
         $('ce-total').textContent = earn.length ? `Over these ${earn.length} game days: sales after tax ${X.num(s.sales)}, spent on goods `
             + `${X.num(s.purchases)}, profit ${X.num(s.sales - s.purchases)} (${X.num((s.sales - s.purchases) / earn.length)} a day); `
-            + `dividends paid ${X.num(s.dividends)}.` + (skipped ? ` (${skipped} game ${skipped === 1 ? 'day' : 'days'} of outage left out.)` : '') : '';
+            + `dividends paid ${X.num(s.dividends)}.` + (s.invested ? ` It also invested ${X.num(s.invested)} in equipment and drones.` : '') + (skipped ? ` (${skipped} game ${skipped === 1 ? 'day' : 'days'} of outage left out.)` : '') : '';
 
         if ($('perf-div')) {
             let run = 0;
