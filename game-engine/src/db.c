@@ -4261,22 +4261,31 @@ ErrorCode_t db_get_latest_entry_game_t(int drone, const int* resources, const in
                                        const int* locked, int count, long long* game_t)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    char list[1024] = "";
+    char list[DB_MAX_SQL_QUERY_LEN - 64] = "";
     ErrorCode_t result = db_reconnect(engine_get_db_connection());
 
     *game_t = 0;
     if(result != ENGINE_OK || count <= 0)
         return result;
 
+    // One step back down events_inventory_time (drone, resource, installed,
+    // locked, outcome, game_t) for each entry, settled and pending (#708):
+    // MAX(game_t) over the entries read every inventory event the drone ever
+    // had, 0.27 s a call for a House station drone with millions of them
     for(int i = 0; i < count; i++) {
-        size_t len = strlen(list);
-        snprintf(list + len, sizeof(list) - len, "%s(resource = %d AND installed = %d AND locked = %d)",
-                 i ? " OR " : "", resources[i], installed[i], locked[i]);
+        for(int pending = 0; pending <= 1; pending++) {
+            size_t len = strlen(list);
+            snprintf(list + len, sizeof(list) - len,
+                "%s(SELECT game_t FROM events FORCE INDEX (events_inventory_time) WHERE drone = %d AND resource = %d "
+                "AND installed = %d AND locked = %d AND outcome = %d AND event_type IN (%d, %d)%s "
+                "ORDER BY game_t DESC LIMIT 1)",
+                len ? " UNION ALL " : "", drone, resources[i], installed[i], locked[i],
+                pending ? OUTCOME_NO_OUTCOME : OUTCOME_OK,
+                INCREMENT_INVENTORY_EVENT_TYPE, DECREMENT_INVENTORY_EVENT_TYPE,
+                pending ? " AND NOT EXISTS (SELECT 1 FROM actions x WHERE x.id = events.action AND x.aborted = 1)" : "");
+        }
     }
-    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "SELECT IFNULL(MAX(game_t), 0) FROM events WHERE drone = %d AND outcome >= %d AND event_type IN (%d, %d) AND (%s)"
-        " AND NOT EXISTS (SELECT 1 FROM actions x WHERE x.id = events.action AND x.aborted = 1)",
-        drone, OUTCOME_NO_OUTCOME, INCREMENT_INVENTORY_EVENT_TYPE, DECREMENT_INVENTORY_EVENT_TYPE, list);
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "SELECT IFNULL(MAX(game_t), 0) FROM (%s) AS latest", list);
 
     DbConnection_t* connection = engine_get_db_connection();
     if(mysql_query(connection->hndl, query_text)) {
