@@ -72,7 +72,14 @@ def _sun(phase: float, elevation: float, strength: float, name: str = "Sun") -> 
     return obj
 
 
-def light_and_frame(scene: bpy.types.Scene, shot: Shot, albedo: float, radius: float = 1.0) -> None:
+def light_and_frame(scene: bpy.types.Scene, shot: Shot, albedo: float, radius: float = 1.0, points=None) -> None:
+    """Light the subject and place the camera.
+
+    Without points, the camera frames a sphere of the given radius. With
+    points (an N x 3 array of world positions, e.g. bounding-box corners),
+    it frames their outline as the camera sees it, which suits long,
+    thin subjects such as drones.
+    """
     scene.render.resolution_x = shot.width
     scene.render.resolution_y = shot.height
     scene.render.resolution_percentage = 100
@@ -96,11 +103,25 @@ def light_and_frame(scene: bpy.types.Scene, shot: Shot, albedo: float, radius: f
     scene.camera = cam
 
     long_side, short_side = max(shot.width, shot.height), min(shot.width, shot.height)
-    half_fov_short = math.atan((cam_data.sensor_width / 2) / shot.focal * short_side / long_side)
-    dist = radius / (shot.fill * math.tan(half_fov_short))
+    tan_long = (cam_data.sensor_width / 2) / shot.focal
+    tan_short = tan_long * short_side / long_side
     el = math.radians(shot.view_elevation)
-    cam.location = Vector((0.0, -dist * math.cos(el), dist * math.sin(el)))
     cam.rotation_euler = Euler((math.pi / 2 - el, 0.0, 0.0))
+    forward = Vector((0.0, math.cos(el), -math.sin(el)))
+    if points is None:
+        dist = radius / (shot.fill * tan_short)
+        cam.location = -forward * dist
+    else:
+        import numpy as np
+
+        right, up = Vector((1.0, 0.0, 0.0)), forward.cross(Vector((1.0, 0.0, 0.0)))
+        pts = np.asarray(points, dtype=float)
+        px, py, pz = pts @ np.array(right), pts @ np.array(up), pts @ np.array(forward)
+        hx, hy, hz = np.ptp(px) / 2, np.ptp(py) / 2, np.ptp(pz) / 2
+        tan_x, tan_y = (tan_long, tan_short) if shot.width >= shot.height else (tan_short, tan_long)
+        dist = max(hx / tan_x, hy / tan_y) / shot.fill + hz
+        centre = right * (px.min() + hx) + up * (py.min() + hy) + forward * (pz.min() + hz)
+        cam.location = centre - forward * dist
 
     # Lens shift moves the subject off-centre without changing perspective.
     # Shift is a fraction of the long side; offset is a fraction of each side.

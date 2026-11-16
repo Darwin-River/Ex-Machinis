@@ -162,3 +162,157 @@ def _crater_layer(nodes, links, vec, scale: float, coverage: float, strength: fl
     # Depth is about 0.2 of the diameter: 0.4 of the radius, which is size/scale.
     depth = _math(nodes, links, "MULTIPLY", size, 0.4 * strength / scale)
     return _math(nodes, links, "MULTIPLY", _math(nodes, links, "MULTIPLY", shape, depth), present)
+
+
+# ------------------------------------------------------------ hard surfaces
+
+def _principled(name: str, colour, metallic: float, roughness: float):
+    mat = bpy.data.materials.new(name)
+    nt = mat.node_tree
+    nt.nodes.clear()
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    nt.links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
+    bsdf.inputs["Base Color"].default_value = (*colour, 1.0)
+    bsdf.inputs["Metallic"].default_value = metallic
+    bsdf.inputs["Roughness"].default_value = roughness
+    return mat, nt, bsdf
+
+
+def _grime(nt, bsdf, amount: float = 0.12) -> None:
+    """Slight, uneven darkening so paint doesn't look factory-new."""
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    noise = nt.nodes.new("ShaderNodeTexNoise")
+    noise.inputs["Scale"].default_value = 6.0
+    noise.inputs["Detail"].default_value = 8.0
+    nt.links.new(coord.outputs["Object"], noise.inputs["Vector"])
+    rng = nt.nodes.new("ShaderNodeMapRange")
+    rng.inputs["To Min"].default_value = 1.0 - amount
+    rng.inputs["To Max"].default_value = 1.0
+    nt.links.new(noise.outputs["Fac"], rng.inputs["Value"])
+    mix = nt.nodes.new("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    mix.blend_type = "MULTIPLY"
+    mix.inputs["Factor"].default_value = 1.0
+    mix.inputs["A"].default_value = bsdf.inputs["Base Color"].default_value
+    nt.links.new(rng.outputs["Result"], mix.inputs["B"])
+    nt.links.new(mix.outputs["Result"], bsdf.inputs["Base Color"])
+
+
+def _panel_lines(nt, bsdf, scale: float = 6.0) -> None:
+    """Shallow seams between hull panels."""
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    brick = nt.nodes.new("ShaderNodeTexBrick")
+    brick.inputs["Scale"].default_value = scale
+    brick.inputs["Mortar Size"].default_value = 0.012
+    brick.offset = 0.0
+    nt.links.new(coord.outputs["Object"], brick.inputs["Vector"])
+    bump = nt.nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = 0.35
+    bump.invert = True
+    nt.links.new(brick.outputs["Fac"], bump.inputs["Height"])
+    nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+
+
+def hard_surface(slots: list[str], accent=(0.85, 0.28, 0.03)) -> list:
+    """One material per slot name, in slot order."""
+    made = {}
+    m, nt, b = _principled("Truss", (0.05, 0.05, 0.055), 0.85, 0.4)
+    _grime(nt, b, 0.2)
+    made["truss"] = m
+    made["metal"] = _principled("Metal fittings", (0.55, 0.55, 0.56), 1.0, 0.3)[0]
+    m, nt, b = _principled("White paint", (0.72, 0.72, 0.7), 0.0, 0.45)
+    _grime(nt, b)
+    _panel_lines(nt, b, 4.0)
+    made["white"] = m
+
+    m, nt, b = _principled("Insulation foil", (1.0, 0.76, 0.38), 1.0, 0.3)
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    crinkle = nt.nodes.new("ShaderNodeTexNoise")
+    crinkle.inputs["Scale"].default_value = 18.0
+    crinkle.inputs["Detail"].default_value = 3.0
+    crinkle.inputs["Distortion"].default_value = 2.5
+    nt.links.new(coord.outputs["Object"], crinkle.inputs["Vector"])
+    bump = nt.nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = 0.9
+    nt.links.new(crinkle.outputs["Fac"], bump.inputs["Height"])
+    nt.links.new(bump.outputs["Normal"], b.inputs["Normal"])
+    made["foil"] = m
+
+    m, nt, b = _principled("Panels", (0.36, 0.37, 0.38), 0.3, 0.5)
+    _grime(nt, b)
+    _panel_lines(nt, b, 5.0)
+    made["panel"] = m
+    made["engine"] = _principled("Engine", (0.32, 0.29, 0.26), 1.0, 0.32)[0]
+    made["radiator"] = _principled("Radiator", (0.8, 0.8, 0.78), 0.0, 0.7)[0]
+    m, nt, b = _principled("Accent paint", accent, 0.0, 0.45)
+    _grime(nt, b, 0.18)
+    made["accent"] = m
+
+    m, nt, b = _principled("Solar cells", (0.012, 0.02, 0.06), 0.3, 0.2)
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    brick = nt.nodes.new("ShaderNodeTexBrick")
+    brick.inputs["Scale"].default_value = 14.0
+    brick.inputs["Mortar Size"].default_value = 0.03
+    brick.offset = 0.0
+    brick.inputs["Color1"].default_value = (0.012, 0.02, 0.06, 1)
+    brick.inputs["Color2"].default_value = (0.02, 0.03, 0.08, 1)
+    brick.inputs["Mortar"].default_value = (0.5, 0.5, 0.52, 1)
+    nt.links.new(coord.outputs["Object"], brick.inputs["Vector"])
+    nt.links.new(brick.outputs["Color"], b.inputs["Base Color"])
+    made["solar"] = m
+
+    made["dark"] = _principled("Dark fittings", (0.02, 0.02, 0.022), 0.0, 0.6)[0]
+    m, nt, b = _principled("Engine glow", (0.0, 0.0, 0.0), 0.0, 1.0)
+    b.inputs["Emission Color"].default_value = (1.0, 0.55, 0.25, 1.0)
+    b.inputs["Emission Strength"].default_value = 6.0
+    made["glow"] = m
+    return [made[s] for s in slots]
+
+
+def exhaust() -> bpy.types.Material:
+    """A see-through glow, brightest at the nozzle and along the plume's core."""
+    mat = bpy.data.materials.new("Exhaust")
+    nt = mat.node_tree
+    nt.nodes.clear()
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    emit = nt.nodes.new("ShaderNodeEmission")
+    emit.inputs["Color"].default_value = (0.55, 0.65, 1.0, 1.0)
+    emit.inputs["Strength"].default_value = 6.0
+    clear = nt.nodes.new("ShaderNodeBsdfTransparent")
+    add = nt.nodes.new("ShaderNodeAddShader")
+    nt.links.new(clear.outputs["BSDF"], add.inputs[0])
+
+    facing = nt.nodes.new("ShaderNodeLayerWeight")
+    facing.inputs["Blend"].default_value = 0.5
+    core = nt.nodes.new("ShaderNodeMath")
+    core.operation = "POWER"
+    inv = nt.nodes.new("ShaderNodeMath")
+    inv.operation = "SUBTRACT"
+    inv.inputs[0].default_value = 1.0
+    nt.links.new(facing.outputs["Facing"], inv.inputs[1])
+    nt.links.new(inv.outputs["Value"], core.inputs[0])
+    core.inputs[1].default_value = 4.0
+
+    # Fade along the plume. Plumes point aft (-X), so the generated X
+    # coordinate runs from 0 at the plume's tail to 1 at the nozzles.
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nt.links.new(coord.outputs["Generated"], sep.inputs["Vector"])
+    fade = nt.nodes.new("ShaderNodeMapRange")
+    fade.interpolation_type = "SMOOTHERSTEP"
+    fade.inputs["From Min"].default_value = 0.35  # the far third fades out entirely
+    nt.links.new(sep.outputs["X"], fade.inputs["Value"])
+    strength = nt.nodes.new("ShaderNodeMath")
+    strength.operation = "MULTIPLY"
+    nt.links.new(core.outputs["Value"], strength.inputs[0])
+    nt.links.new(fade.outputs["Result"], strength.inputs[1])
+    scaled = nt.nodes.new("ShaderNodeMath")
+    scaled.operation = "MULTIPLY"
+    scaled.inputs[1].default_value = 2.5
+    nt.links.new(strength.outputs["Value"], scaled.inputs[0])
+    nt.links.new(scaled.outputs["Value"], emit.inputs["Strength"])
+    nt.links.new(emit.outputs["Emission"], add.inputs[1])
+    nt.links.new(add.outputs["Shader"], out.inputs["Surface"])
+    mat.surface_render_method = "BLENDED"
+    return mat

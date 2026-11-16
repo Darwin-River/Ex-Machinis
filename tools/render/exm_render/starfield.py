@@ -1,7 +1,7 @@
-"""Starfield backgrounds, drawn in 2D and composited behind a render.
+"""Starfield backgrounds, drawn in 2D at the output resolution.
 
-Stars are drawn at the output resolution rather than rendered in 3D, so
-they stay pin-sharp and never light the subject. They are kept faint by
+The stars are drawn as an image rather than modelled in 3D, so they stay
+pin-sharp and never light the subject. They are kept faint by
 default: in a real exposure that shows a sunlit body, stars barely show.
 """
 
@@ -50,7 +50,39 @@ def draw(width: int, height: int, seed: int, brightness: float = 0.6, density: f
     return np.clip(img, 0.0, 1.0)
 
 
-def composite(fg_rgba: np.ndarray, bg_rgb: np.ndarray) -> np.ndarray:
-    """Place a straight-alpha RGBA render over an RGB background."""
-    a = fg_rgba[..., 3:4]
-    return fg_rgba[..., :3] * a + bg_rgb * (1.0 - a)
+def set_backdrop(scene, stars) -> None:
+    """Show a star image behind the subject, seen by the camera only.
+
+    The stars are fixed to the frame (window coordinates), so they stay
+    pin-sharp and line up pixel for pixel. They never light the subject,
+    and glows such as exhaust plumes add over them naturally.
+    """
+    import bpy
+    import numpy as np
+
+    h, w = stars.shape[:2]
+    # Undo the display gamma and the shot's exposure (and make up for the
+    # tone curve), so the stars come out roughly as drawn whatever the
+    # subject needs.
+    linear = 2.0 * np.clip(stars, 0, 1) ** 2.2 / (2.0 ** scene.view_settings.exposure)
+    rgba = np.concatenate([linear, np.ones((h, w, 1))], axis=2).astype(np.float32)
+    img = bpy.data.images.new("Stars", w, h, float_buffer=True)
+    img.pixels.foreach_set(rgba.ravel())
+    img.pack()
+
+    nt = scene.world.node_tree
+    bg = nt.nodes["Background"]
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = img
+    tex.interpolation = "Closest"
+    tex.extension = "CLIP"
+    nt.links.new(coord.outputs["Window"], tex.inputs["Vector"])
+    path = nt.nodes.new("ShaderNodeLightPath")
+    mix = nt.nodes.new("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    mix.inputs["A"].default_value = (0, 0, 0, 1)
+    nt.links.new(path.outputs["Is Camera Ray"], mix.inputs["Factor"])
+    nt.links.new(tex.outputs["Color"], mix.inputs["B"])
+    nt.links.new(mix.outputs["Result"], bg.inputs["Color"])
+    bg.inputs["Strength"].default_value = 1.0
