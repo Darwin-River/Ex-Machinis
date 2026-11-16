@@ -238,6 +238,12 @@ class DronePageTest extends TestCase
     /** #689: an action that should have ended says the engine is behind; the script's line says how old it is */
     public function testAStaleActionSaysTheEngineIsBehind()
     {
+        // A game clock with the engine running (CI's database starts with none)
+        if (!DB::table('game_clock')->where('id', 1)->exists()) {
+            $t = time();
+            DB::table('game_clock')->insert(['id' => 1, 'real_anchor' => $t, 'game_anchor' => $t, 'scale' => 60,
+                'epoch' => $t - 100 * 86400]);
+        }
         $agent = Release::release($this->player('a@example.com'), 'Behind', self::SCRIPT);
         $now = \App\Services\World::gameNow();
         $busy = DB::table('actions')->insertGetId(['drone' => $agent->agent_id, 'protocol' => 11100, 'multiplier' => 1, 'aborted' => 0]);
