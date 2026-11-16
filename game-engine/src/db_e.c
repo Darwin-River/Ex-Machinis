@@ -1042,6 +1042,18 @@ ErrorCode_t db_abort_action(int action_id)
         else
         {
             engine_trace(TRACE_LEVEL_ALWAYS, "Action [%d] aborted", action_id);
+
+            // Its events still to come never happen: say so (#725). Left at
+            // outcome 0 they stayed "pending" for good, and every batch of
+            // the Event Engine walked past them: 328,000 rows a batch on the
+            // live database, about half of MySQL's time
+            snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+                "UPDATE events SET outcome = -9 WHERE action = %d AND outcome = 0", action_id);
+            if (mysql_query(connection->hndl, query_text))
+            {
+                engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+                result = ENGINE_DB_QUERY_ERROR;
+            }
         }
     }
 

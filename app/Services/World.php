@@ -245,20 +245,22 @@ class World
      */
     public static function orders(int $type, int $limit = 300): array
     {
-        $open = $type === 4 ? 'IFNULL(i.units, 0) - e.new_quantity > 0' : 'e.new_quantity - IFNULL(i.units, 0) > 0';
+        // From latest_orders (each drone's newest order, its units and
+        // is_open kept by triggers; #430, #434), not from events: grouping
+        // every order event by drone and resource walked all 19 million
+        // events on the live database each time the dashboard or the Market
+        // page was worked out (#723)
         $best = $type === 4 ? 'ASC' : 'DESC';
         $rows = DB::select(
             "SELECT * FROM (
-               SELECT e.drone, a.name AS drone_name, e.resource, r.name AS resource_name, e.new_credits AS price,
-                      ABS(IFNULL(i.units, 0) - e.new_quantity) AS units, o.object_name AS place,
-                      ROW_NUMBER() OVER (PARTITION BY e.resource, a.object_id ORDER BY e.new_credits $best, e.id) AS n
-               FROM events e
-               JOIN (SELECT MAX(id) AS id FROM events WHERE event_type = ? AND outcome = 1 GROUP BY drone, resource) l ON l.id = e.id
-               JOIN agents a ON a.agent_id = e.drone AND a.wrecked_at IS NULL
-               LEFT JOIN resources r ON r.id = e.resource
-               LEFT JOIN objects o ON o.object_id = a.object_id
-               LEFT JOIN sqInventory i ON i.drone = e.drone AND i.resource = e.resource
-               WHERE $open) b
+               SELECT o.drone, a.name AS drone_name, o.resource, r.name AS resource_name, o.price,
+                      ABS(IFNULL(o.units, 0) - o.quantity) AS units, p.object_name AS place,
+                      ROW_NUMBER() OVER (PARTITION BY o.resource, a.object_id ORDER BY o.price $best, o.event_id) AS n
+               FROM latest_orders o
+               JOIN agents a ON a.agent_id = o.drone AND a.wrecked_at IS NULL
+               LEFT JOIN resources r ON r.id = o.resource
+               LEFT JOIN objects p ON p.object_id = a.object_id
+               WHERE o.event_type = ? AND o.is_open = 1) b
              WHERE n = 1 ORDER BY resource, place LIMIT " . (int) $limit,
             [$type]);
         return array_map(function ($r) { $r = (array) $r; unset($r['n']); return $r; }, $rows);

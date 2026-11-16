@@ -23,6 +23,13 @@ QueryCacheScope_t query_cache_policy(int id, int base_ms, int* ttl_ms)
     case 680: case 707:
         *ttl_ms = base_ms;
         return QC_WORLD;
+    // A company's health (#725: 104,000 calls at 69 ms over 10 hours on
+    // the live database, a fifth of a core): every drone of a company asks
+    // it each round, and it moves in game hours, so 10 real seconds (about
+    // 5 game hours at the normal pace) and shared by all who ask
+    case 699:
+        *ttl_ms = 10000;
+        return QC_WORLD;
     // Who owns drone N never changes
     case 201:
         *ttl_ms = 60000;
