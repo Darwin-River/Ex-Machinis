@@ -1575,7 +1575,11 @@ void engine_send_output(const char* msg, bool with_pending)
             engine.config.params[SEND_EMAIL_TEMPLATE_ID]);
 
 
-        // Get current position
+        // Where the drone is now (#726): read at send time, with a move
+        // that is due but not yet applied, not the place loaded for the turn
+        int place = db_drone_place(agent_id, game_time_now_seconds());
+        if(place > 0)
+            engine.last_agent.object_id = place;
         engine_get_drone_position(engine.last_agent.object_id, email_info.drone_position, &email_info.distance);
 
         // The reply reaches Earth at the speed of light (scaled by the game clock)

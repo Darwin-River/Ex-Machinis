@@ -47,37 +47,10 @@ class Dashboard
         return self::kept('dashboard:full', fn () => self::build());
     }
 
-    /**
-     * The last $key worked out, starting a rebuild after the response when
-     * it is older than TTL. Only the very first view, with nothing kept yet,
-     * waits for one.
-     */
+    /** The last $key worked out (Kept), rebuilt after the response once TTL old */
     private static function kept(string $key, callable $work): array
     {
-        $kept = Cache::get($key);
-        if (is_array($kept) && isset($kept['data'], $kept['at'])) {
-            if (time() - (int) $kept['at'] >= self::TTL) {
-                defer(fn () => self::rebuild($key, $work));
-            }
-            return $kept['data'];
-        }
-        return self::rebuild($key, $work) ?? $work();
-    }
-
-    /** Works $key out again under a lock; null when another rebuild holds it */
-    public static function rebuild(string $key, callable $work): ?array
-    {
-        $lock = Cache::lock("$key:building", 600);
-        if (!$lock->get()) {
-            return null;
-        }
-        try {
-            $data = $work();
-            Cache::forever($key, ['data' => $data, 'at' => time()]);
-            return $data;
-        } finally {
-            $lock->release();
-        }
+        return Kept::get($key, self::TTL, $work);
     }
 
     /** Today's game day, and the game time it started at */
@@ -258,11 +231,12 @@ class Dashboard
     private static function matured(): array
     {
         [$epoch] = self::today();
-        return DB::table('companies AS c')->leftJoin('users AS u', 'u.user_id', '=', 'c.owner_id')
+        $rows = DB::table('companies AS c')->leftJoin('users AS u', 'u.user_id', '=', 'c.owner_id')
             ->where('c.seedling', 0)->whereNotNull('c.owner_id')->whereNotNull('c.matured_t')->whereNull('c.eliminated_at')
-            ->orderBy('c.company_id')->get(['c.company_id', 'c.name', 'c.matured_t', 'u.login'])
-            ->map(function ($c) use ($epoch) {
-                $cash = PlayerShares::cashOut((int) $c->company_id);
+            ->orderBy('c.company_id')->get(['c.company_id', 'c.name', 'c.matured_t', 'u.login']);
+        $cashOuts = PlayerShares::cashOuts($rows->pluck('company_id')->all());
+        return $rows->map(function ($c) use ($epoch, $cashOuts) {
+                $cash = $cashOuts[(int) $c->company_id];
                 return ['company' => (int) $c->company_id, 'name' => $c->name, 'owner' => $c->login,
                     'matured_day' => intdiv(max(0, (int) $c->matured_t - $epoch), 86400),
                     'cash_out_total' => (int) $cash['total'], 'cash_out' => (int) $cash['per_share']];
@@ -382,9 +356,10 @@ class Dashboard
     {
         [, $today] = self::today();
         $out = [];
+        $dividends = PlayerShares::dividends30Many(array_column($matured, 'company'));
         foreach ($matured as $c) {
             $days = array_values(array_filter($daily[$c['company']] ?? [], fn ($r) => $r['day'] > $today - 30));
-            $div = PlayerShares::dividends30($c['company']);
+            $div = $dividends[$c['company']];
             $out[] = [
                 'company' => $c['company'], 'name' => $c['name'], 'owner' => $c['owner'],
                 'cash_out' => $c['cash_out'],

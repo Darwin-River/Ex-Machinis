@@ -103,12 +103,21 @@
 
                 },
                 {
+                    // Working drones, wrecks apart (#726)
                     name: 'agents',
-                    title: 'Spacecraft',
+                    title: 'Drones',
                     sortField: 'agents',
                     titleClass: '',
                     dataClass: '',
                     /*width: "22%",*/
+
+                },
+                {
+                    name: 'wrecks',
+                    title: 'Wrecks',
+                    sortField: 'wrecks',
+                    titleClass: '',
+                    dataClass: '',
 
                 },
                 {
