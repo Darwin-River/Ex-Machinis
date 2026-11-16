@@ -72,7 +72,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                             <a class="dropdown-item" href="{{ url('leaderboard') }}">Leaderboard</a>
                             @if(config('forge.new_rules'))<a class="dropdown-item" href="{{ url('players') }}">Players</a>@endif
                             <a class="dropdown-item" href="{{ url('lineage') }}">Lineage</a>
-                            <a class="dropdown-item" href="{{ url('events') }}">Events</a>
                         </div>
                     </li>
                     <li class="nav-item dropdown">
@@ -144,6 +143,20 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- Scripts -->
 @vite('resources/assets/js/app.js')
+{{-- A wide table on a phone says it scrolls sideways (#716): a cue above it while it overflows --}}
+<style>
+    .ex-scrolls::before { content: 'Scroll sideways for more \2192'; display: block; position: sticky; left: 0; width: max-content;
+          font-size: 12px; color: #9aa3b8; padding: 0 0 4px; }
+</style>
+<script>
+(function () {
+    const mark = () => document.querySelectorAll('.table-custom-responsive, .table-responsive, .table-scroll').forEach((box) => {
+        box.classList.toggle('ex-scrolls', box.scrollWidth > box.clientWidth + 4);
+    });
+    document.addEventListener('DOMContentLoaded', () => { mark(); setTimeout(mark, 1500); });
+    window.addEventListener('resize', mark);
+})();
+</script>
 
 </body>
 </html>

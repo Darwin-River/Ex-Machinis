@@ -173,23 +173,38 @@ class Leaderboard
      * Has any company still trading a snapshot a real week old (#692)? If
      * not (a world under a week old), Rising is the same as All time
      */
-    public static function hasAWeek(): bool
+    /** Game days Rising looks back (#717: a real week, while a game day takes minutes) */
+    public const RISING_DAYS = 7;
+
+    /** The game day RISING_DAYS before today */
+    private static function risingFrom(): int
     {
-        return Schema::hasColumn('wealth_snapshots', 'company_id') && DB::table('wealth_snapshots as s')
-            ->join('companies as c', 'c.company_id', '=', 's.company_id')->whereNull('c.eliminated_at')
-            ->where('s.taken_at', '<=', now()->subDays(7))->exists();
+        $epoch = (int) (DB::table('game_clock')->where('id', 1)->value('epoch') ?? 0);
+        return intdiv(max(0, World::gameNow() - $epoch), 86400) - self::RISING_DAYS;
     }
 
+    /** Whether the world has a daily history RISING_DAYS game days old to measure Rising from */
+    public static function hasAWeek(): bool
+    {
+        return Schema::hasTable('company_days') && DB::table('company_days')->where('day', '<=', self::risingFrom())->exists();
+    }
+
+    /**
+     * Rising (#717): each company's gain over the last RISING_DAYS game days,
+     * its net wealth now less its daily history's net wealth on the latest
+     * day at least that old (0 for a company founded since: net wealth
+     * starts at 0). It was a real week of hourly snapshots, while a game day
+     * takes minutes of real time
+     */
     public static function rising(int $limit = 50, ?float $maxAge = null): array
     {
-        $since = now()->subDays(7);
         $before = [];
-        if (Schema::hasColumn('wealth_snapshots', 'company_id')) {
-            $latest = DB::table('wealth_snapshots')->whereNotNull('company_id')->where('taken_at', '<=', $since)
-                ->groupBy('company_id')->select('company_id', DB::raw('MAX(taken_at) AS t'));
-            $before = DB::table('wealth_snapshots as s')->joinSub($latest, 'l', function ($join) {
-                $join->on('l.company_id', '=', 's.company_id')->on('l.t', '=', 's.taken_at');
-            })->pluck('s.wealth', 's.company_id')->all();
+        if (Schema::hasTable('company_days')) {
+            $latest = DB::table('company_days')->where('day', '<=', self::risingFrom())
+                ->groupBy('company_id')->select('company_id', DB::raw('MAX(day) AS d'));
+            $before = DB::table('company_days as s')->joinSub($latest, 'l', function ($join) {
+                $join->on('l.company_id', '=', 's.company_id')->on('l.d', '=', 's.day');
+            })->pluck('s.net_wealth', 's.company_id')->all();
         }
         $rows = [];
         foreach (self::upTo(self::wealth(), $maxAge) as $co => $row) {

@@ -27,6 +27,7 @@
         .ex-chart text { fill: var(--mh-muted, #a3a6b2); font-size: 12px; font-family: inherit; }
         .ex-chart text.ex-strong { fill: var(--mh-text, #e9e9ef); }
         .ex-chart:focus-visible { outline: 2px solid #828590; outline-offset: 2px; }
+        .ex-none { color: var(--mh-muted, #a3a6b2); font-size: 14px; margin: .25em 0; white-space: normal; }
         .ex-src { color: var(--mh-muted, #a3a6b2); font-size: 12px; margin: .5em 0 0; white-space: normal; }
         .ex-src code { color: inherit; }
         .ex-legend { display: flex; flex-wrap: wrap; gap: .4em 1em; font-size: 13px; color: var(--mh-muted, #a3a6b2); margin-bottom: .4em; }
@@ -105,9 +106,10 @@ window.ExCharts = (function () {
         return {W, H, svg: el('svg', {viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': box.getAttribute('aria-label') || ''}, box)};
     }
 
+    // Nothing to draw: one line saying so, not an empty chart (#716: "No dividends" drawn on a 0 to 1 axis)
     function empty(box, text) {
         box.replaceChildren();
-        const d = document.createElement('div'); d.className = 'mh-empty'; d.style.minHeight = '120px'; d.textContent = text; box.appendChild(d);
+        const d = document.createElement('p'); d.className = 'ex-none'; d.textContent = text; box.appendChild(d);
     }
 
     /**
@@ -130,14 +132,18 @@ window.ExCharts = (function () {
         });
         if (opts.unit) el('text', {x: L - 6, y: 4, 'text-anchor': 'end'}, svg).textContent = opts.unit;
         const every = Math.max(1, Math.ceil((span + 1) / (W < 480 ? 4 : 9)));
-        let clear = 0;
+        let clear = Infinity;
         for (let d = last; d >= first; d -= every) {   // from the newest day back, so today is always labelled
             const lab = el('text', {x: x(d), y: H - 5, 'text-anchor': 'middle'}, svg);
             lab.textContent = (d === last || d - every < first ? 'day ' : '') + d;
             const w = lab.getComputedTextLength();
-            if (x(d) + w / 2 > W) lab.setAttribute('text-anchor', 'end');
-            if (clear && x(d) + w / 2 > clear) { lab.remove(); continue; }
-            clear = x(d) - w / 2 - 8;
+            // Its left and right edges as drawn: a label pushed in from the
+            // right edge is end-anchored, so it reaches a whole width left
+            // (#716: "2201day 2208", the next label drawn under it)
+            let left = x(d) - w / 2, right = x(d) + w / 2;
+            if (right > W) { lab.setAttribute('text-anchor', 'end'); lab.setAttribute('x', W); left = W - w; right = W; }
+            if (right > clear) { lab.remove(); continue; }
+            clear = left - 8;
         }
         return {svg, W, H, T, B, L, R, x, y, slot, lo, hi, first, last};
     }
@@ -174,6 +180,24 @@ window.ExCharts = (function () {
         return el('rect', Object.assign({x: x - w / 2, y: top, width: w, height: Math.max(0.75, h), rx: Math.min(2, w / 3), fill}, extra || {}), svg);
     }
 
+    // Today's game day isn't over (#716: drawn as a full bar, it read as a
+    // collapse): its bars are faded and hatched, and its tooltip says so
+    let hatchN = 0;
+    function partialBar(svg, x, w, y0, y1, fill) {
+        const r = bar(svg, x, w, y0, y1, fill, {'fill-opacity': 0.45});
+        if (!r) return r;
+        let id = svg.dataset.hatch;
+        if (!id) {
+            id = svg.dataset.hatch = 'ex-hatch-' + (++hatchN);
+            const p = el('pattern', {id, width: 5, height: 5, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)'}, el('defs', {}, svg));
+            el('line', {x1: 0, y1: 0, x2: 0, y2: 5, stroke: '#e9e9ef', 'stroke-width': 1.5, 'stroke-opacity': 0.55}, p);
+        }
+        const top = Math.min(y0, y1), h = Math.abs(y1 - y0);
+        el('rect', {x: x - w / 2, y: top, width: w, height: Math.max(0.75, h), fill: `url(#${id})`}, svg);
+        return r;
+    }
+    const SO_FAR = ' (so far: the day isn\'t over)';
+
     /** Stacked bars a day: days [{day, values: [..by series]}], series [{name, colour}] */
     function stacked(box, days, series, opts) {
         if (!days.length || !days.some((d) => d.values.some((v) => v > 0))) return empty(box, opts.empty || 'Nothing in this period.');
@@ -186,14 +210,14 @@ window.ExCharts = (function () {
                 if (v <= 0) return;
                 const y0 = f.y(acc), y1 = f.y(acc + v);
                 // a 1px gap between segments where there is room
-                bar(f.svg, f.x(d.day), w, y0 - (acc > 0 && y0 - y1 > 3 ? 1 : 0), y1, series[i].colour);
+                (d.day === opts.partial ? partialBar : bar)(f.svg, f.x(d.day), w, y0 - (acc > 0 && y0 - y1 > 3 ? 1 : 0), y1, series[i].colour);
                 acc += v;
             });
         });
         const byDay = Object.fromEntries(days.map((d) => [d.day, d]));
         dayHover(box, f, (day) => {
             const d = byDay[day];
-            const lines = ['Game day ' + day + (opts.dayNote ? opts.dayNote(d) : '')];
+            const lines = ['Game day ' + day + (day === opts.partial ? SO_FAR : '') + (opts.dayNote ? opts.dayNote(d) : '')];
             series.forEach((s, i) => { if (d && d.values[i]) lines.push({colour: s.colour, text: `${s.name}: ${num(d.values[i])}`}); });
             if (d) lines.push('Total: ' + num(d.values.reduce((a, b) => a + b, 0)) + (opts.unitWord ? ' ' + opts.unitWord : ''));
             return lines;
@@ -209,15 +233,20 @@ window.ExCharts = (function () {
         const f = frame(box, opts.first ?? rows[0].day, opts.last ?? rows[rows.length - 1].day, Object.assign({lo, hi}, opts));
         const w = Math.max(1, Math.min(22, f.slot - 2));
         rows.forEach((r) => {
-            if (r.up) bar(f.svg, f.x(r.day), w, f.y(0), f.y(r.up), opts.upColour || COLOURS[0]);
-            if (r.down) bar(f.svg, f.x(r.day), w, f.y(0), f.y(-r.down), opts.downColour || COLOURS[1]);
+            const b = r.day === opts.partial ? partialBar : bar;
+            if (r.up) b(f.svg, f.x(r.day), w, f.y(0), f.y(r.up), opts.upColour || COLOURS[0]);
+            if (r.down) b(f.svg, f.x(r.day), w, f.y(0), f.y(-r.down), opts.downColour || COLOURS[1]);
         });
         if (opts.dots) rows.forEach((r) => {
             if (r.dot === null || r.dot === undefined || (!r.up && !r.down && !r.dot)) return;
             el('circle', {cx: f.x(r.day), cy: f.y(r.dot), r: f.slot > 9 ? 4 : 2.5, fill: '#e9e9ef', stroke: '#24242c', 'stroke-width': 1.5}, f.svg);
         });
         const byDay = Object.fromEntries(rows.map((r) => [r.day, r]));
-        dayHover(box, f, (day) => opts.tip(byDay[day], day));
+        dayHover(box, f, (day) => {
+            const lines = opts.tip(byDay[day], day);
+            if (day === opts.partial && lines.length && typeof lines[0] === 'string') lines[0] += SO_FAR;
+            return lines;
+        });
         return f;
     }
 
@@ -310,6 +339,7 @@ window.ExCharts = (function () {
     function dots(box, title, rows, opts) {
         const rh = 22, H = rows.length * rh + 30;
         const {W, svg} = svgIn(box, H);
+        if (!svg.getAttribute('aria-label')) svg.setAttribute('aria-label', title + ': ' + opts.aName + ' and ' + opts.bName + ' by place');   // #716
         el('text', {x: 0, y: 12, class: 'ex-strong', 'font-weight': 600}, svg).textContent = title;
         const vals = rows.flatMap((r) => [r.a, r.b]).filter((v) => v !== null && v !== undefined);
         const tk = ticks(0, Math.max(1, ...vals), 3), top = tk[tk.length - 1], lw = 70;
