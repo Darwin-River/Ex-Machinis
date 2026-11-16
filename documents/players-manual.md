@@ -93,7 +93,7 @@ This is the whole game. Each line is explained where it first matters to you.
 2. Start a seedling for free: the bank lends it a drone and some cash. Run up to five; close one at any time and its debt is cancelled. Failing is free.
 3. A seedling trades only with the House (the game's own traders at each exchange), and you can change its code whenever you like.
 4. When it holds its debt and a little more, you may mature it: its code is locked for good, it can trade with everyone, and you get its 100 shares.
-5. Your account starts with 5,000 credits that can only buy shares. Each game day a matured company pays a quarter of its profit to its shareholders.
+5. Your account starts with 5,000 credits that can only buy shares. Each game day a matured company pays half its profit to its shareholders. Its profit is its sales less the goods it bought: equipment and drones it buys (modules, kits and hulls) are an investment, not a loss (#759).
 6. Trade shares with players within a published range, or sell them to the bank for their cash-out value, paid 30 game days later at the lower of the two values.
 7. All code is public. A matured company can't change, but it can react to prices and orders, so read its code before you buy.
 8. You're ranked by your wealth, and each real month by its growth, on the Players page.
@@ -125,7 +125,7 @@ It is your birthright to take control of your own remotely piloted spacecraft an
 4. **Watch its drone.** Its page shows what it does and says, its trades and its fuel. At the normal pace a game day passes every 48 real seconds, so a few minutes of watching shows you days of its life. When the world is busy the clock slows, to as little as a game day in 24 real minutes: the home page and the Start a seedling page say the pace right now.
 5. **Change its code.** When you see what goes wrong, send it new code from your account page or its own page (**Push new code**, shown to you when you're logged in). The first change is free; each one after it adds 100 to its debt (see [Pushing new code](#pushing-new-code)).
 6. **Mature it.** Once it holds its debt plus 500 (4,700 for a fresh seedling), a **Mature** button appears beside it on your account page and on its Road to maturity. Maturing repays the debt and locks its code for good, and from then on it trades with everyone (see [Maturing a seedling](#maturing-a-seedling)).
-7. **Own its shares.** Its **100 shares** are now yours. Each game day it pays a quarter of its profit to its shareholders. Keep them, sell them to the bank, or trade them with other players (see [Chapter 7](#chapter-7-maturing-and-shares)).
+7. **Own its shares.** Its **100 shares** are now yours. Each game day it pays half its profit to its shareholders. Keep them, sell them to the bank, or trade them with other players (see [Chapter 7](#chapter-7-maturing-and-shares)).
 
 If it fails on the way, close it and start another. That costs you nothing.
 
@@ -217,7 +217,7 @@ Not sure where to begin? The Start a seedling page offers three starter scripts 
 
 The **Trader** starter (`trader.lua`) isn't offered under the new rules: it makes its living buying from other drones, and a seedling can't.
 
-Time to mature, measured in round 71's playtest at the normal pace (48 real seconds a game day): a Miner with `hour_value` 4, now its default, took 55 to 70 game days (about 45 to 55 real minutes), and an unchanged Maker about 70 (about 55 minutes); no unchanged Refiner matured within 80 game days. A crowded world takes longer. A seedling Maker checks that the House's best bid for rods pays for their metals (two to a rod) before it buys, sizes its batch by the price there, and keeps 60 credits once its tank is full, 300 when it is low (#740).
+Time to mature, measured in rounds 71 and 72 at the normal pace (48 real seconds a game day): an unchanged Miner (`hour_value` 4) took 50 to 70 game days (about 40 to 55 real minutes; 4 of 4 within the hour in round 72), an unchanged Maker 70 to 110, and an unchanged Refiner 90 to 140. A crowded world takes longer. A seedling Maker checks that the House's best bid for rods pays for their metals (two to a rod) before it buys, sizes its batch by the price there, and keeps 60 credits once its tank is full, 300 when it is low (#740).
 
 More complete company designs are in `examples/companies/`: `adaptive.lua`, `chemist.lua`, `electronics.lua`, `foundry.lua`, `machinist.lua`, `smith.lua` and `systems.lua`, with `words.lua`, a library of helper functions you can copy into your own script. They were written before the new rules: as seedlings they trade only with the House, and their share buying (`invest_surplus`) is refused (-18). Read them for ideas.
 
@@ -1284,7 +1284,7 @@ end
 
 ### The economy dashboard
 
-The **Economy dashboard** (World menu, `/dashboard`) shows the whole market on one page, worked out once a real minute. A short version of it is on the home page.
+The **Economy dashboard** (World menu, `/dashboard`) shows the whole market on one page, worked out again every few real minutes; it says how many real minutes old its figures are (#760). A short version of it is on the home page.
 
 - **The banner** compares the trades on the last full game day with the usual day (the average over up to 60 game days before it). When the clock is slowed it also says how long a game day takes now, how far behind the engines are, and how many times the usual rate processor tax costs.
 - **The tiles**: trades and credits traded, working drones and the share of all drones that are wrecks, matured companies and what they are worth at cash-out, matured companies' profit this week against last, and players. Each says how it has changed.
@@ -1318,11 +1318,11 @@ None of it happens in Lua. **Companies don't trade shares; players do**, on the 
 
 ### Dividends: what a share earns
 
-Each game day a matured company pays **a quarter of its profit** to its shareholders, split by the shares they hold: players' accounts, and the bank for the shares it holds (#667). So each share is paid a hundredth of that quarter.
+Each game day a matured company pays **half its profit** (a quarter until round 72, #747) to its shareholders, split by the shares they hold: players' accounts, and the bank for the shares it holds (#667). So each share is paid a hundredth of that quarter.
 
 A day's **profit** is what the company's sales brought in after the sales tax, less everything it bought that day (goods, fuel, equipment and hulls alike), after making up earlier losses, and never more than its credits. Losses carry forward: a day's profit first makes up any losses since the company last paid, and only what's left is paid out. So a company that buys a hull pays nothing until its profit has made up the cost. The day a company matures isn't paid.
 
-For example, a company that makes 200 credits of profit on a game day pays 50 to its shareholders that day: half a credit a share. The other three quarters stay in the company to work with. The company page's Earnings chart shows each day's profit.
+For example, a company that makes 200 credits of profit on a game day pays 100 to its shareholders that day: a credit a share. The other half stays in the company to work with. The company page's Earnings chart shows each day's profit.
 
 Dividends land in your account's **credits**. Your account page shows what your shares have paid you over the last 30 game days.
 
@@ -1344,13 +1344,13 @@ A company's **net wealth** on the company leaderboards is a different figure: wh
 
 ### Selling to the bank, and buying from it
 
-**The bank always buys.** Sell it any of your shares, at any time, at their cash-out value. The shares go to the bank at once; it **pays 30 game days later**, at the lower of the cash-out value then and on the day you sold. So you can't sell a company to the bank at today's price and leave the bank holding the loss if it collapses. Your account page lists what the bank still owes you, and it counts in your wealth on the Players page while you wait (at the lower of the sale price and the cash-out value now). If your sell orders for that company would then offer more shares than you still hold, the newest of them shrink or go, so the book never offers shares you no longer have.
+**The bank always buys.** Sell it any of your shares, at any time, at their cash-out value. The shares go to the bank at once; it **pays 30 game days later**, at the lower of the cash-out value then and on the day you sold. So you can't sell a company to the bank at today's price and leave the bank holding the loss if it collapses. If the company is counting down to dissolving when the payment falls due (it has had no credits for a while), the payment waits until it recovers or ends; if it ends, the bank pays nothing, and while it counts down the bank doesn't sell its shares either (#757: round 72's bank paid in full for a company that dissolved a game day later). Your account page lists what the bank still owes you, and it counts in your wealth on the Players page while you wait (at the lower of the sale price and the cash-out value now). If your sell orders for that company would then offer more shares than you still hold, the newest of them shrink or go, so the book never offers shares you no longer have.
 
 **The bank sells** the shares it holds at its **selling price**: the cash-out value plus what a share was actually paid in dividends over the last 30 game days (#673). A company that has just matured sells at its cash-out value. In the example above, if the company paid 1,500 credits in dividends over the last 30 game days (15 a share), the bank sells its shares at 36 + 15 = **51**.
 
 On a matured company's page (logged in): **Sell to the bank** and **Buy from the bank**, in whole shares. Through the API: `POST /api/v1/player-shares/{id}/bank/sell` and `.../bank/buy` with `units`.
 
-The **Stock exchange** (`/market/shares`) has a row for each matured company (#699), highest yield first: a share's cash-out value and a sparkline of how it changed over 30 game days (every row on one scale, in percent from its first day, so a steady share is a flat line whatever its price, #720), the dividends a share paid over 30 game days, the yield (those dividends against cash-out, over the same 30 days), the **last price between players** and how many game days ago it was, the bank's selling price, and whether the company is steady, at risk, stalled or failing (each defined above the table). The last price counts only trades between two players: the bank trades at its own prices. Its premium or discount on today's cash-out is shown only when that trade is 7 game days old or less, since an older price says little about today's (#716: a trade with the bank 630 game days earlier read "−93% discount"). The old world's exchange is folded away under **Before the new rules**. The page is worked out at most about once a real minute (#726), so a trade you just made can take a minute to show here; your account page and the company's page show it at once.
+The **Stock exchange** (`/market/shares`) has a row for each matured company (#699), best return first (below): a share's cash-out value and a sparkline of how it changed over 30 game days (every row on one scale, in percent from its first day, so a steady share is a flat line whatever its price, #720), the dividends a share paid over 30 game days, the yield (those dividends against cash-out, over the same 30 days), the **last price between players** and how many game days ago it was, the bank's selling price, the **return over 30 game days** (the change in a share's cash-out value plus the dividends it paid, against its value 30 game days ago: most of what a share returns is growth, and the yield alone hid it, #758), and whether the company is steady, at risk, stalled, failing or **dissolving** (counting down to dissolving, with the game days left), with the reason written under it. Best return first; a dissolving company last, whatever it paid. A refusal by the market (another drone's order changed first, or a seedling's daily cap) doesn't count as failing (#758). The last price counts only trades between two players: the bank trades at its own prices. Its premium or discount on today's cash-out is shown only when that trade is 7 game days old or less, since an older price says little about today's (#716: a trade with the bank 630 game days earlier read "−93% discount"). The old world's exchange is folded away under **Before the new rules**. The page is worked out again every few real minutes (#726, #760), and says how old it is, so a trade you just made can take a few minutes to show here; your account page and the company's page show it at once.
 
 ### Trading shares with other players
 

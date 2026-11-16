@@ -935,7 +935,7 @@ ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity);
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_update_user_credits(User_t* user);
+ErrorCode_t db_add_user_credits(User_t* user, long long delta);
 
 /** ****************************************************************************
 

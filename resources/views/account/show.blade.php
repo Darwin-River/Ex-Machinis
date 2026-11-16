@@ -69,12 +69,17 @@
             @else
                 <p>None yet: mature a seedling, or buy shares on a matured company's page.</p>
             @endif
+            @if(count($portfolio['ended_holdings'] ?? []))
+                {{-- Shares of companies that have ended, apart (#758) --}}
+                <p class="text-muted" id="ended-holdings">Worth nothing now, as these companies have ended:
+                    {{ collect($portfolio['ended_holdings'])->map(fn ($h) => $h['units'] . ' of ' . $h['name'] . ' (ended ' . $h['ended'] . ')')->implode('; ') }}.</p>
+            @endif
             @if($portfolio['dividends_30_days'] > 0)
                 <p>Your shares have paid you {{ number_format($portfolio['dividends_30_days']) }} credits in dividends over the last 30 game days.</p>
             @endif
             {{-- Its own share trades (#715: nothing said when an order filled) --}}
             @if(count($portfolio['fills']))
-                <p id="share-fills">Your share trades over the last {{ \App\Services\PlayerShares::FILLS_DAYS }} game days:</p>
+                <p id="share-fills">Your latest share trades:</p>
                 <ul>
                     @foreach($portfolio['fills'] as $f)
                         <li>{{ ucfirst($f['side']) }} {{ number_format($f['units']) }} of

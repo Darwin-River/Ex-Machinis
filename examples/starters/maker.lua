@@ -106,7 +106,9 @@ function stock_up()
     -- Rods must pay for their metals (#740: Mars's rod bid fell to 56 while
     -- its metals cost 57, two to a rod, and a seedling made rods at a loss)
     if each * metals_per_rod >= rod_value() then
-      set_status("rods pay less than their metals (" .. math.floor(each * metals_per_rod) .. "): waiting")
+      -- In words a player can check on the Market board (#760: "(551)" meant nothing)
+      set_status("a rod needs " .. metals_per_rod .. " metals at about " .. math.floor(each) .. " each (with the trip), and pays "
+        .. rod_value() .. " at best: waiting for a better rod bid")
       wait(240)
       return
     end

@@ -206,9 +206,22 @@ class Leaderboard
                 $join->on('l.company_id', '=', 's.company_id')->on('l.d', '=', 's.day');
             })->pluck('s.net_wealth', 's.company_id')->all();
         }
+        // A company that matured since then repaid its debt, which is no loss
+        // of its own: it is added back (#759: newly matured companies sat at
+        // the bottom of Rising at -3,400 to -3,900)
+        $repaid = [];
+        if (Schema::hasColumn('companies', 'matured_t')) {
+            $epoch = (int) (DB::table('game_clock')->where('id', 1)->value('epoch') ?? 0);
+            $since = $epoch + self::risingFrom() * 86400;
+            $fees = Schema::hasTable('code_pushes') ? DB::table('code_pushes')->groupBy('company_id')
+                ->selectRaw('company_id, SUM(fee) AS fees')->pluck('fees', 'company_id')->all() : [];
+            foreach (DB::table('companies')->where('matured_t', '>', $since)->pluck('company_id') as $co) {
+                $repaid[(int) $co] = Seedlings::grant() + (int) ($fees[$co] ?? 0);
+            }
+        }
         $rows = [];
         foreach (self::upTo(self::wealth(), $maxAge) as $co => $row) {
-            $row['gain'] = $row['wealth'] - (int) ($before[$co] ?? 0);
+            $row['gain'] = $row['wealth'] - (int) ($before[$co] ?? 0) + ($repaid[$co] ?? 0);
             $rows[] = $row;
         }
         usort($rows, fn ($a, $b) => [$b['gain'], $a['drone']] <=> [$a['gain'], $b['drone']]);

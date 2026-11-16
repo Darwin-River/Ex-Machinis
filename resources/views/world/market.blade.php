@@ -6,9 +6,9 @@
          each good's whole order book is on its own page, the House's demand and supply on /market/house --}}
     <x-page-header :title="'Market'" :subtitle="'Where each good is cheapest to buy and where it sells for most, right now. Click a good for its order book and price history.'" />
     @php
-        $colours = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#9085e9'];
+        // One colour for each place, the same on every page (#760)
         $colour = [];
-        foreach (array_keys($places) as $i => $id) { $colour[$id] = $colours[$i % count($colours)]; }
+        foreach ($places as $id => $name) { $colour[$id] = \App\Services\World::placeColour($name); }
         $n = fn ($v) => number_format($v);
     @endphp
     <section class="section section-xs section-first">

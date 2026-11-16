@@ -115,6 +115,32 @@ class PlayerSharesTest extends TestCase
         $this->assertSame(PlayerShares::prices($id)['buys_at'] + 200, PlayerShares::prices($id)['sells_at']);
     }
 
+    /** #757: a dissolving company's payment waits, and is 0 if it ends; the bank doesn't sell its shares */
+    public function testTheBankDoesntPayForACompanyThatEnds()
+    {
+        $owner = $this->player('Dying Seller');
+        $id = $this->matured($owner, 'Dying Co', 100000);
+        $this->assertTrue(PlayerShares::sellToBank($owner, $id, 40)['ok']);
+        DB::table('companies')->where('company_id', $id)->update(['broke_since' => World::gameNow() - 20 * 86400]);
+        DB::table('bank_payments')->where('user_id', $owner->user_id)->update(['due_t' => World::gameNow() - 1]);
+
+        // Due, but the company is counting down to dissolving: it waits
+        PlayerShares::settleBankPayments();
+        $this->assertNull(DB::table('bank_payments')->where('user_id', $owner->user_id)->value('paid_t'));
+        $this->assertSame(0, $this->credits($owner)[0]);
+        // Nobody buys its shares from the bank meanwhile
+        $r = PlayerShares::buyFromBank($this->player('Late Buyer'), $id, 1);
+        $this->assertSame(409, $r['status']);
+        $this->assertStringContainsString('dissolves in', $r['error']);
+
+        // It ends: the payment is 0
+        DB::table('companies')->where('company_id', $id)->update(['eliminated_at' => World::gameNow()]);
+        PlayerShares::settleBankPayments();
+        $this->assertSame(0, (int) DB::table('bank_payments')->where('user_id', $owner->user_id)->value('paid'));
+        $this->assertNotNull(DB::table('bank_payments')->where('user_id', $owner->user_id)->value('paid_t'));
+        $this->assertSame(0, $this->credits($owner)[0]);
+    }
+
     public function testTheBankBuysLaterAtTheLowerValueAndSellsWhatItHolds()
     {
         $owner = $this->player('Seller');
@@ -177,7 +203,7 @@ class PlayerSharesTest extends TestCase
         $this->assertSame([4, $p['sells_at'], 'Founder', 'Investor'], [$t['units'], $t['price'], $t['seller'], $t['buyer']]);
         $this->getJson("/api/v1/player-shares/$id")->assertOk()->assertJsonPath('trades.0.buyer', 'Investor');
         $this->getJson('/api/v1/shares')->assertOk()->assertJsonPath('player_share_trades.0.company', $id);
-        $this->get('/market/shares')->assertOk()->assertSee('Latest trades')->assertSee('Investor');
+        $this->get('/market/shares')->assertOk()->assertSee('Latest share trades')->assertSee('Investor');
         $this->get('/companies/' . $id)->assertOk()->assertSee('id="player-share-trades"', false);
 
         // Above the bank's selling price, starting credits can't pay

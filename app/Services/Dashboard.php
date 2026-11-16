@@ -73,6 +73,21 @@ class Dashboard
             . ' old: they are worked out again each minute, and this copy has not been yet.';
     }
 
+    /**
+     * How long ago, in real time, figures worked out at game time $at were:
+     * "just now" or "N real minutes ago" (#760: the pages said "each minute"
+     * while their figures were 1 to 5 real minutes old)
+     */
+    public static function agoText(?int $at): string
+    {
+        if ($at === null) {
+            return '';
+        }
+        $scale = max(1.0, (float) (DB::table('game_clock')->where('id', 1)->value('scale') ?? 1));
+        $minutes = (int) floor(max(0, World::gameNow() - $at) / $scale / 60);
+        return $minutes < 1 ? 'just now' : $minutes . ' real ' . ($minutes === 1 ? 'minute' : 'minutes') . ' ago';
+    }
+
     /** The banner and tiles worked out now (the scheduler's rebuild, Kept::keepAll) */
     public static function summaryNow(): array
     {

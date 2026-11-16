@@ -366,6 +366,11 @@ int db_shares_settle(Event_t* event)
    resource fetched between different owners over the 7 game days before
    `to`, or failing any, the trade's own price): a player can't move profit
    out of reach of one company's shareholders by trading with their other */
+/* Resources from this ID on are equipment: modules (5000s), kits and hulls (#759) */
+#ifndef EQUIPMENT_FROM
+#define EQUIPMENT_FROM 5000
+#endif
+
 #define SH_TRADE_VALUE(to) \
     "IF(sc.company_id <> IFNULL(bc.company_id, 0) AND sc.user_id = IFNULL(bc.user_id, 0), " \
     "ROUND(t.units * IFNULL((SELECT SUM(m.credits) / SUM(m.units) FROM trades m " \
@@ -388,13 +393,17 @@ static void sh_day_figures(int company, long long from, long long to, long long*
              "WHERE sc.company_id = %d AND t.game_t >= %lld AND t.game_t < %lld",
              to_text, to_text, company, from, to);
     *sales = sh_value(0, "%s", query);
-    // The same valuation with the roles turned round: sc is the buyer here
+    // The same valuation with the roles turned round: sc is the buyer here.
+    // Equipment (modules, kits and hulls: resources from EQUIPMENT_FROM) is
+    // an investment, not a cost of the day's trade, and is left out (#759:
+    // a company that bought two drones showed a 12,455 loss that day, and
+    // paid no dividends until it had made it up)
     snprintf(query, sizeof(query),
              "SELECT IFNULL(FLOOR(SUM(" SH_TRADE_VALUE("%s") ")), 0) FROM trades t "
              "JOIN agents sa ON sa.agent_id = t.buyer JOIN companies sc ON sc.company_id = sa.company_id "
              "LEFT JOIN agents ba ON ba.agent_id = t.seller LEFT JOIN companies bc ON bc.company_id = ba.company_id "
-             "WHERE sc.company_id = %d AND t.game_t >= %lld AND t.game_t < %lld",
-             to_text, to_text, company, from, to);
+             "WHERE sc.company_id = %d AND t.game_t >= %lld AND t.game_t < %lld AND t.resource < %d",
+             to_text, to_text, company, from, to, EQUIPMENT_FROM);
     *purchases = sh_value(0, "%s", query);
 }
 

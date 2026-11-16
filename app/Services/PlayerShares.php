@@ -38,6 +38,9 @@ class PlayerShares
     /** Game days of an account's own share trades its page and GET /account/shares list (#715) */
     public const FILLS_DAYS = 7;
 
+    /** How many of an account's latest share trades its page and GET /account/shares list (#758) */
+    public const FILLS = 20;
+
     /** Can players trade this company's shares: a matured company of the new rules, still trading? */
     public static function tradable(int $company): bool
     {
@@ -51,6 +54,13 @@ class PlayerShares
         // An ended company's shares are worth nothing and don't trade (#743:
         // the bank took them at 0, and orders on them stayed listed)
         return $c && (int) $c->seedling === 0 && $c->owner_id !== null && $c->matured_t !== null && $c->eliminated_at === null ? $c : null;
+    }
+
+    /** For a company that has ended, a sentence saying so (#758), else null */
+    public static function endedNote(int $company): ?string
+    {
+        return DB::table('companies')->where('company_id', $company)->whereNotNull('eliminated_at')->exists()
+            ? 'That company has ended: its shares are worth nothing and no longer trade.' : null;
     }
 
     /** Takes down the share orders of companies that have ended (#743), on the tick; how many went */
@@ -389,6 +399,12 @@ class PlayerShares
         if ($units < 1) {
             return self::fail(422, 'Buy at least 1 whole share.');   // #665
         }
+        // The bank doesn't sell the shares of a company that is dissolving (#757)
+        if (self::dissolving($company)) {
+            $left = ProcessorTax::broke($company)['dissolves_in'];
+            return self::fail(409, 'The bank doesn\'t sell its shares now: it has had no credits for a while, and dissolves in '
+                . $left . ' game days unless it earns some.');
+        }
         if ($p['bank_holds'] < $units) {
             return self::fail(409, 'The bank holds ' . $p['bank_holds'] . ' of its shares.');
         }
@@ -412,7 +428,7 @@ class PlayerShares
     public static function order(User $user, int $company, string $side, int $units, int $price): array
     {
         if (!self::company($company)) {
-            return self::fail(404, 'There is no such matured company.');
+            return self::fail(404, self::endedNote($company) ?? 'There is no such matured company.');
         }
         if (!in_array($side, ['buy', 'sell'], true) || $units < 1 || $price < 1) {
             return self::fail(422, 'An order is buy or sell, some shares, at a price of at least 1.');
@@ -644,12 +660,24 @@ class PlayerShares
             $m['stalled'] = (bool) $h['stalled'];
             $m['at_risk'] = (bool) $h['at_risk'];
             $m['failing'] = $h['failing_reason'] !== null;
-            $m['health_note'] = $h['stalled'] ? $h['stalled_reason'] : ($h['at_risk'] ? $h['at_risk_reason'] : $h['failing_reason']);
+            // Counting down to dissolving (#758: round 72's top row by yield
+            // dissolved a game day later, shown only as "stalled")
+            $m['dissolves_in'] = $h['dissolves_in'] ?? null;
+            $m['health_note'] = $m['dissolves_in'] !== null ? $h['at_risk_reason']
+                : ($h['at_risk'] ? $h['at_risk_reason'] : ($h['stalled'] ? $h['stalled_reason'] : $h['failing_reason']));
+            // Its share's cash-out over the sparkline's 30 game days, and with
+            // the dividends a share paid, its total return (#758: cash-out
+            // growth, 5 to 80% in round 72, is most of what a share returns,
+            // and only the 1 to 3% yield was shown)
+            $first = $m['spark'][0]['v'] ?? null;
+            $m['growth_percent'] = $first ? round(100 * ($m['buys_at'] - $first) / $first, 1) : null;
+            $m['return_percent'] = $first ? round(100 * ($m['buys_at'] - $first + $m['dividends30']) / $first, 1) : null;
         }
         unset($m);
-        // Best yield first (#716: the table was alphabetical); no yield last
-        usort($market, fn ($a, $b) => [$b['yield_percent'] === null ? 0 : 1, $b['yield_percent'] ?? 0, $a['name']]
-            <=> [$a['yield_percent'] === null ? 0 : 1, $a['yield_percent'] ?? 0, $b['name']]);
+        // Best total return first, then yield (#716, #758); a company
+        // counting down to dissolving last, whatever it paid
+        $key = fn ($m) => [$m['dissolves_in'] === null ? 1 : 0, $m['return_percent'] ?? $m['yield_percent'] ?? -INF, $m['yield_percent'] ?? -INF];
+        usort($market, fn ($a, $b) => [$key($b), $a['name']] <=> [$key($a), $b['name']]);
         return $market;
     }
 
@@ -699,13 +727,19 @@ class PlayerShares
      */
     public static function of(User $user): array
     {
-        $holdings = DB::table('player_shares as s')->join('companies as c', 'c.company_id', '=', 's.company_id')
-            ->where('s.user_id', $user->user_id)->orderBy('c.name')->get(['s.company_id', 's.units', 'c.name'])
+        $held = DB::table('player_shares as s')->join('companies as c', 'c.company_id', '=', 's.company_id')
+            ->where('s.user_id', $user->user_id)->where('s.units', '>', 0)->orderBy('c.name')
+            ->get(['s.company_id', 's.units', 'c.name', 'c.eliminated_at']);
+        // Shares of companies that have ended are worth nothing and don't
+        // trade: listed apart, not among the holdings (#758)
+        $ended = $held->whereNotNull('eliminated_at')->map(fn ($h) => ['company_id' => (int) $h->company_id, 'name' => $h->name,
+            'units' => (int) $h->units, 'ended' => DronePage::when((int) $h->eliminated_at)])->values()->all();
+        $holdings = $held->whereNull('eliminated_at')
             ->map(function ($h) {
                 $p = self::prices((int) $h->company_id);
                 return ['company_id' => (int) $h->company_id, 'name' => $h->name, 'units' => (int) $h->units,
                     'cash_out' => $p['buys_at'], 'value' => (int) $h->units * $p['buys_at']];
-            })->all();
+            })->values()->all();
         $range = [];
         $orders = DB::table('player_share_orders as o')->join('companies as c', 'c.company_id', '=', 'o.company_id')
             ->where('o.user_id', $user->user_id)->orderBy('o.id')->get(['o.id', 'o.company_id', 'c.name', 'o.side', 'o.units', 'o.price'])
@@ -724,8 +758,10 @@ class PlayerShares
         $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
         $today = intdiv(World::gameNow() - $epoch, 86400);
         $dividends = (int) DB::table('player_dividends')->where('user_id', $user->user_id)->where('day', '>=', $today - 30)->sum('amount');
-        return ['holdings' => $holdings, 'orders' => $orders, 'bank_payments' => $due, 'dividends_30_days' => $dividends,
-            'fills' => self::fills((int) $user->user_id, World::gameNow() - self::FILLS_DAYS * 86400)];
+        // Its last FILLS share trades, however old (#758: 7 game days was
+        // under 6 real minutes at full pace, and players missed their fills)
+        return ['holdings' => $holdings, 'ended_holdings' => $ended, 'orders' => $orders, 'bank_payments' => $due,
+            'dividends_30_days' => $dividends, 'fills' => self::fills((int) $user->user_id, 0, self::FILLS)];
     }
 
     /**
@@ -786,12 +822,27 @@ class PlayerShares
      * Pays the bank's payments that are due: each at the lower of the share's
      * cash-out value on the day of the sale and now. Returns how many it paid.
      */
+    /** Is the company counting down to dissolving (no credits for a while, #757)? */
+    public static function dissolving(int $company): bool
+    {
+        return ProcessorTax::broke($company)['dissolves_in'] !== null;
+    }
+
     public static function settleBankPayments(): int
     {
         $now = World::gameNow();
         $due = DB::table('bank_payments')->whereNull('paid_t')->where('due_t', '<=', $now)->orderBy('id')->limit(200)->get();
         foreach ($due as $b) {
-            $price = min((int) $b->price_at_sale, self::cashOut((int) $b->company_id)['per_share']);
+            // A company that ended before the payment is paid for at 0, and
+            // one counting down to dissolving waits until it recovers or ends
+            // (#757: round 72's bank paid 4,000 for Juno 70-2's shares a game
+            // day before it dissolved, its hulls still counted at cash-out)
+            $c = DB::table('companies')->where('company_id', $b->company_id)->first(['eliminated_at', 'broke_since']);
+            $ended = $c === null || $c->eliminated_at !== null;
+            if (!$ended && self::dissolving((int) $b->company_id)) {
+                continue;
+            }
+            $price = $ended ? 0 : min((int) $b->price_at_sale, self::cashOut((int) $b->company_id)['per_share']);
             $amount = (int) $b->units * $price;
             DB::transaction(function () use ($b, $now, $amount) {
                 $done = DB::table('bank_payments')->where('id', $b->id)->whereNull('paid_t')->update(['paid_t' => $now, 'paid' => $amount]);

@@ -2104,52 +2104,51 @@ ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity)
 
 /** ****************************************************************************
 
-    @brief          Updates user's credits
+    @brief          Adds `delta` to a company's credits and reads back its
+                    new total into user->credits (#756)
 
-    @param[in]      user User info to be updated
+    The events engine used to write the total it had worked out from the
+    credits it read when the trade began (credits = N). A change made in
+    between by the website (maturing repays the debt, a push fee, the
+    bank's payments) was overwritten: round 72's Bram 72-1 matured during
+    a sale and kept its 4,200 debt. Now it adds the change, in the row's
+    own lock, and reads back what the row holds.
+
+    @param[in|out]  user  Company; credits is set to the new total
+    @param[in]      delta Credits to add (negative to take)
 
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_update_user_credits(User_t* user)
+ErrorCode_t db_add_user_credits(User_t* user, long long delta)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    DbConnection_t* connection =  engine_get_db_connection();
-
-    // always check connection is alive
+    DbConnection_t* connection = engine_get_db_connection();
     ErrorCode_t result = db_reconnect(connection);
 
-    // sanity check
-    if(result == ENGINE_OK)
-    {
-        if(!user) return ENGINE_INTERNAL_ERROR;
+    if(result != ENGINE_OK) return result;
+    if(!user) return ENGINE_INTERNAL_ERROR;
+
+    snprintf(query_text, sizeof(query_text),
+        "UPDATE companies SET credits = credits + (%lld) WHERE company_id = %d", delta, user->user_id);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return ENGINE_DB_QUERY_ERROR;
     }
 
-    if(result == ENGINE_OK)
-    {
-        char* query_end = query_text;
-
-        query_end += snprintf(query_end, QUERY_SPACE_LEFT,
-            "UPDATE companies SET credits = %d where company_id = %d",
-            user->credits,
-            user->user_id);
-
-        // run it
-        if (mysql_query(connection->hndl, query_text))
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-        else
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS,
-                "User [%d] updated with credits [%d]",
-                user->user_id, user->user_id);
-        }
+    snprintf(query_text, sizeof(query_text), "SELECT credits FROM companies WHERE company_id = %d", user->user_id);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return ENGINE_DB_QUERY_ERROR;
     }
-
-    return result;
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    if(db_result) {
+        MYSQL_ROW row = mysql_fetch_row(db_result);
+        if(row && row[0]) user->credits = atoi(row[0]);
+        mysql_free_result(db_result);
+    }
+    engine_trace(TRACE_LEVEL_ALWAYS, "User [%d] credits changed by [%lld] to [%d]", user->user_id, delta, user->credits);
+    return ENGINE_OK;
 }
 
 

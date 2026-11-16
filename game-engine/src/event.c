@@ -954,6 +954,9 @@ ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* pe
     // pays the full price, the seller gets it less the tax, which goes to
     // the House
     User_t* seller = (amount >= 0) ? user : peer_user;
+    // What each side held when the trade began: the change, not the total,
+    // is written back (#756)
+    int user_before = user->credits, peer_before = peer_user->credits;
     *tax = (int)sales_tax(abs(amount), db_sales_tax_permille());
     user->credits += amount;
     peer_user->credits -= amount;
@@ -982,9 +985,10 @@ ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* pe
         peer_user->current_drone_id,
         peer_user->credits);
 
-    // update credits at DB
-    db_update_user_credits(user);
-    db_update_user_credits(peer_user);
+    // update credits at DB: each side's change, added in the row's lock, and
+    // the totals read back (#756: a total written over a website change lost it)
+    db_add_user_credits(user, (long long)user->credits - user_before);
+    db_add_user_credits(peer_user, (long long)peer_user->credits - peer_before);
 
     // Insert 2 events to reflect the transactions
     Event_t newEvent;

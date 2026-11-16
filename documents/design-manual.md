@@ -182,7 +182,7 @@ This section is the whole rulebook of the live game in one place: what a player 
 2. Start a seedling for free: the bank lends it a drone and some cash. Run up to five; close one at any time and its debt is cancelled. Failing is free.
 3. A seedling trades only with the House (the game's own traders at each exchange), and you can change its code whenever you like.
 4. When it holds its debt and a little more, you may mature it: its code is locked for good, it can trade with everyone, and you get its 100 shares.
-5. Your account starts with 5,000 credits that can only buy shares. Each game day a matured company pays a quarter of its profit to its shareholders.
+5. Your account starts with 5,000 credits that can only buy shares. Each game day a matured company pays half its profit to its shareholders.
 6. Trade shares with players within a published range, or sell them to the bank for their cash-out value, paid 30 game days later at the lower of the two values.
 7. All code is public. A matured company can't change, but it can react to prices and orders, so read its code before you buy.
 8. You're ranked by your wealth, and each real month by its growth.
@@ -221,7 +221,7 @@ This section is the whole rulebook of the live game in one place: what a player 
 - **The bank buys** any player's shares at cash-out value. The shares go to it at once; it pays **30 game days** later, at the lower of the cash-out value then and on the day of the sale.
 - **The bank sells** the shares it holds at its **selling price**: cash-out value plus what a share was actually paid in dividends over the last 30 game days (#673). A company that has just matured sells at cash-out value.
 - **Players trade** with standing orders, in whole shares at whole credits, between **0.8 and 1.25 times** the bank's selling price (rounded). A new order trades at once against the best orders it meets, at their price; the rest stands. The book lists only orders within today's range. A buy order can't commit more than the account can pay; starting credits pay only at or below the bank's selling price (#665).
-- **Dividends.** Each game day a matured company pays **a quarter of its profit** (sales after tax less purchases, after making up earlier losses; never more than its credits) to its shareholders by their shares: players' accounts, and the bank for the shares it holds (#667; half until then). The day it matured isn't paid.
+- **Dividends.** Each game day a matured company pays **half its profit** (a quarter until round 72, #747) (sales after tax less purchases, after making up earlier losses; never more than its credits) to its shareholders by their shares: players' accounts, and the bank for the shares it holds (#667; half until then). The day it matured isn't paid.
 - **The bank's companies.** At the reset the bank started three matured companies (Bank Miner, Bank Refiner, Bank Maker) running the starters, and holds their shares, so players had shares to buy on day one (#642).
 
 <a name="Rules-trading"></a>
@@ -311,7 +311,7 @@ What `perform` (and each action word) returns when an action fails. The full lis
 | Minimum order life | 12 game hours | `house_rules.order_lock_hours` |
 | Working drones a company | 8 | `house_rules.fleet_cap` |
 | Shares a matured company | 100 | `PlayerShares::COUNT` |
-| Dividends | a quarter of daily profit | `FORGE_DIVIDEND_PERMILLE` (250) |
+| Dividends | half of daily profit (a quarter until round 72, #747) | `FORGE_DIVIDEND_PERMILLE` (500) |
 | The bank pays after | 30 game days | `FORGE_BANK_PAY_DAYS` |
 | Players' trading range | 0.8 to 1.25 × the bank's price | `FORGE_SHARE_RANGE_LOW`, `FORGE_SHARE_RANGE_HIGH` |
 | A hull's life, in cash-out | 365 game days | `FORGE_HULL_LIFE_DAYS` |
