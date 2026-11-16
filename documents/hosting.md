@@ -313,7 +313,7 @@ Once set up, every merge to `main` updates the server by itself (#575, SOP [AD-0
 2. backs up;
 3. pulls `main`;
 4. rebuilds and restarts (containers whose code didn't change keep running);
-5. waits for `migrate`;
+5. waits for `migrate` (which first ends any query left running over a minute from before the deploy, as it would hold the locks a migration needs, and lets a migration wait at most 5 minutes for a lock, then fail with a message instead of hanging: #736);
 6. checks every service stays up.
 
 It stops at the first problem, says what failed and how to go back, and the run turns red in the repository's **Actions** tab (GitHub emails the person who merged). Each run is also logged on the server in `/var/backups/exmachinis/deploy.log`.
