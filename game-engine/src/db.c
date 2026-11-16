@@ -239,6 +239,7 @@ ErrorCode_t db_init(DbConnection_t* connection)
                     connection->port,
                     connection->db_name?connection->db_name:"NULL");
 
+                 mysql_close(local_hndl);   // a failed attempt (#703)
                  result = ENGINE_DB_CONNECT_ERROR;
             }
         }
