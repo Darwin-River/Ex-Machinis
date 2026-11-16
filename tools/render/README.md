@@ -73,6 +73,19 @@ The resource list comes from `game-engine/sql/game_data.sql`, so ids and names a
 
 Resource shots use a catalogue look: a square frame, a three-quarter view from above, key, fill and rim lights, and a soft environment for metal to reflect. The background is transparent, so a picture sits on any page; use `--background studio` for a flat backdrop close to the site's colour.
 
+### Turntables for the resource pages
+
+Each resource page shows its system or module slowly turning: an animated WebP, with a still for visitors whose device asks to reduce motion. To make them, or remake them after changing a model:
+
+```bash
+.venv/bin/python render.py resource all --site
+.venv/bin/python render.py resource 5201 --site
+```
+
+`--site` writes `html/images/resources/<id>.webp` (one full turn, 40 frames at 10 a second, 400×400, transparent) and `<id>-still.webp`, which the page picks up by itself. Each turntable is about 200 KB and takes about a minute to render; all 54 take about an hour. Commit the new files with the change that needed them. The page shows no picture for a resource without one.
+
+`--spin FRAMES` makes a turntable of any resource at any size, with `--fps` and `--quality` (WebP, 0–100). It needs `ffmpeg`.
+
 ### Modules on drones
 
 A drone mount can name a module instead of a generic part, by resource id or name:
