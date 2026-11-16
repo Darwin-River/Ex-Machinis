@@ -1368,6 +1368,40 @@ On a matured company's page (logged in), **Post the order** with buy or sell, sh
 
 **Which to use?** Selling to a player can pay more than the bank, and pays at once. Selling to the bank always works, but pays in 30 game days at what the company is worth then. Buying from the bank costs its selling price; a player may sell for less.
 
+### <a name="trading-script"></a>Your trading script
+
+Your account can run one **trading script** (#768): a Lua script that trades your shares while you're away. Write it in **Your trading script** on your account page (or `PUT /api/v1/account/trade-script` with `{code, enabled}`), tick **Run it every few real minutes**, and save. **Run it once now** runs it straight away. Your account page shows its last runs: what it said, and what each action did.
+
+Every few real minutes the game calls its `trade(market)` once, with:
+
+- `market.companies`: every matured company still trading, each `{company, name, buys_at, sells_at, low, high, bank_holds, dividends30, yield_percent, growth_percent, return_percent, last_price, last_days_ago, stalled, at_risk, failing, dissolves_in, bids, asks}`. `buys_at` is what the bank buys a share at (its cash-out value), `sells_at` what it sells at, `low` and `high` the range players trade in; `bids` and `asks` are the book, best first, each `{price, units, by}`. A field that has no value (no last price, a company not dissolving) is `nil`.
+- `market.me`: your `credits`, `share_credits` (starting credits), `holdings` (`me.holdings[company]` is how many of its shares you hold), `orders` (each `{id, company, side, units, price, peg, offset_percent, out_of_range}`), `bank_owes` and `dividends_30_days`.
+- `market.now` and `market.day`: the game time and day.
+
+It acts with:
+
+| Function | Does |
+|---|---|
+| `buy(company, units, price)`, `sell(company, units, price)` | posts an order at a fixed price |
+| `buy_pegged(company, units, peg, percent)`, `sell_pegged(...)` | posts a pegged order: `peg` is `"buys_at"` or `"sells_at"` (see [pegged orders](#trading-shares-with-other-players)) |
+| `cancel(order)` | cancels one of your orders, by its `id` |
+| `bank_buy(company, units)`, `bank_sell(company, units)` | trades with the bank |
+| `log(...)` (or `print`) | writes a line in its log |
+
+Each action goes through the same rules as your own: the range, paying, holding what you sell, your own orders not crossing. At most **20 actions** a run; a refused one is logged with why. Whatever it keeps in the table **`memory`** (numbers, strings, booleans and tables of them, up to 64 KB) is there next run. It runs in a sandbox: Lua's `string`, `table`, `math` and `utf8`, no files and no `os`, at most 20 million instructions and 32 MB a run.
+
+A starter, **the value trader** (`examples/traders/value.lua`), keeps pegged bids a little under what the bank buys at on the healthy companies whose shares returned most over 30 game days, so other players' sells fill them, and sells what you hold of a company that is dissolving.
+
+```lua
+function trade(market)
+  for _, c in ipairs(market.companies) do
+    if not c.dissolves_in and (c.return_percent or 0) > 10 then
+      buy_pegged(c.company, 2, "buys_at", -2)
+    end
+  end
+end
+```
+
 ### Before you buy: read the code
 
 All code is public. A matured company's code can't change, so what you read is what it will do. But it can still react: to prices, to orders, to what it finds where it goes. So read it before you buy, and ask:

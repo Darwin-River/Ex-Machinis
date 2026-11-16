@@ -31,7 +31,7 @@ game-engine : CFLAGS += -DUSE_VM
 #---------------------------------------------------------------------------
 # Rules
 #---------------------------------------------------------------------------
-all: $(GAME_ENGINE_EXE_NAME) $(EVENTS_ENGINE_EXE_NAME) $(EXE_PATH)/eforth.blk $(EXE_PATH)/lua-check
+all: $(GAME_ENGINE_EXE_NAME) $(EVENTS_ENGINE_EXE_NAME) $(EXE_PATH)/eforth.blk $(EXE_PATH)/lua-check $(EXE_PATH)/lua-trade
 
 $(OBJS_PATH)/%.o: %.c
 	@mkdir -p $(OBJS_PATH)
@@ -64,6 +64,11 @@ $(EVENTS_ENGINE_EXE_NAME): $(EVENTS_ENGINE_OBJS)
 $(EXE_PATH)/lua-check: lua_check.c $(LUA_OBJS)
 	@mkdir -p $(EXE_PATH)
 	$(CXX) -std=c99 -Wall -Werror -O2 -I$(LUA_DIR) -o $@ lua_check.c $(LUA_OBJS) -lm
+
+# Runs a player's trading script once, in a sandbox (#768: the website's keeper)
+$(EXE_PATH)/lua-trade: lua_trade.c $(LUA_OBJS)
+	@mkdir -p $(EXE_PATH)
+	$(CXX) -std=c99 -Wall -Werror -O2 -I$(LUA_DIR) -o $@ lua_trade.c $(LUA_OBJS) -lm
 
 # The FORTH image each drone's VM starts from (FORTH_IMAGE_PATH)
 $(EXE_PATH)/eforth.blk: dump_image.c embed_image.c
@@ -111,7 +116,7 @@ test: $(EXE_PATH)/lua-check check_doc_lua.sh test_orbits.c orbits.c test_wrap.c 
 	$(CXX) -std=c99 -Wall -Werror -O2 -I$(LUA_DIR) -o $(OBJS_PATH)/test_lua_equip test_lua_equip.c $(LUA_OBJS) -lm
 	$(OBJS_PATH)/test_lua_equip
 	# The Lua drones' library and the Lua starters compile (#380)
-	for f in lua_library.lua ../../examples/starters/*.lua ../../examples/companies/*.lua; do $(EXE_PATH)/lua-check < $$f || { echo "$$f doesn't compile"; exit 1; }; done
+	for f in lua_library.lua ../../examples/starters/*.lua ../../examples/companies/*.lua ../../examples/traders/*.lua; do $(EXE_PATH)/lua-check < $$f || { echo "$$f doesn't compile"; exit 1; }; done
 	@echo "lua: the library, the Lua starters and designs compile"
 	./check_doc_lua.sh ../../documents/players-manual.md ../../documents/lua-functions.md ../../documents/blog/*.md
 

@@ -6,6 +6,9 @@ return [
     // with the engine): when it is there, a Lua script's syntax errors are
     // reported by the check, the Release page and the API before release
     'lua_check' => env('LUA_CHECK', base_path('game-engine/src/bin/lua-check')),
+    // The account trading script's sandbox (#768), and how often it may run (real seconds)
+    'lua_trade' => env('LUA_TRADE', base_path('game-engine/src/bin/lua-trade')),
+    'trade_script_every' => (int) env('FORGE_TRADE_SCRIPT_EVERY', 120),
 
     // Fuel in a new drone's hold (#324 step 8): actions burn it
     'starting_fuel' => 100,
