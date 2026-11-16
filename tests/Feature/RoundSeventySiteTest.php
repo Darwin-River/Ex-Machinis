@@ -237,6 +237,29 @@ class RoundSeventySiteTest extends TestCase
         $this->assertSame(77, $digest['share_fills'][0]['price']);
     }
 
+    /** #743: an ended company's shares don't trade, its orders come down, and history takes ?days= */
+    public function testRoundSeventyOneSmallFixes()
+    {
+        [$owner, $id] = $this->matured();
+        DB::table('player_share_orders')->insert(['user_id' => $owner->user_id, 'company_id' => $id, 'side' => 'sell',
+            'units' => 2, 'price' => 99, 'created_at' => now()]);
+        DB::table('companies')->where('company_id', $id)->update(['eliminated_at' => World::gameNow()]);
+        $this->assertFalse(PlayerShares::tradable($id));
+        $sale = PlayerShares::sellToBank($owner, $id, 1);
+        $this->assertStringContainsString('has ended', $sale['error'] ?? json_encode($sale));
+        $this->getJson('/api/v1/player-shares/' . $id)->assertStatus(404)->assertJsonPath('error', fn ($e) => str_contains($e, 'has ended'));
+        $this->assertGreaterThanOrEqual(1, PlayerShares::dropEndedOrders());
+        $this->assertSame(0, DB::table('player_share_orders')->where('company_id', $id)->count());
+
+        // ?days= on a company's history
+        $epochDay = 100;
+        foreach (range($epochDay, $epochDay + 9) as $d) {
+            DB::table('company_days')->insert(['company_id' => $id, 'day' => $d, 'credits' => 1, 'net_wealth' => 1, 'drones' => 1]);
+        }
+        $rows = $this->getJson('/api/v1/companies/' . $id . '/history?days=3')->assertOk()->json();
+        $this->assertSame([$epochDay + 7, $epochDay + 8, $epochDay + 9], array_column($rows, 'day'));
+    }
+
     /** #741: a failure now and then isn't failing: 3 times or more, and a fifth of the tries */
     public function testOneFailureAmongManyIsNotFailing()
     {

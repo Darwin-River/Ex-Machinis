@@ -165,7 +165,7 @@ Under the new rules this call is refused (403): a seedling's code is changed by 
 
 ### `GET /companies/{id}/history`: net wealth day by day
 
-Each company's credits, net wealth and working drones, taken once a game day, oldest first. Every day is kept (#614); before that, days older than 60 were kept only every 10th day, so older history has 10-day gaps.
+Each company's credits, net wealth and working drones, taken once a game day, oldest first; `?days=N` gives only its last N game days (#743). Every day is kept (#614); before that, days older than 60 were kept only every 10th day, so older history has 10-day gaps.
 
 ```json
 [{"day": 12, "credits": 3605, "net_wealth": 2890, "drones": 1, "cash_out": null, "cash_out_share": null, "bank_sells_at": null},

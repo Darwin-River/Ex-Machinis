@@ -7,6 +7,7 @@ use App\Services\PlayerShares;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Players' share trading (#638), on the website and in the API: sell to the
@@ -99,7 +100,8 @@ class PlayerShareController extends Controller
     {
         // Only a matured company's shares trade: the API agrees with itself (#652)
         if (!PlayerShares::tradable($id)) {
-            return response()->json(['error' => 'There is no such matured company.'], 404);
+            return response()->json(['error' => DB::table('companies')->where('company_id', $id)->whereNotNull('eliminated_at')->exists()
+                ? 'That company has ended: its shares are worth nothing and no longer trade.' : 'There is no such matured company.'], 404);
         }
         return response()->json(['company' => $id] + PlayerShares::prices($id) + ['book' => PlayerShares::book($id),
             'trades' => PlayerShares::trades($id, 20)]);

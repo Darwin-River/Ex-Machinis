@@ -445,12 +445,19 @@ class ApiController extends Controller
     }
 
     /** A company's credits and net wealth once a game day (#380 round 36) */
-    public function companyHistory(int $id): JsonResponse
+    public function companyHistory(Request $request, int $id): JsonResponse
     {
         if (!DB::table('companies')->where('company_id', $id)->exists()) {
             return $this->notFound('There is no such company.');
         }
-        return response()->json(Leaderboard::history($id));
+        $rows = Leaderboard::history($id);
+        // ?days=N: only its last N game days (#743: it was ignored, and 897 rows came back)
+        $days = $request->query('days');
+        if (is_numeric($days) && (int) $days > 0 && $rows) {
+            $last = (int) end($rows)['day'];
+            $rows = array_values(array_filter($rows, fn ($r) => (int) $r['day'] > $last - (int) $days));
+        }
+        return response()->json($rows);
     }
 
     /** The world's events (#720): rule changes, outages and repairs, oldest first */
