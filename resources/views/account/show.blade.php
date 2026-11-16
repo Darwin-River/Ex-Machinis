@@ -94,6 +94,8 @@
                     @foreach($portfolio['orders'] as $o)
                         <li>{{ $o['side'] === 'buy' ? 'Buy' : 'Sell' }} {{ number_format($o['units']) }} of
                             <a href="{{ url('companies/' . $o['company_id']) }}#player-shares">{{ $o['name'] }}</a> at {{ number_format($o['price']) }}
+                            @if(!empty($o['peg']))<small class="text-muted">(follows {{ $o['peg'] === 'buys_at' ? 'what the bank buys at' : 'what the bank sells at' }}
+                                {{ $o['offset_percent'] >= 0 ? '+' : '−' }}{{ abs($o['offset_percent']) }}%, #766)</small>@endif
                             {{-- An order the range has left can't fill, and stands unseen (#715) --}}
                             @if($o['out_of_range'])<strong class="text-warning">Can't fill now:</strong>
                                 {{ $o['low'] !== null ? 'players trade between ' . number_format($o['low']) . ' and ' . number_format($o['high']) . ' a share now, so it waits until the range comes back. Cancel it, or post a new price.' : 'the company no longer trades.' }}@endif

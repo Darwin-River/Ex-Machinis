@@ -56,6 +56,46 @@ class PlayerShares
         return $c && (int) $c->seedling === 0 && $c->owner_id !== null && $c->matured_t !== null && $c->eliminated_at === null ? $c : null;
     }
 
+    /**
+     * Moves each pegged order to its price now (#766), on the scheduler's
+     * keeper: an order whose price changed is taken down and posted again at
+     * the new price, so it trades at once with any order it now meets. One
+     * that can't stand at its new price (its own orders would cross, or the
+     * account can't pay) stays where it was. Returns how many moved.
+     */
+    public static function repeg(): int
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('player_share_orders', 'peg_ref')) {
+            return 0;
+        }
+        $moved = 0;
+        $prices = [];
+        foreach (DB::table('player_share_orders')->whereNotNull('peg_ref')->orderBy('id')->get() as $o) {
+            $c = (int) $o->company_id;
+            if (!self::company($c)) {
+                continue;
+            }
+            $p = $prices[$c] ??= self::prices($c);
+            if (self::pegPrice($p, $o->peg_ref, (int) $o->peg_offset_bp) === (int) $o->price) {
+                continue;
+            }
+            $user = User::find($o->user_id);
+            if (!$user) {
+                continue;
+            }
+            DB::transaction(function () use ($o, $user, $c, &$moved) {
+                DB::table('player_share_orders')->where('id', $o->id)->delete();
+                $r = self::order($user, $c, $o->side, (int) $o->units, 0, ['ref' => $o->peg_ref, 'offset_bp' => (int) $o->peg_offset_bp]);
+                if (!($r['ok'] ?? false)) {
+                    DB::table('player_share_orders')->insert((array) $o);   // it stays where it was
+                    return;
+                }
+                $moved++;
+            });
+        }
+        return $moved;
+    }
+
     /** For a company that has ended, a sentence saying so (#758), else null */
     public static function endedNote(int $company): ?string
     {
@@ -425,10 +465,58 @@ class PlayerShares
      * at once against the best orders on the other side that it meets (at
      * their price). Returns what traded and what is left standing.
      */
-    public static function order(User $user, int $company, string $side, int $units, int $price): array
+    /** The peg columns to read, when the table has them (#766) */
+    private static function pegColumns(string $alias): array
+    {
+        return \Illuminate\Support\Facades\Schema::hasColumn('player_share_orders', 'peg_ref')
+            ? ["$alias.peg_ref", "$alias.peg_offset_bp"] : [];
+    }
+
+    /** An order's peg, for the book and the account (#766): peg (buys_at, sells_at or null) and offset_percent */
+    private static function pegOf(object $o): array
+    {
+        $ref = $o->peg_ref ?? null;
+        return ['peg' => $ref, 'offset_percent' => $ref === null ? null : round((int) $o->peg_offset_bp / 100, 2)];
+    }
+
+    /** The bank prices a pegged order can follow (#766) */
+    public const PEGS = ['buys_at', 'sells_at'];
+
+    /** The furthest a pegged order may sit from its bank price, in percent (#766) */
+    public const PEG_MAX_PERCENT = 25;
+
+    /**
+     * A pegged order's price now (#766): its bank price plus or minus
+     * offset_bp hundredths of a percent, rounded, kept inside the range
+     * players trade in
+     */
+    public static function pegPrice(array $p, string $ref, int $offsetBp): int
+    {
+        $price = (int) round($p[$ref] * (10000 + $offsetBp) / 10000);
+        return max($p['low'], min($p['high'], max(1, $price)));
+    }
+
+    /**
+     * Posts a standing order to buy or sell a company's shares, and trades it
+     * at once against the best orders on the other side that it meets (at
+     * their price). Returns what traded and what is left standing. With $peg
+     * (['ref' => 'buys_at' or 'sells_at', 'offset_bp' => hundredths of a
+     * percent]) its price follows that bank price (#766): $price is ignored,
+     * and repeg() moves it as the bank's prices move.
+     */
+    public static function order(User $user, int $company, string $side, int $units, int $price, ?array $peg = null): array
     {
         if (!self::company($company)) {
             return self::fail(404, self::endedNote($company) ?? 'There is no such matured company.');
+        }
+        if ($peg !== null) {
+            $ref = (string) ($peg['ref'] ?? '');
+            $bp = (int) ($peg['offset_bp'] ?? 0);
+            if (!in_array($ref, self::PEGS, true) || abs($bp) > self::PEG_MAX_PERCENT * 100) {
+                return self::fail(422, 'A pegged order follows buys_at or sells_at, within ' . self::PEG_MAX_PERCENT . '% of it.');
+            }
+            $price = self::pegPrice(self::prices($company), $ref, $bp);
+            $peg = ['ref' => $ref, 'offset_bp' => $bp];
         }
         if (!in_array($side, ['buy', 'sell'], true) || $units < 1 || $price < 1) {
             return self::fail(422, 'An order is buy or sell, some shares, at a price of at least 1.');
@@ -461,7 +549,7 @@ class PlayerShares
                 . (int) $crosses . ': ' . ($side === 'buy' ? 'a buy at ' . (int) $crosses . ' or more' : 'a sell at ' . (int) $crosses . ' or less')
                 . ' would cross it. Cancel that order first, or ' . ($side === 'buy' ? 'bid under ' : 'ask over ') . (int) $crosses . '.');
         }
-        return DB::transaction(function () use ($me, $company, $side, $units, $price, $p) {
+        return DB::transaction(function () use ($me, $company, $side, $units, $price, $p, $peg) {
             $traded = 0;
             $spent = 0;
             $other = $side === 'buy' ? 'sell' : 'buy';
@@ -529,9 +617,10 @@ class PlayerShares
             }
             if ($standing > 0) {
                 $id = DB::table('player_share_orders')->insertGetId(['user_id' => $me, 'company_id' => $company,
-                    'side' => $side, 'units' => $standing, 'price' => $price, 'created_at' => now()]);
+                    'side' => $side, 'units' => $standing, 'price' => $price, 'created_at' => now()]
+                    + ($peg !== null ? ['peg_ref' => $peg['ref'], 'peg_offset_bp' => $peg['offset_bp']] : []));
             }
-            return ['ok' => true, 'traded' => $traded, 'credits' => $spent, 'standing' => $standing, 'order' => $id]
+            return ['ok' => true, 'traded' => $traded, 'credits' => $spent, 'standing' => $standing, 'order' => $id, 'price' => $price]
                 + ($note ? ['note' => $note] : []);
         });
     }
@@ -692,8 +781,9 @@ class PlayerShares
         $rows = fn ($side, $dir) => DB::table('player_share_orders as o')->join('users as u', 'u.user_id', '=', 'o.user_id')
             ->where('o.company_id', $company)->where('o.side', $side)->whereBetween('o.price', [$p['low'], $p['high']])
             ->orderBy('o.price', $dir)->orderBy('o.id')
-            ->limit(20)->get(['o.id', 'o.units', 'o.price', 'u.login as by'])
-            ->map(fn ($o) => ['id' => (int) $o->id, 'units' => (int) $o->units, 'price' => (int) $o->price, 'by' => $o->by])->all();
+            ->limit(20)->get(array_merge(['o.id', 'o.units', 'o.price', 'u.login as by'], self::pegColumns('o')))
+            ->map(fn ($o) => ['id' => (int) $o->id, 'units' => (int) $o->units, 'price' => (int) $o->price, 'by' => $o->by]
+                + self::pegOf($o))->all();
         return ['sell' => $rows('sell', 'asc'), 'buy' => $rows('buy', 'desc')];
     }
 
@@ -742,13 +832,14 @@ class PlayerShares
             })->values()->all();
         $range = [];
         $orders = DB::table('player_share_orders as o')->join('companies as c', 'c.company_id', '=', 'o.company_id')
-            ->where('o.user_id', $user->user_id)->orderBy('o.id')->get(['o.id', 'o.company_id', 'c.name', 'o.side', 'o.units', 'o.price'])
+            ->where('o.user_id', $user->user_id)->orderBy('o.id')
+            ->get(array_merge(['o.id', 'o.company_id', 'c.name', 'o.side', 'o.units', 'o.price'], self::pegColumns('o')))
             ->map(function ($o) use (&$range) {
                 $p = $range[$o->company_id] ??= self::tradable((int) $o->company_id) ? self::prices((int) $o->company_id) : null;
                 return ['id' => (int) $o->id, 'company_id' => (int) $o->company_id, 'name' => $o->name,
                     'side' => $o->side, 'units' => (int) $o->units, 'price' => (int) $o->price,
                     'low' => $p['low'] ?? null, 'high' => $p['high'] ?? null,
-                    'out_of_range' => $p === null || (int) $o->price < $p['low'] || (int) $o->price > $p['high']];
+                    'out_of_range' => $p === null || (int) $o->price < $p['low'] || (int) $o->price > $p['high']] + self::pegOf($o);
             })->all();
         $due = DB::table('bank_payments as b')->join('companies as c', 'c.company_id', '=', 'b.company_id')
             ->where('b.user_id', $user->user_id)->whereNull('b.paid_t')->orderBy('b.due_t')

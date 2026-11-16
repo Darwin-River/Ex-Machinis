@@ -163,7 +163,8 @@
                             @if(count($playerShares['book'][$side]))
                                 <table class="table table-sm"><tbody>
                                 @foreach($playerShares['book'][$side] as $o)
-                                    <tr><td>{{ $o['by'] }}</td><td class="text-right">{{ number_format($o['units']) }}</td><td class="text-right">at {{ number_format($o['price']) }}</td></tr>
+                                    <tr><td>{{ $o['by'] }}</td><td class="text-right">{{ number_format($o['units']) }}</td><td class="text-right">at {{ number_format($o['price']) }}@if(!empty($o['peg']))
+                                        <br><small class="text-muted">{{ $o['peg'] === 'buys_at' ? 'bank buys' : 'bank sells' }} {{ $o['offset_percent'] >= 0 ? '+' : '−' }}{{ abs($o['offset_percent']) }}%</small>@endif</td></tr>
                                 @endforeach
                                 </tbody></table>
                             @else <p><small>None</small></p> @endif
@@ -198,9 +199,19 @@
                         <input class="form-control mr-2 mb-2" id="ps-units" name="units" type="number" min="1" max="100" value="1" required>
                         <label class="mr-2" for="ps-price">at</label>
                         <input class="form-control mr-2 mb-2" id="ps-price" name="price" type="number" min="{{ $playerShares['low'] }}"
-                               max="{{ $playerShares['high'] }}" value="{{ $playerShares['sells_at'] }}" required>
+                               max="{{ $playerShares['high'] }}" value="{{ $playerShares['sells_at'] }}">
+                        {{-- Or a price that follows the bank's (#766: fixed orders went stale within 10 game days) --}}
+                        <label class="mr-2" for="ps-peg">or follow</label>
+                        <select class="form-control mr-2 mb-2" id="ps-peg" name="peg"><option value="">a fixed price</option>
+                            <option value="buys_at">what the bank buys at</option><option value="sells_at">what the bank sells at</option></select>
+                        <label class="sr-only" for="ps-offset">plus or minus, percent</label>
+                        <input class="form-control mr-2 mb-2" id="ps-offset" name="offset_percent" type="number" step="0.5"
+                               min="-{{ \App\Services\PlayerShares::PEG_MAX_PERCENT }}" max="{{ \App\Services\PlayerShares::PEG_MAX_PERCENT }}" value="0" style="width: 6em">
+                        <span class="mr-2 mb-2">%</span>
                         <button class="button button-secondary button-sm mb-2" type="submit">Post the order</button>
                     </form>
+                    <p><small class="text-muted">A pegged order's price follows the bank's price, plus or minus the percent you give,
+                        within the range players trade in, and is moved every few real minutes as it changes.</small></p>
                     <form method="POST" action="{{ url('companies/' . $user->user_id . '/bank/sell') }}" class="form-inline mb-2">
                         {{ csrf_field() }}
                         <label class="mr-2" for="bank-sell">Sell to the bank:</label>
