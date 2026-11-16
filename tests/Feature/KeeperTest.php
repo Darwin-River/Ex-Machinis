@@ -51,6 +51,11 @@ class KeeperTest extends TestCase
 
     public function testOldFiguresSayHowOldTheyAre()
     {
+        if (!DB::table('game_clock')->where('id', 1)->exists()) {
+            $t = time();
+            DB::table('game_clock')->insert(['id' => 1, 'real_anchor' => $t, 'game_anchor' => $t, 'scale' => 1800,
+                'epoch' => $t - 100 * 86400]);
+        }
         DB::table('game_clock')->where('id', 1)->update(['scale' => 1800]);
         // At 1,800x a rebuild two real minutes ago is 2.5 game days: not old
         $this->assertNull(Dashboard::staleNote(World::gameNow() - 3 * 86400));
