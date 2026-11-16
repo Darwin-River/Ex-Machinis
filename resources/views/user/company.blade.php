@@ -521,7 +521,7 @@
             @if(\Illuminate\Support\Facades\DB::table('share_trades')->where('share_company', $user->user_id)->where('units', '>', 0)->exists())
                 @include('partials.price-volume-chart', ['chartResource' => 0, 'chartDays' => 60, 'chartTitle' => 'Share price and shares traded',
                     'chartSource' => url('api/v1/shares/' . $user->user_id . '/history'), 'chartPer' => 'share', 'chartUnits' => 'shares',
-                    'chartPlaceMenu' => false, 'places' => [(int) $user->user_id], 'today' => $today,
+                    'chartPlaceMenu' => false, 'places' => [(int) $user->user_id], 'today' => $today, 'chartMarks' => $perf['marks'],
                     'chartNote' => 'The dot is the average price a share changed hands at each game day (left axis); the thin line '
                         . 'through it runs from the cheapest trade that day to the dearest. The bars are the shares traded (right axis).'])
             @else

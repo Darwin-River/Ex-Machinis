@@ -164,6 +164,8 @@ class UserController extends Controller
             // company matures" wasn't so: it began on one day for every company)
             'cash_out_from' => \Illuminate\Support\Facades\Schema::hasColumn('company_days', 'cash_out')
                 ? \Illuminate\Support\Facades\DB::table('company_days')->whereNotNull('cash_out')->min('day') : null,
+            // The world's events and its own, marked on every chart (#720)
+            'marks' => \App\Services\WorldEvents::marks((int) $id),
         ];
         if ($playerShares) {
             // Cash-out a share and its dividends over 30 game days, at the top (#699)

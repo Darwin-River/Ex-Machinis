@@ -47,6 +47,7 @@
                     <div class="ex-legend" id="dash-trading-legend"></div>
                     <div class="ex-chart" id="dash-trading" aria-label="Credits traded each game day, by place"></div>
                     <p class="ex-src">Data: <code>{{ $dash['sources']['trading'] }}</code></p>
+                    @include('partials.event-marks-key', ['company' => false])
                 </div>
                 <div class="mh-card dash-6">
                     <h3>Are the matured companies making money?</h3>
@@ -96,7 +97,9 @@
                 <div class="mh-card dash-12">
                     <h3>Which companies are worth buying?</h3>
                     <p class="dash-q">Every matured company: what a share fetches from the bank (its cash-out value), its working drones,
-                        what it made and paid out a share over 30 game days, the yield (those dividends against the cash-out value) and its daily profit.</p>
+                        what it made and paid out a share over 30 game days, the yield (those dividends against the cash-out value) and its daily profit.
+                        The daily-profit bars of every company share one scale (<span id="dash-spark-scale">the same credits a pixel</span>), so a
+                        small company's wobble looks small next to a big one's: hover a bar for the day's figure.</p>
                     @if(count($dash['companies']))
                         <table id="dash-companies">
                             <thead><tr><th>Company</th><th>Cash-out a share</th><th>Drones</th><th>Profit, 30 days</th>
@@ -139,18 +142,18 @@
     </section>
     <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const X = window.ExCharts, D = @json($dash), $ = (id) => document.getElementById(id), C = X.COLOURS;
+        const X = window.ExCharts, D = @json($dash), M = @json($marks), $ = (id) => document.getElementById(id), C = X.COLOURS;
 
         // Credits traded by place: each place keeps its colour; "Elsewhere" is grey
         const placeColour = D.trading.places.map((p, i) => p === 'Elsewhere' ? X.GREY : C[i % C.length]);
         X.legend($('dash-trading-legend'), D.trading.places.map((p, i) => ({name: p, colour: placeColour[i]})));
         const trading = () => X.stacked($('dash-trading'), D.trading.days.map((d) => ({day: d.day, values: D.trading.places.map((p) => d.by_place[p] || 0)})),
             D.trading.places.map((p, i) => ({name: p, colour: placeColour[i]})),
-            {H: 240, unit: 'cr', unitWord: 'credits', empty: 'No trades in the last 60 game days.', partial: D.today,
+            {H: 240, unit: 'cr', unitWord: 'credits', empty: 'No trades in the last 60 game days.', partial: D.today, marks: M,
              dayNote: (d) => d ? ` · ${X.num(d.trades)} trades` : ''});
 
         const profit = () => X.diverging($('dash-profit'), D.matured_profit.map((r) => ({day: r.day, up: Math.max(0, r.net), down: Math.max(0, -r.net), r})),
-            {H: 220, unit: 'cr', downColour: X.NEG, empty: 'No matured company has traded yet.', partial: D.today,
+            {H: 220, unit: 'cr', downColour: X.NEG, empty: 'No matured company has traded yet.', partial: D.today, marks: M,
              tip: (r, day) => r ? ['Game day ' + day, `Profit: ${X.num(r.r.net)}`, `Sales after tax: ${X.num(r.r.sales)}`, `Purchases: ${X.num(r.r.purchases)}`] : ['Game day ' + day]});
 
         const goods = () => X.hbars($('dash-goods'), D.goods.map((g) => ({label: g.name, segs: [g.credits]})), [{name: 'Credits', colour: C[0]}],
@@ -170,9 +173,13 @@
             });
         };
 
+        // One scale for every row (#720): each row fitted to its own least and
+        // most made a company wobbling by a few credits look as wild as a big one
+        const all = D.companies.flatMap((c) => c.daily_profit), sLo = Math.min(0, ...all), sHi = Math.max(0, ...all);
+        if ($('dash-spark-scale') && all.length) $('dash-spark-scale').textContent = `from ${X.num(sLo)} to ${X.num(sHi)} credits a game day`;
         document.querySelectorAll('#dash-companies [data-spark]').forEach((td) => {
             const c = D.companies[Number(td.dataset.spark)], first = D.today - c.daily_profit.length + 1;
-            td.appendChild(X.spark(c.daily_profit, {label: c.name + "'s daily profit",
+            td.appendChild(X.spark(c.daily_profit, {label: c.name + "'s daily profit", lo: sLo, hi: sHi,
                 tip: (v, i) => [c.name, `Game day ${first + i}: profit ${X.num(v)}`]}));
         });
 

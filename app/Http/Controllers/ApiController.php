@@ -453,6 +453,21 @@ class ApiController extends Controller
         return response()->json(Leaderboard::history($id));
     }
 
+    /** The world's events (#720): rule changes, outages and repairs, oldest first */
+    public function worldEvents(): JsonResponse
+    {
+        return response()->json(\App\Services\WorldEvents::all());
+    }
+
+    /** A company's own events (#720): matured, pushes, share sales and big trades, its end */
+    public function companyEvents(int $id): JsonResponse
+    {
+        if (!DB::table('companies')->where('company_id', $id)->exists()) {
+            return $this->notFound('There is no such company.');
+        }
+        return response()->json(['company' => $id, 'events' => \App\Services\WorldEvents::company($id)]);
+    }
+
     public function queries(): JsonResponse
     {
         return response()->json(LiveQuery::catalog());
