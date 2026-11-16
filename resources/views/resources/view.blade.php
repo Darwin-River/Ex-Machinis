@@ -1,5 +1,11 @@
 @extends('layouts.app')
-@php $title = $resource->name ; @endphp
+@php
+    $title = $resource->name;
+    // Its turntable (#707), rendered by tools/render: a slowly turning picture,
+    // and a still for visitors who ask their system to reduce motion
+    $picture = 'images/resources/' . $resource->id;
+    $hasPicture = is_file(public_path($picture . '.webp'));
+@endphp
 @section('pageTitle', $title)
 @include('partials.market-styles')
 @push('styles')
@@ -24,7 +30,22 @@
     <section class="section section-xs section-first text-md-left">
 
         <div class="container" id="container">
-            <p class="mk-lead">{{ $resource->description }}</p>
+            @if($hasPicture)
+                <div class="row align-items-center">
+                    <div class="col-12 col-md-7 col-lg-8">
+                        <p class="mk-lead">{{ $resource->description }}</p>
+                    </div>
+                    <div class="col-12 col-md-5 col-lg-4 mb-4 text-center resource-picture">
+                        <picture>
+                            <source srcset="{{ url($picture . '-still.webp') }}" media="(prefers-reduced-motion: reduce)">
+                            <img src="{{ url($picture . '.webp') }}" alt="{{ $resource->name }}, turning slowly"
+                                 width="400" height="400" style="width: 100%; max-width: min(320px, 70vw); height: auto;">
+                        </picture>
+                    </div>
+                </div>
+            @else
+                <p class="mk-lead">{{ $resource->description }}</p>
+            @endif
             {{-- At a glance, from the Market page's board (#721) --}}
             <div class="rv-tiles" id="good-tiles">
                 <div class="rv-tile"><small>Cheapest seller</small>

@@ -414,7 +414,7 @@ The **ones** value is used to distinguish between the size and tech level of a p
 
 ### Browsing the Resource Catalog
 
-You can browse and search the available resources online by going to the **Resources** page (`/resources` on the game's website). The catalog provides a filterable list of all the resources in the game along with their unique ID, a brief description of the item, and a unit mass in kilograms. Clicking on a particular resource will take you to a details page, which lists all of the item's active buy or sell orders.
+You can browse and search the available resources online by going to the **Resources** page (`/resources` on the game's website). The catalog provides a filterable list of all the resources in the game along with their unique ID, a brief description of the item, and a unit mass in kilograms. Clicking on a particular resource will take you to a details page, which lists all of the item's active buy or sell orders. Systems and modules also have a picture there that slowly turns, so you can see what you are making or buying. If your device is set to reduce motion, the picture stays still.
 
 ## Chapter 4: Issuing Commands
 

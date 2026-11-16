@@ -34,6 +34,7 @@ class SiteDesignTest extends TestCase
         foreach (['html/js', 'html/fonts', 'resources/assets/sass/custom-styles', 'resources/assets/js/core.min.js'] as $path) {
             $this->assertFileDoesNotExist(base_path($path));
         }
-        $this->assertSame(['favicon.svg', 'logo.png'], array_values(array_diff(scandir(base_path('html/images')), ['.', '..'])));
+        // resources/ holds the resource pages' turntables (#707), made by tools/render
+        $this->assertSame(['favicon.svg', 'logo.png', 'resources'], array_values(array_diff(scandir(base_path('html/images')), ['.', '..'])));
     }
 }
