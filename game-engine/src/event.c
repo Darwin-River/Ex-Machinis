@@ -56,6 +56,51 @@ static ExpiredSweep_t expired_sweeps[EXPIRED_SWEEP_SLOTS];
   @return     Execution result
 
 *******************************************************************************/
+/*
+ * A batch that hit a passing database error (#711, #712): a deadlock with the
+ * website's tick, a lock wait timeout, a lost connection or a full disk. Such
+ * an error is no reason to fail the drone's action: until round 70 it was
+ * recorded as the event's failure and the action aborted, and when that fell
+ * between a recipe locking its tool and unlocking it, the tool stayed locked
+ * for good and every later make or mine failed (-2). Now the rest of the
+ * batch is skipped, the engine rolls the batch back and runs it again.
+ */
+static Bool_t batch_retry = ENGINE_FALSE;
+
+void event_batch_start(void) { batch_retry = ENGINE_FALSE; }
+Bool_t event_batch_retry(void) { return batch_retry; }
+
+static Bool_t event_db_error_is_transient(void)
+{
+    DbConnection_t *connection = engine_get_db_connection();
+    if(connection == NULL || connection->hndl == NULL)
+        return ENGINE_TRUE;
+    switch(mysql_errno(connection->hndl)) {
+        case 1205:   // lock wait timeout
+        case 1213:   // deadlock
+        case 1021:   // disk full
+        case 1114:   // table full
+        case 2006:   // server gone away
+        case 2013:   // lost connection during a query
+        case 2055:   // lost connection
+            return ENGINE_TRUE;
+        default:
+            return ENGINE_FALSE;
+    }
+}
+
+/* Marks the batch for a retry when the last database error was a passing one */
+static Bool_t event_retry_if_transient(Event_t *event)
+{
+    if(!event_db_error_is_transient())
+        return ENGINE_FALSE;
+    engine_trace(TRACE_LEVEL_ALWAYS,
+        "WARNING: event [%d] of action [%d] hit a passing database error [%u]: the batch is rolled back and retried",
+        event->event_id, event->action_id, mysql_errno(engine_get_db_connection()->hndl));
+    batch_retry = ENGINE_TRUE;
+    return ENGINE_TRUE;
+}
+
 static ErrorCode_t event_get_action(int action_id, Action_t *action)
 {
     if(current_action_valid && current_action.action_id == action_id) {
@@ -1089,6 +1134,9 @@ static ErrorCode_t event_apply(Event_t *event)
     Action_t action;
     result = event_get_action(event->action_id, &action);
 
+    if((result != ENGINE_OK) && event_retry_if_transient(event))
+        return result;
+
     if((result != ENGINE_OK) || action.aborted)
     {
         engine_trace(TRACE_LEVEL_ALWAYS,
@@ -1466,6 +1514,9 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
        db_drone_in_transit(event->drone_id, event->game_t) ||
        db_drone_in_transit(partner->drone_id, partner->game_t))
     {
+        if(event_retry_if_transient(event))
+            return ENGINE_DB_QUERY_ERROR;
+
         engine_trace(TRACE_LEVEL_ALWAYS,
             "Transfer for action [%d] refused: drone [%d] is at [%d], drone [%d] is at [%d]",
             event->action_id, event->drone_id, from_object, partner->drone_id, to_object);
@@ -1504,6 +1555,9 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
         db_seedling_record_buy(seedling_buyer, &second, from_object);
         return ENGINE_OK;
     }
+
+    if(event_retry_if_transient(event))
+        return result;   // the whole batch is rolled back
 
     engine_trace(TRACE_LEVEL_ALWAYS,
         "Transfer for action [%d] failed (outcomes [%d] and [%d]): undoing both halves",
@@ -1556,6 +1610,11 @@ ErrorCode_t event_process_outcome(Event_t *event)
         return ENGINE_OK;
     }
 
+    // After a passing database error the batch is rolled back: the rest of
+    // it waits for the retry
+    if(batch_retry)
+        return ENGINE_DB_QUERY_ERROR;
+
     current_action_valid = 0;   // read it afresh for each event
 
     memset(&partner, 0, sizeof(partner));
@@ -1563,7 +1622,7 @@ ErrorCode_t event_process_outcome(Event_t *event)
         return event_process_transfer(event, &partner);
 
     result = event_apply(event);
-    if(result != ENGINE_OK)
+    if(result != ENGINE_OK && !event_retry_if_transient(event))
         event_record_failure(event, event->outcome);
 
     return result;

@@ -307,11 +307,12 @@ docker image prune -f
 
 Once set up, every merge to `main` updates the server by itself (#575, SOP [AD-03](../Procedures/SOPs/AD-03%20Deploying%20to%20the%20live%20server.md)). When the Tests workflow passes on `main`, the **Deploy** workflow (`.github/workflows/deploy.yml`) logs in with a key that can run `deploy/auto-deploy.sh` and nothing else. The script does the routine above:
 
-1. backs up;
-2. pulls `main`;
-3. rebuilds and restarts (containers whose code didn't change keep running);
-4. waits for `migrate`;
-5. checks every service stays up.
+1. prints what the database spends its time on (`deploy/db-report.sh`: its ten costliest statements since it started, as shapes without values, and its biggest tables; #694), so the Deploy workflow's log shows it without a login;
+2. backs up;
+3. pulls `main`;
+4. rebuilds and restarts (containers whose code didn't change keep running);
+5. waits for `migrate`;
+6. checks every service stays up.
 
 It stops at the first problem, says what failed and how to go back, and the run turns red in the repository's **Actions** tab (GitHub emails the person who merged). Each run is also logged on the server in `/var/backups/exmachinis/deploy.log`.
 
