@@ -13,7 +13,21 @@
     <x-page-header :title="'Leaderboard'" />
     <section class="section section-xs section-first text-md-left">
         <div class="container" id="container">
-            <div style="white-space: normal; margin-bottom: 1em">
+            <div style="white-space: normal; margin-bottom: 1em" id="leaderboard-intro">
+                @if(config('forge.new_rules'))
+                {{-- The new rules' words (#717: the intro still spoke of shares companies held and launching copies) --}}
+                Companies by net wealth: each seedling starts a company, and its drones belong to it.
+                Net wealth is the company's credits, plus the goods aboard its working drones at their market price
+                (what they sold for, a unit, over the last three game days), less the processor tax it owes, minus what a
+                company starts with ({{ number_format($kit) }}: the starting credits and fuel the bank lends it). So a new
+                company is worth 0, and net wealth is what it made. The drones' hulls and a seedling's debt to the bank
+                aren't counted. It isn't what a matured company's shares are worth: that is its
+                <a href="{{ url('market/shares') }}">cash-out value</a>, which counts its hulls and debts too.
+                <b>Rising</b> is the gain over the last {{ \App\Services\Leaderboard::RISING_DAYS }} game days. <b>Age</b> is game days since the company was founded
+                (an ended company's age stops when it ended).
+                To compare companies fairly, pick an age: every company is then ranked by its net wealth when it was that old,
+                old-world companies included.
+                @else
                 Companies by net wealth: each release starts a company, and the drones it launches belong to it.
                 Net wealth is the company's credits, plus the goods aboard its working drones at their market price
                 (what they sold for, a unit, over the last three game days), plus the shares it holds in other companies,
@@ -21,8 +35,9 @@
                 ({{ number_format($kit) }}: its starting credits and fuel). So a new company is worth 0, and
                 wealth is what it made. The drones themselves don't count, so launching a copy lowers net wealth by
                 about the price of its hull until the copy earns it back (often 10 to 20 game days).
-                <b>Rising</b> is the gain over the last real week. <b>Age</b> is game days since the company was founded.
+                <b>Rising</b> is the gain over the last {{ \App\Services\Leaderboard::RISING_DAYS }} game days. <b>Age</b> is game days since the company was founded.
                 To compare companies fairly, pick an age: every company is then ranked by its net wealth when it was that old.
+                @endif
             </div>
             {{-- Every company at the same age (#614): its net wealth when it was that old, from its history --}}
             <form method="get" action="{{ url()->current() }}" id="age-form" style="white-space: normal; margin-bottom: 1em">
@@ -63,14 +78,14 @@
             @endif
             <div class="row">
                 @foreach(['All time' => ['rows' => $allTime, 'key' => 'wealth', 'id' => 'all-time'],
-                          'Rising this week' => ['rows' => $rising, 'key' => 'gain', 'id' => 'rising']] as $title => $board)
+                          'Rising, ' . \App\Services\Leaderboard::RISING_DAYS . ' game days' => ['rows' => $rising, 'key' => 'gain', 'id' => 'rising']] as $title => $board)
                     <div class="col-12 col-lg-6">
                         <h3>{{ $title }}</h3>
                         @if($board['id'] === 'rising' && !($hasAWeek ?? true))
                             {{-- #692: under a week old, Rising only repeated All time --}}
-                            <p id="rising-young">The world is less than a week old, so every company started this week:
-                                its gain this week is its net wealth, and Rising would repeat All time. It starts once
-                                the world is a week old.</p>
+                            <p id="rising-young">The world's daily history is under {{ \App\Services\Leaderboard::RISING_DAYS }} game days old, so every
+                                company's gain over that time is its net wealth, and Rising would repeat All time. It starts once
+                                the history is {{ \App\Services\Leaderboard::RISING_DAYS }} game days old.</p>
                         @else
                         <div class="table-custom-responsive">
                             <table class="table-ticket" id="{{ $board['id'] }}">

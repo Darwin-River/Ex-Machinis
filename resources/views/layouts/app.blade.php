@@ -55,7 +55,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="nav-learn" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Learn</a>
                         <div class="dropdown-menu" aria-labelledby="nav-learn">
-                            <a class="dropdown-item" href="{{ url('getting-started') }}">Getting started</a>
+                            {{-- The five-minute guide and the manual are two pages (#719) --}}
+                            <a class="dropdown-item" href="{{ url('getting-started') }}">First seedling (5 minutes)</a>
+                            <a class="dropdown-item" href="{{ url('manual') }}">Manual</a>
+                            <a class="dropdown-item" href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/lua-functions.md">Lua functions</a>
+                            <a class="dropdown-item" href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/api.md">API</a>
                             <a class="dropdown-item" href="{{ url('blog') }}">Strategy blog</a>
                             <a class="dropdown-item" href="{{ url('protocols') }}">Protocols</a>
                             <a class="dropdown-item" href="{{ url('queries') }}">Queries</a>
@@ -72,7 +76,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                             <a class="dropdown-item" href="{{ url('leaderboard') }}">Leaderboard</a>
                             @if(config('forge.new_rules'))<a class="dropdown-item" href="{{ url('players') }}">Players</a>@endif
                             <a class="dropdown-item" href="{{ url('lineage') }}">Lineage</a>
-                            <a class="dropdown-item" href="{{ url('events') }}">Events</a>
                         </div>
                     </li>
                     <li class="nav-item dropdown">
@@ -98,7 +101,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                             <li class="nav-item"><a class="nav-link" href="{{ url('login') }}">Log in</a></li>
                         @endif
                     @endif
-                    <li class="nav-item"><a class="button button-primary button-sm" href="{{ url('release') }}">Release a drone</a></li>
+                    {{-- The action's one name (#719) --}}
+                    <li class="nav-item"><a class="button button-primary button-sm" href="{{ url('release') }}">{{ config('forge.new_rules') ? 'Start a seedling' : 'Release a drone' }}</a></li>
                 </ul>
             </div>
         </nav>
@@ -120,8 +124,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <div class="col-6 col-md-3 offset-md-1 mb-4">
                     <h2 class="footer-title">Play</h2>
                     <ul class="footer-links">
-                        <li><a href="{{ url('release') }}">Release a drone</a></li>
-                        <li><a href="{{ url('getting-started') }}">Getting started</a></li>
+                        <li><a href="{{ url('release') }}">{{ config('forge.new_rules') ? 'Start a seedling' : 'Release a drone' }}</a></li>
+                        <li><a href="{{ url('getting-started') }}">First seedling (5 minutes)</a></li>
+                        <li><a href="{{ url('manual') }}">Manual</a></li>
+                        <li><a href="{{ url('market') }}">Market</a></li>
                         <li><a href="{{ url('blog') }}">Strategy blog</a></li>
                         <li><a href="{{ url('leaderboard') }}">Company leaderboard</a></li>
                         @if(config('forge.new_rules'))<li><a href="{{ url('players') }}">Players</a></li>@endif
@@ -144,6 +150,20 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <!-- Scripts -->
 @vite('resources/assets/js/app.js')
+{{-- A wide table on a phone says it scrolls sideways (#716): a cue above it while it overflows --}}
+<style>
+    .ex-scrolls::before { content: 'Scroll sideways for more \2192'; display: block; position: sticky; left: 0; width: max-content;
+          font-size: 12px; color: #9aa3b8; padding: 0 0 4px; }
+</style>
+<script>
+(function () {
+    const mark = () => document.querySelectorAll('.table-custom-responsive, .table-responsive, .table-scroll').forEach((box) => {
+        box.classList.toggle('ex-scrolls', box.scrollWidth > box.clientWidth + 4);
+    });
+    document.addEventListener('DOMContentLoaded', () => { mark(); setTimeout(mark, 1500); });
+    window.addEventListener('resize', mark);
+})();
+</script>
 
 </body>
 </html>

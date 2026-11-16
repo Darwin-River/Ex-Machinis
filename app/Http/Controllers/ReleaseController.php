@@ -53,7 +53,22 @@ class ReleaseController extends Controller
 
         $kits = Release::KIT_NAMES;
 
-        return view('release', compact('starters', 'starter', 'copiedFrom', 'copiedWord', 'clock', 'kits', 'kit'));
+        // The starters as cards that load their code into the editor (#719):
+        // the one asked for is picked, else the Miner (no "Hello from orbit")
+        $sources = [];
+        foreach (array_keys($starters) as $name) {
+            $sources[$name] = Release::starter($name);
+        }
+        $picked = preg_replace('/\.lua$/', '', (string) request('starter'));
+        if ($starter !== null) {
+            // A drone's code, or a starter the cards don't show, picks no card
+            $picked = $copiedFrom === null && array_key_exists($picked, $sources) ? $picked : null;
+        } else {
+            $picked = array_key_exists('miner', $sources) ? 'miner' : array_key_first($sources);
+            $starter = $sources[$picked];
+        }
+
+        return view('release', compact('starters', 'starter', 'copiedFrom', 'copiedWord', 'clock', 'kits', 'kit', 'sources', 'picked'));
     }
 
     /**

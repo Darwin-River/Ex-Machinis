@@ -215,7 +215,8 @@ class HouseMarketTest extends TestCase
 
         $this->getJson('/api/v1/house-demand?resource=4311&place=10&company=' . $seller->company_id)->assertOk()
             ->assertJsonPath('0.left', $daily - $half)->assertJsonPath('0.place_name', 'Moon')->assertJsonPath('0.mine', $half);
-        $this->get('/market?house=4311')->assertOk()->assertSee('House demand')->assertSee('Sold today')
+        $this->get('/market?house=4311')->assertRedirect('/market/house?house=4311');
+        $this->get('/market/house?house=4311')->assertOk()->assertSee('What does the House still buy today?')->assertSee('Sold today')
             ->assertSee(number_format($daily - $half) . ' of ' . number_format($daily));
     }
 
@@ -323,7 +324,8 @@ class HouseMarketTest extends TestCase
         $this->getJson('/api/v1/house-supply?resource=2011&place=Moon')->assertOk()
             ->assertJsonPath('0.place_name', 'Moon')->assertJsonPath('0.round_hours', 1.5)->assertJsonPath('0.refill_to', max(1, intdiv($daily, 4)));
         $this->getJson('/api/v1/house-supply?place=Atlantis')->assertNotFound();
-        $this->get('/market?supply=2011')->assertOk()->assertSee('House supply')->assertSee('sold out')
+        $this->get('/market?supply=2011')->assertRedirect('/market/house?supply=2011');
+        $this->get('/market/house?supply=2011')->assertOk()->assertSee('What does the House have on sale?')->assertSee('sold out')
             ->assertSee('in 0.5 game hours (every 1.5)');
     }
 
@@ -346,20 +348,22 @@ class HouseMarketTest extends TestCase
         $this->assertSame([], HouseStations::ensure(), 'once is enough');
     }
 
-    /** #591: the Market page has jump links and filters its order book by resource */
+    /** #591, #721: the Market page links the House's demand and supply, and a good's book is on its page */
     public function testTheMarketPageFiltersTheOrderBook()
     {
         HouseStations::ensure();
         HouseMarket::refresh();
-        $this->get('/market')->assertOk()->assertSee('href="#house-demand"', false)->assertSee('Still buying today');
+        $this->get('/market')->assertOk()->assertSee('href="' . url('market/house') . '"', false);
+        $this->get('/market/house')->assertOk()->assertSee('id="house-demand"', false)->assertSee('Still buying today')
+            ->assertSee('id="house-supply"', false);
         // #609: where fuel is on sale now, and where it isn't
         $fuel = \App\Services\World::fuelForSale();
         $this->assertSame(count($fuel['selling']) + count($fuel['none']), DB::table('stations')->count(),
             'every exchange is either selling fuel or listed as not');
         $this->get('/market')->assertSee('id="fuel-for-sale"', false)->assertSee('Fuel on sale now');
-        $html = $this->get('/market?resource=4311')->assertOk()->getContent();
-        $this->assertStringContainsString('Pumps (A1)', $html);
-        $book = substr($html, strpos($html, 'id="order-book"'), strpos($html, 'id="house-demand"') - strpos($html, 'id="order-book"'));
-        $this->assertStringNotContainsString('<td class="resource">Metals (A1)</td>', $book, 'only pumps in the book');
+        // The old filter goes to the good's page, which has its book and the House's prices for it
+        $this->get('/market?resource=4311')->assertStatus(301)->assertRedirect('/resources/4311#order-book');
+        $this->get('/resources/4311')->assertOk()->assertSee('Pumps (A1)')->assertSee('id="good-house"', false)
+            ->assertSee('Who sells it, and who buys it?');
     }
 }

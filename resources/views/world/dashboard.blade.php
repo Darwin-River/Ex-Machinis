@@ -43,14 +43,15 @@
             <div class="dash-grid mh">
                 <div class="mh-card dash-12">
                     <h3>Is the market busy?</h3>
-                    <p class="dash-q">Credits changing hands each game day over the last {{ \App\Services\Dashboard::DAYS }}, by place. Hover a bar for the day.</p>
+                    <p class="dash-q">Credits changing hands each game day over the last {{ \App\Services\Dashboard::DAYS }}, by place. Hover over a bar, or tap it, for the day; today's bar, faded and hatched, is the day so far.</p>
                     <div class="ex-legend" id="dash-trading-legend"></div>
                     <div class="ex-chart" id="dash-trading" aria-label="Credits traded each game day, by place"></div>
                     <p class="ex-src">Data: <code>{{ $dash['sources']['trading'] }}</code></p>
                 </div>
                 <div class="mh-card dash-6">
                     <h3>Are the matured companies making money?</h3>
-                    <p class="dash-q">Their combined profit each game day: sales after tax less purchases, from the day each matured. Blue a gain, red a loss.</p>
+                    <p class="dash-q">Their combined profit each game day: sales after tax less purchases, from the day each matured, for the
+                        companies in the table below (its 30 days add up to the last 30 bars). Blue a gain, red a loss; today's bar, hatched, is the day so far.</p>
                     <div class="ex-chart" id="dash-profit" aria-label="Matured companies' combined profit each game day"></div>
                     <p class="ex-src">Data: <code>{{ $dash['sources']['matured_profit'] }}</code></p>
                 </div>
@@ -60,30 +61,38 @@
                     <div class="ex-chart" id="dash-goods" aria-label="Credits traded by good"></div>
                     <p class="ex-src">Data: <code>{{ $dash['sources']['goods'] }}</code></p>
                 </div>
-                <div class="mh-card dash-8">
+                @php($hasNews = count($dash['news']) > 0)
+                <div @class(['mh-card', 'dash-8' => $hasNews, 'dash-12' => !$hasNews])>
                     <h3>Where is each good cheapest, and who pays most?</h3>
-                    <p class="dash-q">The cheapest seller (filled dot) and the highest buyer (ring) at each place for the main goods.
+                    <p class="dash-q">The cheapest seller (filled dot) and the highest buyer (ring) at each place for the main goods,
+                        from the orders of drones that are at that place now (not flying).
                         The gap between them is a trader's margin; an amber bar is a crossed book, where a buyer bids more than a seller asks.</p>
                     <div class="ex-legend" id="dash-spreads-legend"></div>
                     <div class="dash-spreads" id="dash-spreads"></div>
                     <p class="ex-src">Data: <code>{{ $dash['sources']['spreads'] }}</code></p>
+                    @unless($hasNews)
+                        {{-- #716: an empty panel of its own; one line here instead --}}
+                        <p class="dash-q" id="dash-news">What is moving prices? Nothing now: the House has no booms, slumps, shortages or gluts under way.</p>
+                    @endunless
                 </div>
+                @if($hasNews)
                 <div class="mh-card dash-4">
                     <h3>What is moving prices?</h3>
-                    <p class="dash-q">The House's booms, slumps, shortages and gluts under way, strongest first.</p>
-                    @if(count($dash['news']))
-                        <ul class="dash-news" id="dash-news">
-                            @foreach($dash['news'] as $n)
-                                <li title="{{ $n['text'] }}"><span @class(['dash-pill', 'dash-neg' => $n['percent_now'] < 0])>{{ ucfirst($n['kind']) }}</span>
-                                    {{ $n['place'] }}: {{ $n['tier'] }}, {{ $n['side'] === 'demand' ? 'bids' : 'asks' }}
-                                    {{ $n['percent_now'] > 0 ? '+' : '−' }}{{ abs($n['percent_now']) }}% until day {{ $n['to_day'] }}</li>
-                            @endforeach
-                        </ul>
-                    @else
-                        <p class="dash-q" id="dash-news">No booms or slumps under way.</p>
-                    @endif
+                    {{-- Coloured by what it does to the House's prices (#716: "glut red, shortage blue" read backwards):
+                         the arrow and colour say up or down, the word says why --}}
+                    <p class="dash-q">The House's booms, slumps, shortages and gluts under way, strongest first.
+                        <span class="dash-pill">&#9650; up</span> the House's price goes up; <span class="dash-pill dash-neg">&#9660; down</span> it goes down.
+                        A boom or slump moves what it bids (pays) for goods; a shortage or glut moves what it asks (charges): a glut brings its prices down.</p>
+                    <ul class="dash-news" id="dash-news">
+                        @foreach($dash['news'] as $n)
+                            <li title="{{ $n['text'] }}"><span @class(['dash-pill', 'dash-neg' => $n['percent_now'] < 0])>{{ $n['percent_now'] < 0 ? "\u{25BC}" : "\u{25B2}" }} {{ ucfirst($n['kind']) }}</span>
+                                {{ $n['place'] }}: {{ $n['tier'] }}, {{ $n['side'] === 'demand' ? 'bids' : 'asks' }}
+                                {{ $n['percent_now'] > 0 ? '+' : '−' }}{{ abs($n['percent_now']) }}% until day {{ $n['to_day'] }}</li>
+                        @endforeach
+                    </ul>
                     <p class="ex-src">Data: <code>{{ $dash['sources']['news'] }}</code></p>
                 </div>
+                @endif
                 <div class="mh-card dash-12">
                     <h3>Which companies are worth buying?</h3>
                     <p class="dash-q">Every matured company: what a share fetches from the bank (its cash-out value), its working drones,
@@ -119,7 +128,8 @@
                 </div>
                 <div class="mh-card dash-6">
                     <h3>Who is winning?</h3>
-                    <p class="dash-q">Each player's wealth: shares at cash-out value, credits, and what the bank still owes them for shares it bought.</p>
+                    <p class="dash-q">Each player's wealth, as the <a href="{{ url('players') }}">Players</a> board counts it: shares at cash-out value, credits, and
+                        what the bank still owes them for shares it bought (a class group's pupils have a board of their own).</p>
                     <div class="ex-legend" id="dash-players-legend"></div>
                     <div class="ex-chart" id="dash-players" aria-label="Players' wealth"></div>
                     <p class="ex-src">Data: <code>{{ $dash['sources']['players'] }}</code></p>
@@ -136,11 +146,11 @@
         X.legend($('dash-trading-legend'), D.trading.places.map((p, i) => ({name: p, colour: placeColour[i]})));
         const trading = () => X.stacked($('dash-trading'), D.trading.days.map((d) => ({day: d.day, values: D.trading.places.map((p) => d.by_place[p] || 0)})),
             D.trading.places.map((p, i) => ({name: p, colour: placeColour[i]})),
-            {H: 240, unit: 'cr', unitWord: 'credits', empty: 'No trades in the last 60 game days.',
+            {H: 240, unit: 'cr', unitWord: 'credits', empty: 'No trades in the last 60 game days.', partial: D.today,
              dayNote: (d) => d ? ` · ${X.num(d.trades)} trades` : ''});
 
         const profit = () => X.diverging($('dash-profit'), D.matured_profit.map((r) => ({day: r.day, up: Math.max(0, r.net), down: Math.max(0, -r.net), r})),
-            {H: 220, unit: 'cr', downColour: X.NEG, empty: 'No matured company has traded yet.',
+            {H: 220, unit: 'cr', downColour: X.NEG, empty: 'No matured company has traded yet.', partial: D.today,
              tip: (r, day) => r ? ['Game day ' + day, `Profit: ${X.num(r.r.net)}`, `Sales after tax: ${X.num(r.r.sales)}`, `Purchases: ${X.num(r.r.purchases)}`] : ['Game day ' + day]});
 
         const goods = () => X.hbars($('dash-goods'), D.goods.map((g) => ({label: g.name, segs: [g.credits]})), [{name: 'Credits', colour: C[0]}],
@@ -170,10 +180,12 @@
         const drones = () => X.hbars($('dash-drones'), D.drones_by_place.slice(0, 12).map((p) => ({label: p.place, segs: [p.working, p.wrecks]})),
             [{name: 'Working', colour: C[0]}, {name: 'Wrecks', colour: X.GREY}], {total: true, empty: 'No drones yet.'});
 
-        X.legend($('dash-players-legend'), [{name: 'Shares', colour: C[2]}, {name: 'Credits', colour: C[3]}, {name: 'Bank payments due', colour: C[5]}]);
-        const players = () => X.hbars($('dash-players'), D.players.map((p) => ({label: p.name, segs: [p.shares, p.credits, p.bank_due]})),
-            [{name: 'Shares', colour: C[2]}, {name: 'Credits', colour: C[3]}, {name: 'Bank payments due', colour: C[5]}],
-            {total: true, empty: 'No players yet.'});
+        // Only the parts someone has: a legend entry with nothing drawn (#716: "Bank payments due") is left out
+        const wealthParts = [{key: 'shares', name: 'Shares', colour: C[2]}, {key: 'credits', name: 'Credits', colour: C[3]},
+            {key: 'bank_due', name: 'Bank payments due', colour: C[5]}].filter((s) => D.players.some((p) => p[s.key] > 0));
+        X.legend($('dash-players-legend'), wealthParts);
+        const players = () => X.hbars($('dash-players'), D.players.map((p) => ({label: p.name, segs: wealthParts.map((s) => p[s.key])})),
+            wealthParts, {total: true, empty: 'No players yet.'});
 
         [['dash-trading', trading], ['dash-profit', profit], ['dash-goods', goods], ['dash-spreads', spreads],
          ['dash-drones', drones], ['dash-players', players]].forEach(([id, f]) => X.onResize($(id), f));

@@ -66,6 +66,27 @@ class Release
         'maker' => 'Buys metals where they cost least (as a seedling, it checks what the House has on sale before it flies), makes alloys and rods, and sells them where they pay best.',
     ];
 
+    /**
+     * The starters as cards (#719), on the Start a seedling page and the
+     * first-seedling guide: the kit each buys, what it does in a line, and
+     * how long an unchanged one took to mature in a playtest at the normal
+     * pace (the players' manual, "Starter scripts")
+     */
+    public const STARTER_CARDS = [
+        'miner' => ['kit' => 'Mining Kit', 'role' => 'Mine and sell',
+            'line' => 'Mines kunspar or wolfite at the Moon, refines it and sells the metals to the House.',
+            'mature' => '33 to 50 game days'],
+        'refiner' => ['kit' => 'Mining Kit', 'role' => 'Mine and refine',
+            'line' => 'Mines yalspar and vladnium and refines them into the organics and inorganics factories need.',
+            'mature' => 'about 37 game days (changed to mine wolfite)'],
+        'maker' => ['kit' => 'Factory Kit', 'role' => 'Buy, make and sell',
+            'line' => 'Buys metals where the House sells them cheapest, makes alloys and rods, and sells the rods where they pay best.',
+            'mature' => 'about 66 game days'],
+        'trader' => ['kit' => 'Mining Kit', 'role' => 'Buy low, sell high',
+            'line' => 'Buys metals from miners on the Moon and hauls them to whichever exchange pays most.',
+            'mature' => 'not for a seedling'],
+    ];
+
     /** A starter script's source, or null for an unknown name ("maker" or "maker.lua") */
     public static function starter(string $name): ?string
     {

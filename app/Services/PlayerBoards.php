@@ -25,6 +25,13 @@ use Illuminate\Support\Facades\DB;
  */
 class PlayerBoards
 {
+    /**
+     * The longest a digest looks back, in game days (#716: a player away
+     * for a while got a digest of ~500 game days, and its "since" jumped
+     * when the clock ran fast)
+     */
+    public const DIGEST_MAX_DAYS = 7;
+
     /** Each player account's wealth: [user_id => [name, credits, shares, bank_due, wealth, class_group_id]] */
     public static function wealths(?int $classGroup = null, bool $everyone = false): array
     {
@@ -127,6 +134,8 @@ class PlayerBoards
         $row = DB::table('users')->where('user_id', $user->user_id)->first(['last_seen_t', 'last_seen_trade']);
         // A new account's first look starts when it was made (#655)
         $since = (int) ($row->last_seen_t ?? $now - 86400);
+        $capped = $since < $now - self::DIGEST_MAX_DAYS * 86400;
+        $since = max($since, $now - self::DIGEST_MAX_DAYS * 86400);
         $lastTrade = (int) (DB::table('trades')->max('id') ?? 0);
         $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
         $sinceDay = intdiv($since - $epoch, 86400);
@@ -136,7 +145,7 @@ class PlayerBoards
             ->get(['company_id', 'name', 'seedling', 'eliminated_at', 'end_cause']);
         // Trades by id when there is a mark: one recorded after the last look
         // counts even if its game time was earlier (#655)
-        $newer = fn ($q) => $row->last_seen_trade !== null ? $q->where('t.id', '>', (int) $row->last_seen_trade)
+        $newer = fn ($q) => $row->last_seen_trade !== null && !$capped ? $q->where('t.id', '>', (int) $row->last_seen_trade)
             : $q->where('t.game_t', '>', $since);
         $earned = [];
         foreach ($companies as $c) {
@@ -160,11 +169,15 @@ class PlayerBoards
         }
         $digest = [
             'since' => DronePage::when($since),
+            // Whether it was cut to the last DIGEST_MAX_DAYS game days
+            'capped' => $capped,
             'companies' => $earned,
             'dividends' => (int) DB::table('player_dividends')->where('user_id', $user->user_id)->where('day', '>=', $sinceDay)->sum('amount'),
             'bank_paid' => (int) DB::table('bank_payments')->where('user_id', $user->user_id)->where('paid_t', '>', $since)->sum('paid'),
             'same_owner_deals' => $flags,
             'news' => array_values(array_filter(HouseMarket::news(), fn ($n) => $n['to_day'] > $sinceDay)),
+            // Its share orders that filled (#715: nothing said when one did)
+            'share_fills' => PlayerShares::fills((int) $user->user_id, $since),
             // Where the next look starts, once this one is shown
             'until_t' => $now,
             'until_trade' => $lastTrade,

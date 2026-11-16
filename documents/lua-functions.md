@@ -211,7 +211,7 @@ function overstocked(product) return units(product) * 2 > sold(product, 1, earth
 
 **`earnings_per_day(days)`** (built in): your company's sales after tax a day, averaged over the last `days` game days (7 if you leave it out). Sales come in lumps, so one day is a poor guide to what your company, or a share of it, earns (#492). Example: `local a_share = earnings_per_day() / share_count(company())`.
 
-**`set_status(text)`** (built in): a line, up to 80 characters, shown on the drone's page, in the API and in test results: say what it is doing or waiting for, so a drone that sits still says why. It costs as much as a query, so set it when the reason changes, not every round.
+**`set_status(text)`** (built in): a line, up to 80 characters (a longer one is cut at a space and ends "...", #715), shown on the drone's page, in the API and in test results: say what it is doing or waiting for, so a drone that sits still says why. It costs as much as a query, so set it when the reason changes, not every round.
 
 **`better_place(product, margin)`**: a plan B that looks before it flies. The place whose best buyer pays at least margin more for a product than here, or nil. With `trip`, it weighs the trip too. Round 39's newcomers moved after counting idle rounds, and one stayed at Earth for weeks while the Moon paid three times as much.
 

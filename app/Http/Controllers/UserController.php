@@ -37,10 +37,13 @@ class UserController extends Controller
         // Age in game days, not real ones (#692: a 4-day-old company read "4")
         $now = (int) \App\Services\World::gameNow();
         $query = DB::table('companies')->select('companies.company_id AS user_id', 'companies.name AS name',
-                DB::raw("ROUND(GREATEST(0, $now - IFNULL(companies.founded_t, $now)) / 86400, 1) AS age"),
+                // An ended company's age stops when it ended (#716)
+                DB::raw("ROUND(GREATEST(0, LEAST($now, IFNULL(companies.eliminated_at, $now)) - IFNULL(companies.founded_t, $now)) / 86400, 1) AS age"),
                 DB::raw('COUNT(agents.agent_id) AS agents'), DB::raw('IFNULL(companies.credits,0) AS credits'),
                 DB::raw('companies.eliminated_at IS NOT NULL AS ended'))
-            ->leftJoin('agents', 'agents.company_id', '=', 'companies.company_id')->groupBy('companies.company_id');
+            ->leftJoin('agents', 'agents.company_id', '=', 'companies.company_id')
+            // The House runs the exchanges' station drones: it isn't a company to look up (#716)
+            ->where('companies.house', 0)->groupBy('companies.company_id');
         if ($request->get('user_id') !== null)
             $query->where('companies.company_id', intval($request->get('user_id')));
         if ($request->get('name') !== null)
@@ -93,8 +96,10 @@ class UserController extends Controller
         $board = \App\Services\Leaderboard::wealth();
         $rank = \App\Services\Leaderboard::peerRank((int) $company->company_id, $board);
         $stats = ['wealth' => $board[$company->company_id]['wealth'] ?? null,
+            // An ended company's age stops when it ended (#716)
             'age' => \App\Services\Leaderboard::age(\Illuminate\Support\Facades\DB::table('companies')
-                ->where('company_id', $company->company_id)->value('founded_t'), \App\Services\World::gameNow()),
+                ->where('company_id', $company->company_id)->value('founded_t'),
+                min(\App\Services\World::gameNow(), (int) ($company->eliminated_at ?? PHP_INT_MAX))),
             'working' => $spacecraft->whereNull('wrecked_at')->count(), 'drones' => $spacecraft->count()];
         // Code pushes (#553)
         $pushes = \App\Services\CodePush::summary(\Illuminate\Support\Facades\DB::table('companies')
@@ -112,10 +117,14 @@ class UserController extends Controller
         $playerShares = null;
         if (config('forge.new_rules') && $company->owner_id !== null && (int) $company->seedling === 0 && $company->matured_t !== null) {
             $viewer = \Illuminate\Support\Facades\Auth::user();
-            $playerShares = \App\Services\PlayerShares::prices((int) $id) + [
+            // One cash-out for the page: its parts, the bank's prices and the
+            // credits tile (#716: the Shares paragraph said 12,304, the tile 11,292)
+            $cash = \App\Services\PlayerShares::cashOut((int) $id);
+            $user->credits = $cash['credits'];
+            $playerShares = \App\Services\PlayerShares::prices((int) $id, $cash) + [
                 'book' => \App\Services\PlayerShares::book((int) $id),
                 'held' => $viewer && $viewer->login !== null ? \App\Services\PlayerShares::held((int) $viewer->user_id, (int) $id) : null,
-                'cash_out' => \App\Services\PlayerShares::cashOut((int) $id),
+                'cash_out' => $cash,
             ];
         }
         // The new rules (#639): who it deals with, same-owner deals flagged
@@ -147,9 +156,14 @@ class UserController extends Controller
             'earnings' => \App\Services\CompanyEarnings::daily((int) $id, \App\Services\CompanyEarnings::MAX_DAYS),
             'shares' => $matured || config('forge.new_rules') ? \App\Services\PlayerShares::COUNT : max(1, (int) $shares['count']),
             'matured' => $matured,
-            'trades' => $matured ? array_map(fn ($t) => ['day' => intdiv(max(0, $t['game_time'] - $epoch), 86400), 'price' => $t['price'],
+            // Trades between players only (#716: the bank's, at its own prices, were dots too)
+            'trades' => $matured ? array_values(array_map(fn ($t) => ['day' => intdiv(max(0, $t['game_time'] - $epoch), 86400), 'price' => $t['price'],
                 'units' => $t['units'], 'seller' => $t['seller_name'], 'buyer' => $t['buyer_name']],
-                \App\Services\PlayerShares::trades((int) $id, 500)) : [],
+                array_filter(\App\Services\PlayerShares::trades((int) $id, 500), fn ($t) => !$t['seller_is_bank'] && !$t['buyer_is_bank']))) : [],
+            // The first game day the world recorded cash-out (#716: "from the day a
+            // company matures" wasn't so: it began on one day for every company)
+            'cash_out_from' => \Illuminate\Support\Facades\Schema::hasColumn('company_days', 'cash_out')
+                ? \Illuminate\Support\Facades\DB::table('company_days')->whereNotNull('cash_out')->min('day') : null,
         ];
         if ($playerShares) {
             // Cash-out a share and its dividends over 30 game days, at the top (#699)

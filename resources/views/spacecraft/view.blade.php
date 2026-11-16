@@ -31,7 +31,7 @@
                             <b>Now</b>: {{ $activity['now'] }}<br/>
                         @endif
                         @if($agent->script_status !== null)
-                            <b>Its script says</b> (set {{ \App\Services\DronePage::ago((int) $agent->script_status_t) }}, {{ \App\Services\DronePage::when((int) $agent->script_status_t) }}):<span v-pre>{{ $agent->script_status }}</span><br/>
+                            <b>Its script says</b> (set {{ \App\Services\DronePage::ago((int) $agent->script_status_t) }}, {{ \App\Services\DronePage::when((int) $agent->script_status_t) }}): <span v-pre>{{ $agent->script_status }}</span><br/>
                         @endif
                         <b>Fuel</b>: {{ $state['fuel'] }}
                             <span>· used in the last game day: {{ $state['fuel_day']['actions'] }} for actions{{ $state['fuel_day']['thinking'] ? ', ' . $state['fuel_day']['thinking'] . ' for thinking (before #544)' : '' }}

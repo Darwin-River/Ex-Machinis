@@ -46,6 +46,8 @@ class DronePage
         'dissolved' => 'Its company had no credits for too long',
         'closed' => 'Its player closed its seedling',
         'reset' => 'The world was reset',
+        // The one-time scrap of drones past 8 when the fleet cap came in (#682, #717)
+        'fleet cap' => 'It was scrapped when the fleet cap came in',
     ];
 
     /** FORTH error codes a crash can leave, in plain words */
@@ -300,8 +302,13 @@ class DronePage
                 if ($end && $hours <= 0) {
                     // Its action should have ended: the engine hasn't given it
                     // its turn yet (#689: "0.0 game hours from now" for two days)
-                    $now .= ', due to end ' . self::when((int) $end) . ' (' . self::ago((int) $end)
-                        . '): waiting for its turn, the engine is behind';
+                    // "The engine is behind" only when it is: the clock slowed
+                    // or the engine stopped (#715: said with the clock at its pace)
+                    $clock = LaunchQueue::status();
+                    $now .= ', due to end ' . self::when((int) $end) . ' (' . self::ago((int) $end) . '): '
+                        . ($clock['slowed'] ? 'waiting for its turn, the engine is behind'
+                            : (!$clock['engine']['running'] ? "waiting for its turn: the game engine isn't running just now"
+                                : 'it ends on its next turn'));
                 } elseif ($end) {
                     $now .= ', until ' . self::when((int) $end) . sprintf(' (%s game hours from now)', number_format($hours, 1));
                 }

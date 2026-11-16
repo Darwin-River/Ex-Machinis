@@ -75,7 +75,7 @@ class RoundSixtyNineFixesTest extends TestCase
 
     public function testRisingSaysWhenTheWorldIsYoung()
     {
-        DB::table('wealth_snapshots')->where('taken_at', '<=', now()->subDays(7))->delete();
+        DB::table('company_days')->delete();   // no daily history 7 game days old (#717)
         $this->get('/leaderboard')->assertOk()->assertSee('id="rising-young"', false)->assertDontSee('id="rising"', false);
     }
 

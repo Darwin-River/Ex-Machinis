@@ -90,15 +90,54 @@ class HomeController extends Controller
     private const REPOSITORY_DOCS = 'https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/';
 
     /**
-     * Getting Started: the players' manual (documents/players-manual.md),
-     * rendered from the Markdown so the page never drifts from it
+     * The players' manual (documents/players-manual.md) at /manual, rendered
+     * from the Markdown so the page never drifts from it. It was Getting
+     * Started until #719
      */
     public function playersManual()
     {
-        $manual = Cache::rememberForever('players-manual:' . filemtime(base_path(self::PLAYERS_MANUAL)),
-            fn () => self::renderPlayersManual(file_get_contents(base_path(self::PLAYERS_MANUAL))));
-
+        $manual = self::manualHtml();
         return view('pages.players-manual', compact('manual'));
+    }
+
+    /** The manual, rendered once for each version of the file */
+    private static function manualHtml(): string
+    {
+        return Cache::rememberForever('players-manual:' . filemtime(base_path(self::PLAYERS_MANUAL)),
+            fn () => self::renderPlayersManual(file_get_contents(base_path(self::PLAYERS_MANUAL))));
+    }
+
+    /** The IDs of the manual's headings and anchors, for old /getting-started#anchor links */
+    public static function manualAnchors(): array
+    {
+        preg_match_all('/<(?:h[1-6]|a) id="([A-Za-z0-9_-]+)"/', self::manualHtml(), $m);
+        return array_values(array_unique($m[1]));
+    }
+
+    /**
+     * Getting started (#719): your first seedling in five minutes, with the
+     * numbers in force. Round 70: both home-page buttons led to the whole
+     * manual, 80,000 pixels that opened with a changelog from 2020
+     */
+    public function firstSeedling()
+    {
+        $grant = \App\Services\Seedlings::grant();
+        $seedling = ['grant' => $grant, 'margin' => \App\Services\Seedlings::matureMargin(),
+            'mature_at' => $grant + \App\Services\Seedlings::matureMargin(), 'shares' => \App\Services\Seedlings::SHARES,
+            'credits' => (int) config('forge.starting_credits'), 'hull' => (int) config('forge.seedling_hull_value'),
+            'fee' => (int) config('forge.seedling_fee'), 'push_fee' => (int) config('forge.seedling_push_fee'),
+            'cap' => max(intdiv($grant * \App\Services\Seedlings::capPermille(), 1000), $grant + \App\Services\Seedlings::matureMargin(), 1), 'max' => (int) config('forge.seedling_max')];
+        $starters = \App\Services\Release::STARTERS;
+        unset($starters['trader']);   // a seedling can't trade with other drones (#658)
+        $clock = \App\Services\LaunchQueue::clock();
+        $anchors = self::manualAnchors();
+        return view('pages.first-seedling', compact('seedling', 'starters', 'clock', 'anchors'));
+    }
+
+    /** The manual's images moved with it (#719) */
+    public function oldManualImage(string $file)
+    {
+        return redirect('/manual/images/' . $file, 301);
     }
 
     /** The manual as HTML, with GitHub-style heading IDs for its links */
@@ -127,8 +166,8 @@ class HomeController extends Controller
         // other HTML: only that exact form becomes an anchor again (#678)
         $html = preg_replace('/&lt;a name=(?:"|&quot;)([A-Za-z0-9_-]+)(?:"|&quot;)&gt;&lt;\/a&gt;/', '<a id="$1"></a>', $html);
 
-        // Images are served by /getting-started/images; other documents are on GitHub
-        $html = preg_replace('/src="images\//', 'src="/getting-started/images/', $html);
+        // Images are served by /manual/images; other documents are on GitHub
+        $html = preg_replace('/src="images\//', 'src="/manual/images/', $html);
         return preg_replace('/href="(?!https?:|#|\/)([\w.-]+\.md)/', 'href="' . self::REPOSITORY_DOCS . '$1', $html);
     }
 
