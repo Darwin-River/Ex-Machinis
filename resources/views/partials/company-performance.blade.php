@@ -4,7 +4,9 @@
     the bank's selling price, with players' trades as dots; earnings (#600:
     sales up, purchases down, the day's profit a dot); dividends a share and
     their running total; working drones. Takes $perf (UserController) and
-    $companyId. The data is in the page; the API gives the same.
+    $companyId. The data is in the page; the API gives the same. Every chart
+    marks the world's events and the company's own (#720), and cash-out a
+    share is a 7-day average with its range (#720: it swung day to day).
 --}}
 @include('partials.ex-charts')
 @push('styles')
@@ -22,9 +24,11 @@
                 @foreach([10, 30, 60, 365] as $d)
                     <option value="{{ $d }}" @selected($d === 60)>Last {{ $d }} game days</option>
                 @endforeach
+                <option value="0">All its life</option>
             </select>
         </label>
     </div>
+    @include('partials.event-marks-key', ['company' => true, 'companyId' => $companyId])
     <div class="mh-card perf-card">
         <h3>Is it growing?</h3>
         <p class="mh-note">Net wealth and credits at each game day's snapshot. The gap between them is mostly the goods and
@@ -36,9 +40,11 @@
     @if($hasCash)
         <div class="mh-card perf-card">
             <h3>What is a share worth?</h3>
-            <p class="mh-note">A share's cash-out value, what the bank pays for it, and the bank's selling price (cash-out plus
-                30 days of dividends) at each game day's snapshot; each dot is a trade between two players at its price
-                (the bank's trades are at its own prices, and aren't dots).
+            <p class="mh-note">A share's cash-out value, what the bank pays for it, as an average over 7 game days (the line)
+                with the least and most it was on those days (the band), and the bank's selling price (cash-out plus 30 days of
+                dividends), averaged the same way; each dot is a trade between two players at its price (the bank's trades are
+                at its own prices, and aren't dots). The day-to-day figure swung with where the drones were until cash-out was
+                steadied (#685); hover a day for it.
                 @if($perf['cash_out_from'] !== null)The world has recorded cash-out since game day {{ number_format($perf['cash_out_from']) }}: no line
                     before that day, even for a company that matured earlier.@endif</p>
             <div class="ex-legend" id="perf-cash-legend"></div>
@@ -76,15 +82,31 @@ document.addEventListener('DOMContentLoaded', function () {
     const X = window.ExCharts, C = X.COLOURS, P = @json($perf), $ = (id) => document.getElementById(id);
     const L = 64;   // one left margin, so every chart's days line up
     X.legend($('perf-wealth-legend'), [{name: 'Net wealth', colour: C[0], kind: 'line'}, {name: 'Credits', colour: C[2], kind: 'line'}]);
-    if ($('perf-cash-legend')) X.legend($('perf-cash-legend'), [{name: 'Cash-out a share', colour: C[0], kind: 'line'},
-        {name: "Bank's selling price", colour: C[3], kind: 'line'}, {name: 'Trades between players', colour: C[4], kind: 'dot'}]);
+    if ($('perf-cash-legend')) X.legend($('perf-cash-legend'), [{name: 'Cash-out a share, 7-day average', colour: C[0], kind: 'line'},
+        {name: 'Its least and most those 7 days', colour: C[0], kind: 'band'},
+        {name: "Bank's selling price, 7-day average", colour: C[3], kind: 'line'}, {name: 'Trades between players', colour: C[4], kind: 'dot'}]);
+
+    // A 7-day rolling average and range (#720), over the days with a figure:
+    // each day's from it and the 6 before, so a period's first days have theirs
+    const ROLL = 7;
+    function rolling(key) {
+        const out = {};
+        P.history.forEach((r, i) => {
+            const vals = [];
+            for (let j = i; j >= 0 && P.history[j].day > r.day - ROLL; j--) if (P.history[j][key] !== null) vals.push(P.history[j][key]);
+            out[r.day] = r[key] === null || !vals.length ? null
+                : {avg: vals.reduce((a, b) => a + b, 0) / vals.length, lo: Math.min(...vals), hi: Math.max(...vals), n: vals.length};
+        });
+        return out;
+    }
+    const cashRoll = rolling('cash_out_share'), bankRoll = rolling('bank_sells_at');
     X.legend($('ce-legend'), [{name: 'Sales after tax', colour: C[0]}, {name: 'Spent on goods', colour: C[1]}, {name: 'Profit', colour: '#e9e9ef', kind: 'dot'}]);
 
     function draw() {
         const days = Number($('perf-days').value), last = P.today;
-        const born = P.earnings.length ? P.earnings[0].day : last;
-        const first = Math.max(born, last - days + 1);
-        const o = {first, last, L};
+        const born = Math.min(last, P.earnings.length ? P.earnings[0].day : last, P.history.length ? P.history[0].day : last);
+        const first = days ? Math.max(born, last - days + 1) : born;
+        const o = {first, last, L, marks: P.marks};
         const inRange = (r) => r.day >= first && r.day <= last;
         const hist = P.history.filter(inRange), earn = P.earnings.filter(inRange);
 
@@ -96,8 +118,16 @@ document.addEventListener('DOMContentLoaded', function () {
         if ($('perf-cash')) {
             const trades = P.trades.filter(inRange);
             X.lines($('perf-cash'), [
-                {name: 'Cash-out a share', colour: C[0], points: hist.map((r) => ({day: r.day, v: r.cash_out_share}))},
-                {name: "Bank's selling price", colour: C[3], dash: '5 3', points: hist.map((r) => ({day: r.day, v: r.bank_sells_at}))},
+                {name: 'Cash-out a share', colour: C[0], band: hist.map((r) => ({day: r.day, lo: cashRoll[r.day]?.lo ?? null, hi: cashRoll[r.day]?.hi ?? null})),
+                    points: hist.map((r) => {
+                        const a = cashRoll[r.day];
+                        return {day: r.day, v: a ? Math.round(a.avg) : null, label: a ? `${X.num(a.avg)} on average over ${a.n} game `
+                            + `${a.n === 1 ? 'day' : 'days'} (${X.num(a.lo)} to ${X.num(a.hi)}); ${X.num(r.cash_out_share)} that day` : null};
+                    })},
+                {name: "Bank's selling price", colour: C[3], dash: '5 3', points: hist.map((r) => {
+                    const a = bankRoll[r.day];
+                    return {day: r.day, v: a ? Math.round(a.avg) : null, label: a ? `${X.num(a.avg)} on average; ${X.num(r.bank_sells_at)} that day` : null};
+                })},
                 {name: 'Trade between players', colour: C[4], dotsOnly: true, r: 4, points: trades.map((t) => ({day: t.day, v: t.price,
                     label: `${t.units} at ${t.price} (${t.seller} to ${t.buyer})`}))}],
                 Object.assign({H: 200, unit: 'cr', fromZero: false, empty: 'No cash-out recorded in this period.'}, o));

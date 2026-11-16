@@ -8,18 +8,21 @@
       $chartSource    the URL its rows come from (instead of /api/v1/history)
       $chartPer       what a price is for ('unit'), $chartUnits what the bars count ('units')
       $chartNote      the card's note; $chartPlaceMenu false hides the place menu
+      $chartMarks     the events marked on it (#720): WorldEvents::marks(), the world's by default
 --}}
 @php
     $chartSource = $chartSource ?? null;
     $chartPer = $chartPer ?? 'unit';
     $chartUnits = $chartUnits ?? 'units';
     $chartPlaceMenu = $chartPlaceMenu ?? true;
+    $chartMarks = $chartMarks ?? \App\Services\WorldEvents::marks();
     $chartNote = $chartNote ?? 'The dots and lines are the average price each game day (left axis); the thin line through each '
         . 'dot runs from the cheapest unit traded that day to the dearest; the price axis fits the prices shown. A gap is a day '
         . 'with no trades there. The bars in the band below are the units that changed hands each game day, by place (right axis), '
         . 'and a × marks a day with no trades at all. On a phone each place gets its own small chart.';
 @endphp
 @include('partials.chart-styles')
+@include('partials.ex-charts')
 <div class="mh">
                 <div class="mh-controls">
                     @if($chartResource === null)
@@ -50,6 +53,7 @@
                     <p class="mh-note">{{ $chartNote }}</p>
                     <div class="mh-legend" id="mh-legend"></div>
                     <div class="mh-chart" id="mh-price" tabindex="0" aria-label="{{ $chartTitle }} by game day"></div>
+                    @include('partials.event-marks-key', ['company' => collect($chartMarks)->contains('scope', 'company')])
                 </div>
 </div>
 
@@ -65,6 +69,7 @@
         const TODAY = @json($today);
         const FIXED = @json($chartResource);   // a product page charts its own resource (#597)
         const SOURCE = @json($chartSource), PER = @json($chartPer), UNITS = @json($chartUnits);   // #600
+        const MARKS = @json($chartMarks);   // #720
         let rows = [], placeColour = {};
 
         function el(name, attrs, parent) {
@@ -191,6 +196,9 @@
             const ufmt = (v) => Math.round(v).toLocaleString('en');
             const f = frame(box, H, Math.min(...shown.map((r) => r.low)), Math.max(...shown.map((r) => r.high)), span, first, fmt,
                 {max: Math.max(1, ...total), fmt: ufmt, share: 0.25, label: UNITS});
+            // The world's events (#720), behind the data, labelled over it
+            const marks = window.ExCharts.markLayer({svg: f.svg, x: f.x, first, last, T: f.T, bottom: f.H - f.B, W: f.W, H: f.H,
+                L: f.L, R: f.R, slot: (f.W - f.L - f.R) / Math.max(1, span - 1)}, MARKS);
             const bw = Math.max(1, Math.min(32, (f.W - f.L - f.R) / span * 0.7));
             units.forEach((u, i) => {
                 let acc = 0;
@@ -228,17 +236,18 @@
                         stroke: 'var(--mh-panel)', 'stroke-width': 1}, f.svg);
                 }
             });
-            hover(box, f, first, span, (day, marks) => {
+            if (marks) marks.front();
+            hover(box, f, first, span, (day, dots) => {
                 const lines = [{text: 'Game day ' + day}];
                 places.forEach((p, j) => {
                     const r = at(p, day), name = shown.find((q) => q.place === p).place_name;
-                    if (r) el('circle', {cx: f.x(day), cy: f.y(r.average), r: 4, fill: placeColour[p], stroke: 'var(--mh-panel)', 'stroke-width': 2}, marks);
+                    if (r) el('circle', {cx: f.x(day), cy: f.y(r.average), r: 4, fill: placeColour[p], stroke: 'var(--mh-panel)', 'stroke-width': 2}, dots);
                     lines.push({colour: placeColour[p], text: r
                         ? `${name}: ${fmt(r.average)} a ${PER} (${fmt(r.low)} to ${fmt(r.high)}), ${r.units.toLocaleString('en')} ${UNITS}`
                         : `${name}: no trades`});
                 });
                 lines.push({text: total[day - first] ? `${UNITS[0].toUpperCase() + UNITS.slice(1)} traded: ${ufmt(total[day - first])}` : 'No trades that day'});
-                return lines;
+                return marks ? lines.concat(marks.lines(day)) : lines;
             });
         }
 

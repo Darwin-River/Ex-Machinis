@@ -26,7 +26,7 @@
                     Sorted by yield, highest first.</div>
                 <div class="table-custom-responsive">
                     <table class="table-ticket" id="player-share-market">
-                        <tr><th>Company</th><th class="text-right">Cash-out a share</th><th>30 game days</th><th class="text-right">Dividends a share, 30 days</th>
+                        <tr><th>Company</th><th class="text-right">Cash-out a share</th><th>Cash-out change, 30 game days</th><th class="text-right">Dividends a share, 30 days</th>
                             <th class="text-right">Yield, 30 days</th><th class="text-right">Last price between players</th><th class="text-right">Bank sells at</th><th>Health</th></tr>
                         @forelse($playerMarket as $i => $m)
                             <tr><td><a href="{{ url('companies/' . $m['company']) }}#player-shares">{{ $m['name'] }}</a>
@@ -50,15 +50,32 @@
                     (the bank's trades are at its own prices); its premium or discount against today's cash-out is shown only for a trade in the last
                     {{ \App\Http\Controllers\WorldController::PREMIUM_DAYS }} game days.
                     Players trade between {{ (int) round(config('forge.share_range_low') * 100) }}% and {{ (int) round(config('forge.share_range_high') * 100) }}% of the selling price.
+                    The 30-day lines share one scale (<span id="share-spark-scale">a percent scale</span>): each is the change in cash-out from
+                    its first day, in percent, with that day's level dashed, so a steady share is a flat line whatever its price. Hover a line for the credits.
                     Data: <code>GET /api/v1/shares</code> and <code>GET /api/v1/companies/{id}/history</code> (cash_out_share).</p>
                 <script>
                 document.addEventListener('DOMContentLoaded', function () {
                     const X = window.ExCharts, M = @json($playerMarket);
+                    // One percent scale for every row (#720): each line is the change
+                    // from its first day with a value, so a 38-credit share moving by 3
+                    // no longer looks as wild as a 1,500-credit one moving by 300
+                    const pct = (m) => {
+                        const base = (m.spark.find((p) => p.v > 0) || {}).v;
+                        return m.spark.map((p) => base ? (p.v / base - 1) * 100 : 0);
+                    };
+                    const all = M.flatMap((m) => pct(m));
+                    const lo = Math.min(0, ...all), hi = Math.max(0, ...all);
+                    if (all.length) document.getElementById('share-spark-scale').textContent =
+                        `from ${lo < 0 ? '−' : ''}${Math.round(Math.abs(lo))}% to +${Math.round(hi)}%`;
+                    const sign = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(Math.round(v * 10) / 10) + '%';
                     document.querySelectorAll('#player-share-market [data-spark]').forEach((td) => {
                         const m = M[Number(td.dataset.spark)];
                         if (!m.spark.length) return;
-                        td.replaceChildren(X.spark(m.spark.map((p) => p.v), {line: true, width: 100, height: 24, label: m.name + "'s cash-out a share",
-                            tip: (v, i) => [m.name, `Game day ${m.spark[i].day}: cash-out ${X.num(v)} a share`]}));
+                        const p = pct(m);
+                        td.replaceChildren(X.spark(p, {line: true, width: 100, height: 24, lo, hi, base: 0,
+                            label: m.name + "'s cash-out a share, change from its first day",
+                            tip: (v, i) => [m.name, `Game day ${m.spark[i].day}: cash-out ${X.num(m.spark[i].v)} a share`,
+                                `${sign(v)} since game day ${m.spark[0].day}`]}));
                     });
                 });
                 </script>

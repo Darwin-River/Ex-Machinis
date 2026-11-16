@@ -129,7 +129,8 @@ class WorldController extends Controller
     /** The economy dashboard (#698): is the market busy, are companies making money, who is winning */
     public function dashboard()
     {
-        return view('world.dashboard', ['dash' => \App\Services\Dashboard::full()]);
+        // The world's events, marked on its day charts (#720)
+        return view('world.dashboard', ['dash' => \App\Services\Dashboard::full(), 'marks' => \App\Services\WorldEvents::marks()]);
     }
 
     /** The leaderboard (#324 step 18): net wealth, all time and Rising */
