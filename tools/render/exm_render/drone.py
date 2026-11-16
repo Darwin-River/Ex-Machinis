@@ -121,7 +121,8 @@ def build(p: DroneParams) -> tuple[bpy.types.Object, float]:
     geom.make_object("Truss", bm, mats, body)
 
     bm = bmesh.new()
-    parts.engine_block(bm, W, p.engines, p.engine_size, p.firing)
+    if p.engines > 0:  # a stationary facility (a Barge) has none
+        parts.engine_block(bm, W, p.engines, p.engine_size, p.firing)
     if p.rcs:
         parts.rcs_quads(bm, W, L)
     geom.make_object("Propulsion", bm, mats, body)

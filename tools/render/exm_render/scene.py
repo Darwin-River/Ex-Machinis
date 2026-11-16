@@ -138,10 +138,36 @@ SITE_BACKGROUND = (0.0033, 0.0048, 0.0103)
 ENVIRONMENT = (0.05, 0.055, 0.07)
 
 
-def reflections(scene: bpy.types.Scene, colour=ENVIRONMENT) -> None:
+def _softbox(nt):
+    """A studio environment for reflections: dark below, bright overhead.
+
+    Metal reflects its surroundings, so in an empty black world it turns
+    black. This gives it a horizon and a bright sky to catch, like the
+    softboxes of a product photo. Returns the colour socket.
+    """
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nt.links.new(coord.outputs["Generated"], sep.inputs["Vector"])  # world direction
+    ramp = nt.nodes.new("ShaderNodeValToRGB")
+    ramp.color_ramp.interpolation = "EASE"
+    els = ramp.color_ramp.elements
+    els[0].position, els[0].color = 0.35, (*ENVIRONMENT, 1)
+    els[1].position, els[1].color = 0.9, (0.45, 0.47, 0.5, 1)
+    mid = els.new(0.55)
+    mid.color = (0.1, 0.105, 0.12, 1)
+    rng = nt.nodes.new("ShaderNodeMapRange")
+    rng.inputs["From Min"].default_value = -1.0
+    rng.inputs["From Max"].default_value = 1.0
+    nt.links.new(sep.outputs["Z"], rng.inputs["Value"])
+    nt.links.new(rng.outputs["Result"], ramp.inputs["Fac"])
+    return ramp.outputs["Color"]
+
+
+def reflections(scene: bpy.types.Scene) -> None:
     """Give a transparent-background shot an environment for metal to reflect."""
-    bg = scene.world.node_tree.nodes["Background"]
-    bg.inputs["Color"].default_value = (*colour, 1)
+    nt = scene.world.node_tree
+    bg = nt.nodes["Background"]
+    nt.links.new(_softbox(nt), bg.inputs["Color"])
     bg.inputs["Strength"].default_value = 1.0
 
 
@@ -156,7 +182,7 @@ def studio(scene: bpy.types.Scene, colour=SITE_BACKGROUND, rim: float = 3.0) -> 
     path = nt.nodes.new("ShaderNodeLightPath")
     mix = nt.nodes.new("ShaderNodeMix")
     mix.data_type = "RGBA"
-    mix.inputs["A"].default_value = (*ENVIRONMENT, 1)  # what shiny surfaces reflect
+    nt.links.new(_softbox(nt), mix.inputs["A"])  # what shiny surfaces reflect
     mix.inputs["B"].default_value = (*colour, 1)
     nt.links.new(path.outputs["Is Camera Ray"], mix.inputs["Factor"])
     nt.links.new(mix.outputs["Result"], bg.inputs["Color"])

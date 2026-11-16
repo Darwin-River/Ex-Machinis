@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
 import re
 import shutil
 import subprocess
@@ -30,7 +31,8 @@ from mathutils import Vector  # noqa: E402
 from exm_render import asteroid, drone, drone_presets, materials, presets, resources, scene, starfield  # noqa: E402
 
 DEFAULT_OUT = HERE / "output"
-SITE_IMAGES = HERE.parents[1] / "html" / "images" / "resources"
+# Where --site writes; EXM_SITE_IMAGES renders a set somewhere else first, to check before copying it in
+SITE_IMAGES = Path(os.environ.get("EXM_SITE_IMAGES", HERE.parents[1] / "html" / "images" / "resources"))
 
 
 def slug(text: str) -> str:
@@ -207,10 +209,10 @@ def render_resource(name: str, args: argparse.Namespace) -> list[Path]:
         rot = args.rotation or resource_rotation(res.id)
         obj.rotation_euler = tuple(math.radians(v) for v in rot)
         bpy.context.view_layer.update()
-        corners = np.array([obj.matrix_world @ Vector(c) for c in obj.bound_box])
+        local = resources.local_points(obj)
+        corners = np.array([obj.matrix_world @ Vector(c) for c in local])
         if args.spin:
             # Frame the cylinder the object sweeps as it turns, so it never leaves the frame.
-            local = np.array([Vector(c) for c in obj.bound_box])
             r = float(np.linalg.norm(local[:, :2], axis=1).max())
             corners = np.array([(r * math.cos(a), r * math.sin(a), z) for a in np.linspace(0, math.tau, 24, endpoint=False)
                                 for z in (local[:, 2].min(), local[:, 2].max())])
