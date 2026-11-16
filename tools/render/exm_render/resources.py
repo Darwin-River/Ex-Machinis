@@ -651,14 +651,16 @@ def find(query: str) -> list[Resource]:
     """Resources matching an id, a name, a slug or a tier (systems, modules, all)."""
     cat = catalogue()
     q = query.strip().lower()
-    renderable = {**SYSTEMS, **MODULES}
-    if q in ("all", "systems", "modules"):
-        return [r for i, r in sorted(cat.items()) if i in renderable and (q == "all" or r.tier + "s" == q)]
+    tiers = {"minerals": "mineral", "materials": "material", "parts": "part", "systems": "system",
+             "modules": "module", "craft": "craft"}
+    if q == "all" or q in tiers:
+        return [r for i, r in sorted(cat.items()) if has_model(i) and (q == "all" or r.tier == tiers[q])]
     if q.isdigit() and int(q) in cat:
         return [cat[int(q)]]
     hits = [r for r in cat.values() if q in (r.slug, r.name.lower(), re.sub(r"\s*\(.*?\)", "", r.name).lower())]
     if not hits:
-        raise SystemExit(f"No resource matches '{query}'. Use an id, a name, 'systems', 'modules' or 'all'.")
+        raise SystemExit(f"No resource matches '{query}'. Use an id, a name, a tier (minerals, materials, parts, "
+                         "systems, modules, craft) or 'all'.")
     return hits
 
 
@@ -671,14 +673,25 @@ def module_builder(name):
 
 
 def build(res: Resource, seed: int = 0):
-    """Build one resource as a standalone object at the origin. Returns it."""
+    """Build one resource at the origin, resting on z = 0. Returns its object.
+
+    Most resources are one mesh. A craft is a whole drone: its root empty
+    is returned, with the parts as children.
+    """
     import bmesh
 
-    from . import materials
+    from . import drone, goods, materials
     from .drone_parts import MATERIAL_SLOTS
 
     rng = np.random.default_rng(res.id + seed)
+    if res.id in goods_craft_ids():
+        root, _ = drone.build(goods.craft(res))
+        root["exm_kind"] = "resource"
+        root["exm_resource_id"] = res.id
+        return root
+
     bm = bmesh.new()
+    looks = []
     if res.id in SYSTEMS:
         SYSTEMS[res.id](bm, rng)
     elif res.id in MODULES:
@@ -686,9 +699,50 @@ def build(res: Resource, seed: int = 0):
         n = span(res.id)
         nodes = [bay * (k - n / 2) for k in range(n + 1)]
         MODULES[res.id](bm, nodes, 1.0, rng, False)
+    elif res.id in goods.MINERALS:
+        fn, looks = goods.mineral(res.id)
+        fn(bm, rng)
+    elif res.tier == "material":
+        fn, looks = goods.material(res)
+        fn(bm, rng)
+    elif res.id in goods.PARTS:
+        fn, look = goods.PARTS[res.id]
+        fn(bm, rng)
+        looks = [("part", look)]
+    elif res.id in goods.KITS:
+        goods.KITS[res.id](bm, rng)
     else:
-        raise SystemExit(f"{res.name} ({res.id}) has no model yet: only systems and modules do so far (#707)")
-    obj = geom.make_object(res.name, bm, materials.hard_surface(MATERIAL_SLOTS))
+        raise SystemExit(f"{res.name} ({res.id}) has no model yet (#707)")
+    mats = materials.hard_surface(MATERIAL_SLOTS)
+    for k in range(2):  # the per-resource slots, C1 and C2
+        name, look = looks[k] if k < len(looks) else (f"unused {k}", dict(colour=(0.5, 0.5, 0.5)))
+        mats.append(materials.custom(f"{res.slug} {name}", **look))
+    obj = geom.make_object(res.name, bm, mats)
     obj["exm_kind"] = "resource"
     obj["exm_resource_id"] = res.id
     return obj
+
+
+def goods_craft_ids() -> set[int]:
+    return {i for i in catalogue() if i // 1000 == 6}
+
+
+def has_model(rid: int) -> bool:
+    from . import goods
+
+    return (rid in SYSTEMS or rid in MODULES or rid in goods.MINERALS or rid // 1000 in (2, 6)
+            or rid in goods.PARTS or rid in goods.KITS)
+
+
+def local_points(obj) -> np.ndarray:
+    """Bounding-box corners of obj and everything under it, in obj's own frame."""
+    inv = obj.matrix_world.inverted()
+    meshes = [obj] if obj.type == "MESH" else []
+    meshes += [c for c in obj.children_recursive if c.type == "MESH" and c.name != "Exhaust"]
+    return np.array([inv @ m.matrix_world @ Vector(c) for m in meshes for c in m.bound_box])
+
+
+# The House stations are modules too, so they mount on drones.
+from .goods import STATIONS  # noqa: E402
+
+MODULES.update(STATIONS)

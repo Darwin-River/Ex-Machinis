@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
 import re
 import shutil
 import subprocess
@@ -30,7 +31,9 @@ from mathutils import Vector  # noqa: E402
 from exm_render import asteroid, drone, drone_presets, materials, presets, resources, scene, starfield  # noqa: E402
 
 DEFAULT_OUT = HERE / "output"
-SITE_IMAGES = HERE.parents[1] / "html" / "images" / "resources"
+# Where --site writes; EXM_SITE_IMAGES renders a set somewhere else first, to check before copying it in
+HEADER_IMAGES = HERE.parents[1] / "html" / "images" / "headers"
+SITE_IMAGES = Path(os.environ.get("EXM_SITE_IMAGES", HERE.parents[1] / "html" / "images" / "resources"))
 
 
 def slug(text: str) -> str:
@@ -79,11 +82,21 @@ def parse(argv: list[str]) -> argparse.Namespace:
     d.add_argument("--firing", action="store_true", help="engines lit, with exhaust plumes")
     d.add_argument("--accent", type=float, nargs=3, metavar=("R", "G", "B"), help="accent paint colour, linear 0..1")
 
+    h = sub.add_parser("header", help="the website's page-header scenes (#737); names are scenes, or 'all'")
+    h.add_argument("names", nargs="*")
+    h.add_argument("--list", action="store_true", help="list the scenes and the pages they head")
+    h.add_argument("--samples", type=int, default=64)
+    h.add_argument("--draft", action="store_true", help="half size and few samples, to check a layout")
+    h.add_argument("--out-dir", type=Path, default=HEADER_IMAGES)
+    h.add_argument("--quality", type=int, default=80, help="WebP quality, 0-100")
+
     r = sub.add_parser("resource", help="in-game resources; names are ids, names, 'systems', 'modules' or 'all'")
     _shot_args(r, phase=40.0, fill_light=0.25, view_elevation=28.0)
     r.set_defaults(sun_elevation=40.0, size="square", background="transparent", fill=0.8)
+    r.add_argument("--thumbs", action="store_true",
+                   help="only remake the resource list's thumbnails (<id>-thumb.webp) from the stills already in html/images/resources")
     r.add_argument("--site", action="store_true",
-                   help="write the resource pages' turntables: html/images/resources/<id>.webp and <id>-still.webp")
+                   help="write the resource pages' turntables: html/images/resources/<id>.webp, <id>-still.webp and <id>-thumb.webp")
     return ap.parse_args(argv)
 
 
@@ -98,6 +111,35 @@ def drone_rotation(seed: int) -> tuple[float, float, float]:
     # away to the left, rolled a little so the top and one side both show.
     rng = np.random.default_rng(seed + 77)
     return (rng.uniform(12, 30), rng.uniform(-6, 6), rng.uniform(135, 155))
+
+
+THUMB_SIZE = 96  # shown at 48 px on the resource list, sharp on high-density screens
+
+
+def thumbnail(still: Path) -> Path:
+    """Make <id>-thumb.webp, the resource list's small picture, from <id>-still.webp.
+
+    It is cropped to the object's outline (plus a little room), so the
+    object fills the thumbnail instead of the turntable's wide margins.
+    """
+    from PIL import Image
+
+    thumb = still.with_name(still.name.replace("-still.webp", "-thumb.webp"))
+    im = Image.open(still).convert("RGBA")
+    box = im.getchannel("A").point(lambda a: 255 if a > 8 else 0).getbbox() or (0, 0, *im.size)
+    cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
+    half = max(box[2] - box[0], box[3] - box[1]) * 0.56
+    square = im.crop((round(cx - half), round(cy - half), round(cx + half), round(cy + half)))
+    square.resize((THUMB_SIZE, THUMB_SIZE), Image.LANCZOS).save(thumb, "WEBP", quality=85)
+    return thumb
+
+
+def make_thumbnails() -> None:
+    """Remake every resource-list thumbnail from the stills in SITE_IMAGES."""
+    stills = sorted(SITE_IMAGES.glob("*-still.webp"))
+    for still in stills:
+        thumbnail(still)
+    print(f"made {len(stills)} thumbnails in {SITE_IMAGES}")
 
 
 def spin(sc, args: argparse.Namespace, obj, out: Path, still: Path) -> None:
@@ -117,6 +159,8 @@ def spin(sc, args: argparse.Namespace, obj, out: Path, still: Path) -> None:
                                  "-lossless", "0", "-quality", str(args.quality), "-loop", "0", str(out)], check=True)
         subprocess.run(common + ["-i", str(Path(tmp) / "f0000.png"), "-frames:v", "1", "-c:v", "libwebp", *alpha,
                                  "-quality", str(args.quality + 10), str(still)], check=True)
+    if getattr(args, "site", False):
+        thumbnail(still)
     obj.rotation_euler.z = base
 
 
@@ -207,10 +251,10 @@ def render_resource(name: str, args: argparse.Namespace) -> list[Path]:
         rot = args.rotation or resource_rotation(res.id)
         obj.rotation_euler = tuple(math.radians(v) for v in rot)
         bpy.context.view_layer.update()
-        corners = np.array([obj.matrix_world @ Vector(c) for c in obj.bound_box])
+        local = resources.local_points(obj)
+        corners = np.array([obj.matrix_world @ Vector(c) for c in local])
         if args.spin:
             # Frame the cylinder the object sweeps as it turns, so it never leaves the frame.
-            local = np.array([Vector(c) for c in obj.bound_box])
             r = float(np.linalg.norm(local[:, :2], axis=1).max())
             corners = np.array([(r * math.cos(a), r * math.sin(a), z) for a in np.linspace(0, math.tau, 24, endpoint=False)
                                 for z in (local[:, 2].min(), local[:, 2].max())])
@@ -218,8 +262,54 @@ def render_resource(name: str, args: argparse.Namespace) -> list[Path]:
     return outs
 
 
+def fade_left(png: Path, out: Path, quality: int, width: float = 0.38) -> None:
+    """Save a header scene as WebP whose left part fades to transparent.
+
+    The page's own header colour then shows through, so the picture blends
+    in with no seam, however wide the window is.
+    """
+    from PIL import Image
+
+    im = Image.open(png).convert("RGBA")
+    w, h = im.size
+    x = np.clip(np.arange(w) / (w * width), 0.0, 1.0)
+    ramp = (x * x * (3 - 2 * x) * 255).astype(np.uint8)  # smoothstep
+    im.putalpha(Image.fromarray(np.tile(ramp, (h, 1))))
+    im.save(out, "WEBP", quality=quality, alpha_quality=80)
+
+
+def header_names() -> list[str]:
+    from exm_render import scenes
+
+    return [f"{s.name:12s} {s.pages}" for s in scenes.SCENES.values()]
+
+
+def render_header(name: str, args: argparse.Namespace) -> Path:
+    from exm_render import scenes
+
+    if name not in scenes.SCENES:
+        raise SystemExit(f"Unknown scene '{name}'. Known: {', '.join(scenes.SCENES)}")
+    sc = scenes.build(scenes.SCENES[name])
+    sc.cycles.samples = 16 if args.draft else args.samples
+    sc.render.resolution_percentage = 50 if args.draft else 100
+    sc.render.image_settings.file_format = "PNG"
+    sc.render.image_settings.color_mode = "RGB"
+    args.out_dir.mkdir(parents=True, exist_ok=True)
+    out = args.out_dir / f"{name}{'-draft' if args.draft else ''}.webp"
+    with tempfile.TemporaryDirectory() as tmp:
+        png = Path(tmp) / "frame.png"
+        sc.render.filepath = str(png)
+        bpy.ops.render.render(write_still=True)
+        fade_left(png, out, args.quality)
+    print(f"wrote {out}")
+    return out
+
+
 def main(argv: list[str]) -> None:
     args = parse(argv)
+    if getattr(args, "thumbs", False):
+        make_thumbnails()
+        return
     if getattr(args, "site", False):
         args.out_dir = SITE_IMAGES
         args.spin = args.spin or 40
@@ -232,11 +322,16 @@ def main(argv: list[str]) -> None:
         "asteroid": (presets.all_names, render_asteroid),
         "drone": (drone_presets.all_names, render_drone),
         "resource": (lambda: [f"{r.id}  {r.name}" for r in resources.find("all")], render_resource),
+        "header": (header_names, render_header),
     }[args.kind]
     if args.list or not args.names:
         print("\n".join(names()))
         return
-    if args.out and len(args.names) > 1:
+    if args.kind == "header" and args.names == ["all"]:
+        from exm_render import scenes
+
+        args.names = list(scenes.SCENES)
+    if getattr(args, "out", None) and len(args.names) > 1:
         raise SystemExit("--out takes one name; use --out-dir for several")
     for name in args.names:
         render(name, args)

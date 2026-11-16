@@ -137,7 +137,7 @@ Your account is you in the game: it owns your seedlings and your shares, and it 
 - **A password** of at least 8 characters.
 - **An e-mail address.** It is private: only you see it, and it is used only to verify your account. One account per address.
 
-We send a link to the address, good for 2 real days. Opening it **verifies** your account and brings it its **5,000 starting credits**. They can only buy shares, and only at or below the bank's selling price (see [Chapter 7](#chapter-7-maturing-and-shares)). Your account must be verified before you can mature a seedling. Lost the link? The account page sends it again.
+We send an e-mail to the address with a **Verify my account** button, good for 2 real days (the link is there as text too). Opening it **verifies** your account and brings it its **5,000 starting credits**. They can only buy shares, and only at or below the bank's selling price (see [Chapter 7](#chapter-7-maturing-and-shares)). Your account must be verified before you can mature a seedling. Lost the link? The account page sends it again.
 
 Your account also has **credits** of its own: what your shares earn you, from dividends and from selling them. They buy shares at any price within the range players trade in.
 
@@ -418,7 +418,7 @@ The **ones** value is used to distinguish between the size and tech level of a p
 
 ### Browsing the Resource Catalog
 
-You can browse and search the available resources online by going to the **Resources** page (`/resources` on the game's website). The catalog provides a filterable list of all the resources in the game along with their unique ID, a brief description of the item, and a unit mass in kilograms. Clicking on a particular resource will take you to a details page, which lists all of the item's active buy or sell orders. Systems and modules also have a picture there that slowly turns, so you can see what you are making or buying. If your device is set to reduce motion, the picture stays still.
+You can browse and search the available resources online by going to the **Resources** page (`/resources` on the game's website). The catalog provides a filterable list of all the resources in the game along with a small picture, their unique ID, a brief description of the item, and a unit mass in kilograms. Clicking on a particular resource will take you to a details page, which lists all of the item's active buy or sell orders. Every resource also has a picture there that slowly turns, from ore samples and ingots to whole craft, so you can see what you are mining, making or buying. If your device is set to reduce motion, the picture stays still.
 
 ## Chapter 4: Issuing Commands
 

@@ -2,7 +2,7 @@
 
 Scripts that build Ex Machinis objects in Blender and render them for the website. Every model is generated from parameters and a seed, so the same command always produces the same picture, and a new seed gives a new variation.
 
-The toolkit can make asteroids and comet nuclei (#705), uncrewed drones (#706), and the game's systems and modules (#707). Models for minerals, materials, parts and craft will follow under #707.
+The toolkit can make asteroids and comet nuclei (#705), uncrewed drones (#706), a model of every resource in the game (#707), and planets, moons and the wide scenes behind the website's page headers (#737).
 
 ## Setup
 
@@ -61,17 +61,21 @@ Every side part is built in its own frame: the origin sits in the middle of the 
 .venv/bin/python render.py resource --list
 .venv/bin/python render.py resource 5201
 .venv/bin/python render.py resource smelter "chemical reactor" gyroscopes
-.venv/bin/python render.py resource modules --size thumb
+.venv/bin/python render.py resource minerals --size thumb
 .venv/bin/python render.py resource all --background studio
 ```
 
-The resource list comes from `game-engine/sql/game_data.sql`, so ids and names always match the game. A name can be an id, the resource's name with or without its grade (`Smelter (A1)` or `smelter`), or `systems`, `modules` or `all`. Files are named `<id>-<name>-<size>.png`, e.g. `5201-smelter-square.png`.
+The resource list comes from `game-engine/sql/game_data.sql`, so ids and names always match the game. A name can be an id, the resource's name with or without its grade (`Smelter (A1)` or `smelter`), or a tier: `minerals`, `materials`, `parts`, `systems`, `modules`, `craft`, or `all`. Files are named `<id>-<name>-<size>.png`, e.g. `5201-smelter-square.png`.
 
 - **Systems** (4101–4501): the 22 components, such as bores, gyroscopes, lasers, computers, pumps, thrusters, batteries and reactors. Each is a standalone object.
 - **Modules** (5001–5821): the 32 working machines, such as the engine, shuttle, miners (Slug, Crawler, Skimmer, Worm), smelter, refinery, bioreactor, greenhouse, fabricators (lathe, roller, press ...), robots (Spider, Welder, Riveter), weapons, munitions, armour and the shield generator. Each module stands on the standard mounting pallet, so it bolts onto a drone exactly as it is pictured.
-- **Not yet modelled:** minerals, materials, parts, kits and craft. The command says so if you ask for one.
+- **Minerals** (1000–1430): ore samples. Each mineral has its own crystal colour, habit (prisms, needles, cubes, plates, rounded masses or blades) and lustre, on host rock that matches where it is found: dark basalt for planets, pale rock for moons, carbon-black for asteroids, dusty ice for comets, icy grit for rings.
+- **Materials** (2011–2061): ingots for metals, billets for alloys, powder bins for inorganics, drums for organics, spools for polymers, and cryogenic tanks for fuel. Rarer grades look richer, and a label carries one, two or three stripes for A1, A2 or A3.
+- **Parts** (3001–3331): a stack, bundle, coil or tray of each.
+- **Kits** (5901, 5902): packed cargo crates of foil-wrapped bundles. **House stations** (5911, 5921) are modules: a cargo lift and a launcher.
+- **Craft** (6001–6231): Mining, Industrial and Defense craft as Cruiser, Cutter, Frigate or Barge. Each is a drone of that size carrying its role's own modules; a Barge, being stationary, has no engines.
 
-Resource shots use a catalogue look: a square frame, a three-quarter view from above, key, fill and rim lights, and a soft environment for metal to reflect. The background is transparent, so a picture sits on any page; use `--background studio` for a flat backdrop close to the site's colour.
+Resource shots use a catalogue look: a square frame, a three-quarter view from above, key, fill and rim lights, and a softbox environment (dark below, bright overhead) so metal has something to reflect. The background is transparent, so a picture sits on any page; use `--background studio` for a flat backdrop close to the site's colour.
 
 ### Turntables for the resource pages
 
@@ -82,7 +86,9 @@ Each resource page shows its system or module slowly turning: an animated WebP, 
 .venv/bin/python render.py resource 5201 --site
 ```
 
-`--site` writes `html/images/resources/<id>.webp` (one full turn, 40 frames at 10 a second, 400×400, transparent) and `<id>-still.webp`, which the page picks up by itself. Each turntable is about 200 KB and takes about a minute to render; all 54 take about an hour. Commit the new files with the change that needed them. The page shows no picture for a resource without one.
+`--site` writes `html/images/resources/<id>.webp` (one full turn, 40 frames at 10 a second, 400×400, transparent) and `<id>-still.webp`, which the page picks up by itself. Each turntable is about 200 KB and takes a minute or two to render; all 121 take about three hours. Commit the new files with the change that needed them. The page shows no picture for a resource without one.
+
+It also writes `<id>-thumb.webp`, a 96×96 still cropped to the object, for the resource list's thumbnails (shown at 48 px). `render.py resource --thumbs` remakes every thumbnail from the stills already there, without rendering.
 
 `--spin FRAMES` makes a turntable of any resource at any size, with `--fps` and `--quality` (WebP, 0–100). It needs `ffmpeg`.
 
@@ -97,6 +103,24 @@ Mount(5131, 1, "bottom", span=2)  # Worm (A1)
 ```
 
 The `mining-kit-1` and `factory-kit-1` drone presets are built this way from the modules the game's starter kits contain.
+
+## Rendering page-header scenes
+
+```bash
+.venv/bin/python render.py header --list
+.venv/bin/python render.py header market --draft
+.venv/bin/python render.py header all
+```
+
+Every page header on the website shows a wide space scene behind its title (#737). There are nine scenes, one for each part of the site (`render.py header --list` says which pages each heads): Market, Resources, Spacecraft, Locations, Companies, Learn, About, Account, and a default for any other page. `resources/views/components/page-header.blade.php` maps a page's address to its scene.
+
+`header all` writes `html/images/headers/<scene>.webp`, 2400×480, with the left part fading to transparent so the header's own colour shows through behind the title. `--draft` renders at half size with few samples, to check a layout quickly; a full scene takes a few minutes.
+
+Scenes are lists of elements in `exm_render/scenes.py`, placed by where they appear in the frame (across and up, from -1 to 1), their distance, and their size as a fraction of the frame's half-height. Elements can be planets, moons, asteroids, a field of small rocks, or drones (any drone preset, optionally firing). Keep subjects on the right half: the title sits on the left.
+
+### Planets
+
+`exm_render/planet.py` makes planets with a shader-only surface, so they stay sharp at any size: gas giants with turbulent bands, ocean worlds with continents, shallow seas and ice caps, dry rocky worlds, cracked ice worlds, and lava worlds with glowing rifts. Each can have a cloud layer, an atmosphere that glows on the sunlit limb, banded rings that cast shadows, an axial tilt and a polar flattening. Moons are near-round asteroids, so they get the asteroid generator's craters.
 
 ## Shot options
 
@@ -133,6 +157,8 @@ On four CPU cores, a `preview` draft takes about 5 seconds. A full-size `hero` r
 - `exm_render/presets.py` holds the named asteroid presets and the lookup into `bodies.csv`.
 - `exm_render/geom.py` is a small hard-surface kit (struts, boxes, lathed shapes, clamp rings). `drone.py` builds the truss and places parts, `drone_parts.py` holds the parts, and `materials.hard_surface` holds the paint, foil, metal, solar-cell and glow materials.
 - Each drone part is its own object in the `.blend` file, parented to the drone, so it can be edited or swapped in Blender.
+- `exm_render/planet.py` makes planets and moons; `exm_render/scenes.py` composes the page-header scenes.
+- `exm_render/goods.py` holds minerals, materials, parts, kits, the House stations and craft, with two per-resource material slots for each resource's own colours.
 - `exm_render/kit.py` holds machine assemblies (housings, pressure vessels, pipe runs, robot arms, turrets, legs, treads, coils). `exm_render/resources.py` reads the resource list and maps each system and module id to its builder.
 
 To add an asteroid preset, add an entry to `PRESETS` in `presets.py`; every parameter is documented in `AsteroidParams` in `asteroid.py`. To add a drone, add a `DroneParams` to `PRESETS` in `drone_presets.py`; to add a part, write a function in `drone_parts.py` that follows the mounting standard and list it in `SIDE_PARTS`. To add a resource model, write a builder in `resources.py` (a system takes `bm, rng`; a module follows the mounting standard) and add it to `SYSTEMS` or `MODULES` under its id.

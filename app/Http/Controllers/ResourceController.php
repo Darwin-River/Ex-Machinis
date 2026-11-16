@@ -18,7 +18,12 @@ class ResourceController extends Controller
      */
     public function index()
     {
-        $resources = Resource::orderBy('id', 'asc')->get();
+        // Each with its thumbnail, when it has one (#707): html/images/resources/<id>-thumb.webp,
+        // made by tools/render with its resource page's turntable
+        $resources = Resource::orderBy('id', 'asc')->get()->each(function ($resource) {
+            $thumb = 'images/resources/' . $resource->id . '-thumb.webp';
+            $resource->setAttribute('thumb', is_file(public_path($thumb)) ? url($thumb) : null);
+        });
         return view('resources.index', compact('resources'));
     }
 

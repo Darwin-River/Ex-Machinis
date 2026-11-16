@@ -316,3 +316,29 @@ def exhaust() -> bpy.types.Material:
     nt.links.new(add.outputs["Shader"], out.inputs["Surface"])
     mat.surface_render_method = "BLENDED"
     return mat
+
+
+def custom(name: str, colour, metallic: float = 0.0, roughness: float = 0.5, transmission: float = 0.0,
+           emission: float = 0.0, bump: float = 0.0, coat: float = 0.0) -> bpy.types.Material:
+    """A one-off material for a single resource: a mineral's crystals, a metal's ingots."""
+    mat, nt, b = _principled(name, colour, metallic, roughness)
+    if transmission:
+        b.inputs["Transmission Weight"].default_value = transmission
+        b.inputs["IOR"].default_value = 1.55
+    if emission:
+        b.inputs["Emission Color"].default_value = (*colour, 1.0)
+        b.inputs["Emission Strength"].default_value = emission
+    if coat:
+        b.inputs["Coat Weight"].default_value = coat
+    if bump:
+        coord = nt.nodes.new("ShaderNodeTexCoord")
+        tex = nt.nodes.new("ShaderNodeTexNoise")
+        tex.inputs["Scale"].default_value = 40.0
+        tex.inputs["Detail"].default_value = 8.0
+        nt.links.new(coord.outputs["Object"], tex.inputs["Vector"])
+        bn = nt.nodes.new("ShaderNodeBump")
+        bn.inputs["Strength"].default_value = bump
+        nt.links.new(tex.outputs["Fac"], bn.inputs["Height"])
+        nt.links.new(bn.outputs["Normal"], b.inputs["Normal"])
+        _grime(nt, b, 0.25 * bump)
+    return mat

@@ -35,10 +35,25 @@ class ResourcePictureTest extends TestCase
         $this->get('/resources/' . $bare)->assertOk()->assertDontSee('resource-picture');
     }
 
+    public function testTheResourceListShowsThumbnails()
+    {
+        DB::table('resources')->insertOrIgnore(['id' => 5201, 'name' => 'Smelter (A1)',
+            'description' => 'A high temperature furnace for melting and mixing metals', 'mass' => 70]);
+        $bare = DB::table('resources')->pluck('id')
+            ->first(fn ($id) => !is_file(public_path("images/resources/$id-thumb.webp")));
+
+        // The list is a Vue table fed with JSON: a thumbnail for a resource with one, null for one without
+        $this->get('/resources')->assertOk()
+            ->assertSee('images\\/resources\\/5201-thumb.webp', false)
+            ->assertSee('&quot;id&quot;:' . $bare . ',', false);
+        $list = $this->get('/resources')->getContent();
+        $this->assertMatchesRegularExpression('/&quot;id&quot;:' . $bare . ',[^}]*&quot;thumb&quot;:null/', $list);
+    }
+
     public function testEveryTurntableHasAStillAndAResource()
     {
         $pictures = glob(public_path('images/resources/*.webp'));
-        $turntables = array_filter($pictures, fn ($p) => !str_ends_with($p, '-still.webp'));
+        $turntables = array_filter($pictures, fn ($p) => !str_ends_with($p, '-still.webp') && !str_ends_with($p, '-thumb.webp'));
         $this->assertNotEmpty($turntables);
         // The resource ids in the game data's resources table
         $sql = file_get_contents(base_path('game-engine/sql/game_data.sql'));
@@ -51,6 +66,7 @@ class ResourcePictureTest extends TestCase
             $this->assertMatchesRegularExpression('/^\d+$/', $id, "$file is named by a resource id");
             $this->assertContains((int) $id, $known, "$file is a resource in the game data");
             $this->assertFileExists(public_path("images/resources/$id-still.webp"));
+            $this->assertFileExists(public_path("images/resources/$id-thumb.webp"));
         }
     }
 }
