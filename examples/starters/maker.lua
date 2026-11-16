@@ -1,5 +1,5 @@
--- Maker: a starter script for Public Forge, in Lua (#380). It equips itself with
--- the Factory Kit (Engine, Smelter, Chemical Reactor and Spider).
+-- Maker: a starter script for Ex Machinis, in Lua. It equips itself with the
+-- Factory Kit (Engine, Smelter, Chemical Reactor and Spider).
 -- It buys Metals (A1) at the Moon wherever they are cheapest (as a seedling,
 -- from the House where a batch costs least, counting the trip and its
 -- tenth-a-day cap), makes them
@@ -26,7 +26,11 @@ grow_until = 0     -- game day after which it launches no more copies (0: no
                    -- its cost, so in a contest set this ~20 days before the
                    -- end (#512: a copy launched on day 47 of 60 lost 2,100)
 batch = 20         -- metals it buys at a time
-cash_floor = 300   -- credits it keeps (for fuel)
+cash_floor = 300   -- credits it keeps for fuel when its tank is low
+low_floor = 60     -- credits it keeps when its tank is full enough (#740:
+                   -- with 300 kept, a broke maker with no metals or rods
+                   -- waited for good)
+metals_per_rod = 2 -- Metals (A1) in a rod (two make an alloy, an alloy a rod)
 invest_above = 3000 -- credits above this go into other companies' shares
 invest_days = 30   -- pays up to this many days of a share's income
 invest_cap = 1500  -- credits it puts into shares in all (0: never invests)
@@ -39,10 +43,15 @@ function refuel()
   end
 end
 
--- Credits above cash_floor
-function spare() return math.max(credits() - cash_floor, 0) end
+-- Credits above what it keeps: cash_floor when its tank is low, low_floor
+-- otherwise (#740)
+function spare()
+  local keep = units(fuel) < low_fuel and cash_floor or low_floor
+  return math.max(credits() - keep, 0)
+end
 
--- Metals for a batch, as many as the spare credits pay for (at most 30 a unit)
+-- Metals for a batch, as many as the spare credits pay for at the price there
+-- (#740: it assumed at most 30 a unit, and at Mars, at 57, every buy failed)
 -- A seedling buys only from the House, and at most a tenth of what it has on
 -- sale at an exchange in a game day (-17). So it asks house_supply() where
 -- the House sells metals and picks the place where a unit costs least: the
@@ -52,7 +61,7 @@ function spare() return math.max(credits() - cash_floor, 0) end
 -- cheaper ones). It waits for the next day only when none sells any (#671)
 capped_at = {}
 function metals_place()
-  local best, best_each = nil, math.huge
+  local best, best_each, best_price = nil, math.huge, 0
   for _, h in ipairs(house_supply(metals_a1)) do
     local n = math.min(batch, h.on_sale // 10)   -- what its cap lets it buy there today
     if h.price > 0 and n >= 2 and capped_at[h.place] ~= today() then
@@ -62,8 +71,18 @@ function metals_place()
         trip = 30 + (t and t.hours * 2 or 0) * 10   -- 10 fuel at about 3, and the hours there and back
       end
       local each = h.price + trip / n
-      if each < best_each then best, best_each = h.place, each end
+      if each < best_each then best, best_each, best_price = h.place, each, h.price end
     end
+  end
+  return best, best_each, best_price
+end
+
+-- The best House bid for rods anywhere that still buys, less the 5% sales
+-- tax: what a rod made now will fetch at least (0 when none bids)
+function rod_value()
+  local best = 0
+  for _, d in ipairs(house_demand(rods)) do
+    if d.price > 0 and d.left > 0 then best = math.max(best, d.price * 95 // 100) end
   end
   return best
 end
@@ -76,10 +95,18 @@ function stock_up()
     wait(120)
     return
   end
+  local price = buy_price(metals_a1)
   if house_only() then
-    local best = metals_place()
+    local best, each, at = metals_place()
     if not best then
       set_status("no metals on sale from the House: waiting for tomorrow's")
+      wait(240)
+      return
+    end
+    -- Rods must pay for their metals (#740: Mars's rod bid fell to 56 while
+    -- its metals cost 57, two to a rod, and a seedling made rods at a loss)
+    if each * metals_per_rod >= rod_value() then
+      set_status("rods pay less than their metals (" .. math.floor(each * metals_per_rod) .. "): waiting")
       wait(240)
       return
     end
@@ -87,8 +114,10 @@ function stock_up()
       set_status("buying metals at " .. place_name(best))
       go(best)
     end
+    price = at
   end
-  local n = math.min(batch, spare() // 30)
+  if price <= 0 then price = 30 end
+  local n = math.min(batch, spare() // price)
   if n > 0 then
     if buy_here(n, metals_a1) == -17 then capped_at[location()] = today() end
     wait(60)
