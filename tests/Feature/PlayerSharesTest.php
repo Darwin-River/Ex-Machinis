@@ -115,6 +115,42 @@ class PlayerSharesTest extends TestCase
         $this->assertSame(PlayerShares::prices($id)['buys_at'] + 200, PlayerShares::prices($id)['sells_at']);
     }
 
+    /** #766: a pegged order follows the bank's price, and trades when a move makes it meet another */
+    public function testPeggedOrdersFollowTheBank()
+    {
+        $owner = $this->player('Peg Seller');
+        $id = $this->matured($owner, 'Peg Co', 100000);
+        $p = PlayerShares::prices($id);
+        // A sell pegged 5% over what the bank sells at
+        $r = PlayerShares::order($owner, $id, 'sell', 10, 0, ['ref' => 'sells_at', 'offset_bp' => 500]);
+        $this->assertTrue($r['ok']);
+        $this->assertSame(PlayerShares::pegPrice($p, 'sells_at', 500), $r['price']);
+        $book = PlayerShares::book($id)['sell'][0];
+        $this->assertSame(['sells_at', 5.0], [$book['peg'], $book['offset_percent']]);
+        // Out of bounds
+        $this->assertSame(422, PlayerShares::order($owner, $id, 'sell', 1, 0, ['ref' => 'sells_at', 'offset_bp' => 3000])['status']);
+        $this->assertSame(422, PlayerShares::order($owner, $id, 'sell', 1, 0, ['ref' => 'cash', 'offset_bp' => 0])['status']);
+
+        // A buyer bids a fixed price under it: no trade
+        $buyer = $this->player('Peg Buyer');
+        DB::table('users')->where('user_id', $buyer->user_id)->update(['credits' => 100000]);
+        $bid = $p['sells_at'];
+        $this->assertSame(0, PlayerShares::order($buyer, $id, 'buy', 4, $bid)['traded']);
+        // The company runs down: cash-out falls, the pegged sell moves down to meet the bid, and trades
+        DB::table('companies')->where('company_id', $id)->update(['credits' => 90000]);
+        $this->assertGreaterThanOrEqual(1, PlayerShares::repeg());
+        $this->assertSame(4, PlayerShares::held((int) $buyer->user_id, $id));
+        $left = DB::table('player_share_orders')->where('company_id', $id)->where('side', 'sell')->first();
+        $this->assertSame(6, (int) $left->units);
+        $this->assertSame('sells_at', $left->peg_ref);
+        $this->assertSame(PlayerShares::pegPrice(PlayerShares::prices($id), 'sells_at', 500), (int) $left->price);
+        // Nothing moves when nothing changed
+        $this->assertSame(0, PlayerShares::repeg());
+        // The API takes a peg
+        $this->withHeaders(['Authorization' => 'Bearer ' . Players::issueToken($owner)])->postJson('/api/v1/player-shares/' . $id . '/orders', ['side' => 'sell', 'units' => 1, 'peg' => 'buys_at', 'offset_percent' => 2.5])
+            ->assertOk()->assertJsonPath('standing', 1);
+    }
+
     /** #757: a dissolving company's payment waits, and is 0 if it ends; the bank doesn't sell its shares */
     public function testTheBankDoesntPayForACompanyThatEnds()
     {

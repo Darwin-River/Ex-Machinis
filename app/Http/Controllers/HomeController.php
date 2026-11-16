@@ -98,7 +98,12 @@ class HomeController extends Controller
     {
         $this->requireCronKey($key);
         @set_time_limit(600);
-        return response()->json(\App\Services\Kept::keepAll());
+        $done = \App\Services\Kept::keepAll();
+        // Pegged share orders follow the bank's prices (#766)
+        if (config('forge.new_rules')) {
+            $done['pegged_orders_moved'] = \App\Services\PlayerShares::repeg();
+        }
+        return response()->json($done);
     }
 
     /** Where the players' manual and its images live */

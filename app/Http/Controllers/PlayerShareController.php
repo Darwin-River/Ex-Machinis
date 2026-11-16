@@ -57,10 +57,13 @@ class PlayerShareController extends Controller
         if (!$user = $this->webPlayer()) {
             return redirect('/login');
         }
-        if ($e = self::notWhole($request)) {
+        // A pegged order from the company page's form (#766)
+        $peg = in_array($request->input('peg'), PlayerShares::PEGS, true)
+            ? ['ref' => $request->input('peg'), 'offset_bp' => (int) round((float) $request->input('offset_percent', 0) * 100)] : null;
+        if ($peg === null && ($e = self::notWhole($request))) {
             return back()->with('error', $e);
         }
-        $r = PlayerShares::order($user, $id, (string) $request->input('side'), (int) $request->input('units'), (int) $request->input('price'));
+        $r = PlayerShares::order($user, $id, (string) $request->input('side'), (int) $request->input('units'), (int) $request->input('price'), $peg);
         return $this->back($r, $r['ok'] ? $r['traded'] . ' shares traded now' . ($r['standing'] ? ', and an order for '
             . $r['standing'] . ' more stands.' : '.') : '');
     }
@@ -137,6 +140,15 @@ class PlayerShareController extends Controller
         $user = $this->apiPlayer($request);
         if (!$user) {
             return $this->unauthorized();
+        }
+        // A pegged order (#766): peg (buys_at or sells_at) and offset_percent in place of price
+        if ($request->filled('peg')) {
+            $offset = $request->input('offset_percent', 0);
+            if (!is_numeric($offset) || self::whole($request, 'units') < 1) {
+                return response()->json(['error' => 'A pegged order is a whole number of shares, at least 1, with peg (buys_at or sells_at) and offset_percent, a number.'], 422);
+            }
+            return $this->json(PlayerShares::order($user, $id, (string) $request->input('side'), self::whole($request, 'units'), 0,
+                ['ref' => (string) $request->input('peg'), 'offset_bp' => (int) round((float) $offset * 100)]));
         }
         if ($e = self::notWhole($request)) {
             return response()->json(['error' => $e], 422);
