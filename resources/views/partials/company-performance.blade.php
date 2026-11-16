@@ -108,7 +108,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const first = days ? Math.max(born, last - days + 1) : born;
         const o = {first, last, L, marks: P.marks};
         const inRange = (r) => r.day >= first && r.day <= last;
-        const hist = P.history.filter(inRange), earn = P.earnings.filter(inRange);
+        // A day the world stood still (an outage mark) is left out of the
+        // earnings and their average, so the chart shows a gap under the
+        // outage's band, as the lines do, not a flat zero (#742)
+        const stopped = (d) => (P.marks || []).some((m) => m.kind === 'outage' && d >= m.day && d <= (m.to_day ?? m.day));
+        const hist = P.history.filter(inRange), earn = P.earnings.filter((r) => inRange(r) && !stopped(r.day));
+        const skipped = P.earnings.filter((r) => inRange(r) && stopped(r.day)).length;
 
         X.lines($('perf-wealth'), [
             {name: 'Net wealth', colour: C[0], points: hist.map((r) => ({day: r.day, v: r.net_wealth}))},
@@ -142,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function () {
             {sales: 0, purchases: 0, dividends: 0});
         $('ce-total').textContent = earn.length ? `Over these ${earn.length} game days: sales after tax ${X.num(s.sales)}, spent on goods `
             + `${X.num(s.purchases)}, profit ${X.num(s.sales - s.purchases)} (${X.num((s.sales - s.purchases) / earn.length)} a day); `
-            + `dividends paid ${X.num(s.dividends)}.` : '';
+            + `dividends paid ${X.num(s.dividends)}.` + (skipped ? ` (${skipped} game ${skipped === 1 ? 'day' : 'days'} of outage left out.)` : '') : '';
 
         if ($('perf-div')) {
             let run = 0;
