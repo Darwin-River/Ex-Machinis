@@ -20,6 +20,9 @@ use Illuminate\Support\Facades\DB;
  */
 class Dashboard
 {
+    /** Real seconds behind the clock after which a kept page says it is old (#738) */
+    public const STALE_REAL_SECONDS = 600;
+
     /** Real seconds after which a view starts a rebuild of the dashboard */
     public const TTL = 120;
 
@@ -49,16 +52,20 @@ class Dashboard
 
     /**
      * How far behind the world's clock figures worked out at game time $at
-     * are, as a note for the page, or null when they are under a game day
-     * old (#738)
+     * are, as a note for the page, or null when they are under
+     * STALE_REAL_SECONDS of real time (or a game day) old (#738)
      */
     public static function staleNote(?int $at): ?string
     {
         if ($at === null) {
             return null;
         }
+        // Old: more than STALE_REAL_SECONDS of real time behind, or a game
+        // day when the clock runs slow (#738: at 1,800x a rebuild every two
+        // real minutes is 2.5 game days, and a game day's threshold always warned)
+        $scale = (float) (DB::table('game_clock')->where('id', 1)->value('scale') ?? 1);
         $behind = World::gameNow() - $at;
-        if ($behind < 86400) {
+        if ($behind < max(86400, self::STALE_REAL_SECONDS * $scale)) {
             return null;
         }
         $days = (int) floor($behind / 86400);
