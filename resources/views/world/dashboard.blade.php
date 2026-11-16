@@ -35,7 +35,7 @@
         <div class="container" id="container">
             <p class="mh-intro">Is the market busy, are the companies making money, what is traded where, and who is
                 winning. Worked out from the same data as the <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/api.md">API</a>
-                (<code>GET /api/v1/dashboard</code>) once a minute. As of {{ $dash['as_of'] }}.</p>
+                (<code>GET /api/v1/dashboard</code>) every few real minutes. As of {{ $dash['as_of'] }} ({{ \App\Services\Dashboard::agoText($dash['as_of_t'] ?? null) }}).</p>
 
             @include('partials.dashboard-strip', ['dash' => $dash, 'dashLink' => false])
             @include('partials.ex-charts')
@@ -145,7 +145,9 @@
         const X = window.ExCharts, D = @json($dash), M = @json($marks), $ = (id) => document.getElementById(id), C = X.COLOURS;
 
         // Credits traded by place: each place keeps its colour; "Elsewhere" is grey
-        const placeColour = D.trading.places.map((p, i) => p === 'Elsewhere' ? X.GREY : C[i % C.length]);
+        // One colour for each place, the same on every page (#760: they went by rank, and swapped between reloads)
+        const PLACES = @json(\App\Services\World::PLACE_COLOURS);
+        const placeColour = D.trading.places.map((p, i) => p === 'Elsewhere' ? X.GREY : (PLACES[p] || C[(i + 5) % C.length]));
         X.legend($('dash-trading-legend'), D.trading.places.map((p, i) => ({name: p, colour: placeColour[i]})));
         const trading = () => X.stacked($('dash-trading'), D.trading.days.map((d) => ({day: d.day, values: D.trading.places.map((p) => d.by_place[p] || 0)})),
             D.trading.places.map((p, i) => ({name: p, colour: placeColour[i]})),

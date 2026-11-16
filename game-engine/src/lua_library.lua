@@ -232,10 +232,13 @@ local function buy_here(n, resource, max_price)
   -- each pull of fuel burned a fuel, so it bought none). Fuel never goes
   -- below 5 a pull, whatever it asked for: a pull of 1 nets nothing
   local least = resource == fuel and 5 or 1
-  local cap
+  local cap, room
   if only then
     for _, h in ipairs(ask(707, resource)) do      -- house_supply: place, price, on_sale...
-      if h[1] == location() then cap = math.max(least, h[3] // 10 - bought_today(resource)) end
+      if h[1] == location() then
+        room = h[3] // 10 - bought_today(resource)   -- what its cap leaves it today
+        cap = math.max(least, room)
+      end
     end
   end
   while n > 0 and tries < 6 do
@@ -248,7 +251,14 @@ local function buy_here(n, resource, max_price)
     local take = math.max(math.min(n, avail, cap or avail), math.min(least, avail))
     tries = tries + 1
     local r = pull(take, resource, seller)
-    if r == 0 then n = n - take; result = 0; if only then note_bought(resource, take) end
+    if r == 0 then
+      n = n - take; result = 0
+      if only then
+        note_bought(resource, take)
+        -- Its cap used up: no pull past it (#760: each call ended with one
+        -- refused pull, a game hour lost)
+        if room then room = room - take; if room < least then break end end
+      end
     elseif r == -17 and take > least then cap = math.max(least, take // 2); failed = r   -- over a seedling's daily cap: halve it
     else refused[seller] = true; failed = r end
   end
@@ -858,13 +868,19 @@ local function equip(kit)
       -- game minute wasn't always long enough)
       wait(60)
       if missing_tool(kit) == lacks then
-        if not said then
-          print("equip: tool " .. lacks .. " of kit " .. kit .. " is missing: buying the kit here, or at Earth")
-          said = true
-        end
+        -- It says so only when it acts: buys a kit, or sets off for Earth
+        -- (#760: round 72's drones said a tool was missing while they held
+        -- it, and did nothing)
         buy_here(1, kit)
-        if units(kit) == 0 then
-          if location() ~= earth then go(earth) else wait(60) end
+        if units(kit) > 0 then
+          if not said then print("equip: tool " .. lacks .. " of kit " .. kit .. " was missing: bought the kit here") end
+          said = true
+        elseif location() ~= earth then
+          if not said then print("equip: tool " .. lacks .. " of kit " .. kit .. " is missing: flying to Earth for the kit") end
+          said = true
+          go(earth)
+        else
+          wait(60)
         end
       end
     end

@@ -19,7 +19,7 @@
                     shares. The bank buys them at their cash-out value (paid {{ config('forge.bank_pay_days') }} game days later at the
                     lower of that value and the value then) and sells the ones it holds at its selling price; players trade between
                     the range's prices. Trade on a company's page, or through the API.
-                    <span class="text-muted">As of {{ \App\Services\DronePage::when($asOf ?? \App\Services\World::gameNow()) }}; worked out again each minute.</span></div>
+                    <span class="text-muted">As of {{ \App\Services\DronePage::when($asOf ?? \App\Services\World::gameNow()) }} ({{ \App\Services\Dashboard::agoText($asOf ?? null) }}); worked out again every few real minutes.</span></div>
                 @php($stale = \App\Services\Dashboard::staleNote($asOf ?? null))
                 @if($stale)<div class="econ-banner econ-warn" id="shares-stale" role="status">{{ $stale }}</div>@endif
                 {{-- One row a company (#699): what a share is worth, what it pays, what players paid, and its health --}}

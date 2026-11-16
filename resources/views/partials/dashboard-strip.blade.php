@@ -59,6 +59,6 @@
             <div class="econ-d">{{ $signed($t['players']['new_this_week']) }} joined in the last 7 real days</div></div>
     </div>
     @if($dashLink ?? false)
-        <p><a href="{{ url('dashboard') }}">See the whole economy</a> &middot; <span class="text-muted">as of {{ $dash['as_of'] }}, updated each minute</span></p>
+        <p><a href="{{ url('dashboard') }}">See the whole economy</a> &middot; <span class="text-muted">as of {{ $dash['as_of'] }} ({{ \App\Services\Dashboard::agoText($dash['as_of_t'] ?? null) }}), worked out again every few real minutes</span></p>
     @endif
 </div>

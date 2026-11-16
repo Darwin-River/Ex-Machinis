@@ -136,13 +136,15 @@
                     <h2>What if it goes wrong? <span class="fs-time">1 minute</span></h2>
                     <p>Push a fix. On its company page, <b>Push new code</b> takes your edited script to its drones at the speed
                         of light; it starts over on it, keeping its hold and its place. The first push is free, each after it adds
-                        {{ $n($seedling['push_fee']) }} to the debt. For example, the Miner sells its metals where the House pays most
-                        after the trip there. If the <a href="{{ url('market') }}">Market board</a> shows Earth paying far more while
-                        your Miner keeps selling close by, tell it its time is worth even less, so the longer trip wins:</p>
-<pre class="fs-code" v-pre aria-label="A one-line fix to the Miner"><span class="c">-- what a game hour of its time is worth, in credits: it flies further to sell when this is lower</span>
-<del>- hour_value = 4</del>
-<ins>+ hour_value = 2</ins></pre>
-                    <p>A trip to Earth from Phobos takes a few game days each way, so check that the price pays for it. A fix that doesn't
+                        {{ $n($seedling['push_fee']) }} to the debt. Treat a change as an experiment: note its credits before, push, and
+                        compare a few game days later. For example, the Miner sells once it has 16 metals aboard; with more aboard it
+                        makes fewer trips, each worth more, if the <a href="{{ url('market') }}">Market board</a> shows the House
+                        still wants them:</p>
+<pre class="fs-code" v-pre aria-label="A one-line change to the Miner"><span class="c">-- metals it keeps on offer before it goes to sell</span>
+<del>- hold_cap = 16</del>
+<ins>+ hold_cap = 24</ins></pre>
+                    <p>It may help or not: in round 72, a Miner told its time was worth less (<code>hour_value</code> 2) flew to the
+                        lowest bids and matured later than an unchanged one. A change that doesn't
                         work is fine: push another, or <b>close</b> the seedling. Its debt is cancelled, and a game day later its slot is
                         free (you run up to {{ $seedling['max'] }} at a time). Break, learn, repeat.</p>
                 </li>

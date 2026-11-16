@@ -12,6 +12,20 @@ use Illuminate\Support\Facades\DB;
  */
 class World
 {
+    /**
+     * One colour for each place, the same on every page (#760: the dashboard
+     * coloured places by how busy they were, so Mars and the Moon swapped
+     * colours between reloads)
+     */
+    public const PLACE_COLOURS = ['Earth' => '#3987e5', 'Mars' => '#d95926', 'Moon' => '#199e70',
+        'Phobos' => '#c98500', 'Deimos' => '#d55181'];
+
+    /** A place's colour; places without their own share the last */
+    public static function placeColour(?string $name): string
+    {
+        return self::PLACE_COLOURS[$name] ?? '#9085e9';
+    }
+
     public const STATION_SELLS = 2;
 
     private static function names(string $table, string $key, string $name, array $ids): array

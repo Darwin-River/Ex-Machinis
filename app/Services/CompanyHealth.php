@@ -105,6 +105,12 @@ class CompanyHealth
         $sold = DB::table('trades AS t')->join('agents AS a', 'a.agent_id', '=', 't.seller')->where('a.company_id', $company)
             ->where('t.game_t', '>', $now - $lookback)->where('t.game_t', '<=', $now)->max('t.game_t');
         $founded = (int) (DB::table('companies')->where('company_id', $company)->value('founded_t') ?? $now);
+        // Never idle for longer than it has existed (#760: a company 1.7 game
+        // days old read "nothing for 240 game hours")
+        // (it reads the whole lookback when it has never worked)
+        if ($health['idle'] >= self::IDLE_LOOKBACK * 24) {
+            $health['idle'] = min($health['idle'], (int) floor(max(0, $now - $founded) / 3600));
+        }
         $health['last_sale'] = $sold !== null ? (int) floor(($now - (int) $sold) / 3600)
             : ($now - $founded >= $lookback ? self::IDLE_LOOKBACK * 24 : null);
         // Its actions that failed over the last game day (#715)

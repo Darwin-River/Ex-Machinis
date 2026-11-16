@@ -198,6 +198,9 @@ class ApiController extends Controller
                     AND NOT EXISTS (SELECT 1 FROM actions AS x WHERE x.id = e.action AND x.aborted = 1)), 0))";
     }
 
+    /** The most rows GET /orders answers with (#760) */
+    public const ORDERS_MAX = 2000;
+
     public function orders(Request $request): JsonResponse
     {
         $db = DB::connection();
@@ -234,17 +237,19 @@ class ApiController extends Controller
              LEFT JOIN objects p ON p.object_id = a.object_id
              WHERE o.event_type = ? AND o.is_open = 1 $where) b
              WHERE " . ($type === 4 ? 'movable > quantity' : 'movable < quantity') . "
-             ORDER BY resource, place, price " . ($type === 4 ? 'ASC' : 'DESC') . ' LIMIT 500',
+             ORDER BY resource, place, price " . ($type === 4 ? 'ASC' : 'DESC') . ' LIMIT ' . self::ORDERS_MAX,
             $bind);
         foreach ($rows as $r) {
             $r->units = abs((int) $r->movable - (int) $r->quantity);
         }
+        // At most ORDERS_MAX rows, and a header that says when it stopped
+        // there (#760: it stopped at 500 without a word)
         return response()->json(array_map(fn ($r) => [
             'drone' => (int) $r->drone, 'drone_name' => $r->drone_name, 'resource' => (int) $r->resource,
             'resource_name' => $r->resource_name, 'price' => (int) $r->price, 'units' => (int) $r->units,
             'place_id' => (int) $r->place_id, 'place' => $r->place,
             'company_id' => (int) $r->company_id, 'company' => $r->company_name,
-        ], $rows));
+        ], $rows))->header('X-Orders-Truncated', count($rows) >= self::ORDERS_MAX ? 'true' : 'false');
     }
 
     /** The latest trades between drones */
