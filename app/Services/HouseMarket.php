@@ -51,6 +51,12 @@ class HouseMarket
             } catch (\Throwable $e) {
                 report($e);
             }
+            // Each good's best House bid today, for cash-out's 7-day average (#685)
+            try {
+                PlayerShares::recordBestBids();
+            } catch (\Throwable $e) {
+                report($e);
+            }
             // Code lineage (#616): new releases' and pushes' parents, a few each tick
             try {
                 CodeLineage::catchUp();

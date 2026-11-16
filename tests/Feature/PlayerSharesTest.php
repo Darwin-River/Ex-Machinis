@@ -72,19 +72,28 @@ class PlayerSharesTest extends TestCase
         $this->assertSame($p['buys_at'], $p['sells_at'], 'no profit yet, so no dividends');
         $this->assertSame((int) floor($p['sells_at'] * 0.8), $p['low']);
 
-        // Goods count at the House's listed bid for the game day where the
-        // drone is, not its live bid (#670): it doesn't flicker
+        // Goods count at each good's best listed House bid anywhere,
+        // averaged over the last 7 game days recorded (#685): not the bid
+        // where the drone is, which jumped as drones moved (round 70)
         $drone = (int) DB::table('agents')->where('company_id', $id)->value('agent_id');
-        $place = (int) DB::table('agents')->where('agent_id', $drone)->value('object_id');
         $station = (int) DB::table('stations')->max('id') + 1;
-        DB::table('stations')->insert(['id' => $station, 'name' => 'Test Exchange', 'object_id' => $place]);
+        DB::table('stations')->insert(['id' => $station, 'name' => 'Test Exchange', 'object_id' => 999999]);
         DB::table('station_goods')->insert(['station_id' => $station, 'resource' => 2011, 'side' => 1, 'price' => 20,
             'daily_units' => 100, 'from_day' => 0, 'steady' => 1]);
         DB::table('holdings')->updateOrInsert(['drone' => $drone, 'resource' => 2011, 'installed' => 0, 'locked' => 0],
             ['units' => 10, 'event_id' => 0]);
-        $listed = (int) DB::table('house_market')->where('station_id', $station)->where('resource', 2011)->where('side', 1)->value('price');
-        $this->assertGreaterThan(0, $listed);
-        $this->assertSame(10 * $listed, PlayerShares::cashOut($id)['goods']);
+        $best = (int) DB::table('house_market')->where('resource', 2011)->where('side', 1)->max('price');
+        $this->assertGreaterThan(0, $best);
+        $today = \App\Services\HouseMarket::today(DB::connection());
+        DB::table('house_best_bids')->delete();
+        \Illuminate\Support\Facades\Cache::flush();
+        $this->assertSame(10 * $best, PlayerShares::cashOut($id)['goods'], 'today only: today\'s best bid, at an exchange the drone is nowhere near');
+
+        // Over 7 game days: the average, so one day's swing moves it a seventh as much
+        DB::table('house_best_bids')->insert(['day' => $today - 1, 'resource' => 2011, 'price' => $best + 70]);
+        DB::table('house_best_bids')->insert(['day' => $today - 9, 'resource' => 2011, 'price' => 100000]);   // too old to count
+        \Illuminate\Support\Facades\Cache::flush();
+        $this->assertSame(10 * intdiv(2 * $best + 70, 2), PlayerShares::cashOut($id)['goods']);
         DB::table('holdings')->where('drone', $drone)->where('resource', 2011)->delete();
 
         // A stranded drone's hull counts nothing
