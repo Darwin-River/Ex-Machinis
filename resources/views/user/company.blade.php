@@ -291,20 +291,23 @@
             <h2 id="performance">Performance</h2>
             @include('partials.company-performance', ['perf' => $perf, 'companyId' => (int) $user->user_id])
 
+            {{-- Its working drones, its wrecks folded away below (#726: 106
+                 "spacecraft" for a company with 8 working drones) --}}
+            @php($wrecks = $spacecraft->whereNotNull('wrecked_at'))
             <div class="row row-30">
                 <div class="col">
-                    <h2 class="">Spacecraft</h2>
+                    <h2 class="" id="drones">Drones</h2>
                 </div>
             </div>
 
             <div class="table-custom-responsive">
                 <table class="table-ticket">
-                    @if(sizeof($spacecraft) == 0)
+                    @if($spacecraft->whereNull('wrecked_at')->isEmpty())
                         <tr>
-                            <td colspan="4"> No spacecraft present.</td>
+                            <td colspan="4">No working drones.</td>
                         </tr>
                     @endif
-                    @foreach($spacecraft as $agent)
+                    @foreach($spacecraft->whereNull('wrecked_at') as $agent)
                         <tr>
                             <td>
                                 <a href="{{url('/spacecraft/'.$agent->agent_id)}}">{{$agent->name}}</a>
@@ -332,6 +335,24 @@
                     @endforeach
                 </table>
             </div>
+            @if($wrecks->isNotEmpty())
+                <details id="wrecks" style="margin-top: 1em">
+                    <summary>{{ number_format($wrecks->count()) }} {{ \Illuminate\Support\Str::plural('wreck', $wrecks->count()) }}</summary>
+                    <div class="table-custom-responsive">
+                        <table class="table-ticket">
+                            @foreach($wrecks->sortByDesc('wrecked_at') as $agent)
+                                <tr>
+                                    <td><a href="{{url('/spacecraft/'.$agent->agent_id)}}">{{$agent->name}}</a></td>
+                                    <td><span class="meta-label">hull</span> {{$agent->hull?$agent->hull->name:'no hull'}}</td>
+                                    <td><span class="meta-label">location</span> @if($agent->location)<a
+                                            href="{{url('locations/'.$agent->location->object_id)}}">{{$agent->location->object_name}}</a>@endif</td>
+                                    <td><span class="meta-label">wrecked</span> {{ lcfirst(\App\Services\DronePage::WRECK_CAUSES[$agent->wreck_cause] ?? 'It became a wreck') }}</td>
+                                </tr>
+                            @endforeach
+                        </table>
+                    </div>
+                </details>
+            @endif
 
             {{-- Its code and its revisions (#594): every drone of the company runs it --}}
             <div class="row row-30">

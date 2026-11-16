@@ -14,7 +14,7 @@ use App\Services\World;
 class WorldController extends Controller
 {
     /** Game days a players' trade stays recent enough to set a premium or discount against cash-out (#716) */
-    public const PREMIUM_DAYS = 7;
+    public const PREMIUM_DAYS = \App\Services\PlayerShares::PREMIUM_DAYS;
 
     /**
      * The Market page (#721): the goods board, one row per good, and where
@@ -85,45 +85,27 @@ class WorldController extends Controller
     /** The stock exchange (#484): every company's shares, what's for sale, and the latest trades */
     public function shares()
     {
-        $exchange = \App\Services\Shares::exchange();
-        // The new rules (#666): matured companies' shares, which players trade
-        $playerMarket = config('forge.new_rules') ? \App\Services\PlayerShares::market() : null;
-        if ($playerMarket) {
-            // One row a company (#699): a share's cash-out over 30 game days,
-            // its dividends and yield, the last price players paid against
-            // cash-out, and whether it has stalled
-            $today = \App\Services\MarketHistory::today();
-            $hasCash = \Illuminate\Support\Facades\Schema::hasColumn('company_days', 'cash_out');
-            $now = World::gameNow();
-            foreach ($playerMarket as &$m) {
-                $id = $m['company'];
-                $m['dividends30'] = $m['sells_at'] - $m['buys_at'];
-                $m['yield_percent'] = $m['buys_at'] > 0 ? round(100 * $m['dividends30'] / $m['buys_at'], 1) : null;
-                $m['spark'] = $hasCash ? DB::table('company_days')->where('company_id', $id)->where('day', '>', $today - 30)
-                    ->whereNotNull('cash_out')->orderBy('day')->get(['day', 'cash_out'])
-                    ->map(fn ($r) => ['day' => (int) $r->day, 'v' => intdiv(max(0, (int) $r->cash_out), \App\Services\PlayerShares::COUNT)])->all() : [];
-                // The last trade between two players (#716): the bank's trades
-                // are at its own prices, and an old trade says little about
-                // today's, so the premium is shown only for a recent one
-                $last = DB::table('player_share_trades')->where('company_id', $id)->whereNotNull('seller_id')
-                    ->whereNotNull('buyer_id')->orderByDesc('id')->first(['price', 'game_t']);
-                $m['last_price'] = $last ? (int) $last->price : null;
-                $m['last_days_ago'] = $last ? intdiv(max(0, $now - (int) $last->game_t), 86400) : null;
-                $m['premium_percent'] = $last && $m['buys_at'] > 0 && $m['last_days_ago'] <= self::PREMIUM_DAYS
-                    ? (int) round(100 * ($last->price - $m['buys_at']) / $m['buys_at']) : null;
-                $h = \App\Services\CompanyHealth::of($id);
-                $m['stalled'] = (bool) $h['stalled'];
-                $m['at_risk'] = (bool) $h['at_risk'];
-                $m['failing'] = $h['failing_reason'] !== null;
-                $m['health_note'] = $h['stalled'] ? $h['stalled_reason'] : ($h['at_risk'] ? $h['at_risk_reason'] : $h['failing_reason']);
-            }
-            unset($m);
-            // Best yield first (#716: the table was alphabetical); no yield last
-            usort($playerMarket, fn ($a, $b) => [$b['yield_percent'] === null ? 0 : 1, $b['yield_percent'] ?? 0, $a['name']]
-                <=> [$a['yield_percent'] === null ? 0 : 1, $a['yield_percent'] ?? 0, $b['name']]);
-        }
-        $playerTrades = config('forge.new_rules') ? \App\Services\PlayerShares::trades() : [];
-        return view('world.shares', compact('exchange', 'playerMarket', 'playerTrades'));
+        return view('world.shares', self::sharesPage());
+    }
+
+    /** Real seconds after which a view of the stock exchange starts a rebuild of it (#726) */
+    public const SHARES_TTL = 60;
+
+    /**
+     * Everything the stock exchange page shows (#726: worked out on each
+     * view, it took 4.5 to 7 real seconds on the live database): the last
+     * one worked out, rebuilt after the response once SHARES_TTL old (Kept)
+     */
+    public static function sharesPage(): array
+    {
+        $newRules = (bool) config('forge.new_rules');
+        return \App\Services\Kept::get('market:shares:' . (int) $newRules, self::SHARES_TTL, fn () => [
+            'exchange' => \App\Services\Shares::exchange(),
+            // The new rules (#666): matured companies' shares, which players
+            // trade, a row a company (#699), best yield first (#716)
+            'playerMarket' => $newRules ? \App\Services\PlayerShares::board() : null,
+            'playerTrades' => $newRules ? \App\Services\PlayerShares::trades() : [],
+        ]);
     }
 
     /** The economy dashboard (#698): is the market busy, are companies making money, who is winning */

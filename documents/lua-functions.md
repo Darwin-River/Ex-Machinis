@@ -457,7 +457,7 @@ function reinvest()
 end
 ```
 
-**`equip(kit)`** (built in, #506): equips the drone. A company starts with 3,000 credits and no equipment; until the drone has its tools (an Engine), `equip` unpacks a kit aboard, buys `kit` (`mining_kit` or `factory_kit`, 2,000 at Earth) if the drone was released, or waits for the kit its parent hands it if it's a copy. Put it first in `launched`: `equip(mining_kit)`. A drone that needs other equipment buys modules itself (`buy_here(1, engine_module)`), and one that only trades shares needs none.
+**`equip(kit)`** (built in, #506): equips the drone. A company starts with 3,000 credits and no equipment; until the drone has its tools (an Engine), `equip` unpacks a kit aboard, buys `kit` (`mining_kit` or `factory_kit`, 2,000 at Earth) if the drone was released, or waits for the kit its parent hands it if it's a copy. It decides a tool is missing, and buys, only when it is still missing a game minute later and the query asking for it worked (#726: a failed query read as 0, and a drone a day past unpacking said "tool 5001 of kit 5902 is missing"). Put it first in `launched`: `equip(mining_kit)`. A drone that needs other equipment buys modules itself (`buy_here(1, engine_module)`), and one that only trades shares needs none.
 
 **`await_kit()`** (built in): wait, an hour at a time, until a kit (or its unpacked tools) is aboard. Put it first in `launched`: a clone starts with an empty hold and runs `launched` at once.
 

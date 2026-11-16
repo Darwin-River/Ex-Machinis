@@ -76,6 +76,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                             <a class="dropdown-item" href="{{ url('leaderboard') }}">Leaderboard</a>
                             @if(config('forge.new_rules'))<a class="dropdown-item" href="{{ url('players') }}">Players</a>@endif
                             <a class="dropdown-item" href="{{ url('lineage') }}">Lineage</a>
+                            <a class="dropdown-item" href="{{ url('events') }}">Events</a>
                         </div>
                     </li>
                     <li class="nav-item dropdown">

@@ -39,9 +39,12 @@ class UserController extends Controller
         $query = DB::table('companies')->select('companies.company_id AS user_id', 'companies.name AS name',
                 // An ended company's age stops when it ended (#716)
                 DB::raw("ROUND(GREATEST(0, LEAST($now, IFNULL(companies.eliminated_at, $now)) - IFNULL(companies.founded_t, $now)) / 86400, 1) AS age"),
-                DB::raw('COUNT(agents.agent_id) AS agents'), DB::raw('IFNULL(companies.credits,0) AS credits'),
+                // Its working drones, and its wrecks apart (#726: Bank Maker read
+                // 106 spacecraft, wrecks and all, where the leaderboard said 8)
+                DB::raw('COUNT(agents.agent_id) - COUNT(agents.wrecked_at) AS agents'), DB::raw('COUNT(agents.wrecked_at) AS wrecks'),
+                DB::raw('IFNULL(companies.credits,0) AS credits'),
                 DB::raw('companies.eliminated_at IS NOT NULL AS ended'))
-            ->leftJoin('agents', 'agents.company_id', '=', 'companies.company_id')
+            ->leftJoin('agents', fn ($j) => $j->on('agents.company_id', '=', 'companies.company_id')->whereNull('agents.station_id'))
             // The House runs the exchanges' station drones: it isn't a company to look up (#716)
             ->where('companies.house', 0)->groupBy('companies.company_id');
         if ($request->get('user_id') !== null)

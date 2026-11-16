@@ -101,6 +101,8 @@ class PerformanceChartsTest extends TestCase
             'password' => bcrypt('secret-password')]);
         DB::table('player_share_trades')->insert(['company_id' => $id, 'seller_id' => $owner->user_id, 'buyer_id' => $buyer->user_id,
             'units' => 1, 'price' => (int) round(PlayerShares::prices($id)['buys_at'] * 1.1), 'game_t' => World::gameNow()]);
+        // The page is kept a minute (#726): forget it to see the new trade
+        \Illuminate\Support\Facades\Cache::forget('market:shares:1');
         $this->get('/market/shares')->assertOk()->assertSee('id="player-share-market"', false)
             ->assertSee('Cash-out a share')->assertSee('Dividends a share, 30 days')->assertSee('Yield, 30 days')
             ->assertSee('id="health-meaning"', false)->assertSee('today,')

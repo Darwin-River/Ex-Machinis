@@ -727,6 +727,8 @@ ErrorCode_t db_get_event_object_id(Event_t *event, int *object_id);
 
 /** Whether a drone is on a trip at a game time: its move is still pending (#380) */
 Bool_t db_drone_in_transit(int drone_id, long long game_t);
+/* Where a drone is at game_t: its last move due by then, applied or not, else agents.object_id; 0 if unknown (#726) */
+int db_drone_place(int drone_id, long long game_t);
 /* When a drone's trip ends: its last pending move event after game_t, or 0 (#675) */
 long long db_drone_arrival(int drone_id, long long game_t);
 

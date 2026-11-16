@@ -263,13 +263,12 @@ class RoundSeventySiteTest extends TestCase
         $this->assertFalse(CompanyHealth::of($id)['stalled']);
     }
 
-    /** #717: the leaderboard speaks the new rules; Rising counts game days; the events page is off the menu */
+    /** #717: the leaderboard speaks the new rules; Rising counts game days (#726 put the events page back on the menu) */
     public function testTheLeaderboardSpeaksTheNewRules()
     {
         $this->get('/leaderboard')->assertOk()->assertSee('id="leaderboard-intro"', false)
             ->assertDontSee('shares it holds in other companies')->assertDontSee('launching a copy')
-            ->assertSee('Rising</b> is the gain over the last ' . Leaderboard::RISING_DAYS . ' game days', false)
-            ->assertDontSee('href="' . url('events') . '"', false);
+            ->assertSee('Rising</b> is the gain over the last ' . Leaderboard::RISING_DAYS . ' game days', false);
     }
 
     /** #715: the drone page's script line has a space after its time */

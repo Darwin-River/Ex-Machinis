@@ -796,37 +796,53 @@ end
 -- Mining Kit's Engine) returned at once, buying nothing
 local kit_tools = {[mining_kit] = {engine_module, 5131, 5221},
                    [factory_kit] = {engine_module, 5201, 5211, 5501}}
--- The first of the kit's tools the drone lacks, or nil when it has them all
+-- The first of the kit's tools the drone lacks, nil when it has them all,
+-- or false when it can't tell: a query that failed (a busy database) is
+-- not a tool that is missing (#726: units() read 0 then, and a drone a game
+-- day past unpacking said its Engine was missing and went to buy a kit)
 local function missing_tool(kit)
   for _, t in ipairs(kit_tools[kit] or {engine_module}) do
-    if units(t) == 0 then return t end
+    local rows = query(212, t)
+    if not rows then return false end
+    if (rows[1] and rows[1][1] or 0) == 0 then return t end
   end
   return nil
 end
-local function has_kit_tools(kit) return missing_tool(kit) == nil end
 local function equip(kit)
   kit = kit or mining_kit
-  local clone = lineage().parent > 0
+  local clone = false
   local said = false
-  while not has_kit_tools(kit) do
-    if units(kit) > 0 then
+  while true do
+    local lacks = missing_tool(kit)
+    if lacks == nil then return end
+    if lacks == false then
+      wait(1)    -- couldn't tell: ask again in a game minute
+    elseif units(kit) > 0 then
       -- That kit is aboard: unpack it (the protocol 20000 above its ID)
       if perform(kit + 20000) ~= 0 then wait(60) end
-    elseif clone then
-      wait(60)   -- a copy waits for the kit its parent hands it; it never buys one (#570)
+    elseif clone or lineage().parent > 0 then
+      -- A copy waits for the kit its parent hands it; it never buys one
+      -- (#570). Asked each time: a failed query reads as no parent
+      clone = true
+      wait(60)
     else
-      if not said then
-        print("equip: tool " .. missing_tool(kit) .. " of kit " .. kit .. " is missing: buying the kit here, or at Earth")
-        said = true
-      end
-      buy_here(1, kit)
-      if units(kit) == 0 then
-        if location() ~= earth then go(earth) else wait(60) end
+      -- Missing for a game minute too: a tool is out of the hold for a
+      -- game second while it is put to work or put back (the Engine, at
+      -- each end of a flight), and a drone restarted then saw it gone (#726)
+      wait(1)
+      if missing_tool(kit) == lacks then
+        if not said then
+          print("equip: tool " .. lacks .. " of kit " .. kit .. " is missing: buying the kit here, or at Earth")
+          said = true
+        end
+        buy_here(1, kit)
+        if units(kit) == 0 then
+          if location() ~= earth then go(earth) else wait(60) end
+        end
       end
     end
   end
 end
-
 -- Places
 local function place_name(p) return text(700, p or location()) end                -- 700
 local function place_type(p) return first(701, p or location()) end               -- 701

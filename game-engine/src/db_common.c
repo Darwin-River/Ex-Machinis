@@ -345,6 +345,43 @@ Bool_t db_drone_in_transit(int drone_id, long long game_t)
 
 /** ****************************************************************************
 
+  @brief      Where a drone is at game time game_t (#726): the destination of
+              its last move due by then, even if the events engine hasn't
+              applied it yet (it runs a few game seconds behind), else its
+              place in agents. A drone restarted a game second after reaching
+              Earth said "Location: Mars", the place it had left. 0 when
+              neither can be read.
+
+*******************************************************************************/
+int db_drone_place(int drone_id, long long game_t)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+    int place = 0;
+
+    if(db_reconnect(connection) != ENGINE_OK) return 0;
+
+    snprintf(query_text, sizeof(query_text),
+        "SELECT IFNULL((SELECT e.new_location FROM events AS e FORCE INDEX (events_drone_game_t) WHERE e.drone = a.agent_id AND e.event_type = 3 "
+        "AND e.outcome = 0 AND e.game_t <= %lld AND e.new_location > 0 ORDER BY e.game_t DESC, e.id DESC LIMIT 1), "
+        "a.object_id) FROM agents AS a WHERE a.agent_id = %d", game_t, drone_id);
+
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return 0;
+    }
+
+    MYSQL_RES* db_result = mysql_store_result(connection->hndl);
+    if(db_result) {
+        MYSQL_ROW row = mysql_fetch_row(db_result);
+        if(row && row[0]) place = atoi(row[0]);
+        mysql_free_result(db_result);
+    }
+    return place;
+}
+
+/** ****************************************************************************
+
   @brief      When a drone's trip ends (#675): the game time of its last move
               event (event type 3) still pending after game_t, or 0 when it
               isn't on a trip
