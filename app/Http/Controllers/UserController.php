@@ -84,7 +84,7 @@ class UserController extends Controller
             'matured_t' => $company->matured_t ?? null, 'owner_id' => $company->owner_id ?? null,
             'eliminated_at' => $company->eliminated_at ?? null, 'end_cause' => $company->end_cause ?? null];
 
-        $spacecraft = Agent::with('hull')->with('location')->with('lastEVents')->where('company_id', '=', $id)->get();
+        $spacecraft = Agent::with('hull')->with('location')->where('company_id', '=', $id)->get();
 
         // The stock market (#471)
         $shares = \App\Services\Shares::summary((int) $company->company_id);
