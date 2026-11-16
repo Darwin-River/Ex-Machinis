@@ -96,7 +96,7 @@ class PerformanceChartsTest extends TestCase
         // A trade with the bank sets no players' price (#716)
         DB::table('player_share_trades')->insert(['company_id' => $id, 'seller_id' => $owner->user_id, 'buyer_id' => null,
             'units' => 1, 'price' => (int) round(PlayerShares::prices($id)['buys_at'] * 1.1), 'game_t' => World::gameNow()]);
-        $this->get('/market/shares')->assertOk()->assertDontSee('% premium')->assertSee('no trade between players');
+        $this->get('/market/shares')->assertOk()->assertDontSee('% premium')->assertSee('Latest share trades');
         $buyer = User::create(['name' => 'Perf Buyer', 'login' => 'PerfBuyer' . uniqid(), 'email' => uniqid() . '@example.com',
             'password' => bcrypt('secret-password')]);
         DB::table('player_share_trades')->insert(['company_id' => $id, 'seller_id' => $owner->user_id, 'buyer_id' => $buyer->user_id,

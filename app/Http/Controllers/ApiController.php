@@ -78,7 +78,8 @@ class ApiController extends Controller
             // What its drones' thinking costs it (#544)
             'compute' => \App\Services\ProcessorTax::of((int) $company->company_id),
             // Whether it can keep its drones flying (#537)
-            'health' => \App\Services\CompanyHealth::of((int) $company->company_id)
+            // (none for a company that has ended, #758)
+            'health' => ($company->eliminated_at ?? null) !== null ? null : \App\Services\CompanyHealth::of((int) $company->company_id)
                 // and each working drone: idle hours, last status, hold (#540)
                 + ['drones' => \App\Services\CompanyHealth::drones((int) $company->company_id)],
         ]);

@@ -143,6 +143,9 @@ class CompanyHealth
         return null;
     }
 
+    /** Outcomes that are the market refusing, not the company failing (#758), and -9, an action its player stopped */
+    public const MARKET_REFUSALS = [-9, -5, -6, -10, -17];
+
     /** An action is failing when it failed at least this many times over the last game day (#741) */
     public const FAIL_MIN = 3;
     /** ... and at least this share of its tries (#741: one race on an order marked 7 of 18 companies failing) */
@@ -160,7 +163,11 @@ class CompanyHealth
     public static function failing(int $company, ?int $now = null, ?int $drone = null): array
     {
         $now ??= (int) World::gameNow();
-        $failed = 'x.outcome < 0 AND x.outcome <> -9';
+        // A refusal by the market isn't a fault of the company's: another
+        // drone's order changed first (-5, -6, -10) or a seedling met its
+        // daily cap (-17). Round 72: lost races marked the two best earners
+        // "failing", and a Maker's routine -17 retries too (#758)
+        $failed = 'x.outcome < 0 AND x.outcome NOT IN (' . implode(', ', self::MARKET_REFUSALS) . ')';
         $rows = DB::select("SELECT x.protocol, MIN(CASE WHEN $failed THEN x.outcome END) AS outcome,
                 COUNT(DISTINCT CASE WHEN $failed THEN x.id END) AS n, COUNT(DISTINCT x.id) AS tries
             FROM agents AS a JOIN events AS e FORCE INDEX (events_drone_game_t) ON e.drone = a.agent_id

@@ -203,7 +203,7 @@ class PlayerSharesTest extends TestCase
         $this->assertSame([4, $p['sells_at'], 'Founder', 'Investor'], [$t['units'], $t['price'], $t['seller'], $t['buyer']]);
         $this->getJson("/api/v1/player-shares/$id")->assertOk()->assertJsonPath('trades.0.buyer', 'Investor');
         $this->getJson('/api/v1/shares')->assertOk()->assertJsonPath('player_share_trades.0.company', $id);
-        $this->get('/market/shares')->assertOk()->assertSee('Latest trades')->assertSee('Investor');
+        $this->get('/market/shares')->assertOk()->assertSee('Latest share trades')->assertSee('Investor');
         $this->get('/companies/' . $id)->assertOk()->assertSee('id="player-share-trades"', false);
 
         // Above the bank's selling price, starting credits can't pay
