@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -85,7 +86,16 @@ class PlayerShares
                     ->where('event_type', 1)->where('outcome', 1)->where('game_t', '>', $strandedSince)->exists()) {
                 continue;
             }
-            $born = (int) (DB::table('events')->where('drone', $a->agent_id)->min('game_t') ?? $now);
+            // When the drone was made never changes: kept, as the lookup walks
+            // every one of its events (#723: a dashboard rebuild took 90 s)
+            $born = Cache::get("drone_born:{$a->agent_id}");
+            if ($born === null) {
+                $born = DB::table('events')->where('drone', $a->agent_id)->min('game_t');
+                if ($born !== null) {
+                    Cache::forever("drone_born:{$a->agent_id}", (int) $born);
+                }
+            }
+            $born = (int) ($born ?? $now);
             $hulls += (int) floor($hullValue * max(0, 1 - ($now - $born) / $life));
         }
 
@@ -131,7 +141,7 @@ class PlayerShares
     public static function bestBids(): array
     {
         $today = HouseMarket::today(DB::connection());
-        return \Illuminate\Support\Facades\Cache::remember("best_bids:$today", 60, function () use ($today) {
+        return Cache::remember("best_bids:$today", 60, function () use ($today) {
             if (!\Illuminate\Support\Facades\Schema::hasTable('house_best_bids')) {
                 return [];
             }
