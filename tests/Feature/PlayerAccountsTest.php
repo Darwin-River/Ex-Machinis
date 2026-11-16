@@ -79,8 +79,13 @@ class PlayerAccountsTest extends TestCase
         // The link in the mail verifies it, once, and brings the share credits
         $link = $this->linkSentTo('star@example.com');
         $this->assertStringContainsString('/account/verify/' . $row->user_id . '/', $link);
-        $text = (new VerifyAccount('Star Hauler', $link))->render();
-        $this->assertStringContainsString($link, $text);
+        $mail = new VerifyAccount('Star Hauler', $link);
+        $html = $mail->render();
+        $this->assertStringContainsString('>Verify my account</a>', $html, 'a button (#754)');
+        $this->assertStringContainsString('href="' . e($link) . '"', $html);
+        $this->assertStringContainsString('5,000 credits</strong> for buying shares', $html);
+        $text = view($mail->build()->textView, $mail->buildViewData())->render();
+        $this->assertStringContainsString($link, $text, 'and the plain text for text-only clients');
         $this->assertStringContainsString('5,000 credits for buying shares', $text);
         $this->get($link)->assertRedirect('/account');
         $this->get($link)->assertRedirect('/account');

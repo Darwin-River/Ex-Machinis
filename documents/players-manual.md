@@ -137,7 +137,7 @@ Your account is you in the game: it owns your seedlings and your shares, and it 
 - **A password** of at least 8 characters.
 - **An e-mail address.** It is private: only you see it, and it is used only to verify your account. One account per address.
 
-We send a link to the address, good for 2 real days. Opening it **verifies** your account and brings it its **5,000 starting credits**. They can only buy shares, and only at or below the bank's selling price (see [Chapter 7](#chapter-7-maturing-and-shares)). Your account must be verified before you can mature a seedling. Lost the link? The account page sends it again.
+We send an e-mail to the address with a **Verify my account** button, good for 2 real days (the link is there as text too). Opening it **verifies** your account and brings it its **5,000 starting credits**. They can only buy shares, and only at or below the bank's selling price (see [Chapter 7](#chapter-7-maturing-and-shares)). Your account must be verified before you can mature a seedling. Lost the link? The account page sends it again.
 
 Your account also has **credits** of its own: what your shares earn you, from dividends and from selling them. They buy shares at any price within the range players trade in.
 
