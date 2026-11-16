@@ -10,14 +10,18 @@ use Illuminate\Support\Facades\DB;
  * money, what is traded where, and who is winning. A compact strip on the
  * home page, the whole thing at /dashboard and GET /api/v1/dashboard.
  *
- * Every figure is worked out here, on the server, and kept for TTL real
- * seconds, so a page view never runs the heavy queries: at most one view a
- * minute does. Game days count from the world's first (game_clock.epoch).
+ * Every figure is worked out here, on the server. A page view never waits
+ * for it (#723): it gets the last one worked out, and if that is older than
+ * TTL real seconds, one rebuild starts after the response has gone, never
+ * two at once (a lock). On the live database a rebuild took about 90 real
+ * seconds; with a 60-second cache, each view after it ran out started one
+ * of its own, which kept MySQL busy and slowed the game from round 70.
+ * Game days count from the world's first (game_clock.epoch).
  */
 class Dashboard
 {
-    /** Real seconds a dashboard is kept before it is worked out again */
-    public const TTL = 60;
+    /** Real seconds after which a view starts a rebuild of the dashboard */
+    public const TTL = 120;
 
     /** Game days the charts of trading and profit cover */
     public const DAYS = 60;
@@ -31,16 +35,49 @@ class Dashboard
     /** Trades on the last full day below this share of the norm: the banner says the market is quiet */
     public const QUIET = 0.5;
 
-    /** The banner and tiles, for the home page (cached) */
+    /** The banner and tiles, for the home page */
     public static function compact(): array
     {
-        return Cache::remember('dashboard:compact', self::TTL, fn () => self::summary());
+        return self::kept('dashboard:compact', fn () => self::summary());
     }
 
-    /** Everything, for /dashboard and the API (cached) */
+    /** Everything, for /dashboard and the API */
     public static function full(): array
     {
-        return Cache::remember('dashboard:full', self::TTL, fn () => self::build());
+        return self::kept('dashboard:full', fn () => self::build());
+    }
+
+    /**
+     * The last $key worked out, starting a rebuild after the response when
+     * it is older than TTL. Only the very first view, with nothing kept yet,
+     * waits for one.
+     */
+    private static function kept(string $key, callable $work): array
+    {
+        $kept = Cache::get($key);
+        if (is_array($kept) && isset($kept['data'], $kept['at'])) {
+            if (time() - (int) $kept['at'] >= self::TTL) {
+                defer(fn () => self::rebuild($key, $work));
+            }
+            return $kept['data'];
+        }
+        return self::rebuild($key, $work) ?? $work();
+    }
+
+    /** Works $key out again under a lock; null when another rebuild holds it */
+    public static function rebuild(string $key, callable $work): ?array
+    {
+        $lock = Cache::lock("$key:building", 600);
+        if (!$lock->get()) {
+            return null;
+        }
+        try {
+            $data = $work();
+            Cache::forever($key, ['data' => $data, 'at' => time()]);
+            return $data;
+        } finally {
+            $lock->release();
+        }
     }
 
     /** Today's game day, and the game time it started at */

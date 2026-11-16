@@ -1331,7 +1331,7 @@ Dividends land in your account's **credits**. Your account page shows what your 
 A share's **cash-out value** is what the company would fetch if it were sold off now, over its 100 shares:
 
 - its **credits**,
-- plus its **goods and equipment**, at the House's listed bid for the game day where each drone is (so it moves once a game day, not as the live bid moves),
+- plus its **goods and equipment**, each at its best House bid anywhere, averaged over the last 7 game days (so it doesn't depend on where the drones are, and one day's prices move it a seventh as much),
 - plus each working drone's **hull**: 1,000, falling to 0 over 365 game days (nothing for a drone with no fuel that has bought none in 3 game days),
 - less its **debts**,
 - all over 100.

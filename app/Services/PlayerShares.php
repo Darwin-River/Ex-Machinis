@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -10,8 +11,8 @@ use Illuminate\Support\Facades\DB;
  *
  * A matured company's 100 shares (#667) are its player's (#637), and players trade
  * them. The price that anchors everything is the company's cash-out value: its
- * credits, plus what the House would pay for its goods and equipment where
- * they are now, plus each working drone's hull at a fixed value that falls
+ * credits, plus its goods and equipment at each good's best House bid
+ * anywhere, averaged over 7 game days (#685), plus each working drone's hull at a fixed value that falls
  * with age (nothing for a drone with no fuel aboard that hasn't bought any
  * for forge.stranded_days game days), less what it owes, a share. It never
  * depends on the price of trades in its shares.
@@ -57,18 +58,20 @@ class PlayerShares
         if (!$c || $c->eliminated_at !== null) {
             return ['total' => 0, 'per_share' => 0, 'credits' => 0, 'goods' => 0, 'hulls' => 0, 'debts' => 0];
         }
-        // Goods and equipment at the House's bid for the game day where each
-        // drone is: the price the exchange lists that day (house_market), not
-        // its live bid, which falls as it buys and recovers as it restocks.
-        // Valued live, cash-out swung 15 to 30% within minutes with no trade
-        // behind it, and the bank's prices with it (#670)
-        $goods = (int) DB::table('holdings as h')
-            ->join('agents as a', 'a.agent_id', '=', 'h.drone')
-            ->join('stations as st', 'st.object_id', '=', 'a.object_id')
-            ->join('house_market as m', fn ($j) => $j->on('m.station_id', '=', 'st.id')->on('m.resource', '=', 'h.resource'))
-            ->where('a.company_id', $company)->whereNull('a.wrecked_at')->where('h.units', '>', 0)
-            ->where('m.side', 1)->where('m.price', '>', 0)->where('m.from_day', '<=', HouseMarket::today(DB::connection()))
-            ->sum(DB::raw('h.units * m.price'));
+        // Goods and equipment at a steady price, wherever they are (#685):
+        // each good's best listed House bid anywhere, averaged over the last
+        // BID_DAYS game days (bestBids). Valued at the bid where each drone
+        // happened to be (#670), cash-out swung 20 to 30% a game day as drones
+        // flew between exchanges and the Mars moons (where nothing is bid, so
+        // goods counted 0), and buying from the bank on a low and selling
+        // back on a high paid 28% in a game day (round 70)
+        $bids = self::bestBids();
+        $goods = 0;
+        foreach (DB::table('holdings as h')->join('agents as a', 'a.agent_id', '=', 'h.drone')
+                     ->where('a.company_id', $company)->whereNull('a.wrecked_at')->where('h.units', '>', 0)
+                     ->groupBy('h.resource')->selectRaw('h.resource, SUM(h.units) AS units')->get() as $h) {
+            $goods += (int) $h->units * ($bids[(int) $h->resource] ?? 0);
+        }
 
         // Hulls: a fixed value falling with age, nothing for a stranded drone
         $now = World::gameNow();
@@ -83,7 +86,16 @@ class PlayerShares
                     ->where('event_type', 1)->where('outcome', 1)->where('game_t', '>', $strandedSince)->exists()) {
                 continue;
             }
-            $born = (int) (DB::table('events')->where('drone', $a->agent_id)->min('game_t') ?? $now);
+            // When the drone was made never changes: kept, as the lookup walks
+            // every one of its events (#723: a dashboard rebuild took 90 s)
+            $born = Cache::get("drone_born:{$a->agent_id}");
+            if ($born === null) {
+                $born = DB::table('events')->where('drone', $a->agent_id)->min('game_t');
+                if ($born !== null) {
+                    Cache::forever("drone_born:{$a->agent_id}", (int) $born);
+                }
+            }
+            $born = (int) ($born ?? $now);
             $hulls += (int) floor($hullValue * max(0, 1 - ($now - $born) / $life));
         }
 
@@ -92,6 +104,54 @@ class PlayerShares
         $total = $credits + $goods + $hulls - $debts;
         return ['total' => $total, 'per_share' => max(0, intdiv(max(0, $total), self::COUNT)),
             'credits' => $credits, 'goods' => $goods, 'hulls' => $hulls, 'debts' => $debts];
+    }
+
+    /** Game days over which cash-out averages each good's best House bid (#685) */
+    public const BID_DAYS = 7;
+
+    /**
+     * Records today's best listed House bid anywhere for each good it buys
+     * (house_market, side 1) in house_best_bids, once a game day, on the
+     * website's tick, and keeps the last 30 game days. Returns whether it
+     * recorded.
+     */
+    public static function recordBestBids(): bool
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('house_best_bids')) {
+            return false;
+        }
+        $today = HouseMarket::today(DB::connection());
+        if (DB::table('house_best_bids')->where('day', $today)->exists()) {
+            return false;
+        }
+        $rows = DB::table('house_market')->where('side', 1)->where('price', '>', 0)->where('from_day', '<=', $today)
+            ->groupBy('resource')->selectRaw('resource, MAX(price) AS price')->get()
+            ->map(fn ($r) => ['day' => $today, 'resource' => (int) $r->resource, 'price' => (int) $r->price])->all();
+        DB::table('house_best_bids')->insertOrIgnore($rows);
+        DB::table('house_best_bids')->where('day', '<', $today - 30)->delete();
+        return true;
+    }
+
+    /**
+     * Each good's best listed House bid anywhere, averaged over the last
+     * BID_DAYS game days that have one recorded, today included: [resource
+     * => credits]. A recorded day with no bid for a good counts 0. Cached
+     * for a real minute.
+     */
+    public static function bestBids(): array
+    {
+        $today = HouseMarket::today(DB::connection());
+        return Cache::remember("best_bids:$today", 60, function () use ($today) {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('house_best_bids')) {
+                return [];
+            }
+            self::recordBestBids();
+            $from = $today - self::BID_DAYS + 1;
+            $days = max(1, DB::table('house_best_bids')->whereBetween('day', [$from, $today])->distinct()->count('day'));
+            return DB::table('house_best_bids')->whereBetween('day', [$from, $today])->groupBy('resource')
+                ->selectRaw('resource, SUM(price) AS total')->get()
+                ->mapWithKeys(fn ($r) => [(int) $r->resource => intdiv((int) $r->total, $days)])->all();
+        });
     }
 
     /**
