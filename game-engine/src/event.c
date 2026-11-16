@@ -37,13 +37,6 @@
 static Action_t current_action;
 static int current_action_valid = 0;
 
-// When the expired events of each kind were last deleted (#446): the delete
-// ran after every successful event, but what it deletes is days old
-#define EXPIRED_SWEEP_SLOTS 65536
-#define EXPIRED_SWEEP_SECONDS 3600
-typedef struct { int key[5]; time_t at; } ExpiredSweep_t;
-static ExpiredSweep_t expired_sweeps[EXPIRED_SWEEP_SLOTS];
-
 /******************************* LOCAL FUNCTIONS *****************************/
 
 /** ****************************************************************************
@@ -116,33 +109,6 @@ static ErrorCode_t event_get_action(int action_id, Action_t *action)
         current_action_valid = 1;
     }
     return result;
-}
-
-/** ****************************************************************************
-
-  @brief      Whether this kind of event's expired history is due a delete:
-              at most once a real hour per kind (#446)
-
-  @param[in]  event  The event that just succeeded
-
-  @return     1 when the delete should run
-
-*******************************************************************************/
-static int event_expired_sweep_due(Event_t *event)
-{
-    int key[5] = { event->event_type, event->drone_id, event->resource_id, event->installed, event->locked };
-    unsigned int h = 2166136261u;
-    for(int i = 0; i < 5; i++)
-        h = (h ^ (unsigned int)key[i]) * 16777619u;
-    ExpiredSweep_t* slot = &expired_sweeps[h % EXPIRED_SWEEP_SLOTS];
-
-    time_t now = time(NULL);
-    if(slot->at && now - slot->at < EXPIRED_SWEEP_SECONDS && memcmp(slot->key, key, sizeof(key)) == 0)
-        return 0;
-
-    memcpy(slot->key, key, sizeof(key));
-    slot->at = now;
-    return 1;
 }
 
 /** ****************************************************************************
@@ -531,34 +497,6 @@ ErrorCode_t event_validate_event_conditions
     result = db_update_event(event);
 
     return result;
-}
-
-/** ****************************************************************************
-
-  @brief      Once event outcome is OK, we can delete previous events from DB
-
-  @param[in]  event  Input event
-
-  @return     Execution result
-
-*******************************************************************************/
-ErrorCode_t event_delete_previous_events(Event_t *event)
-{
-  ErrorCode_t result = ENGINE_INTERNAL_ERROR;
-
-  if(event)
-    result = event_expired_sweep_due(event) ? db_delete_previous_events(event) : ENGINE_OK;
-
-  // Purge old actions too: at most once a real minute (#431). It looks for
-  // actions a month old, and ran after every successful event
-  static time_t last_purge = 0;
-  time_t now = time(NULL);
-  if(now - last_purge >= 60) {
-    last_purge = now;
-    db_purge_old_actions();
-  }
-
-  return result;
 }
 
 /** ****************************************************************************
@@ -1373,8 +1311,9 @@ static ErrorCode_t event_apply(Event_t *event)
 
     if((result == ENGINE_OK) && (event->outcome == OUTCOME_OK))
     {
-        // Delete all previous events when outcome was OK
-        result = event_delete_previous_events(event);
+        // It went through. (The events before it of its kind were deleted
+        // here once they were 30 real days old; now old events move to
+        // events_archive, db_archive_due, #694)
     }
     else
     {

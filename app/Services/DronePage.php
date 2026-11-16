@@ -249,14 +249,16 @@ class DronePage
             ->when($before, fn ($q) => $q->where('a.id', '<', $before))
             ->orderBy('a.id', 'desc')->limit($limit + 5)->get();
         foreach ($actions as $action) {
-            $span = DB::table('events')->where('action', $action->id)
+            // From the archive too (#694): an action a month old has its
+            // events there
+            $span = EventHistory::both(fn ($q) => $q->where('action', $action->id))
                 ->selectRaw('MIN(game_t) AS start, MAX(game_t) AS end, SUM(outcome = 0) AS pending')->first();
             if (!$span || $span->start === null || (int) $span->start > $now) {
                 continue;
             }
             // Inventory events only: a wait's event names fuel too, with 0
-            $fuel = DB::table('events')->where('action', $action->id)->where('drone', $id)->where('resource', self::FUEL)
-                ->whereIn('event_type', [1, 2])->where('outcome', 1)->orderBy('id', 'desc')->value('new_quantity');
+            $fuel = EventHistory::both(fn ($q) => $q->where('action', $action->id)->where('drone', $id)->where('resource', self::FUEL)
+                ->whereIn('event_type', [1, 2])->where('outcome', 1))->orderBy('id', 'desc')->value('new_quantity');
             $failed = $action->aborted || ($action->outcome !== null && (int) $action->outcome < 0);
             if ($failed) {
                 $result = 'failed: ' . (self::OUTCOMES[(int) $action->outcome] ?? 'it was stopped');

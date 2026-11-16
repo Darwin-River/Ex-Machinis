@@ -11,6 +11,7 @@
 #define _XOPEN_SOURCE
 #include "static_cache.h"
 #include <time.h>
+#include <sys/time.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -454,134 +455,6 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found
 
 /** ****************************************************************************
 
-    @brief          Purges old events present at DB (older than configurable days value)
-
-    @param[in]      void
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_purge_old_events()
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    DbConnection_t* connection = engine_get_db_connection();
-    MYSQL_RES* db_result = NULL;
-    int rowsNum = 0;
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    if(result == ENGINE_OK)
-    {
-        snprintf(query_text,
-            DB_MAX_SQL_QUERY_LEN,
-            "SELECT * FROM events WHERE timestamp < (NOW() - interval %d day);",
-            engine_get_events_expiration_days());
-
-        // run it
-        if (mysql_query(connection->hndl, query_text))
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-    }
-
-    if(result == ENGINE_OK)
-    {
-        // retrieve the results and delete one by one
-        db_result = mysql_store_result(connection->hndl);
-
-        if(db_result == NULL)
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS,
-                "ERROR: Unable to get expired events (invalid result for query [%s])",
-                query_text);
-
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-        else if((rowsNum=mysql_num_rows(db_result)) <= 0)
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "None expired event found");
-        }
-    }
-
-    if((result == ENGINE_OK) && rowsNum)
-    {
-        // iterate results and delete one by one
-        for(int eventId=0; eventId < rowsNum; eventId++)
-        {
-            MYSQL_ROW row = mysql_fetch_row(db_result);
-            if(row)
-            {
-                Event_t event;
-
-                memset(&event, 0, sizeof(event));
-
-                // Pick event fields
-                event.event_id = row[EVENT_ID_IDX]?atoi(row[EVENT_ID_IDX]):0;
-                event.event_type = row[EVENT_TYPE_IDX]?atoi(row[EVENT_TYPE_IDX]):0;
-                event.action_id = row[EVENT_ACTION_IDX]?atoi(row[EVENT_ACTION_IDX]):0;
-                event.logged = row[EVENT_LOGGED_IDX]?atoi(row[EVENT_LOGGED_IDX]):0;
-                event.outcome = row[EVENT_OUTCOME_IDX]?atoi(row[EVENT_OUTCOME_IDX]):0;
-                event.drone_id = row[EVENT_DRONE_ID_IDX]?atoi(row[EVENT_DRONE_ID_IDX]):0;
-                event.resource_id = row[EVENT_RESOURCE_ID_IDX]?atoi(row[EVENT_RESOURCE_ID_IDX]):0;
-                event.installed = row[EVENT_INSTALLED_IDX]?atoi(row[EVENT_INSTALLED_IDX]):0;
-                event.locked = row[EVENT_LOCKED_IDX]?atoi(row[EVENT_LOCKED_IDX]):0;
-                event.new_quantity = row[EVENT_NEW_QUANTITY_IDX]?atoi(row[EVENT_NEW_QUANTITY_IDX]):NULL_VALUE;
-                event.new_credits = row[EVENT_NEW_CREDITS_IDX]?atoi(row[EVENT_NEW_CREDITS_IDX]):NULL_VALUE;
-                event.new_location = row[EVENT_NEW_LOCATION_IDX]?atoi(row[EVENT_NEW_LOCATION_IDX]):-1;
-                event.new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):-1;
-                event.new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):NULL_VALUE;
-                event.timestamp = row[EVENT_TIMESTAMP_IDX]?atoi(row[EVENT_TIMESTAMP_IDX]):0;
-
-                if(db_delete_event(&event) == ENGINE_OK) {
-                    engine_trace(TRACE_LEVEL_ALWAYS,
-                        "Event expired and deleted "
-                        "EVENT_ID [%d] EVENT_TYPE [%d] ACTION_ID [%d] LOGGED [%d] OUTCOME [%d] "
-                        "DRONE_ID [%d] RESOURCE_ID [%d] INSTALLED [%d] LOCKED [%d] NEW_QUANTITY [%d] "
-                        "NEW_CREDITS [%d] NEW_LOCATION [%d] NEW_CARGO [%d] TIMESTAMP [%ld]",
-                        event.event_id,
-                        event.event_type,
-                        event.action_id,
-                        event.logged,
-                        event.outcome,
-                        event.drone_id,
-                        event.resource_id,
-                        event.installed,
-                        event.locked,
-                        event.new_quantity,
-                        event.new_credits,
-                        event.new_location,
-                        event.new_transmission,
-                        event.new_cargo,
-                        event.timestamp);
-                }
-            }
-            else
-            {
-                // unexpected error - abort
-                engine_trace(TRACE_LEVEL_ALWAYS,
-                    "ERROR: Unable to get row for query [%s] with [%d] rows",
-                    query_text,
-                    rowsNum);
-
-                result = ENGINE_DB_QUERY_ERROR;
-
-                break; // stop for
-            }
-        }
-    }
-
-    if(db_result)
-        mysql_free_result(db_result);
-
-    return result;
-}
-
-
-/** ****************************************************************************
-
     @brief          Purges old actions present at DB (older than configurable days value)
                     Those actions that have no event associated
 
@@ -605,7 +478,10 @@ ErrorCode_t db_purge_old_actions()
     {
         snprintf(query_text,
             DB_MAX_SQL_QUERY_LEN,
-            "SELECT id FROM actions WHERE id not in (SELECT action FROM events) AND timestamp < (NOW() - interval %d day);",
+            // An archived event keeps its action (#694: a drone's timeline
+            // shows it)
+            "SELECT id FROM actions WHERE id not in (SELECT action FROM events) "
+            "AND id not in (SELECT action FROM events_archive) AND timestamp < (NOW() - interval %d day);",
             engine_get_actions_expiration_days());
 
         // run it
@@ -1206,71 +1082,6 @@ ErrorCode_t db_update_agent_object(DbConnection_t* connection, int agent_id, int
     {
         engine_trace(TRACE_LEVEL_ALWAYS,
             "Updated Object ID for agent [%d] with value [%d]", agent_id, object_id);
-    }
-
-    return result;
-}
-
-/** ****************************************************************************
-
-    @brief          Gets previous event using input one and applying some filters
-
-    @param[in]      event     Event to do the search
-    @param[in]      filter    Enum that determines the filter to be applied at search
-    @param[in]      out_event Output event obtained (when any)
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_delete_previous_events(Event_t *event)
-{
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
-    // Sanity check
-    if(!event)
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS,
-            "ERROR: Unable to delete previous events for NULL input event");
-
-        return ENGINE_INTERNAL_ERROR;
-    }
-
-    DbConnection_t* connection = engine_get_db_connection();
-
-    // always check connection is alive
-    ErrorCode_t result = db_reconnect(connection);
-
-    if(result == ENGINE_OK)
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS,
-            "Deleting previous expired events for "
-            "event_id [%d] event_type [%d] drone_id [%d] resource_id [%d] installed [%d] locked [%d] ...",
-            event->event_id, event->event_type, event->drone_id, event->resource_id, event->installed, event->locked);
-
-        snprintf(query_text,
-                    DB_MAX_SQL_QUERY_LEN,
-                    "DELETE "
-                    "FROM events "
-                    "WHERE event_type = %d and drone = %d and resource = %d and installed = %d and locked = %d "
-                    "and timestamp < (NOW() - interval %d day);",  //
-                    event->event_type, event->drone_id, event->resource_id, event->installed, event->locked,
-                    engine_get_events_expiration_days());
-
-        // run query
-        if (mysql_query(connection->hndl, query_text))
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-    }
-
-    if(result == ENGINE_OK)
-    {
-        engine_trace(TRACE_LEVEL_ALWAYS,
-            "Deleted [%d] previous events for event_id [%d] event_type [%d] drone_id [%d] "
-            "resource_id [%d] installed [%d] locked [%d] ...",
-            mysql_affected_rows(connection->hndl), event->event_id, event->event_type, event->drone_id,
-            event->resource_id, event->installed, event->locked);
     }
 
     return result;
@@ -2968,4 +2779,154 @@ ErrorCode_t db_get_orbit_info_x(ObjectOrbitInfo_t* object)
     if(result == ENGINE_OK && object->object_id == id)
         static_cache_put(&objects_by_id_cache, id, object, sizeof(*object), now);
     return result;
+}
+
+/** ****************************************************************************
+
+    Old events move out of events (#694 stage 3)
+
+    A load world slowed from 6,780 to 3,804 turns a minute as events grew
+    from 316,000 to 675,000 rows, with no code change: the engines' lookups
+    get slower as the history grows. The events engine moves settled events
+    older than house_rules.events_archive_days game days (30; 0: never) to
+    events_archive (archive_events, migration 0072, which says what it
+    never moves). A pass starts at most once a real minute (and purges
+    month-old actions, #431) and goes through the table a window of ids at a
+    time, from the oldest to the cutoff. Each window is its own short
+    transaction, between batches on the events engine's own connection, so
+    it never overlaps a settlement, under READ COMMITTED, so its reads of
+    events take no locks while the game engine inserts. Windows take at most
+    a tenth of the engine's time (a window of 2,000 events took about 0.3 s
+    on a loaded 4-core machine, most of it deleting from events' indexes),
+    so a first pass over weeks of history runs for hours beside the game
+    rather than stopping it.
+
+*******************************************************************************/
+#define ARCHIVE_EVERY_SECONDS 60
+#define ARCHIVE_WINDOW_IDS 2000
+#define ARCHIVE_SHARE 10          /* at most 1/10 of the time */
+#define ARCHIVE_LOG_SECONDS 60
+#define ARCHIVE_DEFAULT_DAYS 30
+
+/* A number from a one-value query, or dflt */
+static long long db_archive_number(DbConnection_t* connection, const char* sql, long long dflt)
+{
+    long long value = dflt;
+    if(mysql_query(connection->hndl, sql)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", sql, mysql_error(connection->hndl));
+        return dflt;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+    if(row && row[0])
+        value = atoll(row[0]);
+    if(res)
+        mysql_free_result(res);
+    return value;
+}
+
+/* Runs a statement, reading and dropping whatever results it leaves (a CALL
+   leaves a status result after its own) */
+static ErrorCode_t db_archive_exec(DbConnection_t* connection, const char* sql)
+{
+    if(mysql_query(connection->hndl, sql)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", sql, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    int status = 0;
+    do {
+        MYSQL_RES* res = mysql_store_result(connection->hndl);
+        if(res)
+            mysql_free_result(res);
+        status = mysql_next_result(connection->hndl);
+    } while(status == 0);
+    if(status > 0) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", sql, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    return ENGINE_OK;
+}
+
+static long long db_archive_ms(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (long long)tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+ErrorCode_t db_archive_due(void)
+{
+    // A pass: where its next window starts (0: the oldest event), its age
+    // and how long it has taken. After a restart a pass starts again from
+    // the oldest
+    static int active = 0;
+    static unsigned long cursor = 0;
+    static long long days = 0, started = 0, spent = 0, logged = 0, moved = 0;
+    static int windows = 0;
+    static time_t next_pass = 0;
+
+    long long now = db_archive_ms();
+    if(!active) {
+        if(time(NULL) < next_pass)
+            return ENGINE_OK;
+        next_pass = time(NULL) + ARCHIVE_EVERY_SECONDS;
+        db_purge_old_actions();
+        DbConnection_t* connection = engine_get_db_connection();
+        if(db_reconnect(connection) != ENGINE_OK)
+            return ENGINE_DB_QUERY_ERROR;
+        days = db_archive_number(connection,
+            "SELECT IFNULL((SELECT events_archive_days FROM house_rules WHERE id = 1), 30)", ARCHIVE_DEFAULT_DAYS);
+        if(days <= 0)
+            return ENGINE_OK;
+        active = 1;
+        started = logged = now;
+        spent = moved = 0;
+        windows = 0;
+    }
+
+    // Its share of the time
+    if(spent * ARCHIVE_SHARE > now - started)
+        return ENGINE_OK;
+
+    DbConnection_t* connection = engine_get_db_connection();
+    ErrorCode_t result = db_reconnect(connection);
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "CALL archive_events(%lu, %d, %lld, @archive_moved, @archive_next)",
+             cursor, ARCHIVE_WINDOW_IDS, days * 86400);
+    // Its own transaction (SET TRANSACTION is for the next one only)
+    if(result == ENGINE_OK)
+        result = db_archive_exec(connection, "SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
+    if(result == ENGINE_OK)
+        result = db_start_transaction(connection);
+    if(result == ENGINE_OK)
+        result = db_archive_exec(connection, query_text);
+    if(result == ENGINE_OK)
+        result = db_commit_transaction(connection);
+    if(result != ENGINE_OK) {
+        db_rollback_transaction(connection);
+        db_archive_exec(connection, "SET @events_archiving = 0");
+        active = 0;     // try again next minute, from where it got to
+        return result;
+    }
+    moved += db_archive_number(connection, "SELECT IFNULL(@archive_moved, 0)", 0);
+    cursor = (unsigned long)db_archive_number(connection, "SELECT IFNULL(@archive_next, 0)", 0);
+    windows++;
+    long long end = db_archive_ms();
+    spent += end - now;
+
+    // Caught up (the next pass starts again from the oldest: what was kept as
+    // the latest of its kind may move by then), or a long pass's progress. A
+    // NOTICE, so a quiet log (live's) shows the first passes catching up
+    if(cursor == 0 || end - logged >= ARCHIVE_LOG_SECONDS * 1000) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "%sArchived [%lld] events older than [%lld] game days in [%d] windows, "
+                     "[%lld] of [%lld] ms, %s",
+                     moved > 0 ? "NOTICE: " : "", moved, days, windows, spent, end - started,
+                     cursor == 0 ? "caught up" : "going on");
+        logged = end;
+        if(cursor == 0)
+            active = 0;
+        else
+            moved = windows = 0, spent = 0, started = end;
+    }
+    return ENGINE_OK;
 }

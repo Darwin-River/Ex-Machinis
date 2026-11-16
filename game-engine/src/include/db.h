@@ -540,17 +540,6 @@ ErrorCode_t db_delete_action_events(int action_id);
 
 /** ****************************************************************************
 
-    @brief          Purges old events present at DB (older than configurable days value)
-
-    @param[in]      void
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_purge_old_events();
-
-/** ****************************************************************************
-
     @brief          Deletes event giving event_id
 
     @param[in]      Input event
@@ -602,19 +591,6 @@ ErrorCode_t db_update_event(Event_t *event);
 *******************************************************************************/
 ErrorCode_t db_event_settled_in_batch(int event_id, Bool_t* settled);
 void db_settled_batch_start(void);
-
-/** ****************************************************************************
-
-    @brief          Gets previous event using input one and applying some filters
-
-    @param[in]      event     Event to do the search
-    @param[in]      filter    Enum that determines the filter to be applied at search
-    @param[in]      out_event Output event obtained (when any)
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_delete_previous_events(Event_t *event);
 
 /** ****************************************************************************
 
@@ -787,6 +763,17 @@ ErrorCode_t db_delete_action(int action_id);
 
 *******************************************************************************/
 ErrorCode_t db_purge_old_actions();
+
+/** ****************************************************************************
+
+    @brief          Once a real minute: moves old settled events to
+                    events_archive (#694, migration 0072's archive_events)
+                    and purges old actions
+
+    @return         Execution result
+
+*******************************************************************************/
+ErrorCode_t db_archive_due(void);
 
 /** ****************************************************************************
 
