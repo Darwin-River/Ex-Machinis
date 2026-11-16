@@ -134,7 +134,7 @@ class RoundSeventyLeftoversTest extends TestCase
     public function testEquipTrustsOnlyAToolThatIsReallyMissing()
     {
         $lua = file_get_contents(base_path('game-engine/src/lua_library.lua'));
-        $this->assertStringContainsString('if not rows then return false end', $lua);
+        $this->assertStringContainsString('if not rows or not rows[1] or rows[1][1] == nil then return false end', $lua);
         $this->assertStringContainsString('if missing_tool(kit) == lacks then', $lua);
         $this->assertStringContainsString('if missing_tool(kit) == lacks then',
             file_get_contents(base_path('game-engine/src/lua_library.c')), 'the engine\'s copy is rebuilt');
