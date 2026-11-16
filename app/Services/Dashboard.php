@@ -54,8 +54,7 @@ class Dashboard
     /** The banner and tiles, with what they are worked out from */
     private static function summary(?array $parts = null): array
     {
-        $parts ??= ['activity' => self::activity(), 'drones' => self::drones(), 'matured' => self::matured(),
-            'profit' => self::maturedProfit()];
+        $parts ??= self::parts();
         [, $today] = self::today();
         $clock = LaunchQueue::status();
         $activity = $parts['activity'];
@@ -78,8 +77,11 @@ class Dashboard
         $p = $parts['profit'];
         $week = array_sum(array_map(fn ($r) => $r['net'], array_filter($p, fn ($r) => $r['day'] >= $today - 7 && $r['day'] < $today)));
         $lastWeek = array_sum(array_map(fn ($r) => $r['net'], array_filter($p, fn ($r) => $r['day'] >= $today - 14 && $r['day'] < $today - 7)));
-        $players = (int) DB::table('users')->whereNotNull('login')->count();
-        $newPlayers = (int) DB::table('users')->whereNotNull('login')->where('created_at', '>=', now()->subDays(7))->count();
+        // The players /players lists (#716: 8 here, 4 there): the public's
+        // accounts, a class group's pupils left out
+        $players = (int) DB::table('users')->whereNotNull('login')->whereNull('class_group_id')->count();
+        $newPlayers = (int) DB::table('users')->whereNotNull('login')->whereNull('class_group_id')
+            ->where('created_at', '>=', now()->subDays(7))->count();
 
         $slowed = (bool) $clock['slowed'];
         return [
@@ -199,9 +201,7 @@ class Dashboard
      */
     private static function drones(): array
     {
-        $rows = DB::table('agents AS a')->leftJoin('objects AS o', 'o.object_id', '=', 'a.object_id')
-            ->whereNull('a.station_id')
-            ->where(fn ($q) => $q->whereNull('a.wreck_cause')->orWhere('a.wreck_cause', '<>', 'closed'))
+        $rows = World::playerDrones()->leftJoin('objects AS o', 'o.object_id', '=', 'a.object_id')
             ->groupBy('o.object_name')
             ->selectRaw('o.object_name AS place, SUM(a.wrecked_at IS NULL) AS working, SUM(a.wrecked_at IS NOT NULL) AS wrecks')
             ->get();
@@ -233,39 +233,58 @@ class Dashboard
     }
 
     /**
-     * The matured companies' combined profit each game day over the last
-     * DAYS: sales after tax less purchases, counted from the day each matured
+     * Each matured company's earnings a game day over the last DAYS
+     * (CompanyEarnings, as its page charts them), from the day it matured:
+     * company => rows. The profit chart and the companies table are both
+     * summed from these, so they agree (#716: the chart's 30 days came to
+     * -49,440 and the table's to -36,683; the chart counted ended companies too)
      */
-    private static function maturedProfit(): array
+    private static function maturedDaily(array $matured): array
     {
-        [$epoch, $today] = self::today();
+        $out = [];
+        foreach ($matured as $c) {
+            $out[$c['company']] = array_map(function ($r) use ($c) {
+                if ($r['day'] < $c['matured_day']) {
+                    $r['sales'] = $r['purchases'] = $r['net'] = $r['tax'] = $r['trades'] = 0;
+                }
+                return $r;
+            }, CompanyEarnings::daily($c['company'], self::DAYS));
+        }
+        return $out;
+    }
+
+    /**
+     * The matured companies' combined profit each game day over the last
+     * DAYS: sales after tax less purchases, from the day each matured. Only
+     * the companies still trading, as the companies table lists them
+     */
+    private static function maturedProfit(array $daily): array
+    {
+        [, $today] = self::today();
         $first = max(0, $today - self::DAYS + 1);
         $rows = [];
         for ($d = $first; $d <= $today; $d++) {
             $rows[$d] = ['day' => $d, 'sales' => 0, 'purchases' => 0, 'net' => 0];
         }
-        $matured = fn ($side) => DB::table('trades AS t')
-            ->join('agents AS a', 'a.agent_id', '=', "t.$side")
-            ->join('companies AS c', 'c.company_id', '=', 'a.company_id')
-            ->where('c.seedling', 0)->whereNotNull('c.owner_id')->whereNotNull('c.matured_t')
-            ->whereColumn('t.game_t', '>=', 'c.matured_t')
-            ->where('t.game_t', '>=', $epoch + $first * 86400)
-            ->groupBy('day');
-        foreach ($matured('seller')->selectRaw('FLOOR((t.game_t - ?) / 86400) AS day, SUM(t.credits - t.tax) AS v', [$epoch])->get() as $r) {
-            if (isset($rows[(int) $r->day])) {
-                $rows[(int) $r->day]['sales'] = (int) $r->v;
+        foreach ($daily as $days) {
+            foreach ($days as $r) {
+                if (isset($rows[$r['day']])) {
+                    $rows[$r['day']]['sales'] += $r['sales'];
+                    $rows[$r['day']]['purchases'] += $r['purchases'];
+                    $rows[$r['day']]['net'] += $r['net'];
+                }
             }
         }
-        foreach ($matured('buyer')->selectRaw('FLOOR((t.game_t - ?) / 86400) AS day, SUM(t.credits) AS v', [$epoch])->get() as $r) {
-            if (isset($rows[(int) $r->day])) {
-                $rows[(int) $r->day]['purchases'] = (int) $r->v;
-            }
-        }
-        foreach ($rows as &$r) {
-            $r['net'] = $r['sales'] - $r['purchases'];
-        }
-        unset($r);
         return array_values($rows);
+    }
+
+    /** The parts every figure is worked out from */
+    private static function parts(): array
+    {
+        $matured = self::matured();
+        $daily = self::maturedDaily($matured);
+        return ['activity' => self::activity(), 'drones' => self::drones(), 'matured' => $matured,
+            'daily' => $daily, 'profit' => self::maturedProfit($daily)];
     }
 
     /** Credits traded in each good over the last GOODS_DAYS game days, most first (top 8) */
@@ -287,8 +306,11 @@ class Dashboard
      */
     private static function spreads(array $goods): array
     {
-        $asks = World::orders(4, 2000);
-        $bids = World::orders(5, 2000);
+        // Only orders whose drone is where it posted them, and not flying
+        // (#716: a drone's buy order at Mars made a crossed book there while
+        // it was on its way to Phobos)
+        $asks = World::orders(4, 2000, true);
+        $bids = World::orders(5, 2000, true);
         $book = [];
         foreach ([['ask', $asks], ['bid', $bids]] as [$side, $rows]) {
             foreach ($rows as $o) {
@@ -317,18 +339,19 @@ class Dashboard
      * Every matured company, as a buyer of its shares would judge it: a
      * share's cash-out value, working drones, profit and dividends a share
      * over 30 game days, the yield (dividends against cash-out) and its
-     * daily profit
+     * daily profit, from the same earnings as the profit chart (#716)
      */
-    private static function companies(array $matured): array
+    private static function companies(array $matured, array $daily): array
     {
+        [, $today] = self::today();
         $out = [];
         foreach ($matured as $c) {
-            $days = CompanyEarnings::daily($c['company'], 30);
+            $days = array_values(array_filter($daily[$c['company']] ?? [], fn ($r) => $r['day'] > $today - 30));
             $div = PlayerShares::dividends30($c['company']);
             $out[] = [
                 'company' => $c['company'], 'name' => $c['name'], 'owner' => $c['owner'],
                 'cash_out' => $c['cash_out'],
-                'drones' => (int) DB::table('agents')->where('company_id', $c['company'])->whereNull('wrecked_at')->count(),
+                'drones' => (int) World::playerDrones()->where('a.company_id', $c['company'])->whereNull('a.wrecked_at')->count(),
                 'profit30' => array_sum(array_column($days, 'net')),
                 'dividends30' => $div,
                 'yield_percent' => $c['cash_out'] > 0 ? round(100 * $div / $c['cash_out'], 1) : null,
@@ -342,7 +365,9 @@ class Dashboard
     /** Each player's wealth: shares at cash-out, credits, and what the bank owes them (the 25 richest) */
     private static function players(): array
     {
-        $w = array_values(PlayerBoards::wealths(null, true));
+        // The public's players, as /players lists them (#716: a class
+        // group's accounts showed here and not there)
+        $w = array_values(PlayerBoards::wealths(null));
         usort($w, fn ($a, $b) => $b['wealth'] <=> $a['wealth']);
         return array_map(fn ($p) => ['name' => $p['name'], 'shares' => $p['shares'], 'credits' => $p['credits'],
             'bank_due' => $p['bank_due'], 'wealth' => $p['wealth']], array_slice($w, 0, 25));
@@ -351,8 +376,7 @@ class Dashboard
     /** The whole dashboard */
     private static function build(): array
     {
-        $parts = ['activity' => self::activity(), 'drones' => self::drones(), 'matured' => self::matured(),
-            'profit' => self::maturedProfit()];
+        $parts = self::parts();
         $goods = self::goods();
         return self::summary($parts) + [
             'trading' => ['places' => $parts['activity']['places'], 'days' => $parts['activity']['days']],
@@ -360,7 +384,7 @@ class Dashboard
             'goods' => $goods,
             'spreads' => self::spreads($goods),
             'news' => array_slice(HouseMarket::news(), 0, 10),
-            'companies' => self::companies($parts['matured']),
+            'companies' => self::companies($parts['matured'], $parts['daily']),
             'drones_by_place' => $parts['drones']['places'],
             'players' => self::players(),
             'sources' => [

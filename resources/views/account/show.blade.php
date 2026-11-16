@@ -9,7 +9,7 @@
             @include('account._errors')
             @if($digest = session('digest'))
                 <div class="alert alert-info" id="digest" style="white-space: normal">
-                    <b>While you were away</b> (since {{ $digest['since'] }}):
+                    <b>While you were away</b> (since {{ $digest['since'] }}{{ !empty($digest['capped']) ? ', the last ' . \App\Services\PlayerBoards::DIGEST_MAX_DAYS . ' game days' : '' }}):
                     <ul class="mb-0">
                         @foreach($digest['companies'] as $c)
                             <li>{{ $c['name'] }}{{ $c['seedling'] ? ' (seedling)' : '' }}@if(!empty($c['to_bank'])) gave the bank {{ number_format($c['to_bank']) }} over its cap,@endif sold {{ number_format($c['sales']) }} and bought
@@ -17,11 +17,15 @@
                         @endforeach
                         @if($digest['dividends'])<li>Your shares paid you {{ number_format($digest['dividends']) }} credits in dividends.</li>@endif
                         @if($digest['bank_paid'])<li>The bank paid you {{ number_format($digest['bank_paid']) }} credits for shares you sold it.</li>@endif
+                        @foreach($digest['share_fills'] ?? [] as $f)
+                            <li>You {{ $f['side'] }} {{ number_format($f['units']) }} {{ $f['name'] }} {{ \Illuminate\Support\Str::plural('share', $f['units']) }} at {{ number_format($f['price']) }}
+                                {{ $f['side'] === 'sold' ? 'to' : 'from' }} {{ $f['with'] }} ({{ $f['when'] }}).</li>
+                        @endforeach
                         @foreach($digest['same_owner_deals'] as $f)
                             <li>{{ $f['company'] }} dealt with {{ $f['with'] }}, a company of yours: flagged on both pages.</li>
                         @endforeach
                         @foreach(array_slice($digest['news'], 0, 5) as $n)<li>News: {{ $n['text'] }}</li>@endforeach
-                        @if(!$digest['companies'] && !$digest['dividends'] && !$digest['bank_paid'] && !$digest['news'])<li>Nothing new.</li>@endif
+                        @if(!$digest['companies'] && !$digest['dividends'] && !$digest['bank_paid'] && !$digest['news'] && empty($digest['share_fills']))<li>Nothing new.</li>@endif
                     </ul>
                 </div>
             @endif
@@ -68,12 +72,26 @@
             @if($portfolio['dividends_30_days'] > 0)
                 <p>Your shares have paid you {{ number_format($portfolio['dividends_30_days']) }} credits in dividends over the last 30 game days.</p>
             @endif
+            {{-- Its own share trades (#715: nothing said when an order filled) --}}
+            @if(count($portfolio['fills']))
+                <p id="share-fills">Your share trades over the last {{ \App\Services\PlayerShares::FILLS_DAYS }} game days:</p>
+                <ul>
+                    @foreach($portfolio['fills'] as $f)
+                        <li>{{ ucfirst($f['side']) }} {{ number_format($f['units']) }} of
+                            <a href="{{ url('companies/' . $f['company_id']) }}#player-shares">{{ $f['name'] }}</a> at {{ number_format($f['price']) }}
+                            {{ $f['side'] === 'sold' ? 'to' : 'from' }} {{ $f['with'] }}, {{ $f['when'] }} ({{ $f['ago'] }})</li>
+                    @endforeach
+                </ul>
+            @endif
             @if(count($portfolio['orders']))
                 <p>Your standing orders:</p>
-                <ul>
+                <ul id="share-orders">
                     @foreach($portfolio['orders'] as $o)
                         <li>{{ $o['side'] === 'buy' ? 'Buy' : 'Sell' }} {{ number_format($o['units']) }} of
                             <a href="{{ url('companies/' . $o['company_id']) }}#player-shares">{{ $o['name'] }}</a> at {{ number_format($o['price']) }}
+                            {{-- An order the range has left can't fill, and stands unseen (#715) --}}
+                            @if($o['out_of_range'])<strong class="text-warning">Can't fill now:</strong>
+                                {{ $o['low'] !== null ? 'players trade between ' . number_format($o['low']) . ' and ' . number_format($o['high']) . ' a share now, so it waits until the range comes back. Cancel it, or post a new price.' : 'the company no longer trades.' }}@endif
                             <form method="POST" action="{{ url('share-orders/' . $o['id'] . '/cancel') }}" class="d-inline">
                                 {{ csrf_field() }}<button class="button button-secondary button-sm" type="submit">Cancel</button>
                             </form></li>

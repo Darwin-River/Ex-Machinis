@@ -34,6 +34,9 @@ class PlayerShares
     // price in whole credits (1,000 made it 2 to 15 credits)
     public const COUNT = 100;
 
+    /** Game days of an account's own share trades its page and GET /account/shares list (#715) */
+    public const FILLS_DAYS = 7;
+
     /** Can players trade this company's shares: a matured company of the new rules, still trading? */
     public static function tradable(int $company): bool
     {
@@ -111,11 +114,13 @@ class PlayerShares
 
     /**
      * The bank's prices for a company's shares and the range players trade
-     * in: ['buys_at', 'sells_at', 'low', 'high', 'bank_holds']
+     * in: ['buys_at', 'sells_at', 'low', 'high', 'bank_holds']. $cash: its
+     * cashOut() already worked out, so a page that shows its parts quotes the
+     * same figures (#716: the company page's credits differed from its tile)
      */
-    public static function prices(int $company): array
+    public static function prices(int $company, ?array $cash = null): array
     {
-        $buys = self::cashOut($company)['per_share'];
+        $buys = ($cash ?? self::cashOut($company))['per_share'];
         $sells = $buys + self::dividends30($company);
         return ['buys_at' => $buys, 'sells_at' => $sells,
             'low' => (int) floor($sells * (float) config('forge.share_range_low')),
@@ -285,9 +290,12 @@ class PlayerShares
         $crosses = $side === 'buy' ? (clone $mine)->where('price', '<=', $price)->min('price')
             : (clone $mine)->where('price', '>=', $price)->max('price');
         if ($crosses !== null) {
+            // The standing order's price is what a new one must stay clear of
+            // (#715: it quoted the new order's own price, "a buy at 600 or
+            // more would cross it" against a sell at 50)
             return self::fail(422, 'You have an order to ' . ($side === 'buy' ? 'sell' : 'buy') . ' its shares at '
-                . (int) $crosses . ': ' . ($side === 'buy' ? 'a buy at ' . $price . ' or more' : 'a sell at ' . $price . ' or less')
-                . ' would cross it. Cancel that order first, or change your price.');
+                . (int) $crosses . ': ' . ($side === 'buy' ? 'a buy at ' . (int) $crosses . ' or more' : 'a sell at ' . (int) $crosses . ' or less')
+                . ' would cross it. Cancel that order first, or ' . ($side === 'buy' ? 'bid under ' : 'ask over ') . (int) $crosses . '.');
         }
         return DB::transaction(function () use ($me, $company, $side, $units, $price, $p) {
             $traded = 0;
@@ -437,7 +445,34 @@ class PlayerShares
         return ['sell' => $rows('sell', 'asc'), 'buy' => $rows('buy', 'desc')];
     }
 
-    /** An account's shares, orders and payments due from the bank */
+    /**
+     * An account's share trades since a game time, newest first (#715:
+     * nothing told a player when an order filled): company_id, name, side
+     * (bought or sold), units, price, with (the other side's name, or "the
+     * bank"), when, ago, game_time
+     */
+    public static function fills(int $user, int $since, int $limit = 20): array
+    {
+        return DB::table('player_share_trades as t')->join('companies as c', 'c.company_id', '=', 't.company_id')
+            ->leftJoin('users as s', 's.user_id', '=', 't.seller_id')->leftJoin('users as b', 'b.user_id', '=', 't.buyer_id')
+            ->where(fn ($q) => $q->where('t.seller_id', $user)->orWhere('t.buyer_id', $user))
+            ->where('t.game_t', '>', $since)->orderByDesc('t.id')->limit($limit)
+            ->get(['t.company_id', 'c.name', 't.seller_id', 't.units', 't.price', 't.game_t', 's.login as seller', 'b.login as buyer'])
+            ->map(function ($t) use ($user) {
+                $sold = (int) $t->seller_id === $user;
+                return ['company_id' => (int) $t->company_id, 'name' => $t->name, 'side' => $sold ? 'sold' : 'bought',
+                    'units' => (int) $t->units, 'price' => (int) $t->price,
+                    'with' => ($sold ? $t->buyer : $t->seller) ?? 'the bank',
+                    'when' => DronePage::when((int) $t->game_t), 'ago' => DronePage::ago((int) $t->game_t), 'game_time' => (int) $t->game_t];
+            })->all();
+    }
+
+    /**
+     * An account's shares, orders and payments due from the bank, and its
+     * share trades over the last FILLS_DAYS game days (#715). Each order
+     * says whether it can trade now: one outside the range players trade
+     * in (out_of_range) stands, but can't fill until the range comes back
+     */
     public static function of(User $user): array
     {
         $holdings = DB::table('player_shares as s')->join('companies as c', 'c.company_id', '=', 's.company_id')
@@ -447,10 +482,16 @@ class PlayerShares
                 return ['company_id' => (int) $h->company_id, 'name' => $h->name, 'units' => (int) $h->units,
                     'cash_out' => $p['buys_at'], 'value' => (int) $h->units * $p['buys_at']];
             })->all();
+        $range = [];
         $orders = DB::table('player_share_orders as o')->join('companies as c', 'c.company_id', '=', 'o.company_id')
             ->where('o.user_id', $user->user_id)->orderBy('o.id')->get(['o.id', 'o.company_id', 'c.name', 'o.side', 'o.units', 'o.price'])
-            ->map(fn ($o) => ['id' => (int) $o->id, 'company_id' => (int) $o->company_id, 'name' => $o->name,
-                'side' => $o->side, 'units' => (int) $o->units, 'price' => (int) $o->price])->all();
+            ->map(function ($o) use (&$range) {
+                $p = $range[$o->company_id] ??= self::tradable((int) $o->company_id) ? self::prices((int) $o->company_id) : null;
+                return ['id' => (int) $o->id, 'company_id' => (int) $o->company_id, 'name' => $o->name,
+                    'side' => $o->side, 'units' => (int) $o->units, 'price' => (int) $o->price,
+                    'low' => $p['low'] ?? null, 'high' => $p['high'] ?? null,
+                    'out_of_range' => $p === null || (int) $o->price < $p['low'] || (int) $o->price > $p['high']];
+            })->all();
         $due = DB::table('bank_payments as b')->join('companies as c', 'c.company_id', '=', 'b.company_id')
             ->where('b.user_id', $user->user_id)->whereNull('b.paid_t')->orderBy('b.due_t')
             ->get(['b.id', 'b.company_id', 'c.name', 'b.units', 'b.price_at_sale', 'b.due_t'])
@@ -459,7 +500,8 @@ class PlayerShares
         $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
         $today = intdiv(World::gameNow() - $epoch, 86400);
         $dividends = (int) DB::table('player_dividends')->where('user_id', $user->user_id)->where('day', '>=', $today - 30)->sum('amount');
-        return ['holdings' => $holdings, 'orders' => $orders, 'bank_payments' => $due, 'dividends_30_days' => $dividends];
+        return ['holdings' => $holdings, 'orders' => $orders, 'bank_payments' => $due, 'dividends_30_days' => $dividends,
+            'fills' => self::fills((int) $user->user_id, World::gameNow() - self::FILLS_DAYS * 86400)];
     }
 
     /**

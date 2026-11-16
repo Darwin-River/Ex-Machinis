@@ -65,13 +65,17 @@ class LeaderboardTest extends TestCase
         $old = $this->player('old@example.com', 'Old Timer');
         $agent = Release::release($old, 'Old Co', ': launched ;');
         DB::table('companies')->where('company_id', $agent->company_id)->increment('credits', 300);
-        DB::table('wealth_snapshots')->insert(['company_id' => $agent->company_id, 'taken_at' => now()->subDays(8), 'wealth' => 200]);
+        // Its daily history 8 game days ago (#717: Rising counts game days, not a real week)
+        $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
+        $today = intdiv(\App\Services\World::gameNow() - $epoch, 86400);
+        DB::table('company_days')->insert(['company_id' => $agent->company_id, 'day' => $today - 8, 'credits' => 0,
+            'net_wealth' => 200, 'drones' => 1]);
         $new = $this->player('new@example.com', 'Newcomer');
         $newAgent = Release::release($new, 'New Co', ': launched ;');
         DB::table('companies')->where('company_id', $newAgent->company_id)->increment('credits', 150);
 
         $rising = collect(Leaderboard::rising())->keyBy('company_id');
-        $this->assertSame(100, $rising[$agent->company_id]['gain'], 'gain since the snapshot a week ago');
+        $this->assertSame(100, $rising[$agent->company_id]['gain'], 'gain since its net wealth 7 or more game days ago');
         $this->assertSame(150, $rising[$newAgent->company_id]['gain'], 'a newcomer counts from 0');
     }
 
@@ -89,7 +93,7 @@ class LeaderboardTest extends TestCase
         $rich = Release::release($player, 'Rich Co', ': launched ;');
         DB::table('companies')->where('company_id', $rich->company_id)->increment('credits', 9000);
         $poor = Release::release($player, 'Poor Co', ': launched ;');
-        $this->get('/leaderboard')->assertOk()->assertSee('Rising this week')
+        $this->get('/leaderboard')->assertOk()->assertSee('Rising, 7 game days')
             ->assertSeeInOrder(['Rich Co', '9,000', 'Poor Co'])
             ->assertDontSee($rich->name);
     }

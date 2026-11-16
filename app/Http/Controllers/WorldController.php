@@ -13,6 +13,9 @@ use App\Services\World;
  */
 class WorldController extends Controller
 {
+    /** Game days a players' trade stays recent enough to set a premium or discount against cash-out (#716) */
+    public const PREMIUM_DAYS = 7;
+
     public function market(\Illuminate\Http\Request $request)
     {
         $trades = World::trades();
@@ -70,6 +73,7 @@ class WorldController extends Controller
             // cash-out, and whether it has stalled
             $today = \App\Services\MarketHistory::today();
             $hasCash = \Illuminate\Support\Facades\Schema::hasColumn('company_days', 'cash_out');
+            $now = World::gameNow();
             foreach ($playerMarket as &$m) {
                 $id = $m['company'];
                 $m['dividends30'] = $m['sells_at'] - $m['buys_at'];
@@ -77,15 +81,25 @@ class WorldController extends Controller
                 $m['spark'] = $hasCash ? DB::table('company_days')->where('company_id', $id)->where('day', '>', $today - 30)
                     ->whereNotNull('cash_out')->orderBy('day')->get(['day', 'cash_out'])
                     ->map(fn ($r) => ['day' => (int) $r->day, 'v' => intdiv(max(0, (int) $r->cash_out), \App\Services\PlayerShares::COUNT)])->all() : [];
-                $last = DB::table('player_share_trades')->where('company_id', $id)->orderByDesc('id')->first(['price', 'game_t']);
+                // The last trade between two players (#716): the bank's trades
+                // are at its own prices, and an old trade says little about
+                // today's, so the premium is shown only for a recent one
+                $last = DB::table('player_share_trades')->where('company_id', $id)->whereNotNull('seller_id')
+                    ->whereNotNull('buyer_id')->orderByDesc('id')->first(['price', 'game_t']);
                 $m['last_price'] = $last ? (int) $last->price : null;
-                $m['premium_percent'] = $last && $m['buys_at'] > 0 ? (int) round(100 * ($last->price - $m['buys_at']) / $m['buys_at']) : null;
+                $m['last_days_ago'] = $last ? intdiv(max(0, $now - (int) $last->game_t), 86400) : null;
+                $m['premium_percent'] = $last && $m['buys_at'] > 0 && $m['last_days_ago'] <= self::PREMIUM_DAYS
+                    ? (int) round(100 * ($last->price - $m['buys_at']) / $m['buys_at']) : null;
                 $h = \App\Services\CompanyHealth::of($id);
                 $m['stalled'] = (bool) $h['stalled'];
                 $m['at_risk'] = (bool) $h['at_risk'];
-                $m['health_note'] = $h['stalled'] ? $h['stalled_reason'] : ($h['at_risk'] ? $h['at_risk_reason'] : null);
+                $m['failing'] = $h['failing_reason'] !== null;
+                $m['health_note'] = $h['stalled'] ? $h['stalled_reason'] : ($h['at_risk'] ? $h['at_risk_reason'] : $h['failing_reason']);
             }
             unset($m);
+            // Best yield first (#716: the table was alphabetical); no yield last
+            usort($playerMarket, fn ($a, $b) => [$b['yield_percent'] === null ? 0 : 1, $b['yield_percent'] ?? 0, $a['name']]
+                <=> [$a['yield_percent'] === null ? 0 : 1, $a['yield_percent'] ?? 0, $b['name']]);
         }
         $playerTrades = config('forge.new_rules') ? \App\Services\PlayerShares::trades() : [];
         return view('world.shares', compact('exchange', 'playerMarket', 'playerTrades'));

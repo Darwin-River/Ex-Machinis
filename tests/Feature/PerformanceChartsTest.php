@@ -93,10 +93,17 @@ class PerformanceChartsTest extends TestCase
         $today = intdiv(World::gameNow() - $epoch, 86400);
         DB::table('company_days')->updateOrInsert(['company_id' => $id, 'day' => $today - 1],
             ['credits' => 1, 'net_wealth' => 1, 'drones' => 1, 'cash_out' => 5000]);
+        // A trade with the bank sets no players' price (#716)
         DB::table('player_share_trades')->insert(['company_id' => $id, 'seller_id' => $owner->user_id, 'buyer_id' => null,
             'units' => 1, 'price' => (int) round(PlayerShares::prices($id)['buys_at'] * 1.1), 'game_t' => World::gameNow()]);
+        $this->get('/market/shares')->assertOk()->assertDontSee('% premium')->assertSee('no trade between players');
+        $buyer = User::create(['name' => 'Perf Buyer', 'login' => 'PerfBuyer' . uniqid(), 'email' => uniqid() . '@example.com',
+            'password' => bcrypt('secret-password')]);
+        DB::table('player_share_trades')->insert(['company_id' => $id, 'seller_id' => $owner->user_id, 'buyer_id' => $buyer->user_id,
+            'units' => 1, 'price' => (int) round(PlayerShares::prices($id)['buys_at'] * 1.1), 'game_t' => World::gameNow()]);
         $this->get('/market/shares')->assertOk()->assertSee('id="player-share-market"', false)
-            ->assertSee('Cash-out a share')->assertSee('Dividends a share, 30 days')->assertSee('Yield')
+            ->assertSee('Cash-out a share')->assertSee('Dividends a share, 30 days')->assertSee('Yield, 30 days')
+            ->assertSee('id="health-meaning"', false)->assertSee('today,')
             ->assertSee('% premium')->assertSee('data-spark=', false)->assertSee('<th>Health</th>', false);
     }
 

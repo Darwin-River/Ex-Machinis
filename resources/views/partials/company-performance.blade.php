@@ -37,8 +37,10 @@
         <div class="mh-card perf-card">
             <h3>What is a share worth?</h3>
             <p class="mh-note">A share's cash-out value, what the bank pays for it, and the bank's selling price (cash-out plus
-                30 days of dividends) at each game day's snapshot; each dot is a trade between players at its price.
-                Cash-out is recorded from the day a company matures.</p>
+                30 days of dividends) at each game day's snapshot; each dot is a trade between two players at its price
+                (the bank's trades are at its own prices, and aren't dots).
+                @if($perf['cash_out_from'] !== null)The world has recorded cash-out since game day {{ number_format($perf['cash_out_from']) }}: no line
+                    before that day, even for a company that matured earlier.@endif</p>
             <div class="ex-legend" id="perf-cash-legend"></div>
             <div class="ex-chart" id="perf-cash" aria-label="Cash-out a share, the bank's price and players' trades"></div>
             <p class="ex-src">Data: <code>GET /api/v1/companies/{{ $companyId }}/history</code> (cash_out_share, bank_sells_at) and
@@ -75,7 +77,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const L = 64;   // one left margin, so every chart's days line up
     X.legend($('perf-wealth-legend'), [{name: 'Net wealth', colour: C[0], kind: 'line'}, {name: 'Credits', colour: C[2], kind: 'line'}]);
     if ($('perf-cash-legend')) X.legend($('perf-cash-legend'), [{name: 'Cash-out a share', colour: C[0], kind: 'line'},
-        {name: "Bank's selling price", colour: C[3], kind: 'line'}, {name: "Players' trades", colour: C[4], kind: 'dot'}]);
+        {name: "Bank's selling price", colour: C[3], kind: 'line'}, {name: 'Trades between players', colour: C[4], kind: 'dot'}]);
     X.legend($('ce-legend'), [{name: 'Sales after tax', colour: C[0]}, {name: 'Spent on goods', colour: C[1]}, {name: 'Profit', colour: '#e9e9ef', kind: 'dot'}]);
 
     function draw() {
@@ -96,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function () {
             X.lines($('perf-cash'), [
                 {name: 'Cash-out a share', colour: C[0], points: hist.map((r) => ({day: r.day, v: r.cash_out_share}))},
                 {name: "Bank's selling price", colour: C[3], dash: '5 3', points: hist.map((r) => ({day: r.day, v: r.bank_sells_at}))},
-                {name: 'Trade', colour: C[4], dotsOnly: true, r: 4, points: trades.map((t) => ({day: t.day, v: t.price,
+                {name: 'Trade between players', colour: C[4], dotsOnly: true, r: 4, points: trades.map((t) => ({day: t.day, v: t.price,
                     label: `${t.units} at ${t.price} (${t.seller} to ${t.buyer})`}))}],
                 Object.assign({H: 200, unit: 'cr', fromZero: false, empty: 'No cash-out recorded in this period.'}, o));
         }
@@ -115,6 +117,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if ($('perf-div')) {
             let run = 0;
             const per = earn.map((r) => ({day: r.day, v: r.dividends / P.shares}));
+            // Nothing paid in the period: a line saying so, not two empty charts (#716: a 0 to 1 axis)
+            if (!per.some((r) => r.v > 0)) {
+                X.empty($('perf-div'), 'No dividends in this period.');
+                $('perf-div-total').replaceChildren();
+                return drones();
+            }
             X.diverging($('perf-div'), per.map((r) => ({day: r.day, up: r.v})), Object.assign({H: 140, unit: 'cr', n: 3,
                 upColour: C[2], empty: 'No dividends in this period.',
                 tip: (r, day) => ['Game day ' + day, `Dividends a share: ${r ? (Math.round(r.up * 100) / 100).toLocaleString('en') : 0}`]}, o));
@@ -122,8 +130,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 points: per.map((r) => ({day: r.day, v: Math.round((run += r.v) * 100) / 100}))}], Object.assign({H: 130, unit: 'cr', n: 3}, o));
         }
 
-        X.step($('perf-drones'), hist.map((r) => ({day: r.day, v: r.drones})),
-            Object.assign({H: 120, name: 'Working drones', yFmt: (v) => String(v), empty: 'No daily snapshot in this period yet.'}, o));
+        drones();
+        function drones() {
+            X.step($('perf-drones'), hist.map((r) => ({day: r.day, v: r.drones})),
+                Object.assign({H: 120, name: 'Working drones', yFmt: (v) => String(v), empty: 'No daily snapshot in this period yet.'}, o));
+        }
     }
     $('perf-days').addEventListener('change', draw);
     X.onResize($('company-performance'), draw);

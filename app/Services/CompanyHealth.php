@@ -36,6 +36,14 @@ use Illuminate\Support\Facades\DB;
  *   Now it is stalled too when at least half its drones are idle, or when it
  *   has sold nothing for STALLED_SALE_HOURS (once it is that old);
  *   stalled_reason says which
+ * - Round 70 (#715): a new company has STALLED_GRACE_DAYS game days to make
+ *   its first sale before "it has never sold anything" stalls it (a 4-day-old
+ *   seedling mining its first load was flagged); half its drones idle stalls
+ *   it only when it hasn't sold for a game day either (a company paying
+ *   dividends was "stalled"); and failing (failing_reason) counts the
+ *   actions its drones tried and failed over the last game day, by what
+ *   they were, since a drone failing the same action over and over looks
+ *   idle (round 70: "Make Alloys" failed every few hours, health said idle)
  */
 class CompanyHealth
 {
@@ -45,6 +53,7 @@ class CompanyHealth
     public const STALLED_HOURS = 24;
     public const IDLE_LOOKBACK = 10;   // game days
     public const STALLED_SALE_HOURS = 72;
+    public const STALLED_GRACE_DAYS = 7;
 
     /** The per-drone fuel figures for the SQL: c (company id) and now are placeholders */
     public static function sql(string $company, string $now): string
@@ -98,8 +107,11 @@ class CompanyHealth
         $founded = (int) (DB::table('companies')->where('company_id', $company)->value('founded_t') ?? $now);
         $health['last_sale'] = $sold !== null ? (int) floor(($now - (int) $sold) / 3600)
             : ($now - $founded >= $lookback ? self::IDLE_LOOKBACK * 24 : null);
+        // Its actions that failed over the last game day (#715)
+        $health['failing'] = self::failing($company, $now);
         // An ended company is neither stalled nor at risk: it has ended (#686)
         $ended = DB::table('companies')->where('company_id', $company)->whereNotNull('eliminated_at')->exists();
+        $health['failing_reason'] = $ended ? null : self::failingReason($health['failing']);
         $health['stalled_reason'] = $ended ? null : self::stalledReason($health, $now - $founded);
         $health['stalled'] = $health['stalled_reason'] !== null;
         $health['at_risk_reason'] = $ended ? null : self::riskReason($health);
@@ -116,16 +128,48 @@ class CompanyHealth
         if ($h['idle'] >= self::STALLED_HOURS) {
             return "none of its drones has bought, sold or made anything for {$h['idle']} game hours";
         }
-        if ($h['working'] > 1 && $h['idle_drones'] * 2 >= $h['working']) {
+        // Half its drones idle, while it hasn't sold for a game day either (#715)
+        if ($h['working'] > 1 && $h['idle_drones'] * 2 >= $h['working']
+            && ($h['last_sale'] === null || $h['last_sale'] >= self::STALLED_HOURS)) {
             return "{$h['idle_drones']} of its {$h['working']} drones have bought, sold or made nothing for a game day or more";
         }
-        if ($age >= self::STALLED_SALE_HOURS * 3600
+        // A new company has STALLED_GRACE_DAYS to make its first sale (#715)
+        if ($age >= max(self::STALLED_SALE_HOURS * 3600, self::STALLED_GRACE_DAYS * 86400)
             && ($h['last_sale'] === null || $h['last_sale'] >= self::STALLED_SALE_HOURS)) {
             return $h['last_sale'] === null ? 'it has never sold anything'
                 : ($h['last_sale'] >= self::IDLE_LOOKBACK * 24 ? 'it has sold nothing for ' . self::IDLE_LOOKBACK . ' game days or more'
                     : "it has sold nothing for {$h['last_sale']} game hours");
         }
         return null;
+    }
+
+    /**
+     * The actions a company's working drones (or one drone's) tried and
+     * failed over the last game day, most first (#715): [what, times,
+     * why]. Planned actions and power bills aren't counted; nor is an
+     * action its player stopped.
+     */
+    public static function failing(int $company, ?int $now = null, ?int $drone = null): array
+    {
+        $now ??= (int) World::gameNow();
+        $rows = DB::select("SELECT x.protocol, MIN(x.outcome) AS outcome, COUNT(DISTINCT x.id) AS n
+            FROM agents AS a JOIN events AS e FORCE INDEX (events_drone_game_t) ON e.drone = a.agent_id
+              AND e.game_t > ? AND e.game_t <= ?
+            JOIN actions AS x ON x.id = e.action AND x.drone = a.agent_id AND x.outcome < 0 AND x.outcome <> -9 AND x.protocol <> 2
+            WHERE a.company_id = ? AND a.wrecked_at IS NULL" . ($drone !== null ? ' AND a.agent_id = ' . (int) $drone : '') . "
+            GROUP BY x.protocol ORDER BY n DESC, x.protocol LIMIT 5", [$now - 86400, $now, $company]);
+        return array_map(fn ($r) => ['what' => DronePage::protocolName((int) $r->protocol), 'times' => (int) $r->n,
+            'why' => DronePage::OUTCOMES[(int) $r->outcome] ?? 'it failed'], $rows);
+    }
+
+    /** "Make Alloys failed 6 times over the last game day (not enough ...)", or null (#715) */
+    public static function failingReason(array $failing): ?string
+    {
+        if (!$failing) {
+            return null;
+        }
+        return implode('; ', array_map(fn ($f) => $f['what'] . ' failed ' . ($f['times'] === 1 ? 'once' : $f['times'] . ' times')
+            . ' over the last game day (' . $f['why'] . ')', $failing));
     }
 
     /**
@@ -168,7 +212,9 @@ class CompanyHealth
                 ->map(fn ($h) => ['resource' => $h->name, 'units' => (int) $h->units])->all();
             $out[] = ['drone' => (int) $r->agent_id, 'name' => $r->name,
                 'idle' => $r->last_t === null ? self::IDLE_LOOKBACK * 24 : (int) floor(($now - (int) $r->last_t) / 3600),
-                'status' => $r->script_status, 'holds' => $holds];
+                'status' => $r->script_status, 'holds' => $holds,
+                // What it tried and failed over the last game day (#715)
+                'failing' => self::failingReason(self::failing($company, $now, (int) $r->agent_id))];
         }
         return $out;
     }

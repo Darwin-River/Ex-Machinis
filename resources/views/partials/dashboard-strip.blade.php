@@ -52,7 +52,7 @@
             <div class="econ-d">{{ $signed($t['profit']['last_week']) }} the 7 days before</div></div>
         <div class="econ-tile"><div class="econ-l">Players</div>
             <div class="econ-v">{{ number_format($t['players']['count']) }}</div>
-            <div class="econ-d">{{ $signed($t['players']['new_this_week']) }} joined in the last 7 days</div></div>
+            <div class="econ-d">{{ $signed($t['players']['new_this_week']) }} joined in the last 7 real days</div></div>
     </div>
     @if($dashLink ?? false)
         <p><a href="{{ url('dashboard') }}">See the whole economy</a> &middot; <span class="text-muted">as of {{ $dash['as_of'] }}, updated each minute</span></p>

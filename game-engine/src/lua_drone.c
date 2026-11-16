@@ -314,9 +314,30 @@ static int l_report(lua_State* L)
     return 0;
 }
 
+/* Where a status line longer than 80 characters ends (#715): at its last
+   space after the 40th character and before the 77th, else at the 77th (not
+   inside a UTF-8 character), with "..." after it. text holds its first 80
+   characters; returns the new length. */
+static size_t status_cut(char* text)
+{
+    size_t cut = 77;
+    while(cut > 40 && text[cut] != ' ')
+        cut--;
+    if(text[cut] != ' ')
+        cut = 77;
+    while(cut > 0 && ((unsigned char)text[cut] & 0xC0) == 0x80)
+        cut--;
+    while(cut > 0 && text[cut - 1] == ' ')
+        cut--;
+    memcpy(text + cut, "...", 3);
+    return cut + 3;
+}
+
 /* set_status(text): the drone's own status line (#380), shown on its page
    and in the API: what it is doing or waiting for. Up to 80 characters;
-   control characters become spaces. Costs as much as a query. */
+   control characters become spaces. A longer line is cut at its last space
+   before the 77th character and ends "..." (#715: one was cut mid-word,
+   "release th"). Costs as much as a query. */
 static int l_set_status(lua_State* L)
 {
     size_t len = 0;
@@ -325,6 +346,8 @@ static int l_set_status(lua_State* L)
     size_t n = len < 80 ? len : 80;
     for(size_t i = 0; i < n; i++)
         text[i] = ((unsigned char)s[i] < 32 || s[i] == 127) ? ' ' : s[i];
+    if(len > 80)
+        n = status_cut(text);
     text[n] = 0;
     vm_meter_charge(engine_get_query_instructions());
     db_set_agent_status(engine_get_db_connection(), engine_get_current_drone_id(), text, game_time_now_seconds());
