@@ -2789,7 +2789,7 @@ ErrorCode_t db_get_orbit_info_x(ObjectOrbitInfo_t* object)
     from 316,000 to 675,000 rows, with no code change: the engines' lookups
     get slower as the history grows. The events engine moves settled events
     older than house_rules.events_archive_days game days (30; 0: never) to
-    events_archive (archive_events, migration 0065, which says what it
+    events_archive (archive_events, migration 0072, which says what it
     never moves). A pass starts at most once a real minute (and purges
     month-old actions, #431) and goes through the table a window of ids at a
     time, from the oldest to the cutoff. Each window is its own short

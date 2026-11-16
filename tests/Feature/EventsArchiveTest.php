@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * Old settled events move to events_archive (#694 stage 3, migration 0065's
+ * Old settled events move to events_archive (#694 stage 3, migration 0072's
  * archive_events, which the events engine calls once a real minute). The
  * engines' lookups must still find the latest event of every kind, nothing
  * pending or still needed moves, and the pages that show old history read
@@ -198,7 +198,7 @@ class EventsArchiveTest extends TestCase
         }
         $this->archive(30);
         $this->assertTrue($this->archived($old));
-        // Its observation stays (no cascade from events since migration 0065)
+        // Its observation stays (no cascade from events since migration 0072)
         $this->assertTrue(DB::table('observations')->where('event', $old)->exists());
 
         $rows = collect($this->getJson('/events/search?keyword=Archive')->assertOk()->json('data'));

@@ -767,7 +767,7 @@ ErrorCode_t db_purge_old_actions();
 /** ****************************************************************************
 
     @brief          Once a real minute: moves old settled events to
-                    events_archive (#694, migration 0065's archive_events)
+                    events_archive (#694, migration 0072's archive_events)
                     and purges old actions
 
     @return         Execution result
