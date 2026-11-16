@@ -389,6 +389,12 @@ class PlayerShares
         if ($units < 1) {
             return self::fail(422, 'Buy at least 1 whole share.');   // #665
         }
+        // The bank doesn't sell the shares of a company that is dissolving (#757)
+        if (self::dissolving($company)) {
+            $left = ProcessorTax::broke($company)['dissolves_in'];
+            return self::fail(409, 'The bank doesn\'t sell its shares now: it has had no credits for a while, and dissolves in '
+                . $left . ' game days unless it earns some.');
+        }
         if ($p['bank_holds'] < $units) {
             return self::fail(409, 'The bank holds ' . $p['bank_holds'] . ' of its shares.');
         }
@@ -786,12 +792,27 @@ class PlayerShares
      * Pays the bank's payments that are due: each at the lower of the share's
      * cash-out value on the day of the sale and now. Returns how many it paid.
      */
+    /** Is the company counting down to dissolving (no credits for a while, #757)? */
+    public static function dissolving(int $company): bool
+    {
+        return ProcessorTax::broke($company)['dissolves_in'] !== null;
+    }
+
     public static function settleBankPayments(): int
     {
         $now = World::gameNow();
         $due = DB::table('bank_payments')->whereNull('paid_t')->where('due_t', '<=', $now)->orderBy('id')->limit(200)->get();
         foreach ($due as $b) {
-            $price = min((int) $b->price_at_sale, self::cashOut((int) $b->company_id)['per_share']);
+            // A company that ended before the payment is paid for at 0, and
+            // one counting down to dissolving waits until it recovers or ends
+            // (#757: round 72's bank paid 4,000 for Juno 70-2's shares a game
+            // day before it dissolved, its hulls still counted at cash-out)
+            $c = DB::table('companies')->where('company_id', $b->company_id)->first(['eliminated_at', 'broke_since']);
+            $ended = $c === null || $c->eliminated_at !== null;
+            if (!$ended && self::dissolving((int) $b->company_id)) {
+                continue;
+            }
+            $price = $ended ? 0 : min((int) $b->price_at_sale, self::cashOut((int) $b->company_id)['per_share']);
             $amount = (int) $b->units * $price;
             DB::transaction(function () use ($b, $now, $amount) {
                 $done = DB::table('bank_payments')->where('id', $b->id)->whereNull('paid_t')->update(['paid_t' => $now, 'paid' => $amount]);
