@@ -72,9 +72,10 @@
             {{-- The House's demand (#550): how much more it takes today, and when it refills --}}
             <h3 class="mt-4" id="house-demand">House demand</h3>
             <div style="white-space: normal; margin-bottom: 1em">
-                Each House exchange buys up to a day's demand of each good. Its bid falls toward half its listed price
-                as it fills, and it stops bidding once it has bought the day's demand. What it bought goes down to the
-                surface at the start of each game day, and its bid refills. The bid and the units come from the House's
+                Each House exchange buys a day's demand of each good. Its bid falls toward half its listed price
+                as it fills. Past the day's demand it still buys, a quarter of a day's demand at a time, at a bid that
+                keeps falling the more it holds. What it bought goes down to the surface once a game day, and its bid
+                refills. The bid and the units come from the House's
                 buy order on the book now, so they're what a sale gets. Where an exchange also sells the good, it buys back
                 its own stock to sell too (up to a quarter of a day's sales), so what it still takes can be more than its
                 day's demand. <i>Sold today</i> is what drones have sold into
