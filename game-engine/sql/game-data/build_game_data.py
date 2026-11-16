@@ -1527,8 +1527,9 @@ queries.append((699, 'Company health',
 # the units it still takes today, its day's demand, its listed price and the
 # game hours until it refills. It buys up to a day's demand above what it
 # keeps to sell; its bid falls to half its listed price at a full day's
-# demand bought, and what it bought goes down to the surface at the start of
-# the next game day (station.lua's ship). Since #608 the bid and the units
+# demand bought, and past that it takes a quarter of a day's demand more at
+# a time at a bid falling on from half (#691). What it bought goes down to
+# the surface once a game day (station.lua's ship). Since #608 the bid and the units
 # come from the station drone's live buy order, as the order book counts
 # them (round 63: a demand worked out from the House's holdings sent rods to
 # Earth while its order wanted none); plus the units sold into it today, by
@@ -1555,8 +1556,9 @@ queries.append((706, 'House demand',
                 "LEFT JOIN latest_orders AS o ON o.drone = a.agent_id AND o.resource = g.resource AND o.event_type = 5 "
                 f"WHERE g.side = 1 AND g.resource = [value_1] AND g.from_day <= {TODAY}) AS d ORDER BY d_price DESC, d.place;"))
 # The House's supply (#630): what it sells of resource N, where, and when its
-# station restocks. Stored once a real minute by the website's tick
-# (App\Services\HouseMarket::storeSupply), since its rounds are worked out
+# station restocks. Stored on each of the website's ticks (every 5 real
+# seconds; once a real minute, more than a game day, until #710) by
+# App\Services\HouseMarket::storeSupply, since its rounds are worked out
 # from the station's imports. Times in game minutes, -1 when unknown.
 queries.append((707, 'House supply',
                 'Where the House sells resource N: place, price (0: sold out), units on sale, what it refills to, '

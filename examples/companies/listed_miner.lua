@@ -133,8 +133,11 @@ end
 
 -- A low deposit: at the Moon, wait for it to refill (after dry_tries dry
 -- tries in a row, try Phobos, if fewer drones work there); at Mars, try the
--- other moon, and rest after both are dry. Short of fuel, rest instead
+-- other moon, and rest after both are dry. Short of fuel, get some first
+-- (#713: it rested at a Mars moon with under 15 fuel for good, waiting for
+-- a deposit while nobody there sells fuel)
 function move_on()
+  if units(fuel) < low_fuel then refuel(); return end
   if site_no == 0 then
     misses = misses + 1
     if misses < dry_tries or units(fuel) < 60 or crowd(phobos) >= crowd(moon) then
@@ -147,7 +150,6 @@ function move_on()
     go(site())
     return
   end
-  if units(fuel) < 15 then wait(rest); return end
   site_no = 3 - site_no   -- Phobos <-> Deimos
   set_status("dry here: trying " .. place_name(site()))
   misses = misses + 1

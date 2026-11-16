@@ -203,13 +203,16 @@ end
 local function buy_here(n, resource, max_price)
   local result, tries, mine, refused, only, failed = -12, 0, me(), {}, house_only(), nil
   -- A seedling's -17 cap is a tenth of what the House has on sale here a
-  -- game day: it asks for no more than that at first, and after a -17 one
-  -- unit at a time until refused (#674: halving from 1,000 used up its six
-  -- tries above the cap, and got 3 of about 5)
+  -- game day: it asks for no more than that at first (#674: halving from
+  -- 1,000 used up its six tries above the cap, and got 3 of about 5), and
+  -- after a -17 half as much each time until refused (#710: one at a time,
+  -- each pull of fuel burned a fuel, so it bought none). Fuel never goes
+  -- below 5 a pull, whatever it asked for: a pull of 1 nets nothing
+  local least = resource == fuel and 5 or 1
   local cap
   if only then
     for _, h in ipairs(ask(707, resource)) do      -- house_supply: place, price, on_sale...
-      if h[1] == location() then cap = math.max(1, h[3] // 10) end
+      if h[1] == location() then cap = math.max(least, h[3] // 10) end
     end
   end
   while n > 0 and tries < 6 do
@@ -219,11 +222,11 @@ local function buy_here(n, resource, max_price)
       if may_trade(o[4], mine, only) and not refused[o[4]] and o[3] > o[2] then seller, avail = o[4], o[3] - o[2]; break end
     end
     if not seller then break end
-    local take = math.min(n, avail, cap or avail)
+    local take = math.max(math.min(n, avail, cap or avail), math.min(least, avail))
     tries = tries + 1
     local r = pull(take, resource, seller)
     if r == 0 then n = n - take; result = 0
-    elseif r == -17 and take > 1 then cap = 1; failed = r   -- over a seedling's daily cap: one at a time
+    elseif r == -17 and take > least then cap = math.max(least, take // 2); failed = r   -- over a seedling's daily cap: halve it
     else refused[seller] = true; failed = r end
   end
   -- Nothing bought: why the last seller refused (such as -17, a seedling's
@@ -915,9 +918,11 @@ end
 -- (of those, by your company) and empty_hours (game hours until it has
 -- bought its fill at today's pace; -1 when none sold today)}. price and left
 -- are its live buy order's, as sell_here would find it (#608; price 0: no
--- bid). Its bid falls toward half of listed as it fills and stops at a full
--- day's demand; what it bought goes down to the surface at the start of
--- each game day, and the bid refills
+-- bid). Its bid falls toward half of listed as it fills a day's demand;
+-- beyond that (#691: its station ships what it bought down once a game
+-- day, so it can hold more) it takes a quarter of a day's demand more at a
+-- time, at a bid falling on from half (half at a day bought, a quarter at
+-- two, never under 1), so left is 0 only until the House posts again
 local function house_demand(r)                                                    -- 706
   return records(ask(706, r), {"place", "price", "left", "daily", "listed", "hours", "sold", "mine", "empty_hours"})
 end
