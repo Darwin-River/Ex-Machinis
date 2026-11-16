@@ -240,7 +240,10 @@ class HomeController extends Controller
         arsort($seen);
         $seen = array_slice($seen, 0, self::EVENTS_WINDOW, true);
 
-        $query = DB::table('events')->select('events.id', 'events.timestamp', 'events.game_t', 'events.event_type', 'acting_agents.name as acting_agent_name', 'acting_agents.company_id as acting_company_id', 'acting_companies.name as acting_company_name',
+        // The details, from events or, once a month old, events_archive (#694)
+        $keyword = $request->get('keyword');
+        $details = function (string $table) use ($seen, $keyword) {
+        $query = DB::table($table . ' as events')->select('events.id', 'events.timestamp', 'events.game_t', 'events.event_type', 'acting_agents.name as acting_agent_name', 'acting_agents.company_id as acting_company_id', 'acting_companies.name as acting_company_name',
             'acting_agents.agent_id as acting_agent_id', 'protocols.name as protocol_name', 'affected_companies.name as affected_company_name', 'affected_companies.company_id as affected_company_id',
             'event_types.name as event_type_name', 'affected_agents.agent_id as affected_agent_id', 'affected_agents.name as affected_agent_name', 'resources.id as resource_id',
             'resources.name as resource_name', 'events.locked', 'events.new_quantity', 'events.new_credits', 'events.new_location', 'objects.object_id', 'objects.object_name')
@@ -254,7 +257,6 @@ class HomeController extends Controller
             ->leftJoin('companies as affected_companies', 'affected_agents.company_id', '=', 'affected_companies.company_id')
             ->leftJoin('resources', 'events.resource', '=', 'resources.id')
             ->leftJoin('objects', 'events.new_location', '=', 'objects.object_id');
-        $keyword = $request->get('keyword');
         if ($keyword !== null && $keyword !== '') {
             $like = '%' . addcslashes($keyword, '%_\\') . '%';
             $query->where(function ($query) use ($like) {
@@ -264,8 +266,14 @@ class HomeController extends Controller
                 }
             });
         }
+        return $query->get();
+        };
+        $found = $details('events');
+        if (count($found) < count($seen) && Schema::hasTable('events_archive')) {
+            $found = $found->concat($details('events_archive'));
+        }
         // When each was seen, newest first; Time sorts by when it happened
-        $rows = $query->get()->each(fn ($e) => $e->observed_t = $seen[$e->id] ?? null);
+        $rows = $found->each(fn ($e) => $e->observed_t = $seen[$e->id] ?? null);
         $sort = explode('|', (string) $request->get('sort'));
         $rows = $sort[0] === 'timestamp'
             ? $rows->sortBy([['game_t', ($sort[1] ?? '') === 'asc' ? 'asc' : 'desc'], ['id', ($sort[1] ?? '') === 'asc' ? 'asc' : 'desc']])
