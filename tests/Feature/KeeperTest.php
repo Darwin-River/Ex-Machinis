@@ -8,6 +8,7 @@ use App\Services\Kept;
 use App\Services\World;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -50,11 +51,19 @@ class KeeperTest extends TestCase
 
     public function testOldFiguresSayHowOldTheyAre()
     {
-        $this->assertNull(Dashboard::staleNote(World::gameNow() - 600));
-        $this->assertStringContainsString('3 game days old', Dashboard::staleNote(World::gameNow() - 3 * 86400 - 5));
+        if (!DB::table('game_clock')->where('id', 1)->exists()) {
+            $t = time();
+            DB::table('game_clock')->insert(['id' => 1, 'real_anchor' => $t, 'game_anchor' => $t, 'scale' => 1800,
+                'epoch' => $t - 100 * 86400]);
+        }
+        DB::table('game_clock')->where('id', 1)->update(['scale' => 1800]);
+        // At 1,800x a rebuild two real minutes ago is 2.5 game days: not old
+        $this->assertNull(Dashboard::staleNote(World::gameNow() - 3 * 86400));
+        // Over ten real minutes behind (12.5 game days): old
+        $this->assertStringContainsString('20 game days old', Dashboard::staleNote(World::gameNow() - 20 * 86400 - 5));
 
         config(['forge.new_rules' => true]);
-        Cache::forever('dashboard:compact', ['data' => array_merge(Dashboard::summaryNow(), ['as_of_t' => World::gameNow() - 5 * 86400]), 'at' => time()]);
-        $this->get('/')->assertOk()->assertSee('id="economy-stale"', false)->assertSee('5 game days old');
+        Cache::forever('dashboard:compact', ['data' => array_merge(Dashboard::summaryNow(), ['as_of_t' => World::gameNow() - 50 * 86400]), 'at' => time()]);
+        $this->get('/')->assertOk()->assertSee('id="economy-stale"', false)->assertSee('50 game days old');
     }
 }
