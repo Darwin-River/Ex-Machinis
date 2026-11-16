@@ -93,7 +93,7 @@ This is the whole game. Each line is explained where it first matters to you.
 2. Start a seedling for free: the bank lends it a drone and some cash. Run up to five; close one at any time and its debt is cancelled. Failing is free.
 3. A seedling trades only with the House (the game's own traders at each exchange), and you can change its code whenever you like.
 4. When it holds its debt and a little more, you may mature it: its code is locked for good, it can trade with everyone, and you get its 100 shares.
-5. Your account starts with 5,000 credits that can only buy shares. Each game day a matured company pays a quarter of its profit to its shareholders. Its profit is its sales less the goods it bought: equipment and drones it buys (modules, kits and hulls) are an investment, not a loss (#759).
+5. Your account starts with 5,000 credits that can only buy shares. Each game day a matured company pays half its profit to its shareholders. Its profit is its sales less the goods it bought: equipment and drones it buys (modules, kits and hulls) are an investment, not a loss (#759).
 6. Trade shares with players within a published range, or sell them to the bank for their cash-out value, paid 30 game days later at the lower of the two values.
 7. All code is public. A matured company can't change, but it can react to prices and orders, so read its code before you buy.
 8. You're ranked by your wealth, and each real month by its growth, on the Players page.
@@ -125,7 +125,7 @@ It is your birthright to take control of your own remotely piloted spacecraft an
 4. **Watch its drone.** Its page shows what it does and says, its trades and its fuel. At the normal pace a game day passes every 48 real seconds, so a few minutes of watching shows you days of its life. When the world is busy the clock slows, to as little as a game day in 24 real minutes: the home page and the Start a seedling page say the pace right now.
 5. **Change its code.** When you see what goes wrong, send it new code from your account page or its own page (**Push new code**, shown to you when you're logged in). The first change is free; each one after it adds 100 to its debt (see [Pushing new code](#pushing-new-code)).
 6. **Mature it.** Once it holds its debt plus 500 (4,700 for a fresh seedling), a **Mature** button appears beside it on your account page and on its Road to maturity. Maturing repays the debt and locks its code for good, and from then on it trades with everyone (see [Maturing a seedling](#maturing-a-seedling)).
-7. **Own its shares.** Its **100 shares** are now yours. Each game day it pays a quarter of its profit to its shareholders. Keep them, sell them to the bank, or trade them with other players (see [Chapter 7](#chapter-7-maturing-and-shares)).
+7. **Own its shares.** Its **100 shares** are now yours. Each game day it pays half its profit to its shareholders. Keep them, sell them to the bank, or trade them with other players (see [Chapter 7](#chapter-7-maturing-and-shares)).
 
 If it fails on the way, close it and start another. That costs you nothing.
 
@@ -1318,11 +1318,11 @@ None of it happens in Lua. **Companies don't trade shares; players do**, on the 
 
 ### Dividends: what a share earns
 
-Each game day a matured company pays **a quarter of its profit** to its shareholders, split by the shares they hold: players' accounts, and the bank for the shares it holds (#667). So each share is paid a hundredth of that quarter.
+Each game day a matured company pays **half its profit** (a quarter until round 72, #747) to its shareholders, split by the shares they hold: players' accounts, and the bank for the shares it holds (#667). So each share is paid a hundredth of that quarter.
 
 A day's **profit** is what the company's sales brought in after the sales tax, less everything it bought that day (goods, fuel, equipment and hulls alike), after making up earlier losses, and never more than its credits. Losses carry forward: a day's profit first makes up any losses since the company last paid, and only what's left is paid out. So a company that buys a hull pays nothing until its profit has made up the cost. The day a company matures isn't paid.
 
-For example, a company that makes 200 credits of profit on a game day pays 50 to its shareholders that day: half a credit a share. The other three quarters stay in the company to work with. The company page's Earnings chart shows each day's profit.
+For example, a company that makes 200 credits of profit on a game day pays 100 to its shareholders that day: a credit a share. The other half stays in the company to work with. The company page's Earnings chart shows each day's profit.
 
 Dividends land in your account's **credits**. Your account page shows what your shares have paid you over the last 30 game days.
 
