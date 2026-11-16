@@ -34,6 +34,21 @@
     $space-800;
   border-bottom: 1px solid $line;
 
+  // A space scene behind it (#737): anchored right at the band's height, with
+  // a fade from the left so the title and breadcrumbs stay readable
+  &.has-scene {
+    background:
+      linear-gradient(90deg, $space-800 0%, $space-800 28%, rgba($space-800, 0.8) 42%, rgba($space-800, 0) 62%),
+      var(--scene) right center / auto 100% no-repeat,
+      $space-800;
+    @include media-breakpoint-down(md) {
+      background:
+        linear-gradient(90deg, rgba($space-800, 0.95) 0%, rgba($space-800, 0.75) 55%, rgba($space-800, 0.4) 100%),
+        var(--scene) 72% center / cover no-repeat,
+        $space-800;
+    }
+  }
+
   .page-title { margin: 0; font-size: 2rem; overflow-wrap: anywhere; }
   .page-subtitle { margin: 0.5rem 0 0; color: $muted; max-width: 46rem; }
   @include media-breakpoint-up(md) { .page-title { font-size: 2.5rem; } }

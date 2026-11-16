@@ -48,7 +48,7 @@ The site's look is our own (#524) and MIT licensed with everything else:
 - **Bootstrap 4** (MIT) gives the grid, navigation, dropdowns, alerts and tables.
 - **`resources/assets/sass/site/`** holds the rest. `_tokens.scss` has every colour and font in one place, so restyling the site starts there.
 - **Fonts:** Space Grotesk (headings) and JetBrains Mono (code), both under the SIL Open Font License, loaded from Google Fonts; body text uses the reader's system font.
-- **No images to license:** the starfield, page headers and the home page's Earth-and-Moon drawing are CSS and inline SVG. The only images are the logo and an SVG favicon.
-- **Page header:** every page starts with `<x-page-header>` (`resources/views/components/page-header.blade.php`): a title, an optional subtitle, and breadcrumbs.
+- **No images to license:** the starfield and the home page's Earth-and-Moon drawing are CSS and inline SVG. Every other picture is our own, rendered by our scripts in `tools/render/` (MIT, like the rest): the page-header scenes in `html/images/headers/` and the resource pictures in `html/images/resources/`. Besides those, the only images are the logo and an SVG favicon.
+- **Page header:** every page starts with `<x-page-header>` (`resources/views/components/page-header.blade.php`): a title, an optional subtitle, and breadcrumbs, over a space scene for the part of the site the page is in (#737). The component maps each page's first address segment to a scene (Market, Resources, Spacecraft, Locations, Companies, Learn, About, Account, or the default), and a page can pass `scene="..."` to choose its own. `tools/render/render.py header all` remakes the scenes.
 
 After changing anything under `resources/assets/`, run `npm run build` and commit `html/build/`; CI checks it's up to date.

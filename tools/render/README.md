@@ -2,7 +2,7 @@
 
 Scripts that build Ex Machinis objects in Blender and render them for the website. Every model is generated from parameters and a seed, so the same command always produces the same picture, and a new seed gives a new variation.
 
-The toolkit can make asteroids and comet nuclei (#705), uncrewed drones (#706), and a model of every resource in the game (#707).
+The toolkit can make asteroids and comet nuclei (#705), uncrewed drones (#706), a model of every resource in the game (#707), and planets, moons and the wide scenes behind the website's page headers (#737).
 
 ## Setup
 
@@ -104,6 +104,24 @@ Mount(5131, 1, "bottom", span=2)  # Worm (A1)
 
 The `mining-kit-1` and `factory-kit-1` drone presets are built this way from the modules the game's starter kits contain.
 
+## Rendering page-header scenes
+
+```bash
+.venv/bin/python render.py header --list
+.venv/bin/python render.py header market --draft
+.venv/bin/python render.py header all
+```
+
+Every page header on the website shows a wide space scene behind its title (#737). There are nine scenes, one for each part of the site (`render.py header --list` says which pages each heads): Market, Resources, Spacecraft, Locations, Companies, Learn, About, Account, and a default for any other page. `resources/views/components/page-header.blade.php` maps a page's address to its scene.
+
+`header all` writes `html/images/headers/<scene>.webp`, 2400×480, with the left part fading to transparent so the header's own colour shows through behind the title. `--draft` renders at half size with few samples, to check a layout quickly; a full scene takes a few minutes.
+
+Scenes are lists of elements in `exm_render/scenes.py`, placed by where they appear in the frame (across and up, from -1 to 1), their distance, and their size as a fraction of the frame's half-height. Elements can be planets, moons, asteroids, a field of small rocks, or drones (any drone preset, optionally firing). Keep subjects on the right half: the title sits on the left.
+
+### Planets
+
+`exm_render/planet.py` makes planets with a shader-only surface, so they stay sharp at any size: gas giants with turbulent bands, ocean worlds with continents, shallow seas and ice caps, dry rocky worlds, cracked ice worlds, and lava worlds with glowing rifts. Each can have a cloud layer, an atmosphere that glows on the sunlit limb, banded rings that cast shadows, an axial tilt and a polar flattening. Moons are near-round asteroids, so they get the asteroid generator's craters.
+
 ## Shot options
 
 These work for every subject.
@@ -139,6 +157,7 @@ On four CPU cores, a `preview` draft takes about 5 seconds. A full-size `hero` r
 - `exm_render/presets.py` holds the named asteroid presets and the lookup into `bodies.csv`.
 - `exm_render/geom.py` is a small hard-surface kit (struts, boxes, lathed shapes, clamp rings). `drone.py` builds the truss and places parts, `drone_parts.py` holds the parts, and `materials.hard_surface` holds the paint, foil, metal, solar-cell and glow materials.
 - Each drone part is its own object in the `.blend` file, parented to the drone, so it can be edited or swapped in Blender.
+- `exm_render/planet.py` makes planets and moons; `exm_render/scenes.py` composes the page-header scenes.
 - `exm_render/goods.py` holds minerals, materials, parts, kits, the House stations and craft, with two per-resource material slots for each resource's own colours.
 - `exm_render/kit.py` holds machine assemblies (housings, pressure vessels, pipe runs, robot arms, turrets, legs, treads, coils). `exm_render/resources.py` reads the resource list and maps each system and module id to its builder.
 
