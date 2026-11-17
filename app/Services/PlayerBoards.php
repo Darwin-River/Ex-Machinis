@@ -193,5 +193,6 @@ class PlayerBoards
     {
         DB::table('users')->where('user_id', $user->user_id)
             ->update(['last_seen_t' => $digest['until_t'], 'last_seen_trade' => $digest['until_trade']]);
+        \Illuminate\Support\Facades\Cache::forget('since-looked:' . $user->user_id);   // #771
     }
 }

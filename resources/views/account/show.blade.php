@@ -29,6 +29,9 @@
                     </ul>
                 </div>
             @endif
+            @if(!session('digest'))
+                @include('partials.since-looked')
+            @endif
             <h2 class="h4">{{ $account['name'] }}</h2>
             @if(!$account['verified'])
                 <div class="alert alert-warning" style="white-space: normal">

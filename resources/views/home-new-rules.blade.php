@@ -59,6 +59,8 @@
 
     <section class="section pt-0">
         <div class="container">
+            {{-- What changed for you since you last looked (#771) --}}
+            @include('partials.since-looked')
             @if (session('status'))
                 <div class="alert alert-success">{{ session('status') }}</div>
             @endif
@@ -95,6 +97,17 @@
             {{-- The economy at a glance (#698) --}}
             <h2 class="h4">The economy</h2>
             @include('partials.dashboard-strip', ['dash' => $dash, 'dashLink' => true])
+
+            {{-- Your own latest, above the world's (#771) --}}
+            @php($mine = auth()->check() ? \App\Services\SinceLooked::feed(auth()->user()) : [])
+            @if(count($mine))
+                <h2 class="h4 mt-4">Yours, just now</h2>
+                <table class="table-ticket" id="my-feed" v-pre>
+                    @foreach($mine as $item)
+                        <tr><td style="white-space: nowrap; color: #9aa3b8; padding-right: 1em">{{ $item['when'] }}</td><td style="white-space: normal">{{ $item['text'] }}</td></tr>
+                    @endforeach
+                </table>
+            @endif
 
             <h2 class="h4 mt-4">Just now</h2>
             @if(empty($feed))

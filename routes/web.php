@@ -118,6 +118,8 @@ Route::middleware('new-rules')->group(function () {
     Route::post('/share-orders/{order}/cancel', 'PlayerShareController@cancel')->whereNumber('order');
     // The account trading script (#768)
     Route::post('/account/trade-script', 'PlayerShareController@saveTradeScript');
+    // "Since you last looked" (#771): seen
+    Route::post('/account/seen', 'AccountController@seen');
     Route::post('/account/trade-script/run', 'PlayerShareController@runTradeScript');
 });
 Route::get('/release', 'ReleaseController@show');

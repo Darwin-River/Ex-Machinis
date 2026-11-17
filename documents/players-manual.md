@@ -1444,6 +1444,8 @@ The company boards (the Leaderboard, by net wealth) and the Lineage map stay as 
 
 **The digest.** Your account page starts with **While you were away**: what happened since you last looked, over at most the last 7 game days (#716: a player away for a while got 500 game days at once). For each company: what it sold and bought, and what a seedling sent the bank over its credit cap. Then the dividends your shares paid you, what the bank paid you, your share trades (an order of yours that filled), any dealings between your own companies, and the news. `GET /api/v1/account/digest` gives the same (with `?peek=1` it stays unseen).
 
+**Since you last looked.** The same news follows you: the home page, your account page and your own companies' pages open with a **Since you last looked** card (#771). Besides the digest's figures it gives each company's share price now and how far it has moved since, and the one action your companies fail most over the last game day, with what usually fixes it ("the hold is full: sell or jettison before taking more"). **Got it** clears it: the next card starts from then. Under it, the home page lists **Yours, just now**: your companies' latest trades and your own share trades, newest first, above everyone's.
+
 **When your order fills.** Your account page lists your share trades over the last 7 game days: what you bought or sold, at what price, with whom (#715). It also marks a standing order that **can't fill now** because the range players trade in has moved away from its price: it waits until the range comes back, so cancel it or post a new price.
 
 ### Class groups
