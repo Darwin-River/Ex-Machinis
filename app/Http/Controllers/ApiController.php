@@ -65,6 +65,10 @@ class ApiController extends Controller
             // The new rules (#656): a seedling and what it owes, or matured
             'seedling' => (int) ($company->seedling ?? 0) === 1,
             'debt' => (int) ($company->debt ?? 0),
+            // A seedling's credit cap and whether it is at it (#749): ready to mature, and what it earns now goes to the bank
+            'credit_cap' => ($cap = (int) ($company->seedling ?? 0) === 1 && $company->eliminated_at === null
+                ? \App\Services\Seedlings::creditCap($company) : null),
+            'at_cap' => $cap !== null && (int) $company->credits >= $cap,
             'matured' => ($company->matured_t ?? null) !== null,
             'drones' => $drones->map(fn (Agent $a) => $this->droneSummary($a))->all(),
             // The stock market (#471): its share price, holders, orders, trades

@@ -134,6 +134,10 @@
                             @else {{ $lastPush['effect']['note'] }}. @endif
                             <a href="#pushes">Each push</a></p>
                     @endif
+                    @if($road['cap'] && $road['credits'] >= $road['cap'])
+                        <div class="health-banner" id="at-cap"><strong>It is at its credit cap:</strong> what it earns above
+                            {{ number_format($road['cap']) }} now goes to the bank (#749). It is ready to mature: mature it now.</div>
+                    @endif
                     @if($road['cap'])
                         <p class="mb-2"><small>Its credit cap is {{ number_format($road['cap']) }}: what it earns above that goes to the bank, so mature it before it gets there.</small></p>
                     @endif

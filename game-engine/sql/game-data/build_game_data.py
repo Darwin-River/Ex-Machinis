@@ -1588,6 +1588,19 @@ queries.append((709, 'My fleet',
                 "(SELECT COUNT(*) FROM events AS e INNER JOIN agents AS d ON d.agent_id = e.drone "
                 "WHERE d.company_id = me.company_id AND e.event_type = 8 AND e.outcome = 0) AS coming "
                 "FROM agents AS me INNER JOIN companies AS c ON c.company_id = me.company_id WHERE me.agent_id = [drone_id];"))
+# #749: a seedling's credit cap (house_rules.seedling_credit_cap_permille
+# thousandths of its debt less its push fees): what it earns above it goes to
+# the bank, so a script can tell when it is time to mature
+queries.append((711, 'My seedling',
+                'This drone\'s company: whether it is a seedling, its credits, its debt, its credit cap (0: none) and what '
+                'it has sent the bank over its cap in all.', 0,
+                "SELECT c.seedling, c.credits, c.debt, "
+                "IF(c.seedling = 1 AND c.debt > 0 AND IFNULL(r.seedling_credit_cap_permille, 0) > 0, "
+                "FLOOR(GREATEST(0, c.debt - IFNULL((SELECT SUM(p.fee) FROM code_pushes AS p WHERE p.company_id = c.company_id), 0)) "
+                "* r.seedling_credit_cap_permille / 1000), 0) AS cap, "
+                "IFNULL((SELECT SUM(k.amount) FROM seedling_skims AS k WHERE k.company_id = c.company_id), 0) AS to_bank "
+                "FROM agents AS me INNER JOIN companies AS c ON c.company_id = me.company_id "
+                "LEFT JOIN house_rules AS r ON r.id = 1 WHERE me.agent_id = [drone_id];"))
 # #599: the shares other companies hold in x (an offering, or x selling its
 # own, may not take them past half), and how many game days of sales its
 # 7-day average covers (fewer for a young company: round 62's players priced

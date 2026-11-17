@@ -818,6 +818,16 @@ local function fleet_full()
   local f = fleet()
   return f.cap > 0 and f.drones + f.coming >= f.cap
 end
+-- The company as a seedling (#749): {seedling, credits, debt, cap (0: none),
+-- to_bank (what it has sent the bank over its cap in all), at_cap}. At its
+-- cap, what it earns goes to the bank: time to mature it
+local function seedling_status()                                                  -- 711
+  local s = record(ask(711), {"seedling", "credits", "debt", "cap", "to_bank"})
+    or {seedling = 0, credits = credits(), debt = 0, cap = 0, to_bank = 0}
+  s.seedling = s.seedling == 1
+  s.at_cap = s.seedling and s.cap > 0 and s.credits >= s.cap
+  return s
+end
 
 -- Equips the drone (#506): a released drone starts with credits and no
 -- equipment. Until it has tools (an Engine), it unpacks a kit aboard, or
@@ -1049,6 +1059,7 @@ _G.pull = pull
 _G.launch = launch
 _G.fleet = fleet
 _G.fleet_full = fleet_full
+_G.seedling_status = seedling_status
 _G.plunder = plunder
 _G.jettison = jettison
 _G.broadcast = broadcast

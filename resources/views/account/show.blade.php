@@ -12,6 +12,7 @@
                     <b>While you were away</b> (since {{ $digest['since'] }}{{ !empty($digest['capped']) ? ', the last ' . \App\Services\PlayerBoards::DIGEST_MAX_DAYS . ' game days' : '' }}):
                     <ul class="mb-0">
                         @foreach($digest['companies'] as $c)
+                            @if(!empty($c['at_cap']))<li><strong>{{ $c['name'] }} is ready to mature:</strong> what it earns above {{ number_format($c['credit_cap']) }} now goes to the bank. <a href="{{ url('companies/' . $c['company_id']) }}#road-to-maturity">Mature it</a>.</li>@endif
                             <li>{{ $c['name'] }}{{ $c['seedling'] ? ' (seedling)' : '' }}@if(!empty($c['to_bank'])) gave the bank {{ number_format($c['to_bank']) }} over its cap,@endif sold {{ number_format($c['sales']) }} and bought
                                 {{ number_format($c['purchases']) }} credits' worth.@if(($c['ended'] ?? null) === 'closed') You closed it.@elseif($c['ended'] ?? null) It has ended.@endif</li>
                         @endforeach
