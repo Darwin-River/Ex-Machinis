@@ -13,12 +13,11 @@ use Illuminate\Support\Facades\DB;
  *   it (#687: at the lower of the price on the day of the sale and the
  *   cash-out value now, as it will pay; wealth fell by the whole sale until
  *   the bank paid, 163,000 for one player in round 69).
- * - The wealth board ranks players by it; the monthly season board by how
- *   much it grew this real month, as a share of their wealth at its start
- *   (counted as at least forge.season_floor, 5,000). Growth counts only
- *   what they made above that floor (#687: a player who started the month
- *   at 0 and held 5,000 grew 100%). A class group's accounts have their own
- *   boards, apart from everyone else's.
+ * - The wealth board ranks players by it; the season board by what they
+ *   made today, a real day (UTC), from their wealth when the day began
+ *   (#775: it replaced growth this month over a 5,000 floor). A class
+ *   group's accounts have their own boards, apart from everyone else's.
+ * - Personal records on the account page (#775).
  * - The "while you were away" digest: what a player's companies and shares
  *   brought in since they last looked, the bank's payments, deals between
  *   their own companies, and the news.
@@ -65,20 +64,21 @@ class PlayerBoards
         return $out;
     }
 
-    private static function month(): string
+    /** The season (#775): a real day, UTC */
+    public static function day(): string
     {
-        return now()->format('Y-m');
+        return now('UTC')->format('Y-m-d');
     }
 
-    /** Records this month's starting wealth for accounts that have none yet (the tick) */
-    public static function startMonth(): int
+    /** Records today's starting wealth for accounts that have none yet (the tick) */
+    public static function startDay(): int
     {
-        $month = self::month();
-        $have = DB::table('player_wealth_months')->where('month', $month)->pluck('user_id')->flip();
+        $day = self::day();
+        $have = DB::table('player_wealth_days')->where('day', $day)->pluck('user_id')->flip();
         $n = 0;
         foreach (self::wealths(null, true) as $id => $w) {
             if (!isset($have[$id])) {
-                DB::table('player_wealth_months')->insertOrIgnore(['user_id' => $id, 'month' => $month, 'start_wealth' => $w['wealth']]);
+                DB::table('player_wealth_days')->insertOrIgnore(['user_id' => $id, 'day' => $day, 'start_wealth' => $w['wealth']]);
                 $n++;
             }
         }
@@ -87,39 +87,76 @@ class PlayerBoards
 
     /**
      * The wealth board and the season board for the public, or for a class
-     * group: [wealth => [...], season => [...]] richest and fastest first
+     * group: [day, wealth => [...], season => [...]], richest first, and
+     * those who made most today first (#775: a short season a newcomer can
+     * win, in place of growth this month over a floor)
      */
     public static function boards(?int $classGroup = null, int $limit = 50): array
     {
         $wealths = self::wealths($classGroup);
-        $starts = DB::table('player_wealth_months')->where('month', self::month())
+        $starts = DB::table('player_wealth_days')->where('day', self::day())
             ->whereIn('user_id', array_keys($wealths))->pluck('start_wealth', 'user_id');
-        $floor = (int) config('forge.season_floor');
         $rows = [];
         foreach ($wealths as $id => $w) {
             $start = isset($starts[$id]) ? (int) $starts[$id] : $w['wealth'];
-            $rows[] = $w + ['user_id' => $id, 'start' => $start, 'growth_percent' => self::growth($start, $w['wealth'], $floor)];
+            $rows[] = $w + ['user_id' => $id, 'start' => $start, 'made' => $w['wealth'] - $start];
         }
         $wealth = $rows;
         usort($wealth, fn ($a, $b) => [$b['wealth'], $a['user_id']] <=> [$a['wealth'], $b['user_id']]);
         $season = $rows;
-        usort($season, fn ($a, $b) => [$b['growth_percent'], $b['wealth']] <=> [$a['growth_percent'], $a['wealth']]);
+        usort($season, fn ($a, $b) => [$b['made'], $b['wealth']] <=> [$a['made'], $a['wealth']]);
         $strip = fn ($r) => ['name' => $r['name'], 'wealth' => $r['wealth'], 'credits' => $r['credits'],
-            'shares' => $r['shares'], 'bank_due' => $r['bank_due'], 'start' => $r['start'], 'growth_percent' => $r['growth_percent']];
-        return ['month' => self::month(), 'wealth' => array_map($strip, array_slice($wealth, 0, $limit)),
+            'shares' => $r['shares'], 'bank_due' => $r['bank_due'], 'start' => $r['start'], 'made' => $r['made']];
+        return ['day' => self::day(), 'wealth' => array_map($strip, array_slice($wealth, 0, $limit)),
             'season' => array_map($strip, array_slice($season, 0, $limit))];
     }
 
     /**
-     * A month's growth in percent (#687): from its start counted as at least
-     * the floor (or its wealth now, if that is less), over the start counted
-     * as at least the floor. So holding the floor is no growth, and a player
-     * who started at 0 and holds 5,000 grew 0%, not 100%
+     * A player's personal records (#775), for the account page: their best
+     * season (the most they made in a real day), fastest maturity, the best
+     * yield among the shares they hold, their longest-running company, and
+     * their share trades with other players. Each null until they have one
      */
-    public static function growth(int $start, int $wealth, int $floor): float
+    public static function records(User $user): array
     {
-        $from = max($start, min($wealth, $floor));
-        return round(100 * ($wealth - $from) / max($start, $floor, 1), 1);
+        $id = (int) $user->user_id;
+        // Best season: the rise from one day's start to the next day's
+        $days = DB::table('player_wealth_days')->where('user_id', $id)->orderBy('day')->get(['day', 'start_wealth'])->values();
+        $best = null;
+        for ($i = 1; $i < count($days); $i++) {
+            $made = (int) $days[$i]->start_wealth - (int) $days[$i - 1]->start_wealth;
+            if ($made > 0 && (!$best || $made > $best['made'])) {
+                $best = ['made' => $made, 'day' => $days[$i - 1]->day];
+            }
+        }
+        $today = self::boards(null, PHP_INT_MAX)['season'];
+        $mine = collect($today)->firstWhere('name', $user->login);
+        if ($mine && $mine['made'] > 0 && (!$best || $mine['made'] > $best['made'])) {
+            $best = ['made' => $mine['made'], 'day' => self::day(), 'today' => true];
+        }
+        $companies = DB::table('companies')->where('owner_id', $id)->whereNotNull('founded_t')
+            ->get(['company_id', 'name', 'founded_t', 'matured_t', 'eliminated_at']);
+        $fastest = $companies->whereNotNull('matured_t')->map(fn ($c) => ['company_id' => (int) $c->company_id, 'name' => $c->name,
+            'days' => round(((int) $c->matured_t - (int) $c->founded_t) / 86400, 1)])->sortBy('days')->first();
+        $now = World::gameNow();
+        $longest = $companies->map(fn ($c) => ['company_id' => (int) $c->company_id, 'name' => $c->name,
+            'days' => round((min($now, (int) ($c->eliminated_at ?? $now)) - (int) $c->founded_t) / 86400, 1),
+            'running' => $c->eliminated_at === null])->sortByDesc('days')->first();
+        // The best yield (dividends over 30 game days against the bank's price) among the shares held
+        $held = DB::table('player_shares')->where('user_id', $id)->where('units', '>', 0)->pluck('company_id')->map(fn ($c) => (int) $c)->all();
+        $yield = null;
+        if ($held) {
+            foreach (PlayerShares::market() as $m) {
+                if (in_array((int) $m['company'], $held, true) && ($m['yield_percent'] ?? null) !== null
+                    && (!$yield || $m['yield_percent'] > $yield['percent'])) {
+                    $yield = ['company_id' => (int) $m['company'], 'name' => $m['name'] ?? null, 'percent' => $m['yield_percent']];
+                }
+            }
+        }
+        $trades = DB::table('player_share_trades')->whereNotNull('seller_id')->whereNotNull('buyer_id')
+            ->where(fn ($q) => $q->where('seller_id', $id)->orWhere('buyer_id', $id))->count();
+        return ['best_season' => $best, 'fastest_maturity' => $fastest, 'best_yield' => $yield, 'longest_running' => $longest,
+            'player_trades' => $trades];
     }
 
     /**

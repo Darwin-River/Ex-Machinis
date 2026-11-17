@@ -81,7 +81,4 @@ return [
     // (#667: a quarter, so maturing a company pays its founder out more slowly)
     'dividend_permille' => (int) env('FORGE_DIVIDEND_PERMILLE', 500),
 
-    // The season board (#640): growth this month as a share of a player's
-    // wealth at its start, counted as at least this
-    'season_floor' => 5000,
 ];

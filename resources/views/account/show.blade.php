@@ -56,6 +56,22 @@
             <p>Your credits are what your shares and companies have earned you. The credits for buying shares came with
                 your account: they can only buy shares.</p>
 
+            {{-- Personal records (#775): a record to beat --}}
+            @php($records = \App\Services\PlayerBoards::records(auth()->user()))
+            <h3 class="h5 mt-4" id="records">Your records</h3>
+            <table class="table table-sm" style="max-width: 40rem">
+                <tr><th scope="row">Best season (most made in a real day)</th><td class="text-right">@if($records['best_season']){{ number_format($records['best_season']['made']) }}
+                    <small>({{ !empty($records['best_season']['today']) ? 'today, so far' : $records['best_season']['day'] }})</small>@else — @endif</td></tr>
+                <tr><th scope="row">Fastest to mature</th><td class="text-right">@if($records['fastest_maturity'])<a href="{{ url('companies/' . $records['fastest_maturity']['company_id']) }}">{{ $records['fastest_maturity']['name'] }}</a>,
+                    {{ $records['fastest_maturity']['days'] }} game days @else — @endif</td></tr>
+                <tr><th scope="row">Best yield among the shares you hold</th><td class="text-right">@if($records['best_yield'])<a href="{{ url('companies/' . $records['best_yield']['company_id']) }}">{{ $records['best_yield']['name'] }}</a>,
+                    {{ $records['best_yield']['percent'] }}% over 30 game days @else — @endif</td></tr>
+                <tr><th scope="row">Longest-running company</th><td class="text-right">@if($records['longest_running'])<a href="{{ url('companies/' . $records['longest_running']['company_id']) }}">{{ $records['longest_running']['name'] }}</a>,
+                    {{ $records['longest_running']['days'] }} game days{{ $records['longest_running']['running'] ? ' and counting' : '' }} @else — @endif</td></tr>
+                <tr><th scope="row">Share trades with other players</th><td class="text-right">{{ number_format($records['player_trades']) }}</td></tr>
+            </table>
+            <p><small>Today's season, a real day (UTC), is on the <a href="{{ url('players') }}#season">Players</a> page.</small></p>
+
             <h3 class="h5 mt-4" id="shares">Your shares</h3>
             @if(count($portfolio['holdings']))
                 <table class="table table-sm">
