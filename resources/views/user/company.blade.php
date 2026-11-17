@@ -114,6 +114,13 @@
                             <div class="road-mark cap up {{ $edge($road['cap']) }}" style="left: {{ $at($road['cap']) }}%" title="Its credit cap: what it earns above this goes to the bank"><span>cap {{ number_format($road['cap']) }}</span></div>
                         @endif
                     </div>
+                    @php($lastPush = $pushes['log'][0] ?? null)
+                    @if($lastPush && $lastPush['effect'])
+                        <p class="mb-2" id="last-push-effect" style="white-space: normal"><b>Your last push</b> (push {{ $lastPush['number'] }}, {{ $lastPush['when'] }}):
+                            @if($lastPush['effect']['ready']) {{ $lastPush['effect']['verdict'] }}, over {{ $lastPush['effect']['span_days'] }} game days each side.
+                            @else {{ $lastPush['effect']['note'] }}. @endif
+                            <a href="#pushes">Each push</a></p>
+                    @endif
                     @if($road['cap'])
                         <p class="mb-2"><small>Its credit cap is {{ number_format($road['cap']) }}: what it earns above that goes to the bank, so mature it before it gets there.</small></p>
                     @endif
@@ -488,6 +495,7 @@
                 @else
                     <p style="white-space: normal">This company has matured: its code is locked for good.</p>
                 @endif
+                @include('partials.push-effects')
             @else
             {{-- Code pushes (#553): new code for its drones, with the password it was released with --}}
             <h3 class="mt-4" id="pushes">Push new code</h3>
@@ -521,6 +529,7 @@
                     <button class="button button-primary" type="submit">Push for {{ number_format($pushes['next_fee']) }} credits</button>
                 </form>
             @endif
+            @include('partials.push-effects')
 
             {{-- The stock market (#471) --}}
             <div class="row row-30">

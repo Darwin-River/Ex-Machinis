@@ -176,9 +176,85 @@ class CodePush
     {
         return DB::table('code_pushes')->where('company_id', $companyId)->orderByDesc('id')
             ->get(['number', 'game_t', 'fee', 'permille', 'drones'])
-            ->map(fn ($p) => ['number' => (int) $p->number, 'when' => DronePage::when((int) $p->game_t),
+            ->map(fn ($p, $i) => ['number' => (int) $p->number, 'when' => DronePage::when((int) $p->game_t),
                 'game_time' => (int) $p->game_t, 'fee' => (int) $p->fee, 'percent' => $p->permille / 10,
-                'drones' => (int) $p->drones])->all();
+                'drones' => (int) $p->drones,
+                // Its effect (#772), for the latest few
+                'effect' => $i < self::EFFECT_SHOWN ? self::effect($companyId, (int) $p->game_t) : null])->all();
+    }
+
+    /** Game days compared on each side of a push (#772) */
+    public const EFFECT_DAYS = 3;
+
+    /** Pushes whose effect is worked out, newest first */
+    public const EFFECT_SHOWN = 3;
+
+    /** The least time after a push before it is compared, in game seconds */
+    public const EFFECT_MIN = 6 * 3600;
+
+    /**
+     * "This change did X" (#772): a push against the code before it. The
+     * same span on each side (up to EFFECT_DAYS game days, and never back
+     * past the push before it or the company's founding): its trading net
+     * (sales less tax, less purchases), sales and failed actions, each a
+     * game day. Null when it is too early to tell or there is nothing before
+     */
+    public static function effect(int $companyId, int $pushT, ?int $now = null): ?array
+    {
+        $now ??= (int) World::gameNow();
+        $prev = DB::table('code_pushes')->where('company_id', $companyId)->where('game_t', '<', $pushT)->max('game_t');
+        $from = max((int) ($prev ?? 0), (int) (DB::table('companies')->where('company_id', $companyId)->value('founded_t') ?? 0));
+        $span = min(self::EFFECT_DAYS * 86400, $now - $pushT, $pushT - $from);
+        if ($span < self::EFFECT_MIN) {
+            return ['ready' => false, 'span_days' => 0,
+                'note' => $now - $pushT < self::EFFECT_MIN ? 'too early to tell: it compares at least 6 game hours after the push'
+                    : 'too little before it to compare with'];
+        }
+        $before = self::window($companyId, $pushT - $span, $pushT, $span);
+        $after = self::window($companyId, $pushT, $pushT + $span, $span);
+        $change = fn ($a, $b) => $a == 0 ? null : (int) round(100 * ($b - $a) / abs($a));
+        return ['ready' => true, 'span_days' => round($span / 86400, 2), 'before' => $before, 'after' => $after,
+            'net_change_percent' => $change($before['net'], $after['net']),
+            'sales_change_percent' => $change($before['sales'], $after['sales']),
+            'verdict' => self::verdict($before, $after)];
+    }
+
+    /** A company's trading and failures a game day over [from, to) */
+    private static function window(int $companyId, int $from, int $to, int $span): array
+    {
+        $days = $span / 86400;
+        $sold = DB::table('trades as t')->join('agents as a', 'a.agent_id', '=', 't.seller')->where('a.company_id', $companyId)
+            ->where('t.game_t', '>=', $from)->where('t.game_t', '<', $to)
+            ->selectRaw('COALESCE(SUM(t.credits), 0) AS c, COALESCE(SUM(t.tax), 0) AS tax')->first();
+        $bought = (int) DB::table('trades as t')->join('agents as a', 'a.agent_id', '=', 't.buyer')->where('a.company_id', $companyId)
+            ->where('t.game_t', '>=', $from)->where('t.game_t', '<', $to)->sum('t.credits');
+        $failed = 'x.outcome < 0 AND x.outcome NOT IN (' . implode(', ', CompanyHealth::MARKET_REFUSALS) . ')';
+        $acts = DB::selectOne("SELECT COUNT(DISTINCT x.id) AS tries, COUNT(DISTINCT CASE WHEN $failed THEN x.id END) AS failed
+            FROM agents AS a JOIN events AS e FORCE INDEX (events_drone_game_t) ON e.drone = a.agent_id
+              AND e.game_t >= ? AND e.game_t < ?
+            JOIN actions AS x ON x.id = e.action AND x.drone = a.agent_id AND x.protocol <> 2
+            WHERE a.company_id = ?", [$from, $to, $companyId]);
+        $sales = (int) $sold->c - (int) $sold->tax;
+        return ['net' => (int) round(($sales - $bought) / $days), 'sales' => (int) round($sales / $days),
+            'bought' => (int) round($bought / $days), 'actions' => (int) round((int) $acts->tries / $days, 1),
+            'failed' => round((int) $acts->failed / $days, 1)];
+    }
+
+    /** One line a student can judge it by */
+    private static function verdict(array $b, array $a): string
+    {
+        $parts = [];
+        if ($a['net'] !== $b['net']) {
+            $parts[] = 'it ' . ($a['net'] > $b['net'] ? 'earns more' : 'earns less') . ' from trading (' . number_format($b['net'])
+                . ' → ' . number_format($a['net']) . ' a game day)';
+        }
+        if (abs($a['failed'] - $b['failed']) >= 1) {
+            $parts[] = 'it fails ' . ($a['failed'] < $b['failed'] ? 'less' : 'more') . ' (' . $b['failed'] . ' → ' . $a['failed'] . ' failed actions a game day)';
+        }
+        if ($a['actions'] < $b['actions'] / 2) {
+            $parts[] = 'it does less than half as much';
+        }
+        return $parts ? ucfirst(implode('; ', $parts)) : 'No clear change yet';
     }
 
     /** What the company page and API say about pushes */
