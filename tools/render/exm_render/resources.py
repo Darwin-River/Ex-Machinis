@@ -54,6 +54,24 @@ def catalogue() -> dict[int, Resource]:
     return {int(i): Resource(int(i), n.replace("''", "'"), d.replace("''", "'"), float(m)) for i, n, d, m in rows}
 
 
+def recipe(rid: int) -> dict[int, int]:
+    """What a resource is made from: {component id: quantity}, read from its Make
+    protocol (protocol id = resource id + 10000) in the game data (#802).
+
+    A component is a resource_effects row that depletes local stock at the
+    protocol's first second; fuel burnt on the way (time 0) and the riveter it
+    needs (not depleted) are left out. Empty if the resource has no recipe.
+    """
+    block = GAME_DATA.read_text().split("INSERT INTO `resource_effects`", 1)[1]
+    out: dict[int, int] = {}
+    # (id, drone, resource, protocol, event_type, local, installed, locked, deplete, abundancies, quantity, time)
+    for res, prot, deplete, qty, t in re.findall(
+            r"\(\d+, 0, (\d+), (\d+), \d+, \d+, \d+, \d+, (\d+), \d+, (\d+), (\d+)\)", block):
+        if int(prot) == rid + 10000 and deplete == "1" and t == "1":
+            out[int(res)] = out.get(int(res), 0) + int(qty)
+    return out
+
+
 # ===================================================================== systems
 
 def bore(bm, rng):
@@ -664,12 +682,20 @@ def find(query: str) -> list[Resource]:
     return hits
 
 
-def module_builder(name):
-    """The builder for a module, by resource id or name, for mounting on drones."""
+ENGINE_ID = 5001  # Engine (A1): a drone's engine block
+
+
+def module_id(name) -> int:
+    """A module's resource id, from its id or name, for mounting on drones."""
     hits = [r for r in find(str(name)) if r.id in MODULES]
     if not hits:
         raise SystemExit(f"'{name}' is not a drone part or a module resource")
-    return MODULES[hits[0].id]
+    return hits[0].id
+
+
+def module_builder(name):
+    """The builder for a module, by resource id or name, for mounting on drones."""
+    return MODULES[module_id(name)]
 
 
 def build(res: Resource, seed: int = 0):

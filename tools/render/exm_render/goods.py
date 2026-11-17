@@ -427,41 +427,71 @@ STATIONS = {5911: m_import_station, 5921: m_export_station}
 
 
 # ======================================================================== craft
-# Mining, Industrial and Defense craft in four sizes. Each is a drone that
-# carries the role's own modules (resource names, see resources.py).
-CRAFT_ROLES = {
-    "Mining": ["worm", "crawler", "refinery", "slug", "skimmer", "smelter"],
-    "Industrial": ["smelter", "chemical reactor", "lathe", "press", "spider", "welder", "roller", "cutter"],
-    "Defense": ["rail gun", "plasma gun", "beam weapon", "missile launcher", "shield generator", "kinetic armor"],
-}
-CRAFT_SIZES = {"Cruiser": (3, 1, 0.9), "Cutter": (5, 1, 1.1), "Frigate": (7, 3, 1.0), "Barge": (8, 0, 1.0)}
+# Mining, Industrial and Defense craft in four sizes. Each is a drone built
+# from the subsystems its Make protocol uses (#802): every module in the
+# recipe is mounted on the truss, and its Engines are the engine block. Tanks,
+# radiators and the bow tool are decoration.
+CRAFT_SIZES = {"Cruiser": (3, 0.9), "Cutter": (5, 1.1), "Frigate": (7, 1.0), "Barge": (8, 1.0)}
+FACES = ("top", "bottom", "port", "starboard")
+
+
+def craft_modules(res) -> list[int]:
+    """The subsystems mounted on a craft, one entry per unit, engines left out."""
+    from . import resources
+
+    rec = resources.recipe(res.id)
+    return [rid for rid in sorted(rec, key=lambda r: (-resources.span(r), r)) for _ in range(rec[rid]) if rid != resources.ENGINE_ID]
+
+
+def _pack(modules, bays, engines):
+    """Place each module on the face with most room, at its first free bays.
+    Bay 0 is kept for the tanks at the sides, and for the engine mount above
+    and below. Returns [(id, bay, face, span)], or None if they don't fit."""
+    from . import resources
+
+    used = {f: set() for f in FACES}
+    for f in FACES:
+        if f in ("port", "starboard") or engines:
+            used[f].add(0)
+    placed = []
+    for rid in modules:
+        sp = resources.span(rid)
+        best = None
+        for f in sorted(FACES, key=lambda f: len(used[f])):
+            for b in range(bays - sp + 1):
+                if not any(b + k in used[f] for k in range(sp)):
+                    best = (f, b)
+                    break
+            if best:
+                break
+        if not best:
+            return None
+        f, b = best
+        used[f].update(range(b, b + sp))
+        placed.append((rid, b, f, sp))
+    return placed, used
 
 
 def craft(res):
-    role, size = res.name.split(" (")[0].split(" ", 1)
-    bays, engines, esize = CRAFT_SIZES[size]
-    modules = CRAFT_ROLES[role]
     from . import resources
     from .drone import DroneParams, Mount
 
-    two = {r.slug for r in resources.catalogue().values() if r.id in resources.TWO_BAY}
+    role, size = res.name.split(" (")[0].split(" ", 1)
+    bays, esize = CRAFT_SIZES[size]
+    engines = resources.recipe(res.id).get(resources.ENGINE_ID, 0)
+    modules = craft_modules(res)
+    while (packed := _pack(modules, bays, engines)) is None:
+        bays += 1  # a long recipe gets a longer truss
+    placed, used = packed
+    cat = resources.catalogue()
     mounts = [Mount("tank", 0, "port"), Mount("tank", 0, "starboard")]
-    k = 0
-    for face in ("top", "bottom"):
-        b = 1 if engines else 0
-        while b < bays:
-            name = modules[k % len(modules)]
-            sp = 2 if name.replace(" ", "-") in two else 1
-            if b + sp > bays:
+    mounts += [Mount(cat[rid].name.split(" (")[0].lower(), b, f, span=sp) for rid, b, f, sp in placed]
+    # Decoration in the room left at the sides: a radiator where two bays are free.
+    for f in ("port", "starboard"):
+        for b in range(1, bays - 1):
+            if b not in used[f] and b + 1 not in used[f]:
+                mounts.append(Mount("radiator", b, f, span=2))
                 break
-            mounts.append(Mount(name, b, face, span=sp))
-            b += sp
-            k += 1
-    for face in ("port", "starboard"):
-        if bays >= 5:
-            mounts.append(Mount("radiator" if role != "Defense" else "kinetic armor", 2, face, span=2 if role != "Defense" else 1))
-        if bays >= 7:
-            mounts.append(Mount("cargo", 4, face, span=2))
     bow = {"Mining": "drill", "Industrial": "grapple", "Defense": "sensor"}[role] if engines else "dock"
     return DroneParams(name=res.name, seed=res.id, bays=bays, engines=engines, engine_size=esize, bow=bow,
                        core_tanks=[0] if bays >= 5 else [], mounts=mounts)

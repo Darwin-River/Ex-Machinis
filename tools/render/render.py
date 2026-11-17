@@ -95,6 +95,8 @@ def parse(argv: list[str]) -> argparse.Namespace:
     r.set_defaults(sun_elevation=40.0, size="square", background="transparent", fill=0.8)
     r.add_argument("--thumbs", action="store_true",
                    help="only remake the resource list's thumbnails (<id>-thumb.webp) from the stills already in html/images/resources")
+    r.add_argument("--parts", action="store_true",
+                   help="only the craft's numbered pictures (<id>-parts.webp and .json); --site makes them too")
     r.add_argument("--site", action="store_true",
                    help="write the resource pages' turntables: html/images/resources/<id>.webp, <id>-still.webp and <id>-thumb.webp")
     return ap.parse_args(argv)
@@ -238,9 +240,62 @@ def resource_rotation(seed: int) -> tuple[float, float, float]:
     return (0.0, 0.0, -32.0)
 
 
+PARTS_ROTATION = (18.0, 0.0, 145.0)  # top, port side and engines towards the camera
+
+
+def render_parts(res, args: argparse.Namespace) -> Path:
+    """A craft's numbered picture (#802): <id>-parts.webp, a still on a clear
+    background, and <id>-parts.json, where each subsystem from its recipe
+    shows in it (x and y as fractions of the picture) and the recipe itself."""
+    import json
+
+    from PIL import Image
+
+    from exm_render import labels
+
+    sc = scene.reset()
+    sc["exm_rim"] = 3.0
+    scene.reflections(sc)
+    root = resources.build(res, 0)
+    root.rotation_euler = tuple(math.radians(v) for v in PARTS_ROTATION)
+    bpy.context.view_layer.update()
+    corners = np.array([o.matrix_world @ Vector(c) for o in root.children_recursive
+                        if o.type == "MESH" and o.name != "Exhaust" for c in o.bound_box])
+    shot = scene.Shot(width=1200, height=700, samples=min(args.samples, 48), fill=1.0, view_elevation=12, fill_light=0.08)
+    scene.light_and_frame(sc, shot, 0.3, 1.0, corners)
+    sc.render.film_transparent = True
+    sc.render.image_settings.file_format, sc.render.image_settings.color_mode = "PNG", "RGBA"
+    SITE_IMAGES.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        png = Path(tmp) / "parts.png"
+        sc.render.filepath = str(png)
+        bpy.ops.render.render(write_still=True)
+        found = labels.anchors(sc, root)
+        # Crop to the craft, with a margin, and move the anchors with it.
+        im = Image.open(png).convert("RGBA")
+        l, t, r, b = im.getchannel("A").point(lambda a: 255 if a > 8 else 0).getbbox()
+        pad = 24
+        l, t, r, b = max(0, l - pad), max(0, t - pad), min(im.width, r + pad), min(im.height, b + pad)
+        im = im.crop((l, t, r, b))
+        out = SITE_IMAGES / f"{res.id}-parts.webp"
+        im.save(out, "WEBP", quality=args.quality + 5)
+    data = {
+        "width": im.width, "height": im.height,
+        "parts": [{"id": a["id"], "x": round((a["x"] - l) / im.width, 4), "y": round((a["y"] - t) / im.height, 4)} for a in found],
+        "recipe": [{"id": rid, "qty": q} for rid, q in resources.recipe(res.id).items()],
+    }
+    out.with_suffix(".json").write_text(json.dumps(data, indent=1) + "\n")
+    print(f"wrote {out} and its labels")
+    return out
+
+
 def render_resource(name: str, args: argparse.Namespace) -> list[Path]:
     outs = []
     for res in resources.find(name):
+        if res.tier == "craft" and (args.parts or args.site):
+            outs.append(render_parts(res, args))
+            if args.parts:
+                continue
         sc = scene.reset()
         if args.background == "studio":
             scene.studio(sc)

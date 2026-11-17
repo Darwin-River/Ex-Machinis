@@ -73,7 +73,9 @@ The resource list comes from `game-engine/sql/game_data.sql`, so ids and names a
 - **Materials** (2011–2061): ingots for metals, billets for alloys, powder bins for inorganics, drums for organics, spools for polymers, and cryogenic tanks for fuel. Rarer grades look richer, and a label carries one, two or three stripes for A1, A2 or A3.
 - **Parts** (3001–3331): a stack, bundle, coil or tray of each.
 - **Kits** (5901, 5902): packed cargo crates of foil-wrapped bundles. **House stations** (5911, 5921) are modules: a cargo lift and a launcher.
-- **Craft** (6001–6231): Mining, Industrial and Defense craft as Cruiser, Cutter, Frigate or Barge. Each is a drone of that size carrying its role's own modules; a Barge, being stationary, has no engines.
+- **Craft** (6001–6231): Mining, Industrial and Defense craft as Cruiser, Cutter, Frigate or Barge. Each is a drone built from the subsystems its recipe uses (#802): `resources.recipe()` reads what its Make protocol (the craft's id + 10000) consumes from the game data, every module in it is mounted on the truss, and its Engines are the engine block, so a Barge, whose recipe has none, has no engines. A long recipe gets a longer truss. Tanks, radiators and the bow tool are decoration.
+
+  With `--site`, a craft also gets its numbered picture: `<id>-parts.webp`, a still on a clear background, and `<id>-parts.json`, its recipe and where each subsystem shows in the picture (x and y as fractions of it; one that is out of sight from this side has none). `drone.py` tags each mounted module, and the engine block, with its resource id, and `exm_render/labels.py` casts rays from the camera to find which the camera really sees. The craft's resource page numbers them on the picture and lists the recipe beneath it. `--parts` makes just these.
 
 Resource shots use a catalogue look: a square frame, a three-quarter view from above, key, fill and rim lights, and a softbox environment (dark below, bright overhead) so metal has something to reflect. The background is transparent, so a picture sits on any page; use `--background studio` for a flat backdrop close to the site's colour.
 

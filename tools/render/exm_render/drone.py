@@ -125,7 +125,9 @@ def build(p: DroneParams) -> tuple[bpy.types.Object, float]:
         parts.engine_block(bm, W, p.engines, p.engine_size, p.firing)
     if p.rcs:
         parts.rcs_quads(bm, W, L)
-    geom.make_object("Propulsion", bm, mats, body)
+    prop = geom.make_object("Propulsion", bm, mats, body)
+    if p.engines > 0:
+        prop["exm_resource"] = resources.ENGINE_ID  # the Engine (A1) module, for labels (#802)
 
     bm = bmesh.new()
     parts.bow(bm, W, L, p.bow, rng)
@@ -141,7 +143,9 @@ def build(p: DroneParams) -> tuple[bpy.types.Object, float]:
         frame = geom.frame(Vector((xm, 0, 0)) + n * (W / 2), n, Vector((1, 0, 0)))
         bm = bmesh.new()
         builder(bm, [x - xm for x in xs], W, np.random.default_rng(p.seed * 101 + i), mt.foil)
-        geom.make_object(f"{str(mt.part).title()} {i + 1} ({mt.face})", bm, mats, body, frame)
+        obj = geom.make_object(f"{str(mt.part).title()} {i + 1} ({mt.face})", bm, mats, body, frame)
+        if mt.part not in parts.SIDE_PARTS:  # a game module: tag it with its resource id (#802)
+            obj["exm_resource"] = resources.module_id(mt.part)
 
     if p.firing:
         _plume(body, W, p, materials.exhaust())
