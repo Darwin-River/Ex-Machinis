@@ -48,6 +48,10 @@
     </x-page-header>
     <section class="section section-xs section-first text-md-left">
         <div class="container" id="container">
+            {{-- Its owner sees what changed since they last looked (#771) --}}
+            @if(auth()->check() && ($user->owner_id ?? null) !== null && (int) $user->owner_id === (int) auth()->user()->user_id)
+                @include('partials.since-looked')
+            @endif
             {{-- The company at a glance (#591): its score first, then what it has --}}
             @php($h = $shares['health'])
             <div class="stat-row" id="company-stats">

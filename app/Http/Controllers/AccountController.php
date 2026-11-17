@@ -67,6 +67,17 @@ class AccountController extends Controller
         return redirect('/')->withSuccess('You have logged out.');
     }
 
+    /** "Since you last looked" (#771): the player has seen it, and the next starts from now */
+    public function seen()
+    {
+        $user = $this->player();
+        if (!$user) {
+            return redirect('/login');
+        }
+        \App\Services\SinceLooked::seen($user);
+        return back();
+    }
+
     public function show()
     {
         $user = $this->player();
