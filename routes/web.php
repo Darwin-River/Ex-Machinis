@@ -111,6 +111,8 @@ Route::middleware('new-rules')->group(function () {
     Route::post('/seedlings/{id}/mature', 'SeedlingController@mature')->whereNumber('id');
     // Player boards (#640)
     Route::get('/players', 'PlayerBoardController@show');
+    // The seedling race (#776)
+    Route::get('/seedlings/race', 'SeedlingController@race');
     // Players' shares and the bank (#638)
     Route::post('/companies/{id}/bank/sell', 'PlayerShareController@sellToBank')->whereNumber('id');
     Route::post('/companies/{id}/bank/buy', 'PlayerShareController@buyFromBank')->whereNumber('id');
