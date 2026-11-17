@@ -95,6 +95,9 @@ class Seedlings
             'debt' => self::grant(),
             'guest_key' => $code === null ? null : hash('sha256', $code),
         ]);
+        if ($owner) {
+            CompanyNow::forget($owner);   // the new seedling shows on its strip at once (#770)
+        }
         return ['ok' => true, 'agent' => $agent, 'company' => (int) $agent->company_id, 'claim_code' => $code];
     }
 
@@ -256,6 +259,7 @@ class Seedlings
                 return ['ok' => false, 'status' => 409, 'error' => 'It can\'t pay its debt now: try again.'];
             }
             DB::table('player_shares')->insert(['user_id' => $owner->user_id, 'company_id' => $companyId, 'units' => self::SHARES]);
+            CompanyNow::forget($owner);   // its strip shows the change at once (#770)
             return ['ok' => true, 'company' => $companyId, 'name' => $company->name, 'repaid' => $debt, 'shares' => self::SHARES];
         });
     }
