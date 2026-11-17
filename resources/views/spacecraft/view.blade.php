@@ -68,6 +68,9 @@
                     </div>
                 </div>
             </div>
+            @if($hullPicture)
+                <x-hull-picture :picture="$hullPicture" :hull="$agent->hull?->name" />
+            @endif
             @if($postMortem)
                 {{-- Post-mortem (#324 step 16) --}}
                 <div class="row row-30">

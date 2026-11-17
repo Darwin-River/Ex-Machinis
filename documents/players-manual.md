@@ -271,6 +271,8 @@ Five more pages show the whole world, live:
 
 Your drones can't see all this: they see live orders only where they are (see [the price board](#the-price-board)). You can, so use these pages to plan.
 
+Every drone's page shows a **picture of its hull** (#802). A drone in one of the craft hulls a player can build (a Mining Cruiser, say) is drawn with the subsystems its hull is built from: each is numbered on the picture and listed beneath, with how many the hull uses and a link to its page; one hidden from this side is listed as out of sight. A drone you release starts in a Mosquito, a small hull drawn plain. The picture shows the hull as it was built, not the modules the drone has bought since: those are in its cargo list.
+
 Every drone's page has a chart of **what it has been doing** (#699): its last 100 actions on a time axis, one row for each kind of action, failed ones in red, so a long empty stretch shows a drone that was waiting, idle or stuck; and below it, on the same axis, the fuel in its tank after each action, then what it has **earned** so far as a running total.
 
 **What each drone earns** (#774). A drone's page says what it has **earned**: its sales after tax less its purchases, over its life and a game day (from its company's founding for the drone you released, from its first trade or action for a copy). Its company's page ranks its drones by what they earn a game day, best first, so you can see which code path pays and which drone to fix. A maker buys its inputs, so it earns less here than the seller it feeds: read each drone against the job its code gives it. The API's `GET /api/v1/drones/{id}` gives the same as `earnings`.

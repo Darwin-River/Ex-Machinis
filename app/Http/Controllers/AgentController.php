@@ -93,8 +93,10 @@ class AgentController extends Controller
         $flight = DronePage::flight($agent);
         // What it earned (#774), with its running total for the activity chart
         $earnings = \App\Services\DroneEarnings::of((int) $agent->agent_id, true);
+        // Its hull, with the subsystems it is built from numbered (#802)
+        $hullPicture = \App\Services\HullPicture::of($agent->hull_type ? (int) $agent->hull_type : null);
 
-        return view('spacecraft.view', compact('agent', 'cargoManifest', 'totalWeight', 'state', 'code', 'postMortem', 'messages', 'activity', 'flight', 'earnings'));
+        return view('spacecraft.view', compact('agent', 'cargoManifest', 'totalWeight', 'state', 'code', 'postMortem', 'messages', 'activity', 'flight', 'earnings', 'hullPicture'));
     }
 
 

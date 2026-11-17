@@ -33,6 +33,7 @@ from exm_render import asteroid, drone, drone_presets, materials, presets, resou
 DEFAULT_OUT = HERE / "output"
 # Where --site writes; EXM_SITE_IMAGES renders a set somewhere else first, to check before copying it in
 HEADER_IMAGES = HERE.parents[1] / "html" / "images" / "headers"
+HULL_IMAGES = HERE.parents[1] / "html" / "images" / "hulls"
 SITE_IMAGES = Path(os.environ.get("EXM_SITE_IMAGES", HERE.parents[1] / "html" / "images" / "resources"))
 
 
@@ -89,6 +90,12 @@ def parse(argv: list[str]) -> argparse.Namespace:
     h.add_argument("--draft", action="store_true", help="half size and few samples, to check a layout")
     h.add_argument("--out-dir", type=Path, default=HEADER_IMAGES)
     h.add_argument("--quality", type=int, default=80, help="WebP quality, 0-100")
+
+    u = sub.add_parser("hull", help="pictures of hulls that aren't resources, for the drone pages (#802); names are hull ids or presets, or 'all'")
+    u.add_argument("names", nargs="*")
+    u.add_argument("--list", action="store_true", help="list the hulls")
+    u.add_argument("--samples", type=int, default=48)
+    u.add_argument("--quality", type=int, default=85, help="WebP quality, 0-100")
 
     r = sub.add_parser("resource", help="in-game resources; names are ids, names, 'systems', 'modules' or 'all'")
     _shot_args(r, phase=40.0, fill_light=0.25, view_elevation=28.0)
@@ -243,29 +250,29 @@ def resource_rotation(seed: int) -> tuple[float, float, float]:
 PARTS_ROTATION = (18.0, 0.0, 145.0)  # top, port side and engines towards the camera
 
 
-def render_parts(res, args: argparse.Namespace) -> Path:
-    """A craft's numbered picture (#802): <id>-parts.webp, a still on a clear
-    background, and <id>-parts.json, where each subsystem from its recipe
-    shows in it (x and y as fractions of the picture) and the recipe itself."""
+def numbered_still(root, recipe: dict[int, int], out: Path, samples: int = 48, quality: int = 85) -> Path:
+    """A numbered picture (#802): out (WebP), a still of root on a clear
+    background, and beside it out.json, the recipe and where each of its
+    subsystems shows in the picture (x and y as fractions of it). The drone
+    pages put a number on each and list the recipe beneath."""
     import json
 
     from PIL import Image
 
     from exm_render import labels
 
-    sc = scene.reset()
+    sc = bpy.context.scene
     sc["exm_rim"] = 3.0
     scene.reflections(sc)
-    root = resources.build(res, 0)
     root.rotation_euler = tuple(math.radians(v) for v in PARTS_ROTATION)
     bpy.context.view_layer.update()
     corners = np.array([o.matrix_world @ Vector(c) for o in root.children_recursive
                         if o.type == "MESH" and o.name != "Exhaust" for c in o.bound_box])
-    shot = scene.Shot(width=1200, height=700, samples=min(args.samples, 48), fill=1.0, view_elevation=12, fill_light=0.08)
+    shot = scene.Shot(width=1200, height=700, samples=samples, fill=1.0, view_elevation=12, fill_light=0.08)
     scene.light_and_frame(sc, shot, 0.3, 1.0, corners)
     sc.render.film_transparent = True
     sc.render.image_settings.file_format, sc.render.image_settings.color_mode = "PNG", "RGBA"
-    SITE_IMAGES.mkdir(parents=True, exist_ok=True)
+    out.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         png = Path(tmp) / "parts.png"
         sc.render.filepath = str(png)
@@ -277,16 +284,45 @@ def render_parts(res, args: argparse.Namespace) -> Path:
         pad = 24
         l, t, r, b = max(0, l - pad), max(0, t - pad), min(im.width, r + pad), min(im.height, b + pad)
         im = im.crop((l, t, r, b))
-        out = SITE_IMAGES / f"{res.id}-parts.webp"
-        im.save(out, "WEBP", quality=args.quality + 5)
+        im.save(out, "WEBP", quality=quality)
     data = {
         "width": im.width, "height": im.height,
-        "parts": [{"id": a["id"], "x": round((a["x"] - l) / im.width, 4), "y": round((a["y"] - t) / im.height, 4)} for a in found],
-        "recipe": [{"id": rid, "qty": q} for rid, q in resources.recipe(res.id).items()],
+        # Only the recipe's subsystems are numbered
+        "parts": [{"id": a["id"], "x": round((a["x"] - l) / im.width, 4), "y": round((a["y"] - t) / im.height, 4)}
+                  for a in found if a["id"] in recipe],
+        "recipe": [{"id": rid, "qty": q} for rid, q in recipe.items()],
     }
     out.with_suffix(".json").write_text(json.dumps(data, indent=1) + "\n")
     print(f"wrote {out} and its labels")
     return out
+
+
+def render_parts(res, args: argparse.Namespace) -> Path:
+    """A craft's numbered picture: <id>-parts.webp and .json in SITE_IMAGES."""
+    scene.reset()
+    root = resources.build(res, 0)
+    return numbered_still(root, resources.recipe(res.id), SITE_IMAGES / f"{res.id}-parts.webp",
+                          min(args.samples, 48), args.quality + 5)
+
+
+# Hulls that aren't resources, by hull id (the game's hulls table), and the
+# drone preset that draws each. Their pictures go in html/images/hulls/.
+HULLS = {1: "mosquito"}
+
+
+def hull_names() -> list[str]:
+    return [f"{i}  {p}" for i, p in HULLS.items()]
+
+
+def render_hull(name: str, args: argparse.Namespace) -> Path:
+    """A hull's picture for the drone pages: html/images/hulls/<id>.webp and .json.
+    It has no recipe, so nothing on it is numbered."""
+    hid = next((i for i, p in HULLS.items() if name in (str(i), p)), None)
+    if hid is None:
+        raise SystemExit(f"Unknown hull '{name}'. Known: {', '.join(hull_names())}")
+    scene.reset()
+    root, _ = drone.build(drone_presets.resolve(HULLS[hid]))
+    return numbered_still(root, {}, HULL_IMAGES / f"{hid}.webp", args.samples, args.quality)
 
 
 def render_resource(name: str, args: argparse.Namespace) -> list[Path]:
@@ -378,6 +414,7 @@ def main(argv: list[str]) -> None:
         "drone": (drone_presets.all_names, render_drone),
         "resource": (lambda: [f"{r.id}  {r.name}" for r in resources.find("all")], render_resource),
         "header": (header_names, render_header),
+        "hull": (hull_names, render_hull),
     }[args.kind]
     if args.list or not args.names:
         print("\n".join(names()))
@@ -386,6 +423,8 @@ def main(argv: list[str]) -> None:
         from exm_render import scenes
 
         args.names = list(scenes.SCENES)
+    if args.kind == "hull" and args.names == ["all"]:
+        args.names = [str(i) for i in HULLS]
     if getattr(args, "out", None) and len(args.names) > 1:
         raise SystemExit("--out takes one name; use --out-dir for several")
     for name in args.names:
