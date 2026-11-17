@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('pageTitle', 'Strategy Blog')
+@section('pageTitle', 'Strategy blog')
 @push('styles')
     <style>
         /* The theme centres text and hides list markers: not for a manual */
@@ -27,8 +27,8 @@
 @endpush
 @section('content')
     <x-page-header>
-        <x-slot:title>Strategy Blog</x-slot:title>
-        <li class="active">Strategy Blog</li>
+        <x-slot:title>Strategy blog</x-slot:title>
+        <li class="active">Strategy blog</li>
     </x-page-header>
     <section class="section section-lg">
         <div class="container">
@@ -39,7 +39,7 @@
                     @foreach ($posts as $slug => $post)
                         <article class="blog-entry">
                             <h3><a href="{{ url('blog/' . $slug) }}">{{ $post['title'] }}</a></h3>
-                            <p class="blog-date">{{ $post['date'] }}</p>
+                            <p class="blog-date">{{ $post['date'] }}{{ (int) $slug < 12 ? ' · written under the old rules' : '' }}</p>
                             <p>{{ $post['summary'] }}</p>
                         </article>
                     @endforeach

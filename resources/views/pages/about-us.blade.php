@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@php $title = 'About Us' ; @endphp
+@php $title = 'About us' ; @endphp
 @section('pageTitle', $title)
 @section('content')
     <!-- Breadcrumbs-->

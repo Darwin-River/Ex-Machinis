@@ -1,12 +1,12 @@
 @extends('layouts.app')
-@php $title = 'In-Game Events' ; @endphp
+@php $title = 'Events' ; @endphp
 @section('pageTitle', $title)
 @section('content')
 
     <x-page-header :title="$title" />
     <section class="section section-xs section-first text-md-left">
 
-        <div class="container-fluid px-3 px-sm-5" id="container">
+        <div class="container" id="container">
             @if($empty ?? false)
                 {{-- #692: an empty page with no word of why --}}
                 <p id="events-empty" style="white-space: normal">No events have reached Earth's central database yet.

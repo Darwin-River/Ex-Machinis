@@ -13,6 +13,7 @@
     @endphp
     <section class="section section-xs section-first">
         <div class="container" id="container">
+            @include('partials.market-tabs')
             {{-- Where fuel is on sale now (#609): round 63's drones stranded where none was --}}
             <p id="fuel-for-sale" @class(['mk-lead', 'health-banner' => $fuel['none']])>
                 <b>Fuel on sale now:</b>

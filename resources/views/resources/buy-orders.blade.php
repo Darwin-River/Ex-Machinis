@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@php $title = 'Buy Orders' ; @endphp
+@php $title = 'Buy orders' ; @endphp
 @section('pageTitle', $title)
 @section('content')
 

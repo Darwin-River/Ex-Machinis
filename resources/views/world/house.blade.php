@@ -10,6 +10,7 @@
     @php($n = fn ($v) => number_format($v))
     <section class="section section-xs section-first">
         <div class="container" id="container">
+            @include('partials.market-tabs')
             <h2 class="h4" id="house-demand">What does the House still buy today?</h2>
             @php($refill = collect($demand)->pluck('hours')->filter(fn ($h) => $h !== null)->min())
             @php($bar = fn ($have, $of) => '<span class="hs-bar" aria-hidden="true"><i style="width: ' . ($of > 0 ? min(100, round(100 * $have / $of)) : 0) . '%"></i></span>')

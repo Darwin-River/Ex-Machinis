@@ -105,7 +105,7 @@ class PerformanceChartsTest extends TestCase
         \Illuminate\Support\Facades\Cache::forget('market:shares:1');
         $this->get('/market/shares')->assertOk()->assertSee('id="player-share-market"', false)
             ->assertSee('Cash-out a share')->assertSee('Dividends a share, 30 days')->assertSee('Yield, 30 days')
-            ->assertSee('id="health-meaning"', false)->assertSee('today,')
+            ->assertSee('id="health-meaning"', false)->assertSee('players traded at')->assertSee('today (+')
             ->assertSee('% premium')->assertSee('data-spark=', false)->assertSee('<th>Health</th>', false);
     }
 

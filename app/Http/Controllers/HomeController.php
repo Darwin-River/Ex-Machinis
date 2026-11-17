@@ -128,7 +128,8 @@ class HomeController extends Controller
     private static function manualHtml(): string
     {
         return Cache::rememberForever('players-manual:' . filemtime(base_path(self::PLAYERS_MANUAL)),
-            fn () => self::renderPlayersManual(file_get_contents(base_path(self::PLAYERS_MANUAL))));
+            // One title (#744): the page's header, not the file's own heading too
+            fn () => preg_replace('/<h1\b[^>]*>.*?<\/h1>/s', '', self::renderPlayersManual(file_get_contents(base_path(self::PLAYERS_MANUAL))), 1));
     }
 
     /** The IDs of the manual's headings and anchors, for old /getting-started#anchor links */

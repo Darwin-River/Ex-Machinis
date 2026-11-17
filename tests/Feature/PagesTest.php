@@ -32,18 +32,18 @@ class PagesTest extends TestCase
             'manual'           => ['/manual', 'Manual'],
             'market'           => ['/market', 'Market'],
             'house market'     => ['/market/house', 'House demand and supply'],
-            'about us'         => ['/about-us', 'About Us'],
-            'support'          => ['/support', 'Keep the Lights On'],
+            'about us'         => ['/about-us', 'About us'],
+            'support'          => ['/support', 'Keep the lights on'],
             'queries'          => ['/queries', 'Queries'],
             'message'          => ['/message', 'Notification'],
             'resources'        => ['/resources', 'Resources'],
-            'buy orders'       => ['/buys', 'Buy Orders'],
-            'sell orders'      => ['/sells', 'Sell Orders'],
+            'buy orders'       => ['/buys', 'Buy orders'],
+            'sell orders'      => ['/sells', 'Sell orders'],
             'locations'        => ['/locations', 'Locations'],
             'spacecraft'       => ['/spacecraft', 'Drones'],
             'protocols'        => ['/protocols', 'Protocols'],
             'companies'        => ['/companies', 'Companies'],
-            'events'           => ['/events', 'In-Game Events'],
+            'events'           => ['/events', 'Events'],
         ];
     }
 
