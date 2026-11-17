@@ -682,12 +682,20 @@ def find(query: str) -> list[Resource]:
     return hits
 
 
-def module_builder(name):
-    """The builder for a module, by resource id or name, for mounting on drones."""
+ENGINE_ID = 5001  # Engine (A1): a drone's engine block
+
+
+def module_id(name) -> int:
+    """A module's resource id, from its id or name, for mounting on drones."""
     hits = [r for r in find(str(name)) if r.id in MODULES]
     if not hits:
         raise SystemExit(f"'{name}' is not a drone part or a module resource")
-    return MODULES[hits[0].id]
+    return hits[0].id
+
+
+def module_builder(name):
+    """The builder for a module, by resource id or name, for mounting on drones."""
+    return MODULES[module_id(name)]
 
 
 def build(res: Resource, seed: int = 0):

@@ -432,7 +432,6 @@ STATIONS = {5911: m_import_station, 5921: m_export_station}
 # recipe is mounted on the truss, and its Engines are the engine block. Tanks,
 # radiators and the bow tool are decoration.
 CRAFT_SIZES = {"Cruiser": (3, 0.9), "Cutter": (5, 1.1), "Frigate": (7, 1.0), "Barge": (8, 1.0)}
-ENGINE = 5001
 FACES = ("top", "bottom", "port", "starboard")
 
 
@@ -441,7 +440,7 @@ def craft_modules(res) -> list[int]:
     from . import resources
 
     rec = resources.recipe(res.id)
-    return [rid for rid in sorted(rec, key=lambda r: (-resources.span(r), r)) for _ in range(rec[rid]) if rid != ENGINE]
+    return [rid for rid in sorted(rec, key=lambda r: (-resources.span(r), r)) for _ in range(rec[rid]) if rid != resources.ENGINE_ID]
 
 
 def _pack(modules, bays, engines):
@@ -479,7 +478,7 @@ def craft(res):
 
     role, size = res.name.split(" (")[0].split(" ", 1)
     bays, esize = CRAFT_SIZES[size]
-    engines = resources.recipe(res.id).get(ENGINE, 0)
+    engines = resources.recipe(res.id).get(resources.ENGINE_ID, 0)
     modules = craft_modules(res)
     while (packed := _pack(modules, bays, engines)) is None:
         bays += 1  # a long recipe gets a longer truss
