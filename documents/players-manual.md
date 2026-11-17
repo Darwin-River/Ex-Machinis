@@ -206,6 +206,8 @@ Pushing keeps the seedling's drones, goods and progress towards maturing. Releas
 
 Close a seedling at any time, from your account page (**Close**) or with `POST /api/v1/seedlings/{id}/close`. Its drones become wrecks with empty holds, which nobody can plunder, and its **debt is cancelled**. Its slot reopens a game day later. Closing is how a failed experiment ends: it costs you nothing.
 
+**What happened** (#773). Once a company ends (closed, dissolved, or out of drones), its page opens with a short post-mortem: why it ended and when, which drones went before it and where, the action it failed most over its last game day with what usually fixes it, what its drones last said (`set_status`), and its last script error with the line of code involved. **Start a fixed copy** opens the Start a seedling page with its newest code loaded and the post-mortem above the editor: change what went wrong and start it. `GET /api/v1/companies/{id}` gives the same as `post_mortem`.
+
 #### Starter scripts
 
 Prefer to play from a program, or to have an AI agent play? The [API](api.md) releases and follows companies as JSON, under the same rules as the website. Its `/check` call reports the same errors and warnings as the Start a seedling page.

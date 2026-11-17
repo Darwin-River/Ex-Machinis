@@ -105,6 +105,14 @@
 
             <form method="POST" action="{{ url('release') }}" class="mt-3">
                 {{ csrf_field() }}
+                @if(!empty($fixing))
+                    {{-- A fixed copy of a company that ended (#773) --}}
+                    <div class="alert alert-warning" id="fixing" style="white-space: normal">
+                        <b>Fixing {{ $fixing['name'] }}.</b> {{ implode(' ', $fixing['lines']) }}
+                        @if($fixing['line']) Line {{ $fixing['line']['number'] }} of its code: <code>{{ $fixing['line']['code'] }}</code> ({{ $fixing['error']['text'] }}). @elseif($fixing['error']) Its last error: {{ $fixing['error']['text'] }}. @endif
+                        Its code is loaded below: change what went wrong, then start it.
+                    </div>
+                @endif
                 @if($copiedFrom)
                     {{-- Where this code comes from (#324 step 16) --}}
                     <input type="hidden" name="copied_from" value="{{ $copiedFrom }}">

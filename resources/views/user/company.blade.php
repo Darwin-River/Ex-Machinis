@@ -87,6 +87,19 @@
                     'dissolved' => 'it had no credits for too long', 'drones' => 'it lost its last drone'][$user->end_cause ?? ''] ?? null)
                 <p class="stat-meta" id="seedling">It ended on {{ \App\Services\DronePage::when((int) $user->eliminated_at) }}{{ $endWhy ? ': ' . $endWhy : '' }}.
                     @if((int) ($user->seedling ?? 0) === 1) It was a seedling: its debt was cancelled, and it owes nothing. @endif</p>
+                {{-- The failure card (#773): what went wrong, and a fixed copy a click away --}}
+                @php($pm = \App\Services\PostMortem::of((int) $user->user_id))
+                @if($pm)
+                    <section class="health-banner" id="post-mortem" style="white-space: normal">
+                        <strong>What happened.</strong>
+                        <ul class="mb-1">@foreach($pm['lines'] as $l)<li>{{ $l }}</li>@endforeach
+                            @if($pm['error'])<li>{{ $pm['error']['drone'] }}'s last error ({{ $pm['error']['when'] }}): <code>{{ $pm['error']['text'] }}</code>
+                                @if($pm['line'])<br>Line {{ $pm['line']['number'] }} of its code ({{ strtolower($pm['line']['in']) }}): <code>{{ $pm['line']['code'] }}</code>@endif</li>@endif
+                        </ul>
+                        @if($pm['copy'])<a class="button button-primary button-sm" id="fixed-copy" href="{{ url($pm['copy']) }}">Start a fixed copy</a>
+                            <small>opens Start a seedling with its code loaded and this noted</small>@endif
+                    </section>
+                @endif
             @elseif((int) ($user->seedling ?? 0) === 1)
                 <p class="stat-meta" id="seedling">A seedling: it owes the bank {{ number_format((int) $user->debt) }} credits, and
                     trades only with the House until it matures.</p>
