@@ -149,7 +149,16 @@ Your account also has **credits** of its own: what your shares earn you, from di
 - **A drone of mine is wrecked**, with where and how, and a link to its page;
 - **A weekly digest**: each of your companies' net wealth, a seedling's progress to maturing and its health, and your shares' cash-out value and the dividends they paid that week.
 
-The first three come together in one e-mail, at most one a real day, and each item says what to try next. Every e-mail has a link that turns them all off at once.
+For traders there are six more:
+
+- **A seedling of mine is past its credit cap** (how much went to the bank in the last real day: mature it);
+- **A share order of mine fills** (who you traded with, the price and the cash-out then; at most one e-mail an hour);
+- **A share order of mine can't fill** (outside the range players trade in, with the range now) **or sells below cash-out** (the bank pays more);
+- **The bank pays me for shares I sold it** (what it paid each, and whether that was less than at the sale);
+- **A company I hold shares in moves 15% or more in cash-out over 7 game days, or ends**;
+- **The House bids more than a price I set**: add up to 10 price alerts on the account page (a good, a place or anywhere, and a price), for example Pumps at the Moon over 850.
+
+All but the digest and filled orders come together in one e-mail, at most one a real day, and each item says what to try next. Nothing from before you turned a notice on is told. Every e-mail has a link that turns them all off at once.
 
 **In a class?** Your teacher has made your account and has your name and password. You have no e-mail address to verify, and your starting credits are there at once (see [Class groups](#class-groups)).
 

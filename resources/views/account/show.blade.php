@@ -255,15 +255,49 @@
                     <p>Verify your e-mail address to turn on e-mail notices.</p>
                 @else
                     @php($noticeSettings = \App\Services\Notices::settings(auth()->user()))
-                    <p>Pick what we may e-mail you about: all are off until you turn them on. The first three come together
-                        in one e-mail, at most one a real day, each with something to try next. Every e-mail has a link that
-                        turns them all off.</p>
+                    <p>Pick what we may e-mail you about: all are off until you turn them on. All but the weekly digest and
+                        filled orders come together in one e-mail, at most one a real day, each with something to try next;
+                        filled orders come at most hourly. Every e-mail has a link that turns them all off.</p>
                     <form method="POST" action="{{ url('account/notices') }}">
                         {{ csrf_field() }}
+                        <p class="mb-1"><strong>Your companies</strong></p>
                         @foreach(\App\Services\Notices::KINDS as $kind => $label)
+                            @if($kind === 'at_cap')<p class="mb-1 mt-2"><strong>Trading</strong></p>@endif
                             <div><label><input type="checkbox" name="notices[]" value="{{ $kind }}" @checked($noticeSettings[$kind])> {{ $label }}</label></div>
                         @endforeach
                         <button class="button button-secondary button-sm mt-2" type="submit">Save</button>
+                    </form>
+                    {{-- House price alerts (#761, part 2) --}}
+                    @php($alerts = \App\Services\Notices::alerts(auth()->user()))
+                    <p class="mt-3 mb-1" id="alerts"><strong>Your price alerts</strong> (at most {{ \App\Services\Notices::MAX_ALERTS }}):
+                        tell me when the House bids more than a price for a good.</p>
+                    @if($alerts)
+                        <ul>
+                            @foreach($alerts as $a)
+                                <li>{{ $a['resource_name'] ?? ('good ' . $a['resource']) }} over {{ number_format($a['above']) }},
+                                    {{ $a['place_name'] ? 'at ' . $a['place_name'] : 'anywhere' }}
+                                    <form method="POST" action="{{ url('account/alerts/' . $a['id'] . '/remove') }}" class="d-inline">
+                                        {{ csrf_field() }}<button class="button button-secondary button-sm" type="submit">Remove</button>
+                                    </form></li>
+                            @endforeach
+                        </ul>
+                    @endif
+                    @php($alertGoods = \Illuminate\Support\Facades\DB::table('house_market as h')->join('resources as r', 'r.id', '=', 'h.resource')->where('h.side', 1)->distinct()->orderBy('r.name')->get(['r.id', 'r.name']))
+                    @php($alertPlaces = \Illuminate\Support\Facades\DB::table('stations as s')->join('objects as o', 'o.object_id', '=', 's.object_id')->distinct()->orderBy('o.object_name')->get(['o.object_id', 'o.object_name']))
+                    <form method="POST" action="{{ url('account/alerts') }}" class="form-inline">
+                        {{ csrf_field() }}
+                        <label class="mr-2" for="alert-resource">Good</label>
+                        <select class="form-control mr-2 mb-2" id="alert-resource" name="resource" required>
+                            @foreach($alertGoods as $g)<option value="{{ $g->id }}">{{ $g->name }}</option>@endforeach
+                        </select>
+                        <label class="mr-2" for="alert-place">at</label>
+                        <select class="form-control mr-2 mb-2" id="alert-place" name="place">
+                            <option value="">anywhere</option>
+                            @foreach($alertPlaces as $pl)<option value="{{ $pl->object_id }}">{{ $pl->object_name }}</option>@endforeach
+                        </select>
+                        <label class="mr-2" for="alert-above">over</label>
+                        <input class="form-control mr-2 mb-2" id="alert-above" name="above" type="number" min="1" required style="width: 8rem">
+                        <button class="button button-secondary button-sm mb-2" type="submit">Add the alert</button>
                     </form>
                     @if(count($account['teaches']))
                         <p class="mt-3">For each of your class groups, a daily summary of what needs your pupils (a seedling

@@ -191,6 +191,31 @@ class AccountController extends Controller
         return redirect('/account#notices')->withSuccess($on ? 'Your e-mail notices are saved.' : 'You will get no e-mail notices.');
     }
 
+    /** A House price alert (#761, part 2) */
+    public function addAlert(Request $request)
+    {
+        $user = $this->player();
+        if (!$user) {
+            return redirect('/login');
+        }
+        abort_unless(\App\Services\Notices::available(), 404);
+        $request->validate(['resource' => 'required|integer', 'place' => 'nullable|integer', 'above' => 'required|integer|min:1|max:100000000']);
+        $problem = \App\Services\Notices::addAlert($user, (int) $request->input('resource'),
+            $request->filled('place') ? (int) $request->input('place') : null, (int) $request->input('above'));
+        return $problem !== null ? redirect('/account#notices')->withErrors(['alert' => $problem])
+            : redirect('/account#notices')->withSuccess('Your alert is set. Turn on "' . \App\Services\Notices::KINDS['price_alerts'] . '" to get it.');
+    }
+
+    public function removeAlert(int $id)
+    {
+        $user = $this->player();
+        if (!$user) {
+            return redirect('/login');
+        }
+        abort_unless(\App\Services\Notices::available() && \App\Services\Notices::removeAlert($user, $id), 404);
+        return redirect('/account#notices')->withSuccess('The alert is gone.');
+    }
+
     /** A teacher's daily class summary on or off (#761) */
     public function classNotices(Request $request, int $id)
     {
