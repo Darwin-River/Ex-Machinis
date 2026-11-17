@@ -201,13 +201,13 @@ class TradeScripts
         switch ($f[0]) {
             case 'buy':
             case 'sell':
-                return $describe(PlayerShares::order($user, $c, $f[0], (int) ($f[2] ?? 0), (int) ($f[3] ?? 0)),
+                return $describe(PlayerShares::order($user, $c, $f[0], (int) ($f[2] ?? 0), (int) ($f[3] ?? 0), null, null, true),
                     "{$f[0]} {$f[2]} of $name at {$f[3]}");
             case 'buy_pegged':
             case 'sell_pegged':
                 $side = $f[0] === 'buy_pegged' ? 'buy' : 'sell';
                 return $describe(PlayerShares::order($user, $c, $side, (int) ($f[2] ?? 0), 0,
-                    ['ref' => (string) ($f[3] ?? ''), 'offset_bp' => (int) round((float) ($f[4] ?? 0) * 100)]),
+                    ['ref' => (string) ($f[3] ?? ''), 'offset_bp' => (int) round((float) ($f[4] ?? 0) * 100)], null, true),
                     "$side {$f[2]} of $name at {$f[3]} {$f[4]}%");
             case 'cancel':
                 return PlayerShares::cancel($user, $c) ? "cancel order $c: done" : "cancel order $c: no such order of yours";
@@ -243,8 +243,8 @@ class TradeScripts
                 'last_price' => $m['last_price'] ?? null, 'last_days_ago' => $m['last_days_ago'] ?? null,
                 'stalled' => $m['stalled'] ?? false, 'at_risk' => $m['at_risk'] ?? false, 'failing' => $m['failing'] ?? false,
                 'dissolves_in' => $m['dissolves_in'] ?? null,
-                'bids' => array_map(fn ($o) => ['price' => $o['price'], 'units' => $o['units'], 'by' => $o['by']], $book['buy']),
-                'asks' => array_map(fn ($o) => ['price' => $o['price'], 'units' => $o['units'], 'by' => $o['by']], $book['sell'])];
+                'bids' => array_map(fn ($o) => ['price' => $o['price'], 'units' => $o['units'], 'by' => $o['by'], 'script' => $o['script']], $book['buy']),
+                'asks' => array_map(fn ($o) => ['price' => $o['price'], 'units' => $o['units'], 'by' => $o['by'], 'script' => $o['script']], $book['sell'])];
         }
         $mine = PlayerShares::of($user);
         $account = DB::table('users')->where('user_id', $user->user_id)->first(['credits', 'share_credits']);

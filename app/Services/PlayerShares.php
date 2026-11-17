@@ -110,7 +110,7 @@ class PlayerShares
             DB::transaction(function () use ($o, $user, $c, &$moved) {
                 DB::table('player_share_orders')->where('id', $o->id)->delete();
                 $r = self::order($user, $c, $o->side, (int) $o->units, 0, ['ref' => $o->peg_ref, 'offset_bp' => (int) $o->peg_offset_bp],
-                    $o->game_t !== null ? (int) $o->game_t : null);
+                    $o->game_t !== null ? (int) $o->game_t : null, (bool) ($o->by_script ?? false));
                 if (!($r['ok'] ?? false)) {
                     DB::table('player_share_orders')->insert((array) $o);   // it stays where it was
                     return;
@@ -543,8 +543,10 @@ class PlayerShares
      * percent]) its price follows that bank price (#766): $price is ignored,
      * and repeg() moves it as the bank's prices move. $placedT: the game time
      * a re-placed order was first placed, so it keeps its rest (#782).
+     * $byScript: placed by the account's trading script, shown as such (#779).
      */
-    public static function order(User $user, int $company, string $side, int $units, int $price, ?array $peg = null, ?int $placedT = null): array
+    public static function order(User $user, int $company, string $side, int $units, int $price, ?array $peg = null, ?int $placedT = null,
+                                 bool $byScript = false): array
     {
         if (!self::company($company)) {
             return self::fail(404, self::endedNote($company) ?? 'There is no such matured company.');
@@ -589,7 +591,7 @@ class PlayerShares
                 . (int) $crosses . ': ' . ($side === 'buy' ? 'a buy at ' . (int) $crosses . ' or more' : 'a sell at ' . (int) $crosses . ' or less')
                 . ' would cross it. Cancel that order first, or ' . ($side === 'buy' ? 'bid under ' : 'ask over ') . (int) $crosses . '.');
         }
-        return DB::transaction(function () use ($me, $company, $side, $units, $price, $p, $peg, $placedT) {
+        return DB::transaction(function () use ($me, $company, $side, $units, $price, $p, $peg, $placedT, $byScript) {
             $traded = 0;
             $spent = 0;
             $other = $side === 'buy' ? 'sell' : 'buy';
@@ -664,6 +666,7 @@ class PlayerShares
             if ($standing > 0) {
                 $id = DB::table('player_share_orders')->insertGetId(['user_id' => $me, 'company_id' => $company,
                     'side' => $side, 'units' => $standing, 'price' => $price, 'created_at' => now(), 'game_t' => $placedT ?? World::gameNow()]
+                    + ($byScript ? ['by_script' => 1] : [])
                     + ($peg !== null ? ['peg_ref' => $peg['ref'], 'peg_offset_bp' => $peg['offset_bp']] : []));
             }
             return ['ok' => true, 'traded' => $traded, 'credits' => $spent, 'standing' => $standing, 'order' => $id, 'price' => $price]
@@ -976,9 +979,11 @@ class PlayerShares
         $rows = fn ($side, $dir) => DB::table('player_share_orders as o')->join('users as u', 'u.user_id', '=', 'o.user_id')
             ->where('o.company_id', $company)->where('o.side', $side)->whereBetween('o.price', [$p['low'], $p['high']])
             ->orderBy('o.price', $dir)->orderBy('o.id')
-            ->limit(20)->get(array_merge(['o.id', 'o.units', 'o.price', 'u.login as by'], self::pegColumns('o')))
-            ->map(fn ($o) => ['id' => (int) $o->id, 'units' => (int) $o->units, 'price' => (int) $o->price, 'by' => $o->by]
-                + self::pegOf($o))->all();
+            ->limit(20)->get(array_merge(['o.id', 'o.units', 'o.price', 'u.login as by'], self::pegColumns('o'),
+                \Illuminate\Support\Facades\Schema::hasColumn('player_share_orders', 'by_script') ? ['o.by_script'] : []))
+            // A trading script's order says so (#779)
+            ->map(fn ($o) => ['id' => (int) $o->id, 'units' => (int) $o->units, 'price' => (int) $o->price, 'by' => $o->by,
+                'script' => (bool) ($o->by_script ?? false)] + self::pegOf($o))->all();
         return ['sell' => $rows('sell', 'asc'), 'buy' => $rows('buy', 'desc')];
     }
 

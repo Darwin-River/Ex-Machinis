@@ -53,6 +53,14 @@ class PlayerShareController extends Controller
         return $this->back($r, $r['ok'] ? 'You bought ' . $r['units'] . ' shares from the bank for ' . number_format($r['cost']) . ' credits.' : '');
     }
 
+    /** The Trading desk (#779): ?company=N puts that company on the ladder */
+    public function desk(Request $request)
+    {
+        $user = \Illuminate\Support\Facades\Auth::user();
+        $company = $request->filled('company') ? (int) $request->input('company') : null;
+        return view('world.trade', ['desk' => \App\Services\TradingDesk::build($user, $company)]);
+    }
+
     /** Its owner offers 10 new shares of a matured company (#780) */
     public function offer(int $id)
     {

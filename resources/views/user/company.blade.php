@@ -249,7 +249,7 @@
                             @if(count($playerShares['book'][$side]))
                                 <table class="table table-sm"><tbody>
                                 @foreach($playerShares['book'][$side] as $o)
-                                    <tr><td>{{ $o['by'] }}</td><td class="text-right">{{ number_format($o['units']) }}</td><td class="text-right">at {{ number_format($o['price']) }}@if(!empty($o['peg']))
+                                    <tr><td>{{ $o['by'] }}@if(!empty($o['script'])) <small class="text-muted" title="Placed by this player's trading script">(script)</small>@endif</td><td class="text-right">{{ number_format($o['units']) }}</td><td class="text-right">at {{ number_format($o['price']) }}@if(!empty($o['peg']))
                                         <br><small class="text-muted">{{ $o['peg'] === 'buys_at' ? 'bank buys' : 'bank sells' }} {{ $o['offset_percent'] >= 0 ? '+' : '−' }}{{ abs($o['offset_percent']) }}%</small>@endif</td></tr>
                                 @endforeach
                                 </tbody></table>
