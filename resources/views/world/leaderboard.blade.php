@@ -1,5 +1,6 @@
 @extends('layouts.app')
 @section('pageTitle', 'Leaderboard')
+@include('partials.market-styles')
 @push('styles')
     <style>
         /* On a phone the company stays in view while the rest scrolls (#744) */
@@ -46,9 +47,9 @@
             {{-- Every company at the same age (#614): its net wealth when it was that old, from its history --}}
             <form method="get" action="{{ url()->current() }}" id="age-form" style="white-space: normal; margin-bottom: 1em">
                 Compare every company at age
-                <input type="number" name="age" min="0" step="0.1" style="width: 6em" aria-label="Age in game days"
+                <input type="number" name="age" min="0" step="0.1" class="mk-input" aria-label="Age in game days"
                        value="{{ $age === null ? '' : $age }}" placeholder="days">
-                game days <button type="submit">Show</button>
+                game days <button type="submit" class="mk-button">Show</button>
                 &middot;
                 @foreach([3, 10, 30, 100] as $days)
                     <a href="{{ url()->current() . '?age=' . $days }}"

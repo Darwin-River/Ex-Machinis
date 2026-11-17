@@ -1,5 +1,6 @@
 @extends('layouts.app')
 @section('pageTitle', 'Lineage')
+@include('partials.market-styles')
 @push('styles')
     <style>
         /* The lineage map (#618): lanes are companies in family order, time runs left to right */
@@ -55,15 +56,15 @@
                 How it's measured is under <b>Lineage</b> on each company's page.
             </div>
             <div class="controls">
-                <input type="search" id="find" placeholder="Find a company" aria-label="Find a company">
-                <label for="onlymulti"><input type="checkbox" id="onlymulti"> Only revisions with several parents</label>
-                <label for="hideown"><input type="checkbox" id="hideown"> Hide edges within a company</label>
+                <input type="search" class="mk-input" id="find" placeholder="Find a company" aria-label="Find a company">
+                <label for="onlymulti"><input type="checkbox" class="mk-check" id="onlymulti"> Only revisions with several parents</label>
+                <label for="hideown"><input type="checkbox" class="mk-check" id="hideown"> Hide edges within a company</label>
             </div>
             <div class="controls">
                 Colour by
-                <label for="mode-heat"><input type="radio" name="mode" id="mode-heat" value="heat" checked> Net wealth at age</label>
-                <label for="mode-new"><input type="radio" name="mode" id="mode-new" value="new"> New code</label>
-                <label for="age" class="agepick">at <input type="range" id="age" min="0" max="0" step="1"> <output id="age-out"></output></label>
+                <label for="mode-heat"><input type="radio" class="mk-check" name="mode" id="mode-heat" value="heat" checked> Net wealth at age</label>
+                <label for="mode-new"><input type="radio" class="mk-check" name="mode" id="mode-new" value="new"> New code</label>
+                <label for="age" class="agepick">at <input type="range" class="mk-range" id="age" min="0" max="0" step="1"> <output id="age-out"></output></label>
             </div>
             <div class="legend">
                 <span><i style="border-color: var(--ink); opacity: .5"></i>within a company</span>

@@ -27,6 +27,14 @@
         .mk-button { background: transparent; color: #e6e9f2; border: 1px solid #263052; border-radius: 8px; padding: 6px 14px;
               font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
         .mk-button:hover, .mk-button:focus-visible { border-color: #ffb547; color: #ffb547; }
+        /* Text, number and search boxes, checkboxes, radios and sliders in the same look (#744: native controls on the leaderboard and lineage) */
+        .mk-input { background: #111729; color: #e6e9f2; border: 1px solid #263052; border-radius: 8px; padding: 5px 10px;
+              font: inherit; font-size: 15px; max-width: 100%; min-width: 0; }
+        .mk-input::placeholder { color: #6b7283; }
+        .mk-input:focus { outline: none; border-color: #4cc9f0; box-shadow: 0 0 0 .2rem rgba(76, 201, 240, .25); }
+        .mk-input[type=number] { width: 6em; }
+        .mk-check { accent-color: #4cc9f0; width: 16px; height: 16px; margin: 0; cursor: pointer; }
+        .mk-range { accent-color: #4cc9f0; cursor: pointer; vertical-align: middle; }
         .mk-key { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: #9aa3b8; margin: .25rem 0 .75rem; }
         .mk-key i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
         .mk-key i.mk-ring { background: transparent !important; border: 2px solid #9aa3b8; }

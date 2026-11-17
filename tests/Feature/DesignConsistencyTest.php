@@ -52,4 +52,13 @@ class DesignConsistencyTest extends TestCase
         $ids = collect($this->getJson('/spacecraft/search')->assertOk()->json('data'))->pluck('agent_id')->all();
         $this->assertSame($ids, collect($ids)->sortDesc()->values()->all());
     }
+
+    public function testTheLeaderboardAndLineageControlsAreStyled()
+    {
+        // #744: their boxes, checkboxes and slider were the browser's own, white on the dark site
+        $this->get('/leaderboard')->assertOk()->assertSee('class="mk-input"', false)->assertSee('class="mk-button"', false)
+            ->assertSee('.mk-input {', false);
+        $this->get('/lineage')->assertOk()->assertSee('class="mk-input" id="find"', false)
+            ->assertSee('class="mk-check" id="onlymulti"', false)->assertSee('class="mk-range" id="age"', false);
+    }
 }
