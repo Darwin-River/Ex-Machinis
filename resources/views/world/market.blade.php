@@ -71,7 +71,9 @@
                                 . ($p['bid'] !== null ? 'buys at ' . $p['bid'] : 'no buyer'))->implode('; ');
                         @endphp
                         <li><a class="mk-row" href="{{ url('resources/' . $r['resource']) }}#order-book" data-resource="{{ $r['resource'] }}">
-                            <span class="mk-name"><b>{{ $r['name'] }}</b>
+                            {{-- A bid at or above an ask at the same exchange (#744: crossed books, unexplained) --}}
+                            @php($crossed = collect($r['places'])->contains(fn ($p) => $p['bid'] !== null && $p['ask'] !== null && $p['bid'] >= $p['ask']))
+                            <span class="mk-name"><b>{{ $r['name'] }}</b>@if($crossed) <span class="mk-tag" title="A buyer here bids at or above what a seller here asks: see below the board">crossed</span>@endif
                                 <small>{{ ucfirst(\App\Services\MarketBoard::SHORT_TIERS[$r['tier_name']] ?? $r['tier_name']) }} &middot; {{ $r['units'] > 0 ? $n($r['units']) . ' traded, 7 days' : 'no trades, 7 days' }}</small></span>
                             <span class="mk-spread" role="img" aria-label="{{ $summary }}">
                                 <span class="mk-axis"></span>
@@ -114,6 +116,10 @@
                         </a></li>
                     @endforeach
                 </ol>
+                <p class="mk-src" id="crossed-books"><b>Crossed</b> marks a good where a buyer bids at or above what a seller asks at the same exchange.
+                    Standing orders never trade with each other: a trade happens only when a drone pulls from a sell order or pushes into a buy order
+                    where it is. So the two wait until a drone acts on them, and a seedling's order trades only with the House, never with another player's.
+                    A drone that buys from the one and sells to the other makes the difference.</p>
             @endif
             <p class="mk-src">Data: <code>GET /api/v1/orders?side=sell</code> and <code>?side=buy</code>, the best price for each good and place;
                 the change is the average price over the last 7 game days against the 7 before, from <code>GET /api/v1/history</code>. Worked out once a minute.</p>

@@ -36,6 +36,28 @@ class CompanyNow
         Cache::forget('company-now:' . $user->user_id);
     }
 
+    /**
+     * When a seedling should mature at its pace (#770, #744): its credits
+     * gained a game day over its last PACE_DAYS of history, the real
+     * minutes and the game time to its mark, or nulls when it isn't gaining
+     */
+    public static function forecast(object $c, int $need, int $credits, bool $can, ?int $today = null, ?float $scale = null): array
+    {
+        $today ??= MarketHistory::today();
+        $scale ??= max(1.0, (float) (DB::table('game_clock')->where('id', 1)->value('scale') ?? 1));
+        $days = DB::table('company_days')->where('company_id', $c->company_id)->where('day', '>=', $today - self::PACE_DAYS)
+            ->orderBy('day')->get(['day', 'credits']);
+        $pace = null;
+        if (count($days) >= 2) {
+            $first = $days->first();
+            $span = max(1, $today - (int) $first->day);
+            $pace = ((int) $c->credits - (int) $first->credits) / $span;
+        }
+        $gameSeconds = !$can && $pace !== null && $pace > 0 ? (int) ceil(($need - $credits) / $pace * 86400) : null;
+        return ['pace' => $pace, 'minutes' => $gameSeconds === null ? null : (int) ceil($gameSeconds / $scale / 60),
+            'game_t' => $gameSeconds === null ? null : World::gameNow() + $gameSeconds];
+    }
+
     private static function build(User $user): ?array
     {
         $margin = Seedlings::matureMargin();
@@ -48,17 +70,7 @@ class CompanyNow
             $credits = (int) $c->credits - (int) ($c->compute_debt ?? 0);
             $can = Seedlings::canMature($c);
             $cap = Seedlings::creditCap($c);
-            // Its pace: credits gained a game day over its last PACE_DAYS of history
-            $days = DB::table('company_days')->where('company_id', $c->company_id)->where('day', '>=', $today - self::PACE_DAYS)
-                ->orderBy('day')->get(['day', 'credits']);
-            $pace = null;
-            if (count($days) >= 2) {
-                $first = $days->first();
-                $span = max(1, $today - (int) $first->day);
-                $pace = ((int) $c->credits - (int) $first->credits) / $span;
-            }
-            $minutes = !$can && $pace !== null && $pace > 0
-                ? (int) ceil(($need - $credits) / $pace * 86400 / $scale / 60) : null;
+            ['pace' => $pace, 'minutes' => $minutes] = self::forecast($c, $need, $credits, $can, $today, $scale);
             $seedlings[] = ['company' => (int) $c->company_id, 'name' => $c->name, 'credits' => $credits, 'need' => $need,
                 'percent' => $need > 0 ? min(100, max(0, (int) floor(100 * $credits / $need))) : 100,
                 'can_mature' => $can, 'at_cap' => $cap !== null && (int) $c->credits >= $cap,
