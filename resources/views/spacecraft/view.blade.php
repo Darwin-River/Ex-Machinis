@@ -39,6 +39,9 @@
                             @if($state['fuel_day']['by_action'])
                                 <span>({{ collect($state['fuel_day']['by_action'])->map(fn ($u) => $u['what'] . ' ' . $u['fuel'])->implode(', ') }})</span>
                             @endif<br/>
+                        {{-- What it earned (#774) --}}
+                        <b>Earned</b>: <span id="drone-earned">{{ number_format($earnings['net']) }} over its life{{ $earnings['per_day'] !== null ? ', ' . number_format($earnings['per_day']) . ' a game day' : '' }}</span>
+                            <span>(sold {{ number_format($earnings['sales']) }} after tax, bought {{ number_format($earnings['bought']) }}; <a href="#drone-activity">running total</a>)</span><br/>
                         @if($messages->isNotEmpty())
                             <b>Last said</b> ({{ \App\Services\DronePage::when($messages->first()->game_t) }}):
                             <a href="#messages" v-pre>{{ \Illuminate\Support\Str::limit(trim(preg_replace('/^Location:[^\n]*\n/', '', $messages->first()->body)), 120) }}</a><br/>
@@ -140,7 +143,7 @@
                 </table>
             </div>
             {{-- Its actions and fuel over time (#699) --}}
-            @include('partials.drone-activity', ['droneId' => $agent->agent_id])
+            @include('partials.drone-activity', ['droneId' => $agent->agent_id, 'earnings' => $earnings])
 
             @if($activity)
                 {{-- What a working drone is doing (#380) --}}

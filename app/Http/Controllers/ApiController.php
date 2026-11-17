@@ -147,6 +147,8 @@ class ApiController extends Controller
             'now' => $activity['now'] ?? null,
             'timeline' => $activity['timeline'] ?? ($postMortem['timeline'] ?? []),
             'trades' => DronePage::deals($id),
+            // What it earned (#774): sales after tax less purchases, over its life and a game day
+            'earnings' => \App\Services\DroneEarnings::of($id),
             'messages' => DronePage::messages($agent, 50)->map(fn ($m) => [
                 'when' => DronePage::when((int) $m->game_t), 'game_time' => (int) $m->game_t,
                 'subject' => $m->subject, 'body' => $m->body])->all(),

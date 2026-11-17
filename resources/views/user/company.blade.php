@@ -282,6 +282,28 @@
                 @endif
             @endif
 
+            {{-- Its drones ranked by what they earn (#774): which code path pays --}}
+            @php($ranked = \App\Services\DroneEarnings::ranked((int) $user->user_id))
+            @if(count($ranked) > 0)
+                <h2 id="drone-earnings">Its drones by what they earn</h2>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>Drone</th><th class="text-right">A game day</th><th class="text-right">Over its life</th>
+                            <th class="text-right">Sold (after tax)</th><th class="text-right">Bought</th><th class="text-right">Game days</th></tr></thead>
+                        <tbody>
+                        @foreach($ranked as $r)
+                            <tr><td><a href="{{ url('spacecraft/' . $r['agent_id']) }}">{{ $r['name'] }}</a>{{ $r['wrecked'] ? ' (wreck)' : '' }}</td>
+                                <td class="text-right"><b>{{ $r['per_day'] !== null ? number_format($r['per_day']) : '—' }}</b></td>
+                                <td class="text-right">{{ number_format($r['net']) }}</td><td class="text-right">{{ number_format($r['sales']) }}</td>
+                                <td class="text-right">{{ number_format($r['bought']) }}</td><td class="text-right">{{ $r['days'] }}</td></tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <p><small>What each drone earned: its sales after tax less its purchases. A maker that buys inputs earns less here than the
+                    seller it feeds, so read a drone against the job its code gives it.</small></p>
+            @endif
+
             {{-- Health and running costs (#537, #544), in their own section (#591) --}}
             <h2 id="health">Health</h2>
             @if($ended)

@@ -221,6 +221,7 @@ Use this to see what a drone is doing. It gives what the drone's page shows:
 | `now` | the action under way and when it ends, or null |
 | `timeline` | its last actions, newest first: `{action, when, what, result, fuel}`. `result` is `done`, `under way, until ...` or `failed: <why>`. Older ones: `GET /drones/{id}/timeline` |
 | `trades` | its last trades with other drones, a wreck's too: `{when, what, with, credits}` |
+| `earnings` | what it earned (#774): `{sales, bought, net, days, per_day}`: its sales after tax, its purchases and the difference over its life, its life in game days, and `net` a game day (null under 6 game hours) |
 | `messages` | what it has said: its `report` lines and outputs, newest first, once they reach Earth (they travel at the speed of light) |
 | `post_mortem` | for a wreck: `{headline, cause, failure}`: `headline` is why it died in a few plain words (from `wreck_cause`, #692), `cause` the full story, and `failure` its last failed action or crash (`{game_t, when, what, result, fuel, failed}`, or null; it is marked `failed: true` in `timeline` too) |
 | `parent`, `clones`, `generation` | its family |
