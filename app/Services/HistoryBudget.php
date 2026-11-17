@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Schema;
  * event history and took the site down (#811): archiving (#694) only moves
  * events between two tables on the same disk. So, once a real minute on the
  * keeper, whenever the disk's effective use is over
- * forge.history_budget_percent (70), this deletes the oldest archived events
+ * forge.history_budget_percent (60, #821; 70 before), this deletes the oldest archived events
  * and their observations, a batch at a time, after summing each drone's
  * into drone_days (one row a game day).
  *
@@ -39,7 +39,7 @@ class HistoryBudget
 
     public static function budget(): int
     {
-        return max(0, min(100, (int) config('forge.history_budget_percent', 70)));
+        return max(0, min(100, (int) config('forge.history_budget_percent', 60)));
     }
 
     /**

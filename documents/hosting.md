@@ -580,7 +580,7 @@ To keep the downtime short when moving on purpose:
 | How often | What | How |
 |---|---|---|
 | Daily, at a glance | The site is up, and the game clock is moving | The Home page's clock line. Free uptime monitors such as UptimeRobot or Better Stack can check `https://<domain>` every few minutes and email you |
-| Weekly | Disk space | `df -h /` (the history keeps itself near 70%, #813) and `docker system df`; `curl -s https://exmachinis.com/api/v1/clock` shows `disk` |
+| Weekly | Disk space | `df -h /` (the history keeps itself near 60%, #813, #821) and `docker system df`; `curl -s https://exmachinis.com/api/v1/clock` shows `disk` |
 | Weekly | Backups ran | `tail /var/backups/exmachinis/backup.log` and `rclone lsd offsite:exmachinis` |
 | Daily, at a glance | The House's prices are moving | `curl -s https://<domain>/api/v1/news` answers, and the scheduler logs no "tick failed" |
 | Weekly | The engines are keeping up | the Home page's clock: at the floor, with releases queueing, means the server is too small |
@@ -589,7 +589,7 @@ To keep the downtime short when moving on purpose:
 | Every few updates | Remove old images | `docker image prune -f` |
 
 **The game's history keeps itself within a disk budget (#813).** A full disk took the live site down in November 2026 (#811). Since then:
-- **The keeper prunes old history.** Once a real minute, whenever the disk is fuller than `FORGE_HISTORY_BUDGET_PERCENT` (70), the scheduler's keeper deletes the oldest archived events and their observations, after summing each drone's into one row a game day (`drone_days`).
+- **The keeper prunes old history.** Once a real minute, whenever the disk is fuller than `FORGE_HISTORY_BUDGET_PERCENT` (60 since #821; set it in the server's `.env` and run `docker compose up -d app` to change it), the scheduler's keeper deletes the oldest archived events and their observations, after summing each drone's into one row a game day (`drone_days`).
 - **It counts MySQL's own free space.** MySQL keeps a deleted row's space for new rows rather than handing it back, so `df` doesn't fall after a prune. The keeper counts that space as room, and the history stops growing.
 - **Gameplay is unaffected.** Drones' scripts only read the live `events` table.
 - **The deploy guards the disk.** It clears Docker's build cache when the disk is over 85%, refuses to start over 90% (`DEPLOY_MAX_DISK_PERCENT`), and clears build cache older than three days after each deploy.
