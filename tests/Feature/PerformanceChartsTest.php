@@ -106,7 +106,10 @@ class PerformanceChartsTest extends TestCase
         $this->get('/market/shares')->assertOk()->assertSee('id="player-share-market"', false)
             ->assertSee('Cash-out a share')->assertSee('Dividends a share, 30 days')->assertSee('Yield, 30 days')
             ->assertSee('id="health-meaning"', false)->assertSee('players traded at')->assertSee('today (+')
-            ->assertSee('% premium')->assertSee('data-spark=', false)->assertSee('<th>Health</th>', false);
+            ->assertSee('% premium')->assertSee('data-spark=', false)->assertSee('<th>Health</th>', false)
+            // A card for each company on a phone (#744): each cell carries its column's name
+            ->assertSee('class="table-custom-responsive share-cards"', false)->assertSee('data-label="Bank sells at"', false)
+            ->assertSee('data-label="Health"', false);
     }
 
     public function testTheDronePageChartsItsActionsAndFuel()
