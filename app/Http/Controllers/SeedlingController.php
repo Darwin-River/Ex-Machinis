@@ -64,4 +64,17 @@ class SeedlingController extends Controller
         return $this->done($result, $result['ok'] ? $result['name'] . ' has matured: it repaid ' . number_format($result['repaid'])
             . ' credits, and its ' . number_format($result['shares']) . ' shares are yours.' : '');
     }
+
+    /** The seedling race (#776): recent seedlings' credits by age, against the line and the starters' usual paths */
+    public function race()
+    {
+        $race = \App\Services\SeedlingRace::build();
+        $me = auth()->check() ? (int) auth()->user()->user_id : null;
+        return view('world.race', compact('race', 'me'));
+    }
+
+    public function raceApi(): \Illuminate\Http\JsonResponse
+    {
+        return response()->json(\App\Services\SeedlingRace::build());
+    }
 }

@@ -70,6 +70,8 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['new-rules', 'throttle:api-write'])->post('seedlings/{id}/mature', 'SeedlingApiController@mature')->whereNumber('id');
     // Player boards and the digest (#640)
     Route::middleware(['new-rules', 'throttle:api-read'])->get('players', 'PlayerBoardController@api');
+    // The seedling race (#776)
+    Route::middleware(['new-rules', 'throttle:api-read'])->get('seedlings/race', 'SeedlingController@raceApi');
     Route::middleware(['new-rules', 'throttle:api-read'])->get('account/digest', 'PlayerBoardController@digest');
     // Who a company deals with (#639)
     Route::middleware(['new-rules', 'throttle:api-read'])->get('companies/{id}/dealings', fn ($id) => response()->json(
