@@ -125,7 +125,8 @@ document.addEventListener('DOMContentLoaded', function () {
         X.lines($('perf-wealth'), [
             {name: 'Net wealth', colour: C[0], points: hist.map((r) => ({day: r.day, v: r.net_wealth}))},
             {name: 'Credits', colour: C[2], points: hist.map((r) => ({day: r.day, v: r.credits}))}],
-            Object.assign({H: 220, unit: 'cr', fromZero: false, empty: 'No daily snapshot in this period yet.'}, o));
+            // From zero (#744: starting at 375k made a small rise look like a rocket)
+            Object.assign({H: 220, unit: 'cr', empty: 'No daily snapshot in this period yet.'}, o));
 
         if ($('perf-cash')) {
             const trades = P.trades.filter(inRange);
@@ -142,7 +143,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 })},
                 {name: 'Trade between players', colour: C[4], dotsOnly: true, r: 4, points: trades.map((t) => ({day: t.day, v: t.price,
                     label: `${t.units} at ${t.price} (${t.seller} to ${t.buyer})`}))}],
-                Object.assign({H: 200, unit: 'cr', fromZero: false, empty: 'No cash-out recorded in this period.'}, o));
+                // Whole credits a step (#744: a young company's axis read 1, 1, 2, 2)
+                Object.assign({H: 200, unit: 'cr', fromZero: false, minStep: 1, empty: 'No cash-out recorded in this period.'}, o));
         }
 
         X.diverging($('ce-chart'), earn.map((r) => ({day: r.day, up: r.sales, down: r.purchases, dot: r.net, r})),
