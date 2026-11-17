@@ -20,6 +20,14 @@ class World
     public const PLACE_COLOURS = ['Earth' => '#3987e5', 'Mars' => '#d95926', 'Moon' => '#199e70',
         'Phobos' => '#c98500', 'Deimos' => '#d55181'];
 
+    /** A place's shape on the market board, beside its colour (#744: Mars red and Phobos amber looked alike) */
+    public const PLACE_SHAPES = ['Mars' => 'square', 'Phobos' => 'diamond', 'Deimos' => 'diamond'];
+
+    public static function placeShape(?string $name): string
+    {
+        return self::PLACE_SHAPES[$name] ?? 'circle';
+    }
+
     /** A place's colour; places without their own share the last */
     public static function placeColour(?string $name): string
     {

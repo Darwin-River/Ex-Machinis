@@ -44,6 +44,12 @@
         .mk-dot.mk-buy { border: 3px solid currentColor; background: #111729; }
         .mk-dot em { position: absolute; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 12px; color: #c3c9d8; white-space: nowrap; }
         .mk-dot.mk-sell em { top: -17px; } .mk-dot.mk-buy em { top: 14px; }
+        /* Shapes beside colours (#744), and the labelled best dot drawn on top of a tie */
+        .mk-dot.mk-square { border-radius: 2px; }
+        .mk-dot.mk-diamond { border-radius: 2px; transform: translateX(-50%) rotate(45deg) scale(.85); }
+        .mk-dot.mk-diamond em { transform: translateX(-50%) rotate(-45deg); }
+        .mk-dot.mk-best { z-index: 2; }
+        .mk-key i.mk-square { border-radius: 2px; } .mk-key i.mk-diamond { border-radius: 2px; transform: rotate(45deg) scale(.85); }
         .mk-dot em.mk-l { left: 0; transform: none; } .mk-dot em.mk-r { left: auto; right: 0; transform: none; }
         .mk-deal { font-size: 13px; color: #9aa3b8; line-height: 1.45; }
         .mk-deal b { color: #e6e9f2; font-size: 15px; }

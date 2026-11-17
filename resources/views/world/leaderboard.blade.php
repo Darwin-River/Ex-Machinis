@@ -2,6 +2,10 @@
 @section('pageTitle', 'Leaderboard')
 @push('styles')
     <style>
+        /* On a phone the company stays in view while the rest scrolls (#744) */
+        @media (max-width: 760px) {
+            .table-ticket td:nth-child(2), .table-ticket th:nth-child(2) { position: sticky; left: 0; background: #0b1020; z-index: 1; }
+        }
         /* Numbers right-aligned, negatives marked (#591) */
         #all-time .num, #rising .num, #at-age .num { text-align: right; font-variant-numeric: tabular-nums; }
         #all-time .negative, #rising .negative, #at-age .negative { color: #ff7b72; }
@@ -89,14 +93,20 @@
                         @else
                         <div class="table-custom-responsive">
                             <table class="table-ticket" id="{{ $board['id'] }}">
-                                <tr><th>#</th><th>Company</th><th class="num">Age (game days)</th><th class="num">Working drones</th><th class="num">{{ $board['key'] === 'gain' ? 'Gain' : 'Net wealth' }}</th></tr>
+                                {{-- The sort key next to the name, and each company's status (#744) --}}
+                                @php($states = \Illuminate\Support\Facades\DB::table('companies')->whereIn('company_id', collect($board['rows'])->pluck('company_id'))
+                                    ->get(['company_id', 'seedling', 'matured_t', 'eliminated_at'])->keyBy('company_id'))
+                                <tr><th>#</th><th>Company</th><th class="num">{{ $board['key'] === 'gain' ? 'Gain' : 'Net wealth' }}</th><th>Status</th><th class="num">Age (game days)</th><th class="num">Working drones</th></tr>
                                 @forelse($board['rows'] as $i => $row)
+                                    @php($st = $states[$row['company_id']] ?? null)
                                     <tr>
-                                        <td>{{ $i + 1 }}</td><td><a href="{{ url('/companies/' . $row['company_id']) }}">{{ $row['company'] }}</a></td><td class="num">{{ number_format($row['age'], 1) }}</td>
-                                        <td class="num">{{ $row['drones'] }}</td><td class="num {{ $row[$board['key']] < 0 ? 'negative' : '' }}">{{ number_format($row[$board['key']]) }}</td>
+                                        <td>{{ $i + 1 }}</td><td><a href="{{ url('/companies/' . $row['company_id']) }}">{{ $row['company'] }}</a></td>
+                                        <td class="num {{ $row[$board['key']] < 0 ? 'negative' : '' }}">{{ number_format($row[$board['key']]) }}</td>
+                                        <td>{{ !$st ? '' : ($st->eliminated_at !== null ? 'ended' : ((int) $st->seedling === 1 ? 'seedling' : ($st->matured_t !== null ? 'matured' : 'released'))) }}</td>
+                                        <td class="num">{{ number_format($row['age'], 1) }}</td><td class="num">{{ $row['drones'] }}</td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="5">{{ $maxAge === null ? 'Nobody yet.' : 'No company that young.' }}</td></tr>
+                                    <tr><td colspan="6">{{ $maxAge === null ? 'Nobody yet.' : 'No company that young.' }}</td></tr>
                                 @endforelse
                             </table>
                         </div>
