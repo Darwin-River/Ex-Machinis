@@ -50,7 +50,7 @@ class SiteDesignTest extends TestCase
             $this->assertFileDoesNotExist(base_path($path));
         }
         // Our own renders, made by tools/render: the page-header scenes (#737) and the
-        // resource pages' turntables (#707)
-        $this->assertSame(['favicon.svg', 'headers', 'logo.png', 'resources'], array_values(array_diff(scandir(base_path('html/images')), ['.', '..'])));
+        // resource pages' turntables (#707), and the drone pages' hulls (#802)
+        $this->assertSame(['favicon.svg', 'headers', 'hulls', 'logo.png', 'resources'], array_values(array_diff(scandir(base_path('html/images')), ['.', '..'])));
     }
 }

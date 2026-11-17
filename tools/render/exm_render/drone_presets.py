@@ -17,6 +17,16 @@ from .drone_parts import SIDE_PARTS
 M = Mount
 
 PRESETS: dict[str, DroneParams] = {
+    # The Mosquito (hull 1): the hull every released drone starts in (#802).
+    # A short, light truss with one small engine, its own tanks and power, and
+    # room for the modules it buys.
+    "mosquito": DroneParams(
+        name="Mosquito", seed=1, bays=2, engines=1, engine_size=0.75, bow="sensor",
+        mounts=[
+            M("tank", 0, "top", foil=True), M("tank", 0, "bottom", foil=True),
+            M("solar", 0, "port"), M("solar", 0, "starboard"), M("dish", 1, "top"),
+        ],
+    ),
     # Small and fast: one engine, two tanks, a little equipment.
     "courier": DroneParams(
         name="Courier drone", seed=11, bays=3, engines=1, engine_size=0.9, bow="dock",
