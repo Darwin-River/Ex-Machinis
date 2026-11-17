@@ -17,21 +17,6 @@
         .rv-tile span { display: block; color: #c3c9d8; font-size: 13px; }
         .rv-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         .rv-sides > div { min-width: 0; }
-        .craft-parts { background: #000; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; margin: 0 0 1.5rem; overflow: hidden; }
-        .craft-parts-picture { padding: 12px; }
-        .craft-parts-frame { position: relative; }
-        .craft-parts-picture img { display: block; width: 100%; height: auto; }
-        .craft-parts-frame .craft-parts-n { position: absolute; transform: translate(-50%, -50%); }
-        .craft-parts-n { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%;
-            background: #4cc9f0; color: #0b0f1a !important; font-weight: 700; font-size: 14px; border: 2px solid #0b0f1a; text-decoration: none !important; }
-        .craft-parts-frame a.craft-parts-n:hover, .craft-parts-frame a.craft-parts-n:focus { background: #ffb547; }
-        .craft-parts figcaption { padding: 4px 16px 14px; }
-        .craft-parts-title { margin: 0 0 6px; color: #9aa3b8; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
-        .craft-parts-key { list-style: none; margin: 0; padding: 0; columns: 3 200px; column-gap: 24px; }
-        .craft-parts-key li { break-inside: avoid; margin: 4px 0; }
-        .craft-parts-key .craft-parts-n { width: 24px; height: 24px; font-size: 12px; margin-right: 8px; border: 0; }
-        .craft-parts-key .unseen .craft-parts-n { background: transparent; color: #4cc9f0 !important; box-shadow: inset 0 0 0 2px #4cc9f0; }
-        .craft-parts-key small { color: #9aa3b8; margin-left: 4px; }
         @media (max-width: 860px) { .rv-tiles { grid-template-columns: 1fr 1fr; } .rv-sides { grid-template-columns: 1fr; } }
     </style>
 @endpush
@@ -60,33 +45,6 @@
                 </div>
             @else
                 <p class="mk-lead">{{ $resource->description }}</p>
-            @endif
-            @if($parts)
-                {{-- A craft's subsystems (#802): numbered on the picture, listed in the key --}}
-                <figure class="craft-parts" id="craft-parts">
-                    <div class="craft-parts-picture"><div class="craft-parts-frame">
-                        <img src="{{ $parts['image'] }}" width="{{ $parts['width'] }}" height="{{ $parts['height'] }}" loading="lazy"
-                             alt="{{ $resource->name }}, with each subsystem it is built from numbered">
-                        @foreach($parts['items'] as $item)
-                            @foreach($item['at'] as [$x, $y])
-                                <a class="craft-parts-n" href="/resources/{{ $item['id'] }}" style="left: {{ $x }}%; top: {{ $y }}%"
-                                   title="{{ $item['name'] }}" aria-label="{{ $item['n'] }}: {{ $item['name'] }}">{{ $item['n'] }}</a>
-                            @endforeach
-                        @endforeach
-                    </div></div>
-                    <figcaption>
-                        <p class="craft-parts-title">Built from</p>
-                        <ol class="craft-parts-key">
-                            @foreach($parts['items'] as $item)
-                                <li @class(['unseen' => !$item['at']])>
-                                    <span class="craft-parts-n" aria-hidden="true">{{ $item['n'] }}</span>
-                                    <a href="/resources/{{ $item['id'] }}">{{ $item['name'] }}</a>@if($item['qty'] > 1) &times;{{ $item['qty'] }}@endif
-                                    @if(!$item['at'])<small>out of sight</small>@endif
-                                </li>
-                            @endforeach
-                        </ol>
-                    </figcaption>
-                </figure>
             @endif
             {{-- Its place in the manufacturing pathways (#804) --}}
             <p id="tech-map-link"><a href="{{ url('technology') }}#r{{ $resource->id }}">See what {{ $resource->name }} is made from and what it goes into on the tech map</a></p>
