@@ -57,7 +57,7 @@
 @endpush
 @section('content')
     @php($n = fn ($v) => number_format($v))
-    <x-page-header :title="'Your first seedling'" :subtitle="'Five minutes to start a seedling from a starter script, and about an hour of play until it is a company of your own: pick a starter, start it, read its page, push a fix, mature it.'">
+    <x-page-header :title="'Your first seedling'" :subtitle="'Five minutes to start a seedling from a starter script, and about 40 real minutes to two hours, at the normal pace, until it matures into a company of your own: pick a starter, start it, read its page, push a fix, mature it.'">
         <li class="active">Getting started</li>
     </x-page-header>
     <section class="section section-xs section-first">

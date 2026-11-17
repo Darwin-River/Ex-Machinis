@@ -135,7 +135,9 @@
                     <div>It holds <b>{{ number_format($road['credits']) }}</b> credits. It can mature at
                         <b>{{ number_format($road['mature_at']) }}</b>: its debt of {{ number_format($road['debt']) }}, plus
                         {{ number_format($road['margin']) }} to work with{{ $road['owed_tax'] > 0 ? ', and the ' . number_format($road['owed_tax']) . ' processor tax it owes' : '' }}.
-                        @if($road['can_mature']) <b>It can mature now.</b> @else {{ number_format($toGo) }} to go. @endif</div>
+                        @if($road['can_mature']) <b>It can mature now.</b> @else {{ number_format($toGo) }} to go.@if(($road['forecast']['game_t'] ?? null) !== null)
+                            <span id="road-forecast">At its pace over the last {{ \App\Services\CompanyNow::PACE_DAYS }} game days, it matures about
+                                <b>{{ \App\Services\GameDate::at($road['forecast']['game_t'], false) }}</b> ({{ $road['forecast']['minutes'] < 90 ? 'in ' . $road['forecast']['minutes'] . ' real minutes' : 'in about ' . round($road['forecast']['minutes'] / 60, 1) . ' real hours' }}).</span>@endif @endif</div>
                     <div class="road-bar" role="img" aria-label="{{ number_format($road['credits']) }} of {{ number_format($road['mature_at']) }} credits, {{ min(100, (int) floor(100 * $road['credits'] / max(1, $road['mature_at']))) }} percent">
                         <div class="road-fill" style="width: {{ $at($road['credits']) }}%"></div>
                         <div class="road-mark up {{ $edge($road['debt']) }}" style="left: {{ $at($road['debt']) }}%"><span>debt {{ number_format($road['debt']) }}</span></div>
