@@ -62,6 +62,13 @@
         <p class="ex-src" id="ce-total"></p>
         <p class="ex-src">Data: <code>GET /api/v1/companies/{{ $companyId }}/earnings</code></p>
     </div>
+    @if(!$hasDiv && $perf['matured'])
+        {{-- Why there are none (#744: an empty chart read as a broken one) --}}
+        <div class="mh-card perf-card" id="perf-no-dividends">
+            <h3>What has a share paid?</h3>
+            <p class="mh-note">No dividends yet: {{ ($shares['carried_loss'] ?? 0) > 0 ? 'it is making up earlier losses (' . number_format($shares['carried_loss']) . ' credits to go) before its profit pays its shares' : 'it has made no profit to pay them from' }}.</p>
+        </div>
+    @endif
     @if($hasDiv)
         <div class="mh-card perf-card">
             <h3>What has a share paid?</h3>

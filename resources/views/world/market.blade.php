@@ -8,7 +8,7 @@
     @php
         // One colour for each place, the same on every page (#760)
         $colour = [];
-        foreach ($places as $id => $name) { $colour[$id] = \App\Services\World::placeColour($name); }
+        foreach ($places as $id => $name) { $colour[$id] = \App\Services\World::placeColour($name); $shape[$id] = \App\Services\World::placeShape($name); }
         $n = fn ($v) => number_format($v);
     @endphp
     <section class="section section-xs section-first">
@@ -50,7 +50,7 @@
                 </form>
             </div>
             <div class="mk-key" aria-hidden="true">
-                @foreach($places as $id => $name)<span><i style="background: {{ $colour[$id] }}"></i>{{ $name }}</span>@endforeach
+                @foreach($places as $id => $name)<span><i class="mk-{{ $shape[$id] }}" style="background: {{ $colour[$id] }}"></i>{{ $name }}</span>@endforeach
                 <span><i style="background: #9aa3b8"></i>cheapest seller</span><span><i class="mk-ring"></i>best buyer</span>
             </div>
 
@@ -63,6 +63,9 @@
                             $span = max(1, $r['high'] - $r['low']);
                             $at = fn ($v) => $r['high'] === $r['low'] ? 50 : round(6 + 88 * ($v - $r['low']) / $span, 1);
                             $edge = fn ($pos) => $pos < 15 ? 'mk-l' : ($pos > 85 ? 'mk-r' : '');
+                            // Every place at the best price, not only the first (#744: tied dots hid the labelled one)
+                            $askAt = $r['cheapest'] ? collect($r['places'])->where('ask', $r['cheapest']['price'])->pluck('place') : collect();
+                            $bidAt = $r['best_bid'] ? collect($r['places'])->where('bid', $r['best_bid']['price'])->pluck('place') : collect();
                             $summary = collect($r['places'])->map(fn ($p) => $p['place'] . ': '
                                 . ($p['ask'] !== null ? 'sells from ' . $p['ask'] : 'no seller') . ', '
                                 . ($p['bid'] !== null ? 'buys at ' . $p['bid'] : 'no buyer'))->implode('; ');
@@ -75,21 +78,23 @@
                                 @foreach($r['places'] as $p)
                                     @if($p['bid'] !== null)
                                         @php($pos = $at($p['bid']))
-                                        <span class="mk-dot mk-buy" style="left: {{ $pos }}%; color: {{ $colour[$p['place_id']] }}" title="{{ $p['place'] }} buys at {{ $n($p['bid']) }}">
-                                            @if($r['best_bid'] && $p['place'] === $r['best_bid']['place'] && $p['bid'] === $r['best_bid']['price'])<em class="{{ $edge($pos) }}">{{ $p['place'] }} buys {{ $n($p['bid']) }}</em>@endif
+                                        @php($isBest = $r['best_bid'] && $p['place'] === $r['best_bid']['place'] && $p['bid'] === $r['best_bid']['price'])
+                                        <span @class(['mk-dot', 'mk-buy', 'mk-' . $shape[$p['place_id']], 'mk-best' => $isBest]) style="left: {{ $pos }}%; color: {{ $colour[$p['place_id']] }}" title="{{ $p['place'] }} buys at {{ $n($p['bid']) }}">
+                                            @if($isBest)<em class="{{ $edge($pos) }}">{{ $bidAt->implode(', ') }} {{ $bidAt->count() > 1 ? 'buy' : 'buys' }} {{ $n($p['bid']) }}</em>@endif
                                         </span>
                                     @endif
                                     @if($p['ask'] !== null)
                                         @php($pos = $at($p['ask']))
-                                        <span class="mk-dot mk-sell" style="left: {{ $pos }}%; color: {{ $colour[$p['place_id']] }}" title="{{ $p['place'] }} sells from {{ $n($p['ask']) }}">
-                                            @if($r['cheapest'] && $p['place'] === $r['cheapest']['place'] && $p['ask'] === $r['cheapest']['price'])<em class="{{ $edge($pos) }}">{{ $p['place'] }} sells {{ $n($p['ask']) }}</em>@endif
+                                        @php($isBest = $r['cheapest'] && $p['place'] === $r['cheapest']['place'] && $p['ask'] === $r['cheapest']['price'])
+                                        <span @class(['mk-dot', 'mk-sell', 'mk-' . $shape[$p['place_id']], 'mk-best' => $isBest]) style="left: {{ $pos }}%; color: {{ $colour[$p['place_id']] }}" title="{{ $p['place'] }} sells from {{ $n($p['ask']) }}">
+                                            @if($isBest)<em class="{{ $edge($pos) }}">{{ $askAt->implode(', ') }} {{ $askAt->count() > 1 ? 'sell' : 'sells' }} {{ $n($p['ask']) }}</em>@endif
                                         </span>
                                     @endif
                                 @endforeach
                             </span>
                             <span class="mk-deal">
                                 @if($r['margin'] !== null)
-                                    Buy at {{ $r['cheapest']['place'] }}, sell at {{ $r['best_bid']['place'] }}<br>
+                                    Buy at {{ $askAt->implode(', ') }}, sell at {{ $bidAt->implode(', ') }}<br>
                                     <b>{{ $n($r['cheapest']['price']) }} &rarr; {{ $n($r['best_bid']['price']) }}</b> <span class="mk-gain">+{{ $n($r['margin']) }} a unit</span>
                                 @elseif($r['cheapest'])
                                     Buy cheapest<br><b>{{ $n($r['cheapest']['price']) }} &middot; {{ $r['cheapest']['place'] }}</b>

@@ -33,4 +33,17 @@ class DesignConsistencyTest extends TestCase
         $this->assertStringNotContainsString("Ex Machinis Player's Manual</h1>", $page);
         $this->assertStringNotContainsString('Converted from the September 2020 edition', $page);
     }
+
+    public function testPlacesHaveShapesAsWellAsColours()
+    {
+        $this->assertSame('square', \App\Services\World::placeShape('Mars'));
+        $this->assertSame('diamond', \App\Services\World::placeShape('Phobos'));
+        $this->assertSame('circle', \App\Services\World::placeShape('Earth'));
+        $this->get('/market')->assertOk();
+    }
+
+    public function testTheLeaderboardShowsEachCompanysStatusBesideItsScore()
+    {
+        $this->get('/leaderboard')->assertOk()->assertSee('<th>Status</th>', false);
+    }
 }
