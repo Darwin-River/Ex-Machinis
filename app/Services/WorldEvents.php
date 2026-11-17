@@ -19,7 +19,8 @@ use Illuminate\Support\Facades\Schema;
  * - A company's own events come from small tables and indexed lookups, never
  *   from events: the day it matured (companies.matured_t), its code pushes
  *   (code_pushes), shares sold to the bank and big share trades
- *   (player_share_trades), and the day it ended.
+ *   (player_share_trades), the equipment it invested in with its payback
+ *   (#778), and the day it ended.
  */
 class WorldEvents
 {
@@ -130,11 +131,44 @@ class WorldEvents
                 }
             }
         }
+        // What it invested (#778): equipment it bought (kits, modules and
+        // hulls) by game day, with how long its profit a drone takes to pay
+        // that back. #759 stopped counting equipment as a loss; this shows
+        // it as progress
+        $drones = DB::table('agents')->where('company_id', $companyId)->pluck('agent_id')->all();
+        if ($drones) {
+            $bought = DB::table('trades as t')->leftJoin('resources as r', 'r.id', '=', 't.resource')
+                ->whereIn('t.buyer', $drones)->whereNotIn('t.seller', $drones)->where('t.resource', '>=', CompanyEarnings::EQUIPMENT_FROM)
+                ->whereNotNull('t.game_t')
+                ->selectRaw('FLOOR((t.game_t - ?) / 86400) AS day, MIN(t.game_t) AS t, r.name, SUM(t.units) AS units, SUM(t.credits) AS credits', [$epoch])
+                ->groupBy('day', 'r.name')->orderByDesc('day')->limit(self::MAX_COMPANY * 3)->get()->groupBy('day');
+            $perDrone = $bought->isNotEmpty() ? self::profitPerDrone($companyId) : null;
+            foreach ($bought->sortKeys() as $items) {
+                $spent = (int) $items->sum('credits');
+                $what = $items->map(fn ($i) => ($i->name ?? 'equipment') . ((int) $i->units > 1 ? ' ×' . (int) $i->units : ''))->implode(', ');
+                $payback = $perDrone !== null && $perDrone > 0 ? (int) ceil($spent / $perDrone) : null;
+                $add('invest', (int) $items->min('t'), 'Invested ' . number_format($spent),
+                    'It invested ' . number_format($spent) . ' credits: ' . $what . '.'
+                    . ($payback !== null ? ' At its profit a drone now (' . number_format($perDrone) . ' a game day), that pays back in about '
+                        . $payback . ' game ' . ($payback === 1 ? 'day' : 'days') . '.' : ' Its drones aren\'t making a profit now, so it hasn\'t started paying back.'));
+            }
+        }
         if ($c->eliminated_at !== null) {
             $add('ended', (int) $c->eliminated_at, 'Ended', 'It ended' . ($c->end_cause ? ' (' . $c->end_cause . ')' : '') . '.');
         }
         usort($out, fn ($a, $b) => $a['game_time'] <=> $b['game_time']);
         return array_slice($out, -self::MAX_COMPANY);
+    }
+
+    /** A company's profit a working drone a game day, over its last 7 game days (#778), or null with no working drone */
+    public static function profitPerDrone(int $companyId): ?int
+    {
+        $working = DB::table('agents')->where('company_id', $companyId)->whereNull('wrecked_at')->count();
+        if ($working === 0) {
+            return null;
+        }
+        $days = CompanyEarnings::daily($companyId, 7);
+        return (int) round(array_sum(array_column($days, 'net')) / max(1, count($days)) / $working);
     }
 
     /**
