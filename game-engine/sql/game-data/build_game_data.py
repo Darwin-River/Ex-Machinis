@@ -352,10 +352,31 @@ def tool_locks(effs):
             if on is None:
                 break
             qty, t0 = on['quantity'], on['time']
-            take(lambda e: e['resource'] == r and e['locked'] == 0 and e['event_type'] == 2 and e['time'] == t0 and e['quantity'] == qty)
+            # Its free side: the nearest free -1 at or before the lock, and
+            # the nearest free +1 at or after the unlock (protocol 5001 takes
+            # the engine off at 0, locks it at 1, unlocks at 10, gives it back
+            # at 11): the lock and unlock take their times, so the tool is
+            # held, and checked, just as long as it was off the free stock
+            def nearest(event_type, t, before):
+                best = None
+                for i, e in enumerate(effs):
+                    if i in used or e['resource'] != r or e['locked'] != 0 or e['event_type'] != event_type or e['quantity'] != qty:
+                        continue
+                    if (before and e['time'] <= t and (best is None or e['time'] > effs[best]['time'])) or \
+                       (not before and e['time'] >= t and (best is None or e['time'] < effs[best]['time'])):
+                        best = i
+                if best is not None:
+                    used.add(best)
+                    return effs[best]
+                return None
+            free_off = nearest(2, t0, True)
+            if free_off:
+                t0 = free_off['time']
             off = take(lambda e: e['resource'] == r and e['locked'] == 1 and e['event_type'] == 2 and e['quantity'] == qty)
             t1 = off['time'] if off else t0
-            take(lambda e: e['resource'] == r and e['locked'] == 0 and e['event_type'] == 1 and e['time'] == t1 and e['quantity'] == qty)
+            free_on = nearest(1, t1, False)
+            if free_on:
+                t1 = free_on['time']
             # The check before it: free +1 then -1 at one earlier time
             start = t0
             for t in sorted({e['time'] for e in effs if e['time'] < t0}):
