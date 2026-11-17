@@ -43,7 +43,7 @@ class UserController extends Controller
                 // 106 spacecraft, wrecks and all, where the leaderboard said 8)
                 DB::raw('COUNT(agents.agent_id) - COUNT(agents.wrecked_at) AS agents'), DB::raw('COUNT(agents.wrecked_at) AS wrecks'),
                 DB::raw('IFNULL(companies.credits,0) AS credits'),
-                DB::raw('companies.eliminated_at IS NOT NULL AS ended'))
+                DB::raw('companies.eliminated_at IS NOT NULL AS ended'), 'companies.seedling', 'companies.matured_t')
             ->leftJoin('agents', fn ($j) => $j->on('agents.company_id', '=', 'companies.company_id')->whereNull('agents.station_id'))
             // The House runs the exchanges' station drones: it isn't a company to look up (#716)
             ->where('companies.house', 0)->groupBy('companies.company_id');
@@ -62,8 +62,10 @@ class UserController extends Controller
         // Credits with thousands separators, and an ended company marked (#692)
         $spaceObjects->getCollection()->transform(function ($c) {
             $c->credits = number_format((int) $c->credits);
-            $c->name = $c->ended ? $c->name . ' (ended)' : $c->name;
             $c->ended = (bool) $c->ended;
+            // Its status in a column of its own (#744), not "(ended)" on its name
+            $c->status = $c->ended ? 'ended' : ((int) $c->seedling === 1 ? 'seedling' : ($c->matured_t !== null ? 'matured' : 'released'));
+            unset($c->seedling, $c->matured_t);
             return $c;
         });
         // var_dump($spaceObjects);exit;

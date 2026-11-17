@@ -44,6 +44,9 @@ class AgentController extends Controller
         if ($request->get('sort')) {
             $sortParts = explode('|', $request->get('sort'));
             $query->orderBy($sortParts[0], $sortParts[1]);
+        } else {
+            // Newest first (#744): the drones a player just launched, not the first ones ever
+            $query->orderByDesc('agents.agent_id');
         }
         $spaceObjects = $query->paginate($resultsPerPage);
 

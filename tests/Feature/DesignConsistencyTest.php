@@ -46,4 +46,10 @@ class DesignConsistencyTest extends TestCase
     {
         $this->get('/leaderboard')->assertOk()->assertSee('<th>Status</th>', false);
     }
+
+    public function testDronesAreListedNewestFirst()
+    {
+        $ids = collect($this->getJson('/spacecraft/search')->assertOk()->json('data'))->pluck('agent_id')->all();
+        $this->assertSame($ids, collect($ids)->sortDesc()->values()->all());
+    }
 }
