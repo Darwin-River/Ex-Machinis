@@ -42,11 +42,11 @@ class PlayerBoardsTest extends TestCase
     {
         $rich = $this->player('Rich One', 20000);      // 25,000 in all
         $grower = $this->player('Grower One', 0);      // 5,000
-        DB::table('player_wealth_months')->delete();
-        PlayerBoards::startMonth();
-        $this->assertSame(25000, (int) DB::table('player_wealth_months')->where('user_id', $rich->user_id)->value('start_wealth'));
-        PlayerBoards::startMonth();
-        $this->assertSame(2, DB::table('player_wealth_months')->count(), 'once a month');
+        DB::table('player_wealth_days')->delete();
+        PlayerBoards::startDay();
+        $this->assertSame(25000, (int) DB::table('player_wealth_days')->where('user_id', $rich->user_id)->value('start_wealth'));
+        PlayerBoards::startDay();
+        $this->assertSame(2, DB::table('player_wealth_days')->count(), 'once a day');
 
         // Shares count at cash-out value
         $owner = $grower;
@@ -56,10 +56,12 @@ class PlayerBoardsTest extends TestCase
         $b = PlayerBoards::boards();
         $this->assertSame('Grower One', $b['wealth'][0]['name'], 'its 1,000 shares are worth about 3,000,000');
         $this->assertGreaterThanOrEqual(3000000, $b['wealth'][0]['shares']);
+        // Today's season (#775): what each made since the day began
         $this->assertSame('Grower One', $b['season'][0]['name']);
-        $this->assertSame(0.0, (float) collect($b['season'])->firstWhere('name', 'Rich One')['growth_percent']);
+        $this->assertGreaterThan(0, $b['season'][0]['made']);
+        $this->assertSame(0, collect($b['season'])->firstWhere('name', 'Rich One')['made']);
 
-        $this->get('/players')->assertOk()->assertSee('Grower One')->assertSee('This month');
+        $this->get('/players')->assertOk()->assertSee('Grower One')->assertSee('Today&#039;s season', false);
         $this->getJson('/api/v1/players')->assertOk()->assertJsonPath('wealth.0.name', 'Grower One')->assertJsonPath('class_group', null);
 
         // #687: shares sold to the bank still count until it pays
@@ -69,18 +71,19 @@ class PlayerBoardsTest extends TestCase
         $this->assertGreaterThan(0, $w['bank_due']);
         $this->assertSame($before, $w['wealth'], 'no drop while the bank owes it');
         $this->get('/players')->assertOk()->assertSee('due from the bank');
-        // Growth percentages have thousands separators
-        $this->get('/players')->assertSee(number_format(collect(PlayerBoards::boards()['season'])->firstWhere('name', 'Grower One')['growth_percent'], 1) . '%');
-    }
+        // What was made has thousands separators
+        $this->get('/players')->assertSee('+' . number_format(collect(PlayerBoards::boards()['season'])->firstWhere('name', 'Grower One')['made']));
 
-    /** #687: a start below the floor counts as the floor: holding the floor is no growth */
-    public function testGrowthFromAZeroStart()
-    {
-        $this->assertSame(0.0, PlayerBoards::growth(0, 5000, 5000), 'not +100%');
-        $this->assertSame(0.0, PlayerBoards::growth(0, 3000, 5000));
-        $this->assertSame(60.0, PlayerBoards::growth(1000, 8000, 5000));
-        $this->assertSame(-50.0, PlayerBoards::growth(6000, 3000, 5000));
-        $this->assertSame(20.0, PlayerBoards::growth(10000, 12000, 5000));
+        // Personal records (#775): a best season, the fastest maturity, the longest-running company
+        $r = PlayerBoards::records($grower);
+        $this->assertTrue($r['best_season']['today']);
+        $this->assertSame('Grower Co', $r['fastest_maturity']['name']);
+        $this->assertSame('Grower Co', $r['longest_running']['name']);
+        $this->assertSame(0, $r['player_trades']);
+        DB::table('player_wealth_days')->insert(['user_id' => $grower->user_id, 'day' => '2000-01-01', 'start_wealth' => 0]);
+        DB::table('player_wealth_days')->insert(['user_id' => $grower->user_id, 'day' => '2000-01-02', 'start_wealth' => 99000000]);
+        $this->assertSame(['made' => 99000000, 'day' => '2000-01-01'], PlayerBoards::records($grower)['best_season']);
+        $this->actingAs($grower)->get('/account')->assertOk()->assertSee('id="records"', false)->assertSee('99,000,000');
     }
 
     /** #687: the footer links the Players page */

@@ -73,6 +73,7 @@ Route::prefix('v1')->group(function () {
     // The seedling race (#776)
     Route::middleware(['new-rules', 'throttle:api-read'])->get('seedlings/race', 'SeedlingController@raceApi');
     Route::middleware(['new-rules', 'throttle:api-read'])->get('account/digest', 'PlayerBoardController@digest');
+    Route::middleware(['new-rules', 'throttle:api-read'])->get('account/records', 'PlayerBoardController@records');
     // Who a company deals with (#639)
     Route::middleware(['new-rules', 'throttle:api-read'])->get('companies/{id}/dealings', fn ($id) => response()->json(
         ['company' => (int) $id, 'dealings' => \App\Services\Dealings::of((int) $id)]))->whereNumber('id');

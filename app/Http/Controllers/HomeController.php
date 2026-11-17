@@ -82,7 +82,7 @@ class HomeController extends Controller
         if (config('forge.new_rules')) {
             \App\Services\PlayerShares::settleBankPayments();
             \App\Services\PlayerShares::payDividends();
-            \App\Services\PlayerBoards::startMonth();
+            \App\Services\PlayerBoards::startDay();
             \App\Services\PlayerShares::dropEndedOrders();
         }
         return response('ok');

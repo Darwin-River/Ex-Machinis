@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The player boards (#640): wealth and the monthly season, for everyone or
+ * The player boards (#640): wealth and the daily season (#775), for everyone or
  * for a class group (its members and its teacher only). Behind the new-rules
  * switch (#635).
  */
@@ -62,5 +62,15 @@ class PlayerBoardController extends Controller
             return response()->json(['error' => 'Send your token as "Authorization: Bearer <token>".'], 401);
         }
         return response()->json(PlayerBoards::digest($user, $request->query('peek') === null));
+    }
+
+    /** GET /api/v1/account/records: the account's personal records (#775) */
+    public function records(Request $request): JsonResponse
+    {
+        $user = Players::byToken($request->bearerToken());
+        if (!$user) {
+            return response()->json(['error' => 'Send your token as "Authorization: Bearer <token>".'], 401);
+        }
+        return response()->json(PlayerBoards::records($user));
     }
 }

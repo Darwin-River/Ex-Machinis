@@ -185,7 +185,7 @@ This section is the whole rulebook of the live game in one place: what a player 
 5. Your account starts with 5,000 credits that can only buy shares. Each game day a matured company pays half its profit to its shareholders.
 6. Trade shares with players within a published range, or sell them to the bank for their cash-out value, paid 30 game days later at the lower of the two values.
 7. All code is public. A matured company can't change, but it can react to prices and orders, so read its code before you buy.
-8. You're ranked by your wealth, and each real month by its growth.
+8. You're ranked by your wealth, and by what you made in today's season (a real day).
 
 <a name="Rules-accounts"></a>
 ### Accounts
@@ -247,7 +247,7 @@ This section is the whole rulebook of the live game in one place: what a player 
 
 <a name="Rules-boards"></a>
 ### Boards, the digest and dealings
-- **Wealth**, a player's: credits and starting credits, plus shares at cash-out value. `/players` ranks players by wealth, and by this real month's growth over their wealth at its start (counted as at least 5,000) (#640).
+- **Wealth**, a player's: credits and starting credits, plus shares at cash-out value. `/players` ranks players by wealth, and by what they made in today's season, a real day (UTC) (#640, #775: it replaced growth this month over a 5,000 floor, whose "+47,390%" meant nothing to a newcomer). The account page keeps personal records.
 - **The digest.** On the account page (and `GET /account/digest`), what happened since the player last looked: each company's sales and purchases, what a seedling sent the bank over its cap, dividends, the bank's payments, same-owner dealings and the news (#640, #655, #672).
 - **Dealings.** A company's page lists the companies it has traded with or plundered, and flags those with the same player behind them (#639). The bank's own companies aren't flagged.
 - **The company boards** (net wealth: growth since the start, without hulls or debt) and the lineage map stay as they were.
@@ -318,7 +318,7 @@ What `perform` (and each action word) returns when an action fails. The full lis
 | Players' trading range | 0.8 to 1.25 × the bank's price | `FORGE_SHARE_RANGE_LOW`, `FORGE_SHARE_RANGE_HIGH` |
 | A hull's life, in cash-out | 365 game days | `FORGE_HULL_LIFE_DAYS` |
 | A drone counts as stranded after | 3 game days | `forge.stranded_days` |
-| The season board's floor | 5,000 | `forge.season_floor` |
+| The season | a real day, UTC | `PlayerBoards::day()` |
 | Sales tax | 5% | `house_rules.sales_tax_permille` (50) |
 | Processor tax | 15 a million instructions | `house_rules.compute_tax_per_million` |
 | Congestion: the most the processor tax rises | 10× | `house_rules.congestion_cap` |
@@ -866,7 +866,7 @@ Step 4 of the new rules (#635).
 #### Player boards and the digest (#640)
 Step 5 of the new rules (#635), only while `FORGE_NEW_RULES` is on (`App\Services\PlayerBoards`).
 
-- **Wealth**: a player's credits and starting credits, plus their shares at cash-out value. `/players` (in the World menu) and `GET /api/v1/players` rank players by it, and by this real month's growth: wealth now less wealth at the month's start (`player_wealth_months`, recorded by the website's tick the first time it sees an account in a month), over the start counted as at least `forge.season_floor` (5,000). A class group's accounts have their own boards, which only its members and teacher see (`?class=`); a pupil sees their class's by default. The company boards (`/leaderboard`, at the same age too) stay.
+- **Wealth**: a player's credits and starting credits, plus their shares at cash-out value. `/players` (in the World menu) and `GET /api/v1/players` rank players by it, and by what they made in today's season: wealth now less wealth at the day's start (`player_wealth_days`, migration 0076, recorded by the website's tick the first time it sees an account in a real day, UTC; #775). Personal records (`PlayerBoards::records`): best season (from one day's start to the next, or today so far), fastest maturity, best yield held, longest-running company and share trades with other players. A class group's accounts have their own boards, which only its members and teacher see (`?class=`); a pupil sees their class's by default. The company boards (`/leaderboard`, at the same age too) stay.
 - **While you were away**: on logging in, a player's account page shows what happened since they last looked (`users.last_seen_t`, or the last game day): each of their companies' sales and purchases, the dividends their shares paid, what the bank paid them, deals between two of their own companies, and the news (`HouseMarket::news`, which the website and the API read alike). `GET /api/v1/account/digest` gives the same (`?peek=1` leaves it unseen).
 
 #### Table: class_groups
