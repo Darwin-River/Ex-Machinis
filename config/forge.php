@@ -74,6 +74,10 @@ return [
     'stranded_days' => 3,
     // Game days the bank takes to pay for shares sold to it
     'bank_pay_days' => (int) env('FORGE_BANK_PAY_DAYS', 30),
+    // The bank sells a share at its cash-out value plus the dividends a share
+    // was paid over this many game days (#781: 30 prepaid a month of dividends,
+    // so buying from the bank barely paid)
+    'bank_premium_days' => (int) env('FORGE_BANK_PREMIUM_DAYS', 10),
     // Players trade shares between these times the bank's selling price
     'share_range_low' => (float) env('FORGE_SHARE_RANGE_LOW', 0.8),
     'share_range_high' => (float) env('FORGE_SHARE_RANGE_HIGH', 1.25),

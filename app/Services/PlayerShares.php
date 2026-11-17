@@ -274,6 +274,18 @@ class PlayerShares
     /** dividends30() for several companies at once: [company => credits a share] */
     public static function dividends30Many(array $companies): array
     {
+        return self::dividendsOverMany($companies, 30);
+    }
+
+    /** The game days of dividends the bank's selling price adds to cash-out (#781) */
+    public static function premiumDays(): int
+    {
+        return max(0, (int) config('forge.bank_premium_days', 10));
+    }
+
+    /** A share's dividends over the last $days game days, for several companies: [company => credits a share] */
+    public static function dividendsOverMany(array $companies, int $days): array
+    {
         $ids = array_values(array_unique(array_map('intval', $companies)));
         $out = array_fill_keys($ids, 0);
         if (!$ids) {
@@ -281,7 +293,7 @@ class PlayerShares
         }
         $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
         $today = intdiv(World::gameNow() - $epoch, 86400);
-        foreach (DB::table('player_dividends')->whereIn('company_id', $ids)->where('day', '>=', $today - 30)
+        foreach (DB::table('player_dividends')->whereIn('company_id', $ids)->where('day', '>=', $today - $days)
                      ->where('day', '<', $today)->groupBy('company_id')
                      ->selectRaw('company_id, SUM(amount) AS paid')->get() as $r) {
             $out[(int) $r->company_id] = intdiv((int) $r->paid, self::COUNT);
@@ -297,14 +309,14 @@ class PlayerShares
      */
     public static function prices(int $company, ?array $cash = null): array
     {
-        return self::quote(($cash ?? self::cashOut($company))['per_share'], self::dividends30($company),
-            self::bankHolds([$company])[$company]);
+        return self::quote(($cash ?? self::cashOut($company))['per_share'],
+            self::dividendsOverMany([$company], self::premiumDays())[$company], self::bankHolds([$company])[$company]);
     }
 
-    /** prices() from its parts: a share's cash-out, its dividends30() and the bank's shares */
-    private static function quote(int $buys, int $dividends30, int $bankHolds): array
+    /** prices() from its parts: a share's cash-out, its dividends over premiumDays() and the bank's shares */
+    private static function quote(int $buys, int $premium, int $bankHolds): array
     {
-        $sells = $buys + $dividends30;
+        $sells = $buys + $premium;
         return ['buys_at' => $buys, 'sells_at' => $sells,
             'low' => (int) floor($sells * (float) config('forge.share_range_low')),
             'high' => (int) ceil($sells * (float) config('forge.share_range_high')),
@@ -696,12 +708,13 @@ class PlayerShares
             ->whereNull('eliminated_at')->orderBy('name')->get(['company_id', 'name']);
         $ids = $companies->pluck('company_id')->map(fn ($id) => (int) $id)->all();
         $cash = self::cashOuts($ids);
+        $premium = self::dividendsOverMany($ids, self::premiumDays());
         $dividends = self::dividends30Many($ids);
         $bank = self::bankHolds($ids);
         $holders = self::holdersMany($ids, $bank);
         return $companies->map(fn ($c) => ['company' => (int) $c->company_id, 'name' => $c->name]
-            + self::quote($cash[(int) $c->company_id]['per_share'], $dividends[(int) $c->company_id], $bank[(int) $c->company_id])
-            + ['holders' => $holders[(int) $c->company_id]])->all();
+            + self::quote($cash[(int) $c->company_id]['per_share'], $premium[(int) $c->company_id], $bank[(int) $c->company_id])
+            + ['dividends30' => $dividends[(int) $c->company_id], 'holders' => $holders[(int) $c->company_id]])->all();
     }
 
     /** Game days a trade between players stays recent enough to quote its premium (#716) */
@@ -739,7 +752,6 @@ class PlayerShares
             $id = $m['company'];
             $l = $last[$id] ?? null;
             $h = $health[$id];
-            $m['dividends30'] = $m['sells_at'] - $m['buys_at'];
             $m['yield_percent'] = $m['buys_at'] > 0 ? round(100 * $m['dividends30'] / $m['buys_at'], 1) : null;
             $m['spark'] = $spark[$id];
             $m['last_price'] = $l ? (int) $l->price : null;

@@ -113,6 +113,13 @@ class PlayerSharesTest extends TestCase
             'units' => 100, 'amount' => 20000]);
         $this->assertSame(200, PlayerShares::dividends30($id), '20,000 paid over 100 shares');
         $this->assertSame(PlayerShares::prices($id)['buys_at'] + 200, PlayerShares::prices($id)['sells_at']);
+        // #781: the bank adds the last 10 game days of dividends, not 30, so
+        // dividends paid 20 game days ago count in the yield but not the price
+        DB::table('player_dividends')->insert(['company_id' => $id, 'user_id' => $owner->user_id, 'day' => $today - 20,
+            'units' => 100, 'amount' => 30000]);
+        $this->assertSame(500, PlayerShares::dividends30($id), 'both payments within 30 game days');
+        $this->assertSame(PlayerShares::prices($id)['buys_at'] + 200, PlayerShares::prices($id)['sells_at'], 'only the last 10 game days');
+        $this->assertSame(500, collect(PlayerShares::market())->firstWhere('company', $id)['dividends30']);
     }
 
     /** #766: a pegged order follows the bank's price, and trades when a move makes it meet another */

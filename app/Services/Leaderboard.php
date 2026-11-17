@@ -422,16 +422,17 @@ class Leaderboard
         $rows = DB::table('company_days')->where('company_id', $companyId)->orderBy('day')
             ->get(array_merge(['day', 'credits', 'net_wealth', 'drones'], $hasCash ? ['cash_out'] : []));
         // The bank's selling price that day (#699): a share's cash-out value
-        // plus its dividends over the 30 game days before, as
+        // plus its dividends over the premiumDays() game days before (#781), as
         // PlayerShares::prices works it out now
         $paid = DB::table('player_dividends')->where('company_id', $companyId)->groupBy('day')
             ->selectRaw('day, SUM(amount) AS amount')->pluck('amount', 'day')->all();
-        return $rows->map(function ($d) use ($paid, $hasCash) {
+        $premiumDays = PlayerShares::premiumDays();
+        return $rows->map(function ($d) use ($paid, $hasCash, $premiumDays) {
             $cash = $hasCash && $d->cash_out !== null ? (int) $d->cash_out : null;
             $share = $cash === null ? null : intdiv(max(0, $cash), PlayerShares::COUNT);
             $div = 0;
             foreach ($paid as $day => $amount) {
-                if ($day >= (int) $d->day - 30 && $day < (int) $d->day) {
+                if ($day >= (int) $d->day - $premiumDays && $day < (int) $d->day) {
                     $div += (int) $amount;
                 }
             }

@@ -78,7 +78,7 @@
                         @endforelse
                     </table>
                 </div>
-                <p class="ex-src">Cash-out is what the bank pays for a share; its selling price adds the share's dividends over 30 game days.
+                <p class="ex-src">Cash-out is what the bank pays for a share; its selling price adds the share's dividends over the last {{ \App\Services\PlayerShares::premiumDays() }} game days.
                     Yield is those dividends over the last 30 game days against cash-out. The last price is the last trade between two players
                     (the bank's trades are at its own prices); its premium or discount against today's cash-out is shown only for a trade in the last
                     {{ \App\Http\Controllers\WorldController::PREMIUM_DAYS }} game days.
