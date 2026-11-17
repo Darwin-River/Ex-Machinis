@@ -38,6 +38,8 @@ class EventHistory
         $times = array_filter([
             DB::table('events')->where('drone', $drone)->min('game_t'),
             DB::table(self::ARCHIVE)->where('drone', $drone)->min('game_t'),
+            // Pruned history's daily summaries (#813)
+            \Illuminate\Support\Facades\Schema::hasTable('drone_days') ? DB::table('drone_days')->where('drone', $drone)->min('first_t') : null,
         ], fn ($t) => $t !== null);
         return $times ? (int) min($times) : null;
     }

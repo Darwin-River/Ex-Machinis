@@ -74,6 +74,12 @@ return [
     'stranded_days' => 3,
     // Game days the bank takes to pay for shares sold to it
     'bank_pay_days' => (int) env('FORGE_BANK_PAY_DAYS', 30),
+    // The game's history within a disk budget (#813, after #811): above this
+    // percent of the disk in use, the keeper prunes the oldest archived
+    // events (summed into drone_days first). 0 never prunes
+    'history_budget_percent' => (int) env('FORGE_HISTORY_BUDGET_PERCENT', 70),
+    // A folder on the disk to measure (the server's disk, as the app sees it)
+    'history_disk_path' => env('FORGE_HISTORY_DISK_PATH', base_path()),
     // The bank sells a share at its cash-out value plus the dividends a share
     // was paid over this many game days (#781: 30 prepaid a month of dividends,
     // so buying from the bank barely paid)

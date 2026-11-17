@@ -55,6 +55,18 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
     die "there are local changes in $REPO (git status shows them); commit them through a pull request or undo them"
 fi
 
+# Room on the disk first (#813): a full disk failed #806's deploy here and
+# took the site down (#811). Docker's build cache is the first to go; past
+# DEPLOY_MAX_DISK_PERCENT a deploy doesn't start
+disk_use() { df -P "$REPO" | awk 'NR == 2 { gsub("%", "", $5); print $5 }'; }
+use="$(disk_use)"
+if [ "$use" -ge "${DEPLOY_CLEAN_DISK_PERCENT:-85}" ]; then
+    say "the disk is ${use}% full: clearing Docker's build cache"
+    docker builder prune -a -f >/dev/null || true
+    use="$(disk_use)"
+fi
+[ "$use" -lt "${DEPLOY_MAX_DISK_PERCENT:-90}" ] || die "the disk is ${use}% full: free space before deploying (documents/hosting.md, \"If the disk fills up\"). The game's history prunes itself to forge.history_budget_percent; check that the scheduler's keeper is running"
+
 git fetch --quiet origin main
 old="$(git rev-parse HEAD)"
 new="$(git rev-parse origin/main)"
@@ -107,5 +119,7 @@ for service in db app game-engine events-engine scheduler caddy; do
 done
 
 docker image prune -f >/dev/null || true
+# And the build cache older than three days (#813: 5 GB of it had built up)
+docker builder prune -a -f --filter until=72h >/dev/null || true
 trap - ERR
 say "deployed ${new:0:7}"
