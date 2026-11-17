@@ -654,17 +654,12 @@ ErrorCode_t event_update_observations(Event_t *event)
     else
         result = db_get_event_observation_info(event, &protocol);
 
-    if(result == ENGINE_OK)
-    {
-        // All events are observed by the acting and affected drones.
-        memset(&observation, 0, sizeof(observation));
-        observation.event_id = event->event_id;
-        observation.drone_id = event->drone_id;
-        observation.timestamp = time(NULL); // now for affected drone
-        observation.game_t = game_time_now_seconds();
-
-        result = db_insert_observation(&observation);
-    }
+    // The affected drone sees its own events: no row for that (#814). Query
+    // 803 finds them by the event's own drone, as it finds local sightings
+    // by its place, so an observation row is only the Earth database's.
+    // That row a settled event was half the observations table, and a write
+    // on every event.
+    memset(&observation, 0, sizeof(observation));
 
     // Observable events are also observed by any other spacecraft in orbit around the same object.
     if(result == ENGINE_OK && protocol.observable)
