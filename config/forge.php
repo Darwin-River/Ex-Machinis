@@ -77,7 +77,7 @@ return [
     // The game's history within a disk budget (#813, after #811): above this
     // percent of the disk in use, the keeper prunes the oldest archived
     // events (summed into drone_days first). 0 never prunes
-    'history_budget_percent' => (int) env('FORGE_HISTORY_BUDGET_PERCENT', 70),
+    'history_budget_percent' => (int) env('FORGE_HISTORY_BUDGET_PERCENT', 60),
     // A folder on the disk to measure (the server's disk, as the app sees it)
     'history_disk_path' => env('FORGE_HISTORY_DISK_PATH', base_path()),
     // The bank sells a share at its cash-out value plus the dividends a share
