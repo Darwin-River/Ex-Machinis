@@ -103,6 +103,9 @@
         nodes.filter(n => n.day === null).forEach(n => n.col = 0);
         // Columns by date (#753): a game day counted from the world's first
         const LINEAGE_EPOCH = @json((int) \App\Services\GameDate::epoch()), LINEAGE_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        // A revision's date and time (#753: never "day N")
+        const LINEAGE_DAY = (d) => { const t = new Date((LINEAGE_EPOCH + d * 86400) * 1000);
+            return t.getUTCDate() + ' ' + LINEAGE_MONTHS[t.getUTCMonth()] + ' ' + t.getUTCFullYear() + ', ' + String(t.getUTCHours()).padStart(2, '0') + ':' + String(t.getUTCMinutes()).padStart(2, '0'); };
         const LINEAGE_DATE = (d) => { const t = new Date((LINEAGE_EPOCH + Math.round(d) * 86400) * 1000); return LINEAGE_MONTHS[t.getUTCMonth()] + ' ' + t.getUTCFullYear(); };
         const NAMES_W = 150, COL_W = 13, ROW_H = 13, TOP = 34, PAD = 18;
         const W = (cols.length + 2) * COL_W + PAD, H = TOP + DATA.lanes.length * ROW_H + PAD;
@@ -175,7 +178,7 @@
             ageInput.disabled = !isHeat;
             document.getElementById('legend-heat').hidden = !isHeat; document.getElementById('legend-new').hidden = isHeat;
             nodes.forEach(n => {
-                const c = co(n), base = `${n.label}${n.day !== null ? ' · day ' + n.day.toFixed(1) : ''} · ${Math.round(n.new * 100)}% new`;
+                const c = co(n), base = `${n.label}${n.day !== null ? ' · ' + LINEAGE_DAY(n.day) : ''} · ${Math.round(n.new * 100)}% new`;
                 n.ring.removeAttribute('stroke-dasharray');
                 if (!isHeat) {
                     n.ring.setAttribute('fill', 'var(--sheet)'); n.core.setAttribute('display', n.new > 0.02 ? '' : 'none'); n.tip.textContent = base; return;
@@ -215,7 +218,7 @@
             document.getElementById('panel').innerHTML =
                 `<div class="text-muted">${n.example ? 'Starter or example' : n.push ? 'Code push' : 'Release'}</div>
                  <h3>${esc(n.label)}</h3>
-                 <div class="text-muted">${n.day !== null ? 'game day ' + n.day.toFixed(2) : 'a root'} ·
+                 <div class="text-muted">${n.day !== null ? LINEAGE_DAY(n.day) : 'a root'} ·
                    ${n.company_id ? `<a href="{{ url('companies') }}/${n.company_id}">company page</a>` : `<a href="${esc(DATA.lanes[n.lane].url)}">the script</a>`}</div>
                  <h4>New code</h4><div class="bar"><span style="width:${(n.new * 100).toFixed(1)}%"></span></div>
                  <div>${Math.round(n.new * 100)}% not explained by any earlier code</div>
@@ -265,7 +268,12 @@
         paint();
         const first = start && nodes.find(n => n.company_id === +start && n.push === 0);
         if (first) { select(first.id); reveal(first.id, false); }
-        else { const p = document.getElementById('plate'); p.scrollLeft = p.scrollWidth; }
+        // Else on the newest revision (#744: it opened at the newest columns but the
+        // oldest companies' lanes, an empty corner, with the new ones far below)
+        else {
+            const newest = nodes.filter(n => n.day !== null).reduce((a, n) => (!a || n.day > a.day ? n : a), null);
+            if (newest) reveal(newest.id, false);
+        }
     });
     </script>
 @endsection

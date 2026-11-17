@@ -59,6 +59,8 @@ class DesignConsistencyTest extends TestCase
         $this->get('/leaderboard')->assertOk()->assertSee('class="mk-input"', false)->assertSee('class="mk-button"', false)
             ->assertSee('.mk-input {', false);
         $this->get('/lineage')->assertOk()->assertSee('class="mk-input" id="find"', false)
-            ->assertSee('class="mk-check" id="onlymulti"', false)->assertSee('class="mk-range" id="age"', false);
+            ->assertSee('class="mk-check" id="onlymulti"', false)->assertSee('class="mk-range" id="age"', false)
+            // It opens on the newest revision, not an empty corner, and gives dates, not "day N" (#744, #753)
+            ->assertSee('reveal(newest.id, false)', false)->assertDontSee("'game day ' + n.day", false)->assertDontSee("' · day '", false);
     }
 }
