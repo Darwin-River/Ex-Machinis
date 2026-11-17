@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@php $title = 'Keep the Lights On' ; @endphp
+@php $title = 'Keep the lights on' ; @endphp
 @section('pageTitle', $title)
 @push('styles')
     <style>

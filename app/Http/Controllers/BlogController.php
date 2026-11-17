@@ -93,6 +93,6 @@ class BlogController extends Controller
         $previous = $at > 0 ? $slugs[$at - 1] : null;
         $next = $slugs[$at + 1] ?? null;
 
-        return view('pages.blog-post', compact('post', 'html', 'posts', 'previous', 'next'));
+        return view('pages.blog-post', compact('post', 'html', 'posts', 'previous', 'next', 'slug'));
     }
 }

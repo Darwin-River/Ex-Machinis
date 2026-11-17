@@ -20,6 +20,7 @@
         .blog-post th, .blog-post td { border: 1px solid rgba(255, 255, 255, 0.2); padding: 0.4rem 0.75rem; }
         .blog-post img { max-width: 100%; height: auto; }
         .blog-post .blog-date { opacity: 0.7; font-size: 0.9rem; }
+        .blog-old-rules { background: #111729; border-left: 3px solid #f0b429; padding: 8px 12px; border-radius: 6px; white-space: normal; }
         .blog-post .blog-entry { margin-top: 2rem; }
         .blog-post .blog-nav { margin-top: 3rem; }
         .blog-post blockquote { border-left: 3px solid rgba(255, 255, 255, 0.3); padding-left: 1rem; }
@@ -28,7 +29,7 @@
 @section('content')
     <x-page-header>
         <x-slot:title>{{ $post['title'] }}</x-slot:title>
-        <li><a href="/blog">Strategy Blog</a></li>
+        <li><a href="/blog">Strategy blog</a></li>
         <li class="active">{{ $post['title'] }}</li>
     </x-page-header>
     <section class="section section-lg">
@@ -36,6 +37,8 @@
             <div class="row">
                 <div class="col-md-12 col-lg-10 col-xl-9 single-post blog-post">
                     <p class="blog-date">{{ $post['date'] }}</p>
+                    {{-- Posts before "A new way to play" (12) describe the old rules (#744) --}}
+                    @if((int) $slug < 12)<p class="blog-old-rules" id="old-rules"><b>Written under the old rules.</b> Seedlings, the bank and players' shares came later: see <a href="{{ url('blog/12-a-new-way-to-play') }}">A new way to play</a> and the <a href="{{ url('manual') }}">manual</a> for the game as it is now.</p>@endif
                     {{-- documents/blog/<slug>.md, rendered (see BlogController::show) --}}
                     {!! $html !!}
                     <nav class="blog-nav">

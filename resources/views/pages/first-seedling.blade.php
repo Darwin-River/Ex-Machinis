@@ -165,6 +165,7 @@
                 <li><a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/lua-functions.md"><b>Lua functions</b><span>Every function a drone can call.</span></a></li>
                 <li><a href="{{ url('market') }}"><b>The market</b><span>Where each good is cheapest and where it pays most.</span></a></li>
                 <li><a href="{{ url('blog') }}"><b>Strategy blog</b><span>How the best companies were written.</span></a></li>
+                @if(config('forge.new_rules'))<li><a href="{{ url('market/shares') }}"><b>Trade shares</b><span>Buy into matured companies, earn their dividends, or write a trading script (#744).</span></a></li>@endif
             </ul>
         </div>
     </section>

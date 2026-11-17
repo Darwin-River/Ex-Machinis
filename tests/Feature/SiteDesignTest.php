@@ -10,9 +10,9 @@ class SiteDesignTest extends TestCase
     public static function pages()
     {
         return [
-            'blog' => ['/blog', 'Strategy Blog'],
-            'support' => ['/support', 'Keep the Lights On'],
-            'about' => ['/about-us', 'About Us'],
+            'blog' => ['/blog', 'Strategy blog'],
+            'support' => ['/support', 'Keep the lights on'],
+            'about' => ['/about-us', 'About us'],
             'resources' => ['/resources', 'Resources'],
         ];
     }

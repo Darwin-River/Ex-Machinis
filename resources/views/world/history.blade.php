@@ -5,6 +5,7 @@
     <x-page-header :title="'Market history'" />
     <section class="section section-xs section-first text-md-left">
         <div class="container" id="container">
+            @include('partials.market-tabs')
             <div class="mh-intro">
                 What every resource traded for, game day by game day, at each place. Each day's price is the average a
                 unit fetched over all of that day's trades; a thin vertical line runs from the cheapest unit to the dearest.
