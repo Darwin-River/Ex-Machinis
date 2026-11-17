@@ -78,6 +78,11 @@ return [
     // was paid over this many game days (#781: 30 prepaid a month of dividends,
     // so buying from the bank barely paid)
     'bank_premium_days' => (int) env('FORGE_BANK_PREMIUM_DAYS', 10),
+    // A standing share order that fills against another player's order earns
+    // its owner this many thousandths of the trade from the bank, once it has
+    // rested this many game seconds (#782: keep orders on the book)
+    'rebate_permille' => (int) env('FORGE_REBATE_PERMILLE', 5),
+    'rebate_rest_game_seconds' => (int) env('FORGE_REBATE_REST_GAME_SECONDS', 3600),
     // Players trade shares between these times the bank's selling price
     'share_range_low' => (float) env('FORGE_SHARE_RANGE_LOW', 0.8),
     'share_range_high' => (float) env('FORGE_SHARE_RANGE_HIGH', 1.25),

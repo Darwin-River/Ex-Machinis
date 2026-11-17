@@ -272,6 +272,47 @@ class PlayerSharesTest extends TestCase
             ->assertSee('id="player-shares"', false);
     }
 
+    public function testARestingOrderEarnsARebate()
+    {
+        // #782: 0.5% of the trade from the bank to the resting order's owner,
+        // once the order has rested a game hour; the two are always different players
+        config(['forge.rebate_permille' => 5, 'forge.rebate_rest_game_seconds' => 3600]);
+        $owner = $this->player('Rester');
+        $id = $this->matured($owner, 'Rebate Co', 100000);
+        $p = PlayerShares::prices($id);
+        $buyer = $this->player('Taker');
+        DB::table('users')->where('user_id', $buyer->user_id)->update(['credits' => 1000000]);
+
+        // Placed just now: it trades, but earns nothing
+        PlayerShares::order($owner, $id, 'sell', 20, $p['sells_at']);
+        PlayerShares::order($buyer, $id, 'buy', 5, $p['sells_at']);
+        $this->assertSame(5 * $p['sells_at'], $this->credits($owner)[0], 'no rebate under a game hour');
+        $this->assertSame(0, PlayerShares::trades($id)[0]['rebate']);
+
+        // A game hour later it does: 0.5% of the credits, rounded down
+        DB::table('player_share_orders')->where('user_id', $owner->user_id)->update(['game_t' => World::gameNow() - 3600]);
+        PlayerShares::order($buyer, $id, 'buy', 10, $p['sells_at']);
+        $credits = 10 * $p['sells_at'];
+        $rebate = intdiv($credits * 5, 1000);
+        $this->assertGreaterThan(0, $rebate);
+        $this->assertSame(15 * $p['sells_at'] + $rebate, $this->credits($owner)[0], 'the seller is paid the trade and the rebate');
+        $t = PlayerShares::trades($id)[0];
+        $this->assertSame([$rebate, 'seller'], [$t['rebate'], $t['rebate_to']]);
+        $this->assertSame($rebate, PlayerShares::fills((int) $owner->user_id, 0)[0]['rebate']);
+        $this->assertSame(0, PlayerShares::fills((int) $buyer->user_id, 0)[0]['rebate'], 'the taker gets none');
+        $this->actingAs($owner)->get('/account')->assertOk()->assertSee('rebate from the bank for your resting order');
+
+        // An order from before the rebate (no placed time) counts as rested
+        DB::table('player_share_orders')->where('user_id', $owner->user_id)->update(['game_t' => null]);
+        $this->assertSame(intdiv(100 * 5, 1000), PlayerShares::rebate(100, null));
+        // and a pegged order keeps its rest when the bank's prices move it
+        $placed = World::gameNow() - 7200;
+        PlayerShares::order($buyer, $id, 'buy', 1, $p['low'], ['ref' => 'buys_at', 'offset_bp' => -1000]);
+        DB::table('player_share_orders')->where('user_id', $buyer->user_id)->update(['game_t' => $placed, 'price' => $p['low'] + 1]);
+        PlayerShares::repeg();
+        $this->assertSame($placed, (int) DB::table('player_share_orders')->where('user_id', $buyer->user_id)->value('game_t'));
+    }
+
     public function testAClassGroupTradesOnlyWithinItself()
     {
         $owner = $this->player('Public Founder');

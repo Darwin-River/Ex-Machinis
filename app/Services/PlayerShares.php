@@ -85,7 +85,8 @@ class PlayerShares
             }
             DB::transaction(function () use ($o, $user, $c, &$moved) {
                 DB::table('player_share_orders')->where('id', $o->id)->delete();
-                $r = self::order($user, $c, $o->side, (int) $o->units, 0, ['ref' => $o->peg_ref, 'offset_bp' => (int) $o->peg_offset_bp]);
+                $r = self::order($user, $c, $o->side, (int) $o->units, 0, ['ref' => $o->peg_ref, 'offset_bp' => (int) $o->peg_offset_bp],
+                    $o->game_t !== null ? (int) $o->game_t : null);
                 if (!($r['ok'] ?? false)) {
                     DB::table('player_share_orders')->insert((array) $o);   // it stays where it was
                     return;
@@ -514,9 +515,10 @@ class PlayerShares
      * their price). Returns what traded and what is left standing. With $peg
      * (['ref' => 'buys_at' or 'sells_at', 'offset_bp' => hundredths of a
      * percent]) its price follows that bank price (#766): $price is ignored,
-     * and repeg() moves it as the bank's prices move.
+     * and repeg() moves it as the bank's prices move. $placedT: the game time
+     * a re-placed order was first placed, so it keeps its rest (#782).
      */
-    public static function order(User $user, int $company, string $side, int $units, int $price, ?array $peg = null): array
+    public static function order(User $user, int $company, string $side, int $units, int $price, ?array $peg = null, ?int $placedT = null): array
     {
         if (!self::company($company)) {
             return self::fail(404, self::endedNote($company) ?? 'There is no such matured company.');
@@ -561,7 +563,7 @@ class PlayerShares
                 . (int) $crosses . ': ' . ($side === 'buy' ? 'a buy at ' . (int) $crosses . ' or more' : 'a sell at ' . (int) $crosses . ' or less')
                 . ' would cross it. Cancel that order first, or ' . ($side === 'buy' ? 'bid under ' : 'ask over ') . (int) $crosses . '.');
         }
-        return DB::transaction(function () use ($me, $company, $side, $units, $price, $p, $peg) {
+        return DB::transaction(function () use ($me, $company, $side, $units, $price, $p, $peg, $placedT) {
             $traded = 0;
             $spent = 0;
             $other = $side === 'buy' ? 'sell' : 'buy';
@@ -597,8 +599,14 @@ class PlayerShares
                 }
                 DB::table('users')->where('user_id', $seller)->update(['credits' => DB::raw('credits + ' . ($n * $at))]);
                 self::move($seller, $buyer, $company, $n);
+                // The resting order's owner earns a rebate from the bank (#782)
+                $rebate = self::rebate($n * $at, $o->game_t ?? null);
+                if ($rebate > 0) {
+                    DB::table('users')->where('user_id', $o->user_id)->update(['credits' => DB::raw('credits + ' . $rebate)]);
+                }
                 DB::table('player_share_trades')->insert(['company_id' => $company, 'seller_id' => $seller,
-                    'buyer_id' => $buyer, 'units' => $n, 'price' => $at, 'game_t' => World::gameNow()]);
+                    'buyer_id' => $buyer, 'units' => $n, 'price' => $at, 'game_t' => World::gameNow()]
+                    + ($rebate > 0 ? ['rebate' => $rebate, 'rebate_user_id' => (int) $o->user_id] : []));
                 $left = (int) $o->units - $n;
                 $left > 0 ? DB::table('player_share_orders')->where('id', $o->id)->update(['units' => $left])
                           : DB::table('player_share_orders')->where('id', $o->id)->delete();
@@ -629,12 +637,29 @@ class PlayerShares
             }
             if ($standing > 0) {
                 $id = DB::table('player_share_orders')->insertGetId(['user_id' => $me, 'company_id' => $company,
-                    'side' => $side, 'units' => $standing, 'price' => $price, 'created_at' => now()]
+                    'side' => $side, 'units' => $standing, 'price' => $price, 'created_at' => now(), 'game_t' => $placedT ?? World::gameNow()]
                     + ($peg !== null ? ['peg_ref' => $peg['ref'], 'peg_offset_bp' => $peg['offset_bp']] : []));
             }
             return ['ok' => true, 'traded' => $traded, 'credits' => $spent, 'standing' => $standing, 'order' => $id, 'price' => $price]
                 + ($note ? ['note' => $note] : []);
         });
+    }
+
+    /**
+     * The bank's rebate to a resting order for a trade of $credits (#782):
+     * rebate_permille of it, rounded down, once the order has rested
+     * rebate_rest_game_seconds since $placedT (an order from before the
+     * rebate, with no placed time, counts as rested); 0 otherwise. The two
+     * sides are always different players: order() never matches an account's
+     * own orders
+     */
+    public static function rebate(int $credits, $placedT): int
+    {
+        $rest = (int) config('forge.rebate_rest_game_seconds', 3600);
+        if ($placedT !== null && World::gameNow() - (int) $placedT < $rest) {
+            return 0;
+        }
+        return intdiv(max(0, $credits) * max(0, (int) config('forge.rebate_permille', 5)), 1000);
     }
 
     public static function cancel(User $user, int $order): bool
@@ -689,9 +714,12 @@ class PlayerShares
             ->leftJoin('users as b', 'b.user_id', '=', 't.buyer_id')
             ->when($company !== null, fn ($q) => $q->where('t.company_id', $company))
             ->orderByDesc('t.id')->limit($limit)
-            ->get(['t.company_id', 'c.name', 't.units', 't.price', 's.login as seller', 'b.login as buyer', 't.game_t'])
+            ->get(['t.company_id', 'c.name', 't.units', 't.price', 's.login as seller', 'b.login as buyer', 't.game_t', 't.rebate', 't.rebate_user_id', 't.seller_id'])
             ->map(fn ($t) => ['company' => (int) $t->company_id, 'name' => $t->name, 'units' => (int) $t->units,
                 'price' => (int) $t->price, 'seller' => $t->seller, 'buyer' => $t->buyer,
+                // The bank's rebate to the resting order, and which side it was (#782)
+                'rebate' => (int) ($t->rebate ?? 0),
+                'rebate_to' => ($t->rebate_user_id ?? null) === null ? null : ((int) $t->rebate_user_id === (int) $t->seller_id ? 'seller' : 'buyer'),
                 'seller_name' => $t->seller ?? 'The bank', 'buyer_name' => $t->buyer ?? 'The bank',
                 'seller_is_bank' => $t->seller === null, 'buyer_is_bank' => $t->buyer === null,
                 'when' => DronePage::when((int) $t->game_t), 'game_time' => (int) $t->game_t])->all();
@@ -811,11 +839,14 @@ class PlayerShares
             ->leftJoin('users as s', 's.user_id', '=', 't.seller_id')->leftJoin('users as b', 'b.user_id', '=', 't.buyer_id')
             ->where(fn ($q) => $q->where('t.seller_id', $user)->orWhere('t.buyer_id', $user))
             ->where('t.game_t', '>', $since)->orderByDesc('t.id')->limit($limit)
-            ->get(['t.company_id', 'c.name', 't.seller_id', 't.units', 't.price', 't.game_t', 's.login as seller', 'b.login as buyer'])
+            ->get(['t.company_id', 'c.name', 't.seller_id', 't.units', 't.price', 't.game_t', 's.login as seller', 'b.login as buyer',
+                't.rebate', 't.rebate_user_id'])
             ->map(function ($t) use ($user) {
                 $sold = (int) $t->seller_id === $user;
                 return ['company_id' => (int) $t->company_id, 'name' => $t->name, 'side' => $sold ? 'sold' : 'bought',
                     'units' => (int) $t->units, 'price' => (int) $t->price,
+                    // What the bank paid this account for its resting order (#782)
+                    'rebate' => (int) ($t->rebate_user_id ?? 0) === $user ? (int) $t->rebate : 0,
                     'with' => ($sold ? $t->buyer : $t->seller) ?? 'the bank',
                     'when' => DronePage::when((int) $t->game_t), 'ago' => DronePage::ago((int) $t->game_t), 'game_time' => (int) $t->game_t];
             })->all();
