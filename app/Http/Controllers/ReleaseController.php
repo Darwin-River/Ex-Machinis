@@ -49,6 +49,9 @@ class ReleaseController extends Controller
             }
         }
 
+        // Starting a fixed copy of a company that ended (#773): its post-mortem above the editor
+        $fixing = $copiedFrom && request()->filled('fix') ? \App\Services\PostMortem::of((int) request('fix')) : null;
+
         $clock = LaunchQueue::clock();
 
         $kits = Release::KIT_NAMES;
@@ -68,7 +71,7 @@ class ReleaseController extends Controller
             $starter = $sources[$picked];
         }
 
-        return view('release', compact('starters', 'starter', 'copiedFrom', 'copiedWord', 'clock', 'kits', 'kit', 'sources', 'picked'));
+        return view('release', compact('starters', 'starter', 'copiedFrom', 'copiedWord', 'clock', 'kits', 'kit', 'sources', 'picked', 'fixing'));
     }
 
     /**

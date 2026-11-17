@@ -75,6 +75,8 @@ class ApiController extends Controller
                 ? self::newRulesShares($company) : Shares::summary((int) $company->company_id),
             // Code pushes (#553): whether it takes them, what the next costs, and each so far
             'pushes' => \App\Services\CodePush::summary($company),
+            // Once it has ended (#773): what went wrong, and where to start a fixed copy
+            'post_mortem' => \App\Services\PostMortem::of((int) $company->company_id),
             // What its drones' thinking costs it (#544)
             'compute' => \App\Services\ProcessorTax::of((int) $company->company_id),
             // Whether it can keep its drones flying (#537)
