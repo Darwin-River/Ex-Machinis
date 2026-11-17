@@ -152,7 +152,7 @@
                 <li class="fs-step" id="mature">
                     <h2>When is it mine? <span class="fs-time">when it gets there</span></h2>
                     <p>Once it holds {{ $n($seedling['mature_at']) }} credits (its debt and {{ $n($seedling['margin']) }} more; each paid push
-                        adds {{ $n($seedling['push_fee']) }}), a <b>Mature</b> button appears on its Road to maturity and on your account page.
+                        adds {{ $n($seedling['push_fee']) }}), a <b>Mature</b> button appears on its Road to maturity, on your account page, and in the strip under the menu on every page, which also says when it should mature at its pace.
                         Maturing repays the bank and locks its code for good. From then on it trades with everyone, and its
                         {{ $seedling['shares'] }} shares are yours: each game day it pays half its profit to its shareholders.
                         Keep them, sell them to the bank, or trade them with other players.</p>
