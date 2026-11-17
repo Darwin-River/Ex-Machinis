@@ -68,7 +68,9 @@ class RoundSixtyNineFixesTest extends TestCase
         $row = $rows->firstWhere('user_id', $working->company_id);
         $this->assertSame('1,234,567', $row['credits']);
         $this->assertEquals(3.0, $row['age'], 'game days');
-        $this->assertSame('Gone Co (ended)', $rows->firstWhere('user_id', $ended->company_id)['name']);
+        // Its status in its own column (#744), not "(ended)" on its name
+        $this->assertSame('Gone Co', $rows->firstWhere('user_id', $ended->company_id)['name']);
+        $this->assertSame('ended', $rows->firstWhere('user_id', $ended->company_id)['status']);
         $flags = $rows->pluck('ended')->all();
         $this->assertSame($flags, collect($flags)->sort()->values()->all(), 'working companies first, ended ones last');
     }

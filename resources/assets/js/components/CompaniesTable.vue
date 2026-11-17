@@ -94,8 +94,15 @@
 
                 },
                 {
+                    // Seedling, matured or ended (#744)
+                    name: 'status',
+                    title: 'Status',
+                    titleClass: '',
+                    dataClass: '',
+                },
+                {
                     name: 'age',
-                    title: 'Age (days)',
+                    title: 'Age (game days)',
                     sortField: 'age',
                     titleClass: '',
                     dataClass: '',

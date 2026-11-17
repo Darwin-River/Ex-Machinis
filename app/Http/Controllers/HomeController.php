@@ -240,6 +240,22 @@ class HomeController extends Controller
      * @param $request Request object
      * @return JsonResponse
      */
+    /** An event's effect in plain words (#744: "Increment inventory to 12 units") */
+    public static function eventEffect(object $e): string
+    {
+        $n = fn ($v) => number_format((int) $v);
+        $what = $e->resource_name ?? 'goods';
+        return match ((int) $e->event_type) {
+            1, 2 => 'now holds ' . $n($e->new_quantity) . ' ' . $what . ((int) $e->locked === 1 ? ' in use' : ' aboard'),
+            3 => 'moved to ' . ($e->object_name ?? 'a new place'),
+            4 => 'sold ' . $what,
+            5 => 'bought ' . $what,
+            6, 7 => 'credits now ' . $n($e->new_credits),
+            8 => 'launched a drone',
+            default => (string) ($e->event_type_name ?? ''),
+        };
+    }
+
     public function InGameEventsSearch(Request $request)
     {
         $resultsPerPage = Config::get('constants.options.results_per_page');
@@ -264,7 +280,9 @@ class HomeController extends Controller
 
         // The details, from events or, once a month old, events_archive (#694)
         $keyword = $request->get('keyword');
-        $details = function (string $table) use ($seen, $keyword) {
+        // A tool locked and unlocked around each action is noise to a reader (#744): left out unless ?all=1
+        $all = (bool) $request->get('all');
+        $details = function (string $table) use ($seen, $keyword, $all) {
         $query = DB::table($table . ' as events')->select('events.id', 'events.timestamp', 'events.game_t', 'events.event_type', 'acting_agents.name as acting_agent_name', 'acting_agents.company_id as acting_company_id', 'acting_companies.name as acting_company_name',
             'acting_agents.agent_id as acting_agent_id', 'protocols.name as protocol_name', 'affected_companies.name as affected_company_name', 'affected_companies.company_id as affected_company_id',
             'event_types.name as event_type_name', 'affected_agents.agent_id as affected_agent_id', 'affected_agents.name as affected_agent_name', 'resources.id as resource_id',
@@ -279,6 +297,9 @@ class HomeController extends Controller
             ->leftJoin('companies as affected_companies', 'affected_agents.company_id', '=', 'affected_companies.company_id')
             ->leftJoin('resources', 'events.resource', '=', 'resources.id')
             ->leftJoin('objects', 'events.new_location', '=', 'objects.object_id');
+        if (!$all) {
+            $query->where(fn ($q) => $q->whereNull('events.locked')->orWhere('events.locked', 0));
+        }
         if ($keyword !== null && $keyword !== '') {
             $like = '%' . addcslashes($keyword, '%_\\') . '%';
             $query->where(function ($query) use ($like) {
@@ -306,6 +327,7 @@ class HomeController extends Controller
         // Game time, as the rest of the site writes it (#380 round 64: real US time stood out)
         $when = function ($e) {
             $e->when = $e->game_t !== null ? \App\Services\DronePage::when((int) $e->game_t) : null;
+            $e->effect = self::eventEffect($e);
             return $e;
         };
         if ($request->get('limit')) {

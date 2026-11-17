@@ -112,8 +112,15 @@ class RoundSixtyFourFixesTest extends TestCase
         $this->assertSame(DronePage::when($now - 60), $row['when']);
         $this->assertSame(2, (int) $row['event_type']);
         $this->assertSame(0, (int) $row['new_quantity'], 'a 0 is a figure too');
-        $vue = file_get_contents(base_path('resources/assets/js/components/InGameEventsTable.vue'));
-        $this->assertStringContainsString("== 1 ? 'unit' : 'units'", $vue);
+        // In plain words (#744), a 0 included
+        $this->assertSame('now holds 0 ' . (DB::table('resources')->where('id', 2011)->value('name') ?? 'goods') . ' aboard', $row['effect']);
+        // A tool's lock and unlock are left out unless asked for (#744)
+        $lock = DB::table('events')->insertGetId(['event_type' => 1, 'action' => 0, 'logged' => 1, 'outcome' => 1, 'drone' => $drone->agent_id,
+            'resource' => 2011, 'installed' => 0, 'locked' => 1, 'new_quantity' => 1, 'new_cargo' => 0, 'game_t' => $now - 50,
+            'timestamp' => now()->subMinute()]);
+        DB::table('observations')->insert(['event' => $lock, 'drone' => 0, 'time' => now()->subMinute(), 'game_t' => $now - 50]);
+        $this->assertNull(collect($this->getJson('/events/search')->json('data'))->firstWhere('id', $lock));
+        $this->assertNotNull(collect($this->getJson('/events/search?all=1')->json('data'))->firstWhere('id', $lock));
     }
 
     /** #627: the starter miners' copies choose their own site; a lower floor on asking prices */
