@@ -332,7 +332,7 @@ window.ExCharts = (function () {
         });
         if (opts.dots) rows.forEach((r) => {
             if (r.dot === null || r.dot === undefined || (!r.up && !r.down && !r.dot)) return;
-            el('circle', {cx: f.x(r.day), cy: f.y(r.dot), r: f.slot > 9 ? 4 : 2.5, fill: '#e9e9ef', stroke: '#24242c', 'stroke-width': 1.5}, f.svg);
+            el('circle', {cx: f.x(r.day), cy: f.y(r.dot), r: f.slot > 9 ? 4 : 2.5, fill: '#e9e9ef', stroke: '#111729', 'stroke-width': 1.5}, f.svg);
         });
         const byDay = Object.fromEntries(rows.map((r) => [r.day, r]));
         dayHover(box, f, (day) => {
@@ -379,7 +379,7 @@ window.ExCharts = (function () {
                 'stroke-dasharray': s.dash || 'none'}, f.svg);
             if (s.dots || s.dotsOnly) s.points.forEach((p) => {
                 if (p.v === null || p.v === undefined) return;
-                el('circle', {cx: f.x(p.day), cy: f.y(p.v), r: s.r || 3, fill: s.colour, stroke: '#24242c', 'stroke-width': 1}, f.svg);
+                el('circle', {cx: f.x(p.day), cy: f.y(p.v), r: s.r || 3, fill: s.colour, stroke: '#111729', 'stroke-width': 1}, f.svg);
             });
         });
         dayHover(box, f, (day) => {
@@ -465,8 +465,8 @@ window.ExCharts = (function () {
             const lines = [`${title} at ${r.label}`, {colour: opts.aColour, text: `${opts.aName}: ${r.a ?? 'none'}`},
                 {colour: opts.bColour, text: `${opts.bName}: ${r.b ?? 'none'}`}];
             if (r.a != null && r.b != null && r.b > r.a) lines.push('Crossed: a buyer bids more than a seller asks');
-            if (r.a != null) tip(el('circle', {cx: X(r.a), cy: y, r: 5, fill: opts.aColour, stroke: '#24242c', 'stroke-width': 2}, svg), lines);
-            if (r.b != null) tip(el('circle', {cx: X(r.b), cy: y, r: 5, fill: '#24242c', stroke: opts.bColour, 'stroke-width': 2.5}, svg), lines);
+            if (r.a != null) tip(el('circle', {cx: X(r.a), cy: y, r: 5, fill: opts.aColour, stroke: '#111729', 'stroke-width': 2}, svg), lines);
+            if (r.b != null) tip(el('circle', {cx: X(r.b), cy: y, r: 5, fill: '#111729', stroke: opts.bColour, 'stroke-width': 2.5}, svg), lines);
             tip(el('rect', {x: 0, y: y - rh / 2, width: lw, height: rh, fill: 'transparent'}, svg), lines);
         });
     }

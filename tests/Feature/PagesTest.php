@@ -40,7 +40,7 @@ class PagesTest extends TestCase
             'buy orders'       => ['/buys', 'Buy Orders'],
             'sell orders'      => ['/sells', 'Sell Orders'],
             'locations'        => ['/locations', 'Locations'],
-            'spacecraft'       => ['/spacecraft', 'Spacecraft Search'],
+            'spacecraft'       => ['/spacecraft', 'Drones'],
             'protocols'        => ['/protocols', 'Protocols'],
             'companies'        => ['/companies', 'Companies'],
             'events'           => ['/events', 'In-Game Events'],

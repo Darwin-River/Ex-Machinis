@@ -72,7 +72,7 @@
             });
             mine.forEach((s) => {
                 X.el('path', {d: path(s.points), fill: 'none', stroke: C[0], 'stroke-width': 3}, svg);
-                s.points.forEach((p) => X.tip(X.el('circle', {cx: x(p.age), cy: y(p.credits), r: 3, fill: C[0], stroke: '#24242c', 'stroke-width': 1}, svg),
+                s.points.forEach((p) => X.tip(X.el('circle', {cx: x(p.age), cy: y(p.credits), r: 3, fill: C[0], stroke: '#111729', 'stroke-width': 1}, svg),
                     [s.name, X.num(p.credits) + ' credits at ' + p.age + ' game days in']));
             });
         }

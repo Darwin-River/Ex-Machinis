@@ -5,6 +5,10 @@
         .mk-lead { color: #c3c9d8; max-width: 46em; white-space: normal; margin: 0 0 .75rem; }
         .mk-src { color: #9aa3b8; font-size: 12px; margin: .4rem 0 0; white-space: normal; }
         .mk-src code { color: inherit; background: none; padding: 0; }
+        /* A fill bar (#744): how full a bid or a stock is */
+        .hs-bar { display: inline-block; width: 48px; height: 6px; border-radius: 3px; background: #263052; vertical-align: middle; margin-left: 4px; overflow: hidden; }
+        .hs-bar i { display: block; height: 100%; background: #4f9cf0; }
+        details > summary { cursor: pointer; color: #9aa3b8; font-size: 14px; }
         .mk-bar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: .75rem 1.5rem; margin: 1rem 0 .5rem; }
         .mk-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
         .mk-chip { display: inline-block; border: 1px solid #263052; background: #111729; color: #e6e9f2 !important; border-radius: 99px;

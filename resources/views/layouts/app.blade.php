@@ -84,7 +84,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         <a class="nav-link dropdown-toggle" href="#" id="nav-directory" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Directory</a>
                         <div class="dropdown-menu" aria-labelledby="nav-directory">
                             <a class="dropdown-item" href="{{ url('companies') }}">Companies</a>
-                            <a class="dropdown-item" href="{{ url('spacecraft') }}">Spacecraft</a>
+                            <a class="dropdown-item" href="{{ url('spacecraft') }}">Drones</a>
                             <a class="dropdown-item" href="{{ url('resources') }}">Resources</a>
                             <a class="dropdown-item" href="{{ url('locations') }}">Locations</a>
                             <a class="dropdown-item" href="{{ url('buys') }}">Buy orders</a>
@@ -156,6 +156,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 @vite('resources/assets/js/app.js')
 {{-- A wide table on a phone says it scrolls sideways (#716): a cue above it while it overflows --}}
 <style>
+    /* Links in the footer's text read as links (#744) */
+    .site-footer a:not(.button) { text-decoration: underline; text-underline-offset: 2px; }
     .ex-scrolls::before { content: 'Scroll sideways for more \2192'; display: block; position: sticky; left: 0; width: max-content;
           font-size: 12px; color: #9aa3b8; padding: 0 0 4px; }
 </style>

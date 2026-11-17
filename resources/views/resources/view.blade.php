@@ -46,14 +46,17 @@
             @else
                 <p class="mk-lead">{{ $resource->description }}</p>
             @endif
-            {{-- At a glance, from the Market page's board (#721) --}}
+            {{-- At a glance (#721), the best of the book below, so they agree with its table (#744) --}}
+            @php($sellTop = $book['sell'][0] ?? null)
+            @php($buyTop = $book['buy'][0] ?? null)
+            @php($places = fn ($side, $price) => collect($book[$side])->where('price', $price)->pluck('place')->unique()->values())
             <div class="rv-tiles" id="good-tiles">
                 <div class="rv-tile"><small>Cheapest seller</small>
-                    <b>{{ $board && $board['cheapest'] ? $n($board['cheapest']['price']) : '–' }}</b>
-                    <span>{{ $board && $board['cheapest'] ? $board['cheapest']['place'] . ', ' . $n($board['cheapest']['units']) . ' on sale' : 'nobody sells it' }}</span></div>
+                    <b>{{ $sellTop ? $n($sellTop['price']) : '–' }}</b>
+                    <span>{{ $sellTop ? $places('sell', $sellTop['price'])->implode(', ') . ', ' . $n(collect($book['sell'])->where('price', $sellTop['price'])->sum('units')) . ' on sale at that price' : 'nobody sells it' }}</span></div>
                 <div class="rv-tile"><small>Best buyer</small>
-                    <b>{{ $board && $board['best_bid'] ? $n($board['best_bid']['price']) : '–' }}</b>
-                    <span>{{ $board && $board['best_bid'] ? $board['best_bid']['place'] . ', wants ' . $n($board['best_bid']['units']) : 'nobody buys it' }}</span></div>
+                    <b>{{ $buyTop ? $n($buyTop['price']) : '–' }}</b>
+                    <span>{{ $buyTop ? $places('buy', $buyTop['price'])->implode(', ') . ', wants ' . $n(collect($book['buy'])->where('price', $buyTop['price'])->sum('units')) . ' at that price' : 'nobody buys it' }}</span></div>
                 <div class="rv-tile"><small>Traded, 7 game days</small>
                     <b>{{ $n($board['units'] ?? 0) }}</b>
                     <span>{{ $board && $board['average'] !== null ? 'average ' . $board['average'] . ' a unit' : 'no trades' }}{{ $board && $board['change_percent'] !== null ? ', ' . ($board['change_percent'] > 0 ? '+' : ($board['change_percent'] < 0 ? '−' : '')) . abs($board['change_percent']) . '% on the week before' : '' }}</span></div>
@@ -65,12 +68,12 @@
             <div class="rv-sides">
                 @foreach(['sell' => ['Selling', 'Seller', 'Nobody sells it right now.'], 'buy' => ['Buying', 'Buyer', 'Nobody buys it right now.']] as $side => [$heading, $who, $none])
                     <div>
-                        <h3 class="h6 mt-2">{{ $heading }}, best first</h3>
+                        <h3 class="h6 mt-2">{{ $heading }}, best first{{ count($book[$side]) > 10 ? ': the 10 best of ' . $n(count($book[$side])) : '' }}</h3>
                         <div class="mk-scroll">
                             <table class="mk-table mk-cards" id="{{ $side }}-orders">
                                 <thead><tr><th>{{ $who }}</th><th class="num">Price</th><th class="num">Units</th><th>Where</th></tr></thead>
                                 <tbody>
-                                @forelse($book[$side] as $o)
+                                @forelse(array_slice($book[$side], 0, 10) as $o)
                                     <tr>
                                         <td><a href="{{ url('spacecraft/' . $o['drone']) }}">{{ $o['drone_name'] }}</a>@if($o['house'])<span class="mk-tag">House</span>@endif</td>
                                         <td class="num" data-label="Price">{{ $n($o['price']) }} cr</td>
@@ -86,14 +89,14 @@
                     </div>
                 @endforeach
             </div>
-            <p class="mk-src">Data: <code>GET /api/v1/orders?side=sell&amp;resource={{ $resource->id }}</code> and <code>?side=buy</code></p>
+            <p class="mk-src">The 10 best on each side (a phone needn't scroll past 80 sellers, #744); every order: <code>GET /api/v1/orders?side=sell&amp;resource={{ $resource->id }}</code> and <code>?side=buy</code></p>
 
             @if($demand || $supply)
                 {{-- What the House buys and sells of it (#550, #630) --}}
                 <h2 class="h4 mt-4" id="house">What does the House buy and sell of it?</h2>
                 <div class="mk-scroll">
                     <table class="mk-table mk-cards" id="good-house">
-                        <thead><tr><th>Where</th><th class="num">Bid now</th><th class="num">Still buying today</th><th class="num">Asks</th><th class="num">On sale</th></tr></thead>
+                        <thead><tr><th>Where</th><th class="num">Bid now</th><th class="num">Still buying today</th><th class="num">Asks</th><th class="num">On sale now</th></tr></thead>
                         <tbody>
                         @php($supplyAt = collect($supply)->keyBy('place_name'))
                         @foreach(collect($demand)->pluck('place_name')->merge($supplyAt->keys())->unique()->sort() as $place)
@@ -102,9 +105,9 @@
                             <tr>
                                 <td>{{ $place }}</td>
                                 <td class="num" data-label="Bid now">{{ $d ? ($d['left'] > 0 ? $n($d['price']) . ' cr' : 'no bid') : '–' }}</td>
-                                <td class="num" data-label="Still buying today">{{ $d ? $n($d['left']) . ' of ' . $n($d['daily']) : '–' }}</td>
+                                <td class="num" data-label="Still buying today">{{ $d ? $n($d['left']) : '–' }}@if($d)<br><small>it buys about {{ $n($d['daily']) }} a game day</small>@endif</td>
                                 <td class="num" data-label="Asks">{{ $s ? ($s['on_sale'] > 0 ? $n($s['price']) . ' cr' : 'sold out') : '–' }}</td>
-                                <td class="num" data-label="On sale">{{ $s ? $n($s['on_sale']) . ' of ' . $n($s['refill_to']) : '–' }}</td>
+                                <td class="num" data-label="On sale now">{{ $s ? $n($s['on_sale']) : '–' }}@if($s)<br><small>{{ $s['on_sale'] > $s['refill_to'] ? 'overstocked: it restocks only to ' . $n($s['refill_to']) : 'it restocks to ' . $n($s['refill_to']) }}</small>@endif</td>
                             </tr>
                         @endforeach
                         </tbody>
