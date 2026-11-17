@@ -45,7 +45,7 @@
                 dividends), averaged the same way; each dot is a trade between two players at its price (the bank's trades are
                 at its own prices, and aren't dots). The day-to-day figure swung with where the drones were until cash-out was
                 steadied (#685); hover a day for it.
-                @if($perf['cash_out_from'] !== null)The world has recorded cash-out since game day {{ number_format($perf['cash_out_from']) }}: no line
+                @if($perf['cash_out_from'] !== null)The world has recorded cash-out since {{ \App\Services\GameDate::ofDay((int) $perf['cash_out_from']) }}: no line
                     before that day, even for a company that matured earlier.@endif</p>
             <div class="ex-legend" id="perf-cash-legend"></div>
             <div class="ex-chart" id="perf-cash" aria-label="Cash-out a share, the bank's price and players' trades"></div>
@@ -140,10 +140,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         X.diverging($('ce-chart'), earn.map((r) => ({day: r.day, up: r.sales, down: r.purchases, dot: r.net, r})),
             Object.assign({H: 240, unit: 'cr', dots: true, empty: 'No sales or purchases in this period.',
-                tip: (r, day) => r ? ['Game day ' + day, {colour: C[0], text: `Sales after tax: ${X.num(r.r.sales)} (tax ${X.num(r.r.tax)})`},
+                tip: (r, day) => r ? [X.dayDate(day), {colour: C[0], text: `Sales after tax: ${X.num(r.r.sales)} (tax ${X.num(r.r.tax)})`},
                     {colour: C[1], text: `Spent on goods: ${X.num(r.r.purchases)}`}, `Profit: ${X.num(r.r.net)} · ${r.r.trades} trades`,
                     ...(r.r.invested ? [`Invested in equipment and drones: ${X.num(r.r.invested)} (not counted against profit)`] : []),
-                    `Dividends paid: ${X.num(r.r.dividends)}`] : ['Game day ' + day]}, o));
+                    `Dividends paid: ${X.num(r.r.dividends)}`] : [X.dayDate(day)]}, o));
         const s = earn.reduce((a, r) => ({sales: a.sales + r.sales, purchases: a.purchases + r.purchases, dividends: a.dividends + r.dividends,
             invested: a.invested + (r.invested || 0)}), {sales: 0, purchases: 0, dividends: 0, invested: 0});
         $('ce-total').textContent = earn.length ? `Over these ${earn.length} game days: sales after tax ${X.num(s.sales)}, spent on goods `
@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             X.diverging($('perf-div'), per.map((r) => ({day: r.day, up: r.v})), Object.assign({H: 140, unit: 'cr', n: 3,
                 upColour: C[2], empty: 'No dividends in this period.',
-                tip: (r, day) => ['Game day ' + day, `Dividends a share: ${r ? (Math.round(r.up * 100) / 100).toLocaleString('en') : 0}`]}, o));
+                tip: (r, day) => [X.dayDate(day), `Dividends a share: ${r ? (Math.round(r.up * 100) / 100).toLocaleString('en') : 0}`]}, o));
             X.lines($('perf-div-total'), [{name: 'Dividends a share so far', colour: C[2],
                 points: per.map((r) => ({day: r.day, v: Math.round((run += r.v) * 100) / 100}))}], Object.assign({H: 130, unit: 'cr', n: 3}, o));
         }

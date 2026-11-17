@@ -35,7 +35,8 @@ document.addEventListener('DOMContentLoaded', function () {
             X.el('line', {x1: px, x2: px, y1: 0, y2: y - 14, stroke: '#2a2f3d'}, svg);
             const lab = X.el('text', {x: px, y: y, 'text-anchor': 'middle'}, svg);
             const whole = Math.abs(d - Math.round(d)) < 1e-6;
-            lab.textContent = whole ? 'day ' + Math.round(d) : String(Math.floor(d)) + ' ' + String(Math.round((d % 1) * 24)).padStart(2, '0') + 'h';
+            // By date (#753): "29 Oct", or "29 Oct 06:00" between days
+            lab.textContent = whole ? X.dayShort(Math.round(d)) : X.dayShort(Math.floor(d)) + ' ' + String(Math.round((d % 1) * 24)).padStart(2, '0') + ':00';
             const w = lab.getComputedTextLength();
             if (px - w / 2 < clear || px + w / 2 > W) { lab.remove(); continue; }
             clear = px + w / 2 + 8;

@@ -88,7 +88,7 @@
                         @foreach($dash['news'] as $n)
                             <li title="{{ $n['text'] }}"><span @class(['dash-pill', 'dash-neg' => $n['percent_now'] < 0])>{{ $n['percent_now'] < 0 ? "\u{25BC}" : "\u{25B2}" }} {{ ucfirst($n['kind']) }}</span>
                                 {{ $n['place'] }}: {{ $n['tier'] }}, {{ $n['side'] === 'demand' ? 'bids' : 'asks' }}
-                                {{ $n['percent_now'] > 0 ? '+' : '−' }}{{ abs($n['percent_now']) }}% until day {{ $n['to_day'] }}</li>
+                                {{ $n['percent_now'] > 0 ? '+' : '−' }}{{ abs($n['percent_now']) }}% until {{ \App\Services\GameDate::ofDay((int) $n['to_day']) }}</li>
                         @endforeach
                     </ul>
                     <p class="ex-src">Data: <code>{{ $dash['sources']['news'] }}</code></p>
@@ -156,7 +156,7 @@
 
         const profit = () => X.diverging($('dash-profit'), D.matured_profit.map((r) => ({day: r.day, up: Math.max(0, r.net), down: Math.max(0, -r.net), r})),
             {H: 220, unit: 'cr', downColour: X.NEG, empty: 'No matured company has traded yet.', partial: D.today, marks: M,
-             tip: (r, day) => r ? ['Game day ' + day, `Profit: ${X.num(r.r.net)}`, `Sales after tax: ${X.num(r.r.sales)}`, `Purchases: ${X.num(r.r.purchases)}`] : ['Game day ' + day]});
+             tip: (r, day) => r ? [X.dayDate(day), `Profit: ${X.num(r.r.net)}`, `Sales after tax: ${X.num(r.r.sales)}`, `Purchases: ${X.num(r.r.purchases)}`] : ['Game day ' + day]});
 
         const goods = () => X.hbars($('dash-goods'), D.goods.map((g) => ({label: g.name, segs: [g.credits]})), [{name: 'Credits', colour: C[0]}],
             {empty: 'Nothing traded in the last 14 game days.'});
@@ -182,7 +182,7 @@
         document.querySelectorAll('#dash-companies [data-spark]').forEach((td) => {
             const c = D.companies[Number(td.dataset.spark)], first = D.today - c.daily_profit.length + 1;
             td.appendChild(X.spark(c.daily_profit, {label: c.name + "'s daily profit", lo: sLo, hi: sHi,
-                tip: (v, i) => [c.name, `Game day ${first + i}: profit ${X.num(v)}`]}));
+                tip: (v, i) => [c.name, `${X.dayDate(first + i)}: profit ${X.num(v)}`]}));
         });
 
         X.legend($('dash-drones-legend'), [{name: 'Working', colour: C[0]}, {name: 'Wrecks', colour: X.GREY}]);

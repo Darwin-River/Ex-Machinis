@@ -64,12 +64,8 @@ class DronePage
     /** A game time as "day N, hh:mm" (day 0 is the world's first) */
     public static function when(?int $gameT): string
     {
-        if (!$gameT) {
-            return '';
-        }
-        $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
-        $since = max(0, $gameT - $epoch);
-        return sprintf('day %d, %02d:%02d', intdiv($since, 86400), intdiv($since % 86400, 3600), intdiv($since % 3600, 60));
+        // The simulation's date and time (#753): "29 Oct 2035, 02:30"
+        return GameDate::at($gameT);
     }
 
     /** How long ago a game time was, in game days or hours: "3 game days ago" (#689) */

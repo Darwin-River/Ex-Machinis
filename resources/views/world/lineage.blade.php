@@ -100,6 +100,9 @@
             n.col = cols.length;
         });
         nodes.filter(n => n.day === null).forEach(n => n.col = 0);
+        // Columns by date (#753): a game day counted from the world's first
+        const LINEAGE_EPOCH = @json((int) \App\Services\GameDate::epoch()), LINEAGE_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const LINEAGE_DATE = (d) => { const t = new Date((LINEAGE_EPOCH + Math.round(d) * 86400) * 1000); return LINEAGE_MONTHS[t.getUTCMonth()] + ' ' + t.getUTCFullYear(); };
         const NAMES_W = 150, COL_W = 13, ROW_H = 13, TOP = 34, PAD = 18;
         const W = (cols.length + 2) * COL_W + PAD, H = TOP + DATA.lanes.length * ROW_H + PAD;
         const X = n => (n.col + (n.col ? 1.5 : 0.5)) * COL_W, Y = n => TOP + (n.lane + 0.5) * ROW_H;
@@ -127,7 +130,7 @@
             if (bin === lastBin) return;
             const x = (i + 2) * COL_W;
             el('line', { x1: x, x2: x, y1: TOP - 8, y2: H - PAD + 4, stroke: 'var(--rule)', 'stroke-dasharray': '2 3' }, gTicks);
-            el('text', { x: x + 3, y: TOP - 12, class: 'tick' }, gTicks).textContent = 'day ' + Math.round(c.day);
+            el('text', { x: x + 3, y: TOP - 12, class: 'tick' }, gTicks).textContent = LINEAGE_DATE(c.day);
             lastBin = bin;
         });
         el('text', { x: 2, y: TOP - 12, class: 'tick' }, gTicks).textContent = 'roots';
