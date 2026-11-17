@@ -463,90 +463,34 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found
     @return         Execution result
 
 *******************************************************************************/
+static long long db_archive_ms(void);
+
 ErrorCode_t db_purge_old_actions()
 {
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-
+    // One bounded delete a pass (#818): the actions older than the
+    // expiration with no event left in events or events_archive. It listed
+    // them all and deleted them one by one, inside the events engine's loop:
+    // once the history budget (#813) pruned the archive, millions qualified
     DbConnection_t* connection = engine_get_db_connection();
-    MYSQL_RES* db_result = NULL;
-    int rowsNum = 0;
-
-    // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
-
-    if(result == ENGINE_OK)
-    {
-        snprintf(query_text,
-            DB_MAX_SQL_QUERY_LEN,
-            // An archived event keeps its action (#694: a drone's timeline
-            // shows it)
-            "SELECT id FROM actions WHERE id not in (SELECT action FROM events) "
-            "AND id not in (SELECT action FROM events_archive) AND timestamp < (NOW() - interval %d day);",
-            engine_get_actions_expiration_days());
-
-        // run it
-        if (mysql_query(connection->hndl, query_text))
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
-            result = ENGINE_DB_QUERY_ERROR;
-        }
+    if(result != ENGINE_OK)
+        return result;
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "DELETE FROM actions WHERE timestamp < (NOW() - INTERVAL %d DAY) "
+        "AND NOT EXISTS (SELECT 1 FROM events e WHERE e.action = actions.id) "
+        "AND NOT EXISTS (SELECT 1 FROM events_archive a WHERE a.action = actions.id) "
+        "ORDER BY id LIMIT 5000",
+        engine_get_actions_expiration_days());
+    long long start = db_archive_ms();
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
     }
-
-    if(result == ENGINE_OK)
-    {
-        // retrieve the results and delete one by one
-        db_result = mysql_store_result(connection->hndl);
-
-        if(db_result == NULL)
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS,
-                "ERROR: Unable to get expired actions (invalid result for query [%s])",
-                query_text);
-
-            result = ENGINE_DB_QUERY_ERROR;
-        }
-        else if((rowsNum=mysql_num_rows(db_result)) <= 0)
-        {
-            engine_trace(TRACE_LEVEL_ALWAYS, "None expired action found");
-        }
-    }
-
-    if((result == ENGINE_OK) && rowsNum)
-    {
-        // iterate results and delete actions one by one
-        for(int actionId=0; actionId < rowsNum; actionId++)
-        {
-            MYSQL_ROW row = mysql_fetch_row(db_result);
-            if(row)
-            {
-                // Pick action ID and delete it
-                int actionId = atoi(row[0]);
-
-                if(db_delete_action(actionId) == ENGINE_OK) {
-                    engine_trace(TRACE_LEVEL_ALWAYS,
-                        "Action expired and deleted ACTION_ID [%d]",
-                        actionId);
-                }
-            }
-            else
-            {
-                // unexpected error - abort
-                engine_trace(TRACE_LEVEL_ALWAYS,
-                    "ERROR: Unable to get row for query [%s] with [%d] rows",
-                    query_text,
-                    rowsNum);
-
-                result = ENGINE_DB_QUERY_ERROR;
-
-                break; // stop for
-            }
-        }
-    }
-
-    if(db_result)
-        mysql_free_result(db_result);
-
-    return result;
+    long long n = (long long)mysql_affected_rows(connection->hndl);
+    if(n > 0)
+        engine_trace(TRACE_LEVEL_ALWAYS, "Purged [%lld] expired actions in [%lld] ms", n, db_archive_ms() - start);
+    return ENGINE_OK;
 }
 
 /** ****************************************************************************
@@ -3020,6 +2964,7 @@ ErrorCode_t db_get_orbit_info_x(ObjectOrbitInfo_t* object)
 #define ARCHIVE_EVERY_SECONDS 60
 #define ARCHIVE_WINDOW_IDS 2000
 #define ARCHIVE_SHARE 10          /* at most 1/10 of the time */
+#define ARCHIVE_SHARE_BEHIND 4    /* 1/4 while windows come back full: a backlog (#818) */
 #define ARCHIVE_LOG_SECONDS 60
 #define ARCHIVE_DEFAULT_DAYS 30
 
@@ -3077,7 +3022,7 @@ ErrorCode_t db_archive_due(void)
     static int active = 0;
     static unsigned long cursor = 0;
     static long long days = 0, started = 0, spent = 0, logged = 0, moved = 0;
-    static int windows = 0;
+    static int windows = 0, behind = 0;
     static time_t next_pass = 0;
 
     long long now = db_archive_ms();
@@ -3106,10 +3051,13 @@ ErrorCode_t db_archive_due(void)
         started = logged = now;
         spent = moved = 0;
         windows = 0;
+        // Said once a pass, so a stall shows in the log (#818: none for hours)
+        engine_trace(TRACE_LEVEL_ALWAYS, "Archive pass from event [%lu], events older than [%lld] game days%s",
+                     cursor, days, behind ? ", catching up" : "");
     }
 
-    // Its share of the time
-    if(spent * ARCHIVE_SHARE > now - started)
+    // Its share of the time: more while a backlog fills every window (#818)
+    if(spent * (behind ? ARCHIVE_SHARE_BEHIND : ARCHIVE_SHARE) > now - started)
         return ENGINE_OK;
 
     DbConnection_t* connection = engine_get_db_connection();
@@ -3132,7 +3080,10 @@ ErrorCode_t db_archive_due(void)
         active = 0;     // try again next minute, from where it got to
         return result;
     }
-    moved += db_archive_number(connection, "SELECT IFNULL(@archive_moved, 0)", 0);
+    long long window_moved = db_archive_number(connection, "SELECT IFNULL(@archive_moved, 0)", 0);
+    moved += window_moved;
+    // Behind while a window moves most of what it reads
+    behind = window_moved * 2 >= ARCHIVE_WINDOW_IDS;
     cursor = (unsigned long)db_archive_number(connection, "SELECT IFNULL(@archive_next, 0)", 0);
     windows++;
     long long end = db_archive_ms();
