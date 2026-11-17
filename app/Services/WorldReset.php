@@ -85,6 +85,9 @@ class WorldReset
                 // Players' shares in companies that ended
                 DB::table('player_shares')->whereIn('company_id', $companies)->delete();
                 DB::table('player_share_orders')->whereIn('company_id', $companies)->delete();
+                if (\Illuminate\Support\Facades\Schema::hasTable('player_share_offerings')) {   // #780
+                    DB::table('player_share_offerings')->whereIn('company_id', $companies)->delete();
+                }
                 DB::table('bank_shares')->whereIn('company_id', $companies)->delete();
                 DB::table('bank_payments')->whereIn('company_id', $companies)->whereNull('paid_t')->delete();
             }

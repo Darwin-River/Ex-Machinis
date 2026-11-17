@@ -57,10 +57,11 @@ class SinceLooked
             $row = $c;
             // Its share's move: cash-out a share now against the first day of the span
             if (!$c['seedling'] && !$c['ended'] && PlayerShares::tradable($id)) {
-                $then = DB::table('company_days')->where('company_id', $id)->where('day', '>=', self::sinceDay($user, $epoch))
-                    ->whereNotNull('cash_out')->orderBy('day')->value('cash_out');
+                $first = DB::table('company_days')->where('company_id', $id)->where('day', '>=', self::sinceDay($user, $epoch))
+                    ->whereNotNull('cash_out')->orderBy('day')->first();
                 $now = PlayerShares::prices($id)['buys_at'];
-                $then = $then !== null ? intdiv((int) $then, PlayerShares::COUNT) : null;
+                // Over the shares it had that day (#780)
+                $then = $first ? intdiv((int) $first->cash_out, max(1, (int) ($first->shares ?? PlayerShares::COUNT))) : null;
                 $row['share_now'] = $now;
                 $row['share_change'] = $then ? round(100 * ($now - $then) / $then, 1) : null;
             }

@@ -36,8 +36,9 @@
             @if($playerMarket !== null)
                 {{-- The new rules (#666): matured companies' shares, traded by players and the bank --}}
                 <h3>Players' shares</h3>
-                <div style="white-space: normal; margin-bottom: 1em">Each matured company has {{ \App\Services\PlayerShares::COUNT }}
-                    shares. The bank buys them at their cash-out value (paid {{ config('forge.bank_pay_days') }} game days later at the
+                <div style="white-space: normal; margin-bottom: 1em">Each matured company starts with {{ \App\Services\PlayerShares::COUNT }}
+                    shares, and its owner may offer {{ \App\Services\PlayerShares::OFFER_UNITS }} new ones at a time at its cash-out value, to
+                    fund its growth, up to {{ \App\Services\PlayerShares::MAX_COUNT }}. The bank buys them at their cash-out value (paid {{ config('forge.bank_pay_days') }} game days later at the
                     lower of that value and the value then) and sells the ones it holds at its selling price; players trade between
                     the range's prices. Trade on a company's page, or through the API.
                     <span class="text-muted">As of {{ \App\Services\DronePage::when($asOf ?? \App\Services\World::gameNow()) }} ({{ \App\Services\Dashboard::agoText($asOf ?? null) }}); worked out again every few real minutes.</span></div>
@@ -62,6 +63,9 @@
                         @forelse($playerMarket as $i => $m)
                             <tr><td><a href="{{ url('companies/' . $m['company']) }}#player-shares">{{ $m['name'] }}</a>
                                     @if(!empty($m['holders'][0]['name']))<br><small class="text-muted">mostly {{ $m['holders'][0]['bank'] ? 'the bank' : $m['holders'][0]['name'] }}</small>@endif
+                                    {{-- Its share count once it has sold new ones, and an open offering (#780) --}}
+                                    @if($m['count'] !== \App\Services\PlayerShares::COUNT)<br><small class="text-muted">{{ $m['count'] }} shares</small>@endif
+                                    @if($m['offered'] > 0)<br><small class="health-ok">{{ $m['offered'] }} new {{ \Illuminate\Support\Str::plural('share', $m['offered']) }} on offer at cash-out</small>@endif
                                     {{-- The last trade between players, when recent (#744: its own column was mostly empty) --}}
                                     @if($m['last_price'] !== null && $m['last_days_ago'] <= 30)<br><small class="text-muted">players traded at {{ number_format($m['last_price']) }} {{ $m['last_days_ago'] === 0 ? 'today' : $m['last_days_ago'] . ' game ' . \Illuminate\Support\Str::plural('day', $m['last_days_ago']) . ' ago' }}@if($m['premium_percent'] !== null) ({{ $m['premium_percent'] > 0 ? '+' . $m['premium_percent'] . '% premium' : ($m['premium_percent'] < 0 ? '−' . abs($m['premium_percent']) . '% discount' : 'at cash-out') }})@endif</small>@endif</td>
                                 <td class="text-right" data-label="Cash-out a share">{{ number_format($m['buys_at']) }}</td>

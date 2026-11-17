@@ -1338,7 +1338,7 @@ Dividends land in your account's **credits**. Your account page shows what your 
 
 ### Cash-out value: what a share is worth
 
-A share's **cash-out value** is what the company would fetch if it were sold off now, over its 100 shares:
+A share's **cash-out value** is what the company would fetch if it were sold off now, over its shares (100, more once it has sold new ones):
 
 - its **credits**,
 - plus its **goods and equipment**, each at its best House bid anywhere, averaged over the last 7 game days (so it doesn't depend on where the drones are, and one day's prices move it a seventh as much),
@@ -1378,6 +1378,17 @@ Players trade shares with **standing orders**, like goods: an order to buy or se
 On a matured company's page (logged in), **Post the order** with buy or sell, shares and price (or, to peg it, what it follows and the percent); your account page lists your standing orders, each with a **Cancel** button. Through the API: `GET /api/v1/player-shares/{id}` shows the range, the book and the latest trades, `POST /api/v1/player-shares/{id}/orders` posts an order (`side`, `units`, `price`), and `GET /api/v1/account/shares` lists your holdings, orders and the bank's payments due.
 
 **Which to use?** Selling to a player can pay more than the bank, and pays at once. Selling to the bank always works, but pays in 30 game days at what the company is worth then. Buying from the bank costs its selling price; a player may sell for less.
+
+### Raising credits with new shares to fund a copy
+
+A matured company can't take credits from its owner any other way, so it grows on what its drones earn: a copy costs a hull and a kit. Its owner can raise them faster by selling **new shares** (#780):
+
+- **10 at a time,** at the company's **cash-out value** a share at the moment each is bought. What they fetch goes to the **company's** credits, not its owner's.
+- **Any player may buy,** its owner too, on the company's page (**Buy new shares**) or through the API.
+- **One offering at a time,** and a company has **at most 200 shares**. Its owner can withdraw the rest of an offering; the shares already sold stay sold.
+- **Buying at cash-out doesn't dilute the value.** The company gains a share's worth of credits for each new share, so a share's cash-out value stays as it was. What changes is **each holder's part** of the company: the company page lists each holder's percentage, and its dividends are shared over more shares. If those credits buy a drone that earns, every share earns more.
+
+Each offering is a mark on the company's charts ("Offered 10 shares"), the stock exchange shows a company's share count once it has sold new ones and any shares still on offer, and the trade lists show the sale as **New shares**.
 
 ### <a name="trading-script"></a>Your trading script
 

@@ -203,7 +203,46 @@
                     {{ number_format($playerShares['cash_out']['debts']) }}), paying {{ config('forge.bank_pay_days') }} game days later at
                     the lower of that value and the value then. It sells the shares it holds
                     ({{ number_format($playerShares['bank_holds']) }}) at <b>{{ number_format($playerShares['sells_at']) }}</b>.
-                    Players trade between {{ number_format($playerShares['low']) }} and {{ number_format($playerShares['high']) }} a share.</p>
+                    Players trade between {{ number_format($playerShares['low']) }} and {{ number_format($playerShares['high']) }} a share.
+                    It has <b id="share-count">{{ number_format($playerShares['count']) }}</b> shares
+                    @if($playerShares['count'] > \App\Services\PlayerShares::COUNT)({{ \App\Services\PlayerShares::COUNT }} when it matured, and new ones it sold since) @endif
+                    in all.</p>
+                {{-- New shares to fund growth (#780): 10 at a time, at cash-out, the credits to the company --}}
+                <div id="share-offering" class="mb-3">
+                    @if($playerShares['offering'])
+                        @php($off = $playerShares['offering'])
+                        <p><b>New shares on offer:</b> {{ $off['left'] }} of {{ $off['units'] }} left, at its cash-out value a share
+                            (<b>{{ number_format($off['price']) }}</b> now). What they fetch goes to the company, to fund its growth;
+                            buying at cash-out leaves every share's cash-out value as it was.@if($off['raised'] > 0) Raised so far:
+                            {{ number_format($off['raised']) }} credits.@endif</p>
+                        @if($playerShares['held'] !== null)
+                            <form method="POST" action="{{ url('companies/' . $user->user_id . '/offering/buy') }}" class="form-inline mb-2">
+                                {{ csrf_field() }}
+                                <label class="mr-2" for="offer-buy">Buy new shares:</label>
+                                <input class="form-control mr-2 mb-2" id="offer-buy" name="units" type="number" min="1" max="{{ $off['left'] }}" value="1" required>
+                                <button class="button button-secondary button-sm mb-2" type="submit">Buy</button>
+                            </form>
+                        @endif
+                        @if($playerShares['is_owner'])
+                            <form method="POST" action="{{ url('companies/' . $user->user_id . '/offering/withdraw') }}" class="form-inline mb-2">
+                                {{ csrf_field() }}
+                                <button class="button button-secondary button-sm mb-2" type="submit">Withdraw the rest</button>
+                            </form>
+                        @endif
+                    @elseif($playerShares['is_owner'])
+                        @if($playerShares['count'] + \App\Services\PlayerShares::OFFER_UNITS <= \App\Services\PlayerShares::MAX_COUNT)
+                            <form method="POST" action="{{ url('companies/' . $user->user_id . '/offering') }}" class="form-inline mb-2">
+                                {{ csrf_field() }}
+                                <span class="mr-2">Raise credits for a copy: offer {{ \App\Services\PlayerShares::OFFER_UNITS }} new shares at
+                                    {{ number_format($playerShares['buys_at']) }} each (about {{ number_format(\App\Services\PlayerShares::OFFER_UNITS * $playerShares['buys_at']) }} credits).
+                                    Every holder's part of the company shrinks a little.</span>
+                                <button class="button button-secondary button-sm mb-2" type="submit">Offer new shares</button>
+                            </form>
+                        @else
+                            <p><small>It has {{ $playerShares['count'] }} shares, the most a company may have ({{ \App\Services\PlayerShares::MAX_COUNT }}).</small></p>
+                        @endif
+                    @endif
+                </div>
                 <div class="row">
                     @foreach(['sell' => 'Offered', 'buy' => 'Wanted'] as $side => $label)
                         <div class="col-md-6"><h3 class="h6">{{ $label }} by players</h3>
@@ -231,9 +270,10 @@
                 @endif
                 {{-- Who holds its shares (#666): players and the bank --}}
                 <table class="table table-sm" id="player-share-holders"><tbody>
-                    <tr><th>Holder</th><th class="text-right">Shares</th></tr>
+                    <tr><th>Holder</th><th class="text-right">Shares</th><th class="text-right">Of the company</th></tr>
                     @foreach(\App\Services\PlayerShares::holders((int) $user->user_id) as $holder)
-                        <tr><td>{{ $holder['name'] }}</td><td class="text-right">{{ number_format($holder['units']) }}</td></tr>
+                        <tr><td>{{ $holder['name'] }}</td><td class="text-right">{{ number_format($holder['units']) }}</td>
+                            <td class="text-right">{{ rtrim(rtrim(number_format($holder['percent'], 1), '0'), '.') }}%</td></tr>
                     @endforeach
                 </tbody></table>
                 @if($playerShares['held'] !== null)
@@ -243,7 +283,7 @@
                         <label class="sr-only" for="ps-side">Buy or sell</label>
                         <select class="form-control mr-2 mb-2" id="ps-side" name="side"><option value="buy">Buy</option><option value="sell">Sell</option></select>
                         <label class="mr-2" for="ps-units">shares</label>
-                        <input class="form-control mr-2 mb-2" id="ps-units" name="units" type="number" min="1" max="100" value="1" required>
+                        <input class="form-control mr-2 mb-2" id="ps-units" name="units" type="number" min="1" max="{{ $playerShares['count'] }}" value="1" required>
                         <label class="mr-2" for="ps-price">at</label>
                         <input class="form-control mr-2 mb-2" id="ps-price" name="price" type="number" min="{{ $playerShares['low'] }}"
                                max="{{ $playerShares['high'] }}" value="{{ $playerShares['sells_at'] }}">
@@ -262,7 +302,7 @@
                     <form method="POST" action="{{ url('companies/' . $user->user_id . '/bank/sell') }}" class="form-inline mb-2">
                         {{ csrf_field() }}
                         <label class="mr-2" for="bank-sell">Sell to the bank:</label>
-                        <input class="form-control mr-2 mb-2" id="bank-sell" name="units" type="number" min="1" max="100" required>
+                        <input class="form-control mr-2 mb-2" id="bank-sell" name="units" type="number" min="1" max="{{ $playerShares['count'] }}" required>
                         <button class="button button-secondary button-sm mb-2" type="submit">Sell</button>
                     </form>
                     @if($playerShares['bank_holds'] > 0)

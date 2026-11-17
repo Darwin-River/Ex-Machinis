@@ -53,6 +53,42 @@ class PlayerShareController extends Controller
         return $this->back($r, $r['ok'] ? 'You bought ' . $r['units'] . ' shares from the bank for ' . number_format($r['cost']) . ' credits.' : '');
     }
 
+    /** Its owner offers 10 new shares of a matured company (#780) */
+    public function offer(int $id)
+    {
+        if (!$user = $this->webPlayer()) {
+            return redirect('/login');
+        }
+        $r = PlayerShares::offer($user, $id);
+        return $this->back($r, $r['ok'] ? 'It offers ' . $r['units'] . ' new shares at its cash-out value a share ('
+            . number_format($r['price']) . ' now): what they fetch goes to the company.' : '');
+    }
+
+    /** Its owner withdraws the open offering (#780) */
+    public function withdrawOffer(int $id)
+    {
+        if (!$user = $this->webPlayer()) {
+            return redirect('/login');
+        }
+        $ok = PlayerShares::withdraw($user, $id);
+        return $this->back($ok ? ['ok' => true] : ['ok' => false, 'error' => 'There is no offering of yours to withdraw.'],
+            'The rest of the offering is withdrawn; the shares already sold stay sold.');
+    }
+
+    /** Buys new shares from a company's offering (#780) */
+    public function buyOffered(Request $request, int $id)
+    {
+        if (!$user = $this->webPlayer()) {
+            return redirect('/login');
+        }
+        if ($e = self::notWhole($request)) {
+            return back()->with('error', $e);
+        }
+        $r = PlayerShares::buyOffered($user, $id, (int) $request->input('units'));
+        return $this->back($r, $r['ok'] ? 'You bought ' . $r['units'] . ' new shares for ' . number_format($r['cost'])
+            . ' credits; they went to the company, which now has ' . $r['count'] . ' shares.' : '');
+    }
+
     public function order(Request $request, int $id)
     {
         if (!$user = $this->webPlayer()) {
@@ -155,7 +191,8 @@ class PlayerShareController extends Controller
             return response()->json(['error' => DB::table('companies')->where('company_id', $id)->whereNotNull('eliminated_at')->exists()
                 ? 'That company has ended: its shares are worth nothing and no longer trade.' : 'There is no such matured company.'], 404);
         }
-        return response()->json(['company' => $id] + PlayerShares::prices($id) + ['book' => PlayerShares::book($id),
+        return response()->json(['company' => $id] + PlayerShares::prices($id) + ['count' => PlayerShares::count($id),
+            'offering' => PlayerShares::offering($id), 'holders' => PlayerShares::holders($id), 'book' => PlayerShares::book($id),
             'trades' => PlayerShares::trades($id, 20)]);
     }
 
@@ -182,6 +219,34 @@ class PlayerShareController extends Controller
             return response()->json(['error' => $e], 422);
         }
         return $user ? $this->json(PlayerShares::buyFromBank($user, $id, self::whole($request, 'units'))) : $this->unauthorized();
+    }
+
+    /** POST /api/v1/player-shares/{id}/offering: its owner offers 10 new shares (#780) */
+    public function apiOffer(Request $request, int $id): JsonResponse
+    {
+        $user = $this->apiPlayer($request);
+        return $user ? $this->json(PlayerShares::offer($user, $id)) : $this->unauthorized();
+    }
+
+    /** POST /api/v1/player-shares/{id}/offering/withdraw (#780) */
+    public function apiWithdrawOffer(Request $request, int $id): JsonResponse
+    {
+        $user = $this->apiPlayer($request);
+        if (!$user) {
+            return $this->unauthorized();
+        }
+        return PlayerShares::withdraw($user, $id) ? response()->json(['ok' => true])
+            : response()->json(['error' => 'There is no offering of yours to withdraw.'], 404);
+    }
+
+    /** POST /api/v1/player-shares/{id}/offering/buy {units} (#780) */
+    public function apiBuyOffered(Request $request, int $id): JsonResponse
+    {
+        $user = $this->apiPlayer($request);
+        if ($user && ($e = self::notWhole($request))) {
+            return response()->json(['error' => $e], 422);
+        }
+        return $user ? $this->json(PlayerShares::buyOffered($user, $id, self::whole($request, 'units'))) : $this->unauthorized();
     }
 
     public function apiOrder(Request $request, int $id): JsonResponse

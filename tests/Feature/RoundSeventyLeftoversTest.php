@@ -80,7 +80,7 @@ class RoundSeventyLeftoversTest extends TestCase
 
         $row = collect(PlayerShares::market())->firstWhere('company', $a);
         // Its 30-day dividends beside the bank's prices (#781: the selling price adds 10 days of them, the boards show 30)
-        $this->assertSame(PlayerShares::prices($a) + ['dividends30' => PlayerShares::dividends30($a), 'holders' => PlayerShares::holders($a)],
+        $this->assertSame(PlayerShares::prices($a) + ['dividends30' => PlayerShares::dividends30($a), 'count' => 100, 'offered' => 0, 'holders' => PlayerShares::holders($a)],
             array_diff_key($row, ['company' => 1, 'name' => 1]));
 
         // The table's queries don't grow with its companies, but for health

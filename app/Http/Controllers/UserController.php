@@ -131,6 +131,10 @@ class UserController extends Controller
                 'book' => \App\Services\PlayerShares::book((int) $id),
                 'held' => $viewer && $viewer->login !== null ? \App\Services\PlayerShares::held((int) $viewer->user_id, (int) $id) : null,
                 'cash_out' => $cash,
+                // New shares to fund growth (#780)
+                'count' => \App\Services\PlayerShares::count((int) $id),
+                'offering' => \App\Services\PlayerShares::offering((int) $id),
+                'is_owner' => $viewer && (int) $viewer->user_id === (int) $company->owner_id,
             ];
         }
         // The new rules (#639): who it deals with, same-owner deals flagged
@@ -163,7 +167,7 @@ class UserController extends Controller
             'today' => $today,
             'history' => \App\Services\Leaderboard::history((int) $id),
             'earnings' => \App\Services\CompanyEarnings::daily((int) $id, \App\Services\CompanyEarnings::MAX_DAYS),
-            'shares' => $matured || config('forge.new_rules') ? \App\Services\PlayerShares::COUNT : max(1, (int) $shares['count']),
+            'shares' => $matured || config('forge.new_rules') ? \App\Services\PlayerShares::count((int) $id) : max(1, (int) $shares['count']),
             'matured' => $matured,
             // Trades between players only (#716: the bank's, at its own prices, were dots too)
             'trades' => $matured ? array_values(array_map(fn ($t) => ['day' => intdiv(max(0, $t['game_time'] - $epoch), 86400), 'price' => $t['price'],
