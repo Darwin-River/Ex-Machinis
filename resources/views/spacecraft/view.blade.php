@@ -4,7 +4,7 @@
 @section('content')
     <x-page-header>
         <x-slot:title>{{$title}}</x-slot:title>
-        <li><a href="/spacecraft">Spacecraft</a></li>
+        <li><a href="/spacecraft">Drones</a></li>
         <li class="active">{{$title}}</li>
     </x-page-header>
 
@@ -14,7 +14,7 @@
             <div class="description-fields">
                 <div class="row row-30">
                     <div class="col-12 col-sm-6 col mb-0">
-                        <b>Spacecraft Id</b>: {{$agent->agent_id}}<br/>
+                        <b>Drone ID</b>: {{$agent->agent_id}}<br/>
                         @if($flight)
                             <b>Location</b>: flying from <a href="{{url('locations/'.$agent->object_id)}}">{{$agent->location->object_name}}</a>
                             to <a href="{{url('locations/'.$flight['to_id'])}}">{{ $flight['to'] }}</a>, arriving {{ $flight['arrives'] }}

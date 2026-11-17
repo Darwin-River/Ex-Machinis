@@ -104,7 +104,7 @@
             @endif
             <div class="row row-30">
                 <div class="col">
-                    <h2 class="">Local Spacecraft</h2>
+                    <h2 class="">Drones here</h2>
                 </div>
             </div>
             <div class="table-custom-responsive">
@@ -156,7 +156,7 @@
                                     Type
                                 </th>
                                 <th>
-                                    Local Spacecraft
+                                    Drones here
                                 </th>
                             </tr>
                             @if(sizeof($orbitingBodies) == 0)

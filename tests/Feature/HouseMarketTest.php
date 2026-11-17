@@ -217,7 +217,8 @@ class HouseMarketTest extends TestCase
             ->assertJsonPath('0.left', $daily - $half)->assertJsonPath('0.place_name', 'Moon')->assertJsonPath('0.mine', $half);
         $this->get('/market?house=4311')->assertRedirect('/market/house?house=4311');
         $this->get('/market/house?house=4311')->assertOk()->assertSee('What does the House still buy today?')->assertSee('Sold today')
-            ->assertSee(number_format($daily - $half) . ' of ' . number_format($daily));
+            ->assertSee(number_format($daily - $half))->assertSee('of about ' . number_format($daily) . ' a game day')
+            ->assertDontSee('Refills in');   // said once above the table (#744)
     }
 
     /**
@@ -329,7 +330,7 @@ class HouseMarketTest extends TestCase
         $this->getJson('/api/v1/house-supply?place=Atlantis')->assertNotFound();
         $this->get('/market?supply=2011')->assertRedirect('/market/house?supply=2011');
         $this->get('/market/house?supply=2011')->assertOk()->assertSee('What does the House have on sale?')->assertSee('sold out')
-            ->assertSee('in 0.5 game hours (every 1.5)');
+            ->assertSee('in 0.5 game hours')->assertSee('about every 1.5 game hours');   // the interval once, above the table (#744)
     }
 
     public function testAStationDroneOnAnOldProgramGetsTheNewOne()

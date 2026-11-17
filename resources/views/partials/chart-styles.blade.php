@@ -2,7 +2,7 @@
 @once
 @push('styles')
     <style>
-        .mh { --mh-text: #e9e9ef; --mh-muted: #a3a6b2; --mh-grid: #34353f; --mh-axis: #828590; --mh-panel: #24242c;
+        .mh { --mh-text: #e9e9ef; --mh-muted: #a3a6b2; --mh-grid: #263052; --mh-axis: #828590; --mh-panel: #111729;
               --mh-bars: #8b93a7; color: var(--mh-text); }
         .mh-intro { white-space: normal; margin-bottom: 1em; max-width: 70ch; }
         .mh-controls { display: flex; flex-wrap: wrap; gap: 1em; margin: 1em 0; }

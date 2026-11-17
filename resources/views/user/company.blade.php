@@ -4,8 +4,10 @@
 @push('styles')
     <style>
         /* The company at a glance (#591) */
-        .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 0 0 8px; }
-        .stat { border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 12px 14px; text-align: left; }
+        /* Four to a row, two on a phone (#744: 7 tiles wrapped into 6 + 1), in the cards' one colour */
+        .stat-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0 0 8px; }
+        @media (max-width: 760px) { .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        .stat { background: #111729; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px 14px; text-align: left; min-width: 0; }
         .stat-label { font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.75; }
         .stat-value { font-size: 1.6em; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.3; }
         .stat-value small { font-size: 0.55em; font-weight: 400; opacity: 0.8; }
@@ -16,6 +18,12 @@
         .co-badge { display: inline-block; font-size: 0.85rem; font-weight: 700; padding: 3px 10px; border-radius: 99px; vertical-align: middle;
               background: rgba(76, 201, 240, 0.16); color: #4cc9f0; font-family: system-ui, sans-serif; letter-spacing: 0.02em; }
         .co-badge-matured { background: rgba(90, 209, 154, 0.16); color: #5ad19a; }
+        /* One status scale (#744): steady green, at risk and stalled amber, failing red, ended grey */
+        .co-badge-steady { background: rgba(90, 209, 154, 0.16); color: #5ad19a; }
+        .co-badge-warn { background: rgba(240, 180, 41, 0.16); color: #f0b429; }
+        .co-badge-bad { background: rgba(255, 123, 114, 0.16); color: #ff7b72; }
+        .co-badge-ended { background: rgba(163, 166, 178, 0.18); color: #c3c6d0; }
+        a.co-badge { text-decoration: none; }
         .road { background: #111729; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px 18px; margin: 0 0 16px; white-space: normal; }
         .road h2 { font-size: 1.25rem; margin: 0 0 6px; }
         .road-bar { position: relative; height: 16px; background: #263052; border-radius: 99px; margin: 30px 0 30px; }
@@ -42,7 +50,9 @@
     {{-- Seedling or matured, and whose (#697) --}}
     @php($badge = ($user->eliminated_at ?? null) !== null ? 'Ended' : ((int) ($user->seedling ?? 0) === 1 ? 'Seedling' : (($user->matured_t ?? null) !== null ? 'Matured' : null)))
     <x-page-header :subtitle="$owner ? 'Owned by ' . $owner : null">
-        <x-slot:title>{{$title}}@if($badge) <span @class(['co-badge', 'co-badge-matured' => $badge === 'Matured']) id="company-badge">{{ $badge }}</span>@endif</x-slot:title>
+        @php($hb = $shares['health'] ?? [])
+        @php($healthBadge = $badge === 'Ended' ? null : (!empty($hb['stalled']) ? ['Stalled', 'warn'] : (!empty($hb['failing_reason']) ? ['Failing', 'bad'] : (!empty($hb['at_risk']) ? ['At risk', 'warn'] : ['Steady', 'steady']))))
+        <x-slot:title>{{$title}}@if($badge) <span @class(['co-badge', 'co-badge-matured' => $badge === 'Matured', 'co-badge-ended' => $badge === 'Ended']) id="company-badge">{{ $badge }}</span>@endif @if($healthBadge) <a href="#health" class="co-badge co-badge-{{ $healthBadge[1] }}" id="health-badge">{{ $healthBadge[0] }}</a>@endif</x-slot:title>
         <li><a href="/companies">Companies</a></li>
         <li class="active">{{$title}}</li>
     </x-page-header>
@@ -55,8 +65,15 @@
             {{-- The company at a glance (#591): its score first, then what it has --}}
             @php($h = $shares['health'])
             <div class="stat-row" id="company-stats">
-                <div class="stat"><div class="stat-label">Net wealth</div>
-                    <div class="stat-value {{ ($stats['wealth'] ?? 0) < 0 ? 'stat-negative' : '' }}">{{ $stats['wealth'] === null ? 'ended' : number_format($stats['wealth']) }}</div></div>
+                @if(($user->eliminated_at ?? null) !== null)
+                    {{-- Ended, with its reason (#744: it read "NET WEALTH: ended" beside its credits) --}}
+                    <div class="stat" id="stat-ended"><div class="stat-label">Ended</div>
+                        <div class="stat-value" style="font-size: 1.15em">{{ \App\Services\GameDate::at((int) $user->eliminated_at, false) }}</div>
+                        <small>{{ ['closed' => 'its player closed it', 'reset' => 'the world was reset', 'tax' => "it couldn't pay its tax", 'dissolved' => 'no credits for too long', 'drones' => 'it lost its last drone'][$user->end_cause ?? ''] ?? 'it ended' }}</small></div>
+                @else
+                    <div class="stat"><div class="stat-label">Net wealth</div>
+                        <div class="stat-value {{ ($stats['wealth'] ?? 0) < 0 ? 'stat-negative' : '' }}">{{ $stats['wealth'] === null ? '—' : number_format($stats['wealth']) }}</div></div>
+                @endif
                 <div class="stat"><div class="stat-label">Credits</div>
                     <div class="stat-value">{{ number_format($user->credits) }}</div></div>
                 @if($road)
@@ -78,7 +95,7 @@
                 <div class="stat"><div class="stat-label">Age</div>
                     <div class="stat-value">{{ number_format($stats['age'], 1) }}<small> game days</small></div></div>
             </div>
-            <p class="stat-meta">Company {{ $user->user_id }} · released {{ \Carbon\Carbon::parse($user->created_at)->format('F j, Y') }}</p>
+            <p class="stat-meta">Company {{ $user->user_id }} · released {{ ($user->founded_t ?? null) ? \App\Services\GameDate::at((int) $user->founded_t, false) : \Carbon\Carbon::parse($user->created_at)->format('j M Y') }}</p>
             {{-- The new rules (#637) --}}
             @php($ended = ($user->eliminated_at ?? null) !== null)
             @if($ended)

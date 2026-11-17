@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', function () {
         pts.forEach((p, i) => { d += (i ? 'H' + x(p.game_t) + 'V' : 'M' + x(p.game_t) + ',') + y(p.fuel); });
         d += 'H' + x(t1);
         X.el('path', {d, fill: 'none', stroke: C[3], 'stroke-width': 2}, fs);
-        pts.forEach((p) => X.tip(X.el('circle', {cx: x(p.game_t), cy: y(p.fuel), r: 3, fill: C[3], stroke: '#24242c', 'stroke-width': 1}, fs),
+        pts.forEach((p) => X.tip(X.el('circle', {cx: x(p.game_t), cy: y(p.fuel), r: 3, fill: C[3], stroke: '#111729', 'stroke-width': 1}, fs),
             [p.when, 'Fuel after ' + p.what.toLowerCase() + ': ' + X.num(p.fuel)]));
         earned(x, t0, t1, W, lw);
     }
@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function () {
         pts.forEach((p, i) => { d += (i ? 'H' + x(p.game_t) + 'V' : 'M' + x(p.game_t) + ',') + y(p.net); });
         d += 'H' + x(t1);
         X.el('path', {d, fill: 'none', stroke: C[1], 'stroke-width': 2}, es);
-        pts.slice(1).forEach((p) => X.tip(X.el('circle', {cx: x(p.game_t), cy: y(p.net), r: 3, fill: C[1], stroke: '#24242c', 'stroke-width': 1}, es),
+        pts.slice(1).forEach((p) => X.tip(X.el('circle', {cx: x(p.game_t), cy: y(p.net), r: 3, fill: C[1], stroke: '#111729', 'stroke-width': 1}, es),
             ['Earned so far: ' + X.num(p.net)]));
     }
     fetch(@json(url('api/v1/drones/' . (int) $droneId . '/timeline')) + '?limit=100').then((r) => r.ok ? r.json() : Promise.reject(r.status))

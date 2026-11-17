@@ -168,6 +168,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         drones();
         function drones() {
+            // A company that has only ever run one drone needs no chart of it (#744)
+            const card = $('perf-drones').closest('.mh-card');
+            card.hidden = hist.length > 0 && Math.max(...hist.map((r) => r.drones || 0)) <= 1;
+            if (card.hidden) return;
             X.step($('perf-drones'), hist.map((r) => ({day: r.day, v: r.drones})),
                 Object.assign({H: 120, name: 'Working drones', yFmt: (v) => String(v), empty: 'No daily snapshot in this period yet.'}, o));
         }
