@@ -133,10 +133,23 @@ end
 
 -- Metals into rods, two at a time; stop at the first failure, or when the
 -- tank is down to keep_fuel
+-- After 3 failed makes in a row it says so and waits 4 game hours, not one
+-- (#748: drones whose tools an outage had locked failed every make for
+-- months, buying fuel all the while)
+make_fails = 0
 function forge_rods()
   while units(metals_a1) > 1 and units(fuel) > keep_fuel do
-    if make(alloys_a1) ~= 0 then return end
-    if make(rods) ~= 0 then return end
+    local r = make(alloys_a1)
+    if r == 0 then r = make(rods) end
+    if r ~= 0 then
+      make_fails = make_fails + 1
+      if make_fails >= 3 then
+        set_status("making failed " .. make_fails .. " times in a row (" .. r .. "): waiting 4 game hours")
+        wait(240)
+      end
+      return
+    end
+    make_fails = 0
   end
 end
 
@@ -208,7 +221,13 @@ function haul()
     return
   end
   set_status("hauling " .. units(rods) .. " rods to " .. place_name(market))
-  go(market)
+  local r = go(market)
+  if r ~= 0 then   -- #748: drones that couldn't fly sat on 114 rods
+    set_status("couldn't fly to " .. place_name(market) .. " (" .. r .. "): selling here if anyone buys, then waiting")
+    sell_rods()
+    wait(120)
+    return
+  end
   if units(fuel) < 60 then raise_cash(150); buy_here(30, fuel); wait(120) end
   sell_rods()
   if not house_only() then go(moon) end   -- a seedling picks its next exchange in stock_up
@@ -234,11 +253,26 @@ function grow_line()
   return math.max(grow_at, 5000 + work_cash * (drones + 1))
 end
 
+-- The fleet is full (#748): kits bought for copies that can't launch are
+-- credits tied up for good (round 71's matured Makers held 40,000 in kits
+-- and dissolved for want of fuel money), so sell them, once a game day
+kits_tried = -1
+function sell_spare_kits(kits)
+  if today() == kits_tried then return end
+  kits_tried = today()
+  for _, k in ipairs(kits) do
+    if units(k) > 0 then
+      set_status("the fleet is full: selling " .. units(k) .. " spare kits")
+      sell_here(units(k), k)
+    end
+  end
+end
+
 function reinvest()
   if house_only() then return end   -- a seedling keeps its credits for its debt: it grows once it has matured (#658)
+  if fleet_full() then sell_spare_kits({cruiser_kit, factory_kit}); return end   -- the company has all the drones it may have (#682)
   if grow_until > 0 and today() > grow_until and units(mining_kit) == 0 and units(factory_kit) == 0 then return end
   if credits() < grow_line() then return end   -- keeps work_cash for every drone
-  if fleet_full() then return end   -- the company has all the drones it may have (#682)
   get_one(cruiser_kit)
   get_one(factory_kit)
   if units(cruiser_kit) == 0 or units(factory_kit) == 0 then return end

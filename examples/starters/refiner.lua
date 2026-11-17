@@ -111,7 +111,9 @@ function move_on()
     go(site())
     return
   end
-  if units(fuel) < 15 then set_status("dry here and short of fuel: resting"); wait(rest); return end
+  -- Short of fuel, get some first (#748, as the Miner does since #713: a
+  -- Refiner rested at a Mars moon with under 15 fuel for good)
+  if units(fuel) < low_fuel then refuel(); return end
   site_no = 3 - site_no   -- Phobos <-> Deimos
   misses = misses + 1
   if misses % 2 == 0 then set_status("both Mars moons are dry: resting " .. rest .. " game minutes"); wait(rest) end
@@ -176,8 +178,24 @@ function grow_line()
   return math.max(grow_at, 5000 + work_cash * (drones + 1))
 end
 
+-- The fleet is full (#748): kits bought for copies that can't launch are
+-- credits tied up for good (round 71's matured Makers held 40,000 in kits
+-- and dissolved for want of fuel money), so sell them, once a game day
+kits_tried = -1
+function sell_spare_kits(kits)
+  if today() == kits_tried then return end
+  kits_tried = today()
+  for _, k in ipairs(kits) do
+    if units(k) > 0 then
+      set_status("the fleet is full: selling " .. units(k) .. " spare kits")
+      sell_here(units(k), k)
+    end
+  end
+end
+
 function reinvest()
   if house_only() then return end   -- a seedling keeps its credits for its debt: it grows once it has matured (#658)
+  if fleet_full() then sell_spare_kits({cruiser_kit, mining_kit}); return end   -- the company has all the drones it may have (#682)
   if grow_until > 0 and today() > grow_until and units(mining_kit) == 0 and units(factory_kit) == 0 then return end
   if units(mining_kit) > 0 then equip_clone(); fill_to(60); return end
   if units(cruiser_kit) == 0 then
