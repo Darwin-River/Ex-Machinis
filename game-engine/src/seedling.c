@@ -8,7 +8,10 @@ long long seedling_buy_cap(long long stock, int cap_permille)
 {
     if(stock < 0) stock = 0;
     long long cap = stock * (long long)cap_permille / 1000;
-    return cap < 1 ? 1 : cap;
+    // At least SEEDLING_BUY_FLOOR units (#777: Earth often had 17 to 40
+    // metals on sale, so a Maker got 1 to 4 a day and took 70 to 110 game
+    // days to mature)
+    return cap < SEEDLING_BUY_FLOOR ? SEEDLING_BUY_FLOOR : cap;
 }
 
 int seedling_transfer_outcome(SeedlingSide_t from, SeedlingSide_t to, long long units,

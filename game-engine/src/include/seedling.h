@@ -17,7 +17,7 @@ typedef struct {
    OUTCOME_SEEDLING_HOUSE_ONLY when a seedling deals with anyone but the
    House (or its own company), or OUTCOME_SEEDLING_CAP when a seedling buying
    from the House would take more today than cap_permille thousandths of the
-   House's stock (at least 1 unit). `from` gives up `units`, `to` receives
+   House's stock (at least SEEDLING_BUY_FLOOR units). `from` gives up `units`, `to` receives
    them; `house_stock` is what the House has on sale there
    (its sell order's units above the stock it keeps) plus what this seedling
    bought today (#651), and `bought_today`
@@ -25,7 +25,12 @@ typedef struct {
 int seedling_transfer_outcome(SeedlingSide_t from, SeedlingSide_t to, long long units,
                               long long house_stock, long long bought_today, int cap_permille);
 
-/* The most a seedling may buy in a game day from a House stock of `stock` */
+/* The least a seedling may buy of a good at one exchange in a game day,
+   whatever the House has on sale there (#777) */
+#define SEEDLING_BUY_FLOOR 5
+
+/* The most a seedling may buy in a game day from a House stock of `stock`:
+   cap_permille thousandths of it, and at least SEEDLING_BUY_FLOOR */
 long long seedling_buy_cap(long long stock, int cap_permille);
 
 /* The minimum order life (#639): may a drone of a new-rules company replace

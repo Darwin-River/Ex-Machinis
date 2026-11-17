@@ -33,8 +33,9 @@ int main(void)
     check("over a tenth of the House's stock is refused", seedling_transfer_outcome(house, seed, 11, 100, 0, 100) == OUTCOME_SEEDLING_CAP);
     check("the day's earlier buys count", seedling_transfer_outcome(house, seed, 5, 100, 6, 100) == OUTCOME_SEEDLING_CAP);
     check("up to the cap exactly", seedling_transfer_outcome(house, seed, 4, 100, 6, 100) == 0);
-    check("a small stock still sells 1 unit", seedling_buy_cap(3, 100) == 1 && seedling_transfer_outcome(house, seed, 1, 3, 0, 100) == 0);
-    check("but not 2", seedling_transfer_outcome(house, seed, 2, 3, 0, 100) == OUTCOME_SEEDLING_CAP);
+    check("a small stock still sells 5 units a day (#777)", seedling_buy_cap(3, 100) == 5 && seedling_buy_cap(40, 100) == 5 && seedling_buy_cap(80, 100) == 8
+          && seedling_transfer_outcome(house, seed, 5, 30, 0, 100) == 0 && seedling_transfer_outcome(house, seed, 6, 30, 0, 100) != 0);
+    check("but not 6", seedling_transfer_outcome(house, seed, 6, 3, 0, 100) == OUTCOME_SEEDLING_CAP);
     check("selling to the House has no cap", seedling_transfer_outcome(seed, house, 1000000, 5, 1000, 100) == 0);
 
     // The minimum order life (#639): 12 game hours

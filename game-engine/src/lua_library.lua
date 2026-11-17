@@ -226,7 +226,7 @@ end
 local function buy_here(n, resource, max_price)
   local result, tries, mine, refused, only, failed = -12, 0, me(), {}, house_only(), nil
   -- A seedling's -17 cap is a tenth of what the House has on sale here a
-  -- game day: it asks for no more than that at first (#674: halving from
+  -- game day, at least 5 (#777): it asks for no more than that at first (#674: halving from
   -- 1,000 used up its six tries above the cap, and got 3 of about 5), and
   -- after a -17 half as much each time until refused (#710: one at a time,
   -- each pull of fuel burned a fuel, so it bought none). Fuel never goes
@@ -236,7 +236,7 @@ local function buy_here(n, resource, max_price)
   if only then
     for _, h in ipairs(ask(707, resource)) do      -- house_supply: place, price, on_sale...
       if h[1] == location() then
-        room = h[3] // 10 - bought_today(resource)   -- what its cap leaves it today
+        room = math.max(5, h[3] // 10) - bought_today(resource)   -- what its cap (a tenth, at least 5: #777) leaves it today
         cap = math.max(least, room)
       end
     end

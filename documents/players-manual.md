@@ -170,7 +170,7 @@ A script can be at most 16,000 characters, comments included (#557). A release c
 **What a seedling may do.** Until it matures:
 
 - **it trades only with the House** (the station drones at the exchanges) and its own company's drones. A trade with anyone else fails with -16 (see [Trading at the exchanges](#trading-at-the-exchanges));
-- **it buys at most a tenth** of what the House has on sale of a good at one exchange in a game day (-17 after that). Selling to the House has no such cap;
+- **it buys at most a tenth** of what the House has on sale of a good at one exchange in a game day, and always at least 5 (-17 after that). Selling to the House has no such cap;
 - **it plunders nothing**, and nobody can plunder its wrecks (see [Wrecks and plunder](#wrecks-and-plunder));
 - **it holds at most twice what it was lent** in credits: 8,400, however often you push (push fees go on its debt but don't raise the cap). When a sale would take it over, the excess goes to the bank. So there is no point in waiting to mature it.
 
@@ -453,7 +453,7 @@ Think of your drone's script as a sequencer that decides how one action follows 
 | -14 | no House station here trades that resource that way (from a `push` or `pull` aimed at a station) |
 | -15 | no wreck of that ID where you are, or it has already been plundered |
 | -16 | a seedling trades only with the House, and plunders nothing (the new rules) |
-| -17 | a seedling has bought its share (a tenth) of what the House has on sale of that good here today: its own cap, which resets each game day |
+| -17 | a seedling has bought its share (a tenth, at least 5) of what the House has on sale of that good here today: its own cap, which resets each game day |
 | -18 | under the new rules players, not companies, trade shares |
 | -19 | under the new rules an open standing order can't be withdrawn, cut or made worse in its first 12 game hours (a buy order lower or wanting fewer, a sell order dearer or keeping more back) |
 | -20 | your company already has as many working drones as it may: 8 (from `launch`; the kit stays aboard) |
@@ -1211,7 +1211,7 @@ end
 
 Until it matures, a seedling **trades only with the House** (#637): the station drones at the Earth Exchange, the Moon Depot and the Mars Exchange. Its own company's drones may trade with each other as well. A push or pull with any other company's drone fails with -16, and so does a plunder. `buy_here`, `sell_here`, `best_offer` and `best_bid` know this: for a seedling they look only at the House's orders. `house_only()` tells your script which kind of company it is: for a seedling, the House's station drones here; for a company that may trade with anyone, `nil`. So `if house_only() then ... end` runs only while the company is a seedling, and the same script does the right thing once it matures. The starters use it that way.
 
-**The daily buying cap (-17).** From the House at one exchange, a seedling buys at most **a tenth of what the House has on sale** of a good there (its sell order's units above the stock it keeps), counting what the seedling has already bought there that game day (#651, #663). If the Moon Depot has 40 Metals (A1) on sale and your seedling has bought none today, it can buy 4 there (a tenth, rounded down; at least 1). Past its cap, a pull fails with -17. The cap is the seedling's own (other seedlings' buying doesn't use it up), it is counted for each good at each exchange, and it starts again each game day. `buy_here` asks for no more than the cap at first (less what the drone has already bought there today, #743), and after a -17 asks for half as much each time until it is refused; it never pulls fuel fewer than 5 at a time, since each pull burns a fuel (#710). **Selling to the House has no cap**, though past a day's demand of a good the House pays less and less for it (see [How much more will the House buy?](#house-demand)).
+**The daily buying cap (-17).** From the House at one exchange, a seedling buys at most **a tenth of what the House has on sale** of a good there (its sell order's units above the stock it keeps), counting what the seedling has already bought there that game day (#651, #663). If the Moon Depot has 80 Metals (A1) on sale and your seedling has bought none today, it can buy 8 there (a tenth, rounded down). It can always buy at least 5 (#777: Earth often had only 17 to 40 metals on sale, and a Maker got 1 to 4 a day), so with 40 on sale it can buy 5. Past its cap, a pull fails with -17. The cap is the seedling's own (other seedlings' buying doesn't use it up), it is counted for each good at each exchange, and it starts again each game day. `buy_here` asks for no more than the cap at first (less what the drone has already bought there today, #743), and after a -17 asks for half as much each time until it is refused; it never pulls fuel fewer than 5 at a time, since each pull burns a fuel (#710). **Selling to the House has no cap**, though past a day's demand of a good the House pays less and less for it (see [How much more will the House buy?](#house-demand)).
 
 So a seedling that needs more of something than one exchange will sell it today should spread its buying: `house_supply(r)` shows how many units the House has on sale (`on_sale`) at each exchange, and `buy_here` returns -17 when the cap stopped it buying any. The Maker starter does this with its metals, before its first trip and each time it runs out. It weighs each exchange's price, the trip there and back, and what its tenth lets it buy there:
 
@@ -1221,7 +1221,7 @@ So a seedling that needs more of something than one exchange will sell it today 
 function metals_place()
   local best, best_each = nil, math.huge
   for _, h in ipairs(house_supply(metals_a1)) do
-    local n = math.min(20, h.on_sale // 10)   -- a tenth of what is on sale
+    local n = math.min(20, h.on_sale, math.max(5, h.on_sale // 10))   -- a tenth of what is on sale, at least 5
     if h.price > 0 and n >= 2 then
       local trip = 0
       if h.place ~= location() then
