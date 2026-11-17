@@ -154,6 +154,8 @@ ErrorCode_t engine_init_db()
 		int freed = db_free_stuck_tools();
 		if(freed > 0) engine_trace(TRACE_LEVEL_ALWAYS, "Freed [%d] stuck tool holdings", freed);
 	}
+	// The locks in force, kept in memory for the decrement check (#814)
+	if(result == ENGINE_OK) db_tool_locks_load();
 
 	return result;
 }

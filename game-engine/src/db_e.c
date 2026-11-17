@@ -919,6 +919,14 @@ ErrorCode_t db_abort_action(int action_id)
         {
             engine_trace(TRACE_LEVEL_ALWAYS, "Action [%d] aborted", action_id);
 
+            // Its tools in use go back at once (#814): an aborted action's
+            // unlock never comes (#748: tools left locked for good)
+            char unlock_text[128];
+            snprintf(unlock_text, sizeof(unlock_text), "DELETE FROM tool_locks WHERE action = %d", action_id);
+            if(mysql_query(connection->hndl, unlock_text))
+                engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", unlock_text, mysql_error(connection->hndl));
+            db_tool_locks_forget_action(action_id);
+
             // Its events still to come never happen: say so (#725). Left at
             // outcome 0 they stayed "pending" for good, and every batch of
             // the Event Engine walked past them: 328,000 rows a batch on the
@@ -1243,6 +1251,10 @@ int db_free_stuck_tools(void)
         "SELECT 2, NULL, 1, 1, drone, resource, installed, 1, 0, @free_now, place FROM stuck_tools",
         "COMMIT",
         "DROP TEMPORARY TABLE IF EXISTS stuck_tools",
+        // And locks (#814) whose action will never give them back: aborted,
+        // or with no unlock still to settle
+        "DELETE t FROM tool_locks AS t WHERE NOT EXISTS (SELECT 1 FROM events AS e JOIN actions AS x ON x.id = e.action "
+        "WHERE e.action = t.action AND e.event_type = 16 AND e.outcome = 0 AND x.aborted = 0)",
     };
     int freed = 0;
     for(size_t i = 0; i < sizeof(steps) / sizeof(steps[0]); i++) {
@@ -1255,6 +1267,163 @@ int db_free_stuck_tools(void)
         if(i == 4) freed = (int)mysql_affected_rows(connection->hndl);
     }
     return freed;
+}
+
+/* A number from a one-value query on the events engine's connection, or dflt (#814) */
+static long long db_tool_number(DbConnection_t* connection, const char* sql, long long dflt)
+{
+    long long value = dflt;
+    if(mysql_query(connection->hndl, sql)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", sql, mysql_error(connection->hndl));
+        return dflt;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+    if(row && row[0]) value = atoll(row[0]);
+    if(res) mysql_free_result(res);
+    return value;
+}
+
+/*
+ * The locks in force, in the events engine's memory (#814), so a decrement
+ * checks them without a query: only this engine adds locks (a lock event
+ * settling); unlocks, and aborts here, take them out. An abort in the game
+ * engine only deletes rows, so the memory can only be stricter than the
+ * table, and a decrement it would refuse is checked against the table
+ * first (db_tool_lock_blocks).
+ */
+typedef struct { int drone, resource, installed, units, action; } ToolLock_t;
+static ToolLock_t* tool_locks = NULL;
+static int tool_locks_count = 0, tool_locks_size = 0;
+
+static void tool_locks_add(int drone, int resource, int installed, int units, int action)
+{
+    if(tool_locks_count == tool_locks_size) {
+        int size = tool_locks_size ? tool_locks_size * 2 : 256;
+        ToolLock_t* grown = realloc(tool_locks, sizeof(ToolLock_t) * size);
+        if(!grown) return;   // out of memory: the table still holds it, and a refusal is checked there
+        tool_locks = grown;
+        tool_locks_size = size;
+    }
+    tool_locks[tool_locks_count++] = (ToolLock_t){ drone, resource, installed, units, action };
+}
+
+/* Takes out the locks matching: an action's (resource < 0: all of them) */
+static void tool_locks_remove(int action, int drone, int resource, int installed, int only_one)
+{
+    for(int i = 0; i < tool_locks_count; ) {
+        ToolLock_t* t = &tool_locks[i];
+        if(t->action == action && (resource < 0 || (t->drone == drone && t->resource == resource && t->installed == installed))) {
+            tool_locks[i] = tool_locks[--tool_locks_count];
+            if(only_one) return;
+        } else {
+            i++;
+        }
+    }
+}
+
+/* Loads the locks in force from the table: at start, and when the memory and the table disagree */
+void db_tool_locks_load(void)
+{
+    tool_locks_count = 0;
+    DbConnection_t* connection = engine_get_db_connection();
+    if(mysql_query(connection->hndl, "SELECT drone, resource, installed, units, action FROM tool_locks")) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: loading tool locks failed: %s", mysql_error(connection->hndl));
+        return;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    MYSQL_ROW row;
+    while(res && (row = mysql_fetch_row(res)))
+        tool_locks_add(atoi(row[0]), atoi(row[1]), atoi(row[2]), atoi(row[3]), atoi(row[4]));
+    if(res) mysql_free_result(res);
+}
+
+/* An aborted action's locks leave the memory too (its rows are deleted with the abort) */
+void db_tool_locks_forget_action(int action)
+{
+    tool_locks_remove(action, 0, -1, 0, 0);
+}
+
+/*
+ * Would this decrement of an unlocked holding take a tool in use (#814)?
+ * Units left after it (new_quantity) below the locks on the holding. No
+ * query unless the memory says so; then the table decides.
+ */
+int db_tool_lock_blocks(int drone, int resource, int installed, int left)
+{
+    int held = 0;
+    for(int i = 0; i < tool_locks_count; i++)
+        if(tool_locks[i].drone == drone && tool_locks[i].resource == resource && tool_locks[i].installed == installed)
+            held += tool_locks[i].units;
+    if(held == 0 || left >= held)
+        return 0;
+    int actual = db_tool_locked_units(drone, resource, installed);
+    if(actual != held)
+        db_tool_locks_load();   // an abort in the game engine freed some
+    return left < actual;
+}
+
+/*
+ * Units of a drone's resource held by locks in force (#814): the tools its
+ * actions have taken for their time. 0 with none, or on an error.
+ */
+int db_tool_locked_units(int drone, int resource, int installed)
+{
+    DbConnection_t* connection = engine_get_db_connection();
+    char sql[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(sql, DB_MAX_SQL_QUERY_LEN,
+        "SELECT IFNULL(SUM(units), 0) FROM tool_locks WHERE drone = %d AND resource = %d AND installed = %d",
+        drone, resource, installed);
+    return (int)db_tool_number(connection, sql, 0);
+}
+
+/*
+ * Settles a lock tool event (#814): the drone's unlocked units of the tool,
+ * less its locks in force, must cover the event's units; then a lock row
+ * holds them for the action. OUTCOME_OK, or OUTCOME_NO_RESOURCES as a
+ * missing tool was before, or 0 on a database error.
+ */
+int db_tool_lock(Event_t* event)
+{
+    DbConnection_t* connection = engine_get_db_connection();
+    char sql[DB_MAX_SQL_QUERY_LEN+1];
+    int units = event->new_quantity > 0 ? event->new_quantity : 1;
+    snprintf(sql, DB_MAX_SQL_QUERY_LEN,
+        "SELECT IFNULL((SELECT units FROM holdings WHERE drone = %d AND resource = %d AND installed = %d AND locked = 0), 0)",
+        event->drone_id, event->resource_id, event->installed);
+    long long free = db_tool_number(connection, sql, -1);
+    if(free < 0) return 0;
+    free -= db_tool_locked_units(event->drone_id, event->resource_id, event->installed);
+    if(free < units) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Lock event [%d]: drone [%d] has [%lld] free of resource [%d], [%d] needed",
+            event->event_id, event->drone_id, free, event->resource_id, units);
+        return OUTCOME_NO_RESOURCES;
+    }
+    snprintf(sql, DB_MAX_SQL_QUERY_LEN,
+        "INSERT INTO tool_locks (drone, resource, installed, units, action, game_t) VALUES (%d, %d, %d, %d, %d, %lld)",
+        event->drone_id, event->resource_id, event->installed, units, event->action_id, (long long)event->game_t);
+    if(mysql_query(connection->hndl, sql)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", sql, mysql_error(connection->hndl));
+        return 0;
+    }
+    tool_locks_add(event->drone_id, event->resource_id, event->installed, units, event->action_id);
+    return OUTCOME_OK;
+}
+
+/* Settles an unlock tool event (#814): the action's lock on the tool goes. ENGINE_OK, or the error */
+ErrorCode_t db_tool_unlock(Event_t* event)
+{
+    DbConnection_t* connection = engine_get_db_connection();
+    char sql[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(sql, DB_MAX_SQL_QUERY_LEN,
+        "DELETE FROM tool_locks WHERE action = %d AND drone = %d AND resource = %d AND installed = %d LIMIT 1",
+        event->action_id, event->drone_id, event->resource_id, event->installed);
+    if(mysql_query(connection->hndl, sql)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", sql, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    tool_locks_remove(event->action_id, event->drone_id, event->resource_id, event->installed, 1);
+    return ENGINE_OK;
 }
 
 ErrorCode_t db_flush_observations(void)
@@ -2924,6 +3093,15 @@ ErrorCode_t db_archive_due(void)
             "SELECT IFNULL((SELECT events_archive_days FROM house_rules WHERE id = 1), 30)", ARCHIVE_DEFAULT_DAYS);
         if(days <= 0)
             return ENGINE_OK;
+        // Settled lock and unlock events (#814) aren't history: they go,
+        // rather than moving to the archive, once as old as what moves
+        char drop[DB_MAX_SQL_QUERY_LEN+1];
+        snprintf(drop, DB_MAX_SQL_QUERY_LEN,
+            "DELETE FROM events WHERE event_type IN (%d, %d) AND outcome <> 0 AND game_t < "
+            "(SELECT ROUND(game_anchor + (UNIX_TIMESTAMP() - real_anchor) * scale) FROM game_clock WHERE id = 1) - %lld "
+            "LIMIT 50000", LOCK_TOOL_EVENT_TYPE, UNLOCK_TOOL_EVENT_TYPE, days * 86400);
+        if(mysql_query(connection->hndl, drop))
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", drop, mysql_error(connection->hndl));
         active = 1;
         started = logged = now;
         spent = moved = 0;
