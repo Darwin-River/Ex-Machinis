@@ -200,7 +200,7 @@ This section is the whole rulebook of the live game in one place: what a player 
 - **Every release is a seedling** (#637). The bank lends it its drone, valued at **1,000** (about what the House pays for a kit), its **3,000** starting credits and a **200** fee: it owes **4,200** (#658). Its drone starts at Earth with 100 fuel and no equipment; a kit costs 2,000.
 - **At most 5 seedlings** an account; a closed seedling's slot reopens **1 game day** after it closed.
 - **It trades only with the House** (and its own company's drones): any other trade fails with **-16**. It plunders nothing, and its wrecks can't be plundered.
-- **A daily cap on buying.** From the House at one exchange, a seedling buys at most **a tenth of what the House has on sale** there (its sell order's units above the stock it keeps) in a game day, counting what it has already bought there today; past that, **-17** (#651, #663). Selling to the House has no cap.
+- **A daily cap on buying.** From the House at one exchange, a seedling buys at most **a tenth of what the House has on sale** there (its sell order's units above the stock it keeps) in a game day, and always at least 5 (#777), counting what it has already bought there today; past that, **-17** (#651, #663). Selling to the House has no cap.
 - **A cap on credits.** A seedling holds at most **twice its starting debt** (8,400): its debt without push fees, so paying for a push doesn't raise the cap (#684). When a sale would take it over, the excess goes to the bank (#672), so there is no point delaying maturing.
 - **Reprogramming.** Its player pushes new code from their account or the API; its drones start over on it with fresh variables, keeping their holds and places. A drone on a trip finishes it first: its new `launched()` starts where it arrives (#675). **The first push is free; each after it adds 100 to its debt** (#658). `POST /check` previews the fee.
 - **Closing.** Its player can close it at any time: its drones become wrecks with empty holds, nobody can plunder them, and its debt is cancelled.
@@ -309,7 +309,7 @@ What `perform` (and each action word) returns when an action fails. The full lis
 | A push after the first | +100 debt | `FORGE_SEEDLING_PUSH_FEE` |
 | Credits to mature, above the debt | 500 | `FORGE_SEEDLING_MATURE_MARGIN` |
 | A seedling's credit cap | 2× starting debt (debt less push fees) | `house_rules.seedling_credit_cap_permille` (2000) |
-| A seedling's daily buying cap | a tenth of what's on sale | `house_rules.seedling_buy_permille` (100) |
+| A seedling's daily buying cap | a tenth of what's on sale, at least 5 | `house_rules.seedling_buy_permille` (100); the floor is `SEEDLING_BUY_FLOOR` in the engine (5, #777) |
 | Minimum order life | 12 game hours | `house_rules.order_lock_hours` |
 | Working drones a company | 8 | `house_rules.fleet_cap` |
 | Shares a matured company | 100 | `PlayerShares::COUNT` |

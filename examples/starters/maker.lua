@@ -63,7 +63,7 @@ capped_at = {}
 function metals_place()
   local best, best_each, best_price = nil, math.huge, 0
   for _, h in ipairs(house_supply(metals_a1)) do
-    local n = math.min(batch, h.on_sale // 10)   -- what its cap lets it buy there today
+    local n = math.min(batch, h.on_sale, math.max(5, h.on_sale // 10))   -- what its cap lets it buy there today (a tenth, at least 5)
     if h.price > 0 and n >= 2 and capped_at[h.place] ~= today() then
       local trip = 0
       if h.place ~= location() then

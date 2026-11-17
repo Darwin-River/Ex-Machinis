@@ -77,12 +77,15 @@ end
 -- filled at the market
 function refuel()
   if units(fuel) >= low_fuel then return end
+  set_status("low on fuel (" .. units(fuel) .. "): buying some here")
   raise_cash(150); buy_here(30, fuel)
   wait(60)
   if units(fuel) < low_fuel then
+    set_status("no fuel on sale here: bidding for some")
     buy_order(7, 60, fuel)
     wait(120)
     if units(fuel) < low_fuel then
+      set_status("still low on fuel: going to " .. place_name(market()) .. " for some")
       go(market())
       raise_cash(150); buy_here(30, fuel)
       wait(120)
@@ -99,17 +102,20 @@ function move_on()
   if site_no == 0 then
     misses = misses + 1
     if misses < dry_tries or units(fuel) < 60 or crowd(phobos) >= crowd(moon) then
+      set_status("the Moon is dry: waiting for it to refill (" .. misses .. " of " .. dry_tries .. " tries)")
       wait(60)
       return
     end
     site_no, misses = 1, 0
+    set_status("the Moon was dry " .. dry_tries .. " times: trying Phobos")
     go(site())
     return
   end
-  if units(fuel) < 15 then wait(rest); return end
+  if units(fuel) < 15 then set_status("dry here and short of fuel: resting"); wait(rest); return end
   site_no = 3 - site_no   -- Phobos <-> Deimos
   misses = misses + 1
-  if misses % 2 == 0 then wait(rest) end
+  if misses % 2 == 0 then set_status("both Mars moons are dry: resting " .. rest .. " game minutes"); wait(rest) end
+  set_status("dry here: trying " .. place_name(site()))
   go(site())
 end
 
@@ -183,6 +189,7 @@ function reinvest()
   fill_to(90)
   if units(fuel) < 80 then return end
   copy = true   -- the copy gets this too: it knows it is a copy
+  set_status("launching a copy")
   if launch(me(), cruiser_kit) ~= 0 then return end
   get_one(mining_kit)
   if units(mining_kit) > 0 then equip_clone() end
@@ -193,6 +200,7 @@ end
 -- site, once hold_cap are aboard: until then other drones may buy them
 function sell_metals()
   if metals() < hold_cap then return end
+  set_status("selling " .. metals() .. " refined goods at " .. place_name(market()))
   go(market())
   offer()
   for _, metal in ipairs(metals_sold) do sell_out(metal) end
@@ -212,9 +220,13 @@ end
 
 function work()
   refuel()
+  set_status("mining yalspar at " .. place_name(site()))
   dig(yalspar, 16)
+  set_status("refining yalspar")
   refine(yalspar)
+  set_status("mining vladnium at " .. place_name(site()))
   dig(vladnium, 12)
+  set_status("refining vladnium")
   refine(vladnium)
   sell_metals()
   tell()
