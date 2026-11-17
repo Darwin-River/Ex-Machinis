@@ -173,6 +173,9 @@ ErrorCode_t engine_init_db()
 	game_time_set_owner(engine_shard() == 0);
 	if(result == ENGINE_OK && engine_shard() == 0) game_time_set_scale(atof(engine.config.params[GAME_TIME_SCALE_ID]));
 
+	// A record of the restart, for /world-events and the charts (#750)
+	if(result == ENGINE_OK && engine_shard() == 0) db_record_engine_start(&engine.db_connection, "game-engine");
+
 	return result;
 }
 

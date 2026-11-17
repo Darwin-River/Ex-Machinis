@@ -210,12 +210,12 @@ window.ExCharts = (function () {
 
     // Event marks (#720): the world's events and a company's own, from
     // WorldEvents::marks(): [{day, to_day, kind, scope, label, text}]. A
-    // rule change or repair is a dashed line, a company's own event a dotted
-    // one, and a stretch (an outage) a grey band; each is labelled at the
+    // rule change, repair or engine restart (#750) is a dashed line, a
+    // company's own event a dotted one, and a stretch (an outage) a grey band; each is labelled at the
     // top where there is room, and the day's tooltip says what happened.
     // An outage at least this many game days long is a break in the axis, this many px wide
     const BREAK_DAYS = 5, BREAK_PX = 22;
-    const MARK = {rule: '#e0a43a', repair: '#4fb38f', outage: '#a3a6b2', company: '#c9cbd6'};
+    const MARK = {rule: '#e0a43a', repair: '#4fb38f', outage: '#a3a6b2', restart: '#8f9bd6', company: '#c9cbd6'};
     const markColour = (m) => m.scope === 'company' ? MARK.company : (MARK[m.kind] || MARK.rule);
     /**
      * Draws marks behind a chart's data. f: {svg, x (game day to x), first,
