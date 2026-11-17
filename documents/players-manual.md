@@ -27,6 +27,7 @@ _Your drones are programmed in [Lua](https://www.lua.org/manual/5.4/), and every
   - [Distinguishing resource sizes and technology levels](#distinguishing-resource-sizes-and-technology-levels)
   - [Organizing resources by Resource ID](#organizing-resources-by-resource-id)
   - [Browsing the Resource Catalog](#browsing-the-resource-catalog)
+  - [The tech map](#the-tech-map)
 - [Chapter 4: Issuing Commands](#chapter-4-issuing-commands)
   - [Equipping your drone](#unpacking-your-kit)
   - [Fuel](#fuel)
@@ -428,6 +429,18 @@ The **ones** value is used to distinguish between the size and tech level of a p
 
 You can browse and search the available resources online by going to the **Resources** page (`/resources` on the game's website). The catalog provides a filterable list of all the resources in the game along with a small picture, their unique ID, a brief description of the item, and a unit mass in kilograms. Clicking on a particular resource will take you to a details page, which lists all of the item's active buy or sell orders. Every resource also has a picture there that slowly turns, from ore samples and ingots to whole craft, so you can see what you are mining, making or buying. If your device is set to reduce motion, the picture stays still.
 
+### The tech map
+
+The **Tech map** (`/technology`, under **Directory** on the website) shows every manufacturing pathway in the game on one page, worked out from the protocols themselves, so it is always up to date. Each resource is a card with its picture. Ores are on the left, where drones dig them; each column to the right is one more step of making: refined goods, materials, parts, components, modules and finally ships.
+
+Pick a card to follow its chain. Orange lines run into it from everything it is made from, all the way back to the ores; blue lines run out of it to everything made from it; dashed gold lines show the tools. The panel beside the map shows:
+
+- **How it's made**: each recipe as a formula, inputs and their ratios on the left, what comes out on the right (refining gives several goods at once). Under it are the tool module the drone must carry (kept, not used up), the Lua call that runs it (`make(alloys_a1)`, or `perform(12021)`), how long it takes and how much fuel it burns. The call links to its protocol page.
+- **One unit takes, all the way down**: the refined goods, fuel and tool hours one unit costs, adding up the whole chain.
+- **Goes into** and **Tool for**: every recipe that uses it, or needs it as a tool.
+
+Every name and picture links to that resource, and every resource page and recipe's protocol page links back to its place on the map. Below the map, **Every process as a list** has the same recipes as a table. A drone reads the same data with `recipe(r)`, `producers(r)` and `consumers(r)` (see [The game functions](#the-game-functions)), and a program with the API's `GET /recipes`.
+
 ## Chapter 4: Issuing Commands
 
 Every physical action your spacecraft takes will result from calls to predefined protocols. These protocols allow your drones to do things like mine resources, manufacture products, and travel between locations. In many cases, protocols use, deplete, and produce resources located in your ship's hold.
@@ -577,7 +590,7 @@ end
 
 The same goes for prices and supplies anywhere: what was true when you released may not be true on day 20. A drone that reads the market each round and has a plan B keeps working when the crowd arrives.
 
-To make fuel, use a Chemical Reactor: `make(fuel)` (protocol 12061) turns 1 Organics (A1) and 2 Inorganics (A1) into 30 Fuel (A1) in 2 game hours, and burns 2 doing it, so a run gains 28 (the recipes list, `/api/v1/recipes`, shows that net: 28 made, none burned). Refining 20 magmite (`refine(magmite)`, protocol 21000) gives exactly those inputs. Fuel can also be traded like any other resource, and pushed to another of your spacecraft. A spacecraft you launch starts with only the 20 fuel its launch gave it, so push it some more.
+To make fuel, use a Chemical Reactor: `make(fuel)` (protocol 12061) turns 1 Organics (A1) and 2 Inorganics (A1) into 30 Fuel (A1) in 2 game hours, and burns 2 doing it, so a run gains 28 (the recipes list, `/api/v1/recipes`, and the [tech map](#the-tech-map) show it as 30 made, 2 burned; a drone's `recipe(fuel)` shows the net: 28 made, none burned). Refining 20 magmite (`refine(magmite)`, protocol 21000) gives exactly those inputs. Fuel can also be traded like any other resource, and pushed to another of your spacecraft. A spacecraft you launch starts with only the 20 fuel its launch gave it, so push it some more.
 
 ### Wrecks and plunder
 
@@ -767,7 +780,7 @@ This uses your Chemical Reactor (A1) and takes 2 hours of game time.
 
 ### Producing more complex spacecraft components
 
-In a similar manner, you can use protocols to synthesize parts from materials, systems from parts, modules from systems, and ship kits from modules. In each case, `make(resource)` performs the protocol whose ID is the resource ID of what you're producing plus ten thousand. You can find a complete list of these protocols on the website's **Protocols** page (`/protocols`). Click a protocol to see the modules it needs, what it uses up and produces, how long it takes, and each of its steps. The **Queries** page (`/queries`) works the same way. A drone can look a recipe up itself with `recipe(resource)` (see [The game functions](#the-game-functions)).
+In a similar manner, you can use protocols to synthesize parts from materials, systems from parts, modules from systems, and ship kits from modules. In each case, `make(resource)` performs the protocol whose ID is the resource ID of what you're producing plus ten thousand. You can find a complete list of these protocols on the website's **Protocols** page (`/protocols`), and see how they connect on the [tech map](#the-tech-map) (`/technology`). Click a protocol to see the modules it needs, what it uses up and produces, how long it takes, and each of its steps. The **Queries** page (`/queries`) works the same way. A drone can look a recipe up itself with `recipe(resource)` (see [The game functions](#the-game-functions)).
 
 Every production protocol locks one tool module while it works, and each stage takes longer than the one before:
 

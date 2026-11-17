@@ -1592,6 +1592,8 @@ The Factory Kit (25902) holds the Smelter (A1), Chemical Reactor (A1) and Spider
 
 Recipe quantities come from `resources.xlsx`. Recipes it doesn't have yet (the 14 combat and assembly modules and the 12 ship kits) are in `game-data/recipes-extra.csv`: modules from one of each of two to five systems, kits from modules whose masses add up to the kit's mass. Item masses are the Resources sheet's; recipes don't conserve mass. Recipe names and descriptions are generated from the data. Ship kits are launched as drones with protocol 12 ([Launching Drones](#Launching-Drones)).
 
+The website's tech map (`/technology`, #804) draws these recipes as one graph, from the same action tables: `App\Services\Recipes::processes()` reads each protocol's net resource effects (the tool is what it locks and gives back; the fuel it burns is its fuel, #805; a protocol whose product is mined is mining), and `App\Services\TechMap` places each resource one step past the furthest of its inputs by its shortest recipe, ores at step 0. Unpacking a kit isn't counted as a step. Each recipe's Lua call is the start of its protocol description, so a new recipe appears on the map as soon as its game data is loaded.
+
 [Return to the TOC](#Table-of-Contents)
 
 ## The Event Engine

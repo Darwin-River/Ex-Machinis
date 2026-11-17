@@ -86,6 +86,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                             <a class="dropdown-item" href="{{ url('companies') }}">Companies</a>
                             <a class="dropdown-item" href="{{ url('spacecraft') }}">Drones</a>
                             <a class="dropdown-item" href="{{ url('resources') }}">Resources</a>
+                            <a class="dropdown-item" href="{{ url('technology') }}">Tech map</a>
                             <a class="dropdown-item" href="{{ url('locations') }}">Locations</a>
                             <a class="dropdown-item" href="{{ url('buys') }}">Buy orders</a>
                             <a class="dropdown-item" href="{{ url('sells') }}">Sell orders</a>
