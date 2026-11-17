@@ -150,6 +150,9 @@ class UserController extends Controller
                 'cap' => \App\Services\Seedlings::creditCap($row), 'can_mature' => \App\Services\Seedlings::canMature($row),
                 'push_fee' => \App\Services\Seedlings::pushFee($row),
                 'owner' => $viewer && $viewer->login !== null && $row->owner_id !== null && (int) $viewer->user_id === (int) $row->owner_id];
+            // When it should mature at its pace (#744: a projected maturing day)
+            $road['forecast'] = \App\Services\CompanyNow::forecast($row, $road['mature_at'] + $road['owed_tax'] - (int) $row->compute_debt,
+                (int) $row->credits - (int) $row->compute_debt, $road['can_mature']);
         }
         // Its performance on one game-day axis (#699): net wealth and credits,
         // cash-out a share against the bank's price and players' trades,

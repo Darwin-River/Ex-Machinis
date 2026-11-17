@@ -88,6 +88,8 @@
                     </figcaption>
                 </figure>
             @endif
+            {{-- Its place in the manufacturing pathways (#804) --}}
+            <p id="tech-map-link"><a href="{{ url('technology') }}#r{{ $resource->id }}">See what {{ $resource->name }} is made from and what it goes into on the tech map</a></p>
             {{-- At a glance (#721), the best of the book below, so they agree with its table (#744) --}}
             @php($sellTop = $book['sell'][0] ?? null)
             @php($buyTop = $book['buy'][0] ?? null)

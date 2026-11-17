@@ -144,8 +144,27 @@ window.ExCharts = (function () {
         const T = 16, B = 22, R = 10, L = opts.L || 56;
         const tk = ticks(opts.lo ?? 0, Math.max(opts.hi, (opts.lo ?? 0) + (opts.minStep || 1)), opts.n || 4, opts.minStep), lo = tk[0], hi = tk[tk.length - 1];
         const span = Math.max(1, last - first);
-        const slot = (W - L - R) / (span + 1);
-        const x = (d) => L + slot / 2 + (d - first) * slot;
+        // An outage of BREAK_DAYS or more is a short labelled break in the
+        // axis (#744: 175 stopped game days took half the company charts):
+        // BREAK_PX wide, whatever its length, and every other day a slot
+        const breaks = (opts.marks || []).filter((m) => m.kind === 'outage' && m.to_day !== null && m.to_day !== undefined
+                && m.to_day - m.day + 1 >= BREAK_DAYS && m.to_day >= first && m.day <= last)
+            .map((m) => ({a: Math.max(first, m.day), b: Math.min(last, m.to_day)}))
+            .filter((k) => k.b - k.a + 1 >= BREAK_DAYS).sort((p, q) => p.a - q.a);
+        const broken = breaks.reduce((n, k) => n + k.b - k.a + 1, 0);
+        const slot = (W - L - R - breaks.length * BREAK_PX) / Math.max(1, span + 1 - broken);
+        const x = (d) => {
+            let off = 0, cur = first;
+            for (const k of breaks) {
+                if (d < k.a) break;
+                off += (k.a - cur) * slot;
+                if (d <= k.b) return L + slot / 2 + off + (d - k.a + 0.5) / (k.b - k.a + 1) * BREAK_PX - slot / 2;
+                off += BREAK_PX; cur = k.b + 1;
+            }
+            return L + slot / 2 + off + (d - cur) * slot;
+        };
+        breaks.forEach((k) => { k.x0 = x(k.a) - BREAK_PX / (2 * (k.b - k.a + 1)); k.x1 = k.x0 + BREAK_PX; });
+        const inBreak = (d) => breaks.some((k) => d >= k.a && d <= k.b);
         const y = (v) => T + (hi - v) / (hi - lo) * (H - T - B);
         const fmt = opts.yFmt || short;
         tk.forEach((t) => {
@@ -153,9 +172,10 @@ window.ExCharts = (function () {
             el('text', {x: L - 6, y: y(t), dy: '0.32em', 'text-anchor': 'end'}, svg).textContent = fmt(t);
         });
         if (opts.unit) el('text', {x: L - 6, y: 4, 'text-anchor': 'end'}, svg).textContent = opts.unit;
-        const every = Math.max(1, Math.ceil((span + 1) / (W < 480 ? 4 : 9)));
+        const every = Math.max(1, Math.ceil((span + 1 - broken) / (W < 480 ? 4 : 9)));
         let clear = Infinity;
         for (let d = last; d >= first; d -= every) {   // from the newest day back, so today is always labelled
+            if (inBreak(d)) continue;
             const lab = el('text', {x: x(d), y: H - 5, 'text-anchor': 'middle'}, svg);
             // By date (#753): the year on the newest label and where it changes
             lab.textContent = d === last || dayYear(d) !== dayYear(d - every) ? dayDate(d) : dayShort(d);
@@ -168,7 +188,22 @@ window.ExCharts = (function () {
             if (right > clear) { lab.remove(); continue; }
             clear = left - 8;
         }
-        const f = {svg, W, H, T, B, L, R, x, y, slot, lo, hi, first, last, bottom: H - B};
+        // Each break: the panel over the grid, a zig-zag on each side, and the
+        // axis cut; the day nearest a point, for hover, through the same scale
+        breaks.forEach((k) => {
+            el('rect', {x: k.x0, y: T - 2, width: BREAK_PX, height: H - B - T + 4, style: 'fill: var(--mh-panel, #111729)'}, svg);
+            [k.x0 + 3, k.x1 - 3].forEach((cx) => {
+                let d = `M${cx},${T}`;
+                for (let yy = T, i = 0; yy < H - B; yy += 6, i++) d += `L${cx + (i % 2 ? -2.5 : 2.5)},${Math.min(H - B, yy + 6)}`;
+                el('path', {d, fill: 'none', stroke: AXIS, 'stroke-width': 1}, svg);
+            });
+        });
+        const day = (px) => {
+            let best = first, gap = Infinity;
+            for (let d = first; d <= last; d++) { const g = Math.abs(x(d) - px); if (g < gap) { gap = g; best = d; } }
+            return best;
+        };
+        const f = {svg, W, H, T, B, L, R, x, y, day, slot, lo, hi, first, last, breaks, bottom: H - B};
         f.marks = opts.marks ? markLayer(f, opts.marks) : null;
         return f;
     }
@@ -178,6 +213,8 @@ window.ExCharts = (function () {
     // rule change or repair is a dashed line, a company's own event a dotted
     // one, and a stretch (an outage) a grey band; each is labelled at the
     // top where there is room, and the day's tooltip says what happened.
+    // An outage at least this many game days long is a break in the axis, this many px wide
+    const BREAK_DAYS = 5, BREAK_PX = 22;
     const MARK = {rule: '#e0a43a', repair: '#4fb38f', outage: '#a3a6b2', company: '#c9cbd6'};
     const markColour = (m) => m.scope === 'company' ? MARK.company : (MARK[m.kind] || MARK.rule);
     /**
@@ -192,6 +229,7 @@ window.ExCharts = (function () {
         const g = el('g', {class: 'ex-marks'}, f.svg), lo = f.L, hi = f.W - f.R, half = (f.slot || 0) / 2;
         const clip = (v) => Math.max(lo, Math.min(hi, v));
         shown.forEach((m) => {
+            if ((f.breaks || []).some((k) => m.kind === 'outage' && k.a === Math.max(f.first, m.day))) return;
             if (m.to_day !== null && m.to_day !== undefined && m.to_day > m.day) {
                 const a = clip(f.x(Math.max(f.first, m.day)) - half), b = clip(f.x(Math.min(f.last, m.to_day)) + half);
                 el('rect', {x: a, y: f.T, width: Math.max(2, b - a), height: f.bottom - f.T, fill: '#828590', 'fill-opacity': 0.2}, g);
@@ -232,8 +270,8 @@ window.ExCharts = (function () {
             return shown.filter((m) => {
                 const end = m.to_day ?? m.day;
                 return end > m.day ? day >= m.day && day <= end : Math.abs(m.day - day) <= near;
-            }).map((m) => ({colour: markColour(m), text: (m.to_day > m.day ? `${m.label} (game days ${m.day}–${m.to_day})` : m.day !== day
-                ? `${m.label} (game day ${m.day})` : m.label) + ': ' + m.text}));
+            }).map((m) => ({colour: markColour(m), text: (m.to_day > m.day ? `${m.label} (${dayDate(m.day)} to ${dayDate(m.to_day)})` : m.day !== day
+                ? `${m.label} (${dayDate(m.day)})` : m.label) + ': ' + m.text}));
         }
         return {front, lines, shown};
     }
@@ -250,7 +288,7 @@ window.ExCharts = (function () {
         };
         const point = (ev) => {
             const r = f.svg.getBoundingClientRect(), px = (ev.clientX - r.left) / r.width * f.W;
-            at(Math.round(f.first + (px - f.L - f.slot / 2) / f.slot), ev.clientX, ev.clientY);
+            at(f.day ? f.day(px) : Math.round(f.first + (px - f.L - f.slot / 2) / f.slot), ev.clientX, ev.clientY);
         };
         hit.addEventListener('pointermove', point);
         hit.addEventListener('pointerdown', point);   // a tap on a phone

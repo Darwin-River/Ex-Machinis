@@ -370,7 +370,7 @@ Every trade of the last `days` game days (60 if you leave it out, at most 365), 
 |---|---|
 | `GET /resources` | every resource and module: `{id, name, mass}`. The IDs are what the game's functions take: `fuel` is 2061, `metals_a1` is 2011 |
 | `GET /protocols` | the actions a drone can `perform`: `{id, name, description}` |
-| `GET /recipes?resource=4311` | the recipes (leave `resource` out for all): `{protocol, name, makes: [{resource, name, units}], uses: [...], fuel, tool, tool_name, hours}` |
+| `GET /recipes?resource=4311` | the recipes (leave `resource` out for all): `{protocol, name, makes: [{resource, name, units}], uses: [...], fuel, tool, tool_name, hours}`. `fuel` is what one run burns, never taken off what it makes: Make Fuel makes 30 and burns 2 (#805). Mining isn't a recipe (it uses nothing up); the website's [tech map](https://exmachinis.com/technology) shows mining, recipes and tools together |
 | `GET /recipes/{resource}/tree` | `{resource}` is a **resource** id, the thing you want to make (e.g. `/recipes/4311/tree` for Pumps (A1)), not a recipe's protocol id: what one unit takes, all the way down to refined goods (metals, organics, inorganics): `{goods: [{resource, name, units}], fuel, tool_hours: [{tool, name, hours}], steps}`. `?down_to=1` goes down to ores. It follows each good's first recipe |
 | `GET /queries` | the queries a drone can `query`, by ID: `{name, parameters, strings}` |
 

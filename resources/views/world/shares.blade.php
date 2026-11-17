@@ -6,6 +6,22 @@
         .health-bad { color: #ff8a7a; }
         .health-warn { color: #f0b429; }
         .health-ok { color: #5ad19a; }
+        /* On a phone each company is a card, not a row of eight columns to scroll sideways (#744) */
+        @media (max-width: 760px) {
+            .share-cards table, .share-cards tbody, .share-cards tr, .share-cards td { display: block; width: 100%; }
+            .share-cards tr:first-child { display: none; }
+            .share-cards tr { border: 1px solid #263052; border-radius: 10px; padding: 8px 12px; margin-bottom: 10px; background: #111729; }
+            .share-cards td { display: flex; justify-content: space-between; gap: 12px; border: 0 !important; padding: 3px 0 !important;
+                text-align: right !important; white-space: normal; }
+            .share-cards td::before { content: attr(data-label); color: #9aa3b8; text-align: left; flex: 0 0 auto; }
+            .share-cards td:first-child { display: block; text-align: left !important; font-size: 1.05em; padding-bottom: 6px !important; }
+            .share-cards td:first-child::before { content: none; }
+            .share-cards td[colspan] { display: block; text-align: left !important; }
+            .share-cards td[colspan]::before { content: none; }
+            .share-cards .share-spark svg { max-width: 50%; }
+            .share-cards td[data-label="Health"] { display: block; text-align: left !important; }
+            .share-cards td[data-label="Health"]::before { margin-right: .5em; }
+        }
     </style>
 @endpush
 @section('content')
@@ -39,7 +55,7 @@
                     {{ \App\Services\CompanyHealth::STALLED_SALE_HOURS }} game hours; and <i>failing</i> when its drones keep trying an action
                     that fails (over the last game day). Each is a warning, not a verdict: hover it, or see the company's page, for why.
                     Sorted by yield, highest first.</div>
-                <div class="table-custom-responsive">
+                <div class="table-custom-responsive share-cards">
                     <table class="table-ticket" id="player-share-market">
                         <tr><th>Company</th><th class="text-right">Cash-out a share</th><th>Cash-out change, 30 game days</th><th class="text-right">Dividends a share, 30 days</th>
                             <th class="text-right">Yield, 30 days</th><th class="text-right" title="Cash-out change plus dividends a share, over 30 game days">Return, 30 days</th><th class="text-right">Bank sells at</th><th>Health</th></tr>
@@ -48,17 +64,17 @@
                                     @if(!empty($m['holders'][0]['name']))<br><small class="text-muted">mostly {{ $m['holders'][0]['bank'] ? 'the bank' : $m['holders'][0]['name'] }}</small>@endif
                                     {{-- The last trade between players, when recent (#744: its own column was mostly empty) --}}
                                     @if($m['last_price'] !== null && $m['last_days_ago'] <= 30)<br><small class="text-muted">players traded at {{ number_format($m['last_price']) }} {{ $m['last_days_ago'] === 0 ? 'today' : $m['last_days_ago'] . ' game ' . \Illuminate\Support\Str::plural('day', $m['last_days_ago']) . ' ago' }}@if($m['premium_percent'] !== null) ({{ $m['premium_percent'] > 0 ? '+' . $m['premium_percent'] . '% premium' : ($m['premium_percent'] < 0 ? '−' . abs($m['premium_percent']) . '% discount' : 'at cash-out') }})@endif</small>@endif</td>
-                                <td class="text-right">{{ number_format($m['buys_at']) }}</td>
-                                <td class="share-spark" data-spark="{{ $i }}">{{ count($m['spark']) ? '' : '–' }}</td>
-                                <td class="text-right">{{ number_format($m['dividends30']) }}</td>
-                                <td class="text-right">{{ $m['yield_percent'] === null ? '–' : $m['yield_percent'] . '%' }}</td>
-                                <td class="text-right">{{ ($m['return_percent'] ?? null) === null ? '–' : (($m['return_percent'] > 0 ? '+' : '') . $m['return_percent'] . '%') }}</td>
-                                <td class="text-right">{{ number_format($m['sells_at']) }}</td>
+                                <td class="text-right" data-label="Cash-out a share">{{ number_format($m['buys_at']) }}</td>
+                                <td class="share-spark" data-label="Cash-out, 30 game days" data-spark="{{ $i }}">{{ count($m['spark']) ? '' : '–' }}</td>
+                                <td class="text-right" data-label="Dividends a share, 30 days">{{ number_format($m['dividends30']) }}</td>
+                                <td class="text-right" data-label="Yield, 30 days">{{ $m['yield_percent'] === null ? '–' : $m['yield_percent'] . '%' }}</td>
+                                <td class="text-right" data-label="Return, 30 days">{{ ($m['return_percent'] ?? null) === null ? '–' : (($m['return_percent'] > 0 ? '+' : '') . $m['return_percent'] . '%') }}</td>
+                                <td class="text-right" data-label="Bank sells at">{{ number_format($m['sells_at']) }}</td>
                                 {{-- The worst first, in words anyone can read, not only on hover (#758) --}}
-                                <td style="white-space: normal">@if(($m['dissolves_in'] ?? null) !== null)<strong class="health-bad">dissolves in {{ $m['dissolves_in'] }} game days</strong>@elseif($m['failing'])<strong class="health-bad">failing</strong>@elseif($m['at_risk'])<strong class="health-warn">at risk</strong>@elseif($m['stalled'])<strong class="health-warn">stalled</strong>@else <span class="health-ok">steady</span> @endif
+                                <td style="white-space: normal" data-label="Health">@if(($m['dissolves_in'] ?? null) !== null)<strong class="health-bad">dissolves in {{ $m['dissolves_in'] }} game days</strong>@elseif($m['failing'])<strong class="health-bad">failing</strong>@elseif($m['at_risk'])<strong class="health-warn">at risk</strong>@elseif($m['stalled'])<strong class="health-warn">stalled</strong>@else <span class="health-ok">steady</span> @endif
                                     @if($m['health_note'])<br><small class="text-muted">{{ $m['health_note'] }}</small>@endif</td></tr>
                         @empty
-                            <tr><td colspan="7">No company has matured yet.</td></tr>
+                            <tr><td colspan="8">No company has matured yet.</td></tr>
                         @endforelse
                     </table>
                 </div>
@@ -98,13 +114,13 @@
                 </script>
                 {{-- The latest share trades, players' and the bank's (#676; #758: titled "between players", most were with the bank) --}}
                 <h3 class="mt-4">Latest share trades</h3>
-                <div class="table-custom-responsive">
+                <div class="table-custom-responsive share-cards">
                     <table class="table-ticket" id="player-share-trades">
                         <tr><th>When</th><th>Company</th><th>Shares</th><th>Price</th><th>Seller</th><th>Buyer</th></tr>
                         @forelse($playerTrades as $t)
-                            <tr><td>{{ $t['when'] }}<br><small class="text-muted">{{ \App\Services\DronePage::ago($t['game_time']) }}</small></td><td><a href="{{ url('companies/' . $t['company']) }}#player-shares">{{ $t['name'] }}</a></td>
-                                <td>{{ number_format($t['units']) }}</td><td>{{ number_format($t['price']) }}</td>
-                                <td>@if($t['seller_is_bank'])<i>the bank</i>@else{{ $t['seller_name'] }}@endif</td><td>@if($t['buyer_is_bank'])<i>the bank</i>@else{{ $t['buyer_name'] }}@endif</td></tr>
+                            <tr><td>{{ $t['when'] }}<br><small class="text-muted">{{ \App\Services\DronePage::ago($t['game_time']) }}</small></td><td data-label="Company"><a href="{{ url('companies/' . $t['company']) }}#player-shares">{{ $t['name'] }}</a></td>
+                                <td data-label="Shares">{{ number_format($t['units']) }}</td><td data-label="Price">{{ number_format($t['price']) }}</td>
+                                <td data-label="Seller">@if($t['seller_is_bank'])<i>the bank</i>@else{{ $t['seller_name'] }}@endif</td><td data-label="Buyer">@if($t['buyer_is_bank'])<i>the bank</i>@else{{ $t['buyer_name'] }}@endif</td></tr>
                         @empty
                             <tr><td colspan="6">No matured company's shares have traded yet.</td></tr>
                         @endforelse

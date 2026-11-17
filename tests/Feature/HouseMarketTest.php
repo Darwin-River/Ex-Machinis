@@ -357,7 +357,9 @@ class HouseMarketTest extends TestCase
     {
         HouseStations::ensure();
         HouseMarket::refresh();
-        $this->get('/market')->assertOk()->assertSee('href="' . url('market/house') . '"', false);
+        $this->get('/market')->assertOk()->assertSee('href="' . url('market/house') . '"', false)
+            // Crossed books explained (#744): standing orders never trade with each other
+            ->assertSee('id="crossed-books"', false)->assertSee('Standing orders never trade with each other');
         $this->get('/market/house')->assertOk()->assertSee('id="house-demand"', false)->assertSee('Still buying today')
             ->assertSee('id="house-supply"', false);
         // #609: where fuel is on sale now, and where it isn't

@@ -152,6 +152,12 @@ class WorldController extends Controller
         return view('world.lineage', ['graph' => \App\Services\CodeLineage::graph()]);
     }
 
+    /** The tech map (#804): what each thing is made from, with what tool, and how */
+    public function technology()
+    {
+        return view('world.technology', ['map' => \App\Services\TechMap::build()]);
+    }
+
     /** The game's queries: how many parameters each takes (#380) */
     public function machineQueries()
     {

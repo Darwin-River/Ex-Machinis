@@ -51,6 +51,11 @@ class CompanyNowTest extends TestCase
         $this->assertGreaterThan(0, $s['minutes'], 'about 10 game days at 100 a day');
         $this->actingAs($p)->get('/market')->assertOk()->assertSee('id="company-now"', false)->assertSee('Now Co')
             ->assertSee('matures in about')->assertDontSee('>Mature</button>', false);
+        // Its Road to maturity projects the date (#744), from the same pace
+        $f = CompanyNow::forecast(DB::table('companies')->where('company_id', $id)->first(), $need, $need - 1000, false);
+        $this->assertNotNull($f['game_t']);
+        $this->actingAs($p)->get('/companies/' . $id)->assertOk()->assertSee('id="road-forecast"', false)
+            ->assertSee(\App\Services\GameDate::at($f['game_t'], false));
 
         // Enough to mature: the button, on any page; it matures from there
         DB::table('companies')->where('company_id', $id)->update(['credits' => $need]);
