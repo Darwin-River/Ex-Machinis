@@ -38,10 +38,10 @@
         {{ $b['text'] }}
     </div>
     <div class="econ-tiles" id="economy-tiles">
-        <div class="econ-tile"><div class="econ-l">Trades, day {{ $b['day'] }}</div>
+        <div class="econ-tile"><div class="econ-l">Trades, {{ \App\Services\GameDate::ofDay((int) $b['day']) }}</div>
             <div class="econ-v">{{ number_format($t['trades']['value']) }}</div>
             <div class="econ-d">@if($t['trades']['norm'] !== null){!! $pct($t['trades']['change_percent']) !!} on the norm ({{ number_format($t['trades']['norm']) }} a day)@else the first full day @endif</div></div>
-        <div class="econ-tile"><div class="econ-l">Credits traded, day {{ $b['day'] }}</div>
+        <div class="econ-tile"><div class="econ-l">Credits traded, {{ \App\Services\GameDate::ofDay((int) $b['day']) }}</div>
             <div class="econ-v">{{ number_format($t['credits']['value']) }}</div>
             <div class="econ-d">@if($t['credits']['norm'] !== null){!! $pct($t['credits']['change_percent']) !!} on the norm ({{ number_format($t['credits']['norm']) }} a day)@else&nbsp;@endif</div></div>
         <div class="econ-tile"><div class="econ-l">Working drones</div>

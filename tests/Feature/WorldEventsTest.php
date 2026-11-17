@@ -57,7 +57,10 @@ class WorldEventsTest extends TestCase
         $outage = $events['outage-full-disk'];
         $this->assertSame('outage', $outage['kind']);
         $this->assertSame([2161, 2170], [$outage['day'], $outage['to_day']]);
-        $this->assertSame('day 2161, 00:00', $outage['when']);
+        // Written as the simulation's date and time (#753)
+        $this->assertSame(\App\Services\GameDate::at($outage['game_time']), $outage['when']);
+        $this->assertStringNotContainsString('day 2161', $outage['text']);
+        $this->assertStringContainsString(\App\Services\GameDate::ofDay(2161) . ' to ' . \App\Services\GameDate::ofDay(2170), $outage['text']);
         // Oldest first
         $days = $events->pluck('day')->values()->all();
         $sorted = $days;
@@ -79,7 +82,7 @@ class WorldEventsTest extends TestCase
         $e = collect(WorldEvents::build())->keyBy('key');
         // The migration's real time, turned into game time by the clock
         $this->assertSame(2200, $e['by-migration']['day']);
-        $this->assertSame('day 2200, 12:00', $e['by-migration']['when']);
+        $this->assertSame(\App\Services\GameDate::at($e['by-migration']['game_time']), $e['by-migration']['when']);
         // Not applied here: its day; with none, it is left out
         $this->assertSame(2100, $e['fallback']['day']);
         $this->assertFalse($e->has('unknown'));

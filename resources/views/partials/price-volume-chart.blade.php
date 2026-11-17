@@ -150,7 +150,7 @@
             let clear = 0;   // a label never overlaps the one before (round 62: "Day 603615" at 390 px)
             for (let d = first; d < first + days; d += step) {
                 const lab = el('text', {x: x(d), y: H - 6, 'text-anchor': d === first ? 'start' : 'middle'}, svg);
-                lab.textContent = d === first ? 'Day ' + d : d;
+                lab.textContent = d === first ? window.ExCharts.dayDate(d) : window.ExCharts.dayShort(d);   // by date (#753)
                 const w = lab.getComputedTextLength(), left = d === first ? x(d) : x(d) - w / 2;
                 if (left < clear || left + w > W) { lab.remove(); continue; }
                 clear = left + w + 8;
@@ -238,7 +238,7 @@
             });
             if (marks) marks.front();
             hover(box, f, first, span, (day, dots) => {
-                const lines = [{text: 'Game day ' + day}];
+                const lines = [{text: window.ExCharts.dayDate(day)}];
                 places.forEach((p, j) => {
                     const r = at(p, day), name = shown.find((q) => q.place === p).place_name;
                     if (r) el('circle', {cx: f.x(day), cy: f.y(r.average), r: 4, fill: placeColour[p], stroke: 'var(--mh-panel)', 'stroke-width': 2}, dots);

@@ -51,6 +51,17 @@
 <script>
 window.ExCharts = (function () {
     const SVG = 'http://www.w3.org/2000/svg';
+    // The simulation's calendar (#753): a game day counted from the world's
+    // first is a date, game time being Unix time (the orbits run on it)
+    const EPOCH = @json((int) \App\Services\GameDate::epoch());
+    const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const dayAt = (d) => new Date((EPOCH + Math.round(d) * 86400) * 1000);
+    const dayDate = (d) => { const t = dayAt(d); return t.getUTCDate() + ' ' + MONTHS[t.getUTCMonth()] + ' ' + t.getUTCFullYear(); };
+    const dayShort = (d) => { const t = dayAt(d); return t.getUTCDate() + ' ' + MONTHS[t.getUTCMonth()]; };
+    const dayYear = (d) => dayAt(d).getUTCFullYear();
+    // A game time (Unix seconds) as "29 Oct 2035, 02:30"
+    const timeDate = (t) => { const x = new Date(t * 1000); return x.getUTCDate() + ' ' + MONTHS[x.getUTCMonth()] + ' ' + x.getUTCFullYear()
+        + ', ' + String(x.getUTCHours()).padStart(2, '0') + ':' + String(x.getUTCMinutes()).padStart(2, '0'); };
     // Categorical, in a fixed order (checked for colour blindness on the dark panel)
     const COLOURS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#9085e9'];
     const GREY = '#6b7283', NEG = '#e66767', GRID = '#34353f', AXIS = '#828590';
@@ -146,7 +157,8 @@ window.ExCharts = (function () {
         let clear = Infinity;
         for (let d = last; d >= first; d -= every) {   // from the newest day back, so today is always labelled
             const lab = el('text', {x: x(d), y: H - 5, 'text-anchor': 'middle'}, svg);
-            lab.textContent = (d === last || d - every < first ? 'day ' : '') + d;
+            // By date (#753): the year on the newest label and where it changes
+            lab.textContent = d === last || dayYear(d) !== dayYear(d - every) ? dayDate(d) : dayShort(d);
             const w = lab.getComputedTextLength();
             // Its left and right edges as drawn: a label pushed in from the
             // right edge is end-anchored, so it reaches a whole width left
@@ -298,7 +310,7 @@ window.ExCharts = (function () {
         const byDay = Object.fromEntries(days.map((d) => [d.day, d]));
         dayHover(box, f, (day) => {
             const d = byDay[day];
-            const lines = ['Game day ' + day + (day === opts.partial ? SO_FAR : '') + (opts.dayNote ? opts.dayNote(d) : '')];
+            const lines = [dayDate(day) + (day === opts.partial ? SO_FAR : '') + (opts.dayNote ? opts.dayNote(d) : '')];
             series.forEach((s, i) => { if (d && d.values[i]) lines.push({colour: s.colour, text: `${s.name}: ${num(d.values[i])}`}); });
             if (d) lines.push('Total: ' + num(d.values.reduce((a, b) => a + b, 0)) + (opts.unitWord ? ' ' + opts.unitWord : ''));
             return lines;
@@ -371,7 +383,7 @@ window.ExCharts = (function () {
             });
         });
         dayHover(box, f, (day) => {
-            const out = ['Game day ' + day];
+            const out = [dayDate(day)];
             series.forEach((s) => {
                 const ps = s.points.filter((q) => q.day === day && q.v !== null && q.v !== undefined);
                 if (ps.length) ps.forEach((p) => out.push({colour: s.colour, text: `${s.name}: ${p.label || num(p.v)}`}));
@@ -393,7 +405,7 @@ window.ExCharts = (function () {
         });
         el('path', {d: path, fill: 'none', stroke: opts.colour || COLOURS[0], 'stroke-width': 2}, f.svg);
         const byDay = Object.fromEntries(points.map((p) => [p.day, p]));
-        dayHover(box, f, (day) => ['Game day ' + day, byDay[day] ? `${opts.name}: ${num(byDay[day].v)}` : 'no figure']);
+        dayHover(box, f, (day) => [dayDate(day), byDay[day] ? `${opts.name}: ${num(byDay[day].v)}` : 'no figure']);
         return f;
     }
 
@@ -508,7 +520,7 @@ window.ExCharts = (function () {
         });
     }
 
-    return {COLOURS, GREY, NEG, num, short, el, tip, showTip, hideTip, ticks, frame, stacked, diverging, lines, step,
+    return {COLOURS, GREY, NEG, num, short, dayDate, dayShort, timeDate, EPOCH, el, tip, showTip, hideTip, ticks, frame, stacked, diverging, lines, step,
         hbars, dots, spark, onResize, legend, empty, markLayer, markColour};
 })();
 </script>

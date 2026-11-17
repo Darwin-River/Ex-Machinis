@@ -63,8 +63,11 @@ class WorldEvents
             }
             $day = intdiv(max(0, $t - $epoch), 86400);
             $toDay = isset($e['to_day']) ? max($day, (int) $e['to_day']) : null;
+            // A text names its days by date (#753): {from} and {to}
+            $text = strtr($e['text'], ['{from}' => GameDate::ofDay($day), '{to}' => GameDate::ofDay($toDay ?? $day)]);
             $out[] = ['key' => $e['key'], 'kind' => $e['kind'], 'day' => $day, 'to_day' => $toDay,
-                'game_time' => $t, 'when' => self::when($t, $epoch), 'label' => $e['label'], 'text' => $e['text'],
+                'game_time' => $t, 'when' => self::when($t, $epoch), 'date' => GameDate::ofDay($day),
+                'to_date' => $toDay !== null ? GameDate::ofDay($toDay) : null, 'label' => $e['label'], 'text' => $text,
                 'issue' => $e['issue'] ?? null];
         }
         usort($out, fn ($a, $b) => $a['game_time'] <=> $b['game_time']);
@@ -209,11 +212,10 @@ class WorldEvents
         return (int) (DB::table('game_clock')->where('id', 1)->value('epoch') ?? 0);
     }
 
-    /** "day 2134, 06:00", as DronePage::when, without a query each */
+    /** Its date and time (#753), as DronePage::when */
     private static function when(int $t, int $epoch): string
     {
-        $since = max(0, $t - $epoch);
-        return sprintf('day %d, %02d:%02d', intdiv($since, 86400), intdiv($since % 86400, 3600), intdiv($since % 3600, 60));
+        return GameDate::at($t);
     }
 
     private static function shares(int $n): string

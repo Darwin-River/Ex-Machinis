@@ -36,7 +36,7 @@ return [
     [
         'key' => 'outage-full-disk', 'kind' => 'outage', 'day' => 2161, 'to_day' => 2170, 'issue' => 711,
         'label' => 'Outage',
-        'text' => 'A full disk stopped the world: no trades and no fresh daily figures from game day 2161 to 2170, so the charts are flat or empty there.',
+        'text' => 'A full disk stopped the world: no trades and no fresh daily figures from {from} to {to}, so the charts are flat or empty there.',
     ],
     [
         'key' => 'cash-out-recorded', 'kind' => 'rule', 'day' => 2176, 'issue' => 699,
@@ -56,6 +56,6 @@ return [
     [
         'key' => 'outage-overload', 'kind' => 'outage', 'day' => 3074, 'to_day' => 3249, 'issue' => 742,
         'label' => 'Outage',
-        'text' => 'The world stopped while the database was overloaded and then repaired (#731, #736): no trades and no daily figures from game day 3074 to 3249, so the charts are empty there.',
+        'text' => 'The world stopped while the database was overloaded and then repaired (#731, #736): no trades and no daily figures from {from} to {to}, so the charts are empty there.',
     ],
 ];

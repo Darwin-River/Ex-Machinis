@@ -61,7 +61,9 @@ class LaunchQueue
         return [
             'game_time' => $now,
             'game_day' => round(($now - $epoch) / 86400, 3),
+            // The simulation's date and time (#753): "29 Oct 2035, 02:30", and the date alone
             'when' => DronePage::when($now),
+            'date' => GameDate::at($now, false),
             'scale' => $scale,
             'real_seconds_per_game_day' => $scale ? (int) round(86400 / $scale) : null,
             // The pace it runs at when the engines keep up, and whether it's

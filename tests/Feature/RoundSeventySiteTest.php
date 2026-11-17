@@ -177,7 +177,7 @@ class RoundSeventySiteTest extends TestCase
             'drones' => 1, 'cash_out' => 1000]);
         $cash = PlayerShares::cashOut($id);
         $page = $this->get('/companies/' . $id)->assertOk()
-            ->assertSee('recorded cash-out since game day ' . ($this->today - 5))
+            ->assertSee('recorded cash-out since ' . \App\Services\GameDate::ofDay($this->today - 5))
             ->assertDontSee('Cash-out is recorded from the day a company matures')
             ->assertSee('Trades between players');
         $html = $page->getContent();

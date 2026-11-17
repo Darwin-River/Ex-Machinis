@@ -87,7 +87,7 @@
                         const p = pct(m);
                         td.replaceChildren(X.spark(p, {line: true, width: 100, height: 24, lo, hi, base: 0,
                             label: m.name + "'s cash-out a share, change from its first day",
-                            tip: (v, i) => [m.name, `Game day ${m.spark[i].day}: cash-out ${X.num(m.spark[i].v)} a share`,
+                            tip: (v, i) => [m.name, `${X.dayDate(m.spark[i].day)}: cash-out ${X.num(m.spark[i].v)} a share`,
                                 `${sign(v)} since game day ${m.spark[0].day}`]}));
                     });
                 });
