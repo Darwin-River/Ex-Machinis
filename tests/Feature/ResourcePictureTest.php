@@ -70,29 +70,19 @@ class ResourcePictureTest extends TestCase
         }
     }
 
-    /** #802: a craft's page numbers the subsystems its recipe uses on its picture, and lists them */
-    public function testACraftsPageNumbersTheSubsystemsItIsBuiltFrom()
+    /** #802: a craft's resource page shows only its turning model; the numbered one is for drone pages */
+    public function testACraftsResourcePageShowsOnlyItsTurningModel()
     {
-        $this->assertFileExists(public_path('images/resources/6011-parts.json'));
-        $data = json_decode(file_get_contents(public_path('images/resources/6011-parts.json')), true);
+        $this->assertFileExists(public_path('images/resources/6011-parts.webp'), 'the numbered picture is kept for drone pages');
         DB::table('resources')->insertOrIgnore(['id' => 6011, 'name' => 'Mining Cutter (A1)', 'description' => 'A medium mining craft', 'mass' => 689]);
-        DB::table('resources')->insertOrIgnore(['id' => 5001, 'name' => 'Engine (A1)', 'description' => 'An engine', 'mass' => 10]);
 
-        $page = $this->get('/resources/6011')->assertOk()
-            ->assertSee('id="craft-parts"', false)
-            ->assertSee(url('images/resources/6011-parts.webp'), false)
-            ->assertSee('Built from')
-            // Engine (A1) is first in the Mining Cutter's recipe, twice over, and links to its page
-            ->assertSee('<a href="/resources/5001">Engine (A1)</a> &times;2', false);
-        // A marker for each subsystem the picture shows, at its place in it
-        $shown = $data['parts'][0];
-        $page->assertSee('left: ' . round($shown['x'] * 100, 2) . '%; top: ' . round($shown['y'] * 100, 2) . '%', false);
-
-        // A resource that isn't a craft has none
-        $this->get('/resources/5001')->assertOk()->assertDontSee('id="craft-parts"', false);
+        $this->get('/resources/6011')->assertOk()
+            ->assertSee(url('images/resources/6011.webp'), false)
+            ->assertDontSee('6011-parts', false)
+            ->assertDontSee('Built from');
     }
 
-    /** #802: every numbered picture lists its craft's real recipe, and only numbers what is in it */
+    /** #802: every numbered picture (for the drone pages) lists its craft's real recipe, and only numbers what is in it */
     public function testEveryCraftPictureMatchesItsRecipe()
     {
         $sql = file_get_contents(base_path('game-engine/sql/game_data.sql'));
