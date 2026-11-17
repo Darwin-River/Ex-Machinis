@@ -172,7 +172,7 @@ A script can be at most 16,000 characters, comments included (#557). A release c
 - **it trades only with the House** (the station drones at the exchanges) and its own company's drones. A trade with anyone else fails with -16 (see [Trading at the exchanges](#trading-at-the-exchanges));
 - **it buys at most a tenth** of what the House has on sale of a good at one exchange in a game day, and always at least 5 (-17 after that). Selling to the House has no such cap;
 - **it plunders nothing**, and nobody can plunder its wrecks (see [Wrecks and plunder](#wrecks-and-plunder));
-- **it holds at most twice what it was lent** in credits: 8,400, however often you push (push fees go on its debt but don't raise the cap). When a sale would take it over, the excess goes to the bank. So there is no point in waiting to mature it.
+- **it holds at most twice what it was lent** in credits: 8,400, however often you push (push fees go on its debt but don't raise the cap). When a sale would take it over, the excess goes to the bank. So there is no point in waiting to mature it. Once it reaches its cap, the site says so (#749): "Capper Co is ready to mature: what it earns above 8,400 now goes to the bank" in the Since you last looked card and the digest, a banner on its Road to maturity, and `credit_cap` and `at_cap` in `GET /api/v1/companies/{id}`. A script can tell too: `seedling_status().at_cap`.
 
 You can run **at most 5 seedlings** at a time. A closed seedling's slot reopens a game day after you close it.
 
