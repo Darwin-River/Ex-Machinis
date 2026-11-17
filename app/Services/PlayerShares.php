@@ -35,6 +35,30 @@ class PlayerShares
     // price in whole credits (1,000 made it 2 to 15 credits)
     public const COUNT = 100;
 
+    /** New shares a matured company offers at a time, and the most it may have (#780) */
+    public const OFFER_UNITS = 10;
+    public const MAX_COUNT = 200;
+
+    /** A company's shares in all: 100 unless it has sold new ones (#780) */
+    public static function count(int $company): int
+    {
+        return self::counts([$company])[$company];
+    }
+
+    /** count() for several companies at once: [company => shares] */
+    public static function counts(array $companies): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $companies)));
+        $out = array_fill_keys($ids, self::COUNT);
+        if ($ids && \Illuminate\Support\Facades\Schema::hasColumn('companies', 'player_share_count')) {
+            foreach (DB::table('companies')->whereIn('company_id', $ids)->whereNotNull('player_share_count')
+                         ->pluck('player_share_count', 'company_id') as $id => $n) {
+                $out[(int) $id] = max(1, (int) $n);
+            }
+        }
+        return $out;
+    }
+
     /** Game days of an account's own share trades its page and GET /account/shares list (#715) */
     public const FILLS_DAYS = 7;
 
@@ -85,7 +109,8 @@ class PlayerShares
             }
             DB::transaction(function () use ($o, $user, $c, &$moved) {
                 DB::table('player_share_orders')->where('id', $o->id)->delete();
-                $r = self::order($user, $c, $o->side, (int) $o->units, 0, ['ref' => $o->peg_ref, 'offset_bp' => (int) $o->peg_offset_bp]);
+                $r = self::order($user, $c, $o->side, (int) $o->units, 0, ['ref' => $o->peg_ref, 'offset_bp' => (int) $o->peg_offset_bp],
+                    $o->game_t !== null ? (int) $o->game_t : null);
                 if (!($r['ok'] ?? false)) {
                     DB::table('player_share_orders')->insert((array) $o);   // it stays where it was
                     return;
@@ -176,12 +201,13 @@ class PlayerShares
             }
         }
 
+        $counts = self::counts($live);
         foreach ($rows as $id => $c) {
             $id = (int) $id;
             $credits = (int) $c->credits;
             $debts = (int) $c->compute_debt + (int) $c->debt;
             $total = $credits + $goods[$id] + $hulls[$id] - $debts;
-            $out[$id] = ['total' => $total, 'per_share' => max(0, intdiv(max(0, $total), self::COUNT)),
+            $out[$id] = ['total' => $total, 'per_share' => max(0, intdiv(max(0, $total), $counts[$id])),
                 'credits' => $credits, 'goods' => $goods[$id], 'hulls' => $hulls[$id], 'debts' => $debts];
         }
         return $out;
@@ -274,6 +300,18 @@ class PlayerShares
     /** dividends30() for several companies at once: [company => credits a share] */
     public static function dividends30Many(array $companies): array
     {
+        return self::dividendsOverMany($companies, 30);
+    }
+
+    /** The game days of dividends the bank's selling price adds to cash-out (#781) */
+    public static function premiumDays(): int
+    {
+        return max(0, (int) config('forge.bank_premium_days', 10));
+    }
+
+    /** A share's dividends over the last $days game days, for several companies: [company => credits a share] */
+    public static function dividendsOverMany(array $companies, int $days): array
+    {
         $ids = array_values(array_unique(array_map('intval', $companies)));
         $out = array_fill_keys($ids, 0);
         if (!$ids) {
@@ -281,10 +319,11 @@ class PlayerShares
         }
         $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
         $today = intdiv(World::gameNow() - $epoch, 86400);
-        foreach (DB::table('player_dividends')->whereIn('company_id', $ids)->where('day', '>=', $today - 30)
+        $counts = self::counts($ids);
+        foreach (DB::table('player_dividends')->whereIn('company_id', $ids)->where('day', '>=', $today - $days)
                      ->where('day', '<', $today)->groupBy('company_id')
                      ->selectRaw('company_id, SUM(amount) AS paid')->get() as $r) {
-            $out[(int) $r->company_id] = intdiv((int) $r->paid, self::COUNT);
+            $out[(int) $r->company_id] = intdiv((int) $r->paid, $counts[(int) $r->company_id]);
         }
         return $out;
     }
@@ -297,14 +336,14 @@ class PlayerShares
      */
     public static function prices(int $company, ?array $cash = null): array
     {
-        return self::quote(($cash ?? self::cashOut($company))['per_share'], self::dividends30($company),
-            self::bankHolds([$company])[$company]);
+        return self::quote(($cash ?? self::cashOut($company))['per_share'],
+            self::dividendsOverMany([$company], self::premiumDays())[$company], self::bankHolds([$company])[$company]);
     }
 
-    /** prices() from its parts: a share's cash-out, its dividends30() and the bank's shares */
-    private static function quote(int $buys, int $dividends30, int $bankHolds): array
+    /** prices() from its parts: a share's cash-out, its dividends over premiumDays() and the bank's shares */
+    private static function quote(int $buys, int $premium, int $bankHolds): array
     {
-        $sells = $buys + $dividends30;
+        $sells = $buys + $premium;
         return ['buys_at' => $buys, 'sells_at' => $sells,
             'low' => (int) floor($sells * (float) config('forge.share_range_low')),
             'high' => (int) ceil($sells * (float) config('forge.share_range_high')),
@@ -502,9 +541,10 @@ class PlayerShares
      * their price). Returns what traded and what is left standing. With $peg
      * (['ref' => 'buys_at' or 'sells_at', 'offset_bp' => hundredths of a
      * percent]) its price follows that bank price (#766): $price is ignored,
-     * and repeg() moves it as the bank's prices move.
+     * and repeg() moves it as the bank's prices move. $placedT: the game time
+     * a re-placed order was first placed, so it keeps its rest (#782).
      */
-    public static function order(User $user, int $company, string $side, int $units, int $price, ?array $peg = null): array
+    public static function order(User $user, int $company, string $side, int $units, int $price, ?array $peg = null, ?int $placedT = null): array
     {
         if (!self::company($company)) {
             return self::fail(404, self::endedNote($company) ?? 'There is no such matured company.');
@@ -549,7 +589,7 @@ class PlayerShares
                 . (int) $crosses . ': ' . ($side === 'buy' ? 'a buy at ' . (int) $crosses . ' or more' : 'a sell at ' . (int) $crosses . ' or less')
                 . ' would cross it. Cancel that order first, or ' . ($side === 'buy' ? 'bid under ' : 'ask over ') . (int) $crosses . '.');
         }
-        return DB::transaction(function () use ($me, $company, $side, $units, $price, $p, $peg) {
+        return DB::transaction(function () use ($me, $company, $side, $units, $price, $p, $peg, $placedT) {
             $traded = 0;
             $spent = 0;
             $other = $side === 'buy' ? 'sell' : 'buy';
@@ -585,8 +625,14 @@ class PlayerShares
                 }
                 DB::table('users')->where('user_id', $seller)->update(['credits' => DB::raw('credits + ' . ($n * $at))]);
                 self::move($seller, $buyer, $company, $n);
+                // The resting order's owner earns a rebate from the bank (#782)
+                $rebate = self::rebate($n * $at, $o->game_t ?? null);
+                if ($rebate > 0) {
+                    DB::table('users')->where('user_id', $o->user_id)->update(['credits' => DB::raw('credits + ' . $rebate)]);
+                }
                 DB::table('player_share_trades')->insert(['company_id' => $company, 'seller_id' => $seller,
-                    'buyer_id' => $buyer, 'units' => $n, 'price' => $at, 'game_t' => World::gameNow()]);
+                    'buyer_id' => $buyer, 'units' => $n, 'price' => $at, 'game_t' => World::gameNow()]
+                    + ($rebate > 0 ? ['rebate' => $rebate, 'rebate_user_id' => (int) $o->user_id] : []));
                 $left = (int) $o->units - $n;
                 $left > 0 ? DB::table('player_share_orders')->where('id', $o->id)->update(['units' => $left])
                           : DB::table('player_share_orders')->where('id', $o->id)->delete();
@@ -617,12 +663,141 @@ class PlayerShares
             }
             if ($standing > 0) {
                 $id = DB::table('player_share_orders')->insertGetId(['user_id' => $me, 'company_id' => $company,
-                    'side' => $side, 'units' => $standing, 'price' => $price, 'created_at' => now()]
+                    'side' => $side, 'units' => $standing, 'price' => $price, 'created_at' => now(), 'game_t' => $placedT ?? World::gameNow()]
                     + ($peg !== null ? ['peg_ref' => $peg['ref'], 'peg_offset_bp' => $peg['offset_bp']] : []));
             }
             return ['ok' => true, 'traded' => $traded, 'credits' => $spent, 'standing' => $standing, 'order' => $id, 'price' => $price]
                 + ($note ? ['note' => $note] : []);
         });
+    }
+
+    /**
+     * The bank's rebate to a resting order for a trade of $credits (#782):
+     * rebate_permille of it, rounded down, once the order has rested
+     * rebate_rest_game_seconds since $placedT (an order from before the
+     * rebate, with no placed time, counts as rested); 0 otherwise. The two
+     * sides are always different players: order() never matches an account's
+     * own orders
+     */
+    public static function rebate(int $credits, $placedT): int
+    {
+        $rest = (int) config('forge.rebate_rest_game_seconds', 3600);
+        if ($placedT !== null && World::gameNow() - (int) $placedT < $rest) {
+            return 0;
+        }
+        return intdiv(max(0, $credits) * max(0, (int) config('forge.rebate_permille', 5)), 1000);
+    }
+
+    /**
+     * A company's open offering of new shares (#780), or null:
+     * {id, units, left, raised, created_t, price (cash-out a share now)}
+     */
+    public static function offering(int $company): ?array
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('player_share_offerings')) {
+            return null;
+        }
+        $o = DB::table('player_share_offerings')->where('company_id', $company)->whereNull('closed_t')
+            ->where('units_left', '>', 0)->orderByDesc('id')->first();
+        return $o ? ['id' => (int) $o->id, 'units' => (int) $o->units, 'left' => (int) $o->units_left,
+            'raised' => (int) $o->raised, 'created_t' => (int) $o->created_t, 'price' => self::prices($company)['buys_at']] : null;
+    }
+
+    /**
+     * Its owner offers OFFER_UNITS new shares of a matured company (#780),
+     * sold at its cash-out value a share to any player (its owner too), the
+     * credits going to the company. One offering at a time, and at most
+     * MAX_COUNT shares in all
+     */
+    public static function offer(User $user, int $company): array
+    {
+        $c = self::company($company);
+        if (!$c) {
+            return self::fail(404, self::endedNote($company) ?? 'There is no such matured company.');
+        }
+        if ((int) $c->owner_id !== (int) $user->user_id) {
+            return self::fail(403, 'Only its owner can offer new shares of a company.');
+        }
+        if (self::dissolving($company)) {
+            return self::fail(409, 'It is counting down to dissolving: it can\'t offer new shares until it has credits again.');
+        }
+        if (self::offering($company)) {
+            return self::fail(409, 'It already has new shares on offer: they must sell (or you withdraw them) before it offers more.');
+        }
+        $count = self::count($company);
+        if ($count + self::OFFER_UNITS > self::MAX_COUNT) {
+            return self::fail(409, 'It has ' . $count . ' shares: a company has at most ' . self::MAX_COUNT . '.');
+        }
+        if (self::prices($company)['buys_at'] < 1) {
+            return self::fail(409, 'Its shares are worth nothing now (cash-out 0), so new ones would raise nothing.');
+        }
+        $id = DB::table('player_share_offerings')->insertGetId(['company_id' => $company, 'units' => self::OFFER_UNITS,
+            'units_left' => self::OFFER_UNITS, 'raised' => 0, 'created_t' => World::gameNow()]);
+        return ['ok' => true, 'offering' => $id, 'units' => self::OFFER_UNITS, 'price' => self::prices($company)['buys_at'], 'count' => $count];
+    }
+
+    /** Its owner withdraws a company's open offering; the shares already sold stay sold */
+    public static function withdraw(User $user, int $company): bool
+    {
+        $owner = DB::table('companies')->where('company_id', $company)->value('owner_id');
+        if ($owner === null || (int) $owner !== (int) $user->user_id) {
+            return false;
+        }
+        return DB::table('player_share_offerings')->where('company_id', $company)->whereNull('closed_t')
+            ->update(['closed_t' => World::gameNow()]) > 0;
+    }
+
+    /**
+     * Buys new shares from a company's open offering (#780), at its
+     * cash-out value a share now: the credits go to the company, and its
+     * share count grows. Buying at cash-out leaves every share's cash-out
+     * as it was. Starting credits pay, as they do at or below the bank's price
+     */
+    public static function buyOffered(User $user, int $company, int $units): array
+    {
+        if (!self::company($company)) {
+            return self::fail(404, self::endedNote($company) ?? 'There is no such matured company.');
+        }
+        if ($units < 1) {
+            return self::fail(422, 'Buy at least 1 new share.');
+        }
+        return DB::transaction(function () use ($user, $company, $units) {
+            $o = DB::table('player_share_offerings')->where('company_id', $company)->whereNull('closed_t')
+                ->where('units_left', '>', 0)->lockForUpdate()->first();
+            if (!$o) {
+                return self::fail(409, 'It has no new shares on offer now.');
+            }
+            if ($units > (int) $o->units_left) {
+                return self::fail(409, 'Only ' . (int) $o->units_left . ' of its new shares are left.');
+            }
+            $p = self::prices($company);
+            $price = $p['buys_at'];
+            $cost = $units * $price;
+            if ($price < 1 || !self::charge((int) $user->user_id, $cost, $price, $p['sells_at'])) {
+                return self::fail(422, 'You can\'t pay ' . number_format($cost) . ' credits for them.');
+            }
+            DB::table('companies')->where('company_id', $company)->update(['credits' => DB::raw('credits + ' . $cost),
+                'player_share_count' => DB::raw('IFNULL(player_share_count, ' . self::COUNT . ') + ' . $units)]);
+            DB::statement('INSERT INTO player_shares (user_id, company_id, units) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE units = units + VALUES(units)',
+                [(int) $user->user_id, $company, $units]);
+            $left = (int) $o->units_left - $units;
+            DB::table('player_share_offerings')->where('id', $o->id)->update(['units_left' => $left,
+                'raised' => DB::raw('raised + ' . $cost)] + ($left === 0 ? ['closed_t' => World::gameNow()] : []));
+            DB::table('player_share_trades')->insert(['company_id' => $company, 'seller_id' => null, 'buyer_id' => $user->user_id,
+                'units' => $units, 'price' => $price, 'game_t' => World::gameNow(), 'issued' => 1]);
+            return ['ok' => true, 'units' => $units, 'price' => $price, 'cost' => $cost, 'left' => $left, 'count' => self::count($company)];
+        });
+    }
+
+    /** A company's offerings of new shares, newest first, for its charts' marks: [{units, sold, raised, created_t, closed_t}] */
+    public static function offerings(int $company): array
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('player_share_offerings')) {
+            return [];
+        }
+        return DB::table('player_share_offerings')->where('company_id', $company)->orderByDesc('id')->get()
+            ->map(fn ($o) => ['units' => (int) $o->units, 'sold' => (int) $o->units - (int) $o->units_left, 'raised' => (int) $o->raised,
+                'created_t' => (int) $o->created_t, 'closed_t' => $o->closed_t === null ? null : (int) $o->closed_t])->all();
     }
 
     public static function cancel(User $user, int $order): bool
@@ -653,11 +828,17 @@ class PlayerShares
             $out[(int) $r->company_id][] = ['name' => $r->login, 'units' => (int) $r->units, 'bank' => false];
         }
         $bank ??= self::bankHolds($ids);
+        $counts = self::counts($ids);
         foreach ($ids as $id) {
             if (($bank[$id] ?? 0) > 0) {
                 $out[$id][] = ['name' => 'The bank', 'units' => $bank[$id], 'bank' => true];
                 usort($out[$id], fn ($a, $b) => $b['units'] <=> $a['units']);
             }
+            // Each holder's part of the company (#780: new shares dilute it)
+            foreach ($out[$id] as &$h) {
+                $h['percent'] = round(100 * $h['units'] / $counts[$id], 1);
+            }
+            unset($h);
         }
         return $out;
     }
@@ -677,11 +858,16 @@ class PlayerShares
             ->leftJoin('users as b', 'b.user_id', '=', 't.buyer_id')
             ->when($company !== null, fn ($q) => $q->where('t.company_id', $company))
             ->orderByDesc('t.id')->limit($limit)
-            ->get(['t.company_id', 'c.name', 't.units', 't.price', 's.login as seller', 'b.login as buyer', 't.game_t'])
+            ->get(['t.company_id', 'c.name', 't.units', 't.price', 's.login as seller', 'b.login as buyer', 't.game_t', 't.rebate', 't.rebate_user_id', 't.seller_id', 't.issued'])
             ->map(fn ($t) => ['company' => (int) $t->company_id, 'name' => $t->name, 'units' => (int) $t->units,
                 'price' => (int) $t->price, 'seller' => $t->seller, 'buyer' => $t->buyer,
-                'seller_name' => $t->seller ?? 'The bank', 'buyer_name' => $t->buyer ?? 'The bank',
-                'seller_is_bank' => $t->seller === null, 'buyer_is_bank' => $t->buyer === null,
+                // New shares the company sold (#780): no seller, and not the bank
+                'issued' => (bool) ($t->issued ?? false),
+                // The bank's rebate to the resting order, and which side it was (#782)
+                'rebate' => (int) ($t->rebate ?? 0),
+                'rebate_to' => ($t->rebate_user_id ?? null) === null ? null : ((int) $t->rebate_user_id === (int) $t->seller_id ? 'seller' : 'buyer'),
+                'seller_name' => $t->seller ?? (($t->issued ?? 0) ? 'New shares' : 'The bank'), 'buyer_name' => $t->buyer ?? 'The bank',
+                'seller_is_bank' => $t->seller === null && !($t->issued ?? 0), 'buyer_is_bank' => $t->buyer === null,
                 'when' => DronePage::when((int) $t->game_t), 'game_time' => (int) $t->game_t])->all();
     }
 
@@ -696,12 +882,19 @@ class PlayerShares
             ->whereNull('eliminated_at')->orderBy('name')->get(['company_id', 'name']);
         $ids = $companies->pluck('company_id')->map(fn ($id) => (int) $id)->all();
         $cash = self::cashOuts($ids);
+        $premium = self::dividendsOverMany($ids, self::premiumDays());
         $dividends = self::dividends30Many($ids);
         $bank = self::bankHolds($ids);
         $holders = self::holdersMany($ids, $bank);
+        $counts = self::counts($ids);
+        // Open offerings of new shares (#780): units left
+        $offered = $ids && \Illuminate\Support\Facades\Schema::hasTable('player_share_offerings')
+            ? DB::table('player_share_offerings')->whereIn('company_id', $ids)->whereNull('closed_t')->where('units_left', '>', 0)
+                ->pluck('units_left', 'company_id')->all() : [];
         return $companies->map(fn ($c) => ['company' => (int) $c->company_id, 'name' => $c->name]
-            + self::quote($cash[(int) $c->company_id]['per_share'], $dividends[(int) $c->company_id], $bank[(int) $c->company_id])
-            + ['holders' => $holders[(int) $c->company_id]])->all();
+            + self::quote($cash[(int) $c->company_id]['per_share'], $premium[(int) $c->company_id], $bank[(int) $c->company_id])
+            + ['dividends30' => $dividends[(int) $c->company_id], 'count' => $counts[(int) $c->company_id],
+                'offered' => (int) ($offered[(int) $c->company_id] ?? 0), 'holders' => $holders[(int) $c->company_id]])->all();
     }
 
     /** Game days a trade between players stays recent enough to quote its premium (#716) */
@@ -722,9 +915,12 @@ class PlayerShares
         $today = MarketHistory::today();
         $spark = array_fill_keys($ids, []);
         if ($ids && \Illuminate\Support\Facades\Schema::hasColumn('company_days', 'cash_out')) {
+            $withShares = \Illuminate\Support\Facades\Schema::hasColumn('company_days', 'shares');
             foreach (DB::table('company_days')->whereIn('company_id', $ids)->where('day', '>', $today - 30)
-                         ->whereNotNull('cash_out')->orderBy('company_id')->orderBy('day')->get(['company_id', 'day', 'cash_out']) as $r) {
-                $spark[(int) $r->company_id][] = ['day' => (int) $r->day, 'v' => intdiv(max(0, (int) $r->cash_out), self::COUNT)];
+                         ->whereNotNull('cash_out')->orderBy('company_id')->orderBy('day')
+                         ->get(array_merge(['company_id', 'day', 'cash_out'], $withShares ? ['shares'] : [])) as $r) {
+                // Over the shares it had that day (#780)
+                $spark[(int) $r->company_id][] = ['day' => (int) $r->day, 'v' => intdiv(max(0, (int) $r->cash_out), max(1, (int) ($r->shares ?? self::COUNT)))];
             }
         }
         // The last trade between two players (#716): the bank's trades are at
@@ -739,7 +935,6 @@ class PlayerShares
             $id = $m['company'];
             $l = $last[$id] ?? null;
             $h = $health[$id];
-            $m['dividends30'] = $m['sells_at'] - $m['buys_at'];
             $m['yield_percent'] = $m['buys_at'] > 0 ? round(100 * $m['dividends30'] / $m['buys_at'], 1) : null;
             $m['spark'] = $spark[$id];
             $m['last_price'] = $l ? (int) $l->price : null;
@@ -799,12 +994,15 @@ class PlayerShares
             ->leftJoin('users as s', 's.user_id', '=', 't.seller_id')->leftJoin('users as b', 'b.user_id', '=', 't.buyer_id')
             ->where(fn ($q) => $q->where('t.seller_id', $user)->orWhere('t.buyer_id', $user))
             ->where('t.game_t', '>', $since)->orderByDesc('t.id')->limit($limit)
-            ->get(['t.company_id', 'c.name', 't.seller_id', 't.units', 't.price', 't.game_t', 's.login as seller', 'b.login as buyer'])
+            ->get(['t.company_id', 'c.name', 't.seller_id', 't.units', 't.price', 't.game_t', 's.login as seller', 'b.login as buyer',
+                't.rebate', 't.rebate_user_id', 't.issued'])
             ->map(function ($t) use ($user) {
                 $sold = (int) $t->seller_id === $user;
                 return ['company_id' => (int) $t->company_id, 'name' => $t->name, 'side' => $sold ? 'sold' : 'bought',
                     'units' => (int) $t->units, 'price' => (int) $t->price,
-                    'with' => ($sold ? $t->buyer : $t->seller) ?? 'the bank',
+                    // What the bank paid this account for its resting order (#782)
+                    'rebate' => (int) ($t->rebate_user_id ?? 0) === $user ? (int) $t->rebate : 0,
+                    'with' => ($sold ? $t->buyer : $t->seller) ?? (!$sold && ($t->issued ?? 0) ? 'the company (new shares)' : 'the bank'),
                     'when' => DronePage::when((int) $t->game_t), 'ago' => DronePage::ago((int) $t->game_t), 'game_time' => (int) $t->game_t];
             })->all();
     }
@@ -889,7 +1087,7 @@ class PlayerShares
                     }
                     $total = 0;
                     foreach ($holders as [$user, $units]) {
-                        $amount = intdiv($due * $units, self::COUNT);
+                        $amount = intdiv($due * $units, self::count((int) $c->company_id));
                         if ($amount <= 0) {
                             continue;
                         }

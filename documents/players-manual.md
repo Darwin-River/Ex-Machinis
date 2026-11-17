@@ -1351,7 +1351,7 @@ Dividends land in your account's **credits**. Your account page shows what your 
 
 ### Cash-out value: what a share is worth
 
-A share's **cash-out value** is what the company would fetch if it were sold off now, over its 100 shares:
+A share's **cash-out value** is what the company would fetch if it were sold off now, over its shares (100, more once it has sold new ones):
 
 - its **credits**,
 - plus its **goods and equipment**, each at its best House bid anywhere, averaged over the last 7 game days (so it doesn't depend on where the drones are, and one day's prices move it a seventh as much),
@@ -1369,7 +1369,7 @@ A company's **net wealth** on the company leaderboards is a different figure: wh
 
 **The bank always buys.** Sell it any of your shares, at any time, at their cash-out value. The shares go to the bank at once; it **pays 30 game days later**, at the lower of the cash-out value then and on the day you sold. So you can't sell a company to the bank at today's price and leave the bank holding the loss if it collapses. If the company is counting down to dissolving when the payment falls due (it has had no credits for a while), the payment waits until it recovers or ends; if it ends, the bank pays nothing, and while it counts down the bank doesn't sell its shares either (#757: round 72's bank paid in full for a company that dissolved a game day later). Your account page lists what the bank still owes you, and it counts in your wealth on the Players page while you wait (at the lower of the sale price and the cash-out value now). If your sell orders for that company would then offer more shares than you still hold, the newest of them shrink or go, so the book never offers shares you no longer have.
 
-**The bank sells** the shares it holds at its **selling price**: the cash-out value plus what a share was actually paid in dividends over the last 30 game days (#673). A company that has just matured sells at its cash-out value. In the example above, if the company paid 1,500 credits in dividends over the last 30 game days (15 a share), the bank sells its shares at 36 + 15 = **51**.
+**The bank sells** the shares it holds at its **selling price**: the cash-out value plus what a share was actually paid in dividends over the last **10** game days (#673; 30 until #781, which made buying from the bank prepay a month of dividends). A company that has just matured sells at its cash-out value. In the example above, if the company paid 500 credits in dividends over the last 10 game days (5 a share), the bank sells its shares at 36 + 5 = **41**.
 
 On a matured company's page (logged in): **Sell to the bank** and **Buy from the bank**, in whole shares. Through the API: `POST /api/v1/player-shares/{id}/bank/sell` and `.../bank/buy` with `units`.
 
@@ -1385,11 +1385,23 @@ Players trade shares with **standing orders**, like goods: an order to buy or se
 - **You must be able to pay.** A buy order can't commit more than your account can pay, counting your other buy orders. Your **starting credits** pay only at or below the bank's selling price; above it, only your own credits do.
 - **You must hold what you sell.** Your sell orders for a company together can't offer more shares than you hold.
 - **Your own orders can't cross.** A buy at or above your own sell price for the same company, or a sell at or below your own buy price, is refused: cancel the other order first.
+- **A resting order earns a rebate (#782).** When your standing order fills against another player's order, and it has been on the book for at least a game hour, the bank pays you **0.5%** of the trade on top (rounded down: 10 shares at 51 is 510 credits, so 2). Keeping orders on the book pays; placing one and filling it at once doesn't. The player who took your order gets none. Your account page and the since-you-last-looked card say when you got one; a pegged order keeps its time on the book when the bank's prices move it.
 - **Pegged orders follow the bank (#766).** Instead of a fixed price, an order can follow what the bank buys at (the cash-out value) or what it sells at, plus or minus up to 25%: "buy 5 at what the bank buys at −1%", or "sell 5 at what the bank sells at +3%". Every few real minutes it is moved to its price now, kept within the range, and trades at once with any order it then meets. A fixed price goes stale as the company's value moves (round 72's orders ended up under cash-out, or out of range, within 10 game days); a pegged one doesn't. If it can't stand at its new price (your own orders would cross, or you can't pay), it stays where it was.
 
 On a matured company's page (logged in), **Post the order** with buy or sell, shares and price (or, to peg it, what it follows and the percent); your account page lists your standing orders, each with a **Cancel** button. Through the API: `GET /api/v1/player-shares/{id}` shows the range, the book and the latest trades, `POST /api/v1/player-shares/{id}/orders` posts an order (`side`, `units`, `price`), and `GET /api/v1/account/shares` lists your holdings, orders and the bank's payments due.
 
 **Which to use?** Selling to a player can pay more than the bank, and pays at once. Selling to the bank always works, but pays in 30 game days at what the company is worth then. Buying from the bank costs its selling price; a player may sell for less.
+
+### Raising credits with new shares to fund a copy
+
+A matured company can't take credits from its owner any other way, so it grows on what its drones earn: a copy costs a hull and a kit. Its owner can raise them faster by selling **new shares** (#780):
+
+- **10 at a time,** at the company's **cash-out value** a share at the moment each is bought. What they fetch goes to the **company's** credits, not its owner's.
+- **Any player may buy,** its owner too, on the company's page (**Buy new shares**) or through the API.
+- **One offering at a time,** and a company has **at most 200 shares**. Its owner can withdraw the rest of an offering; the shares already sold stay sold.
+- **Buying at cash-out doesn't dilute the value.** The company gains a share's worth of credits for each new share, so a share's cash-out value stays as it was. What changes is **each holder's part** of the company: the company page lists each holder's percentage, and its dividends are shared over more shares. If those credits buy a drone that earns, every share earns more.
+
+Each offering is a mark on the company's charts ("Offered 10 shares"), the stock exchange shows a company's share count once it has sold new ones and any shares still on offer, and the trade lists show the sale as **New shares**.
 
 ### <a name="trading-script"></a>Your trading script
 

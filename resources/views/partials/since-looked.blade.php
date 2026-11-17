@@ -18,7 +18,7 @@
             @if($card['bank_paid'])<li>The bank paid you {{ number_format($card['bank_paid']) }} credits for shares you sold it.</li>@endif
             @foreach($card['share_fills'] as $f)
                 <li>You {{ $f['side'] }} {{ number_format($f['units']) }} {{ $f['name'] }} shares at {{ number_format($f['price']) }}
-                    {{ $f['side'] === 'sold' ? 'to' : 'from' }} {{ $f['with'] }}.</li>
+                    {{ $f['side'] === 'sold' ? 'to' : 'from' }} {{ $f['with'] }}.@if(!empty($f['rebate'])) The bank paid you a {{ number_format($f['rebate']) }}-credit rebate for your resting order.@endif</li>
             @endforeach
             @if($card['failing'])
                 <li><strong>To fix:</strong> <a href="{{ url('companies/' . $card['failing']['company_id']) }}#health">{{ $card['failing']['name'] }}</a>:

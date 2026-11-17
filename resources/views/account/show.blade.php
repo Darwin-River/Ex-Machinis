@@ -20,7 +20,7 @@
                         @if($digest['bank_paid'])<li>The bank paid you {{ number_format($digest['bank_paid']) }} credits for shares you sold it.</li>@endif
                         @foreach($digest['share_fills'] ?? [] as $f)
                             <li>You {{ $f['side'] }} {{ number_format($f['units']) }} {{ $f['name'] }} {{ \Illuminate\Support\Str::plural('share', $f['units']) }} at {{ number_format($f['price']) }}
-                                {{ $f['side'] === 'sold' ? 'to' : 'from' }} {{ $f['with'] }} ({{ $f['when'] }}).</li>
+                                {{ $f['side'] === 'sold' ? 'to' : 'from' }} {{ $f['with'] }} ({{ $f['when'] }}).@if(!empty($f['rebate'])) Your order had rested, so the bank paid you a {{ number_format($f['rebate']) }}-credit rebate.@endif</li>
                         @endforeach
                         @foreach($digest['same_owner_deals'] as $f)
                             <li>{{ $f['company'] }} dealt with {{ $f['with'] }}, a company of yours: flagged on both pages.</li>
@@ -104,7 +104,7 @@
                     @foreach($portfolio['fills'] as $f)
                         <li>{{ ucfirst($f['side']) }} {{ number_format($f['units']) }} of
                             <a href="{{ url('companies/' . $f['company_id']) }}#player-shares">{{ $f['name'] }}</a> at {{ number_format($f['price']) }}
-                            {{ $f['side'] === 'sold' ? 'to' : 'from' }} {{ $f['with'] }}, {{ $f['when'] }} ({{ $f['ago'] }})</li>
+                            {{ $f['side'] === 'sold' ? 'to' : 'from' }} {{ $f['with'] }}, {{ $f['when'] }} ({{ $f['ago'] }})@if(!empty($f['rebate'])), and a {{ number_format($f['rebate']) }}-credit rebate from the bank for your resting order @endif</li>
                     @endforeach
                 </ul>
             @endif

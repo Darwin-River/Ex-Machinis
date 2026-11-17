@@ -111,11 +111,13 @@ class WorldEvents
         }
         // Share trades by game day: sales to the bank, and big trades
         if (Schema::hasTable('player_share_trades')) {
+            // New shares the company sold (#780) aren't the bank's
+            $issued = Schema::hasColumn('player_share_trades', 'issued') ? 'AND issued = 0' : '';
             $days = DB::table('player_share_trades')->where('company_id', $companyId)
-                ->selectRaw('FLOOR((game_t - ?) / 86400) AS day, MIN(game_t) AS t,
+                ->selectRaw("FLOOR((game_t - ?) / 86400) AS day, MIN(game_t) AS t,
                     SUM(CASE WHEN buyer_id IS NULL THEN units ELSE 0 END) AS to_bank,
-                    SUM(CASE WHEN seller_id IS NULL THEN units ELSE 0 END) AS from_bank,
-                    SUM(CASE WHEN seller_id IS NOT NULL AND buyer_id IS NOT NULL THEN units ELSE 0 END) AS players', [$epoch])
+                    SUM(CASE WHEN seller_id IS NULL $issued THEN units ELSE 0 END) AS from_bank,
+                    SUM(CASE WHEN seller_id IS NOT NULL AND buyer_id IS NOT NULL THEN units ELSE 0 END) AS players", [$epoch])
                 ->groupBy('day')->orderByDesc('day')->limit(self::MAX_COMPANY)->get();
             foreach ($days->reverse() as $d) {
                 $parts = [];
@@ -133,6 +135,13 @@ class WorldEvents
                         ucfirst(implode('; ', $parts)) . ' that game day.');
                 }
             }
+        }
+        // Its offerings of new shares (#780): the day each opened, what sold and what it raised
+        foreach (array_reverse(PlayerShares::offerings($companyId)) as $o) {
+            $add('offered', $o['created_t'], 'Offered ' . $o['units'] . ' shares',
+                'It offered ' . $o['units'] . ' new shares at its cash-out value a share, to fund its growth: '
+                . ($o['sold'] > 0 ? $o['sold'] . ' sold, raising ' . number_format($o['raised']) . ' credits' : 'none sold yet')
+                . ($o['closed_t'] !== null && $o['sold'] < $o['units'] ? ' (the rest withdrawn)' : '') . '.');
         }
         // What it invested (#778): equipment it bought (kits, modules and
         // hulls) by game day, with how long its profit a drone takes to pay

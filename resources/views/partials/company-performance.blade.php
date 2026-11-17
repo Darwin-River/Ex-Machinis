@@ -41,7 +41,7 @@
         <div class="mh-card perf-card">
             <h3>What is a share worth?</h3>
             <p class="mh-note">A share's cash-out value, what the bank pays for it, as an average over 7 game days (the line)
-                with the least and most it was on those days (the band), and the bank's selling price (cash-out plus 30 days of
+                with the least and most it was on those days (the band), and the bank's selling price (cash-out plus {{ \App\Services\PlayerShares::premiumDays() }} game days of
                 dividends), averaged the same way; each dot is a trade between two players at its price (the bank's trades are
                 at its own prices, and aren't dots). The day-to-day figure swung with where the drones were until cash-out was
                 steadied (#685); hover a day for it.

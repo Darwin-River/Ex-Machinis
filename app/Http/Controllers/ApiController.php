@@ -99,8 +99,9 @@ class ApiController extends Controller
         if ((int) $company->seedling === 1 || $company->matured_t === null) {
             return ['count' => 0, 'cash_out' => $cash['total'], 'holders' => []];
         }
-        return ['count' => \App\Services\PlayerShares::COUNT, 'cash_out' => $cash['total']]
-            + \App\Services\PlayerShares::prices($id) + ['holders' => \App\Services\PlayerShares::holders($id)];
+        return ['count' => \App\Services\PlayerShares::count($id), 'cash_out' => $cash['total']]
+            + \App\Services\PlayerShares::prices($id) + ['holders' => \App\Services\PlayerShares::holders($id),
+                'offering' => \App\Services\PlayerShares::offering($id)];
     }
 
     /**

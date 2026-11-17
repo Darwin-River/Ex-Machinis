@@ -87,5 +87,9 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/{id}/bank/sell', 'PlayerShareController@apiSellToBank')->whereNumber('id');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/{id}/bank/buy', 'PlayerShareController@apiBuyFromBank')->whereNumber('id');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/{id}/orders', 'PlayerShareController@apiOrder')->whereNumber('id');
+    // New shares to fund growth (#780)
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/{id}/offering', 'PlayerShareController@apiOffer')->whereNumber('id');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/{id}/offering/withdraw', 'PlayerShareController@apiWithdrawOffer')->whereNumber('id');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/{id}/offering/buy', 'PlayerShareController@apiBuyOffered')->whereNumber('id');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/orders/{order}/cancel', 'PlayerShareController@apiCancel')->whereNumber('order');
 });

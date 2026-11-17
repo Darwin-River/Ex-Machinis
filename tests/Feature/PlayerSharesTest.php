@@ -113,6 +113,13 @@ class PlayerSharesTest extends TestCase
             'units' => 100, 'amount' => 20000]);
         $this->assertSame(200, PlayerShares::dividends30($id), '20,000 paid over 100 shares');
         $this->assertSame(PlayerShares::prices($id)['buys_at'] + 200, PlayerShares::prices($id)['sells_at']);
+        // #781: the bank adds the last 10 game days of dividends, not 30, so
+        // dividends paid 20 game days ago count in the yield but not the price
+        DB::table('player_dividends')->insert(['company_id' => $id, 'user_id' => $owner->user_id, 'day' => $today - 20,
+            'units' => 100, 'amount' => 30000]);
+        $this->assertSame(500, PlayerShares::dividends30($id), 'both payments within 30 game days');
+        $this->assertSame(PlayerShares::prices($id)['buys_at'] + 200, PlayerShares::prices($id)['sells_at'], 'only the last 10 game days');
+        $this->assertSame(500, collect(PlayerShares::market())->firstWhere('company', $id)['dividends30']);
     }
 
     /** #766: a pegged order follows the bank's price, and trades when a move makes it meet another */
@@ -263,6 +270,107 @@ class PlayerSharesTest extends TestCase
         $this->actingAs($buyer)->get('/account')->assertOk()->assertSee('Traded Co')->assertSee('Your shares');
         $this->actingAs($buyer)->get('/companies/' . $id)->assertOk()->assertSee('You hold 4 of its shares')
             ->assertSee('id="player-shares"', false);
+    }
+
+    public function testARestingOrderEarnsARebate()
+    {
+        // #782: 0.5% of the trade from the bank to the resting order's owner,
+        // once the order has rested a game hour; the two are always different players
+        config(['forge.rebate_permille' => 5, 'forge.rebate_rest_game_seconds' => 3600]);
+        $owner = $this->player('Rester');
+        $id = $this->matured($owner, 'Rebate Co', 100000);
+        $p = PlayerShares::prices($id);
+        $buyer = $this->player('Taker');
+        DB::table('users')->where('user_id', $buyer->user_id)->update(['credits' => 1000000]);
+
+        // Placed just now: it trades, but earns nothing
+        PlayerShares::order($owner, $id, 'sell', 20, $p['sells_at']);
+        PlayerShares::order($buyer, $id, 'buy', 5, $p['sells_at']);
+        $this->assertSame(5 * $p['sells_at'], $this->credits($owner)[0], 'no rebate under a game hour');
+        $this->assertSame(0, PlayerShares::trades($id)[0]['rebate']);
+
+        // A game hour later it does: 0.5% of the credits, rounded down
+        DB::table('player_share_orders')->where('user_id', $owner->user_id)->update(['game_t' => World::gameNow() - 3600]);
+        PlayerShares::order($buyer, $id, 'buy', 10, $p['sells_at']);
+        $credits = 10 * $p['sells_at'];
+        $rebate = intdiv($credits * 5, 1000);
+        $this->assertGreaterThan(0, $rebate);
+        $this->assertSame(15 * $p['sells_at'] + $rebate, $this->credits($owner)[0], 'the seller is paid the trade and the rebate');
+        $t = PlayerShares::trades($id)[0];
+        $this->assertSame([$rebate, 'seller'], [$t['rebate'], $t['rebate_to']]);
+        $this->assertSame($rebate, PlayerShares::fills((int) $owner->user_id, 0)[0]['rebate']);
+        $this->assertSame(0, PlayerShares::fills((int) $buyer->user_id, 0)[0]['rebate'], 'the taker gets none');
+        $this->actingAs($owner)->get('/account')->assertOk()->assertSee('rebate from the bank for your resting order');
+
+        // An order from before the rebate (no placed time) counts as rested
+        DB::table('player_share_orders')->where('user_id', $owner->user_id)->update(['game_t' => null]);
+        $this->assertSame(intdiv(100 * 5, 1000), PlayerShares::rebate(100, null));
+        // and a pegged order keeps its rest when the bank's prices move it
+        $placed = World::gameNow() - 7200;
+        PlayerShares::order($buyer, $id, 'buy', 1, $p['low'], ['ref' => 'buys_at', 'offset_bp' => -1000]);
+        DB::table('player_share_orders')->where('user_id', $buyer->user_id)->update(['game_t' => $placed, 'price' => $p['low'] + 1]);
+        PlayerShares::repeg();
+        $this->assertSame($placed, (int) DB::table('player_share_orders')->where('user_id', $buyer->user_id)->value('game_t'));
+    }
+
+    public function testNewSharesFundTheCompany()
+    {
+        // #780: its owner offers 10 new shares at a time at cash-out; any
+        // player (its owner too) buys; the credits go to the company; at most 200
+        $owner = $this->player('Grower');
+        $id = $this->matured($owner, 'Growth Co', 100000);
+        $other = $this->player('Backer');
+        DB::table('users')->whereIn('user_id', [$owner->user_id, $other->user_id])->update(['credits' => 1000000]);
+        $this->assertSame(100, PlayerShares::count($id));
+        $this->assertSame(403, PlayerShares::offer($other, $id)['status'], 'only its owner offers');
+        $this->assertSame(409, PlayerShares::buyOffered($other, $id, 1)['status'], 'nothing on offer yet');
+
+        $before = PlayerShares::prices($id)['buys_at'];
+        $credits = (int) DB::table('companies')->where('company_id', $id)->value('credits');
+        $r = PlayerShares::offer($owner, $id);
+        $this->assertTrue($r['ok']);
+        $this->assertSame(10, $r['units']);
+        $this->assertSame(409, PlayerShares::offer($owner, $id)['status'], 'one offering at a time');
+        $this->assertSame(10, PlayerShares::offering($id)['left']);
+
+        // A backer buys 6 at cash-out: the company gets the credits, the count grows
+        $b = PlayerShares::buyOffered($other, $id, 6);
+        $this->assertTrue($b['ok']);
+        $this->assertSame([6, $before, 6 * $before, 4, 106], [$b['units'], $b['price'], $b['cost'], $b['left'], $b['count']]);
+        $this->assertSame($credits + 6 * $before, (int) DB::table('companies')->where('company_id', $id)->value('credits'));
+        $this->assertSame(6, PlayerShares::held((int) $other->user_id, $id));
+        $this->assertEqualsWithDelta($before, PlayerShares::prices($id)['buys_at'], 1, 'buying at cash-out leaves a share\'s cash-out as it was');
+        $this->assertSame(409, PlayerShares::buyOffered($other, $id, 5)['status'], 'only 4 left');
+        // its owner buys the rest; the offering closes
+        $this->assertTrue(PlayerShares::buyOffered($owner, $id, 4)['ok']);
+        $this->assertNull(PlayerShares::offering($id));
+        $this->assertSame(110, PlayerShares::count($id));
+
+        // Ownership by percent, and the trade shown as new shares, not the bank's
+        $holders = collect(PlayerShares::holders($id))->keyBy('name');
+        $this->assertSame(round(100 * 104 / 110, 1), $holders['Grower']['percent']);
+        $this->assertSame(round(100 * 6 / 110, 1), $holders['Backer']['percent']);
+        $t = PlayerShares::trades($id)[0];
+        $this->assertSame([true, 'New shares', false], [$t['issued'], $t['seller_name'], $t['seller_is_bank']]);
+        $this->assertSame('the company (new shares)', PlayerShares::fills((int) $owner->user_id, 0)[0]['with']);
+
+        // Shown on the company page, the stock exchange, its charts' marks and the API
+        $this->actingAs($owner)->get('/companies/' . $id)->assertOk()->assertSee('id="share-count"', false)->assertSee('110')
+            ->assertSee('Of the company')->assertSee('Offer new shares');
+        \Illuminate\Support\Facades\Cache::flush();
+        $this->get('/market/shares')->assertOk()->assertSee('110 shares');
+        $this->assertContains('offered', array_column(\App\Services\WorldEvents::company($id), 'kind'));
+        $this->getJson("/api/v1/player-shares/$id")->assertOk()->assertJsonPath('count', 110)->assertJsonPath('offering', null);
+
+        // The web form offers again, and its owner can withdraw; the cap is 200
+        $this->actingAs($owner)->post('/companies/' . $id . '/offering')->assertRedirect();
+        $this->assertSame(10, PlayerShares::offering($id)['left']);
+        $this->actingAs($other)->post('/companies/' . $id . '/offering/buy', ['units' => 2])->assertRedirect();
+        $this->assertSame(112, PlayerShares::count($id));
+        $this->assertTrue(PlayerShares::withdraw($owner, $id));
+        $this->assertNull(PlayerShares::offering($id));
+        DB::table('companies')->where('company_id', $id)->update(['player_share_count' => 195]);
+        $this->assertSame(409, PlayerShares::offer($owner, $id)['status'], 'past 200');
     }
 
     public function testAClassGroupTradesOnlyWithinItself()
