@@ -30,7 +30,7 @@ class Recipes
     public static function processes(): array
     {
         $effects = DB::table('resource_effects as e')->join('protocols as p', 'p.id', '=', 'e.protocol')
-            ->where('e.installed', 0)->where('e.local', 1)->whereIn('e.event_type', [1, 2])
+            ->where('e.installed', 0)->where('e.local', 1)->whereIn('e.event_type', [1, 2, 15, 16])
             ->orderBy('e.protocol')->orderBy('e.id')
             ->get(['e.protocol', 'p.name', 'e.resource', 'e.event_type', 'e.locked', 'e.quantity', 'e.time', 'e.deplete', 'e.abundancies']);
         $by = [];
@@ -39,6 +39,15 @@ class Recipes
             $by[$p] ??= ['name' => $e->name, 'net' => [], 'locked' => [], 'seconds' => 0, 'fuel' => 0, 'mined' => false];
             $q = (int) $e->quantity * ((int) $e->event_type === 1 ? 1 : -1);
             $r = (int) $e->resource;
+            // A tool taken for the action's time (#814): lock tool, unlock tool
+            if (in_array((int) $e->event_type, [15, 16], true)) {
+                $by[$p]['seconds'] = max($by[$p]['seconds'], (int) $e->time);
+                if ($r > 0) {
+                    $by[$p]['locked'][$r] = true;
+                    $by[$p]['net'][$r] = $by[$p]['net'][$r] ?? 0;
+                }
+                continue;
+            }
             $by[$p]['seconds'] = max($by[$p]['seconds'], (int) $e->time);
             if ($r <= 0 || (int) $e->quantity <= 0) {
                 continue;   // set by the parameters: trading, importing

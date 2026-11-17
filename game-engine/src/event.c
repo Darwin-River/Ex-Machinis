@@ -299,6 +299,16 @@ Bool_t event_no_resources_condition
         return ENGINE_TRUE;
     }
 
+    // Nor take a tool in use (#814): a decrement of an unlocked holding
+    // can't leave fewer units than the locks on it
+    if(event->event_type == DECREMENT_INVENTORY_EVENT_TYPE && event->locked == 0 && event->new_quantity != NULL_VALUE &&
+       db_tool_lock_blocks(event->drone_id, event->resource_id, event->installed, event->new_quantity)) {
+        engine_trace(TRACE_LEVEL_ALWAYS,
+            "Resource [%d] of drone [%d]: [%d] would be left, fewer than its tools in use",
+            event->resource_id, event->drone_id, event->new_quantity);
+        return ENGINE_TRUE;
+    }
+
 
     return ENGINE_FALSE;
 }
@@ -1134,6 +1144,33 @@ static ErrorCode_t event_apply(Event_t *event)
     }
 
     if(result == ENGINE_OK && event->event_type == WAIT_EVENT_TYPE) {
+        event->outcome = OUTCOME_OK;
+        event->logged = 1;
+        event->new_cargo = NULL_VALUE;
+        event->new_credits = NULL_VALUE;
+        return db_update_event(event);
+    }
+
+    // A tool taken for an action's time, and given back (#814): a row in
+    // tool_locks, not inventory history. A tool that isn't free fails -2 as
+    // it did when the lock was an inventory decrement. Neither is observed,
+    // and the archiver's pass deletes them once settled
+    if(result == ENGINE_OK && event->event_type == LOCK_TOOL_EVENT_TYPE) {
+        int outcome = db_tool_lock(event);
+        if(outcome == 0)
+            return ENGINE_DB_QUERY_ERROR;
+        event->outcome = outcome;
+        event->logged = 1;
+        event->new_cargo = NULL_VALUE;
+        event->new_credits = NULL_VALUE;
+        if(outcome != OUTCOME_OK)
+            return ENGINE_LOGIC_ERROR;
+        return db_update_event(event);
+    }
+    if(result == ENGINE_OK && event->event_type == UNLOCK_TOOL_EVENT_TYPE) {
+        result = db_tool_unlock(event);
+        if(result != ENGINE_OK)
+            return result;
         event->outcome = OUTCOME_OK;
         event->logged = 1;
         event->new_cargo = NULL_VALUE;

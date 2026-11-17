@@ -2016,6 +2016,13 @@ ErrorCode_t db_abort_action(int action_id)
         {
             engine_trace(TRACE_LEVEL_ALWAYS, "Action [%d] aborted", action_id);
 
+            // Its tools in use go back at once (#814): an aborted action's
+            // unlock never comes (#748: tools left locked for good)
+            char unlock_text[128];
+            snprintf(unlock_text, sizeof(unlock_text), "DELETE FROM tool_locks WHERE action = %d", action_id);
+            if(mysql_query(connection->hndl, unlock_text))
+                engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", unlock_text, mysql_error(connection->hndl));
+
             // Its events still to come never happen: say so (#725). Left at
             // outcome 0 they stayed "pending" for good, and every batch of
             // the Event Engine walked past them: 328,000 rows a batch on the

@@ -767,6 +767,13 @@ ErrorCode_t db_delete_action(int action_id);
 ErrorCode_t db_purge_old_actions();
 /* Frees tools left locked by aborted actions (#748); the number freed, or -1 */
 int db_free_stuck_tools(void);
+// Tools in use (#814): locks in force on a holding, and the lock and unlock events
+int db_tool_locked_units(int drone, int resource, int installed);
+int db_tool_lock(Event_t* event);
+ErrorCode_t db_tool_unlock(Event_t* event);
+void db_tool_locks_load(void);
+void db_tool_locks_forget_action(int action);
+int db_tool_lock_blocks(int drone, int resource, int installed, int left);
 
 /** ****************************************************************************
 

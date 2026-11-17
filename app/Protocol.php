@@ -13,6 +13,9 @@ class Protocol extends Model
     /** Event types in the action tables */
     private const INCREMENT = 1;
     private const DECREMENT = 2;
+    // A tool locked for the action's time, and given back (#814)
+    private const LOCK_TOOL = 15;
+    private const UNLOCK_TOOL = 16;
     private const LAUNCH = 8;
 
     /** Default game time scale when the game clock hasn't been created yet */
@@ -52,8 +55,10 @@ class Protocol extends Model
             }
             $sign = $e->event_type == self::INCREMENT ? 1 : ($e->event_type == self::DECREMENT ? -1 : 0);
             $names[$e->resource] = $e->resource_name ?? ('Resource ' . $e->resource);
-            $net[$e->resource] = ($net[$e->resource] ?? 0) + ($e->locked ? 0 : $sign * $e->quantity);
-            if ($e->locked) {
+            // A tool taken for the action's time (#814: lock tool and unlock tool; before, locked effects)
+            $tool = $e->locked || in_array((int) $e->event_type, [self::LOCK_TOOL, self::UNLOCK_TOOL], true);
+            $net[$e->resource] = ($net[$e->resource] ?? 0) + ($tool ? 0 : $sign * $e->quantity);
+            if ($tool) {
                 $locked[$e->resource] = true;
             }
             if ($e->abundancies) {
@@ -119,6 +124,12 @@ class Protocol extends Model
         $drone = $e->drone == 0 ? 'this drone' : ($e->drone < 0 ? 'the drone given as parameter ' . -$e->drone : 'drone ' . $e->drone);
         $state = $e->locked ? ' (locked: in use)' : ($e->installed ? ' (installed)' : '');
 
+        if ($e->event_type == self::LOCK_TOOL) {
+            return "Takes $quantity × $resource on $drone for the action's time: it must be there, and isn't free until it is given back";
+        }
+        if ($e->event_type == self::UNLOCK_TOOL) {
+            return "Gives back $quantity × $resource on $drone";
+        }
         if ($e->event_type == self::INCREMENT) {
             $verb = $e->abundancies ? 'Mines' : 'Adds';
             $text = "$verb $quantity × $resource$state to $drone";

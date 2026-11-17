@@ -205,7 +205,9 @@ class ApiController extends Controller
     {
         [$sign, $pending] = $type === 4 ? ['-', 2] : ['+', 1];
         return "(IFNULL((SELECT h.units FROM holdings AS h WHERE h.drone = o.drone AND h.resource = o.resource
-                    AND h.installed = 0 AND h.locked = 0), 0) $sign
+                    AND h.installed = 0 AND h.locked = 0), 0)
+                 - IFNULL((SELECT SUM(t.units) FROM tool_locks AS t WHERE t.drone = o.drone AND t.resource = o.resource
+                    AND t.installed = 0), 0) $sign
                  IFNULL((SELECT ABS(SUM(e.new_quantity)) FROM events AS e FORCE INDEX (events_inventory)
                     WHERE e.drone = o.drone AND e.resource = o.resource AND e.installed = 0 AND e.locked = 0
                     AND e.outcome = 0 AND e.event_type = $pending

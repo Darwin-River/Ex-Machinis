@@ -324,7 +324,59 @@ protocols = {}   # id -> row
 effects = []     # (protocol, effect dict)
 
 
+LOCK_TOOL, UNLOCK_TOOL = 15, 16   # #814: a tool in use is a tool_locks row, not inventory history
+
+
+def tool_locks(effs):
+    """A protocol's tool, locked for the action's time (#814): its pairs of
+    inventory effects (free -1 and locked +1 when it starts, the reverse when
+    it ends, and a check before them: free +1 then -1 at one time) become one
+    lock tool effect at the earliest of those times and one unlock tool
+    effect at the last. Two events a use where there were four to six. Only
+    those pairs go: the same resource used up as an input (craft 6121 uses a
+    5521 and locks another) stays"""
+    effs = [dict(e) for e in effs]
+    used = set()
+
+    def take(pred):
+        for i, e in enumerate(effs):
+            if i not in used and pred(e):
+                used.add(i)
+                return e
+        return None
+
+    out = []
+    for r in sorted({e['resource'] for e in effs if e['locked'] == 1}):
+        while True:
+            on = take(lambda e: e['resource'] == r and e['locked'] == 1 and e['event_type'] == 1)
+            if on is None:
+                break
+            qty, t0 = on['quantity'], on['time']
+            take(lambda e: e['resource'] == r and e['locked'] == 0 and e['event_type'] == 2 and e['time'] == t0 and e['quantity'] == qty)
+            off = take(lambda e: e['resource'] == r and e['locked'] == 1 and e['event_type'] == 2 and e['quantity'] == qty)
+            t1 = off['time'] if off else t0
+            take(lambda e: e['resource'] == r and e['locked'] == 0 and e['event_type'] == 1 and e['time'] == t1 and e['quantity'] == qty)
+            # The check before it: free +1 then -1 at one earlier time
+            start = t0
+            for t in sorted({e['time'] for e in effs if e['time'] < t0}):
+                pair = [i for i, e in enumerate(effs) if i not in used and e['resource'] == r and e['locked'] == 0
+                        and e['time'] == t and e['quantity'] == qty and e['event_type'] in (1, 2)]
+                kinds = sorted(effs[i]['event_type'] for i in pair)
+                if kinds[:2] == [1, 2] and len(pair) >= 2:
+                    inc = next(i for i in pair if effs[i]['event_type'] == 1)
+                    dec = next(i for i in pair if effs[i]['event_type'] == 2)
+                    used.update([inc, dec])
+                    start = min(start, t)
+                    break
+            base = {'drone': 0, 'resource': r, 'local': 1, 'installed': on['installed'], 'locked': 0, 'deplete': 0,
+                    'abundancies': 0, 'quantity': qty}
+            out += [dict(base, time=start, event_type=LOCK_TOOL), dict(base, time=t1, event_type=UNLOCK_TOOL)]
+    keep = [e for i, e in enumerate(effs) if i not in used]
+    return sorted(keep + out, key=lambda e: e['time'])
+
+
 def add_effects(pid, effs):
+    effs = tool_locks(effs)
     for e in effs:
         if e['resource'] > 0 and str(e['resource']) not in resources:
             note(f'protocol {pid}: effect on unknown resource {e["resource"]} dropped')
@@ -838,8 +890,11 @@ def movable(drone, resource, event_type):
     # Earth and Moon exchanges' fuel and metals vanished from the book
     # behind them, round 63's fuel shortage)
     sign, pending = ('-', 2) if event_type == 4 else ('+', 1)
+    # A tool in use is in the free holding now, held by a lock (#814): not movable
     return (f"(IFNULL((SELECT h.units FROM holdings AS h WHERE h.drone = {drone} AND h.resource = {resource} "
-            f"AND h.installed = 0 AND h.locked = 0), 0) {sign} "
+            f"AND h.installed = 0 AND h.locked = 0), 0) "
+            f"- IFNULL((SELECT SUM(t.units) FROM tool_locks AS t WHERE t.drone = {drone} AND t.resource = {resource} "
+            f"AND t.installed = 0), 0) {sign} "
             f"IFNULL((SELECT ABS(SUM(p.new_quantity)) FROM events AS p FORCE INDEX (events_inventory) "
             f"WHERE p.drone = {drone} AND p.resource = {resource} AND p.installed = 0 AND p.locked = 0 "
             f"AND p.outcome = 0 AND p.event_type = {pending} "
@@ -1378,9 +1433,9 @@ queries.append((695, 'Recipe',
                 '[R L 695 query]: The first recipe that makes resource R: protocol, resource, units (made: '
                 'positive; used, fuel too: negative; the tool it needs: 0), minutes it takes. One row a resource, '
                 'what it makes first.', 1,
-                "SELECT e.protocol, e.resource, SUM(IF(e.event_type = 1, e.quantity, -e.quantity)) AS units, "
+                "SELECT e.protocol, e.resource, SUM(IF(e.event_type = 1, e.quantity, IF(e.event_type = 2, -e.quantity, 0))) AS units, "
                 "(SELECT MAX(t.time) FROM resource_effects t WHERE t.protocol = e.protocol) DIV 60 AS minutes "
-                "FROM resource_effects e WHERE e.installed = 0 AND e.local = 1 AND e.event_type IN (1, 2) "
+                "FROM resource_effects e WHERE e.installed = 0 AND e.local = 1 AND e.event_type IN (1, 2, 15) "
                 "AND e.protocol = (SELECT MIN(m.protocol) FROM resource_effects m WHERE m.resource = [value_1] "
                 "AND m.event_type = 1 AND m.locked = 0 AND m.installed = 0 AND m.local = 1 "
                 "AND (SELECT SUM(IF(d.event_type = 1, d.quantity, -d.quantity)) FROM resource_effects d "
@@ -1388,7 +1443,7 @@ queries.append((695, 'Recipe',
                 "AND d.event_type IN (1, 2)) > 0 "
                 "AND EXISTS (SELECT 1 FROM resource_effects u WHERE u.protocol = m.protocol AND u.event_type = 2 "
                 "AND u.deplete = 1 AND u.locked = 0 AND u.resource NOT IN (m.resource, " + str(FUEL) + "))) "
-                "GROUP BY e.protocol, e.resource HAVING units <> 0 OR MAX(e.locked) = 1 ORDER BY units DESC, e.resource;"))
+                "GROUP BY e.protocol, e.resource HAVING units <> 0 OR MAX(e.locked) = 1 OR MAX(e.event_type = 15) = 1 ORDER BY units DESC, e.resource;"))
 
 # Cloning (#324 step 13): a drone's clones and its own line
 # The share exchange (#469): the standing orders for a company's shares

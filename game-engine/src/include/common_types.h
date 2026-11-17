@@ -127,6 +127,8 @@
 #define BROADCAST_PROTOCOL_ID         40   // [A 40 perform]: broadcast the counted string at A (#380)
 #define BROADCAST_MAX_LEN             80   // characters in a broadcast
 #define SHARE_EVENT_TYPE              14   // a share request reaching the Earth exchange (#469)
+#define LOCK_TOOL_EVENT_TYPE          15   // an action takes a tool for its time (#814): a tool_locks row, no history
+#define UNLOCK_TOOL_EVENT_TYPE        16   // and gives it back
 #define SHARE_SELL_ORDER_PROTOCOL_ID  41   // perform(41, company, keep, price): post a sell order for shares
 #define SHARE_BUY_ORDER_PROTOCOL_ID   42   // perform(42, company, want, price): post a buy order for shares
 #define SHARE_PULL_PROTOCOL_ID        43   // perform(43, units, company, seller): buy from a sell order
