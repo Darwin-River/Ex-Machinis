@@ -959,12 +959,12 @@ conditions = ' '.join(f'AND ({{v}}<0 OR {c})'.format(v=f'[value_{len(EVENT_FILTE
 MY_CO = "(SELECT company_id FROM agents WHERE agent_id=[drone_id])"
 conditions += (" AND (e.event_type<>13 OR EXISTS(SELECT 1 FROM broadcasts b WHERE b.action_id=e.action "
                f"AND b.company_id={MY_CO}))")
-# Seen: an observation row (the acting or affected drone, or the light has
-# reached it), or the event happened where the drone is, since it arrived
-# (#324 step 20: local sightings are worked out here, not stored per drone)
+# Seen: the drone's own event, or the event happened where the drone is,
+# since it arrived (#324 step 20: local sightings are worked out here, not
+# stored per drone; #814: nor its own, which was an observation row on every
+# event, half of the table)
 script = ('SELECT e.id FROM events e LEFT JOIN actions a ON a.id=e.action LEFT JOIN agents g ON g.agent_id=e.drone '
-          'WHERE e.outcome=1 AND (EXISTS(SELECT 1 FROM observations o WHERE o.event=e.id AND o.drone=[drone_id] '
-          'AND o.game_t<=[game_now]) OR EXISTS(SELECT 1 FROM agents me WHERE me.agent_id=[drone_id] '
+          'WHERE e.outcome=1 AND ((e.drone=[drone_id] AND e.game_t<=[game_now]) OR EXISTS(SELECT 1 FROM agents me WHERE me.agent_id=[drone_id] '
           'AND e.place=me.object_id AND e.game_t>=me.arrived_t AND e.game_t<=[game_now])) '
           f'{conditions} ORDER BY e.game_t DESC,e.id DESC;')
 usage = ' '.join(letter for letter, _, _ in EVENT_FILTERS) + ' R L 803 query'
