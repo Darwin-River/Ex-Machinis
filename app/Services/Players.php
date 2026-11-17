@@ -218,7 +218,8 @@ class Players
         $group = $row->class_group_id ? DB::table('class_groups')->where('id', $row->class_group_id)->first() : null;
         $teaches = DB::table('class_groups')->where('teacher_id', $user->user_id)->orderBy('id')->get()
             ->map(fn ($g) => ['id' => (int) $g->id, 'name' => $g->name,
-                'pupils' => DB::table('users')->where('class_group_id', $g->id)->count()])->all();
+                'pupils' => DB::table('users')->where('class_group_id', $g->id)->count(),
+                'notices' => (bool) ($g->notices ?? false)])->all();
         return [
             'name' => $row->login,
             'email' => $row->email,

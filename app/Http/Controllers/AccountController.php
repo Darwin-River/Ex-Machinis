@@ -175,6 +175,42 @@ class AccountController extends Controller
         return redirect('/account/classes/' . $id)->with('reset', ['name' => $pupil, 'password' => $password]);
     }
 
+    /** Which e-mail notices the player wants (#761) */
+    public function notices(Request $request)
+    {
+        $user = $this->player();
+        if (!$user) {
+            return redirect('/login');
+        }
+        if (!\App\Services\Notices::available() || !Players::verified($user)
+            || \Illuminate\Support\Facades\DB::table('users')->where('user_id', $user->user_id)->value('class_group_id') !== null) {
+            return redirect('/account#notices')->with('error', 'E-mail notices need an account with a verified e-mail address.');
+        }
+        $on = array_values(array_intersect((array) $request->input('notices', []), array_keys(\App\Services\Notices::KINDS)));
+        \App\Services\Notices::save($user, $on);
+        return redirect('/account#notices')->withSuccess($on ? 'Your e-mail notices are saved.' : 'You will get no e-mail notices.');
+    }
+
+    /** A teacher's daily class summary on or off (#761) */
+    public function classNotices(Request $request, int $id)
+    {
+        $user = $this->player();
+        if (!$user) {
+            return redirect('/login');
+        }
+        abort_unless(\App\Services\Notices::available() && \App\Services\Notices::setClass($user, $id, $request->boolean('on')), 404);
+        return redirect('/account#notices')->withSuccess($request->boolean('on')
+            ? 'You will get a daily summary for this class when something needs your pupils.' : 'No more summaries for this class.');
+    }
+
+    /** The link in every notice: turns them all off, no login needed (the route checks the signature) */
+    public function unsubscribe(int $id)
+    {
+        \App\Services\Notices::unsubscribe($id);
+        return redirect(Auth::check() ? '/account#notices' : '/login')
+            ->withSuccess('You will get no more e-mail notices. You can turn them on again on your account page.');
+    }
+
     /** The logged-in player, if any (the game's own owners can't log in) */
     private function player(): ?\App\User
     {

@@ -104,6 +104,8 @@ class HomeController extends Controller
             $done['pegged_orders_moved'] = \App\Services\PlayerShares::repeg();
             // Players' trading scripts (#768), each at most every forge.trade_script_every real seconds
             $done['trade_scripts_run'] = \App\Services\TradeScripts::runAll();
+            // Opt-in e-mail notices (#761), every few real minutes
+            $done['notices'] = \App\Services\Notices::runIfDue();
         }
         // The game's history within the disk budget (#813)
         $done['history'] = \App\Services\HistoryBudget::pruneIfDue();
