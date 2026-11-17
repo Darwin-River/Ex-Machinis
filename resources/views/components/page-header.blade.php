@@ -6,7 +6,7 @@
 @php
     $scenes = [
         'market' => 'market', 'buys' => 'market', 'sells' => 'market', 'resource-orders' => 'market',
-        'resources' => 'resources',
+        'resources' => 'resources', 'technology' => 'resources',
         'spacecraft' => 'spacecraft', 'protocols' => 'spacecraft', 'lineage' => 'spacecraft', 'machine' => 'spacecraft',
         'locations' => 'locations', 'map' => 'locations',
         'companies' => 'companies', 'players' => 'companies', 'leaderboard' => 'companies', 'dashboard' => 'companies',

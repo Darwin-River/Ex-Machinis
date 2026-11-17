@@ -86,6 +86,9 @@ Route::redirect('/shares', '/market/shares', 301);
 Route::get('/map', 'WorldController@map');
 Route::get('/leaderboard', 'WorldController@leaderboard');
 Route::get('/lineage', 'WorldController@lineage');
+// The tech map (#804): every manufacturing pathway, recipe and tool
+Route::get('/technology', 'WorldController@technology');
+Route::redirect('/tech-map', '/technology', 301);
 Route::get('/machine/queries', 'WorldController@machineQueries');
 Route::get('/machine/protocols', 'WorldController@machineProtocols');
 Route::get('/machine/query', 'WorldController@machineQuery')->middleware('throttle:240,1');

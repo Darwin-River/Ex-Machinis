@@ -8,6 +8,10 @@
             <p><a href="{{ url('/protocols') }}">Protocols</a> / {{ $protocol->id }}</p>
 
             <p>{{ $protocol->description }}</p>
+            @if($details['produced'] && !$details['travel'])
+                {{-- Where it sits among the manufacturing pathways (#804) --}}
+                <p id="tech-map-link"><a href="{{ url('technology') }}#r{{ $details['produced'][0]['id'] }}">See it on the tech map</a></p>
+            @endif
 
             <h4 class="mt-4">Performing it</h4>
             <ul>
@@ -35,7 +39,7 @@
                 <p>The drone must carry these. They are {{ collect($details['modules'])->contains('locked', true) ? 'locked (in use) while the action runs and' : '' }} kept by the drone.</p>
                 <ul>
                     @foreach($details['modules'] as $item)
-                        <li><a href="{{ url('/resources?keyword=' . urlencode($item['name'])) }}">{{ $item['name'] }}</a> ({{ $item['id'] }})</li>
+                        <li><a href="{{ url('/resources/' . $item['id']) }}">{{ $item['name'] }}</a> ({{ $item['id'] }})</li>
                     @endforeach
                 </ul>
             @endif
@@ -44,7 +48,7 @@
                 <h4 class="mt-4">Uses up</h4>
                 <ul>
                     @foreach($details['consumed'] as $item)
-                        <li>{{ $item['quantity'] }} × <a href="{{ url('/resources?keyword=' . urlencode($item['name'])) }}">{{ $item['name'] }}</a> ({{ $item['id'] }})</li>
+                        <li>{{ $item['quantity'] }} × <a href="{{ url('/resources/' . $item['id']) }}">{{ $item['name'] }}</a> ({{ $item['id'] }})</li>
                     @endforeach
                 </ul>
             @endif
@@ -53,7 +57,7 @@
                 <h4 class="mt-4">Produces</h4>
                 <ul>
                     @foreach($details['produced'] as $item)
-                        <li>{{ $item['quantity'] }} × <a href="{{ url('/resources?keyword=' . urlencode($item['name'])) }}">{{ $item['name'] }}</a> ({{ $item['id'] }})@if($item['mined']), times how abundant it is at the drone's location (see <a href="{{ url('/locations') }}">Locations</a>)@endif</li>
+                        <li>{{ $item['quantity'] }} × <a href="{{ url('/resources/' . $item['id']) }}">{{ $item['name'] }}</a> ({{ $item['id'] }})@if($item['mined']), times how abundant it is at the drone's location (see <a href="{{ url('/locations') }}">Locations</a>)@endif</li>
                     @endforeach
                 </ul>
             @endif

@@ -16,44 +16,64 @@ class Recipes
     /** Every recipe: [protocol => recipe], recipe: protocol, name, makes, uses, fuel, tool, hours */
     public static function all(): array
     {
+        $recipes = array_filter(self::processes(), fn ($r) => $r['uses'] && !$r['mined']);
+        return array_map(function ($r) { unset($r['mined']); return $r; }, $recipes);
+    }
+
+    /**
+     * Every protocol that makes something with the drone's own tools (#804):
+     * the recipes, and mining (it uses nothing up: what it makes is dug, so
+     * `mined` is true and the units are times the place's abundance).
+     * Fuel a protocol burns is its fuel, not something it makes less of, so
+     * Make Fuel makes 30 and burns 2 (#805: it read as making 28, burning 0).
+     */
+    public static function processes(): array
+    {
         $effects = DB::table('resource_effects as e')->join('protocols as p', 'p.id', '=', 'e.protocol')
             ->where('e.installed', 0)->where('e.local', 1)->whereIn('e.event_type', [1, 2])
             ->orderBy('e.protocol')->orderBy('e.id')
-            ->get(['e.protocol', 'p.name', 'e.resource', 'e.event_type', 'e.locked', 'e.quantity', 'e.time', 'e.deplete']);
+            ->get(['e.protocol', 'p.name', 'e.resource', 'e.event_type', 'e.locked', 'e.quantity', 'e.time', 'e.deplete', 'e.abundancies']);
         $by = [];
         foreach ($effects as $e) {
             $p = (int) $e->protocol;
-            $by[$p] ??= ['name' => $e->name, 'net' => [], 'locked' => [], 'seconds' => 0];
+            $by[$p] ??= ['name' => $e->name, 'net' => [], 'locked' => [], 'seconds' => 0, 'fuel' => 0, 'mined' => false];
             $q = (int) $e->quantity * ((int) $e->event_type === 1 ? 1 : -1);
             $r = (int) $e->resource;
+            $by[$p]['seconds'] = max($by[$p]['seconds'], (int) $e->time);
+            if ($r <= 0 || (int) $e->quantity <= 0) {
+                continue;   // set by the parameters: trading, importing
+            }
+            if ($r === Release::FUEL && $q < 0 && (int) $e->locked === 0) {
+                $by[$p]['fuel'] -= $q;
+                continue;
+            }
+            if ((int) $e->abundancies === 1 && $q > 0) {
+                $by[$p]['mined'] = true;
+            }
             $by[$p]['net'][$r] = ($by[$p]['net'][$r] ?? 0) + $q;
             if ((int) $e->locked === 1) {
                 $by[$p]['locked'][$r] = true;
             }
-            $by[$p]['seconds'] = max($by[$p]['seconds'], (int) $e->time);
         }
         $names = DB::table('resources')->pluck('name', 'id')->all();
         $recipes = [];
         foreach ($by as $p => $b) {
             $makes = $uses = [];
-            $fuel = 0;
             foreach ($b['net'] as $r => $n) {
                 if ($n > 0) {
                     $makes[] = ['resource' => $r, 'name' => $names[$r] ?? null, 'units' => $n];
-                } elseif ($n < 0 && $r === Release::FUEL) {
-                    $fuel = -$n;
                 } elseif ($n < 0) {
                     $uses[] = ['resource' => $r, 'name' => $names[$r] ?? null, 'units' => -$n];
                 }
             }
-            if (!$makes || !$uses) {
-                continue;   // not a recipe: mining, trading, travel...
-            }
             $tool = array_keys($b['locked'])[0] ?? null;
+            if (!$makes || (!$uses && !$tool)) {
+                continue;   // not a recipe or mining: trading, travel...
+            }
             $recipes[$p] = [
-                'protocol' => $p, 'name' => $b['name'], 'makes' => $makes, 'uses' => $uses, 'fuel' => $fuel,
+                'protocol' => $p, 'name' => $b['name'], 'makes' => $makes, 'uses' => $uses, 'fuel' => $b['fuel'],
                 'tool' => $tool, 'tool_name' => $tool ? ($names[$tool] ?? null) : null,
-                'hours' => round($b['seconds'] / 3600, 2),
+                'hours' => round($b['seconds'] / 3600, 2), 'mined' => $b['mined'],
             ];
         }
         return $recipes;
@@ -73,9 +93,9 @@ class Recipes
      * by the first recipe for each: the goods (units), the fuel, and the
      * hours each tool works (a fraction where a recipe makes several).
      */
-    public static function tree(int $resource, int $downTo = 2): array
+    public static function tree(int $resource, int $downTo = 2, ?array $all = null, ?array $names = null): array
     {
-        $all = self::all();
+        $all ??= self::all();
         $goods = $tools = [];
         $fuel = 0.0;
         $steps = [];
@@ -107,7 +127,7 @@ class Recipes
             }
         };
         $walk($resource, 1.0, 0);
-        $names = DB::table('resources')->pluck('name', 'id')->all();
+        $names ??= DB::table('resources')->pluck('name', 'id')->all();
         ksort($goods);
         return [
             'resource' => $resource, 'name' => $names[$resource] ?? null,
