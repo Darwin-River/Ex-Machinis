@@ -765,6 +765,8 @@ ErrorCode_t db_delete_action(int action_id);
 
 *******************************************************************************/
 ErrorCode_t db_purge_old_actions();
+/* Frees tools left locked by aborted actions (#748); the number freed, or -1 */
+int db_free_stuck_tools(void);
 
 /** ****************************************************************************
 

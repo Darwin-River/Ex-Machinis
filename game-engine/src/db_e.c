@@ -1210,6 +1210,53 @@ static ErrorCode_t db_run_write(const char* query_text)
     return ENGINE_OK;
 }
 
+/*
+ * Frees the tools left locked by aborted actions (#748), as migration 0067
+ * did once (#711): a recipe locks its tool while it works, and an action
+ * aborted between the lock and the unlock (a full disk, a lost connection)
+ * left it locked for good, so every later make or mine failed with -2. Round
+ * 71's matured Makers died of it: the day-2161 outage locked their Smelters,
+ * and the one-off repair came 600 game days after they had dissolved. The
+ * events engine now does it each time it starts, which it does after any
+ * outage. Each locked holding that no pending event will unlock goes back to
+ * the drone's free stock. Returns the number freed, or -1 on an error.
+ */
+int db_free_stuck_tools(void)
+{
+    DbConnection_t* connection = engine_get_db_connection();
+    if(db_reconnect(connection) != ENGINE_OK) return -1;
+    const char* steps[] = {
+        "SET @free_now := (SELECT ROUND(game_anchor + (UNIX_TIMESTAMP() - real_anchor) * scale) FROM game_clock WHERE id = 1)",
+        "DROP TEMPORARY TABLE IF EXISTS stuck_tools",
+        "CREATE TEMPORARY TABLE stuck_tools AS "
+        "SELECT h.drone, h.resource, h.installed, h.units AS locked_units, "
+        "IFNULL((SELECT f.units FROM holdings AS f WHERE f.drone = h.drone AND f.resource = h.resource "
+        "AND f.installed = h.installed AND f.locked = 0), 0) AS free_units, a.object_id AS place "
+        "FROM holdings AS h JOIN agents AS a ON a.agent_id = h.drone "
+        "WHERE h.locked = 1 AND h.units > 0 AND h.installed IN (0, 1) "
+        "AND NOT EXISTS (SELECT 1 FROM events AS e JOIN actions AS x ON x.id = e.action "
+        "WHERE e.drone = h.drone AND e.resource = h.resource AND e.locked = 1 AND e.outcome = 0 AND x.aborted = 0)",
+        "START TRANSACTION",
+        "INSERT INTO events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, game_t, place) "
+        "SELECT 1, NULL, 1, 1, drone, resource, installed, 0, free_units + locked_units, @free_now, place FROM stuck_tools",
+        "INSERT INTO events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, game_t, place) "
+        "SELECT 2, NULL, 1, 1, drone, resource, installed, 1, 0, @free_now, place FROM stuck_tools",
+        "COMMIT",
+        "DROP TEMPORARY TABLE IF EXISTS stuck_tools",
+    };
+    int freed = 0;
+    for(size_t i = 0; i < sizeof(steps) / sizeof(steps[0]); i++) {
+        if(mysql_query(connection->hndl, steps[i])) {
+            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: freeing stuck tools, step %d failed: %s", (int)i, mysql_error(connection->hndl));
+            mysql_query(connection->hndl, "ROLLBACK");
+            mysql_query(connection->hndl, "DROP TEMPORARY TABLE IF EXISTS stuck_tools");
+            return -1;
+        }
+        if(i == 4) freed = (int)mysql_affected_rows(connection->hndl);
+    }
+    return freed;
+}
+
 ErrorCode_t db_flush_observations(void)
 {
     ErrorCode_t result = ENGINE_OK;

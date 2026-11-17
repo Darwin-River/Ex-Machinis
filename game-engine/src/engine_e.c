@@ -147,6 +147,14 @@ ErrorCode_t engine_init_db()
 	// The game clock (its scale is set by the game engine)
 	if(result == ENGINE_OK) game_time_load();
 
+	// Tools left locked by actions aborted before this start (#748: an
+	// outage locked round 71's Makers' Smelters, and they failed every make
+	// until their companies dissolved)
+	if(result == ENGINE_OK) {
+		int freed = db_free_stuck_tools();
+		if(freed > 0) engine_trace(TRACE_LEVEL_ALWAYS, "Freed [%d] stuck tool holdings", freed);
+	}
+
 	return result;
 }
 
