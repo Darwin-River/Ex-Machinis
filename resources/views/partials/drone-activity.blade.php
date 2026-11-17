@@ -1,8 +1,9 @@
 {{--
     A drone's last 100 actions on a time axis (#699): one row a kind of
     action, failures in red, gaps left empty so a stuck or idle drone shows,
-    and its fuel after each action below on the same axis. From
-    /api/v1/drones/{id}/timeline. Takes $droneId.
+    and its fuel after each action below on the same axis, then what it has
+    earned as a running total (#774). From /api/v1/drones/{id}/timeline.
+    Takes $droneId and, optionally, $earnings (DroneEarnings::of with series).
 --}}
 @include('partials.ex-charts')
 @php($epoch = (int) (\Illuminate\Support\Facades\DB::table('game_clock')->where('id', 1)->value('epoch') ?? 0))
@@ -10,16 +11,20 @@
     <div class="mh-card">
         <h3>What has it been doing?</h3>
         <p class="mh-note">Its last 100 actions in time order, one row for each kind; a red mark failed. A long empty stretch is a
-            drone waiting, idle or stuck. Below, the fuel in its tank after each action, on the same time axis.</p>
+            drone waiting, idle or stuck. Below, the fuel in its tank after each action, and what it has earned (sales after tax less purchases) as a running total, on the same time axis.</p>
         <div class="ex-legend" id="da-legend"></div>
         <div class="ex-chart" id="da-strip" aria-label="Its last actions by kind over time"></div>
         <div class="ex-chart" id="da-fuel" aria-label="Its fuel over time"></div>
+        @if(!empty($earnings['series']))
+            <div class="ex-chart" id="da-earned" aria-label="What it has earned, a running total over time"></div>
+        @endif
         <p class="ex-src">Data: <code>GET /api/v1/drones/{{ (int) $droneId }}/timeline?limit=100</code></p>
     </div>
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const X = window.ExCharts, C = X.COLOURS, EPOCH = @json($epoch), $ = (id) => document.getElementById(id);
+    const EARNED = @json($earnings['series'] ?? []), EARNED_BEFORE = @json($earnings['before'] ?? 0);
     let rows = [];
     const day = (t) => (t - EPOCH) / 86400;
     function axis(svg, x, t0, t1, y, W) {
@@ -72,7 +77,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Fuel after each action, a step line on the same axis
         fuelBox.replaceChildren();
         const pts = rows.filter((a) => a.fuel !== null);
-        if (!pts.length) return;
+        if (!pts.length) { earned(x, t0, t1, W, lw); return; }
         const FH = 120, top = X.ticks(0, Math.max(1, ...pts.map((p) => p.fuel)), 3, 1), hi = top[top.length - 1];
         const fs = X.el('svg', {viewBox: `0 0 ${W} ${FH}`, role: 'img', 'aria-label': fuelBox.getAttribute('aria-label')}, fuelBox);
         const y = (v) => 20 + (hi - v) / hi * (FH - 44);
@@ -88,6 +93,32 @@ document.addEventListener('DOMContentLoaded', function () {
         X.el('path', {d, fill: 'none', stroke: C[3], 'stroke-width': 2}, fs);
         pts.forEach((p) => X.tip(X.el('circle', {cx: x(p.game_t), cy: y(p.fuel), r: 3, fill: C[3], stroke: '#24242c', 'stroke-width': 1}, fs),
             [p.when, 'Fuel after ' + p.what.toLowerCase() + ': ' + X.num(p.fuel)]));
+        earned(x, t0, t1, W, lw);
+    }
+    // What it has earned, a running total on the same axis (#774)
+    function earned(x, t0, t1, W, lw) {
+        const box = $('da-earned');
+        if (!box) return;
+        box.replaceChildren();
+        let start = EARNED_BEFORE;
+        EARNED.forEach((p) => { if (p.game_t < t0) start = p.net; });
+        const pts = [{game_t: t0, net: start}].concat(EARNED.filter((p) => p.game_t >= t0 && p.game_t <= t1));
+        const EH = 120, vals = pts.map((p) => p.net), lo = Math.min(0, ...vals), top = X.ticks(lo, Math.max(1, ...vals), 3, 1);
+        const a = top[0], b = top[top.length - 1];
+        const es = X.el('svg', {viewBox: `0 0 ${W} ${EH}`, role: 'img', 'aria-label': box.getAttribute('aria-label')}, box);
+        const y = (v) => 20 + (b - v) / (b - a || 1) * (EH - 44);
+        axis(es, x, t0, t1, EH - 4, W);
+        top.forEach((t) => {
+            X.el('line', {x1: lw, x2: W - 10, y1: y(t), y2: y(t), stroke: t ? '#34353f' : '#828590'}, es);
+            X.el('text', {x: lw - 8, y: y(t), dy: '0.32em', 'text-anchor': 'end'}, es).textContent = X.short(t);
+        });
+        X.el('text', {x: lw - 8, y: 8, 'text-anchor': 'end'}, es).textContent = 'earned';
+        let d = '';
+        pts.forEach((p, i) => { d += (i ? 'H' + x(p.game_t) + 'V' : 'M' + x(p.game_t) + ',') + y(p.net); });
+        d += 'H' + x(t1);
+        X.el('path', {d, fill: 'none', stroke: C[1], 'stroke-width': 2}, es);
+        pts.slice(1).forEach((p) => X.tip(X.el('circle', {cx: x(p.game_t), cy: y(p.net), r: 3, fill: C[1], stroke: '#24242c', 'stroke-width': 1}, es),
+            ['Earned so far: ' + X.num(p.net)]));
     }
     fetch(@json(url('api/v1/drones/' . (int) $droneId . '/timeline')) + '?limit=100').then((r) => r.ok ? r.json() : Promise.reject(r.status))
         .then((j) => { rows = j.timeline.slice().reverse(); draw(); X.onResize($('da-strip'), draw); })

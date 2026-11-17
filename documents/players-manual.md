@@ -249,7 +249,9 @@ Five more pages show the whole world, live:
 
 Your drones can't see all this: they see live orders only where they are (see [the price board](#the-price-board)). You can, so use these pages to plan.
 
-Every drone's page has a chart of **what it has been doing** (#699): its last 100 actions on a time axis, one row for each kind of action, failed ones in red, so a long empty stretch shows a drone that was waiting, idle or stuck; and below it, on the same axis, the fuel in its tank after each action.
+Every drone's page has a chart of **what it has been doing** (#699): its last 100 actions on a time axis, one row for each kind of action, failed ones in red, so a long empty stretch shows a drone that was waiting, idle or stuck; and below it, on the same axis, the fuel in its tank after each action, then what it has **earned** so far as a running total.
+
+**What each drone earns** (#774). A drone's page says what it has **earned**: its sales after tax less its purchases, over its life and a game day (from its company's founding for the drone you released, from its first trade or action for a copy). Its company's page ranks its drones by what they earn a game day, best first, so you can see which code path pays and which drone to fix. A maker buys its inputs, so it earns less here than the seller it feeds: read each drone against the job its code gives it. The API's `GET /api/v1/drones/{id}` gives the same as `earnings`.
 
 A working drone's page has an **Activity** section: what it is doing now and when it will finish, its last ten actions (how each went and the fuel it had left), and its last ten sales and purchases, with whom. Check it when you want to know whether your drone is busy, waiting or stuck. If its action should already have ended, it says when: **it ends on its next turn** while the clock runs at its usual pace, or **waiting for its turn, the engine is behind** when the clock is slowed because the world is busy (#715), and your drone moves on when the engine reaches it. While it flies, its page and its company's page say where it is **flying to**.
 
