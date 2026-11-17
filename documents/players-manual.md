@@ -1392,6 +1392,16 @@ On a matured company's page (logged in), **Post the order** with buy or sell, sh
 
 **Which to use?** Selling to a player can pay more than the bank, and pays at once. Selling to the bank always works, but pays in 30 game days at what the company is worth then. Buying from the bank costs its selling price; a player may sell for less.
 
+### The Trading desk
+
+The **Trading desk** (`/market/trade`, under Market in the menu, #779) puts share trading on one page:
+
+- **The watch list:** every matured company, yours first, with a health pill (steady, stalled, at risk, failing, dissolving), its cash-out value and its return over 30 game days. Pick one to see its book.
+- **The ladder:** that company's book from the dearest sell order at the top to the lowest bid at the bottom, with the bank's selling and buying prices among them and the band players trade in at each end. A script's order says **(script)**.
+- **The order ticket:** before you post, it says in words what your order will do: what fills now and from whom, what stands on the book, whether you can pay, and when the bank would be the better deal.
+- **Your shares:** each holding's worth at cash-out, what you paid for it, the dividends it has paid you, and the **gain** (worth less cost, plus dividends). Shares that came to you when your company matured cost nothing.
+- **Your trading script:** whether it is on, and what its latest run did.
+
 ### Raising credits with new shares to fund a copy
 
 A matured company can't take credits from its owner any other way, so it grows on what its drones earn: a copy costs a hull and a kit. Its owner can raise them faster by selling **new shares** (#780):
@@ -1425,7 +1435,9 @@ It acts with:
 
 Each action goes through the same rules as your own: the range, paying, holding what you sell, your own orders not crossing. At most **20 actions** a run; a refused one is logged with why. Whatever it keeps in the table **`memory`** (numbers, strings, booleans and tables of them, up to 64 KB) is there next run. It runs in a sandbox: Lua's `string`, `table`, `math` and `utf8`, no files and no `os`, at most 20 million instructions and 32 MB a run.
 
-A starter, **the value trader** (`examples/traders/value.lua`), keeps pegged bids a little under what the bank buys at on the healthy companies whose shares returned most over 30 game days, so other players' sells fill them, and sells what you hold of a company that is dissolving.
+For a class, **the payback trader** (`examples/traders/payback.lua`, #779) has two rules, one line each to change: buy a share when its dividends pay its price back in under 40 game days, and sell what you hold of a company at risk, failing or dissolving. Orders a script places show on the book as **(script)**, so everyone can tell them from a person's.
+
+Another starter, **the value trader** (`examples/traders/value.lua`), keeps pegged bids a little under what the bank buys at on the healthy companies whose shares returned most over 30 game days, so other players' sells fill them, and sells what you hold of a company that is dissolving.
 
 ```lua
 function trade(market)

@@ -79,6 +79,8 @@ Route::get('/market', 'WorldController@market');
 Route::get('/market/house', 'WorldController@house');
 Route::get('/market/history', 'WorldController@history');
 Route::get('/market/shares', 'WorldController@shares');
+// The Trading desk (#779): watch list, a company's book as a ladder, an order ticket, your shares and your trading script
+Route::get('/market/trade', 'PlayerShareController@desk');
 // The economy dashboard (#698)
 Route::get('/dashboard', 'WorldController@dashboard');
 // The stock exchange's old short address (#692: GET /shares was a 404)

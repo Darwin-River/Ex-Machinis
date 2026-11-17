@@ -141,8 +141,10 @@
                 <p>A Lua script that trades your shares for you. Every few real minutes it is given the share market and your
                     account (<code>trade(market)</code>) and can <code>buy</code>, <code>sell</code>, post pegged orders, <code>cancel</code>,
                     and buy from or sell to the bank, under the same rules as you, at most 20 actions a run. What it keeps in
-                    <code>memory</code> is there next run. Start from <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/traders/value.lua">the
-                    value trader</a>, and see the <a href="{{ url('manual') }}#trading-script">manual</a>.</p>
+                    <code>memory</code> is there next run. Its orders show on the book as <i>(script)</i>. Start from
+                    <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/traders/payback.lua">the payback trader</a>
+                    (buy under 40 game days' payback, sell at risk: made for classes) or <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/traders/value.lua">the
+                    value trader</a>, watch it on the <a href="{{ url('market/trade') }}">Trading desk</a>, and see the <a href="{{ url('manual') }}#trading-script">manual</a>.</p>
                 <form method="POST" action="{{ url('account/trade-script') }}">
                     {{ csrf_field() }}
                     <label class="sr-only" for="trade-code">Your trading script</label>
