@@ -30,8 +30,13 @@ class ApiController extends Controller
     /** The game clock and whether the world has room for a release */
     public function clock(): JsonResponse
     {
-        // Shared with the economy dashboard (#698)
-        return response()->json(LaunchQueue::status());
+        // Shared with the economy dashboard (#698); and how full the server's
+        // disk is, so a filling disk shows before it takes the site down (#813)
+        $disk = \App\Services\HistoryBudget::disk();
+        return response()->json(LaunchQueue::status() + ['disk' => $disk === null ? null : [
+            'used_percent' => $disk['used_percent'], 'effective_percent' => $disk['effective_percent'],
+            'budget_percent' => \App\Services\HistoryBudget::budget(),
+            'warning' => $disk['used_percent'] >= \App\Services\HistoryBudget::URGENT_PERCENT]]);
     }
 
     /** The economy dashboard (#698): the same figures as /dashboard, kept for a minute */

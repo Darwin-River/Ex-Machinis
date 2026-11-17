@@ -105,6 +105,8 @@ class HomeController extends Controller
             // Players' trading scripts (#768), each at most every forge.trade_script_every real seconds
             $done['trade_scripts_run'] = \App\Services\TradeScripts::runAll();
         }
+        // The game's history within the disk budget (#813)
+        $done['history'] = \App\Services\HistoryBudget::pruneIfDue();
         return response()->json($done);
     }
 

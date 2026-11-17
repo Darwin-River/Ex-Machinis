@@ -578,7 +578,7 @@ To keep the downtime short when moving on purpose:
 | How often | What | How |
 |---|---|---|
 | Daily, at a glance | The site is up, and the game clock is moving | The Home page's clock line. Free uptime monitors such as UptimeRobot or Better Stack can check `https://<domain>` every few minutes and email you |
-| Weekly | Disk space | `df -h /` (keep it under 80%) and `docker system df` |
+| Weekly | Disk space | `df -h /` (the history keeps itself near 70%, #813) and `docker system df`; `curl -s https://exmachinis.com/api/v1/clock` shows `disk` |
 | Weekly | Backups ran | `tail /var/backups/exmachinis/backup.log` and `rclone lsd offsite:exmachinis` |
 | Daily, at a glance | The House's prices are moving | `curl -s https://<domain>/api/v1/news` answers, and the scheduler logs no "tick failed" |
 | Weekly | The engines are keeping up | the Home page's clock: at the floor, with releases queueing, means the server is too small |
@@ -586,7 +586,15 @@ To keep the downtime short when moving on purpose:
 | Monthly | Reboot for kernel updates, if one is waiting | `[ -f /var/run/reboot-required ] && sudo reboot` (everything restarts on its own) |
 | Every few updates | Remove old images | `docker image prune -f` |
 
+**The game's history keeps itself within a disk budget (#813).** A full disk took the live site down in November 2026 (#811). Since then:
+- **The keeper prunes old history.** Once a real minute, whenever the disk is fuller than `FORGE_HISTORY_BUDGET_PERCENT` (70), the scheduler's keeper deletes the oldest archived events and their observations, after summing each drone's into one row a game day (`drone_days`).
+- **It counts MySQL's own free space.** MySQL keeps a deleted row's space for new rows rather than handing it back, so `df` doesn't fall after a prune. The keeper counts that space as room, and the history stops growing.
+- **Gameplay is unaffected.** Drones' scripts only read the live `events` table.
+- **The deploy guards the disk.** It clears Docker's build cache when the disk is over 85%, refuses to start over 90% (`DEPLOY_MAX_DISK_PERCENT`), and clears build cache older than three days after each deploy.
+- **The clock reports disk use.** `GET /api/v1/clock` gives `disk.used_percent` and `disk.warning` (over 80%).
+
 **If the disk fills up**, check these in order:
+- Docker's build cache: `docker builder prune -a -f` (#811: 4 GB of it);
 - old images: `docker image prune -a -f`;
 - old backups: `ls -1d /var/backups/exmachinis/20*` lists them, oldest first; remove all but the newest few with `ls -1d /var/backups/exmachinis/20* | head -n -3 | xargs rm -rf`. The backup script keeps at most `KEEP_COUNT` (5) and those under `KEEP_DAYS` (14) days old, and before each backup it removes the oldest to make room for twice the newest one's size; if that isn't enough it stops, and so does the deploy (#701);
 - the game's history, which is kept for good in `events_archive` and `observations` (#694; a few hundred bytes an event): check with `docker compose exec -T db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot exmachinis -e "SELECT table_name, ROUND((data_length + index_length) / 1e9, 1) AS gb FROM information_schema.tables WHERE table_schema = DATABASE() ORDER BY gb DESC LIMIT 5"'`. Deleting the oldest archived events (by `game_t`) loses only what drone pages and the events page show of that time;
