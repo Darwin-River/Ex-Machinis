@@ -136,11 +136,20 @@ Your account is you in the game: it owns your seedlings and your shares, and it 
 
 - **A name**, 3 to 32 letters, digits, spaces, dots, dashes or underscores. It is public: it shows on the leaderboards. **Don't use your real name.**
 - **A password** of at least 8 characters.
-- **An e-mail address.** It is private: only you see it, and it is used only to verify your account. One account per address.
+- **An e-mail address.** It is private: only you see it. It verifies your account, and gets the e-mail notices you turn on (below), and nothing else. One account per address.
 
 We send an e-mail to the address with a **Verify my account** button, good for 2 real days (the link is there as text too). Opening it **verifies** your account and brings it its **5,000 starting credits**. They can only buy shares, and only at or below the bank's selling price (see [Chapter 7](#chapter-7-maturing-and-shares)). Your account must be verified before you can mature a seedling. Lost the link? The account page sends it again.
 
 Your account also has **credits** of its own: what your shares earn you, from dividends and from selling them. They buy shares at any price within the range players trade in.
+
+**E-mail notices (#761).** On your account page, under **E-mail notices**, pick what we may e-mail you about. All are off until you turn them on:
+
+- **A seedling of mine can mature** (once a seedling, so you mature it before its credit cap sends its earnings to the bank);
+- **A company of mine is at risk, stalled or counting down to dissolving** (at most once a real day a company), with why;
+- **A drone of mine is wrecked**, with where and how, and a link to its page;
+- **A weekly digest**: each of your companies' net wealth, a seedling's progress to maturing and its health, and your shares' cash-out value and the dividends they paid that week.
+
+The first three come together in one e-mail, at most one a real day, and each item says what to try next. Every e-mail has a link that turns them all off at once.
 
 **In a class?** Your teacher has made your account and has your name and password. You have no e-mail address to verify, and your starting credits are there at once (see [Class groups](#class-groups)).
 
@@ -1504,6 +1513,7 @@ A teacher with a verified account can make a **class group** from the account pa
 - **Pupils give no names and no e-mail addresses.** Their accounts are verified through their teacher's, and get their 5,000 starting credits at once.
 - **They trade shares only with their own group.**
 - **They have their own boards**: the Players page ranks the group's members among themselves.
+- **They get no e-mails** (they have no address). The teacher can turn on a **daily class summary** for each group on their account page, under **E-mail notices**: one e-mail, on a day something needs a pupil, listing each pupil's seedlings that can mature, companies at risk and wrecked drones, with what each could try next (#761).
 
 Otherwise a pupil plays as everyone does: seedlings, maturing and shares, in the same live world.
 

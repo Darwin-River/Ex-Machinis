@@ -109,6 +109,11 @@ Route::middleware('new-rules')->group(function () {
     Route::post('/account/classes', 'AccountController@createClassGroup');
     Route::get('/account/classes/{id}', 'AccountController@classGroup')->whereNumber('id');
     Route::post('/account/classes/{id}/reset', 'AccountController@resetPupil')->whereNumber('id');
+    // Opt-in e-mail notices (#761)
+    Route::post('/account/notices', 'AccountController@notices');
+    Route::post('/account/classes/{id}/notices', 'AccountController@classNotices')->whereNumber('id');
+    Route::get('/notices/unsubscribe/{id}', 'AccountController@unsubscribe')->whereNumber('id')
+        ->middleware('signed:relative')->name('notices.unsubscribe');
     // Seedlings (#637)
     Route::post('/seedlings/claim', 'SeedlingController@claim');
     Route::post('/seedlings/{id}/push', 'SeedlingController@reprogram')->whereNumber('id');

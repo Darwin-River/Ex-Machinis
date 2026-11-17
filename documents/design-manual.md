@@ -891,12 +891,21 @@ Step 5 of the new rules (#635), only while `FORGE_NEW_RULES` is on (`App\Service
 - **Wealth**: a player's credits and starting credits, plus their shares at cash-out value. `/players` (in the World menu) and `GET /api/v1/players` rank players by it, and by what they made in today's season: wealth now less wealth at the day's start (`player_wealth_days`, migration 0076, recorded by the website's tick the first time it sees an account in a real day, UTC; #775). Personal records (`PlayerBoards::records`): best season (from one day's start to the next, or today so far), fastest maturity, best yield held, longest-running company and share trades with other players. A class group's accounts have their own boards, which only its members and teacher see (`?class=`); a pupil sees their class's by default. The company boards (`/leaderboard`, at the same age too) stay.
 - **While you were away**: on logging in, a player's account page shows what happened since they last looked (`users.last_seen_t`, or the last game day): each of their companies' sales and purchases, the dividends their shares paid, what the bank paid them, deals between two of their own companies, and the news (`HouseMarket::news`, which the website and the API read alike). `GET /api/v1/account/digest` gives the same (`?peek=1` leaves it unseen).
 
+#### E-mail notices (#761)
+Opt-in e-mails, sent through the mail settings that verify accounts (`App\Services\Notices`, on the scheduler's keeper every 5 real minutes, at most 40 e-mails a run; a player or class with nothing to say is looked at again after a real hour, since `CompanyHealth::of` isn't free). Round 72's players listed ten they would turn on; these are the four a class needs. A player turns each on or off on their account page (`notice_settings`, migration 0085); all are off until they do, and only a verified, non-pupil account can.
+
+- **Daily** (at most one e-mail a real day, only when there is something to say): a seedling that can mature (`Seedlings::canMature`; once a seedling), a company at risk, failing or stalled (`CompanyHealth::of`'s reasons; once a real day a company), and drones wrecked since the last e-mail (`notice_settings.wrecks_since`; wrecks before the player turned it on aren't told). What was told is kept in `notices_sent`. Each item has one "try next" line (`Notices::TRY`).
+- **Weekly digest**: each live company's net wealth (`Leaderboard::wealth`), a seedling's progress to maturing and its health, and the player's shares at cash-out with the dividends paid since the last digest. The first comes a week after turning it on.
+- **Class summary**: pupils have no address. A teacher turns a daily summary on for each class group (`class_groups.notices`): the daily items for every pupil's companies, each line led by the pupil's name, in one e-mail to the teacher.
+- Every e-mail has a signed link (`/notices/unsubscribe/{id}`, no login needed, and a `List-Unsubscribe` header) that turns all of a player's notices and class summaries off.
+
 #### Table: class_groups
 A teacher's class group (#636): up to `forge.class_group_max` (40) pupils' accounts, made by the teacher from their verified account's page and named after the group ("Orbit 1", "Orbit 2"...), each with a generated password shown once. The teacher can give a pupil a new password (the old one, and the pupil's API token, stop working). Under the new rules a class group trades shares only within itself and has its own leaderboards (#638, #640).
 * id [INT] - The table index.
 * name [VARCHAR(45)] - The group's name.
 * teacher_id [INT] - The teacher's account (`users.user_id`).
 * created_at [TIMESTAMP]
+* notices [TINYINT] - The teacher gets a daily class summary (#761); last_summary_at, wrecks_since: when it was last sent, and the game time wrecks are told from.
 
 [Return to the TOC](#Table-of-Contents)
 

@@ -245,6 +245,43 @@
                 <button class="button button-secondary button-sm" type="submit">Make a new API token</button>
             </form>
 
+            {{-- Opt-in e-mail notices (#761) --}}
+            @if(\App\Services\Notices::available())
+                <h3 class="h5 mt-4" id="notices">E-mail notices</h3>
+                @if($account['class_group'])
+                    <p>Your account has no e-mail address, so it gets no e-mails. Your teacher can turn on a daily
+                        summary of what needs the class.</p>
+                @elseif(!$account['verified'])
+                    <p>Verify your e-mail address to turn on e-mail notices.</p>
+                @else
+                    @php($noticeSettings = \App\Services\Notices::settings(auth()->user()))
+                    <p>Pick what we may e-mail you about: all are off until you turn them on. The first three come together
+                        in one e-mail, at most one a real day, each with something to try next. Every e-mail has a link that
+                        turns them all off.</p>
+                    <form method="POST" action="{{ url('account/notices') }}">
+                        {{ csrf_field() }}
+                        @foreach(\App\Services\Notices::KINDS as $kind => $label)
+                            <div><label><input type="checkbox" name="notices[]" value="{{ $kind }}" @checked($noticeSettings[$kind])> {{ $label }}</label></div>
+                        @endforeach
+                        <button class="button button-secondary button-sm mt-2" type="submit">Save</button>
+                    </form>
+                    @if(count($account['teaches']))
+                        <p class="mt-3">For each of your class groups, a daily summary of what needs your pupils (a seedling
+                            that can mature, a company at risk, a wrecked drone), with what each could try next. Your pupils
+                            get no e-mails.</p>
+                        <ul>
+                            @foreach($account['teaches'] as $group)
+                                <li>{{ $group['name'] }}: {{ $group['notices'] ? 'summary on' : 'summary off' }}
+                                    <form method="POST" action="{{ url('account/classes/' . $group['id'] . '/notices') }}" class="d-inline">
+                                        {{ csrf_field() }}<input type="hidden" name="on" value="{{ $group['notices'] ? 0 : 1 }}">
+                                        <button class="button button-secondary button-sm" type="submit">{{ $group['notices'] ? 'Turn off' : 'Turn on' }}</button>
+                                    </form></li>
+                            @endforeach
+                        </ul>
+                    @endif
+                @endif
+            @endif
+
             @if(!$account['class_group'] && $account['verified'])
                 <h3 class="h5 mt-4">Class groups</h3>
                 <p>Teaching a class? Make a class group: accounts for your pupils, named after the group ("Orbit 1",
