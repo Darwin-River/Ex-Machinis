@@ -8,6 +8,7 @@
     <i style="border-color: #4fb38f"></i>a repair,
     @if(!empty($company))<i class="ex-company" style="border-color: #c9cbd6"></i>the company's own (it matured, a code push, shares sold
     to the bank or a big trade), @endif
-    and <i class="ex-band"></i>an outage, when the world stopped.
+    and <i class="ex-band"></i>an outage, when the world stopped; a long one is cut short to a zig-zag break in the
+    time axis, so the days either side of it stay readable.
     Hover over a mark, or tap it, for what happened.
     Data: <code>GET /api/v1/world-events</code>@if(!empty($companyId)) and <code>GET /api/v1/companies/{{ $companyId }}/events</code>@endif</p>
