@@ -60,6 +60,7 @@ typedef enum
 *******************************************************************************/
 ErrorCode_t db_reconnect(DbConnection_t* connection);
 ErrorCode_t db_claim_engine(DbConnection_t* connection, const char* engine);
+void db_record_engine_start(DbConnection_t* connection, const char* engine);
 
 /** ***************************************************************************
 

@@ -133,6 +133,33 @@ ErrorCode_t db_claim_engine(DbConnection_t* connection, const char* engine)
 
 /** ****************************************************************************
 
+    @brief          Notes that the game engine started (#750): drones' pages
+                    said "The engine restarted" while /world-events, and so
+                    the charts, had no record of it. One row a start, at the
+                    game time it started; a failure (no table yet, before
+                    the deploy's migration) is only traced
+
+    @param[in|out]  connection  An open connection
+    @param[in]      engine      The engine's name ("game-engine")
+
+    @return         void
+
+*******************************************************************************/
+void db_record_engine_start(DbConnection_t* connection, const char* engine)
+{
+	if(!connection || !connection->hndl || !engine) return;
+
+	char query[512];
+	snprintf(query, sizeof(query),
+		"INSERT INTO engine_starts (engine, real_time, game_t) SELECT '%s', UNIX_TIMESTAMP(), "
+		"IFNULL((SELECT ROUND(game_anchor + (UNIX_TIMESTAMP() - real_anchor) * scale) FROM game_clock WHERE id = 1), UNIX_TIMESTAMP())",
+		engine);
+	if(mysql_query(connection->hndl, query))
+		engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: couldn't note the engine's start: %s", mysql_error(connection->hndl));
+}
+
+/** ****************************************************************************
+
     @brief          Gets object ID for current event drone
 
     @param[in]      event      Input event

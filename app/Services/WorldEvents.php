@@ -36,7 +36,9 @@ class WorldEvents
     /** Every world event this server can date, oldest first (cached) */
     public static function all(): array
     {
-        return Cache::remember('world-events', self::TTL, fn () => self::build());
+        // A new engine start is shown at once (#750), not up to an hour late
+        $starts = Schema::hasTable('engine_starts') ? (int) DB::table('engine_starts')->max('id') : 0;
+        return Cache::remember('world-events:' . $starts, self::TTL, fn () => self::build());
     }
 
     /** Works the world's events out from config/world-events.php */
@@ -70,7 +72,40 @@ class WorldEvents
                 'to_date' => $toDay !== null ? GameDate::ofDay($toDay) : null, 'label' => $e['label'], 'text' => $text,
                 'issue' => $e['issue'] ?? null];
         }
+        foreach (self::restarts($epoch) as $r) {
+            $out[] = $r;
+        }
         usort($out, fn ($a, $b) => $a['game_time'] <=> $b['game_time']);
+        return $out;
+    }
+
+    /** Game days with engine restarts kept as marks at most (the newest) */
+    public const MAX_RESTART_DAYS = 200;
+
+    /**
+     * The game engine's restarts (#750: drone pages said "The engine
+     * restarted" and the charts didn't), one a game day: each sent every Lua
+     * drone back to its launched function
+     */
+    public static function restarts(int $epoch): array
+    {
+        if (!Schema::hasTable('engine_starts')) {
+            return [];
+        }
+        $days = DB::table('engine_starts')
+            ->selectRaw('FLOOR((game_t - ?) / 86400) AS day, MIN(game_t) AS t, COUNT(*) AS n', [$epoch])
+            ->groupBy('day')->orderByDesc('day')->limit(self::MAX_RESTART_DAYS)->get();
+        $out = [];
+        foreach ($days->reverse() as $d) {
+            $day = max(0, (int) $d->day);
+            $n = (int) $d->n;
+            $out[] = ['key' => 'engine-restart-' . $day, 'kind' => 'restart', 'day' => $day, 'to_day' => null,
+                'game_time' => (int) $d->t, 'when' => self::when((int) $d->t, $epoch), 'date' => GameDate::ofDay($day),
+                'to_date' => null, 'label' => $n > 1 ? 'Engine restarted ×' . $n : 'Engine restarted',
+                'text' => 'The game engine restarted' . ($n > 1 ? ' ' . $n . ' times that game day' : '')
+                    . ': every Lua drone ran its launched function again, with its saved variables.',
+                'issue' => 750];
+        }
         return $out;
     }
 

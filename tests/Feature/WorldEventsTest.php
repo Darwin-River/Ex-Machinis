@@ -31,6 +31,7 @@ class WorldEventsTest extends TestCase
         DB::table('game_clock')->insert(['id' => 1, 'real_anchor' => $this->now, 'game_anchor' => $this->now, 'scale' => 1,
             'epoch' => $this->epoch]);
         DB::table('game_clock_history')->delete();
+        DB::table('engine_starts')->delete();
         Cache::flush();
     }
 
@@ -102,6 +103,31 @@ class WorldEventsTest extends TestCase
         $this->assertCount(1, WorldEvents::all());
         Cache::flush();
         $this->assertCount(0, WorldEvents::all());
+    }
+
+    public function testEngineRestartsAreMarkedOneAGameDay()
+    {
+        config(['world-events' => [['key' => 'a', 'kind' => 'rule', 'day' => 2000, 'label' => 'A', 'text' => 'A.']]]);
+        $start = fn ($day) => DB::table('engine_starts')->insert(['engine' => 'game-engine', 'real_time' => $this->now,
+            'game_t' => $this->t($day)]);
+        $start(2150.25);
+        $start(2210.5);
+        $start(2210.75);
+        $events = collect($this->getJson('/api/v1/world-events')->assertOk()->json());
+        $restarts = $events->where('kind', 'restart')->values();
+        $this->assertSame([2150, 2210], $restarts->pluck('day')->all());
+        $this->assertSame('Engine restarted', $restarts[0]['label']);
+        $this->assertSame('Engine restarted ×2', $restarts[1]['label']);
+        $this->assertSame($this->t(2210.5), $restarts[1]['game_time']);
+        $this->assertStringContainsString('launched function again', $restarts[1]['text']);
+        $this->assertSame(750, $restarts[1]['issue']);
+        // In order among the world's other events
+        $this->assertSame(['a', 'engine-restart-2150', 'engine-restart-2210'], $events->pluck('key')->all());
+        // A new start shows at once, not when the hour's cache runs out
+        $start(2221.5);
+        $this->assertSame([2150, 2210, 2221], collect(WorldEvents::all())->where('kind', 'restart')->pluck('day')->values()->all());
+        // And on the charts' marks
+        $this->assertContains('restart', array_column(WorldEvents::marks(), 'kind'));
     }
 
     public function testACompanysOwnEventsComeFromSmallTables()
