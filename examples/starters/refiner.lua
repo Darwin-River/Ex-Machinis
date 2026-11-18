@@ -17,6 +17,7 @@ grow_until = 0     -- game day after which it launches no copies (0: no limit);
 rest = 240         -- game minutes to rest when both Mars moons are dry
 hold_cap = 48      -- refined goods (units) it keeps on offer before a selling trip
 min_ask = 12       -- least asking price (credits) where nobody bids
+hour_value = 4     -- credits a game hour of its time is worth (lower: sells further away)
 
 -- Fixed numbers the plan uses
 local HOUR = 60                    -- game minutes
@@ -35,9 +36,11 @@ local TANK_AFTER_LAUNCH = 60
 local TANK_AFTER_SELLING = 100
 local YALSPAR_LOAD, VLADNIUM_LOAD = 16, 12
 local REPORT_EVERY = 4             -- work rounds between reports home
+local TRIP_FUEL_CREDITS = 30       -- a flight's fuel, in credits (10 fuel at about 3)
 local MOON_SITE, PHOBOS_SITE, DEIMOS_SITE, SITE_COUNT = 0, 1, 2, 3
 
 local goods_sold = {metals_a1, metals_a2, organics_a1, inorganics_a1, inorganics_a2}
+local markets = {moon, mars, earth}
 
 -- The drone you release works the Moon; copies spread out by drone number
 site_number, dry_count, copy = MOON_SITE, 0, false
@@ -204,7 +207,7 @@ function sell_spare_kits(kits)
 end
 
 function past_grow_until_with_no_kit()
-  return grow_until > 0 and today() > grow_until and units(mining_kit) == 0 and units(factory_kit) == 0
+  return grow_until > 0 and today() > grow_until and units(cruiser_kit) == 0 and units(mining_kit) == 0
 end
 
 -- A kit still aboard from a failed hand-over goes to the copy first; a
@@ -230,11 +233,55 @@ function reinvest()
   fill_to(TANK_AFTER_LAUNCH)
 end
 
+-- Credits the House at each place bids for the goods aboard, as many as it still takes today
+function house_value_of_goods()
+  local value = {}
+  for _, good in ipairs(goods_sold) do
+    local aboard = units(good)
+    if aboard > 0 then
+      for _, bid in ipairs(house_demand(good)) do
+        if bid.price > 0 and bid.left > 0 then
+          value[bid.place] = (value[bid.place] or 0) + bid.price * math.min(aboard, bid.left)
+        end
+      end
+    end
+  end
+  return value
+end
+
+-- A sale's value less the flight there and back to the work site
+function value_after_round_trip(place, value)
+  if place ~= location() then
+    local there = trip_to(place)
+    value = value - TRIP_FUEL_CREDITS - (there and there.hours or 0) * hour_value
+  end
+  if place ~= work_site() then
+    local back = trip_between(place, work_site())
+    value = value - (back and back.hours or 0) * hour_value
+  end
+  return value
+end
+
+-- The market where the goods aboard fetch most after the trip (the Moon's
+-- bids sag as it fills; Earth's often pay more); nil if none comes out ahead
+function best_market()
+  local value = house_value_of_goods()
+  local best, best_net = nil, 0
+  for _, place in ipairs(markets) do
+    if value[place] then
+      local net = value_after_round_trip(place, value[place])
+      if net > best_net then best, best_net = place, net end
+    end
+  end
+  return best
+end
+
 -- Until hold_cap goods are aboard, other drones may buy them here
 function sell_when_hold_is_full()
   if goods_aboard() < hold_cap then return end
-  set_status("selling " .. goods_aboard() .. " refined goods at " .. place_name(selling_place()))
-  go(selling_place())
+  local where = best_market() or selling_place()
+  set_status("selling " .. goods_aboard() .. " refined goods at " .. place_name(where))
+  go(where)
   post_sell_orders()
   for _, good in ipairs(goods_sold) do sell_out(good) end
   fill_to(TANK_AFTER_SELLING)

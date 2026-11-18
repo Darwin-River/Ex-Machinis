@@ -1,8 +1,8 @@
 -- Maker: a starter script for Ex Machinis, in Lua. It equips itself with the
 -- Factory Kit, buys Metals (A1) where they cost least, makes them into alloys
 -- and the alloys into rods, and sells the rods where they pay best. With
--- enough credits it launches a copy of itself and buys other companies'
--- shares. A seedling deals only with the House and launches no copies.
+-- enough credits, once matured, it launches a copy of itself. A seedling
+-- deals only with the House and launches no copies.
 
 -- Settings: change these numbers to make it your own
 rod_load = 12      -- rods it takes to Earth (4 cargo each)
@@ -16,9 +16,6 @@ batch = 20         -- metals it buys at a time
 cash_floor = 300   -- credits it keeps for fuel when its tank is low
 low_floor = 60     -- credits it keeps when its tank is full enough
 metals_per_rod = 2 -- Metals (A1) in a rod (two make an alloy, an alloy a rod)
-invest_above = 3000-- credits above this go into other companies' shares
-invest_days = 30   -- pays up to this many days of a share's income
-invest_cap = 1500  -- credits it puts into shares in all (0: never invests)
 
 -- Facts of the game it relies on
 local HOUR <const> = 60 -- game minutes
@@ -42,15 +39,12 @@ local COPY_FUEL_BELOW <const> = 80 -- fuel: tops up below this before a launch
 local COPY_FUEL_TARGET <const> = 90 -- fuel it tops up to
 local FUEL_FOR_COPY <const> = 40 -- fuel handed to a new copy
 local KIT_WAIT_HOURS <const> = 6 -- hours it waits for a bought kit
-local MIN_SHARE_ORDER <const> = 25 -- credits: each order burns a unit of fuel
 local REPORT_EVERY <const> = 4 -- rounds between reports home
 
 -- What it remembers (a copy starts with its parent's)
 house_cap_reached_on = {} -- place -> day its House cap for metals was reached
 failed_makes_in_a_row = 0
 spare_kits_sold_on = -1 -- game day
-invested_on = -1 -- game day
-invested_total = 0 -- credits put into shares
 rounds_worked = 0
 copy = false -- true once it launches a copy, and in the copy
 
@@ -295,7 +289,7 @@ function sell_spare_kits(kits)
 end
 
 function past_grow_until()
-  return grow_until > 0 and today() > grow_until and units(mining_kit) == 0 and units(factory_kit) == 0
+  return grow_until > 0 and today() > grow_until and units(cruiser_kit) == 0 and units(factory_kit) == 0
 end
 
 function buy_copy_kits()
@@ -331,70 +325,6 @@ function grow()
   launch_copy()
 end
 
--- Investing: once a game day, credits above invest_above buy shares whose
--- income pays their price back within invest_days, up to invest_cap in all
-
--- Sold by the company itself (not resold), not ours, and priced
-function is_new_share_of_another_company(share)
-  return share.seller == share.company and share.company ~= company() and share.price > 0
-end
-
--- Shares companies sell of themselves at Earth: returns the credits left
-function buy_listed_shares(free)
-  for _, share in ipairs(shares_for_sale()) do
-    local payback = payback_days(share.price, share_count(share.company), share.profit30, share.carried)
-    if is_new_share_of_another_company(share) and payback <= invest_days then
-      local amount = math.min(share.units, free // share.price, (invest_cap - invested_total) // share.price)
-      local cost = amount * share.price
-      if cost >= MIN_SHARE_ORDER then
-        pull_shares(amount, share.company, share.seller)
-        invested_total, free = invested_total + cost, free - cost
-      end
-    end
-  end
-  return free
-end
-
--- What a new share earns over `days`: the company's profit with one more
--- drone (what a raise is usually for), less the losses it must make up
-function new_share_value(offer, days)
-  local drones = math.max(#company_drones(offer.company), 1)
-  local earnings = days * math.max(offer.profit30, 0) * (drones + 1) / drones - offer.carried
-  return math.max(earnings, 0) / (offer.count + offer.units)
-end
-
--- The open offering it already backs, else the one worth its price that is
--- closest to filling: backers who pile into one fill it
-function choose_offering(days)
-  local pick
-  for _, offer in ipairs(share_offerings()) do
-    if offer.company ~= company() and offer.left > 0 then
-      if offer.mine > 0 then return offer end
-      if offer.price <= new_share_value(offer, days) and (not pick or offer.left < pick.left) then pick = offer end
-    end
-  end
-  return pick
-end
-
--- Returns the credits committed (a refund comes back as credits)
-function back_an_offering(budget, days)
-  local offer = choose_offering(days)
-  if not offer then return 0 end
-  local amount = math.min(offer.left, budget // offer.price)
-  local completes_it = amount >= offer.left
-  if amount * offer.price < MIN_SHARE_ORDER and not completes_it then return 0 end
-  commit_shares(amount, offer.company)
-  return amount * offer.price
-end
-
-function invest()
-  if today() == invested_on or invested_total >= invest_cap then return end
-  invested_on = today()
-  local free = buy_listed_shares(credits() - invest_above)
-  local budget = math.min(free, invest_cap - invested_total)
-  if budget >= MIN_SHARE_ORDER then invested_total = invested_total + back_an_offering(budget, invest_days) end
-end
-
 function report_now_and_then()
   rounds_worked = rounds_worked + 1
   if rounds_worked % REPORT_EVERY ~= 0 then return end
@@ -408,7 +338,6 @@ function work()
   make_rods()
   sell_or_haul_rods()
   grow()
-  invest()
   report_now_and_then()
 end
 
