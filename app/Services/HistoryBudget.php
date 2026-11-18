@@ -16,9 +16,16 @@ use Illuminate\Support\Facades\Schema;
  * into drone_days (one row a game day).
  *
  * Effective use is the disk's used space less the free space MySQL already
- * holds inside the history tables: InnoDB keeps a deleted row's space for
- * new rows instead of handing it back, so the disk's own figure doesn't fall
- * after a prune, but the history stops growing until that space is used.
+ * holds inside the history tables that grow (events_archive, observations):
+ * InnoDB keeps a deleted row's space for new rows instead of handing it
+ * back, so the disk's own figure doesn't fall after a prune, but the history
+ * stops growing until that space is used. Only a table's own rows can use
+ * its free space (one file a table), so the space the archiver frees in
+ * `events` doesn't count (#827: it read 58% while the disk filled to 88.5%).
+ * Instead, a table holding far more free space than rows is rebuilt to hand
+ * it back (`rebuildIfDue`, on the keeper once a real day while it is small
+ * enough to rebuild in a moment; `php artisan forge:history-rebuild`
+ * otherwise).
  * Pruning only events_archive leaves the game as it was: the engines and
  * drones' queries (803, 804) read events alone.
  */
@@ -34,8 +41,17 @@ class HistoryBudget
     /** Above this disk use the prune works harder (and the clock API warns) */
     public const URGENT_PERCENT = 80;
 
-    /** The history tables whose free space counts as room */
+    /** The history tables */
     public const TABLES = ['events', 'events_archive', 'observations'];
+
+    /** Those whose free space counts as room: they grow, and only their own rows can use it (#827) */
+    public const GROWING = ['events_archive', 'observations'];
+
+    /** A table is worth rebuilding when it holds at least this much free space, and more than its rows take */
+    public const REBUILD_MIN_BYTES = 1_000_000_000;
+
+    /** The keeper rebuilds such a table itself only while its rows take less than this (a rebuild copies them) */
+    public const AUTO_REBUILD_MAX_BYTES = 1_000_000_000;
 
     public static function budget(): int
     {
@@ -55,22 +71,84 @@ class HistoryBudget
         if (!$total || $free === false) {
             return null;
         }
-        $held = self::heldFree();
+        $tables = self::tables();
+        $held = self::heldFree($tables);
         $used = $total - $free;
         return ['total' => (int) $total, 'free' => (int) $free, 'used_percent' => round(100 * $used / $total, 1),
-            'held_free' => $held, 'effective_percent' => round(100 * max(0, $used - $held) / $total, 1)];
+            'held_free' => $held, 'effective_percent' => round(100 * max(0, $used - $held) / $total, 1),
+            'rebuild' => array_keys(self::rebuildable($tables))];
     }
 
-    /** Free space MySQL holds inside the history tables, in bytes (fresh, not the cached statistics) */
-    public static function heldFree(): int
+    /**
+     * Each history table's size: name => {rows (bytes its rows and indexes
+     * take), free (bytes MySQL holds for new rows)}, fresh, not the cached
+     * statistics
+     */
+    public static function tables(): array
     {
         try {
             DB::statement('SET SESSION information_schema_stats_expiry = 0');
         } catch (\Throwable $e) {
             // MySQL 5.7 has no such setting: its figures are always fresh
         }
-        return (int) DB::table('information_schema.tables')->whereRaw('table_schema = DATABASE()')
-            ->whereIn('table_name', self::TABLES)->sum('data_free');
+        return DB::table('information_schema.tables')->whereRaw('table_schema = DATABASE()')
+            ->whereIn('table_name', self::TABLES)
+            // Lower-case names: MySQL 8 answers information_schema's columns in capitals
+            ->selectRaw('table_name AS name, data_length AS data, index_length AS idx, data_free AS free')->get()
+            ->mapWithKeys(fn ($t) => [$t->name => ['rows' => (int) $t->data + (int) $t->idx, 'free' => (int) $t->free]])->all();
+    }
+
+    /** Free space MySQL holds that the history can grow into, in bytes: the growing tables' own (#827) */
+    public static function heldFree(?array $tables = null): int
+    {
+        $tables ??= self::tables();
+        return array_sum(array_map(fn ($t) => $tables[$t]['free'] ?? 0, self::GROWING));
+    }
+
+    /** The tables worth rebuilding to hand their free space back to the disk: name => {rows, free} */
+    public static function rebuildable(?array $tables = null): array
+    {
+        $tables ??= self::tables();
+        return array_filter($tables, fn ($t) => $t['free'] >= self::REBUILD_MIN_BYTES && $t['free'] > $t['rows']);
+    }
+
+    /**
+     * Rebuilds these tables (OPTIMIZE TABLE: online, it copies the rows to a
+     * new file and drops the old): name => {before, after} free bytes
+     */
+    public static function rebuild(array $names): array
+    {
+        $out = [];
+        foreach (array_intersect($names, self::TABLES) as $name) {
+            $before = self::tables()[$name]['free'] ?? 0;
+            DB::select('OPTIMIZE TABLE `' . $name . '`');
+            $out[$name] = ['before' => $before, 'after' => self::tables()[$name]['free'] ?? 0];
+            Log::info('history budget: rebuilt ' . $name . ', handing ' . round(max(0, $before - $out[$name]['after']) / 1e9, 1)
+                . ' GB back to the disk');
+        }
+        return $out;
+    }
+
+    /**
+     * On the keeper, once a real day at most: rebuilds a history table
+     * holding far more free space than rows while its rows are small enough
+     * to copy in a moment; logs the command for a bigger one. Returns what it
+     * rebuilt, {name => {before, after}}
+     */
+    public static function rebuildIfDue(?array $tables = null): array
+    {
+        $tables ??= self::tables();
+        $due = self::rebuildable($tables);
+        if (!$due || !\Illuminate\Support\Facades\Cache::add('history-rebuild', 1, 86400)) {
+            return [];
+        }
+        $small = array_keys(array_filter($due, fn ($t) => $t['rows'] < self::AUTO_REBUILD_MAX_BYTES));
+        $big = array_diff(array_keys($due), $small);
+        if ($big) {
+            Log::warning('history budget: ' . implode(', ', $big) . ' hold more free space than rows; run '
+                . '`docker compose exec app php artisan forge:history-rebuild` to hand it back to the disk');
+        }
+        return $small ? self::rebuild($small) : [];
     }
 
     /**
@@ -148,7 +226,8 @@ class HistoryBudget
     {
         $rows = DB::table('information_schema.tables')->whereRaw('table_schema = DATABASE()')
             ->whereIn('table_name', ['events_archive', 'observations'])
-            ->get(['table_name', 'table_rows', 'data_length', 'index_length'])->keyBy('table_name');
+            ->selectRaw('table_name AS table_name, table_rows AS table_rows, data_length AS data_length, index_length AS index_length')
+            ->get()->keyBy('table_name');
         $archive = $rows['events_archive'] ?? null;
         $obs = $rows['observations'] ?? null;
         if (!$archive || (int) $archive->table_rows <= 0) {
