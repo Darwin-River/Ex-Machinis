@@ -829,7 +829,7 @@ The Factory Kit's Smelter, Chemical Reactor and Spider take you as far as system
 3. buy a kit (`mining_kit` or `factory_kit`) and push it to the new spacecraft with some fuel;
 4. have your `launched` function wait until its kit is aboard before it unpacks (`equip(kit)` does that in a copy): a new spacecraft starts with no kit.
 
-The Miner, Refiner and Maker starters do this once their company has matured and has about 7,000 credits: read their `reinvest` function.
+The Miner, Refiner and Maker starters do this once their company has matured and has about 7,000 credits: read the Miner's `grow_fleet`, the Refiner's `reinvest` or the Maker's `grow`.
 
 **Eight drones at most.** A company may have at most **8 working drones**. A launch that would take it past them fails with -20, and the kit stays in the hold, so check `fleet_full()` before you buy a kit to launch: it is true when the company has all the drones it may (counting launches still on their way). `fleet()` gives the numbers: `{drones, cap, coming}`. The starters do this. Past eight, a company grows by working better, not by adding drones: the cap keeps the world running at full speed for everyone.
 

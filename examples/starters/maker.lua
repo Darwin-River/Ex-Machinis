@@ -1,14 +1,8 @@
 -- Maker: a starter script for Ex Machinis, in Lua. It equips itself with the
--- Factory Kit (Engine, Smelter, Chemical Reactor and Spider).
--- It buys Metals (A1) at the Moon wherever they are cheapest (as a seedling,
--- from the House where a batch costs least, counting the trip and its
--- daily cap: a tenth of what is on sale, at least 5), makes them
--- into alloys and the alloys into rods, and sells the rods wherever they
--- pay best: at the Moon if the best bid there is close to what rods fetched
--- at Earth yesterday (the price board), else it flies a load to Earth. As a
--- seedling, where the House pays most for them after the trip.
--- With grow_at credits it launches a copy of itself. Credits above
--- invest_above it puts into other companies' shares (see invest()).
+-- Factory Kit, buys Metals (A1) where they cost least, makes them into alloys
+-- and the alloys into rods, and sells the rods where they pay best. With
+-- enough credits it launches a copy of itself and buys other companies'
+-- shares. A seedling deals only with the House and launches no copies.
 
 -- Settings: change these numbers to make it your own
 rod_load = 12      -- rods it takes to Earth (4 cargo each)
@@ -22,167 +16,215 @@ batch = 20         -- metals it buys at a time
 cash_floor = 300   -- credits it keeps for fuel when its tank is low
 low_floor = 60     -- credits it keeps when its tank is full enough
 metals_per_rod = 2 -- Metals (A1) in a rod (two make an alloy, an alloy a rod)
-invest_above = 3000 -- credits above this go into other companies' shares
+invest_above = 3000-- credits above this go into other companies' shares
 invest_days = 30   -- pays up to this many days of a share's income
 invest_cap = 1500  -- credits it puts into shares in all (0: never invests)
 
--- Fuel when low, from whoever sells it cheapest here
-function refuel()
-  if units(fuel) < low_fuel then
-    raise_cash(150); buy_here(30, fuel)
-    wait(60)
-  end
+-- Facts of the game it relies on
+local HOUR <const> = 60 -- game minutes
+local FUEL_FLOOR <const> = 15 -- fuel make, mine, refine and push leave
+local FUEL_TO_BUY <const> = 30 -- fuel bought at a time
+local CASH_FOR_FUEL <const> = 150 -- credits raised before buying fuel
+local REFUEL_AFTER_HAUL <const> = 60 -- fuel: below this it buys where it sold
+local CREDITS_FOR_METALS <const> = 60 -- spare credits that buy two metals
+local GUESSED_METALS_PRICE <const> = 30 -- credits a metal when no price is known
+local HOUSE_CAP_SHARE <const> = 10 -- a seedling buys 1/10 of the House's stock a day,
+local HOUSE_CAP_MIN <const> = 5 -- but at least this many
+local HOUSE_CAP_REACHED <const> = -17 -- buy_here's result at that cap
+local TRIP_FUEL_COST <const> = 30 -- credits: 10 fuel at about 3, there and back
+local HOUR_AWAY_COST <const> = 10 -- credits a game hour of travel costs
+local KEPT_AFTER_TAX <const> = 95 -- percent of a sale (5% sales tax)
+local RODS_PER_HOUR <const> = 4 -- sold an hour: buyers bid less as they stock up
+local SELLING_HOURS <const> = 6 -- hours it keeps selling at one place
+local FAILS_BEFORE_PAUSE <const> = 3 -- failed makes in a row
+local COPY_COST <const> = 5000 -- credits: a hull and a kit
+local COPY_FUEL_BELOW <const> = 80 -- fuel: tops up below this before a launch
+local COPY_FUEL_TARGET <const> = 90 -- fuel it tops up to
+local FUEL_FOR_COPY <const> = 40 -- fuel handed to a new copy
+local KIT_WAIT_HOURS <const> = 6 -- hours it waits for a bought kit
+local MIN_SHARE_ORDER <const> = 25 -- credits: each order burns a unit of fuel
+local REPORT_EVERY <const> = 4 -- rounds between reports home
+
+-- What it remembers (a copy starts with its parent's)
+house_cap_reached_on = {} -- place -> day its House cap for metals was reached
+failed_makes_in_a_row = 0
+spare_kits_sold_on = -1 -- game day
+invested_on = -1 -- game day
+invested_total = 0 -- credits put into shares
+rounds_worked = 0
+copy = false -- true once it launches a copy, and in the copy
+
+-- Fuel and credits
+
+function buy_fuel(then_wait)
+  raise_cash(CASH_FOR_FUEL); buy_here(FUEL_TO_BUY, fuel)
+  wait(then_wait)
 end
 
--- Credits above what it keeps: cash_floor when its tank is low, low_floor
--- otherwise (#740)
+function refuel()
+  if units(fuel) < low_fuel then buy_fuel(HOUR) end
+end
+
+-- Credits it may spend: it keeps more back when its tank is low
 function spare()
   local keep = units(fuel) < low_fuel and cash_floor or low_floor
   return math.max(credits() - keep, 0)
 end
 
--- Metals for a batch, as many as the spare credits pay for at the price there
--- A seedling buys only from the House, and at most a tenth of what it has on
--- sale at an exchange in a game day (-17). So it asks house_supply() where
--- the House sells metals and picks the place where a unit costs least: the
--- price, plus the round trip (fuel, and 10 credits a game hour) shared over
--- what its cap lets it buy there. It waits for the next day only when none
--- sells any
-capped_at = {}
-function metals_place()
-  local best, best_each, best_price = nil, math.huge, 0
-  for _, h in ipairs(house_supply(metals_a1)) do
-    local n = math.min(batch, h.on_sale, math.max(5, h.on_sale // 10))   -- what its cap lets it buy there today (a tenth, at least 5)
-    if h.price > 0 and n >= 2 and capped_at[h.place] ~= today() then
-      local trip = 0
-      if h.place ~= location() then
-        local t = trip_to(h.place)
-        trip = 30 + (t and t.hours * 2 or 0) * 10   -- 10 fuel at about 3, and the hours there and back
-      end
-      local each = h.price + trip / n
-      if each < best_each then best, best_each, best_price = h.place, each, h.price end
-    end
-  end
-  return best, best_each, best_price
+function after_sales_tax(amount)
+  return amount * KEPT_AFTER_TAX // 100
 end
 
--- The best House bid for rods anywhere that still buys, less the 5% sales
--- tax: what a rod made now will fetch at least (0 when none bids)
-function rod_value()
+-- A round trip's fuel and hours in credits (0 here)
+function round_trip_cost(place)
+  if place == location() then return 0 end
+  local trip = trip_to(place)
+  local hours_there_and_back = trip and trip.hours * 2 or 0
+  return TRIP_FUEL_COST + hours_there_and_back * HOUR_AWAY_COST
+end
+
+-- What a rod made now will fetch at least: the best House bid, after tax
+function best_rod_bid()
   local best = 0
-  for _, d in ipairs(house_demand(rods)) do
-    if d.price > 0 and d.left > 0 then best = math.max(best, d.price * 95 // 100) end
+  for _, bid in ipairs(house_demand(rods)) do
+    if bid.price > 0 and bid.left > 0 then best = math.max(best, after_sales_tax(bid.price)) end
   end
   return best
 end
-function stock_up()
-  if units(metals_a1) >= 2 then return end
-  -- Too few credits for two metals: rest a while
-  if spare() < 60 then
+
+-- Buying metals
+
+function house_lets_me_buy(offer)
+  local daily_cap = math.max(HOUSE_CAP_MIN, offer.on_sale // HOUSE_CAP_SHARE)
+  return math.min(batch, offer.on_sale, daily_cap)
+end
+
+-- The House exchange where a metal costs least, with the trip shared over
+-- what it may buy there: place, cost each, price; nil when none sells any
+function cheapest_house_metals()
+  local best_place, best_cost, best_price = nil, math.huge, 0
+  for _, offer in ipairs(house_supply(metals_a1)) do
+    local can_buy = house_lets_me_buy(offer)
+    if offer.price > 0 and can_buy >= metals_per_rod and house_cap_reached_on[offer.place] ~= today() then
+      local cost = offer.price + round_trip_cost(offer.place) / can_buy
+      if cost < best_cost then best_place, best_cost, best_price = offer.place, cost, offer.price end
+    end
+  end
+  return best_place, best_cost, best_price
+end
+
+-- A seedling goes where metals are cheapest: their price there, or nil
+-- after waiting when none are on sale or a rod wouldn't pay for them
+function go_to_cheapest_house_metals()
+  local place, cost, price = cheapest_house_metals()
+  if not place then
+    set_status("no metals on sale from the House: waiting for tomorrow's")
+    wait(4 * HOUR)
+    return nil
+  end
+  if cost * metals_per_rod >= best_rod_bid() then
+    set_status("a rod needs " .. metals_per_rod .. " metals at about " .. math.floor(cost) .. " each (with the trip), and pays "
+      .. best_rod_bid() .. " at best: waiting for a better rod bid")
+    wait(4 * HOUR)
+    return nil
+  end
+  if place ~= location() then
+    set_status("buying metals at " .. place_name(place))
+    go(place)
+  end
+  return price
+end
+
+function buy_metals_here(price)
+  if price <= 0 then price = GUESSED_METALS_PRICE end
+  local amount = math.min(batch, spare() // price)
+  if amount > 0 then
+    if buy_here(amount, metals_a1) == HOUSE_CAP_REACHED then house_cap_reached_on[location()] = today() end
+    wait(HOUR)
+  end
+end
+
+function buy_metals()
+  if units(metals_a1) >= metals_per_rod then return end
+  if spare() < CREDITS_FOR_METALS then
     set_status("short of credits for metals")
-    wait(120)
+    wait(2 * HOUR)
     return
   end
   local price = buy_price(metals_a1)
   if house_only() then
-    local best, each, at = metals_place()
-    if not best then
-      set_status("no metals on sale from the House: waiting for tomorrow's")
-      wait(240)
-      return
-    end
-    -- Rods must pay for their metals
-    if each * metals_per_rod >= rod_value() then
-      -- In words a player can check on the Market board
-      set_status("a rod needs " .. metals_per_rod .. " metals at about " .. math.floor(each) .. " each (with the trip), and pays "
-        .. rod_value() .. " at best: waiting for a better rod bid")
-      wait(240)
-      return
-    end
-    if best ~= location() then
-      set_status("buying metals at " .. place_name(best))
-      go(best)
-    end
-    price = at
+    price = go_to_cheapest_house_metals()
+    if not price then return end
   end
-  if price <= 0 then price = 30 end
-  local n = math.min(batch, spare() // price)
-  if n > 0 then
-    if buy_here(n, metals_a1) == -17 then capped_at[location()] = today() end
-    wait(60)
+  buy_metals_here(price)
+end
+
+-- Making rods
+
+-- Metals into an alloy, the alloy into a rod: 0, or the failure code
+function make_rod()
+  local result = make(alloys_a1)
+  if result == 0 then result = make(rods) end
+  return result
+end
+
+function note_failed_make(code)
+  failed_makes_in_a_row = failed_makes_in_a_row + 1
+  if failed_makes_in_a_row >= FAILS_BEFORE_PAUSE then
+    set_status("making failed " .. failed_makes_in_a_row .. " times in a row (" .. code .. "): waiting 4 game hours")
+    wait(4 * HOUR)
   end
 end
 
--- Out of metals and of money to buy them, with rods aboard: go and sell
-function stuck()
-  return units(metals_a1) < 2 and spare() < 60 and units(rods) > 0
-end
-
--- Metals into rods, two at a time; stop at the first failure, or when the
--- tank is down to keep_fuel
--- After 3 failed makes in a row it says so and waits 4 game hours, not one
-make_fails = 0
-function forge_rods()
-  while units(metals_a1) > 1 and units(fuel) > keep_fuel do
-    local r = make(alloys_a1)
-    if r == 0 then r = make(rods) end
-    if r ~= 0 then
-      make_fails = make_fails + 1
-      if make_fails >= 3 then
-        set_status("making failed " .. make_fails .. " times in a row (" .. r .. "): waiting 4 game hours")
-        wait(240)
-      end
-      return
-    end
-    make_fails = 0
+function make_rods()
+  while units(metals_a1) >= metals_per_rod and units(fuel) > keep_fuel do
+    local result = make_rod()
+    if result ~= 0 then note_failed_make(result); return end
+    failed_makes_in_a_row = 0
   end
 end
 
--- Sell at most 4 rods an hour, for up to 6 hours: buyers bid less as they
--- stock up, and bid again later
-function sell_rods()
-  for hour = 1, 6 do
+-- Selling rods
+
+-- A few an hour: buyers bid less as they stock up, and bid again later
+function sell_rods_here()
+  for _ = 1, SELLING_HOURS do
     if units(rods) == 0 then return end
-    sell_here(math.min(units(rods), 4), rods)
-    wait(60)
+    sell_here(math.min(units(rods), RODS_PER_HOUR), rods)
+    wait(HOUR)
   end
 end
 
--- Sell here? Yes if somebody here bids for rods and Earth paid no more than
--- trip_margin over that yesterday
--- Selling here pays when the bid here, plus what the trip would cost,
--- matches what Earth pays: its best bid an hour ago (quotes), or what rods
--- traded for there yesterday if that was more. A seedling asks house_rods()
-function sell_here_pays()
-  if house_only() then return house_rods() == location() end
-  local bid = sell_price(rods)
-  local at_earth = quotes(rods)[earth]
-  local earth_pays = math.max(at_earth and at_earth.bid or 0, board_price(rods, earth))
-  return bid > 0 and bid + trip_margin >= earth_pays
+-- Earth's best rod bid an hour ago, or yesterday's trade price if higher
+function earth_rod_price()
+  local quote = quotes(rods)[earth]
+  return math.max(quote and quote.bid or 0, board_price(rods, earth))
 end
 
--- Where the House pays most for the rods aboard, for a seedling, which
--- sells only to the House. At each exchange: the House's bid now for as many as it still takes today
--- (house_demand), less the 5% sales tax and, elsewhere, the round trip (10
--- fuel at about 3, and 10 credits a game hour); nil when none comes out ahead
+-- Yes when the bid here, plus trip_margin, matches what Earth pays
+function rods_sell_best_here()
+  if house_only() then return house_rods() == location() end
+  local bid_here = sell_price(rods)
+  local earth_pays = earth_rod_price()
+  return bid_here > 0 and bid_here + trip_margin >= earth_pays
+end
+
+-- For a seedling: where the House pays most for the rods aboard, after tax
+-- and the trip; nil when no bid comes out ahead
 function house_rods()
-  local n, best, best_net = units(rods), nil, 0
-  for _, d in ipairs(house_demand(rods)) do
-    local take = math.min(n, d.left)
-    if d.price > 0 and take > 0 then
-      local net = d.price * take * 95 // 100
-      if d.place ~= location() then
-        local t = trip_to(d.place)
-        net = net - 30 - (t and t.hours * 2 or 0) * 10
-      end
-      if net > best_net then best, best_net = d.place, net end
+  local aboard, best_place, best_net = units(rods), nil, 0
+  for _, bid in ipairs(house_demand(rods)) do
+    local sold = math.min(aboard, bid.left)
+    if bid.price > 0 and sold > 0 then
+      local net = after_sales_tax(bid.price * sold) - round_trip_cost(bid.place)
+      if net > best_net then best_place, best_net = bid.place, net end
     end
   end
-  return best
+  return best_place
 end
 
--- Where to sell the rods aboard: Earth, unless another place pays more for
--- them after the round trip (where_to_sell). A seedling: house_rods(), nil when no House bid pays the trip
+-- Earth, unless another place pays more after the trip (nil: a seedling
+-- whose rods no House bid pays the trip for)
 function market_for_rods()
   if house_only() then return house_rods() end
   local best = where_to_sell(rods, math.max(units(rods), 1))[1]
@@ -190,170 +232,191 @@ function market_for_rods()
   return earth
 end
 
-function haul()
+function stuck_with_rods()
+  return units(metals_a1) < metals_per_rod and spare() < CREDITS_FOR_METALS and units(rods) > 0
+end
+
+function haul_rods()
   local market = market_for_rods()
-  if not market then   -- a seedling, and no House bid pays the trip: wait for one (#713)
+  if not market then
     set_status("no House bid for " .. units(rods) .. " rods pays the trip: waiting")
-    wait(120)
+    wait(2 * HOUR)
     return
   end
   set_status("hauling " .. units(rods) .. " rods to " .. place_name(market))
-  local r = go(market)
-  if r ~= 0 then   -- #748: drones that couldn't fly sat on 114 rods
-    set_status("couldn't fly to " .. place_name(market) .. " (" .. r .. "): selling here if anyone buys, then waiting")
-    sell_rods()
-    wait(120)
+  local result = go(market)
+  if result ~= 0 then
+    set_status("couldn't fly to " .. place_name(market) .. " (" .. result .. "): selling here if anyone buys, then waiting")
+    sell_rods_here()
+    wait(2 * HOUR)
     return
   end
-  if units(fuel) < 60 then raise_cash(150); buy_here(30, fuel); wait(120) end
-  sell_rods()
-  if not house_only() then go(moon) end   -- a seedling picks its next exchange in stock_up
+  if units(fuel) < REFUEL_AFTER_HAUL then buy_fuel(2 * HOUR) end
+  sell_rods_here()
+  if not house_only() then go(moon) end   -- a seedling picks its next exchange in buy_metals
 end
 
--- Growth: with grow_at credits, buy a Mining Cruiser kit and a Factory Kit
--- here (every exchange sells both), launch a copy of this drone (it runs
--- this same program, with these variables), and hand it the kit and 40 fuel
-copy = false
-function get_one(resource)
-  if units(resource) > 0 then return end
-  buy_here(1, resource)
-  for _ = 1, 6 do
-    if units(resource) > 0 then return end
-    wait(60)
+function sell_or_haul_rods()
+  if units(rods) > 0 and rods_sell_best_here() then
+    sell_rods_here()
+  elseif units(rods) >= rod_load or stuck_with_rods() then
+    haul_rods()
   end
 end
--- Credits the company needs before launching a copy: about 5,000 for the
--- copy (a hull and a kit), and work_cash for each drone it will then have
-function grow_line()
-  local h = company_health()
-  local drones = h and h.working or 1
-  return math.max(grow_at, 5000 + work_cash * (drones + 1))
+
+-- Growing: a copy runs this same program, with these variables
+
+function buy_one_and_wait(kit)
+  if units(kit) > 0 then return end
+  buy_here(1, kit)
+  for _ = 1, KIT_WAIT_HOURS do
+    if units(kit) > 0 then return end
+    wait(HOUR)
+  end
 end
 
--- The fleet is full: kits bought for copies that can't launch are credits
--- tied up for good, so sell them, once a game day
-kits_tried = -1
+-- A copy's cost, plus work_cash for each drone the company will then have
+function credits_needed_to_grow()
+  local health = company_health()
+  local drones = health and health.working or 1
+  return math.max(grow_at, COPY_COST + work_cash * (drones + 1))
+end
+
+-- Kits for copies that can't launch tie up credits for good
 function sell_spare_kits(kits)
-  if today() == kits_tried then return end
-  kits_tried = today()
-  for _, k in ipairs(kits) do
-    if units(k) > 0 then
-      set_status("the fleet is full: selling " .. units(k) .. " spare kits")
-      sell_here(units(k), k)
+  if today() == spare_kits_sold_on then return end
+  spare_kits_sold_on = today()
+  for _, kit in ipairs(kits) do
+    if units(kit) > 0 then
+      set_status("the fleet is full: selling " .. units(kit) .. " spare kits")
+      sell_here(units(kit), kit)
     end
   end
 end
 
-function reinvest()
-  if house_only() then return end   -- a seedling keeps its credits for its debt: it grows once it has matured (#658)
-  if fleet_full() then sell_spare_kits({cruiser_kit, factory_kit}); return end   -- the company has all the drones it may have (#682)
-  if grow_until > 0 and today() > grow_until and units(mining_kit) == 0 and units(factory_kit) == 0 then return end
-  if credits() < grow_line() then return end   -- keeps work_cash for every drone
-  get_one(cruiser_kit)
-  get_one(factory_kit)
-  if units(cruiser_kit) == 0 or units(factory_kit) == 0 then return end
-  if units(fuel) < 80 then raise_cash(150); buy_here(90 - units(fuel), fuel); wait(60) end
-  copy = true   -- the copy gets this too: it knows it is a copy
+function past_grow_until()
+  return grow_until > 0 and today() > grow_until and units(mining_kit) == 0 and units(factory_kit) == 0
+end
+
+function buy_copy_kits()
+  buy_one_and_wait(cruiser_kit)
+  buy_one_and_wait(factory_kit)
+  return units(cruiser_kit) > 0 and units(factory_kit) > 0
+end
+
+function fuel_up_for_copy()
+  if units(fuel) < COPY_FUEL_BELOW then
+    raise_cash(CASH_FOR_FUEL); buy_here(COPY_FUEL_TARGET - units(fuel), fuel); wait(HOUR)
+  end
+end
+
+function launch_copy()
+  copy = true   -- before the launch, so the copy gets it too
   if launch(me(), cruiser_kit) ~= 0 then return end
   local clones = my_clones()
   local newest = clones[#clones]
   if newest then
     push(1, factory_kit, newest.drone)
-    push(40, fuel, newest.drone)
+    push(FUEL_FOR_COPY, fuel, newest.drone)
   end
 end
 
--- Investing: once a game day, credits above invest_above buy shares that
--- companies sell of themselves at the Earth exchange (shares_for_sale()),
--- or offer new (share_offerings(), #485),
--- if a share's income pays its price back within invest_days. Each share
--- earns 0.1% of the company's sales after tax, paid as it sells, wherever
--- this drone is. A request reaches Earth at the speed of light and burns a
--- unit of fuel, so it skips buys worth less than 25 credits
-invest_day, put_in = -1, 0
-function invest()
-  if today() == invest_day or put_in >= invest_cap then return end
-  invest_day = today()
-  local free = credits() - invest_above
-  for _, o in ipairs(shares_for_sale()) do
-    -- days to pay its price back: losses made up first, then 30-day profit (#607)
-    local back = payback_days(o.price, share_count(o.company), o.profit30, o.carried)
-    if o.seller == o.company and o.company ~= company() and o.price > 0
-        and back <= invest_days then
-      local n = math.min(o.units, free // o.price, (invest_cap - put_in) // o.price)
-      if n * o.price >= 25 then
-        pull_shares(n, o.company, o.seller)
-        put_in, free = put_in + n * o.price, free - n * o.price
+function grow()
+  if house_only() then return end   -- a seedling keeps its credits for its debt
+  if fleet_full() then sell_spare_kits({cruiser_kit, factory_kit}); return end
+  if past_grow_until() then return end
+  if credits() < credits_needed_to_grow() then return end
+  if not buy_copy_kits() then return end
+  fuel_up_for_copy()
+  launch_copy()
+end
+
+-- Investing: once a game day, credits above invest_above buy shares whose
+-- income pays their price back within invest_days, up to invest_cap in all
+
+-- Sold by the company itself (not resold), not ours, and priced
+function is_new_share_of_another_company(share)
+  return share.seller == share.company and share.company ~= company() and share.price > 0
+end
+
+-- Shares companies sell of themselves at Earth: returns the credits left
+function buy_listed_shares(free)
+  for _, share in ipairs(shares_for_sale()) do
+    local payback = payback_days(share.price, share_count(share.company), share.profit30, share.carried)
+    if is_new_share_of_another_company(share) and payback <= invest_days then
+      local amount = math.min(share.units, free // share.price, (invest_cap - invested_total) // share.price)
+      local cost = amount * share.price
+      if cost >= MIN_SHARE_ORDER then
+        pull_shares(amount, share.company, share.seller)
+        invested_total, free = invested_total + cost, free - cost
       end
     end
   end
-  -- and offerings of new shares (#485) worth it, with what's left (a
-  -- refund comes back as credits, but stays counted)
-  local budget = math.min(free, invest_cap - put_in)
-  if budget >= 25 then put_in = put_in + back_offerings(budget, invest_days) end
+  return free
 end
 
--- Offerings of new shares (#485): what a new share is worth over `days`
--- days, on the company's profit a day (30-day average, #607) spread over
--- its shares once the offering fills, counting the profit of one more drone
--- (what a raise is usually for), less the losses it must make up first
-function offering_worth(o, days)
-  local n = math.max(#company_drones(o.company), 1)
-  return math.max(days * math.max(o.profit30, 0) * (n + 1) / n - o.carried, 0) / (o.count + o.units)
+-- What a new share earns over `days`: the company's profit with one more
+-- drone (what a raise is usually for), less the losses it must make up
+function new_share_value(offer, days)
+  local drones = math.max(#company_drones(offer.company), 1)
+  local earnings = days * math.max(offer.profit30, 0) * (drones + 1) / drones - offer.carried
+  return math.max(earnings, 0) / (offer.count + offer.units)
 end
--- Commit up to `budget` credits to one offering at a time (#488): the one
--- it has already backed while it is open, else the open offering worth its
--- price that is closest to filling. Backers that pile into the same one
--- fill it (an offering short of its minimum at the deadline refunds them).
--- Skips commitments under 25 credits (each burns a unit of fuel), unless
--- one completes the offering. Returns the credits it committed
-function back_offerings(budget, days)
+
+-- The open offering it already backs, else the one worth its price that is
+-- closest to filling: backers who pile into one fill it
+function choose_offering(days)
   local pick
-  for _, o in ipairs(share_offerings()) do
-    if o.company ~= company() and o.left > 0 then
-      if o.mine > 0 then pick = o; break end
-      if o.price <= offering_worth(o, days) and (not pick or o.left < pick.left) then pick = o end
+  for _, offer in ipairs(share_offerings()) do
+    if offer.company ~= company() and offer.left > 0 then
+      if offer.mine > 0 then return offer end
+      if offer.price <= new_share_value(offer, days) and (not pick or offer.left < pick.left) then pick = offer end
     end
   end
-  if not pick then return 0 end
-  local n = math.min(pick.left, budget // pick.price)
-  -- (but never skips the commitment that completes it)
-  if n * pick.price < 25 and n < pick.left then return 0 end
-  commit_shares(n, pick.company)
-  return n * pick.price
+  return pick
 end
 
--- Every 4th round, send a line home
-rounds = 0
-function tell()
-  rounds = rounds + 1
-  if rounds % 4 ~= 0 then return end
+-- Returns the credits committed (a refund comes back as credits)
+function back_an_offering(budget, days)
+  local offer = choose_offering(days)
+  if not offer then return 0 end
+  local amount = math.min(offer.left, budget // offer.price)
+  local completes_it = amount >= offer.left
+  if amount * offer.price < MIN_SHARE_ORDER and not completes_it then return 0 end
+  commit_shares(amount, offer.company)
+  return amount * offer.price
+end
+
+function invest()
+  if today() == invested_on or invested_total >= invest_cap then return end
+  invested_on = today()
+  local free = buy_listed_shares(credits() - invest_above)
+  local budget = math.min(free, invest_cap - invested_total)
+  if budget >= MIN_SHARE_ORDER then invested_total = invested_total + back_an_offering(budget, invest_days) end
+end
+
+function report_now_and_then()
+  rounds_worked = rounds_worked + 1
+  if rounds_worked % REPORT_EVERY ~= 0 then return end
   print("credits " .. credits() .. " rods " .. units(rods) .. " fuel " .. units(fuel))
   report()
 end
 
 function work()
   refuel()
-  stock_up()
-  forge_rods()
-  if units(rods) > 0 and sell_here_pays() then
-    sell_rods()
-  elseif units(rods) >= rod_load or stuck() then
-    haul()
-  end
-  reinvest()
+  buy_metals()
+  make_rods()
+  sell_or_haul_rods()
+  grow()
   invest()
-  tell()
+  report_now_and_then()
 end
 
--- launched() may run again (after a crash, or if the engine restarts), so
--- it only does what still needs doing: equip passes at once
--- once the tools are unpacked, and go stays put if already there
+-- launched() may run again (after a crash or an engine restart), so each
+-- step does only what still needs doing
 function launched()
-  fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
-  equip(factory_kit)   -- buys a kit at Earth and unpacks it (a copy waits for the one it is handed; #506)
-  -- A seedling looks where the House sells metals first (stock_up does);
-  -- a matured company buys from anyone, and the Moon's miners sell cheapest
-  if not house_only() then go(moon) end
+  fuel_floor(FUEL_FLOOR)   -- keeps enough fuel to buy more
+  equip(factory_kit)       -- a copy waits for the kit it is handed
+  if not house_only() then go(moon) end   -- the Moon's miners sell metals cheapest
   while true do work() end
 end
