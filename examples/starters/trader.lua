@@ -29,7 +29,7 @@ seedling_recheck_pause = 1440     -- between checks on whether it may trade: a g
 fuel_reserve = 15                 -- make, mine, refine and push stop here, to keep fuel to buy more (units)
 
 -- Its status line as a seedling (a status line holds 80 characters)
-seedling_message ="A seedling trades only with the House: nothing to trade. Release a Miner instead"
+seedling_message = "A seedling trades only with the House: nothing to trade. Release a Miner instead"
 
 -- What it has been doing (kept if the engine restarts)
 looks_since_last_trip = 0
