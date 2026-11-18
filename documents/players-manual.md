@@ -45,6 +45,7 @@ _Your drones are programmed in [Lua](https://www.lua.org/manual/5.4/), and every
 - [Chapter 5: Building A Vocabulary](#chapter-5-building-a-vocabulary)
   - [Writing your own functions](#writing-your-own-functions)
   - [Commenting on your code](#commenting-on-your-code)
+  - [Code investors can read](#code-investors-can-read)
   - [The game functions](#the-game-functions)
   - [Sending greetings](#sending-greetings)
   - [Broadcasting to other drones](#broadcasting-to-other-drones)
@@ -239,7 +240,7 @@ Not sure where to begin? The Start a seedling page offers three starter scripts 
 
 The **Trader** starter (`trader.lua`) isn't offered under the new rules: it makes its living buying from other drones, and a seedling can't.
 
-Time to mature, measured in round 73 at the normal pace (48 real seconds a game day): an unchanged Maker took 29 to 33 game days (about 23 to 26 real minutes), an unchanged Refiner 59 to 60 (about 48 minutes) and an unchanged Miner 68 to 77 (55 to 62 minutes; 62 with `hold_cap` 24). The Maker became the fastest once a seedling could always buy at least 5 of a good a game day (#788). Since then (#777) the Miner sells 40 metals at a time and the Refiner 48 goods, each fills its tank whenever it sells, and the Miner waits an hour for a dry Mars moon to refill before flying to the other: round 73's spent a fifth of their time flying and selling small loads. The next round times them. A crowded world takes longer. A seedling Maker checks that the House's best bid for rods pays for their metals (two to a rod) before it buys, sizes its batch by the price there, and keeps 60 credits once its tank is full, 300 when it is low (#740).
+Time to mature, measured in round 74 at the normal pace (48 real seconds a game day): an unchanged Maker took about 25 to 33 game days (20 to 26 real minutes), an unchanged Miner 45 to 52 (36 to 42 minutes) and an unchanged Refiner about 52 (42 minutes). The Maker became the fastest once a seedling could always buy at least 5 of a good a game day (#788); the Miner and Refiner gained 25 and 7 game days once they sold bigger loads and filled their tanks whenever they sold (#777). A crowded world takes longer. A seedling Maker checks that the House's best bid for rods pays for their metals (two to a rod) before it buys, sizes its batch by the price there, and keeps 60 credits once its tank is full, 300 when it is low (#740).
 
 More complete company designs are in `examples/companies/`: `adaptive.lua`, `chemist.lua`, `electronics.lua`, `foundry.lua`, `machinist.lua`, `smith.lua` and `systems.lua`, with `words.lua`, a library of helper functions you can copy into your own script. They were written before the new rules: as seedlings they trade only with the House, and their share buying (`invest_surplus`) is refused (-18). Read them for ideas.
 
@@ -828,7 +829,7 @@ The Factory Kit's Smelter, Chemical Reactor and Spider take you as far as system
 3. buy a kit (`mining_kit` or `factory_kit`) and push it to the new spacecraft with some fuel;
 4. have your `launched` function wait until its kit is aboard before it unpacks (`equip(kit)` does that in a copy): a new spacecraft starts with no kit.
 
-The Miner, Refiner and Maker starters do this once their company has matured and has about 7,000 credits: read their `reinvest` function.
+The Miner, Refiner and Maker starters do this once their company has matured and has about 7,000 credits: read the Miner's `grow_fleet`, the Refiner's `reinvest` or the Maker's `grow`.
 
 **Eight drones at most.** A company may have at most **8 working drones**. A launch that would take it past them fails with -20, and the kit stays in the hold, so check `fleet_full()` before you buy a kit to launch: it is true when the company has all the drones it may (counting launches still on their way). `fleet()` gives the numbers: `{drones, cap, coming}`. The starters do this. Past eight, a company grows by working better, not by adding drones: the cap keeps the world running at full speed for everyone.
 
@@ -939,7 +940,7 @@ function report_metals()
 end
 ```
 
-A function can call any function, including ones defined further down the script: what matters is that it exists when the call happens. Keep each function short and give it a name that says what it does. The starters are written that way: `refuel`, `dig`, `sell_metals`, `reinvest`, `work`, then a short `launched` that calls them.
+A function can call any function, including ones defined further down the script: what matters is that it exists when the call happens. Keep each function short and give it a name that says what it does. The starters are written that way, with a short `launched` that calls the steps in order (see [Code investors can read](#code-investors-can-read)).
 
 ### Commenting on your code
 
@@ -954,6 +955,45 @@ Comments remind you, and anyone who copies your code, what a function is for. Lu
 
 dig_size = 20   -- how many mining runs before refining
 ```
+
+A comment should say **why**, not **what**: the code already says what. If you need a comment to explain what a line does, try renaming things first.
+
+### Code investors can read
+
+When your seedling matures, its code is locked and public, and the players thinking of buying its shares read it first (see [Before you buy: read the code](#before-you-buy-read-the-code)). Code they can follow in a minute earns their trust; code they can't is a risk they price in. So write it the way the starters are written (#849):
+
+- **Names that say what things are and do.** `sell_metals_at_market()`, `fuel_for_round_trip`, `richest_ore`. A good name is worth more than a comment, and it never goes out of date.
+- **Small functions, each doing one thing.** Your main loop should read like a list of steps: refuel, mine, refine, sell, grow.
+- **Settings at the top**, each with one short comment saying what it controls and in what unit. An investor sees your strategy at a glance, and you can tune it in one place.
+- **No magic numbers.** `if units(fuel) < 40` makes a reader guess; `if units(fuel) < low_fuel` with `low_fuel = 40 -- buy fuel below this` doesn't.
+- **Comments only for why.** "Waiting is free; a hop costs fuel" explains a choice. "-- go to the market" above `go(market())` says nothing.
+
+The same few lines, before and after:
+
+```lua
+-- before: what is 16? what is s?
+function f(s)
+  if metals() < 16 then return end
+  go(s)
+  for _, m in ipairs(metals_sold) do sell_out(m) end
+  if units(fuel) < 50 then fill_to(80) end
+end
+```
+
+```lua
+-- after: the names say it all
+hold_cap = 40        -- metals it gathers before a selling trip
+full_tank = 150      -- fuel it fills up to whenever it sells
+
+function sell_metals_at(market_place)
+  if metals() < hold_cap then return end
+  go(market_place)
+  for _, metal in ipairs(metals_sold) do sell_out(metal) end
+  fill_to(full_tank)
+end
+```
+
+The second version is longer by a line and much faster to trust. Clean code also makes your own changes safer: when a push goes wrong, you can see why.
 
 ### The game functions
 
@@ -1471,7 +1511,7 @@ end
 
 ### Before you buy: read the code
 
-All code is public. A matured company's code can't change, so what you read is what it will do. But it can still react: to prices, to orders, to what it finds where it goes. So read it before you buy, and ask:
+All code is public. A matured company's code can't change, so what you read is what it will do. Clearly written code (see [Code investors can read](#code-investors-can-read)) is quicker to judge, and a company you can understand is a safer buy. But it can still react: to prices, to orders, to what it finds where it goes. So read it before you buy, and ask:
 
 - **What does it do when the market moves?** A company that sells one product to one exchange does well until that exchange is full (see [How much more will the House buy?](#house-demand)).
 - **What does it do when it runs low on fuel or credits?** A company whose drones run dry earns nothing.
