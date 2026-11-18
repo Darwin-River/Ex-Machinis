@@ -137,12 +137,12 @@
                     <p>Push a fix. On its company page, <b>Push new code</b> takes your edited script to its drones at the speed
                         of light; it starts over on it, keeping its hold and its place. The first push is free, each after it adds
                         {{ $n($seedling['push_fee']) }} to the debt. Treat a change as an experiment: note its credits before, push, and
-                        compare a few game days later. For example, the Miner sells once it has 16 metals aboard; with more aboard it
+                        compare a few game days later. For example, the Miner sells once it has 40 metals aboard; with more aboard it
                         makes fewer trips, each worth more, if the <a href="{{ url('market') }}">Market board</a> shows the House
                         still wants them:</p>
 <pre class="fs-code" v-pre aria-label="A one-line change to the Miner"><span class="c">-- metals it keeps on offer before it goes to sell</span>
-<del>- hold_cap = 16</del>
-<ins>+ hold_cap = 24</ins></pre>
+<del>- hold_cap = 40</del>
+<ins>+ hold_cap = 60</ins></pre>
                     <p>It may help or not: in round 72, a Miner told its time was worth less (<code>hour_value</code> 2) flew to the
                         lowest bids and matured later than an unchanged one. A change that doesn't
                         work is fine: push another, or <b>close</b> the seedling. Its debt is cancelled, and a game day later its slot is
