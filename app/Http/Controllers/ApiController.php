@@ -36,7 +36,9 @@ class ApiController extends Controller
         return response()->json(LaunchQueue::status() + ['disk' => $disk === null ? null : [
             'used_percent' => $disk['used_percent'], 'effective_percent' => $disk['effective_percent'],
             'budget_percent' => \App\Services\HistoryBudget::budget(),
-            'warning' => $disk['used_percent'] >= \App\Services\HistoryBudget::URGENT_PERCENT]]);
+            'warning' => $disk['used_percent'] >= \App\Services\HistoryBudget::URGENT_PERCENT,
+            // History tables holding more free space than rows (#827): forge:history-rebuild hands it back
+            'rebuild' => $disk['rebuild']]]);
     }
 
     /** The economy dashboard (#698): the same figures as /dashboard, kept for a minute */

@@ -109,6 +109,8 @@ class HomeController extends Controller
         }
         // The game's history within the disk budget (#813)
         $done['history'] = \App\Services\HistoryBudget::pruneIfDue();
+        // A table holding far more free space than rows hands it back (#827)
+        $done['history_rebuilt'] = \App\Services\HistoryBudget::rebuildIfDue();
         return response()->json($done);
     }
 

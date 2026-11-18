@@ -78,4 +78,35 @@ class HistoryBudgetTest extends TestCase
         $this->assertNotNull($d);
         $this->assertLessThanOrEqual($d['used_percent'], $d['effective_percent']);
     }
+
+    /** #827: free space only `events` can use isn't room; a table with far more free space than rows is rebuilt */
+    public function testOnlyTheGrowingTablesFreeSpaceCountsAndASparseTableIsRebuilt()
+    {
+        $gb = 1_000_000_000;
+        // As live after the archiver caught up: events 0.3 GB of rows and 11 GB free
+        $tables = ['events' => ['rows' => (int) (0.3 * $gb), 'free' => 11 * $gb],
+            'events_archive' => ['rows' => 2 * $gb, 'free' => (int) (0.2 * $gb)],
+            'observations' => ['rows' => (int) (1.2 * $gb), 'free' => (int) (1.7 * $gb)]];
+        $this->assertSame((int) (1.9 * $gb), HistoryBudget::heldFree($tables), 'not the 11 GB in events');
+        $this->assertSame(['events', 'observations'], array_keys(HistoryBudget::rebuildable($tables)));
+        // Less than a gigabyte free, or less free than rows: not worth it
+        $this->assertSame([], HistoryBudget::rebuildable(['events' => ['rows' => 5 * $gb, 'free' => 4 * $gb],
+            'observations' => ['rows' => 100, 'free' => (int) (0.9 * $gb)]]));
+        $this->getJson('/api/v1/clock')->assertOk()->assertJsonStructure(['disk' => ['rebuild']]);
+
+        // The keeper rebuilds what is small enough itself, once a real day; the rest it only logs
+        \Illuminate\Support\Facades\Cache::forget('history-rebuild');
+        $tables['observations']['rows'] = 2 * $gb;   // too big to copy in a moment
+        $tables['observations']['free'] = 3 * $gb;
+        \Illuminate\Support\Facades\Log::spy();
+        $done = HistoryBudget::rebuildIfDue($tables);
+        $this->assertSame(['events'], array_keys($done));
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('warning')->withArgs(fn ($m) => str_contains($m, 'observations')
+            && str_contains($m, 'forge:history-rebuild'));
+        $this->assertSame([], HistoryBudget::rebuildIfDue($tables), 'once a real day');
+
+        // The command lists them, and rebuilds one asked for by name
+        $this->artisan('forge:history-rebuild', ['--dry-run' => true])->assertExitCode(0);
+        $this->artisan('forge:history-rebuild', ['--table' => ['events']])->expectsOutputToContain('Rebuilt events')->assertExitCode(0);
+    }
 }
