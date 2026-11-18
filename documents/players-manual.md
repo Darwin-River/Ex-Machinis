@@ -45,6 +45,7 @@ _Your drones are programmed in [Lua](https://www.lua.org/manual/5.4/), and every
 - [Chapter 5: Building A Vocabulary](#chapter-5-building-a-vocabulary)
   - [Writing your own functions](#writing-your-own-functions)
   - [Commenting on your code](#commenting-on-your-code)
+  - [Code investors can read](#code-investors-can-read)
   - [The game functions](#the-game-functions)
   - [Sending greetings](#sending-greetings)
   - [Broadcasting to other drones](#broadcasting-to-other-drones)
@@ -939,7 +940,7 @@ function report_metals()
 end
 ```
 
-A function can call any function, including ones defined further down the script: what matters is that it exists when the call happens. Keep each function short and give it a name that says what it does. The starters are written that way: `refuel`, `dig`, `sell_metals`, `reinvest`, `work`, then a short `launched` that calls them.
+A function can call any function, including ones defined further down the script: what matters is that it exists when the call happens. Keep each function short and give it a name that says what it does. The starters are written that way, with a short `launched` that calls the steps in order (see [Code investors can read](#code-investors-can-read)).
 
 ### Commenting on your code
 
@@ -954,6 +955,45 @@ Comments remind you, and anyone who copies your code, what a function is for. Lu
 
 dig_size = 20   -- how many mining runs before refining
 ```
+
+A comment should say **why**, not **what**: the code already says what. If you need a comment to explain what a line does, try renaming things first.
+
+### Code investors can read
+
+When your seedling matures, its code is locked and public, and the players thinking of buying its shares read it first (see [Before you buy: read the code](#before-you-buy-read-the-code)). Code they can follow in a minute earns their trust; code they can't is a risk they price in. So write it the way the starters are written (#849):
+
+- **Names that say what things are and do.** `sell_metals_at_market()`, `fuel_for_round_trip`, `richest_ore`. A good name is worth more than a comment, and it never goes out of date.
+- **Small functions, each doing one thing.** Your main loop should read like a list of steps: refuel, mine, refine, sell, grow.
+- **Settings at the top**, each with one short comment saying what it controls and in what unit. An investor sees your strategy at a glance, and you can tune it in one place.
+- **No magic numbers.** `if units(fuel) < 40` makes a reader guess; `if units(fuel) < low_fuel` with `low_fuel = 40 -- buy fuel below this` doesn't.
+- **Comments only for why.** "Waiting is free; a hop costs fuel" explains a choice. "-- go to the market" above `go(market())` says nothing.
+
+The same few lines, before and after:
+
+```lua
+-- before: what is 16? what is s?
+function f(s)
+  if metals() < 16 then return end
+  go(s)
+  for _, m in ipairs(metals_sold) do sell_out(m) end
+  if units(fuel) < 50 then fill_to(80) end
+end
+```
+
+```lua
+-- after: the names say it all
+hold_cap = 40        -- metals it gathers before a selling trip
+full_tank = 150      -- fuel it fills up to whenever it sells
+
+function sell_metals_at(market_place)
+  if metals() < hold_cap then return end
+  go(market_place)
+  for _, metal in ipairs(metals_sold) do sell_out(metal) end
+  fill_to(full_tank)
+end
+```
+
+The second version is longer by a line and much faster to trust. Clean code also makes your own changes safer: when a push goes wrong, you can see why.
 
 ### The game functions
 
@@ -1471,7 +1511,7 @@ end
 
 ### Before you buy: read the code
 
-All code is public. A matured company's code can't change, so what you read is what it will do. But it can still react: to prices, to orders, to what it finds where it goes. So read it before you buy, and ask:
+All code is public. A matured company's code can't change, so what you read is what it will do. Clearly written code (see [Code investors can read](#code-investors-can-read)) is quicker to judge, and a company you can understand is a safer buy. But it can still react: to prices, to orders, to what it finds where it goes. So read it before you buy, and ask:
 
 - **What does it do when the market moves?** A company that sells one product to one exchange does well until that exchange is full (see [How much more will the House buy?](#house-demand)).
 - **What does it do when it runs low on fuel or credits?** A company whose drones run dry earns nothing.
