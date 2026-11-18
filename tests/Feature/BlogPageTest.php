@@ -33,7 +33,7 @@ class BlogPageTest extends TestCase
         $this->get('/blog/1-state-machines')->assertOk()
             ->assertSee('Drones that change their minds')
             ->assertSee('<h2 id="the-code">The code</h2>', false)
-            ->assertSee('function step()')
+            ->assertSeeText('function step()')
             ->assertSee('/blog/2-buy-orders', false)
             // Front matter isn't shown as text
             ->assertDontSee('summary:');

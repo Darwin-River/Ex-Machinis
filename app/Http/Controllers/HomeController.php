@@ -118,6 +118,8 @@ class HomeController extends Controller
     private const PLAYERS_MANUAL = 'documents/players-manual.md';
     private const MANUAL_IMAGES = 'documents/images';
     private const REPOSITORY_DOCS = 'https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/';
+    /** Part of the cached manual's and blog posts' keys: change it when renderPlayersManual changes (#848: Lua in colour) */
+    public const RENDER_VERSION = 2;
 
     /**
      * The players' manual (documents/players-manual.md) at /manual, rendered
@@ -133,7 +135,7 @@ class HomeController extends Controller
     /** The manual, rendered once for each version of the file */
     private static function manualHtml(): string
     {
-        return Cache::rememberForever('players-manual:' . filemtime(base_path(self::PLAYERS_MANUAL)),
+        return Cache::rememberForever('players-manual:' . self::RENDER_VERSION . ':' . filemtime(base_path(self::PLAYERS_MANUAL)),
             // One title (#744): the page's header, not the file's own heading too
             fn () => preg_replace('/<h1\b[^>]*>.*?<\/h1>/s', '', self::renderPlayersManual(file_get_contents(base_path(self::PLAYERS_MANUAL))), 1));
     }
@@ -199,6 +201,8 @@ class HomeController extends Controller
 
         // Images are served by /manual/images; other documents are on GitHub
         $html = preg_replace('/src="images\//', 'src="/manual/images/', $html);
+        // Lua blocks in colour (#848)
+        $html = \App\Services\LuaHighlight::markdownBlocks($html);
         return preg_replace('/href="(?!https?:|#|\/)([\w.-]+\.md)/', 'href="' . self::REPOSITORY_DOCS . '$1', $html);
     }
 

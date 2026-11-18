@@ -117,7 +117,7 @@ class CodeLineage
     }
 
     /** The game library's names (lua_library.lua): a script that redefines one keeps its name */
-    private static function library(): array
+    public static function library(): array
     {
         if (self::$library === null) {
             $src = @file_get_contents(base_path('game-engine/src/lua_library.lua')) ?: '';
