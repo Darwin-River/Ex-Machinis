@@ -6,6 +6,7 @@ use App\Agent;
 use App\Services\Provenance;
 use App\Services\Release;
 use App\User;
+use App\Services\LuaHighlight;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -43,10 +44,10 @@ class DronePageTest extends TestCase
         $agent = Release::release($this->player('a@example.com'), 'Diggers', self::SCRIPT);
         // #594: the code is the company's, shown on its page; the drone page links there
         $this->get('/spacecraft/' . $agent->agent_id)->assertOk()
-            ->assertSee('companies/' . $agent->company_id . '#code', false)->assertDontSee('function dig(n) -- n units', false)
+            ->assertSee('companies/' . $agent->company_id . '#code', false)->assertDontSee(LuaHighlight::html('function dig(n) -- n units'), false)
             ->assertSee('Diggers')->assertSee('Generation');
         $this->get('/companies/' . $agent->company_id)->assertOk()
-            ->assertSee('id="code"', false)->assertSee('Copy this code')->assertSee('function dig(n) -- n units', false)
+            ->assertSee('id="code"', false)->assertSee('Copy this code')->assertSee(LuaHighlight::html('function dig(n) -- n units'), false)
             ->assertSee('release?copy=' . $agent->agent_id . '&amp;word=dig', false);
     }
 
@@ -68,7 +69,7 @@ class DronePageTest extends TestCase
         $script = "local r = {{2031, 1}}\nfunction launched()\n  print(r[1][1])\nend";
         $agent = \App\Services\Release::release(\App\User::create(['name' => 'Nest', 'email' => uniqid() . '@example.com',
             'password' => bcrypt('secret-password')]), 'Nested Co', $script);
-        $this->get('/companies/' . $agent->company_id)->assertOk()->assertSee('<pre id="company-code" v-pre', false);
+        $this->get('/companies/' . $agent->company_id)->assertOk()->assertSee('<pre id="company-code" style="white-space: pre-wrap" class="lua" v-pre>', false);
         $this->actingAs(\App\User::find($agent->user_id) ?? \App\User::first())
             ->get('/release?copy=' . $agent->agent_id)->assertOk()->assertSee('<textarea v-pre', false);
     }
@@ -82,8 +83,8 @@ class DronePageTest extends TestCase
             'game_t' => \App\Services\World::gameNow(), 'credits_before' => 0, 'permille' => 50, 'fee' => 0,
             'drones' => 1, 'script' => $pushed]);
         $this->get('/companies/' . $agent->company_id)->assertOk()
-            ->assertSee('It is push 1', false)->assertSee("print('second try')")
-            ->assertSee('id="code-revisions"', false)->assertSee('Release')->assertSee('function dig(n) -- n units', false)
+            ->assertSee('It is push 1', false)->assertSee(LuaHighlight::html("print('second try')"), false)
+            ->assertSee('id="code-revisions"', false)->assertSee('Release')->assertSee(LuaHighlight::html('function dig(n) -- n units'), false)
             ->assertSee('release?copy=' . $agent->agent_id . '&amp;push=1', false);
         $this->get('/spacecraft/' . $agent->agent_id)->assertSee('newest revision is push 1');
         $this->get('/release?copy=' . $agent->agent_id . '&push=1')->assertOk()->assertSee("print('second try')");

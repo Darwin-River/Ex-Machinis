@@ -43,7 +43,7 @@
         .fs-mk.fs-end em { transform: translateX(-100%); }
         .fs-code { background: #0f1424; border: 1px solid #263052; border-radius: 10px; padding: 12px 14px; margin: .5rem 0 .75rem;
               font: 13px/1.6 "JetBrains Mono", ui-monospace, monospace; color: #cfe3ff; white-space: pre; overflow-x: auto; max-width: 44rem; }
-        .fs-code .c { color: #8b95ad; } .fs-code del { color: #ff8a7a; text-decoration: none; } .fs-code ins { color: #5ad19a; text-decoration: none; }
+        .fs-code del { color: #ff8a7a; text-decoration: none; } .fs-code ins { color: #5ad19a; text-decoration: none; }
         .fs-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin: .75rem 0 0; }
         .fs-next { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: .75rem 0 0; padding: 0; list-style: none; }
         .fs-next a { display: block; background: #111729; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; padding: 12px 14px; height: 100%;
@@ -140,7 +140,7 @@
                         compare a few game days later. For example, the Miner sells once it has 40 metals aboard; with more aboard it
                         makes fewer trips, each worth more, if the <a href="{{ url('market') }}">Market board</a> shows the House
                         still wants them:</p>
-<pre class="fs-code" v-pre aria-label="A one-line change to the Miner"><span class="c">-- metals it keeps on offer before it goes to sell</span>
+<pre class="fs-code lua" v-pre aria-label="A one-line change to the Miner"><span class="c">-- metals it keeps on offer before it goes to sell</span>
 <del>- hold_cap = 40</del>
 <ins>+ hold_cap = 60</ins></pre>
                     <p>It may help or not: in round 72, a Miner told its time was worth less (<code>hour_value</code> 2) flew to the

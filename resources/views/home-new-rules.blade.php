@@ -8,7 +8,6 @@
         .home-lead { font-size: 1.15rem; color: #c3c9d8; max-width: 34em; white-space: normal; }
         .home-code { background: #0f1424; border: 1px solid #263052; border-radius: 10px; padding: 16px 18px; margin: 0;
               font: 14px/1.6 "JetBrains Mono", ui-monospace, monospace; color: #cfe3ff; white-space: pre; overflow-x: auto; }
-        .home-code .k { color: #4cc9f0; } .home-code .c { color: #8b95ad; }
         .home-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 0 0 2.5rem; padding: 0; list-style: none; }
         .home-step { background: #111729; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px 18px; }
         .home-step .n { color: #ffb547; font-weight: 700; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; }
@@ -41,17 +40,19 @@
                     <p class="mt-3 mb-0"><a href="{{ url('signup') }}">Make an account</a> to keep what you start: it's free.</p>
                 </div>
                 <div class="col-lg-5">
-<pre class="home-code" v-pre aria-label="A sketch of the Miner starter script"><span class="c">-- A sketch of the Miner starter</span>
-<span class="k">function</span> launched()
+{!! \App\Services\LuaHighlight::block(<<<'LUA'
+-- A sketch of the Miner starter
+function launched()
   go(moon)
-  <span class="k">while</span> true <span class="k">do</span>
+  while true do
     dig(richer(kunspar, wolfite), 100)
     go(market())
-    sell_out(metals())   <span class="c">-- to the House</span>
+    sell_out(metals())   -- to the House
     refuel()
-  <span class="k">end</span>
-<span class="k">end</span>
-<span class="c">-- press Start seedling, then watch its page</span></pre>
+  end
+end
+-- press Start seedling, then watch its page
+LUA, ['class' => 'home-code', 'aria-label' => 'A sketch of the Miner starter script']) !!}
                 </div>
             </div>
         </div>

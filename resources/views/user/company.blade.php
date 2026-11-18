@@ -508,7 +508,7 @@
                 </div>
                 <details id="company-code-details">
                     <summary>Show the code ({{ number_format(substr_count(rtrim($current['script']), "\n") + 1) }} lines)</summary>
-                    <pre id="company-code" v-pre style="white-space: pre-wrap; color: #e6e6e6; background: #2b2b36; padding: 1em; border-radius: 4px">{{ $current['script'] }}</pre>
+                    {!! \App\Services\LuaHighlight::block($current['script'], ['id' => 'company-code', 'style' => 'white-space: pre-wrap']) !!}
                 </details>
                 @if($code['words'])
                     <div style="white-space: normal; line-height: 2"><b>Functions</b>:
@@ -531,7 +531,7 @@
                                     <td class="num">{{ $r['fee'] === null ? '' : number_format($r['fee']) . ' cr (' . $r['percent'] . '%)' }}</td>
                                     <td class="num">{{ $r['drones'] ?? '' }}</td>
                                     <td style="white-space: normal"><details><summary>Show</summary>
-                                        <pre v-pre style="white-space: pre-wrap; color: #e6e6e6; background: #2b2b36; padding: .5em; border-radius: 4px">{{ $r['script'] }}</pre>
+                                        {!! \App\Services\LuaHighlight::block($r['script'], ['style' => 'white-space: pre-wrap; padding: .5em']) !!}
                                         <a href="{{ url('release?copy=' . $code['release']->agent_id . ($r['number'] ? '&push=' . $r['number'] : '')) }}">Copy this revision</a>
                                     </details></td></tr>
                             @endforeach

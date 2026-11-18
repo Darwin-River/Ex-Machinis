@@ -128,3 +128,20 @@ th.sortable { cursor: pointer; }
   background: $space-700; border: 1px solid $space-600; color: $thrust; font-family: $font-heading; font-weight: 700;
 }
 .panel-box { background: $space-800; border: 1px solid $line; border-radius: $radius; padding: 1.25rem 1.5rem; }
+
+// Lua in colour (#848): every block of code the site shows, through
+// App\Services\LuaHighlight. Usual dark-theme Lua colours; the game
+// library's own names are in the site's amber
+pre.lua {
+  color: $text;
+  font-family: $font-mono;
+  .k { color: #c792ea; }                      // keywords: function, if, end…
+  .l { color: #ff9e64; }                      // true, false, nil
+  .n { color: #ff9e64; }                      // numbers
+  .s { color: #a5d76e; }                      // strings
+  .c { color: $muted; font-style: italic; }   // comments
+  .o { color: #89ddff; }                      // operators and punctuation
+  .b { color: #2ac3de; }                      // Lua's own: pairs, string, math…
+  .g { color: $warn; }                        // the game's: go, mine, fuel…
+  .f { color: #82aaff; }                      // the name a function is defined under
+}

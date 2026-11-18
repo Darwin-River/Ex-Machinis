@@ -84,7 +84,7 @@ class BlogController extends Controller
         $posts = self::posts();
         abort_unless(isset($posts[$slug]), 404);
         $post = $posts[$slug];
-        $html = Cache::rememberForever('blog:' . $slug . ':' . filemtime($post['file']),
+        $html = Cache::rememberForever('blog:' . $slug . ':' . HomeController::RENDER_VERSION . ':' . filemtime($post['file']),
             fn () => HomeController::renderPlayersManual(self::parse(file_get_contents($post['file']))['body']));
 
         // The posts before and after this one, for the links at the foot
