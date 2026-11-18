@@ -322,7 +322,7 @@ function sell_spare_kits(kits)
 end
 
 function growth_has_ended()
-  return grow_until > 0 and today() > grow_until and units(mining_kit) == 0 and units(factory_kit) == 0
+  return grow_until > 0 and today() > grow_until and units(cruiser_kit) == 0 and units(mining_kit) == 0
 end
 
 -- True once a cruiser kit is aboard
