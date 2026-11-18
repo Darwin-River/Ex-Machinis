@@ -130,6 +130,8 @@ Open questions: the Maker earns far more than the Miner or Refiner; maturing an 
 29. **Price made goods from their recipes.** A good the House buys should pay for its inputs, its fuel and the time it takes, and pay more per hour the further up the chain it is. Otherwise players who do the arithmetic only mine, and the tech tree is decoration.
 30. **Watch the starters crowd.** Every newcomer's first design is a starter; a hundred copies of one mine the same ore at the same places. Spread the starters out, or make them choose by what's left.
 31. **Fix one imbalance and look for the next.** Pricing made goods from their recipes made making things pay; within two rounds the raw producers were the ones left behind, and testers moved on to "every chain pays the same per hour". Each lever moves the problem; measure after each one.
+32. **A buying cap sets a maker's pace more than its prices do.** A seedling could buy a tenth of what was on sale a game day, and Earth often had 17 to 40 metals: the Maker bought 1 to 4 a day and took 70 to 110 game days to mature. A floor of 5 a day (#788) made it the fastest starter, at 29 to 33 game days, while the Miner and Refiner, which sell what they dig, still take 59 to 77 (round 73).
+33. **Idle capital earns nothing, and nothing says so.** By round 73, 93% of matured companies' 8.4M credits was cash, earning 2.8% a game month on capital (#839). Cash-out and the leaderboards count cash at full value, so hoarding looks as good as investing.
 
 ## Newcomer playtests
 
@@ -345,6 +347,22 @@ After the round: why it was slow. Every drone shares the Game Engine in 100,000-
 After each newcomer round, race the newcomers' best scripts: release each once into a fresh world beside the usual seed mix (60 starters and the library designs), run it to game day 40, and rank by gain over the starter package (the `company_taxable` view). A script that clearly beats the best library design joins `examples/companies/` with a header naming its author and round, and its kit; keep one design per niche (the higher earner when two make the same goods). CI checks every file there loads (`check_starters`, `ReleasePageTest`).
 
 ## Round log
+
+### Round 73: the starters' times after the buying floor (#380, #777)
+
+Juno, Bram and Mei each started an unchanged Miner, Maker and Refiner in the first five minutes (game day 6084, 48 s a game day, the whole hour at full pace):
+
+| Starter | Seedlings | Game days to mature |
+|---|---|---|
+| Maker (comments removed: as shipped it is over the release limit, #829) | 5 | 29 to 33 |
+| Refiner | 3 | 59 to 60 |
+| Miner | 3 | 68 to 77 (62 with `hold_cap` 24) |
+
+- **The floor of 5 a day turned the Maker from the slowest starter into the fastest**: it buys 5 metals a game day at Earth and sells rods steadily. Round 72's Makers hadn't matured in 80 game days.
+- **The Miner still sells at Mars for about 10 a unit**, and the Refiner's runs take about 60 days: neither is near 40 yet.
+- **Matured unchanged starters don't last**: every one the three had matured in rounds 69 to 72 dissolved at the same minute, out of credits (#837). A starter that matures has done its job; to keep earning it needs a reserve and to stop when it loses money.
+- **Young matured companies are the best shares**: a Maker matures at a cash-out of about 33 a share and doubled within 30 game days, while old companies returned 1 to 8% a month. Selling to the bank right after maturing is the worst move.
+- **Scripts made the share market**: pegged orders and trading scripts traded all hour, where round 72's books were empty. The rebate (#782) mattered little: it rounds to 0 on shares under 200.
 
 ### Markets that move (#380, after round 36)
 
