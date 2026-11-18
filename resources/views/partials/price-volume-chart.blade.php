@@ -306,7 +306,8 @@
         }
 
         // Every place known to the game gets its colour up front, so it never changes
-        @json($places).forEach((id, i) => { placeColour[id] = COLOURS[i % COLOURS.length]; });
+        // A list even when empty (#830: an empty array came out as {}, and {}.forEach broke every good's chart)
+        @json(collect($places)->values()).forEach((id, i) => { placeColour[id] = COLOURS[i % COLOURS.length]; });
         if ($('mh-resource')) $('mh-resource').addEventListener('change', load);
         $('mh-days').addEventListener('change', load);
         $('mh-place').addEventListener('change', draw);

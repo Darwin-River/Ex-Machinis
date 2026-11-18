@@ -2,7 +2,7 @@
 -- Factory Kit (Engine, Smelter, Chemical Reactor and Spider).
 -- It buys Metals (A1) at the Moon wherever they are cheapest (as a seedling,
 -- from the House where a batch costs least, counting the trip and its
--- tenth-a-day cap), makes them
+-- daily cap: a tenth of what is on sale, at least 5), makes them
 -- into alloys and the alloys into rods, and sells the rods wherever they
 -- pay best: at the Moon if the best bid there is close to what rods fetched
 -- at Earth yesterday (the price board), else it flies a load to Earth. As a
@@ -15,21 +15,12 @@ rod_load = 12      -- rods it takes to Earth (4 cargo each)
 low_fuel = 40      -- buy fuel below this
 keep_fuel = 25     -- it stops making rods below this much fuel
 trip_margin = 20   -- flies to Earth only if rods sold there for this much more
-grow_at = 7000     -- credits at which it buys and launches a copy (not while
-                   -- it is a seedling: it saves for its debt, then grows once matured)
-work_cash = 1500   -- credits each drone keeps to work with: a copy launches
-                   -- only when the company keeps this much for every drone
-                   -- it will have (#542: copies left companies with 8 to
-                   -- 322 credits, and every drone sat "short of credits")
-grow_until = 0     -- game day after which it launches no more copies (0: no
-                   -- limit). A copy takes about 20 game days to earn back
-                   -- its cost, so in a contest set this ~20 days before the
-                   -- end (#512: a copy launched on day 47 of 60 lost 2,100)
+grow_at = 7000     -- credits at which it launches a copy (once matured)
+work_cash = 1500   -- credits kept for each drone before a copy launches
+grow_until = 0     -- game day after which no more copies (0: no limit)
 batch = 20         -- metals it buys at a time
 cash_floor = 300   -- credits it keeps for fuel when its tank is low
-low_floor = 60     -- credits it keeps when its tank is full enough (#740:
-                   -- with 300 kept, a broke maker with no metals or rods
-                   -- waited for good)
+low_floor = 60     -- credits it keeps when its tank is full enough
 metals_per_rod = 2 -- Metals (A1) in a rod (two make an alloy, an alloy a rod)
 invest_above = 3000 -- credits above this go into other companies' shares
 invest_days = 30   -- pays up to this many days of a share's income
@@ -51,14 +42,12 @@ function spare()
 end
 
 -- Metals for a batch, as many as the spare credits pay for at the price there
--- (#740: it assumed at most 30 a unit, and at Mars, at 57, every buy failed)
 -- A seedling buys only from the House, and at most a tenth of what it has on
 -- sale at an exchange in a game day (-17). So it asks house_supply() where
 -- the House sells metals and picks the place where a unit costs least: the
 -- price, plus the round trip (fuel, and 10 credits a game hour) shared over
--- what its tenth lets it buy there (#688: round 69's Maker flew to the Moon
--- first, found none, and flew on to Mars for the most on sale, past Earth's
--- cheaper ones). It waits for the next day only when none sells any (#671)
+-- what its cap lets it buy there. It waits for the next day only when none
+-- sells any
 capped_at = {}
 function metals_place()
   local best, best_each, best_price = nil, math.huge, 0
@@ -88,8 +77,7 @@ function rod_value()
 end
 function stock_up()
   if units(metals_a1) >= 2 then return end
-  -- Too few credits for two metals: rest a while (#713: a broke maker went
-  -- round this loop without a pause, paying processor tax for every turn)
+  -- Too few credits for two metals: rest a while
   if spare() < 60 then
     set_status("short of credits for metals")
     wait(120)
@@ -103,10 +91,9 @@ function stock_up()
       wait(240)
       return
     end
-    -- Rods must pay for their metals (#740: Mars's rod bid fell to 56 while
-    -- its metals cost 57, two to a rod, and a seedling made rods at a loss)
+    -- Rods must pay for their metals
     if each * metals_per_rod >= rod_value() then
-      -- In words a player can check on the Market board (#760: "(551)" meant nothing)
+      -- In words a player can check on the Market board
       set_status("a rod needs " .. metals_per_rod .. " metals at about " .. math.floor(each) .. " each (with the trip), and pays "
         .. rod_value() .. " at best: waiting for a better rod bid")
       wait(240)
@@ -134,8 +121,6 @@ end
 -- Metals into rods, two at a time; stop at the first failure, or when the
 -- tank is down to keep_fuel
 -- After 3 failed makes in a row it says so and waits 4 game hours, not one
--- (#748: drones whose tools an outage had locked failed every make for
--- months, buying fuel all the while)
 make_fails = 0
 function forge_rods()
   while units(metals_a1) > 1 and units(fuel) > keep_fuel do
@@ -167,9 +152,7 @@ end
 -- trip_margin over that yesterday
 -- Selling here pays when the bid here, plus what the trip would cost,
 -- matches what Earth pays: its best bid an hour ago (quotes), or what rods
--- traded for there yesterday if that was more. (#503: the board price alone
--- was 0 for rods that hadn't traded at Earth yet, so it sold at the Moon's
--- low bid.) A seedling asks house_rods() instead
+-- traded for there yesterday if that was more. A seedling asks house_rods()
 function sell_here_pays()
   if house_only() then return house_rods() == location() end
   local bid = sell_price(rods)
@@ -179,11 +162,7 @@ function sell_here_pays()
 end
 
 -- Where the House pays most for the rods aboard, for a seedling, which
--- sells only to the House (#713: round 70's seedling hauled rods between
--- Earth and Mars and sold none. It chose by every drone's bids, an hour old
--- (quotes, where_to_sell), which it may not sell to, while the House at
--- Earth had bought its fill: sell_here returned -12 there, and it flew on).
--- At each exchange: the House's bid now for as many as it still takes today
+-- sells only to the House. At each exchange: the House's bid now for as many as it still takes today
 -- (house_demand), less the 5% sales tax and, elsewhere, the round trip (10
 -- fuel at about 3, and 10 credits a game hour); nil when none comes out ahead
 function house_rods()
@@ -203,9 +182,7 @@ function house_rods()
 end
 
 -- Where to sell the rods aboard: Earth, unless another place pays more for
--- them after the round trip (where_to_sell; #542: round 57's Makers carried
--- rods nobody bid for at Earth or the Moon for up to 18 days, while Mars
--- bid 155). A seedling: house_rods(), nil when no House bid pays the trip
+-- them after the round trip (where_to_sell). A seedling: house_rods(), nil when no House bid pays the trip
 function market_for_rods()
   if house_only() then return house_rods() end
   local best = where_to_sell(rods, math.max(units(rods), 1))[1]
@@ -253,9 +230,8 @@ function grow_line()
   return math.max(grow_at, 5000 + work_cash * (drones + 1))
 end
 
--- The fleet is full (#748): kits bought for copies that can't launch are
--- credits tied up for good (round 71's matured Makers held 40,000 in kits
--- and dissolved for want of fuel money), so sell them, once a game day
+-- The fleet is full: kits bought for copies that can't launch are credits
+-- tied up for good, so sell them, once a game day
 kits_tried = -1
 function sell_spare_kits(kits)
   if today() == kits_tried then return end
@@ -341,8 +317,7 @@ function back_offerings(budget, days)
   end
   if not pick then return 0 end
   local n = math.min(pick.left, budget // pick.price)
-  -- (but never skips the commitment that completes it: #509, an offering
-  -- sat at 277 of 278 shares for days because the last one cost 9)
+  -- (but never skips the commitment that completes it)
   if n * pick.price < 25 and n < pick.left then return 0 end
   commit_shares(n, pick.company)
   return n * pick.price
