@@ -25,7 +25,8 @@ grow_until = 0     -- game day after which it launches no more copies (0: no
                    -- its cost, so in a contest set this ~20 days before the
                    -- end (#512: a copy launched on day 47 of 60 lost 2,100)
 rest = 240         -- game minutes to rest when both Mars moons are dry
-hold_cap = 16      -- goods it keeps on offer to other drones
+hold_cap = 48      -- goods it keeps on offer to other drones, then sells
+                   -- in one trip (#777: at 16, a fifth of its time went on selling)
 min_ask = 12       -- the least it asks where nobody bids (metals sold for 18 to 20 in round 64)
 
 -- The site it works: 0 the Moon, 1 Phobos, 2 Deimos. The drone you release
@@ -222,7 +223,7 @@ function sell_metals()
   go(market())
   offer()
   for _, metal in ipairs(metals_sold) do sell_out(metal) end
-  if units(fuel) < 50 then fill_to(80) end
+  fill_to(100)   -- a full tank each time it sells (#777)
   reinvest()
   go(site())
 end

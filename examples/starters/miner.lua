@@ -35,7 +35,8 @@ crowd_limit = 30   -- drones at the Moon past which the drone you release
                    -- (round 55: 98 drones at the Moon on day 1, the deposits
                    -- mined out; a large number keeps it at the Moon)
 rest = 240         -- game minutes to rest when both Mars moons are dry
-hold_cap = 16      -- metals it keeps on offer to other drones
+hold_cap = 40      -- metals it keeps on offer to other drones, then sells
+                   -- in one trip (#777: at 16 a round 73 Miner made 36 trips)
 min_ask = 12       -- the least it asks where nobody bids (metals sold for 18 to 20 in round 64)
 hour_value = 4     -- what a game hour of its time is worth, in credits: it
                    -- flies further to sell when this is lower (#740: at 10,
@@ -144,7 +145,7 @@ function refuel()
   if units(fuel) < low_fuel then
     set_status("short of fuel: filling up at " .. place_name(market()))
     go(market())
-    raise_cash(150); fill_to(80)
+    raise_cash(150); fill_to(150)
     go(site())
   end
   if not seedling then buy_order(1, 0, fuel) end
@@ -169,10 +170,17 @@ function move_on()
     go(site())
     return
   end
+  misses = misses + 1
+  -- Wait an hour for the deposit to refill before hopping: waiting is free,
+  -- a hop burns 5 fuel (#777: round 73's Miners hopped 75 times)
+  if misses % 2 == 1 then
+    set_status("dry here: waiting an hour for it to refill")
+    wait(60)
+    return
+  end
+  wait(rest)
   site_no = 3 - site_no   -- Phobos <-> Deimos
   set_status("dry here: trying " .. place_name(site()))
-  misses = misses + 1
-  if misses % 2 == 0 then wait(rest) end
   go(site())
 end
 
@@ -295,7 +303,9 @@ function sell_metals()
       for _, metal in ipairs(metals_sold) do sell_out(metal) end
     end
   end
-  if units(fuel) < 50 then fill_to(80) end
+  -- A full tank each time it sells (#777: topping up to 80 only below 50 sent
+  -- round 73's Miners to Mars 16 times just for fuel)
+  fill_to(150)
   reinvest()
   go(site())
 end
