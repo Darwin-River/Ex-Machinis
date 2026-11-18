@@ -1,270 +1,282 @@
 -- Refiner: a starter script for Ex Machinis, in Lua. It equips itself
--- with the Mining Kit (Engine, Worm and Refinery).
--- It mines yalspar and vladnium and refines them into what the factories
--- need to brew fuel and make polymers: Organics (A1) and Inorganics (A1),
--- with Metals (A1), Metals (A2) and Inorganics (A2) besides. Like the
--- Miner, it keeps standing sell orders for its goods, priced halfway
--- between the best bid and the cheapest other seller here, and sells what
--- nobody bought at the market. Its kit can't brew fuel: it buys it
--- wherever it is cheapest. Copies spread out: a third work the Moon, the
--- rest Phobos and Deimos, selling at the Mars Exchange.
+-- with the Mining Kit (Engine, Worm and Refinery), mines yalspar and
+-- vladnium and refines them into Organics (A1), Inorganics (A1) and (A2),
+-- and Metals (A1) and (A2): what factories need to brew fuel and make
+-- polymers. It keeps standing sell orders for its goods, sells what nobody
+-- bought at the market, and buys its fuel. Copies spread out: a third work
+-- the Moon, the rest Phobos and Deimos, selling at the Mars Exchange.
 
 -- Settings: change these numbers to make it your own
-low_fuel = 40      -- get fuel when below this
-dry_tries = 12     -- dry tries at the Moon before trying Phobos
-grow_at = 7000     -- credits at which it buys and launches a copy (not while
-                   -- it is a seedling: it saves for its debt, then grows once matured)
-                   -- (6500 at least: a hull is 3000, a kit 2000,
-                   -- and 1500 left to work with)
-work_cash = 1500   -- credits each drone keeps to work with: a copy launches
-                   -- only when the company keeps this much for every drone
-                   -- it will have (#542: copies left companies with 8 to
-                   -- 322 credits, and every drone sat "short of credits")
-grow_until = 0     -- game day after which it launches no more copies (0: no
-                   -- limit). A copy takes about 20 game days to earn back
-                   -- its cost, so in a contest set this ~20 days before the
-                   -- end (#512: a copy launched on day 47 of 60 lost 2,100)
+low_fuel = 40      -- fuel (units) below which it buys more
+dry_tries = 12     -- dry tries in a row at the Moon before it tries Phobos
+grow_at = 7000     -- credits at which a matured company launches a copy
+                   -- (at least 6500: a hull 3000, a kit 2000, 1500 to work with)
+work_cash = 1500   -- credits kept for each drone the company will have after a launch
+grow_until = 0     -- game day after which it launches no copies (0: no limit);
+                   -- a copy takes about 20 game days to pay back
 rest = 240         -- game minutes to rest when both Mars moons are dry
-hold_cap = 48      -- goods it keeps on offer to other drones, then sells
-                   -- in one trip (#777: at 16, a fifth of its time went on selling)
-min_ask = 12       -- the least it asks where nobody bids (metals sold for 18 to 20 in round 64)
+hold_cap = 48      -- refined goods (units) it keeps on offer before a selling trip
+min_ask = 12       -- least asking price (credits) where nobody bids
 
--- The site it works: 0 the Moon, 1 Phobos, 2 Deimos. The drone you release
--- works the Moon; copies spread out by drone number
-site_no, misses, copy = 0, 0, false
+-- Fixed numbers the plan uses
+local HOUR = 60                    -- game minutes
+local FUEL_FLOOR = 15              -- fuel actions leave in the tank, to buy more
+local CASH_FOR_FUEL = 150          -- credits raised before buying fuel
+local FUEL_TO_BUY = 30             -- units bought when low
+local FUEL_BID_PRICE = 7           -- credits a unit, bid where nobody sells fuel
+local FUEL_BID_UNITS = 60
+local FUEL_TO_TRY_PHOBOS = 60
+local LOW_DEPOSIT = 5              -- mining runs left at which a deposit is dry
+local DELIVERY_HOURS = 6           -- game hours it waits for a purchase to arrive
+local COPY_COST = 5000             -- a hull and a kit
+local FUEL_FOR_COPY = 40
+local TANK_TO_LAUNCH, FUEL_NEEDED_TO_LAUNCH = 90, 80
+local TANK_AFTER_LAUNCH = 60
+local TANK_AFTER_SELLING = 100
+local YALSPAR_LOAD, VLADNIUM_LOAD = 16, 12
+local REPORT_EVERY = 4             -- work rounds between reports home
+local MOON_SITE, PHOBOS_SITE, DEIMOS_SITE, SITE_COUNT = 0, 1, 2, 3
 
-function site()
-  if site_no == 0 then return moon elseif site_no == 1 then return phobos else return deimos end
+local goods_sold = {metals_a1, metals_a2, organics_a1, inorganics_a1, inorganics_a2}
+
+-- The drone you release works the Moon; copies spread out by drone number
+site_number, dry_count, copy = MOON_SITE, 0, false
+
+function work_site()
+  if site_number == MOON_SITE then return moon
+  elseif site_number == PHOBOS_SITE then return phobos
+  else return deimos end
 end
--- Where it sells: the Moon Depot at the Moon, else the Mars Exchange
-function market() if site() == moon then return moon else return mars end end
 
--- Its asking price, from the market here: halfway between the best bid and
--- the cheapest other seller; with no bid, the cheapest seller's price (not a
--- unit under it: round 64's miners undercut one another down to 2 credits
--- where nobody bid), and never under min_ask; with no seller, half as much
--- again as the best bid; 0 where nobody trades it
-function ask_price(metal)
-  local bid, offer = sell_price(metal), buy_price(metal)
-  if bid == 0 then return offer > 0 and math.max(offer, min_ask) or 0 end
-  if offer == 0 then return bid + bid // 2 end
-  return (bid + offer) // 2
+-- The Moon Depot at the Moon, else the Mars Exchange
+function selling_place()
+  if work_site() == moon then return moon else return mars end
 end
 
--- Standing sell orders for its goods, set where the market has prices;
--- a post that would change nothing costs no fuel
-metals_sold = {metals_a1, metals_a2, organics_a1, inorganics_a1, inorganics_a2}
-function offer()
-  if house_only() then return end   -- a seedling's orders: only the House trades with it, and sells straight to the House (#658)
-  for _, metal in ipairs(metals_sold) do
-    local price = ask_price(metal)
-    if price > 0 then sell_order_if_changed(price, 0, metal) end
+-- Halfway between the best bid and the cheapest other seller. With no bid,
+-- the cheapest seller's price, never under min_ask (undercutting a unit
+-- each drove prices down to 2); with no seller, half as much again as the
+-- best bid; 0 where nobody trades it
+function asking_price(good)
+  local best_bid, cheapest_offer = sell_price(good), buy_price(good)
+  if best_bid == 0 then
+    return cheapest_offer > 0 and math.max(cheapest_offer, min_ask) or 0
+  end
+  if cheapest_offer == 0 then return best_bid + best_bid // 2 end
+  return (best_bid + cheapest_offer) // 2
+end
+
+-- An unchanged order costs no fuel to post again
+function post_sell_orders()
+  if house_only() then return end   -- a seedling sells straight to the House
+  for _, good in ipairs(goods_sold) do
+    local price = asking_price(good)
+    if price > 0 then sell_order_if_changed(price, 0, good) end
   end
 end
 
-function metals()
-  local n = 0
-  for _, metal in ipairs(metals_sold) do n = n + units(metal) end
-  return n
+function goods_aboard()
+  local total = 0
+  for _, good in ipairs(goods_sold) do total = total + units(good) end
+  return total
 end
 
-function sell_out(resource)
-  local n = units(resource)
-  if n > 0 then sell_here(n, resource) end
+function sell_out(good)
+  local aboard = units(good)
+  if aboard > 0 then sell_here(aboard, good) end
 end
 
--- Where nobody sells fuel, bid for it a little over the exchanges' price: a
--- fuel courier finds the bid in the market; the bid stops once the tank is
--- filled at the market
+-- Buy here; failing that, bid for fuel (a courier may fill the bid); failing
+-- that, fetch it from the market. The bid is withdrawn either way
 function refuel()
   if units(fuel) >= low_fuel then return end
   set_status("low on fuel (" .. units(fuel) .. "): buying some here")
-  raise_cash(150); buy_here(30, fuel)
-  wait(60)
+  raise_cash(CASH_FOR_FUEL); buy_here(FUEL_TO_BUY, fuel)
+  wait(HOUR)
+  if units(fuel) >= low_fuel then return end
+  set_status("no fuel on sale here: bidding for some")
+  buy_order(FUEL_BID_PRICE, FUEL_BID_UNITS, fuel)
+  wait(2 * HOUR)
   if units(fuel) < low_fuel then
-    set_status("no fuel on sale here: bidding for some")
-    buy_order(7, 60, fuel)
-    wait(120)
-    if units(fuel) < low_fuel then
-      set_status("still low on fuel: going to " .. place_name(market()) .. " for some")
-      go(market())
-      raise_cash(150); buy_here(30, fuel)
-      wait(120)
-      go(site())
-    end
-    buy_order(1, 0, fuel)
+    set_status("still low on fuel: going to " .. place_name(selling_place()) .. " for some")
+    go(selling_place())
+    raise_cash(CASH_FOR_FUEL); buy_here(FUEL_TO_BUY, fuel)
+    wait(2 * HOUR)
+    go(work_site())
   end
+  buy_order(1, 0, fuel)   -- wants 0: withdraws the bid
 end
 
--- A low deposit: at the Moon, wait for it to refill (after dry_tries dry
--- tries in a row, try Phobos, if fewer drones work there); at Mars, try the
--- other moon, and rest after both are dry. Short of fuel, rest instead
-function move_on()
-  if site_no == 0 then
-    misses = misses + 1
-    if misses < dry_tries or units(fuel) < 60 or crowd(phobos) >= crowd(moon) then
-      set_status("the Moon is dry: waiting for it to refill (" .. misses .. " of " .. dry_tries .. " tries)")
-      wait(60)
-      return
-    end
-    site_no, misses = 1, 0
-    set_status("the Moon was dry " .. dry_tries .. " times: trying Phobos")
-    go(site())
+-- Wait for the Moon to refill, unless it has been dry dry_tries times in a
+-- row and Phobos is less crowded and in reach
+function wait_at_moon_or_try_phobos()
+  dry_count = dry_count + 1
+  if dry_count < dry_tries or units(fuel) < FUEL_TO_TRY_PHOBOS or crowd(phobos) >= crowd(moon) then
+    set_status("the Moon is dry: waiting for it to refill (" .. dry_count .. " of " .. dry_tries .. " tries)")
+    wait(HOUR)
     return
   end
-  -- Short of fuel, get some first (#748, as the Miner does since #713: a
-  -- Refiner rested at a Mars moon with under 15 fuel for good)
-  if units(fuel) < low_fuel then refuel(); return end
-  site_no = 3 - site_no   -- Phobos <-> Deimos
-  misses = misses + 1
-  if misses % 2 == 0 then set_status("both Mars moons are dry: resting " .. rest .. " game minutes"); wait(rest) end
-  set_status("dry here: trying " .. place_name(site()))
-  go(site())
+  site_number, dry_count = PHOBOS_SITE, 0
+  set_status("the Moon was dry " .. dry_tries .. " times: trying Phobos")
+  go(work_site())
 end
 
--- Mine until n units of a mineral are aboard, moving on when its deposit
--- here runs low, or a run brings nothing (others took it first)
-function dig(mineral, n)
-  while units(mineral) < n do
-    if deposit(mineral) < 5 then
-      move_on()
+-- Fly to the other Mars moon, resting once both have been dry. Refuel
+-- first, or it could rest at a dry moon with too little fuel to leave
+function try_other_mars_moon()
+  if units(fuel) < low_fuel then refuel(); return end
+  site_number = PHOBOS_SITE + DEIMOS_SITE - site_number
+  dry_count = dry_count + 1
+  if dry_count % 2 == 0 then
+    set_status("both Mars moons are dry: resting " .. rest .. " game minutes")
+    wait(rest)
+  end
+  set_status("dry here: trying " .. place_name(work_site()))
+  go(work_site())
+end
+
+function move_on_from_dry_site()
+  if site_number == MOON_SITE then wait_at_moon_or_try_phobos() else try_other_mars_moon() end
+end
+
+-- A run that brings nothing means others took the ore first
+function dig(mineral, wanted)
+  while units(mineral) < wanted do
+    if deposit(mineral) < LOW_DEPOSIT then
+      move_on_from_dry_site()
     else
       local before = units(mineral)
       mine(mineral)
-      if units(mineral) == before then move_on() else misses = 0 end
+      if units(mineral) == before then move_on_from_dry_site() else dry_count = 0 end
     end
   end
 end
 
--- Top the tank up to n here, cheapest first, waiting up to 6 game hours
-function fill_to(n)
+-- Waits for the fuel to arrive, not to reach the target: computing burns a
+-- unit or two after delivery
+function fill_to(target)
   local had = units(fuel)
-  local need = n - had
-  if need <= 0 then return end
-  raise_cash(150); buy_here(need, fuel)
-  for _ = 1, 6 do
+  local missing = target - had
+  if missing <= 0 then return end
+  raise_cash(CASH_FOR_FUEL); buy_here(missing, fuel)
+  for _ = 1, DELIVERY_HOURS do
     if units(fuel) > had then return end
-    wait(60)
+    wait(HOUR)
   end
 end
 
--- Buy one of a good here unless one is aboard, and wait up to 6 game hours
-function get_one(resource)
-  if units(resource) > 0 then return end
-  buy_here(1, resource)
-  for _ = 1, 6 do
-    if units(resource) > 0 then return end
-    wait(60)
+function get_one(good)
+  if units(good) > 0 then return end
+  buy_here(1, good)
+  for _ = 1, DELIVERY_HOURS do
+    if units(good) > 0 then return end
+    wait(HOUR)
   end
 end
 
--- Hand the newest copy a Mining Kit and 40 fuel
 function equip_clone()
   local clones = my_clones()
   local newest = clones[#clones]
   if not newest then return end
   push(1, mining_kit, newest.drone)
-  push(40, fuel, newest.drone)
+  push(FUEL_FOR_COPY, fuel, newest.drone)
 end
 
--- Growth: with grow_at credits or more, at an exchange, buy a Mining
--- Cruiser kit and a Mining Kit, launch a copy of this drone (it runs this
--- same program, with these variables) and hand it the kit and 40 fuel. A
--- copy costs about 5,000: growing pays early, not in a contest's last weeks
--- Credits the company needs before launching a copy: about 5,000 for the
--- copy (a hull and a kit), and work_cash for each drone it will then have
+-- Credits the company needs before launching a copy
 function grow_line()
-  local h = company_health()
-  local drones = h and h.working or 1
-  return math.max(grow_at, 5000 + work_cash * (drones + 1))
+  local health = company_health()
+  local drones = health and health.working or 1
+  return math.max(grow_at, COPY_COST + work_cash * (drones + 1))
 end
 
--- The fleet is full (#748): kits bought for copies that can't launch are
--- credits tied up for good (round 71's matured Makers held 40,000 in kits
--- and dissolved for want of fuel money), so sell them, once a game day
-kits_tried = -1
+-- Kits that can never launch are credits tied up for good, so a full
+-- fleet sells them, once a game day
+kits_sold_on_day = -1
 function sell_spare_kits(kits)
-  if today() == kits_tried then return end
-  kits_tried = today()
-  for _, k in ipairs(kits) do
-    if units(k) > 0 then
-      set_status("the fleet is full: selling " .. units(k) .. " spare kits")
-      sell_here(units(k), k)
+  if today() == kits_sold_on_day then return end
+  kits_sold_on_day = today()
+  for _, kit in ipairs(kits) do
+    if units(kit) > 0 then
+      set_status("the fleet is full: selling " .. units(kit) .. " spare kits")
+      sell_here(units(kit), kit)
     end
   end
 end
 
+function past_grow_until_with_no_kit()
+  return grow_until > 0 and today() > grow_until and units(mining_kit) == 0 and units(factory_kit) == 0
+end
+
+-- A kit still aboard from a failed hand-over goes to the copy first; a
+-- hull already bought launches whenever the fuel allows
 function reinvest()
-  if house_only() then return end   -- a seedling keeps its credits for its debt: it grows once it has matured (#658)
-  if fleet_full() then sell_spare_kits({cruiser_kit, mining_kit}); return end   -- the company has all the drones it may have (#682)
-  if grow_until > 0 and today() > grow_until and units(mining_kit) == 0 and units(factory_kit) == 0 then return end
-  if units(mining_kit) > 0 then equip_clone(); fill_to(60); return end
+  if house_only() then return end   -- a seedling keeps its credits for its debt
+  if fleet_full() then sell_spare_kits({cruiser_kit, mining_kit}); return end
+  if past_grow_until_with_no_kit() then return end
+  if units(mining_kit) > 0 then equip_clone(); fill_to(TANK_AFTER_LAUNCH); return end
   if units(cruiser_kit) == 0 then
     if credits() < grow_line() then return end
-    if fleet_full() then return end   -- the company has all the drones it may have (#682)
+    if fleet_full() then return end
     get_one(cruiser_kit)
     if units(cruiser_kit) == 0 then return end
   end
-  fill_to(90)
-  if units(fuel) < 80 then return end
-  copy = true   -- the copy gets this too: it knows it is a copy
+  fill_to(TANK_TO_LAUNCH)
+  if units(fuel) < FUEL_NEEDED_TO_LAUNCH then return end
+  copy = true   -- the copy inherits this, so it knows it is one
   set_status("launching a copy")
   if launch(me(), cruiser_kit) ~= 0 then return end
   get_one(mining_kit)
   if units(mining_kit) > 0 then equip_clone() end
-  fill_to(60)
+  fill_to(TANK_AFTER_LAUNCH)
 end
 
--- Sell the metals at the market, top up the tank there, then go back to the
--- site, once hold_cap are aboard: until then other drones may buy them
-function sell_metals()
-  if metals() < hold_cap then return end
-  set_status("selling " .. metals() .. " refined goods at " .. place_name(market()))
-  go(market())
-  offer()
-  for _, metal in ipairs(metals_sold) do sell_out(metal) end
-  fill_to(100)   -- a full tank each time it sells (#777)
+-- Until hold_cap goods are aboard, other drones may buy them here
+function sell_when_hold_is_full()
+  if goods_aboard() < hold_cap then return end
+  set_status("selling " .. goods_aboard() .. " refined goods at " .. place_name(selling_place()))
+  go(selling_place())
+  post_sell_orders()
+  for _, good in ipairs(goods_sold) do sell_out(good) end
+  fill_to(TANK_AFTER_SELLING)
   reinvest()
-  go(site())
+  go(work_site())
 end
 
--- Every 4th round, send a line home
-rounds = 0
-function tell()
-  rounds = rounds + 1
-  if rounds % 4 ~= 0 then return end
+rounds_worked = 0
+function report_home_now_and_then()
+  rounds_worked = rounds_worked + 1
+  if rounds_worked % REPORT_EVERY ~= 0 then return end
   print("credits " .. credits() .. " fuel " .. units(fuel))
   report()
 end
 
-function work()
-  refuel()
-  set_status("mining yalspar at " .. place_name(site()))
-  dig(yalspar, 16)
-  set_status("refining yalspar")
-  refine(yalspar)
-  set_status("mining vladnium at " .. place_name(site()))
-  dig(vladnium, 12)
-  set_status("refining vladnium")
-  refine(vladnium)
-  sell_metals()
-  tell()
+function mine_and_refine(mineral, mineral_name, load)
+  set_status("mining " .. mineral_name .. " at " .. place_name(work_site()))
+  dig(mineral, load)
+  set_status("refining " .. mineral_name)
+  refine(mineral)
 end
 
--- launched() may run again (after a crash, or if the engine restarts):
--- equip passes once the tools are unpacked, and a drone that
--- has already chosen its site keeps it
--- started: the drone that chose its site. A copy inherits its parent's
--- number, so it chooses afresh (#380 round 64: copies kept their parent's site)
+function work()
+  refuel()
+  mine_and_refine(yalspar, "yalspar", YALSPAR_LOAD)
+  mine_and_refine(vladnium, "vladnium", VLADNIUM_LOAD)
+  sell_when_hold_is_full()
+  report_home_now_and_then()
+end
+
+-- launched() may run again after a crash or restart: a drone that has
+-- chosen its site keeps it. A copy inherits started holding its parent's
+-- number, so it chooses afresh
 started = 0
 function launched()
-  fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
-  equip(mining_kit)   -- buys a kit at Earth and unpacks it (a copy waits for the one it is handed; #506)
+  fuel_floor(FUEL_FLOOR)
+  equip(mining_kit)   -- a copy waits for the kit its parent hands it
   if started ~= me() then
-    if copy then site_no = me() % 3 else site_no = 0 end
+    if copy then site_number = me() % SITE_COUNT else site_number = MOON_SITE end
     copy, started = true, me()
   end
-  go(site())
-  offer()
+  go(work_site())
+  post_sell_orders()
   while true do work() end
 end
