@@ -11,7 +11,7 @@
     <div class="mh-card">
         <h3>What has it been doing?</h3>
         <p class="mh-note">Its last 100 actions in time order, one row for each kind; a red mark failed. A long empty stretch is a
-            drone waiting, idle or stuck. Below, the fuel in its tank after each action, and what it has earned (sales after tax less purchases) as a running total, on the same time axis.</p>
+            drone waiting, idle or stuck. Below, the fuel in its tank after each action, and what it has earned (sales after tax less purchases; equipment it bought is invested, not counted) as a running total, on the same time axis.</p>
         <div class="ex-legend" id="da-legend"></div>
         <div class="ex-chart" id="da-strip" aria-label="Its last actions by kind over time"></div>
         <div class="ex-chart" id="da-fuel" aria-label="Its fuel over time"></div>
