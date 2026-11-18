@@ -7,7 +7,10 @@ use Illuminate\Support\Facades\DB;
 /**
  * What each drone earned (#774): its sales after tax less its purchases,
  * over its life and a game day, with a running total for the drone page's
- * activity chart, and a company's drones ranked by it. Players learn which
+ * activity chart, and a company's drones ranked by it. Equipment it bought
+ * (kits, modules and hulls) is invested, not spent, as on the company's
+ * charts (#759, #778; #833: a new seedling's drone read "-976 a game day"
+ * for its 2,000 kit while its company's chart called that an investment). Players learn which
  * code path pays, and come back to fix the worst drone.
  */
 class DroneEarnings
@@ -15,19 +18,25 @@ class DroneEarnings
     /** Trades the running total is drawn from, newest first */
     public const SERIES_MAX = 400;
 
-    /** A drone's earnings: {sales, bought, net, days, per_day, series: [{game_t, net}], before} */
+    /** A drone's earnings: {sales, bought, invested, net, days, per_day, series: [{game_t, net}], before}; bought and net leave equipment out */
     public static function of(int $drone, bool $series = false): array
     {
         $a = DB::table('agents as a')->leftJoin('companies as c', 'c.company_id', '=', 'a.company_id')
             ->where('a.agent_id', $drone)->first(['a.parent_id', 'a.wrecked_at', 'c.founded_t']);
         $sold = DB::table('trades')->where('seller', $drone)->selectRaw('COALESCE(SUM(credits), 0) AS c, COALESCE(SUM(tax), 0) AS tax, MIN(game_t) AS first')->first();
-        $bought = DB::table('trades')->where('buyer', $drone)->selectRaw('COALESCE(SUM(credits), 0) AS c, MIN(game_t) AS first')->first();
+        $equipment = CompanyEarnings::EQUIPMENT_FROM;
+        $bought = DB::table('trades')->where('buyer', $drone)
+            ->selectRaw('COALESCE(SUM(CASE WHEN resource < ? THEN credits ELSE 0 END), 0) AS c,
+                COALESCE(SUM(CASE WHEN resource >= ? THEN credits ELSE 0 END), 0) AS invested, MIN(game_t) AS first', [$equipment, $equipment])->first();
         $sales = (int) $sold->c - (int) $sold->tax;
         $net = $sales - (int) $bought->c;
-        $out = ['sales' => $sales, 'bought' => (int) $bought->c, 'net' => $net] + self::span($drone, $a, $sold->first, $bought->first, $net);
+        $out = ['sales' => $sales, 'bought' => (int) $bought->c, 'invested' => (int) $bought->invested, 'net' => $net]
+            + self::span($drone, $a, $sold->first, $bought->first, $net);
         if ($series) {
             // Its latest trades, oldest first, each with the running total after it
-            $rows = DB::table('trades')->where(fn ($q) => $q->where('seller', $drone)->orWhere('buyer', $drone))
+            // (equipment it bought left out, as in net)
+            $rows = DB::table('trades')->where(fn ($q) => $q->where('seller', $drone)
+                    ->orWhere(fn ($b) => $b->where('buyer', $drone)->where('resource', '<', $equipment)))
                 ->whereNotNull('game_t')->orderByDesc('game_t')->orderByDesc('id')->limit(self::SERIES_MAX)
                 ->get(['game_t', 'seller', 'credits', 'tax'])->reverse()->values();
             $deltas = $rows->map(fn ($t) => (int) $t->seller === $drone ? (int) $t->credits - (int) $t->tax : -(int) $t->credits);

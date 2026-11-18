@@ -8,8 +8,10 @@ use Illuminate\Support\Facades\DB;
 /**
  * The seedling race (#776): the seedlings started lately, their credits by
  * game days since they started, against the line they mature at and each
- * starter's usual path (a straight line from its starting credits to the
- * line, at the middle of its card's range). Within minutes a newcomer sees
+ * starter's usual path (a straight line from its credits after buying its
+ * kit to the line, at the middle of its card's range: #833, it started at
+ * the 3,000 a seedling is lent, and every seedling, a game hour in with
+ * its 2,000 kit bought, looked far behind). Within minutes a newcomer sees
  * whether they are ahead of a typical Miner. Kept a real minute.
  */
 class SeedlingRace
@@ -22,7 +24,10 @@ class SeedlingRace
 
     public const TTL = 60;
 
-    /** {line, start_credits, days, starters: [{name, days, path}], seedlings: [{company_id, name, owner_id, state, points: [{age, credits}]}]} */
+    /** What a kit costs when the House doesn't sell one (it lists both at 2,000) */
+    public const KIT_PRICE = 2000;
+
+    /** {line, start_credits, days, starters: [{name, days, kit, after_kit, path}], seedlings: [{company_id, name, owner_id, state, points: [{age, credits}]}]} */
     public static function build(): array
     {
         return Cache::remember('seedling-race', self::TTL, fn () => self::compute());
@@ -40,8 +45,10 @@ class SeedlingRace
                 continue;
             }
             $mid = intdiv($card['days'][0] + $card['days'][1], 2);
-            $starters[] = ['name' => ucfirst($name), 'days' => $card['days'],
-                'path' => [['age' => 0, 'credits' => $start], ['age' => $mid, 'credits' => $line]]];
+            // Its first act is to buy its kit: the path starts with what is left
+            $after = $start - self::kitPrice($card['kit']);
+            $starters[] = ['name' => ucfirst($name), 'days' => $card['days'], 'kit' => $card['kit'], 'after_kit' => $after,
+                'path' => [['age' => 0, 'credits' => $after], ['age' => $mid, 'credits' => $line]]];
         }
         $seedlings = [];
         $rows = DB::table('companies')->whereNotNull('owner_id')->whereNotNull('founded_t')
@@ -56,11 +63,16 @@ class SeedlingRace
                 : ($c->eliminated_at !== null ? intdiv((int) $c->eliminated_at - $epoch, 86400) : null);
             $q = DB::table('company_days')->where('company_id', $c->company_id)->where('day', '>=', $born);
             if ($until !== null) {
-                $q->where('day', '<=', $until);
+                // Not the day it matured: by then it had repaid its debt (#833: a
+                // matured seedling's last point read 4,638, under the line)
+                $q->where('day', $c->matured_t !== null ? '<' : '<=', $until);
             }
             $points = $q->orderBy('day')->get(['day', 'credits'])
                 ->map(fn ($d) => ['age' => (int) $d->day - $born, 'credits' => (int) $d->credits])->all();
-            if ((int) $c->seedling === 1 && $c->eliminated_at === null) {
+            if ($c->matured_t !== null) {
+                // It matured on the line
+                $points[] = ['age' => round(((int) $c->matured_t - (int) $c->founded_t) / 86400, 1), 'credits' => $line];
+            } elseif ((int) $c->seedling === 1 && $c->eliminated_at === null) {
                 // Its credits now, at its age now
                 $age = intdiv($now - (int) $c->founded_t, 86400);
                 $points = array_values(array_filter($points, fn ($p) => $p['age'] < $age));
@@ -72,5 +84,13 @@ class SeedlingRace
                 'points' => $points];
         }
         return ['line' => $line, 'start_credits' => $start, 'days' => self::DAYS, 'starters' => $starters, 'seedlings' => $seedlings];
+    }
+
+    /** What the House sells a kit for, at its cheapest (KIT_PRICE when it sells none) */
+    public static function kitPrice(string $kit): int
+    {
+        $id = DB::table('resources')->where('name', $kit)->value('id');
+        $price = $id !== null ? DB::table('house_market')->where('resource', $id)->where('side', 2)->where('price', '>', 0)->min('price') : null;
+        return $price !== null ? (int) $price : self::KIT_PRICE;
     }
 }

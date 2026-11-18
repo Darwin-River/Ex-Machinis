@@ -72,7 +72,9 @@
                         <small>{{ ['closed' => 'its player closed it', 'reset' => 'the world was reset', 'tax' => "it couldn't pay its tax", 'dissolved' => 'no credits for too long', 'drones' => 'it lost its last drone'][$user->end_cause ?? ''] ?? 'it ended' }}</small></div>
                 @else
                     <div class="stat"><div class="stat-label">Net wealth</div>
-                        <div class="stat-value {{ ($stats['wealth'] ?? 0) < 0 ? 'stat-negative' : '' }}">{{ $stats['wealth'] === null ? '—' : number_format($stats['wealth']) }}</div></div>
+                        <div class="stat-value {{ ($stats['wealth'] ?? 0) < 0 ? 'stat-negative' : '' }}">{{ $stats['wealth'] === null ? '—' : number_format($stats['wealth']) }}</div>
+                        {{-- A seedling's starts below 0 (#833): its kit is equipment, which net wealth doesn't count --}}
+                        @if($road)<small>its kit and drone aren't counted, so a seedling starts about 2,000 below 0</small>@endif</div>
                 @endif
                 <div class="stat"><div class="stat-label">Credits</div>
                     <div class="stat-value">{{ number_format($user->credits) }}</div></div>
@@ -352,18 +354,19 @@
                 <div class="table-responsive">
                     <table class="table table-sm">
                         <thead><tr><th>Drone</th><th class="text-right">A game day</th><th class="text-right">Over its life</th>
-                            <th class="text-right">Sold (after tax)</th><th class="text-right">Bought</th><th class="text-right">Game days</th></tr></thead>
+                            <th class="text-right">Sold (after tax)</th><th class="text-right">Bought</th><th class="text-right">Invested</th><th class="text-right">Game days</th></tr></thead>
                         <tbody>
                         @foreach($ranked as $r)
                             <tr><td><a href="{{ url('spacecraft/' . $r['agent_id']) }}">{{ $r['name'] }}</a>{{ $r['wrecked'] ? ' (wreck)' : '' }}</td>
                                 <td class="text-right"><b>{{ $r['per_day'] !== null ? number_format($r['per_day']) : '—' }}</b></td>
                                 <td class="text-right">{{ number_format($r['net']) }}</td><td class="text-right">{{ number_format($r['sales']) }}</td>
-                                <td class="text-right">{{ number_format($r['bought']) }}</td><td class="text-right">{{ $r['days'] }}</td></tr>
+                                <td class="text-right">{{ number_format($r['bought']) }}</td><td class="text-right">{{ number_format($r['invested']) }}</td><td class="text-right">{{ $r['days'] }}</td></tr>
                         @endforeach
                         </tbody>
                     </table>
                 </div>
-                <p><small>What each drone earned: its sales after tax less its purchases. A maker that buys inputs earns less here than the
+                <p><small>What each drone earned: its sales after tax less its purchases. Equipment it bought (its kit, modules and hulls) is
+                    invested, not spent, as on the charts above, so it isn't counted against it. A maker that buys inputs earns less here than the
                     seller it feeds, so read a drone against the job its code gives it.</small></p>
             @endif
 

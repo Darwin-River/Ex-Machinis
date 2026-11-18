@@ -48,8 +48,13 @@ class DroneEarningsTest extends TestCase
         // The copy: sold 1,000 over its 1 game day
         $trade($copy, $other, 1000, 0, $now - 86400);
 
+        // Its kit is invested, not spent (#833): it doesn't count against it, in net or in the running total
+        DB::table('trades')->insert(['resource' => 5901, 'units' => 1, 'credits' => 2000, 'tax' => 0, 'seller' => $other, 'buyer' => $first,
+            'location' => 3, 'game_t' => $now - 4 * 86400 + 600]);
+
         $e = DroneEarnings::of($first, true);
         $this->assertSame([480, 100, 380, 95], [$e['sales'], $e['bought'], $e['net'], $e['per_day']]);
+        $this->assertSame(2000, $e['invested']);
         $this->assertSame(0, $e['before']);
         $this->assertSame([-100, 380], array_column($e['series'], 'net'));
 

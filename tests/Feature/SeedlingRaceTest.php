@@ -45,11 +45,29 @@ class SeedlingRaceTest extends TestCase
         $race = SeedlingRace::build();
         $this->assertSame(Seedlings::grant() + Seedlings::matureMargin(), $race['line']);
         $this->assertSame(['Miner', 'Refiner', 'Maker'], array_column($race['starters'], 'name'));
-        $this->assertSame(60, $race['starters'][0]['path'][1]['age']);
+        // Each usual path runs from what is left after its kit (#833) to the line, at the middle of its card's range
+        $miner = $race['starters'][0];
+        $this->assertSame(72, $miner['path'][1]['age']);
+        $this->assertSame((int) config('forge.starting_credits') - SeedlingRace::kitPrice('Mining Kit'), $miner['path'][0]['credits']);
+        $this->assertSame($miner['after_kit'], $miner['path'][0]['credits']);
+        $this->assertLessThan((int) config('forge.starting_credits'), $miner['after_kit']);
         $mine = collect($race['seedlings'])->firstWhere('company_id', $id);
         $this->assertSame('racing', $mine['state']);
         $this->assertSame([[0, 2900], [1, 3100], [2, 3400], [3, 3600]],
             array_map(fn ($q) => [$q['age'], $q['credits']], $mine['points']));
+
+        // A matured seedling ends on the line, not at its credits after repaying (#833)
+        $done = Seedlings::start($p, 'Racer Two', 'function launched() wait(60) end')['company'];
+        $maturedT = $epoch + ($day0 + 2) * 86400 + 3600;   // on its third day's row, which is after repaying
+        DB::table('companies')->where('company_id', $done)->update(['founded_t' => $born, 'seedling' => 0, 'matured_t' => $maturedT]);
+        foreach ([0 => 3000, 1 => 4000, 2 => 4800] as $age => $credits) {
+            DB::table('company_days')->insert(['company_id' => $done, 'day' => $day0 + $age, 'credits' => $credits, 'net_wealth' => 0]);
+        }
+        \Illuminate\Support\Facades\Cache::forget('seedling-race');
+        $matured = collect(SeedlingRace::build()['seedlings'])->firstWhere('company_id', $done);
+        $this->assertSame('matured', $matured['state']);
+        $this->assertSame([[0, 3000], [1, 4000], [round(($maturedT - $born) / 86400, 1), $race['line']]],
+            array_map(fn ($q) => [$q['age'], $q['credits']], $matured['points']));
 
         $this->actingAs($p)->get('/seedlings/race')->assertOk()->assertSee('id="race"', false)->assertSee('Racer Co')
             ->assertSee('class="table-active"', false);
