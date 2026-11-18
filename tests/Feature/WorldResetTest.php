@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Services\Players;
 use App\Services\PlayerShares;
 use App\Services\Release;
-use App\Services\Seedlings;
+use App\Services\Startups;
 use App\Services\WorldReset;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -44,7 +44,7 @@ class WorldResetTest extends TestCase
     {
         $old = Release::release(Release::owner(), 'Old World Co', self::SCRIPT);
         $p = $this->player('Reset Player');
-        $seed = Seedlings::start($p, 'Reset Seedling', self::SCRIPT)['company'];
+        $seed = Startups::start($p, 'Reset Startup', self::SCRIPT)['company'];
         $seedDrone = (int) DB::table('agents')->where('company_id', $seed)->value('agent_id');
         DB::table('holdings')->updateOrInsert(['drone' => $old->agent_id, 'resource' => 2061, 'installed' => 0, 'locked' => 0],
             ['units' => 50, 'event_id' => 0]);
@@ -87,11 +87,11 @@ class WorldResetTest extends TestCase
         $bank = DB::table('companies')->where('name', 'like', 'Bank %')->whereNull('eliminated_at')->get();
         $this->assertCount(3, $bank);
         foreach ($bank as $c) {
-            $this->assertSame(0, (int) $c->seedling);
+            $this->assertSame(0, (int) $c->startup);
             $this->assertNotNull($c->matured_t);
             $this->assertSame(0, (int) $c->debt);
             $this->assertTrue(PlayerShares::tradable((int) $c->company_id));
-            $this->assertSame(Seedlings::SHARES, PlayerShares::prices((int) $c->company_id)['bank_holds']);
+            $this->assertSame(Startups::SHARES, PlayerShares::prices((int) $c->company_id)['bank_holds']);
         }
         // and a player can buy them
         $this->assertTrue(PlayerShares::buyFromBank(User::where('user_id', $p->user_id)->first(), (int) $bank[0]->company_id, 1)['ok']);

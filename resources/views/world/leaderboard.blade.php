@@ -21,11 +21,11 @@
             <div style="white-space: normal; margin-bottom: 1em" id="leaderboard-intro">
                 @if(config('forge.new_rules'))
                 {{-- The new rules' words (#717: the intro still spoke of shares companies held and launching copies) --}}
-                Companies by net wealth: each seedling starts a company, and its drones belong to it.
+                Companies by net wealth: each startup starts a company, and its drones belong to it.
                 Net wealth is the company's credits, plus the goods aboard its working drones at their market price
                 (what they sold for, a unit, over the last three game days), less the processor tax it owes, minus what a
                 company starts with ({{ number_format($kit) }}: the starting credits and fuel the bank lends it). So a new
-                company is worth 0, and net wealth is what it made. The drones' hulls and a seedling's debt to the bank
+                company is worth 0, and net wealth is what it made. The drones' hulls and a startup's debt to the bank
                 aren't counted. It isn't what a matured company's shares are worth: that is its
                 <a href="{{ url('market/shares') }}">cash-out value</a>, which counts its hulls and debts too.
                 <b>Rising</b> is the gain over the last {{ \App\Services\Leaderboard::RISING_DAYS }} game days. <b>Age</b> is game days since the company was founded
@@ -96,14 +96,14 @@
                             <table class="table-ticket" id="{{ $board['id'] }}">
                                 {{-- The sort key next to the name, and each company's status (#744) --}}
                                 @php($states = \Illuminate\Support\Facades\DB::table('companies')->whereIn('company_id', collect($board['rows'])->pluck('company_id'))
-                                    ->get(['company_id', 'seedling', 'matured_t', 'eliminated_at'])->keyBy('company_id'))
+                                    ->get(['company_id', 'startup', 'matured_t', 'eliminated_at'])->keyBy('company_id'))
                                 <tr><th>#</th><th>Company</th><th class="num">{{ $board['key'] === 'gain' ? 'Gain' : 'Net wealth' }}</th><th>Status</th><th class="num">Age (game days)</th><th class="num">Working drones</th></tr>
                                 @forelse($board['rows'] as $i => $row)
                                     @php($st = $states[$row['company_id']] ?? null)
                                     <tr>
                                         <td>{{ $i + 1 }}</td><td><a href="{{ url('/companies/' . $row['company_id']) }}">{{ $row['company'] }}</a></td>
                                         <td class="num {{ $row[$board['key']] < 0 ? 'negative' : '' }}">{{ number_format($row[$board['key']]) }}</td>
-                                        <td>{{ !$st ? '' : ($st->eliminated_at !== null ? 'ended' : ((int) $st->seedling === 1 ? 'seedling' : ($st->matured_t !== null ? 'matured' : 'released'))) }}</td>
+                                        <td>{{ !$st ? '' : ($st->eliminated_at !== null ? 'ended' : ((int) $st->startup === 1 ? 'startup' : ($st->matured_t !== null ? 'matured' : 'released'))) }}</td>
                                         <td class="num">{{ number_format($row['age'], 1) }}</td><td class="num">{{ $row['drones'] }}</td>
                                     </tr>
                                 @empty

@@ -69,12 +69,12 @@ class ApiController extends Controller
             'age_days' => Leaderboard::age($company->founded_t, min(World::gameNow(), (int) ($company->eliminated_at ?? PHP_INT_MAX))),   // stops when it ended (#716)
             'peer_rank' => Leaderboard::peerRank((int) $company->company_id, $board),
             'ended' => $company->eliminated_at !== null,
-            // The new rules (#656): a seedling and what it owes, or matured
-            'seedling' => (int) ($company->seedling ?? 0) === 1,
+            // The new rules (#656): a startup and what it owes, or matured
+            'startup' => (int) ($company->startup ?? 0) === 1,
             'debt' => (int) ($company->debt ?? 0),
-            // A seedling's credit cap and whether it is at it (#749): ready to mature, and what it earns now goes to the bank
-            'credit_cap' => ($cap = (int) ($company->seedling ?? 0) === 1 && $company->eliminated_at === null
-                ? \App\Services\Seedlings::creditCap($company) : null),
+            // A startup's credit cap and whether it is at it (#749): ready to mature, and what it earns now goes to the bank
+            'credit_cap' => ($cap = (int) ($company->startup ?? 0) === 1 && $company->eliminated_at === null
+                ? \App\Services\Startups::creditCap($company) : null),
             'at_cap' => $cap !== null && (int) $company->credits >= $cap,
             'matured' => ($company->matured_t ?? null) !== null,
             'drones' => $drones->map(fn (Agent $a) => $this->droneSummary($a))->all(),
@@ -82,7 +82,7 @@ class ApiController extends Controller
             // and the shares it holds in others
             // Under the new rules (#666): players' shares and the bank, and
             // what the company would fetch if sold off now
-            'shares' => ($company->owner_id ?? null) !== null || (int) ($company->seedling ?? 0) === 1
+            'shares' => ($company->owner_id ?? null) !== null || (int) ($company->startup ?? 0) === 1
                 ? self::newRulesShares($company) : Shares::summary((int) $company->company_id),
             // Code pushes (#553): whether it takes them, what the next costs, and each so far
             'pushes' => \App\Services\CodePush::summary($company),
@@ -98,12 +98,12 @@ class ApiController extends Controller
         ]);
     }
 
-    /** A new-rules company's shares (#666): none for a seedling; a matured one's prices and holders */
+    /** A new-rules company's shares (#666): none for a startup; a matured one's prices and holders */
     private static function newRulesShares(object $company): array
     {
         $id = (int) $company->company_id;
         $cash = \App\Services\PlayerShares::cashOut($id);
-        if ((int) $company->seedling === 1 || $company->matured_t === null) {
+        if ((int) $company->startup === 1 || $company->matured_t === null) {
             return ['count' => 0, 'cash_out' => $cash['total'], 'holders' => []];
         }
         return ['count' => \App\Services\PlayerShares::count($id), 'cash_out' => $cash['total']]
@@ -558,21 +558,21 @@ class ApiController extends Controller
         }
         $name = (string) $request->input('company_name');
         $kit = $request->input('kit');
-        // The new rules (#637): every release is a seedling, the token's
+        // The new rules (#637): every release is a startup, the token's
         // account's or a guest's (with a claim code)
         if (config('forge.new_rules')) {
             if (LaunchQueue::full()) {
                 return response()->json(['error' => 'The world is full right now: try again in a few minutes.'], 503);
             }
             $player = \App\Services\Players::byToken($request->bearerToken());
-            $made = \App\Services\Seedlings::start($player, $name, $script, (string) $request->ip());
+            $made = \App\Services\Startups::start($player, $name, $script, (string) $request->ip());
             if (!$made['ok']) {
                 return response()->json(['error' => $made['error']], $made['status']);
             }
             $agent = $made['agent'];
             return response()->json([
-                'seedling' => true,
-                'debt' => \App\Services\Seedlings::grant(),
+                'startup' => true,
+                'debt' => \App\Services\Startups::grant(),
                 'claim_code' => $made['claim_code'],
                 'company' => ['id' => (int) $agent->company_id, 'name' => $name],
                 'drone' => ['id' => (int) $agent->agent_id, 'name' => $agent->name],

@@ -3,15 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Services\Players;
-use App\Services\Seedlings;
+use App\Services\Startups;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Seedlings in the API (#637), with an account's token
+ * Startups in the API (#637), with an account's token
  * ("Authorization: Bearer <token>"). Behind the new-rules switch (#635).
  */
-class SeedlingApiController extends Controller
+class StartupApiController extends Controller
 {
     private function answer(array $result, int $ok = 200): JsonResponse
     {
@@ -31,21 +31,21 @@ class SeedlingApiController extends Controller
         return response()->json(['error' => 'Send your token as "Authorization: Bearer <token>".'], 401);
     }
 
-    /** GET /api/v1/seedlings: the account's seedlings and matured companies */
+    /** GET /api/v1/startups: the account's startups and matured companies */
     public function index(Request $request): JsonResponse
     {
         $user = Players::byToken($request->bearerToken());
-        return $user ? response()->json(Seedlings::of($user)) : $this->unauthorized();
+        return $user ? response()->json(Startups::of($user)) : $this->unauthorized();
     }
 
-    /** POST /api/v1/seedlings/claim {code} */
+    /** POST /api/v1/startups/claim {code} */
     public function claim(Request $request): JsonResponse
     {
         $user = Players::byToken($request->bearerToken());
-        return $user ? $this->answer(Seedlings::claim($user, (string) $request->input('code', ''))) : $this->unauthorized();
+        return $user ? $this->answer(Startups::claim($user, (string) $request->input('code', ''))) : $this->unauthorized();
     }
 
-    /** POST /api/v1/seedlings/{id}/push {script} */
+    /** POST /api/v1/startups/{id}/push {script} */
     public function reprogram(Request $request, int $id): JsonResponse
     {
         $user = Players::byToken($request->bearerToken());
@@ -56,20 +56,20 @@ class SeedlingApiController extends Controller
         if ($script === '' || mb_strlen($script) > (int) config('forge.max_script_length')) {
             return response()->json(['error' => 'Send the new code as script.'], 422);
         }
-        return $this->answer(Seedlings::reprogram($user, $id, $script));
+        return $this->answer(Startups::reprogram($user, $id, $script));
     }
 
-    /** POST /api/v1/seedlings/{id}/close */
+    /** POST /api/v1/startups/{id}/close */
     public function close(Request $request, int $id): JsonResponse
     {
         $user = Players::byToken($request->bearerToken());
-        return $user ? $this->answer(Seedlings::close($user, $id)) : $this->unauthorized();
+        return $user ? $this->answer(Startups::close($user, $id)) : $this->unauthorized();
     }
 
-    /** POST /api/v1/seedlings/{id}/mature */
+    /** POST /api/v1/startups/{id}/mature */
     public function mature(Request $request, int $id): JsonResponse
     {
         $user = Players::byToken($request->bearerToken());
-        return $user ? $this->answer(Seedlings::mature($user, $id)) : $this->unauthorized();
+        return $user ? $this->answer(Startups::mature($user, $id)) : $this->unauthorized();
     }
 }

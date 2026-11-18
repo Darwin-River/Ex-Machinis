@@ -109,16 +109,16 @@ function fly_to_market_for_fuel()
 end
 
 -- Buy fuel here; else bid for it; else fly to the market for it.
--- A seedling doesn't bid: only the House trades with it, so no courier comes
+-- A startup doesn't bid: only the House trades with it, so no courier comes
 function refuel()
   if units(fuel) >= low_fuel then return end
   raise_cash(FUEL_MONEY); buy_here(FUEL_TOP_UP, fuel)
   wait(GAME_HOUR)
   if units(fuel) >= low_fuel then return end
-  local seedling = house_only()
-  if not seedling then bid_for_fuel() end
+  local startup = house_only()
+  if not startup then bid_for_fuel() end
   if units(fuel) < low_fuel then fly_to_market_for_fuel() end
-  if not seedling then stop_fuel_bid() end
+  if not startup then stop_fuel_bid() end
 end
 
 -- Mining
@@ -206,7 +206,7 @@ end
 
 -- Standing sell orders for its metals; reposting an unchanged order costs no fuel
 function post_sell_orders()
-  if house_only() then return end   -- a seedling sells straight to the House
+  if house_only() then return end   -- a startup sells straight to the House
   for _, metal in ipairs(metals_sold) do
     local price = asking_price(metal)
     if price > 0 then sell_order_if_changed(price, 0, metal) end
@@ -345,7 +345,7 @@ function launch_copy()
 end
 
 function grow_fleet()
-  if house_only() then return end   -- a seedling saves for its debt
+  if house_only() then return end   -- a startup saves for its debt
   if fleet_full() then sell_spare_kits({cruiser_kit, mining_kit}); return end
   if growth_has_ended() then return end
   if units(mining_kit) > 0 then equip_clone(); fill_to(FUEL_AFTER_LAUNCH); return end

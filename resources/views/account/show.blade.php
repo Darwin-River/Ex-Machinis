@@ -13,7 +13,7 @@
                     <ul class="mb-0">
                         @foreach($digest['companies'] as $c)
                             @if(!empty($c['at_cap']))<li><strong>{{ $c['name'] }} is ready to mature:</strong> what it earns above {{ number_format($c['credit_cap']) }} now goes to the bank. <a href="{{ url('companies/' . $c['company_id']) }}#road-to-maturity">Mature it</a>.</li>@endif
-                            <li>{{ $c['name'] }}{{ $c['seedling'] ? ' (seedling)' : '' }}@if(!empty($c['to_bank'])) gave the bank {{ number_format($c['to_bank']) }} over its cap,@endif sold {{ number_format($c['sales']) }} and bought
+                            <li>{{ $c['name'] }}{{ $c['startup'] ? ' (startup)' : '' }}@if(!empty($c['to_bank'])) gave the bank {{ number_format($c['to_bank']) }} over its cap,@endif sold {{ number_format($c['sales']) }} and bought
                                 {{ number_format($c['purchases']) }} credits' worth.@if(($c['ended'] ?? null) === 'closed') You closed it.@elseif($c['ended'] ?? null) It has ended.@endif</li>
                         @endforeach
                         @if($digest['dividends'])<li>Your shares paid you {{ number_format($digest['dividends']) }} credits in dividends.</li>@endif
@@ -87,7 +87,7 @@
                     </tbody>
                 </table>
             @else
-                <p>None yet: mature a seedling, or buy shares on a matured company's page.</p>
+                <p>None yet: mature a startup, or buy shares on a matured company's page.</p>
             @endif
             @if(count($portfolio['ended_holdings'] ?? []))
                 {{-- Shares of companies that have ended, apart (#758) --}}
@@ -168,24 +168,24 @@
                 @endif
             @endif
 
-            <h3 class="h5 mt-4" id="seedlings">Your seedlings</h3>
-            <p>Every company starts as a seedling: <a href="{{ url('release') }}">release a drone</a> and the bank lends it
-                its drone and starting credits, plus a fee ({{ number_format($mine['grant']) }} credits in all). A seedling
+            <h3 class="h5 mt-4" id="startups">Your startups</h3>
+            <p>Every company starts as a startup: <a href="{{ url('release') }}">release a drone</a> and the bank lends it
+                its drone and starting credits, plus a fee ({{ number_format($mine['grant']) }} credits in all). A startup
                 trades only with the House, and you can change its code whenever you like (the first change is free; each
-                after it adds {{ number_format(config('forge.seedling_push_fee')) }} to its debt). Once it holds its debt and
-                {{ number_format(\App\Services\Seedlings::matureMargin()) }} more, mature it: it repays, its code is locked for
-                good, and its {{ \App\Services\PlayerShares::COUNT }} shares are yours. A seedling holds at most
-                {{ \App\Services\Seedlings::capPermille() / 1000 }} times its debt: what it earns above that goes to the bank,
+                after it adds {{ number_format(config('forge.startup_push_fee')) }} to its debt). Once it holds its debt and
+                {{ number_format(\App\Services\Startups::matureMargin()) }} more, mature it: it repays, its code is locked for
+                good, and its {{ \App\Services\PlayerShares::COUNT }} shares are yours. A startup holds at most
+                {{ \App\Services\Startups::capPermille() / 1000 }} times its debt: what it earns above that goes to the bank,
                 so mature it once it can. Close one at any time:
                 it leaves the game and its debt is cancelled. You have {{ $mine['slots']['used'] }} of
-                {{ $mine['slots']['max'] }} seedling slots in use.</p>
-            @if(count($mine['seedlings']))
+                {{ $mine['slots']['max'] }} startup slots in use.</p>
+            @if(count($mine['startups']))
                 <table class="table table-sm">
-                    <thead><tr><th scope="col">Seedling</th><th scope="col" class="text-right">Credits</th>
+                    <thead><tr><th scope="col">Startup</th><th scope="col" class="text-right">Credits</th>
                         <th scope="col" class="text-right">Owes</th><th scope="col" class="text-right">Holds at most</th>
                         <th scope="col" class="text-right">To the bank</th><th scope="col"></th></tr></thead>
                     <tbody>
-                    @foreach($mine['seedlings'] as $seed)
+                    @foreach($mine['startups'] as $seed)
                         <tr>
                             <td><a href="{{ url('companies/' . $seed['company_id']) }}">{{ $seed['name'] }}</a></td>
                             <td class="text-right">{{ number_format($seed['credits']) }}</td>
@@ -194,20 +194,20 @@
                             <td class="text-right">{{ number_format($seed['to_bank']) }}</td>
                             <td class="text-right">
                                 @if($seed['can_mature'] && $account['verified'])
-                                    <form method="POST" action="{{ url('seedlings/' . $seed['company_id'] . '/mature') }}" class="d-inline"
-                                          onsubmit="return confirm('Mature this seedling? Its code is locked for good.')">
+                                    <form method="POST" action="{{ url('startups/' . $seed['company_id'] . '/mature') }}" class="d-inline"
+                                          onsubmit="return confirm('Mature this startup? Its code is locked for good.')">
                                         {{ csrf_field() }}<button class="button button-primary button-sm" type="submit">Mature</button>
                                     </form>
                                 @endif
-                                <form method="POST" action="{{ url('seedlings/' . $seed['company_id'] . '/close') }}" class="d-inline"
-                                      onsubmit="return confirm('Close this seedling? It leaves the game with all it holds.')">
+                                <form method="POST" action="{{ url('startups/' . $seed['company_id'] . '/close') }}" class="d-inline"
+                                      onsubmit="return confirm('Close this startup? It leaves the game with all it holds.')">
                                     {{ csrf_field() }}<button class="button button-secondary button-sm" type="submit">Close</button>
                                 </form>
                             </td>
                         </tr>
                         <tr><td colspan="4">
                             <details><summary>Change its code</summary>
-                                <form method="POST" action="{{ url('seedlings/' . $seed['company_id'] . '/push') }}" class="mt-2">
+                                <form method="POST" action="{{ url('startups/' . $seed['company_id'] . '/push') }}" class="mt-2">
                                     {{ csrf_field() }}
                                     <textarea class="form-control" name="script" rows="8" maxlength="{{ config('forge.max_script_length') }}"
                                               aria-label="New code for {{ $seed['name'] }}" required></textarea>
@@ -226,7 +226,7 @@
                     @endforeach
                 </p>
             @endif
-            <form method="POST" action="{{ url('seedlings/claim') }}" class="form-inline mb-3">
+            <form method="POST" action="{{ url('startups/claim') }}" class="form-inline mb-3">
                 {{ csrf_field() }}
                 <label class="mr-2" for="claim">Released as a guest? Claim it with its code:</label>
                 <input class="form-control mr-2 mb-2" id="claim" name="code" type="text" maxlength="64" required>
@@ -300,7 +300,7 @@
                         <button class="button button-secondary button-sm mb-2" type="submit">Add the alert</button>
                     </form>
                     @if(count($account['teaches']))
-                        <p class="mt-3">For each of your class groups, a daily summary of what needs your pupils (a seedling
+                        <p class="mt-3">For each of your class groups, a daily summary of what needs your pupils (a startup
                             that can mature, a company at risk, a wrecked drone), with what each could try next. Your pupils
                             get no e-mails.</p>
                         <ul>

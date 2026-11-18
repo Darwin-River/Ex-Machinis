@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
  * A failure card (#773): when a company ends, a short post-mortem on its
  * page. Why it ended, how its drones ended and where, what it was failing
  * at the end, its last error with the line of code involved, and a link to
- * start a fixed copy on the Start a seedling page with its code loaded.
+ * start a fixed copy on the Found a startup page with its code loaded.
  * Break, learn, repeat: the next try is a click away.
  */
 class PostMortem
@@ -71,7 +71,7 @@ class PostMortem
             }
         }
 
-        // Start a fixed copy: the Start a seedling page with its newest code loaded
+        // Start a fixed copy: the Found a startup page with its newest code loaded
         $copy = null;
         if ($code) {
             $copy = 'release?copy=' . (int) $code['release']->agent_id

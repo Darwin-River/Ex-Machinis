@@ -44,7 +44,7 @@
             @if($desk['board'] === null)
                 <p>Players trade matured companies' shares under the new rules, which aren't on in this world.</p>
             @elseif(!$desk['watch'])
-                <p>No company has matured yet, so there are no shares to trade. <a href="{{ url('getting-started') }}">Start a seedling</a>.</p>
+                <p>No company has matured yet, so there are no shares to trade. <a href="{{ url('getting-started') }}">Found a startup</a>.</p>
             @else
                 @php($L = $desk['ladder'])
                 @php($me = $desk['me'])

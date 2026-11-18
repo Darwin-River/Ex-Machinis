@@ -73,27 +73,27 @@ Levers not yet tried: House prices for parts and systems (lesson 9), deposit ref
 
 ### The new rules' levers (rounds 66 to 68)
 
-Since the reset (#642) the live game plays by the new rules (#635): seedlings, maturing and players' shares. Every rule and number is in the design manual's [Rules of Play](design-manual.md#The-Rules-of-Play). The levers changed so far in playtests, and what each did:
+Since the reset (#642) the live game plays by the new rules (#635): startups, maturing and players' shares. Every rule and number is in the design manual's [Rules of Play](design-manual.md#The-Rules-of-Play). The levers changed so far in playtests, and what each did:
 
 | Lever | Where | From | To | Effect |
 |---|---|---|---|---|
-| A seedling's debt | `FORGE_SEEDLING_HULL_VALUE`, `FORGE_SEEDLING_FEE` | 5,500 (hull 2,000, fee 500) | 4,200 (hull 1,000, fee 200) | Round 66: nobody matured in an hour. Round 67: nine seedlings matured in 15 to 26 game days (#658). |
-| A seedling's first push | `Seedlings::pushFee` | 100 on its debt | free, then 100 | Fixing a first draft costs nothing (#658). |
-| Maturing margin | `FORGE_SEEDLING_MATURE_MARGIN` | 0 | 500 | Round 67's companies matured with 32 to 207 credits; round 68's first tries all worked (#664). |
+| A startup's debt | `FORGE_STARTUP_HULL_VALUE`, `FORGE_STARTUP_FEE` | 5,500 (hull 2,000, fee 500) | 4,200 (hull 1,000, fee 200) | Round 66: nobody matured in an hour. Round 67: nine startups matured in 15 to 26 game days (#658). |
+| A startup's first push | `Startups::pushFee` | 100 on its debt | free, then 100 | Fixing a first draft costs nothing (#658). |
+| Maturing margin | `FORGE_STARTUP_MATURE_MARGIN` | 0 | 500 | Round 67's companies matured with 32 to 207 credits; round 68's first tries all worked (#664). |
 | Shares a company | `PlayerShares::COUNT` | 1,000 | 100 | A share was worth 2 to 15 credits and prices moved in 15 to 25% steps; now tens to hundreds of credits (#667). |
 | Dividends | `FORGE_DIVIDEND_PERMILLE` | half of profit | a quarter | Round 67's founders were paid back so fast that maturing an unchanged starter was close to risk-free (#667). |
 | Cash-out goods | `PlayerShares::cashOut` | the House's live bid | its listed bid for the game day | Cash-out swung 15 to 30% within minutes; buying from the bank on a dip was a near-free gain (#670). |
 | Cash-out goods | `PlayerShares::bestBids` | its listed bid for the game day where each drone is | its best listed bid anywhere, averaged over 7 game days (`BID_DAYS`) | Cash-out still swung 20 to 30% a game day as drones moved (0 at the Mars moons); buying from the bank on a low and selling back on a high paid 28% in a game day (round 70, #685). |
-| The bank's premium | `PlayerShares::dividends30` | 30 days of profit, estimated | 30 days of dividends paid | A just-matured company sold at +31% on seedling profit (#673). |
+| The bank's premium | `PlayerShares::dividends30` | 30 days of profit, estimated | 30 days of dividends paid | A just-matured company sold at +31% on startup profit (#673). |
 | Funding a matured company | `PlayerShares::offer`, `buyOffered` | nothing: share trades only moved credits between players and the bank | 10 new shares at a time at cash-out, credits to the company, at most 200 (`OFFER_UNITS`, `MAX_COUNT`) | All three of round 72's players asked for a way to fund a copy (#780). |
 | Resting share orders | `PlayerShares::rebate` | nothing for a standing order | 0.5% of the trade from the bank, after a game hour on the book (`forge.rebate_permille`, `rebate_rest_game_seconds`) | Round 72's books were mostly empty: taking an order paid as well as making one (#782). |
 | The bank's premium, again | `PlayerShares::premiumDays` | 30 days of dividends paid | 10 days of dividends paid (`forge.bank_premium_days`) | Buying from the bank prepaid a month of dividends, so it barely paid (round 72, #781). |
-| A seedling's credit cap | `house_rules.seedling_credit_cap_permille` | none | twice its debt less push fees (#684) | Round 68's seedlings hoarded 12,000 to 48,000 credits and turned them into shares at maturing (#672). |
-| A kit's parts | `build_game_data.py` (`KIT_PARTS_SHARE`) | House bid up to 2,331 for a 2,000 kit's parts | at most 80% of the kit's price | Seedlings could flip kits for profit (#657). |
-| The Maker starter as a seedling | `examples/starters/maker.lua` | buys metals where it is | buys where a unit costs least, counting the trip and its daily cap, and looks before its first move | The Moon's metals sold out to matured makers every day, so seedling makers starved (#671); then it flew past cheaper metals to the exchange with the most on sale (#688). |
-| The House when overstocked | `HouseMarket::wanted` | stopped bidding past a day's demand bought (left 0) | still takes a quarter of a day's demand at a time, at half the listed price, never less (`HouseMarket::bidFloor`) | Round 70: Mars bid nothing for Metals (A2) for a day while its station held five days' worth, so seedling miners could sell nowhere near (#691). Round 71: the bid fell on below half, to 2 to 5 for metals at Mars, as the station's own unsold stock counted as bought (#739). |
-| The Miner starter's market | `examples/starters/miner.lua` | the Moon at the Moon, else Mars | the best House bidder of the Moon, Mars and Earth after the trip, hauling 60 unsold metals onward; refuels instead of resting dry | Round 70's seedlings at Phobos and Deimos hoarded 70 to 110 metals and one sat with under 15 fuel for good (#713). |
-| The Maker starter as a seller | `examples/starters/maker.lua` | a seedling chose by every drone's bids | a seedling chooses by the House's (`house_demand`), and a broke one rests | It hauled rods between Earth and Mars without selling (#713). |
+| A startup's credit cap | `house_rules.startup_credit_cap_permille` | none | twice its debt less push fees (#684) | Round 68's startups hoarded 12,000 to 48,000 credits and turned them into shares at maturing (#672). |
+| A kit's parts | `build_game_data.py` (`KIT_PARTS_SHARE`) | House bid up to 2,331 for a 2,000 kit's parts | at most 80% of the kit's price | Startups could flip kits for profit (#657). |
+| The Maker starter as a startup | `examples/starters/maker.lua` | buys metals where it is | buys where a unit costs least, counting the trip and its daily cap, and looks before its first move | The Moon's metals sold out to matured makers every day, so startup makers starved (#671); then it flew past cheaper metals to the exchange with the most on sale (#688). |
+| The House when overstocked | `HouseMarket::wanted` | stopped bidding past a day's demand bought (left 0) | still takes a quarter of a day's demand at a time, at half the listed price, never less (`HouseMarket::bidFloor`) | Round 70: Mars bid nothing for Metals (A2) for a day while its station held five days' worth, so startup miners could sell nowhere near (#691). Round 71: the bid fell on below half, to 2 to 5 for metals at Mars, as the station's own unsold stock counted as bought (#739). |
+| The Miner starter's market | `examples/starters/miner.lua` | the Moon at the Moon, else Mars | the best House bidder of the Moon, Mars and Earth after the trip, hauling 60 unsold metals onward; refuels instead of resting dry | Round 70's startups at Phobos and Deimos hoarded 70 to 110 metals and one sat with under 15 fuel for good (#713). |
+| The Maker starter as a seller | `examples/starters/maker.lua` | a startup chose by every drone's bids | a startup chooses by the House's (`house_demand`), and a broke one rests | It hauled rods between Earth and Mars without selling (#713). |
 
 Open questions: the Maker earns far more than the Miner or Refiner; maturing an unchanged starter still adds 3,000 to 5,000 of wealth for nothing at stake; a matured Miner or Refiner starter spends its credits on copies at once, lowering its cash-out.
 
@@ -130,7 +130,7 @@ Open questions: the Maker earns far more than the Miner or Refiner; maturing an 
 29. **Price made goods from their recipes.** A good the House buys should pay for its inputs, its fuel and the time it takes, and pay more per hour the further up the chain it is. Otherwise players who do the arithmetic only mine, and the tech tree is decoration.
 30. **Watch the starters crowd.** Every newcomer's first design is a starter; a hundred copies of one mine the same ore at the same places. Spread the starters out, or make them choose by what's left.
 31. **Fix one imbalance and look for the next.** Pricing made goods from their recipes made making things pay; within two rounds the raw producers were the ones left behind, and testers moved on to "every chain pays the same per hour". Each lever moves the problem; measure after each one.
-32. **A buying cap sets a maker's pace more than its prices do.** A seedling could buy a tenth of what was on sale a game day, and Earth often had 17 to 40 metals: the Maker bought 1 to 4 a day and took 70 to 110 game days to mature. A floor of 5 a day (#788) made it the fastest starter, at 29 to 33 game days, while the Miner and Refiner, which sell what they dig, still take 59 to 77 (round 73).
+32. **A buying cap sets a maker's pace more than its prices do.** A startup could buy a tenth of what was on sale a game day, and Earth often had 17 to 40 metals: the Maker bought 1 to 4 a day and took 70 to 110 game days to mature. A floor of 5 a day (#788) made it the fastest starter, at 29 to 33 game days, while the Miner and Refiner, which sell what they dig, still take 59 to 77 (round 73).
 33. **Idle capital earns nothing, and nothing says so.** By round 73, 93% of matured companies' 8.4M credits was cash, earning 2.8% a game month on capital (#839). Cash-out and the leaderboards count cash at full value, so hoarding looks as good as investing.
 
 ## Newcomer playtests
@@ -352,7 +352,7 @@ After each newcomer round, race the newcomers' best scripts: release each once i
 
 Juno, Bram and Mei each started an unchanged Miner, Maker and Refiner in the first five minutes (game day 6084, 48 s a game day, the whole hour at full pace):
 
-| Starter | Seedlings | Game days to mature |
+| Starter | Startups | Game days to mature |
 |---|---|---|
 | Maker (comments removed: as shipped it is over the release limit, #829) | 5 | 29 to 33 |
 | Refiner | 3 | 59 to 60 |

@@ -1,7 +1,7 @@
 -- Maker: a starter script for Ex Machinis, in Lua. It equips itself with the
 -- Factory Kit, buys Metals (A1) where they cost least, makes them into alloys
 -- and the alloys into rods, and sells the rods where they pay best. With
--- enough credits, once matured, it launches a copy of itself. A seedling
+-- enough credits, once matured, it launches a copy of itself. A startup
 -- deals only with the House and launches no copies.
 
 -- Settings: change these numbers to make it your own
@@ -25,7 +25,7 @@ local CASH_FOR_FUEL <const> = 150 -- credits raised before buying fuel
 local REFUEL_AFTER_HAUL <const> = 60 -- fuel: below this it buys where it sold
 local CREDITS_FOR_METALS <const> = 60 -- spare credits that buy two metals
 local GUESSED_METALS_PRICE <const> = 30 -- credits a metal when no price is known
-local HOUSE_CAP_SHARE <const> = 10 -- a seedling buys 1/10 of the House's stock a day,
+local HOUSE_CAP_SHARE <const> = 10 -- a startup buys 1/10 of the House's stock a day,
 local HOUSE_CAP_MIN <const> = 5 -- but at least this many
 local HOUSE_CAP_REACHED <const> = -17 -- buy_here's result at that cap
 local TRIP_FUEL_COST <const> = 30 -- credits: 10 fuel at about 3, there and back
@@ -107,7 +107,7 @@ function cheapest_house_metals()
   return best_place, best_cost, best_price
 end
 
--- A seedling goes where metals are cheapest: their price there, or nil
+-- A startup goes where metals are cheapest: their price there, or nil
 -- after waiting when none are on sale or a rod wouldn't pay for them
 function go_to_cheapest_house_metals()
   local place, cost, price = cheapest_house_metals()
@@ -203,7 +203,7 @@ function rods_sell_best_here()
   return bid_here > 0 and bid_here + trip_margin >= earth_pays
 end
 
--- For a seedling: where the House pays most for the rods aboard, after tax
+-- For a startup: where the House pays most for the rods aboard, after tax
 -- and the trip; nil when no bid comes out ahead
 function house_rods()
   local aboard, best_place, best_net = units(rods), nil, 0
@@ -217,7 +217,7 @@ function house_rods()
   return best_place
 end
 
--- Earth, unless another place pays more after the trip (nil: a seedling
+-- Earth, unless another place pays more after the trip (nil: a startup
 -- whose rods no House bid pays the trip for)
 function market_for_rods()
   if house_only() then return house_rods() end
@@ -247,7 +247,7 @@ function haul_rods()
   end
   if units(fuel) < REFUEL_AFTER_HAUL then buy_fuel(2 * HOUR) end
   sell_rods_here()
-  if not house_only() then go(moon) end   -- a seedling picks its next exchange in buy_metals
+  if not house_only() then go(moon) end   -- a startup picks its next exchange in buy_metals
 end
 
 function sell_or_haul_rods()
@@ -316,7 +316,7 @@ function launch_copy()
 end
 
 function grow()
-  if house_only() then return end   -- a seedling keeps its credits for its debt
+  if house_only() then return end   -- a startup keeps its credits for its debt
   if fleet_full() then sell_spare_kits({cruiser_kit, factory_kit}); return end
   if past_grow_until() then return end
   if credits() < credits_needed_to_grow() then return end

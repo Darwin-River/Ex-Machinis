@@ -63,12 +63,12 @@ class Release
         'miner' => 'Mines kunspar or wolfite at the Moon (or Phobos and Deimos when the Moon is crowded), refines it and sells the metals to the House where it pays most after the trip.',
         'refiner' => 'Mines yalspar and vladnium and refines them into the organics and inorganics the factories need, and sells them to the House.',
         'trader' => 'Buys metals from miners on the Moon when the price board says Mars or Earth pays enough more, and hauls them to whichever pays most.',
-        'maker' => 'Buys metals where they cost least (as a seedling, it checks what the House has on sale before it flies), makes alloys and rods, and sells them where they pay best.',
+        'maker' => 'Buys metals where they cost least (as a startup, it checks what the House has on sale before it flies), makes alloys and rods, and sells them where they pay best.',
     ];
 
     /**
-     * The starters as cards (#719), on the Start a seedling page and the
-     * first-seedling guide: the kit each buys, what it does in a line, and
+     * The starters as cards (#719), on the Found a startup page and the
+     * first-startup guide: the kit each buys, what it does in a line, and
      * how long an unchanged one took to mature in a playtest at the normal
      * pace, 48 real seconds a game day (the players' manual, "Starter
      * scripts"; #740: round 71's times, the earlier ones were too hopeful)
@@ -85,7 +85,7 @@ class Release
             'mature' => 'about 25 to 35 game days (20 to 28 real minutes)', 'days' => [25, 35]],
         'trader' => ['kit' => 'Mining Kit', 'role' => 'Buy low, sell high',
             'line' => 'Buys metals from miners on the Moon and hauls them to whichever exchange pays most.',
-            'mature' => 'not for a seedling'],
+            'mature' => 'not for a startup'],
     ];
 
     /** A starter script's source, or null for an unknown name ("maker" or "maker.lua") */

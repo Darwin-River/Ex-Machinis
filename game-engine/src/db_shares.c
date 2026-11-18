@@ -273,14 +273,14 @@ int db_shares_settle(Event_t* event)
     sh_exec("DELETE FROM share_requests WHERE action = %d", event->action_id);
     long long now = game_time_now_seconds();
 
-    // Under the new rules (#638) players own and trade shares: a seedling or
+    // Under the new rules (#638) players own and trade shares: a startup or
     // a player's matured company neither trades shares nor has its shares
     // traded by companies
     // (an offering, kind 5, carries its minimum where the others name the
     // shares' company: it offers the acting company's own)
     int share_company = kind == 5 ? company : shares;
     if(sh_value(0, "SELECT COUNT(*) FROM companies WHERE company_id IN (%d, %d) "
-                   "AND (seedling = 1 OR owner_id IS NOT NULL)", company, share_company) > 0) {
+                   "AND (startup = 1 OR owner_id IS NOT NULL)", company, share_company) > 0) {
         engine_trace(TRACE_LEVEL_ALWAYS, "Share action [%d] refused: company [%d] and shares of [%d], "
             "players trade new-rules companies' shares", event->action_id, company, shares);
         return OUTCOME_PLAYERS_SHARES;

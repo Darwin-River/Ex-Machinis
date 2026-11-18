@@ -62,10 +62,10 @@ class CodePush
         if (!$company || (int) $company->house === 1) {
             return ['ok' => false, 'status' => 404, 'error' => 'There is no such company.'];
         }
-        // Under the new rules (#635), a seedling is reprogrammed by its player
-        // (Seedlings::reprogram), and a matured company's code is locked
-        if ((int) ($company->seedling ?? 0) === 1) {
-            return ['ok' => false, 'status' => 403, 'error' => 'A seedling is reprogrammed by its player, from their account.'];
+        // Under the new rules (#635), a startup is reprogrammed by its player
+        // (Startups::reprogram), and a matured company's code is locked
+        if ((int) ($company->startup ?? 0) === 1) {
+            return ['ok' => false, 'status' => 403, 'error' => 'A startup is reprogrammed by its player, from their account.'];
         }
         if (($company->owner_id ?? null) !== null) {
             return ['ok' => false, 'status' => 403, 'error' => 'A mature company\'s code is locked: nobody can push to it.'];
@@ -135,18 +135,18 @@ class CodePush
         }
         $drones = DB::table('agents')->where('company_id', $companyId)->whereNull('wrecked_at')
             ->whereNull('station_id')->where('language', 'lua')->count();
-        // The new rules (#653): a seedling's owner reprograms it for a flat fee
+        // The new rules (#653): a startup's owner reprograms it for a flat fee
         // on its debt; a matured company's code is locked
-        if ((int) $company->seedling === 1) {
-            $fee = Seedlings::pushFee($company);
-            return ['seedling' => true, 'enabled' => $company->eliminated_at === null && $drones > 0,
+        if ((int) $company->startup === 1) {
+            $fee = Startups::pushFee($company);
+            return ['startup' => true, 'enabled' => $company->eliminated_at === null && $drones > 0,
                 'number' => (int) $company->pushes + 1, 'fee' => $fee, 'debt' => (int) $company->debt,
                 'debt_after' => (int) $company->debt + $fee, 'drones' => $drones,
-                'note' => 'Its owner reprograms a seedling from the account page or POST /api/v1/seedlings/'
+                'note' => 'Its owner reprograms a startup from the account page or POST /api/v1/startups/'
                     . $companyId . '/push: the fee goes on its debt (the first push is free).'];
         }
         if ($company->owner_id !== null) {
-            return ['seedling' => false, 'enabled' => false, 'drones' => $drones,
+            return ['startup' => false, 'enabled' => false, 'drones' => $drones,
                 'note' => 'This company has matured: its code is locked and can\'t be pushed to.'];
         }
         [$permille, $fee] = self::nextFee($company);
@@ -260,11 +260,11 @@ class CodePush
     /** What the company page and API say about pushes */
     public static function summary(object $company): array
     {
-        // The new rules (#666): a seedling's owner reprograms it for a flat
+        // The new rules (#666): a startup's owner reprograms it for a flat
         // fee on its debt (the first free); a matured company's code is locked
-        if ((int) ($company->seedling ?? 0) === 1) {
-            $fee = Seedlings::pushFee($company);
-            return ['enabled' => $company->eliminated_at === null, 'seedling' => true, 'count' => (int) $company->pushes,
+        if ((int) ($company->startup ?? 0) === 1) {
+            $fee = Startups::pushFee($company);
+            return ['enabled' => $company->eliminated_at === null, 'startup' => true, 'count' => (int) $company->pushes,
                 'next_fee' => $fee, 'debt' => (int) $company->debt, 'debt_after' => (int) $company->debt + $fee,
                 'log' => self::log((int) $company->company_id)];
         }

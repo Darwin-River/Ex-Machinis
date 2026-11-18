@@ -26,7 +26,7 @@ return [
     [
         'key' => 'new-rules-reset', 'kind' => 'rule', 'reset' => true, 'issue' => 642,
         'label' => 'New rules: world reset',
-        'text' => 'The playtests\' world ended and a fresh one opened under the new rules: player accounts, seedlings that mature, and shares traded with the bank.',
+        'text' => 'The playtests\' world ended and a fresh one opened under the new rules: player accounts, startups that mature, and shares traded with the bank.',
     ],
     [
         'key' => 'fleet-cap', 'kind' => 'rule', 'day' => 2134, 'issue' => 682,

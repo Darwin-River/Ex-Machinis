@@ -179,7 +179,7 @@ class PlayerBoards
         // Its companies, and those that closed or ended since the last look (#655)
         $companies = DB::table('companies')->where('owner_id', $user->user_id)
             ->where(fn ($q) => $q->whereNull('eliminated_at')->orWhere('eliminated_at', '>', $since))
-            ->get(['company_id', 'name', 'seedling', 'eliminated_at', 'end_cause', 'credits', 'debt']);
+            ->get(['company_id', 'name', 'startup', 'eliminated_at', 'end_cause', 'credits', 'debt']);
         // Trades by id when there is a mark: one recorded after the last look
         // counts even if its game time was earlier (#655)
         $newer = fn ($q) => $row->last_seen_trade !== null && !$capped ? $q->where('t.id', '>', (int) $row->last_seen_trade)
@@ -190,12 +190,12 @@ class PlayerBoards
                 ->where('a.company_id', $c->company_id)->where($newer)->sum(DB::raw('t.credits - t.tax'));
             $bought = (int) DB::table('trades as t')->join('agents as a', 'a.agent_id', '=', 't.buyer')
                 ->where('a.company_id', $c->company_id)->where($newer)->sum('t.credits');
-            $earned[] = ['company_id' => (int) $c->company_id, 'name' => $c->name, 'seedling' => (int) $c->seedling === 1,
+            $earned[] = ['company_id' => (int) $c->company_id, 'name' => $c->name, 'startup' => (int) $c->startup === 1,
                 'sales' => $sales, 'purchases' => $bought,
-                // A seedling's credits over its cap, gone to the bank (#672)
-                'to_bank' => (int) $c->seedling === 1 ? Seedlings::toBank((int) $c->company_id, $since) : 0,
-                // A live seedling at its cap (#749): ready to mature, and what it earns now goes to the bank
-                'credit_cap' => ($cap = (int) $c->seedling === 1 && $c->eliminated_at === null ? Seedlings::creditCap($c) : null),
+                // A startup's credits over its cap, gone to the bank (#672)
+                'to_bank' => (int) $c->startup === 1 ? Startups::toBank((int) $c->company_id, $since) : 0,
+                // A live startup at its cap (#749): ready to mature, and what it earns now goes to the bank
+                'credit_cap' => ($cap = (int) $c->startup === 1 && $c->eliminated_at === null ? Startups::creditCap($c) : null),
                 'at_cap' => $cap !== null && (int) $c->credits >= $cap,
                 'ended' => $c->eliminated_at !== null ? ($c->end_cause === 'closed' ? 'closed' : 'ended') : null];
         }

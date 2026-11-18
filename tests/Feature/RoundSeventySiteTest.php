@@ -8,7 +8,7 @@ use App\Services\Leaderboard;
 use App\Services\PlayerBoards;
 use App\Services\Players;
 use App\Services\PlayerShares;
-use App\Services\Seedlings;
+use App\Services\Startups;
 use App\Services\World;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -30,8 +30,8 @@ class RoundSeventySiteTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['forge.new_rules' => true, 'forge.seedling_hull_value' => 1000, 'forge.seedling_fee' => 200,
-            'forge.starting_credits' => 3000, 'forge.seedling_mature_margin' => 500, 'forge.seedling_max' => 5,
+        config(['forge.new_rules' => true, 'forge.startup_hull_value' => 1000, 'forge.startup_fee' => 200,
+            'forge.starting_credits' => 3000, 'forge.startup_mature_margin' => 500, 'forge.startup_max' => 5,
             'forge.player_share_credits' => 5000, 'forge.hull_life_days' => 365, 'forge.share_range_low' => 0.8,
             'forge.share_range_high' => 1.25, 'forge.bank_pay_days' => 30]);
         Mail::fake();
@@ -57,9 +57,9 @@ class RoundSeventySiteTest extends TestCase
     private function matured(?User $owner = null): array
     {
         $owner ??= $this->player('Owner');
-        $id = Seedlings::start($owner, 'R70 Co ' . uniqid(), 'function launched() wait(60) end')['company'];
+        $id = Startups::start($owner, 'R70 Co ' . uniqid(), 'function launched() wait(60) end')['company'];
         DB::table('companies')->where('company_id', $id)->update(['credits' => 9700]);
-        $this->assertTrue(Seedlings::mature($owner, $id)['ok']);
+        $this->assertTrue(Startups::mature($owner, $id)['ok']);
         return [$owner, $id];
     }
 
@@ -98,7 +98,7 @@ class RoundSeventySiteTest extends TestCase
         [$owner, $id] = $this->matured();
         $group = DB::table('class_groups')->insertGetId(['name' => 'R70 Class', 'teacher_id' => $owner->user_id, 'created_at' => now()]);
         $this->player('Pupil', $group);
-        $buyer = Seedlings::start($owner, 'R70 Buyer', 'function launched() wait(60) end')['company'];
+        $buyer = Startups::start($owner, 'R70 Buyer', 'function launched() wait(60) end')['company'];
         DB::table('companies')->where('company_id', $id)->update(['founded_t' => $this->epoch + ($this->today - 40) * 86400,
             'matured_t' => $this->epoch + ($this->today - 10) * 86400]);
         DB::table('trades')->insert([
@@ -149,7 +149,7 @@ class RoundSeventySiteTest extends TestCase
     public function testDroneCountsAgree()
     {
         [$owner, $id] = $this->matured();
-        $closed = Seedlings::start($owner, 'R70 Closed', 'function launched() wait(60) end')['company'];
+        $closed = Startups::start($owner, 'R70 Closed', 'function launched() wait(60) end')['company'];
         DB::table('agents')->where('company_id', $closed)->update(['wrecked_at' => World::gameNow(), 'wreck_cause' => 'closed']);
         DB::table('agents')->insert(['user_id' => $owner->user_id, 'company_id' => $id, 'name' => 'Station R70', 'object_id' => 3,
             'hull_type' => 1, 'station_id' => 1]);
@@ -302,7 +302,7 @@ class RoundSeventySiteTest extends TestCase
         $this->get('/companies/' . $id)->assertOk()->assertSee('id="failing"', false)->assertSee('failed all 3 times');
 
         // Two drones, one idle: half idle, but it sold within the game day
-        $more = Seedlings::start($owner, 'R70 More', 'function launched() wait(60) end')['company'];
+        $more = Startups::start($owner, 'R70 More', 'function launched() wait(60) end')['company'];
         DB::table('agents')->where('company_id', $more)->update(['company_id' => $id]);
         DB::table('events')->insert(['event_type' => 2, 'action' => 0, 'logged' => 1, 'outcome' => 1, 'drone' => $d,
             'resource' => 2011, 'installed' => 0, 'locked' => 0, 'new_quantity' => 5, 'game_t' => $now - 600]);

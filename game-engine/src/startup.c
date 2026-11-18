@@ -1,33 +1,33 @@
 /*
- * Seedlings (#637): the trading rules' arithmetic. See seedling.h.
+ * Startups (#637): the trading rules' arithmetic. See startup.h.
  */
 #include "common_types.h"
-#include "seedling.h"
+#include "startup.h"
 
-long long seedling_buy_cap(long long stock, int cap_permille)
+long long startup_buy_cap(long long stock, int cap_permille)
 {
     if(stock < 0) stock = 0;
     long long cap = stock * (long long)cap_permille / 1000;
-    // At least SEEDLING_BUY_FLOOR units (#777: Earth often had 17 to 40
+    // At least STARTUP_BUY_FLOOR units (#777: Earth often had 17 to 40
     // metals on sale, so a Maker got 1 to 4 a day and took 70 to 110 game
     // days to mature)
-    return cap < SEEDLING_BUY_FLOOR ? SEEDLING_BUY_FLOOR : cap;
+    return cap < STARTUP_BUY_FLOOR ? STARTUP_BUY_FLOOR : cap;
 }
 
-int seedling_transfer_outcome(SeedlingSide_t from, SeedlingSide_t to, long long units,
+int startup_transfer_outcome(StartupSide_t from, StartupSide_t to, long long units,
                               long long house_stock, long long bought_today, int cap_permille)
 {
-    // Within one company, anything goes (a seedling's own drones)
+    // Within one company, anything goes (a startup's own drones)
     if(from.company == to.company)
         return 0;
-    if(!from.seedling && !to.seedling)
+    if(!from.startup && !to.startup)
         return 0;
-    // A seedling trades only with the House
-    if((from.seedling && !to.house) || (to.seedling && !from.house))
-        return OUTCOME_SEEDLING_HOUSE_ONLY;
+    // A startup trades only with the House
+    if((from.startup && !to.house) || (to.startup && !from.house))
+        return OUTCOME_STARTUP_HOUSE_ONLY;
     // Buying from the House: a share of its stock a game day
-    if(to.seedling && bought_today + units > seedling_buy_cap(house_stock, cap_permille))
-        return OUTCOME_SEEDLING_CAP;
+    if(to.startup && bought_today + units > startup_buy_cap(house_stock, cap_permille))
+        return OUTCOME_STARTUP_CAP;
     return 0;
 }
 
@@ -46,12 +46,12 @@ int order_lock_outcome(int buy, long long prev_price, long long prev_units, long
     return 0;
 }
 
-long long seedling_cap_base(long long debt, long long push_fees)
+long long startup_cap_base(long long debt, long long push_fees)
 {
     return debt > push_fees ? debt - push_fees : 0;
 }
 
-long long seedling_over_cap(long long credits, long long debt, int cap_permille)
+long long startup_over_cap(long long credits, long long debt, int cap_permille)
 {
     if(cap_permille <= 0 || debt <= 0)
         return 0;

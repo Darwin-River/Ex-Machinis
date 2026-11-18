@@ -167,7 +167,7 @@ SCENES: dict[str, HeaderScene] = {s.name: s for s in [
         El("drone", (0.5, 0.4), 45, 0.55, "refinery", seed=15, rotation=(18, 0, 210)),
         El("drone", (0.78, 0.55), 70, 0.35, "factory-kit-1", seed=5902, rotation=(10, 0, 150)),
     ], sun=(85, 25)),
-    HeaderScene("learn", "Getting Started, queries, the first seedling, events, Release a drone", [
+    HeaderScene("learn", "Getting Started, queries, the first startup, events, Release a drone", [
         El("planet", (0.8, 0.0), 500, 0.9, _p(name="Ice world", kind="ice", seed=9, atmosphere=(0.6, 0.8, 1.0),
                                              atmosphere_strength=1.2)),
         El("asteroid", (0.45, 0.2), 30, 0.35, "churyumov-gerasimenko", seed=199),

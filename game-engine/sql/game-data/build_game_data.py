@@ -1317,7 +1317,7 @@ STATION_GOODS = [(st, rid, side, price if rid in FIXED_PRICES else
                  for st, rid, side, price, daily, day in STATION_GOODS]
 # A kit is no cheaper than its parts (#657, round 66: a Mining Kit cost 2,000
 # at Earth, and its parts sold to the House for 2,283 at the Moon and 2,331
-# at Mars after tax, so a seedling could buy kits and flip them). Wherever
+# at Mars after tax, so a startup could buy kits and flip them). Wherever
 # an exchange would pay more for a kit's parts than KIT_PARTS_SHARE of the
 # kit's price, its bids for them come down to fit, leaving room for the
 # market's swings. The kits keep their price: it is a new company's start.
@@ -1644,14 +1644,14 @@ queries.append((707, 'House supply',
                 "IFNULL(FLOOR(round_seconds / 60), -1) AS round_minutes, "
                 "IF(next_round_t IS NULL, -1, GREATEST(0, CEIL((next_round_t - [game_now]) / 60))) AS next_minutes "
                 "FROM house_supply WHERE resource = [value_1] ORDER BY price = 0, price, place;"))
-# #637: a seedling trades only with the House. One row per House station
-# drone where this drone is: whether its company is a seedling (1 or 0), and
-# the station drone (a seedling's buy_here, sell_here, best_offer and
+# #637: a startup trades only with the House. One row per House station
+# drone where this drone is: whether its company is a startup (1 or 0), and
+# the station drone (a startup's buy_here, sell_here, best_offer and
 # best_bid deal only with these)
 queries.append((708, 'House only',
-                'Whether this drone\'s company is a seedling (1: it trades only with the House), and each House station '
+                'Whether this drone\'s company is a startup (1: it trades only with the House), and each House station '
                 'drone where it is, one row each.', 0,
-                "SELECT c.seedling, s.agent_id FROM agents AS me INNER JOIN companies AS c ON c.company_id = me.company_id "
+                "SELECT c.startup, s.agent_id FROM agents AS me INNER JOIN companies AS c ON c.company_id = me.company_id "
                 "LEFT JOIN agents AS s ON s.object_id = me.object_id AND s.station_id IS NOT NULL AND s.wrecked_at IS NULL "
                 "WHERE me.agent_id = [drone_id];"))
 # #682: a company may have at most house_rules.fleet_cap working drones (0:
@@ -1664,17 +1664,17 @@ queries.append((709, 'My fleet',
                 "(SELECT COUNT(*) FROM events AS e INNER JOIN agents AS d ON d.agent_id = e.drone "
                 "WHERE d.company_id = me.company_id AND e.event_type = 8 AND e.outcome = 0) AS coming "
                 "FROM agents AS me INNER JOIN companies AS c ON c.company_id = me.company_id WHERE me.agent_id = [drone_id];"))
-# #749: a seedling's credit cap (house_rules.seedling_credit_cap_permille
+# #749: a startup's credit cap (house_rules.startup_credit_cap_permille
 # thousandths of its debt less its push fees): what it earns above it goes to
 # the bank, so a script can tell when it is time to mature
-queries.append((711, 'My seedling',
-                'This drone\'s company: whether it is a seedling, its credits, its debt, its credit cap (0: none) and what '
+queries.append((711, 'My startup',
+                'This drone\'s company: whether it is a startup, its credits, its debt, its credit cap (0: none) and what '
                 'it has sent the bank over its cap in all.', 0,
-                "SELECT c.seedling, c.credits, c.debt, "
-                "IF(c.seedling = 1 AND c.debt > 0 AND IFNULL(r.seedling_credit_cap_permille, 0) > 0, "
+                "SELECT c.startup, c.credits, c.debt, "
+                "IF(c.startup = 1 AND c.debt > 0 AND IFNULL(r.startup_credit_cap_permille, 0) > 0, "
                 "FLOOR(GREATEST(0, c.debt - IFNULL((SELECT SUM(p.fee) FROM code_pushes AS p WHERE p.company_id = c.company_id), 0)) "
-                "* r.seedling_credit_cap_permille / 1000), 0) AS cap, "
-                "IFNULL((SELECT SUM(k.amount) FROM seedling_skims AS k WHERE k.company_id = c.company_id), 0) AS to_bank "
+                "* r.startup_credit_cap_permille / 1000), 0) AS cap, "
+                "IFNULL((SELECT SUM(k.amount) FROM startup_skims AS k WHERE k.company_id = c.company_id), 0) AS to_bank "
                 "FROM agents AS me INNER JOIN companies AS c ON c.company_id = me.company_id "
                 "LEFT JOIN house_rules AS r ON r.id = 1 WHERE me.agent_id = [drone_id];"))
 # #599: the shares other companies hold in x (an offering, or x selling its

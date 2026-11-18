@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\CodePush;
 use App\Services\Players;
-use App\Services\Seedlings;
+use App\Services\Startups;
 use App\Services\World;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -21,18 +21,18 @@ class PushEffectTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['forge.new_rules' => true, 'forge.seedling_max' => 5]);
+        config(['forge.new_rules' => true, 'forge.startup_max' => 5]);
         Mail::fake();
         Cache::flush();
     }
 
-    private function seedling(): array
+    private function startup(): array
     {
         $email = 'pusher@example.com';
         $user = Players::create('Pusher', 'long-enough', $email);
         Players::verify($user->user_id, sha1($email));
         $p = User::where('user_id', $user->user_id)->first();
-        $id = Seedlings::start($p, 'Pusher Co', 'function launched() wait(60) end')['company'];
+        $id = Startups::start($p, 'Pusher Co', 'function launched() wait(60) end')['company'];
         $drone = (int) DB::table('agents')->where('company_id', $id)->value('agent_id');
         $other = (int) DB::table('agents')->where('agent_id', '<>', $drone)->value('agent_id');
         return [$p, $id, $drone, $other];
@@ -47,7 +47,7 @@ class PushEffectTest extends TestCase
 
     public function testAPushIsComparedWithTheSameSpanBefore()
     {
-        [$p, $id, $drone, $other] = $this->seedling();
+        [$p, $id, $drone, $other] = $this->startup();
         $now = World::gameNow();
         $push = $now - 2 * 86400;
         DB::table('companies')->where('company_id', $id)->update(['founded_t' => $now - 5 * 86400]);
@@ -80,7 +80,7 @@ class PushEffectTest extends TestCase
 
     public function testTooEarlyAndNothingBefore()
     {
-        [, $id] = $this->seedling();
+        [, $id] = $this->startup();
         $now = World::gameNow();
         DB::table('companies')->where('company_id', $id)->update(['founded_t' => $now - 5 * 86400]);
         $this->assertFalse(CodePush::effect($id, $now - 3600)['ready']);

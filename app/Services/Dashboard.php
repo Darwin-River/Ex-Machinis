@@ -261,7 +261,7 @@ class Dashboard
     /**
      * Players' drones (the House's station drones aside): working and wrecks
      * by place, and how many worked a week ago (company_days). A closed
-     * seedling's drones leave the game and aren't counted as wrecks.
+     * startup's drones leave the game and aren't counted as wrecks.
      */
     private static function drones(): array
     {
@@ -286,7 +286,7 @@ class Dashboard
     {
         [$epoch] = self::today();
         $rows = DB::table('companies AS c')->leftJoin('users AS u', 'u.user_id', '=', 'c.owner_id')
-            ->where('c.seedling', 0)->whereNotNull('c.owner_id')->whereNotNull('c.matured_t')->whereNull('c.eliminated_at')
+            ->where('c.startup', 0)->whereNotNull('c.owner_id')->whereNotNull('c.matured_t')->whereNull('c.eliminated_at')
             ->orderBy('c.company_id')->get(['c.company_id', 'c.name', 'c.matured_t', 'u.login']);
         $cashOuts = PlayerShares::cashOuts($rows->pluck('company_id')->all());
         return $rows->map(function ($c) use ($epoch, $cashOuts) {
@@ -460,7 +460,7 @@ class Dashboard
                 'spreads' => 'GET /api/v1/orders?side=sell and ?side=buy, the best price for each good and place',
                 'news' => 'GET /api/v1/news',
                 'companies' => 'GET /api/v1/shares, /player-shares/{id} and /companies/{id}/earnings',
-                'drones_by_place' => 'GET /api/v1/places (station drones and closed seedlings left out)',
+                'drones_by_place' => 'GET /api/v1/places (station drones and closed startups left out)',
                 'players' => 'GET /api/v1/players',
             ],
         ];

@@ -104,7 +104,7 @@ class CompanyHealthTest extends TestCase
         $this->get('/companies/' . $company)->assertOk()->assertSee('id="stalled-banner"', false)->assertSee('2 of its 3 drones');
 
         // One drone, busy, but nothing sold in the 4 game days since it
-        // started: a new company's grace (#715: a 4-day-old seedling mining
+        // started: a new company's grace (#715: a 4-day-old startup mining
         // its first load was "stalled")
         $solo = Release::release($user, 'Never Sells', 'function launched() end');
         DB::table('companies')->where('company_id', $solo->company_id)->update(['founded_t' => World::gameNow() - 4 * 86400]);

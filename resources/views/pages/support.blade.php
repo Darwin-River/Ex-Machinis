@@ -61,7 +61,7 @@
 
                     <h2>Free ways to help</h2>
                     <ul>
-                        <li><a href="{{ url('release') }}">{{ config('forge.new_rules') ? 'Start a seedling' : 'Release a drone' }}</a> and tell a friend about the game.</li>
+                        <li><a href="{{ url('release') }}">{{ config('forge.new_rules') ? 'Found a startup' : 'Release a drone' }}</a> and tell a friend about the game.</li>
                         <li>Share a <a href="{{ url('blog') }}">strategy blog</a> post with someone learning to code.</li>
                         <li>Report a bug or suggest a change on <a href="https://github.com/Darwin-River/Ex-Machinis/issues">GitHub</a>.</li>
                     </ul>

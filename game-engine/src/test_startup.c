@@ -1,0 +1,68 @@
+/*
+ * Checks the startup trading rules (startup.c, #637).
+ * Run with: make test
+ */
+#include <stdio.h>
+
+#include "common_types.h"
+#include "startup.h"
+
+static int failures = 0;
+static void check(const char *what, int ok)
+{
+    printf("%s %s\n", ok ? "ok  " : "FAIL", what);
+    if(!ok) failures++;
+}
+
+int main(void)
+{
+    StartupSide_t house = {1, 0, 1};
+    StartupSide_t seed = {2, 1, 0};
+    StartupSide_t seed_too = {2, 1, 0};
+    StartupSide_t other_seed = {3, 1, 0};
+    StartupSide_t player = {4, 0, 0};
+    StartupSide_t player_too = {5, 0, 0};
+
+    check("two players' companies trade freely", startup_transfer_outcome(player, player_too, 50, 0, 0, 100) == 0);
+    check("a startup's own drones pass goods", startup_transfer_outcome(seed, seed_too, 50, 0, 0, 100) == 0);
+    check("a startup sells to the House", startup_transfer_outcome(seed, house, 500, 0, 0, 100) == 0);
+    check("a startup buys from the House within the cap", startup_transfer_outcome(house, seed, 10, 100, 0, 100) == 0);
+    check("a startup can't sell to a player", startup_transfer_outcome(seed, player, 1, 0, 0, 100) == OUTCOME_STARTUP_HOUSE_ONLY);
+    check("a startup can't buy from a player", startup_transfer_outcome(player, seed, 1, 0, 0, 100) == OUTCOME_STARTUP_HOUSE_ONLY);
+    check("two startups can't trade", startup_transfer_outcome(seed, other_seed, 1, 0, 0, 100) == OUTCOME_STARTUP_HOUSE_ONLY);
+    check("over a tenth of the House's stock is refused", startup_transfer_outcome(house, seed, 11, 100, 0, 100) == OUTCOME_STARTUP_CAP);
+    check("the day's earlier buys count", startup_transfer_outcome(house, seed, 5, 100, 6, 100) == OUTCOME_STARTUP_CAP);
+    check("up to the cap exactly", startup_transfer_outcome(house, seed, 4, 100, 6, 100) == 0);
+    check("a small stock still sells 5 units a day (#777)", startup_buy_cap(3, 100) == 5 && startup_buy_cap(40, 100) == 5 && startup_buy_cap(80, 100) == 8
+          && startup_transfer_outcome(house, seed, 5, 30, 0, 100) == 0 && startup_transfer_outcome(house, seed, 6, 30, 0, 100) != 0);
+    check("but not 6", startup_transfer_outcome(house, seed, 6, 3, 0, 100) == OUTCOME_STARTUP_CAP);
+    check("selling to the House has no cap", startup_transfer_outcome(seed, house, 1000000, 5, 1000, 100) == 0);
+
+    // The minimum order life (#639): 12 game hours
+    long long h = 3600, lock = 12 * h;
+    check("a young buy order can rise", order_lock_outcome(1, 50, 10, 60, 10, h, lock) == 0);
+    check("or want more", order_lock_outcome(1, 50, 10, 50, 20, h, lock) == 0);
+    check("but not fall", order_lock_outcome(1, 50, 10, 40, 10, h, lock) == OUTCOME_ORDER_LOCKED);
+    check("nor be withdrawn", order_lock_outcome(1, 50, 10, 0, 0, h, lock) == OUTCOME_ORDER_LOCKED);
+    check("nor be cut", order_lock_outcome(1, 50, 10, 50, 5, h, lock) == OUTCOME_ORDER_LOCKED);
+    check("a young sell order can get cheaper", order_lock_outcome(0, 50, 10, 40, 10, h, lock) == 0);
+    check("but not dearer", order_lock_outcome(0, 50, 10, 60, 10, h, lock) == OUTCOME_ORDER_LOCKED);
+    check("nor keep more back (#662)", order_lock_outcome(0, 50, 10, 50, 20, h, lock) == OUTCOME_ORDER_LOCKED);
+    check("nor be withdrawn (keep all)", order_lock_outcome(0, 50, 10, 50, 1000000, h, lock) == OUTCOME_ORDER_LOCKED);
+    check("but may keep less back", order_lock_outcome(0, 50, 10, 50, 5, h, lock) == 0);
+    check("after 12 game hours anything goes", order_lock_outcome(1, 50, 10, 0, 0, lock, lock) == 0);
+
+    // The credit cap (#672): twice the debt
+    check("a startup under its cap keeps all", startup_over_cap(8000, 4200, 2000) == 0);
+    check("and at it", startup_over_cap(8400, 4200, 2000) == 0);
+    check("above it the excess goes to the bank", startup_over_cap(9000, 4200, 2000) == 600);
+    check("no cap when it is 0", startup_over_cap(90000, 4200, 0) == 0);
+    check("nor for a company with no debt", startup_over_cap(90000, 0, 2000) == 0);
+    // Push fees don't raise it (#684): two paid pushes on 4,200 still cap at 8,400
+    check("the cap's base leaves out push fees", startup_cap_base(4400, 200) == 4200);
+    check("so pushes keep the cap", startup_over_cap(8600, startup_cap_base(4400, 200), 2000) == 200);
+    check("and the base is never below 0", startup_cap_base(100, 200) == 0);
+
+    printf("%s\n", failures ? "FAILED" : "all passed");
+    return failures ? 1 : 0;
+}

@@ -117,7 +117,7 @@ class WorldEvents
     public static function company(int $companyId): array
     {
         $c = DB::table('companies')->where('company_id', $companyId)
-            ->first(['company_id', 'matured_t', 'eliminated_at', 'end_cause', 'seedling']);
+            ->first(['company_id', 'matured_t', 'eliminated_at', 'end_cause', 'startup']);
         if (!$c) {
             return [];
         }
@@ -130,7 +130,7 @@ class WorldEvents
         if ($c->matured_t !== null) {
             $add('matured', (int) $c->matured_t, 'Matured', 'It matured: its code was locked and its shares went on sale.');
         }
-        // Pushes (and a seedling's reprograms): one mark a game day
+        // Pushes (and a startup's reprograms): one mark a game day
         if (Schema::hasTable('code_pushes')) {
             $pushes = DB::table('code_pushes')->where('company_id', $companyId)->orderByDesc('id')->limit(self::MAX_COMPANY)
                 ->get(['number', 'game_t', 'drones'])->reverse()

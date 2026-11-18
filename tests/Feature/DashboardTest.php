@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\Dashboard;
 use App\Services\Players;
-use App\Services\Seedlings;
+use App\Services\Startups;
 use App\Services\World;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -25,8 +25,8 @@ class DashboardTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['forge.new_rules' => true, 'forge.seedling_hull_value' => 1000, 'forge.seedling_fee' => 200,
-            'forge.starting_credits' => 3000, 'forge.seedling_mature_margin' => 500, 'forge.seedling_max' => 5,
+        config(['forge.new_rules' => true, 'forge.startup_hull_value' => 1000, 'forge.startup_fee' => 200,
+            'forge.starting_credits' => 3000, 'forge.startup_mature_margin' => 500, 'forge.startup_max' => 5,
             'forge.player_share_credits' => 5000, 'forge.hull_life_days' => 365]);
         DB::table('house_rules')->updateOrInsert(['id' => 1], ['tax_period' => 0, 'tax_grace' => 0, 'tax_flat' => 0,
             'tax_permille' => 0, 'plunder_share' => 50, 'compute_tax_per_million' => 15]);
@@ -46,10 +46,10 @@ class DashboardTest extends TestCase
     private function world(): array
     {
         $owner = $this->player('Dash Owner');
-        $id = Seedlings::start($owner, 'Dash Matured', "function launched() wait(60) end")['company'];
+        $id = Startups::start($owner, 'Dash Matured', "function launched() wait(60) end")['company'];
         DB::table('companies')->where('company_id', $id)->update(['credits' => 9000]);
-        $this->assertTrue(Seedlings::mature($owner, $id)['ok']);
-        $buyer = Seedlings::start($owner, 'Dash Buyer', "function launched() wait(60) end")['company'];
+        $this->assertTrue(Startups::mature($owner, $id)['ok']);
+        $buyer = Startups::start($owner, 'Dash Buyer', "function launched() wait(60) end")['company'];
         $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
         $today = intdiv(World::gameNow() - $epoch, 86400);
         $drone = fn ($c) => (int) DB::table('agents')->where('company_id', $c)->value('agent_id');

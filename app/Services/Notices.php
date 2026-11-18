@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\URL;
  * would turn on; this is the first four, the ones a class needs, sent through
  * the mail settings the account verification uses (#636):
  *
- * - can_mature: a seedling of theirs can mature (once a seedling)
+ * - can_mature: a startup of theirs can mature (once a startup)
  * - at_risk: a company of theirs is at risk, stalled, failing or counting
  *   down to dissolving (once a real day a company)
  * - wrecked: a drone of theirs was wrecked
@@ -34,12 +34,12 @@ class Notices
 {
     /** The notices a player can turn on, with what the account page calls them */
     public const KINDS = [
-        'can_mature' => 'A seedling of mine can mature',
+        'can_mature' => 'A startup of mine can mature',
         'at_risk' => 'A company of mine is at risk, stalled or counting down to dissolving',
         'wrecked' => 'A drone of mine is wrecked',
         'digest' => 'A weekly digest of my companies and shares',
         // For traders (#761, part 2)
-        'at_cap' => 'A seedling of mine is past its credit cap, so what it earns goes to the bank',
+        'at_cap' => 'A startup of mine is past its credit cap, so what it earns goes to the bank',
         'fills' => 'A share order of mine fills (at most one e-mail an hour)',
         'orders' => 'A share order of mine can\'t fill (outside the range players trade in) or sells below cash-out',
         'bank_paid' => 'The bank pays me for shares I sold it',
@@ -290,10 +290,10 @@ class Notices
         $items = [];
         $who = fn ($c) => ($owners[(int) $c->owner_id] ?? null) !== null ? $owners[(int) $c->owner_id] . ': ' : '';
         if (in_array('can_mature', $kinds, true)) {
-            foreach ($companies->where('seedling', 1) as $c) {
-                if (Seedlings::canMature($c) && !self::told($to, 'can_mature', (int) $c->company_id, null)) {
-                    $need = (int) $c->debt + Seedlings::matureMargin();
-                    $cap = Seedlings::creditCap($c);
+            foreach ($companies->where('startup', 1) as $c) {
+                if (Startups::canMature($c) && !self::told($to, 'can_mature', (int) $c->company_id, null)) {
+                    $need = (int) $c->debt + Startups::matureMargin();
+                    $cap = Startups::creditCap($c);
                     $items[] = self::item('can_mature', (int) $c->company_id, $c, $who($c) . $c->name . ' can mature: it holds '
                         . number_format((int) $c->credits - (int) $c->compute_debt) . ' of the ' . number_format($need) . ' credits it needs'
                         . ($cap !== null ? ', and past ' . number_format($cap) . ' its earnings go to the bank' : '') . '.');
@@ -331,7 +331,7 @@ class Notices
     }
 
     /**
-     * The trading items of a player's daily e-mail (#761, part 2): seedlings
+     * The trading items of a player's daily e-mail (#761, part 2): startups
      * past their cap, orders that can't fill or sell below cash-out, bank
      * payments, holdings that moved or ended, and price alerts. $p: their
      * notice_settings row
@@ -347,8 +347,8 @@ class Notices
         $dayAgo = now()->subSeconds(self::DAY);
         if (in_array('at_cap', $kinds, true)) {
             $since = WorldEvents::gameTimeAt(time() - self::DAY);
-            foreach (DB::table('companies')->where('owner_id', $user)->where('seedling', 1)->whereNull('eliminated_at')->get() as $c) {
-                $skimmed = Seedlings::toBank((int) $c->company_id, $since);
+            foreach (DB::table('companies')->where('owner_id', $user)->where('startup', 1)->whereNull('eliminated_at')->get() as $c) {
+                $skimmed = Startups::toBank((int) $c->company_id, $since);
                 if ($skimmed > 0 && !self::told($user, 'at_cap', (int) $c->company_id, $dayAgo)) {
                     $add('at_cap', (int) $c->company_id, (int) $c->company_id, $c->name . ' is past its credit cap: '
                         . number_format($skimmed) . ' credits it earned went to the bank in the last real day.', url('companies/' . $c->company_id));
@@ -508,7 +508,7 @@ class Notices
 
     /**
      * The weekly digest's lines for a player: each live company of theirs
-     * (net wealth, a seedling's progress to maturing, its health), their
+     * (net wealth, a startup's progress to maturing, its health), their
      * shares' cash-out value, dividends since the last digest and open orders
      */
     public static function digest(User $user, int $since): array
@@ -521,9 +521,9 @@ class Notices
                 $parts[] = 'net wealth ' . number_format($board[$c->company_id]['wealth']) . ' with ' . $board[$c->company_id]['drones']
                     . ' working ' . ($board[$c->company_id]['drones'] === 1 ? 'drone' : 'drones');
             }
-            if ((int) $c->seedling === 1) {
-                $need = (int) $c->debt + Seedlings::matureMargin();
-                $parts[] = Seedlings::canMature($c) ? 'it can mature now'
+            if ((int) $c->startup === 1) {
+                $need = (int) $c->debt + Startups::matureMargin();
+                $parts[] = Startups::canMature($c) ? 'it can mature now'
                     : number_format((int) $c->credits - (int) $c->compute_debt) . ' of the ' . number_format($need) . ' credits it needs to mature';
             }
             $h = CompanyHealth::of((int) $c->company_id);

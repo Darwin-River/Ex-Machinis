@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\Players;
 use App\Services\PlayerShares;
-use App\Services\Seedlings;
+use App\Services\Startups;
 use App\Services\TradeScripts;
 use App\Services\TradingDesk;
 use App\User;
@@ -22,10 +22,10 @@ class TradingDeskTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['forge.new_rules' => true, 'forge.seedling_hull_value' => 2000, 'forge.seedling_fee' => 500,
+        config(['forge.new_rules' => true, 'forge.startup_hull_value' => 2000, 'forge.startup_fee' => 500,
             'forge.starting_credits' => 3000, 'forge.player_share_credits' => 5000, 'forge.bank_pay_days' => 30,
             'forge.share_range_low' => 0.8, 'forge.share_range_high' => 1.25, 'forge.hull_life_days' => 365,
-            'forge.dividend_permille' => 500, 'forge.seedling_max' => 5, 'forge.seedling_mature_margin' => 0]);
+            'forge.dividend_permille' => 500, 'forge.startup_max' => 5, 'forge.startup_mature_margin' => 0]);
         Mail::fake();
         Cache::flush();
     }
@@ -40,12 +40,12 @@ class TradingDeskTest extends TestCase
 
     private function matured(User $owner, string $name, int $credits): int
     {
-        $id = Seedlings::start($owner, $name, "function launched() wait(60) end")['company'];
-        DB::table('companies')->where('company_id', $id)->update(['credits' => $credits + Seedlings::grant()]);
+        $id = Startups::start($owner, $name, "function launched() wait(60) end")['company'];
+        DB::table('companies')->where('company_id', $id)->update(['credits' => $credits + Startups::grant()]);
         $drone = (int) DB::table('agents')->where('company_id', $id)->value('agent_id');
         DB::table('holdings')->updateOrInsert(['drone' => $drone, 'resource' => \App\Services\Release::FUEL, 'installed' => 0, 'locked' => 0],
             ['units' => 100, 'event_id' => 0]);
-        $this->assertTrue(Seedlings::mature($owner, $id)['ok']);
+        $this->assertTrue(Startups::mature($owner, $id)['ok']);
         return $id;
     }
 

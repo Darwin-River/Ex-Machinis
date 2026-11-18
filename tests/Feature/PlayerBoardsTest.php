@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\PlayerBoards;
 use App\Services\Players;
-use App\Services\Seedlings;
+use App\Services\Startups;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
@@ -50,9 +50,9 @@ class PlayerBoardsTest extends TestCase
 
         // Shares count at cash-out value
         $owner = $grower;
-        $co = Seedlings::start($owner, 'Grower Co', 'function launched() wait(60) end')['company'];
-        DB::table('companies')->where('company_id', $co)->update(['credits' => 3000000 + Seedlings::grant()]);
-        Seedlings::mature($owner, $co);
+        $co = Startups::start($owner, 'Grower Co', 'function launched() wait(60) end')['company'];
+        DB::table('companies')->where('company_id', $co)->update(['credits' => 3000000 + Startups::grant()]);
+        Startups::mature($owner, $co);
         $b = PlayerBoards::boards();
         $this->assertSame('Grower One', $b['wealth'][0]['name'], 'its 1,000 shares are worth about 3,000,000');
         $this->assertGreaterThanOrEqual(3000000, $b['wealth'][0]['shares']);
@@ -114,11 +114,11 @@ class PlayerBoardsTest extends TestCase
     public function testWhileYouWereAway()
     {
         $p = $this->player('Away Player');
-        $co = Seedlings::start($p, 'Away Co', 'function launched() wait(60) end')['company'];
+        $co = Startups::start($p, 'Away Co', 'function launched() wait(60) end')['company'];
         DB::table('player_dividends')->insert(['company_id' => $co, 'user_id' => $p->user_id, 'day' => 999999, 'units' => 10, 'amount' => 321]);
         $d = PlayerBoards::digest($p, false);
         $this->assertSame('Away Co', $d['companies'][0]['name']);
-        $this->assertTrue($d['companies'][0]['seedling']);
+        $this->assertTrue($d['companies'][0]['startup']);
         $this->assertSame(321, $d['dividends']);
 
         // Logging in shows it, once
@@ -135,13 +135,13 @@ class PlayerBoardsTest extends TestCase
         $this->assertEquals($seen - 3600, DB::table('users')->where('user_id', $p->user_id)->value('last_seen_t'));
 
         // A trade recorded after the last look counts, whatever its game time;
-        // a closed seedling stays in until it has been seen (#655)
+        // a closed startup stays in until it has been seen (#655)
         $drone = (int) DB::table('agents')->where('company_id', $co)->value('agent_id');
         $mark = (int) DB::table('trades')->max('id');
         DB::table('users')->where('user_id', $p->user_id)->update(['last_seen_trade' => $mark]);
         DB::table('trades')->insert(['resource' => 1, 'units' => 1, 'credits' => 53, 'seller' => 1, 'buyer' => $drone,
             'game_t' => 0, 'tax' => 0]);
-        Seedlings::close($p, $co);
+        Startups::close($p, $co);
         $d = PlayerBoards::digest($p, false);
         $this->assertSame(53, $d['companies'][0]['purchases']);
         $this->assertSame('closed', $d['companies'][0]['ended']);

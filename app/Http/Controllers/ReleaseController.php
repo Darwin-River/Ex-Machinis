@@ -21,7 +21,7 @@ class ReleaseController extends Controller
         // A starter script (#324 step 15) fills the form when asked for, or
         // a drone's code or one of its words (#324 step 16: "Copy this code")
         $starters = Release::STARTERS;
-        // A seedling can't trade with other drones, so the Trader has nothing to do (#658)
+        // A startup can't trade with other drones, so the Trader has nothing to do (#658)
         if (config('forge.new_rules')) {
             unset($starters['trader']);
         }
@@ -115,7 +115,7 @@ class ReleaseController extends Controller
         $copiedWord = $copiedFrom !== null && $request->filled('copied_word')
             ? mb_substr((string) $request->input('copied_word'), 0, 64) : null;
 
-        // The new rules (#637): every release is a seedling, the logged-in
+        // The new rules (#637): every release is a startup, the logged-in
         // player's or a guest's (with a claim code)
         if (config('forge.new_rules')) {
             if (LaunchQueue::full()) {
@@ -123,13 +123,13 @@ class ReleaseController extends Controller
             }
             $player = \Illuminate\Support\Facades\Auth::user();
             $player = $player && $player->login !== null ? $player : null;
-            $made = \App\Services\Seedlings::start($player, (string) $request->input('company_name'), $script, (string) $request->ip());
+            $made = \App\Services\Startups::start($player, (string) $request->input('company_name'), $script, (string) $request->ip());
             if (!$made['ok']) {
                 return back()->withErrors(['company_name' => $made['error']])->withInput();
             }
             $agent = $made['agent'];
             $redirect = redirect('/spacecraft/' . $agent->agent_id)->withSuccess('Released! ' . $request->input('company_name')
-                . ' is a seedling: it owes the bank ' . number_format(\App\Services\Seedlings::grant())
+                . ' is a startup: it owes the bank ' . number_format(\App\Services\Startups::grant())
                 . ' credits for its drone, its starting credits and a fee, and trades only with the House until it matures. '
                 . 'Its drone ' . $agent->name . ' is loading your script.')
                 ->with('warning', Release::redefinedWarning($script));

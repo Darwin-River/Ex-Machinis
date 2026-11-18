@@ -13,7 +13,7 @@ use Tests\TestCase;
 /**
  * Who a company deals with (#639): its counterparties by name, with deals
  * between two companies of the same owner flagged. The minimum order life is
- * checked by test_seedling.c; private broadcasts by the game-data queries.
+ * checked by test_startup.c; private broadcasts by the game-data queries.
  */
 class DealingsTest extends TestCase
 {

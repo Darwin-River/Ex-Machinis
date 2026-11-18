@@ -1,10 +1,10 @@
 @extends('layouts.app')
-{{-- "Start a seedling" is the action's one name under the new rules (#719) --}}
-@php $newRules = (bool) config('forge.new_rules'); $title = $newRules ? 'Start a seedling' : 'Release a drone' ; @endphp
+{{-- "Found a startup" is the action's one name under the new rules (#719) --}}
+@php $newRules = (bool) config('forge.new_rules'); $title = $newRules ? 'Found a startup' : 'Release a drone' ; @endphp
 @section('pageTitle', $title)
 @push('styles')
     <style>
-        /* The Start a seedling page (#719): starter cards, a short dark note with the rules folded, styled controls */
+        /* The Found a startup page (#719): starter cards, a short dark note with the rules folded, styled controls */
         .rl > * { max-width: 60rem; }
         .rl-lead { color: #c3c9d8; max-width: 46em; white-space: normal; }
         .rl-note { background: #111729; border: 1px solid rgba(255,255,255,.1); border-left: 4px solid #ffb547; border-radius: 10px;
@@ -56,23 +56,23 @@
 
             @if($newRules)
                 {{-- The new rules (#656), short (#719): the rest folded under Rules --}}
-                <div class="rl-note" id="seedling-note">
-                    <p><b>Every release is a seedling.</b> The bank lends it {{ $n(\App\Services\Seedlings::grant()) }}: its drone
-                        ({{ $n(config('forge.seedling_hull_value')) }}), {{ $n(config('forge.starting_credits')) }} credits to spend and a
-                        {{ $n(config('forge.seedling_fee')) }} fee. Once it holds {{ $n(\App\Services\Seedlings::grant() + config('forge.seedling_mature_margin')) }}
+                <div class="rl-note" id="startup-note">
+                    <p><b>Every release is a startup.</b> The bank lends it {{ $n(\App\Services\Startups::grant()) }}: its drone
+                        ({{ $n(config('forge.startup_hull_value')) }}), {{ $n(config('forge.starting_credits')) }} credits to spend and a
+                        {{ $n(config('forge.startup_fee')) }} fee. Once it holds {{ $n(\App\Services\Startups::grant() + config('forge.startup_mature_margin')) }}
                         credits you can mature it, and its {{ \App\Services\PlayerShares::COUNT }} shares are yours. If it fails, close it: it costs you nothing.</p>
-                    <details class="rl-rules" id="seedling-rules">
+                    <details class="rl-rules" id="startup-rules">
                         <summary>Rules</summary>
                         <ul>
                             <li>Its credits are its to spend (a kit costs 2,000). To mature it must hold its whole debt and
-                                {{ $n(config('forge.seedling_mature_margin')) }} more to work with.</li>
-                            <li>It holds at most {{ \App\Services\Seedlings::capPermille() / 1000 }} times what it was lent at the start (push fees aside): what it earns above that goes to the bank, so mature it once it can.</li>
+                                {{ $n(config('forge.startup_mature_margin')) }} more to work with.</li>
+                            <li>It holds at most {{ \App\Services\Startups::capPermille() / 1000 }} times what it was lent at the start (push fees aside): what it earns above that goes to the bank, so mature it once it can.</li>
                             <li>Until it matures it trades only with the House (anything else fails with -16), buys at most a tenth of what
                                 the House has on sale of a good at one exchange in a game day (-17), and plunders nothing.</li>
-                            <li>Logged in, it is yours: at most {{ config('forge.seedling_max') }} at a time, and a closed one's slot reopens a game day later.
+                            <li>Logged in, it is yours: at most {{ config('forge.startup_max') }} at a time, and a closed one's slot reopens a game day later.
                                 As a guest you get a claim code to keep it with.</li>
                             <li>You reprogram it from its page or your <a href="{{ url('/account') }}">account page</a>: the first push is free, each after it adds
-                                {{ $n(config('forge.seedling_push_fee')) }} to its debt.</li>
+                                {{ $n(config('forge.startup_push_fee')) }} to its debt.</li>
                             <li>While the world is full a release is refused: try again in a few minutes.</li>
                             <li>If <code>launched</code> crashes, the drone restarts it, waiting longer after each crash; five crashes in a row make it a wreck.</li>
                         </ul>
@@ -165,8 +165,8 @@
                               maxlength="{{ config('forge.max_script_length') }}" required>{{ old('script', $starter) }}</textarea>
                 </div>
                 <div class="rl-submit">
-                    <button class="button button-primary button-lg" type="submit">{{ $newRules ? 'Start seedling' : 'Release' }}</button>
-                    <span class="rl-hint">New here? <a href="{{ url('getting-started') }}">Your first seedling in 5 minutes</a>.</span>
+                    <button class="button button-primary button-lg" type="submit">{{ $newRules ? 'Found startup' : 'Release' }}</button>
+                    <span class="rl-hint">New here? <a href="{{ url('getting-started') }}">Your first startup in 5 minutes</a>.</span>
                 </div>
             </form>
 

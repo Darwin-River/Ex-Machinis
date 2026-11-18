@@ -158,7 +158,7 @@ class HouseMarket
             // demand more at a time, at half the listed price: until #739 the
             // bid fell on below half (a quarter at two days' worth, ...), and
             // round 71 found Mars bidding 2 to 5 for metals and Earth 67 for
-            // rods listed at 181, so seedlings sold for nothing
+            // rods listed at 181, so startups sold for nothing
             $wanted[HouseStations::BUY_ORDER_EVENT][$resource] = [$held + max(1, intdiv($daily, 4)), $floor];
         }
         return $wanted;

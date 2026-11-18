@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Services\Leaderboard;
 use App\Services\Players;
 use App\Services\PlayerShares;
-use App\Services\Seedlings;
+use App\Services\Startups;
 use App\Services\World;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -24,8 +24,8 @@ class PerformanceChartsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['forge.new_rules' => true, 'forge.seedling_hull_value' => 1000, 'forge.seedling_fee' => 200,
-            'forge.starting_credits' => 3000, 'forge.seedling_mature_margin' => 500, 'forge.seedling_max' => 5,
+        config(['forge.new_rules' => true, 'forge.startup_hull_value' => 1000, 'forge.startup_fee' => 200,
+            'forge.starting_credits' => 3000, 'forge.startup_mature_margin' => 500, 'forge.startup_max' => 5,
             'forge.player_share_credits' => 5000, 'forge.hull_life_days' => 365, 'forge.share_range_low' => 0.8,
             'forge.share_range_high' => 1.25]);
         DB::table('house_rules')->updateOrInsert(['id' => 1], ['tax_period' => 0, 'tax_grace' => 0, 'tax_flat' => 0,
@@ -42,9 +42,9 @@ class PerformanceChartsTest extends TestCase
         $owner = Players::create('Perf ' . substr(uniqid(), -5), 'long-enough', $email);
         Players::verify($owner->user_id, sha1($email));
         $owner = User::where('user_id', $owner->user_id)->first();
-        $id = Seedlings::start($owner, 'Perf Co ' . uniqid(), 'function launched() wait(60) end')['company'];
+        $id = Startups::start($owner, 'Perf Co ' . uniqid(), 'function launched() wait(60) end')['company'];
         DB::table('companies')->where('company_id', $id)->update(['credits' => 9700]);
-        $this->assertTrue(Seedlings::mature($owner, $id)['ok']);
+        $this->assertTrue(Startups::mature($owner, $id)['ok']);
         return [$owner, $id];
     }
 
@@ -80,9 +80,9 @@ class PerformanceChartsTest extends TestCase
             ->assertSee('Is it growing?')->assertSee('Is it earning?')->assertSee('How many drones does it run?')
             ->assertSee('id="ce-chart"', false)->assertSee('id="perf-drones"', false)
             ->assertSee("GET /api/v1/companies/$id/history", false);
-        // A seedling has no cash-out tiles
+        // A startup has no cash-out tiles
         [$owner] = $this->matured();
-        $seed = Seedlings::start($owner, 'Perf Seed ' . uniqid(), 'function launched() wait(60) end')['company'];
+        $seed = Startups::start($owner, 'Perf Seed ' . uniqid(), 'function launched() wait(60) end')['company'];
         $this->get("/companies/$seed")->assertOk()->assertDontSee('id="stat-cash-out"', false);
     }
 
