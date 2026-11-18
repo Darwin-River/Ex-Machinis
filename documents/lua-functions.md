@@ -65,7 +65,7 @@ Define more the same way: `pipes = 3311`. The Resources page lists every ID. (Th
 
 ## Inventory
 
-**`metals()`**: total Metals (A1), (A2) and (A3) aboard. Used by: Trader, Miner.
+**`metals()`**: total Metals (A1), (A2) and (A3) aboard. The Trader and Miner starters call it `metals_aboard()`.
 
 ```lua
 function metals() return units(metals_a1) + units(metals_a2) + units(metals_a3) end
@@ -253,7 +253,7 @@ function can_build(product, n)
 end
 ```
 
-**`spare()`**: credits above `cash_floor`. Spend only `spare()`, so the drone always keeps money for fuel. Used by: Maker, Smith, Machinist, Trader, Adaptive.
+**`spare()`**: credits above `cash_floor`. Spend only `spare()`, so the drone always keeps money for fuel. Used by: Maker, Smith, Machinist, Adaptive. (the Trader starter calls it `spare_credits()`)
 
 ```lua
 cash_floor = 300   -- credits the drone keeps for fuel
