@@ -51,46 +51,57 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="site-nav">
+                {{-- Menus by what a player is trying to do (#843): play, trade, see who does well, look things up --}}
                 <ul class="navbar-nav mr-auto">
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="nav-learn" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Learn</a>
-                        <div class="dropdown-menu" aria-labelledby="nav-learn">
+                        <a class="nav-link dropdown-toggle" href="#" id="nav-play" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Play</a>
+                        <div class="dropdown-menu" aria-labelledby="nav-play">
+                            <a class="dropdown-item" href="{{ url('release') }}">{{ config('forge.new_rules') ? 'Start a seedling' : 'Release a drone' }}</a>
+                            @if(config('forge.new_rules') && auth()->check() && auth()->user()->login !== null)<a class="dropdown-item" href="{{ url('account') }}">Your companies and shares</a>@endif
+                            @if(config('forge.new_rules'))<a class="dropdown-item" href="{{ url('seedlings/race') }}">Seedling race</a>@endif
                             {{-- The five-minute guide and the manual are two pages (#719) --}}
                             <a class="dropdown-item" href="{{ url('getting-started') }}">First seedling (5 minutes)</a>
+                        </div>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="nav-market" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Market</a>
+                        <div class="dropdown-menu" aria-labelledby="nav-market">
+                            {{-- The same pages, in the same order, as the market's own tabs --}}
+                            <a class="dropdown-item" href="{{ url('market') }}">Goods</a>
+                            <a class="dropdown-item" href="{{ url('market/house') }}">House</a>
+                            <a class="dropdown-item" href="{{ url('market/history') }}">Price history</a>
+                            <a class="dropdown-item" href="{{ url('market/shares') }}">Stock exchange</a>
+                            <a class="dropdown-item" href="{{ url('market/trade') }}">Trading desk</a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="{{ url('dashboard') }}">Economy dashboard</a>
+                        </div>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="nav-companies" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Companies</a>
+                        <div class="dropdown-menu" aria-labelledby="nav-companies">
+                            <a class="dropdown-item" href="{{ url('leaderboard') }}">Leaderboard</a>
+                            @if(config('forge.new_rules'))<a class="dropdown-item" href="{{ url('players') }}">Players</a>@endif
+                            <a class="dropdown-item" href="{{ url('companies') }}">Companies</a>
+                            <a class="dropdown-item" href="{{ url('spacecraft') }}">Drones</a>
+                            <a class="dropdown-item" href="{{ url('lineage') }}">Lineage</a>
+                            <a class="dropdown-item" href="{{ url('events') }}">Events</a>
+                            <a class="dropdown-item" href="{{ url('map') }}">Map</a>
+                        </div>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="nav-reference" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Reference</a>
+                        <div class="dropdown-menu" aria-labelledby="nav-reference">
                             <a class="dropdown-item" href="{{ url('manual') }}">Manual</a>
                             <a class="dropdown-item" href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/lua-functions.md">Lua functions</a>
                             <a class="dropdown-item" href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/api.md">API</a>
-                            <a class="dropdown-item" href="{{ url('blog') }}">Strategy blog</a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="{{ url('technology') }}">Tech map</a>
+                            <a class="dropdown-item" href="{{ url('resources') }}">Resources</a>
                             <a class="dropdown-item" href="{{ url('protocols') }}">Protocols</a>
                             <a class="dropdown-item" href="{{ url('queries') }}">Queries</a>
-                        </div>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="nav-world" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">World</a>
-                        <div class="dropdown-menu" aria-labelledby="nav-world">
-                            <a class="dropdown-item" href="{{ url('dashboard') }}">Economy dashboard</a>
-                            <a class="dropdown-item" href="{{ url('market') }}">Market</a>
-                            <a class="dropdown-item" href="{{ url('market/history') }}">Market history</a>
-                            <a class="dropdown-item" href="{{ url('market/shares') }}">Stock exchange</a>
-                            <a class="dropdown-item" href="{{ url('market/trade') }}">Trading desk</a>
-                            <a class="dropdown-item" href="{{ url('map') }}">Map</a>
-                            <a class="dropdown-item" href="{{ url('leaderboard') }}">Leaderboard</a>
-                            @if(config('forge.new_rules'))<a class="dropdown-item" href="{{ url('players') }}">Players</a>@endif
-                            @if(config('forge.new_rules'))<a class="dropdown-item" href="{{ url('seedlings/race') }}">Seedling race</a>@endif
-                            <a class="dropdown-item" href="{{ url('lineage') }}">Lineage</a>
-                            <a class="dropdown-item" href="{{ url('events') }}">Events</a>
-                        </div>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="nav-directory" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Directory</a>
-                        <div class="dropdown-menu" aria-labelledby="nav-directory">
-                            <a class="dropdown-item" href="{{ url('companies') }}">Companies</a>
-                            <a class="dropdown-item" href="{{ url('spacecraft') }}">Drones</a>
-                            <a class="dropdown-item" href="{{ url('resources') }}">Resources</a>
-                            <a class="dropdown-item" href="{{ url('technology') }}">Tech map</a>
                             <a class="dropdown-item" href="{{ url('locations') }}">Locations</a>
-                            <a class="dropdown-item" href="{{ url('buys') }}">Buy orders</a>
-                            <a class="dropdown-item" href="{{ url('sells') }}">Sell orders</a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="{{ url('blog') }}">Strategy blog</a>
                         </div>
                     </li>
                     <li class="nav-item"><a class="nav-link" href="{{ url('about-us') }}">About</a></li>
@@ -132,11 +143,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     <ul class="footer-links">
                         <li><a href="{{ url('release') }}">{{ config('forge.new_rules') ? 'Start a seedling' : 'Release a drone' }}</a></li>
                         <li><a href="{{ url('getting-started') }}">First seedling (5 minutes)</a></li>
-                        <li><a href="{{ url('manual') }}">Manual</a></li>
                         <li><a href="{{ url('market') }}">Market</a></li>
-                        <li><a href="{{ url('blog') }}">Strategy blog</a></li>
                         <li><a href="{{ url('leaderboard') }}">Company leaderboard</a></li>
                         @if(config('forge.new_rules'))<li><a href="{{ url('players') }}">Players</a></li>@endif
+                        <li><a href="{{ url('manual') }}">Manual</a></li>
+                        <li><a href="{{ url('blog') }}">Strategy blog</a></li>
                     </ul>
                 </div>
                 <div class="col-6 col-md-3 mb-4">
