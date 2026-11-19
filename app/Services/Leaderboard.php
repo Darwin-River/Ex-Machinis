@@ -242,7 +242,7 @@ class Leaderboard
     {
         $board ??= self::wealth();
         $now = World::gameNow();
-        [$companies, $points] = self::lines($board);
+        [$companies, $points] = self::lines($board, [$age]);
         $rows = [];
         $tooYoung = $endedBefore = 0;
         foreach ($companies as $co => $c) {
@@ -267,9 +267,12 @@ class Leaderboard
      * Every company (but the House) and its net wealth line (#614):
      * [companies by id, company_id => [[game day, wealth], …]], from 0 on
      * the day it was founded, through its daily history, to its wealth now
-     * while it trades
+     * while it trades. Only the points readAt needs at $ages are read (#857:
+     * the whole history outgrew the memory a page may use): for each age,
+     * the last day before it and the first on or after it, and the last day
+     * of all, so readAt gives just what it would from the whole line.
      */
-    private static function lines(array $board): array
+    private static function lines(array $board, array $ages): array
     {
         $epoch = (float) (DB::table('game_clock')->where('id', 1)->value('epoch') ?? 0);
         $dayOf = fn ($t) => ($t - $epoch) / 86400;
@@ -279,11 +282,51 @@ class Leaderboard
         foreach ($companies as $co => $c) {
             $points[$co] = [[$dayOf((int) $c->founded_t), 0]];
         }
-        if (Schema::hasTable('company_days')) {
-            foreach (DB::table('company_days')->orderBy('company_id')->orderBy('day')
-                         ->get(['company_id', 'day', 'net_wealth']) as $d) {
-                if (isset($points[$d->company_id]) && $d->day > $points[$d->company_id][0][0]) {
-                    $points[$d->company_id][] = [(float) $d->day, (int) $d->net_wealth];
+        if (Schema::hasTable('company_days') && $companies->isNotEmpty()) {
+            $born = '((c.founded_t - ?) / 86400)';
+            $days = [];   // company_id => [day => true]
+            $add = function ($rows, array $cols) use (&$days) {
+                foreach ($rows as $r) {
+                    foreach ($cols as $col) {
+                        if ($r->$col !== null) {
+                            $days[(int) $r->company_id][(int) $r->$col] = true;
+                        }
+                    }
+                }
+            };
+            $add(DB::select("SELECT c.company_id, (SELECT MAX(d.day) FROM company_days AS d WHERE d.company_id = c.company_id AND d.day > $born) AS last_day
+                FROM companies AS c WHERE c.house = 0 AND c.founded_t IS NOT NULL", [$epoch]), ['last_day']);
+            foreach (array_unique(array_map('floatval', $ages)) as $age) {
+                $add(DB::select("SELECT c.company_id,
+                    (SELECT MAX(d.day) FROM company_days AS d WHERE d.company_id = c.company_id AND d.day > $born AND d.day < $born + ?) AS before_day,
+                    (SELECT MIN(d.day) FROM company_days AS d WHERE d.company_id = c.company_id AND d.day > $born AND d.day >= $born + ?) AS after_day
+                    FROM companies AS c WHERE c.house = 0 AND c.founded_t IS NOT NULL",
+                    [$epoch, $epoch, $age, $epoch, $epoch, $age]), ['before_day', 'after_day']);
+            }
+            $pairs = [];
+            foreach ($days as $co => $ds) {
+                foreach (array_keys($ds) as $d) {
+                    $pairs[] = [$co, $d];
+                }
+            }
+            $wealth = [];
+            foreach (array_chunk($pairs, 500) as $chunk) {
+                $rows = DB::table('company_days')
+                    ->whereRaw('(company_id, day) IN (' . implode(',', array_fill(0, count($chunk), '(?, ?)')) . ')', array_merge(...$chunk))
+                    ->get(['company_id', 'day', 'net_wealth']);
+                foreach ($rows as $d) {
+                    $wealth[(int) $d->company_id][(int) $d->day] = (int) $d->net_wealth;
+                }
+            }
+            foreach ($wealth as $co => $byDay) {
+                if (!isset($points[$co])) {
+                    continue;
+                }
+                ksort($byDay);
+                foreach ($byDay as $d => $w) {
+                    if ($d > $points[$co][0][0]) {
+                        $points[$co][] = [(float) $d, $w];
+                    }
                 }
             }
         }
@@ -303,7 +346,7 @@ class Leaderboard
      */
     public static function atAges(array $ages, ?array $board = null): array
     {
-        [$companies, $points] = self::lines($board ?? self::wealth());
+        [$companies, $points] = self::lines($board ?? self::wealth(), $ages);
         $out = [];
         foreach ($companies as $co => $c) {
             foreach ($ages as $i => $age) {

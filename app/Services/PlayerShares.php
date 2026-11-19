@@ -128,11 +128,17 @@ class PlayerShares
             ? 'That company has ended: its shares are worth nothing and no longer trade.' : null;
     }
 
-    /** Takes down the share orders of companies that have ended (#743), on the tick; how many went */
+    /**
+     * Takes down the share orders of companies that have ended (#743), on
+     * the tick; how many went. The orders are found first and taken down by
+     * id (#860: a delete that read the companies table locked rows the
+     * engine was writing, and deadlocked hundreds of times a day)
+     */
     public static function dropEndedOrders(): int
     {
-        return DB::table('player_share_orders')->whereIn('company_id',
-            DB::table('companies')->whereNotNull('eliminated_at')->select('company_id'))->delete();
+        $ids = DB::table('player_share_orders AS o')->join('companies AS c', 'c.company_id', '=', 'o.company_id')
+            ->whereNotNull('c.eliminated_at')->pluck('o.id')->all();
+        return $ids ? DB::table('player_share_orders')->whereIn('id', $ids)->delete() : 0;
     }
 
     /**
