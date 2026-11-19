@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Services\Players;
-use App\Services\Seedlings;
+use App\Services\Startups;
 use App\Services\SinceLooked;
 use App\Services\World;
 use App\User;
@@ -21,7 +21,7 @@ class SinceLookedTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['forge.new_rules' => true, 'forge.seedling_max' => 5]);
+        config(['forge.new_rules' => true, 'forge.startup_max' => 5]);
         Mail::fake();
         Cache::flush();
     }
@@ -37,7 +37,7 @@ class SinceLookedTest extends TestCase
     public function testTheCardShowsSalesTheWorstFailureAndClearsOnGotIt()
     {
         $p = $this->player('Looker');
-        $id = Seedlings::start($p, 'Looker Co', 'function launched() wait(60) end')['company'];
+        $id = Startups::start($p, 'Looker Co', 'function launched() wait(60) end')['company'];
         $drone = (int) DB::table('agents')->where('company_id', $id)->value('agent_id');
         DB::table('users')->where('user_id', $p->user_id)->update(['last_seen_t' => World::gameNow() - 3 * 86400, 'last_seen_trade' => null]);
         $house = (int) DB::table('agents')->where('agent_id', '<>', $drone)->value('agent_id');

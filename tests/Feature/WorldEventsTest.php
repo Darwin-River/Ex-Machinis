@@ -38,7 +38,7 @@ class WorldEventsTest extends TestCase
     private function company(array $extra = []): int
     {
         $owner = DB::table('users')->insertGetId(['name' => 'ev' . uniqid(), 'login' => 'ev' . uniqid(), 'credits' => 0]);
-        return DB::table('companies')->insertGetId(array_merge(['user_id' => $owner, 'owner_id' => $owner, 'seedling' => 0,
+        return DB::table('companies')->insertGetId(array_merge(['user_id' => $owner, 'owner_id' => $owner, 'startup' => 0,
             'name' => 'Events Co ' . uniqid(), 'credits' => 0, 'house' => 0], $extra));
     }
 
@@ -132,7 +132,7 @@ class WorldEventsTest extends TestCase
 
     public function testACompanysOwnEventsComeFromSmallTables()
     {
-        $id = $this->company(['matured_t' => $this->t(2172.25), 'seedling' => 0]);
+        $id = $this->company(['matured_t' => $this->t(2172.25), 'startup' => 0]);
         $other = $this->company();
         foreach ([[1, 2158.2], [2, 2163.1], [3, 2163.6]] as [$n, $day]) {
             DB::table('code_pushes')->insert(['company_id' => $id, 'number' => $n, 'game_t' => $this->t($day),

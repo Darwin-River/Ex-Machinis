@@ -94,7 +94,7 @@
 
                 },
                 {
-                    // Seedling, matured or ended (#744)
+                    // Startup, matured or ended (#744)
                     name: 'status',
                     title: 'Status',
                     titleClass: '',

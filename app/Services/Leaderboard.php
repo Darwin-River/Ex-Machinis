@@ -216,7 +216,7 @@ class Leaderboard
             $fees = Schema::hasTable('code_pushes') ? DB::table('code_pushes')->groupBy('company_id')
                 ->selectRaw('company_id, SUM(fee) AS fees')->pluck('fees', 'company_id')->all() : [];
             foreach (DB::table('companies')->where('matured_t', '>', $since)->pluck('company_id') as $co) {
-                $repaid[(int) $co] = Seedlings::grant() + (int) ($fees[$co] ?? 0);
+                $repaid[(int) $co] = Startups::grant() + (int) ($fees[$co] ?? 0);
             }
         }
         $rows = [];
@@ -402,7 +402,7 @@ class Leaderboard
         // A matured company's cash-out value that day (#699, migration 0066)
         $cashOut = [];
         if (Schema::hasColumn('company_days', 'cash_out')) {
-            $cashOut = array_map(fn ($c) => $c['total'], PlayerShares::cashOuts(DB::table('companies')->where('seedling', 0)
+            $cashOut = array_map(fn ($c) => $c['total'], PlayerShares::cashOuts(DB::table('companies')->where('startup', 0)
                 ->whereNotNull('owner_id')->whereNotNull('matured_t')->whereNull('eliminated_at')->pluck('company_id')->all()));
         }
         // And its share count that day, so a share's history divides by the shares it had then (#780)

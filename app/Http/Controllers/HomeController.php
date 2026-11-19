@@ -49,13 +49,13 @@ class HomeController extends Controller
             // The home page for the new rules (#697): the pitch, the four
             // steps with the numbers in force, the economy at a glance (#698)
             // and a short feed with fuel purchases grouped
-            $seedling = ['grant' => \App\Services\Seedlings::grant(),
-                'mature_at' => \App\Services\Seedlings::grant() + \App\Services\Seedlings::matureMargin(),
-                'margin' => \App\Services\Seedlings::matureMargin(), 'shares' => \App\Services\Seedlings::SHARES,
-                'credits' => (int) config('forge.starting_credits'), 'hull' => (int) config('forge.seedling_hull_value'),
-                'fee' => (int) config('forge.seedling_fee')];
+            $startup = ['grant' => \App\Services\Startups::grant(),
+                'mature_at' => \App\Services\Startups::grant() + \App\Services\Startups::matureMargin(),
+                'margin' => \App\Services\Startups::matureMargin(), 'shares' => \App\Services\Startups::SHARES,
+                'credits' => (int) config('forge.starting_credits'), 'hull' => (int) config('forge.startup_hull_value'),
+                'fee' => (int) config('forge.startup_fee')];
             return view('home-new-rules', ['feed' => \App\Services\World::feedGrouped(8), 'clock' => $clock,
-                'status' => \App\Services\LaunchQueue::status(), 'seedling' => $seedling,
+                'status' => \App\Services\LaunchQueue::status(), 'startup' => $startup,
                 'dash' => \App\Services\Dashboard::compact()]);
         }
         // What's happening in the world (#324 step 17)
@@ -148,23 +148,23 @@ class HomeController extends Controller
     }
 
     /**
-     * Getting started (#719): your first seedling in five minutes, with the
+     * Getting started (#719): your first startup in five minutes, with the
      * numbers in force. Round 70: both home-page buttons led to the whole
      * manual, 80,000 pixels that opened with a changelog from 2020
      */
-    public function firstSeedling()
+    public function firstStartup()
     {
-        $grant = \App\Services\Seedlings::grant();
-        $seedling = ['grant' => $grant, 'margin' => \App\Services\Seedlings::matureMargin(),
-            'mature_at' => $grant + \App\Services\Seedlings::matureMargin(), 'shares' => \App\Services\Seedlings::SHARES,
-            'credits' => (int) config('forge.starting_credits'), 'hull' => (int) config('forge.seedling_hull_value'),
-            'fee' => (int) config('forge.seedling_fee'), 'push_fee' => (int) config('forge.seedling_push_fee'),
-            'cap' => max(intdiv($grant * \App\Services\Seedlings::capPermille(), 1000), $grant + \App\Services\Seedlings::matureMargin(), 1), 'max' => (int) config('forge.seedling_max')];
+        $grant = \App\Services\Startups::grant();
+        $startup = ['grant' => $grant, 'margin' => \App\Services\Startups::matureMargin(),
+            'mature_at' => $grant + \App\Services\Startups::matureMargin(), 'shares' => \App\Services\Startups::SHARES,
+            'credits' => (int) config('forge.starting_credits'), 'hull' => (int) config('forge.startup_hull_value'),
+            'fee' => (int) config('forge.startup_fee'), 'push_fee' => (int) config('forge.startup_push_fee'),
+            'cap' => max(intdiv($grant * \App\Services\Startups::capPermille(), 1000), $grant + \App\Services\Startups::matureMargin(), 1), 'max' => (int) config('forge.startup_max')];
         $starters = \App\Services\Release::STARTERS;
-        unset($starters['trader']);   // a seedling can't trade with other drones (#658)
+        unset($starters['trader']);   // a startup can't trade with other drones (#658)
         $clock = \App\Services\LaunchQueue::clock();
         $anchors = self::manualAnchors();
-        return view('pages.first-seedling', compact('seedling', 'starters', 'clock', 'anchors'));
+        return view('pages.first-startup', compact('startup', 'starters', 'clock', 'anchors'));
     }
 
     /** The manual's images moved with it (#719) */

@@ -118,7 +118,7 @@
                 </ol>
                 <p class="mk-src" id="crossed-books"><b>Crossed</b> marks a good where a buyer bids at or above what a seller asks at the same exchange.
                     Standing orders never trade with each other: a trade happens only when a drone pulls from a sell order or pushes into a buy order
-                    where it is. So the two wait until a drone acts on them, and a seedling's order trades only with the House, never with another player's.
+                    where it is. So the two wait until a drone acts on them, and a startup's order trades only with the House, never with another player's.
                     A drone that buys from the one and sells to the other makes the difference.</p>
             @endif
             <p class="mk-src">Data: <code>GET /api/v1/orders?side=sell</code> and <code>?side=buy</code>, the best price for each good and place;

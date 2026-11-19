@@ -110,7 +110,7 @@ ErrorCode_t db_plunder(Event_t* event)
     // Is it a wreck, here, not yet plundered? Whose it is doesn't matter
     // (#367 step 1: own-player wrecks were refused before)
     MYSQL_RES* res = wr_select(
-        "SELECT w.plundered_at IS NULL, w.object_id = p.object_id, wc.seedling, pc.seedling "
+        "SELECT w.plundered_at IS NULL, w.object_id = p.object_id, wc.startup, pc.startup "
         "FROM agents w JOIN agents p ON p.agent_id = %d "
         "JOIN companies wc ON wc.company_id = w.company_id JOIN companies pc ON pc.company_id = p.company_id "
         "WHERE w.agent_id = %d AND w.agent_id <> p.agent_id AND w.wrecked_at IS NOT NULL",
@@ -119,18 +119,18 @@ ErrorCode_t db_plunder(Event_t* event)
     int found = row != NULL;
     int unplundered = found && row[0] && atoi(row[0]);
     int here = found && row[1] && atoi(row[1]);
-    int seedling_wreck = found && row[2] && atoi(row[2]);
-    int seedling_plunderer = found && row[3] && atoi(row[3]);
+    int startup_wreck = found && row[2] && atoi(row[2]);
+    int startup_plunderer = found && row[3] && atoi(row[3]);
     if(res) mysql_free_result(res);
 
-    // A seedling plunders nothing, and a seedling's wreck leaves the game
+    // A startup plunders nothing, and a startup's wreck leaves the game
     // with what it held (#637)
-    if(seedling_plunderer) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] is a seedling's: it plunders nothing", plunderer);
-        event->outcome = OUTCOME_SEEDLING_HOUSE_ONLY;
+    if(startup_plunderer) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] is a startup's: it plunders nothing", plunderer);
+        event->outcome = OUTCOME_STARTUP_HOUSE_ONLY;
         return ENGINE_LOGIC_ERROR;
     }
-    if(seedling_wreck)
+    if(startup_wreck)
         unplundered = 0;
 
     if(!found || !unplundered || !here) {

@@ -7,7 +7,7 @@ use App\Http\Controllers\WorldController;
 use App\Services\Kept;
 use App\Services\Players;
 use App\Services\PlayerShares;
-use App\Services\Seedlings;
+use App\Services\Startups;
 use App\Services\World;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -29,8 +29,8 @@ class RoundSeventyLeftoversTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['forge.new_rules' => true, 'forge.seedling_hull_value' => 1000, 'forge.seedling_fee' => 200,
-            'forge.starting_credits' => 3000, 'forge.seedling_mature_margin' => 500, 'forge.seedling_max' => 5,
+        config(['forge.new_rules' => true, 'forge.startup_hull_value' => 1000, 'forge.startup_fee' => 200,
+            'forge.starting_credits' => 3000, 'forge.startup_mature_margin' => 500, 'forge.startup_max' => 5,
             'forge.player_share_credits' => 5000, 'forge.hull_life_days' => 365, 'forge.share_range_low' => 0.8,
             'forge.share_range_high' => 1.25, 'forge.bank_pay_days' => 30]);
         Mail::fake();
@@ -47,9 +47,9 @@ class RoundSeventyLeftoversTest extends TestCase
         $u = Players::create('Left' . substr(uniqid(), -6), 'long-enough', $email);
         Players::verify($u->user_id, sha1($email));
         $owner = User::where('user_id', $u->user_id)->first();
-        $id = Seedlings::start($owner, 'Leftover Co ' . uniqid(), 'function launched() wait(60) end')['company'];
+        $id = Startups::start($owner, 'Leftover Co ' . uniqid(), 'function launched() wait(60) end')['company'];
         DB::table('companies')->where('company_id', $id)->update(['credits' => 9700]);
-        $this->assertTrue(Seedlings::mature($owner, $id)['ok']);
+        $this->assertTrue(Startups::mature($owner, $id)['ok']);
         return [$owner, $id];
     }
 

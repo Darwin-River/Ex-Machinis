@@ -25,7 +25,7 @@ class SinceLooked
         -3 => 'the hold is full: sell or jettison before taking more',
         -4 => 'not enough credits: keep more back before buying, or sell first',
         -14 => 'no House station here trades it that way: use house_demand or house_supply to find one that does',
-        -16 => 'a seedling trades only with the House: buy and sell from House orders',
+        -16 => 'a startup trades only with the House: buy and sell from House orders',
         -19 => 'an order can\'t be cut or withdrawn in its first 12 game hours: post it right the first time',
     ];
 
@@ -56,7 +56,7 @@ class SinceLooked
             $id = $c['company_id'];
             $row = $c;
             // Its share's move: cash-out a share now against the first day of the span
-            if (!$c['seedling'] && !$c['ended'] && PlayerShares::tradable($id)) {
+            if (!$c['startup'] && !$c['ended'] && PlayerShares::tradable($id)) {
                 $first = DB::table('company_days')->where('company_id', $id)->where('day', '>=', self::sinceDay($user, $epoch))
                     ->whereNotNull('cash_out')->orderBy('day')->first();
                 $now = PlayerShares::prices($id)['buys_at'];

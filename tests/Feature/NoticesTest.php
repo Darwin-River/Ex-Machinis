@@ -24,7 +24,7 @@ class NoticesTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['forge.new_rules' => true, 'forge.trial_auto_verify' => false, 'forge.seedling_mature_margin' => 500]);
+        config(['forge.new_rules' => true, 'forge.trial_auto_verify' => false, 'forge.startup_mature_margin' => 500]);
         Mail::fake();
         Cache::flush();
         if (!DB::table('game_clock')->where('id', 1)->exists()) {
@@ -41,10 +41,10 @@ class NoticesTest extends TestCase
         return \App\User::where('user_id', $user->user_id)->first();
     }
 
-    /** A live seedling of the owner's, with no drone (so at risk: no working drone) */
-    private function seedling(int $owner, int $credits, int $debt = 3000): int
+    /** A live startup of the owner's, with no drone (so at risk: no working drone) */
+    private function startup(int $owner, int $credits, int $debt = 3000): int
     {
-        return DB::table('companies')->insertGetId(['user_id' => $owner, 'owner_id' => $owner, 'seedling' => 1,
+        return DB::table('companies')->insertGetId(['user_id' => $owner, 'owner_id' => $owner, 'startup' => 1,
             'name' => 'Notice Co ' . uniqid(), 'credits' => $credits, 'debt' => $debt, 'compute_debt' => 0, 'house' => 0,
             'founded_t' => World::gameNow() - 86400]);
     }
@@ -64,7 +64,7 @@ class NoticesTest extends TestCase
     public function testNothingIsSentUntilAPlayerTurnsItOn()
     {
         $p = $this->player('Quiet Pilot');
-        $this->seedling($p->user_id, 9000);
+        $this->startup($p->user_id, 9000);
         Notices::runIfDue(true);
         Mail::assertNothingSent();
         $this->assertSame(['can_mature' => false, 'at_risk' => false, 'wrecked' => false, 'digest' => false], array_slice(Notices::settings($p), 0, 4));
@@ -73,7 +73,7 @@ class NoticesTest extends TestCase
     public function testTheDailyEmailSaysWhatNeedsThemOnceADay()
     {
         $p = $this->player('Daily Pilot');
-        $ready = $this->seedling($p->user_id, 4000);     // 3,000 debt + 500 margin: it can mature
+        $ready = $this->startup($p->user_id, 4000);     // 3,000 debt + 500 margin: it can mature
         $this->actingAs($p)->post('/account/notices', ['notices' => ['can_mature', 'at_risk', 'wrecked', 'nonsense']])
             ->assertRedirect('/account#notices');
         $this->assertSame(['can_mature' => true, 'at_risk' => true, 'wrecked' => true, 'digest' => false], array_slice(Notices::settings($p), 0, 4));
@@ -129,7 +129,7 @@ class NoticesTest extends TestCase
     public function testTheWeeklyDigest()
     {
         $p = $this->player('Digest Pilot');
-        $this->seedling($p->user_id, 1200);
+        $this->startup($p->user_id, 1200);
         Notices::save($p, ['digest']);
         // Not before a week has gone by
         $this->assertSame(0, Notices::runIfDue(true)['digests']);
@@ -145,7 +145,7 @@ class NoticesTest extends TestCase
         $teacher = $this->player('Ms Orbit');
         $group = Players::createClassGroup($teacher, 'Notice Class', 2);
         $pupil = DB::table('users')->where('login', 'Notice Class 1')->value('user_id');
-        $this->seedling($pupil, 5000);
+        $this->startup($pupil, 5000);
         // Pupils can't turn notices on: they have no address
         $pupilUser = \App\User::where('user_id', $pupil)->first();
         $this->actingAs($pupilUser)->post('/account/notices', ['notices' => ['can_mature']])->assertRedirect('/account#notices');
@@ -176,16 +176,16 @@ class NoticesTest extends TestCase
         $today = intdiv($now - $epoch, 86400);
         Notices::save($p, ['at_cap', 'fills', 'orders', 'bank_paid', 'cash_out', 'price_alerts']);
         // What came before turning them on isn't told: an old fill
-        $held = DB::table('companies')->insertGetId(['user_id' => $other->user_id, 'owner_id' => $other->user_id, 'seedling' => 0,
+        $held = DB::table('companies')->insertGetId(['user_id' => $other->user_id, 'owner_id' => $other->user_id, 'startup' => 0,
             'name' => 'Held Co ' . uniqid(), 'credits' => 50000, 'house' => 0, 'founded_t' => $now - 30 * 86400]);
         $trade = fn () => DB::table('player_share_trades')->insertGetId(['company_id' => $held, 'seller_id' => $other->user_id,
             'buyer_id' => $p->user_id, 'units' => 3, 'price' => 210, 'game_t' => World::gameNow()]);
         DB::table('notice_settings')->where('user_id', $p->user_id)->update(['fills_after' => $trade()]);
         $trade();
 
-        // A seedling past its cap
-        $seed = $this->seedling($p->user_id, 2000);
-        DB::table('seedling_skims')->insert(['company_id' => $seed, 'game_t' => $now - 60, 'amount' => 75]);
+        // A startup past its cap
+        $seed = $this->startup($p->user_id, 2000);
+        DB::table('startup_skims')->insert(['company_id' => $seed, 'game_t' => $now - 60, 'amount' => 75]);
         // An order that can't fill (its shares don't trade)
         $order = DB::table('player_share_orders')->insertGetId(['user_id' => $p->user_id, 'company_id' => $seed, 'side' => 'buy',
             'units' => 2, 'price' => 100, 'created_at' => now(), 'game_t' => $now]);
@@ -197,7 +197,7 @@ class NoticesTest extends TestCase
         DB::table('company_days')->insert([
             ['company_id' => $held, 'day' => $today - 7, 'credits' => 0, 'net_wealth' => 0, 'drones' => 1, 'cash_out' => 20000, 'shares' => 100],
             ['company_id' => $held, 'day' => $today, 'credits' => 0, 'net_wealth' => 0, 'drones' => 1, 'cash_out' => 24000, 'shares' => 100]]);
-        $gone = DB::table('companies')->insertGetId(['user_id' => $other->user_id, 'owner_id' => $other->user_id, 'seedling' => 0,
+        $gone = DB::table('companies')->insertGetId(['user_id' => $other->user_id, 'owner_id' => $other->user_id, 'startup' => 0,
             'name' => 'Gone Co ' . uniqid(), 'credits' => 0, 'house' => 0, 'founded_t' => $now - 30 * 86400,
             'eliminated_at' => $now + 1, 'end_cause' => 'dissolved']);
         DB::table('player_shares')->insert(['user_id' => $p->user_id, 'company_id' => $gone, 'units' => 2]);

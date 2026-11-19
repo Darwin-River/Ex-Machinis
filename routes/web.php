@@ -22,9 +22,9 @@ Route::get('/', 'HomeController@index')->name('Ex-Machinis');
 Route::get('/home', 'HomeController@index')->name('home');
 
 //static pages
-// The first-seedling guide (#719); the players' manual moved to /manual, and
+// The first-startup guide (#719); the players' manual moved to /manual, and
 // the guide sends an old /getting-started#anchor link on to the manual
-Route::get('/getting-started', 'HomeController@firstSeedling');
+Route::get('/getting-started', 'HomeController@firstStartup');
 Route::get('/manual', 'HomeController@playersManual');
 Route::get('/manual/images/{file}', 'HomeController@playersManualImage')->where('file', '[A-Za-z0-9_-]+\.(png|jpg|jpeg|gif|svg)');
 Route::get('/getting-started/images/{file}', 'HomeController@oldManualImage')->where('file', '[A-Za-z0-9_-]+\.(png|jpg|jpeg|gif|svg)');
@@ -116,15 +116,15 @@ Route::middleware('new-rules')->group(function () {
     Route::post('/account/alerts/{id}/remove', 'AccountController@removeAlert')->whereNumber('id');
     Route::get('/notices/unsubscribe/{id}', 'AccountController@unsubscribe')->whereNumber('id')
         ->middleware('signed:relative')->name('notices.unsubscribe');
-    // Seedlings (#637)
-    Route::post('/seedlings/claim', 'SeedlingController@claim');
-    Route::post('/seedlings/{id}/push', 'SeedlingController@reprogram')->whereNumber('id');
-    Route::post('/seedlings/{id}/close', 'SeedlingController@close')->whereNumber('id');
-    Route::post('/seedlings/{id}/mature', 'SeedlingController@mature')->whereNumber('id');
+    // Startups (#637)
+    Route::post('/startups/claim', 'StartupController@claim');
+    Route::post('/startups/{id}/push', 'StartupController@reprogram')->whereNumber('id');
+    Route::post('/startups/{id}/close', 'StartupController@close')->whereNumber('id');
+    Route::post('/startups/{id}/mature', 'StartupController@mature')->whereNumber('id');
     // Player boards (#640)
     Route::get('/players', 'PlayerBoardController@show');
-    // The seedling race (#776)
-    Route::get('/seedlings/race', 'SeedlingController@race');
+    // The startup race (#776)
+    Route::get('/startups/race', 'StartupController@race');
     // Players' shares and the bank (#638)
     Route::post('/companies/{id}/bank/sell', 'PlayerShareController@sellToBank')->whereNumber('id');
     Route::post('/companies/{id}/bank/buy', 'PlayerShareController@buyFromBank')->whereNumber('id');

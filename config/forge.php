@@ -30,7 +30,7 @@ return [
     // Shortest password a release may set
     'push_password_min' => 6,
 
-    // The new rules (#635): player accounts, seedlings, locked companies and
+    // The new rules (#635): player accounts, startups, locked companies and
     // a bank for shares. Off on the live site until the reset (#642); the
     // pages and API calls they add answer 404 while it is off
     'new_rules' => (bool) env('FORGE_NEW_RULES', false),
@@ -48,27 +48,27 @@ return [
     // Most pupils' accounts in one class group
     'class_group_max' => (int) env('FORGE_CLASS_GROUP_MAX', 40),
 
-    // Seedlings (#637): every company starts as one, lent its hull and its
+    // Startups (#637): every company starts as one, lent its hull and its
     // starting credits (starting_credits) by the bank, plus a fee; it owes all
     // three until it matures. Its trading limits are in house_rules. #658:
     // the hull counts at about what the House pays for a kit (999), and the
-    // fee is smaller, so a working seedling can mature in 10 to 20 game days
+    // fee is smaller, so a working startup can mature in 10 to 20 game days
     // (round 65's companies held 2,900 on average at 10 game days)
-    'seedling_max' => (int) env('FORGE_SEEDLING_MAX', 5),
-    'seedling_hull_value' => (int) env('FORGE_SEEDLING_HULL_VALUE', 1000),
-    'seedling_fee' => (int) env('FORGE_SEEDLING_FEE', 200),
-    // What reprogramming a seedling adds to its debt (its first push is free)
-    'seedling_push_fee' => (int) env('FORGE_SEEDLING_PUSH_FEE', 100),
-    // Credits a seedling must hold above its debt to mature (#664), so it
+    'startup_max' => (int) env('FORGE_STARTUP_MAX', 5),
+    'startup_hull_value' => (int) env('FORGE_STARTUP_HULL_VALUE', 1000),
+    'startup_fee' => (int) env('FORGE_STARTUP_FEE', 200),
+    // What reprogramming a startup adds to its debt (its first push is free)
+    'startup_push_fee' => (int) env('FORGE_STARTUP_PUSH_FEE', 100),
+    // Credits a startup must hold above its debt to mature (#664), so it
     // isn't left broke
-    'seedling_mature_margin' => (int) env('FORGE_SEEDLING_MATURE_MARGIN', 500),
-    // Game days a closed seedling's slot stays taken
-    'seedling_slot_days' => 1,
-    // Seedlings a guest (no account) may start from one address in a real day
-    'seedling_guest_per_day' => (int) env('FORGE_SEEDLING_GUEST_PER_DAY', 5),
+    'startup_mature_margin' => (int) env('FORGE_STARTUP_MATURE_MARGIN', 500),
+    // Game days a closed startup's slot stays taken
+    'startup_slot_days' => 1,
+    // Startups a guest (no account) may start from one address in a real day
+    'startup_guest_per_day' => (int) env('FORGE_STARTUP_GUEST_PER_DAY', 5),
 
     // Shares and the bank (#638). Cash-out value counts each working drone's
-    // hull at seedling_hull_value, falling to 0 over hull_life_days game days,
+    // hull at startup_hull_value, falling to 0 over hull_life_days game days,
     // and nothing for a drone with no fuel that bought none in stranded_days
     'hull_life_days' => (int) env('FORGE_HULL_LIFE_DAYS', 365),
     'stranded_days' => 3,

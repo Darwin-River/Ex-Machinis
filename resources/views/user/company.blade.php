@@ -14,7 +14,7 @@
         .stat-negative { color: #ff7b72; }
         .stat-link { font-size: 0.85em; }
         .stat-meta { font-size: 0.85em; opacity: 0.75; margin-bottom: 1.5em; }
-        /* Seedling or matured, and the road to maturity (#697) */
+        /* Startup or matured, and the road to maturity (#697) */
         .co-badge { display: inline-block; font-size: 0.85rem; font-weight: 700; padding: 3px 10px; border-radius: 99px; vertical-align: middle;
               background: rgba(76, 201, 240, 0.16); color: #4cc9f0; font-family: system-ui, sans-serif; letter-spacing: 0.02em; }
         .co-badge-matured { background: rgba(90, 209, 154, 0.16); color: #5ad19a; }
@@ -47,8 +47,8 @@
     </style>
 @endpush
 @section('content')
-    {{-- Seedling or matured, and whose (#697) --}}
-    @php($badge = ($user->eliminated_at ?? null) !== null ? 'Ended' : ((int) ($user->seedling ?? 0) === 1 ? 'Seedling' : (($user->matured_t ?? null) !== null ? 'Matured' : null)))
+    {{-- Startup or matured, and whose (#697) --}}
+    @php($badge = ($user->eliminated_at ?? null) !== null ? 'Ended' : ((int) ($user->startup ?? 0) === 1 ? 'Startup' : (($user->matured_t ?? null) !== null ? 'Matured' : null)))
     <x-page-header :subtitle="$owner ? 'Owned by ' . $owner : null">
         @php($hb = $shares['health'] ?? [])
         @php($healthBadge = $badge === 'Ended' ? null : (!empty($hb['stalled']) ? ['Stalled', 'warn'] : (!empty($hb['failing_reason']) ? ['Failing', 'bad'] : (!empty($hb['at_risk']) ? ['At risk', 'warn'] : ['Steady', 'steady']))))
@@ -73,8 +73,8 @@
                 @else
                     <div class="stat"><div class="stat-label">Net wealth</div>
                         <div class="stat-value {{ ($stats['wealth'] ?? 0) < 0 ? 'stat-negative' : '' }}">{{ $stats['wealth'] === null ? '—' : number_format($stats['wealth']) }}</div>
-                        {{-- A seedling's starts below 0 (#833): its kit is equipment, which net wealth doesn't count --}}
-                        @if($road)<small>its kit and drone aren't counted, so a seedling starts about 2,000 below 0</small>@endif</div>
+                        {{-- A startup's starts below 0 (#833): its kit is equipment, which net wealth doesn't count --}}
+                        @if($road)<small>its kit and drone aren't counted, so a startup starts about 2,000 below 0</small>@endif</div>
                 @endif
                 <div class="stat"><div class="stat-label">Credits</div>
                     <div class="stat-value">{{ number_format($user->credits) }}</div></div>
@@ -104,8 +104,8 @@
                 {{-- An ended company owes nothing and risks nothing (#686) --}}
                 @php($endWhy = ['closed' => 'its player closed it', 'reset' => 'the world was reset', 'tax' => "it couldn't pay its tax",
                     'dissolved' => 'it had no credits for too long', 'drones' => 'it lost its last drone'][$user->end_cause ?? ''] ?? null)
-                <p class="stat-meta" id="seedling">It ended on {{ \App\Services\DronePage::when((int) $user->eliminated_at) }}{{ $endWhy ? ': ' . $endWhy : '' }}.
-                    @if((int) ($user->seedling ?? 0) === 1) It was a seedling: its debt was cancelled, and it owes nothing. @endif</p>
+                <p class="stat-meta" id="startup">It ended on {{ \App\Services\DronePage::when((int) $user->eliminated_at) }}{{ $endWhy ? ': ' . $endWhy : '' }}.
+                    @if((int) ($user->startup ?? 0) === 1) It was a startup: its debt was cancelled, and it owes nothing. @endif</p>
                 {{-- The failure card (#773): what went wrong, and a fixed copy a click away --}}
                 @php($pm = \App\Services\PostMortem::of((int) $user->user_id))
                 @if($pm)
@@ -116,14 +116,14 @@
                                 @if($pm['line'])<br>Line {{ $pm['line']['number'] }} of its code ({{ strtolower($pm['line']['in']) }}): <code>{{ $pm['line']['code'] }}</code>@endif</li>@endif
                         </ul>
                         @if($pm['copy'])<a class="button button-primary button-sm" id="fixed-copy" href="{{ url($pm['copy']) }}">Start a fixed copy</a>
-                            <small>opens Start a seedling with its code loaded and this noted</small>@endif
+                            <small>opens Found a startup with its code loaded and this noted</small>@endif
                     </section>
                 @endif
-            @elseif((int) ($user->seedling ?? 0) === 1)
-                <p class="stat-meta" id="seedling">A seedling: it owes the bank {{ number_format((int) $user->debt) }} credits, and
+            @elseif((int) ($user->startup ?? 0) === 1)
+                <p class="stat-meta" id="startup">A startup: it owes the bank {{ number_format((int) $user->debt) }} credits, and
                     trades only with the House until it matures.</p>
             @elseif(($user->matured_t ?? null) !== null)
-                <p class="stat-meta" id="seedling">Matured on {{ \App\Services\DronePage::when((int) $user->matured_t) }}: its code is locked for good.</p>
+                <p class="stat-meta" id="startup">Matured on {{ \App\Services\DronePage::when((int) $user->matured_t) }}: its code is locked for good.</p>
             @endif
 
             @if($road)
@@ -167,19 +167,19 @@
                             It won't reach the mark like this. See <a href="#health">Health</a> for what its drones last said, then push a fix or close it.</div>
                     @endif
                     @if($road['owner'])
-                        <div class="road-actions" id="seedling-actions">
+                        <div class="road-actions" id="startup-actions">
                             @if($road['can_mature'])
-                                <form method="POST" action="{{ url('seedlings/' . $user->user_id . '/mature') }}">{{ csrf_field() }}
+                                <form method="POST" action="{{ url('startups/' . $user->user_id . '/mature') }}">{{ csrf_field() }}
                                     <button class="button button-primary" type="submit">Mature it</button></form>
                             @endif
-                            <form method="POST" action="{{ url('seedlings/' . $user->user_id . '/close') }}"
-                                  onsubmit="return confirm('Close this seedling? It leaves the game with all it holds, and its debt is cancelled.')">{{ csrf_field() }}
+                            <form method="POST" action="{{ url('startups/' . $user->user_id . '/close') }}"
+                                  onsubmit="return confirm('Close this startup? It leaves the game with all it holds, and its debt is cancelled.')">{{ csrf_field() }}
                                 <button class="button button-secondary" type="submit">Close it (debt cancelled)</button></form>
-                            <details id="seedling-push">
+                            <details id="startup-push">
                                 <summary class="button button-secondary" style="display: inline-block">Push new code {{ $road['push_fee'] === 0 ? '(the first is free)' : '(adds ' . number_format($road['push_fee']) . ' to its debt)' }}</summary>
-                                <form method="POST" action="{{ url('seedlings/' . $user->user_id . '/push') }}" class="mt-2">{{ csrf_field() }}
-                                    <label for="seedling-script">New script (Lua): its working drones drop what they run and start it</label>
-                                    <textarea v-pre class="form-control" id="seedling-script" name="script" rows="10" spellcheck="false"
+                                <form method="POST" action="{{ url('startups/' . $user->user_id . '/push') }}" class="mt-2">{{ csrf_field() }}
+                                    <label for="startup-script">New script (Lua): its working drones drop what they run and start it</label>
+                                    <textarea v-pre class="form-control" id="startup-script" name="script" rows="10" spellcheck="false"
                                               maxlength="{{ config('forge.max_script_length') }}" required>{{ $code['current']['script'] ?? '' }}</textarea>
                                     <button class="button button-primary mt-2" type="submit">Push it</button>
                                 </form>
@@ -582,15 +582,15 @@
                 </p>
             @endif
 
-            @php($newRules = (int) ($user->seedling ?? 0) === 1 || ($user->owner_id ?? null) !== null || ($user->matured_t ?? null) !== null)
+            @php($newRules = (int) ($user->startup ?? 0) === 1 || ($user->owner_id ?? null) !== null || ($user->matured_t ?? null) !== null)
             @if($newRules)
-                {{-- The new rules (#666): reprogramming a seedling, or a matured company's locked code --}}
+                {{-- The new rules (#666): reprogramming a startup, or a matured company's locked code --}}
                 <h3 class="mt-4" id="pushes">New code</h3>
                 @if($ended)
                     <p style="white-space: normal">It has ended: its code can't change.</p>
-                @elseif(!empty($pushes['seedling']))
-                    <p style="white-space: normal">Its owner reprograms this seedling from their
-                        <a href="{{ url('account') }}#seedlings">account page</a> (or the API). Pushed {{ $pushes['count'] }}
+                @elseif(!empty($pushes['startup']))
+                    <p style="white-space: normal">Its owner reprograms this startup from their
+                        <a href="{{ url('account') }}#startups">account page</a> (or the API). Pushed {{ $pushes['count'] }}
                         {{ $pushes['count'] === 1 ? 'time' : 'times' }}; the next push adds {{ number_format($pushes['next_fee']) }}
                         credits to its debt{{ $pushes['next_fee'] === 0 ? ' (the first is free)' : '' }}.</p>
                 @else

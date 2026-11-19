@@ -596,8 +596,8 @@ typedef enum
 	OUTCOME_SAME_PLAYER = -13,   // a trade between two companies of one player is blocked
 	OUTCOME_NO_STATION = -14,    // no House station here trades that resource that way (#324 step 10)
 	OUTCOME_NO_WRECK = -15,      // no unplundered wreck of that ID where the drone is (#324 step 12)
-	OUTCOME_SEEDLING_HOUSE_ONLY = -16, // a seedling trades only with the House, and plunders nothing (#637)
-	OUTCOME_SEEDLING_CAP = -17,  // a seedling has bought its share of the House's stock here today (#637)
+	OUTCOME_STARTUP_HOUSE_ONLY = -16, // a startup trades only with the House, and plunders nothing (#637)
+	OUTCOME_STARTUP_CAP = -17,  // a startup has bought its share of the House's stock here today (#637)
 	OUTCOME_PLAYERS_SHARES = -18, // under the new rules players, not companies, trade shares (#638)
 	OUTCOME_ORDER_LOCKED = -19,  // a new-rules order can't be withdrawn, cut or worsened in its first game hours (#639)
 	OUTCOME_FLEET_CAP = -20,     // the company has as many working drones as it may (house_rules.fleet_cap, #682)

@@ -56,11 +56,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="nav-play" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Play</a>
                         <div class="dropdown-menu" aria-labelledby="nav-play">
-                            <a class="dropdown-item" href="{{ url('release') }}">{{ config('forge.new_rules') ? 'Start a seedling' : 'Release a drone' }}</a>
+                            <a class="dropdown-item" href="{{ url('release') }}">{{ config('forge.new_rules') ? 'Found a startup' : 'Release a drone' }}</a>
                             @if(config('forge.new_rules') && auth()->check() && auth()->user()->login !== null)<a class="dropdown-item" href="{{ url('account') }}">Your companies and shares</a>@endif
-                            @if(config('forge.new_rules'))<a class="dropdown-item" href="{{ url('seedlings/race') }}">Seedling race</a>@endif
+                            @if(config('forge.new_rules'))<a class="dropdown-item" href="{{ url('startups/race') }}">Startup race</a>@endif
                             {{-- The five-minute guide and the manual are two pages (#719) --}}
-                            <a class="dropdown-item" href="{{ url('getting-started') }}">First seedling (5 minutes)</a>
+                            <a class="dropdown-item" href="{{ url('getting-started') }}">First startup (5 minutes)</a>
                         </div>
                     </li>
                     <li class="nav-item dropdown">
@@ -117,7 +117,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         @endif
                     @endif
                     {{-- The action's one name (#719) --}}
-                    <li class="nav-item"><a class="button button-primary button-sm" href="{{ url('release') }}">{{ config('forge.new_rules') ? 'Start a seedling' : 'Release a drone' }}</a></li>
+                    <li class="nav-item"><a class="button button-primary button-sm" href="{{ url('release') }}">{{ config('forge.new_rules') ? 'Found a startup' : 'Release a drone' }}</a></li>
                 </ul>
             </div>
         </nav>
@@ -141,8 +141,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <div class="col-6 col-md-3 offset-md-1 mb-4">
                     <h2 class="footer-title">Play</h2>
                     <ul class="footer-links">
-                        <li><a href="{{ url('release') }}">{{ config('forge.new_rules') ? 'Start a seedling' : 'Release a drone' }}</a></li>
-                        <li><a href="{{ url('getting-started') }}">First seedling (5 minutes)</a></li>
+                        <li><a href="{{ url('release') }}">{{ config('forge.new_rules') ? 'Found a startup' : 'Release a drone' }}</a></li>
+                        <li><a href="{{ url('getting-started') }}">First startup (5 minutes)</a></li>
                         <li><a href="{{ url('market') }}">Market</a></li>
                         <li><a href="{{ url('leaderboard') }}">Company leaderboard</a></li>
                         @if(config('forge.new_rules'))<li><a href="{{ url('players') }}">Players</a></li>@endif

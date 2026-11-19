@@ -25,11 +25,11 @@ refuel_pause = 120                -- after buying fuel (game minutes)
 engine_shopping_pause = 60        -- between tries to buy an Engine (game minutes)
 nearly_broke = 20                 -- spare credits under which it sets off with what it has
 report_every = 4                  -- rounds of work between reports home
-seedling_recheck_pause = 1440     -- between checks on whether it may trade: a game day (game minutes)
+startup_recheck_pause = 1440     -- between checks on whether it may trade: a game day (game minutes)
 fuel_reserve = 15                 -- make, mine, refine and push stop here, to keep fuel to buy more (units)
 
--- Its status line as a seedling (a status line holds 80 characters)
-seedling_message = "A seedling trades only with the House: nothing to trade. Release a Miner instead"
+-- Its status line as a startup (a status line holds 80 characters)
+startup_message = "A startup trades only with the House: nothing to trade. Release a Miner instead"
 
 -- What it has been doing (kept if the engine restarts)
 looks_since_last_trip = 0
@@ -151,12 +151,12 @@ function work_one_round()
   report_home_now_and_then()
 end
 
--- The House's prices leave a trader no margin, and a seedling may trade
+-- The House's prices leave a trader no margin, and a startup may trade
 -- only with the House: say so, rather than nap for ever
-function wait_while_a_seedling()
+function wait_while_a_startup()
   while house_only() do
-    set_status(seedling_message)
-    wait(seedling_recheck_pause)
+    set_status(startup_message)
+    wait(startup_recheck_pause)
   end
 end
 
@@ -174,7 +174,7 @@ end
 
 -- May run again after a crash or an engine restart: each step is safe to repeat
 function launched()
-  wait_while_a_seedling()
+  wait_while_a_startup()
   fuel_floor(fuel_reserve)
   get_an_engine()
   go(moon)

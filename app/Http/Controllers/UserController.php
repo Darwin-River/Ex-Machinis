@@ -43,7 +43,7 @@ class UserController extends Controller
                 // 106 spacecraft, wrecks and all, where the leaderboard said 8)
                 DB::raw('COUNT(agents.agent_id) - COUNT(agents.wrecked_at) AS agents'), DB::raw('COUNT(agents.wrecked_at) AS wrecks'),
                 DB::raw('IFNULL(companies.credits,0) AS credits'),
-                DB::raw('companies.eliminated_at IS NOT NULL AS ended'), 'companies.seedling', 'companies.matured_t')
+                DB::raw('companies.eliminated_at IS NOT NULL AS ended'), 'companies.startup', 'companies.matured_t')
             ->leftJoin('agents', fn ($j) => $j->on('agents.company_id', '=', 'companies.company_id')->whereNull('agents.station_id'))
             // The House runs the exchanges' station drones: it isn't a company to look up (#716)
             ->where('companies.house', 0)->groupBy('companies.company_id');
@@ -64,8 +64,8 @@ class UserController extends Controller
             $c->credits = number_format((int) $c->credits);
             $c->ended = (bool) $c->ended;
             // Its status in a column of its own (#744), not "(ended)" on its name
-            $c->status = $c->ended ? 'ended' : ((int) $c->seedling === 1 ? 'seedling' : ($c->matured_t !== null ? 'matured' : 'released'));
-            unset($c->seedling, $c->matured_t);
+            $c->status = $c->ended ? 'ended' : ((int) $c->startup === 1 ? 'startup' : ($c->matured_t !== null ? 'matured' : 'released'));
+            unset($c->startup, $c->matured_t);
             return $c;
         });
         // var_dump($spaceObjects);exit;
@@ -84,8 +84,8 @@ class UserController extends Controller
         // The view shows the company's ID, name, start date and bank account
         $user = (object) ['user_id' => $company->company_id, 'name' => $company->name,
             'created_at' => $company->created_at, 'credits' => $company->credits,
-            // The new rules (#637): a seedling's debt, or when it matured
-            'seedling' => (int) ($company->seedling ?? 0), 'debt' => (int) ($company->debt ?? 0),
+            // The new rules (#637): a startup's debt, or when it matured
+            'startup' => (int) ($company->startup ?? 0), 'debt' => (int) ($company->debt ?? 0),
             'matured_t' => $company->matured_t ?? null, 'owner_id' => $company->owner_id ?? null,
             'eliminated_at' => $company->eliminated_at ?? null, 'end_cause' => $company->end_cause ?? null,
             'founded_t' => $company->founded_t ?? null];
@@ -121,7 +121,7 @@ class UserController extends Controller
 
         // The new rules (#638): a matured company's shares, the bank's prices and the players' book
         $playerShares = null;
-        if (config('forge.new_rules') && $company->owner_id !== null && (int) $company->seedling === 0 && $company->matured_t !== null) {
+        if (config('forge.new_rules') && $company->owner_id !== null && (int) $company->startup === 0 && $company->matured_t !== null) {
             $viewer = \Illuminate\Support\Facades\Auth::user();
             // One cash-out for the page: its parts, the bank's prices and the
             // credits tile (#716: the Shares paragraph said 12,304, the tile 11,292)
@@ -142,17 +142,17 @@ class UserController extends Controller
         // Its owner, for the title (#697)
         $owner = $company->owner_id !== null
             ? \Illuminate\Support\Facades\DB::table('users')->where('user_id', $company->owner_id)->value('login') : null;
-        // A live seedling's road to maturity (#697): its credits against its
+        // A live startup's road to maturity (#697): its credits against its
         // debt, the mark it matures at and its credit cap, and what its owner can do
         $road = null;
-        if ((int) ($company->seedling ?? 0) === 1 && $company->eliminated_at === null) {
+        if ((int) ($company->startup ?? 0) === 1 && $company->eliminated_at === null) {
             $row = \Illuminate\Support\Facades\DB::table('companies')->where('company_id', $id)->first();
             $viewer = \Illuminate\Support\Facades\Auth::user();
             $debt = (int) $row->debt;
             $road = ['credits' => (int) $row->credits, 'debt' => $debt, 'owed_tax' => (int) $row->compute_debt,
-                'mature_at' => $debt + \App\Services\Seedlings::matureMargin(), 'margin' => \App\Services\Seedlings::matureMargin(),
-                'cap' => \App\Services\Seedlings::creditCap($row), 'can_mature' => \App\Services\Seedlings::canMature($row),
-                'push_fee' => \App\Services\Seedlings::pushFee($row),
+                'mature_at' => $debt + \App\Services\Startups::matureMargin(), 'margin' => \App\Services\Startups::matureMargin(),
+                'cap' => \App\Services\Startups::creditCap($row), 'can_mature' => \App\Services\Startups::canMature($row),
+                'push_fee' => \App\Services\Startups::pushFee($row),
                 'owner' => $viewer && $viewer->login !== null && $row->owner_id !== null && (int) $viewer->user_id === (int) $row->owner_id];
             // When it should mature at its pace (#744: a projected maturing day)
             $road['forecast'] = \App\Services\CompanyNow::forecast($row, $road['mature_at'] + $road['owed_tax'] - (int) $row->compute_debt,
@@ -162,7 +162,7 @@ class UserController extends Controller
         // cash-out a share against the bank's price and players' trades,
         // earnings, dividends and working drones
         $epoch = (int) (\Illuminate\Support\Facades\DB::table('game_clock')->where('id', 1)->value('epoch') ?? 0);
-        $matured = $company->owner_id !== null && (int) $company->seedling === 0 && $company->matured_t !== null;
+        $matured = $company->owner_id !== null && (int) $company->startup === 0 && $company->matured_t !== null;
         $perf = [
             'today' => $today,
             'history' => \App\Services\Leaderboard::history((int) $id),

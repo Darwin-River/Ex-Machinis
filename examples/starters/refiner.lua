@@ -71,7 +71,7 @@ end
 
 -- An unchanged order costs no fuel to post again
 function post_sell_orders()
-  if house_only() then return end   -- a seedling sells straight to the House
+  if house_only() then return end   -- a startup sells straight to the House
   for _, good in ipairs(goods_sold) do
     local price = asking_price(good)
     if price > 0 then sell_order_if_changed(price, 0, good) end
@@ -213,7 +213,7 @@ end
 -- A kit still aboard from a failed hand-over goes to the copy first; a
 -- hull already bought launches whenever the fuel allows
 function reinvest()
-  if house_only() then return end   -- a seedling keeps its credits for its debt
+  if house_only() then return end   -- a startup keeps its credits for its debt
   if fleet_full() then sell_spare_kits({cruiser_kit, mining_kit}); return end
   if past_grow_until_with_no_kit() then return end
   if units(mining_kit) > 0 then equip_clone(); fill_to(TANK_AFTER_LAUNCH); return end

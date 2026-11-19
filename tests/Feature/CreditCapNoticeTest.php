@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\PlayerBoards;
 use App\Services\Players;
-use App\Services\Seedlings;
+use App\Services\Startups;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
-/** A seedling at its credit cap (#749): ready to mature, said on the account page, the digest, its Road and the API */
+/** A startup at its credit cap (#749): ready to mature, said on the account page, the digest, its Road and the API */
 class CreditCapNoticeTest extends TestCase
 {
     use DatabaseTransactions;
@@ -20,22 +20,22 @@ class CreditCapNoticeTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['forge.new_rules' => true, 'forge.seedling_max' => 5]);
+        config(['forge.new_rules' => true, 'forge.startup_max' => 5]);
         Mail::fake();
         Cache::flush();
     }
 
-    public function testASeedlingAtItsCapIsReadyToMature()
+    public function testAStartupAtItsCapIsReadyToMature()
     {
         DB::table('house_rules')->updateOrInsert(['id' => 1], ['tax_period' => 0, 'tax_grace' => 0, 'tax_flat' => 0,
-            'tax_permille' => 0, 'plunder_share' => 50, 'compute_tax_per_million' => 15, 'seedling_credit_cap_permille' => 2000]);
+            'tax_permille' => 0, 'plunder_share' => 50, 'compute_tax_per_million' => 15, 'startup_credit_cap_permille' => 2000]);
         $email = 'capper@example.com';
         $made = Players::create('Capper', 'long-enough', $email);
         Players::verify($made->user_id, sha1($email));
         $p = User::where('user_id', $made->user_id)->first();
-        $id = Seedlings::start($p, 'Capper Co', 'function launched() wait(60) end')['company'];
+        $id = Startups::start($p, 'Capper Co', 'function launched() wait(60) end')['company'];
         $c = DB::table('companies')->where('company_id', $id)->first();
-        $cap = Seedlings::creditCap($c);
+        $cap = Startups::creditCap($c);
         $this->assertNotNull($cap);
 
         // Below its cap: nothing said

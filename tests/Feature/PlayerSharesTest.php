@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\Players;
 use App\Services\PlayerShares;
-use App\Services\Seedlings;
+use App\Services\Startups;
 use App\Services\World;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -24,10 +24,10 @@ class PlayerSharesTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['forge.new_rules' => true, 'forge.seedling_hull_value' => 2000, 'forge.seedling_fee' => 500,
+        config(['forge.new_rules' => true, 'forge.startup_hull_value' => 2000, 'forge.startup_fee' => 500,
             'forge.starting_credits' => 3000, 'forge.player_share_credits' => 5000, 'forge.bank_pay_days' => 30,
             'forge.share_range_low' => 0.8, 'forge.share_range_high' => 1.25, 'forge.hull_life_days' => 365,
-            'forge.dividend_permille' => 500, 'forge.seedling_max' => 5, 'forge.seedling_mature_margin' => 0]);
+            'forge.dividend_permille' => 500, 'forge.startup_max' => 5, 'forge.startup_mature_margin' => 0]);
         Mail::fake();
     }
 
@@ -42,13 +42,13 @@ class PlayerSharesTest extends TestCase
     /** A matured company of the player's with this many credits once matured */
     private function matured(User $owner, string $name, int $credits): int
     {
-        $id = Seedlings::start($owner, $name, "function launched() wait(60) end")['company'];
-        DB::table('companies')->where('company_id', $id)->update(['credits' => $credits + Seedlings::grant()]);
+        $id = Startups::start($owner, $name, "function launched() wait(60) end")['company'];
+        DB::table('companies')->where('company_id', $id)->update(['credits' => $credits + Startups::grant()]);
         // Fuel aboard its drone (the test world's game data may not have fuel)
         $drone = (int) DB::table('agents')->where('company_id', $id)->value('agent_id');
         DB::table('holdings')->updateOrInsert(['drone' => $drone, 'resource' => \App\Services\Release::FUEL, 'installed' => 0, 'locked' => 0],
             ['units' => 100, 'event_id' => 0]);
-        $this->assertTrue(Seedlings::mature($owner, $id)['ok']);
+        $this->assertTrue(Startups::mature($owner, $id)['ok']);
         return $id;
     }
 
@@ -388,10 +388,10 @@ class PlayerSharesTest extends TestCase
         $this->assertNotNull($group['id']);
     }
 
-    public function testSeedlingsHaveNoSharesToTrade()
+    public function testStartupsHaveNoSharesToTrade()
     {
         $owner = $this->player('Grower');
-        $seed = Seedlings::start($owner, 'Young Co', "function launched() wait(60) end")['company'];
+        $seed = Startups::start($owner, 'Young Co', "function launched() wait(60) end")['company'];
         $this->assertSame(404, PlayerShares::sellToBank($owner, $seed, 1)['status']);
         $this->assertSame(404, PlayerShares::order($owner, $seed, 'buy', 1, 1)['status']);
         $this->get('/companies/' . $seed)->assertDontSee('id="player-shares"', false);
@@ -461,8 +461,8 @@ class PlayerSharesTest extends TestCase
         $this->postJson("/api/v1/player-shares/$id/bank/sell", ['units' => 0.5], $h)->assertStatus(422)
             ->assertJsonPath('error', "Shares are whole: 0.5 isn't a whole number.");
         // Only a matured company's shares trade, and only it has prices (#652)
-        $seedling = Seedlings::start($owner, 'Api Seedling', "function launched() wait(60) end")['company'];
-        $this->getJson("/api/v1/player-shares/$seedling")->assertNotFound();
+        $startup = Startups::start($owner, 'Api Startup', "function launched() wait(60) end")['company'];
+        $this->getJson("/api/v1/player-shares/$startup")->assertNotFound();
     }
 
     /** #683: selling to the bank trims sell orders; sell orders never offer more than held; own orders never cross */
@@ -512,9 +512,9 @@ class PlayerSharesTest extends TestCase
         $this->getJson("/api/v1/player-shares/$id")->assertJsonPath('trades.0.buyer_name', 'The bank')
             ->assertJsonPath('trades.0.buyer_is_bank', true);
 
-        // A closed seedling owes nothing and isn't at risk
-        $seed = Seedlings::start($owner, 'Closed Co', "function launched() wait(60) end")['company'];
-        Seedlings::close($owner, $seed);
+        // A closed startup owes nothing and isn't at risk
+        $seed = Startups::start($owner, 'Closed Co', "function launched() wait(60) end")['company'];
+        Startups::close($owner, $seed);
         DB::table('companies')->where('company_id', $seed)->update(['debt' => 5500]);   // as a world reset leaves it
         $this->get('/companies/' . $seed)->assertOk()->assertSee('it owes nothing')->assertDontSee('it owes the bank')
             ->assertDontSee('At risk');

@@ -1,8 +1,8 @@
 @extends('layouts.app')
-@section('pageTitle', 'Your first seedling')
+@section('pageTitle', 'Your first startup')
 @push('styles')
     <style>
-        /* The first-seedling guide (#719): five steps on one screen each, no sideways scroll at 390 px */
+        /* The first-startup guide (#719): five steps on one screen each, no sideways scroll at 390 px */
         .fs > * { max-width: 60rem; }
         .fs-lead { font-size: 1.1rem; color: #c3c9d8; max-width: 44em; margin: 0 0 1.25rem; }
         .fs-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0 0 .5rem; }
@@ -57,26 +57,26 @@
 @endpush
 @section('content')
     @php($n = fn ($v) => number_format($v))
-    <x-page-header :title="'Your first seedling'" :subtitle="'Five minutes to start a seedling from a starter script, and about 40 real minutes to two hours, at the normal pace, until it matures into a company of your own: pick a starter, start it, read its page, push a fix, mature it.'">
+    <x-page-header :title="'Your first startup'" :subtitle="'Five minutes to found a startup from a starter script, and about 40 real minutes to two hours, at the normal pace, until it matures into a company of your own: pick a starter, start it, read its page, push a fix, mature it.'">
         <li class="active">Getting started</li>
     </x-page-header>
     <section class="section section-xs section-first">
-        <div class="container fs" id="first-seedling">
-            <p class="fs-lead">A <b>seedling</b> is a company the bank lends you for free. Your Lua code runs its drone on its
+        <div class="container fs" id="first-startup">
+            <p class="fs-lead">A <b>startup</b> is a company the bank lends you for free. Your Lua code runs its drone on its
                 own; if it fails, close it and it costs you nothing. Here is the whole way from nothing to its
-                {{ $seedling['shares'] }} shares, with the numbers in force today.</p>
+                {{ $startup['shares'] }} shares, with the numbers in force today.</p>
 
-            <div class="fs-tiles" id="seedling-numbers">
-                <div class="fs-tile"><small>The bank lends</small><b>{{ $n($seedling['grant']) }}</b>
-                    <span>drone {{ $n($seedling['hull']) }}, credits {{ $n($seedling['credits']) }}, fee {{ $n($seedling['fee']) }}</span></div>
-                <div class="fs-tile"><small>It matures at</small><b>{{ $n($seedling['mature_at']) }}</b>
-                    <span>credits: its debt and {{ $n($seedling['margin']) }} to work with</span></div>
-                <div class="fs-tile"><small>Then you own</small><b>{{ $seedling['shares'] }} shares</b>
+            <div class="fs-tiles" id="startup-numbers">
+                <div class="fs-tile"><small>The bank lends</small><b>{{ $n($startup['grant']) }}</b>
+                    <span>drone {{ $n($startup['hull']) }}, credits {{ $n($startup['credits']) }}, fee {{ $n($startup['fee']) }}</span></div>
+                <div class="fs-tile"><small>It matures at</small><b>{{ $n($startup['mature_at']) }}</b>
+                    <span>credits: its debt and {{ $n($startup['margin']) }} to work with</span></div>
+                <div class="fs-tile"><small>Then you own</small><b>{{ $startup['shares'] }} shares</b>
                     <span>each paid a share of its profit every game day</span></div>
                 <div class="fs-tile"><small>A game day takes</small><b>{{ str_replace(['about ', ' real seconds', ' real minutes', ' real hours'], ['', ' s', ' min', ' h'], \App\Services\LaunchQueue::dayPace($clock)) }}</b>
                     <span>real time, right now</span></div>
             </div>
-            <p class="fs-src">Data: <code>GET /api/v1/clock</code> for the pace; the rest are the rules in force (the <a href="{{ url('manual#releasing-a-seedling') }}">manual</a> has them all).</p>
+            <p class="fs-src">Data: <code>GET /api/v1/clock</code> for the pace; the rest are the rules in force (the <a href="{{ url('manual#releasing-a-startup') }}">manual</a> has them all).</p>
 
             <ol class="fs-steps">
                 <li class="fs-step" id="pick">
@@ -96,19 +96,19 @@
                         @endforeach
                     </div>
                     <p class="fs-note">Not sure? The <b>Miner</b> is the simplest: dig, refine, sell, repeat. The Trader starter
-                        isn't offered to seedlings: it buys from other drones, and a seedling trades only with the House.
+                        isn't offered to startups: it buys from other drones, and a startup trades only with the House.
                         Times are from a playtest at the normal pace (48 real seconds a game day), unchanged code; a crowded world takes longer.</p>
                 </li>
 
                 <li class="fs-step" id="start">
                     <h2>How do I start it? <span class="fs-time">1 minute</span></h2>
                     <p><a href="{{ url('signup') }}">Make an account</a> or <a href="{{ url('login') }}">log in</a> first, so the
-                        seedling is yours (a guest gets a claim code to keep it with). On <a href="{{ url('release') }}">Start a seedling</a>,
-                        your starter's code is already in the box: give the company a name and press <b>Start seedling</b>.
-                        The bank lends it {{ $n($seedling['grant']) }}: a drone ({{ $n($seedling['hull']) }}),
-                        {{ $n($seedling['credits']) }} credits to spend and a {{ $n($seedling['fee']) }} fee. Its first act is to buy its
+                        startup is yours (a guest gets a claim code to keep it with). On <a href="{{ url('release') }}">Found a startup</a>,
+                        your starter's code is already in the box: give the company a name and press <b>Found startup</b>.
+                        The bank lends it {{ $n($startup['grant']) }}: a drone ({{ $n($startup['hull']) }}),
+                        {{ $n($startup['credits']) }} credits to spend and a {{ $n($startup['fee']) }} fee. Its first act is to buy its
                         kit for 2,000, so it starts with about 1,000 credits.</p>
-                    <div class="fs-actions"><a class="button button-primary" href="{{ url('release') }}">Start a seedling</a></div>
+                    <div class="fs-actions"><a class="button button-primary" href="{{ url('release') }}">Found a startup</a></div>
                 </li>
 
                 <li class="fs-step" id="read">
@@ -116,17 +116,17 @@
                     <p>You land on its drone's page: what it does and says, its fuel and its trades. Its <b>company page</b>
                         (the company's name, at the top) has the <b>Road to maturity</b>: its credits against its debt, and the
                         mark it matures at. Watch the bar move. At this pace a few minutes show you days of its life.</p>
-                    @php($w = fn ($v) => round(100 * $v / $seedling['cap'], 1))
-                    <figure class="fs-road" aria-label="Road to maturity, a fresh seedling after buying its kit">
-                        <h3>Road to maturity <span class="fs-time">a fresh seedling, after its kit</span></h3>
+                    @php($w = fn ($v) => round(100 * $v / $startup['cap'], 1))
+                    <figure class="fs-road" aria-label="Road to maturity, a fresh startup after buying its kit">
+                        <h3>Road to maturity <span class="fs-time">a fresh startup, after its kit</span></h3>
                         <div class="fs-bar">
                             <i style="width: {{ $w(1000) }}%"></i>
                             <span class="fs-mk fs-up" style="left: {{ $w(1000) }}%"><em>credits 1,000</em></span>
-                            <span class="fs-mk fs-down" style="left: {{ $w($seedling['grant']) }}%"><em>debt {{ $n($seedling['grant']) }}</em></span>
-                            <span class="fs-mk fs-up" style="left: {{ $w($seedling['mature_at']) }}%"><em>matures {{ $n($seedling['mature_at']) }}</em></span>
-                            <span class="fs-mk fs-down fs-end" style="left: 100%"><em>cap {{ $n($seedling['cap']) }}</em></span>
+                            <span class="fs-mk fs-down" style="left: {{ $w($startup['grant']) }}%"><em>debt {{ $n($startup['grant']) }}</em></span>
+                            <span class="fs-mk fs-up" style="left: {{ $w($startup['mature_at']) }}%"><em>matures {{ $n($startup['mature_at']) }}</em></span>
+                            <span class="fs-mk fs-down fs-end" style="left: 100%"><em>cap {{ $n($startup['cap']) }}</em></span>
                         </div>
-                        <figcaption class="fs-note">It holds at most {{ $n($seedling['cap']) }}: what it earns above that goes to the bank,
+                        <figcaption class="fs-note">It holds at most {{ $n($startup['cap']) }}: what it earns above that goes to the bank,
                             so mature it once it can.</figcaption>
                     </figure>
                     <p>Stuck? Its page says what it is waiting for, and a drone that dies gets a <b>post-mortem</b> that says why.</p>
@@ -136,7 +136,7 @@
                     <h2>What if it goes wrong? <span class="fs-time">1 minute</span></h2>
                     <p>Push a fix. On its company page, <b>Push new code</b> takes your edited script to its drones at the speed
                         of light; it starts over on it, keeping its hold and its place. The first push is free, each after it adds
-                        {{ $n($seedling['push_fee']) }} to the debt. Treat a change as an experiment: note its credits before, push, and
+                        {{ $n($startup['push_fee']) }} to the debt. Treat a change as an experiment: note its credits before, push, and
                         compare a few game days later. For example, the Miner sells once it has 40 metals aboard; with more aboard it
                         makes fewer trips, each worth more, if the <a href="{{ url('market') }}">Market board</a> shows the House
                         still wants them:</p>
@@ -145,16 +145,16 @@
 <ins>+ hold_cap = 60</ins></pre>
                     <p>It may help or not: in round 72, a Miner told its time was worth less (<code>hour_value</code> 2) flew to the
                         lowest bids and matured later than an unchanged one. A change that doesn't
-                        work is fine: push another, or <b>close</b> the seedling. Its debt is cancelled, and a game day later its slot is
-                        free (you run up to {{ $seedling['max'] }} at a time). Break, learn, repeat.</p>
+                        work is fine: push another, or <b>close</b> the startup. Its debt is cancelled, and a game day later its slot is
+                        free (you run up to {{ $startup['max'] }} at a time). Break, learn, repeat.</p>
                 </li>
 
                 <li class="fs-step" id="mature">
                     <h2>When is it mine? <span class="fs-time">when it gets there</span></h2>
-                    <p>Once it holds {{ $n($seedling['mature_at']) }} credits (its debt and {{ $n($seedling['margin']) }} more; each paid push
-                        adds {{ $n($seedling['push_fee']) }}), a <b>Mature</b> button appears on its Road to maturity, on your account page, and in the strip under the menu on every page, which also says when it should mature at its pace.
+                    <p>Once it holds {{ $n($startup['mature_at']) }} credits (its debt and {{ $n($startup['margin']) }} more; each paid push
+                        adds {{ $n($startup['push_fee']) }}), a <b>Mature</b> button appears on its Road to maturity, on your account page, and in the strip under the menu on every page, which also says when it should mature at its pace.
                         Maturing repays the bank and locks its code for good. From then on it trades with everyone, and its
-                        {{ $seedling['shares'] }} shares are yours: each game day it pays half its profit to its shareholders.
+                        {{ $startup['shares'] }} shares are yours: each game day it pays half its profit to its shareholders.
                         Keep them, sell them to the bank, or trade them with other players.</p>
                 </li>
             </ol>

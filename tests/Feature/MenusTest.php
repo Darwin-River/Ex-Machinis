@@ -14,7 +14,7 @@ class MenusTest extends TestCase
     use DatabaseTransactions;
 
     private const MENUS = [
-        'nav-play' => ['release', 'seedlings/race', 'getting-started'],
+        'nav-play' => ['release', 'startups/race', 'getting-started'],
         'nav-market' => ['market', 'market/house', 'market/history', 'market/shares', 'market/trade', 'dashboard'],
         'nav-companies' => ['leaderboard', 'players', 'companies', 'spacecraft', 'lineage', 'events', 'map'],
         'nav-reference' => ['manual', 'technology', 'resources', 'protocols', 'queries', 'locations', 'blog'],

@@ -7,7 +7,7 @@ use Tests\TestCase;
 /**
  * Round 70's fixes to the drones' side of the market: buy_here's pulls
  * after a -17 (#710), and the unchanged Miner and Maker starters maturing
- * a seedling (#713). The House's own buying is in HouseMarketTest (#691)
+ * a startup (#713). The House's own buying is in HouseMarketTest (#691)
  * and house_supply's freshness in its testHouseSupplyShowsStockAndRestocking.
  */
 class RoundSeventyFixesTest extends TestCase
@@ -44,7 +44,7 @@ class RoundSeventyFixesTest extends TestCase
         $this->assertStringContainsString('local where = best_market() or market()', $miner);
     }
 
-    /** #713: a seedling Maker sells to the House's bids, and a broke one rests */
+    /** #713: a startup Maker sells to the House's bids, and a broke one rests */
     public function testTheMakerSellsToTheHouseAndRestsWhenBroke()
     {
         $maker = $this->source('examples/starters/maker.lua');

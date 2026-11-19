@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
  * over its life and a game day, with a running total for the drone page's
  * activity chart, and a company's drones ranked by it. Equipment it bought
  * (kits, modules and hulls) is invested, not spent, as on the company's
- * charts (#759, #778; #833: a new seedling's drone read "-976 a game day"
+ * charts (#759, #778; #833: a new startup's drone read "-976 a game day"
  * for its 2,000 kit while its company's chart called that an investment). Players learn which
  * code path pays, and come back to fix the worst drone.
  */

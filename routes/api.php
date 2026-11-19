@@ -62,16 +62,16 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['new-rules', 'throttle:api-write'])->post('login', 'AccountApiController@login');
     Route::middleware(['new-rules', 'throttle:api-read'])->get('account', 'AccountApiController@show');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('account/verify', 'AccountApiController@resendVerification');
-    // Seedlings (#637)
-    Route::middleware(['new-rules', 'throttle:api-read'])->get('seedlings', 'SeedlingApiController@index');
-    Route::middleware(['new-rules', 'throttle:api-write'])->post('seedlings/claim', 'SeedlingApiController@claim');
-    Route::middleware(['new-rules', 'throttle:api-write'])->post('seedlings/{id}/push', 'SeedlingApiController@reprogram')->whereNumber('id');
-    Route::middleware(['new-rules', 'throttle:api-write'])->post('seedlings/{id}/close', 'SeedlingApiController@close')->whereNumber('id');
-    Route::middleware(['new-rules', 'throttle:api-write'])->post('seedlings/{id}/mature', 'SeedlingApiController@mature')->whereNumber('id');
+    // Startups (#637)
+    Route::middleware(['new-rules', 'throttle:api-read'])->get('startups', 'StartupApiController@index');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('startups/claim', 'StartupApiController@claim');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('startups/{id}/push', 'StartupApiController@reprogram')->whereNumber('id');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('startups/{id}/close', 'StartupApiController@close')->whereNumber('id');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('startups/{id}/mature', 'StartupApiController@mature')->whereNumber('id');
     // Player boards and the digest (#640)
     Route::middleware(['new-rules', 'throttle:api-read'])->get('players', 'PlayerBoardController@api');
-    // The seedling race (#776)
-    Route::middleware(['new-rules', 'throttle:api-read'])->get('seedlings/race', 'SeedlingController@raceApi');
+    // The startup race (#776)
+    Route::middleware(['new-rules', 'throttle:api-read'])->get('startups/race', 'StartupController@raceApi');
     Route::middleware(['new-rules', 'throttle:api-read'])->get('account/digest', 'PlayerBoardController@digest');
     Route::middleware(['new-rules', 'throttle:api-read'])->get('account/records', 'PlayerBoardController@records');
     // Who a company deals with (#639)

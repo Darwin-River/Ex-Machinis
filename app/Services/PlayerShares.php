@@ -77,7 +77,7 @@ class PlayerShares
         $c = DB::table('companies')->where('company_id', $company)->first();
         // An ended company's shares are worth nothing and don't trade (#743:
         // the bank took them at 0, and orders on them stayed listed)
-        return $c && (int) $c->seedling === 0 && $c->owner_id !== null && $c->matured_t !== null && $c->eliminated_at === null ? $c : null;
+        return $c && (int) $c->startup === 0 && $c->owner_id !== null && $c->matured_t !== null && $c->eliminated_at === null ? $c : null;
     }
 
     /**
@@ -180,7 +180,7 @@ class PlayerShares
 
         // Hulls: a fixed value falling with age, nothing for a stranded drone
         $now = World::gameNow();
-        $hullValue = (int) config('forge.seedling_hull_value');
+        $hullValue = (int) config('forge.startup_hull_value');
         $life = max(1, (int) config('forge.hull_life_days')) * 86400;
         $strandedSince = $now - (int) config('forge.stranded_days') * 86400;
         $drones = DB::table('agents')->whereIn('company_id', $live)->whereNull('wrecked_at')
@@ -290,7 +290,7 @@ class PlayerShares
      * A share's dividends over the last 30 game days: what the company
      * actually paid its holders since it matured (#673). It was estimated
      * from profit, so a company just matured sold at a premium earned while
-     * it was a seedling, before it had paid anything (round 68: +31%)
+     * it was a startup, before it had paid anything (round 68: +31%)
      */
     public static function dividends30(int $company): int
     {
@@ -881,7 +881,7 @@ class PlayerShares
      */
     public static function market(): array
     {
-        $companies = DB::table('companies')->where('seedling', 0)->whereNotNull('owner_id')->whereNotNull('matured_t')
+        $companies = DB::table('companies')->where('startup', 0)->whereNotNull('owner_id')->whereNotNull('matured_t')
             ->whereNull('eliminated_at')->orderBy('name')->get(['company_id', 'name']);
         $ids = $companies->pluck('company_id')->map(fn ($id) => (int) $id)->all();
         $cash = self::cashOuts($ids);
@@ -1071,7 +1071,7 @@ class PlayerShares
         $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
         $permille = (int) config('forge.dividend_permille');
         $paid = 0;
-        $companies = DB::table('companies')->where('seedling', 0)->whereNotNull('owner_id')->whereNotNull('matured_t')
+        $companies = DB::table('companies')->where('startup', 0)->whereNotNull('owner_id')->whereNotNull('matured_t')
             ->whereNull('eliminated_at')->get(['company_id', 'matured_t', 'player_dividend_day']);
         foreach ($companies as $c) {
             $from = $c->player_dividend_day !== null ? (int) $c->player_dividend_day

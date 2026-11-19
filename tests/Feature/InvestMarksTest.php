@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Services\Players;
-use App\Services\Seedlings;
+use App\Services\Startups;
 use App\Services\World;
 use App\Services\WorldEvents;
 use App\User;
@@ -21,7 +21,7 @@ class InvestMarksTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['forge.new_rules' => true, 'forge.seedling_max' => 5]);
+        config(['forge.new_rules' => true, 'forge.startup_max' => 5]);
         Mail::fake();
         Cache::flush();
     }
@@ -32,7 +32,7 @@ class InvestMarksTest extends TestCase
         $made = Players::create('Investor Mark', 'long-enough', $email);
         Players::verify($made->user_id, sha1($email));
         $p = User::where('user_id', $made->user_id)->first();
-        $id = Seedlings::start($p, 'Invest Co', 'function launched() wait(60) end')['company'];
+        $id = Startups::start($p, 'Invest Co', 'function launched() wait(60) end')['company'];
         $drone = (int) DB::table('agents')->where('company_id', $id)->value('agent_id');
         $other = (int) DB::table('agents')->where('agent_id', '<>', $drone)->value('agent_id');
         $now = World::gameNow();

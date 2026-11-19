@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
  *   with nothing aboard, no standing orders and no work queued;
  * - the old share market's open orders, offerings and requests go, and so
  *   do the players' shares, orders and bank payments in ended companies;
- * - the launch queue empties, the seedlings' daily purchases are forgotten
+ * - the launch queue empties, the startups' daily purchases are forgotten
  *   and every deposit is full again;
  * - player accounts stay, with no credits and their starting share credits
  *   back (a verified account's, or a pupil's), or are deleted with
@@ -92,7 +92,7 @@ class WorldReset
                 DB::table('bank_payments')->whereIn('company_id', $companies)->whereNull('paid_t')->delete();
             }
             DB::table('launch_queue')->whereNull('released_at')->delete();
-            DB::table('seedling_buys')->delete();
+            DB::table('startup_buys')->delete();
             // Every deposit full again
             DB::statement('UPDATE deposit_state AS s JOIN deposits AS d ON d.object_id = s.object_id AND d.resource = s.resource
                 SET s.amount = d.capacity, s.refilled_t = ?', [$now]);
@@ -140,10 +140,10 @@ class WorldReset
             $agent = Release::release($owner, $name, (string) Release::starter($starter), null, null, null,
                 Release::STARTER_KITS[$starter] ?? 'mining');
             $id = (int) $agent->company_id;
-            DB::table('companies')->where('company_id', $id)->update(['seedling' => 0, 'owner_id' => $owner->user_id,
+            DB::table('companies')->where('company_id', $id)->update(['startup' => 0, 'owner_id' => $owner->user_id,
                 'debt' => 0, 'matured_t' => World::gameNow()]);
             DB::statement('INSERT INTO bank_shares (company_id, units) VALUES (?, ?) ON DUPLICATE KEY UPDATE units = VALUES(units)',
-                [$id, Seedlings::SHARES]);
+                [$id, Startups::SHARES]);
             $made[$id] = $name;
         }
         return $made;

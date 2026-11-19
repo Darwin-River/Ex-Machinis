@@ -14,7 +14,7 @@ use Tests\TestCase;
 /**
  * The Market page's goods board (#721): one row per good, the cheapest
  * seller and best buyer at each place, the best deal and the 7-day change;
- * each good's whole order book on its own page. And the Start a seedling
+ * each good's whole order book on its own page. And the Found a startup
  * page's starter cards (#719).
  */
 class MarketBoardTest extends TestCase
@@ -139,13 +139,13 @@ class MarketBoardTest extends TestCase
     }
 
     /** #719: three starter cards, the Miner loaded, a short note with the rules folded */
-    public function testTheStartASeedlingPageOffersTheThreeStarters()
+    public function testTheStartAStartupPageOffersTheThreeStarters()
     {
         config(['forge.new_rules' => true]);
         $html = $this->get('/release')->assertOk()
-            ->assertSee('<title>Start a seedling - Ex-Machinis</title>', false)
-            ->assertSee('Start seedling</button>', false)
-            ->assertSee('id="seedling-rules"', false)->assertSee('<summary>Rules</summary>', false)
+            ->assertSee('<title>Found a startup - Ex-Machinis</title>', false)
+            ->assertSee('Found startup</button>', false)
+            ->assertSee('id="startup-rules"', false)->assertSee('<summary>Rules</summary>', false)
             ->assertDontSee('alert-info', false)
             ->assertDontSee('Hello from orbit')
             ->getContent();

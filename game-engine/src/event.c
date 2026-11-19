@@ -12,7 +12,7 @@
 #include <limits.h>
 #include <time.h>
 
-#include "db_seedling.h"
+#include "db_startup.h"
 #include "event.h"
 #include "db_station.h"
 #include "db_wreck.h"
@@ -971,9 +971,9 @@ ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* pe
         db_record_sales_tax(seller->user_id, *tax, seller->credits);
     }
 
-    // A seedling's credits above its cap go to the bank (#672): no point
-    // hoarding as a seedling, since maturing turns its credits into shares
-    seller->credits -= (int)db_seedling_skim(seller->user_id, seller->credits, event->game_t);
+    // A startup's credits above its cap go to the bank (#672): no point
+    // hoarding as a startup, since maturing turns its credits into shares
+    seller->credits -= (int)db_startup_skim(seller->user_id, seller->credits, event->game_t);
 
     // Dividends (#467) are no longer paid out of each sale: since #603 the
     // events engine settles them once a game day from the company's profit
@@ -1502,13 +1502,13 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
         return ENGINE_LOGIC_ERROR;
     }
 
-    // A seedling trades only with the House, and buys at most its share of
+    // A startup trades only with the House, and buys at most its share of
     // the House's stock here in a game day (#637)
-    int seedling_outcome = 0, seedling_buyer = 0;
-    if(db_seedling_transfer_outcome(event, partner, from_object, &seedling_outcome, &seedling_buyer) == ENGINE_OK &&
-       seedling_outcome != 0)
+    int startup_outcome = 0, startup_buyer = 0;
+    if(db_startup_transfer_outcome(event, partner, from_object, &startup_outcome, &startup_buyer) == ENGINE_OK &&
+       startup_outcome != 0)
     {
-        event_record_failure(&first, seedling_outcome);
+        event_record_failure(&first, startup_outcome);
         event_record_failure(&second, OUTCOME_ACTION_ABORTED);
         db_refund_fuel(event->action_id);   // a refused transfer costs no fuel
         return ENGINE_LOGIC_ERROR;
@@ -1527,7 +1527,7 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
         db_savepoint("RELEASE SAVEPOINT transfer");
         // What was bought: the untouched copy, as the applied event now holds
         // the buyer's whole stock (#663)
-        db_seedling_record_buy(seedling_buyer, &second, from_object);
+        db_startup_record_buy(startup_buyer, &second, from_object);
         return ENGINE_OK;
     }
 

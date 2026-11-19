@@ -6,7 +6,7 @@ use App\Agent;
 use App\Services\Players;
 use App\Services\PlayerShares;
 use App\Services\Release;
-use App\Services\Seedlings;
+use App\Services\Startups;
 use App\Services\World;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -31,17 +31,17 @@ class RoundSixtyNineFixesTest extends TestCase
 
     public function testWholeNumberFloatsAreWholeNumbers()
     {
-        config(['forge.new_rules' => true, 'forge.seedling_hull_value' => 2000, 'forge.seedling_fee' => 500,
+        config(['forge.new_rules' => true, 'forge.startup_hull_value' => 2000, 'forge.startup_fee' => 500,
             'forge.starting_credits' => 3000, 'forge.player_share_credits' => 5000, 'forge.bank_pay_days' => 30,
             'forge.share_range_low' => 0.8, 'forge.share_range_high' => 1.25, 'forge.hull_life_days' => 365,
-            'forge.seedling_max' => 5, 'forge.seedling_mature_margin' => 0]);
+            'forge.startup_max' => 5, 'forge.startup_mature_margin' => 0]);
         Mail::fake();
         $owner = Players::create('Float Founder', 'long-enough', 'float.founder@example.com');
         Players::verify($owner->user_id, sha1('float.founder@example.com'));
         $owner = User::where('user_id', $owner->user_id)->first();
-        $id = Seedlings::start($owner, 'Float Co', 'function launched() wait(60) end')['company'];
-        DB::table('companies')->where('company_id', $id)->update(['credits' => 100000 + Seedlings::grant()]);
-        $this->assertTrue(Seedlings::mature($owner, $id)['ok']);
+        $id = Startups::start($owner, 'Float Co', 'function launched() wait(60) end')['company'];
+        DB::table('companies')->where('company_id', $id)->update(['credits' => 100000 + Startups::grant()]);
+        $this->assertTrue(Startups::mature($owner, $id)['ok']);
         $h = ['Authorization' => 'Bearer ' . Players::issueToken($owner), 'Content-Type' => 'application/json'];
         $sells = PlayerShares::prices($id)['sells_at'];
         $this->call('POST', "/api/v1/player-shares/$id/orders", [], [], [], $this->transformHeadersToServerVars($h),

@@ -8,8 +8,8 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
 /**
- * Seedlings (#637, step 2 of the new rules in #635). Every company starts as
- * a seedling: free to start, it is lent its hull and starting credits by the
+ * Startups (#637, step 2 of the new rules in #635). Every company starts as
+ * a startup: free to start, it is lent its hull and starting credits by the
  * bank, plus a fee, and owes all three (its debt). The engine lets it trade
  * only with the House, buying at most a share of the House's stock of a good
  * at one exchange in a game day, and plunder nothing; its wreck can't be
@@ -17,58 +17,58 @@ use Illuminate\Support\Str;
  * it (it leaves the game with all it holds, and its debt is cancelled). Once
  * it holds enough credits to pay its debt, its player may mature it: it
  * repays, becomes a company in its own right, and the player receives its
- * 100 shares. A player has at most forge.seedling_max seedlings at a time;
- * a closed one's slot reopens after forge.seedling_slot_days game days.
+ * 100 shares. A player has at most forge.startup_max startups at a time;
+ * a closed one's slot reopens after forge.startup_slot_days game days.
  * Anyone may start one as a guest, and claim it into an account with its
  * claim code.
  */
-class Seedlings
+class Startups
 {
     public const SHARES = PlayerShares::COUNT;   // 100 (#667)
 
-    /** What a new seedling owes: its hull, its starting credits and the fee */
+    /** What a new startup owes: its hull, its starting credits and the fee */
     public static function grant(): int
     {
-        return (int) config('forge.seedling_hull_value') + (int) config('forge.starting_credits')
-            + (int) config('forge.seedling_fee');
+        return (int) config('forge.startup_hull_value') + (int) config('forge.starting_credits')
+            + (int) config('forge.startup_fee');
     }
 
-    /** Seedling slots an account is using now: its live seedlings, and those closed within the slot days */
+    /** Startup slots an account is using now: its live startups, and those closed within the slot days */
     public static function slotsInUse(int $owner): int
     {
-        $since = World::gameNow() - (int) config('forge.seedling_slot_days') * 86400;
-        return DB::table('companies')->where('owner_id', $owner)->where('seedling', 1)
+        $since = World::gameNow() - (int) config('forge.startup_slot_days') * 86400;
+        return DB::table('companies')->where('owner_id', $owner)->where('startup', 1)
             ->where(fn ($q) => $q->whereNull('eliminated_at')->orWhere('eliminated_at', '>', $since))->count();
     }
 
-    /** Why this account can't start or claim a seedling now, or null */
+    /** Why this account can't start or claim a startup now, or null */
     public static function slotProblem(?User $owner): ?string
     {
         if ($owner === null) {
             return null;
         }
-        $max = (int) config('forge.seedling_max');
+        $max = (int) config('forge.startup_max');
         if (self::slotsInUse((int) $owner->user_id) < $max) {
             return null;
         }
         // Say which slots are taken, and when a held one frees (#743: "You
-        // have 5 seedlings already" read wrong with 4 running and a wreck's
+        // have 5 startups already" read wrong with 4 running and a wreck's
         // slot still held)
-        $since = World::gameNow() - (int) config('forge.seedling_slot_days') * 86400;
-        $mine = DB::table('companies')->where('owner_id', $owner->user_id)->where('seedling', 1);
+        $since = World::gameNow() - (int) config('forge.startup_slot_days') * 86400;
+        $mine = DB::table('companies')->where('owner_id', $owner->user_id)->where('startup', 1);
         $live = (clone $mine)->whereNull('eliminated_at')->count();
         $held = (clone $mine)->where('eliminated_at', '>', $since)->min('eliminated_at');
         $closed = (clone $mine)->where('eliminated_at', '>', $since)->count();
-        $text = "All $max of your seedling slots are in use: $live running";
+        $text = "All $max of your startup slots are in use: $live running";
         if ($closed > 0) {
-            $text .= ", and $closed that ended within the last game day (a slot reopens a game day after its seedling ends; the next at "
-                . DronePage::when((int) $held + (int) config('forge.seedling_slot_days') * 86400) . ')';
+            $text .= ", and $closed that ended within the last game day (a slot reopens a game day after its startup ends; the next at "
+                . DronePage::when((int) $held + (int) config('forge.startup_slot_days') * 86400) . ')';
         }
         return $text . '. Mature or close one first.';
     }
 
     /**
-     * Starts a seedling for an account, or for a guest (owner null) from an
+     * Founds a startup for an account, or for a guest (owner null) from an
      * address. Returns ['ok' => true, 'agent' => the drone, 'company' => id,
      * 'claim_code' => a guest's code, shown once] or ['ok' => false,
      * 'status', 'error'].
@@ -80,34 +80,34 @@ class Seedlings
         }
         $guestKey = null;
         if ($owner === null) {
-            $key = 'guest-seedling|' . (string) $ip;
-            if (RateLimiter::tooManyAttempts($key, max(1, (int) config('forge.seedling_guest_per_day')))) {
+            $key = 'guest-startup|' . (string) $ip;
+            if (RateLimiter::tooManyAttempts($key, max(1, (int) config('forge.startup_guest_per_day')))) {
                 return ['ok' => false, 'status' => 429,
-                    'error' => 'Guests from your address have started all the seedlings they may today. Make an account to start more.'];
+                    'error' => 'Guests from your address have started all the startups they may today. Make an account to start more.'];
             }
             RateLimiter::hit($key, 86400);
         }
         $code = $owner === null ? Str::random(24) : null;
         $agent = Release::release(Release::owner(), $name, $script);
         DB::table('companies')->where('company_id', $agent->company_id)->update([
-            'seedling' => 1,
+            'startup' => 1,
             'owner_id' => $owner?->user_id,
             'debt' => self::grant(),
             'guest_key' => $code === null ? null : hash('sha256', $code),
         ]);
         if ($owner) {
-            CompanyNow::forget($owner);   // the new seedling shows on its strip at once (#770)
+            CompanyNow::forget($owner);   // the new startup shows on its strip at once (#770)
         }
         return ['ok' => true, 'agent' => $agent, 'company' => (int) $agent->company_id, 'claim_code' => $code];
     }
 
-    /** A guest's seedling claimed into an account with its claim code */
+    /** A guest's startup claimed into an account with its claim code */
     public static function claim(User $owner, string $code): array
     {
-        $company = DB::table('companies')->where('guest_key', hash('sha256', trim($code)))->where('seedling', 1)
+        $company = DB::table('companies')->where('guest_key', hash('sha256', trim($code)))->where('startup', 1)
             ->whereNull('owner_id')->first();
         if (!$company || $company->eliminated_at !== null) {
-            return ['ok' => false, 'status' => 404, 'error' => 'That code doesn\'t match a guest\'s live seedling.'];
+            return ['ok' => false, 'status' => 404, 'error' => 'That code doesn\'t match a guest\'s live startup.'];
         }
         if ($problem = self::slotProblem($owner)) {
             return ['ok' => false, 'status' => 409, 'error' => $problem];
@@ -117,29 +117,29 @@ class Seedlings
         return ['ok' => true, 'company' => (int) $company->company_id, 'name' => $company->name];
     }
 
-    /** The account's seedling, or the reason it can't act on it: [company, null] or [null, [status, error]] */
+    /** The account's startup, or the reason it can't act on it: [company, null] or [null, [status, error]] */
     private static function own(User $owner, int $companyId): array
     {
         $company = DB::table('companies')->where('company_id', $companyId)->first();
         if (!$company || (int) $company->owner_id !== (int) $owner->user_id) {
             return [null, [404, 'You have no such company.']];
         }
-        if ((int) $company->seedling !== 1) {
-            return [null, [409, 'That company has matured: it is no longer a seedling.']];
+        if ((int) $company->startup !== 1) {
+            return [null, [409, 'That company has matured: it is no longer a startup.']];
         }
         if ($company->eliminated_at !== null) {
-            return [null, [409, 'That seedling has ended.']];
+            return [null, [409, 'That startup has ended.']];
         }
         return [$company, null];
     }
 
-    /** What reprogramming the seedling adds to its debt: the first push is free (#658) */
+    /** What reprogramming the startup adds to its debt: the first push is free (#658) */
     public static function pushFee(object $company): int
     {
-        return (int) $company->pushes === 0 ? 0 : (int) config('forge.seedling_push_fee');
+        return (int) $company->pushes === 0 ? 0 : (int) config('forge.startup_push_fee');
     }
 
-    /** Reprograms a seedling: its working drones start over on the script, and the fee goes on its debt */
+    /** Reprograms a startup: its working drones start over on the script, and the fee goes on its debt */
     public static function reprogram(User $owner, int $companyId, string $script): array
     {
         [$company, $error] = self::own($owner, $companyId);
@@ -152,7 +152,7 @@ class Seedlings
         $drones = DB::table('agents')->where('company_id', $companyId)->whereNull('wrecked_at')
             ->whereNull('station_id')->where('language', 'lua')->orderBy('agent_id')->pluck('agent_id')->all();
         if (!$drones) {
-            return ['ok' => false, 'status' => 409, 'error' => 'This seedling has no working drone to reprogram.'];
+            return ['ok' => false, 'status' => 409, 'error' => 'This startup has no working drone to reprogram.'];
         }
         $fee = self::pushFee($company);
         return DB::transaction(function () use ($company, $companyId, $script, $drones, $fee) {
@@ -171,7 +171,7 @@ class Seedlings
         });
     }
 
-    /** Closes a seedling: it leaves the game with all it holds, and its debt is cancelled */
+    /** Closes a startup: it leaves the game with all it holds, and its debt is cancelled */
     public static function close(User $owner, int $companyId): array
     {
         [$company, $error] = self::own($owner, $companyId);
@@ -192,10 +192,10 @@ class Seedlings
         return ['ok' => true, 'company' => $companyId, 'name' => $company->name];
     }
 
-    /** A seedling's credit cap in thousandths of its debt (#672; 0: none) */
+    /** A startup's credit cap in thousandths of its debt (#672; 0: none) */
     public static function capPermille(): int
     {
-        return (int) (DB::table('house_rules')->where('id', 1)->value('seedling_credit_cap_permille') ?? 0);
+        return (int) (DB::table('house_rules')->where('id', 1)->value('startup_credit_cap_permille') ?? 0);
     }
 
     /**
@@ -209,36 +209,36 @@ class Seedlings
         return max(0, (int) $company->debt - $fees);
     }
 
-    /** The most credits this seedling may hold (#672), or null when there's no cap */
+    /** The most credits this startup may hold (#672), or null when there's no cap */
     public static function creditCap(object $company): ?int
     {
         $permille = self::capPermille();
         return $permille > 0 && (int) $company->debt > 0 ? intdiv(self::capBase($company) * $permille, 1000) : null;
     }
 
-    /** What went to the bank from a seedling over its cap (#672), since a game time */
+    /** What went to the bank from a startup over its cap (#672), since a game time */
     public static function toBank(int $company, int $since = 0): int
     {
-        return (int) DB::table('seedling_skims')->where('company_id', $company)->where('game_t', '>', $since)->sum('amount');
+        return (int) DB::table('startup_skims')->where('company_id', $company)->where('game_t', '>', $since)->sum('amount');
     }
 
-    /** Credits a seedling must hold above its debt to mature (#664) */
+    /** Credits a startup must hold above its debt to mature (#664) */
     public static function matureMargin(): int
     {
-        return max(0, (int) config('forge.seedling_mature_margin'));
+        return max(0, (int) config('forge.startup_mature_margin'));
     }
 
-    /** Does the seedling hold its debt and the working margin, less what it owes in processor tax? */
+    /** Does the startup hold its debt and the working margin, less what it owes in processor tax? */
     public static function canMature(object $company): bool
     {
         return (int) $company->credits - (int) $company->compute_debt >= (int) $company->debt + self::matureMargin();
     }
 
-    /** Matures a seedling that holds enough to pay its debt: it repays, and its 100 shares are the player's */
+    /** Matures a startup that holds enough to pay its debt: it repays, and its 100 shares are the player's */
     public static function mature(User $owner, int $companyId): array
     {
         if (!Players::verified($owner)) {
-            return ['ok' => false, 'status' => 403, 'error' => 'Verify your e-mail address before you mature a seedling.'];
+            return ['ok' => false, 'status' => 403, 'error' => 'Verify your e-mail address before you mature a startup.'];
         }
         [$company, $error] = self::own($owner, $companyId);
         if ($error) {
@@ -252,9 +252,9 @@ class Seedlings
                 . number_format($margin) . ' more to work with (' . number_format($debt + $margin) . ').'];
         }
         return DB::transaction(function () use ($owner, $companyId, $company, $debt, $margin) {
-            $done = DB::table('companies')->where('company_id', $companyId)->where('seedling', 1)
+            $done = DB::table('companies')->where('company_id', $companyId)->where('startup', 1)
                 ->where('credits', '>=', $debt + $margin)->update(['credits' => DB::raw('credits - ' . $debt), 'debt' => 0,
-                    'seedling' => 0, 'matured_t' => World::gameNow()]);
+                    'startup' => 0, 'matured_t' => World::gameNow()]);
             if (!$done) {
                 return ['ok' => false, 'status' => 409, 'error' => 'It can\'t pay its debt now: try again.'];
             }
@@ -264,26 +264,26 @@ class Seedlings
         });
     }
 
-    /** An account's live seedlings and matured companies, for its page and the API */
+    /** An account's live startups and matured companies, for its page and the API */
     public static function of(User $owner): array
     {
         $rows = DB::table('companies')->where('owner_id', $owner->user_id)
-            ->where(fn ($q) => $q->whereNull('eliminated_at')->orWhere('seedling', 0))
-            ->orderByDesc('seedling')->orderBy('company_id')->get();
+            ->where(fn ($q) => $q->whereNull('eliminated_at')->orWhere('startup', 0))
+            ->orderByDesc('startup')->orderBy('company_id')->get();
         $drone = fn ($id) => DB::table('agents')->where('company_id', $id)->orderBy('agent_id')->value('agent_id');
         return [
-            'seedlings' => $rows->where('seedling', 1)->map(fn ($c) => [
+            'startups' => $rows->where('startup', 1)->map(fn ($c) => [
                 'company_id' => (int) $c->company_id, 'name' => $c->name, 'drone' => $drone($c->company_id),
                 'credits' => (int) $c->credits, 'debt' => (int) $c->debt,
                 'can_mature' => self::canMature($c),
                 // Its credit cap and what went over it to the bank (#672)
                 'credit_cap' => self::creditCap($c), 'to_bank' => self::toBank((int) $c->company_id),
             ])->values()->all(),
-            'companies' => $rows->where('seedling', 0)->map(fn ($c) => [
+            'companies' => $rows->where('startup', 0)->map(fn ($c) => [
                 'company_id' => (int) $c->company_id, 'name' => $c->name, 'drone' => $drone($c->company_id),
                 'credits' => (int) $c->credits, 'ended' => $c->eliminated_at !== null,
             ])->values()->all(),
-            'slots' => ['used' => self::slotsInUse((int) $owner->user_id), 'max' => (int) config('forge.seedling_max')],
+            'slots' => ['used' => self::slotsInUse((int) $owner->user_id), 'max' => (int) config('forge.startup_max')],
             'grant' => self::grant(),
         ];
     }

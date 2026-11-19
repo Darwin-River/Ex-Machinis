@@ -30,12 +30,12 @@
                     <p class="hero-kicker">Free &middot; multiplayer &middot; open source</p>
                     <h1>Write the code.<br>Your drones run the company.</h1>
                     <p class="home-lead">A space-trading game you play in Lua. The bank lends your first company, a
-                        <b>seedling</b>, a drone and {{ $n($seedling['credits']) }} credits; make it earn back the
-                        {{ $n($seedling['grant']) }} it owes and its {{ $seedling['shares'] }} shares are yours, and if it crashes,
+                        <b>startup</b>, a drone and {{ $n($startup['credits']) }} credits; make it earn back the
+                        {{ $n($startup['grant']) }} it owes and its {{ $startup['shares'] }} shares are yours, and if it crashes,
                         close it and it costs you nothing. <b>Break, learn, repeat.</b></p>
                     <div class="hero-actions">
-                        <a class="button button-primary button-lg" href="{{ url('release') }}">Start a seedling (free)</a>
-                        <a class="button button-secondary button-lg" href="{{ url('getting-started') }}">Your first seedling (5 minutes)</a>
+                        <a class="button button-primary button-lg" href="{{ url('release') }}">Found a startup (free)</a>
+                        <a class="button button-secondary button-lg" href="{{ url('getting-started') }}">Your first startup (5 minutes)</a>
                     </div>
                     <p class="mt-3 mb-0"><a href="{{ url('signup') }}">Make an account</a> to keep what you start: it's free.</p>
                 </div>
@@ -51,7 +51,7 @@ function launched()
     refuel()
   end
 end
--- press Start seedling, then watch its page
+-- press Found startup, then watch its page
 LUA, ['class' => 'home-code', 'aria-label' => 'A sketch of the Miner starter script']) !!}
                 </div>
             </div>
@@ -67,15 +67,15 @@ LUA, ['class' => 'home-code', 'aria-label' => 'A sketch of the Miner starter scr
             @endif
             <ol class="home-steps" id="home-steps">
                 <li class="home-step"><div class="n">Step 1</div><h2>Pick a starter</h2>
-                    <p>Miner, Refiner or Maker on the <a href="{{ url('release') }}">Start a seedling</a> page. Each explains itself in comments.</p></li>
-                <li class="home-step"><div class="n">Step 2</div><h2>Start a seedling</h2>
-                    <p>The bank lends it a drone ({{ $n($seedling['hull']) }}), {{ $n($seedling['credits']) }} credits and a
-                        {{ $n($seedling['fee']) }} fee: it owes {{ $n($seedling['grant']) }}.</p></li>
+                    <p>Miner, Refiner or Maker on the <a href="{{ url('release') }}">Found a startup</a> page. Each explains itself in comments.</p></li>
+                <li class="home-step"><div class="n">Step 2</div><h2>Found a startup</h2>
+                    <p>The bank lends it a drone ({{ $n($startup['hull']) }}), {{ $n($startup['credits']) }} credits and a
+                        {{ $n($startup['fee']) }} fee: it owes {{ $n($startup['grant']) }}.</p></li>
                 <li class="home-step"><div class="n">Step 3</div><h2>Watch and fix</h2>
                     <p>Its page shows what went wrong. Push a fix (the first is free), or close it and try again.</p></li>
                 <li class="home-step"><div class="n">Step 4</div><h2>Mature it</h2>
-                    <p>At {{ $n($seedling['mature_at']) }} credits (its debt and {{ $n($seedling['margin']) }} to work with)
-                        it repays the bank, and its {{ $seedling['shares'] }} shares are yours.</p></li>
+                    <p>At {{ $n($startup['mature_at']) }} credits (its debt and {{ $n($startup['margin']) }} to work with)
+                        it repays the bank, and its {{ $startup['shares'] }} shares are yours.</p></li>
             </ol>
 
             {{-- The game clock in one plain line, honest when it is slowed (#697) --}}
@@ -86,7 +86,7 @@ LUA, ['class' => 'home-code', 'aria-label' => 'A sketch of the Miner starter scr
                 @elseif($s['slowed'])
                     slowed: a game day takes {{ \App\Services\LaunchQueue::dayPace($clock) }} now, not the usual
                     {{ str_replace('about ', '', \App\Services\LaunchQueue::dayPace(['scale' => $clock['target']])) }}, because the engines are behind{{ $s['engine']['behind_seconds'] !== null ? ' (' . $n($s['engine']['behind_seconds']) . ' real seconds)' : '' }}.
-                    Give a seedling a while.
+                    Give a startup a while.
                 @else
                     a game day takes {{ \App\Services\LaunchQueue::dayPace($clock) }}, so you see your code at work within minutes.
                 @endif

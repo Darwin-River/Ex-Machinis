@@ -38,7 +38,7 @@ use Illuminate\Support\Facades\DB;
  *   stalled_reason says which
  * - Round 70 (#715): a new company has STALLED_GRACE_DAYS game days to make
  *   its first sale before "it has never sold anything" stalls it (a 4-day-old
- *   seedling mining its first load was flagged); half its drones idle stalls
+ *   startup mining its first load was flagged); half its drones idle stalls
  *   it only when it hasn't sold for a game day either (a company paying
  *   dividends was "stalled"); and failing (failing_reason) counts the
  *   actions its drones tried and failed over the last game day, by what
@@ -170,7 +170,7 @@ class CompanyHealth
     {
         $now ??= (int) World::gameNow();
         // A refusal by the market isn't a fault of the company's: another
-        // drone's order changed first (-5, -6, -10) or a seedling met its
+        // drone's order changed first (-5, -6, -10) or a startup met its
         // daily cap (-17). Round 72: lost races marked the two best earners
         // "failing", and a Maker's routine -17 retries too (#758)
         $failed = 'x.outcome < 0 AND x.outcome NOT IN (' . implode(', ', self::MARKET_REFUSALS) . ')';

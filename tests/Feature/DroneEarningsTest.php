@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\DroneEarnings;
 use App\Services\Players;
-use App\Services\Seedlings;
+use App\Services\Startups;
 use App\Services\World;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -21,7 +21,7 @@ class DroneEarningsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['forge.new_rules' => true, 'forge.seedling_max' => 5]);
+        config(['forge.new_rules' => true, 'forge.startup_max' => 5]);
         Mail::fake();
         Cache::flush();
     }
@@ -32,7 +32,7 @@ class DroneEarningsTest extends TestCase
         $made = Players::create('Earner', 'long-enough', $email);
         Players::verify($made->user_id, sha1($email));
         $p = User::where('user_id', $made->user_id)->first();
-        $id = Seedlings::start($p, 'Earner Co', 'function launched() wait(60) end')['company'];
+        $id = Startups::start($p, 'Earner Co', 'function launched() wait(60) end')['company'];
         $first = (int) DB::table('agents')->where('company_id', $id)->value('agent_id');
         $user = (int) DB::table('agents')->where('agent_id', $first)->value('user_id');
         $copy = DB::table('agents')->insertGetId(['user_id' => $user, 'company_id' => $id, 'name' => 'Earner Copy',

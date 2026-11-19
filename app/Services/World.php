@@ -130,7 +130,7 @@ class World
         }
 
         $why = ['fuel' => 'it ran out of fuel', 'crashes' => 'its program kept crashing', 'tax' => "its company couldn't pay its tax",
-            'closed' => 'its player closed its seedling'];
+            'closed' => 'its player closed its startup'];
         foreach (DB::table('agents')->whereNotNull('wrecked_at')->orderBy('wrecked_at', 'desc')->limit($limit)->get() as $w) {
             $cause = $why[$w->wreck_cause] ?? 'it died';
             $add((int) $w->wrecked_at, "{$w->name} became a wreck: $cause.", 'spacecraft/' . $w->agent_id,
@@ -355,7 +355,7 @@ class World
     /**
      * Players' drones (#716: the map, the dashboard and the home page counted
      * 154, 148 and 148 working): every drone but the House's station drones
-     * and a closed seedling's, which left the game. One definition for the
+     * and a closed startup's, which left the game. One definition for the
      * map, the places table and API, the dashboard and the home page.
      * A query on agents AS a.
      */

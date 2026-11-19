@@ -32,8 +32,8 @@ class DronePage
         -13 => "the other drone belongs to one of the same player's companies",
         -14 => 'no House station here trades that resource that way',
         -15 => 'no such wreck here (or already plundered)',
-        -16 => 'a seedling trades only with the House (and plunders nothing)',
-        -17 => "a seedling may buy only a tenth of the House's goods on sale here in a game day",
+        -16 => 'a startup trades only with the House (and plunders nothing)',
+        -17 => "a startup may buy only a tenth of the House's goods on sale here in a game day",
         -18 => 'under the new rules players, not companies, trade shares',
         -19 => "a new-rules order can't be withdrawn, cut or made worse in its first 12 game hours",
     ];
@@ -44,7 +44,7 @@ class DronePage
         'crashes' => 'Its program kept crashing',
         'tax' => "Its company couldn't pay its tax",
         'dissolved' => 'Its company had no credits for too long',
-        'closed' => 'Its player closed its seedling',
+        'closed' => 'Its player closed its startup',
         'reset' => 'The world was reset',
         // The one-time scrap of drones past 8 when the fleet cap came in (#682, #717)
         'fleet cap' => 'It was scrapped when the fleet cap came in',
@@ -390,7 +390,7 @@ class DronePage
                 break;
             case 'closed':
                 $name = DB::table('companies')->where('company_id', $agent->company_id)->value('name');
-                $cause = "Its player closed its seedling, $name, on $when: it left the game with all it held, "
+                $cause = "Its player closed its startup, $name, on $when: it left the game with all it held, "
                     . 'and its debt was cancelled. Its wreck holds nothing anyone can take.';
                 break;
             case 'reset':
@@ -399,7 +399,7 @@ class DronePage
             default:
                 $cause = "It became a wreck on $when.";
         }
-        // A wreck nobody may plunder (a seedling's, #637) is marked plundered
+        // A wreck nobody may plunder (a startup's, #637) is marked plundered
         // by nobody: that isn't an attack (#654)
         if ($agent->plundered_at && $agent->plundered_by) {
             $by = Agent::where('agent_id', $agent->plundered_by)->first();

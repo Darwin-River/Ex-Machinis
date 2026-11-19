@@ -6,7 +6,7 @@ use App\Http\Controllers\HomeController;
 use Tests\TestCase;
 
 /**
- * Getting started is the five-minute first-seedling guide (#719); the
+ * Getting started is the five-minute first-startup guide (#719); the
  * players' manual, documents/players-manual.md, is at /manual.
  */
 class GettingStartedTest extends TestCase
@@ -30,22 +30,22 @@ class GettingStartedTest extends TestCase
         $changes = strpos($html, 'id="appendix-b-changes-since-the-september-2020-edition"');
         $this->assertNotFalse($changes, 'the changes are an appendix');
         $this->assertGreaterThan(strpos($html, 'id="appendix-a-when-your-script-fails"'), $changes, 'after Appendix A');
-        $this->assertLessThan(strpos($html, 'id="chapter-1-getting-started"'), strpos($html, 'Your first seedling'),
+        $this->assertLessThan(strpos($html, 'id="chapter-1-getting-started"'), strpos($html, 'Your first startup'),
             'the manual points newcomers to the guide first');
     }
 
-    public function testGettingStartedIsTheFirstSeedlingGuide()
+    public function testGettingStartedIsTheFirstStartupGuide()
     {
         config(['forge.new_rules' => true]);
-        $grant = \App\Services\Seedlings::grant();
+        $grant = \App\Services\Startups::grant();
         $html = $this->get('/getting-started')->assertOk()
-            ->assertSee('<title>Your first seedling - Ex-Machinis</title>', false)
+            ->assertSee('<title>Your first startup - Ex-Machinis</title>', false)
             ->assertSee('Which starter should I pick?')->assertSee('How do I start it?')->assertSee('Is it working?')
             ->assertSee('What if it goes wrong?')->assertSee('When is it mine?')
             ->assertSee('Road to maturity')
             ->assertSee(number_format($grant))
-            ->assertSee(number_format($grant + \App\Services\Seedlings::matureMargin()))
-            ->assertSee(\App\Services\Seedlings::SHARES . ' shares')
+            ->assertSee(number_format($grant + \App\Services\Startups::matureMargin()))
+            ->assertSee(\App\Services\Startups::SHARES . ' shares')
             ->assertSee('href="' . url('release?starter=miner') . '"', false)
             ->assertSee('href="' . url('release?starter=refiner') . '"', false)
             ->assertSee('href="' . url('release?starter=maker') . '"', false)
@@ -78,17 +78,17 @@ class GettingStartedTest extends TestCase
         $this->get('/getting-started/images/map.png')->assertStatus(301)->assertRedirect('/manual/images/map.png');
     }
 
-    /** The menus: the guide, the manual, and "Start a seedling" as the action's one name */
+    /** The menus: the guide, the manual, and "Found a startup" as the action's one name */
     public function testTheMenusNameTheGuideAndTheAction()
     {
         config(['forge.new_rules' => true]);
         $this->get('/about-us')->assertOk()
-            ->assertSee('First seedling (5 minutes)')
+            ->assertSee('First startup (5 minutes)')
             ->assertSee('href="' . url('manual') . '"', false)
             ->assertSee('Lua functions')
-            ->assertSee('Start a seedling')
+            ->assertSee('Found a startup')
             ->assertDontSee('Release a drone');
-        $this->get('/')->assertOk()->assertSee('press Start seedling')->assertDontSee('press Release');
+        $this->get('/')->assertOk()->assertSee('press Found startup')->assertDontSee('press Release');
     }
 
     public function testRendering()

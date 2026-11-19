@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\Seedlings;
+use App\Services\Startups;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * A player's seedlings on the website (#637): claim a guest's, reprogram,
+ * A player's startups on the website (#637): claim a guest's, reprogram,
  * close and mature. Behind the new-rules switch (#635).
  */
-class SeedlingController extends Controller
+class StartupController extends Controller
 {
     private function player(): ?\App\User
     {
@@ -21,8 +21,8 @@ class SeedlingController extends Controller
     private function done(array $result, string $success)
     {
         return $result['ok']
-            ? redirect('/account#seedlings')->withSuccess($success)
-            : redirect('/account#seedlings')->with('error', $result['error']);
+            ? redirect('/account#startups')->withSuccess($success)
+            : redirect('/account#startups')->with('error', $result['error']);
     }
 
     public function claim(Request $request)
@@ -30,7 +30,7 @@ class SeedlingController extends Controller
         if (!$user = $this->player()) {
             return redirect('/login');
         }
-        $result = Seedlings::claim($user, (string) $request->input('code'));
+        $result = Startups::claim($user, (string) $request->input('code'));
         return $this->done($result, $result['ok'] ? $result['name'] . ' is yours now.' : '');
     }
 
@@ -40,9 +40,9 @@ class SeedlingController extends Controller
             return redirect('/login');
         }
         $request->validate(['script' => 'required|string|max:' . config('forge.max_script_length')]);
-        $result = Seedlings::reprogram($user, $id, str_replace("\r\n", "\n", (string) $request->input('script')));
+        $result = Startups::reprogram($user, $id, str_replace("\r\n", "\n", (string) $request->input('script')));
         return $this->done($result, $result['ok'] ? 'The new code is on its way to ' . count($result['drones'])
-            . ' drone(s); ' . number_format($result['fee']) . ' credits go on the seedling\'s debt, which is now '
+            . ' drone(s); ' . number_format($result['fee']) . ' credits go on the startup\'s debt, which is now '
             . number_format($result['debt']) . '.' : '');
     }
 
@@ -51,7 +51,7 @@ class SeedlingController extends Controller
         if (!$user = $this->player()) {
             return redirect('/login');
         }
-        $result = Seedlings::close($user, $id);
+        $result = Startups::close($user, $id);
         return $this->done($result, $result['ok'] ? $result['name'] . ' is closed: it has left the game, and its debt is cancelled.' : '');
     }
 
@@ -60,21 +60,21 @@ class SeedlingController extends Controller
         if (!$user = $this->player()) {
             return redirect('/login');
         }
-        $result = Seedlings::mature($user, $id);
+        $result = Startups::mature($user, $id);
         return $this->done($result, $result['ok'] ? $result['name'] . ' has matured: it repaid ' . number_format($result['repaid'])
             . ' credits, and its ' . number_format($result['shares']) . ' shares are yours.' : '');
     }
 
-    /** The seedling race (#776): recent seedlings' credits by age, against the line and the starters' usual paths */
+    /** The startup race (#776): recent startups' credits by age, against the line and the starters' usual paths */
     public function race()
     {
-        $race = \App\Services\SeedlingRace::build();
+        $race = \App\Services\StartupRace::build();
         $me = auth()->check() ? (int) auth()->user()->user_id : null;
         return view('world.race', compact('race', 'me'));
     }
 
     public function raceApi(): \Illuminate\Http\JsonResponse
     {
-        return response()->json(\App\Services\SeedlingRace::build());
+        return response()->json(\App\Services\StartupRace::build());
     }
 }

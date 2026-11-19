@@ -38,7 +38,7 @@
                 <div class="col-md-12 col-lg-10 col-xl-9 single-post blog-post">
                     <p class="blog-date">{{ $post['date'] }}</p>
                     {{-- Posts before "A new way to play" (12) describe the old rules (#744) --}}
-                    @if((int) $slug < 12)<p class="blog-old-rules" id="old-rules"><b>Written under the old rules.</b> Seedlings, the bank and players' shares came later: see <a href="{{ url('blog/12-a-new-way-to-play') }}">A new way to play</a> and the <a href="{{ url('manual') }}">manual</a> for the game as it is now.</p>@endif
+                    @if((int) $slug < 12)<p class="blog-old-rules" id="old-rules"><b>Written under the old rules.</b> Startups, the bank and players' shares came later: see <a href="{{ url('blog/12-a-new-way-to-play') }}">A new way to play</a> and the <a href="{{ url('manual') }}">manual</a> for the game as it is now.</p>@endif
                     {{-- documents/blog/<slug>.md, rendered (see BlogController::show) --}}
                     {!! $html !!}
                     <nav class="blog-nav">

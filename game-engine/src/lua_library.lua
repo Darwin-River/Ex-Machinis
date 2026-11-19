@@ -127,8 +127,8 @@ local function trip(place)
   return -1
 end
 
--- A seedling trades only with the House (#637): the House's station drones
--- here, as a set, when this drone's company is a seedling; nil when it may
+-- A startup trades only with the House (#637): the House's station drones
+-- here, as a set, when this drone's company is a startup; nil when it may
 -- trade with anyone (query 708)
 local function house_only()
   local rows = ask(708)
@@ -146,7 +146,7 @@ local function may_trade(d, mine, only)
 end
 
 -- The cheapest other drone's sell order here (the House's only, for a
--- seedling): price, drone, units it will sell
+-- startup): price, drone, units it will sell
 local function best_offer(resource)
   local mine, only = me(), house_only()
   for _, o in ipairs(ask(610, resource)) do
@@ -155,7 +155,7 @@ local function best_offer(resource)
   return 0, 0, 0
 end
 
--- The best other drone's buy order here (the House's only, for a seedling):
+-- The best other drone's buy order here (the House's only, for a startup):
 -- price, drone, units it will buy
 local function best_bid(resource)
   local mine, only = me(), house_only()
@@ -206,7 +206,7 @@ end
 -- tries, each an action. With max_price it buys only from sellers asking
 -- at most that a unit (#503: once the cheap sellers ran out it paid 49)
 -- What this drone bought from the House today, by resource and place, for
--- buy_here's first request under a seedling's cap (#743: it asked for a
+-- buy_here's first request under a startup's cap (#743: it asked for a
 -- tenth of the stock as if it had bought none, and the first pull after a
 -- buy failed with -17, a game hour lost each time)
 local house_bought = {}
@@ -225,7 +225,7 @@ end
 
 local function buy_here(n, resource, max_price)
   local result, tries, mine, refused, only, failed = -12, 0, me(), {}, house_only(), nil
-  -- A seedling's -17 cap is a tenth of what the House has on sale here a
+  -- A startup's -17 cap is a tenth of what the House has on sale here a
   -- game day, at least 5 (#777): it asks for no more than that at first (#674: halving from
   -- 1,000 used up its six tries above the cap, and got 3 of about 5), and
   -- after a -17 half as much each time until refused (#710: one at a time,
@@ -259,10 +259,10 @@ local function buy_here(n, resource, max_price)
         -- refused pull, a game hour lost)
         if room then room = room - take; if room < least then break end end
       end
-    elseif r == -17 and take > least then cap = math.max(least, take // 2); failed = r   -- over a seedling's daily cap: halve it
+    elseif r == -17 and take > least then cap = math.max(least, take // 2); failed = r   -- over a startup's daily cap: halve it
     else refused[seller] = true; failed = r end
   end
-  -- Nothing bought: why the last seller refused (such as -17, a seedling's
+  -- Nothing bought: why the last seller refused (such as -17, a startup's
   -- cap), or -12 when nobody here sells (#651)
   if result ~= 0 and failed then return failed end
   return result
@@ -818,14 +818,14 @@ local function fleet_full()
   local f = fleet()
   return f.cap > 0 and f.drones + f.coming >= f.cap
 end
--- The company as a seedling (#749): {seedling, credits, debt, cap (0: none),
+-- The company as a startup (#749): {startup, credits, debt, cap (0: none),
 -- to_bank (what it has sent the bank over its cap in all), at_cap}. At its
 -- cap, what it earns goes to the bank: time to mature it
-local function seedling_status()                                                  -- 711
-  local s = record(ask(711), {"seedling", "credits", "debt", "cap", "to_bank"})
-    or {seedling = 0, credits = credits(), debt = 0, cap = 0, to_bank = 0}
-  s.seedling = s.seedling == 1
-  s.at_cap = s.seedling and s.cap > 0 and s.credits >= s.cap
+local function startup_status()                                                  -- 711
+  local s = record(ask(711), {"startup", "credits", "debt", "cap", "to_bank"})
+    or {startup = 0, credits = credits(), debt = 0, cap = 0, to_bank = 0}
+  s.startup = s.startup == 1
+  s.at_cap = s.startup and s.cap > 0 and s.credits >= s.cap
   return s
 end
 
@@ -847,7 +847,7 @@ local function missing_tool(kit)
   for _, t in ipairs(kit_tools[kit] or {engine_module}) do
     local rows = query(212, t)
     -- Query 212 always answers one row (a SUM): none is a query that
-    -- failed too (#743: round 71's seedlings still said a tool was missing,
+    -- failed too (#743: round 71's startups still said a tool was missing,
     -- and bought nothing)
     if not rows or not rows[1] or rows[1][1] == nil then return false end
     if rows[1][1] == 0 then return t end
@@ -1059,7 +1059,7 @@ _G.pull = pull
 _G.launch = launch
 _G.fleet = fleet
 _G.fleet_full = fleet_full
-_G.seedling_status = seedling_status
+_G.startup_status = startup_status
 _G.plunder = plunder
 _G.jettison = jettison
 _G.broadcast = broadcast

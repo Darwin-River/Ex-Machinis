@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\Players;
 use App\Services\PostMortem;
-use App\Services\Seedlings;
+use App\Services\Startups;
 use App\Services\World;
 use App\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -23,18 +23,18 @@ class PostMortemTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['forge.new_rules' => true, 'forge.seedling_max' => 5]);
+        config(['forge.new_rules' => true, 'forge.startup_max' => 5]);
         Mail::fake();
         Cache::flush();
     }
 
-    public function testAnEndedSeedlingShowsWhatWentWrongAndAFixedCopy()
+    public function testAnEndedStartupShowsWhatWentWrongAndAFixedCopy()
     {
         $email = 'mortem@example.com';
         $made = Players::create('Mortem', 'long-enough', $email);
         Players::verify($made->user_id, sha1($email));
         $p = User::where('user_id', $made->user_id)->first();
-        $id = Seedlings::start($p, 'Mortem Co', self::SCRIPT)['company'];
+        $id = Startups::start($p, 'Mortem Co', self::SCRIPT)['company'];
         $drone = (int) DB::table('agents')->where('company_id', $id)->value('agent_id');
         $this->assertNull(PostMortem::of($id), 'no card while it runs');
 

@@ -38,7 +38,7 @@ QueryCacheScope_t query_cache_policy(int id, int base_ms, int* ttl_ms)
     case 205:
         *ttl_ms = 3600000;
         return QC_DRONE;
-    // Whether its company is a seedling, and the House's station drones
+    // Whether its company is a startup, and the House's station drones
     // where it is: a company that matures is told within two seconds
     case 708:
         *ttl_ms = 2000;
