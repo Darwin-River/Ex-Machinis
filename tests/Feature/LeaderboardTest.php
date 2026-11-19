@@ -193,6 +193,55 @@ class LeaderboardTest extends TestCase
         $this->getJson('/api/v1/companies/' . $made['Middle'])->assertOk()->assertJsonPath('peer_rank.rank', $rank['rank']);
     }
 
+    /**
+     * #857: a company's rank reads only the history around its age, not
+     * every company's every day (that outgrew a page's memory), and gets
+     * just what the whole line gives
+     */
+    public function testAtAgeReadsOnlyWhatItNeedsAndAgreesWithTheWholeLine()
+    {
+        $now = time();
+        DB::table('game_clock')->delete();
+        DB::table('game_clock')->insert(['id' => 1, 'real_anchor' => $now, 'game_anchor' => $now, 'scale' => 1, 'epoch' => $now - 1000 * 86400]);
+        $born = 600.4;
+        $id = Release::release($this->player('long@example.com', 'Long'), 'Long Co', ': launched ;')->company_id;
+        DB::table('companies')->where('company_id', $id)->update(['founded_t' => (int) round($now - (1000 - $born) * 86400)]);
+        // Daily history with gaps, wealth that rises and falls
+        $line = [[$born, 0]];
+        $rows = [];
+        for ($d = 601; $d < 1000; $d += ($d % 7 === 0 ? 5 : 1)) {
+            $w = 1000 + ($d * 37) % 2003 - 600;
+            $rows[] = ['company_id' => $id, 'day' => $d, 'credits' => 0, 'net_wealth' => $w, 'drones' => 1];
+            $line[] = [(float) $d, $w];
+        }
+        foreach (array_chunk($rows, 200) as $chunk) {
+            DB::table('company_days')->insert($chunk);
+        }
+        $nowWealth = Leaderboard::wealth()[$id]['wealth'];
+        $line[] = [1000.0, $nowWealth];
+        $expect = function (float $t) use ($line) {
+            for ($i = 1; $i < count($line); $i++) {
+                [$d1, $v1] = $line[$i - 1];
+                [$d2, $v2] = $line[$i];
+                if ($t <= $d2) {
+                    return (int) round($v1 + max(0, min(1, ($t - $d1) / ($d2 - $d1))) * ($v2 - $v1));
+                }
+            }
+            return null;
+        };
+        $ages = [0.5, 1, 7.3, 33, 34.6, 100, 211.9, 300, 399.5];
+        foreach ($ages as $age) {
+            $rows = Leaderboard::atAge($age)['rows'];
+            $mine = $rows[array_search($id, array_column($rows, 'company_id'))];
+            $this->assertEqualsWithDelta($expect($born + $age), $mine['wealth'], 1, "at $age game days old");
+        }
+        $this->assertNotContains($id, array_column(Leaderboard::atAge(450)['rows'], 'company_id'), 'it is not 450 days old yet');
+        $many = Leaderboard::atAges($ages);
+        foreach ($ages as $i => $age) {
+            $this->assertEqualsWithDelta($expect($born + $age), $many[$id]['wealth'][$i], 1, "atAges at $age");
+        }
+    }
+
     /** #614: every day's history is kept, so a company's early days stay day by day */
     public function testDailyHistoryIsNotThinned()
     {
