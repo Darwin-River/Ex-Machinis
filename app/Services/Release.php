@@ -71,18 +71,19 @@ class Release
      * first-startup guide: the kit each buys, what it does in a line, and
      * how long an unchanged one took to mature in a playtest at the normal
      * pace, 48 real seconds a game day (the players' manual, "Starter
-     * scripts"; #740: round 71's times, the earlier ones were too hopeful)
+     * scripts"; #740: round 71's times, the earlier ones were too hopeful;
+     * #858: the range rounds 74 to 76 measured, which the market moves)
      */
     public const STARTER_CARDS = [
         'miner' => ['kit' => 'Mining Kit', 'role' => 'Mine and sell',
             'line' => 'Mines kunspar or wolfite at the Moon, refines it and sells the metals to the House.',
-            'mature' => 'about 45 to 55 game days (35 to 45 real minutes)', 'days' => [45, 55]],
+            'mature' => 'about 45 to 80 game days (36 to 64 real minutes)', 'days' => [45, 80]],
         'refiner' => ['kit' => 'Mining Kit', 'role' => 'Mine and refine',
             'line' => 'Mines yalspar and vladnium and refines them into the organics and inorganics factories need.',
-            'mature' => 'about 50 to 55 game days (40 to 45 real minutes)', 'days' => [50, 55]],
+            'mature' => 'about 40 to 85 game days (32 to 68 real minutes)', 'days' => [40, 85]],
         'maker' => ['kit' => 'Factory Kit', 'role' => 'Buy, make and sell',
             'line' => 'Buys metals where the House sells them cheapest, makes alloys and rods, and sells the rods where they pay best.',
-            'mature' => 'about 25 to 35 game days (20 to 28 real minutes)', 'days' => [25, 35]],
+            'mature' => 'about 25 to 70 game days (20 to 56 real minutes)', 'days' => [25, 70]],
         'trader' => ['kit' => 'Mining Kit', 'role' => 'Buy low, sell high',
             'line' => 'Buys metals from miners on the Moon and hauls them to whichever exchange pays most.',
             'mature' => 'not for a startup'],
