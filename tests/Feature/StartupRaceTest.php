@@ -47,7 +47,9 @@ class StartupRaceTest extends TestCase
         $this->assertSame(['Miner', 'Refiner', 'Maker'], array_column($race['starters'], 'name'));
         // Each usual path runs from what is left after its kit (#833) to the line, at the middle of its card's range
         $miner = $race['starters'][0];
-        $this->assertSame(50, $miner['path'][1]['age']);
+        $card = \App\Services\Release::STARTER_CARDS['miner']['days'];
+        $this->assertSame(intdiv($card[0] + $card[1], 2), $miner['path'][1]['age']);
+        $this->assertSame(62, $miner['path'][1]['age']);
         $this->assertSame((int) config('forge.starting_credits') - StartupRace::kitPrice('Mining Kit'), $miner['path'][0]['credits']);
         $this->assertSame($miner['after_kit'], $miner['path'][0]['credits']);
         $this->assertLessThan((int) config('forge.starting_credits'), $miner['after_kit']);
