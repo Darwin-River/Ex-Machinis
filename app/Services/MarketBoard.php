@@ -76,20 +76,49 @@ class MarketBoard
         // what a pull or push can really move, as the order book counts it
         $sell = ApiController::movable(4);
         $buy = ApiController::movable(5);
-        $book = DB::select("SELECT b.resource, r.name AS resource_name, b.place_id, p.object_name AS place, b.event_type,
+        // (by whether the House posted it: a startup trades only with the House, #880)
+        $book = DB::select("SELECT b.resource, r.name AS resource_name, b.place_id, p.object_name AS place, b.event_type, b.house,
                 MIN(b.price) AS low, MAX(b.price) AS high, SUM(ABS(b.movable - b.quantity)) AS units
-            FROM (SELECT o.resource, o.event_type, o.price, o.quantity, a.object_id AS place_id,
+            FROM (SELECT o.resource, o.event_type, o.price, o.quantity, a.object_id AS place_id, IFNULL(c.house, 0) AS house,
                          IF(o.event_type = 4, $sell, $buy) AS movable
                   FROM latest_orders AS o
                   JOIN agents AS a ON a.agent_id = o.drone AND a.wrecked_at IS NULL
+                  LEFT JOIN companies AS c ON c.company_id = a.company_id
                   WHERE o.event_type IN (4, 5) AND o.is_open = 1) AS b
             LEFT JOIN resources AS r ON r.id = b.resource
             LEFT JOIN objects AS p ON p.object_id = b.place_id
             WHERE (b.event_type = 4 AND b.movable > b.quantity) OR (b.event_type = 5 AND b.movable < b.quantity)
-            GROUP BY b.resource, r.name, b.place_id, p.object_name, b.event_type");
+            GROUP BY b.resource, r.name, b.place_id, p.object_name, b.event_type, b.house");
+
+        // The House's own best prices, a good at a place
+        $house = [];
+        foreach ($book as $o) {
+            if ((int) $o->house !== 1) {
+                continue;
+            }
+            $id = (int) $o->resource;
+            if ((int) $o->event_type === 4 && (!isset($house[$id]['ask']) || (int) $o->low < $house[$id]['ask']['price'])) {
+                $house[$id]['ask'] = ['place' => $o->place ?? 'Unknown', 'price' => (int) $o->low, 'units' => (int) $o->units];
+            }
+            if ((int) $o->event_type === 5 && (!isset($house[$id]['bid']) || (int) $o->high > $house[$id]['bid']['price'])) {
+                $house[$id]['bid'] = ['place' => $o->place ?? 'Unknown', 'price' => (int) $o->high, 'units' => (int) $o->units];
+            }
+        }
+        // Every order, the House's and players', merged a place at a time
+        $merged = [];
+        foreach ($book as $o) {
+            $k = $o->resource . ':' . $o->place_id . ':' . $o->event_type;
+            if (!isset($merged[$k])) {
+                $merged[$k] = clone $o;
+                continue;
+            }
+            $merged[$k]->low = min((int) $merged[$k]->low, (int) $o->low);
+            $merged[$k]->high = max((int) $merged[$k]->high, (int) $o->high);
+            $merged[$k]->units = (int) $merged[$k]->units + (int) $o->units;
+        }
 
         $goods = [];
-        foreach ($book as $o) {
+        foreach ($merged as $o) {
             $id = (int) $o->resource;
             $goods[$id]['name'] = $o->resource_name ?? (string) $id;
             $place = &$goods[$id]['places'][(int) $o->place_id];
@@ -151,6 +180,8 @@ class MarketBoard
                 // A haul: buy at the cheapest seller, sell to the best buyer elsewhere for more
                 'margin' => $cheapest && $best && $best['bid'] > $cheapest['ask'] && $best['place_id'] !== $cheapest['place_id']
                     ? $best['bid'] - $cheapest['ask'] : null,
+                // What a startup can trade at: the House's own cheapest seller and best buyer (#880)
+                'house_cheapest' => $house[$id]['ask'] ?? null, 'house_best_bid' => $house[$id]['bid'] ?? null,
                 'units' => $units, 'credits' => $credits,
                 'average' => $average !== null ? round($average, $average < 10 ? 1 : 0) : null, 'change_percent' => $change,
             ];

@@ -439,7 +439,8 @@ class PlayerSharesTest extends TestCase
         // The company's API shows players' shares and its locked code (#666)
         $this->getJson("/api/v1/companies/$id")->assertOk()->assertJsonPath('shares.count', PlayerShares::COUNT)
             ->assertJsonPath('shares.holders.0.name', 'Api Founder')->assertJsonPath('pushes.locked', true);
-        $this->getJson('/api/v1/shares')->assertOk()->assertJsonPath('player_shares.0.company', $id);
+        $this->getJson('/api/v1/shares')->assertOk()->assertJsonPath('player_shares.0.company', $id)
+            ->assertJsonPath('companies.0.company', $id);   // the page's rows, not the old rules' market (#881)
         $this->get('/market/shares')->assertOk()->assertSee('Api Co');
         $this->getJson("/api/v1/player-shares/$id")->assertOk()->assertJsonPath('company', $id)
             ->assertJsonStructure(['buys_at', 'sells_at', 'low', 'high', 'bank_holds', 'book' => ['sell', 'buy']]);
