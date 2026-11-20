@@ -257,16 +257,35 @@
                     <p>Verify your e-mail address to turn on e-mail notices.</p>
                 @else
                     @php($noticeSettings = \App\Services\Notices::settings(auth()->user()))
-                    <p>Pick what we may e-mail you about: all are off until you turn them on. All but the weekly digest and
-                        filled orders come together in one e-mail, at most one a real day, each with something to try next;
-                        filled orders come at most hourly. Every e-mail has a link that turns them all off.</p>
+                    <p>Pick what we may e-mail you about. The two about your startups' maturing start on; the rest are off until
+                        you turn them on. All but the weekly digest and filled orders come together in one e-mail, at most one a
+                        real day, each with something to try next; filled orders come at most hourly. Every e-mail has a link that
+                        turns them all off.</p>
+                    {{-- The basic ones first, the traders' folded (#840) --}}
+                    @php($basicKinds = ['can_mature', 'at_cap', 'at_risk', 'wrecked', 'digest'])
+                    @php($tradeKinds = array_diff(array_keys(\App\Services\Notices::KINDS), $basicKinds))
                     <form method="POST" action="{{ url('account/notices') }}">
                         {{ csrf_field() }}
                         <p class="mb-1"><strong>Your companies</strong></p>
-                        @foreach(\App\Services\Notices::KINDS as $kind => $label)
-                            @if($kind === 'at_cap')<p class="mb-1 mt-2"><strong>Trading</strong></p>@endif
-                            <div><label><input type="checkbox" name="notices[]" value="{{ $kind }}" @checked($noticeSettings[$kind])> {{ $label }}</label></div>
+                        @foreach($basicKinds as $kind)
+                            <div><label><input type="checkbox" name="notices[]" value="{{ $kind }}" @checked($noticeSettings[$kind])> {{ \App\Services\Notices::KINDS[$kind] }}</label></div>
                         @endforeach
+                        <details class="mt-2" @if(collect($tradeKinds)->contains(fn ($k) => $noticeSettings[$k])) open @endif>
+                            <summary><strong>For traders</strong> ({{ count($tradeKinds) }} more: share orders, the bank, cash-out moves, price alerts)</summary>
+                            @foreach($tradeKinds as $kind)
+                                <div><label><input type="checkbox" name="notices[]" value="{{ $kind }}" @checked($noticeSettings[$kind])> {{ \App\Services\Notices::KINDS[$kind] }}</label></div>
+                            @endforeach
+                        </details>
+                        <details class="mt-2"><summary>What a notice e-mail looks like</summary>
+                            <div class="p-2" style="border: 1px solid #263052; border-radius: 8px; white-space: normal">
+                                <p class="mb-1"><b>Ex Machinis: 2 things about your companies</b></p>
+                                <p class="mb-1">• Copper Co can mature: it holds 4,780 of the 4,700 it needs. <i>Try next:</i> mature it on its page
+                                    before it reaches its credit cap.</p>
+                                <p class="mb-1">• Drone Copper Co-2 was wrecked at the Moon: out of fuel. <i>Try next:</i> read its post-mortem, and
+                                    keep a fuel floor in your script.</p>
+                                <p class="mb-0"><small>Turn these off: a link in every e-mail.</small></p>
+                            </div>
+                        </details>
                         <button class="button button-secondary button-sm mt-2" type="submit">Save</button>
                     </form>
                     {{-- House price alerts (#761, part 2) --}}
