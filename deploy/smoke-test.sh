@@ -670,7 +670,9 @@ echo "ok: a pull for more than the seller offers fails and costs no fuel"
 # (at 1 a unit its order is the cheapest here, so the first row: the Earth
 # Exchange's station drone sells fuel too, at 3)
 FORGE_COMPANY=$(sql "select company_id from agents where agent_id=$FORGE_DRONE")
-sql "update companies set credits = 90000 where company_id = $FORGE_COMPANY"
+# (well past the 90,000 it waits for: its thinking is billed in credits, and
+# a bill between this and its next look left it at 89,99x for good, #889)
+sql "update companies set credits = 100000 where company_id = $FORGE_COMPANY"
 # (its sell order first: until the test says, it waits a game hour at a time)
 forge_sells() { [ "$(sql "select count(*) from events where drone=$FORGE_DRONE and event_type=4 and resource=2061 and outcome=1")" -ge 1 ]; }
 forge_waits() { forge_sells && [ "$(sql "select a.protocol from agents g join actions a on a.id = g.waiting_action where g.agent_id=$FORGE_DRONE")" = 3 ]; }
