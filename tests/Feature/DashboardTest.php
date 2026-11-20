@@ -90,7 +90,8 @@ class DashboardTest extends TestCase
     {
         $this->world();
         $before = $this->getJson('/api/v1/dashboard')->json('tiles.players.count');
-        $this->player('Late Joiner');
+        $late = $this->player('Late Joiner');
+        \App\Services\Startups::start($late, 'Late Co', 'function launched() wait(60) end');   // played (#867)
         $this->assertSame($before, $this->getJson('/api/v1/dashboard')->json('tiles.players.count'), 'a page view runs no heavy query');
         Cache::flush();
         $this->assertSame($before + 1, $this->getJson('/api/v1/dashboard')->json('tiles.players.count'));
