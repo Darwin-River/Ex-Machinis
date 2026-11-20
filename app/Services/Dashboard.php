@@ -142,8 +142,9 @@ class Dashboard
         $lastWeek = array_sum(array_map(fn ($r) => $r['net'], array_filter($p, fn ($r) => $r['day'] >= $today - 14 && $r['day'] < $today - 7)));
         // The players /players lists (#716: 8 here, 4 there): the public's
         // accounts, a class group's pupils left out
-        $players = (int) DB::table('users')->whereNotNull('login')->whereNull('class_group_id')->count();
-        $newPlayers = (int) DB::table('users')->whereNotNull('login')->whereNull('class_group_id')
+        // (#867: only accounts with a confirmed address, as /players lists them)
+        $players = (int) DB::table('users')->whereNotNull('login')->whereNull('class_group_id')->whereNotNull('email_verified_at')->count();
+        $newPlayers = (int) DB::table('users')->whereNotNull('login')->whereNull('class_group_id')->whereNotNull('email_verified_at')
             ->where('created_at', '>=', now()->subDays(7))->count();
 
         $slowed = (bool) $clock['slowed'];

@@ -105,8 +105,8 @@
 
                 <li class="fs-step" id="start">
                     <h2>How do I start it? <span class="fs-time">1 minute</span></h2>
-                    <p><a href="{{ url('signup') }}">Make an account</a> or <a href="{{ url('login') }}">log in</a> first, so the
-                        startup is yours (a guest gets a claim code to keep it with). On <a href="{{ url('release') }}">Found a startup</a>,
+                    <p><a href="{{ url('signup') }}">Make an account</a> or <a href="{{ url('login') }}">log in</a> first: every
+                        startup belongs to a player, and the account is free. On <a href="{{ url('release') }}">Found a startup</a>,
                         your starter's code is already in the box: give the company a name and press <b>Found startup</b>.
                         The bank lends it {{ $n($startup['grant']) }}: a drone ({{ $n($startup['hull']) }}),
                         {{ $n($startup['credits']) }} credits to spend and a {{ $n($startup['fee']) }} fee. Its first act is to buy its

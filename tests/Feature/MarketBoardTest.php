@@ -161,7 +161,7 @@ class MarketBoardTest extends TestCase
         config(['forge.new_rules' => true]);
         $html = $this->get('/release')->assertOk()
             ->assertSee('<title>Found a startup - Ex-Machinis</title>', false)
-            ->assertSee('Found startup</button>', false)
+            ->assertSee('id="needs-account"', false)   // a visitor makes an account first (#871)
             ->assertSee('id="startup-rules"', false)->assertSee('<summary>Rules</summary>', false)
             ->assertDontSee('alert-info', false)
             ->assertDontSee('Hello from orbit')

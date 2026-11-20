@@ -4,8 +4,6 @@ namespace App\Services;
 
 use App\User;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Str;
 
 /**
  * Startups (#637, step 2 of the new rules in #635). Every company starts as
@@ -19,8 +17,8 @@ use Illuminate\Support\Str;
  * repays, becomes a company in its own right, and the player receives its
  * 100 shares. A player has at most forge.startup_max startups at a time;
  * a closed one's slot reopens after forge.startup_slot_days game days.
- * Anyone may start one as a guest, and claim it into an account with its
- * claim code.
+ * Only an account founds one (#871); a guest's founded before then can
+ * still be claimed into an account with its claim code.
  */
 class Startups
 {
@@ -67,27 +65,26 @@ class Startups
         return $text . '. Mature or close one first.';
     }
 
+    /** What a visitor without an account is told (#871) */
+    public const NEEDS_ACCOUNT = 'Make a free account, or log in, to found a startup: every startup belongs to a player.';
+
     /**
-     * Founds a startup for an account, or for a guest (owner null) from an
-     * address. Returns ['ok' => true, 'agent' => the drone, 'company' => id,
-     * 'claim_code' => a guest's code, shown once] or ['ok' => false,
-     * 'status', 'error'].
+     * Founds a startup for an account. Returns ['ok' => true, 'agent' => the
+     * drone, 'company' => id, 'claim_code' => null] or ['ok' => false,
+     * 'status', 'error']. Everyone makes a free account first (#871: guest
+     * startups ran outside the five-startup limit, so a player could race
+     * many and claim only the winners); a guest's startup founded before
+     * then can still be claimed
      */
     public static function start(?User $owner, string $name, string $script, ?string $ip = null): array
     {
+        if ($owner === null) {
+            return ['ok' => false, 'status' => 401, 'error' => self::NEEDS_ACCOUNT];
+        }
         if ($problem = self::slotProblem($owner)) {
             return ['ok' => false, 'status' => 409, 'error' => $problem];
         }
-        $guestKey = null;
-        if ($owner === null) {
-            $key = 'guest-startup|' . (string) $ip;
-            if (RateLimiter::tooManyAttempts($key, max(1, (int) config('forge.startup_guest_per_day')))) {
-                return ['ok' => false, 'status' => 429,
-                    'error' => 'Guests from your address have started all the startups they may today. Make an account to start more.'];
-            }
-            RateLimiter::hit($key, 86400);
-        }
-        $code = $owner === null ? Str::random(24) : null;
+        $code = null;
         $agent = Release::release(Release::owner(), $name, $script);
         DB::table('companies')->where('company_id', $agent->company_id)->update([
             'startup' => 1,
@@ -95,9 +92,7 @@ class Startups
             'debt' => self::grant(),
             'guest_key' => $code === null ? null : hash('sha256', $code),
         ]);
-        if ($owner) {
-            CompanyNow::forget($owner);   // the new startup shows on its strip at once (#770)
-        }
+        CompanyNow::forget($owner);   // the new startup shows on its strip at once (#770)
         return ['ok' => true, 'agent' => $agent, 'company' => (int) $agent->company_id, 'claim_code' => $code];
     }
 

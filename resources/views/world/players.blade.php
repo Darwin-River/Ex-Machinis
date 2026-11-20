@@ -19,9 +19,12 @@
                             <thead><tr><th scope="col">#</th><th scope="col">Player</th>
                                 <th scope="col" class="text-right">{{ $key === 'wealth' ? 'Wealth' : 'Made today' }}</th></tr></thead>
                             <tbody>
+                            {{-- Equal figures share a place (#836: 18 players on 5,000 were ranked 4 to 21) --}}
+                            @php $place = 0; $prev = null; @endphp
                             @forelse($boards[$key] as $i => $r)
+                                @php $v = $key === 'wealth' ? $r['wealth'] : $r['made']; if ($v !== $prev) { $place = $i + 1; $prev = $v; } @endphp
                                 <tr @if($me === $r['name']) class="table-active" @endif>
-                                    <td>{{ $i + 1 }}</td><td>{{ $r['name'] }}</td>
+                                    <td>{{ $place }}</td><td class="text-break">{{ $r['name'] }}</td>
                                     <td class="text-right">@if($key === 'wealth'){{ number_format($r['wealth']) }}@if($r['bank_due'] > 0)<br><small>{{ number_format($r['bank_due']) }} of it due from the bank</small>@endif
                                         @else{{ ($r['made'] > 0 ? '+' : '') . number_format($r['made']) }}@endif</td>
                                 </tr>

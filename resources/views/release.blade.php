@@ -49,7 +49,7 @@
             @include('_flash_message')
 
             <p class="rl-lead">Pick a starter or write your own Lua, name the company, and start it.
-                @if($newRules)Log in first to keep it (a guest's must be claimed into an account).@else Anyone can, no account needed.@endif
+                @if($newRules)<a href="{{ url('signup') }}">Make a free account</a> or <a href="{{ url('login') }}">log in</a> first: every startup belongs to a player.@else Anyone can, no account needed.@endif
                 Each release starts a new company with one drone in orbit around Earth, 100 fuel and
                 {{ $n(config('forge.starting_credits')) }} credits. The drone loads your script, then runs your
                 <code>launched</code> function on its own; its page shows everything it does and says.</p>
@@ -69,8 +69,7 @@
                             <li>It holds at most {{ \App\Services\Startups::capPermille() / 1000 }} times what it was lent at the start (push fees aside): what it earns above that goes to the bank, so mature it once it can.</li>
                             <li>Until it matures it trades only with the House (anything else fails with -16), buys at most a tenth of what
                                 the House has on sale of a good at one exchange in a game day (-17), and plunders nothing.</li>
-                            <li>Logged in, it is yours: at most {{ config('forge.startup_max') }} at a time, and a closed one's slot reopens a game day later.
-                                As a guest you get a claim code to keep it with.</li>
+                            <li>It is yours: at most {{ config('forge.startup_max') }} at a time, and a closed one's slot reopens a game day later.</li>
                             <li>You reprogram it from its page or your <a href="{{ url('/account') }}">account page</a>: the first push is free, each after it adds
                                 {{ $n(config('forge.startup_push_fee')) }} to its debt.</li>
                             <li>While the world is full a release is refused: try again in a few minutes.</li>
@@ -165,7 +164,14 @@
                               maxlength="{{ config('forge.max_script_length') }}" required>{{ old('script', $starter) }}</textarea>
                 </div>
                 <div class="rl-submit">
+                    {{-- Only a player founds a startup (#871) --}}
+                    @if($newRules && !(\Illuminate\Support\Facades\Auth::user()?->login))
+                        <p id="needs-account"><b>Make a free account, or log in, to found a startup.</b>
+                            <a class="button button-primary button-lg" href="{{ url('signup') }}">Make an account</a>
+                            <a class="button button-secondary button-lg" href="{{ url('login') }}">Log in</a></p>
+                    @else
                     <button class="button button-primary button-lg" type="submit">{{ $newRules ? 'Found startup' : 'Release' }}</button>
+                    @endif
                     <span class="rl-hint">New here? <a href="{{ url('getting-started') }}">Your first startup in 5 minutes</a>.</span>
                 </div>
             </form>

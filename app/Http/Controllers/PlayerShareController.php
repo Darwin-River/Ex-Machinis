@@ -31,7 +31,7 @@ class PlayerShareController extends Controller
     public function sellToBank(Request $request, int $id)
     {
         if (!$user = $this->webPlayer()) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         if ($e = self::notWhole($request)) {
             return back()->with('error', $e);
@@ -44,7 +44,7 @@ class PlayerShareController extends Controller
     public function buyFromBank(Request $request, int $id)
     {
         if (!$user = $this->webPlayer()) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         if ($e = self::notWhole($request)) {
             return back()->with('error', $e);
@@ -65,7 +65,7 @@ class PlayerShareController extends Controller
     public function offer(int $id)
     {
         if (!$user = $this->webPlayer()) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         $r = PlayerShares::offer($user, $id);
         return $this->back($r, $r['ok'] ? 'It offers ' . $r['units'] . ' new shares at its cash-out value a share ('
@@ -76,7 +76,7 @@ class PlayerShareController extends Controller
     public function withdrawOffer(int $id)
     {
         if (!$user = $this->webPlayer()) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         $ok = PlayerShares::withdraw($user, $id);
         return $this->back($ok ? ['ok' => true] : ['ok' => false, 'error' => 'There is no offering of yours to withdraw.'],
@@ -87,7 +87,7 @@ class PlayerShareController extends Controller
     public function buyOffered(Request $request, int $id)
     {
         if (!$user = $this->webPlayer()) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         if ($e = self::notWhole($request)) {
             return back()->with('error', $e);
@@ -100,7 +100,7 @@ class PlayerShareController extends Controller
     public function order(Request $request, int $id)
     {
         if (!$user = $this->webPlayer()) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         // A pegged order from the company page's form (#766)
         $peg = in_array($request->input('peg'), PlayerShares::PEGS, true)
@@ -116,7 +116,7 @@ class PlayerShareController extends Controller
     public function cancel(int $order)
     {
         if (!$user = $this->webPlayer()) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         return PlayerShares::cancel($user, $order) ? back()->withSuccess('Your order is cancelled.')
             : back()->with('error', 'You have no such order.');
@@ -134,7 +134,7 @@ class PlayerShareController extends Controller
     public function saveTradeScript(Request $request)
     {
         if (!$user = $this->webPlayer()) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         $r = TradeScripts::save($user, (string) $request->input('code'), $request->boolean('enabled'));
         return $this->back($r, ($r['removed'] ?? false) ? 'Your trading script is removed.'
@@ -144,7 +144,7 @@ class PlayerShareController extends Controller
     public function runTradeScript()
     {
         if (!$user = $this->webPlayer()) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         $out = TradeScripts::run($user);
         return $out === null ? back()->with('error', 'You have no trading script to run.')

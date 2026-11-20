@@ -43,6 +43,36 @@ class Release
      * what it does
      */
     /** The kits a company can start with (#380): mining and refining, or making */
+    /** A company name as stored: trimmed, each run of spaces one space (#872) */
+    public static function tidyName(string $name): string
+    {
+        return trim(preg_replace('/[\s\x{200B}-\x{200D}\x{2060}\x{FEFF}]+/u', ' ', $name));
+    }
+
+    /**
+     * What a name looks like, for telling look-alikes apart (#872: "Mei  77-1",
+     * two spaces, passed beside Mei 77-1): case, spacing, invisible
+     * characters and the digits that pass for letters (0 for O, 1 for l)
+     * don't count
+     */
+    public static function nameSkeleton(string $name): string
+    {
+        $s = mb_strtolower(self::tidyName(class_exists(\Normalizer::class) ? (string) \Normalizer::normalize($name, \Normalizer::FORM_KC) : $name));
+        return strtr($s, ['0' => 'o', '1' => 'l', '|' => 'l']);
+    }
+
+    /** The company whose name looks like this one, or null (#872) */
+    public static function lookAlike(string $name): ?string
+    {
+        $skeleton = self::nameSkeleton($name);
+        foreach (\Illuminate\Support\Facades\DB::table('companies')->pluck('name') as $other) {
+            if (self::nameSkeleton((string) $other) === $skeleton) {
+                return (string) $other;
+            }
+        }
+        return null;
+    }
+
     public const KITS = ['mining' => 5901, 'factory' => 5902];
     public const KIT_NAMES = [
         'mining' => 'Mining Kit: Engine, Worm and Refinery, to mine ore and refine it',

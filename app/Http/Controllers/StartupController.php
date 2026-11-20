@@ -28,7 +28,7 @@ class StartupController extends Controller
     public function claim(Request $request)
     {
         if (!$user = $this->player()) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         $result = Startups::claim($user, (string) $request->input('code'));
         return $this->done($result, $result['ok'] ? $result['name'] . ' is yours now.' : '');
@@ -37,7 +37,7 @@ class StartupController extends Controller
     public function reprogram(Request $request, int $id)
     {
         if (!$user = $this->player()) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         $request->validate(['script' => 'required|string|max:' . config('forge.max_script_length')]);
         $result = Startups::reprogram($user, $id, str_replace("\r\n", "\n", (string) $request->input('script')));
@@ -49,7 +49,7 @@ class StartupController extends Controller
     public function close(int $id)
     {
         if (!$user = $this->player()) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         $result = Startups::close($user, $id);
         return $this->done($result, $result['ok'] ? $result['name'] . ' is closed: it has left the game, and its debt is cancelled.' : '');
@@ -58,7 +58,7 @@ class StartupController extends Controller
     public function mature(int $id)
     {
         if (!$user = $this->player()) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         $result = Startups::mature($user, $id);
         return $this->done($result, $result['ok'] ? $result['name'] . ' has matured: it repaid ' . number_format($result['repaid'])

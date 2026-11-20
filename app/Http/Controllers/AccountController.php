@@ -72,7 +72,7 @@ class AccountController extends Controller
     {
         $user = $this->player();
         if (!$user) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         \App\Services\SinceLooked::seen($user);
         return back();
@@ -82,7 +82,7 @@ class AccountController extends Controller
     {
         $user = $this->player();
         if (!$user) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         if (is_array($digest = session('digest'))) {
             \App\Services\PlayerBoards::markSeen($user, $digest);
@@ -109,7 +109,7 @@ class AccountController extends Controller
     {
         $user = $this->player();
         if (!$user) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         $key = 'verify-mail|' . $user->user_id;
         if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($key, 3)) {
@@ -126,7 +126,7 @@ class AccountController extends Controller
     {
         $user = $this->player();
         if (!$user) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         return redirect('/account')->with('token', Players::issueToken($user));
     }
@@ -136,7 +136,7 @@ class AccountController extends Controller
     {
         $user = $this->player();
         if (!$user) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         $request->validate(['group_name' => 'required|string|max:64', 'pupils' => 'required|integer']);
         try {
@@ -151,7 +151,7 @@ class AccountController extends Controller
     {
         $user = $this->player();
         if (!$user) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         $group = Players::classGroup($user, $id);
         abort_if($group === null, 404);
@@ -163,7 +163,7 @@ class AccountController extends Controller
     {
         $user = $this->player();
         if (!$user) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         $group = Players::classGroup($user, $id);
         abort_if($group === null, 404);
@@ -180,7 +180,7 @@ class AccountController extends Controller
     {
         $user = $this->player();
         if (!$user) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         if (!\App\Services\Notices::available() || !Players::verified($user)
             || \Illuminate\Support\Facades\DB::table('users')->where('user_id', $user->user_id)->value('class_group_id') !== null) {
@@ -196,7 +196,7 @@ class AccountController extends Controller
     {
         $user = $this->player();
         if (!$user) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         abort_unless(\App\Services\Notices::available(), 404);
         $request->validate(['resource' => 'required|integer', 'place' => 'nullable|integer', 'above' => 'required|integer|min:1|max:100000000']);
@@ -210,7 +210,7 @@ class AccountController extends Controller
     {
         $user = $this->player();
         if (!$user) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         abort_unless(\App\Services\Notices::available() && \App\Services\Notices::removeAlert($user, $id), 404);
         return redirect('/account#notices')->withSuccess('The alert is gone.');
@@ -221,7 +221,7 @@ class AccountController extends Controller
     {
         $user = $this->player();
         if (!$user) {
-            return redirect('/login');
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         abort_unless(\App\Services\Notices::available() && \App\Services\Notices::setClass($user, $id, $request->boolean('on')), 404);
         return redirect('/account#notices')->withSuccess($request->boolean('on')
