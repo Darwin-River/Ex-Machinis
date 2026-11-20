@@ -91,7 +91,7 @@
                     </div>
                 @endforeach
             </div>
-            <p class="mk-src">The 10 best on each side (a phone needn't scroll past 80 sellers, #744); every order: <code>GET /api/v1/orders?side=sell&amp;resource={{ $resource->id }}</code> and <code>?side=buy</code></p>
+            <p class="mk-src">The 10 best on each side (a phone needn't scroll past 80 sellers); every order: <code>GET /api/v1/orders?side=sell&amp;resource={{ $resource->id }}</code> and <code>?side=buy</code></p>
 
             @if($demand || $supply)
                 {{-- What the House buys and sells of it (#550, #630) --}}

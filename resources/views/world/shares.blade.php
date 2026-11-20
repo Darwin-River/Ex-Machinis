@@ -146,7 +146,7 @@
                 @else
                 Every company starts with 1,000 shares, and more once it issues new ones to raise credits; each share pays
                 its holder its part of the company's profit, paid once a game day: its sales after tax less what it paid
-                for goods and equipment, after making up any losses (#603).
+                for goods and equipment, after making up any losses.
                 Shares trade at the Earth exchange: a drone buys by pulling from a sell order and sells by pushing into
                 a buy order, wherever it is. See <a href="{{ url('players-manual') }}#shares-and-the-stock-exchange">Shares
                 and the stock exchange</a> in the players' manual. Everything here is live.
@@ -159,7 +159,7 @@
                 deadline, if at least the offering's minimum is committed, those shares are issued; if not, everyone is
                 refunded. <i>A share a day</i> is the company's profit a day (30-day average) divided by the
                 shares it will have if the offering fills. <i>Income sold</i> is the part of the company's future profit the
-                new shares take if it fills (#572).</div>
+                new shares take if it fills.</div>
             <div class="table-custom-responsive">
                 <table class="table-ticket" id="share-offerings">
                     <tr><th>Company</th><th>New shares</th><th>At least</th><th>Price</th><th>Raising up to</th><th>Committed</th><th>Hours left</th>

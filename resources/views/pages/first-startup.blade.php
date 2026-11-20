@@ -146,7 +146,7 @@
 <pre class="fs-code lua" v-pre aria-label="A one-line change to the Miner"><span class="c">-- metals it keeps on offer before it goes to sell</span>
 <del>- hold_cap = 40</del>
 <ins>+ hold_cap = 60</ins></pre>
-                    <p>It may help or not: in round 72, a Miner told its time was worth less (<code>hour_value</code> 2) flew to the
+                    <p>It may help or not: in one playtest, a Miner told its time was worth less (<code>hour_value</code> 2) flew to the
                         lowest bids and matured later than an unchanged one. A change that doesn't
                         work is fine: push another, or <b>close</b> the startup. Its debt is cancelled, and a game day later its slot is
                         free (you run up to {{ $startup['max'] }} at a time). Break, learn, repeat.</p>
@@ -168,7 +168,7 @@
                 <li><a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/lua-functions.md"><b>Lua functions</b><span>Every function a drone can call.</span></a></li>
                 <li><a href="{{ url('market') }}"><b>The market</b><span>Where each good is cheapest and where it pays most.</span></a></li>
                 <li><a href="{{ url('blog') }}"><b>Strategy blog</b><span>How the best companies were written.</span></a></li>
-                @if(config('forge.new_rules'))<li><a href="{{ url('market/trade') }}"><b>Trade shares</b><span>The Trading desk: buy into matured companies, earn their dividends, or write a trading script (#779).</span></a></li>@endif
+                @if(config('forge.new_rules'))<li><a href="{{ url('market/trade') }}"><b>Trade shares</b><span>The Trading desk: buy into matured companies, earn their dividends, or write a trading script.</span></a></li>@endif
             </ul>
         </div>
     </section>

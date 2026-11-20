@@ -157,7 +157,7 @@
                     @endif
                     @if($road['cap'] && $road['credits'] >= $road['cap'])
                         <div class="health-banner" id="at-cap"><strong>It is at its credit cap:</strong> what it earns above
-                            {{ number_format($road['cap']) }} now goes to the bank (#749). It is ready to mature: mature it now.</div>
+                            {{ number_format($road['cap']) }} now goes to the bank. It is ready to mature: mature it now.</div>
                     @endif
                     @if($road['cap'])
                         <p class="mb-2"><small>Its credit cap is {{ number_format($road['cap']) }}: what it earns above that goes to the bank, so mature it before it gets there.</small></p>
@@ -713,7 +713,7 @@
                     share is committed they are issued and the company paid. At the deadline, if at least
                     {{ number_format($o['min']) }} are committed, those are issued; if not, everyone is refunded.
                     If it fills, the new shares take {{ $o['income_percent'] }}% of the company's future profit:
-                    about {{ number_format($o['dividends_a_day'], 1) }} credits a day at today's profit (#572).</p>
+                    about {{ number_format($o['dividends_a_day'], 1) }} credits a day at today's profit.</p>
                 @if(count($o['investors']))
                     <div class="table-custom-responsive">
                         <table class="table-ticket">
