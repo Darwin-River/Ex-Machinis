@@ -15,7 +15,7 @@
         .td-watch li a:hover { border-color: #263052; }
         .td-watch li a[aria-current="true"] { border-color: #ffb547; background: rgba(255, 181, 71, .06); }
         .td-watch small { color: #9aa3b8; }
-        .td-pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 0 8px; border-radius: 99px; white-space: nowrap; }
+        .td-pill { display: inline-block; font-size: 12px; font-weight: 700; padding: 0 8px; border-radius: 99px; white-space: nowrap; }
         .td-pill-ok { background: rgba(90, 209, 154, .16); color: #5ad19a; }
         .td-pill-warn { background: rgba(240, 180, 41, .16); color: #f0b429; }
         .td-pill-bad { background: rgba(255, 138, 122, .16); color: #ff8a7a; }
@@ -25,7 +25,7 @@
         .td-ask td:first-child { color: #ff8a7a; }
         .td-bid td:first-child { color: #5ad19a; }
         .td-bank td { color: #4cc9f0; font-weight: 600; }
-        .td-band td { color: #6b7283; font-style: italic; }
+        .td-band td { color: #9aa3b8; font-style: italic; }   /* #840: 3.69:1 was too faint */
         .td-spread td { color: #9aa3b8; text-align: center !important; font-size: 13px; }
         .td-ticket { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: .6rem 0; }
         .td-say { background: #0b1020; border-left: 3px solid #ffb547; padding: 8px 12px; border-radius: 6px; min-height: 2.6em; }
@@ -66,7 +66,7 @@
                     {{-- The watch list: your holdings first, each with a health pill; on a phone it comes after the
                          ticket and the book, with a picker above them (#845) --}}
                     <div class="td-card td-watch-card">
-                        <h2>Watch list</h2>
+                        <h2>{{ $me ? 'Watch list' : 'All companies' }}</h2>
                         <ul class="td-watch" id="watch-list">
                             @foreach($desk['watch'] as $w)
                                 <li><a href="{{ url('market/trade?company=' . $w['company']) }}" @if($w['company'] === $desk['company']) aria-current="true" @endif>
@@ -94,7 +94,8 @@
                                 @foreach($rows->where('kind', 'ask')->where('price', '>', $p['sells_at']) as $o)
                                     <tr class="td-ask" data-side="buy" data-price="{{ $o['price'] }}" title="Buy from this order"><td>Sell · {{ $o['by'] }}@if($o['script']) <small>(script)</small>@endif</td><td class="num">{{ $o['units'] }}</td><td class="num">{{ number_format($o['price']) }}</td></tr>
                                 @endforeach
-                                <tr class="td-bank" data-side="buy" title="Buy now"><td>The bank sells{{ $p['bank_holds'] > 0 ? ' (' . $p['bank_holds'] . ' held)' : ' (holds none)' }}</td><td></td><td class="num">{{ number_format($p['sells_at']) }}</td></tr>
+                                @if($p['bank_holds'] > 0)<tr class="td-bank" data-side="buy" title="Buy now"><td>The bank sells ({{ $p['bank_holds'] }} held)</td><td></td><td class="num">{{ number_format($p['sells_at']) }}</td></tr>
+                                @else<tr class="td-bank"><td>The bank holds none to sell</td><td></td><td class="num">–</td></tr>@endif
                                 @foreach($rows->where('kind', 'ask')->where('price', '<=', $p['sells_at']) as $o)
                                     <tr class="td-ask" data-side="buy" data-price="{{ $o['price'] }}" title="Buy from this order"><td>Sell · {{ $o['by'] }}@if($o['script']) <small>(script)</small>@endif</td><td class="num">{{ $o['units'] }}</td><td class="num">{{ number_format($o['price']) }}</td></tr>
                                 @endforeach
