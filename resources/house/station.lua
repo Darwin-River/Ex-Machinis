@@ -48,10 +48,12 @@ local function excess(i) return math.max(units(good(i)) - keep(i), 0) end
 local function restock(i) import(stock(i) - units(good(i)), good(i)) end
 
 -- Fuel: its reserve, and a quarter of a day's supply on top for sale.
--- Each import takes a while and a round imports about 90 goods, so a round
--- can last days: it tops its fuel up after each import, not once a round
--- (#380 round 37: the Moon Depot's 6,000 a day came out at about 500
--- every two days, and 50 drones ran dry)
+-- Each import or shipment takes about a game hour and a round restocks up
+-- to about 90 goods, so a round can last days: it checks its fuel after
+-- each import, not once a round (#380 round 37: the Moon Depot's 6,000 a
+-- day came out at about 500 every two days, and 50 drones ran dry). It
+-- tops it up only once it is down to half of what is for sale (#900:
+-- topping up after every import, itself an import, doubled each round)
 fuel_stock = reserve
 local function find_fuel()
   fuel_stock = reserve
@@ -59,26 +61,42 @@ local function find_fuel()
     if not buys(i) and good(i) == fuel then fuel_stock = stock(i) end
   end
 end
-local function fuel_up() import(reserve + fuel_stock - units(fuel), fuel) end
+local function fuel_up()
+  if units(fuel) <= reserve + fuel_stock // 2 then import(reserve + fuel_stock - units(fuel), fuel) end
+end
 
--- Each round restocks what sells, from the lowest resource up: fuel and raw
--- goods, what drones need most, come back first after a sale
+-- Each round restocks what sells and is below its level, the emptiest
+-- first (#900: a sold-out good waited behind every good listed before it);
+-- at the same share, the lowest resource first: raw goods, what drones need
+-- most
 local function restock_all()
+  local low = {}
   for i = 1, #goods do
-    if not buys(i) and good(i) ~= fuel then
-      restock(i)
-      fuel_up()
+    if not buys(i) and good(i) ~= fuel and units(good(i)) < stock(i) then
+      low[#low + 1] = {i = i, share = units(good(i)) / stock(i)}
     end
+  end
+  table.sort(low, function(a, b)
+    if a.share ~= b.share then return a.share < b.share end
+    return good(a.i) < good(b.i)
+  end)
+  for _, l in ipairs(low) do
+    restock(l.i)
+    fuel_up()
   end
 end
 
--- Once a game day, what it bought goes down to the surface
+-- Once a game day, what it bought goes down to the surface: a good once
+-- there is at least a quarter of a day's demand of it to send (#900: each
+-- shipment takes about a game hour, and a few units of each of 90 goods
+-- took days). Until then it stays on board (for sale where the exchange
+-- sells it too)
 shipped = -1
 local function ship()
   if today() == shipped then return end
   shipped = today()
   for i = #goods, 1, -1 do
-    if buys(i) then
+    if buys(i) and excess(i) >= stock(i) then
       export(excess(i), good(i))
       fuel_up()
     end
