@@ -36,3 +36,10 @@ app.mixin({
 });
 
 app.mount('#app');
+
+// The Lua editor (#852), loaded only on pages with a box for Lua. Until it
+// loads, or if it never does, the box is the plain textarea
+const luaBoxes = document.querySelectorAll('textarea[data-lua-editor]');
+if (luaBoxes.length) {
+    import('./lua-editor').then(m => m.upgradeAll(luaBoxes)).catch(e => window.console && console.error('Lua editor', e));
+}

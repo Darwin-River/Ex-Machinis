@@ -1,15 +1,24 @@
 {
   "resources/assets/js/app.js": {
-    "file": "assets/app-D8otA2-R.js",
+    "file": "assets/app-C2KroyMf.js",
     "name": "app",
     "src": "resources/assets/js/app.js",
     "isEntry": true,
+    "dynamicImports": [
+      "resources/assets/js/lua-editor.js"
+    ],
     "css": [
       "assets/app-DtCCFxu_.css"
     ]
   },
+  "resources/assets/js/lua-editor.js": {
+    "file": "assets/lua-editor-CR7ve0aC.js",
+    "name": "lua-editor",
+    "src": "resources/assets/js/lua-editor.js",
+    "isDynamicEntry": true
+  },
   "resources/assets/sass/app.scss": {
-    "file": "assets/app-LywCR5M0.css",
+    "file": "assets/app-C7x8sYXG.css",
     "src": "resources/assets/sass/app.scss",
     "isEntry": true
   }

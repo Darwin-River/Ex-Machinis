@@ -131,8 +131,9 @@ th.sortable { cursor: pointer; }
 
 // Lua in colour (#848): every block of code the site shows, through
 // App\Services\LuaHighlight. Usual dark-theme Lua colours; the game
-// library's own names are in the site's amber
-pre.lua {
+// library's own names are in the site's amber. The Lua editor (#852,
+// resources/assets/js/lua-editor.js) uses the same classes
+pre.lua, .cm-editor.lua-editor {
   color: $text;
   font-family: $font-mono;
   .k { color: #c792ea; }                      // keywords: function, if, end…
@@ -145,3 +146,9 @@ pre.lua {
   .g { color: $warn; }                        // the game's: go, mine, fuel…
   .f { color: #82aaff; }                      // the name a function is defined under
 }
+// The textarea a Lua editor stands in for: still the form's field, out of sight
+textarea.lua-editor-source {
+  position: absolute !important; width: 1px !important; height: 1px !important; min-height: 0 !important;
+  padding: 0 !important; border: 0 !important; opacity: 0; pointer-events: none; overflow: hidden;
+}
+.cm-editor.lua-editor { text-align: left; white-space: normal; }

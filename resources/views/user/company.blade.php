@@ -179,7 +179,8 @@
                                 <summary class="button button-secondary" style="display: inline-block">Push new code {{ $road['push_fee'] === 0 ? '(the first is free)' : '(adds ' . number_format($road['push_fee']) . ' to its debt)' }}</summary>
                                 <form method="POST" action="{{ url('startups/' . $user->user_id . '/push') }}" class="mt-2">{{ csrf_field() }}
                                     <label for="startup-script">New script (Lua): its working drones drop what they run and start it</label>
-                                    <textarea v-pre class="form-control" id="startup-script" name="script" rows="10" spellcheck="false"
+                                    @include('partials.lua-editor')
+                                    <textarea v-pre class="form-control" id="startup-script" name="script" rows="10" spellcheck="false" data-lua-editor
                                               maxlength="{{ config('forge.max_script_length') }}" required>{{ $code['current']['script'] ?? '' }}</textarea>
                                     <button class="button button-primary mt-2" type="submit">Push it</button>
                                 </form>
@@ -638,7 +639,8 @@
                     {{ csrf_field() }}
                     <div class="form-group">
                         <label for="push-script">New script (Lua)</label>
-                        <textarea v-pre class="form-control" id="push-script" name="script" rows="10" spellcheck="false"
+                        @include('partials.lua-editor')
+                        <textarea v-pre class="form-control" id="push-script" name="script" rows="10" spellcheck="false" data-lua-editor
                                   style="font-family: monospace" maxlength="{{ config('forge.max_script_length') }}"
                                   required>{{ old('script') }}</textarea>
                     </div>

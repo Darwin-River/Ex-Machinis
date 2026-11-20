@@ -12,11 +12,24 @@
         "vite": "^6.3.5"
     },
     "dependencies": {
+        "@codemirror/commands": "6.8.1",
+        "@codemirror/language": "6.11.0",
+        "@codemirror/legacy-modes": "6.5.1",
+        "@codemirror/state": "6.5.2",
+        "@codemirror/view": "6.36.8",
+        "@lezer/highlight": "1.2.1",
         "axios": "^1.8.4",
         "bootstrap": "^4.6.2",
         "jquery": "^3.7.1",
         "lodash": "^4.17.21",
         "popper.js": "^1.16.1",
         "vue": "^3.5.13"
+    },
+    "overrides": {
+        "@lezer/common": "1.2.3",
+        "@lezer/lr": "1.4.2",
+        "@marijn/find-cluster-break": "1.0.2",
+        "style-mod": "4.1.2",
+        "w3c-keyname": "2.2.8"
     }
 }

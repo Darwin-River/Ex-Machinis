@@ -78,6 +78,15 @@ class LuaHighlight
                 . self::html(html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8')) . '</code></pre>', $html);
     }
 
+    /**
+     * The names coloured as the game's (g): the engine's own functions and the
+     * library's. The Lua editor (#852) colours the same ones, from this list
+     */
+    public static function gameNames(): array
+    {
+        return array_values(array_unique(array_merge(self::PRIMITIVES, array_map('strval', array_keys(CodeLineage::library())))));
+    }
+
     private static function nameClass(string $name, bool $afterFunction, bool $afterDot): string
     {
         if ($afterFunction) {

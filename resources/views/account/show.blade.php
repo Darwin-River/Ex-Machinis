@@ -148,7 +148,8 @@
                 <form method="POST" action="{{ url('account/trade-script') }}">
                     {{ csrf_field() }}
                     <label class="sr-only" for="trade-code">Your trading script</label>
-                    <textarea class="form-control mb-2" id="trade-code" name="code" rows="12" style="font-family: monospace"
+                    @include('partials.lua-editor')
+                    <textarea v-pre class="form-control mb-2" id="trade-code" name="code" rows="12" style="font-family: monospace" data-lua-editor spellcheck="false"
                               placeholder="function trade(market) ... end">{{ $tradeScript['code'] }}</textarea>
                     <label class="mr-3"><input type="checkbox" name="enabled" value="1" @checked($tradeScript['enabled'])> Run it every few real minutes</label>
                     <button class="button button-secondary button-sm" type="submit">Save</button>
@@ -209,7 +210,8 @@
                             <details><summary>Change its code</summary>
                                 <form method="POST" action="{{ url('startups/' . $seed['company_id'] . '/push') }}" class="mt-2">
                                     {{ csrf_field() }}
-                                    <textarea class="form-control" name="script" rows="8" maxlength="{{ config('forge.max_script_length') }}"
+                                    @include('partials.lua-editor')
+                                    <textarea v-pre class="form-control" name="script" rows="8" maxlength="{{ config('forge.max_script_length') }}" data-lua-editor spellcheck="false"
                                               aria-label="New code for {{ $seed['name'] }}" required></textarea>
                                     <button class="button button-secondary button-sm mt-2" type="submit">Send the new code</button>
                                 </form>

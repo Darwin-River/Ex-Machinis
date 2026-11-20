@@ -169,7 +169,7 @@ All but the digest and filled orders come together in one e-mail, at most one a 
 
 ### Releasing a startup
 
-Write your drone's program on the **Found a startup** page (`/release`, the button at the top of every page) and press **Found startup**. The page opens with the three starters as cards and the Miner's code in the script box; a short note says what the bank lends and when the startup matures, and **Rules** opens the rest of what a startup may do. Starting one is called releasing it:
+Write your drone's program on the **Found a startup** page (`/release`, the button at the top of every page) and press **Found startup**. The page opens with the three starters as cards and the Miner's code in the script box; a short note says what the bank lends and when the startup matures, and **Rules** opens the rest of what a startup may do. The script box, like every box where you type Lua (pushing new code from a company page, a startup's **Change its code**, your trading script), is a code editor: it numbers the lines, colours the code as the site shows it, highlights the bracket that matches the one at the cursor, and indents for you; **Tab** indents (press **Esc** first to move on with Tab instead), and **Ctrl+Z** undoes. On a phone, long lines wrap. Starting one is called releasing it:
 
 - each release starts a new **startup** company, with one drone in orbit around Earth, 100 fuel and 3,000 credits, and no equipment: your script buys what it needs (see [Equipping your drone](#unpacking-your-kit));
 - your script is a Lua program, and it must define a function called `launched` (`function launched() ... end`). The drone loads your script, then calls `launched()` on its own;
