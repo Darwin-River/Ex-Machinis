@@ -1224,6 +1224,42 @@ static ErrorCode_t event_apply(Event_t *event)
         int new_id = 0;
         int source_id = event->new_quantity;
 
+        // The fleet cap, checked again as the launch lands (#746: a company
+        // came to 9 working drones under a cap of 8). Refused (-20), the
+        // launcher gets its kit and the clone's fuel back
+        int cap = db_fleet_full_e(event->drone_id);
+        if(cap > 0) {
+            Event_t back;
+            memset(&back, 0, sizeof(back));
+            back.event_type = INCREMENT_INVENTORY_EVENT_TYPE;
+            back.action_id = event->action_id;
+            back.logged = 1;
+            back.outcome = OUTCOME_NO_OUTCOME;
+            back.drone_id = event->drone_id;
+            back.new_credits = NULL_VALUE;
+            back.new_location = NULL_VALUE;
+            back.new_transmission = NULL_VALUE;
+            back.resource_id = event->resource_id;   // the kit
+            back.new_quantity = 1;
+            back.new_cargo = db_resource_mass_e(event->resource_id);
+            result = db_insert_event_e(&back);
+            if(result == ENGINE_OK) {
+                back.resource_id = FUEL_RESOURCE_ID;
+                back.new_quantity = LAUNCH_FUEL;
+                back.new_cargo = LAUNCH_FUEL;
+                result = db_insert_event_e(&back);
+            }
+            engine_trace(TRACE_LEVEL_ALWAYS, "Launch event [%d] refused: drone [%d]'s company has its [%d] working drones; "
+                "kit [%d] and the clone's fuel given back", event->event_id, event->drone_id, cap, event->resource_id);
+            event->outcome = OUTCOME_FLEET_CAP;
+            event->logged = 1;
+            event->new_quantity = NULL_VALUE;
+            event->new_cargo = NULL_VALUE;
+            event->new_credits = NULL_VALUE;
+            if(result == ENGINE_OK) result = db_update_event(event);
+            return result;
+        }
+
         result = db_launch_drone(event->drone_id, source_id, event->resource_id, &new_id);
 
         // Its tank (#324 step 13): the fuel the launcher paid for it when

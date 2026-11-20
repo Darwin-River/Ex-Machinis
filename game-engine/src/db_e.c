@@ -1229,6 +1229,33 @@ static long long db_tool_number(DbConnection_t* connection, const char* sql, lon
 }
 
 /*
+ * The fleet cap when a launch lands (#746): the cap when the launcher's
+ * company already has that many working drones (the House's companies
+ * aren't capped), else 0. The game engine checks it when the launch is
+ * planned, but a company still came to 9 drones; the events engine applies
+ * launches one at a time, so here the count is exact.
+ */
+int db_fleet_full_e(int launcher_id)
+{
+    DbConnection_t* connection = engine_get_db_connection();
+    char sql[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(sql, DB_MAX_SQL_QUERY_LEN,
+        "SELECT IF(c.house = 0 AND r.fleet_cap > 0 AND "
+        "(SELECT COUNT(*) FROM agents w WHERE w.company_id = c.company_id AND w.wrecked_at IS NULL) >= r.fleet_cap, "
+        "r.fleet_cap, 0) FROM agents l JOIN companies c ON c.company_id = l.company_id "
+        "JOIN house_rules r ON r.id = 1 WHERE l.agent_id = %d", launcher_id);
+    return (int)db_tool_number(connection, sql, 0);
+}
+
+/* A resource's mass (1 when unknown) */
+int db_resource_mass_e(int resource)
+{
+    char sql[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(sql, DB_MAX_SQL_QUERY_LEN, "SELECT mass FROM resources WHERE id = %d", resource);
+    return (int)db_tool_number(engine_get_db_connection(), sql, 1);
+}
+
+/*
  * The locks in force, in the events engine's memory (#814), so a decrement
  * checks them without a query: only this engine adds locks (a lock event
  * settling); unlocks, and aborts here, take them out. An abort in the game

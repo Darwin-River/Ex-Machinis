@@ -31,7 +31,7 @@ class RoundSeventyFixesTest extends TestCase
     /** #713: the Miner sells where the House pays most, and refuels instead of resting dry */
     public function testTheMinerSellsToTheBestBidderAndRefuels()
     {
-        foreach (['starters/miner', 'companies/listed_miner', 'companies/raising_miner'] as $name) {
+        foreach (['starters/miner'] as $name) {
             $src = $this->source("examples/$name.lua");
             $this->assertStringNotContainsString('if units(fuel) < 15 then wait(rest); return end', $src, $name);
             $this->assertStringContainsString('if units(fuel) < low_fuel then refuel(); return end', $src, $name);

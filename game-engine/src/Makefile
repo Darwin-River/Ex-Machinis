@@ -116,7 +116,7 @@ test: $(EXE_PATH)/lua-check check_doc_lua.sh test_orbits.c orbits.c test_wrap.c 
 	$(CXX) -std=c99 -Wall -Werror -O2 -I$(LUA_DIR) -o $(OBJS_PATH)/test_lua_equip test_lua_equip.c $(LUA_OBJS) -lm
 	$(OBJS_PATH)/test_lua_equip
 	# The Lua drones' library and the Lua starters compile (#380)
-	for f in lua_library.lua ../../examples/starters/*.lua ../../examples/companies/*.lua ../../examples/traders/*.lua; do $(EXE_PATH)/lua-check < $$f || { echo "$$f doesn't compile"; exit 1; }; done
+	for f in lua_library.lua ../../resources/house/station.lua ../../examples/starters/*.lua ../../examples/companies/*.lua ../../examples/traders/*.lua; do $(EXE_PATH)/lua-check < $$f || { echo "$$f doesn't compile"; exit 1; }; done
 	@echo "lua: the library, the Lua starters and designs compile"
 	./check_doc_lua.sh ../../documents/players-manual.md ../../documents/lua-functions.md ../../documents/blog/*.md
 

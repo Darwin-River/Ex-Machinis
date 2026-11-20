@@ -59,14 +59,15 @@
 
             <h2 class="h4 mt-5" id="house-supply">What does the House have on sale?</h2>
             @php($rounds = collect($supply)->pluck('round_hours')->filter(fn ($h) => $h !== null)->sort()->values())
-            <p class="mk-lead">Each exchange sells from stock its station drone brings up, topping each good back up to its level in rounds{{ $rounds->isNotEmpty() ? ', about every ' . $rounds[intdiv(count($rounds), 2)] . ' game hours' : '' }}.</p>
+            <p class="mk-lead">Each exchange sells from stock its station drone brings up, topping each good back up to its level in rounds{{ $rounds->isNotEmpty() ? ', about every ' . $rounds[intdiv(count($rounds), 2)] . ' game ' . \Illuminate\Support\Str::plural('hour', (float) $rounds[intdiv(count($rounds), 2)] == 1 ? 1 : 2) : '' }}.</p>
             <details class="mb-2"><summary>How the House sells, and what the columns mean</summary>
             <p class="mk-lead">
                 Each House exchange sells goods from stock its station drone brings up from the surface. In rounds,
-                about every game hour or two, it tops each good it sells back up to a quarter of a day's supply. A good
+                it tops each good it sells back up to a quarter of a day's supply. Each import or shipment takes its station
+                about a game hour, so a round of 90-odd goods takes game days. A good
                 that sells out is back, up to that, at its next round. <i>On sale</i> is what a purchase can take now,
                 <i>Restocked</i> when it last brought this good up, and <i>Next round</i> when its next round is due, from
-                how often its rounds have come over the last two game days. A good at or above its level isn't restocked: there is nothing to top up. Drones ask with <code>house_supply(r)</code>.
+                how often its rounds have come over the last ten game days. A good at or above its level isn't restocked: there is nothing to top up. Drones ask with <code>house_supply(r)</code>.
             </p></details>
             <form class="mk-form mb-2" method="get" action="{{ url()->current() }}#house-supply">
                 <label for="supply">Show</label>
@@ -89,7 +90,7 @@
                             <td class="num" data-label="Price">{{ $s['on_sale'] > 0 ? $n($s['price']) . ' cr' : 'sold out' }}</td>
                             <td class="num" data-label="On sale">{{ $n($s['on_sale']) }} {!! $bar($s['on_sale'], max($s['on_sale'], $s['refill_to'])) !!}<br><small>{{ $s['on_sale'] > $s['refill_to'] ? 'over its level of ' . $n($s['refill_to']) : 'of its level, ' . $n($s['refill_to']) }}</small></td>
                             <td class="num" data-label="Sold today">{{ $n($s['sold']) }}</td>
-                            <td data-label="Restocked">{{ $s['last_restock_hours'] !== null ? $s['last_restock_hours'] . ' game hours ago' : ($s['on_sale'] >= $s['refill_to'] ? 'not needed: at its level' : 'not in two game days') }}</td>
+                            <td data-label="Restocked">{{ $s['last_restock_hours'] !== null ? $s['last_restock_hours'] . ' game hours ago' : ($s['on_sale'] >= $s['refill_to'] ? 'not needed: at its level' : 'not in ten game days') }}</td>
                             <td data-label="Next round">{{ $s['next_hours'] === null ? '–' : ($s['next_hours'] <= 0 ? 'due now' : 'in ' . $s['next_hours'] . ' game hours') }}</td>
                         </tr>
                     @empty

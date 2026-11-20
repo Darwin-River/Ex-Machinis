@@ -11,7 +11,8 @@
                 {{ number_format(config('forge.player_share_credits')) }} credits for buying shares in companies. Your
                 account gathers everything your companies and shares earn you.</p>
             <p><b>Don't use your real name.</b> Your account's name is public: it shows on the leaderboards. Your e-mail
-                address is private: only you see it, and we use it only to verify your account.</p>
+                address is private: only you see it. We use it to verify your account and to send the notices you choose on your
+                account page (on at first; turn any of them off there).</p>
             @include('account._errors')
             <form method="POST" action="{{ url('signup') }}" class="mt-3" style="max-width: 28rem">
                 {{ csrf_field() }}

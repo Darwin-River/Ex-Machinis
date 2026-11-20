@@ -318,8 +318,10 @@ class HouseMarket
         return $out;
     }
 
-    /** Imports this far apart (game seconds) start a new round of the station's restocking */
-    public const ROUND_GAP = 1800;
+    /** Game days of a station's restocking that its figures look back over (#835: a round takes days) */
+    public const LOOK_DAYS = 10;
+    /** The program's wait between rounds (resources/house/station.lua: wait(60)) */
+    public const WAIT_PROTOCOL = 3;
     /** Import Resource (resources/house/station.lua: perform(5911, n, resource)) */
     public const IMPORT_PROTOCOL = 5911;
 
@@ -331,9 +333,9 @@ class HouseMarket
      * counts it), refill_to (what each round tops it back up to: a quarter of
      * the day's supply), daily (the day's supply), sold (units sold today),
      * last_restock_hours (game hours since it last imported this good; null
-     * if not in two game days), round_hours (how often its rounds come: the
-     * median gap between rounds of imports over two game days; null with
-     * fewer than three) and next_hours (game hours until its next round is
+     * if not in LOOK_DAYS game days), round_hours (how often its rounds come:
+     * the median gap between the waits that end them, over LOOK_DAYS game
+     * days; null with fewer than two) and next_hours (game hours until its next round is
      * due, 0 when due now; null without round_hours). A good that sells out
      * is back, up to refill_to, at the next round.
      */
@@ -385,37 +387,41 @@ class HouseMarket
     }
 
     /**
-     * A station drone's restocking over the last two game days: [last import
-     * of each resource (game time), round interval in game hours or null,
-     * game hours until its next round or null]
+     * A station drone's restocking over the last LOOK_DAYS game days: [last
+     * import of each resource (game time), round interval in game hours or
+     * null, game hours until its next round or null]. A round ends with the
+     * program's wait (resources/house/station.lua), so the waits mark the
+     * rounds. Until #835 a round was any import more than half a game hour
+     * after the one before; but each of a station's actions takes about a
+     * game hour, so nearly every import started a "round", and the page said
+     * "about every 1 game hour" while a real round took 2 to 8 game days.
      */
     public static function restocks(int $drone, int $now): array
     {
+        $from = $now - self::LOOK_DAYS * 86400;
         $times = DB::select('SELECT e.resource, e.game_t FROM events AS e FORCE INDEX (events_drone_game_t)
             JOIN actions AS x ON x.id = e.action AND x.protocol = ?
-            WHERE e.drone = ? AND e.game_t > ? AND e.game_t <= ? AND e.event_type = 1 AND e.outcome = 1
-            ORDER BY e.game_t', [self::IMPORT_PROTOCOL, $drone, $now - 2 * 86400, $now]);
+            WHERE e.drone = ? AND e.outcome = 1 AND e.game_t > ? AND e.game_t <= ? AND e.event_type = 1
+            ORDER BY e.game_t', [self::IMPORT_PROTOCOL, $drone, $from, $now]);
         $last = [];
-        $starts = [];
-        $prev = null;
         foreach ($times as $t) {
             $last[(int) $t->resource] = (int) $t->game_t;
-            if ($prev === null || (int) $t->game_t - $prev > self::ROUND_GAP) {
-                $starts[] = (int) $t->game_t;
-            }
-            $prev = (int) $t->game_t;
         }
-        if (count($starts) < 3) {
+        $ends = array_map(fn ($w) => (int) $w->t, DB::select('SELECT MIN(e.game_t) AS t FROM events AS e FORCE INDEX (events_drone_game_t)
+            JOIN actions AS x ON x.id = e.action AND x.protocol = ?
+            WHERE e.drone = ? AND e.outcome = 1 AND e.game_t > ? AND e.game_t <= ?
+            GROUP BY e.action ORDER BY t', [self::WAIT_PROTOCOL, $drone, $from, $now]));
+        if (count($ends) < 2) {
             return [$last, null, null];
         }
         $gaps = [];
-        for ($i = 1; $i < count($starts); $i++) {
-            $gaps[] = $starts[$i] - $starts[$i - 1];
+        for ($i = 1; $i < count($ends); $i++) {
+            $gaps[] = $ends[$i] - $ends[$i - 1];
         }
         sort($gaps);
         $mid = intdiv(count($gaps), 2);
         $every = count($gaps) % 2 ? $gaps[$mid] : intdiv($gaps[$mid - 1] + $gaps[$mid], 2);
-        $next = max(0, end($starts) + $every - $now);
+        $next = max(0, end($ends) + $every - $now);
         return [$last, round($every / 3600, 1), round($next / 3600, 1)];
     }
 

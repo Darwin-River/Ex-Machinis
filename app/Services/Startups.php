@@ -66,6 +66,18 @@ class Startups
     }
 
     /** What a visitor without an account is told (#871) */
+    /** The Trader starter, refused (#764): a startup trades only with the House, so it would only stop */
+    public const TRADER = 'The Trader starter needs other drones to trade with, and a startup trades only with the House: '
+        . 'release a Miner, Refiner or Maker instead.';
+
+    /** Whether a script is the Trader starter, unchanged but for line endings and spaces at its ends */
+    public static function isTrader(string $script): bool
+    {
+        $norm = fn ($s) => trim(str_replace("\r\n", "\n", $s));
+        $file = base_path('examples/starters/trader.lua');
+        return is_file($file) && $norm($script) === $norm(file_get_contents($file));
+    }
+
     public const NEEDS_ACCOUNT = 'Make a free account, or log in, to found a startup: every startup belongs to a player.';
 
     /**
@@ -83,6 +95,9 @@ class Startups
         }
         if ($problem = self::slotProblem($owner)) {
             return ['ok' => false, 'status' => 409, 'error' => $problem];
+        }
+        if (self::isTrader($script)) {
+            return ['ok' => false, 'status' => 422, 'error' => self::TRADER];
         }
         $code = null;
         $agent = Release::release(Release::owner(), $name, $script);

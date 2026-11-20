@@ -240,24 +240,3 @@ end
 -- So that this file can also be released as it is (it does nothing)
 function launched() end
 
--- --- Shares -----------------------------------------------------------------
--- Put credits above `above` into shares companies sell of themselves, if a
--- share's income pays its price back within `days` (#482). Call it once a
--- game day. Each request burns a unit of fuel, so it skips buys under 25
--- credits. Returns the credits it asked to spend.
-function invest_spare(above, days)
-  local free, spent = credits() - above, 0
-  for _, o in ipairs(shares_for_sale()) do
-    -- days to pay its price back: losses made up first, then 30-day profit (#607)
-    local back = payback_days(o.price, share_count(o.company), o.profit30, o.carried)
-    if o.seller == o.company and o.company ~= company() and o.price > 0
-        and back <= days then
-      local n = math.min(o.units, free // o.price)
-      if n * o.price >= 25 then
-        pull_shares(n, o.company, o.seller)
-        free, spent = free - n * o.price, spent + n * o.price
-      end
-    end
-  end
-  return spent
-end

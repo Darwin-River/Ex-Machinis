@@ -961,6 +961,10 @@ ErrorCode_t db_insert_event_e(Event_t* event);
 /** Gets an event's current outcome (OUTCOME_NO_OUTCOME while pending) */
 ErrorCode_t db_get_event_outcome(int event_id, int* outcome);
 ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* new_id);
+/** The fleet cap when the launcher's company already has that many working drones, else 0 (#746) */
+int db_fleet_full_e(int launcher_id);
+/** A resource's mass (1 when unknown) */
+int db_resource_mass_e(int resource);
 
 /** Gets a pending event of an action with the given type, other than exclude_id */
 ErrorCode_t db_get_pending_action_event(int action_id, int event_type, int exclude_id, Event_t* out_event);

@@ -223,6 +223,18 @@ class StartupsTest extends TestCase
     }
 
     /** #872: a name that only looks like another's is refused; spacing is tidied */
+    public function testTheTraderStarterIsRefused()
+    {
+        // #764: a startup trades only with the House, so the Trader would only stop
+        $h = ['Authorization' => 'Bearer ' . Players::issueToken($this->player('Trader Fan'))];
+        $trader = file_get_contents(base_path('examples/starters/trader.lua'));
+        $this->postJson('/api/v1/release', ['company_name' => 'Would Trade', 'script' => $trader], $h)->assertStatus(422)
+            ->assertJsonFragment(['error' => \App\Services\Startups::TRADER]);
+        $this->assertSame(0, DB::table('companies')->where('name', 'Would Trade')->count());
+        // An edited Trader is the player's own code: it goes through
+        $this->postJson('/api/v1/release', ['company_name' => 'Own Trade', 'script' => $trader . "\n-- mine\n"], $h)->assertCreated();
+    }
+
     public function testLookAlikeNamesAreRefused()
     {
         $h = ['Authorization' => 'Bearer ' . Players::issueToken($this->player('Namer'))];

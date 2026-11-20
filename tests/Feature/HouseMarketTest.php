@@ -277,8 +277,13 @@ class HouseMarketTest extends TestCase
         $this->atDay(10.75);
         $now = \App\Services\World::gameNow();
         $daily = (int) DB::table('house_market')->where('station_id', 2)->where('resource', 2011)->where('side', 2)->value('daily_units');
-        // Three rounds of imports, 1.5 game hours apart, the last an hour ago
+        // Three rounds of imports, each ended by the program's wait (#835: the
+        // waits mark the rounds), 1.5 game hours apart, the last an hour ago
         foreach ([4, 2.5, 1] as $hoursAgo) {
+            $wait = DB::table('actions')->insertGetId(['drone' => $drone, 'protocol' => HouseMarket::WAIT_PROTOCOL, 'multiplier' => 1, 'aborted' => 0]);
+            DB::table('events')->insert(['event_type' => 12, 'action' => $wait, 'logged' => 1, 'outcome' => 1, 'drone' => $drone,
+                'resource' => 2061, 'installed' => 0, 'locked' => 0, 'new_quantity' => 0, 'new_cargo' => 0,
+                'game_t' => (int) ($now - $hoursAgo * 3600)]);
             foreach ([2011 => 0, 4311 => 300] as $resource => $later) {
                 $action = DB::table('actions')->insertGetId(['drone' => $drone, 'protocol' => HouseMarket::IMPORT_PROTOCOL, 'multiplier' => 1, 'aborted' => 0]);
                 DB::table('events')->insert(['event_type' => 1, 'action' => $action, 'logged' => 1, 'outcome' => 1, 'drone' => $drone,
