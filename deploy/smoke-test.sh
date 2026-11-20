@@ -21,7 +21,8 @@
 #   - money past 32,767 comes back right (a plain number in Lua),
 #   - House station drones buy goods and sell fuel at once (31 and 32), and a
 #     pull for more than a seller offers fails (-5) and costs no fuel,
-#   - a mined-out deposit yields nothing until it refills over game time,
+#   - a mined-out deposit yields nothing until it refills over game time
+#     (with house_rules.deposits_deplete on: off in play since #866),
 #   - another player's wreck can be plundered (not one's own), and a seller
 #     pays the sales tax out of a sale,
 #   - a waiting drone runs no instructions but still sells, and a drone sees
@@ -471,6 +472,9 @@ sql "update house_rules set sales_tax_permille = 500"
 # Mining deposits (#324 step 11): mining takes from the place's deposit. Empty
 # the Moon's kunspar deposit and stop it refilling: mining there yields
 # nothing. Let it refill again, and a few game hours later mining yields again.
+# Deposits run dry only while house_rules.deposits_deplete is on (#866: off
+# in play), so this test turns the rule on
+sql "update house_rules set deposits_deplete = 1 where id = 1"
 kunspar() { sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRONE_ID and resource=1100"; }
 sql "update deposits set refill_per_day = 0 where object_id = 10 and resource = 1100"
 sql "insert into deposit_state (object_id, resource, amount, refilled_t) values (10, 1100, 0, 0) on duplicate key update amount = 0"

@@ -69,7 +69,7 @@
                     {{-- Ended, with its reason (#744: it read "NET WEALTH: ended" beside its credits) --}}
                     <div class="stat" id="stat-ended"><div class="stat-label">Ended</div>
                         <div class="stat-value" style="font-size: 1.15em">{{ \App\Services\GameDate::at((int) $user->eliminated_at, false) }}</div>
-                        <small>{{ ['closed' => 'its player closed it', 'reset' => 'the world was reset', 'tax' => "it couldn't pay its tax", 'dissolved' => 'no credits for too long', 'drones' => 'it lost its last drone'][$user->end_cause ?? ''] ?? 'it ended' }}</small></div>
+                        <small>{{ ['closed' => 'its player closed it', 'reset' => 'the world was reset', 'tax' => "it couldn't pay its tax", 'dissolved' => 'no credits for too long', 'wound_up' => 'wound up: it sold nothing for 60 game days', 'drones' => 'it lost its last drone'][$user->end_cause ?? ''] ?? 'it ended' }}</small></div>
                 @else
                     <div class="stat"><div class="stat-label">Net wealth</div>
                         <div class="stat-value {{ ($stats['wealth'] ?? 0) < 0 ? 'stat-negative' : '' }}">{{ $stats['wealth'] === null ? '—' : number_format($stats['wealth']) }}</div>
@@ -103,7 +103,7 @@
             @if($ended)
                 {{-- An ended company owes nothing and risks nothing (#686) --}}
                 @php($endWhy = ['closed' => 'its player closed it', 'reset' => 'the world was reset', 'tax' => "it couldn't pay its tax",
-                    'dissolved' => 'it had no credits for too long', 'drones' => 'it lost its last drone'][$user->end_cause ?? ''] ?? null)
+                    'dissolved' => 'it had no credits for too long', 'wound_up' => 'it sold nothing for 60 game days and was wound up', 'drones' => 'it lost its last drone'][$user->end_cause ?? ''] ?? null)
                 <p class="stat-meta" id="startup">It ended on {{ \App\Services\DronePage::when((int) $user->eliminated_at) }}{{ $endWhy ? ': ' . $endWhy : '' }}.
                     @if((int) ($user->startup ?? 0) === 1) It was a startup: its debt was cancelled, and it owes nothing. @endif</p>
                 {{-- The failure card (#773): what went wrong, and a fixed copy a click away --}}
@@ -189,6 +189,14 @@
                 </section>
             @endif
 
+            {{-- Winding up (#875): after 30 game days without a sale, when it ends and its credits go to its shareholders --}}
+            @php($windsUp = \App\Services\WindUp::daysLeft((int) $user->user_id))
+            @if($windsUp !== null)
+                <div class="health-banner" id="wind-up-banner"><strong>Winding up in {{ $windsUp }} game {{ $windsUp === 1 ? 'day' : 'days' }}:</strong>
+                    it has sold nothing for {{ \App\Services\WindUp::DAYS - $windsUp }} game days. At {{ \App\Services\WindUp::DAYS }} without a sale,
+                    a matured company is wound up: its credits are shared out to its shareholders by the shares each holds, and its drones
+                    leave the game. A sale before then starts the count again.</div>
+            @endif
             {{-- Stalled, at the top where a buyer looks first (#689) --}}
             @if($h['stalled'] && !$road)
                 <div class="health-banner" id="stalled-banner"><strong>Stalled:</strong> {{ $h['stalled_reason'] }}.

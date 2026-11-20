@@ -17,6 +17,7 @@ class PostMortem
     public const ENDS = [
         'closed' => 'Its player closed it',
         'dissolved' => 'It had no credits for too long, and dissolved',
+        'wound_up' => 'It sold nothing for 60 game days, and was wound up: its credits went to its shareholders',
         'drones' => 'It lost its last drone',
         'tax' => "It couldn't pay its tax",
         'reset' => 'The world was reset',
@@ -38,7 +39,7 @@ class PostMortem
 
         // How its drones ended, and where: those that went before the company first
         $early = $drones->filter(fn ($d) => $d->wrecked_at !== null && (int) $d->wrecked_at < $end - 60
-            && !in_array($d->wreck_cause, ['closed', 'dissolved', 'tax', 'reset'], true));
+            && !in_array($d->wreck_cause, ['closed', 'dissolved', 'wound_up', 'tax', 'reset'], true));
         foreach ($early->groupBy('wreck_cause') as $cause => $group) {
             $places = $group->pluck('place')->filter()->unique()->values()->all();
             $lines[] = self::count($group->count(), 'drone') . ' ' . lcfirst(DronePage::WRECK_CAUSES[$cause] ?? 'became a wreck')

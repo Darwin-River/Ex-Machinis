@@ -76,7 +76,7 @@
                                 <td class="text-right" data-label="Return, 30 days">{{ ($m['return_percent'] ?? null) === null ? '–' : (($m['return_percent'] > 0 ? '+' : '') . $m['return_percent'] . '%') }}</td>
                                 <td class="text-right" data-label="Bank sells at">{{ number_format($m['sells_at']) }}</td>
                                 {{-- The worst first, in words anyone can read, not only on hover (#758) --}}
-                                <td style="white-space: normal" data-label="Health">@if(($m['dissolves_in'] ?? null) !== null)<strong class="health-bad">dissolves in {{ $m['dissolves_in'] }} game days</strong>@elseif($m['failing'])<strong class="health-bad">failing</strong>@elseif($m['at_risk'])<strong class="health-warn">at risk</strong>@elseif($m['stalled'])<strong class="health-warn">stalled</strong>@else <span class="health-ok">steady</span> @endif
+                                <td style="white-space: normal" data-label="Health">@if(($m['dissolves_in'] ?? null) !== null)<strong class="health-bad">dissolves in {{ $m['dissolves_in'] }} game days</strong>@elseif(($m['winds_up_in'] ?? null) !== null)<strong class="health-bad">winds up in {{ $m['winds_up_in'] }} game days</strong>@elseif($m['failing'])<strong class="health-bad">failing</strong>@elseif($m['at_risk'])<strong class="health-warn">at risk</strong>@elseif($m['stalled'])<strong class="health-warn">stalled</strong>@else <span class="health-ok">steady</span> @endif
                                     @if($m['health_note'])<br><small class="text-muted">{{ $m['health_note'] }}</small>@endif</td></tr>
                         @empty
                             <tr><td colspan="8">No company has matured yet.</td></tr>

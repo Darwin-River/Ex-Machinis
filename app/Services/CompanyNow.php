@@ -94,6 +94,16 @@ class CompanyNow
                     'text' => 'has had no credits for ' . $b['broke_days'] . ' game days: it dissolves in ' . $b['dissolves_in'] . ' unless it earns some'];
             }
         }
+        // Matured companies counting down to winding up (#875)
+        foreach (DB::table('companies')->where('owner_id', $user->user_id)->where('startup', 0)->whereNull('eliminated_at')
+                     ->whereNotNull('matured_t')->get(['company_id', 'name']) as $c) {
+            $left = WindUp::daysLeft((int) $c->company_id);
+            if ($left !== null) {
+                $alerts[] = ['company' => (int) $c->company_id, 'name' => $c->name,
+                    'text' => 'has sold nothing for ' . (WindUp::DAYS - $left) . ' game days: it is wound up in ' . $left
+                        . ' unless it sells, its credits shared out to its shareholders'];
+            }
+        }
         return $startups || $alerts ? ['startups' => $startups, 'alerts' => $alerts] : null;
     }
 }
