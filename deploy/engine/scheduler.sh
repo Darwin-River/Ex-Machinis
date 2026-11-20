@@ -21,6 +21,20 @@ keeper() {
 }
 keeper &
 
+# The House's orders, every HOUSE_SECONDS (#764): on the tick they lagged the
+# market's half-day price steps by game hours
+HOUSE_URL="http://app/house/${CRON_KEY}"
+HOUSE_SECONDS="${HOUSE_SECONDS:-1}"
+house() {
+    while :; do
+        if ! out=$(curl -fsS -m 60 "$HOUSE_URL" 2>&1); then
+            echo "$(date '+%F %T') house failed: $out"
+        fi
+        sleep "$HOUSE_SECONDS"
+    done
+}
+house &
+
 echo "scheduler: ticking every ${INTERVAL}s"
 while :; do
     if ! out=$(curl -fsS -m 120 "$URL" 2>&1); then
