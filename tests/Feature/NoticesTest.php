@@ -61,13 +61,19 @@ class NoticesTest extends TestCase
         return $out;
     }
 
-    public function testNothingIsSentUntilAPlayerTurnsItOn()
+    /** #876: "can mature" and "past its cap" start on; the rest wait until a player turns them on, and a player can turn all off */
+    public function testTwoNoticesStartOnAndAllCanBeTurnedOff()
     {
         $p = $this->player('Quiet Pilot');
+        $s = Notices::settings($p);
+        $this->assertSame(['can_mature' => true, 'at_risk' => false, 'wrecked' => false, 'digest' => false], array_slice($s, 0, 4));
+        $this->assertTrue($s['at_cap']);
+        $this->assertSame(1, (int) DB::table('notice_settings')->where('user_id', $p->user_id)->value('can_mature'), 'on from verifying');
         $this->startup($p->user_id, 9000);
+        Notices::save($p, []);
         Notices::runIfDue(true);
         Mail::assertNothingSent();
-        $this->assertSame(['can_mature' => false, 'at_risk' => false, 'wrecked' => false, 'digest' => false], array_slice(Notices::settings($p), 0, 4));
+        $this->assertNotContains(true, Notices::settings($p));
     }
 
     /** #836: the notice settings through the API, as on the account page */
@@ -76,7 +82,7 @@ class NoticesTest extends TestCase
         $p = $this->player('Api Pilot');
         $h = ['Authorization' => 'Bearer ' . Players::issueToken($p)];
         $this->getJson('/api/v1/account/notices')->assertStatus(401);
-        $this->getJson('/api/v1/account/notices', $h)->assertOk()->assertJsonPath('notices.can_mature', false)
+        $this->getJson('/api/v1/account/notices', $h)->assertOk()->assertJsonPath('notices.can_mature', true)->assertJsonPath('notices.digest', false)
             ->assertJsonPath('kinds.digest', 'A weekly digest of my companies and shares');
         $this->postJson('/api/v1/account/notices', ['notices' => ['can_mature', 'at_cap']], $h)->assertOk()
             ->assertJsonPath('notices.can_mature', true)->assertJsonPath('notices.at_cap', true)->assertJsonPath('notices.digest', false);

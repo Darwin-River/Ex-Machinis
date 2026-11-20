@@ -213,9 +213,10 @@
                 <div id="share-offering" class="mb-3">
                     @if($playerShares['offering'])
                         @php($off = $playerShares['offering'])
-                        <p><b>New shares on offer:</b> {{ $off['left'] }} of {{ $off['units'] }} left, at its cash-out value a share
-                            (<b>{{ number_format($off['price']) }}</b> now). What they fetch goes to the company, to fund its growth;
-                            buying at cash-out leaves every share's cash-out value as it was.@if($off['raised'] > 0) Raised so far:
+                        <p><b>New shares on offer:</b> {{ $off['left'] }} of {{ $off['units'] }} left, at its cash-out value a share or the
+                            market's price if higher, the best player bid or the last trade between players this week
+                            (<b>{{ number_format($off['price']) }}</b> now). What they fetch goes to the company, to fund its growth, and
+                            no share's cash-out value falls.@if($off['raised'] > 0) Raised so far:
                             {{ number_format($off['raised']) }} credits.@endif</p>
                         @if($playerShares['held'] !== null)
                             <form method="POST" action="{{ url('companies/' . $user->user_id . '/offering/buy') }}" class="form-inline mb-2">

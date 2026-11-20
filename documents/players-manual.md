@@ -137,13 +137,13 @@ Your account is you in the game: it owns your startups and your shares, and it i
 
 - **A name**, 3 to 32 letters, digits, spaces, dots, dashes or underscores. It is public: it shows on the leaderboards. **Don't use your real name.**
 - **A password** of at least 8 characters.
-- **An e-mail address.** It is private: only you see it. It verifies your account, and gets the e-mail notices you turn on (below), and nothing else. One account per address.
+- **An e-mail address.** It is private: only you see it. It verifies your account, and gets the e-mail notices you choose (below; two start on), and nothing else. One account per address.
 
 We send an e-mail to the address with a **Verify my account** button, good for 2 real days (the link is there as text too). Opening it **verifies** your account and brings it its **5,000 starting credits**. They can only buy shares, and only at or below the bank's selling price (see [Chapter 7](#chapter-7-maturing-and-shares)). Your account must be verified before you can mature a startup. Lost the link? The account page sends it again.
 
 Your account also has **credits** of its own: what your shares earn you, from dividends and from selling them. They buy shares at any price within the range players trade in.
 
-**E-mail notices (#761).** On your account page, under **E-mail notices**, pick what we may e-mail you about. All are off until you turn them on:
+**E-mail notices (#761).** On your account page, under **E-mail notices**, pick what we may e-mail you about. Two start on once your address is verified, **A startup of mine can mature** and **A startup of mine is past its credit cap**, so a startup's earnings don't quietly go to the bank; the rest are off until you turn them on, and you can turn any off:
 
 - **A startup of mine can mature** (once a startup, so you mature it before its credit cap sends its earnings to the bank);
 - **A company of mine is at risk, stalled or counting down to dissolving** (at most once a real day a company), with why;
@@ -210,7 +210,7 @@ The game runs fast (at the normal pace a game day every 48 real seconds, slower 
 
 You can send a startup's drones new code whenever you like, without starting over: from your account page (**Change its code**, under the startup), or with `POST /api/v1/startups/{id}/push` and your token. This is called **pushing** new code.
 
-- **The first push is free; each after it adds 100 to the startup's debt.** So each one also raises what it needs to mature by 100. To see what a push would cost before you send it, check the script with the company's ID: `POST /api/v1/check` with `company` returns the fee (#558).
+- **The first push is free; each after it adds 100 to the startup's debt.** So each one also raises what it needs to mature by 100. A push that would raise its debt so far that the line to mature at would pass its credit cap is refused: it could never mature, so close it and found a new startup with that code instead. To see what a push would cost before you send it, check the script with the company's ID: `POST /api/v1/check` with `company` returns the fee (#558).
 - **It travels at the speed of light.** The new code goes from Earth to each working drone of the company, arriving after the time light takes to cross the distance: about a second at the Moon, minutes at Mars.
 - **The drone starts over on it.** When it arrives, the drone drops what it was running and calls the new code's `launched()`, with fresh variables. It keeps its hold, its place and its equipment. An action under way finishes, and a drone on a trip finishes the trip first: its new `launched()` starts where it arrives (#675). A copy forgets anything its parent told it in a variable: use `lineage()` to tell a copy from the released drone.
 - **Everyone can see it.** The company's page and the API list each push, so anyone can see when a company's code changed.
@@ -1446,7 +1446,7 @@ Players trade shares with **standing orders**, like goods: an order to buy or se
 - **You must hold what you sell.** Your sell orders for a company together can't offer more shares than you hold.
 - **Your own orders can't cross.** A buy at or above your own sell price for the same company, or a sell at or below your own buy price, is refused: cancel the other order first.
 - **A resting order earns a rebate (#782).** When your standing order fills against another player's order, and it has been on the book for at least a game hour, the bank pays you **0.5%** of the trade on top (rounded down: 10 shares at 51 is 510 credits, so 2). Keeping orders on the book pays; placing one and filling it at once doesn't. The player who took your order gets none. Your account page and the since-you-last-looked card say when you got one; a pegged order keeps its time on the book when the bank's prices move it.
-- **Pegged orders follow the bank (#766).** Instead of a fixed price, an order can follow what the bank buys at (the cash-out value) or what it sells at, plus or minus up to 25%: "buy 5 at what the bank buys at −1%", or "sell 5 at what the bank sells at +3%". Every few real minutes it is moved to its price now, kept within the range, and trades at once with any order it then meets. A fixed price goes stale as the company's value moves (round 72's orders ended up under cash-out, or out of range, within 10 game days); a pegged one doesn't. If it can't stand at its new price (your own orders would cross, or you can't pay), it stays where it was.
+- **Pegged orders follow the bank (#766).** Instead of a fixed price, an order can follow what the bank buys at (the cash-out value) or what it sells at, plus or minus up to 25%: "buy 5 at what the bank buys at −1%", or "sell 5 at what the bank sells at +3%". Every few real minutes it is moved to its price now, kept within the range, and trades at once with any order it then meets. A fixed price goes stale as the company's value moves (round 72's orders ended up under cash-out, or out of range, within 10 game days); a pegged one doesn't. If it can't stand at its new price (your own orders would cross, or you can't pay), it stays where it was. A repriced order keeps its id, so a script can cancel it by the id it was given. A pegged sell never stands under what the bank buys at (cash-out), whatever its percent: there you'd do better selling to the bank. A price sent with a peg is set aside, and the answer says so.
 
 On a matured company's page (logged in), **Post the order** with buy or sell, shares and price (or, to peg it, what it follows and the percent); your account page lists your standing orders, each with a **Cancel** button. Through the API: `GET /api/v1/player-shares/{id}` shows the range, the book and the latest trades, `POST /api/v1/player-shares/{id}/orders` posts an order (`side`, `units`, `price`), and `GET /api/v1/account/shares` lists your holdings, orders and the bank's payments due.
 
@@ -1466,7 +1466,7 @@ The **Trading desk** (`/market/trade`, under Market in the menu, #779) puts shar
 
 A matured company can't take credits from its owner any other way, so it grows on what its drones earn: a copy costs a hull and a kit. Its owner can raise them faster by selling **new shares** (#780):
 
-- **10 at a time,** at the company's **cash-out value** a share at the moment each is bought. What they fetch goes to the **company's** credits, not its owner's.
+- **10 at a time,** at the company's **cash-out value** a share at the moment each is bought, or the market's price if that is higher: the best player bid for its shares, or the last trade between two players over the last 7 game days. So no share's cash-out falls, and an owner can't mint shares cheaply to sell into a higher bid. What they fetch goes to the **company's** credits, not its owner's.
 - **Any player may buy,** its owner too, on the company's page (**Buy new shares**) or through the API.
 - **One offering at a time,** and a company has **at most 200 shares**. Its owner can withdraw the rest of an offering; the shares already sold stay sold.
 - **Buying at cash-out doesn't dilute the value.** The company gains a share's worth of credits for each new share, so a share's cash-out value stays as it was. What changes is **each holder's part** of the company: the company page lists each holder's percentage, and its dividends are shared over more shares. If those credits buy a drone that earns, every share earns more.

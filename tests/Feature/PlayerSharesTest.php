@@ -131,7 +131,8 @@ class PlayerSharesTest extends TestCase
         // A sell pegged 5% over what the bank sells at
         $r = PlayerShares::order($owner, $id, 'sell', 10, 0, ['ref' => 'sells_at', 'offset_bp' => 500]);
         $this->assertTrue($r['ok']);
-        $this->assertSame(PlayerShares::pegPrice($p, 'sells_at', 500), $r['price']);
+        $this->assertSame(PlayerShares::pegPrice($p, 'sells_at', 500, 'sell'), $r['price']);
+        $orderId = $r['order'];
         $book = PlayerShares::book($id)['sell'][0];
         $this->assertSame(['sells_at', 5.0], [$book['peg'], $book['offset_percent']]);
         // Out of bounds
@@ -148,11 +149,18 @@ class PlayerSharesTest extends TestCase
         $this->assertGreaterThanOrEqual(1, PlayerShares::repeg());
         $this->assertSame(4, PlayerShares::held((int) $buyer->user_id, $id));
         $left = DB::table('player_share_orders')->where('company_id', $id)->where('side', 'sell')->first();
+        $this->assertSame($orderId, (int) $left->id, 'a repriced order keeps its id (#873)');
         $this->assertSame(6, (int) $left->units);
         $this->assertSame('sells_at', $left->peg_ref);
-        $this->assertSame(PlayerShares::pegPrice(PlayerShares::prices($id), 'sells_at', 500), (int) $left->price);
+        $this->assertSame(PlayerShares::pegPrice(PlayerShares::prices($id), 'sells_at', 500, 'sell'), (int) $left->price);
         // Nothing moves when nothing changed
         $this->assertSame(0, PlayerShares::repeg());
+        // A pegged sell never stands under what the bank pays (#831), and a price sent with a peg is set aside, with a note
+        $p = PlayerShares::prices($id);
+        $under = PlayerShares::order($owner, $id, 'sell', 1, 99999, ['ref' => 'sells_at', 'offset_bp' => -2000]);
+        $this->assertTrue($under['ok']);
+        $this->assertGreaterThanOrEqual($p['buys_at'], $under['price']);
+        $this->assertStringContainsString('the price you sent was set aside', $under['note']);
         // The API takes a peg
         $this->withHeaders(['Authorization' => 'Bearer ' . Players::issueToken($owner)])->postJson('/api/v1/player-shares/' . $id . '/orders', ['side' => 'sell', 'units' => 1, 'peg' => 'buys_at', 'offset_percent' => 2.5])
             ->assertOk()->assertJsonPath('standing', 1);
@@ -362,11 +370,24 @@ class PlayerSharesTest extends TestCase
         $this->assertContains('offered', array_column(\App\Services\WorldEvents::company($id), 'kind'));
         $this->getJson("/api/v1/player-shares/$id")->assertOk()->assertJsonPath('count', 110)->assertJsonPath('offering', null);
 
+        // #874: with a player bidding over cash-out, new shares cost the bid, so minting can't undercut the market
+        $buys = PlayerShares::prices($id)['buys_at'];
+        $high = $buys + 40;
+        $this->assertTrue(PlayerShares::order($other, $id, 'buy', 1, $high)['ok']);
+        $this->assertSame($high, PlayerShares::offerPrice($id));
+        $this->assertTrue(PlayerShares::offer($owner, $id)['ok']);
+        $this->assertSame($high, PlayerShares::offering($id)['price']);
+        $paid = PlayerShares::buyOffered($owner, $id, 1);
+        $this->assertSame($high, $paid['price']);
+        $this->assertGreaterThanOrEqual($buys, PlayerShares::prices($id)['buys_at'], 'no holder\'s cash-out falls');
+        $this->assertTrue(PlayerShares::withdraw($owner, $id));
+        DB::table('player_share_orders')->where('company_id', $id)->delete();
+
         // The web form offers again, and its owner can withdraw; the cap is 200
         $this->actingAs($owner)->post('/companies/' . $id . '/offering')->assertRedirect();
         $this->assertSame(10, PlayerShares::offering($id)['left']);
         $this->actingAs($other)->post('/companies/' . $id . '/offering/buy', ['units' => 2])->assertRedirect();
-        $this->assertSame(112, PlayerShares::count($id));
+        $this->assertSame(113, PlayerShares::count($id));
         $this->assertTrue(PlayerShares::withdraw($owner, $id));
         $this->assertNull(PlayerShares::offering($id));
         DB::table('companies')->where('company_id', $id)->update(['player_share_count' => 195]);

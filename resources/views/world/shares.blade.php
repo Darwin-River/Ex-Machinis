@@ -66,7 +66,7 @@
                                     @if(!empty($m['holders'][0]['name']))<br><small class="text-muted">mostly {{ $m['holders'][0]['bank'] ? 'the bank' : $m['holders'][0]['name'] }}</small>@endif
                                     {{-- Its share count once it has sold new ones, and an open offering (#780) --}}
                                     @if($m['count'] !== \App\Services\PlayerShares::COUNT)<br><small class="text-muted">{{ $m['count'] }} shares</small>@endif
-                                    @if($m['offered'] > 0)<br><small class="health-ok">{{ $m['offered'] }} new {{ \Illuminate\Support\Str::plural('share', $m['offered']) }} on offer at cash-out</small>@endif
+                                    @if($m['offered'] > 0)<br><small class="health-ok">{{ $m['offered'] }} new {{ \Illuminate\Support\Str::plural('share', $m['offered']) }} on offer at cash-out or the market price</small>@endif
                                     {{-- The last trade between players, when recent (#744: its own column was mostly empty) --}}
                                     @if($m['last_price'] !== null && $m['last_days_ago'] <= 30)<br><small class="text-muted">players traded at {{ number_format($m['last_price']) }} {{ $m['last_days_ago'] === 0 ? 'today' : $m['last_days_ago'] . ' game ' . \Illuminate\Support\Str::plural('day', $m['last_days_ago']) . ' ago' }}@if($m['premium_percent'] !== null) ({{ $m['premium_percent'] > 0 ? '+' . $m['premium_percent'] . '% premium' : ($m['premium_percent'] < 0 ? '−' . abs($m['premium_percent']) . '% discount' : 'at cash-out') }})@endif</small>@endif</td>
                                 <td class="text-right" data-label="Cash-out a share">{{ number_format($m['buys_at']) }}</td>

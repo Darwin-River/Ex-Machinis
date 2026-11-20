@@ -150,6 +150,15 @@ class Startups
             return ['ok' => false, 'status' => 409, 'error' => 'This startup has no working drone to reprogram.'];
         }
         $fee = self::pushFee($company);
+        // A push may not make maturing impossible (#876): each paid push adds to
+        // the debt, the cap stays at twice what it was lent, so after enough
+        // pushes the line to mature at would sit over what it may hold
+        $cap = self::creditCap($company);
+        if ($cap !== null && (int) $company->debt + $fee + self::matureMargin() > $cap) {
+            return ['ok' => false, 'status' => 409, 'error' => 'This push would raise its debt to ' . number_format((int) $company->debt + $fee)
+                . ': with ' . number_format(self::matureMargin()) . ' more to mature it would need more than it may hold ('
+                . number_format($cap) . '), so it could never mature. Close it and found a new startup with this code instead.'];
+        }
         return DB::transaction(function () use ($company, $companyId, $script, $drones, $fee) {
             $done = DB::table('companies')->where('company_id', $companyId)->where('pushes', $company->pushes)
                 ->update(['debt' => DB::raw('debt + ' . $fee), 'pushes' => DB::raw('pushes + 1')]);

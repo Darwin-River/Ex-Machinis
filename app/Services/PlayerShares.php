@@ -100,7 +100,7 @@ class PlayerShares
                 continue;
             }
             $p = $prices[$c] ??= self::prices($c);
-            if (self::pegPrice($p, $o->peg_ref, (int) $o->peg_offset_bp) === (int) $o->price) {
+            if (self::pegPrice($p, $o->peg_ref, (int) $o->peg_offset_bp, (string) $o->side) === (int) $o->price) {
                 continue;
             }
             $user = User::find($o->user_id);
@@ -114,6 +114,11 @@ class PlayerShares
                 if (!($r['ok'] ?? false)) {
                     DB::table('player_share_orders')->insert((array) $o);   // it stays where it was
                     return;
+                }
+                // What is left standing keeps the order's id (#873, #831: a script
+                // that kept the id found "You have no such order." after a reprice)
+                if (($r['order'] ?? null) !== null && (int) $r['order'] !== (int) $o->id) {
+                    DB::table('player_share_orders')->where('id', $r['order'])->update(['id' => $o->id]);
                 }
                 $moved++;
             });
@@ -535,9 +540,14 @@ class PlayerShares
      * offset_bp hundredths of a percent, rounded, kept inside the range
      * players trade in
      */
-    public static function pegPrice(array $p, string $ref, int $offsetBp): int
+    public static function pegPrice(array $p, string $ref, int $offsetBp, string $side = 'buy'): int
     {
         $price = (int) round($p[$ref] * (10000 + $offsetBp) / 10000);
+        // A pegged sell never stands under what the bank pays (#831: "sells_at
+        // -0.5%" fell under cash-out when the bank's spread was narrower)
+        if ($side === 'sell') {
+            $price = max($price, (int) $p['buys_at']);
+        }
         return max($p['low'], min($p['high'], max(1, $price)));
     }
 
@@ -557,19 +567,26 @@ class PlayerShares
         if (!self::company($company)) {
             return self::fail(404, self::endedNote($company) ?? 'There is no such matured company.');
         }
+        $pegNote = null;
+        $p = null;
         if ($peg !== null) {
             $ref = (string) ($peg['ref'] ?? '');
             $bp = (int) ($peg['offset_bp'] ?? 0);
             if (!in_array($ref, self::PEGS, true) || abs($bp) > self::PEG_MAX_PERCENT * 100) {
                 return self::fail(422, 'A pegged order follows buys_at or sells_at, within ' . self::PEG_MAX_PERCENT . '% of it.');
             }
-            $price = self::pegPrice(self::prices($company), $ref, $bp);
+            // The peg sets the price; one sent with it is set aside, and the answer says so (#831)
+            $pegNote = $price > 0 ? 'A pegged order follows its peg: the price you sent was set aside.' : null;
+            // One look at the bank's prices for the peg and the range alike (#831: a
+            // clamp to one look fell under the range of the next)
+            $p = self::prices($company);
+            $price = self::pegPrice($p, $ref, $bp, $side);
             $peg = ['ref' => $ref, 'offset_bp' => $bp];
         }
         if (!in_array($side, ['buy', 'sell'], true) || $units < 1 || $price < 1) {
             return self::fail(422, 'An order is buy or sell, some shares, at a price of at least 1.');
         }
-        $p = self::prices($company);
+        $p ??= self::prices($company);
         if ($price < $p['low'] || $price > $p['high']) {
             return self::fail(422, 'That price is too far from the market: trades go between ' . $p['low'] . ' and '
                 . $p['high'] . ' a share now.');
@@ -597,7 +614,7 @@ class PlayerShares
                 . (int) $crosses . ': ' . ($side === 'buy' ? 'a buy at ' . (int) $crosses . ' or more' : 'a sell at ' . (int) $crosses . ' or less')
                 . ' would cross it. Cancel that order first, or ' . ($side === 'buy' ? 'bid under ' : 'ask over ') . (int) $crosses . '.');
         }
-        return DB::transaction(function () use ($me, $company, $side, $units, $price, $p, $peg, $placedT, $byScript) {
+        return DB::transaction(function () use ($me, $company, $side, $units, $price, $p, $peg, $placedT, $byScript, $pegNote) {
             $traded = 0;
             $spent = 0;
             $other = $side === 'buy' ? 'sell' : 'buy';
@@ -675,6 +692,7 @@ class PlayerShares
                     + ($byScript ? ['by_script' => 1] : [])
                     + ($peg !== null ? ['peg_ref' => $peg['ref'], 'peg_offset_bp' => $peg['offset_bp']] : []));
             }
+            $note = trim(($note ?? '') . ' ' . ($pegNote ?? '')) ?: null;
             return ['ok' => true, 'traded' => $traded, 'credits' => $spent, 'standing' => $standing, 'order' => $id, 'price' => $price]
                 + ($note ? ['note' => $note] : []);
         });
@@ -697,9 +715,29 @@ class PlayerShares
         return intdiv(max(0, $credits) * max(0, (int) config('forge.rebate_permille', 5)), 1000);
     }
 
+    /** How far back a trade between players sets the market price of new shares, in game seconds */
+    public const OFFER_MARKET_DAYS = 7;
+
+    /**
+     * What a new share costs (#874): the higher of its cash-out value and
+     * the market, the best standing player bid or the last trade between
+     * two players over OFFER_MARKET_DAYS game days. At cash-out alone an
+     * owner minted shares and sold them straight into a higher bid, and took
+     * part of the other holders' dividends for no more than they were worth
+     */
+    public static function offerPrice(int $company, ?array $p = null): int
+    {
+        $p ??= self::prices($company);
+        $bid = (int) DB::table('player_share_orders')->where('company_id', $company)->where('side', 'buy')->max('price');
+        $last = DB::table('player_share_trades')->where('company_id', $company)->whereNotNull('seller_id')->whereNotNull('buyer_id')
+            ->where(fn ($q) => $q->whereNull('issued')->orWhere('issued', 0))
+            ->where('game_t', '>=', World::gameNow() - self::OFFER_MARKET_DAYS * 86400)->orderByDesc('id')->value('price');
+        return max((int) $p['buys_at'], $bid, (int) ($last ?? 0));
+    }
+
     /**
      * A company's open offering of new shares (#780), or null:
-     * {id, units, left, raised, created_t, price (cash-out a share now)}
+     * {id, units, left, raised, created_t, price (offerPrice: cash-out a share now, or the market if higher)}
      */
     public static function offering(int $company): ?array
     {
@@ -709,12 +747,12 @@ class PlayerShares
         $o = DB::table('player_share_offerings')->where('company_id', $company)->whereNull('closed_t')
             ->where('units_left', '>', 0)->orderByDesc('id')->first();
         return $o ? ['id' => (int) $o->id, 'units' => (int) $o->units, 'left' => (int) $o->units_left,
-            'raised' => (int) $o->raised, 'created_t' => (int) $o->created_t, 'price' => self::prices($company)['buys_at']] : null;
+            'raised' => (int) $o->raised, 'created_t' => (int) $o->created_t, 'price' => self::offerPrice($company)] : null;
     }
 
     /**
      * Its owner offers OFFER_UNITS new shares of a matured company (#780),
-     * sold at its cash-out value a share to any player (its owner too), the
+     * sold at offerPrice (cash-out, or the market if higher: #874) to any player (its owner too), the
      * credits going to the company. One offering at a time, and at most
      * MAX_COUNT shares in all
      */
@@ -742,7 +780,7 @@ class PlayerShares
         }
         $id = DB::table('player_share_offerings')->insertGetId(['company_id' => $company, 'units' => self::OFFER_UNITS,
             'units_left' => self::OFFER_UNITS, 'raised' => 0, 'created_t' => World::gameNow()]);
-        return ['ok' => true, 'offering' => $id, 'units' => self::OFFER_UNITS, 'price' => self::prices($company)['buys_at'], 'count' => $count];
+        return ['ok' => true, 'offering' => $id, 'units' => self::OFFER_UNITS, 'price' => self::offerPrice($company), 'count' => $count];
     }
 
     /** Its owner withdraws a company's open offering; the shares already sold stay sold */
@@ -757,10 +795,11 @@ class PlayerShares
     }
 
     /**
-     * Buys new shares from a company's open offering (#780), at its
-     * cash-out value a share now: the credits go to the company, and its
-     * share count grows. Buying at cash-out leaves every share's cash-out
-     * as it was. Starting credits pay, as they do at or below the bank's price
+     * Buys new shares from a company's open offering (#780), at offerPrice:
+     * its cash-out value a share now, or the market if that is higher
+     * (#874). The credits go to the company, and its share count grows;
+     * buying at cash-out or more leaves every share's cash-out as it was or
+     * raises it. Starting credits pay, as they do at or below the bank's price
      */
     public static function buyOffered(User $user, int $company, int $units): array
     {
@@ -780,7 +819,7 @@ class PlayerShares
                 return self::fail(409, 'Only ' . (int) $o->units_left . ' of its new shares are left.');
             }
             $p = self::prices($company);
-            $price = $p['buys_at'];
+            $price = self::offerPrice($company, $p);
             $cost = $units * $price;
             if ($price < 1 || !self::charge((int) $user->user_id, $cost, $price, $p['sells_at'])) {
                 return self::fail(422, 'You can\'t pay ' . number_format($cost) . ' credits for them.');
