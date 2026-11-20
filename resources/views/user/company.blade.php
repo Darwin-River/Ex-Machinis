@@ -366,9 +366,10 @@
             @if(count($ranked) > 0)
                 <h2 id="drone-earnings">Its drones by what they earn</h2>
                 <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead><tr><th>Drone</th><th class="text-right">A game day</th><th class="text-right">Over its life</th>
-                            <th class="text-right">Sold (after tax)</th><th class="text-right">Bought</th><th class="text-right">Invested</th><th class="text-right">Game days</th></tr></thead>
+                    {{-- Short headers that don't break a word a line on a phone (#884) --}}
+                    <table class="table table-sm" id="drone-earnings-table">
+                        <thead style="white-space: nowrap"><tr><th>Drone</th><th class="text-right">A day</th><th class="text-right">Lifetime</th>
+                            <th class="text-right" title="Sold, after tax">Sold</th><th class="text-right">Bought</th><th class="text-right">Invested</th><th class="text-right">Days</th></tr></thead>
                         <tbody>
                         @foreach($ranked as $r)
                             <tr><td><a href="{{ url('spacecraft/' . $r['agent_id']) }}">{{ $r['name'] }}</a>{{ $r['wrecked'] ? ' (wreck)' : '' }}</td>
@@ -507,7 +508,7 @@
                 <div style="white-space: normal; margin-bottom: 1em">
                     Every drone of this company runs this code.
                     @if($current['number'] === 0)
-                        It is the code it was released with ({{ $code['release']->created_at }}).
+                        It is the code it was released with ({{ ($user->founded_t ?? null) ? \App\Services\GameDate::at((int) $user->founded_t, false) : $code['release']->created_at }}).
                     @else
                         It is push {{ $current['number'] }} (sent {{ $current['when'] }}): a push reaches each drone at the speed of light.
                     @endif

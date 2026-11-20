@@ -1552,7 +1552,7 @@ void engine_send_output(const char* msg, bool with_pending)
         // A script that printed nothing (e.g. one that only defines words)
         // still gets a reply, so the player knows it ran
         if(full[strspn(full, " \t\r\n")] == 0) {
-            if(!with_pending) { free(full); return; }
+            if(!with_pending || vm_output_is_quiet()) { free(full); return; }
             free(full);
             full = strdup("ok");
             if(!full) return;

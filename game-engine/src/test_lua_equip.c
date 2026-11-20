@@ -119,7 +119,7 @@ int main(void)
 
     /* Truly missing, no kit: said once, then a kit is bought and unpacked */
     scenario(library, "a missing tool is said once and the kit bought", "t_buys = true",
-             "return #t_printed == 1 and t_printed[1]:find('tool 5001 of kit 5902 was missing', 1, true) ~= nil "
+             "return #t_printed == 1 and t_printed[1]:find('equip: bought a ', 1, true) ~= nil "
              "and t_hold[5001] == 1, t_printed[1] or 'nothing printed'");
 
     /* A clone waits for its parent's kit, even when a query failed once */

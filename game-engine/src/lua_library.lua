@@ -883,10 +883,11 @@ local function equip(kit)
         -- it, and did nothing)
         buy_here(1, kit)
         if units(kit) > 0 then
-          if not said then print("equip: tool " .. lacks .. " of kit " .. kit .. " was missing: bought the kit here") end
+          -- In words a newcomer reads as normal (#834, #877: "was missing" read as an error)
+          if not said then print("equip: bought a " .. (resource_name(kit) or ("kit " .. kit)) .. " here to fit") end
           said = true
         elseif location() ~= earth then
-          if not said then print("equip: tool " .. lacks .. " of kit " .. kit .. " is missing: flying to Earth for the kit") end
+          if not said then print("equip: no " .. (resource_name(kit) or ("kit " .. kit)) .. " for sale here: flying to Earth for one") end
           said = true
           go(earth)
         else

@@ -53,7 +53,7 @@ class RoundSeventyFixesTest extends TestCase
         $this->assertStringContainsString('if house_only() then return house_rods() end', $maker);
         // Clean code (#849): the 60 and 120 are named
         $this->assertMatchesRegularExpression('/if spare\(\) < CREDITS_FOR_METALS then\s+set_status\("short of credits for metals"\)\s+wait\(2 \* HOUR\)/', $maker);
-        $this->assertStringContainsString('local CREDITS_FOR_METALS <const> = 60', $maker);
-        $this->assertStringContainsString('local HOUR <const> = 60', $maker);
+        $this->assertStringContainsString('local CREDITS_FOR_METALS = 60', $maker);
+        $this->assertStringContainsString('local HOUR = 60', $maker);
     }
 }
