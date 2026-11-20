@@ -79,6 +79,10 @@ class TradingDeskTest extends TestCase
         // The owner's shares from maturing cost nothing
         $o = TradingDesk::gains((int) $owner->user_id, PlayerShares::of($owner)['holdings'])[0];
         $this->assertSame([0, 96], [$o['cost'], $o['founder_units']]);
+        // The API gives the same cost basis (#495)
+        $h = ['Authorization' => 'Bearer ' . \App\Services\Players::issueToken($buyer)];
+        $this->getJson('/api/v1/account/shares', $h)->assertOk()->assertJsonPath('holdings.0.cost', 4 * $p['sells_at'])
+            ->assertJsonPath('holdings.0.average_price', $p['sells_at'])->assertJsonPath('holdings.0.gain', $s['gain']);
         // The guide, the menu and the market tabs lead here
         $this->get('/getting-started')->assertSee(url('market/trade'), false);
         $this->get('/market')->assertSee('Trading desk');

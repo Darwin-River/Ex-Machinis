@@ -254,7 +254,17 @@ class PlayerShareController extends Controller
     public function apiMine(Request $request): JsonResponse
     {
         $user = $this->apiPlayer($request);
-        return $user ? response()->json(PlayerShares::of($user)) : $this->unauthorized();
+        if (!$user) {
+            return $this->unauthorized();
+        }
+        // Each holding with its cost basis and gain, as the Trading desk works them out (#495)
+        $mine = PlayerShares::of($user);
+        $gains = collect(\App\Services\TradingDesk::gains((int) $user->user_id, $mine['holdings']))->keyBy('company_id');
+        $mine['holdings'] = array_map(fn ($h) => $h + \Illuminate\Support\Arr::only($gains[$h['company_id']] ?? [],
+            ['cost', 'founder_units', 'dividends', 'gain', 'gain_percent'])
+            + ['average_price' => ($g = $gains[$h['company_id']] ?? null) && $h['units'] - $g['founder_units'] > 0
+                ? (int) round($g['cost'] / ($h['units'] - $g['founder_units'])) : null], $mine['holdings']);
+        return response()->json($mine);
     }
 
     public function apiSellToBank(Request $request, int $id): JsonResponse
