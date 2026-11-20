@@ -5,6 +5,9 @@
     <style>
         /* The Trading desk (#779): watch list, ladder and ticket side by side, your shares and script below */
         .td-grid { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 16px; align-items: start; }
+        /* A wide screen: the price panel in a third column, beside the book and ticket (#905: two thirds were empty) */
+        @media (min-width: 1200px) { .td-grid:not(.td-grid-2) { grid-template-columns: minmax(0, 280px) minmax(0, 1fr) minmax(0, 1fr); } }
+        @media (max-width: 1199px) { .td-panel { grid-column: 1 / -1; } }
         .td-grid-2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
         @media (max-width: 860px) { .td-grid, .td-grid-2 { grid-template-columns: minmax(0, 1fr); } }
         .td-card { background: #111729; border: 1px solid #263052; border-radius: 12px; padding: 12px 14px; white-space: normal; }
@@ -126,6 +129,25 @@
                                 'side' => request('side'), 'units' => request('units')]])
                         </div>
                     </div>
+
+                    {{-- Its price over 30 game days and its latest trades, beside the book on a wide screen (#905) --}}
+                    <div class="td-card td-panel" id="price-panel">
+                        <h2>Price, 30 game days</h2>
+                        <div class="ex-chart" id="td-price" aria-label="{{ $L['name'] }}: cash-out a share and the bank's selling price over 30 game days, with players' trades"></div>
+                        <div class="ex-legend" id="td-price-legend"></div>
+                        <h2 class="mt-3">Latest trades</h2>
+                        @if(count($L['trades']))
+                            <table class="td-ladder" id="td-trades">
+                                @foreach($L['trades'] as $t)
+                                    <tr><td>{{ \App\Services\DronePage::ago($t['game_time']) }}</td><td class="num">{{ $t['units'] }}</td>
+                                        <td class="num">{{ number_format($t['price']) }}</td>
+                                        <td><small>{{ $t['seller_name'] }} → {{ $t['buyer_name'] }}</small></td></tr>
+                                @endforeach
+                            </table>
+                        @else
+                            <p class="mb-0"><small>No trades yet.</small></p>
+                        @endif
+                    </div>
                 </div>
 
                 @if($me)
@@ -194,6 +216,24 @@
                 @endif
                 <p class="ex-src mt-3">Data: <code>GET /api/v1/player-shares/{{ $L['company'] }}</code>, <code>GET /api/v1/account/shares</code>
                     and <code>GET /api/v1/account/trade-script</code>.</p>
+                @include('partials.ex-charts')
+                {{-- The price panel (#905): cash-out and the bank's price, players' trades as dots --}}
+                <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    const X = window.ExCharts, C = X.COLOURS, H = @json($L['history']), T = @json($L['trade_days']);
+                    if (!H.length) { X.empty(document.getElementById('td-price'), 'No prices recorded yet.'); return; }
+                    const first = H[0].day, last = H[H.length - 1].day;
+                    X.legend(document.getElementById('td-price-legend'), [{name: 'Cash-out a share', colour: C[0], kind: 'line'},
+                        {name: "Bank's selling price", colour: C[3], kind: 'line'}, {name: 'Trades between players', colour: C[4], kind: 'dot'}]);
+                    const draw = () => X.lines(document.getElementById('td-price'), [
+                        {name: 'Cash-out a share', colour: C[0], points: H.map((r) => ({day: r.day, v: r.cash_out, label: r.cash_out === null ? null : X.num(r.cash_out)}))},
+                        {name: "Bank's selling price", colour: C[3], dash: '5 3', points: H.map((r) => ({day: r.day, v: r.bank, label: r.bank === null ? null : X.num(r.bank)}))},
+                        {name: 'Trade between players', colour: C[4], dotsOnly: true, r: 4, points: T.filter((t) => t.day >= first).map((t) => ({day: t.day, v: t.price, label: `${t.units} at ${X.num(t.price)}`}))}],
+                        {first, last, H: 200, unit: 'cr', zoom: 'auto', minStep: 1, empty: 'No prices recorded yet.'});
+                    draw();
+                    X.onResize(document.getElementById('td-price'), draw);
+                });
+                </script>
                 {{-- Click a row of the book to fill the ticket (#845) --}}
                 <script>
                 document.addEventListener('DOMContentLoaded', function () {
