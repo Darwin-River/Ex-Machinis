@@ -75,7 +75,47 @@ class WorldEvents
         foreach (self::restarts($epoch) as $r) {
             $out[] = $r;
         }
+        foreach (self::massEnds($epoch) as $r) {
+            $out[] = $r;
+        }
         usort($out, fn ($a, $b) => $a['game_time'] <=> $b['game_time']);
+        return $out;
+    }
+
+    /** Matured companies ending on one game day that make a world event (#837) */
+    public const MASS_END = 5;
+
+    /** End causes in words, for a mass end's text */
+    private const END_WORDS = ['dissolved' => 'dissolved, out of credits for too long', 'wound_up' => 'wound up after selling nothing for '
+        . WindUp::DAYS . ' game days', 'closed' => 'closed by their owners'];
+
+    /**
+     * Game days on which MASS_END or more matured companies ended (#837: on
+     * 2 May 2038 every matured unchanged starter dissolved in the same
+     * minute, and no chart marked it). A world reset is its own event
+     */
+    public static function massEnds(int $epoch): array
+    {
+        $days = DB::table('companies')->whereNotNull('eliminated_at')->whereNotNull('matured_t')->where('startup', 0)
+            ->where(fn ($q) => $q->whereNull('end_cause')->orWhere('end_cause', '<>', 'reset'))
+            ->selectRaw('FLOOR((eliminated_at - ?) / 86400) AS day, MIN(eliminated_at) AS t, COUNT(*) AS n, '
+                . "GROUP_CONCAT(IFNULL(end_cause, 'dissolved')) AS causes", [$epoch])
+            ->groupBy('day')->havingRaw('COUNT(*) >= ?', [self::MASS_END])->orderBy('day')->get();
+        $out = [];
+        foreach ($days as $d) {
+            $day = max(0, (int) $d->day);
+            $by = array_count_values(explode(',', (string) $d->causes));
+            arsort($by);
+            $parts = [];
+            foreach ($by as $cause => $k) {
+                $parts[] = $k . ' ' . (self::END_WORDS[$cause] ?? $cause);
+            }
+            $out[] = ['key' => 'mass-end-' . $day, 'kind' => 'ends', 'day' => $day, 'to_day' => null,
+                'game_time' => (int) $d->t, 'when' => self::when((int) $d->t, $epoch), 'date' => GameDate::ofDay($day),
+                'to_date' => null, 'label' => (int) $d->n . ' companies ended',
+                'text' => (int) $d->n . ' matured companies ended that game day: ' . implode('; ', $parts) . '.',
+                'issue' => 837];
+        }
         return $out;
     }
 
