@@ -98,4 +98,8 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/{id}/offering/withdraw', 'PlayerShareController@apiWithdrawOffer')->whereNumber('id');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/{id}/offering/buy', 'PlayerShareController@apiBuyOffered')->whereNumber('id');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/orders/{order}/cancel', 'PlayerShareController@apiCancel')->whereNumber('order');
+    // The order ticket (#845): the best route for N shares now, trading it, and moving an order's price
+    Route::middleware(['new-rules', 'throttle:api-read'])->get('player-shares/{id}/quote', 'PlayerShareController@apiQuote')->whereNumber('id');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/{id}/now', 'PlayerShareController@apiNow')->whereNumber('id');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/orders/{order}/move', 'PlayerShareController@apiMove')->whereNumber('order');
 });

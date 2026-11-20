@@ -178,9 +178,29 @@ class Dashboard
                 'matured' => ['count' => count($m), 'cash_out' => array_sum(array_column($m, 'cash_out_total')),
                     'this_week' => count(array_filter($m, fn ($c) => $c['matured_day'] >= $today - 7))],
                 'profit' => ['week' => $week, 'last_week' => $lastWeek, 'change' => $week - $lastWeek],
+                'capital' => self::capital($m, $p, $today),
                 'players' => ['count' => $players, 'new_this_week' => $newPlayers],
             ],
         ];
+    }
+
+    /**
+     * Is the matured companies' capital working (#839: 93% of their value
+     * was idle cash, earning 2.8% a month)? Their credits, goods and hulls,
+     * the idle share (credits of the three), and their profit over the last
+     * 30 game days against their cash-out value: the return on capital
+     */
+    private static function capital(array $m, array $profit, int $today): array
+    {
+        $credits = array_sum(array_column($m, 'credits'));
+        $goods = array_sum(array_column($m, 'goods'));
+        $hulls = array_sum(array_column($m, 'hulls'));
+        $total = array_sum(array_column($m, 'cash_out_total'));
+        $month = array_sum(array_map(fn ($r) => $r['net'], array_filter($profit, fn ($r) => $r['day'] >= $today - 30 && $r['day'] < $today)));
+        $held = $credits + $goods + $hulls;
+        return ['credits' => $credits, 'goods' => $goods, 'hulls' => $hulls, 'cash_out' => $total,
+            'idle_percent' => $held > 0 ? (int) round(100 * $credits / $held) : null,
+            'profit30' => $month, 'return_percent' => $total > 0 ? round(100 * $month / $total, 1) : null];
     }
 
     /** A change in percent, or null without a base */
@@ -192,9 +212,11 @@ class Dashboard
     /** The banner in plain words: how busy yesterday was, and the clock when it is slowed */
     private static function bannerText(int $day, int $trades, ?float $norm, ?float $ratio, array $clock, int $normDays): string
     {
+        // The day as a date, as the tiles beside it are dated (#838: "game day 6082")
+        $when = GameDate::ofDay($day);
         $text = $norm === null
-            ? number_format($trades) . " trades on game day $day."
-            : number_format($trades) . " trades on game day $day, against about " . number_format($norm) . ' a day over the '
+            ? number_format($trades) . " trades on $when."
+            : number_format($trades) . " trades on $when, against about " . number_format($norm) . ' a day over the '
                 . ($normDays === 1 ? 'game day' : $normDays . ' game days') . ' before' . ($ratio !== null && $ratio < self::QUIET ? ': the market is quiet.' : '.');
         if ($clock['slowed']) {
             $text .= ' The clock is slowed: a game day takes ' . self::seconds($clock['real_seconds_per_game_day'])
@@ -294,7 +316,8 @@ class Dashboard
                 $cash = $cashOuts[(int) $c->company_id];
                 return ['company' => (int) $c->company_id, 'name' => $c->name, 'owner' => $c->login,
                     'matured_day' => intdiv(max(0, (int) $c->matured_t - $epoch), 86400),
-                    'cash_out_total' => (int) $cash['total'], 'cash_out' => (int) $cash['per_share']];
+                    'cash_out_total' => (int) $cash['total'], 'cash_out' => (int) $cash['per_share'],
+                    'credits' => (int) $cash['credits'], 'goods' => (int) $cash['goods'], 'hulls' => (int) $cash['hulls']];
             })->all();
     }
 

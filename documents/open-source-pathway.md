@@ -46,6 +46,7 @@ Bundled code that stays, with its own notices: Lua 5.4 (`game-engine/lua54/`, MI
 The site's look is our own (#524) and MIT licensed with everything else:
 
 - **Bootstrap 4** (MIT) gives the grid, navigation, dropdowns, alerts and tables.
+- **CodeMirror 6** (MIT) is the editor in every box where players type Lua (#852), in `resources/assets/js/lua-editor.js`, coloured by the same `pre.lua` classes as the code the site shows.
 - **`resources/assets/sass/site/`** holds the rest. `_tokens.scss` has every colour and font in one place, so restyling the site starts there.
 - **Fonts:** Space Grotesk (headings) and JetBrains Mono (code), both under the SIL Open Font License, loaded from Google Fonts; body text uses the reader's system font.
 - **No images to license:** the starfield and the home page's Earth-and-Moon drawing are CSS and inline SVG. Every other picture is our own, rendered by our scripts in `tools/render/` (MIT, like the rest): the page-header scenes in `html/images/headers/` and the resource pictures in `html/images/resources/`. Besides those, the only images are the logo and an SVG favicon.

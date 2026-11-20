@@ -95,4 +95,20 @@ LUA;
             ->assertSee('<span class="k">function</span> <span class="f">launched</span>', false)
             ->assertSee('<span class="g">go</span><span class="o">(</span><span class="g">moon</span>', false);
     }
+
+    /** #852: the box players type Lua into is marked for the editor, which colours the same game names */
+    public function testTheScriptBoxIsALuaEditorWithTheGameNames()
+    {
+        $names = LuaHighlight::gameNames();
+        $this->assertContains('print', $names);
+        $this->assertContains('go', $names);
+        $this->assertContains('moon', $names);
+        $this->assertNotContains('pairs', $names);
+        $this->assertSame('<span class="g">go</span>', LuaHighlight::html('go'));
+
+        $page = $this->get('/release')->assertOk()
+            ->assertSee('id="script" name="script" rows="20" spellcheck="false" data-lua-editor', false)
+            ->assertSee('window.exLuaGameNames = ', false);
+        $this->assertSame(1, substr_count($page->getContent(), 'window.exLuaGameNames'));
+    }
 }

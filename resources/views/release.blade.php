@@ -160,7 +160,8 @@
                     <p class="rl-hint mb-2">It starts with no equipment and buys what it needs: <code>equip(mining_kit)</code> buys a Mining Kit
                         (Engine, Worm and Refinery), <code>equip(factory_kit)</code> a Factory Kit (Engine, Smelter, Chemical Reactor and
                         Spider); each costs 2,000 at Earth. Each starter equips itself; its <b>Settings</b> at the top are the numbers to change first.</p>
-                    <textarea v-pre class="form-control" id="script" name="script" rows="20" spellcheck="false"
+                    @include('partials.lua-editor')
+                    <textarea v-pre class="form-control" id="script" name="script" rows="20" spellcheck="false" data-lua-editor
                               maxlength="{{ config('forge.max_script_length') }}" required>{{ old('script', $starter) }}</textarea>
                 </div>
                 <div class="rl-submit">
@@ -201,6 +202,8 @@
                     if (box.value.trim() !== '' && box.value !== loaded && box.value !== code
                         && !window.confirm('Replace your script with the ' + name + ' starter?')) return;
                     box.value = code;
+                    // The Lua editor (#852) shows what the box holds when told
+                    box.dispatchEvent(new Event('input'));
                     loaded = code;
                     cards.forEach(function (c) { c.setAttribute('aria-pressed', c === card ? 'true' : 'false'); });
                     try { history.replaceState(null, '', '?starter=' + encodeURIComponent(name)); } catch (err) {}

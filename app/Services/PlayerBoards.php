@@ -101,8 +101,9 @@ class PlayerBoards
     /**
      * The wealth board and the season board for the public, or for a class
      * group: [day, wealth => [...], season => [...]], richest first, and
-     * those who made most today first (#775: a short season a newcomer can
-     * win, in place of growth this month over a floor)
+     * those who grew most today first, in percent (#775: a short season a
+     * newcomer can win; #840: by percent, not credits, so a small player's
+     * good day can beat a rich one's ordinary day)
      */
     public static function boards(?int $classGroup = null, int $limit = 50): array
     {
@@ -112,14 +113,17 @@ class PlayerBoards
         $rows = [];
         foreach ($wealths as $id => $w) {
             $start = isset($starts[$id]) ? (int) $starts[$id] : $w['wealth'];
-            $rows[] = $w + ['user_id' => $id, 'start' => $start, 'made' => $w['wealth'] - $start];
+            $made = $w['wealth'] - $start;
+            // Its growth today in percent (#840): the season ranks by it, so a newcomer can top it
+            $rows[] = $w + ['user_id' => $id, 'start' => $start, 'made' => $made,
+                'percent' => $start > 0 ? round(100 * $made / $start, 2) : null];
         }
         $wealth = $rows;
         usort($wealth, fn ($a, $b) => [$b['wealth'], $a['user_id']] <=> [$a['wealth'], $b['user_id']]);
         $season = $rows;
-        usort($season, fn ($a, $b) => [$b['made'], $b['wealth']] <=> [$a['made'], $a['wealth']]);
+        usort($season, fn ($a, $b) => [$b['percent'] ?? -INF, $b['made']] <=> [$a['percent'] ?? -INF, $a['made']]);
         $strip = fn ($r) => ['name' => $r['name'], 'wealth' => $r['wealth'], 'credits' => $r['credits'],
-            'shares' => $r['shares'], 'bank_due' => $r['bank_due'], 'start' => $r['start'], 'made' => $r['made']];
+            'shares' => $r['shares'], 'bank_due' => $r['bank_due'], 'start' => $r['start'], 'made' => $r['made'], 'percent' => $r['percent']];
         return ['day' => self::day(), 'wealth' => array_map($strip, array_slice($wealth, 0, $limit)),
             'season' => array_map($strip, array_slice($season, 0, $limit))];
     }

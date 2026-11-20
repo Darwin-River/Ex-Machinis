@@ -95,7 +95,8 @@ class LiveQuery
             }
             $bytes .= $out;
             $stored++;
-            $shown[] = array_combine(array_column($fields, 'name'), array_map(fn ($v) => $v, $row));
+            // Numbers as numbers (#426, #539: d_sales came back as "536"); text and dates as they are
+            $shown[] = array_combine(array_column($fields, 'name'), array_map(fn ($f, $v) => self::shownValue($f, $v), $fields, $row));
         }
         return ['code' => $stored, 'bytes' => base64_encode($bytes), 'rows' => $shown];
     }
@@ -133,6 +134,17 @@ class LiveQuery
     }
 
     /** One field's bytes, as db_run_vm_query writes them */
+    /** A row's value as the API shows it: a number column's value as a number */
+    private static function shownValue(array $field, $value)
+    {
+        $text = ['STRING', 'VAR_STRING', 'VARCHAR', 'BLOB', 'TINY_BLOB', 'MEDIUM_BLOB', 'LONG_BLOB', 'ENUM', 'SET',
+            'DATETIME', 'TIMESTAMP', 'DATE'];
+        if (is_string($value) && is_numeric($value) && !in_array($field['type'], $text, true)) {
+            return str_contains($value, '.') || stripos($value, 'e') !== false ? (float) $value : (int) $value;
+        }
+        return $value;
+    }
+
     private static function field(array $field, $value, int $epoch): string
     {
         $type = $field['type'];

@@ -376,6 +376,28 @@ local function recipe(resource)
   return r
 end
 
+-- A resource's tier (#539: a beginner's "below 2051 means buy it" bought
+-- Alloys at 172 instead of smelting two metals at about 38): how many
+-- recipe steps it is from what is mined. 0 for an ore (and anything no
+-- recipe makes), 1 for a refined good (metals, inorganics, organics), 2 for
+-- what is made from those (alloys, polymers, fuel), and so on up to
+-- systems and modules. Each resource is asked about once a run
+local tiers = {}
+local function tier(resource)
+  if tiers[resource] then return tiers[resource] end
+  tiers[resource] = 0                     -- guards a recipe that comes back to itself
+  local r = recipe(resource)
+  local t = 0
+  if r then
+    for res in pairs(r.uses) do t = math.max(t, tier(res) + 1) end
+    if next(r.uses) == nil then t = 1 end  -- a recipe with no inputs but fuel
+  end
+  tiers[resource] = t
+  return t
+end
+-- Whether a maker makes it from other goods (tier 2 and up), not mined or refined
+local function is_made(resource) return tier(resource) >= 2 end
+
 -- Asking about the world by name (#380, after round 39). Each function
 -- asks one query (its number in the comment; the Queries page lists them)
 -- and returns plain values, or records with named fields. A list of
@@ -1022,7 +1044,7 @@ local function event(id)                                                        
   return e
 end
 
-local function stdlib() return 19 end
+local function stdlib() return 20 end
 
 -- Every name above, for scripts
 _G.earth = earth
@@ -1138,6 +1160,8 @@ _G.event_drone = event_drone
 _G.message = message
 _G.my_clones = my_clones
 _G.recipe = recipe
+_G.tier = tier
+_G.is_made = is_made
 _G.fuel_floor = fuel_floor
 _G.company_name = company_name
 _G.company_credits = company_credits

@@ -113,6 +113,52 @@ class PlayerShareController extends Controller
             . $r['standing'] . ' more stands.' : '.') : '');
     }
 
+    /** The order ticket's quote (#845), for the page's own script: the session's player, or a visitor's */
+    public function quote(Request $request, int $id): JsonResponse
+    {
+        $limit = $request->filled('limit') ? self::whole($request, 'limit') : null;
+        $q = \App\Services\ShareTicket::quote($this->webPlayer(), $id, (string) $request->input('side'), self::whole($request, 'units'), $limit,
+            $request->boolean('book'));
+        return $this->json($q);
+    }
+
+    /** Buy now / Sell now from the ticket (#845) */
+    public function now(Request $request, int $id)
+    {
+        if (!$user = $this->webPlayer()) {
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
+        }
+        if ($e = self::notWhole($request)) {
+            return back()->with('error', $e);
+        }
+        $limit = $request->filled('limit') ? self::whole($request, 'limit') : null;
+        $r = \App\Services\ShareTicket::now($user, $id, (string) $request->input('side'), self::whole($request, 'units'), $limit);
+        return $this->back($r, $r['ok'] ? self::nowWords($r) : '');
+    }
+
+    /** What Buy now / Sell now did, in words */
+    private static function nowWords(array $r): string
+    {
+        $bank = collect($r['legs'])->firstWhere('route', 'bank');
+        return ($r['side'] === 'buy' ? 'You bought ' : 'You sold ') . $r['units'] . ' shares for ' . number_format($r['credits']) . ' credits'
+            . ($r['side'] === 'sell' && $bank ? ' (the bank\'s part is paid ' . ($bank['due'] ?? 'later') . ')' : '') . '.'
+            . ($r['short'] > 0 ? ' ' . $r['short'] . ' more couldn\'t be ' . ($r['side'] === 'buy' ? 'bought' : 'sold') . ' now.' : '');
+    }
+
+    /** Moves a standing order to a new price, from the desk (#845) */
+    public function move(Request $request, int $order)
+    {
+        if (!$user = $this->webPlayer()) {
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
+        }
+        if ($e = self::notWhole($request)) {
+            return back()->with('error', $e);
+        }
+        $r = PlayerShares::moveOrder($user, $order, self::whole($request, 'price'));
+        return $this->back($r, $r['ok'] ? 'Your order now ' . ($r['standing'] ? 'stands at ' . number_format($r['price']) : 'is gone')
+            . ($r['traded'] ? ': ' . $r['traded'] . ' shares traded at once.' : '.') : '');
+    }
+
     public function cancel(int $order)
     {
         if (!$user = $this->webPlayer()) {
@@ -208,7 +254,17 @@ class PlayerShareController extends Controller
     public function apiMine(Request $request): JsonResponse
     {
         $user = $this->apiPlayer($request);
-        return $user ? response()->json(PlayerShares::of($user)) : $this->unauthorized();
+        if (!$user) {
+            return $this->unauthorized();
+        }
+        // Each holding with its cost basis and gain, as the Trading desk works them out (#495)
+        $mine = PlayerShares::of($user);
+        $gains = collect(\App\Services\TradingDesk::gains((int) $user->user_id, $mine['holdings']))->keyBy('company_id');
+        $mine['holdings'] = array_map(fn ($h) => $h + \Illuminate\Support\Arr::only($gains[$h['company_id']] ?? [],
+            ['cost', 'founder_units', 'dividends', 'gain', 'gain_percent'])
+            + ['average_price' => ($g = $gains[$h['company_id']] ?? null) && $h['units'] - $g['founder_units'] > 0
+                ? (int) round($g['cost'] / ($h['units'] - $g['founder_units'])) : null], $mine['holdings']);
+        return response()->json($mine);
     }
 
     public function apiSellToBank(Request $request, int $id): JsonResponse
@@ -314,6 +370,41 @@ class PlayerShareController extends Controller
             return (int) $v;
         }
         return is_string($v) && preg_match('/^-?\d+$/', trim($v)) ? (int) $v : 0;
+    }
+
+    /** GET /player-shares/{id}/quote?side=&units=&limit= (#845): the best route for N shares now, without trading */
+    public function apiQuote(Request $request, int $id): JsonResponse
+    {
+        $limit = $request->filled('limit') ? self::whole($request, 'limit') : null;
+        return $this->json(\App\Services\ShareTicket::quote($this->apiPlayer($request), $id, (string) $request->input('side'),
+            self::whole($request, 'units'), $limit, $request->boolean('book')));
+    }
+
+    /** POST /player-shares/{id}/now (#845): buy or sell N shares now by the best route, all or none */
+    public function apiNow(Request $request, int $id): JsonResponse
+    {
+        $user = $this->apiPlayer($request);
+        if (!$user) {
+            return $this->unauthorized();
+        }
+        if ($e = self::notWhole($request)) {
+            return response()->json(['error' => $e], 422);
+        }
+        $limit = $request->filled('limit') ? self::whole($request, 'limit') : null;
+        return $this->json(\App\Services\ShareTicket::now($user, $id, (string) $request->input('side'), self::whole($request, 'units'), $limit));
+    }
+
+    /** POST /player-shares/orders/{order}/move (#845): a standing order to a new price, keeping its id */
+    public function apiMove(Request $request, int $order): JsonResponse
+    {
+        $user = $this->apiPlayer($request);
+        if (!$user) {
+            return $this->unauthorized();
+        }
+        if ($e = self::notWhole($request)) {
+            return response()->json(['error' => $e], 422);
+        }
+        return $this->json(PlayerShares::moveOrder($user, $order, self::whole($request, 'price')));
     }
 
     public function apiCancel(Request $request, int $order): JsonResponse

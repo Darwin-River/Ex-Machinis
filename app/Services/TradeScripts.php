@@ -242,7 +242,7 @@ class TradeScripts
                 'growth_percent' => $m['growth_percent'] ?? null, 'return_percent' => $m['return_percent'] ?? null,
                 'last_price' => $m['last_price'] ?? null, 'last_days_ago' => $m['last_days_ago'] ?? null,
                 'stalled' => $m['stalled'] ?? false, 'at_risk' => $m['at_risk'] ?? false, 'failing' => $m['failing'] ?? false,
-                'dissolves_in' => $m['dissolves_in'] ?? null,
+                'dissolves_in' => $m['dissolves_in'] ?? null, 'winds_up_in' => $m['winds_up_in'] ?? null,
                 'bids' => array_map(fn ($o) => ['price' => $o['price'], 'units' => $o['units'], 'by' => $o['by'], 'script' => $o['script']], $book['buy']),
                 'asks' => array_map(fn ($o) => ['price' => $o['price'], 'units' => $o['units'], 'by' => $o['by'], 'script' => $o['script']], $book['sell'])];
         }

@@ -54,6 +54,13 @@
         <div class="econ-tile"><div class="econ-l">Matured companies' profit, 7 days</div>
             <div class="econ-v {{ $t['profit']['week'] < 0 ? 'econ-down' : '' }}">{{ $signed($t['profit']['week']) }}</div>
             <div class="econ-d">{{ $signed($t['profit']['last_week']) }} the 7 days before</div></div>
+        {{-- Is their capital working (#839)? --}}
+        @if(isset($t['capital']))
+        <div class="econ-tile" id="capital-tile"><div class="econ-l">Return on capital, 30 days</div>
+            <div class="econ-v {{ ($t['capital']['return_percent'] ?? 0) < 0 ? 'econ-down' : '' }}">{{ $t['capital']['return_percent'] === null ? '–' : $t['capital']['return_percent'] . '%' }}</div>
+            <div class="econ-d">matured companies' profit against their cash-out value;@if($t['capital']['idle_percent'] !== null)
+                {{ $t['capital']['idle_percent'] }}% of what they hold is idle credits @endif</div></div>
+        @endif
         <div class="econ-tile"><div class="econ-l">Players</div>
             <div class="econ-v">{{ number_format($t['players']['count']) }}</div>
             <div class="econ-d">{{ $signed($t['players']['new_this_week']) }} joined in the last 7 real days</div></div>

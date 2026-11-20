@@ -13,7 +13,7 @@ class DesignConsistencyTest extends TestCase
     public function testMarketPagesShareATabBarWithTheirOwnMarked()
     {
         config(['forge.new_rules' => true]);
-        foreach (['market' => 'Goods', 'market/house' => 'House', 'market/history' => 'History', 'market/shares' => 'Shares'] as $path => $label) {
+        foreach (['market' => 'Goods', 'market/house' => 'House', 'market/history' => 'History', 'market/shares' => 'Stock exchange'] as $path => $label) {
             $this->get('/' . $path)->assertOk()->assertSee('aria-label="Market pages"', false)
                 ->assertSee('aria-current="page" >' . $label, false);
         }

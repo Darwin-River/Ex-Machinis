@@ -22,7 +22,7 @@ Every function below is built in (`game-engine/src/lua_library.lua`). Actions re
 | Resources | `fuel`, `magmite`, `kunspar`, `yalspar`, `vladnium`, `wolfite`; `metals_a1` to `metals_a3`, `alloys_a1` to `alloys_a3`, `organics_a1`, `organics_a2`, `inorganics_a1`, `inorganics_a2`, `rods`; `mining_kit`, `factory_kit`, `cruiser_kit`, `engine_module` (any other resource by its number) |
 | Moving | `travel(place)`, `go(place)` (stays put if already there; returns -2 at once, burning no fuel, with no Engine aboard, #743), `trip(place)` (game hours to fly there; -1 if unknown), `trip_to(place)` and `trip_between(a, b)` (`{distance, seconds, hours}`; distance in thousands of km) |
 | Places | `place_name(place)`, `place_type(place)`, `orbits(place)`, `orbiting(place)`, `position(place)` (`{x, y, z}`), `drones_at(place)`, `crowd(place)`, `wrecks_at(place)`, `minerals(place)` and `best_sites(mineral)` (`{resource, abundance}`, and the 10 best places `{place, abundance, units, distance}`: richest, then most left, then nearest), `deposits()` (`{resource, units, capacity, refill}`, here) |
-| Mining and making | `mine(mineral)`, `refine(mineral)`, `make(resource)`, `recipe(resource)` |
+| Mining and making | `mine(mineral)`, `refine(mineral)`, `make(resource)`, `recipe(resource)`, `tier(resource)`, `is_made(resource)` |
 | Your hold | `units(resource)`, `hold()` (a list of `{resource, units}`), `cargo_mass()`, `capacity()`, `space()` (capacity left), `jettison(n, resource)`, `push(n, resource, drone)`, `pull(n, resource, drone)` |
 | The House's supply | `house_supply(resource)` (#630, query 707): at each exchange that sells it, cheapest first: `{place, price, on_sale, refill_to, daily, sold, last_minutes, round_minutes, next_minutes}`: its price (0 when sold out), the units on sale now, what each round of restocking tops it back up to (a quarter of the day's supply), the day's supply, the units sold today, and in game minutes since its station last restocked this good, between its rounds, and until its next round (-1 when unknown; 0 when due now). A good that sells out is back, up to `refill_to`, at the next round. The figures are at most 10 real seconds old (about 5 game hours at the normal pace; #710) |
 | The House's demand | `house_demand(resource)` (#550, query 706): at each exchange that buys it, best bid first: `{place, price, left, daily, listed, hours, sold, mine, empty_hours}`: its bid now and the units it still takes today (its live buy order's, as a sale would find them, #608; price 0 when it has no bid), its day's demand, its listed price (its bid with nothing bought today), the game hours until it refills, the units sold into it today, how many of those your company sold, and the game hours until it has bought its fill at today's pace (-1 when none sold today). Its bid falls toward half of `listed` as it fills and stops at the day's demand (where the exchange also sells the good it buys back its stock to sell too, up to a quarter of a day's sales, so `left` can be more than `daily`); what it bought goes down to the surface at the start of each game day |
@@ -33,7 +33,7 @@ Every function below is built in (`game-engine/src/lua_library.lua`). Actions re
 | Standing orders | `sell_order(price, keep, resource)`, `buy_order(price, want, resource)`, `sell_order_if_changed(...)`, `buy_order_if_changed(...)` |
 | Reading the market | `buy_price(resource)`, `sell_price(resource)` (0 when nobody sells or buys it here), `best_offer(resource)` and `best_bid(resource)` (each returns price, drone, units; a startup's only the House's, #637), `house_only()` (#637, query 708: for a startup, the House's station drones here as a set; nil when the company may trade with anyone; `buy_here`, `sell_here`, `best_offer` and `best_bid` use it), `sell_orders(resource)` and `buy_orders(resource)` (every order here: `{price, units, drone, keep or want, held}`), `cost_to_buy(n, resource)` and `sale_value(n, resource)` (credits and units, walking the orders here), `board_price(resource, place)`, `price_board(resource)`, `sold(resource, days_ago, place)`, `sales(resource, days_ago)`, `volume_here(resource, hours)`, `volume_everywhere(resource, hours)`, `deposit(mineral)` |
 | Other exchanges | `quotes(resource)` (best prices and stock at each place: live here, an hour old elsewhere), `stock(resource, place)`, `orders_everywhere(resource)` |
-| Your company | `company_name()`, `company_credits()`, `company_drones()`, `earnings(hours)` (sales, taxes, purchases, net), `earnings_per_day(days)`, `taxes()` |
+| Your company | `company_name()`, `company_credits()`, `company_drones()` (a list of your company's drone ids, numbers, working ones and wrecks alike: `for _, d in ipairs(company_drones()) do ... end`; #426), `earnings(hours)` (sales, taxes, purchases, net), `earnings_per_day(days)`, `taxes()` |
 | About the drone | `me()`, `location()`, `company()`, `credits()`, `today()` (the world's game day), `company_age(company)` (#549: whole game days since a company was founded, yours if left out: use it for "in its first 24 days", so a company released late gets the same time to grow), `now()` (`{day, minute}`), `drone_name()`, `hull_name()`, `my_clones()` (a list of `{drone =, wrecked =}`), `fleet()` (`{drones, cap, coming}`, #682: the company's working drones, the most it may have (8; 0: no limit) and launches on their way), `fleet_full()` (true when `launch` would fail with -20: check it before buying a kit), `startup_status()` (`{startup, credits, debt, cap, to_bank, at_cap}`, #749; `seedling_status()` and its `seedling` field until #855: whether the company is a startup, its credit cap (0: none), what it has sent the bank over its cap in all, and `at_cap`: true once what it earns goes to the bank, so it is time to mature it), `lineage()` (`{parent, generation}`), `set_status(text)` (a line shown on its page) |
 | Equipping and growing | `equip(kit)`, `launch(drone, kit)`, `unpack()` (also `unpack_kit()`), `await_kit()` |
 | Safety | `fuel_floor(n)` |
@@ -379,6 +379,14 @@ end
 - Check every input before the first step (`if units(metals_a1) < 8 or units(metals_a2) < 2 then return end`), so a half-built chain doesn't strand alloys in the hold. Check the fuel too: `if units(fuel) < 30 then return end`.
 - A long chain needs a bigger fuel margin: start brewing at 60, not 40.
 
+**`tier(resource)`** and **`is_made(resource)`** (built in, #539): how many recipe steps a resource is from what is mined. `tier` is 0 for an ore, 1 for a refined good (metals, inorganics, organics), 2 for what is made from those (alloys, polymers, fuel), and so on up through parts and systems. `is_made(r)` is true from tier 2 up: a maker makes it from other goods, so before you buy one, see whether its inputs cost less. Resource numbers don't say this: Alloys (2021) sit among the metals (2011) and inorganics (2031). Each resource is looked up once a run.
+
+```lua
+if is_made(alloys_a1) then
+  local r = recipe(alloys_a1)       -- what it's made from, to price it both ways
+end
+```
+
 **`recipe(resource)`** (built in, #380 round 36): the first recipe that makes a resource, or nil: a table `{protocol, makes (units made), uses = {[resource] = units}, fuel, tool, hours}`. `uses` doesn't include fuel: that's `fuel`, the units it burns. `tool` is the module it needs, or nil. A drone that prices what it could make (inputs from `buy_price`, the product from `sell_price`) can choose, each round, what pays best here and now:
 
 ```lua
@@ -486,3 +494,20 @@ end
 - **Call `report()` in a loop that never ends.** A drone's output reaches you when `launched` returns, so a `launched` that loops forever is silent. `report()` sends what it has printed so far: `print("fuel " .. units(fuel)); report()`.
 - **Messages are 1 to 80 characters.** A longer `broadcast` fails.
 - **Waiting is free.** `wait` costs no fuel and no instructions, so wait rather than loop when there is nothing to do.
+
+## Trading scripts (your account's shares)
+
+A **trading script** is a different kind of script from a drone's: it trades your account's shares while you're away, every few real minutes, under the same rules as you (see the players' manual, "Your trading script"). The game calls its `trade(market)`; `market.me` is your account and `market.companies` every matured company still trading, with its prices, health (`at_risk`, `failing`, `stalled`, `dissolves_in`, `winds_up_in`) and book. It has these functions, and none of a drone's:
+
+| Function | What it does |
+|---|---|
+| `buy(company, units, price)` | posts a buy order at a price, trading at once against what it meets |
+| `sell(company, units, price)` | posts a sell order at a price |
+| `buy_pegged(company, units, peg, percent)` | a buy order whose price follows the bank's: `peg` is `'buys_at'` or `'sells_at'`, `percent` above (or, negative, below) it |
+| `sell_pegged(company, units, peg, percent)` | a sell order that follows the bank's price the same way |
+| `cancel(order)` | cancels one of your standing orders, by id |
+| `bank_buy(company, units)` | buys shares the bank holds, at its selling price |
+| `bank_sell(company, units)` | sells shares to the bank, paid in 30 game days at the lower of today's cash-out and cash-out then |
+| `log(...)` | writes a line to the run's log, shown on the Trading desk and your account page |
+
+Each action function returns `true`, or `false` and why. A run does at most 20 actions and writes at most 50 log lines; when it hits the 20, the log says so once. What you keep in the table `memory` is there next run. Two starters: [`examples/traders/payback.lua`](../examples/traders/payback.lua) (made for classes: buy when dividends pay a share back soon enough, sell when a company is about to end) and [`examples/traders/value.lua`](../examples/traders/value.lua).

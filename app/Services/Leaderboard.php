@@ -224,6 +224,8 @@ class Leaderboard
             $row['gain'] = $row['wealth'] - (int) ($before[$co] ?? 0) + ($repaid[$co] ?? 0);
             $rows[] = $row;
         }
+        // Only those that rose (#840: with few companies the board ran on into losers, under "Rising")
+        $rows = array_values(array_filter($rows, fn ($r) => $r['gain'] > 0));
         usort($rows, fn ($a, $b) => [$b['gain'], $a['drone']] <=> [$a['gain'], $b['drone']]);
         return array_slice($rows, 0, $limit);
     }

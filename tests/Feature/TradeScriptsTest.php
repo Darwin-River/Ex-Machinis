@@ -100,9 +100,11 @@ LUA;
         $this->assertStringContainsString("global 'os'", implode(' ', TradeScripts::run($p)));
         TradeScripts::save($p, 'x = 1', true);
         $this->assertStringContainsString('no trade(market) function', implode(' ', TradeScripts::run($p)));
-        // At most 20 actions a run
+        // At most 20 actions a run, and its log says so (#832)
         TradeScripts::save($p, 'function trade() for i = 1, 30 do cancel(i) end end', true);
-        $this->assertCount(20, TradeScripts::run($p));
+        $run = TradeScripts::run($p);
+        $this->assertCount(21, $run);
+        $this->assertStringContainsString('at most 20 actions a run', implode(' ', $run));
         // Removing it
         $this->assertTrue(TradeScripts::save($p, '', false)['removed']);
         $this->assertNull(TradeScripts::of($p));
@@ -140,6 +142,57 @@ LUA;
         $out = implode("\n", TradeScripts::run($p));
         $this->assertStringNotContainsString('stopped', $out);
         $this->assertSame(1, TradeScripts::of($p)['runs'], 'it ran, and did what it found worth doing');
+    }
+
+    /**
+     * #832: the payback trader against a market like the live one. A company
+     * only "at risk" (one drone low on fuel) and holding a fortune is kept;
+     * one dissolving or winding up soon is sold; shares paying back in
+     * hundreds of game days are bought
+     */
+    public function testThePaybackTraderAgainstARealisticMarket()
+    {
+        $row = fn (int $id, array $extra) => $extra + ['company' => $id, 'name' => "Co $id", 'buys_at' => 4000, 'sells_at' => 4100,
+            'low' => 3280, 'high' => 5125, 'bank_holds' => 10, 'dividends30' => 0, 'stalled' => false, 'at_risk' => false,
+            'failing' => false, 'bids' => [], 'asks' => []];
+        $market = ['me' => ['credits' => 100000, 'share_credits' => 0, 'holdings' => [1 => 100, 2 => 20, 3 => 5]],
+            'companies' => [
+                $row(1, ['at_risk' => true, 'dividends30' => 300]),          // one drone dry, rich: keep
+                $row(2, ['dissolves_in' => 12]),                             // out of credits: sell
+                $row(3, ['winds_up_in' => 4]),                               // winds up in 4 game days: sell
+                $row(4, ['dividends30' => 210]),                             // 4,100 / 7 a day: 586 days: buy
+                $row(5, ['dividends30' => 30]),                              // 4,100 days: too slow
+            ]];
+        $dir = sys_get_temp_dir();
+        $files = ['script' => tempnam($dir, 't'), 'market' => tempnam($dir, 'm'), 'memory' => tempnam($dir, 'y')];
+        file_put_contents($files['script'], file_get_contents(base_path('examples/traders/payback.lua')));
+        file_put_contents($files['market'], 'return ' . TradeScripts::lua($market));
+        file_put_contents($files['memory'], '');
+        $out = shell_exec(escapeshellarg(config('forge.lua_trade')) . ' ' . implode(' ', array_map('escapeshellarg', $files)));
+        array_map('unlink', $files);
+        $lines = array_filter(explode("\n", (string) $out));
+        $acts = array_values(array_filter($lines, fn ($l) => !str_starts_with($l, 'log') && !str_starts_with($l, 'memory')));
+        $this->assertContains("bank_sell\t2\t20", $acts, 'dissolving: sold');
+        $this->assertContains("bank_sell\t3\t5", $acts, 'winding up soon: sold');
+        $this->assertContains("bank_buy\t4\t2", $acts, 'pays back in about 586 game days: bought');
+        foreach ($acts as $l) {
+            $this->assertStringNotContainsString("\t1\t", $l, 'at risk but rich: kept');
+            $this->assertStringNotContainsString("\t5\t", $l, 'pays back too slowly: not bought');
+        }
+    }
+
+    /** #832: past 20 actions a run, the log says so once */
+    public function testTheActionLimitIsLogged()
+    {
+        $dir = sys_get_temp_dir();
+        $files = ['script' => tempnam($dir, 't'), 'market' => tempnam($dir, 'm'), 'memory' => tempnam($dir, 'y')];
+        file_put_contents($files['script'], 'function trade() for i = 1, 25 do cancel(i) end end');
+        file_put_contents($files['market'], 'return {}');
+        file_put_contents($files['memory'], '');
+        $out = (string) shell_exec(escapeshellarg(config('forge.lua_trade')) . ' ' . implode(' ', array_map('escapeshellarg', $files)));
+        array_map('unlink', $files);
+        $this->assertSame(20, substr_count($out, "cancel\t"));
+        $this->assertSame(1, substr_count($out, 'at most 20 actions a run'));
     }
 
     public function testMarketDataAsLua()

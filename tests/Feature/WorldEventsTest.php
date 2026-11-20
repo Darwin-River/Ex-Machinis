@@ -95,6 +95,28 @@ class WorldEventsTest extends TestCase
         $this->assertSame($this->t(2191), WorldEvents::gameTimeAt($this->t(2200.5)));
     }
 
+    /** #837: a game day on which five or more matured companies end is a world event, with why */
+    public function testAMassEndIsAWorldEvent()
+    {
+        $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
+        $day = 4321;
+        $t = $epoch + $day * 86400 + 3600;
+        $owner = (int) DB::table('users')->value('user_id');
+        foreach ([['dissolved', 4], ['wound_up', 1]] as [$cause, $n]) {
+            for ($i = 0; $i < $n; $i++) {
+                DB::table('companies')->insert(['name' => "Gone $cause $i", 'user_id' => $owner, 'owner_id' => $owner, 'startup' => 0,
+                    'founded_t' => $t - 90 * 86400, 'matured_t' => $t - 60 * 86400, 'eliminated_at' => $t + $i, 'end_cause' => $cause]);
+            }
+        }
+        $e = collect(WorldEvents::build())->firstWhere('key', 'mass-end-' . $day);
+        $this->assertNotNull($e);
+        $this->assertSame(['ends', '5 companies ended'], [$e['kind'], $e['label']]);
+        $this->assertStringContainsString('4 dissolved, out of credits for too long; 1 wound up', $e['text']);
+        // Four on a day isn't
+        DB::table('companies')->where('name', 'Gone wound_up 0')->delete();
+        $this->assertNull(collect(WorldEvents::build())->firstWhere('key', 'mass-end-' . $day));
+    }
+
     public function testTheWorldsEventsAreCached()
     {
         config(['world-events' => [['key' => 'a', 'kind' => 'rule', 'day' => 2000, 'label' => 'A', 'text' => 'A.']]]);

@@ -72,7 +72,7 @@ class PlayerShares
     }
 
     /** A matured company of the new rules, still trading, or null */
-    private static function company(int $company): ?object
+    public static function company(int $company): ?object
     {
         $c = DB::table('companies')->where('company_id', $company)->first();
         // An ended company's shares are worth nothing and don't trade (#743:
@@ -417,7 +417,7 @@ class PlayerShares
     }
 
     /** Both accounts in the same market: the public one, or the same class group */
-    private static function sameMarket(int $a, int $b): bool
+    public static function sameMarket(int $a, int $b): bool
     {
         $groups = DB::table('users')->whereIn('user_id', [$a, $b])->pluck('class_group_id', 'user_id');
         return ($groups[$a] ?? null) === ($groups[$b] ?? null);
@@ -560,9 +560,11 @@ class PlayerShares
      * and repeg() moves it as the bank's prices move. $placedT: the game time
      * a re-placed order was first placed, so it keeps its rest (#782).
      * $byScript: placed by the account's trading script, shown as such (#779).
+     * $fillOnly: trade what meets it now and leave nothing standing (the
+     * order ticket's Buy now / Sell now, #845).
      */
     public static function order(User $user, int $company, string $side, int $units, int $price, ?array $peg = null, ?int $placedT = null,
-                                 bool $byScript = false): array
+                                 bool $byScript = false, bool $fillOnly = false): array
     {
         if (!self::company($company)) {
             return self::fail(404, self::endedNote($company) ?? 'There is no such matured company.');
@@ -614,7 +616,7 @@ class PlayerShares
                 . (int) $crosses . ': ' . ($side === 'buy' ? 'a buy at ' . (int) $crosses . ' or more' : 'a sell at ' . (int) $crosses . ' or less')
                 . ' would cross it. Cancel that order first, or ' . ($side === 'buy' ? 'bid under ' : 'ask over ') . (int) $crosses . '.');
         }
-        return DB::transaction(function () use ($me, $company, $side, $units, $price, $p, $peg, $placedT, $byScript, $pegNote) {
+        return DB::transaction(function () use ($me, $company, $side, $units, $price, $p, $peg, $placedT, $byScript, $pegNote, $fillOnly) {
             $traded = 0;
             $spent = 0;
             $other = $side === 'buy' ? 'sell' : 'buy';
@@ -665,7 +667,7 @@ class PlayerShares
                 $spent += $n * $at;
             }
             $id = null;
-            $standing = $units - $traded;
+            $standing = $fillOnly ? 0 : $units - $traded;
             $note = null;
             // What stands of a buy order can't commit more than the account
             // can pay (#665): its buy orders together, with starting credits
@@ -846,6 +848,47 @@ class PlayerShares
         return DB::table('player_share_offerings')->where('company_id', $company)->orderByDesc('id')->get()
             ->map(fn ($o) => ['units' => (int) $o->units, 'sold' => (int) $o->units - (int) $o->units_left, 'raised' => (int) $o->raised,
                 'created_t' => (int) $o->created_t, 'closed_t' => $o->closed_t === null ? null : (int) $o->closed_t])->all();
+    }
+
+    /**
+     * Moves a standing order to a new price (#845: the desk's move-price
+     * button). The order keeps its id and its time on the book (and so its
+     * rebate's rest) when it only waits at the new price; one that meets
+     * the other side trades at once, as a new order would. A pegged order
+     * moved by hand stops following its peg.
+     */
+    public static function moveOrder(User $user, int $order, int $price): array
+    {
+        $o = DB::table('player_share_orders')->where('id', $order)->where('user_id', $user->user_id)->first();
+        if (!$o) {
+            return self::fail(404, 'You have no such order.');
+        }
+        if ($price === (int) $o->price && ($o->peg_ref ?? null) === null) {
+            return ['ok' => true, 'order' => $order, 'price' => $price, 'traded' => 0, 'standing' => (int) $o->units];
+        }
+        try {
+            return self::moveInside($user, $o, $price);
+        } catch (\App\Exceptions\ShareRefused $e) {
+            return $e->result;
+        }
+    }
+
+    private static function moveInside(User $user, object $o, int $price): array
+    {
+        return DB::transaction(function () use ($user, $o, $price) {
+            DB::table('player_share_orders')->where('id', $o->id)->delete();
+            $r = self::order($user, (int) $o->company_id, (string) $o->side, (int) $o->units, $price, null,
+                $o->game_t === null ? null : (int) $o->game_t, (bool) ($o->by_script ?? false));
+            if (!$r['ok']) {
+                throw new \App\Exceptions\ShareRefused($r);
+            }
+            // Back under its old id, as repeg() keeps it (#873)
+            if ($r['order'] !== null) {
+                DB::table('player_share_orders')->where('id', $r['order'])->update(['id' => $o->id]);
+                $r['order'] = (int) $o->id;
+            }
+            return $r;
+        });
     }
 
     public static function cancel(User $user, int $order): bool

@@ -64,11 +64,14 @@ class TradingDeskTest extends TestCase
 
         // Anyone sees the watch list and the ladder; the ticket asks them to log in
         $this->get('/market/trade')->assertOk()->assertSee('id="watch-list"', false)->assertSee('Desk Co')
-            ->assertSee('id="ladder"', false)->assertSee('The bank sells')->assertSee('Top of the band')
+            ->assertSee('id="ladder"', false)->assertSee('The bank buys')->assertSee('Top of the band')
             ->assertSee('Log in</a> to trade', false)->assertSee('Trading desk');
 
-        // A player sees their ticket, shares with gain including dividends, and their script
-        $r = $this->actingAs($buyer)->get('/market/trade?company=' . $id)->assertOk()->assertSee('id="t-say"', false)
+        // A player sees their ticket, shares with gain including dividends, their orders, and their script
+        PlayerShares::order($buyer, $id, 'buy', 1, $p['low']);
+        $r = $this->actingAs($buyer)->get('/market/trade?company=' . $id)->assertOk()->assertSee('id="st-now-say"', false)
+            ->assertSee('id="st-price-say"', false)->assertSee('/share-now', false)->assertSee('data-side="buy" data-price=', false)
+            ->assertSee('id="your-orders"', false)->assertSee('/move', false)
             ->assertSee('id="your-shares"', false)->assertSee('id="your-script"', false)->assertSee('payback.lua');
         $s = TradingDesk::gains((int) $buyer->user_id, PlayerShares::of($buyer)['holdings'])[0];
         $this->assertSame([4, 4 * $p['sells_at'], 40], [$s['units'], $s['cost'], $s['dividends']]);
@@ -76,6 +79,10 @@ class TradingDeskTest extends TestCase
         // The owner's shares from maturing cost nothing
         $o = TradingDesk::gains((int) $owner->user_id, PlayerShares::of($owner)['holdings'])[0];
         $this->assertSame([0, 96], [$o['cost'], $o['founder_units']]);
+        // The API gives the same cost basis (#495)
+        $h = ['Authorization' => 'Bearer ' . \App\Services\Players::issueToken($buyer)];
+        $this->getJson('/api/v1/account/shares', $h)->assertOk()->assertJsonPath('holdings.0.cost', 4 * $p['sells_at'])
+            ->assertJsonPath('holdings.0.average_price', $p['sells_at'])->assertJsonPath('holdings.0.gain', $s['gain']);
         // The guide, the menu and the market tabs lead here
         $this->get('/getting-started')->assertSee(url('market/trade'), false);
         $this->get('/market')->assertSee('Trading desk');

@@ -98,7 +98,7 @@ This is the whole game. Each line is explained where it first matters to you.
 5. Your account starts with 5,000 credits that can only buy shares. Each game day a matured company pays half its profit to its shareholders. Its profit is its sales less the goods it bought: equipment and drones it buys (modules, kits and hulls) are an investment, not a loss.
 6. Trade shares with players within a published range, or sell them to the bank for their cash-out value, paid 30 game days later at the lower of the two values.
 7. All code is public. A matured company can't change, but it can react to prices and orders, so read its code before you buy.
-8. You're ranked by your wealth, and by what you made today (a short season, a real day), on the Players page; your account page keeps your records.
+8. You're ranked by your wealth, and by how much it grew today in percent (a short season, a real day), on the Players page; your account page keeps your records.
 
 ### Your fortune awaits!
 
@@ -169,7 +169,7 @@ All but the digest and filled orders come together in one e-mail, at most one a 
 
 ### Releasing a startup
 
-Write your drone's program on the **Found a startup** page (`/release`, the button at the top of every page) and press **Found startup**. The page opens with the three starters as cards and the Miner's code in the script box; a short note says what the bank lends and when the startup matures, and **Rules** opens the rest of what a startup may do. Starting one is called releasing it:
+Write your drone's program on the **Found a startup** page (`/release`, the button at the top of every page) and press **Found startup**. The page opens with the three starters as cards and the Miner's code in the script box; a short note says what the bank lends and when the startup matures, and **Rules** opens the rest of what a startup may do. The script box, like every box where you type Lua (pushing new code from a company page, a startup's **Change its code**, your trading script), is a code editor: it numbers the lines, colours the code as the site shows it, highlights the bracket that matches the one at the cursor, and indents for you; **Tab** indents (press **Esc** first to move on with Tab instead), and **Ctrl+Z** undoes. On a phone, long lines wrap. Starting one is called releasing it:
 
 - each release starts a new **startup** company, with one drone in orbit around Earth, 100 fuel and 3,000 credits, and no equipment: your script buys what it needs (see [Equipping your drone](#unpacking-your-kit));
 - your script is a Lua program, and it must define a function called `launched` (`function launched() ... end`). The drone loads your script, then calls `launched()` on its own;
@@ -269,7 +269,7 @@ Five more pages show the whole world, live:
 - **Market** (`/market`): the goods board, one row per good: the cheapest seller and the best buyer at each place on one scale, the best deal (where to buy and where to sell, and what a unit makes between them), and the change in its average price over the last 7 game days against the 7 before. Chips show the most traded goods, every good, or one tier (ores, refined goods, parts, systems, modules, ship kits, fuel). The board counts every order, players' and the House's; a startup trades only with the House, so **What a startup can trade at** switches each row's right-hand column to the House's own cheapest price and best bid. Click a good for its page: every open order for it at every place, what the House buys and sells of it, and its price history. The House's demand and supply for every good are on **House demand and supply** (`/market/house`).
 - **Map:** the planets where they are now, with the drones and wrecks around each.
 - **Leaderboard:** companies by net wealth, all time and **Rising** (the gain over the last real week; while the world is under a week old it says so instead of repeating All time). Each release starts a company, and the drones it launches belong to it. Net wealth counts the company's credits and its working drones' goods and equipment (the kit and modules aboard) at market prices (what they sold for over the last three game days), minus what the company started with, so it measures what the company made, and a new startup starts near 0. It leaves out the drones' hulls and any debt to the bank: launching a copy lowers net wealth by about the price of its hull (3,000) until the copy earns that back, often 10 to 20 game days, and longer for a copy that first flies to Mars. Grow early, not near the end of a contest. Each company's **age** is shown in game days since it was founded. To compare companies fairly, pick an age (3, 10, 30 or 100 game days, or any number you type): the **At age** board ranks every company, old or young, still trading or ended, by its net wealth when it was that old, read from its daily history. So a company that is a year old is compared as it was at 10 days, not as it is now, and one that ended after reaching that age still counts. A figure marked ~ is read between history points more than a day apart (before November 2026 the history of days older than 60 was kept only every 10th day). Your company's page ranks its net wealth now among every company's at the same age, e.g. "4 of 37", with a link to that board; a company founded as a startup is ranked among companies founded as startups only, since old-world companies ran under other rules.
-- **Players** (`/players`, Companies menu): players ranked by their wealth, and by what they made in today's season, a real day (see [Boards and the digest](#boards-and-the-digest)). Only accounts that have confirmed their e-mail address and played (founded a startup or held a share) are listed, and counted on the home page.
+- **Players** (`/players`, Companies menu): players ranked by their wealth, and by how much it grew in today's season, a real day, in percent, so a newcomer can top it (see [Boards and the digest](#boards-and-the-digest)). Only accounts that have confirmed their e-mail address and played (founded a startup or held a share) are listed, and counted on the home page.
 - **Startup race** (`/startups/race`, Play menu): the startups founded over the last 60 game days, each one's credits from the day it bought its kit, by game days since it started, against the line a fresh startup matures at. Each unchanged starter has a shaded band, its usual range: from what it holds once it has bought its kit (about 1,000 of the 3,000 it is lent) to the line, between the fastest and slowest times its card gives. Each startup is drawn in its starter's colour, or grey when its code is changed, and yours are thicker: inside or above its band, it is doing as well as a typical starter. A Miner's line climbs in steps, since metals still aboard don't count until it sells them. `GET /api/v1/startups/race` gives the same.
 
 Your drones can't see all this: they see live orders only where they are (see [the price board](#the-price-board)). You can, so use these pages to plan.
@@ -447,6 +447,17 @@ The **hundreds** digit further groups resources into subcategories. For example,
 The **tens** digit is unique for each resource within a subcategory.
 
 The **ones** value is used to distinguish between the size and tech level of a particular resource. In general, 1-3 will be reserved for A-sized resources of each tech level, 4-5 will be assigned to B-sized resources, and C sizes will be encoded by IDs whose ones digits range from 7-9.
+
+**Raw or made?** The numbers don't tell a raw good from a made one: among the materials, Alloys (2021-2023) and Polymers (2051-2053) are made from the refined Metals (2011-2013), Inorganics (2031-2033) and Organics (2041-2043) around them. Ask with `tier(r)`: the recipe steps from what is mined.
+
+| `tier(r)` | What it is | Examples |
+|---|---|---|
+| 0 | Mined | ores: Kunspar (N), Wolfite (N) |
+| 1 | Refined from an ore | Metals, Inorganics, Organics |
+| 2 | Made from refined goods | Alloys, Polymers, Fuel |
+| 3 and up | Made from made goods | parts, then systems and modules |
+
+`is_made(r)` is true from tier 2 up. Before buying a made good, price its inputs too: in one playtest, a rule of "below 2051 means buy it" bought Alloys at 172 instead of smelting 2 metals at about 38 each.
 
 ### Browsing the Resource Catalog
 
@@ -1018,7 +1029,7 @@ Every drone comes with a library of names for the game, so you can write `mine(k
 | State machines | `become(mode)`, `in_mode(mode)`, `tick()`, `ticks()` and the variable `mode`: a drone that changes what it does as the market changes (see [Market-aware drones](#market-aware-drones)) |
 | Output | `print(...)` writes to your drone's output, `report()` sends what it has printed so far home at once |
 | Shares (old rules) | `sell_shares`, `buy_shares`, `pull_shares`, `push_shares`, `offer_shares`, `commit_shares`, `invest_surplus` and `answer_bids` are still in the library, but under the new rules every one of them fails with -18: players, not companies, trade shares (see [The old share functions](#the-old-share-functions)) |
-| Other | `stdlib()` is the library's version number |
+| Other | `stdlib()` is the library's version number (20) |
 
 `jettison(n, resource)` throws n units of a resource out of the hold into space, for 1 fuel whatever the amount. Use it for goods nobody buys where you are: a hold that fills up leaves no room for the fuel you make, and a drone without fuel dies. `jettison(10, inorganics_a2)` throws away 10 Inorganics (A2).
 
@@ -1458,11 +1469,18 @@ On a matured company's page (logged in), **Post the order** with buy or sell, sh
 
 The **Trading desk** (`/market/trade`, under Market in the menu) puts share trading on one page:
 
-- **The watch list:** every matured company, yours first, with a health pill (steady, stalled, at risk, failing, dissolving), its cash-out value and its return over 30 game days. Pick one to see its book.
-- **The ladder:** that company's book from the dearest sell order at the top to the lowest bid at the bottom, with the bank's selling and buying prices among them and the band players trade in at each end. A script's order says **(script)**.
-- **The order ticket:** before you post, it says in words what your order will do: what fills now and from whom, what stands on the book, whether you can pay, and when the bank would be the better deal.
-- **Your shares:** each holding's worth at cash-out, what you paid for it, the dividends it has paid you, and the **gain** (worth less cost, plus dividends). Shares that came to you when your company matured cost nothing.
+- **The watch list:** every matured company, yours first, with a health pill (steady, stalled, at risk, failing, dissolving), its cash-out value and its return over 30 game days. Pick one to see its book. On a phone it comes after the book and the ticket, with a company picker above them.
+- **The ladder:** that company's book from the dearest sell order at the top to the lowest bid at the bottom, with the bank's selling and buying prices among them and the band players trade in at each end. A script's order says **(script)**. Click a row to fill the ticket: a player's order to trade against it at its price, a bank row to buy or sell now.
+- **The order ticket**, the same one as on every matured company's page, has two ways to trade:
+  - **Buy or sell now** takes the best route for the number of shares you give, in price order: players' standing orders, new shares on offer and the bank. Before you press, it says which, for example "Buy 5 now: 3 from Bram at 1,120 and 2 from the bank at 1,143 = 5,646 credits", how many you'd hold and what part of the company, and how many game days of the last month's dividends would pay a share back. Selling to the bank says it pays in 30 game days, at the lower of today's cash-out and cash-out then. It trades all of it or none, and never at a worse price than it showed you. Quick amounts: 1, 10, and as many as you can afford (or all you hold, to sell).
+  - **Name my price** posts a standing order at a price, or one that follows the bank's, and says what meets it at once and what stands on the book.
+- **Your shares:** each holding's worth at cash-out, what you paid for it, the dividends it has paid you, and the **gain** (worth less cost, plus dividends). Shares that came to you when your company matured cost nothing. **Sell** fills the ticket to sell them all.
+- **Your orders,** each with **Move** (a new price: the order keeps its place in time, so its rebate's rest) and **Cancel**.
 - **Your trading script:** whether it is on, and what its latest run did.
+
+### Is its capital working?
+
+A matured company's page shows what it holds as a bar, credits against goods and hulls, and what it made over the last 30 game days against its cash-out value: its **return on capital**. Credits earn nothing until its drones put them to work, so a company worth 690,000 with one drone and nearly all of it in credits may pay less than a small one running flat out (in one playtest, 93% of the matured companies' value sat idle, earning 2.8% a month). The dashboard's **Return on capital** tile gives the same for all matured companies together. Before you buy shares, look at it: the yield is what you're paid, the return on capital is how hard the company works.
 
 ### Raising credits with new shares to fund a copy
 
@@ -1481,7 +1499,7 @@ Your account can run one **trading script**: a Lua script that trades your share
 
 Every few real minutes the game calls its `trade(market)` once, with:
 
-- `market.companies`: every matured company still trading, each `{company, name, buys_at, sells_at, low, high, bank_holds, dividends30, yield_percent, growth_percent, return_percent, last_price, last_days_ago, stalled, at_risk, failing, dissolves_in, bids, asks}`. `buys_at` is what the bank buys a share at (its cash-out value), `sells_at` what it sells at, `low` and `high` the range players trade in; `bids` and `asks` are the book, best first, each `{price, units, by}`. A field that has no value (no last price, a company not dissolving) is `nil`.
+- `market.companies`: every matured company still trading, each `{company, name, buys_at, sells_at, low, high, bank_holds, dividends30, yield_percent, growth_percent, return_percent, last_price, last_days_ago, stalled, at_risk, failing, dissolves_in, winds_up_in, bids, asks}`. `winds_up_in` is the game days until a company that has sold nothing for a while is wound up (nil when it isn't counting down). `buys_at` is what the bank buys a share at (its cash-out value), `sells_at` what it sells at, `low` and `high` the range players trade in; `bids` and `asks` are the book, best first, each `{price, units, by}`. A field that has no value (no last price, a company not dissolving) is `nil`.
 - `market.me`: your `credits`, `share_credits` (starting credits), `holdings` (`me.holdings[company]` is how many of its shares you hold), `orders` (each `{id, company, side, units, price, peg, offset_percent, out_of_range}`), `bank_owes` and `dividends_30_days`.
 - `market.now` and `market.day`: the game time and day.
 
@@ -1497,7 +1515,7 @@ It acts with:
 
 Each action goes through the same rules as your own: the range, paying, holding what you sell, your own orders not crossing. At most **20 actions** a run; a refused one is logged with why. Whatever it keeps in the table **`memory`** (numbers, strings, booleans and tables of them, up to 64 KB) is there next run. It runs in a sandbox: Lua's `string`, `table`, `math` and `utf8`, no files and no `os`, at most 20 million instructions and 32 MB a run.
 
-For a class, **the payback trader** (`examples/traders/payback.lua`) has two rules, one line each to change: buy a share when its dividends pay its price back in under 40 game days, and sell what you hold of a company at risk, failing or dissolving. Orders a script places show on the book as **(script)**, so everyone can tell them from a person's.
+For a class, **the payback trader** (`examples/traders/payback.lua`) has two rules, one line each to change: buy a share when its dividends pay its price back in under 1,000 game days (live shares take hundreds to thousands), and sell what you hold of a company that is about to end: dissolving, or wound up within 10 game days. A company only "at risk" or stalled is kept, since selling to the bank is final. A run does at most 20 actions; its log says when it hit that. Orders a script places show on the book as **(script)**, so everyone can tell them from a person's.
 
 Another starter, **the value trader** (`examples/traders/value.lua`), keeps pegged bids a little under what the bank buys at on the healthy companies whose shares returned most over 30 game days, so other players' sells fill them, and sells what you hold of a company that is dissolving.
 
