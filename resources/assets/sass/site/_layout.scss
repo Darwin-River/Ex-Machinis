@@ -2,7 +2,8 @@
 
 .site-header {
   position: sticky; top: 0; z-index: 1030;
-  background: rgba(11, 15, 26, 0.85);
+  // Solid: on a long page text showed through it while scrolling (#884)
+  background: #0b0f1a;
   backdrop-filter: blur(8px);
   border-bottom: 1px solid $line;
 

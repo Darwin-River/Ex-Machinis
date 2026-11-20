@@ -20,6 +20,12 @@
         .players-manual th, .players-manual td { border: 1px solid rgba(255, 255, 255, 0.2); padding: 0.4rem 0.75rem; }
         .players-manual img { max-width: 100%; height: auto; }
         .players-manual blockquote { border-left: 3px solid rgba(255, 255, 255, 0.3); padding-left: 1rem; }
+        /* On a phone the manual is very long: a button back to its contents from anywhere (#884) */
+        .manual-jump { position: fixed; right: 1rem; bottom: 1rem; z-index: 1020; background: #0b0f1a; color: #e8e8f0 !important;
+            border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 999px; padding: 0.45rem 0.9rem; font-size: 0.9rem;
+            text-decoration: none !important; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5); }
+        .manual-jump:hover, .manual-jump:focus { border-color: #ffb547; }
+        .players-manual h2, .players-manual h3 { scroll-margin-top: 5rem; }
     </style>
 @endpush
 @section('content')
@@ -36,6 +42,7 @@
                     {{-- documents/players-manual.md, rendered (see HomeController::playersManual) --}}
                     {!! $manual !!}
                 </div>
+                <a class="manual-jump" href="#table-of-contents">&uarr; Contents</a>
             </div>
         </div>
     </section>
