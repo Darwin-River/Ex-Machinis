@@ -285,7 +285,7 @@ Each exchange's demand (what the House buys) and supply (what it sells) has its 
 ```json
 [{"place": "Mars Exchange", "tier": "systems", "side": "demand", "kind": "boom", "percent_now": 31,
   "from_day": 40, "to_day": 48,
-  "text": "Mars Exchange: a boom in systems (demand): the House bids up 31%, days 40 to 48."}]
+  "text": "Mars Exchange: a boom in systems (demand): the House bids up 31%, 10 Feb to 18 Feb 2030."}]
 ```
 
 | `kind` | Meaning |

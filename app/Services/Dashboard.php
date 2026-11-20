@@ -192,9 +192,11 @@ class Dashboard
     /** The banner in plain words: how busy yesterday was, and the clock when it is slowed */
     private static function bannerText(int $day, int $trades, ?float $norm, ?float $ratio, array $clock, int $normDays): string
     {
+        // The day as a date, as the tiles beside it are dated (#838: "game day 6082")
+        $when = GameDate::ofDay($day);
         $text = $norm === null
-            ? number_format($trades) . " trades on game day $day."
-            : number_format($trades) . " trades on game day $day, against about " . number_format($norm) . ' a day over the '
+            ? number_format($trades) . " trades on $when."
+            : number_format($trades) . " trades on $when, against about " . number_format($norm) . ' a day over the '
                 . ($normDays === 1 ? 'game day' : $normDays . ' game days') . ' before' . ($ratio !== null && $ratio < self::QUIET ? ': the market is quiet.' : '.');
         if ($clock['slowed']) {
             $text .= ' The clock is slowed: a game day takes ' . self::seconds($clock['real_seconds_per_game_day'])

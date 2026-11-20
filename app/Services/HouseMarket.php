@@ -244,10 +244,11 @@ class HouseMarket
                 'percent_now' => (int) round($shock * 100),
                 'from_day' => $from,
                 'to_day' => $from + 8,
-                'text' => sprintf('%s: a %s in %s (%s): the House %s %s %d%%, days %d to %d.',
+                // In dates, not day numbers (#838: "days 6080 to 6088")
+                'text' => sprintf('%s: a %s in %s (%s): the House %s %s %d%%, %s.',
                     $r->name, $kind, $tier, $buys ? 'demand' : 'supply',
                     $buys ? 'bids' : 'asks', $shock > 0 ? 'up' : 'down', abs((int) round($shock * 100)),
-                    $from, $from + 8),
+                    GameDate::span($from, $from + 8)),
             ];
         }
         return $news;
