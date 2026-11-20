@@ -526,8 +526,12 @@ echo "ok: no service restarted"
 if [ "${EVENTS_IN_ENGINE:-0}" = 1 ]; then
     docker compose logs events-engine | grep -q "settlement runs in the game engine" ||
         fail "the events engine doesn't say it rests"
-    docker compose logs game-engine | grep -q "settlement holds the events-engine lock" ||
-        fail "the game engine never took the events engine's lock"
+    # The lock, from the database rather than the log: the engines' early log
+    # lines can miss `docker compose logs` (both write one file, renamed on
+    # its first write). With the events engine resting, the holder is the game
+    # engine's settlement connection
+    [ "$(sql "SELECT IS_USED_LOCK(CONCAT(DATABASE(), '/events-engine')) IS NOT NULL")" = 1 ] ||
+        fail "nothing holds the events engine's lock: nobody settles"
     docker compose logs game-engine | grep -q '\[events\] ' ||
         fail "no settlement lines in the game engine's log"
     echo "ok: settlement runs in the game engine, and the events engine rests"
