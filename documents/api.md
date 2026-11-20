@@ -471,6 +471,8 @@ The new rules (#635) give players accounts. They are live; a server that has the
 | `POST /login` `{name, password}` | a new token for the account, with the same fields; the old token stops working. 401 if the name and password don't match |
 | `GET /account` | the token's account, sent as `Authorization: Bearer <token>`: `{name, email, verified, credits, share_credits, class_group, teaches, since}`. `class_group` is the pupil's group (`{id, name}`) or null; `teaches`, the teacher's groups (`{id, name, pupils}`). 401 without a valid token |
 | `POST /account/verify` | sends the verification link again (3 times an hour at most): `{verification_sent}`. 409 if the account is verified already |
+| `GET /account/notices` | your e-mail notice settings, as on the account page: `{notices: {kind: on}, kinds: {kind: what it tells you}}` (404 when the server sends no e-mail) |
+| `POST /account/notices` `{notices: [kinds]}` | turns those notices on and every other off; the answer is as `GET`. 422 for a kind that doesn't exist (the answer lists `kinds`); 409 until your address is verified, or for a pupil's account (its teacher chooses) |
 
 ### Startups (#637)
 

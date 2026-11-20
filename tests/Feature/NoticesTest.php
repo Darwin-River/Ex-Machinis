@@ -70,6 +70,20 @@ class NoticesTest extends TestCase
         $this->assertSame(['can_mature' => false, 'at_risk' => false, 'wrecked' => false, 'digest' => false], array_slice(Notices::settings($p), 0, 4));
     }
 
+    /** #836: the notice settings through the API, as on the account page */
+    public function testTheSettingsThroughTheApi()
+    {
+        $p = $this->player('Api Pilot');
+        $h = ['Authorization' => 'Bearer ' . Players::issueToken($p)];
+        $this->getJson('/api/v1/account/notices')->assertStatus(401);
+        $this->getJson('/api/v1/account/notices', $h)->assertOk()->assertJsonPath('notices.can_mature', false)
+            ->assertJsonPath('kinds.digest', 'A weekly digest of my companies and shares');
+        $this->postJson('/api/v1/account/notices', ['notices' => ['can_mature', 'at_cap']], $h)->assertOk()
+            ->assertJsonPath('notices.can_mature', true)->assertJsonPath('notices.at_cap', true)->assertJsonPath('notices.digest', false);
+        $this->postJson('/api/v1/account/notices', ['notices' => ['nonsense']], $h)->assertStatus(422);
+        $this->assertTrue(Notices::settings($p)['can_mature'], 'a refused change leaves them as they were');
+    }
+
     public function testTheDailyEmailSaysWhatNeedsThemOnceADay()
     {
         $p = $this->player('Daily Pilot');

@@ -72,4 +72,33 @@ class AccountApiController extends Controller
         }
         return response()->json(Players::summary($user));
     }
+
+    /**
+     * The e-mail notice settings (#761), as on the account page (#836: the
+     * API had no route for them): GET reads them, POST {notices: [kinds]}
+     * turns those on and the rest off
+     */
+    public function notices(Request $request): JsonResponse
+    {
+        $user = Players::byToken($request->bearerToken());
+        if (!$user) {
+            return response()->json(['error' => 'Send your token as "Authorization: Bearer <token>".'], 401);
+        }
+        if (!\App\Services\Notices::available()) {
+            return response()->json(['error' => 'E-mail notices are off on this server.'], 404);
+        }
+        if ($request->isMethod('post')) {
+            if (!Players::verified($user) || \Illuminate\Support\Facades\DB::table('users')->where('user_id', $user->user_id)->value('class_group_id') !== null) {
+                return response()->json(['error' => 'E-mail notices need an account with a verified e-mail address.'], 409);
+            }
+            $asked = (array) $request->input('notices', []);
+            $unknown = array_values(array_diff($asked, array_keys(\App\Services\Notices::KINDS)));
+            if ($unknown) {
+                return response()->json(['error' => 'No such notice: ' . implode(', ', $unknown) . '.',
+                    'kinds' => array_keys(\App\Services\Notices::KINDS)], 422);
+            }
+            \App\Services\Notices::save($user, array_values($asked));
+        }
+        return response()->json(['notices' => \App\Services\Notices::settings($user), 'kinds' => \App\Services\Notices::KINDS]);
+    }
 }

@@ -62,6 +62,9 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['new-rules', 'throttle:api-write'])->post('login', 'AccountApiController@login');
     Route::middleware(['new-rules', 'throttle:api-read'])->get('account', 'AccountApiController@show');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('account/verify', 'AccountApiController@resendVerification');
+    // The e-mail notice settings (#836)
+    Route::middleware(['new-rules', 'throttle:api-read'])->get('account/notices', 'AccountApiController@notices');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('account/notices', 'AccountApiController@notices');
     // Startups (#637)
     // The old names (seedlings until #855) still answer a GET, by redirect (#868)
     Route::redirect('seedlings', '/api/v1/startups', 301);
