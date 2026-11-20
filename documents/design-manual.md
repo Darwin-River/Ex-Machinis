@@ -319,6 +319,7 @@ What `perform` (and each action word) returns when an action fails. The full lis
 | A push after the first | +100 debt | `FORGE_STARTUP_PUSH_FEE` |
 | Credits to mature, above the debt | 500 | `FORGE_STARTUP_MATURE_MARGIN` |
 | A startup's credit cap | 2× starting debt (debt less push fees) | `house_rules.startup_credit_cap_permille` (2000) |
+| Earth's single modules | at their listed value, no markup: a kit's parts 2,285 to 2,422 against the kit's 2,000 (#514) | `build_game_data.py` (the modules' rows) |
 | A startup's daily buying cap | a tenth of what's on sale, at least 5 | `house_rules.startup_buy_permille` (100); the floor is `STARTUP_BUY_FLOOR` in the engine (5, #777) |
 | Minimum order life | 12 game hours | `house_rules.order_lock_hours` |
 | Working drones a company | 8 | `house_rules.fleet_cap` |

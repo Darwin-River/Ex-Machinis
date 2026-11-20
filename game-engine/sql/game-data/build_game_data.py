@@ -1199,14 +1199,14 @@ for st in (1, 3):
     for rid in (4111, 4281, 4311):
         STATION_GOODS.append((st, rid, BUYS, made_value(rid), 10, 0))
 # The big mining gear costs more (#380): each kit's modules are worth 2,400
-# The modules at half as much again as their listed value, like everything
-# else the House sells (below); fuel stays at FUEL_PRICE
-# (#506: modules 100 a day, so new companies can equip themselves module by
-# module)
+# The modules at their listed value, with no markup (#514: at half as much
+# again, a kit's parts cost about 3,600 against the kit's 2,000, so choosing
+# equipment was no choice: everyone bought the kit). Now all of a kit's parts
+# cost a little more than the kit, and two or three of them less; fuel stays
+# at FUEL_PRICE (#506: modules 100 a day, so new companies can equip
+# themselves module by module)
 for rid, price, supply in ((FUEL, FUEL_PRICE, 2000), (5001, 400, 100), (WORM, 1000, 100), (REFINERY, 1000, 100),
                            (5201, 500, 100), (5211, 600, 100), (5501, 900, 100)):
-    if rid != FUEL:
-        price = -(-price * 3 // 2)
     STATION_GOODS.append((1, rid, SELLS, price, supply, 0))
 # Fuel at every House exchange (#367), not only on Earth; the busy Mars
 # Exchange sells 6,000 a day (#378), and so does the Moon Depot since the
