@@ -95,7 +95,7 @@
                                 <tr class="td-band"><td>Bottom of the band</td><td></td><td class="num">{{ number_format($p['low']) }}</td></tr>
                             </table>
                             @if($L['offering'])
-                                <p class="mt-2 mb-0"><small><b>{{ $L['offering']['left'] }} new shares on offer</b> at cash-out ({{ number_format($L['offering']['price']) }}):
+                                <p class="mt-2 mb-0"><small><b>{{ $L['offering']['left'] }} new shares on offer</b> at cash-out or the market price if higher ({{ number_format($L['offering']['price']) }}):
                                     buy them on <a href="{{ url('companies/' . $L['company']) }}#share-offering">its page</a>; the credits go to the company.</small></p>
                             @endif
                         </div>

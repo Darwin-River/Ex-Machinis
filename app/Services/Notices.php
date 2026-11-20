@@ -33,6 +33,9 @@ use Illuminate\Support\Facades\URL;
 class Notices
 {
     /** The notices a player can turn on, with what the account page calls them */
+    /** The notices that start on, until a player turns them off (#876) */
+    public const ON_BY_DEFAULT = ['can_mature', 'at_cap'];
+
     public const KINDS = [
         'can_mature' => 'A startup of mine can mature',
         'at_risk' => 'A company of mine is at risk, stalled or counting down to dissolving',
@@ -96,8 +99,12 @@ class Notices
     {
         $row = DB::table('notice_settings')->where('user_id', $user->user_id)->first();
         $out = [];
+        // Without a row of its own, an account with a verified address of its own
+        // has the defaults on (#876); a pupil's (no address) has none
+        $mailable = !$row && DB::table('users')->where('user_id', $user->user_id)->whereNotNull('email')
+            ->whereNotNull('email_verified_at')->whereNull('class_group_id')->exists();
         foreach (array_keys(self::KINDS) as $k) {
-            $out[$k] = $row ? (bool) $row->$k : false;
+            $out[$k] = $row ? (bool) $row->$k : ($mailable && in_array($k, self::ON_BY_DEFAULT, true));
         }
         return $out;
     }
