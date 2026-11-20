@@ -124,10 +124,10 @@
                         <h3>Road to maturity <span class="fs-time">a fresh startup, after its kit</span></h3>
                         <div class="fs-bar">
                             <i style="width: {{ $w(1000) }}%"></i>
-                            <span class="fs-mk fs-up" style="left: {{ $w(1000) }}%"><em>credits 1,000</em></span>
-                            <span class="fs-mk fs-down" style="left: {{ $w($startup['grant']) }}%"><em>debt {{ $n($startup['grant']) }}</em></span>
-                            <span class="fs-mk fs-up" style="left: {{ $w($startup['mature_at']) }}%"><em>matures {{ $n($startup['mature_at']) }}</em></span>
-                            <span class="fs-mk fs-down fs-end" style="left: 100%"><em>cap {{ $n($startup['cap']) }}</em></span>
+                            <span class="fs-mk fs-down" style="left: {{ $w(1000) }}%"><em>credits 1,000</em></span>
+                            <span class="fs-mk fs-up" style="left: {{ $w($startup['grant']) }}%"><em>debt {{ $n($startup['grant']) }}</em></span>
+                            <span class="fs-mk fs-down" style="left: {{ $w($startup['mature_at']) }}%"><em>matures {{ $n($startup['mature_at']) }}</em></span>
+                            <span class="fs-mk fs-up fs-end" style="left: 100%"><em>cap {{ $n($startup['cap']) }}</em></span>
                         </div>
                         <figcaption class="fs-note">It holds at most {{ $n($startup['cap']) }}: what it earns above that goes to the bank,
                             so mature it once it can.</figcaption>

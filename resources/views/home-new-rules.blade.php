@@ -19,6 +19,8 @@
         #feed td:first-child { white-space: nowrap; color: #9aa3b8; padding-right: 1em; }
         @media (max-width: 991px) { .home-steps { grid-template-columns: 1fr 1fr; } .home-hero h1 { font-size: 2rem; } }
         @media (max-width: 480px) { .home-steps { grid-template-columns: 1fr; } #feed td:first-child { white-space: normal; } }
+        /* A link inside a sentence is underlined, not told apart by colour alone (#885, axe-core) */
+        .container p a:not(.button) { text-decoration: underline; text-underline-offset: 2px; }
     </style>
 @endpush
 @section('content')

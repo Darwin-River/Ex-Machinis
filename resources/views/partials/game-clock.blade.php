@@ -4,7 +4,7 @@
 @php($gc = \Illuminate\Support\Facades\DB::table('game_clock')->where('id', 1)->first(['scale']))
 @php($gcNow = \App\Services\World::gameNow())
 @php($gcScale = (float) ($gc->scale ?? 1))
-<div id="sim-clock" style="background: #12141c; color: #c9cbd6; font-size: 0.85rem; padding: 0.2rem 1rem; text-align: center; white-space: normal">
+<div id="sim-clock" role="region" aria-label="Game clock" style="background: #12141c; color: #c9cbd6; font-size: 0.85rem; padding: 0.2rem 1rem; text-align: center; white-space: normal">
     <span id="sim-clock-when">{{ \App\Services\GameDate::at($gcNow) }}</span> UTC in the simulation
     <span style="color: #8a8fa0">· a game day every <span id="sim-clock-pace">{{ round(86400 / max(1, $gcScale)) }}</span> real seconds</span>
 </div>
