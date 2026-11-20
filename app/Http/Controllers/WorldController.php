@@ -45,7 +45,9 @@ class WorldController extends Controller
         $goods = collect($all)->pluck('name', 'resource')->sort()->all();
         $trades = World::trades(10);
         $fuel = World::fuelForSale();
-        return view('world.market', compact('rows', 'filter', 'counts', 'places', 'goods', 'trades', 'fuel'));
+        // What a startup can trade at (#880): the House's prices in the deal column
+        $startupView = $request->boolean('startup');
+        return view('world.market', compact('rows', 'filter', 'counts', 'places', 'goods', 'trades', 'fuel', 'startupView'));
     }
 
     /** The House's demand and supply (#550, #630), moved off the Market page (#721) */

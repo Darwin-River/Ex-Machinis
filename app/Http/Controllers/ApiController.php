@@ -420,14 +420,17 @@ class ApiController extends Controller
      */
     public function shares(Request $request): JsonResponse
     {
-        $out = Shares::exchange(min(200, max(1, (int) $request->query('trades', 25))));
-        // The new rules (#666): matured companies' shares, which players trade
+        $limit = min(200, max(1, (int) $request->query('trades', 25)));
+        // The new rules (#666): matured companies' shares, which players trade,
+        // as the Stock exchange page shows them (#881: this answered with the
+        // old rules' empty market and trades from 2031)
         if (config('forge.new_rules')) {
-            $out['player_shares'] = \App\Services\PlayerShares::market();
-            // and the latest trades of them between players (#676)
-            $out['player_share_trades'] = \App\Services\PlayerShares::trades(null, min(200, max(1, (int) $request->query('trades', 25))));
+            $trades = \App\Services\PlayerShares::trades(null, $limit);
+            return response()->json(['companies' => \App\Services\PlayerShares::board(), 'trades' => $trades,
+                // the names this answer used before, kept for scripts that read them
+                'player_shares' => \App\Services\PlayerShares::market(), 'player_share_trades' => $trades]);
         }
-        return response()->json($out);
+        return response()->json(Shares::exchange($limit));
     }
 
     /** A company's share price by game day (#551): low, high, last and shares traded */

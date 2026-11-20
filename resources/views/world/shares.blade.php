@@ -55,7 +55,8 @@
                     {{ \App\Services\CompanyHealth::STALLED_GRACE_DAYS }} game days old) it has sold nothing for
                     {{ \App\Services\CompanyHealth::STALLED_SALE_HOURS }} game hours; and <i>failing</i> when its drones keep trying an action
                     that fails (over the last game day). Each is a warning, not a verdict: hover it, or see the company's page, for why.
-                    Sorted by yield, highest first.</div>
+                    Sorted by return over the last 30 game days (the change in cash-out plus dividends), highest first; a company
+                    counting down to dissolving goes last.</div>
                 <div class="table-custom-responsive share-cards">
                     <table class="table-ticket" id="player-share-market">
                         <tr><th>Company</th><th class="text-right">Cash-out a share</th><th>Cash-out change, 30 game days</th><th class="text-right">Dividends a share, 30 days</th>

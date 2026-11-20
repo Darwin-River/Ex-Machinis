@@ -252,7 +252,7 @@
                                 <table class="table table-sm"><tbody>
                                 @foreach($playerShares['book'][$side] as $o)
                                     <tr><td>{{ $o['by'] }}@if(!empty($o['script'])) <small class="text-muted" title="Placed by this player's trading script">(script)</small>@endif</td><td class="text-right">{{ number_format($o['units']) }}</td><td class="text-right">at {{ number_format($o['price']) }}@if(!empty($o['peg']))
-                                        <br><small class="text-muted">{{ $o['peg'] === 'buys_at' ? 'bank buys' : 'bank sells' }} {{ $o['offset_percent'] >= 0 ? '+' : '−' }}{{ abs($o['offset_percent']) }}%</small>@endif</td></tr>
+                                        <br><small class="text-muted">follows {{ abs($o['offset_percent']) }}% {{ $o['offset_percent'] >= 0 ? 'above' : 'below' }} what the bank {{ $o['peg'] === 'buys_at' ? 'buys' : 'sells' }} at</small>@endif</td></tr>
                                 @endforeach
                                 </tbody></table>
                             @else <p><small>None</small></p> @endif
@@ -262,10 +262,15 @@
                 {{-- Its latest trades between players (#676) --}}
                 @php($recentTrades = \App\Services\PlayerShares::trades((int) $user->user_id, 10))
                 @if(count($recentTrades))
+                    {{-- Each trade's age (#881: "at 64" from 1,700 game days ago sat beside a range of 1,460 to 2,283) --}}
+                    @php($nowT = \App\Services\World::gameNow())
                     <h3 class="h6">Latest trades</h3>
+                    @if(($nowT - end($recentTrades)['game_time']) > 30 * 86400)
+                        <p><small>Trades more than 30 game days old are at old prices: what a share is worth now is its cash-out above.</small></p>
+                    @endif
                     <table class="table table-sm" id="player-share-trades"><tbody>
                         @foreach($recentTrades as $t)
-                            <tr><td>{{ $t['when'] }}</td><td class="text-right">{{ number_format($t['units']) }}</td>
+                            <tr><td>{{ $t['when'] }}<br><small>{{ number_format(max(0, $nowT - $t['game_time']) / 86400) }} game days ago</small></td><td class="text-right">{{ number_format($t['units']) }}</td>
                                 <td class="text-right">at {{ number_format($t['price']) }}</td><td>{{ $t['seller_name'] }} to {{ $t['buyer_name'] }}</td></tr>
                         @endforeach
                     </tbody></table>

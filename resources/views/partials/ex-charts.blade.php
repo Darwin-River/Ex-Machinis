@@ -391,9 +391,22 @@ window.ExCharts = (function () {
             .filter((v) => v !== null && v !== undefined);
         if (!all.length) return empty(box, opts.empty || 'Nothing in this period.');
         let lo = Math.min(...all), hi = Math.max(...all);
-        if (opts.fromZero !== false && lo >= 0) lo = 0;
+        // zoom: 'auto' (#882) fits the axis to the data when it moves within a
+        // small part of its size (160k to 173k read as flat from 0), and marks
+        // the cut at the foot of the axis; otherwise it starts from 0 (#744)
+        let cut = false;
+        if (opts.zoom === 'auto' && lo > 0 && (hi - lo) < 0.4 * hi) {
+            const pad = Math.max(1, (hi - lo) * 0.25);
+            lo = Math.max(0, lo - pad); hi = hi + pad * 0.5; cut = lo > 0;
+        } else if (opts.fromZero !== false && lo >= 0) lo = 0;
         if (hi === lo) hi = lo + 1;
         const f = frame(box, opts.first, opts.last, Object.assign({lo, hi}, opts));
+        if (cut) {
+            // Two short slanted strokes across the foot of the y axis: it doesn't start at 0
+            const yb = f.bottom - 4;
+            [0, 5].forEach((dy) => el('path', {d: `M${f.L - 1},${yb - dy + 3}L${f.L + 7},${yb - dy - 3}`, stroke: '#d6d8e0', 'stroke-width': 1.5}, f.svg));
+            el('title', {}, f.svg).textContent = 'The axis does not start at 0';
+        }
         series.forEach((s) => {
             if (!s.band) return;
             // One shape a run of days with a range, behind every line

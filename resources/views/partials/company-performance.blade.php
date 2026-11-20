@@ -32,7 +32,8 @@
     <div class="mh-card perf-card">
         <h3>Is it growing?</h3>
         <p class="mh-note">Net wealth and credits at each game day's snapshot. The gap between them is mostly the goods and
-            equipment aboard its drones, at market prices.</p>
+            equipment aboard its drones, at market prices. When they move within a small part of their size, the axis is fitted
+            to them and doesn't start at 0 (two strokes at its foot mark the cut).</p>
         <div class="ex-legend" id="perf-wealth-legend"></div>
         <div class="ex-chart" id="perf-wealth" aria-label="Net wealth and credits by game day"></div>
         <p class="ex-src">Data: <code>GET /api/v1/companies/{{ $companyId }}/history</code> (net_wealth, credits)</p>
@@ -125,8 +126,9 @@ document.addEventListener('DOMContentLoaded', function () {
         X.lines($('perf-wealth'), [
             {name: 'Net wealth', colour: C[0], points: hist.map((r) => ({day: r.day, v: r.net_wealth}))},
             {name: 'Credits', colour: C[2], points: hist.map((r) => ({day: r.day, v: r.credits}))}],
-            // From zero (#744: starting at 375k made a small rise look like a rocket)
-            Object.assign({H: 220, unit: 'cr', empty: 'No daily snapshot in this period yet.'}, o));
+            // From zero (#744: starting at 375k made a small rise look like a rocket), unless it
+            // moves within a small part of its size: then fitted, with the axis marked as cut (#882)
+            Object.assign({H: 220, unit: 'cr', zoom: 'auto', empty: 'No daily snapshot in this period yet.'}, o));
 
         if ($('perf-cash')) {
             const trades = P.trades.filter(inRange);

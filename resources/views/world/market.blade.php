@@ -33,11 +33,16 @@
                     <ul class="mk-chips" id="board-filters">
                         @foreach(\App\Services\MarketBoard::FILTERS as $key => $label)
                             @continue($counts[$key] === 0 && $key !== $filter)
-                            <li><a class="mk-chip" href="{{ url('market') . ($key === 'traded' ? '' : '?show=' . $key) }}#board-heading"
+                            @php $q = array_filter(['show' => $key === 'traded' ? null : $key, 'startup' => $startupView ? 1 : null]); @endphp
+                            <li><a class="mk-chip" href="{{ url('market') . ($q ? '?' . http_build_query($q) : '') }}#board-heading"
                                    @if($key === $filter) aria-current="page" @endif>{{ $label }} <small>{{ $counts[$key] }}</small></a></li>
                         @endforeach
                     </ul>
                 </nav>
+                {{-- What a startup can trade at (#880): a startup trades only with the House, so its prices, not players' --}}
+                @php $tq = array_filter(['show' => $filter === 'traded' ? null : $filter, 'startup' => $startupView ? null : 1]); @endphp
+                <a class="mk-chip" id="startup-view" role="button" aria-pressed="{{ $startupView ? 'true' : 'false' }}"
+                   href="{{ url('market') . ($tq ? '?' . http_build_query($tq) : '') }}#board-heading">{{ $startupView ? '✓ ' : '' }}What a startup can trade at</a>
                 {{-- Any good's page, by name (#721: the old "Show" select, styled) --}}
                 <form class="mk-form" method="get" action="{{ url('market') }}">
                     <label for="good">Go to a good</label>
@@ -49,6 +54,10 @@
                     <button class="mk-button" type="submit">Go</button>
                 </form>
             </div>
+            <p class="mk-note" id="board-whose"><small>@if($startupView)The right-hand column shows the House's own prices: a startup
+                trades only with the House, so these are what it can buy and sell at. The dots still show every order, players' too.@else
+                The dots and the right-hand column count every order, players' and the House's. A startup trades only with the House:
+                choose <i>What a startup can trade at</i> for the House's prices.@endif</small></p>
             <div class="mk-key" aria-hidden="true">
                 @foreach($places as $id => $name)<span><i class="mk-{{ $shape[$id] }}" style="background: {{ $colour[$id] }}"></i>{{ $name }}</span>@endforeach
                 <span><i style="background: #9aa3b8"></i>cheapest seller</span><span><i class="mk-ring"></i>best buyer</span>
@@ -95,7 +104,17 @@
                                 @endforeach
                             </span>
                             <span class="mk-deal">
-                                @if($r['margin'] !== null)
+                                @if($startupView)
+                                    @if($r['house_cheapest'])
+                                        The House sells<br><b>{{ $n($r['house_cheapest']['price']) }} &middot; {{ $r['house_cheapest']['place'] }}</b>
+                                    @endif
+                                    @if($r['house_best_bid'])
+                                        @if($r['house_cheapest'])<br>@endif The House buys{!! $r['house_cheapest'] ? ' for ' . e($n($r['house_best_bid']['price'])) . ' &middot; ' . e($r['house_best_bid']['place']) : '<br><b>' . e($n($r['house_best_bid']['price'])) . ' &middot; ' . e($r['house_best_bid']['place']) . '</b>' !!}
+                                    @endif
+                                    @if(!$r['house_cheapest'] && !$r['house_best_bid'])
+                                        The House doesn't trade it now<br><small>only players do</small>
+                                    @endif
+                                @elseif($r['margin'] !== null)
                                     Buy at {{ $askAt->implode(', ') }}, sell at {{ $bidAt->implode(', ') }}<br>
                                     <b>{{ $n($r['cheapest']['price']) }} &rarr; {{ $n($r['best_bid']['price']) }}</b> <span class="mk-gain">+{{ $n($r['margin']) }} a unit</span>
                                 @elseif($r['cheapest'])

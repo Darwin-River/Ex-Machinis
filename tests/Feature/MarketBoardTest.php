@@ -88,6 +88,23 @@ class MarketBoardTest extends TestCase
         $this->assertContains($good, array_column(MarketBoard::filtered('traded'), 'resource'), 'traded this week');
     }
 
+    /** #880: a startup trades only with the House, so the board can show the House's own prices */
+    public function testTheStartupViewShowsTheHousesPrices()
+    {
+        [$good, $earth] = $this->market();
+        // The Earth seller is the House: its 9 is what a startup can buy at, not the Moon player's 7
+        $houseCo = (int) DB::table('agents')->where('agent_id', $earth->agent_id)->value('company_id');
+        DB::table('companies')->where('company_id', $houseCo)->update(['house' => 1]);
+        Cache::forget('market-board');
+        $row = MarketBoard::row($good);
+        $this->assertSame(7, $row['cheapest']['price'], 'every order still counts in the board');
+        $this->assertSame(['place' => 'Earth', 'price' => 9, 'units' => 50], $row['house_cheapest']);
+        $this->assertNull($row['house_best_bid'], 'only a player buys it');
+        $this->get('/market?show=all&startup=1')->assertOk()->assertSee('aria-pressed="true"', false)
+            ->assertSee('The House sells')->assertSee("a startup\n                trades only with the House", false);
+        $this->get('/market?show=all')->assertOk()->assertSee('aria-pressed="false"', false)->assertSee('What a startup can trade at');
+    }
+
     public function testTheMarketPageShowsTheBoard()
     {
         [$good] = $this->market();
