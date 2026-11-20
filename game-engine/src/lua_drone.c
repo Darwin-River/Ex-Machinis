@@ -1009,7 +1009,9 @@ ErrorCode_t lua_drone_command(int agent_id, LuaRun_t kind, const char* code, cha
         piece[n] = 0;
         ErrorCode_t r = lua_db_set_text(agent_id, "lua_script", piece, n, 1);
         free(piece);
-        vm_append_output(r == ENGINE_OK ? "ok\n" : "error: couldn't keep this piece of my program\n");
+        /* Kept quietly: the log starts with "Launched" (#877) */
+        if(r == ENGINE_OK) vm_output_quiet();
+        else vm_append_output("error: couldn't keep this piece of my program\n");
         return r;
     }
 

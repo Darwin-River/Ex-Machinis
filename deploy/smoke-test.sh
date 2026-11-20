@@ -672,9 +672,20 @@ echo "ok: a pull for more than the seller offers fails and costs no fuel"
 FORGE_COMPANY=$(sql "select company_id from agents where agent_id=$FORGE_DRONE")
 sql "update companies set credits = 90000 where company_id = $FORGE_COMPANY"
 # (its sell order first: until the test says, it waits a game hour at a time)
-forge_waits() { [ "$(sql "select count(*) from events where drone=$FORGE_DRONE and event_type=4 and resource=2061 and outcome=1")" -ge 1 ] &&
-                [ "$(sql "select a.protocol from agents g join actions a on a.id = g.waiting_action where g.agent_id=$FORGE_DRONE")" = 3 ]; }
-wait_for 60 "a drone with a sell order is waiting" forge_waits
+forge_sells() { [ "$(sql "select count(*) from events where drone=$FORGE_DRONE and event_type=4 and resource=2061 and outcome=1")" -ge 1 ]; }
+forge_waits() { forge_sells && [ "$(sql "select a.protocol from agents g join actions a on a.id = g.waiting_action where g.agent_id=$FORGE_DRONE")" = 3 ]; }
+# Two steps, each with its own message (#889, #578: one check timed out now
+# and then on main, and its message didn't say which half failed); if the
+# second fails, say what the drone was doing
+wait_for 90 "a drone posted a sell order" forge_sells
+if ! wait_quietly 90 forge_waits; then
+    echo "the seller's waiting action and its last actions:"
+    sql "select g.waiting_action, a.protocol, a.outcome from agents g left join actions a on a.id = g.waiting_action where g.agent_id=$FORGE_DRONE" || true
+    sql "select id, protocol, outcome, aborted from actions where drone=$FORGE_DRONE order by id desc limit 5" || true
+    docker compose logs --tail 40 game-engine 2>/dev/null | grep -F "[$FORGE_DRONE]" | tail -10 || true
+    fail "a drone with a sell order is waiting"
+fi
+echo "ok: a drone with a sell order is waiting"
 BEFORE=$(sql "select instructions from agents where agent_id=$FORGE_DRONE")
 # The first drone (another player's) comes to Earth and buys 2 fuel from it
 sql "update agents set object_id = 3 where agent_id = $DRONE_ID"

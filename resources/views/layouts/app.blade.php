@@ -81,7 +81,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         <div class="dropdown-menu" aria-labelledby="nav-companies">
                             <a class="dropdown-item" href="{{ url('leaderboard') }}">Leaderboard</a>
                             @if(config('forge.new_rules'))<a class="dropdown-item" href="{{ url('players') }}">Players</a>@endif
-                            <a class="dropdown-item" href="{{ url('companies') }}">Companies</a>
+                            <a class="dropdown-item" href="{{ url('companies') }}">All companies</a>
                             <a class="dropdown-item" href="{{ url('spacecraft') }}">Drones</a>
                             <a class="dropdown-item" href="{{ url('lineage') }}">Lineage</a>
                             <a class="dropdown-item" href="{{ url('events') }}">Events</a>
@@ -92,8 +92,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         <a class="nav-link dropdown-toggle" href="#" id="nav-reference" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Reference</a>
                         <div class="dropdown-menu" aria-labelledby="nav-reference">
                             <a class="dropdown-item" href="{{ url('manual') }}">Manual</a>
-                            <a class="dropdown-item" href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/lua-functions.md">Lua functions</a>
-                            <a class="dropdown-item" href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/api.md">API</a>
+                            {{-- These open GitHub: said so (#885) --}}
+                            <a class="dropdown-item" href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/lua-functions.md" rel="noopener">Lua functions <small>(on GitHub) &#8599;</small></a>
+                            <a class="dropdown-item" href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/api.md" rel="noopener">API <small>(on GitHub) &#8599;</small></a>
                             <div class="dropdown-divider"></div>
                             <a class="dropdown-item" href="{{ url('technology') }}">Tech map</a>
                             <a class="dropdown-item" href="{{ url('resources') }}">Resources</a>

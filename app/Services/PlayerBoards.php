@@ -31,6 +31,17 @@ class PlayerBoards
      */
     public const DIGEST_MAX_DAYS = 7;
 
+    /**
+     * Only accounts that have played (#867): founded a startup or held a
+     * share. The live server verified every sign-up at once, so junk
+     * accounts passed the verified-address test
+     */
+    public static function played($q)
+    {
+        return $q->where(fn ($w) => $w->whereExists(fn ($e) => $e->select(DB::raw(1))->from('companies')->whereColumn('companies.owner_id', 'users.user_id'))
+            ->orWhereExists(fn ($e) => $e->select(DB::raw(1))->from('player_shares')->whereColumn('player_shares.user_id', 'users.user_id')));
+    }
+
     /** Each player account's wealth: [user_id => [name, credits, shares, bank_due, wealth, class_group_id]] */
     public static function wealths(?int $classGroup = null, bool $everyone = false): array
     {
@@ -38,7 +49,7 @@ class PlayerBoards
         if (!$everyone) {
             // The public boards list only accounts with a confirmed address (#867:
             // 36 of 40 were junk sign-ups); a class's pupils go by their teacher's
-            $classGroup === null ? $q->whereNull('class_group_id')->whereNotNull('email_verified_at') : $q->where('class_group_id', $classGroup);
+            $classGroup === null ? self::played($q->whereNull('class_group_id')->whereNotNull('email_verified_at')) : $q->where('class_group_id', $classGroup);
         }
         $users = $q->get(['user_id', 'login', 'credits', 'share_credits', 'class_group_id']);
         $price = [];

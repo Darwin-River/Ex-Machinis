@@ -38,7 +38,7 @@
         {{ $b['text'] }}
     </div>
     <div class="econ-tiles" id="economy-tiles">
-        <div class="econ-tile"><div class="econ-l">Trades, {{ \App\Services\GameDate::ofDay((int) $b['day']) }}</div>
+        <div class="econ-tile"><div class="econ-l">Trades, {{ \App\Services\GameDate::ofDay((int) $b['day']) }} (last full day)</div>
             <div class="econ-v">{{ number_format($t['trades']['value']) }}</div>
             <div class="econ-d">@if($t['trades']['norm'] !== null){!! $pct($t['trades']['change_percent']) !!} on the norm ({{ number_format($t['trades']['norm']) }} a day)@else the first full day @endif</div></div>
         <div class="econ-tile"><div class="econ-l">Credits traded, {{ \App\Services\GameDate::ofDay((int) $b['day']) }}</div>
@@ -47,10 +47,10 @@
         <div class="econ-tile"><div class="econ-l">Working drones</div>
             <div class="econ-v">{{ number_format($t['drones']['working']) }}</div>
             <div class="econ-d">{{ number_format($t['drones']['wrecks']) }} wrecks ({{ round($t['drones']['wreck_share'] * 100) }}% of all)@if($t['drones']['change'] !== null);
-                {{ $signed($t['drones']['change']) }} in 7 game days @endif</div></div>
+                {{ $signed($t['drones']['change']) }} on 7 game days ago @endif</div></div>
         <div class="econ-tile"><div class="econ-l">Matured companies</div>
             <div class="econ-v">{{ number_format($t['matured']['count']) }}</div>
-            <div class="econ-d">worth {{ number_format($t['matured']['cash_out']) }} cr at cash-out; {{ $signed($t['matured']['this_week']) }} in 7 game days</div></div>
+            <div class="econ-d">worth {{ number_format($t['matured']['cash_out']) }} cr at cash-out; {{ $signed($t['matured']['this_week']) }} matured in the last 7 game days</div></div>
         <div class="econ-tile"><div class="econ-l">Matured companies' profit, 7 days</div>
             <div class="econ-v {{ $t['profit']['week'] < 0 ? 'econ-down' : '' }}">{{ $signed($t['profit']['week']) }}</div>
             <div class="econ-d">{{ $signed($t['profit']['last_week']) }} the 7 days before</div></div>

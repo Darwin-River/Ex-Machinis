@@ -5,7 +5,7 @@
 -- deals only with the House and launches no copies.
 
 -- Settings: change these numbers to make it your own
-rod_load = 12      -- rods it takes to Earth (4 cargo each)
+rod_load = 12      -- rods it carries off to sell (4 cargo each)
 low_fuel = 40      -- buy fuel below this
 keep_fuel = 25     -- it stops making rods below this much fuel
 trip_margin = 20   -- flies to Earth only if rods sold there for this much more
@@ -18,28 +18,28 @@ low_floor = 60     -- credits it keeps when its tank is full enough
 metals_per_rod = 2 -- Metals (A1) in a rod (two make an alloy, an alloy a rod)
 
 -- Facts of the game it relies on
-local HOUR <const> = 60 -- game minutes
-local FUEL_FLOOR <const> = 15 -- fuel make, mine, refine and push leave
-local FUEL_TO_BUY <const> = 30 -- fuel bought at a time
-local CASH_FOR_FUEL <const> = 150 -- credits raised before buying fuel
-local REFUEL_AFTER_HAUL <const> = 60 -- fuel: below this it buys where it sold
-local CREDITS_FOR_METALS <const> = 60 -- spare credits that buy two metals
-local GUESSED_METALS_PRICE <const> = 30 -- credits a metal when no price is known
-local HOUSE_CAP_SHARE <const> = 10 -- a startup buys 1/10 of the House's stock a day,
-local HOUSE_CAP_MIN <const> = 5 -- but at least this many
-local HOUSE_CAP_REACHED <const> = -17 -- buy_here's result at that cap
-local TRIP_FUEL_COST <const> = 30 -- credits: 10 fuel at about 3, there and back
-local HOUR_AWAY_COST <const> = 10 -- credits a game hour of travel costs
-local KEPT_AFTER_TAX <const> = 95 -- percent of a sale (5% sales tax)
-local RODS_PER_HOUR <const> = 4 -- sold an hour: buyers bid less as they stock up
-local SELLING_HOURS <const> = 6 -- hours it keeps selling at one place
-local FAILS_BEFORE_PAUSE <const> = 3 -- failed makes in a row
-local COPY_COST <const> = 5000 -- credits: a hull and a kit
-local COPY_FUEL_BELOW <const> = 80 -- fuel: tops up below this before a launch
-local COPY_FUEL_TARGET <const> = 90 -- fuel it tops up to
-local FUEL_FOR_COPY <const> = 40 -- fuel handed to a new copy
-local KIT_WAIT_HOURS <const> = 6 -- hours it waits for a bought kit
-local REPORT_EVERY <const> = 4 -- rounds between reports home
+local HOUR = 60 -- game minutes
+local FUEL_FLOOR = 15 -- fuel make, mine, refine and push leave
+local FUEL_TO_BUY = 30 -- fuel bought at a time
+local CASH_FOR_FUEL = 150 -- credits raised before buying fuel
+local REFUEL_AFTER_HAUL = 60 -- fuel: below this it buys where it sold
+local CREDITS_FOR_METALS = 60 -- spare credits that buy two metals
+local GUESSED_METALS_PRICE = 30 -- credits a metal when no price is known
+local HOUSE_CAP_SHARE = 10 -- a startup buys 1/10 of the House's stock a day,
+local HOUSE_CAP_MIN = 5 -- but at least this many
+local HOUSE_CAP_REACHED = -17 -- buy_here's result at that cap
+local TRIP_FUEL_COST = 30 -- credits: 10 fuel at about 3, there and back
+local HOUR_AWAY_COST = 10 -- credits a game hour of travel costs
+local KEPT_AFTER_TAX = 95 -- percent of a sale (5% sales tax)
+local RODS_PER_HOUR = 4 -- sold an hour: buyers bid less as they stock up
+local SELLING_HOURS = 6 -- hours it keeps selling at one place
+local FAILS_BEFORE_PAUSE = 3 -- failed makes in a row
+local COPY_COST = 5000 -- credits: a hull and a kit
+local COPY_FUEL_BELOW = 80 -- fuel: tops up below this before a launch
+local COPY_FUEL_TARGET = 90 -- fuel it tops up to
+local FUEL_FOR_COPY = 40 -- fuel handed to a new copy
+local KIT_WAIT_HOURS = 6 -- hours it waits for a bought kit
+local REPORT_EVERY = 4 -- rounds between reports home
 
 -- What it remembers (a copy starts with its parent's)
 house_cap_reached_on = {} -- place -> day its House cap for metals was reached

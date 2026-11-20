@@ -42,10 +42,14 @@ class PlayerBoardsTest extends TestCase
     public function testOnlyConfirmedAccountsShow()
     {
         $real = $this->player('Real One', 100);
+        DB::table('companies')->where('company_id', \App\Services\Startups::start($real, 'Real Co', 'function launched() wait(60) end')['company'])->update(['credits' => 0]);
         $junk = Players::create('IUWfixXHCItqHwlX', 'long-enough', 'junk@example.com');
+        // Verified at once, as the live server's trial setting does: still hidden until it has played
+        $verifiedJunk = $this->player('ZZverifiedjunk');
         $ids = array_keys(PlayerBoards::wealths());
         $this->assertContains((int) $real->user_id, $ids);
         $this->assertNotContains((int) $junk->user_id, $ids);
+        $this->assertNotContains((int) $verifiedJunk->user_id, $ids, 'never founded a startup nor held a share');
         $this->assertArrayHasKey((int) $junk->user_id, PlayerBoards::wealths(null, true), 'its own records still count');
         $this->get('/players')->assertOk()->assertSee('Real One')->assertDontSee('IUWfixXHCItqHwlX');
     }
@@ -54,6 +58,8 @@ class PlayerBoardsTest extends TestCase
     {
         $rich = $this->player('Rich One', 20000);      // 25,000 in all
         $grower = $this->player('Grower One', 0);      // 5,000
+        // Both have played (#867): a startup each (its credits aren't the player's)
+        Startups::start($rich, 'Rich Co', 'function launched() wait(60) end');
         DB::table('player_wealth_days')->delete();
         PlayerBoards::startDay();
         $this->assertSame(25000, (int) DB::table('player_wealth_days')->where('user_id', $rich->user_id)->value('start_wealth'));

@@ -73,7 +73,7 @@
                         <tr><th>#</th><th>Company</th><th class="num">Net wealth at that age</th><th class="num">Net wealth now</th><th class="num">Age now (game days)</th></tr>
                         @forelse($atAge['rows'] as $i => $row)
                             <tr>
-                                <td>{{ $i + 1 }}</td><td><a href="{{ url('/companies/' . $row['company_id']) }}">{{ $row['company'] }}</a></td>
+                                <td>{{ $i + 1 }}</td><td style="white-space: nowrap"><a href="{{ url('/companies/' . $row['company_id']) }}">{{ $row['company'] }}</a></td>
                                 <td class="num {{ $row['wealth'] < 0 ? 'negative' : '' }}" @if($row['gap'] > 1.01) title="read between points {{ $row['gap'] }} game days apart" @endif>{{ $row['gap'] > 1.01 ? '~' : '' }}{{ number_format($row['wealth']) }}</td>
                                 <td class="num {{ $row['ended'] ? 'ended' : ($row['now'] < 0 ? 'negative' : '') }}">{{ $row['ended'] ? 'ended' : number_format($row['now']) }}</td>
                                 <td class="num">{{ number_format($row['age'], 1) }}</td>
@@ -104,7 +104,7 @@
                                 @forelse($board['rows'] as $i => $row)
                                     @php($st = $states[$row['company_id']] ?? null)
                                     <tr>
-                                        <td>{{ $i + 1 }}</td><td><a href="{{ url('/companies/' . $row['company_id']) }}">{{ $row['company'] }}</a></td>
+                                        <td>{{ $i + 1 }}</td><td style="white-space: nowrap"><a href="{{ url('/companies/' . $row['company_id']) }}">{{ $row['company'] }}</a></td>
                                         <td class="num {{ $row[$board['key']] < 0 ? 'negative' : '' }}">{{ number_format($row[$board['key']]) }}</td>
                                         <td>{{ !$st ? '' : ($st->eliminated_at !== null ? 'ended' : ((int) $st->startup === 1 ? 'startup' : ($st->matured_t !== null ? 'matured' : 'released'))) }}</td>
                                         <td class="num">{{ number_format($row['age'], 1) }}</td><td class="num">{{ $row['drones'] }}</td>

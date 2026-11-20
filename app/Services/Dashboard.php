@@ -143,9 +143,9 @@ class Dashboard
         // The players /players lists (#716: 8 here, 4 there): the public's
         // accounts, a class group's pupils left out
         // (#867: only accounts with a confirmed address, as /players lists them)
-        $players = (int) DB::table('users')->whereNotNull('login')->whereNull('class_group_id')->whereNotNull('email_verified_at')->count();
-        $newPlayers = (int) DB::table('users')->whereNotNull('login')->whereNull('class_group_id')->whereNotNull('email_verified_at')
-            ->where('created_at', '>=', now()->subDays(7))->count();
+        $players = (int) PlayerBoards::played(DB::table('users')->whereNotNull('login')->whereNull('class_group_id')->whereNotNull('email_verified_at'))->count();
+        $newPlayers = (int) PlayerBoards::played(DB::table('users')->whereNotNull('login')->whereNull('class_group_id')->whereNotNull('email_verified_at')
+            ->where('created_at', '>=', now()->subDays(7)))->count();
 
         $slowed = (bool) $clock['slowed'];
         return [

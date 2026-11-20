@@ -608,8 +608,23 @@ int vm_is_yield()
 
 /** Starts a command's output in out_buffer, as vm_run_command does (#380:
     a Lua drone's run, which has no FORTH VM) */
+static int g_output_quiet = 0;
+
+/** A command that wants no reply when it prints nothing (#877: a Lua
+    release's pieces each answered "ok", seven bare lines in the log) */
+void vm_output_quiet(void)
+{
+  g_output_quiet = 1;
+}
+
+int vm_output_is_quiet(void)
+{
+  return g_output_quiet;
+}
+
 void vm_output_begin(char* out_buffer, size_t out_size)
 {
+  g_output_quiet = 0;
   g_output_buffer = out_buffer;
   g_last_command_output = g_output_buffer;
   g_current_size = out_size;

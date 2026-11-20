@@ -1,7 +1,8 @@
 -- Miner: a starter script for Ex Machinis, in Lua. It equips itself with
 -- the Mining Kit (Engine, Worm and Refinery), then, over and over:
 --   1. mines the richer of kunspar and wolfite at its site and refines it;
---   2. offers the metals to other drones, priced from the market here;
+--   2. once matured, offers the metals to other drones, priced from the
+--      market here (a startup trades only with the House);
 --   3. once hold_cap metals are aboard, sells them where the House pays most
 --      after the trip (the Moon, Mars or Earth);
 --   4. with enough credits, launches a copy of itself.

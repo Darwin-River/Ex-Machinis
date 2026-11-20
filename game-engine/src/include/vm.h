@@ -230,6 +230,8 @@ ErrorCode_t vm_write_datetime(VirtualMachine_t* vm, uint16_t addr, char* date_st
 
 /** A Lua drone's run (#380): its output, a used-up slice, report */
 void vm_output_begin(char* out_buffer, size_t out_size);
+void vm_output_quiet(void);
+int vm_output_is_quiet(void);
 void vm_slice_yield(void);
 void vm_report_output(void);
 
