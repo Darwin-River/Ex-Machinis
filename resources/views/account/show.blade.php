@@ -143,7 +143,7 @@
                     and buy from or sell to the bank, under the same rules as you, at most 20 actions a run. What it keeps in
                     <code>memory</code> is there next run. Its orders show on the book as <i>(script)</i>. Start from
                     <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/traders/payback.lua">the payback trader</a>
-                    (buy under 40 game days' payback, sell at risk: made for classes) or <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/traders/value.lua">the
+                    (buy when dividends pay a share back soon enough, sell when a company is about to end: made for classes) or <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/traders/value.lua">the
                     value trader</a>, watch it on the <a href="{{ url('market/trade') }}">Trading desk</a>, and see the <a href="{{ url('manual') }}#trading-script">manual</a>.</p>
                 <form method="POST" action="{{ url('account/trade-script') }}">
                     {{ csrf_field() }}

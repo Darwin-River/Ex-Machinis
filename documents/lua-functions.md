@@ -494,3 +494,20 @@ end
 - **Call `report()` in a loop that never ends.** A drone's output reaches you when `launched` returns, so a `launched` that loops forever is silent. `report()` sends what it has printed so far: `print("fuel " .. units(fuel)); report()`.
 - **Messages are 1 to 80 characters.** A longer `broadcast` fails.
 - **Waiting is free.** `wait` costs no fuel and no instructions, so wait rather than loop when there is nothing to do.
+
+## Trading scripts (your account's shares)
+
+A **trading script** is a different kind of script from a drone's: it trades your account's shares while you're away, every few real minutes, under the same rules as you (see the players' manual, "Your trading script"). The game calls its `trade(market)`; `market.me` is your account and `market.companies` every matured company still trading, with its prices, health (`at_risk`, `failing`, `stalled`, `dissolves_in`, `winds_up_in`) and book. It has these functions, and none of a drone's:
+
+| Function | What it does |
+|---|---|
+| `buy(company, units, price)` | posts a buy order at a price, trading at once against what it meets |
+| `sell(company, units, price)` | posts a sell order at a price |
+| `buy_pegged(company, units, peg, percent)` | a buy order whose price follows the bank's: `peg` is `'buys_at'` or `'sells_at'`, `percent` above (or, negative, below) it |
+| `sell_pegged(company, units, peg, percent)` | a sell order that follows the bank's price the same way |
+| `cancel(order)` | cancels one of your standing orders, by id |
+| `bank_buy(company, units)` | buys shares the bank holds, at its selling price |
+| `bank_sell(company, units)` | sells shares to the bank, paid in 30 game days at the lower of today's cash-out and cash-out then |
+| `log(...)` | writes a line to the run's log, shown on the Trading desk and your account page |
+
+Each action function returns `true`, or `false` and why. A run does at most 20 actions and writes at most 50 log lines; when it hits the 20, the log says so once. What you keep in the table `memory` is there next run. Two starters: [`examples/traders/payback.lua`](../examples/traders/payback.lua) (made for classes: buy when dividends pay a share back soon enough, sell when a company is about to end) and [`examples/traders/value.lua`](../examples/traders/value.lua).
