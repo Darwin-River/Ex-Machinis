@@ -159,7 +159,8 @@ class PlayerBoards
         $held = DB::table('player_shares')->where('user_id', $id)->where('units', '>', 0)->pluck('company_id')->map(fn ($c) => (int) $c)->all();
         $yield = null;
         if ($held) {
-            foreach (PlayerShares::market() as $m) {
+            // The exchange's rows, which carry the yield (#886: market() has none, so this was always null)
+            foreach (PlayerShares::board() as $m) {
                 if (in_array((int) $m['company'], $held, true) && ($m['yield_percent'] ?? null) !== null
                     && (!$yield || $m['yield_percent'] > $yield['percent'])) {
                     $yield = ['company_id' => (int) $m['company'], 'name' => $m['name'] ?? null, 'percent' => $m['yield_percent']];

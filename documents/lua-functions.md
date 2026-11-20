@@ -63,6 +63,8 @@ polymers, sheets = 2051, 3001
 
 Define more the same way: `pipes = 3311`. The Resources page lists every ID. (The alloys, `rods`, `inorganics_a2` and `organics_a2` are in the library.)
 
+> **From here on, every function is a helper you copy into your script.** The game doesn't have them built in: calling `offer(...)` without pasting its code first fails with "attempt to call a nil value". The built-in functions are the ones listed in the section above and in the players' manual, chapter 10.
+
 ## Inventory
 
 **`metals()`**: total Metals (A1), (A2) and (A3) aboard. The Trader and Miner starters call it `metals_aboard()`.

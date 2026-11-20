@@ -62,6 +62,7 @@ class UserController extends Controller
         // Credits with thousands separators, and an ended company marked (#692)
         $spaceObjects->getCollection()->transform(function ($c) {
             $c->credits = number_format((int) $c->credits);
+            $c->age = number_format((float) $c->age, 1);   // as the leaderboard prints it (#885)
             $c->ended = (bool) $c->ended;
             // Its status in a column of its own (#744), not "(ended)" on its name
             $c->status = $c->ended ? 'ended' : ((int) $c->startup === 1 ? 'startup' : ($c->matured_t !== null ? 'matured' : 'released'));

@@ -79,6 +79,13 @@ class WorldController extends Controller
         $resources = DB::table('trades AS t')->join('resources AS r', 'r.id', '=', 't.resource')
             ->where('t.game_t', '>=', World::gameNow() - 365 * 86400)->groupBy('t.resource', 'r.name')
             ->orderByRaw('SUM(t.credits) DESC')->get(['t.resource AS id', 'r.name']);
+        // The chart opens on the first of them, so fuel, whose price barely moves, goes after the
+        // most traded good (#885: it opened on a flat line at 3)
+        $fuel = $resources->firstWhere('id', \App\Services\Release::FUEL);
+        if ($fuel && $resources->count() > 1 && (int) $resources->first()->id === \App\Services\Release::FUEL) {
+            $resources = $resources->reject(fn ($r) => (int) $r->id === \App\Services\Release::FUEL)->values();
+            $resources->splice(1, 0, [$fuel]);
+        }
         // Each place keeps one colour: the places trades happen at, in ID order
         ['places' => $places, 'today' => $today] = \App\Services\MarketHistory::frame();
         return view('world.history', compact('resources', 'places', 'today'));

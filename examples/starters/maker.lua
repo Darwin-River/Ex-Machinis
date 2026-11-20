@@ -117,8 +117,9 @@ function go_to_cheapest_house_metals()
     return nil
   end
   if cost * metals_per_rod >= best_rod_bid() then
-    set_status("a rod needs " .. metals_per_rod .. " metals at about " .. math.floor(cost) .. " each (with the trip), and pays "
-      .. best_rod_bid() .. " at best: waiting for a better rod bid")
+    -- (a status line holds 80 characters)
+    set_status("rods sell for " .. best_rod_bid() .. ", their " .. metals_per_rod .. " metals cost "
+      .. math.floor(cost * metals_per_rod) .. ": waiting for a better bid")
     wait(4 * HOUR)
     return nil
   end

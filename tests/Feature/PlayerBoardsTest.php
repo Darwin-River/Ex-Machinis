@@ -97,6 +97,7 @@ class PlayerBoardsTest extends TestCase
         $this->assertTrue($r['best_season']['today']);
         $this->assertSame('Grower Co', $r['fastest_maturity']['name']);
         $this->assertSame('Grower Co', $r['longest_running']['name']);
+        $this->assertSame('Grower Co', $r['best_yield']['name'] ?? null, 'the yield among the shares it holds (#886: always null)');
         $this->assertSame(0, $r['player_trades']);
         DB::table('player_wealth_days')->insert(['user_id' => $grower->user_id, 'day' => '2000-01-01', 'start_wealth' => 0]);
         DB::table('player_wealth_days')->insert(['user_id' => $grower->user_id, 'day' => '2000-01-02', 'start_wealth' => 99000000]);
