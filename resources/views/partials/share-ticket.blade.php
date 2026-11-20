@@ -5,9 +5,12 @@
 @include('partials.market-styles')
 @php($tkId = (int) $tk['company'])
 <div class="share-ticket" id="ticket" data-company="{{ $tkId }}" data-quote="{{ url('companies/' . $tkId . '/share-quote') }}">
-    @if($tk['held'] === null)
-        <p><a href="{{ url('login') }}">Log in</a> to trade {{ $tk['name'] }}'s shares. The ticket says what an order will do before you post it.</p>
-    @else
+    {{-- A visitor sees a sample (#905): live quotes, nothing to press but Log in --}}
+    @php($sample = $tk['held'] === null)
+    @if($sample)
+        <p class="st-sample-note"><a href="{{ url('login') }}">Log in</a> to trade {{ $tk['name'] }}'s shares. Until then this is a
+            sample with live prices: change the numbers to see what an order would do.</p>
+    @endif
         <div class="st-tabs" role="tablist" aria-label="How to trade">
             <button type="button" role="tab" class="st-tab" id="st-tab-now" aria-selected="true" aria-controls="st-now">Buy or sell now</button>
             <button type="button" role="tab" class="st-tab" id="st-tab-price" aria-selected="false" aria-controls="st-price">Name my price</button>
@@ -55,8 +58,7 @@
         </form>
         <p class="st-band"><small>The bank buys at <b>{{ number_format($tk['p']['buys_at']) }}</b> (paid in {{ config('forge.bank_pay_days') }} game days)
             and sells at <b>{{ number_format($tk['p']['sells_at']) }}</b>; players trade between {{ number_format($tk['p']['low']) }} and
-            {{ number_format($tk['p']['high']) }}. You hold <b>{{ number_format($tk['held']) }}</b>.</small></p>
-    @endif
+            {{ number_format($tk['p']['high']) }}.@if(!$sample) You hold <b>{{ number_format($tk['held']) }}</b>.@endif</small></p>
 </div>
 @once
 @push('styles')
@@ -69,15 +71,17 @@
     .share-ticket .st-q { background: transparent; color: inherit; border: 1px dashed #4a5680; border-radius: 6px; padding: .1rem .6rem; font-size: .9em; }
     .share-ticket .st-say { white-space: normal; min-height: 2.6em; margin: .4rem 0; }
     .share-ticket .st-say.st-bad { color: #ff8a7a; }
+    .share-ticket .st-sample-note { margin-bottom: .5rem; }
+    .share-ticket .st-sample-note ~ form { opacity: .8; }
 </style>
 @endpush
 @endonce
-@if($tk['held'] !== null)
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const T = document.getElementById('ticket'), Q = T.dataset.quote, $ = (id) => document.getElementById(id);
     const n = (v) => Number(v).toLocaleString('en-US');
-    const P = @json($tk['p']);
+    const P = @json($tk['p']), SAMPLE = @json($sample);
+    if (SAMPLE) T.querySelectorAll('button[type=submit]').forEach((b) => { b.disabled = true; b.title = 'Log in to trade'; });
     let timer = null, seq = 0;
     async function quote(params) {
         const my = ++seq;
@@ -98,7 +102,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!q.ok) { say.textContent = q.error; return; }
         say.textContent = q.text;
         $('st-now-limit').value = q.worst ?? '';
-        go.disabled = q.filled < 1 || q.can_pay === false;
+        go.disabled = SAMPLE || q.filled < 1 || q.can_pay === false;
     }
     // Name my price: what meets it at once, and what stands
     async function price() {
@@ -166,4 +170,3 @@ document.addEventListener('DOMContentLoaded', function () {
     now();
 });
 </script>
-@endif

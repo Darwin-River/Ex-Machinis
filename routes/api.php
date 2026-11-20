@@ -76,6 +76,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['new-rules', 'throttle:api-write'])->post('startups/{id}/mature', 'StartupApiController@mature')->whereNumber('id');
     // Player boards and the digest (#640)
     Route::middleware(['new-rules', 'throttle:api-read'])->get('players', 'PlayerBoardController@api');
+    Route::middleware(['new-rules', 'throttle:api-read'])->get('players/{name}', 'PlayerBoardController@apiPlayer')->where('name', '[^/]+');
     // The startup race (#776)
     Route::middleware(['new-rules', 'throttle:api-read'])->get('startups/race', 'StartupController@raceApi');
     Route::middleware(['new-rules', 'throttle:api-read'])->get('account/digest', 'PlayerBoardController@digest');

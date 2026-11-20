@@ -3,14 +3,14 @@
 @push('styles')
     <style>
         /* The home page for the new rules (#697) */
-        .home-hero { padding: 3.5rem 0 2.5rem; }
+        .home-hero { padding: 2.5rem 0 2rem; }
         .home-hero h1 { font-size: 2.6rem; line-height: 1.1; margin: 0 0 1rem; }
         .home-lead { font-size: 1.15rem; color: #c3c9d8; max-width: 34em; white-space: normal; }
         .home-code { background: #0f1424; border: 1px solid #263052; border-radius: 10px; padding: 16px 18px; margin: 0;
               font: 14px/1.6 "JetBrains Mono", ui-monospace, monospace; color: #cfe3ff; white-space: pre; overflow-x: auto; }
         .home-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 0 0 2.5rem; padding: 0; list-style: none; }
         .home-step { background: #111729; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px 18px; }
-        .home-step .n { color: #ffb547; font-weight: 700; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; }
+        .home-step .n { color: #4cc9f0; font-weight: 700; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; }
         .home-step h2 { font-size: 1.15rem; margin: 6px 0; }
         .home-step p { margin: 0; color: #c3c9d8; font-size: 15px; white-space: normal; }
         .home-clock { color: #c3c9d8; font-size: 15px; margin: 0 0 1.5rem; white-space: normal; }
@@ -19,6 +19,14 @@
         #feed td:first-child { white-space: nowrap; color: #9aa3b8; padding-right: 1em; }
         @media (max-width: 991px) { .home-steps { grid-template-columns: 1fr 1fr; } .home-hero h1 { font-size: 2rem; } }
         @media (max-width: 480px) { .home-steps { grid-template-columns: 1fr; } #feed td:first-child { white-space: normal; } }
+        /* A smaller hero on a phone (#905: 962 px, more than a screen, before the steps) */
+        @media (max-width: 575px) {
+            .home-hero { padding: 1.25rem 0 1rem; }
+            .home-hero h1 { font-size: 1.65rem; margin-bottom: .6rem; }
+            .home-hero .home-lead { font-size: .95rem; }
+            .home-hero .hero-actions .button-lg { padding: .55rem 1rem; font-size: .95rem; }
+            .home-hero .home-code { font-size: .74rem; padding: .6rem .75rem; margin-bottom: 0; }
+        }
         /* A link inside a sentence is underlined, not told apart by colour alone (#885, axe-core) */
         .container p a:not(.button) { text-decoration: underline; text-underline-offset: 2px; }
     </style>

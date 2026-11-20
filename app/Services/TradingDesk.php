@@ -93,7 +93,21 @@ class TradingDesk
         return ['company' => $company, 'name' => $name, 'prices' => $p, 'count' => PlayerShares::count($company),
             'offering' => PlayerShares::offering($company),
             'asks' => array_reverse($book['sell']), 'bids' => $book['buy'],
-            'trades' => PlayerShares::trades($company, 8)];
+            'trades' => PlayerShares::trades($company, 8),
+            // Its last 30 game days, for the price panel beside the book (#905)
+            'history' => array_values(array_map(fn ($r) => ['day' => (int) $r['day'], 'cash_out' => $r['cash_out_share'] ?? null,
+                'bank' => $r['bank_sells_at'] ?? null], array_slice(Leaderboard::history($company), -30))),
+            'trade_days' => self::tradeDays($company)];
+    }
+
+    /** Its players' trades over the last 30 game days, for the price panel's dots: [{day, price, units}] */
+    private static function tradeDays(int $company): array
+    {
+        $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
+        $since = World::gameNow() - 30 * 86400;
+        return array_values(array_map(fn ($t) => ['day' => intdiv(max(0, $t['game_time'] - $epoch), 86400), 'price' => $t['price'],
+            'units' => $t['units']], array_filter(PlayerShares::trades($company, 200),
+            fn ($t) => $t['game_time'] >= $since && !$t['seller_is_bank'] && !$t['buyer_is_bank'] && !$t['issued'])));
     }
 
     /**

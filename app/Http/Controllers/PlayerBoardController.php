@@ -42,6 +42,21 @@ class PlayerBoardController extends Controller
         return view('world.players', ['boards' => $boards, 'group' => $group, 'me' => $viewer?->login]);
     }
 
+    /** A player's public page (#905), or 404 for one the public boards don't list */
+    public function player(string $name)
+    {
+        $p = PlayerBoards::profile($name);
+        abort_if($p === null, 404);
+        return view('world.player', ['p' => $p]);
+    }
+
+    /** GET /api/v1/players/{name} (#905): what the page shows */
+    public function apiPlayer(string $name): JsonResponse
+    {
+        $p = PlayerBoards::profile($name);
+        return $p ? response()->json($p) : response()->json(['error' => 'No such player on the public boards.'], 404);
+    }
+
     /** GET /api/v1/players[?class=ID]: the boards (a class's need its member's or teacher's token) */
     public function api(Request $request): JsonResponse
     {
