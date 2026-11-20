@@ -10,7 +10,7 @@
               font: 14px/1.6 "JetBrains Mono", ui-monospace, monospace; color: #cfe3ff; white-space: pre; overflow-x: auto; }
         .home-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 0 0 2.5rem; padding: 0; list-style: none; }
         .home-step { background: #111729; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px 18px; }
-        .home-step .n { color: #ffb547; font-weight: 700; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; }
+        .home-step .n { color: #4cc9f0; font-weight: 700; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; }
         .home-step h2 { font-size: 1.15rem; margin: 6px 0; }
         .home-step p { margin: 0; color: #c3c9d8; font-size: 15px; white-space: normal; }
         .home-clock { color: #c3c9d8; font-size: 15px; margin: 0 0 1.5rem; white-space: normal; }

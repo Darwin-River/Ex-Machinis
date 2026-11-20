@@ -26,11 +26,11 @@
         .rl-card:hover, .rl-card:focus-visible { border-color: #ffb547; }
         .rl-card[aria-pressed="true"] { border-color: #ffb547; box-shadow: inset 0 0 0 1px #ffb547; background: #19213a; }
         .rl-card .rl-role { color: #9aa3b8; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-        .rl-card[aria-pressed="true"] .rl-role { color: #ffb547; }
+        .rl-card[aria-pressed="true"] .rl-role { color: #4cc9f0; }   /* amber is for links (#905) */
         .rl-card b { font-family: "Space Grotesk", system-ui, sans-serif; font-size: 1.15rem; color: #fff; }
         .rl-card span.rl-line { color: #c3c9d8; font-size: 14px; flex: 1; margin: .2rem 0 .4rem; }
         .rl-card small { color: #9aa3b8; font-size: 13px; }
-        .rl-card .rl-tick { position: absolute; top: 10px; right: 12px; color: #ffb547; font-size: 13px; font-weight: 700; display: none; }
+        .rl-card .rl-tick { position: absolute; top: 10px; right: 12px; color: #4cc9f0; font-size: 13px; font-weight: 700; display: none; }
         .rl-card[aria-pressed="true"] .rl-tick { display: inline; }
         .rl label { font-weight: 600; color: #e6e9f2; margin-bottom: .3rem; }
         .rl .form-control { background: #0f1424; color: #e6e9f2; border: 1px solid #263052; border-radius: 8px; }

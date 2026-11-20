@@ -16,8 +16,8 @@
         .fs-step { counter-increment: fs; position: relative; padding: 0 0 2rem 3.25rem; border-left: 2px solid #263052; margin-left: 1rem; }
         .fs-step:last-child { border-left-color: transparent; padding-bottom: .5rem; }
         .fs-step::before { content: counter(fs); position: absolute; left: -1.05rem; top: -.1rem; width: 2rem; height: 2rem; border-radius: 50%;
-              display: flex; align-items: center; justify-content: center; background: #19213a; border: 1px solid #ffb547;
-              color: #ffb547; font-family: "Space Grotesk", system-ui, sans-serif; font-weight: 700; }
+              display: flex; align-items: center; justify-content: center; background: #19213a; border: 1px solid #4cc9f0;
+              color: #4cc9f0; font-family: "Space Grotesk", system-ui, sans-serif; font-weight: 700; }
         .fs-step h2 { font-size: 1.35rem; margin: 0 0 .4rem; }
         .fs-step p { max-width: 44em; }
         .fs-time { color: #9aa3b8; font-size: 13px; font-weight: 400; font-family: system-ui, sans-serif; margin-left: .4rem; }
@@ -25,7 +25,7 @@
         .fs-card { display: flex; flex-direction: column; background: #111729; border: 1px solid rgba(255,255,255,.1); border-radius: 10px;
               padding: 14px 16px; color: inherit; text-decoration: none !important; min-width: 0; }
         .fs-card:hover, .fs-card:focus { border-color: #ffb547; }
-        .fs-card .fs-role { color: #ffb547; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+        .fs-card .fs-role { color: #4cc9f0; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
         .fs-card h3 { font-size: 1.15rem; margin: .2rem 0 .3rem; }
         .fs-card p { color: #c3c9d8; font-size: 14px; margin: 0 0 .6rem; flex: 1; }
         .fs-card dl { display: grid; grid-template-columns: auto 1fr; gap: 0 .6rem; font-size: 13px; margin: 0 0 .6rem; }
