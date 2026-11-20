@@ -31,6 +31,16 @@
         .td-say { background: #0b1020; border-left: 3px solid #ffb547; padding: 8px 12px; border-radius: 6px; min-height: 2.6em; }
         .td-gain-up { color: #5ad19a; } .td-gain-down { color: #ff8a7a; }
         .td-log { font: 13px ui-monospace, monospace; color: #c3c9d8; margin: 0; padding-left: 1.1rem; }
+        #ladder tr[data-side] { cursor: pointer; }
+        #ladder tr[data-side]:hover td, #ladder tr[data-side]:focus td { background: rgba(255, 181, 71, .07); }
+        .td-orders li { margin-bottom: .4rem; }
+        .td-order-acts { display: inline-flex; flex-wrap: wrap; gap: 6px; margin-left: .4rem; }
+        .td-order-acts form { display: inline-flex; gap: 4px; align-items: center; }
+        .td-picker { display: none; margin-bottom: .6rem; }
+        @media (max-width: 860px) {
+            .td-watch-card { order: 2; }
+            .td-picker { display: block; }
+        }
     </style>
 @endpush
 @section('content')
@@ -49,11 +59,13 @@
                 @php($L = $desk['ladder'])
                 @php($me = $desk['me'])
                 <p class="mh-intro">Pick a company on the left; its book is in the middle, from the dearest offer at the top to the
-                    best bid at the bottom, between the bank's two prices. Players trade between the band's two ends. The ticket says,
-                    before you post, what your order will do.</p>
+                    best bid at the bottom, between the bank's two prices. Players trade between the band's two ends. Click a row to fill the
+                    ticket. The ticket says, before you trade, what it will do: <b>Buy or sell now</b> takes the best route across players'
+                    orders, new shares on offer and the bank.</p>
                 <div class="td-grid">
-                    {{-- The watch list: your holdings first, each with a health pill --}}
-                    <div class="td-card">
+                    {{-- The watch list: your holdings first, each with a health pill; on a phone it comes after the
+                         ticket and the book, with a picker above them (#845) --}}
+                    <div class="td-card td-watch-card">
                         <h2>Watch list</h2>
                         <ul class="td-watch" id="watch-list">
                             @foreach($desk['watch'] as $w)
@@ -66,7 +78,11 @@
                         </ul>
                     </div>
 
-                    <div>
+                    <div class="td-main">
+                        <label class="td-picker"><span class="sr-only">Company</span>
+                            <select class="mk-select" onchange="location.href = '{{ url('market/trade') }}?company=' + this.value">
+                                @foreach($desk['watch'] as $w)<option value="{{ $w['company'] }}" @if($w['company'] === $desk['company']) selected @endif>{{ $w['name'] }}{{ $w['held'] > 0 ? ' (you hold ' . $w['held'] . ')' : '' }}</option>@endforeach
+                            </select></label>
                         {{-- The ladder: the band, the bank's prices and players' orders, dearest first --}}
                         <div class="td-card mb-3" id="ladder">
                             <h2><a href="{{ url('companies/' . $L['company']) }}#player-shares">{{ $L['name'] }}</a>
@@ -76,21 +92,21 @@
                             <table class="td-ladder">
                                 <tr class="td-band"><td>Top of the band</td><td></td><td class="num">{{ number_format($p['high']) }}</td></tr>
                                 @foreach($rows->where('kind', 'ask')->where('price', '>', $p['sells_at']) as $o)
-                                    <tr class="td-ask"><td>Sell · {{ $o['by'] }}@if($o['script']) <small>(script)</small>@endif</td><td class="num">{{ $o['units'] }}</td><td class="num">{{ number_format($o['price']) }}</td></tr>
+                                    <tr class="td-ask" data-side="buy" data-price="{{ $o['price'] }}" title="Buy from this order"><td>Sell · {{ $o['by'] }}@if($o['script']) <small>(script)</small>@endif</td><td class="num">{{ $o['units'] }}</td><td class="num">{{ number_format($o['price']) }}</td></tr>
                                 @endforeach
-                                <tr class="td-bank"><td>The bank sells{{ $p['bank_holds'] > 0 ? ' (' . $p['bank_holds'] . ' held)' : ' (holds none)' }}</td><td></td><td class="num">{{ number_format($p['sells_at']) }}</td></tr>
+                                <tr class="td-bank" data-side="buy" title="Buy now"><td>The bank sells{{ $p['bank_holds'] > 0 ? ' (' . $p['bank_holds'] . ' held)' : ' (holds none)' }}</td><td></td><td class="num">{{ number_format($p['sells_at']) }}</td></tr>
                                 @foreach($rows->where('kind', 'ask')->where('price', '<=', $p['sells_at']) as $o)
-                                    <tr class="td-ask"><td>Sell · {{ $o['by'] }}@if($o['script']) <small>(script)</small>@endif</td><td class="num">{{ $o['units'] }}</td><td class="num">{{ number_format($o['price']) }}</td></tr>
+                                    <tr class="td-ask" data-side="buy" data-price="{{ $o['price'] }}" title="Buy from this order"><td>Sell · {{ $o['by'] }}@if($o['script']) <small>(script)</small>@endif</td><td class="num">{{ $o['units'] }}</td><td class="num">{{ number_format($o['price']) }}</td></tr>
                                 @endforeach
                                 @php($bestAsk = collect($L['asks'])->min('price'))
                                 @php($bestBid = collect($L['bids'])->max('price'))
                                 <tr class="td-spread"><td colspan="3">@if($bestAsk !== null && $bestBid !== null)spread {{ number_format($bestAsk - $bestBid) }}@else{{ $bestAsk === null && $bestBid === null ? 'no player orders' : ($bestAsk === null ? 'no player sells' : 'no player bids') }}@endif</td></tr>
                                 @foreach($rows->where('kind', 'bid')->where('price', '>=', $p['buys_at']) as $o)
-                                    <tr class="td-bid"><td>Buy · {{ $o['by'] }}@if($o['script']) <small>(script)</small>@endif</td><td class="num">{{ $o['units'] }}</td><td class="num">{{ number_format($o['price']) }}</td></tr>
+                                    <tr class="td-bid" data-side="sell" data-price="{{ $o['price'] }}" title="Sell into this bid"><td>Buy · {{ $o['by'] }}@if($o['script']) <small>(script)</small>@endif</td><td class="num">{{ $o['units'] }}</td><td class="num">{{ number_format($o['price']) }}</td></tr>
                                 @endforeach
-                                <tr class="td-bank"><td>The bank buys (pays in {{ config('forge.bank_pay_days') }} game days)</td><td></td><td class="num">{{ number_format($p['buys_at']) }}</td></tr>
+                                <tr class="td-bank" data-side="sell" title="Sell now"><td>The bank buys (pays in {{ config('forge.bank_pay_days') }} game days)</td><td></td><td class="num">{{ number_format($p['buys_at']) }}</td></tr>
                                 @foreach($rows->where('kind', 'bid')->where('price', '<', $p['buys_at']) as $o)
-                                    <tr class="td-bid"><td>Buy · {{ $o['by'] }}@if($o['script']) <small>(script)</small>@endif</td><td class="num">{{ $o['units'] }}</td><td class="num">{{ number_format($o['price']) }}</td></tr>
+                                    <tr class="td-bid" data-side="sell" data-price="{{ $o['price'] }}" title="Sell into this bid"><td>Buy · {{ $o['by'] }}@if($o['script']) <small>(script)</small>@endif</td><td class="num">{{ $o['units'] }}</td><td class="num">{{ number_format($o['price']) }}</td></tr>
                                 @endforeach
                                 <tr class="td-band"><td>Bottom of the band</td><td></td><td class="num">{{ number_format($p['low']) }}</td></tr>
                             </table>
@@ -100,25 +116,12 @@
                             @endif
                         </div>
 
-                        {{-- The ticket: what an order will do, in words, before it is posted --}}
-                        <div class="td-card mb-3" id="ticket">
+                        {{-- One order ticket (#845): Buy or sell now by the best route, or name your price --}}
+                        <div class="td-card mb-3" id="ticket-card">
                             <h2>Order ticket</h2>
-                            @if($me)
-                                <form method="POST" action="{{ url('companies/' . $L['company'] . '/share-orders') }}">
-                                    {{ csrf_field() }}
-                                    <div class="td-ticket">
-                                        <select class="mk-select" name="side" id="t-side" aria-label="Buy or sell"><option value="buy">Buy</option><option value="sell">Sell</option></select>
-                                        <input class="mk-input" type="number" name="units" id="t-units" min="1" value="1" aria-label="Shares" style="width: 6em">
-                                        <span>shares at</span>
-                                        <input class="mk-input" type="number" name="price" id="t-price" min="{{ $p['low'] }}" max="{{ $p['high'] }}"
-                                               value="{{ $bestAsk ?? $p['sells_at'] }}" aria-label="Price a share" style="width: 7em">
-                                        <button class="mk-button" type="submit">Post the order</button>
-                                    </div>
-                                </form>
-                                <div class="td-say" id="t-say" role="status" aria-live="polite"></div>
-                            @else
-                                <p><a href="{{ url('login') }}">Log in</a> to trade: the ticket says what an order will do before you post it.</p>
-                            @endif
+                            @include('partials.share-ticket', ['tk' => ['company' => $L['company'], 'name' => $L['name'], 'p' => $L['prices'],
+                                'held' => $me ? (collect($me['shares'])->firstWhere('company_id', $L['company'])['units'] ?? 0) : null,
+                                'side' => request('side'), 'units' => request('units')]])
                         </div>
                     </div>
                 </div>
@@ -130,13 +133,14 @@
                             <h2>Your shares</h2>
                             @if($me['shares'])
                                 <div class="table-responsive"><table class="td-ladder">
-                                    <tr><td></td><td class="num">Shares</td><td class="num">Worth</td><td class="num">Cost</td><td class="num">Dividends</td><td class="num">Gain</td></tr>
+                                    <tr><td></td><td class="num">Shares</td><td class="num">Worth</td><td class="num">Cost</td><td class="num">Dividends</td><td class="num">Gain</td><td></td></tr>
                                     @foreach($me['shares'] as $s)
                                         <tr><td><a href="{{ url('market/trade?company=' . $s['company_id']) }}">{{ $s['name'] }}</a></td>
                                             <td class="num">{{ $s['units'] }}</td><td class="num">{{ number_format($s['value']) }}</td>
                                             <td class="num">{{ number_format($s['cost']) }}@if($s['founder_units'] > 0)<br><small class="text-muted">{{ $s['founder_units'] }} from maturing</small>@endif</td>
                                             <td class="num">{{ number_format($s['dividends']) }}</td>
-                                            <td class="num {{ $s['gain'] >= 0 ? 'td-gain-up' : 'td-gain-down' }}">{{ $s['gain'] >= 0 ? '+' : '−' }}{{ number_format(abs($s['gain'])) }}@if($s['gain_percent'] !== null)<br><small>{{ $s['gain_percent'] > 0 ? '+' : '' }}{{ $s['gain_percent'] }}%</small>@endif</td></tr>
+                                            <td class="num {{ $s['gain'] >= 0 ? 'td-gain-up' : 'td-gain-down' }}">{{ $s['gain'] >= 0 ? '+' : '−' }}{{ number_format(abs($s['gain'])) }}@if($s['gain_percent'] !== null)<br><small>{{ $s['gain_percent'] > 0 ? '+' : '' }}{{ $s['gain_percent'] }}%</small>@endif</td>
+                                            <td>@if($s['company_id'] === $L['company'])<button type="button" class="st-q" data-sell-all="{{ $s['units'] }}">Sell</button>@else<a class="st-q" href="{{ url('market/trade?company=' . $s['company_id'] . '&side=sell&units=' . $s['units']) }}#ticket">Sell</a>@endif</td></tr>
                                     @endforeach
                                 </table></div>
                                 <p class="ex-src">Worth is at today's cash-out value. Cost is what you paid for the shares you bought (at their average
@@ -148,12 +152,20 @@
                             @endif
                             @if($me['orders'])
                                 <h2 class="mt-3">Your orders</h2>
-                                <ul class="mb-0">
+                                {{-- Each with Cancel and a new price (#845); the order keeps its place in time, and its rebate's rest --}}
+                                <ul class="mb-0 td-orders" id="your-orders">
                                     @foreach($me['orders'] as $o)
-                                        <li>{{ ucfirst($o['side']) }} {{ $o['units'] }} of {{ $o['name'] }} at {{ number_format($o['price']) }}@if($o['out_of_range']) <small class="text-muted">(outside today's band: it waits)</small>@endif</li>
+                                        <li>{{ ucfirst($o['side']) }} {{ $o['units'] }} of {{ $o['name'] }} at {{ number_format($o['price']) }}@if(!empty($o['peg'])) <small class="text-muted">(follows the bank)</small>@endif @if($o['out_of_range']) <small class="text-muted">(outside today's band: it waits)</small>@endif
+                                            <span class="td-order-acts">
+                                                <form method="POST" action="{{ url('share-orders/' . $o['id'] . '/move') }}">{{ csrf_field() }}
+                                                    <input class="mk-input" type="number" name="price" value="{{ $o['price'] }}" @if($o['low'] !== null) min="{{ $o['low'] }}" max="{{ $o['high'] }}" @endif
+                                                           aria-label="New price for this order" style="width: 6.5em">
+                                                    <button class="st-q" type="submit">Move</button></form>
+                                                <form method="POST" action="{{ url('share-orders/' . $o['id'] . '/cancel') }}">{{ csrf_field() }}
+                                                    <button class="st-q" type="submit">Cancel</button></form>
+                                            </span></li>
                                     @endforeach
                                 </ul>
-                                <p class="ex-src">Cancel one on <a href="{{ url('account') }}#player-shares">your account page</a>.</p>
                             @endif
                         </div>
                         {{-- Your trading script and its latest run --}}
@@ -180,40 +192,20 @@
                 @endif
                 <p class="ex-src mt-3">Data: <code>GET /api/v1/player-shares/{{ $L['company'] }}</code>, <code>GET /api/v1/account/shares</code>
                     and <code>GET /api/v1/account/trade-script</code>.</p>
-                @if($me)
-                @php($ticketData = \App\Services\TradingDesk::ticket($L, $me))
+                {{-- Click a row of the book to fill the ticket (#845) --}}
                 <script>
                 document.addEventListener('DOMContentLoaded', function () {
-                    // What an order will do, worked out from the book shown (#779)
-                    const B = @json($ticketData);
-                    const side = document.getElementById('t-side'), units = document.getElementById('t-units'),
-                        price = document.getElementById('t-price'), say = document.getElementById('t-say');
-                    const n = (v) => Number(v).toLocaleString('en-US');
-                    function tell() {
-                        const s = side.value, N = Number(units.value), P = Number(price.value);
-                        if (!Number.isInteger(N) || N < 1 || !Number.isInteger(P)) return say.textContent = 'Shares and price are whole numbers, at least 1.';
-                        if (P < B.p.low || P > B.p.high) return say.textContent = `Refused: players trade ${B.name} between ${n(B.p.low)} and ${n(B.p.high)} a share now.`;
-                        if (s === 'sell' && N > B.held) return say.textContent = `Refused: you hold ${B.held} of its shares.`;
-                        const book = (s === 'buy' ? B.asks.filter((o) => o.price <= P) : B.bids.filter((o) => o.price >= P)).filter((o) => o.by !== B.me);
-                        let left = N, cost = 0; const fills = [];
-                        for (const o of book) { if (!left) break; const k = Math.min(left, o.units); fills.push(`${k} ${s === 'buy' ? 'from' : 'to'} ${o.by} at ${n(o.price)}`); cost += k * o.price; left -= k; }
-                        const done = N - left;
-                        let t = done ? `${s === 'buy' ? 'Buys' : 'Sells'} ${done} now: ${fills.join(', ')} (${n(cost)} credits ${s === 'buy' ? 'paid' : 'to you'}).` : 'Nothing on the book meets it now.';
-                        if (left) t += ` ${done ? 'The other ' + left : 'All ' + left} stand as ${s === 'buy' ? 'a buy' : 'a sell'} order at ${n(P)} until someone meets it; once it has rested a game hour, each fill earns you a ${B.rebate}% rebate from the bank.`;
-                        if (s === 'buy') {
-                            const can = B.credits + (P <= B.p.sells_at ? B.share_credits : 0);
-                            if (N * P > can) t += ` But it commits up to ${n(N * P)} credits and you can pay ${n(can)}${P > B.p.sells_at ? ' (starting credits pay only at or below the bank\'s ' + n(B.p.sells_at) + ')' : ''}: what can't be paid won't stand.`;
-                            if (P > B.p.sells_at && B.p.bank_holds > 0) t += ` The bank sells for less (${n(B.p.sells_at)}).`;
-                        } else if (P < B.p.buys_at) {
-                            t += ` The bank buys for more (${n(B.p.buys_at)}), paid in ${B.pay_days} game days.`;
-                        }
-                        say.textContent = t;
-                    }
-                    [side, units, price].forEach((e) => e.addEventListener('input', tell));
-                    tell();
+                    document.querySelectorAll('#ladder tr[data-side]').forEach((tr) => {
+                        tr.tabIndex = 0;
+                        const go = () => window.ExTicket && window.ExTicket.fill(tr.dataset.price
+                            ? {mode: 'price', side: tr.dataset.side, price: Number(tr.dataset.price)} : {mode: 'now', side: tr.dataset.side});
+                        tr.addEventListener('click', go);
+                        tr.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+                    });
+                    document.querySelectorAll('[data-sell-all]').forEach((b) => b.addEventListener('click', () =>
+                        window.ExTicket && window.ExTicket.fill({mode: 'now', side: 'sell', units: Number(b.dataset.sellAll)})));
                 });
                 </script>
-                @endif
             @endif
         </div>
     </section>

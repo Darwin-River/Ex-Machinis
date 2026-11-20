@@ -292,7 +292,13 @@
                             <td class="text-right">{{ rtrim(rtrim(number_format($holder['percent'], 1), '0'), '.') }}%</td></tr>
                     @endforeach
                 </tbody></table>
+                {{-- One order ticket (#845): Buy or sell now by the best route, or name your price --}}
+                <h3 class="h6" id="share-ticket">Trade its shares</h3>
+                @include('partials.share-ticket', ['tk' => ['company' => (int) $user->user_id, 'name' => $user->name,
+                    'p' => \Illuminate\Support\Arr::only($playerShares, ['buys_at', 'sells_at', 'low', 'high', 'bank_holds']),
+                    'held' => $playerShares['held']]])
                 @if($playerShares['held'] !== null)
+                    <details class="mb-3" id="share-routes"><summary>Each route on its own: a standing order, the bank</summary>
                     <p>You hold {{ number_format($playerShares['held']) }} of its shares.</p>
                     <form method="POST" action="{{ url('companies/' . $user->user_id . '/share-orders') }}" class="form-inline mb-2">
                         {{ csrf_field() }}
@@ -329,8 +335,7 @@
                             <button class="button button-secondary button-sm mb-2" type="submit">Buy</button>
                         </form>
                     @endif
-                @else
-                    <p><a href="{{ url('login') }}">Log in</a> to trade its shares.</p>
+                    </details>
                 @endif
             @endif
 

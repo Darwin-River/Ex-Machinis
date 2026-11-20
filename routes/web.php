@@ -81,6 +81,8 @@ Route::get('/market/history', 'WorldController@history');
 Route::get('/market/shares', 'WorldController@shares');
 // The Trading desk (#779): watch list, a company's book as a ladder, an order ticket, your shares and your trading script
 Route::get('/market/trade', 'PlayerShareController@desk');
+// The order ticket's quote, for the page's script (#845): a visitor sees it too
+Route::get('/companies/{id}/share-quote', 'PlayerShareController@quote')->whereNumber('id')->middleware('throttle:60,1');
 // The economy dashboard (#698)
 Route::get('/dashboard', 'WorldController@dashboard');
 // The stock exchange's old short address (#692: GET /shares was a 404)
@@ -140,6 +142,9 @@ Route::middleware('new-rules')->group(function () {
     Route::post('/companies/{id}/offering/withdraw', 'PlayerShareController@withdrawOffer')->whereNumber('id');
     Route::post('/companies/{id}/offering/buy', 'PlayerShareController@buyOffered')->whereNumber('id');
     Route::post('/share-orders/{order}/cancel', 'PlayerShareController@cancel')->whereNumber('order');
+    // The order ticket's Buy now / Sell now, and moving an order's price (#845)
+    Route::post('/companies/{id}/share-now', 'PlayerShareController@now')->whereNumber('id');
+    Route::post('/share-orders/{order}/move', 'PlayerShareController@move')->whereNumber('order');
     // The account trading script (#768)
     Route::post('/account/trade-script', 'PlayerShareController@saveTradeScript');
     // "Since you last looked" (#771): seen

@@ -67,8 +67,11 @@ class TradingDeskTest extends TestCase
             ->assertSee('id="ladder"', false)->assertSee('The bank sells')->assertSee('Top of the band')
             ->assertSee('Log in</a> to trade', false)->assertSee('Trading desk');
 
-        // A player sees their ticket, shares with gain including dividends, and their script
-        $r = $this->actingAs($buyer)->get('/market/trade?company=' . $id)->assertOk()->assertSee('id="t-say"', false)
+        // A player sees their ticket, shares with gain including dividends, their orders, and their script
+        PlayerShares::order($buyer, $id, 'buy', 1, $p['low']);
+        $r = $this->actingAs($buyer)->get('/market/trade?company=' . $id)->assertOk()->assertSee('id="st-now-say"', false)
+            ->assertSee('id="st-price-say"', false)->assertSee('/share-now', false)->assertSee('data-side="buy" data-price=', false)
+            ->assertSee('id="your-orders"', false)->assertSee('/move', false)
             ->assertSee('id="your-shares"', false)->assertSee('id="your-script"', false)->assertSee('payback.lua');
         $s = TradingDesk::gains((int) $buyer->user_id, PlayerShares::of($buyer)['holdings'])[0];
         $this->assertSame([4, 4 * $p['sells_at'], 40], [$s['units'], $s['cost'], $s['dividends']]);

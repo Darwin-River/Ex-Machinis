@@ -1458,10 +1458,13 @@ On a matured company's page (logged in), **Post the order** with buy or sell, sh
 
 The **Trading desk** (`/market/trade`, under Market in the menu) puts share trading on one page:
 
-- **The watch list:** every matured company, yours first, with a health pill (steady, stalled, at risk, failing, dissolving), its cash-out value and its return over 30 game days. Pick one to see its book.
-- **The ladder:** that company's book from the dearest sell order at the top to the lowest bid at the bottom, with the bank's selling and buying prices among them and the band players trade in at each end. A script's order says **(script)**.
-- **The order ticket:** before you post, it says in words what your order will do: what fills now and from whom, what stands on the book, whether you can pay, and when the bank would be the better deal.
-- **Your shares:** each holding's worth at cash-out, what you paid for it, the dividends it has paid you, and the **gain** (worth less cost, plus dividends). Shares that came to you when your company matured cost nothing.
+- **The watch list:** every matured company, yours first, with a health pill (steady, stalled, at risk, failing, dissolving), its cash-out value and its return over 30 game days. Pick one to see its book. On a phone it comes after the book and the ticket, with a company picker above them.
+- **The ladder:** that company's book from the dearest sell order at the top to the lowest bid at the bottom, with the bank's selling and buying prices among them and the band players trade in at each end. A script's order says **(script)**. Click a row to fill the ticket: a player's order to trade against it at its price, a bank row to buy or sell now.
+- **The order ticket**, the same one as on every matured company's page, has two ways to trade:
+  - **Buy or sell now** takes the best route for the number of shares you give, in price order: players' standing orders, new shares on offer and the bank. Before you press, it says which, for example "Buy 5 now: 3 from Bram at 1,120 and 2 from the bank at 1,143 = 5,646 credits", how many you'd hold and what part of the company, and how many game days of the last month's dividends would pay a share back. Selling to the bank says it pays in 30 game days, at the lower of today's cash-out and cash-out then. It trades all of it or none, and never at a worse price than it showed you. Quick amounts: 1, 10, and as many as you can afford (or all you hold, to sell).
+  - **Name my price** posts a standing order at a price, or one that follows the bank's, and says what meets it at once and what stands on the book.
+- **Your shares:** each holding's worth at cash-out, what you paid for it, the dividends it has paid you, and the **gain** (worth less cost, plus dividends). Shares that came to you when your company matured cost nothing. **Sell** fills the ticket to sell them all.
+- **Your orders,** each with **Move** (a new price: the order keeps its place in time, so its rebate's rest) and **Cancel**.
 - **Your trading script:** whether it is on, and what its latest run did.
 
 ### Raising credits with new shares to fund a copy
