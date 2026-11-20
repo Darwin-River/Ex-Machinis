@@ -20,6 +20,7 @@
 #include "common_types.h"
 #include "config_e.h"
 #include "trace.h"
+#include "ee_embed.h"
 
 /******************************* DEFINES *************************************/
 
@@ -119,6 +120,10 @@ typedef struct
 
     long long memory_in_use;   // keep track of the memory currently allocated (in bytes)
 
+    // Inside the game engine (EVENTS_IN_ENGINE=1, #694 stage 4): its log
+    // lines go to the game engine's log with an "[events] " prefix
+    int embedded;
+
 } Engine_t;
 
 
@@ -157,29 +162,7 @@ ErrorCode_t ee_engine_init(int argc, char** argv);
 *******************************************************************************/
 ErrorCode_t ee_run();
 
-/** ****************************************************************************
-
-  @brief      Gets the events engine ready for its passes (what ee_run does
-              before its loop)
-
-  @param[in]  void
-
-  @return     void
-
-*******************************************************************************/
-void ee_init();
-
-/** ****************************************************************************
-
-  @brief      Runs one pass of the events engine (the body of ee_run's loop,
-              without its sleep)
-
-  @param[out] found  The number of due events the batch read
-
-  @return     Execution result code (ErrorCode_t)
-
-*******************************************************************************/
-ErrorCode_t ee_pass(int* found);
+// ee_init and ee_pass: see ee_embed.h
 
 
 /** ****************************************************************************

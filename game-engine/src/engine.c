@@ -32,6 +32,7 @@
 #include "config.h"
 #include "clock_floor.h"
 #include "db.h"
+#include "settle.h"
 
 // The current command ran on the drone's VM (not refused, not a meta command)
 static bool g_ran_on_vm = false;
@@ -59,6 +60,12 @@ void engine_send_output(const char* msg, bool with_pending);
 const char* PLAT_HOME = "PLAT_HOME";
 
 Engine_t engine;
+
+/* The settlement connection while a settlement pass runs (EVENTS_IN_ENGINE=1,
+   #694 stage 4; see settle.c), else NULL. While it is set, the shared files
+   (db_common.c, game_time.c, orbits.c) get it from engine_get_db_connection
+   and their log lines carry "[events] " */
+static DbConnection_t* g_settlement_connection = NULL;
 
 /******************************* LOCAL FUNCTIONS *****************************/
 
@@ -190,6 +197,9 @@ ErrorCode_t engine_init_db()
 *******************************************************************************/
 void engine_stop_all()
 {
+	// Settlement's connection (EVENTS_IN_ENGINE=1), and so its lock
+	settle_stop();
+
 	// DB
     db_stop(&engine.db_connection);
 
@@ -1013,6 +1023,12 @@ ErrorCode_t engine_init(int argc, char** argv)
     	engine.error = engine_init_db();
     }
 
+    // Settlement in this engine, with EVENTS_IN_ENGINE=1 (#694 stage 4)
+    if(engine.error == ENGINE_OK)
+    {
+    	settle_init(engine.plat_home, engine.trace_hndl);
+    }
+
     // stop-all when error
     if(engine.error != ENGINE_OK)
     {
@@ -1392,6 +1408,11 @@ ErrorCode_t engine_run()
             engine.last_command.email_content = NULL;
         }
 
+        // Settlement between turns, when due (EVENTS_IN_ENGINE=1, #694 stage
+        // 4): the turn above has committed or rolled back and given up its
+        // locks, and a pass uses its own connection (settle.c). Off: nothing
+        settle_between_turns();
+
 		// Rest only when there was nothing to run (#324 step 20): sleeping
 		// after every command held the engine to one slice per DB_READ_TIME
 		// The connection to MySQL lost (#703): check it at once next pass,
@@ -1404,7 +1425,7 @@ ErrorCode_t engine_run()
 			sleep(1);
 		}
 		else if(!worked)
-			sleep(atoi(engine.config.params[DB_READ_TIME_ID]));
+			settle_rest(atoi(engine.config.params[DB_READ_TIME_ID]));   // off: sleep, as before
 	}
 
 	// deallocate resources/Stop modules
@@ -1478,9 +1499,10 @@ int engine_get_last_error()
 void engine_trace(TraceLevel_t level, const char *trace, ... )
 {
 	static va_list valist;
-	
+
 	va_start(valist, trace);
-	trace_write(engine.trace_hndl, level, trace, valist);
+	// A shared file's line during a settlement pass is settlement's (#694 stage 4)
+	trace_write_prefixed(engine.trace_hndl, level, g_settlement_connection ? "[events] " : "", trace, valist);
 	va_end(valist);
 }
 
@@ -1847,6 +1869,12 @@ void engine_take_order_locks(const int* drones, int count)
     }
 }
 
+/* Settlement passes in this engine set and clear it (settle.c) */
+void engine_set_settlement_connection(DbConnection_t* connection)
+{
+    g_settlement_connection = connection;
+}
+
 void engine_release_order_lock(void)
 {
     for(int i = 0; i < g_order_lock_count; i++) {
@@ -1868,6 +1896,9 @@ void engine_release_order_lock(void)
 *******************************************************************************/
 DbConnection_t* engine_get_db_connection()
 {
+    if(g_settlement_connection)
+        return g_settlement_connection;
+
     if(!engine.db_connection.hndl)
         engine_init_db();
 

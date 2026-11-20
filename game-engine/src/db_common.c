@@ -110,10 +110,18 @@ ErrorCode_t db_reconnect(DbConnection_t* connection)
 *******************************************************************************/
 ErrorCode_t db_claim_engine(DbConnection_t* connection, const char* engine)
 {
+	return db_try_claim_engine(connection, engine, 15);
+}
+
+/* db_claim_engine, waiting at most wait_seconds for the lock (0: not at
+   all). Only a wait that ends without the lock is an error in the log: the
+   game engine's settlement tries again without waiting (#694 stage 4) */
+ErrorCode_t db_try_claim_engine(DbConnection_t* connection, const char* engine, int wait_seconds)
+{
 	if(!connection || !connection->hndl || !engine) return ENGINE_INTERNAL_ERROR;
 
 	char query[256];
-	snprintf(query, sizeof(query), "SELECT GET_LOCK(CONCAT(DATABASE(), '/%s'), 15)", engine);
+	snprintf(query, sizeof(query), "SELECT GET_LOCK(CONCAT(DATABASE(), '/%s'), %d)", engine, wait_seconds);
 	int held = 0;
 	if(mysql_query(connection->hndl, query) == 0) {
 		MYSQL_RES* res = mysql_store_result(connection->hndl);
@@ -122,7 +130,7 @@ ErrorCode_t db_claim_engine(DbConnection_t* connection, const char* engine)
 		if(res) mysql_free_result(res);
 	}
 	if(!held) {
-		engine_trace(TRACE_LEVEL_ALWAYS,
+		if(wait_seconds > 0) engine_trace(TRACE_LEVEL_ALWAYS,
 			"ERROR: another %s is already running on database [%s]: stopping",
 			engine, connection->db_name ? connection->db_name : "NULL");
 		return ENGINE_DB_QUERY_ERROR;

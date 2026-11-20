@@ -136,6 +136,13 @@ static void trace_remove_old(const char *path, time_t now)
 
 void trace_write(TraceHndl_t hdnl, TraceLevel_t level, const char *trace, va_list valist)
 {
+	trace_write_prefixed(hdnl, level, "", trace, valist);
+}
+
+/* A line that says where it comes from (#694 stage 4: "[events] " for the
+   events engine's lines in the game engine's log) */
+void trace_write_prefixed(TraceHndl_t hdnl, TraceLevel_t level, const char *prefix, const char *trace, va_list valist)
+{
 	TraceInfo_t* trace_info = (TraceInfo_t*)hdnl;
 
 	if(trace_info && trace_info->fp && (level <= trace_info->conf.level || trace_info->conf.level == TRACE_LEVEL_QUIET))
@@ -188,8 +195,8 @@ void trace_write(TraceHndl_t hdnl, TraceLevel_t level, const char *trace, va_lis
 
 		// write line
 		fprintf(trace_info->fp, 
-			"* %s.%03ld [%d] %s\n", 
-			date, milliseconds, level, trace_msg);
+			"* %s.%03ld [%d] %s%s\n", 
+			date, milliseconds, level, prefix ? prefix : "", trace_msg);
 
 	    fflush(trace_info->fp);
 	}

@@ -98,6 +98,12 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
+    # With settlement in the events engine (as live) and in the game engine
+    # (EVENTS_IN_ENGINE=1, #694 stage 4)
+    strategy:
+      fail-fast: false
+      matrix:
+        events_in_engine: ['0', '1']
     steps:
       - uses: actions/checkout@v5
 
@@ -107,6 +113,7 @@ jobs:
         # deploy/docker-compose.yml for the live trial, are tested by phpunit
         env:
           FORGE_NEW_RULES: "false"
+          EVENTS_IN_ENGINE: ${{ matrix.events_in_engine }}
         run: deploy/smoke-test.sh
 
       - name: Logs on failure

@@ -43,6 +43,8 @@ static const char* PLAT_HOME = "PLAT_HOME";
 
 Engine_t ee_engine;
 
+static void ee_engine_startup_work(void);
+
 /******************************* LOCAL FUNCTIONS *****************************/
 
 /** ****************************************************************************
@@ -145,8 +147,27 @@ ErrorCode_t ee_engine_init_db()
 	// Only one events-engine per database
 	if(result == ENGINE_OK) result = db_claim_engine(&ee_engine.db_connection, "events-engine");
 
+	if(result == ENGINE_OK) ee_engine_startup_work();
+
+	return result;
+}
+
+/** ****************************************************************************
+
+  @brief      What the events engine does once it holds its lock, before its
+              first pass (bin/events-engine, or the game engine's settlement)
+
+  @param[in]  None
+
+  @return     void
+
+*******************************************************************************/
+static void ee_engine_startup_work(void)
+{
+	ErrorCode_t result = ENGINE_OK;
+
 	// The game clock (its scale is set by the game engine)
-	if(result == ENGINE_OK) game_time_load();
+	game_time_load();
 
 	// Tools left locked by actions aborted before this start (#748: an
 	// outage locked round 71's Makers' Smelters, and they failed every make
@@ -157,8 +178,6 @@ ErrorCode_t ee_engine_init_db()
 	}
 	// The locks in force, kept in memory for the decrement check (#814)
 	if(result == ENGINE_OK) db_tool_locks_load();
-
-	return result;
 }
 
 /** ****************************************************************************
@@ -492,10 +511,10 @@ int ee_engine_get_last_error()
 *******************************************************************************/
 void ee_engine_trace(TraceLevel_t level, const char *trace, ... )
 {
-    static va_list valist;
-    
+    va_list valist;
+
     va_start(valist, trace);
-    trace_write(ee_engine.trace_hndl, level, trace, valist);
+    ee_engine_vtrace(level, trace, valist);
     va_end(valist);
 }
 
@@ -506,7 +525,9 @@ void ee_engine_trace(TraceLevel_t level, const char *trace, ... )
 *******************************************************************************/
 void ee_engine_vtrace(TraceLevel_t level, const char *trace, va_list valist)
 {
-    trace_write(ee_engine.trace_hndl, level, trace, valist);
+    // Inside the game engine its lines share the game engine's log, so they
+    // say they are the events engine's (#694 stage 4)
+    trace_write_prefixed(ee_engine.trace_hndl, level, ee_engine.embedded ? "[events] " : "", trace, valist);
 }
 
 /** ****************************************************************************
@@ -586,8 +607,15 @@ const char* ee_engine_get_vm_resume_command()
 *******************************************************************************/
 DbConnection_t* ee_engine_get_db_connection()
 {
+    // Inside the game engine the connection is opened, and the lock taken,
+    // by ee_embed_claim, which never waits for the lock (#694 stage 4)
     if(!ee_engine.db_connection.hndl)
-        ee_engine_init_db();
+    {
+        if(ee_engine.embedded)
+            ee_db_init(&ee_engine.db_connection);
+        else
+            ee_engine_init_db();
+    }
 
     return &ee_engine.db_connection;
 }
@@ -632,4 +660,124 @@ int engine_get_actions_expiration_days()
 int engine_get_outcome_events_batch_size()
 {
     return atoi(ee_engine.config.params[OUTCOME_EVENT_BATCH_SIZE]);
+}
+
+/******************************* INSIDE ANOTHER PROGRAM **********************/
+
+/*
+ * The events engine inside the game engine (#694 stage 4 step 2,
+ * EVENTS_IN_ENGINE=1; see ee_embed.h and settle.c). Its state is this file's
+ * ee_engine, as in bin/events-engine: its own configuration
+ * (conf/events-engine.conf and the environment) and its own database
+ * connection, so settlement and turns never share a transaction. Its log
+ * lines go to the game engine's log, prefixed "[events] ".
+ */
+
+ErrorCode_t ee_embed_init(const char* plat_home, TraceHndl_t trace)
+{
+    memset(&ee_engine, 0, sizeof(ee_engine));
+    ee_engine.status = ENGINE_IDLE_STATUS;
+    ee_engine.embedded = 1;
+    ee_engine.exe_name = "events-engine";   // conf/events-engine.conf
+    ee_engine.plat_home = (char*)plat_home;
+    ee_engine.trace_hndl = trace;
+    ee_engine.error = plat_home ? ENGINE_OK : ENGINE_PLAT_HOME_ERROR;
+
+    if(ee_engine.error == ENGINE_OK)
+        ee_engine.error = ee_engine_init_config();
+
+    if(ee_engine.error == ENGINE_OK)
+    {
+        ee_engine.db_connection.hndl = NULL;
+        ee_engine.db_connection.host = ee_engine.config.params[DB_HOST_ID];
+        ee_engine.db_connection.port = atoi(ee_engine.config.params[DB_PORT_ID]);
+        ee_engine.db_connection.user = ee_engine.config.params[DB_USER_ID];
+        ee_engine.db_connection.password = ee_engine.config.params[DB_PASSWORD_ID];
+        ee_engine.db_connection.db_name = ee_engine.config.params[DB_NAME_ID];
+        ee_engine.db_connection.lock = NULL;
+        ee_engine.db_connection.checked_at = 0;
+    }
+
+    return ee_engine.error;
+}
+
+ErrorCode_t ee_embed_claim(void)
+{
+    if(ee_engine.error != ENGINE_OK)
+        return ee_engine.error;
+    if(ee_engine.db_connection.lock)
+        return ENGINE_OK;
+
+    if(!ee_engine.db_connection.hndl && ee_db_init(&ee_engine.db_connection) != ENGINE_OK)
+        return ENGINE_DB_CONNECT_ERROR;
+
+    // No waiting: the game engine has turns to run. A bin/events-engine
+    // (an old one still stopping, or one without EVENTS_IN_ENGINE=1) may
+    // hold it; settle.c tries again a few seconds later
+    if(db_try_claim_engine(&ee_engine.db_connection, "events-engine", 0) != ENGINE_OK)
+        return ENGINE_DB_QUERY_ERROR;
+
+    ee_engine_startup_work();
+    ee_init();
+    return ENGINE_OK;
+}
+
+int ee_embed_claimed(void)
+{
+    return ee_engine.embedded && ee_engine.db_connection.lock != NULL;
+}
+
+DbConnection_t* ee_embed_connection(void)
+{
+    return &ee_engine.db_connection;
+}
+
+int ee_embed_owns(const DbConnection_t* connection)
+{
+    return ee_engine.embedded && connection == &ee_engine.db_connection;
+}
+
+void ee_embed_stop(void)
+{
+    if(ee_engine.embedded)
+    {
+        // Closing the connection gives up the lock
+        ee_db_stop(&ee_engine.db_connection);
+        ee_engine.db_connection.lock = NULL;
+        ee_config_engine_stop(&ee_engine.conf_hndl);
+        ee_engine.embedded = 0;
+    }
+}
+
+int ee_rest(int argc, char** argv)
+{
+    memset(&ee_engine, 0, sizeof(ee_engine));
+    ee_engine.exe_name = argv[0];
+    char* pos = strrchr(argv[0], '/');
+    if(pos)
+        ee_engine.exe_name = ++pos;
+    ee_engine.plat_home = getenv(PLAT_HOME);
+    if(!ee_engine.plat_home)
+        return ENGINE_PLAT_HOME_ERROR;
+
+    signal(SIGINT, ee_signals_handler);
+    signal(SIGTERM, ee_signals_handler);
+    if(ee_engine_init_traces() != ENGINE_OK)
+        return ENGINE_LOG_FILE_ERROR;
+
+    ee_engine.status = ENGINE_RUNNING_STATUS;
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "-----------------------------------------------");
+    ee_engine_trace(TRACE_LEVEL_ALWAYS,
+        "NOTICE: EVENTS_IN_ENGINE=1: settlement runs in the game engine, so this events "
+        "engine rests (NAME [%s] PID [%d])", ee_engine.exe_name, getpid());
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "-----------------------------------------------");
+
+    // Never exits by itself: Docker would restart it again and again. A
+    // signal ends the sleep and stops it
+    while(ee_engine.status == ENGINE_RUNNING_STATUS)
+        sleep(60);
+
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "Engine stopped (PID [%d])", getpid());
+    trace_stop(ee_engine.trace_hndl);
+    return ENGINE_OK;
 }
