@@ -58,6 +58,18 @@ class PlayerSharesTest extends TestCase
         return [(int) $r->credits, (int) $r->share_credits];
     }
 
+    /** #839: a company's page and the dashboard say whether its capital is working */
+    public function testCapitalAtWork()
+    {
+        $owner = $this->player('Idle Owner');
+        $id = $this->matured($owner, 'Idle Co', 100000);
+        $this->get('/companies/' . $id)->assertOk()->assertSee('id="capital-working"', false)
+            ->assertSee('Is its capital working?')->assertSee('credits 100,000');
+        $tiles = \App\Services\Dashboard::summaryNow()['tiles'];
+        $this->assertGreaterThanOrEqual(100000, $tiles['capital']['credits']);
+        $this->assertGreaterThan(90, $tiles['capital']['idle_percent'], 'nearly all of it idle credits');
+    }
+
     public function testCashOutValue()
     {
         $owner = $this->player('Valuer');

@@ -178,9 +178,29 @@ class Dashboard
                 'matured' => ['count' => count($m), 'cash_out' => array_sum(array_column($m, 'cash_out_total')),
                     'this_week' => count(array_filter($m, fn ($c) => $c['matured_day'] >= $today - 7))],
                 'profit' => ['week' => $week, 'last_week' => $lastWeek, 'change' => $week - $lastWeek],
+                'capital' => self::capital($m, $p, $today),
                 'players' => ['count' => $players, 'new_this_week' => $newPlayers],
             ],
         ];
+    }
+
+    /**
+     * Is the matured companies' capital working (#839: 93% of their value
+     * was idle cash, earning 2.8% a month)? Their credits, goods and hulls,
+     * the idle share (credits of the three), and their profit over the last
+     * 30 game days against their cash-out value: the return on capital
+     */
+    private static function capital(array $m, array $profit, int $today): array
+    {
+        $credits = array_sum(array_column($m, 'credits'));
+        $goods = array_sum(array_column($m, 'goods'));
+        $hulls = array_sum(array_column($m, 'hulls'));
+        $total = array_sum(array_column($m, 'cash_out_total'));
+        $month = array_sum(array_map(fn ($r) => $r['net'], array_filter($profit, fn ($r) => $r['day'] >= $today - 30 && $r['day'] < $today)));
+        $held = $credits + $goods + $hulls;
+        return ['credits' => $credits, 'goods' => $goods, 'hulls' => $hulls, 'cash_out' => $total,
+            'idle_percent' => $held > 0 ? (int) round(100 * $credits / $held) : null,
+            'profit30' => $month, 'return_percent' => $total > 0 ? round(100 * $month / $total, 1) : null];
     }
 
     /** A change in percent, or null without a base */
@@ -296,7 +316,8 @@ class Dashboard
                 $cash = $cashOuts[(int) $c->company_id];
                 return ['company' => (int) $c->company_id, 'name' => $c->name, 'owner' => $c->login,
                     'matured_day' => intdiv(max(0, (int) $c->matured_t - $epoch), 86400),
-                    'cash_out_total' => (int) $cash['total'], 'cash_out' => (int) $cash['per_share']];
+                    'cash_out_total' => (int) $cash['total'], 'cash_out' => (int) $cash['per_share'],
+                    'credits' => (int) $cash['credits'], 'goods' => (int) $cash['goods'], 'hulls' => (int) $cash['hulls']];
             })->all();
     }
 

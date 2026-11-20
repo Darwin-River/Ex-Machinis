@@ -1478,6 +1478,10 @@ The **Trading desk** (`/market/trade`, under Market in the menu) puts share trad
 - **Your orders,** each with **Move** (a new price: the order keeps its place in time, so its rebate's rest) and **Cancel**.
 - **Your trading script:** whether it is on, and what its latest run did.
 
+### Is its capital working?
+
+A matured company's page shows what it holds as a bar, credits against goods and hulls, and what it made over the last 30 game days against its cash-out value: its **return on capital**. Credits earn nothing until its drones put them to work, so a company worth 690,000 with one drone and nearly all of it in credits may pay less than a small one running flat out (in one playtest, 93% of the matured companies' value sat idle, earning 2.8% a month). The dashboard's **Return on capital** tile gives the same for all matured companies together. Before you buy shares, look at it: the yield is what you're paid, the return on capital is how hard the company works.
+
 ### Raising credits with new shares to fund a copy
 
 A matured company can't take credits from its owner any other way, so it grows on what its drones earn: a copy costs a hull and a kit. Its owner can raise them faster by selling **new shares**:

@@ -218,6 +218,32 @@
                     It has <b id="share-count">{{ number_format($playerShares['count']) }}</b> shares
                     @if($playerShares['count'] > \App\Services\PlayerShares::COUNT)({{ \App\Services\PlayerShares::COUNT }} when it matured, and new ones it sold since) @endif
                     in all.</p>
+                {{-- Is its capital working (#839: most matured companies held their value as idle credits)? --}}
+                @php($cw = $playerShares['cash_out'])
+                @php($cwHeld = max(1, $cw['credits'] + $cw['goods'] + $cw['hulls']))
+                @php($cwMonth = 30 * (\App\Services\Shares::longProfits([(int) $user->user_id])[(int) $user->user_id]['profit30'] ?? 0))
+                @php($cwTotal = max(0, $cw['credits'] + $cw['goods'] + $cw['hulls'] - $cw['debts']))
+                <div id="capital-working" class="mb-3">
+                    <h3 class="h6">Is its capital working?</h3>
+                    <div class="cw-bar" role="img" aria-label="{{ round(100 * $cw['credits'] / $cwHeld) }}% credits, {{ round(100 * $cw['goods'] / $cwHeld) }}% goods, {{ round(100 * $cw['hulls'] / $cwHeld) }}% hulls">
+                        <span class="cw-credits" style="width: {{ 100 * $cw['credits'] / $cwHeld }}%"></span><span class="cw-goods" style="width: {{ 100 * $cw['goods'] / $cwHeld }}%"></span><span class="cw-hulls" style="width: {{ 100 * $cw['hulls'] / $cwHeld }}%"></span>
+                    </div>
+                    <p class="mb-1"><small><span class="cw-key cw-credits"></span> credits {{ number_format($cw['credits']) }} ({{ round(100 * $cw['credits'] / $cwHeld) }}%)
+                        · <span class="cw-key cw-goods"></span> goods {{ number_format($cw['goods']) }} · <span class="cw-key cw-hulls"></span> hulls {{ number_format($cw['hulls']) }}</small></p>
+                    <p>Over the last 30 game days it made about <b>{{ number_format($cwMonth) }}</b> credits:
+                        @if($cwTotal > 0)<b>{{ round(100 * $cwMonth / $cwTotal, 1) }}%</b> on its cash-out value of {{ number_format($cwTotal) }}.@else nothing on a value of 0.@endif
+                        Credits it holds earn nothing until its drones put them to work: more drones, more goods to sell.</p>
+                </div>
+                @once
+                @push('styles')
+                <style>
+                    .cw-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: #1c2440; max-width: 36em; }
+                    .cw-bar span { display: block; height: 100%; }
+                    .cw-credits { background: #8f9bd6; } .cw-goods { background: #5ad19a; } .cw-hulls { background: #ffb547; }
+                    .cw-key { display: inline-block; width: .8em; height: .8em; border-radius: 2px; vertical-align: -1px; }
+                </style>
+                @endpush
+                @endonce
                 {{-- New shares to fund growth (#780): 10 at a time, at cash-out, the credits to the company --}}
                 <div id="share-offering" class="mb-3">
                     @if($playerShares['offering'])
