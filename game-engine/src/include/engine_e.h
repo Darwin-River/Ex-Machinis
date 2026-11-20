@@ -12,6 +12,7 @@
 /******************************* INCLUDES ************************************/
 
 #include <linux/limits.h>
+#include <stdarg.h>
 
 #include <libconfig.h>
 #include <mysql.h>
@@ -143,7 +144,7 @@ typedef struct
   @return     Execution result code (ErrorCode_t)
 
 *******************************************************************************/
-ErrorCode_t engine_init(int argc, char** argv);
+ErrorCode_t ee_engine_init(int argc, char** argv);
 
 /** ****************************************************************************
 
@@ -154,7 +155,31 @@ ErrorCode_t engine_init(int argc, char** argv);
   @return     Execution result code (ErrorCode_t)
 
 *******************************************************************************/
-ErrorCode_t engine_run();
+ErrorCode_t ee_run();
+
+/** ****************************************************************************
+
+  @brief      Gets the events engine ready for its passes (what ee_run does
+              before its loop)
+
+  @param[in]  void
+
+  @return     void
+
+*******************************************************************************/
+void ee_init();
+
+/** ****************************************************************************
+
+  @brief      Runs one pass of the events engine (the body of ee_run's loop,
+              without its sleep)
+
+  @param[out] found  The number of due events the batch read
+
+  @return     Execution result code (ErrorCode_t)
+
+*******************************************************************************/
+ErrorCode_t ee_pass(int* found);
 
 
 /** ****************************************************************************
@@ -166,7 +191,7 @@ ErrorCode_t engine_run();
   @return     void
 
 *******************************************************************************/
-void engine_stop();
+void ee_engine_stop();
 
 
 /** ****************************************************************************
@@ -178,7 +203,7 @@ void engine_stop();
   @return     Boolean result
 
 *******************************************************************************/
-Bool_t engine_is_stopped();
+Bool_t ee_engine_is_stopped();
 
 /** ****************************************************************************
 
@@ -189,7 +214,7 @@ Bool_t engine_is_stopped();
   @return     Last error code
 
 *******************************************************************************/
-int engine_get_last_error();
+int ee_engine_get_last_error();
 
 /** ****************************************************************************
 
@@ -202,7 +227,14 @@ int engine_get_last_error();
   @return     void
 
 *******************************************************************************/
-void engine_trace(TraceLevel_t level, const char *trace, ... );
+void ee_engine_trace(TraceLevel_t level, const char *trace, ... );
+
+/** ****************************************************************************
+
+  @brief      ee_engine_trace with its arguments as a va_list
+
+*******************************************************************************/
+void ee_engine_vtrace(TraceLevel_t level, const char *trace, va_list valist);
 
 
 /** ****************************************************************************
@@ -251,7 +283,7 @@ void engine_vm_output_cb(const char* msg);
   @return     Pointer to memory allocated or NULL when failed
 
 *******************************************************************************/
-void* engine_malloc(size_t size);
+void* ee_engine_malloc(size_t size);
 
 /** ****************************************************************************
 
@@ -262,7 +294,7 @@ void* engine_malloc(size_t size);
   @return     void
 
 *******************************************************************************/
-void engine_free(void* memory, size_t size);
+void ee_engine_free(void* memory, size_t size);
 
 /** ****************************************************************************
 
@@ -286,7 +318,7 @@ const char* engine_get_forth_image_path();
   @return     Command string
 
 *******************************************************************************/
-const char* engine_get_vm_resume_command();
+const char* ee_engine_get_vm_resume_command();
 
 /** ****************************************************************************
 
@@ -297,7 +329,7 @@ const char* engine_get_vm_resume_command();
   @return     Current DB connection info
 
 *******************************************************************************/
-DbConnection_t* engine_get_db_connection();
+DbConnection_t* ee_engine_get_db_connection();
 
 /** ****************************************************************************
 

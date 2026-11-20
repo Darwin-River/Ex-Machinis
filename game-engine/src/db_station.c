@@ -9,7 +9,7 @@
 
 #include "db.h"
 #include "db_station.h"
-#include "engine.h"
+#include "engine_e.h"
 #include "game_time.h"
 #include "station.h"
 #include "trace.h"
@@ -22,7 +22,7 @@
 static ErrorCode_t st_exec(const char* fmt, ...)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     va_list args;
 
     va_start(args, fmt);
@@ -30,7 +30,7 @@ static ErrorCode_t st_exec(const char* fmt, ...)
     va_end(args);
 
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
     }
     return ENGINE_OK;
@@ -40,7 +40,7 @@ static ErrorCode_t st_exec(const char* fmt, ...)
 static MYSQL_RES* st_select(const char* fmt, ...)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     va_list args;
 
     va_start(args, fmt);
@@ -48,7 +48,7 @@ static MYSQL_RES* st_select(const char* fmt, ...)
     va_end(args);
 
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return NULL;
     }
     return mysql_store_result(connection->hndl);
@@ -94,7 +94,7 @@ ErrorCode_t db_station_record(Event_t* event)
     if(res) mysql_free_result(res);
 
     if(!station || units <= 0) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d]: no House station here %s resource [%d]",
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d]: no House station here %s resource [%d]",
             event->drone_id, side == STATION_BUYS ? "buys" : "sells", event->resource_id);
         event->outcome = OUTCOME_NO_STATION;
         return ENGINE_LOGIC_ERROR;
@@ -106,7 +106,7 @@ ErrorCode_t db_station_record(Event_t* event)
         station, side, event->resource_id, units, event->drone_id, company, event->action_id, batch_t);
 
     if(result == ENGINE_OK)
-        engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] %s [%d] units of resource [%d] at station [%d], batch clears at game time [%lld]",
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] %s [%d] units of resource [%d] at station [%d], batch clears at game time [%lld]",
             event->drone_id, side == STATION_BUYS ? "offers" : "orders", units, event->resource_id, station, batch_t);
     return result;
 }
@@ -154,7 +154,7 @@ static ErrorCode_t st_deliver(int drone, int resource, int units, int mass)
     Event_t ev;
     memset(&ev, 0, sizeof(ev));
     ev.event_type = INCREMENT_INVENTORY_EVENT_TYPE;
-    ev.action_id = (int)mysql_insert_id(engine_get_db_connection()->hndl);
+    ev.action_id = (int)mysql_insert_id(ee_engine_get_db_connection()->hndl);
     ev.logged = 1;
     ev.outcome = OUTCOME_NO_OUTCOME;
     ev.drone_id = drone;
@@ -178,7 +178,7 @@ static ErrorCode_t st_clear_batch(int station, int resource, int side, long long
     // Once only: a batch already recorded was cleared (and paid) before
     if(st_value(0, "SELECT COUNT(*) FROM station_batches WHERE station_id = %d AND resource = %d AND side = %d AND batch_t = %lld",
                 station, resource, side, batch_t) > 0) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Station [%d] batch [%lld] for resource [%d] was already cleared", station, batch_t, resource);
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Station [%d] batch [%lld] for resource [%d] was already cleared", station, batch_t, resource);
         return st_exec("UPDATE station_offers SET cleared_t = %lld WHERE station_id = %d AND resource = %d AND side = %d "
                        "AND batch_t = %lld AND cleared_t IS NULL", now, station, resource, side, batch_t);
     }
@@ -299,7 +299,7 @@ static ErrorCode_t st_clear_batch(int station, int resource, int side, long long
                          "VALUES (%d, %d, %d, %lld, %lld, %lld, %d, %lld)",
                          station, resource, side, batch_t, asked, filled, price, now);
 
-    engine_trace(TRACE_LEVEL_ALWAYS, "Station [%d] cleared batch [%lld] for resource [%d] (%s): [%lld] units asked, [%lld] filled at [%d] (result [%d])",
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "Station [%d] cleared batch [%lld] for resource [%d] (%s): [%lld] units asked, [%lld] filled at [%d] (result [%d])",
         station, batch_t, resource, side == STATION_BUYS ? "buying" : "selling", asked, filled, price, result);
     return result;
 }
@@ -310,7 +310,7 @@ ErrorCode_t db_station_clear_due(void)
     long long batches[50];
     int n = 0;
 
-    ErrorCode_t result = db_reconnect(engine_get_db_connection());
+    ErrorCode_t result = db_reconnect(ee_engine_get_db_connection());
     if(result != ENGINE_OK)
         return result;
 

@@ -44,7 +44,7 @@
   @return     Execution result code
 
 ******************************************************************************/
-ErrorCode_t config_engine_read(config_t *conf_handle, char* conf_file, char* params[]);
+ErrorCode_t ee_config_engine_read(config_t *conf_handle, char* conf_file, char* params[]);
 
 /** ***************************************************************************
 
@@ -55,6 +55,6 @@ ErrorCode_t config_engine_read(config_t *conf_handle, char* conf_file, char* par
   @return     void
 
 ******************************************************************************/
-void config_engine_stop(config_t *conf_handle);
+void ee_config_engine_stop(config_t *conf_handle);
 
 #endif // __EM_CONFIG_E_MODULE__

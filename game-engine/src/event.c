@@ -20,6 +20,7 @@
 #include "wreck.h"
 #include "engine_e.h"
 #include "db.h"
+#include "db_e.h"
 #include "orbits.h"
 #include "game_time.h"
 
@@ -65,7 +66,7 @@ Bool_t event_batch_retry(void) { return batch_retry; }
 
 static Bool_t event_db_error_is_transient(void)
 {
-    DbConnection_t *connection = engine_get_db_connection();
+    DbConnection_t *connection = ee_engine_get_db_connection();
     if(connection == NULL || connection->hndl == NULL)
         return ENGINE_TRUE;
     switch(mysql_errno(connection->hndl)) {
@@ -87,9 +88,9 @@ static Bool_t event_retry_if_transient(Event_t *event)
 {
     if(!event_db_error_is_transient())
         return ENGINE_FALSE;
-    engine_trace(TRACE_LEVEL_ALWAYS,
+    ee_engine_trace(TRACE_LEVEL_ALWAYS,
         "WARNING: event [%d] of action [%d] hit a passing database error [%u]: the batch is rolled back and retried",
-        event->event_id, event->action_id, mysql_errno(engine_get_db_connection()->hndl));
+        event->event_id, event->action_id, mysql_errno(ee_engine_get_db_connection()->hndl));
     batch_retry = ENGINE_TRUE;
     return ENGINE_TRUE;
 }
@@ -138,19 +139,19 @@ ErrorCode_t event_update_new_cargo_and_quantity
 
     if(event == NULL)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL event received, unable to update new cargo");
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL event received, unable to update new cargo");
         result = ENGINE_INTERNAL_ERROR;
     }
 
     if(previous_event == NULL)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL previous_event received, unable to update new cargo");
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL previous_event received, unable to update new cargo");
         result = ENGINE_INTERNAL_ERROR;
     }
 
     if(previous_resource_event == NULL)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL previous_resource_event received, unable to update new cargo");
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL previous_resource_event received, unable to update new cargo");
         result = ENGINE_INTERNAL_ERROR;
     }
 
@@ -159,7 +160,7 @@ ErrorCode_t event_update_new_cargo_and_quantity
 
     if((result == ENGINE_OK) && (event->new_quantity != NULL_VALUE))
     {
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
           "New quantity %d, prev_event_cargo %d, previous_event_resource_quantity %d",
           event->new_quantity, previous_event->new_cargo,
           previous_resource_event->new_quantity);
@@ -181,7 +182,7 @@ ErrorCode_t event_update_new_cargo_and_quantity
             DroneResources_t* resource = (resources + i); // shortcut
             if(resource->quantity >= 0) {
                 total_cargo += (resource->quantity * resource->mass);
-                engine_trace(TRACE_LEVEL_ALWAYS,
+                ee_engine_trace(TRACE_LEVEL_ALWAYS,
                   "Adding resource [%s], quantity [%d], mass [%d] to new_cargo, total now [%d]",
                   resource->name, resource->quantity, resource->mass,
                   total_cargo);
@@ -189,7 +190,7 @@ ErrorCode_t event_update_new_cargo_and_quantity
         }
 
         // add current event new_cargo that already contains (mass * quantity)
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
           "Adding current event cargo [%d] to [%d]",
           event->new_cargo,
           total_cargo);
@@ -227,7 +228,7 @@ ErrorCode_t event_update_new_credit(Event_t *event)
 
     if(event == NULL)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL event received, unable to update new credits");
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL event received, unable to update new credits");
         result = ENGINE_INTERNAL_ERROR;
     }
 
@@ -292,7 +293,7 @@ Bool_t event_no_resources_condition
 {
     // Check if we can execute this resource change
     if((event->new_quantity != NULL_VALUE) && (event->new_quantity < 0)) {
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
             "Current resources quantity [%d] is not enough for a depletion of [%d]",
             previous_resource_event->new_quantity, previous_event->new_quantity);
 
@@ -303,7 +304,7 @@ Bool_t event_no_resources_condition
     // can't leave fewer units than the locks on it
     if(event->event_type == DECREMENT_INVENTORY_EVENT_TYPE && event->locked == 0 && event->new_quantity != NULL_VALUE &&
        db_tool_lock_blocks(event->drone_id, event->resource_id, event->installed, event->new_quantity)) {
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
             "Resource [%d] of drone [%d]: [%d] would be left, fewer than its tools in use",
             event->resource_id, event->drone_id, event->new_quantity);
         return ENGINE_TRUE;
@@ -336,7 +337,7 @@ Bool_t event_no_cargo_condition(Event_t *event)
 
     if(db_get_max_drone_cargo(event->drone_id, &capacity) == ENGINE_OK) {
         // Compare current cargo vs. max capacity
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
             "Current cargo [%d], max capacity [%d]",
             event->new_cargo, capacity);
 
@@ -481,7 +482,7 @@ ErrorCode_t event_validate_event_conditions
         result = ENGINE_OK;
     }
 
-    engine_trace(TRACE_LEVEL_ALWAYS,
+    ee_engine_trace(TRACE_LEVEL_ALWAYS,
         "Updating event "
         "EVENT_ID [%d] EVENT_TYPE [%d] ACTION_ID [%d] LOGGED [%d] OUTCOME [%d] "
         "DRONE_ID [%d] RESOURCE_ID [%d] INSTALLED [%d] LOCKED [%d] NEW_QUANTITY [%d] "
@@ -523,7 +524,7 @@ ErrorCode_t event_abort_action(Event_t *event)
     ErrorCode_t result = ENGINE_INTERNAL_ERROR;
 
     if(event)
-        result = db_abort_action(event->action_id);
+        result = ee_db_abort_action(event->action_id);
     current_action_valid = 0;   // it is aborted now
 
     return result;
@@ -559,12 +560,12 @@ ErrorCode_t event_get_drone_position(int object_id, char* position, double* dist
         memset(&sun, 0, sizeof(ObjectOrbitInfo_t));
 
         if(db_get_object_info_by_name_x("Sun", &sun) != ENGINE_OK) {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to obtain SUN position");
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to obtain SUN position");
             result = ENGINE_DB_QUERY_ERROR;
         }
 
         if(result == ENGINE_OK) {
-            engine_trace(TRACE_LEVEL_DEBUG,  "[%s] has OBJ_ID=[%d]", sun.object_name, sun.object_id);
+            ee_engine_trace(TRACE_LEVEL_DEBUG,  "[%s] has OBJ_ID=[%d]", sun.object_name, sun.object_id);
 
             // Obtain the drone position from this object ID
             memset(&object, 0, sizeof(ObjectOrbitInfo_t));
@@ -574,7 +575,7 @@ ErrorCode_t event_get_drone_position(int object_id, char* position, double* dist
             do {
                 // Get current object info
                 if(db_get_orbit_info_x(&object) != ENGINE_OK) {
-                    engine_trace(TRACE_LEVEL_ALWAYS,
+                    ee_engine_trace(TRACE_LEVEL_ALWAYS,
                         "ERROR: Unable to obtain position for drone with OBJ_ID=[%d]",
                         object.object_id);
 
@@ -587,7 +588,7 @@ ErrorCode_t event_get_drone_position(int object_id, char* position, double* dist
                         sprintf(position, "%s", drone.object_name);
                     }
 
-                    engine_trace(TRACE_LEVEL_DEBUG,
+                    ee_engine_trace(TRACE_LEVEL_DEBUG,
                         "OBJ_ID=[%d] CENTRAL_BODY_OBJ_ID=[%d] SUN_OBJECT_ID=[%d]",
                         object.object_id, object.central_body_object_id, sun.object_id);
 
@@ -617,19 +618,19 @@ ErrorCode_t event_get_drone_position(int object_id, char* position, double* dist
         }
 
         if(result == ENGINE_OK) {
-            engine_trace(TRACE_LEVEL_DEBUG,  "OBJ_ID=[%d] is at [%s]", drone.object_id, drone.object_name);
+            ee_engine_trace(TRACE_LEVEL_DEBUG,  "OBJ_ID=[%d] is at [%s]", drone.object_id, drone.object_name);
 
             // Obtain Earth info
             memset(&earth, 0, sizeof(ObjectOrbitInfo_t));
 
             if(db_get_object_info_by_name_x("Earth", &earth) != ENGINE_OK) {
-                engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to obtain EARTH position");
+                ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to obtain EARTH position");
                 result = ENGINE_DB_QUERY_ERROR;
             }
         }
 
         if(result == ENGINE_OK) {
-            engine_trace(TRACE_LEVEL_DEBUG,  "OBJ_ID=[%d] is at [%s]", earth.object_id, earth.object_name);
+            ee_engine_trace(TRACE_LEVEL_DEBUG,  "OBJ_ID=[%d] is at [%s]", earth.object_id, earth.object_name);
 
             // Get distance between Earth <-> drone
             *distance = orbits_get_distance_from_object(&earth, &final_position);
@@ -727,7 +728,7 @@ Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* use
 
     // Input pointers checked by calling function
 
-    engine_trace(TRACE_LEVEL_ALWAYS,
+    ee_engine_trace(TRACE_LEVEL_ALWAYS,
         "Checking if event [%d] represents a market transaction between drone [%d] and drone [%d]",
         event->event_id,
         action->drone_id,
@@ -736,7 +737,7 @@ Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* use
     // Check if the drone that generated the action is different from the affected one
     // and both belong to different companies
     if(action->drone_id != event->drone_id) {
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
             "Checking if drones [%d] and [%d] belong to different users",
             action->drone_id,
             event->drone_id);
@@ -745,7 +746,7 @@ Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* use
            (db_get_drone_user(event->drone_id, user) == ENGINE_OK) &&
            (peer_user->user_id != user->user_id)) {
 
-            engine_trace(TRACE_LEVEL_ALWAYS,
+            ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "Event [%d] represents a market transaction between drone [%d] and drone [%d]",
                 event->event_id,
                 action->drone_id,
@@ -798,7 +799,7 @@ ErrorCode_t event_process_market_transaction
         selling = ENGINE_FALSE;
     }
 
-    engine_trace(TRACE_LEVEL_ALWAYS,
+    ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "Processing market transaction at event [%d], "
                 "drone [%d], user [%d] is %s [%d] units of resource [%d] %s drone [%d], user [%d]",
                 event->event_id,
@@ -817,7 +818,7 @@ ErrorCode_t event_process_market_transaction
     Event_t sell_buy_event;
     result = db_get_previous_event(event, filter, &sell_buy_event);
     if(result != ENGINE_OK) {
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
             "Drone [%d] has no %s order for resource [%d]",
             event->drone_id, (selling == ENGINE_TRUE) ? "sell" : "buy", event->resource_id);
         event->outcome = OUTCOME_NO_MARKET_ORDER;
@@ -835,7 +836,7 @@ ErrorCode_t event_process_market_transaction
             int canSellAmount = resource_quantity - sell_buy_event.new_quantity;
             if(canSellAmount < 0) canSellAmount = 0;
 
-            engine_trace(TRACE_LEVEL_ALWAYS,
+            ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "Per event ID [%d], drone [%d] has [%d] units of resource [%d]. Per event [%d], it needs to keep [%d] and could sell [%d]",
                 previous_resource_event->event_id,
                 previous_resource_event->drone_id,
@@ -846,13 +847,13 @@ ErrorCode_t event_process_market_transaction
                 canSellAmount);
 
             if(canSellAmount && (canSellAmount >= abs(event->new_quantity))) {
-                engine_trace(TRACE_LEVEL_ALWAYS,
+                ee_engine_trace(TRACE_LEVEL_ALWAYS,
                     "drone [%d] sells [%d] units of resource [%d] (operation permitted)",
                     event->drone_id,
                     abs(event->new_quantity),
                     event->resource_id);
             } else {
-                engine_trace(TRACE_LEVEL_ALWAYS,
+                ee_engine_trace(TRACE_LEVEL_ALWAYS,
                     "WARNING: drone [%d] CAN NOT SELL [%d] units of resource [%d] "
                     "(operation forbidden, can only sell [%d])",
                     event->drone_id,
@@ -867,7 +868,7 @@ ErrorCode_t event_process_market_transaction
             int canBuyAmount = sell_buy_event.new_quantity - resource_quantity;
             if(canBuyAmount < 0) canBuyAmount = 0;
 
-            engine_trace(TRACE_LEVEL_ALWAYS,
+            ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "Per event ID [%d], drone [%d] has [%d] units of resource [%d]. Per event [%d], it needs a total of [%d] units and will buy [%d]",
                 previous_resource_event->event_id,
                 previous_resource_event->drone_id,
@@ -878,13 +879,13 @@ ErrorCode_t event_process_market_transaction
                 canBuyAmount);
 
             if(canBuyAmount && (canBuyAmount >= event->new_quantity)) {
-                engine_trace(TRACE_LEVEL_ALWAYS,
+                ee_engine_trace(TRACE_LEVEL_ALWAYS,
                     "drone [%d] buys [%d] units of resource [%d] (operation permitted)",
                     event->drone_id,
                     event->new_quantity,
                     event->resource_id);
             } else {
-                engine_trace(TRACE_LEVEL_ALWAYS,
+                ee_engine_trace(TRACE_LEVEL_ALWAYS,
                     "WARNING: drone [%d] CAN NOT BUY [%d] units of resource [%d] "
                     "(operation forbidden, can only buy [%d])",
                     event->drone_id,
@@ -909,7 +910,7 @@ ErrorCode_t event_process_market_transaction
 
 
             if(buyer->credits >= price) {
-                engine_trace(TRACE_LEVEL_ALWAYS,
+                ee_engine_trace(TRACE_LEVEL_ALWAYS,
                     "user [%d] pays [%d] credits to buy [%d] units of resource [%d] (current credits [%d])",
                     buyer->user_id,
                     price,
@@ -921,7 +922,7 @@ ErrorCode_t event_process_market_transaction
                 // selling, charged when buying
                 *amount = (selling == ENGINE_TRUE) ? price : -price;
             } else {
-                engine_trace(TRACE_LEVEL_ALWAYS,
+                ee_engine_trace(TRACE_LEVEL_ALWAYS,
                     "WARNING: user [%d] CAN NOT pay [%d] credits to buy [%d] units of resource [%d] (current credits [%d])",
                     buyer->user_id,
                     price,
@@ -967,7 +968,7 @@ ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* pe
     peer_user->credits -= amount;
     seller->credits -= *tax;
     if(*tax > 0) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Sales tax: user [%d] pays [%d] of [%d] credits", seller->user_id, *tax, abs(amount));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Sales tax: user [%d] pays [%d] of [%d] credits", seller->user_id, *tax, abs(amount));
         db_record_sales_tax(seller->user_id, *tax, seller->credits);
     }
 
@@ -979,7 +980,7 @@ ErrorCode_t event_do_market_transaction(Event_t *event, User_t* user, User_t* pe
     // events engine settles them once a game day from the company's profit
     // (db_shares.c)
 
-    engine_trace(TRACE_LEVEL_ALWAYS,
+    ee_engine_trace(TRACE_LEVEL_ALWAYS,
         "Completing market transaction at event [%d], "
         "user [%d] drone [%d] credits [%d] <=>  user [%d] drone [%d] credits [%d]",
         event->event_id,
@@ -1052,11 +1053,11 @@ static ErrorCode_t event_apply(Event_t *event)
     // Sanity check
     if(event == NULL)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL outcome event skipped");
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL outcome event skipped");
         return ENGINE_INTERNAL_ERROR;
     }
 
-    engine_trace(TRACE_LEVEL_ALWAYS,
+    ee_engine_trace(TRACE_LEVEL_ALWAYS,
         "Processing event "
         "EVENT_ID [%d] EVENT_TYPE [%d] ACTION_ID [%d] LOGGED [%d] OUTCOME [%d] "
         "DRONE_ID [%d] RESOURCE_ID [%d] INSTALLED [%d] LOCKED [%d] NEW_QUANTITY [%d] "
@@ -1086,7 +1087,7 @@ static ErrorCode_t event_apply(Event_t *event)
 
     if((result != ENGINE_OK) || action.aborted)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
             "WARNING: Event [%d] is associated with an aborted action [%d], not processed/discarded",
             event->event_id,
             event->action_id);
@@ -1111,7 +1112,7 @@ static ErrorCode_t event_apply(Event_t *event)
             return ENGINE_LOGIC_ERROR;
         }
 
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
           "Market event [%d], no processing done, only observations table updated",
           event->event_id,
           event->action_id);
@@ -1198,10 +1199,10 @@ static ErrorCode_t event_apply(Event_t *event)
 
         // Update drone location.
         if(result == ENGINE_OK)
-            result = db_update_agent_object(engine_get_db_connection(), event->drone_id, event->new_location);
+            result = ee_db_update_agent_object(ee_engine_get_db_connection(), event->drone_id, event->new_location);
 
         // Log result.
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "Drone [%d] moves to location [%d] in event [%d].",
                 event->drone_id,
                 event->new_location,
@@ -1249,7 +1250,7 @@ static ErrorCode_t event_apply(Event_t *event)
                 back.new_cargo = LAUNCH_FUEL;
                 result = db_insert_event_e(&back);
             }
-            engine_trace(TRACE_LEVEL_ALWAYS, "Launch event [%d] refused: drone [%d]'s company has its [%d] working drones; "
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "Launch event [%d] refused: drone [%d]'s company has its [%d] working drones; "
                 "kit [%d] and the clone's fuel given back", event->event_id, event->drone_id, cap, event->resource_id);
             event->outcome = OUTCOME_FLEET_CAP;
             event->logged = 1;
@@ -1512,7 +1513,7 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
     Event_t second = *partner;
     ErrorCode_t result;
 
-    engine_trace(TRACE_LEVEL_ALWAYS,
+    ee_engine_trace(TRACE_LEVEL_ALWAYS,
         "Transfer for action [%d]: events [%d] and [%d] are applied together",
         event->action_id, event->event_id, partner->event_id);
 
@@ -1528,7 +1529,7 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
         if(event_retry_if_transient(event))
             return ENGINE_DB_QUERY_ERROR;
 
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
             "Transfer for action [%d] refused: drone [%d] is at [%d], drone [%d] is at [%d]",
             event->action_id, event->drone_id, from_object, partner->drone_id, to_object);
 
@@ -1570,7 +1571,7 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
     if(event_retry_if_transient(event))
         return result;   // the whole batch is rolled back
 
-    engine_trace(TRACE_LEVEL_ALWAYS,
+    ee_engine_trace(TRACE_LEVEL_ALWAYS,
         "Transfer for action [%d] failed (outcomes [%d] and [%d]): undoing both halves",
         event->action_id, event->outcome, partner->outcome);
 
@@ -1607,7 +1608,7 @@ ErrorCode_t event_process_outcome(Event_t *event)
 
     if(event == NULL)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL outcome event skipped");
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: NULL outcome event skipped");
         return ENGINE_INTERNAL_ERROR;
     }
 
@@ -1617,7 +1618,7 @@ ErrorCode_t event_process_outcome(Event_t *event)
     Bool_t settled = ENGINE_FALSE;
     if((db_event_settled_in_batch(event->event_id, &settled) == ENGINE_OK) && settled)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Event [%d] already processed", event->event_id);
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Event [%d] already processed", event->event_id);
         return ENGINE_OK;
     }
 
@@ -1650,7 +1651,7 @@ ErrorCode_t event_process_outcome(Event_t *event)
 *******************************************************************************/
 void event_trace(Event_t* event)
 {
-  engine_trace(TRACE_LEVEL_ALWAYS,
+  ee_engine_trace(TRACE_LEVEL_ALWAYS,
           "Event info: "
           "EVENT_ID [%d] EVENT_TYPE [%d] ACTION_ID [%d] LOGGED [%d] OUTCOME [%d] "
           "DRONE_ID [%d] RESOURCE_ID [%d] INSTALLED [%d] LOCKED [%d] NEW_QUANTITY [%d] "

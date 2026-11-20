@@ -30,7 +30,7 @@
 /******************************* GLOBAL VARIABLES ****************************/
 
 // Whole process configuration
-char conf_param_names[MAX_CONFIG_PARAM+1][MAX_CONF_PARAM_LEN] = 
+static char conf_param_names[MAX_CONFIG_PARAM+1][MAX_CONF_PARAM_LEN] = 
 {
     // Application config
     "APP_TRACE_LEVEL",
@@ -60,10 +60,10 @@ char conf_param_names[MAX_CONFIG_PARAM+1][MAX_CONF_PARAM_LEN] =
   @return     void
 
 ******************************************************************************/
-void config_missing_param(char *param)
+void ee_config_missing_param(char *param)
 {
     if(param) {
-        engine_trace(TRACE_LEVEL_ALWAYS, 
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, 
         	"ERROR: Missing parameter [%s] at configuration",
             param);
     }
@@ -79,7 +79,7 @@ void config_missing_param(char *param)
   @return     Execution result
 
 ******************************************************************************/
-ErrorCode_t config_read_parameters(config_t *conf_handle, char* params[])
+ErrorCode_t ee_config_read_parameters(config_t *conf_handle, char* params[])
 {
     int result;
     int i;
@@ -103,14 +103,14 @@ ErrorCode_t config_read_parameters(config_t *conf_handle, char* params[])
                 (const char**)&params[i]);
 
             if(result != CONFIG_TRUE) {
-                config_missing_param((char*)name);
+                ee_config_missing_param((char*)name);
                 // Stop reading
                 return ENGINE_CONFIG_ERROR;
             }
         }
 
         // Never write secrets to the log
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
             "Config param read [%s]=[%s] (from %s)",
             name,
             strstr(name, "PASSWORD") ? "********" : params[i],
@@ -134,7 +134,7 @@ ErrorCode_t config_read_parameters(config_t *conf_handle, char* params[])
   @return     Execution result code
 
 ******************************************************************************/
-ErrorCode_t config_engine_read(config_t *conf_handle, char* conf_file, char* params[])
+ErrorCode_t ee_config_engine_read(config_t *conf_handle, char* conf_file, char* params[])
 {
     if(conf_handle && conf_file && params) 
     {
@@ -143,7 +143,7 @@ ErrorCode_t config_engine_read(config_t *conf_handle, char* conf_file, char* par
         // validate file
         if(access(conf_file, F_OK|R_OK)) 
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to read config file [%s] ([%d],[%s])", 
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to read config file [%s] ([%d],[%s])", 
                 conf_file, errno, strerror(errno));
 
             return ENGINE_CONFIG_ERROR;
@@ -152,7 +152,7 @@ ErrorCode_t config_engine_read(config_t *conf_handle, char* conf_file, char* par
         // read whole file and display error information
         if(!config_read_file(conf_handle, conf_file))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, 
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, 
             	"ERROR: Configuration error, file [%s] line [%d] text [%s]",
                 config_error_file(conf_handle),
                 config_error_line(conf_handle),
@@ -160,19 +160,19 @@ ErrorCode_t config_engine_read(config_t *conf_handle, char* conf_file, char* par
 
             return ENGINE_CONFIG_ERROR;
         } 
-        else if(config_read_parameters(conf_handle, params) != ENGINE_OK)
+        else if(ee_config_read_parameters(conf_handle, params) != ENGINE_OK)
         {
         	return ENGINE_CONFIG_ERROR;
         }
         else
         {
-        	engine_trace(TRACE_LEVEL_ALWAYS, "Config file [%s] succesfully read", 
+        	ee_engine_trace(TRACE_LEVEL_ALWAYS, "Config file [%s] succesfully read", 
         		conf_file);
         }
     } 
     else 
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: NULL parameters at config load");
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: NULL parameters at config load");
         return ENGINE_INTERNAL_ERROR;
     }
 
@@ -181,12 +181,12 @@ ErrorCode_t config_engine_read(config_t *conf_handle, char* conf_file, char* par
 
 /******************************************************************************/
 
-void config_engine_stop(config_t *conf_handle)
+void ee_config_engine_stop(config_t *conf_handle)
 {
 	if(conf_handle) 
     {
     	config_destroy(conf_handle);
 
-    	engine_trace(TRACE_LEVEL_ALWAYS, "Configuration resources deallocated");
+    	ee_engine_trace(TRACE_LEVEL_ALWAYS, "Configuration resources deallocated");
     }
 }
