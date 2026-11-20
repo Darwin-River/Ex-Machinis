@@ -22,7 +22,7 @@ Every function below is built in (`game-engine/src/lua_library.lua`). Actions re
 | Resources | `fuel`, `magmite`, `kunspar`, `yalspar`, `vladnium`, `wolfite`; `metals_a1` to `metals_a3`, `alloys_a1` to `alloys_a3`, `organics_a1`, `organics_a2`, `inorganics_a1`, `inorganics_a2`, `rods`; `mining_kit`, `factory_kit`, `cruiser_kit`, `engine_module` (any other resource by its number) |
 | Moving | `travel(place)`, `go(place)` (stays put if already there; returns -2 at once, burning no fuel, with no Engine aboard, #743), `trip(place)` (game hours to fly there; -1 if unknown), `trip_to(place)` and `trip_between(a, b)` (`{distance, seconds, hours}`; distance in thousands of km) |
 | Places | `place_name(place)`, `place_type(place)`, `orbits(place)`, `orbiting(place)`, `position(place)` (`{x, y, z}`), `drones_at(place)`, `crowd(place)`, `wrecks_at(place)`, `minerals(place)` and `best_sites(mineral)` (`{resource, abundance}`, and the 10 best places `{place, abundance, units, distance}`: richest, then most left, then nearest), `deposits()` (`{resource, units, capacity, refill}`, here) |
-| Mining and making | `mine(mineral)`, `refine(mineral)`, `make(resource)`, `recipe(resource)` |
+| Mining and making | `mine(mineral)`, `refine(mineral)`, `make(resource)`, `recipe(resource)`, `tier(resource)`, `is_made(resource)` |
 | Your hold | `units(resource)`, `hold()` (a list of `{resource, units}`), `cargo_mass()`, `capacity()`, `space()` (capacity left), `jettison(n, resource)`, `push(n, resource, drone)`, `pull(n, resource, drone)` |
 | The House's supply | `house_supply(resource)` (#630, query 707): at each exchange that sells it, cheapest first: `{place, price, on_sale, refill_to, daily, sold, last_minutes, round_minutes, next_minutes}`: its price (0 when sold out), the units on sale now, what each round of restocking tops it back up to (a quarter of the day's supply), the day's supply, the units sold today, and in game minutes since its station last restocked this good, between its rounds, and until its next round (-1 when unknown; 0 when due now). A good that sells out is back, up to `refill_to`, at the next round. The figures are at most 10 real seconds old (about 5 game hours at the normal pace; #710) |
 | The House's demand | `house_demand(resource)` (#550, query 706): at each exchange that buys it, best bid first: `{place, price, left, daily, listed, hours, sold, mine, empty_hours}`: its bid now and the units it still takes today (its live buy order's, as a sale would find them, #608; price 0 when it has no bid), its day's demand, its listed price (its bid with nothing bought today), the game hours until it refills, the units sold into it today, how many of those your company sold, and the game hours until it has bought its fill at today's pace (-1 when none sold today). Its bid falls toward half of `listed` as it fills and stops at the day's demand (where the exchange also sells the good it buys back its stock to sell too, up to a quarter of a day's sales, so `left` can be more than `daily`); what it bought goes down to the surface at the start of each game day |
@@ -378,6 +378,14 @@ end
 
 - Check every input before the first step (`if units(metals_a1) < 8 or units(metals_a2) < 2 then return end`), so a half-built chain doesn't strand alloys in the hold. Check the fuel too: `if units(fuel) < 30 then return end`.
 - A long chain needs a bigger fuel margin: start brewing at 60, not 40.
+
+**`tier(resource)`** and **`is_made(resource)`** (built in, #539): how many recipe steps a resource is from what is mined. `tier` is 0 for an ore, 1 for a refined good (metals, inorganics, organics), 2 for what is made from those (alloys, polymers, fuel), and so on up through parts and systems. `is_made(r)` is true from tier 2 up: a maker makes it from other goods, so before you buy one, see whether its inputs cost less. Resource numbers don't say this: Alloys (2021) sit among the metals (2011) and inorganics (2031). Each resource is looked up once a run.
+
+```lua
+if is_made(alloys_a1) then
+  local r = recipe(alloys_a1)       -- what it's made from, to price it both ways
+end
+```
 
 **`recipe(resource)`** (built in, #380 round 36): the first recipe that makes a resource, or nil: a table `{protocol, makes (units made), uses = {[resource] = units}, fuel, tool, hours}`. `uses` doesn't include fuel: that's `fuel`, the units it burns. `tool` is the module it needs, or nil. A drone that prices what it could make (inputs from `buy_price`, the product from `sell_price`) can choose, each round, what pays best here and now:
 

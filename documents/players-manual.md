@@ -448,6 +448,17 @@ The **tens** digit is unique for each resource within a subcategory.
 
 The **ones** value is used to distinguish between the size and tech level of a particular resource. In general, 1-3 will be reserved for A-sized resources of each tech level, 4-5 will be assigned to B-sized resources, and C sizes will be encoded by IDs whose ones digits range from 7-9.
 
+**Raw or made?** The numbers don't tell a raw good from a made one: among the materials, Alloys (2021-2023) and Polymers (2051-2053) are made from the refined Metals (2011-2013), Inorganics (2031-2033) and Organics (2041-2043) around them. Ask with `tier(r)`: the recipe steps from what is mined.
+
+| `tier(r)` | What it is | Examples |
+|---|---|---|
+| 0 | Mined | ores: Kunspar (N), Wolfite (N) |
+| 1 | Refined from an ore | Metals, Inorganics, Organics |
+| 2 | Made from refined goods | Alloys, Polymers, Fuel |
+| 3 and up | Made from made goods | parts, then systems and modules |
+
+`is_made(r)` is true from tier 2 up. Before buying a made good, price its inputs too: in one playtest, a rule of "below 2051 means buy it" bought Alloys at 172 instead of smelting 2 metals at about 38 each.
+
 ### Browsing the Resource Catalog
 
 You can browse and search the available resources online by going to the **Resources** page (`/resources` on the game's website). The catalog provides a filterable list of all the resources in the game along with a small picture, their unique ID, a brief description of the item, and a unit mass in kilograms. Clicking on a particular resource will take you to a details page, which lists all of the item's active buy or sell orders. Every resource also has a picture there that slowly turns, from ore samples and ingots to whole craft, so you can see what you are mining, making or buying. If your device is set to reduce motion, the picture stays still.
@@ -1018,7 +1029,7 @@ Every drone comes with a library of names for the game, so you can write `mine(k
 | State machines | `become(mode)`, `in_mode(mode)`, `tick()`, `ticks()` and the variable `mode`: a drone that changes what it does as the market changes (see [Market-aware drones](#market-aware-drones)) |
 | Output | `print(...)` writes to your drone's output, `report()` sends what it has printed so far home at once |
 | Shares (old rules) | `sell_shares`, `buy_shares`, `pull_shares`, `push_shares`, `offer_shares`, `commit_shares`, `invest_surplus` and `answer_bids` are still in the library, but under the new rules every one of them fails with -18: players, not companies, trade shares (see [The old share functions](#the-old-share-functions)) |
-| Other | `stdlib()` is the library's version number |
+| Other | `stdlib()` is the library's version number (20) |
 
 `jettison(n, resource)` throws n units of a resource out of the hold into space, for 1 fuel whatever the amount. Use it for goods nobody buys where you are: a hold that fills up leaves no room for the fuel you make, and a drone without fuel dies. `jettison(10, inorganics_a2)` throws away 10 Inorganics (A2).
 
