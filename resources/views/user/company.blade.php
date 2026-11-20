@@ -73,8 +73,8 @@
                 @else
                     <div class="stat"><div class="stat-label">Net wealth</div>
                         <div class="stat-value {{ ($stats['wealth'] ?? 0) < 0 ? 'stat-negative' : '' }}">{{ $stats['wealth'] === null ? '—' : number_format($stats['wealth']) }}</div>
-                        {{-- A startup's starts below 0 (#833): its kit is equipment, which net wealth doesn't count --}}
-                        @if($road)<small>its kit and drone aren't counted, so a startup starts about 2,000 below 0</small>@endif</div>
+                        {{-- One story for net wealth everywhere (#862): credits and goods aboard, less what it was lent at the start --}}
+                        @if($road)<small>credits plus the goods and equipment aboard, less the {{ number_format((int) config('forge.starting_credits')) }} it was lent: a new startup starts near 0</small>@endif</div>
                 @endif
                 <div class="stat"><div class="stat-label">Credits</div>
                     <div class="stat-value">{{ number_format($user->credits) }}</div></div>
@@ -92,8 +92,8 @@
                         <div class="stat-value">{{ number_format($stats['dividends30']) }}</div></div>
                 @endif
                 <div class="stat"><div class="stat-label">Rank at its age</div>
-                    <div class="stat-value" id="peer-rank">@if($rank){{ $rank['rank'] }}<small> of {{ $rank['of'] }}</small>@else — @endif</div>
-                    @if($rank)<a class="stat-link" href="{{ url('leaderboard') . '?age=' . $rank['age'] }}">compare</a>@endif</div>
+                    <div class="stat-value" id="peer-rank">@if($rank){{ $rank['rank'] }}<small> of {{ $rank['of'] }}{{ ($rank['among'] ?? 'all') === 'startups' ? ' startups' : '' }}</small>@else — @endif</div>
+                    @if($rank)<a class="stat-link" href="{{ url('leaderboard') . '?age=' . $rank['age'] . (($rank['among'] ?? 'all') === 'startups' ? '&startups=1' : '') }}">compare</a>@endif</div>
                 <div class="stat"><div class="stat-label">Age</div>
                     <div class="stat-value">{{ number_format($stats['age'], 1) }}<small> game days</small></div></div>
             </div>
@@ -366,7 +366,7 @@
                     </table>
                 </div>
                 <p><small>What each drone earned: its sales after tax less its purchases. Equipment it bought (its kit, modules and hulls) is
-                    invested, not spent, as on the charts above, so it isn't counted against it. A maker that buys inputs earns less here than the
+                    invested, not spent: the kit and modules still count in the company's net wealth at their market price, so they aren't counted against the drone here. A maker that buys inputs earns less here than the
                     seller it feeds, so read a drone against the job its code gives it.</small></p>
             @endif
 

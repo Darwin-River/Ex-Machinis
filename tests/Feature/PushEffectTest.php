@@ -60,6 +60,9 @@ class PushEffectTest extends TestCase
         $trade($other, $drone, 100, $push - 7200);
         $trade($drone, $other, 1000, $push + 3600);
         $trade($drone, $other, 5000, $push - 3 * 86400); // outside the span
+        // A kit bought after the push is invested, not a trading loss (#879)
+        DB::table('trades')->insert(['resource' => \App\Services\Release::KITS['mining'], 'units' => 1, 'credits' => 2000,
+            'tax' => 0, 'seller' => $other, 'buyer' => $drone, 'location' => 3, 'game_t' => $push + 7200]);
         foreach ([1, 2, 3, 4] as $h) {
             $this->failAt($drone, $push - $h * 3600);
         }

@@ -22,16 +22,16 @@
                 @if(config('forge.new_rules'))
                 {{-- The new rules' words (#717: the intro still spoke of shares companies held and launching copies) --}}
                 Companies by net wealth: each startup starts a company, and its drones belong to it.
-                Net wealth is the company's credits, plus the goods aboard its working drones at their market price
+                Net wealth is the company's credits, plus the goods and equipment (its kit and modules) aboard its working drones at their market price
                 (what they sold for, a unit, over the last three game days), less the processor tax it owes, minus what a
                 company starts with ({{ number_format($kit) }}: the starting credits and fuel the bank lends it). So a new
-                company is worth 0, and net wealth is what it made. The drones' hulls and a startup's debt to the bank
+                company is worth about 0, and net wealth is what it made. The drones' hulls and the bank's fees
                 aren't counted. It isn't what a matured company's shares are worth: that is its
                 <a href="{{ url('market/shares') }}">cash-out value</a>, which counts its hulls and debts too.
                 <b>Rising</b> is the gain over the last {{ \App\Services\Leaderboard::RISING_DAYS }} game days. <b>Age</b> is game days since the company was founded
                 (an ended company's age stops when it ended).
                 To compare companies fairly, pick an age: every company is then ranked by its net wealth when it was that old,
-                old-world companies included.
+                old-world companies included unless you choose startups only (a startup's own rank counts only those).
                 @else
                 Companies by net wealth: each release starts a company, and the drones it launches belong to it.
                 Net wealth is the company's credits, plus the goods aboard its working drones at their market price
@@ -57,7 +57,10 @@
                 @endforeach
             </form>
             @if($atAge !== null)
-                <h3>At age {{ rtrim(rtrim(number_format($age, 1), '0'), '.') }} game days</h3>
+                <h3>At age {{ rtrim(rtrim(number_format($age, 1), '0'), '.') }} game days{{ $startupsOnly ? ', startups only' : '' }}</h3>
+                <p><small>@if($startupsOnly)Only companies founded as startups.
+                    <a href="{{ url()->current() . '?age=' . $age }}">Every company</a>@else
+                    <a href="{{ url()->current() . '?age=' . $age . '&startups=1' }}">Only companies founded as startups</a>@endif</small></p>
                 <p style="white-space: normal">
                     Each company's net wealth when it was {{ rtrim(rtrim(number_format($age, 1), '0'), '.') }} game days old,
                     from its daily history: so a company that had longer to grow is compared as it was then.

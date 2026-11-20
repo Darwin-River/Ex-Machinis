@@ -63,6 +63,9 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['new-rules', 'throttle:api-read'])->get('account', 'AccountApiController@show');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('account/verify', 'AccountApiController@resendVerification');
     // Startups (#637)
+    // The old names (seedlings until #855) still answer a GET, by redirect (#868)
+    Route::redirect('seedlings', '/api/v1/startups', 301);
+    Route::redirect('seedlings/race', '/api/v1/startups/race', 301);
     Route::middleware(['new-rules', 'throttle:api-read'])->get('startups', 'StartupApiController@index');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('startups/claim', 'StartupApiController@claim');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('startups/{id}/push', 'StartupApiController@reprogram')->whereNumber('id');

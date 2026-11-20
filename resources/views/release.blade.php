@@ -133,7 +133,7 @@
                                 <span class="rl-role">{{ $card['role'] }}</span>
                                 <b>{{ ucfirst($name) }}</b>
                                 <span class="rl-line">{{ $card['line'] }}</span>
-                                <small>{{ $card['kit'] }}@if($newRules) &middot; matured in {{ $card['mature'] }}@endif</small>
+                                <small>{{ $card['kit'] }}@if($newRules) &middot; matures in {{ $card['mature'] }}@endif</small>
                             </a>
                         @endforeach
                     </div>

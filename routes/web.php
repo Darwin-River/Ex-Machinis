@@ -91,6 +91,12 @@ Route::get('/lineage', 'WorldController@lineage');
 // The tech map (#804): every manufacturing pathway, recipe and tool
 Route::get('/technology', 'WorldController@technology');
 Route::redirect('/tech-map', '/technology', 301);
+// Startups were seedlings until #855: old links and printed worksheets still
+// work, and /startups lands on the race (#868)
+Route::redirect('/startups', '/startups/race', 301);
+Route::redirect('/seedlings', '/startups/race', 301);
+Route::redirect('/seedlings/race', '/startups/race', 301);
+Route::redirect('/first-seedling', '/getting-started', 301);
 Route::get('/machine/queries', 'WorldController@machineQueries');
 Route::get('/machine/protocols', 'WorldController@machineProtocols');
 Route::get('/machine/query', 'WorldController@machineQuery')->middleware('throttle:240,1');

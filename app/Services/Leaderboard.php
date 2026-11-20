@@ -238,11 +238,11 @@ class Leaderboard
      * the company was founded (a fresh release is worth 0) to its wealth now,
      * linearly between points.
      */
-    public static function atAge(float $age, ?int $limit = null, ?array $board = null): array
+    public static function atAge(float $age, ?int $limit = null, ?array $board = null, bool $startupsOnly = false): array
     {
         $board ??= self::wealth();
         $now = World::gameNow();
-        [$companies, $points] = self::lines($board, [$age]);
+        [$companies, $points] = self::lines($board, [$age], $startupsOnly);
         $rows = [];
         $tooYoung = $endedBefore = 0;
         foreach ($companies as $co => $c) {
@@ -272,18 +272,22 @@ class Leaderboard
      * the last day before it and the first on or after it, and the last day
      * of all, so readAt gives just what it would from the whole line.
      */
-    private static function lines(array $board, array $ages): array
+    private static function lines(array $board, array $ages, bool $startupsOnly = false): array
     {
         $epoch = (float) (DB::table('game_clock')->where('id', 1)->value('epoch') ?? 0);
         $dayOf = fn ($t) => ($t - $epoch) / 86400;
-        $companies = DB::table('companies')->where('house', 0)->whereNotNull('founded_t')
-            ->get(['company_id', 'name', 'founded_t', 'eliminated_at'])->keyBy('company_id');
+        $q = DB::table('companies')->where('house', 0)->whereNotNull('founded_t');
+        if ($startupsOnly) {
+            $q->where(fn ($w) => $w->where('startup', 1)->orWhereNotNull('matured_t'));
+        }
+        $companies = $q->get(['company_id', 'name', 'founded_t', 'eliminated_at'])->keyBy('company_id');
         $points = [];
         foreach ($companies as $co => $c) {
             $points[$co] = [[$dayOf((int) $c->founded_t), 0]];
         }
         if (Schema::hasTable('company_days') && $companies->isNotEmpty()) {
             $born = '((c.founded_t - ?) / 86400)';
+            $only = $startupsOnly ? ' AND (c.startup = 1 OR c.matured_t IS NOT NULL)' : '';
             $days = [];   // company_id => [day => true]
             $add = function ($rows, array $cols) use (&$days) {
                 foreach ($rows as $r) {
@@ -295,12 +299,12 @@ class Leaderboard
                 }
             };
             $add(DB::select("SELECT c.company_id, (SELECT MAX(d.day) FROM company_days AS d WHERE d.company_id = c.company_id AND d.day > $born) AS last_day
-                FROM companies AS c WHERE c.house = 0 AND c.founded_t IS NOT NULL", [$epoch]), ['last_day']);
+                FROM companies AS c WHERE c.house = 0 AND c.founded_t IS NOT NULL$only", [$epoch]), ['last_day']);
             foreach (array_unique(array_map('floatval', $ages)) as $age) {
                 $add(DB::select("SELECT c.company_id,
                     (SELECT MAX(d.day) FROM company_days AS d WHERE d.company_id = c.company_id AND d.day > $born AND d.day < $born + ?) AS before_day,
                     (SELECT MIN(d.day) FROM company_days AS d WHERE d.company_id = c.company_id AND d.day > $born AND d.day >= $born + ?) AS after_day
-                    FROM companies AS c WHERE c.house = 0 AND c.founded_t IS NOT NULL",
+                    FROM companies AS c WHERE c.house = 0 AND c.founded_t IS NOT NULL$only",
                     [$epoch, $epoch, $age, $epoch, $epoch, $age]), ['before_day', 'after_day']);
             }
             $pairs = [];
@@ -398,9 +402,13 @@ class Leaderboard
             return null;
         }
         $me = $rows[$companyId];
-        $board = self::atAge($me['age'], null, $rows);
+        // A company founded under the startup rules is ranked among those only
+        // (#882: old-world companies ran under other rules, and topped every age)
+        $startup = DB::table('companies')->where('company_id', $companyId)
+            ->where(fn ($w) => $w->where('startup', 1)->orWhereNotNull('matured_t'))->exists();
+        $board = self::atAge($me['age'], null, $rows, $startup);
         $rank = 1 + (int) array_search($companyId, array_column($board['rows'], 'company_id'), true);
-        return ['rank' => $rank, 'of' => $board['of'], 'age' => $me['age']];
+        return ['rank' => $rank, 'of' => $board['of'], 'age' => $me['age'], 'among' => $startup ? 'startups' : 'all'];
     }
 
     /** Takes the hourly snapshot when it is due; returns whether it did */

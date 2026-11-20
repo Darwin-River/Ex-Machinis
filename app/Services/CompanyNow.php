@@ -21,6 +21,14 @@ class CompanyNow
     /** Game days of history its pace is read from */
     public const PACE_DAYS = 7;
 
+    /**
+     * The least history a forecast is drawn from (#878): a young startup's
+     * first days (buying its kit, its first load) say little about its pace,
+     * and a forecast from two of them promised "11 real minutes" to one
+     * that took 45 game days
+     */
+    public const MIN_PACE_DAYS = 6;
+
     /** The strip's rows for an account: ['startups' => [...], 'alerts' => [...]], or null with nothing to show */
     public static function for(User $user): ?array
     {
@@ -48,7 +56,7 @@ class CompanyNow
         $days = DB::table('company_days')->where('company_id', $c->company_id)->where('day', '>=', $today - self::PACE_DAYS)
             ->orderBy('day')->get(['day', 'credits']);
         $pace = null;
-        if (count($days) >= 2) {
+        if (count($days) >= 2 && $today - (int) $days->first()->day >= self::MIN_PACE_DAYS) {
             $first = $days->first();
             $span = max(1, $today - (int) $first->day);
             $pace = ((int) $c->credits - (int) $first->credits) / $span;

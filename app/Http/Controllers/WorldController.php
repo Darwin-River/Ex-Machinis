@@ -138,12 +138,14 @@ class WorldController extends Controller
         // Every company at the same age (#614), from its history
         $age = is_numeric($request->query('age')) ? min(100000, max(0, round((float) $request->query('age'), 1))) : null;
         $board = Leaderboard::wealth();
-        $atAge = $age === null ? null : Leaderboard::atAge($age, 100, $board);
+        // Only companies founded under the startup rules (#882), as a startup's rank counts them
+        $startupsOnly = $request->boolean('startups');
+        $atAge = $age === null ? null : Leaderboard::atAge($age, 100, $board, $startupsOnly);
         $allTime = Leaderboard::allTime(50, $maxAge);
         $rising = Leaderboard::rising(50, $maxAge);
         $hasAWeek = Leaderboard::hasAWeek();
         $kit = Leaderboard::kitValue(Leaderboard::prices());
-        return view('world.leaderboard', compact('allTime', 'rising', 'hasAWeek', 'kit', 'maxAge', 'age', 'atAge'));
+        return view('world.leaderboard', compact('allTime', 'rising', 'hasAWeek', 'kit', 'maxAge', 'age', 'atAge', 'startupsOnly'));
     }
 
     /** The lineage map (#618): every release and push, with the earlier code each carries */

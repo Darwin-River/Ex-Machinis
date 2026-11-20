@@ -57,7 +57,10 @@
 @endpush
 @section('content')
     @php($n = fn ($v) => number_format($v))
-    <x-page-header :title="'Your first startup'" :subtitle="'Five minutes to found a startup from a starter script, and about 40 real minutes to two hours, at the normal pace, until it matures into a company of your own: pick a starter, start it, read its page, push a fix, mature it.'">
+    {{-- The time to mature comes from the starter cards (#870), so the two never disagree --}}
+    @php($cardDays = collect(\App\Services\Release::STARTER_CARDS)->pluck('days')->filter())
+    @php($realMin = fn ($d) => (int) round($d * 0.8))
+    <x-page-header :title="'Your first startup'" :subtitle="'Five minutes to found a startup from a starter script, and about ' . $realMin($cardDays->min(fn ($d) => $d[0])) . ' to ' . $realMin($cardDays->max(fn ($d) => $d[1])) . ' real minutes, at the normal pace, until it matures into a company of your own: pick a starter, start it, read its page, push a fix, mature it.'">
         <li class="active">Getting started</li>
     </x-page-header>
     <section class="section section-xs section-first">
@@ -90,7 +93,7 @@
                                 <span class="fs-role">{{ $card['role'] }}</span>
                                 <h3>{{ ucfirst($name) }}</h3>
                                 <p>{{ $card['line'] }}</p>
-                                <dl><dt>Buys</dt><dd>a {{ $card['kit'] }} (2,000)</dd><dt>Matured in</dt><dd>{{ $card['mature'] }}</dd></dl>
+                                <dl><dt>Buys</dt><dd>a {{ $card['kit'] }} (2,000)</dd><dt>Matures in</dt><dd>{{ $card['mature'] }}</dd></dl>
                                 <span class="fs-go">Start with the {{ ucfirst($name) }} &rarr;</span>
                             </a>
                         @endforeach
