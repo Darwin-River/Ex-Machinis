@@ -13,6 +13,9 @@
     .mt-tabs a { padding: 4px 12px; border-radius: 99px; color: #c3c9d8 !important; text-decoration: none; border: 1px solid transparent; }
     .mt-tabs a:hover { border-color: #263052; }
     .mt-tabs a[aria-current="page"] { background: #ffb547; color: #1a1200 !important; font-weight: 700; }
+    /* In the page header, under the title (#840) */
+    .page-tabs .mt-tabs{ margin: .9rem 0 0; border-bottom: 0; padding-bottom: 0; }
+    .page-tabs .mt-tabs a:not([aria-current]) { background: rgba(11, 15, 26, .55); }
 </style>
 @endpush
 @endonce

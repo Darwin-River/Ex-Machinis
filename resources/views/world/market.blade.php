@@ -4,7 +4,7 @@
 @section('content')
     {{-- The Market page (#721): a goods board, one row per good. Round 70: it was 28,300 pixels of order tables;
          each good's whole order book is on its own page, the House's demand and supply on /market/house --}}
-    <x-page-header :title="'Market'" :subtitle="'Where each good is cheapest to buy and where it sells for most, right now. Click a good for its order book and price history.'" />
+    <x-page-header tabs="market" :title="'Market'" :subtitle="'Where each good is cheapest to buy and where it sells for most, right now. Click a good for its order book and price history.'" />
     @php
         // One colour for each place, the same on every page (#760)
         $colour = [];
@@ -13,7 +13,6 @@
     @endphp
     <section class="section section-xs section-first">
         <div class="container" id="container">
-            @include('partials.market-tabs')
             {{-- Where fuel is on sale now (#609): round 63's drones stranded where none was --}}
             <p id="fuel-for-sale" @class(['mk-lead', 'health-banner' => $fuel['none']])>
                 <b>Fuel on sale now:</b>

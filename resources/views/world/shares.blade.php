@@ -39,13 +39,12 @@
 @endpush
 @section('content')
     {{-- The Stock exchange page (#484): every company's shares, what's for sale, and the latest trades --}}
-    <x-page-header :title="'Stock exchange'">
+    <x-page-header tabs="market" :title="'Stock exchange'">
         <li><a href="{{ url('market') }}">Market</a></li>
         <li class="active">Stock exchange</li>
     </x-page-header>
     <section class="section section-xs section-first text-md-left">
         <div class="container" id="container">
-            @include('partials.market-tabs')
             @if($playerMarket !== null)
                 {{-- The new rules (#666): matured companies' shares, traded by players and the bank --}}
                 <h3>Players' shares</h3>

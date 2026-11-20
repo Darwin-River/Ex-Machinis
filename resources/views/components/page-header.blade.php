@@ -1,8 +1,9 @@
 {{-- The band at the top of each page (#524): its title, an optional line
      under it, and the breadcrumb trail (the slot: <li> items after Home).
      Behind it, a space scene for the part of the site the page is in (#737),
-     rendered by tools/render (render.py header) into html/images/headers/ --}}
-@props(['title', 'subtitle' => null, 'scene' => null])
+     rendered by tools/render (render.py header) into html/images/headers/.
+     tabs: a part of the site's tab bar under the title ('market') --}}
+@props(['title', 'subtitle' => null, 'scene' => null, 'tabs' => null])
 @php
     $scenes = [
         'market' => 'market', 'buys' => 'market', 'sells' => 'market', 'resource-orders' => 'market',
@@ -31,6 +32,10 @@
         <h1 class="page-title">{{ $title }}</h1>
         @if ($subtitle)
             <p class="page-subtitle">{{ $subtitle }}</p>
+        @endif
+        {{-- A part of the site's own tabs, in the header (#840: one header everywhere, tabs included) --}}
+        @if ($tabs === 'market')
+            <div class="page-tabs">@include('partials.market-tabs')</div>
         @endif
     </div>
 </section>
