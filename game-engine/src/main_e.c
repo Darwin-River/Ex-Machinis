@@ -38,11 +38,11 @@
 int main(int argc, char** argv) 
 { 
     // initialize engine & run it
-    if(engine_init(argc, argv) == ENGINE_OK)
+    if(ee_engine_init(argc, argv) == ENGINE_OK)
     {
-        engine_run();
+        ee_run();
     }
 
-    return (engine_get_last_error());   
+    return (ee_engine_get_last_error());   
 }
 

@@ -8,7 +8,7 @@
 
 #include "db.h"
 #include "db_wreck.h"
-#include "engine.h"
+#include "engine_e.h"
 #include "game_time.h"
 #include "trace.h"
 #include "wreck.h"
@@ -20,7 +20,7 @@
 static ErrorCode_t wr_exec(const char* fmt, ...)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     va_list args;
 
     va_start(args, fmt);
@@ -28,7 +28,7 @@ static ErrorCode_t wr_exec(const char* fmt, ...)
     va_end(args);
 
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
     }
     return ENGINE_OK;
@@ -38,7 +38,7 @@ static ErrorCode_t wr_exec(const char* fmt, ...)
 static MYSQL_RES* wr_select(const char* fmt, ...)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     va_list args;
 
     va_start(args, fmt);
@@ -46,7 +46,7 @@ static MYSQL_RES* wr_select(const char* fmt, ...)
     va_end(args);
 
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return NULL;
     }
     return mysql_store_result(connection->hndl);
@@ -74,7 +74,7 @@ static ErrorCode_t wr_haul_action(int drone, int* action)
 {
     ErrorCode_t result = wr_exec("INSERT INTO actions (drone, protocol, multiplier, aborted) VALUES (%d, %d, 1, 0)",
                                  drone, PLUNDER_HAUL_PROTOCOL_ID);
-    *action = (int)mysql_insert_id(engine_get_db_connection()->hndl);
+    *action = (int)mysql_insert_id(ee_engine_get_db_connection()->hndl);
     return result;
 }
 
@@ -126,7 +126,7 @@ ErrorCode_t db_plunder(Event_t* event)
     // A startup plunders nothing, and a startup's wreck leaves the game
     // with what it held (#637)
     if(startup_plunderer) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] is a startup's: it plunders nothing", plunderer);
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] is a startup's: it plunders nothing", plunderer);
         event->outcome = OUTCOME_STARTUP_HOUSE_ONLY;
         return ENGINE_LOGIC_ERROR;
     }
@@ -134,7 +134,7 @@ ErrorCode_t db_plunder(Event_t* event)
         unplundered = 0;
 
     if(!found || !unplundered || !here) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d]: no unplundered wreck [%d] here", plunderer, wreck);
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d]: no unplundered wreck [%d] here", plunderer, wreck);
         event->outcome = OUTCOME_NO_WRECK;
         return ENGINE_LOGIC_ERROR;
     }
@@ -168,7 +168,7 @@ ErrorCode_t db_plunder(Event_t* event)
     }
     if(res) mysql_free_result(res);
     if(n == 0) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] plunders wreck [%d]: nothing aboard", plunderer, wreck);
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] plunders wreck [%d]: nothing aboard", plunderer, wreck);
         return ENGINE_OK;
     }
 
@@ -193,7 +193,7 @@ ErrorCode_t db_plunder(Event_t* event)
                 total += units[j];
 
         long long taken = wreck_share(total, share, wreck, resources[i]);
-        engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] plunders wreck [%d]: [%lld] of [%lld] units of resource [%d]",
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] plunders wreck [%d]: [%lld] of [%lld] units of resource [%d]",
             plunderer, wreck, taken, total, resources[i]);
         if(taken <= 0)
             continue;

@@ -24,6 +24,7 @@
 #include "db_wreck.h"
 #include "game_time.h"
 #include "db.h"
+#include "db_e.h"
 
 /******************************* DEFINES *************************************/
 
@@ -38,9 +39,9 @@
 /******************************* GLOBAL VARIABLES ****************************/
 
 // env variable
-const char* PLAT_HOME = "PLAT_HOME";
+static const char* PLAT_HOME = "PLAT_HOME";
 
-Engine_t engine;
+Engine_t ee_engine;
 
 /******************************* LOCAL FUNCTIONS *****************************/
 
@@ -54,10 +55,10 @@ Engine_t engine;
   @return     void
 
 *******************************************************************************/
-void signals_handler(int signal_id)
+void ee_signals_handler(int signal_id)
 {
-    engine_trace(TRACE_LEVEL_ALWAYS, "Signal [%d] received", signal_id);
-    engine_stop();
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "Signal [%d] received", signal_id);
+    ee_engine_stop();
 }
 
 /** ****************************************************************************
@@ -69,20 +70,20 @@ void signals_handler(int signal_id)
   @return     Execution result 
 
 *******************************************************************************/
-ErrorCode_t engine_init_traces()
+ErrorCode_t ee_engine_init_traces()
 {
 	ErrorCode_t result = ENGINE_OK;
 
     // Define traces configuration
-    engine.trace_conf.level = TRACE_LEVEL_DEBUG;
-    snprintf(engine.trace_conf.log_file_path, 
+    ee_engine.trace_conf.level = TRACE_LEVEL_DEBUG;
+    snprintf(ee_engine.trace_conf.log_file_path, 
     	PATH_MAX, 
     	"%s/log/%s.log",
-    	engine.plat_home,
-    	engine.exe_name);
+    	ee_engine.plat_home,
+    	ee_engine.exe_name);
 
 
-    result = trace_init(&engine.trace_conf, &engine.trace_hndl);
+    result = trace_init(&ee_engine.trace_conf, &ee_engine.trace_hndl);
 	
 	return result;
 }
@@ -96,21 +97,21 @@ ErrorCode_t engine_init_traces()
   @return     void
 
 *******************************************************************************/
-ErrorCode_t engine_init_config()
+ErrorCode_t ee_engine_init_config()
 {
 	ErrorCode_t result = ENGINE_OK;
 
 	// set config file name
-	snprintf(engine.options.conf_file_path, 
+	snprintf(ee_engine.options.conf_file_path, 
     	PATH_MAX, 
     	"%s/conf/%s.conf",
-    	engine.plat_home,
-    	engine.exe_name);
+    	ee_engine.plat_home,
+    	ee_engine.exe_name);
 
     // load config
-    result = config_engine_read(&engine.conf_hndl, 
-    	engine.options.conf_file_path, 
-    	engine.config.params);
+    result = ee_config_engine_read(&ee_engine.conf_hndl, 
+    	ee_engine.options.conf_file_path, 
+    	ee_engine.config.params);
 
     return result;
 }
@@ -124,25 +125,25 @@ ErrorCode_t engine_init_config()
   @return     void
 
 *******************************************************************************/
-ErrorCode_t engine_init_db()
+ErrorCode_t ee_engine_init_db()
 {
 	ErrorCode_t result = ENGINE_OK;
 
     // initialize DB parameters
-    engine.db_connection.hndl = NULL;
-    engine.db_connection.host = engine.config.params[DB_HOST_ID];
-    engine.db_connection.port = atoi(engine.config.params[DB_PORT_ID]);
-    engine.db_connection.user = engine.config.params[DB_USER_ID];
-    engine.db_connection.password = engine.config.params[DB_PASSWORD_ID];
-    engine.db_connection.db_name = engine.config.params[DB_NAME_ID];
-    engine.db_connection.lock = NULL;
-    engine.db_connection.checked_at = 0;
+    ee_engine.db_connection.hndl = NULL;
+    ee_engine.db_connection.host = ee_engine.config.params[DB_HOST_ID];
+    ee_engine.db_connection.port = atoi(ee_engine.config.params[DB_PORT_ID]);
+    ee_engine.db_connection.user = ee_engine.config.params[DB_USER_ID];
+    ee_engine.db_connection.password = ee_engine.config.params[DB_PASSWORD_ID];
+    ee_engine.db_connection.db_name = ee_engine.config.params[DB_NAME_ID];
+    ee_engine.db_connection.lock = NULL;
+    ee_engine.db_connection.checked_at = 0;
 
 	// db
-	result = db_init(&engine.db_connection);
+	result = ee_db_init(&ee_engine.db_connection);
 
 	// Only one events-engine per database
-	if(result == ENGINE_OK) result = db_claim_engine(&engine.db_connection, "events-engine");
+	if(result == ENGINE_OK) result = db_claim_engine(&ee_engine.db_connection, "events-engine");
 
 	// The game clock (its scale is set by the game engine)
 	if(result == ENGINE_OK) game_time_load();
@@ -152,7 +153,7 @@ ErrorCode_t engine_init_db()
 	// until their companies dissolved)
 	if(result == ENGINE_OK) {
 		int freed = db_free_stuck_tools();
-		if(freed > 0) engine_trace(TRACE_LEVEL_ALWAYS, "Freed [%d] stuck tool holdings", freed);
+		if(freed > 0) ee_engine_trace(TRACE_LEVEL_ALWAYS, "Freed [%d] stuck tool holdings", freed);
 	}
 	// The locks in force, kept in memory for the decrement check (#814)
 	if(result == ENGINE_OK) db_tool_locks_load();
@@ -169,22 +170,22 @@ ErrorCode_t engine_init_db()
   @return     void
 
 *******************************************************************************/
-void engine_stop_all()
+void ee_engine_stop_all()
 {
 	// DB
-    db_stop(&engine.db_connection);
+    ee_db_stop(&ee_engine.db_connection);
 
     // CONFIG
-    config_engine_stop(&engine.conf_hndl);
+    ee_config_engine_stop(&ee_engine.conf_hndl);
 
-	engine.status = ENGINE_STOPPED_STATUS;
+	ee_engine.status = ENGINE_STOPPED_STATUS;
 
-	engine_trace(TRACE_LEVEL_ALWAYS, "-----------------------------------------");
-    engine_trace(TRACE_LEVEL_ALWAYS, "Engine stopped (PID [%d])", getpid());
-    engine_trace(TRACE_LEVEL_ALWAYS, "-----------------------------------------");
+	ee_engine_trace(TRACE_LEVEL_ALWAYS, "-----------------------------------------");
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "Engine stopped (PID [%d])", getpid());
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "-----------------------------------------");
 
     // TRACES
-    trace_stop(engine.trace_hndl);
+    trace_stop(ee_engine.trace_hndl);
 }
 
 /** ****************************************************************************
@@ -213,77 +214,187 @@ void engine_process_outcome(Event_t* event)
   @return     Execution result code (ErrorCode_t)
 
 *******************************************************************************/
-ErrorCode_t engine_init(int argc, char** argv)
+ErrorCode_t ee_engine_init(int argc, char** argv)
 {
 	// Initialize engine
-	memset(&engine, 0, sizeof(engine));
+	memset(&ee_engine, 0, sizeof(ee_engine));
 
-	engine.status = ENGINE_IDLE_STATUS;
+	ee_engine.status = ENGINE_IDLE_STATUS;
 
-	engine.argc = argc;
-	engine.argv = argv;
+	ee_engine.argc = argc;
+	ee_engine.argv = argv;
 
-	engine.error = ENGINE_OK;
+	ee_engine.error = ENGINE_OK;
 
     // Get the basename
-    engine.exe_name = argv[0];
+    ee_engine.exe_name = argv[0];
     char* pos = strrchr(argv[0], '/');
     if(pos)
     {
-        engine.exe_name = ++pos;
+        ee_engine.exe_name = ++pos;
     }
 
 	// Check PLAT_HOME - mandatory
-	engine.plat_home = getenv(PLAT_HOME);
+	ee_engine.plat_home = getenv(PLAT_HOME);
 
-	if(!engine.plat_home)
+	if(!ee_engine.plat_home)
 	{
-		engine.error = ENGINE_PLAT_HOME_ERROR;
+		ee_engine.error = ENGINE_PLAT_HOME_ERROR;
 	}
 
-    if(engine.error == ENGINE_OK)
+    if(ee_engine.error == ENGINE_OK)
     {
-		signal(SIGINT, signals_handler);
-    	signal(SIGTERM, signals_handler);
+		signal(SIGINT, ee_signals_handler);
+    	signal(SIGTERM, ee_signals_handler);
 
     	// Define exit callback
-    	atexit(engine_stop);
+    	atexit(ee_engine_stop);
     }
 
     // Initialize traces
-    if(engine.error == ENGINE_OK)
+    if(ee_engine.error == ENGINE_OK)
     {
-    	engine.error = engine_init_traces();
+    	ee_engine.error = ee_engine_init_traces();
     }
 
-    engine_trace(TRACE_LEVEL_ALWAYS, "-----------------------------------------------");
-    engine_trace(TRACE_LEVEL_ALWAYS, 
-        "Engine started (NAME [%s] PID [%d])", engine.exe_name, getpid());
-    engine_trace(TRACE_LEVEL_ALWAYS, "-----------------------------------------------");
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "-----------------------------------------------");
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, 
+        "Engine started (NAME [%s] PID [%d])", ee_engine.exe_name, getpid());
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "-----------------------------------------------");
 
     // Initialize config
-    if(engine.error == ENGINE_OK)
+    if(ee_engine.error == ENGINE_OK)
     {
-    	engine.error = engine_init_config();
+    	ee_engine.error = ee_engine_init_config();
     }
 
     // update trace level using conf
-    trace_set_level(engine.trace_hndl, 
-    atoi(engine.config.params[APP_TRACE_LEVEL_ID]));
+    trace_set_level(ee_engine.trace_hndl, 
+    atoi(ee_engine.config.params[APP_TRACE_LEVEL_ID]));
 
     // Initialize DB connection
-    if(engine.error == ENGINE_OK)
+    if(ee_engine.error == ENGINE_OK)
     {
-    	engine.error = engine_init_db();
+    	ee_engine.error = ee_engine_init_db();
     }
 
     // stop-all when error
-    if(engine.error != ENGINE_OK)
+    if(ee_engine.error != ENGINE_OK)
     {
-    	engine_stop_all();
+    	ee_engine_stop_all();
     }
 
-    return engine.error;
+    return ee_engine.error;
+}
+
+/** ****************************************************************************
+
+  @brief      Gets the events engine ready to run its passes
+
+  @param[in]  void
+
+  @return     void
+
+*******************************************************************************/
+void ee_init()
+{
+    ee_engine.status = ENGINE_RUNNING_STATUS;
+
+    // Run events engine
+
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "Running events engine logic");
+}
+
+/** ****************************************************************************
+
+  @brief      Runs one pass of the events engine: a batch of due events, then
+              the stations, the share exchange, the processor tax and the
+              events archive when they are due. It never sleeps.
+
+  @param[out] found  The number of due events the batch read
+
+  @return     Execution result code (ErrorCode_t)
+
+*******************************************************************************/
+ErrorCode_t ee_pass(int* found)
+{
+    ErrorCode_t result = ENGINE_OK;
+
+    // reset VM
+    ee_engine.last_agent.vm = NULL;
+    *found = 0;
+
+    // Read the game clock (the game engine may have changed its scale)
+    game_time_load();
+
+    // start a transaction
+    result = ee_db_start_transaction(&ee_engine.db_connection);
+
+    // process outcome events passing callback
+    if(result == ENGINE_OK)
+    {
+        event_batch_start();
+        result = db_get_outcome_events(engine_process_outcome, found);
+        // A passing database error (#711): roll the batch back and try again
+        if(result == ENGINE_OK && event_batch_retry())
+            result = ENGINE_DB_QUERY_ERROR;
+    }
+
+    // Observations and places, written once for the batch (#448)
+    if((result == ENGINE_OK) || (result == ENGINE_DB_NOT_FOUND_ERROR))
+    {
+        ErrorCode_t written = db_flush_batch_writes();
+        if(written != ENGINE_OK) result = written;
+    }
+
+    // commit or rollback current transaction
+    if((result == ENGINE_OK) || (result == ENGINE_DB_NOT_FOUND_ERROR))
+    {
+        result = ee_db_commit_transaction(&ee_engine.db_connection);
+    }
+    else
+    {
+        result = ee_db_rollback_transaction(&ee_engine.db_connection);
+        // Give the database a moment before the retry (#711)
+        if(event_batch_retry()) sleep(1);
+    }
+
+    // House drop stations (#324 step 10): clear the batches that have
+    // ended. All of it in one transaction, so a batch is paid once or
+    // not at all (a restart picks up what wasn't committed)
+    if(ee_db_start_transaction(&ee_engine.db_connection) == ENGINE_OK)
+    {
+        if(db_station_clear_due() == ENGINE_OK)
+            ee_db_commit_transaction(&ee_engine.db_connection);
+        else
+            ee_db_rollback_transaction(&ee_engine.db_connection);
+    }
+
+    // The share exchange at Earth (#469): once a game hour, in one
+    // transaction, so a batch clears whole or not at all
+    if(ee_db_start_transaction(&ee_engine.db_connection) == ENGINE_OK)
+    {
+        if(db_shares_clear_due() == ENGINE_OK)
+            ee_db_commit_transaction(&ee_engine.db_connection);
+        else
+            ee_db_rollback_transaction(&ee_engine.db_connection);
+    }
+
+    // The processor tax (#544): once a game hour, each company pays for
+    // its drones' thinking, in one transaction
+    if(ee_db_start_transaction(&ee_engine.db_connection) == ENGINE_OK)
+    {
+        if(db_compute_bill_due() == ENGINE_OK)
+            ee_db_commit_transaction(&ee_engine.db_connection);
+        else
+            ee_db_rollback_transaction(&ee_engine.db_connection);
+    }
+
+    // Once a real minute: old settled events move to events_archive, so
+    // the engines' table stays small (#694), and month-old actions go
+    db_archive_due();
+
+    return result;
 }
 
 /** ****************************************************************************
@@ -295,103 +406,26 @@ ErrorCode_t engine_init(int argc, char** argv)
   @return     Execution result code (ErrorCode_t)
 
 *******************************************************************************/
-ErrorCode_t engine_run()
+ErrorCode_t ee_run()
 {
-  ErrorCode_t result = ENGINE_OK;
+    ee_init();
 
-    engine.status = ENGINE_RUNNING_STATUS;
-
-    // Run events engine
-
-    engine_trace(TRACE_LEVEL_ALWAYS, "Running events engine logic");
-
-    while(engine.status == ENGINE_RUNNING_STATUS)
+    while(ee_engine.status == ENGINE_RUNNING_STATUS)
     {
-        // reset VM
-        engine.last_agent.vm = NULL;
         int found = 0;
-
-        // Read the game clock (the game engine may have changed its scale)
-        game_time_load();
-
-        // start a transaction
-        result = db_start_transaction(&engine.db_connection);
-
-        // process outcome events passing callback
-        if(result == ENGINE_OK)
-        {
-            event_batch_start();
-            result = db_get_outcome_events(engine_process_outcome, &found);
-            // A passing database error (#711): roll the batch back and try again
-            if(result == ENGINE_OK && event_batch_retry())
-                result = ENGINE_DB_QUERY_ERROR;
-        }
-
-        // Observations and places, written once for the batch (#448)
-        if((result == ENGINE_OK) || (result == ENGINE_DB_NOT_FOUND_ERROR))
-        {
-            ErrorCode_t written = db_flush_batch_writes();
-            if(written != ENGINE_OK) result = written;
-        }
-
-        // commit or rollback current transaction
-        if((result == ENGINE_OK) || (result == ENGINE_DB_NOT_FOUND_ERROR))
-        {
-            result = db_commit_transaction(&engine.db_connection);
-        }
-        else
-        {
-            result = db_rollback_transaction(&engine.db_connection);
-            // Give the database a moment before the retry (#711)
-            if(event_batch_retry()) sleep(1);
-        }
-
-        // House drop stations (#324 step 10): clear the batches that have
-        // ended. All of it in one transaction, so a batch is paid once or
-        // not at all (a restart picks up what wasn't committed)
-        if(db_start_transaction(&engine.db_connection) == ENGINE_OK)
-        {
-            if(db_station_clear_due() == ENGINE_OK)
-                db_commit_transaction(&engine.db_connection);
-            else
-                db_rollback_transaction(&engine.db_connection);
-        }
-
-        // The share exchange at Earth (#469): once a game hour, in one
-        // transaction, so a batch clears whole or not at all
-        if(db_start_transaction(&engine.db_connection) == ENGINE_OK)
-        {
-            if(db_shares_clear_due() == ENGINE_OK)
-                db_commit_transaction(&engine.db_connection);
-            else
-                db_rollback_transaction(&engine.db_connection);
-        }
-
-        // The processor tax (#544): once a game hour, each company pays for
-        // its drones' thinking, in one transaction
-        if(db_start_transaction(&engine.db_connection) == ENGINE_OK)
-        {
-            if(db_compute_bill_due() == ENGINE_OK)
-                db_commit_transaction(&engine.db_connection);
-            else
-                db_rollback_transaction(&engine.db_connection);
-        }
-
-        // Once a real minute: old settled events move to events_archive, so
-        // the engines' table stays small (#694), and month-old actions go
-        db_archive_due();
+        ee_pass(&found);
 
         // Wait till next engine execution, unless that batch was full: then
         // more events are due, so go on at once (#324 step 20; one batch per
         // ENGINE_CHECK_TIME held the engine to a couple of events a second)
         if(found < engine_get_outcome_events_batch_size())
-            sleep(atoi(engine.config.params[ENGINE_CHECK_TIME]));
+            sleep(atoi(ee_engine.config.params[ENGINE_CHECK_TIME]));
     }
 
     // deallocate resources/Stop modules
-    engine_stop_all();
+    ee_engine_stop_all();
     
-    return engine.error;
+    return ee_engine.error;
 }
 
 /** ****************************************************************************
@@ -403,14 +437,14 @@ ErrorCode_t engine_run()
   @return     void
 
 *******************************************************************************/
-void engine_stop()
+void ee_engine_stop()
 {
-    if((engine.status != ENGINE_STOPPING_STATUS) && 
-        (engine.status != ENGINE_STOPPED_STATUS))
+    if((ee_engine.status != ENGINE_STOPPING_STATUS) && 
+        (ee_engine.status != ENGINE_STOPPED_STATUS))
     {
-        engine.status = ENGINE_STOPPING_STATUS;
+        ee_engine.status = ENGINE_STOPPING_STATUS;
 
-        engine_trace(TRACE_LEVEL_ALWAYS, "Engine is stopping...");
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Engine is stopping...");
     }
 }
 
@@ -423,9 +457,9 @@ void engine_stop()
   @return     Boolean result
 
 *******************************************************************************/
-Bool_t engine_is_stopped()
+Bool_t ee_engine_is_stopped()
 {
-    if(engine.status != ENGINE_RUNNING_STATUS)
+    if(ee_engine.status != ENGINE_RUNNING_STATUS)
         return ENGINE_TRUE;
 
     return ENGINE_FALSE;
@@ -440,9 +474,9 @@ Bool_t engine_is_stopped()
   @return     Last error code
 
 *******************************************************************************/
-int engine_get_last_error()
+int ee_engine_get_last_error()
 {
-    return engine.error;
+    return ee_engine.error;
 }
 
 /** ****************************************************************************
@@ -456,13 +490,23 @@ int engine_get_last_error()
   @return     void
 
 *******************************************************************************/
-void engine_trace(TraceLevel_t level, const char *trace, ... )
+void ee_engine_trace(TraceLevel_t level, const char *trace, ... )
 {
     static va_list valist;
     
     va_start(valist, trace);
-    trace_write(engine.trace_hndl, level, trace, valist);
+    trace_write(ee_engine.trace_hndl, level, trace, valist);
     va_end(valist);
+}
+
+/** ****************************************************************************
+
+  @brief      ee_engine_trace with its arguments as a va_list
+
+*******************************************************************************/
+void ee_engine_vtrace(TraceLevel_t level, const char *trace, va_list valist)
+{
+    trace_write(ee_engine.trace_hndl, level, trace, valist);
 }
 
 /** ****************************************************************************
@@ -474,18 +518,18 @@ void engine_trace(TraceLevel_t level, const char *trace, ... )
   @return     Pointer to memory allocated or NULL when failed
 
 *******************************************************************************/
-void* engine_malloc(size_t size)
+void* ee_engine_malloc(size_t size)
 {
     void* memory = malloc(size);
 
     if(memory)
     {
-        engine.memory_in_use += size; 
+        ee_engine.memory_in_use += size; 
 
-        engine_trace(TRACE_LEVEL_ALWAYS, 
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, 
             "Allocated [%ld] bytes (Total memory: [%ld])",
             size,
-            engine.memory_in_use);
+            ee_engine.memory_in_use);
     }
 
     return memory;
@@ -500,18 +544,18 @@ void* engine_malloc(size_t size)
   @return     void
 
 *******************************************************************************/
-void engine_free(void* memory, size_t size)
+void ee_engine_free(void* memory, size_t size)
 {
     if(memory)
     {
         free(memory);
 
-        engine.memory_in_use -= size; 
+        ee_engine.memory_in_use -= size; 
 
-        engine_trace(TRACE_LEVEL_ALWAYS, 
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, 
             "Deallocated [%ld] bytes (Total memory in use: [%ld])",
             size,
-            engine.memory_in_use);
+            ee_engine.memory_in_use);
     }
 }
 
@@ -526,7 +570,7 @@ void engine_free(void* memory, size_t size)
   @return     Command string
 
 *******************************************************************************/
-const char* engine_get_vm_resume_command()
+const char* ee_engine_get_vm_resume_command()
 {
     return (const char*)""; // not used at events engine
 }
@@ -540,12 +584,12 @@ const char* engine_get_vm_resume_command()
   @return     Current DB connection info
 
 *******************************************************************************/
-DbConnection_t* engine_get_db_connection()
+DbConnection_t* ee_engine_get_db_connection()
 {
-    if(!engine.db_connection.hndl)
-        engine_init_db();
+    if(!ee_engine.db_connection.hndl)
+        ee_engine_init_db();
 
-    return &engine.db_connection;
+    return &ee_engine.db_connection;
 }
 
 /** ****************************************************************************
@@ -559,7 +603,7 @@ DbConnection_t* engine_get_db_connection()
 *******************************************************************************/
 int engine_get_events_expiration_days()
 {
-    return atoi(engine.config.params[EVENT_EXPIRATION_DAYS]);
+    return atoi(ee_engine.config.params[EVENT_EXPIRATION_DAYS]);
 }
 
 /** ****************************************************************************
@@ -573,7 +617,7 @@ int engine_get_events_expiration_days()
 *******************************************************************************/
 int engine_get_actions_expiration_days()
 {
-    return atoi(engine.config.params[ACTION_EXPIRATION_DAYS]);
+    return atoi(ee_engine.config.params[ACTION_EXPIRATION_DAYS]);
 }
 
 /** ****************************************************************************
@@ -587,5 +631,5 @@ int engine_get_actions_expiration_days()
 *******************************************************************************/
 int engine_get_outcome_events_batch_size()
 {
-    return atoi(engine.config.params[OUTCOME_EVENT_BATCH_SIZE]);
+    return atoi(ee_engine.config.params[OUTCOME_EVENT_BATCH_SIZE]);
 }

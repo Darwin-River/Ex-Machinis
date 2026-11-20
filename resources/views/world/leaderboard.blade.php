@@ -57,7 +57,7 @@
                 @endforeach
             </form>
             @if($atAge !== null)
-                <h3>At age {{ rtrim(rtrim(number_format($age, 1), '0'), '.') }} game days{{ $startupsOnly ? ', startups only' : '' }}</h3>
+                <h2 class="h3">At age {{ rtrim(rtrim(number_format($age, 1), '0'), '.') }} game days{{ $startupsOnly ? ', startups only' : '' }}</h2>
                 <p><small>@if($startupsOnly)Only companies founded as startups.
                     <a href="{{ url()->current() . '?age=' . $age }}">Every company</a>@else
                     <a href="{{ url()->current() . '?age=' . $age . '&startups=1' }}">Only companies founded as startups</a>@endif</small></p>
@@ -88,7 +88,7 @@
                 @foreach(['All time' => ['rows' => $allTime, 'key' => 'wealth', 'id' => 'all-time'],
                           'Rising, ' . \App\Services\Leaderboard::RISING_DAYS . ' game days' => ['rows' => $rising, 'key' => 'gain', 'id' => 'rising']] as $title => $board)
                     <div class="col-12 col-lg-6">
-                        <h3>{{ $title }}</h3>
+                        <h2 class="h3">{{ $title }}</h2>
                         @if($board['id'] === 'rising' && !($hasAWeek ?? true))
                             {{-- #692: under a week old, Rising only repeated All time --}}
                             <p id="rising-young">The world's daily history is under {{ \App\Services\Leaderboard::RISING_DAYS }} game days old, so every

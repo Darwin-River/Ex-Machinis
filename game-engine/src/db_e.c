@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include "db.h"
+#include "db_e.h"
 #include "game_time.h"
 #include "trace.h"
 #include "engine_e.h"
@@ -43,7 +44,7 @@
   @return     void
 
 ******************************************************************************/
-void db_scape_string(
+void ee_db_scape_string(
     DbConnection_t* connection,
     char *value,
     size_t len,
@@ -56,7 +57,7 @@ void db_scape_string(
     to_len = mysql_real_escape_string(connection->hndl, out, value, strlen(value));
     out[to_len+1] = '\0';
 
-   engine_trace(TRACE_LEVEL_DEBUG, "Value [%s] scaped now is [%s]", value, out);
+   ee_engine_trace(TRACE_LEVEL_DEBUG, "Value [%s] scaped now is [%s]", value, out);
 }
 
 
@@ -71,7 +72,7 @@ void db_scape_string(
     @return     String result
 
 *******************************************************************************/
-char* db_int2str(int value, char* buffer, size_t size)
+char* ee_db_int2str(int value, char* buffer, size_t size)
 {
     if(value == NULL_VALUE) {
         sprintf(buffer, "NULL");
@@ -91,7 +92,7 @@ char* db_int2str(int value, char* buffer, size_t size)
   @return     void
 
 ******************************************************************************/
-time_t db_date_to_timestamp(char* date, char* format)
+time_t ee_db_date_to_timestamp(char* date, char* format)
 {
     struct tm tm;
     time_t epoch = 0;
@@ -106,7 +107,7 @@ time_t db_date_to_timestamp(char* date, char* format)
     char* conversion_result = strptime(date, format, &tm);
 
     if (conversion_result != NULL) {
-        engine_trace(TRACE_LEVEL_DEBUG,
+        ee_engine_trace(TRACE_LEVEL_DEBUG,
             "Date [%s] converted to:  year, month, day, hour, min ,sec [%d-%d-%d %02d:%02d:%02d]",
             date,
             tm.tm_year,
@@ -120,7 +121,7 @@ time_t db_date_to_timestamp(char* date, char* format)
         epoch = mktime(&tm);
     }
 
-    engine_trace(TRACE_LEVEL_DEBUG,
+    ee_engine_trace(TRACE_LEVEL_DEBUG,
         "Converting date into epoch [%s] using format [%s], result = [%ld], conversion_result = [%s]",
         date,
         format,
@@ -142,14 +143,14 @@ time_t db_date_to_timestamp(char* date, char* format)
   @return         Execution result
 
 ******************************************************************************/
-ErrorCode_t db_init(DbConnection_t* connection)
+ErrorCode_t ee_db_init(DbConnection_t* connection)
 {
 	MYSQL* local_hndl = NULL;
 	ErrorCode_t result = ENGINE_OK;
 
     if(connection)
     {
-    	engine_trace(TRACE_LEVEL_DEBUG,
+    	ee_engine_trace(TRACE_LEVEL_DEBUG,
     		"Connecting to DB MySQL Client Version [%lu]",
     		mysql_get_client_version());
 
@@ -167,7 +168,7 @@ ErrorCode_t db_init(DbConnection_t* connection)
                 NULL, 0);
 
             if(db_result != NULL) {
-                engine_trace(TRACE_LEVEL_ALWAYS,
+                ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 	"Succesfully connected to: %s "
                     "user [%s] host [%s] port [%d] database [%s]",
                     mysql_get_client_info(),
@@ -180,7 +181,7 @@ ErrorCode_t db_init(DbConnection_t* connection)
                 connection->hndl = local_hndl;
 
             } else {
-                 engine_trace(TRACE_LEVEL_ALWAYS,
+                 ee_engine_trace(TRACE_LEVEL_ALWAYS,
                  	"ERROR: Unable to conect to DB. "
                     "user [%s] host [%s] port [%d] database [%s]",
                     connection->user?connection->user:"NULL",
@@ -194,7 +195,7 @@ ErrorCode_t db_init(DbConnection_t* connection)
         }
         else
        	{
-       		engine_trace(TRACE_LEVEL_ALWAYS,
+       		ee_engine_trace(TRACE_LEVEL_ALWAYS,
     			"ERROR: Unable to init DB connection");
 
        		result = ENGINE_DB_INIT_ERROR;
@@ -203,7 +204,7 @@ ErrorCode_t db_init(DbConnection_t* connection)
     else
     {
         // NULL input
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
         	"ERROR: Could not connect to DB, NULL input");
 
         result = ENGINE_INTERNAL_ERROR;
@@ -221,12 +222,12 @@ ErrorCode_t db_init(DbConnection_t* connection)
   @return         void
 
 *******************************************************************************/
-void db_stop(DbConnection_t* connection)
+void ee_db_stop(DbConnection_t* connection)
 {
 	if(connection && connection->hndl) {
         mysql_close(connection->hndl);
         connection->hndl = NULL;
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
         	"Disconnected from DB [%s]",
             connection->db_name?connection->db_name:"NULL");
     }
@@ -241,7 +242,7 @@ void db_stop(DbConnection_t* connection)
   @return         Execution result
 
 ******************************************************************************/
-ErrorCode_t db_start_transaction(DbConnection_t* connection)
+ErrorCode_t ee_db_start_transaction(DbConnection_t* connection)
 {
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -249,12 +250,12 @@ ErrorCode_t db_start_transaction(DbConnection_t* connection)
     // Execute it at mysql side and check results
     if (mysql_query(connection->hndl, "START TRANSACTION"))
     {
-        engine_trace(TRACE_LEVEL_ALWAYS,"ERROR: Could not start DB transaction");
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,"ERROR: Could not start DB transaction");
         result = ENGINE_DB_QUERY_ERROR;
     }
     else
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "DB transaction started");
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "DB transaction started");
     }
 
     return result;
@@ -269,7 +270,7 @@ ErrorCode_t db_start_transaction(DbConnection_t* connection)
   @return         Execution result
 
 ******************************************************************************/
-ErrorCode_t db_commit_transaction(DbConnection_t* connection)
+ErrorCode_t ee_db_commit_transaction(DbConnection_t* connection)
 {
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -277,12 +278,12 @@ ErrorCode_t db_commit_transaction(DbConnection_t* connection)
     // Execute it at mysql side and check results
     if (mysql_query(connection->hndl, "COMMIT"))
     {
-        engine_trace(TRACE_LEVEL_ALWAYS,"ERROR: Could not commit DB transaction");
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,"ERROR: Could not commit DB transaction");
         result = ENGINE_DB_QUERY_ERROR;
     }
     else
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "DB transaction commit");
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "DB transaction commit");
     }
 
     return result;
@@ -297,7 +298,7 @@ ErrorCode_t db_commit_transaction(DbConnection_t* connection)
   @return         Execution result
 
 ******************************************************************************/
-ErrorCode_t db_rollback_transaction(DbConnection_t* connection)
+ErrorCode_t ee_db_rollback_transaction(DbConnection_t* connection)
 {
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -305,12 +306,12 @@ ErrorCode_t db_rollback_transaction(DbConnection_t* connection)
     // Execute it at mysql side and check results
     if (mysql_query(connection->hndl, "ROLLBACK"))
     {
-        engine_trace(TRACE_LEVEL_ALWAYS,"ERROR: Could not rollback DB transaction");
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,"ERROR: Could not rollback DB transaction");
         result = ENGINE_DB_QUERY_ERROR;
     }
     else
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "DB transaction rollback");
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "DB transaction rollback");
     }
 
     return result;
@@ -341,10 +342,10 @@ static void db_row_to_event(MYSQL_ROW row, Event_t* event)
     event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
 
     // Convert date obtained to time_t
-    event->timestamp = db_date_to_timestamp(row[EVENT_TIMESTAMP_IDX], "%F %T");
+    event->timestamp = ee_db_date_to_timestamp(row[EVENT_TIMESTAMP_IDX], "%F %T");
     event->game_t = row[EVENT_GAME_T_IDX]?atoll(row[EVENT_GAME_T_IDX]):0;
 
-    engine_trace(TRACE_LEVEL_DEBUG,
+    ee_engine_trace(TRACE_LEVEL_DEBUG,
         "DATE [%s] => TIMESTAMP [%ld] %s",
         row[EVENT_TIMESTAMP_IDX], event->timestamp, row[EVENT_NEW_LOCATION_IDX]);
 }
@@ -362,7 +363,7 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     MYSQL_RES* db_result = NULL;
     int rowsNum = 0;
 
@@ -375,7 +376,7 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found
     if(result == ENGINE_OK)
     {
         int events_batch_size = engine_get_outcome_events_batch_size();
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
             "Getting next batch of [%d] not processed events ...",
             events_batch_size);
 
@@ -388,7 +389,7 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found
         // run it
         if (mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             result = ENGINE_DB_QUERY_ERROR;
         }
     }
@@ -401,7 +402,7 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found
 
         if(db_result == NULL)
         {
-            engine_trace(TRACE_LEVEL_ALWAYS,
+            ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "ERROR: Unable to get outcome events (invalid result for query [%s])",
                 query_text);
 
@@ -409,13 +410,13 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found
         }
         else if(rowsNum <= 0)
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "None pending event found");
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "None pending event found");
         }
     }
 
     if((result == ENGINE_OK) && rowsNum)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "[%d] pending events found");
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "[%d] pending events found");
 
         // iterate results and delete one by one
         for(int eventId=0; eventId < rowsNum; eventId++)
@@ -432,7 +433,7 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found
             else
             {
                 // unexpected error - abort
-                engine_trace(TRACE_LEVEL_ALWAYS,
+                ee_engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to get row for query [%s] with [%d] rows",
                     query_text,
                     rowsNum);
@@ -471,7 +472,7 @@ ErrorCode_t db_purge_old_actions()
     // expiration with no event left in events or events_archive. It listed
     // them all and deleted them one by one, inside the events engine's loop:
     // once the history budget (#813) pruned the archive, millions qualified
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     ErrorCode_t result = db_reconnect(connection);
     if(result != ENGINE_OK)
         return result;
@@ -484,12 +485,12 @@ ErrorCode_t db_purge_old_actions()
         engine_get_actions_expiration_days());
     long long start = db_archive_ms();
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
     }
     long long n = (long long)mysql_affected_rows(connection->hndl);
     if(n > 0)
-        engine_trace(TRACE_LEVEL_ALWAYS, "Purged [%lld] expired actions in [%lld] ms", n, db_archive_ms() - start);
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Purged [%lld] expired actions in [%lld] ms", n, db_archive_ms() - start);
     return ENGINE_OK;
 }
 
@@ -506,7 +507,7 @@ ErrorCode_t db_delete_event(Event_t* event)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-    DbConnection_t* connection =  engine_get_db_connection();
+    DbConnection_t* connection =  ee_engine_get_db_connection();
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -527,12 +528,12 @@ ErrorCode_t db_delete_event(Event_t* event)
         // run it
         if (mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             result = ENGINE_DB_QUERY_ERROR;
         }
         else
         {
-            engine_trace(TRACE_LEVEL_ALWAYS,
+            ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "EVENT_ID [%d] deleted from DB",
                 event->event_id);
 
@@ -562,13 +563,13 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
     // Sanity check
     if(!event || !out_event)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
             "ERROR: Unable to get previous event for NULL input parameters");
 
         return ENGINE_INTERNAL_ERROR;
     }
 
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     MYSQL_RES* db_result = NULL;
     int rowsNum = 0;
 
@@ -577,7 +578,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
 
     if(result == ENGINE_OK)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
             "Getting previous event for event_id [%d] and filter type [%d] ...",
             event->event_id, filter);
 
@@ -645,7 +646,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
                 break;
             default:
                 // Unexpected enum value
-                engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unexpected filter value [%d] getting previous event", filter);
+                ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unexpected filter value [%d] getting previous event", filter);
                 result = ENGINE_INTERNAL_ERROR;
                 break;
         }
@@ -654,12 +655,12 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
     if(result == ENGINE_OK)
     {
         // run query
-        engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
 
 
         if (mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             result = ENGINE_DB_QUERY_ERROR;
         }
     }
@@ -671,7 +672,7 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
 
         if(db_result == NULL)
         {
-            engine_trace(TRACE_LEVEL_ALWAYS,
+            ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "ERROR: Unable to get previous event (invalid result for query [%s])",
                 query_text);
 
@@ -680,14 +681,14 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
         else if((rowsNum=mysql_num_rows(db_result)) <= 0)
         {
             memset(out_event, 0, sizeof(*out_event));
-            engine_trace(TRACE_LEVEL_ALWAYS, "None previous event found");
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "None previous event found");
             result = ENGINE_NOT_FOUND; // Indicates that no entry was found
         }
     }
 
     if((result == ENGINE_OK) && rowsNum)
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "[%d] previous event found", rowsNum);
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "[%d] previous event found", rowsNum);
 
         // Store the info obtained at output event
         MYSQL_ROW row = mysql_fetch_row(db_result);
@@ -711,13 +712,13 @@ ErrorCode_t db_get_previous_event(Event_t *event, PreviousEventFilter_t filter, 
             out_event->new_transmission = row[EVENT_NEW_TRANSMISSION_IDX]?atoi(row[EVENT_NEW_TRANSMISSION_IDX]):-1;
             out_event->new_cargo = row[EVENT_NEW_CARGO_IDX]?atoi(row[EVENT_NEW_CARGO_IDX]):0;
             // Convert date obtained to time_t
-            out_event->timestamp = db_date_to_timestamp(row[EVENT_TIMESTAMP_IDX], "%F %T");
+            out_event->timestamp = ee_db_date_to_timestamp(row[EVENT_TIMESTAMP_IDX], "%F %T");
             out_event->game_t = row[EVENT_GAME_T_IDX]?atoll(row[EVENT_GAME_T_IDX]):0;
         }
         else
         {
             // unexpected error
-            engine_trace(TRACE_LEVEL_ALWAYS,
+            ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "ERROR: Unable to get previous event row for query [%s]",
                 query_text);
 
@@ -745,7 +746,7 @@ ErrorCode_t db_get_action(Action_t *action)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-    DbConnection_t* connection =  engine_get_db_connection();
+    DbConnection_t* connection =  ee_engine_get_db_connection();
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -768,7 +769,7 @@ ErrorCode_t db_get_action(Action_t *action)
         // run it
         if (mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             result = ENGINE_DB_QUERY_ERROR;
         }
         else
@@ -780,7 +781,7 @@ ErrorCode_t db_get_action(Action_t *action)
 
             if((db_result == NULL) || (rowsNum != 1) || (fieldsNum != MAX_ACTION_FIELDS))
             {
-                engine_trace(TRACE_LEVEL_ALWAYS,
+                ee_engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to get action info for ACTION_ID [%d] "
                     "(invalid result for query [%s], rows [%d], fields [%d])",
                     action->action_id,
@@ -801,7 +802,7 @@ ErrorCode_t db_get_action(Action_t *action)
                     action->process_multiplier = row[ACTION_PROCESS_MULTIPLIER_IDX]?atoi(row[ACTION_PROCESS_MULTIPLIER_IDX]):-1;
                     action->aborted = row[ACTION_ABORTED_ID_IDX]?atoi(row[ACTION_ABORTED_ID_IDX]):0;
 
-                    engine_trace(TRACE_LEVEL_ALWAYS,
+                    ee_engine_trace(TRACE_LEVEL_ALWAYS,
                         "DRONE_ID [%d] PROTOCOL_ID [%d] PROCESS_MULTIPLIER [%d] ABORTED [%d] obtained for ACTION_ID [%d]",
                         action->drone_id,
                         action->protocol_id,
@@ -811,7 +812,7 @@ ErrorCode_t db_get_action(Action_t *action)
                 }
                 else
                 {
-                    engine_trace(TRACE_LEVEL_ALWAYS,
+                    ee_engine_trace(TRACE_LEVEL_ALWAYS,
                         "ERROR: Unable to get action info for ACTION_ID [%d] (no row)",
                         action->action_id);
 
@@ -835,11 +836,11 @@ ErrorCode_t db_get_action(Action_t *action)
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_abort_action(int action_id)
+ErrorCode_t ee_db_abort_action(int action_id)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-    DbConnection_t* connection =  engine_get_db_connection();
+    DbConnection_t* connection =  ee_engine_get_db_connection();
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -856,19 +857,19 @@ ErrorCode_t db_abort_action(int action_id)
         // run it
         if (mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             result = ENGINE_DB_QUERY_ERROR;
         }
         else
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "Action [%d] aborted", action_id);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "Action [%d] aborted", action_id);
 
             // Its tools in use go back at once (#814): an aborted action's
             // unlock never comes (#748: tools left locked for good)
             char unlock_text[128];
             snprintf(unlock_text, sizeof(unlock_text), "DELETE FROM tool_locks WHERE action = %d", action_id);
             if(mysql_query(connection->hndl, unlock_text))
-                engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", unlock_text, mysql_error(connection->hndl));
+                ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", unlock_text, mysql_error(connection->hndl));
             db_tool_locks_forget_action(action_id);
 
             // Its events still to come never happen: say so (#725). Left at
@@ -879,7 +880,7 @@ ErrorCode_t db_abort_action(int action_id)
                 "UPDATE events SET outcome = -9 WHERE action = %d AND outcome = 0", action_id);
             if (mysql_query(connection->hndl, query_text))
             {
-                engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+                ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
                 result = ENGINE_DB_QUERY_ERROR;
             }
         }
@@ -938,7 +939,7 @@ ErrorCode_t db_update_event(Event_t *event)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-    DbConnection_t* connection =  engine_get_db_connection();
+    DbConnection_t* connection =  ee_engine_get_db_connection();
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -978,7 +979,7 @@ ErrorCode_t db_update_event(Event_t *event)
         // run it
         if (mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             result = ENGINE_DB_QUERY_ERROR;
         }
         else
@@ -986,7 +987,7 @@ ErrorCode_t db_update_event(Event_t *event)
             if(event->outcome != OUTCOME_NO_OUTCOME)
                 db_note_settled(event->event_id);
 
-            engine_trace(TRACE_LEVEL_ALWAYS,
+            ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "Event [%d] updated with outcome [%d] new_quantity [%d] new_credits [%d] new cargo [%d]",
                 event->event_id, event->outcome, event->new_quantity, event->new_credits, event->new_cargo);
         }
@@ -1007,7 +1008,7 @@ ErrorCode_t db_update_event(Event_t *event)
     @return         Execution result
 
 *******************************************************************************/
-ErrorCode_t db_update_agent_object(DbConnection_t* connection, int agent_id, int object_id)
+ErrorCode_t ee_db_update_agent_object(DbConnection_t* connection, int agent_id, int object_id)
 {
     // sanity
     if(!connection) return ENGINE_INTERNAL_ERROR;
@@ -1027,12 +1028,12 @@ ErrorCode_t db_update_agent_object(DbConnection_t* connection, int agent_id, int
     // run it
     if (mysql_query(connection->hndl, query_text))
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
         result = ENGINE_DB_QUERY_ERROR;
     }
     else
     {
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
             "Updated Object ID for agent [%d] with value [%d]", agent_id, object_id);
     }
 
@@ -1052,7 +1053,7 @@ ErrorCode_t db_get_max_drone_cargo(int drone_id, int *capacity)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-    DbConnection_t* connection =  engine_get_db_connection();
+    DbConnection_t* connection =  ee_engine_get_db_connection();
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -1075,7 +1076,7 @@ ErrorCode_t db_get_max_drone_cargo(int drone_id, int *capacity)
         // run it
         if (mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             result = ENGINE_DB_QUERY_ERROR;
         }
         else
@@ -1087,7 +1088,7 @@ ErrorCode_t db_get_max_drone_cargo(int drone_id, int *capacity)
 
             if((db_result == NULL) || (rowsNum != 1) || (fieldsNum != 1))
             {
-                engine_trace(TRACE_LEVEL_ALWAYS,
+                ee_engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to get max cargo for DRONE_ID [%d] "
                     "(invalid result for query [%s], rows [%d], fields [%d])",
                     drone_id,
@@ -1105,14 +1106,14 @@ ErrorCode_t db_get_max_drone_cargo(int drone_id, int *capacity)
                     // Pick the only field value
                     *capacity = row[0]?atoi(row[0]):0;
 
-                    engine_trace(TRACE_LEVEL_ALWAYS,
+                    ee_engine_trace(TRACE_LEVEL_ALWAYS,
                         "DRONE_ID [%d] MAX_CAPACITY [%d]",
                         drone_id,
                         *capacity );
                 }
                 else
                 {
-                    engine_trace(TRACE_LEVEL_ALWAYS,
+                    ee_engine_trace(TRACE_LEVEL_ALWAYS,
                         "ERROR: Unable to get max drone capacity for drone [%d] (no row)",
                         drone_id);
 
@@ -1152,11 +1153,11 @@ static int pending_places_count = 0;
 
 static ErrorCode_t db_run_write(const char* query_text)
 {
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     ErrorCode_t result = db_reconnect(connection);
     if(result != ENGINE_OK) return result;
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%.200s...] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%.200s...] failed: %s", query_text, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
     }
     return ENGINE_OK;
@@ -1175,7 +1176,7 @@ static ErrorCode_t db_run_write(const char* query_text)
  */
 int db_free_stuck_tools(void)
 {
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     if(db_reconnect(connection) != ENGINE_OK) return -1;
     const char* steps[] = {
         "SET @free_now := (SELECT ROUND(game_anchor + (UNIX_TIMESTAMP() - real_anchor) * scale) FROM game_clock WHERE id = 1)",
@@ -1203,7 +1204,7 @@ int db_free_stuck_tools(void)
     int freed = 0;
     for(size_t i = 0; i < sizeof(steps) / sizeof(steps[0]); i++) {
         if(mysql_query(connection->hndl, steps[i])) {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: freeing stuck tools, step %d failed: %s", (int)i, mysql_error(connection->hndl));
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: freeing stuck tools, step %d failed: %s", (int)i, mysql_error(connection->hndl));
             mysql_query(connection->hndl, "ROLLBACK");
             mysql_query(connection->hndl, "DROP TEMPORARY TABLE IF EXISTS stuck_tools");
             return -1;
@@ -1218,7 +1219,7 @@ static long long db_tool_number(DbConnection_t* connection, const char* sql, lon
 {
     long long value = dflt;
     if(mysql_query(connection->hndl, sql)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", sql, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", sql, mysql_error(connection->hndl));
         return dflt;
     }
     MYSQL_RES* res = mysql_store_result(connection->hndl);
@@ -1237,7 +1238,7 @@ static long long db_tool_number(DbConnection_t* connection, const char* sql, lon
  */
 int db_fleet_full_e(int launcher_id)
 {
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     char sql[DB_MAX_SQL_QUERY_LEN+1];
     snprintf(sql, DB_MAX_SQL_QUERY_LEN,
         "SELECT IF(c.house = 0 AND r.fleet_cap > 0 AND "
@@ -1252,7 +1253,7 @@ int db_resource_mass_e(int resource)
 {
     char sql[DB_MAX_SQL_QUERY_LEN+1];
     snprintf(sql, DB_MAX_SQL_QUERY_LEN, "SELECT mass FROM resources WHERE id = %d", resource);
-    return (int)db_tool_number(engine_get_db_connection(), sql, 1);
+    return (int)db_tool_number(ee_engine_get_db_connection(), sql, 1);
 }
 
 /*
@@ -1297,9 +1298,9 @@ static void tool_locks_remove(int action, int drone, int resource, int installed
 void db_tool_locks_load(void)
 {
     tool_locks_count = 0;
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     if(mysql_query(connection->hndl, "SELECT drone, resource, installed, units, action FROM tool_locks")) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: loading tool locks failed: %s", mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: loading tool locks failed: %s", mysql_error(connection->hndl));
         return;
     }
     MYSQL_RES* res = mysql_store_result(connection->hndl);
@@ -1340,7 +1341,7 @@ int db_tool_lock_blocks(int drone, int resource, int installed, int left)
  */
 int db_tool_locked_units(int drone, int resource, int installed)
 {
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     char sql[DB_MAX_SQL_QUERY_LEN+1];
     snprintf(sql, DB_MAX_SQL_QUERY_LEN,
         "SELECT IFNULL(SUM(units), 0) FROM tool_locks WHERE drone = %d AND resource = %d AND installed = %d",
@@ -1356,7 +1357,7 @@ int db_tool_locked_units(int drone, int resource, int installed)
  */
 int db_tool_lock(Event_t* event)
 {
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     char sql[DB_MAX_SQL_QUERY_LEN+1];
     int units = event->new_quantity > 0 ? event->new_quantity : 1;
     snprintf(sql, DB_MAX_SQL_QUERY_LEN,
@@ -1366,7 +1367,7 @@ int db_tool_lock(Event_t* event)
     if(free < 0) return 0;
     free -= db_tool_locked_units(event->drone_id, event->resource_id, event->installed);
     if(free < units) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Lock event [%d]: drone [%d] has [%lld] free of resource [%d], [%d] needed",
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Lock event [%d]: drone [%d] has [%lld] free of resource [%d], [%d] needed",
             event->event_id, event->drone_id, free, event->resource_id, units);
         return OUTCOME_NO_RESOURCES;
     }
@@ -1374,7 +1375,7 @@ int db_tool_lock(Event_t* event)
         "INSERT INTO tool_locks (drone, resource, installed, units, action, game_t) VALUES (%d, %d, %d, %d, %d, %lld)",
         event->drone_id, event->resource_id, event->installed, units, event->action_id, (long long)event->game_t);
     if(mysql_query(connection->hndl, sql)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", sql, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", sql, mysql_error(connection->hndl));
         return 0;
     }
     tool_locks_add(event->drone_id, event->resource_id, event->installed, units, event->action_id);
@@ -1384,13 +1385,13 @@ int db_tool_lock(Event_t* event)
 /* Settles an unlock tool event (#814): the action's lock on the tool goes. ENGINE_OK, or the error */
 ErrorCode_t db_tool_unlock(Event_t* event)
 {
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     char sql[DB_MAX_SQL_QUERY_LEN+1];
     snprintf(sql, DB_MAX_SQL_QUERY_LEN,
         "DELETE FROM tool_locks WHERE action = %d AND drone = %d AND resource = %d AND installed = %d LIMIT 1",
         event->action_id, event->drone_id, event->resource_id, event->installed);
     if(mysql_query(connection->hndl, sql)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", sql, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", sql, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
     }
     tool_locks_remove(event->action_id, event->drone_id, event->resource_id, event->installed, 1);
@@ -1500,7 +1501,7 @@ ErrorCode_t db_delete_event_observations(int event_id)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-    DbConnection_t* connection =  engine_get_db_connection();
+    DbConnection_t* connection =  ee_engine_get_db_connection();
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -1515,12 +1516,12 @@ ErrorCode_t db_delete_event_observations(int event_id)
         // run it
         if (mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             result = ENGINE_DB_QUERY_ERROR;
         }
         else
         {
-            engine_trace(TRACE_LEVEL_ALWAYS,
+            ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "[%d] observations for EVENT_ID [%d] deleted from DB",
                 mysql_affected_rows(connection->hndl),
                 event_id);
@@ -1577,7 +1578,7 @@ ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protoc
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-    DbConnection_t* connection =  engine_get_db_connection();
+    DbConnection_t* connection =  ee_engine_get_db_connection();
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -1600,7 +1601,7 @@ ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protoc
         // run it
         if (mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             result = ENGINE_DB_QUERY_ERROR;
         }
         else
@@ -1612,7 +1613,7 @@ ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protoc
 
             if((db_result == NULL) || (rowsNum != 1) || (fieldsNum != 2))
             {
-                engine_trace(TRACE_LEVEL_ALWAYS,
+                ee_engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to get observation info for EVENT_ID [%d] "
                     "(invalid result for query [%s], rows [%d], fields [%d])",
                     event->event_id,
@@ -1633,7 +1634,7 @@ ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protoc
                     value = row[1]?atoi(row[1]):0;
                     protocol->reportable = (value > 0)?1:0;
 
-                    engine_trace(TRACE_LEVEL_ALWAYS,
+                    ee_engine_trace(TRACE_LEVEL_ALWAYS,
                         "EVENT_ID [%d] OBSERVABLE [%d] REPORTABLE [%d]",
                         event->event_id,
                         protocol->observable,
@@ -1641,7 +1642,7 @@ ErrorCode_t db_get_event_observation_info(Event_t *event, ProtocolInfo_t *protoc
                 }
                 else
                 {
-                    engine_trace(TRACE_LEVEL_ALWAYS,
+                    ee_engine_trace(TRACE_LEVEL_ALWAYS,
                         "ERROR: Unable to get observation info for EVENT_ID [%d] (no row)",
                         event->event_id);
 
@@ -1672,7 +1673,7 @@ static ErrorCode_t db_get_object_info_by_name_x_query(char* name, ObjectOrbitInf
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-    DbConnection_t* connection =  engine_get_db_connection();
+    DbConnection_t* connection =  ee_engine_get_db_connection();
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -1692,7 +1693,7 @@ static ErrorCode_t db_get_object_info_by_name_x_query(char* name, ObjectOrbitInf
         // run it
         if (mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             result = ENGINE_DB_QUERY_ERROR;
         }
         else
@@ -1703,7 +1704,7 @@ static ErrorCode_t db_get_object_info_by_name_x_query(char* name, ObjectOrbitInf
             if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||
                 (mysql_num_fields(db_result) != MAX_OBJECT_FIELDS))
             {
-                engine_trace(TRACE_LEVEL_ALWAYS,
+                ee_engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to get [%s] orbit info "
                     "(invalid result for query [%s])",
                     name, query_text);
@@ -1717,10 +1718,10 @@ static ErrorCode_t db_get_object_info_by_name_x_query(char* name, ObjectOrbitInf
                 {
                     // Get epoch first and return error if fails
                     // otherwise just fill the rest of fields
-                    object->epoch = db_date_to_timestamp(row[EPOCH_IDX], OBJECTS_TIMESTAMP_FORMAT);
+                    object->epoch = ee_db_date_to_timestamp(row[EPOCH_IDX], OBJECTS_TIMESTAMP_FORMAT);
 
                     if(!object->epoch) {
-                        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to get EPOCH info for [%s]", name);
+                        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Unable to get EPOCH info for [%s]", name);
                         result = ENGINE_INTERNAL_ERROR;
 
                     } else {
@@ -1742,13 +1743,13 @@ static ErrorCode_t db_get_object_info_by_name_x_query(char* name, ObjectOrbitInf
                         object->mean_angular_motion = row[MEAN_ANGULAR_MOTION_IDX]?atof(row[MEAN_ANGULAR_MOTION_IDX]):-1;
                     }
 
-                    engine_trace(TRACE_LEVEL_DEBUG,
+                    ee_engine_trace(TRACE_LEVEL_DEBUG,
                         "NAME [%s] TYPE [%s] obtained for OBJECT_ID [%d]",
                         object->object_name, object->object_type, object->object_id);
                 }
                 else
                 {
-                    engine_trace(TRACE_LEVEL_ALWAYS,
+                    ee_engine_trace(TRACE_LEVEL_ALWAYS,
                         "ERROR: Unable to get orbits info for OBJECT_ID [%d] (no row)",
                         object->object_id);
 
@@ -1777,7 +1778,7 @@ static ErrorCode_t db_get_orbit_info_x_query(ObjectOrbitInfo_t* object)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-    DbConnection_t* connection =  engine_get_db_connection();
+    DbConnection_t* connection =  ee_engine_get_db_connection();
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -1797,7 +1798,7 @@ static ErrorCode_t db_get_orbit_info_x_query(ObjectOrbitInfo_t* object)
         // run it
         if (mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             result = ENGINE_DB_QUERY_ERROR;
         }
         else
@@ -1808,7 +1809,7 @@ static ErrorCode_t db_get_orbit_info_x_query(ObjectOrbitInfo_t* object)
             if((db_result == NULL) || (mysql_num_rows(db_result) != 1) ||
                 (mysql_num_fields(db_result) != MAX_OBJECT_FIELDS))
             {
-                engine_trace(TRACE_LEVEL_ALWAYS,
+                ee_engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to get orbits info for OBJECT_ID [%d] "
                     "(invalid result for query [%s])",
                     object->object_id,
@@ -1823,10 +1824,10 @@ static ErrorCode_t db_get_orbit_info_x_query(ObjectOrbitInfo_t* object)
                 {
                     // Get epoch first and return error if fails
                     // otherwise just fill the rest of fields
-                    object->epoch = db_date_to_timestamp(row[EPOCH_IDX], OBJECTS_TIMESTAMP_FORMAT);
+                    object->epoch = ee_db_date_to_timestamp(row[EPOCH_IDX], OBJECTS_TIMESTAMP_FORMAT);
 
                     if(!object->epoch) {
-                        engine_trace(TRACE_LEVEL_ALWAYS,
+                        ee_engine_trace(TRACE_LEVEL_ALWAYS,
                             "ERROR: Unable to get EPOCH info for OBJECT_ID [%d]",
                             object->object_id);
 
@@ -1848,13 +1849,13 @@ static ErrorCode_t db_get_orbit_info_x_query(ObjectOrbitInfo_t* object)
                         object->mean_angular_motion = row[MEAN_ANGULAR_MOTION_IDX]?atof(row[MEAN_ANGULAR_MOTION_IDX]):-1;
                     }
 
-                    engine_trace(TRACE_LEVEL_DEBUG,
+                    ee_engine_trace(TRACE_LEVEL_DEBUG,
                         "NAME [%s] TYPE [%s] obtained for OBJECT_ID [%d]",
                         object->object_name, object->object_type, object->object_id);
                 }
                 else
                 {
-                    engine_trace(TRACE_LEVEL_ALWAYS,
+                    ee_engine_trace(TRACE_LEVEL_ALWAYS,
                         "ERROR: Unable to get orbits info for OBJECT_ID [%d] (no row)",
                         object->object_id);
 
@@ -1882,7 +1883,7 @@ ErrorCode_t db_delete_action(int action_id)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-    DbConnection_t* connection =  engine_get_db_connection();
+    DbConnection_t* connection =  ee_engine_get_db_connection();
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -1897,12 +1898,12 @@ ErrorCode_t db_delete_action(int action_id)
         // run it
         if (mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             result = ENGINE_DB_QUERY_ERROR;
         }
         else
         {
-            engine_trace(TRACE_LEVEL_ALWAYS,
+            ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "ACTION_ID [%d] deleted from DB",
                 action_id);
         }
@@ -1927,7 +1928,7 @@ ErrorCode_t db_get_drone_resources(int droneId, DroneResources_t** resources, in
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -1935,7 +1936,7 @@ ErrorCode_t db_get_drone_resources(int droneId, DroneResources_t** resources, in
     int fieldsNum = 0;
     uint64_t rowsNum = 0;
 
-    engine_trace(TRACE_LEVEL_ALWAYS, "Getting resources for droneID [%d]", droneId);
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "Getting resources for droneID [%d]", droneId);
 
     // sanity check
     if(result == ENGINE_OK)
@@ -1958,11 +1959,11 @@ ErrorCode_t db_get_drone_resources(int droneId, DroneResources_t** resources, in
             "FROM holdings h LEFT JOIN resources ON h.resource = resources.id WHERE h.drone = %d ORDER BY h.units;",
             droneId);
 
-        engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
 
         if (mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             result = ENGINE_DB_QUERY_ERROR;
         }
     }
@@ -1974,7 +1975,7 @@ ErrorCode_t db_get_drone_resources(int droneId, DroneResources_t** resources, in
 
         if(db_result == NULL)
         {
-            engine_trace(TRACE_LEVEL_ALWAYS,
+            ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "ERROR: Unable to get drone resources for DRONE_ID [%d] "
                 "(invalid result for query [%s])",
                 droneId,
@@ -1984,7 +1985,7 @@ ErrorCode_t db_get_drone_resources(int droneId, DroneResources_t** resources, in
         }
         else if((fieldsNum=mysql_num_fields(db_result)) != MAX_DRONE_RESOURCE_FIELDS)
         {
-            engine_trace(TRACE_LEVEL_ALWAYS,
+            ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "ERROR: Invalid fields number obtained for drone resources for DRONE_ID [%d] "
                 "(expected [%d], obtained [%d], query [%s])",
                 droneId,
@@ -2007,7 +2008,7 @@ ErrorCode_t db_get_drone_resources(int droneId, DroneResources_t** resources, in
         *resources = (DroneResources_t*)malloc(sizeof(DroneResources_t) * ((unsigned int)rowsNum));
 
         if(!*resources) {
-            engine_trace(TRACE_LEVEL_ALWAYS,
+            ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "ERROR: Unable to allocate [%d] output drone resources for DRONE_ID [%d]",
                 rowsNum,
                 droneId);
@@ -2033,7 +2034,7 @@ ErrorCode_t db_get_drone_resources(int droneId, DroneResources_t** resources, in
                 resource->event_id = row[DRONE_RESOURCE_EVENT_ID_IDX]?atoi(row[DRONE_RESOURCE_EVENT_ID_IDX]):0;
 
                 // | resource_id | name        | locked | mass | new_quantity | event_id |
-                engine_trace(TRACE_LEVEL_ALWAYS,
+                ee_engine_trace(TRACE_LEVEL_ALWAYS,
                     "Resource found "
                     "ID [%d] NAME [%s] LOCKED [%d] MASS [%d] QUANTITY [%d] EVENT_ID [%d] "
                     "for DRONE_ID [%d]",
@@ -2048,7 +2049,7 @@ ErrorCode_t db_get_drone_resources(int droneId, DroneResources_t** resources, in
             else
             {
                 // unexpected error - abort
-                engine_trace(TRACE_LEVEL_ALWAYS,
+                ee_engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to get row [%d] for query [%s] with [%d] rows",
                     resourceId+1,
                     query_text,
@@ -2087,7 +2088,7 @@ ErrorCode_t db_get_drone_user(int drone_id, User_t* user)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-    DbConnection_t* connection =  engine_get_db_connection();
+    DbConnection_t* connection =  ee_engine_get_db_connection();
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -2111,7 +2112,7 @@ ErrorCode_t db_get_drone_user(int drone_id, User_t* user)
         // run it
         if (mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             result = ENGINE_DB_QUERY_ERROR;
         }
         else
@@ -2123,7 +2124,7 @@ ErrorCode_t db_get_drone_user(int drone_id, User_t* user)
 
             if((db_result == NULL) || (rowsNum != 1) || (fieldsNum != 3))
             {
-                engine_trace(TRACE_LEVEL_ALWAYS,
+                ee_engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to get user info for DRONE_ID [%d] "
                     "(invalid result for query [%s], rows [%d], fields [%d])",
                     drone_id,
@@ -2143,7 +2144,7 @@ ErrorCode_t db_get_drone_user(int drone_id, User_t* user)
                     user->player_id = row[1]?atoi(row[1]):0;
                     user->credits = row[2]?atoi(row[2]):0;
 
-                    engine_trace(TRACE_LEVEL_ALWAYS,
+                    ee_engine_trace(TRACE_LEVEL_ALWAYS,
                         "DRONE_ID [%d] COMPANY_ID [%d] PLAYER_ID [%d] CREDITS [%d]",
                         drone_id,
                         user->user_id,
@@ -2152,7 +2153,7 @@ ErrorCode_t db_get_drone_user(int drone_id, User_t* user)
                 }
                 else
                 {
-                    engine_trace(TRACE_LEVEL_ALWAYS,
+                    ee_engine_trace(TRACE_LEVEL_ALWAYS,
                         "ERROR: Unable to get user info for drone [%d] (no row)",
                         drone_id);
 
@@ -2183,7 +2184,7 @@ ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
 
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -2191,7 +2192,7 @@ ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity)
     int fieldsNum = 0;
     uint64_t rowsNum = 0;
 
-    engine_trace(TRACE_LEVEL_ALWAYS, "Getting quantity for resource ID [%d] and droneID [%d]", resource_id, droneId);
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "Getting quantity for resource ID [%d] and droneID [%d]", resource_id, droneId);
 
     // sanity check
     if(result == ENGINE_OK)
@@ -2213,11 +2214,11 @@ ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity)
             INCREMENT_INVENTORY_EVENT_TYPE,
             DECREMENT_INVENTORY_EVENT_TYPE);
 
-        engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Running query [%s]", query_text);
 
         if (mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             result = ENGINE_DB_QUERY_ERROR;
         }
     }
@@ -2229,7 +2230,7 @@ ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity)
 
         if(db_result == NULL)
         {
-            engine_trace(TRACE_LEVEL_ALWAYS,
+            ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "ERROR: Unable to get quantity for DRONE_ID [%d] RESOURCE_ID [%d] "
                 "(invalid result for query [%s])",
                 droneId,
@@ -2240,7 +2241,7 @@ ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity)
         }
         else if((fieldsNum=mysql_num_fields(db_result)) != 1)
         {
-            engine_trace(TRACE_LEVEL_ALWAYS,
+            ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "ERROR: Invalid fields number obtained for drone DRONE_ID [%d] RESOURCE_ID [%d] "
                 "(expected [1], obtained [%d], query [%s])",
                 droneId,
@@ -2264,7 +2265,7 @@ ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity)
         {
             *quantity = row[0]?atoi(row[0]):0;
 
-            engine_trace(TRACE_LEVEL_ALWAYS,
+            ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "DRONE [%d] RESOURCE_ID [%d] QUANTITY [%d]",
                 droneId,
                 resource_id,
@@ -2273,7 +2274,7 @@ ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity)
         else
         {
             // unexpected error - abort
-            engine_trace(TRACE_LEVEL_ALWAYS,
+            ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "ERROR: Unable to get row for query [%s] with [%d] rows",
                 query_text,
                 rowsNum);
@@ -2310,7 +2311,7 @@ ErrorCode_t db_get_drone_resource(int droneId, int resource_id, int* quantity)
 ErrorCode_t db_add_user_credits(User_t* user, long long delta)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     ErrorCode_t result = db_reconnect(connection);
 
     if(result != ENGINE_OK) return result;
@@ -2319,13 +2320,13 @@ ErrorCode_t db_add_user_credits(User_t* user, long long delta)
     snprintf(query_text, sizeof(query_text),
         "UPDATE companies SET credits = credits + (%lld) WHERE company_id = %d", delta, user->user_id);
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
         return ENGINE_DB_QUERY_ERROR;
     }
 
     snprintf(query_text, sizeof(query_text), "SELECT credits FROM companies WHERE company_id = %d", user->user_id);
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
         return ENGINE_DB_QUERY_ERROR;
     }
     MYSQL_RES* db_result = mysql_store_result(connection->hndl);
@@ -2334,7 +2335,7 @@ ErrorCode_t db_add_user_credits(User_t* user, long long delta)
         if(row && row[0]) user->credits = atoi(row[0]);
         mysql_free_result(db_result);
     }
-    engine_trace(TRACE_LEVEL_ALWAYS, "User [%d] credits changed by [%lld] to [%d]", user->user_id, delta, user->credits);
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "User [%d] credits changed by [%lld] to [%d]", user->user_id, delta, user->credits);
     return ENGINE_OK;
 }
 
@@ -2357,7 +2358,7 @@ ErrorCode_t db_insert_event_e(Event_t* event)
     char new_transmission_text[MAX_QUERY_VALUE_BUF_LEN];
     char new_cargo_text[MAX_QUERY_VALUE_BUF_LEN];
 
-    DbConnection_t* connection =  engine_get_db_connection();
+    DbConnection_t* connection =  ee_engine_get_db_connection();
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -2391,15 +2392,15 @@ ErrorCode_t db_insert_event_e(Event_t* event)
         event->resource_id,
         event->installed,
         event->locked,
-        event->new_quantity!=NULL_VALUE?db_int2str(event->new_quantity, new_quantity_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_quantity!=NULL_VALUE?ee_db_int2str(event->new_quantity, new_quantity_text, MAX_QUERY_VALUE_BUF_LEN):"",
         event->new_quantity!=NULL_VALUE?", ":"",
-        event->new_credits!=NULL_VALUE?db_int2str(event->new_credits, new_credits_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_credits!=NULL_VALUE?ee_db_int2str(event->new_credits, new_credits_text, MAX_QUERY_VALUE_BUF_LEN):"",
         event->new_credits!=NULL_VALUE?", ":"",
-        event->new_location!=NULL_VALUE?db_int2str(event->new_location, new_location_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_location!=NULL_VALUE?ee_db_int2str(event->new_location, new_location_text, MAX_QUERY_VALUE_BUF_LEN):"",
         event->new_location!=NULL_VALUE?", ":"",
-        event->new_transmission!=NULL_VALUE?db_int2str(event->new_transmission, new_transmission_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_transmission!=NULL_VALUE?ee_db_int2str(event->new_transmission, new_transmission_text, MAX_QUERY_VALUE_BUF_LEN):"",
         event->new_transmission!=NULL_VALUE?", ":"",
-        event->new_cargo!=NULL_VALUE?db_int2str(event->new_cargo, new_cargo_text, MAX_QUERY_VALUE_BUF_LEN):"",
+        event->new_cargo!=NULL_VALUE?ee_db_int2str(event->new_cargo, new_cargo_text, MAX_QUERY_VALUE_BUF_LEN):"",
         event->new_cargo!=NULL_VALUE?", ":"");
 
     // Trim last comma if any
@@ -2413,17 +2414,17 @@ ErrorCode_t db_insert_event_e(Event_t* event)
     // run it
     if (mysql_query(connection->hndl, query_text))
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
         result = ENGINE_DB_QUERY_ERROR;
     }
     else
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Query [%s] executed", query_text);
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Query [%s] executed", query_text);
 
         // Get auto-increment ID
         event->event_id = mysql_insert_id(connection->hndl);
 
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
             "Event [%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d] inserted into DB",
             event->event_id,
             event->event_type,
@@ -2458,7 +2459,7 @@ ErrorCode_t db_insert_event_e(Event_t* event)
 ErrorCode_t db_get_event_outcome(int event_id, int* outcome)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     ErrorCode_t result = db_reconnect(connection);
 
     if((result == ENGINE_OK) && outcome)
@@ -2467,7 +2468,7 @@ ErrorCode_t db_get_event_outcome(int event_id, int* outcome)
 
         if (mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             result = ENGINE_DB_QUERY_ERROR;
         }
         else
@@ -2502,7 +2503,7 @@ ErrorCode_t db_get_event_outcome(int event_id, int* outcome)
 ErrorCode_t db_get_pending_action_event(int action_id, int event_type, int exclude_id, Event_t* out_event)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     ErrorCode_t result = db_reconnect(connection);
 
     if((result == ENGINE_OK) && out_event)
@@ -2514,7 +2515,7 @@ ErrorCode_t db_get_pending_action_event(int action_id, int event_type, int exclu
 
         if (mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             result = ENGINE_DB_QUERY_ERROR;
         }
         else
@@ -2546,12 +2547,12 @@ ErrorCode_t db_get_pending_action_event(int action_id, int event_type, int exclu
 *******************************************************************************/
 ErrorCode_t db_savepoint(const char* statement)
 {
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     ErrorCode_t result = db_reconnect(connection);
 
     if((result == ENGINE_OK) && mysql_query(connection->hndl, statement))
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", statement);
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", statement);
         result = ENGINE_DB_QUERY_ERROR;
     }
 
@@ -2563,7 +2564,7 @@ static ErrorCode_t db_launch_exec(DbConnection_t* connection, const char* query_
 {
     if(mysql_query(connection->hndl, query_text))
     {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
     }
     return ENGINE_OK;
@@ -2588,7 +2589,7 @@ ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* ne
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
     char name[32] = "";
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     ErrorCode_t result = db_reconnect(connection);
     static int seeded = 0;
 
@@ -2654,7 +2655,7 @@ ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* ne
     }
 
     if(result == ENGINE_OK)
-        engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] launched drone [%d] [%s] (hull [%d], program of drone [%d])",
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] launched drone [%d] [%s] (hull [%d], program of drone [%d])",
             launcher_id, *new_id, name, hull_id, source_id);
 
     return result;
@@ -2678,7 +2679,7 @@ ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* ne
 ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, int buyer, int location, int tax)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     ErrorCode_t result = db_reconnect(connection);
 
     if(result != ENGINE_OK)
@@ -2713,7 +2714,7 @@ ErrorCode_t db_insert_trade(int resource, int units, int credits, int seller, in
 ErrorCode_t db_refund_deposits(int action_id)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     ErrorCode_t result = db_reconnect(connection);
     if(result != ENGINE_OK)
         return result;
@@ -2727,7 +2728,7 @@ ErrorCode_t db_refund_deposits(int action_id)
         "WHERE e.action = %d AND e.event_type = 1 AND e.new_quantity > 0 AND e.outcome <> %d",
         action_id, OUTCOME_OK);
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
     }
     MYSQL_RES* res = mysql_store_result(connection->hndl);
@@ -2752,16 +2753,16 @@ ErrorCode_t db_refund_deposits(int action_id)
             "SET s.amount = LEAST(d.capacity, s.amount + %d) WHERE s.object_id = %d AND s.resource = %d",
             quantities[i], objects[i], resources[i]);
         if(mysql_query(connection->hndl, query_text)) {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
             return ENGINE_DB_QUERY_ERROR;
         }
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
             "UPDATE events SET new_quantity = 0, new_cargo = 0 WHERE id = %d", ids[i]);
         if(mysql_query(connection->hndl, query_text)) {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
             return ENGINE_DB_QUERY_ERROR;
         }
-        engine_trace(TRACE_LEVEL_ALWAYS, "Deposit of resource [%d] at [%d]: [%d] given back by failed action [%d]",
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Deposit of resource [%d] at [%d]: [%d] given back by failed action [%d]",
             resources[i], objects[i], quantities[i], action_id);
     }
     return ENGINE_OK;
@@ -2786,7 +2787,7 @@ ErrorCode_t db_refund_deposits(int action_id)
 ErrorCode_t db_refund_fuel(int action_id)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     ErrorCode_t result = db_reconnect(connection);
     if(result != ENGINE_OK)
         return result;
@@ -2805,7 +2806,7 @@ ErrorCode_t db_refund_fuel(int action_id)
         "AND e.installed = 0 AND e.locked = 0 AND a.protocol IN (%d, %d) ORDER BY e.id LIMIT 1",
         FUEL_RESOURCE_ID, action_id, FUEL_RESOURCE_ID, OUTCOME_OK, PUSH_PROTOCOL_ID, PULL_PROTOCOL_ID);
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
     }
     MYSQL_RES* res = mysql_store_result(connection->hndl);
@@ -2843,7 +2844,7 @@ ErrorCode_t db_refund_fuel(int action_id)
         "ORDER BY c.id DESC LIMIT 1), 0)",
         drone, FUEL_RESOURCE_ID, drone, OUTCOME_OK);
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
     }
     long long fuel = 0, cargo = 0;
@@ -2862,10 +2863,10 @@ ErrorCode_t db_refund_fuel(int action_id)
         "VALUES (1, 0, 1, %d, %d, %d, 0, 0, %lld, 0, %lld, %lld, %d)",
         OUTCOME_OK, drone, FUEL_RESOURCE_ID, fuel + cost, cargo + cost, game_t, place);
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
     }
-    engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d]: [%d] fuel given back by failed transfer action [%d]",
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d]: [%d] fuel given back by failed transfer action [%d]",
         drone, cost, action_id);
     return ENGINE_OK;
 }
@@ -2893,7 +2894,7 @@ ErrorCode_t db_get_protocol_flags(int protocol_id, ProtocolInfo_t *protocol)
     if(!static_cache_get(&cache, protocol_id, flags, sizeof(flags), now))
     {
         char query_text[DB_MAX_SQL_QUERY_LEN+1];
-        DbConnection_t* connection = engine_get_db_connection();
+        DbConnection_t* connection = ee_engine_get_db_connection();
         ErrorCode_t result = db_reconnect(connection);
         if(result != ENGINE_OK) return result;
 
@@ -2901,7 +2902,7 @@ ErrorCode_t db_get_protocol_flags(int protocol_id, ProtocolInfo_t *protocol)
             "SELECT observable, reportable FROM protocols WHERE id = %d", protocol_id);
         if(mysql_query(connection->hndl, query_text))
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
             return ENGINE_DB_QUERY_ERROR;
         }
 
@@ -2909,7 +2910,7 @@ ErrorCode_t db_get_protocol_flags(int protocol_id, ProtocolInfo_t *protocol)
         MYSQL_ROW row = db_result ? mysql_fetch_row(db_result) : NULL;
         if(!row || mysql_num_fields(db_result) != 2)
         {
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: No protocol [%d] for its flags", protocol_id);
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: No protocol [%d] for its flags", protocol_id);
             if(db_result) mysql_free_result(db_result);
             return ENGINE_DB_QUERY_ERROR;
         }
@@ -3000,7 +3001,7 @@ static long long db_archive_number(DbConnection_t* connection, const char* sql, 
 {
     long long value = dflt;
     if(mysql_query(connection->hndl, sql)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", sql, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", sql, mysql_error(connection->hndl));
         return dflt;
     }
     MYSQL_RES* res = mysql_store_result(connection->hndl);
@@ -3017,7 +3018,7 @@ static long long db_archive_number(DbConnection_t* connection, const char* sql, 
 static ErrorCode_t db_archive_exec(DbConnection_t* connection, const char* sql)
 {
     if(mysql_query(connection->hndl, sql)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", sql, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", sql, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
     }
     int status = 0;
@@ -3028,7 +3029,7 @@ static ErrorCode_t db_archive_exec(DbConnection_t* connection, const char* sql)
         status = mysql_next_result(connection->hndl);
     } while(status == 0);
     if(status > 0) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", sql, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", sql, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
     }
     return ENGINE_OK;
@@ -3058,7 +3059,7 @@ ErrorCode_t db_archive_due(void)
             return ENGINE_OK;
         next_pass = time(NULL) + ARCHIVE_EVERY_SECONDS;
         db_purge_old_actions();
-        DbConnection_t* connection = engine_get_db_connection();
+        DbConnection_t* connection = ee_engine_get_db_connection();
         if(db_reconnect(connection) != ENGINE_OK)
             return ENGINE_DB_QUERY_ERROR;
         days = db_archive_number(connection,
@@ -3073,13 +3074,13 @@ ErrorCode_t db_archive_due(void)
             "(SELECT ROUND(game_anchor + (UNIX_TIMESTAMP() - real_anchor) * scale) FROM game_clock WHERE id = 1) - %lld "
             "LIMIT 50000", LOCK_TOOL_EVENT_TYPE, UNLOCK_TOOL_EVENT_TYPE, days * 86400);
         if(mysql_query(connection->hndl, drop))
-            engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", drop, mysql_error(connection->hndl));
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", drop, mysql_error(connection->hndl));
         active = 1;
         started = logged = now;
         spent = moved = 0;
         windows = 0;
         // Said once a pass, so a stall shows in the log (#818: none for hours)
-        engine_trace(TRACE_LEVEL_ALWAYS, "Archive pass from event [%lu], events older than [%lld] game days%s",
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Archive pass from event [%lu], events older than [%lld] game days%s",
                      cursor, days, behind ? ", catching up" : "");
     }
 
@@ -3087,7 +3088,7 @@ ErrorCode_t db_archive_due(void)
     if(spent * (behind ? ARCHIVE_SHARE_BEHIND : ARCHIVE_SHARE) > now - started)
         return ENGINE_OK;
 
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     ErrorCode_t result = db_reconnect(connection);
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "CALL archive_events(%lu, %d, %lld, @archive_moved, @archive_next)",
@@ -3096,13 +3097,13 @@ ErrorCode_t db_archive_due(void)
     if(result == ENGINE_OK)
         result = db_archive_exec(connection, "SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
     if(result == ENGINE_OK)
-        result = db_start_transaction(connection);
+        result = ee_db_start_transaction(connection);
     if(result == ENGINE_OK)
         result = db_archive_exec(connection, query_text);
     if(result == ENGINE_OK)
-        result = db_commit_transaction(connection);
+        result = ee_db_commit_transaction(connection);
     if(result != ENGINE_OK) {
-        db_rollback_transaction(connection);
+        ee_db_rollback_transaction(connection);
         db_archive_exec(connection, "SET @events_archiving = 0");
         active = 0;     // try again next minute, from where it got to
         return result;
@@ -3120,7 +3121,7 @@ ErrorCode_t db_archive_due(void)
     // the latest of its kind may move by then), or a long pass's progress. A
     // NOTICE, so a quiet log (live's) shows the first passes catching up
     if(cursor == 0 || end - logged >= ARCHIVE_LOG_SECONDS * 1000) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "%sArchived [%lld] events older than [%lld] game days in [%d] windows, "
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "%sArchived [%lld] events older than [%lld] game days in [%d] windows, "
                      "[%lld] of [%lld] ms, %s",
                      moved > 0 ? "NOTICE: " : "", moved, days, windows, spent, end - started,
                      cursor == 0 ? "caught up" : "going on");

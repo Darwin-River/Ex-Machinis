@@ -9,7 +9,7 @@
 
 #include "db.h"
 #include "db_startup.h"
-#include "engine.h"
+#include "engine_e.h"
 #include "startup.h"
 #include "trace.h"
 
@@ -17,7 +17,7 @@
 static long long sd_value(long long dflt, const char* fmt, ...)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     va_list args;
 
     va_start(args, fmt);
@@ -25,7 +25,7 @@ static long long sd_value(long long dflt, const char* fmt, ...)
     va_end(args);
 
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return dflt;
     }
     MYSQL_RES* res = mysql_store_result(connection->hndl);
@@ -42,13 +42,13 @@ static void sd_sides(int from, int to, StartupSide_t* a, StartupSide_t* b)
     StartupSide_t none = {0, 0, 0};
     *a = none;
     *b = none;
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
         "SELECT a.agent_id, c.company_id, c.startup, c.house FROM agents a "
         "JOIN companies c ON c.company_id = a.company_id WHERE a.agent_id IN (%d, %d)", from, to);
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return;
     }
     MYSQL_RES* res = mysql_store_result(connection->hndl);
@@ -88,7 +88,7 @@ ErrorCode_t db_startup_transfer_outcome(Event_t* from, Event_t* to, int place, i
     }
     *outcome = startup_transfer_outcome(a, b, units, stock, bought, permille);
     if(*outcome != 0)
-        engine_trace(TRACE_LEVEL_ALWAYS,
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
             "Transfer for action [%d] refused (%d): drone [%d] (company %d) to drone [%d] (company %d), "
             "a startup trades only with the House, up to its share of the stock (%lld units, %lld bought today)",
             from->action_id, *outcome, from->drone_id, a.company, to->drone_id, b.company, stock, bought);
@@ -107,9 +107,9 @@ ErrorCode_t db_startup_record_buy(int company, Event_t* to, int place)
         "INSERT INTO startup_buys (company_id, place, resource, day, units) VALUES (%d, %d, %d, %lld, %lld) "
         "ON DUPLICATE KEY UPDATE units = units + VALUES(units)",
         company, place, to->resource_id, (long long)(to->game_t / 86400), units);
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
     }
     return ENGINE_OK;
@@ -119,7 +119,7 @@ int db_order_lock_outcome(Event_t* event)
 {
     if(event->event_type != SELL_EVENT_TYPE && event->event_type != BUY_EVENT_TYPE)
         return 0;
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
         // The lock runs from when the order took its present terms: posting
@@ -135,7 +135,7 @@ int db_order_lock_outcome(Event_t* event)
         "AND (c.startup = 1 OR c.owner_id IS NOT NULL)",
         event->drone_id, event->resource_id, event->event_type);
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return 0;
     }
     MYSQL_RES* res = mysql_store_result(connection->hndl);
@@ -147,7 +147,7 @@ int db_order_lock_outcome(Event_t* event)
                                      (long long)event->new_credits, (long long)event->new_quantity,
                                      (long long)event->game_t - atoll(row[2]), lock);
         if(outcome)
-            engine_trace(TRACE_LEVEL_ALWAYS, "Order event [%d] of drone [%d] refused: its order of %s game hours "
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "Order event [%d] of drone [%d] refused: its order of %s game hours "
                 "can't yet be withdrawn, cut or worsened", event->event_id, event->drone_id, row[2]);
     }
     if(res) mysql_free_result(res);
@@ -169,11 +169,11 @@ long long db_startup_skim(int company, long long credits, long long game_t)
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
         "INSERT INTO startup_skims (company_id, game_t, amount) VALUES (%d, %lld, %lld)", company, game_t, over);
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return 0;
     }
-    engine_trace(TRACE_LEVEL_ALWAYS, "Startup [%d] over its cap: %lld credits go to the bank", company, over);
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "Startup [%d] over its cap: %lld credits go to the bank", company, over);
     return over;
 }

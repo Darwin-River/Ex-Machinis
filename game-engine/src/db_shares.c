@@ -9,7 +9,7 @@
 #include "db.h"
 #include "db_shares.h"
 #include "db_wreck.h"
-#include "engine.h"
+#include "engine_e.h"
 #include "game_time.h"
 #include "shares.h"
 #include "trace.h"
@@ -19,13 +19,13 @@
 static ErrorCode_t sh_exec(const char* fmt, ...)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     va_list args;
     va_start(args, fmt);
     vsnprintf(query_text, DB_MAX_SQL_QUERY_LEN, fmt, args);
     va_end(args);
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
     }
     return ENGINE_OK;
@@ -34,13 +34,13 @@ static ErrorCode_t sh_exec(const char* fmt, ...)
 static MYSQL_RES* sh_select(const char* fmt, ...)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     va_list args;
     va_start(args, fmt);
     vsnprintf(query_text, DB_MAX_SQL_QUERY_LEN, fmt, args);
     va_end(args);
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return NULL;
     }
     return mysql_store_result(connection->hndl);
@@ -147,7 +147,7 @@ static ErrorCode_t sh_refund_offering(int company)
     mysql_free_result(res);
     if(result == ENGINE_OK)
         result = sh_exec("DELETE FROM share_offerings WHERE company = %d", company);
-    engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d]'s offering closes unfilled; commitments refunded", company);
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d]'s offering closes unfilled; commitments refunded", company);
     return result;
 }
 
@@ -180,7 +180,7 @@ static ErrorCode_t sh_fill_offering(int company, long long units, long long pric
         result = db_credit_company(company, paid, drone, action, FUEL_RESOURCE_ID);
     if(result == ENGINE_OK)
         result = sh_exec("DELETE FROM share_offerings WHERE company = %d", company);
-    engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d] issues [%lld] new shares at [%lld], raising [%lld]",
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d] issues [%lld] new shares at [%lld], raising [%lld]",
         company, units, price, paid);
     return result;
 }
@@ -203,7 +203,7 @@ static int sh_offer(int company, int drone, int action, long long units, long lo
     if(check == OFFER_OK && shares_over_cap(sh_outside(company) + units, count + units))
         check = OFFER_OVER_CAP;
     if(check != OFFER_OK) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d]'s offering of [%lld] (at least [%lld]) at [%lld] for [%lld] days "
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d]'s offering of [%lld] (at least [%lld]) at [%lld] for [%lld] days "
             "refused ([%d])", company, units, min, price, days, check);
         return (check == OFFER_TOO_MANY || check == OFFER_OVER_CAP) ? OUTCOME_RESOURCES_UPPER_LIMIT :
                check == OFFER_ALREADY_OPEN ? OUTCOME_ACTION_ABORTED : OUTCOME_NO_MARKET_ORDER;
@@ -211,7 +211,7 @@ static int sh_offer(int company, int drone, int action, long long units, long lo
     ErrorCode_t result = sh_exec("INSERT INTO share_offerings (company, units, min_units, price, deadline_t, drone, action, placed_t) "
                                  "VALUES (%d, %lld, %lld, %lld, %lld, %d, %d, %lld)",
                                  company, units, min, price, now + days * 86400, drone, action, now);
-    engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d] offers up to [%lld] new shares (at least [%lld]) at [%lld] for [%lld] days",
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d] offers up to [%lld] new shares (at least [%lld]) at [%lld] for [%lld] days",
         company, units, min, price, days);
     return result == ENGINE_OK ? OUTCOME_OK : OUTCOME_ACTION_ABORTED;
 }
@@ -238,7 +238,7 @@ static int sh_commit(int investor, int drone, int action, int company, long long
     long long credits = sh_value(0, "SELECT credits FROM companies WHERE company_id = %d", investor);
     int check = commit_check(units, left, price, credits);
     if(check != COMMIT_OK) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d]'s commitment of [%lld] to [%d]'s offering refused ([%d])",
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d]'s commitment of [%lld] to [%d]'s offering refused ([%d])",
             investor, units, company, check);
         return check == COMMIT_TOO_MANY ? OUTCOME_RESOURCES_UPPER_LIMIT :
                check == COMMIT_NO_CREDITS ? OUTCOME_NO_CREDITS : OUTCOME_NO_MARKET_ORDER;
@@ -250,7 +250,7 @@ static int sh_commit(int investor, int drone, int action, int company, long long
                          "VALUES (%d, %d, %lld, %lld, %d, %d, %lld) ON DUPLICATE KEY UPDATE units = units + VALUES(units), "
                          "credits = credits + VALUES(credits), drone = VALUES(drone), action = VALUES(action), "
                          "placed_t = VALUES(placed_t)", company, investor, units, paid, drone, action, now);
-    engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d] commits [%lld] credits for [%lld] of company [%d]'s new shares",
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d] commits [%lld] credits for [%lld] of company [%d]'s new shares",
         investor, paid, units, company);
     if(result == ENGINE_OK && units == left)
         result = sh_fill_offering(company, offered, price, offer_drone, offer_action, now);
@@ -281,7 +281,7 @@ int db_shares_settle(Event_t* event)
     int share_company = kind == 5 ? company : shares;
     if(sh_value(0, "SELECT COUNT(*) FROM companies WHERE company_id IN (%d, %d) "
                    "AND (startup = 1 OR owner_id IS NOT NULL)", company, share_company) > 0) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Share action [%d] refused: company [%d] and shares of [%d], "
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Share action [%d] refused: company [%d] and shares of [%d], "
             "players trade new-rules companies' shares", event->action_id, company, shares);
         return OUTCOME_PLAYERS_SHARES;
     }
@@ -336,7 +336,7 @@ int db_shares_settle(Event_t* event)
                        sh_value(SHARES_PER_COMPANY, "SELECT share_count FROM companies WHERE company_id = %d", shares)))
         check = SHARE_OVER_CAP;
     if(check != SHARE_OK) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "Shares: [%lld] of company [%d]'s shares from [%d] to [%d] refused ([%d])",
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Shares: [%lld] of company [%d]'s shares from [%d] to [%d] refused ([%d])",
             units, shares, seller, buyer, check);
         return sh_outcome(check);
     }
@@ -354,7 +354,7 @@ int db_shares_settle(Event_t* event)
         result = sh_exec("INSERT INTO share_trades (share_company, seller, buyer, units, price, action, game_t) "
                          "VALUES (%d, %d, %d, %lld, %lld, %d, %lld)",
                          shares, seller, buyer, units, order_price, event->action_id, now);
-    engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d] sells [%lld] of company [%d]'s shares to [%d] at [%lld]",
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "Shares: company [%d] sells [%lld] of company [%d]'s shares to [%d] at [%lld]",
         seller, units, shares, buyer, order_price);
     return result == ENGINE_OK ? OUTCOME_OK : OUTCOME_ACTION_ABORTED;
 }
@@ -442,7 +442,7 @@ static ErrorCode_t sh_settle_day(int company, long long epoch, long long day, lo
                          "paid = VALUES(paid), holders = VALUES(holders), logged_only = VALUES(logged_only)",
                          company, day, sales, purchases, profit, before, paid, holders, log_only);
     if(paid > 0)
-        engine_trace(TRACE_LEVEL_ALWAYS, "Dividends: company [%d] day [%lld] profit [%lld] carry [%lld] pays [%lld] to [%d] holders",
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Dividends: company [%d] day [%lld] profit [%lld] carry [%lld] pays [%lld] to [%d] holders",
             company, day, profit, before, paid, holders);
     return result;
 }

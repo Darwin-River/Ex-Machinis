@@ -9,7 +9,7 @@
 #include "db.h"
 #include "db_compute.h"
 #include "db_wreck.h"
-#include "engine.h"
+#include "engine_e.h"
 #include "game_time.h"
 #include "trace.h"
 
@@ -19,13 +19,13 @@
 static ErrorCode_t cp_exec(const char* fmt, ...)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     va_list args;
     va_start(args, fmt);
     vsnprintf(query_text, DB_MAX_SQL_QUERY_LEN, fmt, args);
     va_end(args);
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
     }
     return ENGINE_OK;
@@ -34,13 +34,13 @@ static ErrorCode_t cp_exec(const char* fmt, ...)
 static MYSQL_RES* cp_select(const char* fmt, ...)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    DbConnection_t* connection = engine_get_db_connection();
+    DbConnection_t* connection = ee_engine_get_db_connection();
     va_list args;
     va_start(args, fmt);
     vsnprintf(query_text, DB_MAX_SQL_QUERY_LEN, fmt, args);
     va_end(args);
     if(mysql_query(connection->hndl, query_text)) {
-        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return NULL;
     }
     return mysql_store_result(connection->hndl);
@@ -83,7 +83,7 @@ ErrorCode_t db_compute_bill_due(void)
     if(cp_exec("UPDATE compute_clock SET rate_now = %lld, congestion = %.3f WHERE id = 1", rate, congestion) != ENGINE_OK)
         return ENGINE_DB_QUERY_ERROR;
     if(congestion > 1)
-        engine_trace(TRACE_LEVEL_ALWAYS, "Processor tax: %lld credits a million (%.2f times %lld: the clock runs at %.0f of %.0f)",
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Processor tax: %lld credits a million (%.2f times %lld: the clock runs at %.0f of %.0f)",
             rate, congestion, base, scale, target);
     ErrorCode_t result = ENGINE_OK;
     static Bill_t bills[MAX_COMPANIES];
@@ -166,7 +166,7 @@ ErrorCode_t db_compute_bill_due(void)
                              "VALUES (%d, %lld, %lld, %lld, %lld, %lld)",
                              b->company, now, b->instructions, b->amount, paid, owed - paid);
         if(owed - paid > 0)
-            engine_trace(TRACE_LEVEL_ALWAYS, "Processor tax: company [%d] owes [%lld] after paying [%lld]",
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "Processor tax: company [%d] owes [%lld] after paying [%lld]",
                 b->company, owed - paid, paid);
     }
 
@@ -203,7 +203,7 @@ ErrorCode_t db_compute_bill_due(void)
             if(result == ENGINE_OK)
                 result = cp_exec("UPDATE companies SET credits = 0, eliminated_at = %lld, end_cause = 'dissolved', "
                                  "broke_since = NULL WHERE company_id = %d", now, gone[i]);
-            engine_trace(TRACE_LEVEL_ALWAYS, "Company [%d] dissolves: broke for %lld game days; its drones are wrecks",
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "Company [%d] dissolves: broke for %lld game days; its drones are wrecks",
                 gone[i], dissolve_days);
         }
     }

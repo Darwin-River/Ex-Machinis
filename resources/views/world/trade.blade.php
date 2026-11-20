@@ -37,6 +37,8 @@
         .td-order-acts { display: inline-flex; flex-wrap: wrap; gap: 6px; margin-left: .4rem; }
         .td-order-acts form { display: inline-flex; gap: 4px; align-items: center; }
         .td-picker { display: none; margin-bottom: .6rem; }
+        /* On a wide screen the watch list scrolls while the ticket stays in view (#840) */
+        @media (min-width: 861px) { .td-watch-card { position: sticky; top: 84px; max-height: calc(100vh - 100px); overflow-y: auto; } }
         @media (max-width: 860px) {
             .td-watch-card { order: 2; }
             .td-picker { display: block; }

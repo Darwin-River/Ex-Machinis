@@ -17,10 +17,14 @@ LDFLAGS=-lmysqlclient -lconfig -lm
 # Program sources and name
 #---------------------------------------------------------------------------
 GAME_ENGINE_SRCS=static_cache.c query_cache.c lua_drone.c lua_library.c config.c db.c db_common.c email.c embed.c embed_image.c embed_util.c engine.c main.c orbits.c protocol.c trace.c vm.c vm_extension.c vm_meter.c wrap.c game_time.c crash.c db_launch.c vm_library.c clock_floor.c event_order.c
-EVENTS_ENGINE_SRCS=static_cache.c shares.c db_shares.c compute.c db_compute.c main_e.c engine_e.c config_e.c db_e.c db_common.c trace.c event.c orbits.c game_time.c station.c db_station.c wreck.c db_wreck.c startup.c db_startup.c
+EVENTS_ENGINE_SRCS=static_cache.c shares.c db_shares.c compute.c db_compute.c main_e.c engine_e.c config_e.c db_e.c db_common.c trace.c event.c orbits.c game_time.c station.c db_station.c wreck.c db_wreck.c startup.c db_startup.c ee_bindings.c
 OBJS_PATH=objs
 GAME_ENGINE_OBJS=$(patsubst %.c,$(OBJS_PATH)/%.o,$(GAME_ENGINE_SRCS))
 EVENTS_ENGINE_OBJS=$(patsubst %.c,$(OBJS_PATH)/%.o,$(EVENTS_ENGINE_SRCS))
+# Every object of both engines in one program (#694 stage 4): all but the
+# events engine's main (recompiled as ee_main) and its bindings to the shared
+# modules (in one program those are the game engine's)
+LINK_CHECK_OBJS=$(sort $(filter-out $(OBJS_PATH)/main_e.o $(OBJS_PATH)/ee_bindings.o,$(GAME_ENGINE_OBJS) $(EVENTS_ENGINE_OBJS)))
 
 GAME_ENGINE_EXE_NAME=game-engine
 EVENTS_ENGINE_EXE_NAME=events-engine
@@ -70,6 +74,14 @@ $(EXE_PATH)/lua-trade: lua_trade.c $(LUA_OBJS)
 	@mkdir -p $(EXE_PATH)
 	$(CXX) -std=c99 -Wall -Werror -O2 -I$(LUA_DIR) -o $@ lua_trade.c $(LUA_OBJS) -lm
 
+# Both engines link into one program with no clashing names (#694 stage 4:
+# the events engine's copies carry an ee_ prefix)
+link-check: $(LINK_CHECK_OBJS) $(LUA_OBJS) main_e.c
+	@mkdir -p $(OBJS_PATH)
+	$(CXX) $(CFLAGS) -Dmain=ee_main -c main_e.c -o $(OBJS_PATH)/link_check_main_e.o
+	$(CXX) -o $(OBJS_PATH)/link-check $(LINK_CHECK_OBJS) $(OBJS_PATH)/link_check_main_e.o $(LUA_OBJS) $(LDFLAGS)
+	@echo "link-check: both engines link into one program"
+
 # The FORTH image each drone's VM starts from (FORTH_IMAGE_PATH)
 $(EXE_PATH)/eforth.blk: dump_image.c embed_image.c
 	@mkdir -p $(OBJS_PATH) $(EXE_PATH)
@@ -78,7 +90,7 @@ $(EXE_PATH)/eforth.blk: dump_image.c embed_image.c
 
 # Orbit maths checked against real positions, long-line wrapping checked on
 # the FORTH VM, VM memory bounds, the game clock, instruction metering and crash handling (need no database)
-test: $(EXE_PATH)/lua-check check_doc_lua.sh test_orbits.c orbits.c test_wrap.c wrap.c test_vm_bounds.c embed.c test_game_time.c game_time.c test_vm_meter.c vm_meter.c test_crash.c crash.c test_double.c vm_library.c test_station.c station.c test_wreck.c wreck.c test_startup.c startup.c test_clock_floor.c clock_floor.c test_event_order.c event_order.c test_static_cache.c static_cache.c test_query_cache.c query_cache.c test_shares.c shares.c test_compute.c compute.c test_lua_equip.c lua_library.lua $(LUA_OBJS)
+test: link-check $(EXE_PATH)/lua-check check_doc_lua.sh test_orbits.c orbits.c test_wrap.c wrap.c test_vm_bounds.c embed.c test_game_time.c game_time.c test_vm_meter.c vm_meter.c test_crash.c crash.c test_double.c vm_library.c test_station.c station.c test_wreck.c wreck.c test_startup.c startup.c test_clock_floor.c clock_floor.c test_event_order.c event_order.c test_static_cache.c static_cache.c test_query_cache.c query_cache.c test_shares.c shares.c test_compute.c compute.c test_lua_equip.c lua_library.lua $(LUA_OBJS)
 	@mkdir -p $(OBJS_PATH)
 	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/test_orbits test_orbits.c -lm
 	$(OBJS_PATH)/test_orbits
@@ -119,6 +131,8 @@ test: $(EXE_PATH)/lua-check check_doc_lua.sh test_orbits.c orbits.c test_wrap.c 
 	for f in lua_library.lua ../../resources/house/station.lua ../../examples/starters/*.lua ../../examples/companies/*.lua ../../examples/traders/*.lua; do $(EXE_PATH)/lua-check < $$f || { echo "$$f doesn't compile"; exit 1; }; done
 	@echo "lua: the library, the Lua starters and designs compile"
 	./check_doc_lua.sh ../../documents/players-manual.md ../../documents/lua-functions.md ../../documents/blog/*.md
+
+.PHONY: all test clean link-check
 
 clean:
 	$(RM) -rf $(OBJS_PATH) $(GAME_ENGINE_EXE_NAME) $(EVENTS_ENGINE_EXE_NAME) $(EXE_PATH)/eforth.blk
