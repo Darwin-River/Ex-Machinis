@@ -416,7 +416,7 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found
 
     if((result == ENGINE_OK) && rowsNum)
     {
-        ee_engine_trace(TRACE_LEVEL_ALWAYS, "[%d] pending events found");
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "[%d] pending events found", (int)rowsNum);
 
         // iterate results and delete one by one
         for(int eventId=0; eventId < rowsNum; eventId++)

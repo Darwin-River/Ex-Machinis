@@ -89,10 +89,19 @@ void settle_init(const char* plat_home, TraceHndl_t trace)
 }
 
 /* The events engine's lock, tried without waiting at most every few seconds */
+static int g_claim_said = 0;
 static int settle_claim(void)
 {
-    if(ee_embed_claimed())
+    // The settlement connection takes the lock as it connects, as the events
+    // engine's always has: say so once, however it came to be held (the smoke
+    // test looks for this line)
+    if(ee_embed_claimed()) {
+        if(!g_claim_said) {
+            engine_trace(TRACE_LEVEL_ALWAYS, "NOTICE: [events] settlement holds the events-engine lock: settling");
+            g_claim_said = 1;
+        }
         return 1;
+    }
     time_t now = time(NULL);
     if(g_claim_tried_at && now - g_claim_tried_at < SETTLE_CLAIM_EVERY_SECONDS)
         return 0;
@@ -104,6 +113,7 @@ static int settle_claim(void)
 
     if(claimed == ENGINE_OK) {
         engine_trace(TRACE_LEVEL_ALWAYS, "NOTICE: [events] settlement holds the events-engine lock: settling");
+        g_claim_said = 1;
         g_claim_warned = 0;
         return 1;
     }
