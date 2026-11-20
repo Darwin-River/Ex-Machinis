@@ -40,10 +40,16 @@ class CompanyNowTest extends TestCase
         $id = Startups::start($p, 'Now Co', 'function launched() wait(60) end')['company'];
         $c = DB::table('companies')->where('company_id', $id)->first();
         $need = (int) $c->debt + 500;
-        // Earning 100 a game day over the last 4 game days
+        // Two game days of history are too few for a forecast (#878)
         $today = MarketHistory::today();
         DB::table('companies')->where('company_id', $id)->update(['credits' => $need - 1000]);
-        DB::table('company_days')->insert(['company_id' => $id, 'day' => $today - 4, 'credits' => $need - 1400, 'net_wealth' => 0, 'drones' => 1]);
+        DB::table('company_days')->insert(['company_id' => $id, 'day' => $today - 2, 'credits' => $need - 1200, 'net_wealth' => 0, 'drones' => 1]);
+        $young = CompanyNow::forecast(DB::table('companies')->where('company_id', $id)->first(), $need, $need - 1000, false);
+        $this->assertNull($young['pace']);
+        $this->assertNull($young['game_t'], 'no "matures in 11 real minutes" from two days');
+        // Earning 100 a game day over the last 6 game days
+        DB::table('company_days')->where('company_id', $id)->delete();
+        DB::table('company_days')->insert(['company_id' => $id, 'day' => $today - 6, 'credits' => $need - 1600, 'net_wealth' => 0, 'drones' => 1]);
         DB::table('company_days')->insert(['company_id' => $id, 'day' => $today - 1, 'credits' => $need - 1100, 'net_wealth' => 0, 'drones' => 1]);
         CompanyNow::forget($p);
         $s = CompanyNow::for($p)['startups'][0];

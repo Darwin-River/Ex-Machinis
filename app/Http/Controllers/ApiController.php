@@ -295,7 +295,7 @@ class ApiController extends Controller
         $limit = min(500, max(1, (int) $request->query('limit', 50)));
         // Every company at the same age (#614): its net wealth when it was that old
         if (is_numeric($request->query('age'))) {
-            $board = Leaderboard::atAge(min(100000, max(0, round((float) $request->query('age'), 1))), $limit);
+            $board = Leaderboard::atAge(min(100000, max(0, round((float) $request->query('age'), 1))), $limit, null, $request->boolean('startups'));
             return response()->json(['age' => $board['age'], 'of' => $board['of'], 'too_young' => $board['too_young'],
                 'ended_before' => $board['ended_before'], 'companies' => array_map(fn ($r) => [
                     'company_id' => $r['company_id'], 'company' => $r['company'], 'net_wealth_at_age' => $r['wealth'],

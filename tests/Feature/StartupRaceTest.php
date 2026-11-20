@@ -41,6 +41,15 @@ class StartupRaceTest extends TestCase
         foreach ([0 => 2900, 1 => 3100, 2 => 3400] as $age => $credits) {
             DB::table('company_days')->insert(['company_id' => $id, 'day' => $day0 + $age, 'credits' => $credits, 'net_wealth' => 0]);
         }
+        // Its kit, bought in its first game hour: the race starts there (#863)
+        $other = (int) DB::table('agents')->where('company_id', '<>', $id)->value('agent_id');
+        $kit = fn (int $company, int $t) => DB::table('trades')->insert(['resource' => \App\Services\Release::KITS['mining'], 'units' => 1,
+            'credits' => 2000, 'tax' => 0, 'seller' => $other, 'buyer' => DB::table('agents')->where('company_id', $company)->value('agent_id'),
+            'location' => 3, 'game_t' => $t]);
+        $kit($id, $born + 600);
+        // One that never bought a kit isn't racing (#863: Mei 77-4 sat at 2,893, far ahead of everyone)
+        $kitless = Startups::start($p, 'Racer Kitless', 'function launched() wait(60) end')['company'];
+        DB::table('companies')->where('company_id', $kitless)->update(['founded_t' => $born]);
 
         $race = StartupRace::build();
         $this->assertSame(Startups::grant() + Startups::matureMargin(), $race['line']);
@@ -53,8 +62,12 @@ class StartupRaceTest extends TestCase
         $this->assertSame((int) config('forge.starting_credits') - StartupRace::kitPrice('Mining Kit'), $miner['path'][0]['credits']);
         $this->assertSame($miner['after_kit'], $miner['path'][0]['credits']);
         $this->assertLessThan((int) config('forge.starting_credits'), $miner['after_kit']);
+        // Each starter's band, from the fast end of its card to the slow end (#865)
+        $this->assertSame([$card[0], $card[1]], [$miner['fast'][1]['age'], $miner['slow'][1]['age']]);
+        $this->assertNull(collect($race['startups'])->firstWhere('company_id', $kitless));
         $mine = collect($race['startups'])->firstWhere('company_id', $id);
         $this->assertSame('racing', $mine['state']);
+        $this->assertSame('custom', $mine['starter'], 'its code is no starter');
         $this->assertSame([[0, 2900], [1, 3100], [2, 3400], [3, 3600]],
             array_map(fn ($q) => [$q['age'], $q['credits']], $mine['points']));
 
@@ -62,6 +75,7 @@ class StartupRaceTest extends TestCase
         $done = Startups::start($p, 'Racer Two', 'function launched() wait(60) end')['company'];
         $maturedT = $epoch + ($day0 + 2) * 86400 + 3600;   // on its third day's row, which is after repaying
         DB::table('companies')->where('company_id', $done)->update(['founded_t' => $born, 'startup' => 0, 'matured_t' => $maturedT]);
+        $kit($done, $born + 600);
         foreach ([0 => 3000, 1 => 4000, 2 => 4800] as $age => $credits) {
             DB::table('company_days')->insert(['company_id' => $done, 'day' => $day0 + $age, 'credits' => $credits, 'net_wealth' => 0]);
         }

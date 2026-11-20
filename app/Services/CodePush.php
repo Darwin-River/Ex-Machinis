@@ -197,7 +197,8 @@ class CodePush
      * same span on each side (up to EFFECT_DAYS game days, and never back
      * past the push before it or the company's founding): its trading net
      * (sales less tax, less purchases), sales and failed actions, each a
-     * game day. Null when it is too early to tell or there is nothing before
+     * game day, with equipment left out of its purchases. Null when it is
+     * too early to tell or there is nothing before
      */
     public static function effect(int $companyId, int $pushT, ?int $now = null): ?array
     {
@@ -226,8 +227,11 @@ class CodePush
         $sold = DB::table('trades as t')->join('agents as a', 'a.agent_id', '=', 't.seller')->where('a.company_id', $companyId)
             ->where('t.game_t', '>=', $from)->where('t.game_t', '<', $to)
             ->selectRaw('COALESCE(SUM(t.credits), 0) AS c, COALESCE(SUM(t.tax), 0) AS tax')->first();
+        // Equipment it bought (kits, modules, hulls) is invested, not spent, as
+        // on its drones table (#879: a kit bought after a push read as a loss)
         $bought = (int) DB::table('trades as t')->join('agents as a', 'a.agent_id', '=', 't.buyer')->where('a.company_id', $companyId)
-            ->where('t.game_t', '>=', $from)->where('t.game_t', '<', $to)->sum('t.credits');
+            ->where('t.game_t', '>=', $from)->where('t.game_t', '<', $to)
+            ->where('t.resource', '<', CompanyEarnings::EQUIPMENT_FROM)->sum('t.credits');
         $failed = 'x.outcome < 0 AND x.outcome NOT IN (' . implode(', ', CompanyHealth::MARKET_REFUSALS) . ')';
         $acts = DB::selectOne("SELECT COUNT(DISTINCT x.id) AS tries, COUNT(DISTINCT CASE WHEN $failed THEN x.id END) AS failed
             FROM agents AS a JOIN events AS e FORCE INDEX (events_drone_game_t) ON e.drone = a.agent_id
