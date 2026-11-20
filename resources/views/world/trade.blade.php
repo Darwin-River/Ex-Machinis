@@ -59,7 +59,7 @@
                             @foreach($desk['watch'] as $w)
                                 <li><a href="{{ url('market/trade?company=' . $w['company']) }}" @if($w['company'] === $desk['company']) aria-current="true" @endif>
                                     <b>{{ $w['name'] }}</b><span class="td-pill td-pill-{{ $w['health'][0] }}" @if($w['note']) title="{{ $w['note'] }}" @endif>{{ $w['health'][1] }}</span>
-                                    <small>cash-out {{ number_format($w['buys_at']) }} · return {{ $w['return_percent'] === null ? '–' : ($w['return_percent'] > 0 ? '+' : '') . $w['return_percent'] . '%' }}</small>
+                                    <small>cash-out {{ number_format($w['buys_at']) }} · 30-day return {{ $w['return_percent'] === null ? '–' : ($w['return_percent'] > 0 ? '+' : '') . $w['return_percent'] . '%' }}</small>
                                     <small>@if($w['held'] > 0)you hold {{ $w['held'] }} @elseif($w['offered'] > 0)new shares on offer @endif</small>
                                 </a></li>
                             @endforeach

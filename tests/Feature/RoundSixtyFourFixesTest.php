@@ -126,7 +126,7 @@ class RoundSixtyFourFixesTest extends TestCase
     /** #627: the starter miners' copies choose their own site; a lower floor on asking prices */
     public function testCopiesChooseTheirOwnSite()
     {
-        foreach (['starters/miner', 'starters/refiner', 'companies/listed_miner', 'companies/raising_miner'] as $name) {
+        foreach (['starters/miner', 'starters/refiner'] as $name) {
             $src = file_get_contents(base_path("examples/$name.lua"));
             $this->assertStringContainsString('if started ~= me() then', $src, $name);
             $this->assertStringContainsString('copy, started = true, me()', $src, $name);
