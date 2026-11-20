@@ -4,7 +4,7 @@ The API gives programs what the website gives people. It is for your own tools: 
 
 - **Base address:** `https://<the game's domain>/api/v1`. On a server you run yourself, that is your own domain.
 - **Reading needs no key.** Everything the API shows is already public on the website.
-- **Your account's token** (`Authorization: Bearer <token>`) makes a release your startup, and is needed for your account, startups and shares: see [Player accounts](#player-accounts-the-new-rules). Without one, a release is a guest's startup.
+- **Your account's token** (`Authorization: Bearer <token>`) makes a release your startup, and is needed for your account, startups and shares: see [Player accounts](#player-accounts-the-new-rules). Without one, a release is refused (401): every startup belongs to an account.
 - **Same rules as the website.** A release made through the API is checked exactly as on the Release page, and it becomes a company like any other.
 - **Rate limits, per IP address:**
   - 120 reads a minute;
@@ -108,7 +108,7 @@ curl -s -X POST $B/check -H 'Content-Type: application/json' \
 
 ### `POST /release`: release a company
 
-Every release is live, and free: it founds a **startup**, lent its drone and credits by the bank (see [Startups](#startups-637)). Send your account's token to make it yours; without one it is a guest's, with a `claim_code`. To try a fix, push it to the startup (`POST /startups/{id}/push`), or release it again as a new startup and follow its drone (`GET /drones/{id}`). The only limit is 10 releases a minute per address, and 5 startups an account.
+Every release is live, and free: it founds a **startup**, lent its drone and credits by the bank (see [Startups](#startups-637)). Send your account's token: it makes the startup yours, and without one the release is refused (`401`). To try a fix, push it to the startup (`POST /startups/{id}/push`), or release it again as a new startup and follow its drone (`GET /drones/{id}`). The only limit is 10 releases a minute per address, and 5 startups an account.
 
 **Fields:**
 
@@ -126,7 +126,7 @@ curl -s -X POST $B/release -H 'Content-Type: application/json' \
   -d '{"company_name": "Ada Fuel 1", "script": "function launched() print(\"hello\") end"}'
 ```
 
-**Response:** `201 Created`, with the startup, what it owes, and (for a guest) its claim code, shown once:
+**Response:** `201 Created`, with the startup and what it owes (`claim_code` is always null now that every startup is an account's):
 
 ```json
 {
@@ -476,12 +476,12 @@ The new rules (#635) give players accounts. They are live; a server that has the
 
 Startups were called seedlings until #855. The rename went everywhere, with no old names kept: these calls were `/seedlings/...`, and the `seedling` fields of the answers are now `startup`.
 
-Under the new rules every release is a **startup**. `POST /release` with an account's token starts one for that account; without a token it is a guest's, and the answer's `claim_code` (shown once) lets an account claim it. The answer has `startup: true` and `debt`: what it owes the bank for its drone (1,000), its starting credits (3,000) and a fee (200): 4,200. The 3,000 credits are the startup's to spend (a kit costs 2,000); to mature it must hold its debt plus 500 credits to work with (4,700): after its 2,000 kit it holds 1,000, so it has to earn about 3,700 more than it spends. A startup trades only with the House (a trade with anyone else fails with -16), buys at most a tenth of what the House has on sale of a good at one exchange in a game day (-17 after that: `buy_here` then tries less), and plunders nothing. An account has at most 5 startups at a time; a closed startup's slot reopens a game day after it closed. Each call below needs `Authorization: Bearer <token>`:
+Under the new rules every release is a **startup**. `POST /release` with an account's token starts one for that account; without a token it is refused (`401`). A company name is tidied (one space between words) and refused (`422`) when it only looks like another's (case, spacing, invisible characters, 0 for O and 1 for l). The answer has `startup: true` and `debt`: what it owes the bank for its drone (1,000), its starting credits (3,000) and a fee (200): 4,200. The 3,000 credits are the startup's to spend (a kit costs 2,000); to mature it must hold its debt plus 500 credits to work with (4,700): after its 2,000 kit it holds 1,000, so it has to earn about 3,700 more than it spends. A startup trades only with the House (a trade with anyone else fails with -16), buys at most a tenth of what the House has on sale of a good at one exchange in a game day (-17 after that: `buy_here` then tries less), and plunders nothing. An account has at most 5 startups at a time; a closed startup's slot reopens a game day after it closed. Each call below needs `Authorization: Bearer <token>`:
 
 | Request | What it does |
 |---|---|
 | `GET /startups` | the account's startups `{company_id, name, drone, credits, debt, can_mature}` (`can_mature`: it holds its debt and 500 more; it can turn false again a moment later if its drone spends), its `credit_cap` and what went `to_bank` over it: a startup holds at most twice what it was lent at the start (its debt without push fees, #684), and what a sale would take above that goes to the bank, so mature it once it can and matured `companies` `{company_id, name, drone, credits, ended}`, its `slots` (`{used, max}`) and the `grant` a new startup owes |
-| `POST /startups/claim` `{code}` | claims a guest's startup with its code |
+| `POST /startups/claim` `{code}` | claims a guest's startup, founded before accounts were required, with its code |
 | `POST /startups/{id}/push` `{script}` | new code for the startup's drones; the first push is free, and each after it adds 100 to its debt: `{number, fee, drones, debt}`. `POST /check` with `company` previews it: `push` is `{startup: true, enabled, number, fee, debt, debt_after, drones}` (for a matured company, `enabled: false`: its code is locked) |
 | `POST /startups/{id}/close` | closes it: it leaves the game with all it holds, and its debt is cancelled |
 | `POST /startups/{id}/mature` | once it holds its debt and 500 credits more to work with (and the account is verified): it repays, its code is locked for good, and the account gets its 100 shares: `{company, name, repaid, shares}`. 409 while it can't, saying how much it needs; its drone may have spent since `can_mature` was true, so try again later |

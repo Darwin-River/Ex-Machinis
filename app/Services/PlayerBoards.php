@@ -36,7 +36,9 @@ class PlayerBoards
     {
         $q = DB::table('users')->whereNotNull('login');
         if (!$everyone) {
-            $classGroup === null ? $q->whereNull('class_group_id') : $q->where('class_group_id', $classGroup);
+            // The public boards list only accounts with a confirmed address (#867:
+            // 36 of 40 were junk sign-ups); a class's pupils go by their teacher's
+            $classGroup === null ? $q->whereNull('class_group_id')->whereNotNull('email_verified_at') : $q->where('class_group_id', $classGroup);
         }
         $users = $q->get(['user_id', 'login', 'credits', 'share_credits', 'class_group_id']);
         $price = [];

@@ -636,8 +636,15 @@ class ApiController extends Controller
                 function ($attribute, $value, $fail) {
                     if (LaunchQueue::nameWaiting((string) $value)) {
                         $fail('A company of that name is waiting in the launch queue.');
+                    } elseif (($other = Release::lookAlike((string) $value)) !== null) {
+                        // #872: a name that only looks like another's
+                        $fail('That name looks the same as ' . $other . "'s: choose one that reads differently.");
                     }
                 }];
+            // One space between words, none at the ends (#872)
+            if (is_string($request->input('company_name'))) {
+                $request->merge(['company_name' => Release::tidyName($request->input('company_name'))]);
+            }
         }
         $validator = Validator::make($request->all(), $rules);
         return $validator->fails() ? response()->json(['error' => $validator->errors()->first(),

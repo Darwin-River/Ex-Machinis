@@ -32,7 +32,6 @@ class StartupsTest extends TestCase
             'forge.startup_fee' => 500, 'forge.startup_push_fee' => 100, 'forge.starting_credits' => 3000,
             'forge.startup_guest_per_day' => 5, 'forge.player_share_credits' => 5000,
             'forge.startup_mature_margin' => 500]);
-        RateLimiter::clear('guest-startup|127.0.0.1');
         Mail::fake();
     }
 
@@ -200,32 +199,41 @@ class StartupsTest extends TestCase
         $this->assertSame(0, Startups::slotsInUse((int) $owner->user_id));
     }
 
-    public function testAGuestsStartupAndClaimingIt()
+    /** #871: only a player founds a startup; a guest's founded before then can still be claimed */
+    public function testOnlyAPlayerFoundsAStartupAndAnOldGuestsCanBeClaimed()
     {
+        $this->get('/release')->assertOk()->assertSee('id="needs-account"', false)->assertDontSee('>Found startup</button>', false);
         $this->post('/release', ['company_name' => 'Guest Sprout', 'script' => self::SCRIPT])->assertRedirect()
-            ->assertSessionHas('info');
-        $code = preg_replace('/.*: /', '', session('info'));
-        $c = DB::table('companies')->where('name', 'Guest Sprout')->first();
-        $this->assertSame(1, (int) $c->startup);
-        $this->assertNull($c->owner_id);
-        $this->assertSame(hash('sha256', $code), $c->guest_key);
+            ->assertSessionHasErrors('company_name');
+        $this->assertFalse(DB::table('companies')->where('name', 'Guest Sprout')->exists());
+        $this->assertSame(401, Startups::start(null, 'Guest Two', self::SCRIPT, '10.0.0.9')['status']);
 
+        // A guest's startup from before the change: still claimable, once
         $owner = $this->player('Claimer');
+        $id = Startups::start($owner, 'Old Guest Sprout', self::SCRIPT)['company'];
+        $code = 'an-old-guest-code-of-24ch';
+        DB::table('companies')->where('company_id', $id)->update(['owner_id' => null, 'guest_key' => hash('sha256', $code)]);
         $this->assertFalse(Startups::claim($owner, 'not-the-code')['ok']);
         $this->actingAs($owner)->post('/startups/claim', ['code' => $code])->assertSessionHas('success');
-        $c = $this->company((int) $c->company_id);
+        $c = $this->company($id);
         $this->assertSame((int) $owner->user_id, (int) $c->owner_id);
         $this->assertNull($c->guest_key);
         $this->assertFalse(Startups::claim($this->player('Late'), $code)['ok'], 'once');
+        $this->actingAs($owner)->get('/release')->assertOk()->assertSee('>Found startup</button>', false);
     }
 
-    public function testGuestsStartOnlySoMany()
+    /** #872: a name that only looks like another's is refused; spacing is tidied */
+    public function testLookAlikeNamesAreRefused()
     {
-        foreach (range(1, 5) as $i) {
-            $this->assertTrue(Startups::start(null, "Guest $i", self::SCRIPT, '10.0.0.9')['ok']);
+        $h = ['Authorization' => 'Bearer ' . Players::issueToken($this->player('Namer'))];
+        $this->postJson('/api/v1/release', ['company_name' => '  Look   Alike 10 ', 'script' => self::SCRIPT], $h)->assertCreated()
+            ->assertJsonPath('company.name', 'Look Alike 10');
+        foreach (['Look  Alike 10', 'look alike 10', 'Look Alike lO', "Look\u{200B} Alike 10"] as $twin) {
+            $errors = $this->postJson('/api/v1/release', ['company_name' => $twin, 'script' => self::SCRIPT], $h)->assertStatus(422)
+                ->json('errors.company_name');
+            $this->assertContains("That name looks the same as Look Alike 10's: choose one that reads differently.", $errors, $twin);
         }
-        $this->assertSame(429, Startups::start(null, 'Guest 6', self::SCRIPT, '10.0.0.9')['status']);
-        RateLimiter::clear('guest-startup|10.0.0.9');
+        $this->postJson('/api/v1/release', ['company_name' => 'Look Alike 11', 'script' => self::SCRIPT], $h)->assertCreated();
     }
 
     public function testTheApi()
@@ -248,10 +256,9 @@ class StartupsTest extends TestCase
         $this->getJson('/api/v1/startups', $h)->assertJsonPath('companies.0.company_id', $id)->assertJsonCount(0, 'startups');
         $this->getJson('/api/v1/startups')->assertStatus(401);
 
-        // A guest's release through the API comes with a claim code
-        $guest = $this->postJson('/api/v1/release', ['company_name' => 'Api Guest', 'script' => self::SCRIPT])->assertCreated();
-        $this->postJson('/api/v1/startups/claim', ['code' => $guest->json('claim_code')], $h)->assertOk()
-            ->assertJsonPath('name', 'Api Guest');
+        // Without a token, no startup (#871)
+        $this->postJson('/api/v1/release', ['company_name' => 'Api Guest', 'script' => self::SCRIPT])->assertStatus(401)
+            ->assertJsonPath('error', Startups::NEEDS_ACCOUNT);
     }
 
     public function testTheOldRulesAreUntouched()

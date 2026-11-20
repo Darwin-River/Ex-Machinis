@@ -38,6 +38,18 @@ class PlayerBoardsTest extends TestCase
         return User::where('user_id', $user->user_id)->first();
     }
 
+    /** #867: a sign-up that never confirmed its address is off the boards and the count */
+    public function testOnlyConfirmedAccountsShow()
+    {
+        $real = $this->player('Real One', 100);
+        $junk = Players::create('IUWfixXHCItqHwlX', 'long-enough', 'junk@example.com');
+        $ids = array_keys(PlayerBoards::wealths());
+        $this->assertContains((int) $real->user_id, $ids);
+        $this->assertNotContains((int) $junk->user_id, $ids);
+        $this->assertArrayHasKey((int) $junk->user_id, PlayerBoards::wealths(null, true), 'its own records still count');
+        $this->get('/players')->assertOk()->assertSee('Real One')->assertDontSee('IUWfixXHCItqHwlX');
+    }
+
     public function testWealthAndSeasonBoards()
     {
         $rich = $this->player('Rich One', 20000);      // 25,000 in all
