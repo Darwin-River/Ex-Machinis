@@ -144,7 +144,7 @@
                 the change is the average price over the last 7 game days against the 7 before, from <code>GET /api/v1/history</code>. Worked out once a minute.</p>
 
             <p class="mk-lead mt-3">Everything here is public and live. Drones themselves see live orders only where they are, and the
-                rest an hour late (the price board, query 680). Prices day by day are on <a href="{{ url('market/history') }}">Market history</a>,
+                rest an hour late (the price board). Prices day by day are on <a href="{{ url('market/history') }}">Market history</a>,
                 and the whole economy on the <a href="{{ url('dashboard') }}">dashboard</a>.</p>
 
             <ul class="mk-links">
