@@ -15,6 +15,8 @@
 #include <math.h>
 
 #include "db.h"
+#include "db_e.h"
+#include "ee_embed.h"
 #include "static_cache.h"
 
 // Real seconds a cached game-data row stays good (#431): game data reloaded
@@ -190,6 +192,11 @@ ErrorCode_t db_init(DbConnection_t* connection)
 {
 	MYSQL* local_hndl = NULL;
 	ErrorCode_t result = ENGINE_OK;
+
+    // The settlement connection (EVENTS_IN_ENGINE=1, #694 stage 4): made
+    // as the events engine makes its own, when db_reconnect remakes it
+    if(ee_embed_owns(connection))
+        return ee_db_init(connection);
 
     if(connection)
     {

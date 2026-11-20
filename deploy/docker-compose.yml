@@ -39,6 +39,11 @@ x-engine-env: &engine-env
   # How long (real milliseconds) a game engine shares a Lua query's answer
   # about the world with drones that ask the same (#694); 0 turns it off
   LUA_QUERY_CACHE_MS: ${LUA_QUERY_CACHE_MS:-500}
+  # Settlement inside the game engine (#694 stage 4 step 2): 1 makes shard
+  # 0's game engine settle events between turns, on a database connection
+  # of its own, and the events-engine service rest. 0 (the default): the
+  # events engine settles, as before. To roll back: 0, then up -d
+  EVENTS_IN_ENGINE: ${EVENTS_IN_ENGINE:-0}
   # No email (#367 step 5): drones' replies go to drone_messages, which the
   # website shows
   EMAIL_ENABLED: "0"

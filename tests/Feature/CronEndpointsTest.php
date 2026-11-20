@@ -49,6 +49,21 @@ class CronEndpointsTest extends TestCase
         ];
     }
 
+    /** #764: the House's own loop reposts its orders, with the key only, and the tick then leaves them to it */
+    public function testTheHouseLoop()
+    {
+        \Illuminate\Support\Facades\Cache::forget('house-loop-alive');
+        $this->get('/house/wrong-key')->assertStatus(403);
+        $this->get('/house/test-cron-key')->assertOk();
+        $this->assertTrue(\Illuminate\Support\Facades\Cache::has('house-loop-alive'));
+        $this->assertSame(0, \App\Services\HouseMarket::tick(), 'the tick leaves the House to its loop');
+        // One run at a time
+        $lock = \Illuminate\Support\Facades\Cache::lock('house-refresh', 30);
+        $this->assertTrue($lock->get());
+        $this->assertSame(-1, \App\Services\HouseMarket::refreshNow());
+        $lock->release();
+    }
+
     public function testNoViewPrintsBladeLiterally()
     {
         $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(resource_path('views')));

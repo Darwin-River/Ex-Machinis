@@ -102,6 +102,9 @@ void trace_stop(TraceHndl_t hdnl);
 *******************************************************************************/
 void trace_write(TraceHndl_t hdnl, TraceLevel_t level, const char *trace, va_list valist);
 
+/* trace_write with prefix before the message (#694 stage 4) */
+void trace_write_prefixed(TraceHndl_t hdnl, TraceLevel_t level, const char *prefix, const char *trace, va_list valist);
+
 /** ****************************************************************************
 
   @brief      Initializes a log line only with date and level, this function must be 

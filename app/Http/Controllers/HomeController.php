@@ -90,6 +90,15 @@ class HomeController extends Controller
         return response('ok');
     }
 
+    /** The scheduler's House loop (#764): the House's orders, every real second */
+    public function house($key)
+    {
+        $this->requireCronKey($key);
+        // While it runs, the tick leaves the House to it
+        \Illuminate\Support\Facades\Cache::put('house-loop-alive', 1, 30);
+        return response((string) \App\Services\HouseMarket::refreshNow());
+    }
+
     /**
      * The scheduler's keeper (#738): rebuilds each kept figure (the
      * dashboard, the stock exchange) once it is its TTL old, so a page view

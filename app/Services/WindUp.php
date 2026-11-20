@@ -28,6 +28,39 @@ class WindUp
     /** Real seconds between looks (the tick runs every few seconds) */
     public const EVERY = 300;
 
+    /**
+     * Game seconds since $since that the world stood still (#837: no drone
+     * acted for an hourly bill; the engine keeps them in world_stalls), which
+     * the wind-up leaves out: a company can't sell while nothing runs
+     */
+    public static function stalledSince(int $since, ?array $stalls = null): int
+    {
+        $stalls ??= self::stalls($since);
+        $sum = 0;
+        foreach ($stalls as [$from, $to]) {
+            if ($to > $since) {
+                $sum += $to - max($from, $since);
+            }
+        }
+        return $sum;
+    }
+
+    /** The world's stalls ending after $since: [[from_t, to_t]] (one query, for several companies) */
+    private static function stalls(int $since): array
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('world_stalls')) {
+            return [];
+        }
+        return DB::table('world_stalls')->where('to_t', '>', $since)->get(['from_t', 'to_t'])
+            ->map(fn ($r) => [(int) $r->from_t, (int) $r->to_t])->all();
+    }
+
+    /** Game days a company has gone without a sale, the world's stalls left out */
+    private static function idleDays(int $lastSale, int $now, ?array $stalls = null): float
+    {
+        return max(0, $now - $lastSale - self::stalledSince($lastSale, $stalls)) / 86400;
+    }
+
     /** When a company last sold anything: the game time, or its maturing when it has sold nothing since */
     public static function lastSale(object $c): int
     {
@@ -48,7 +81,7 @@ class WindUp
         if (!$c) {
             return null;
         }
-        $since = (World::gameNow() - self::lastSale($c)) / 86400;
+        $since = self::idleDays(self::lastSale($c), World::gameNow());
         return $since >= self::WARN ? max(0, (int) ceil(self::DAYS - $since)) : null;
     }
 
@@ -68,8 +101,9 @@ class WindUp
             ->whereIn('a.company_id', array_keys($matured))->groupBy('a.company_id')
             ->select('a.company_id', DB::raw('MAX(t.game_t) AS last'))->pluck('last', 'company_id')->all();
         $now = World::gameNow();
+        $stalls = self::stalls($now - 365 * 86400);   // once for them all
         foreach ($matured as $co => $t) {
-            $since = ($now - max((int) ($sold[$co] ?? 0), (int) $t)) / 86400;
+            $since = self::idleDays(max((int) ($sold[$co] ?? 0), (int) $t), $now, $stalls);
             $out[(int) $co] = $since >= self::WARN ? max(0, (int) ceil(self::DAYS - $since)) : null;
         }
         return $out;
@@ -86,7 +120,7 @@ class WindUp
         foreach (DB::table('companies')->whereNull('eliminated_at')->where('startup', 0)->whereNotNull('matured_t')
                      ->where('house', 0)->where('matured_t', '<=', $now - self::DAYS * 86400)
                      ->get(['company_id', 'matured_t']) as $c) {
-            if ($now - self::lastSale($c) >= self::DAYS * 86400) {
+            if (self::idleDays(self::lastSale($c), $now) >= self::DAYS) {
                 $n += self::windUp((int) $c->company_id) ? 1 : 0;
             }
         }

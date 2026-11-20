@@ -366,6 +366,11 @@ void engine_release_order_lock(void);
 *******************************************************************************/
 DbConnection_t* engine_get_db_connection();
 
+/* While a settlement pass runs in this engine (EVENTS_IN_ENGINE=1, #694
+   stage 4), engine_get_db_connection returns this connection and
+   engine_trace prefixes "[events] "; NULL ends it (settle.c) */
+void engine_set_settlement_connection(DbConnection_t* connection);
+
 /** ****************************************************************************
 
   @brief      Gets current drone ID (drone processing commands)

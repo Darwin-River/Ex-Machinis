@@ -35,8 +35,10 @@ class HouseMarket
     {
         // The daily record runs even when posting fails (#420: a deadlock
         // ended the tick before it, and company history stopped)
+        // The House's orders are reposted in their own fast loop (refreshNow, #764),
+        // unless the scheduler hasn't one yet (an old scheduler: then here)
         try {
-            return self::refresh();
+            return \Illuminate\Support\Facades\Cache::has('house-loop-alive') ? 0 : self::refreshNow();
         } finally {
             // Each in its own try, so one failing doesn't stop the others
             // (#710: the drones' house_supply must not wait on the record)
@@ -93,6 +95,27 @@ class HouseMarket
     }
 
     /** Posts every station drone's changed orders; returns how many it posted */
+    /**
+     * The House's own loop (#764): reposts its orders every real second, at
+     * most one run at a time. On the tick (every 5 real seconds plus its other
+     * work: 2.5 game hours or more at 1,800x) the bids lagged the half-day
+     * price steps (Mars Metals bid 10 against a listed 21), read 0/0 once
+     * filled, and showed `left` far above `daily` after a shipment, until the
+     * next repost. Returns the orders posted, or -1 when another run holds it
+     */
+    public static function refreshNow(): int
+    {
+        $lock = \Illuminate\Support\Facades\Cache::lock('house-refresh', 30);
+        if (!$lock->get()) {
+            return -1;
+        }
+        try {
+            return self::refresh();
+        } finally {
+            $lock->release();
+        }
+    }
+
     public static function refresh(?string $connection = null): int
     {
         $db = DB::connection($connection);

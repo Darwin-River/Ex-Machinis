@@ -110,10 +110,18 @@ ErrorCode_t db_reconnect(DbConnection_t* connection)
 *******************************************************************************/
 ErrorCode_t db_claim_engine(DbConnection_t* connection, const char* engine)
 {
+	return db_try_claim_engine(connection, engine, 15);
+}
+
+/* db_claim_engine, waiting at most wait_seconds for the lock (0: not at
+   all). Only a wait that ends without the lock is an error in the log: the
+   game engine's settlement tries again without waiting (#694 stage 4) */
+ErrorCode_t db_try_claim_engine(DbConnection_t* connection, const char* engine, int wait_seconds)
+{
 	if(!connection || !connection->hndl || !engine) return ENGINE_INTERNAL_ERROR;
 
 	char query[256];
-	snprintf(query, sizeof(query), "SELECT GET_LOCK(CONCAT(DATABASE(), '/%s'), 15)", engine);
+	snprintf(query, sizeof(query), "SELECT GET_LOCK(CONCAT(DATABASE(), '/%s'), %d)", engine, wait_seconds);
 	int held = 0;
 	if(mysql_query(connection->hndl, query) == 0) {
 		MYSQL_RES* res = mysql_store_result(connection->hndl);
@@ -122,7 +130,7 @@ ErrorCode_t db_claim_engine(DbConnection_t* connection, const char* engine)
 		if(res) mysql_free_result(res);
 	}
 	if(!held) {
-		engine_trace(TRACE_LEVEL_ALWAYS,
+		if(wait_seconds > 0) engine_trace(TRACE_LEVEL_ALWAYS,
 			"ERROR: another %s is already running on database [%s]: stopping",
 			engine, connection->db_name ? connection->db_name : "NULL");
 		return ENGINE_DB_QUERY_ERROR;
@@ -353,9 +361,15 @@ Bool_t db_drone_in_transit(int drone_id, long long game_t)
 
     if(db_reconnect(connection) != ENGINE_OK) return ENGINE_FALSE;
 
+    // Only a trip that had begun by game_t (#543): its action has an event
+    // (the fuel it burns at the start) at or before then. A pending move set
+    // off after the trade's moment, but before the trade settled (the events
+    // engine runs behind), refused trades between drones that were together
     snprintf(query_text, sizeof(query_text),
-        "SELECT 1 FROM events WHERE drone = %d AND event_type = 3 "
-        "AND outcome = 0 AND game_t > %lld LIMIT 1", drone_id, game_t);
+        "SELECT 1 FROM events AS m WHERE m.drone = %d AND m.event_type = 3 "
+        "AND m.outcome = 0 AND m.game_t > %lld "
+        "AND EXISTS (SELECT 1 FROM events AS b WHERE b.action = m.action AND b.game_t <= %lld) LIMIT 1",
+        drone_id, game_t, game_t);
 
     if(mysql_query(connection->hndl, query_text)) {
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);

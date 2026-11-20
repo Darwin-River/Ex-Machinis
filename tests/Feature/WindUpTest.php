@@ -62,6 +62,15 @@ class WindUpTest extends TestCase
         $this->assertNull(WindUp::daysLeft($id));
         DB::table('trades')->where('id', $saleId)->delete();
 
+        // #837: game days the world stood still don't count. 70 game days, 30 of them a stall: 40, so 20 left
+        DB::table('companies')->where('company_id', $id)->update(['matured_t' => $now - 70 * 86400]);
+        $stall = DB::table('world_stalls')->insertGetId(['from_t' => $now - 50 * 86400, 'to_t' => $now - 20 * 86400]);
+        $this->assertSame(20, WindUp::daysLeft($id));
+        $this->assertSame([20], array_values(array_filter(WindUp::daysLeftMany([$id]))));
+        Cache::forget('wind-up-looked');
+        $this->assertSame(0, WindUp::runIfDue(), 'not wound up: 30 of its 70 days the world stood still');
+        DB::table('world_stalls')->where('id', $stall)->delete();
+
         // 61 game days without a sale: wound up, the credits shared out by shares held
         DB::table('companies')->where('company_id', $id)->update(['matured_t' => $now - 61 * 86400]);
         $before = [(int) DB::table('users')->where('user_id', $owner->user_id)->value('credits'),

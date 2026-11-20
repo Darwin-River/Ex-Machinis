@@ -66,8 +66,30 @@ ErrorCode_t db_compute_bill_due(void)
 {
     long long now = game_time_now_seconds();
     long long hour = now - now % COMPUTE_BILL_SECONDS;
-    if(hour <= cp_value(0, "SELECT billed_t FROM compute_clock WHERE id = 1"))
+    long long billed = cp_value(0, "SELECT billed_t FROM compute_clock WHERE id = 1");
+    if(hour <= billed)
         return ENGINE_OK;
+
+    // Downtime doesn't count (#837): no drone acted since the last bill (no
+    // new event; the House's stations act while turns run), so the world
+    // stood still. Broke companies' dissolve timers move forward by the time,
+    // and the stretch is kept (world_stalls) for the wind-up to leave out
+    long long last_event = cp_value(-1, "SELECT IFNULL(last_event_id, -1) FROM compute_clock WHERE id = 1");
+    long long newest = cp_value(0, "SELECT IFNULL(MAX(id), 0) FROM events");
+    if(billed > 0 && last_event >= 0 && newest > 0 && newest == last_event) {
+        long long gap = hour - billed;
+        if(cp_exec("UPDATE companies SET broke_since = broke_since + %lld WHERE broke_since IS NOT NULL "
+                   "AND eliminated_at IS NULL", gap) != ENGINE_OK)
+            return ENGINE_DB_QUERY_ERROR;
+        if(cp_value(0, "SELECT COUNT(*) FROM world_stalls WHERE to_t = %lld", billed) > 0) {
+            if(cp_exec("UPDATE world_stalls SET to_t = %lld WHERE to_t = %lld", hour, billed) != ENGINE_OK)
+                return ENGINE_DB_QUERY_ERROR;
+        } else if(cp_exec("INSERT INTO world_stalls (from_t, to_t) VALUES (%lld, %lld)", billed, hour) != ENGINE_OK)
+            return ENGINE_DB_QUERY_ERROR;
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "No drone acted for [%lld] game seconds: broke companies' timers wait", gap);
+    }
+    if(cp_exec("UPDATE compute_clock SET last_event_id = %lld WHERE id = 1", newest) != ENGINE_OK)
+        return ENGINE_DB_QUERY_ERROR;
 
     // The congestion tax (#620): while the clock runs slower than its target
     // because the engines can't keep up, thinking costs that many times more

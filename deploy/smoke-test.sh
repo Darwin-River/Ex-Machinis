@@ -520,6 +520,22 @@ for svc in game-engine events-engine app; do
 done
 echo "ok: no service restarted"
 
+# Settlement inside the game engine (EVENTS_IN_ENGINE=1, #694 stage 4): the
+# events-engine service rests, and the game engine settles (everything above
+# needed events settled)
+if [ "${EVENTS_IN_ENGINE:-0}" = 1 ]; then
+    # (the log read first, then searched: with pipefail, "logs | grep -q" fails when grep stops early)
+    grep -q "settlement runs in the game engine" <<<"$(docker compose logs events-engine)" ||
+        fail "the events engine doesn't say it rests"
+    # The lock, from the database: with the events engine resting, the holder
+    # is the game engine's settlement connection
+    [ "$(sql "SELECT IS_USED_LOCK(CONCAT(DATABASE(), '/events-engine')) IS NOT NULL")" = 1 ] ||
+        fail "nothing holds the events engine's lock: nobody settles"
+    grep -q '\[events\] ' <<<"$(docker compose logs game-engine)" ||
+        fail "no settlement lines in the game engine's log"
+    echo "ok: settlement runs in the game engine, and the events engine rests"
+fi
+
 plundered() { [ "$(sql "select IFNULL(plundered_by, 0) from agents where agent_id=$DRY")" = "$DRONE_ID" ] &&
               [ "$(sql "select IFNULL(SUM(units), 0) from sqInventory where drone=$DRY")" = 0 ]; }
 if ! wait_quietly 90 plundered; then

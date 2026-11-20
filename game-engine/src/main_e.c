@@ -9,6 +9,7 @@
 /******************************* INCLUDES ************************************/
 
 #include "engine_e.h"
+#include "settle_clock.h"
 
 /******************************* DEFINES *************************************/
 
@@ -36,7 +37,12 @@
 
 *******************************************************************************/
 int main(int argc, char** argv) 
-{ 
+{
+    // EVENTS_IN_ENGINE=1 (#694 stage 4): the game engine settles, so this
+    // one neither settles nor takes the lock, and rests rather than exit
+    if(settle_flag_on())
+        return ee_rest(argc, argv);
+
     // initialize engine & run it
     if(ee_engine_init(argc, argv) == ENGINE_OK)
     {
