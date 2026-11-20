@@ -3,11 +3,14 @@
 -- vladnium and refines them into Organics (A1), Inorganics (A1) and (A2),
 -- and Metals (A1) and (A2): what factories need to brew fuel and make
 -- polymers. It keeps standing sell orders for its goods, sells what nobody
--- bought at the market, and buys its fuel. Copies spread out: a third work
--- the Moon, the rest Phobos and Deimos, selling at the Mars Exchange.
+-- bought at the market, and buys its fuel. Mining sites never run dry and
+-- yield the same everywhere, so it and its copies work the Moon, nearest the
+-- markets; set spread_copies to 1 to send two in three copies to Phobos and
+-- Deimos instead.
 
 -- Settings: change these numbers to make it your own
 low_fuel = 40      -- fuel (units) below which it buys more
+spread_copies = 0  -- 1: copies spread over the Moon, Phobos and Deimos; 0: all at the Moon
 dry_tries = 12     -- dry tries in a row at the Moon before it tries Phobos
 grow_at = 7000     -- credits at which a matured company launches a copy
                    -- (at least 6500: a hull 3000, a kit 2000, 1500 to work with)
@@ -320,7 +323,7 @@ function launched()
   fuel_floor(FUEL_FLOOR)
   equip(mining_kit)   -- a copy waits for the kit its parent hands it
   if started ~= me() then
-    if copy then site_number = me() % SITE_COUNT else site_number = MOON_SITE end
+    if copy and spread_copies == 1 then site_number = me() % SITE_COUNT else site_number = MOON_SITE end
     copy, started = true, me()
   end
   go(work_site())

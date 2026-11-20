@@ -4324,7 +4324,8 @@ ErrorCode_t db_get_latest_entry_game_t(int drone, const int* resources, const in
 
     @brief          Takes units from a mining deposit (#324 step 11)
 
-    A deposit with no state yet is full. The amount is refilled lazily, by
+    Only while house_rules.deposits_deplete is on (#866); otherwise a mine
+    action takes all it wanted. A deposit with no state yet is full. The amount is refilled lazily, by
     refill_per_day for the game time since it was last worked out (a
     fraction of a unit carries over), up to its capacity.
 
@@ -4339,6 +4340,19 @@ ErrorCode_t db_take_deposit(int object_id, int resource, long long wanted, long 
     *taken = wanted;
     if(result != ENGINE_OK)
         return result;
+
+    // Deposits don't run dry unless house_rules.deposits_deplete is on (#866):
+    // a mine action takes what its place's abundance gives, however many
+    // drones work there
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "SELECT IFNULL((SELECT deposits_deplete FROM house_rules WHERE id = 1), 0)");
+    if(mysql_query(connection->hndl, query_text) == 0) {
+        MYSQL_RES* rule = mysql_store_result(connection->hndl);
+        MYSQL_ROW rrow = rule ? mysql_fetch_row(rule) : NULL;
+        int deplete = rrow && rrow[0] ? atoi(rrow[0]) : 0;
+        if(rule) mysql_free_result(rule);
+        if(!deplete)
+            return ENGINE_OK;
+    }
 
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
         "SELECT d.capacity, d.refill_per_day, s.amount, s.refilled_t FROM deposits d "

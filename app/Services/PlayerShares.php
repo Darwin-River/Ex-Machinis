@@ -979,6 +979,7 @@ class PlayerShares
                 ->groupBy('company_id')->selectRaw('MAX(id) AS id'), 'l', 'l.id', '=', 't.id')
             ->get(['t.company_id', 't.price', 't.game_t'])->keyBy('company_id')->all() : [];
         $health = CompanyHealth::many($ids);
+        $windsUp = WindUp::daysLeftMany(array_column($market, 'company'));
         foreach ($market as &$m) {
             $id = $m['company'];
             $l = $last[$id] ?? null;
@@ -995,6 +996,8 @@ class PlayerShares
             // Counting down to dissolving (#758: round 72's top row by yield
             // dissolved a game day later, shown only as "stalled")
             $m['dissolves_in'] = $h['dissolves_in'] ?? null;
+            // Winding up after 60 game days without a sale (#875)
+            $m['winds_up_in'] = $windsUp[(int) $m['company']] ?? null;
             $m['health_note'] = $m['dissolves_in'] !== null ? $h['at_risk_reason']
                 : ($h['at_risk'] ? $h['at_risk_reason'] : ($h['stalled'] ? $h['stalled_reason'] : $h['failing_reason']));
             // Its share's cash-out over the sparkline's 30 game days, and with

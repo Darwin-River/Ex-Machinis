@@ -5,10 +5,10 @@
 --   3. once hold_cap metals are aboard, sells them where the House pays most
 --      after the trip (the Moon, Mars or Earth);
 --   4. with enough credits, launches a copy of itself.
--- The drone you release works the Moon unless more than crowd_limit drones
--- are there. A dry Moon sends it to Phobos and Deimos. A third of its copies
--- stay at the Moon; the rest work Phobos and Deimos. Its kit can't brew
--- fuel, so it buys fuel wherever it is cheapest.
+-- Mining sites never run dry, and a mine run yields the same at every site,
+-- so it and its copies work the Moon, nearest the markets. Set crowd_limit
+-- to spread out to Phobos and Deimos when the Moon is busy. Its kit can't
+-- brew fuel, so it buys fuel wherever it is cheapest.
 
 -- Settings: change these numbers to make it your own
 low_fuel = 40      -- fuel units below which it buys more
@@ -17,7 +17,7 @@ grow_at = 7000     -- credits at which a matured drone launches a copy (6500 at 
 work_cash = 1500   -- credits the company keeps per drone, so copies don't starve it
 grow_until = 0     -- game day after which it launches no copies (0: never stops;
                    -- a copy takes about 20 game days to earn back its cost)
-crowd_limit = 30   -- drones at the Moon past which a released drone starts at a Mars moon
+crowd_limit = 0    -- drones at the Moon past which it starts at a Mars moon (0: never)
 rest = 240         -- game minutes to rest when both Mars moons are dry
 hold_cap = 40      -- metals aboard at which it flies off to sell them in one trip
 min_ask = 12       -- lowest asking price per metal, in credits, where nobody bids
@@ -70,10 +70,10 @@ function work_site() return place_of_site(site_no) end
 -- Its nearest market: the Moon Depot at the Moon, else the Mars Exchange
 function market() if work_site() == moon then return moon else return mars end end
 
--- The quieter Mars moon when the Moon is crowded, else the Moon
+-- The quieter Mars moon when the Moon is past crowd_limit, else the Moon
 function choose_starting_site()
   local at_moon = crowd(moon)
-  if at_moon <= crowd_limit then return MOON end
+  if crowd_limit == 0 or at_moon <= crowd_limit then return MOON end
   local site = crowd(phobos) <= crowd(deimos) and PHOBOS or DEIMOS
   set_status(at_moon .. " drones at the Moon: starting at " .. place_name(place_of_site(site)))
   return site
@@ -377,7 +377,7 @@ function launched()
   fuel_floor(FUEL_FLOOR)   -- keeps enough fuel to buy more
   equip(mining_kit)        -- a copy waits for the kit it is handed
   if started ~= me() then
-    if copy then site_no = me() % SITE_COUNT else site_no = choose_starting_site() end
+    if copy and crowd_limit > 0 then site_no = me() % SITE_COUNT else site_no = choose_starting_site() end
     copy, started = true, me()
   end
   go(work_site())

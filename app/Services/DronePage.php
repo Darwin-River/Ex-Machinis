@@ -44,6 +44,7 @@ class DronePage
         'crashes' => 'Its program kept crashing',
         'tax' => "Its company couldn't pay its tax",
         'dissolved' => 'Its company had no credits for too long',
+        'wound_up' => 'Its company sold nothing for 60 game days and was wound up',
         'closed' => 'Its player closed its startup',
         'reset' => 'The world was reset',
         // The one-time scrap of drones past 8 when the fleet cap came in (#682, #717)
@@ -387,6 +388,11 @@ class DronePage
                 $days = (int) (DB::table('house_rules')->where('id', 1)->value('dissolve_days') ?? 50);
                 $cause = "Its company, $name, had no credits for $days game days straight, so it dissolved on $when "
                     . 'and all its drones became wrecks, with what they carried, for anyone to plunder.';
+                break;
+            case 'wound_up':
+                $name = DB::table('companies')->where('company_id', $agent->company_id)->value('name');
+                $cause = "Its company, $name, sold nothing for " . \App\Services\WindUp::DAYS . " game days, so it was wound up on $when: "
+                    . 'its credits were shared out to its shareholders, and its drones left the game with what they held.';
                 break;
             case 'closed':
                 $name = DB::table('companies')->where('company_id', $agent->company_id)->value('name');

@@ -84,6 +84,8 @@ class HomeController extends Controller
             \App\Services\PlayerShares::payDividends();
             \App\Services\PlayerBoards::startDay();
             \App\Services\PlayerShares::dropEndedOrders();
+            // A matured company that sells nothing for 60 game days is wound up (#875)
+            \App\Services\WindUp::runIfDue();
         }
         return response('ok');
     }
