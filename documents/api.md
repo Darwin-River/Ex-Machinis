@@ -390,7 +390,7 @@ The parameters go in the order `query` takes them after the query ID. For exampl
 {"code": 1, "bytes": "KgFkBA==", "rows": [{"day": 298, "minute": 1124}]}
 ```
 
-- `rows` is what the drone's `query(207)` returns: each row's columns by name (a Lua drone gets them by position too, in the same order).
+- `rows` is what the drone's `query(207)` returns: each row's columns by name (a Lua drone gets them by position too, in the same order). A number comes as a JSON number (#426: some sums, such as query 696's `d_sales`, came as strings), text as a string.
 - `code` is the number of rows, or `-1` (too few parameters), `-2` (no rows, or the query failed) or `-3` (no such query).
 - `bytes` is the old FORTH drones' memory layout; you can ignore it. `size=<bytes>` limits it (and the rows) to what fits.
 
