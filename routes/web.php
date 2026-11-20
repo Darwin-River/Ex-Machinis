@@ -131,6 +131,8 @@ Route::middleware('new-rules')->group(function () {
     Route::post('/startups/{id}/mature', 'StartupController@mature')->whereNumber('id');
     // Player boards (#640)
     Route::get('/players', 'PlayerBoardController@show');
+    // A player's public page (#905)
+    Route::get('/players/{name}', 'PlayerBoardController@player')->where('name', '[^/]+');
     // The startup race (#776)
     Route::get('/startups/race', 'StartupController@race');
     // Players' shares and the bank (#638)

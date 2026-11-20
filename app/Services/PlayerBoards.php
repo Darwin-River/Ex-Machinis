@@ -42,6 +42,44 @@ class PlayerBoards
             ->orWhereExists(fn ($e) => $e->select(DB::raw(1))->from('player_shares')->whereColumn('player_shares.user_id', 'users.user_id')));
     }
 
+    /**
+     * A player's public page (#905: names on the boards had nowhere to go):
+     * their wealth and place on the board, the companies they own or owned,
+     * and the shares they hold. Only for a player the public boards list
+     * (a confirmed address, played, not a class's pupil); null otherwise, so
+     * a pupil's name never has a page
+     */
+    public static function profile(string $name): ?array
+    {
+        $u = self::played(DB::table('users')->where('login', $name)->whereNull('class_group_id')->whereNotNull('email_verified_at'))
+            ->first(['user_id', 'login', 'created_at']);
+        if (!$u) {
+            return null;
+        }
+        $board = self::boards(null, PHP_INT_MAX);
+        $rank = null;
+        $me = null;
+        foreach ($board['wealth'] as $i => $r) {
+            if ($r['name'] === $u->login) {
+                $rank = $i + 1;
+                $me = $r;
+                break;
+            }
+        }
+        $season = collect($board['season'])->firstWhere('name', $u->login);
+        $companies = DB::table('companies')->where('owner_id', $u->user_id)->orderByRaw('eliminated_at IS NOT NULL')->orderByDesc('company_id')
+            ->get(['company_id', 'name', 'startup', 'matured_t', 'eliminated_at', 'end_cause'])
+            ->map(fn ($c) => ['company_id' => (int) $c->company_id, 'name' => $c->name,
+                'status' => $c->eliminated_at !== null ? 'ended' : ((int) $c->startup === 1 ? 'startup' : ($c->matured_t !== null ? 'matured' : 'company')),
+                'end_cause' => $c->end_cause])->all();
+        $shares = DB::table('player_shares AS s')->join('companies AS c', 'c.company_id', '=', 's.company_id')
+            ->where('s.user_id', $u->user_id)->where('s.units', '>', 0)->whereNull('c.eliminated_at')->orderByDesc('s.units')
+            ->get(['c.company_id', 'c.name', 's.units'])->map(fn ($s) => ['company_id' => (int) $s->company_id, 'name' => $s->name,
+                'units' => (int) $s->units])->all();
+        return ['name' => $u->login, 'rank' => $rank, 'players' => count($board['wealth']), 'wealth' => $me['wealth'] ?? null,
+            'season_percent' => $season['percent'] ?? null, 'companies' => $companies, 'shares' => $shares];
+    }
+
     /** Each player account's wealth: [user_id => [name, credits, shares, bank_due, wealth, class_group_id]] */
     public static function wealths(?int $classGroup = null, bool $everyone = false): array
     {

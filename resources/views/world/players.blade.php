@@ -24,7 +24,7 @@
                             @forelse($boards[$key] as $i => $r)
                                 @php $v = $key === 'wealth' ? $r['wealth'] : $r['percent']; if ($v !== $prev) { $place = $i + 1; $prev = $v; } @endphp
                                 <tr @if($me === $r['name']) class="table-active" @endif>
-                                    <td>{{ $place }}</td><td class="text-break">{{ $r['name'] }}</td>
+                                    <td>{{ $place }}</td><td class="text-break">@if($group){{ $r['name'] }}@else<a href="{{ url('players/' . rawurlencode($r['name'])) }}">{{ $r['name'] }}</a>@endif</td>
                                     <td class="text-right">@if($key === 'wealth'){{ number_format($r['wealth']) }}@if($r['bank_due'] > 0)<br><small>{{ number_format($r['bank_due']) }} of it due from the bank</small>@endif
                                         @else{{ $r['percent'] === null ? '–' : ($r['percent'] > 0 ? '+' : '') . rtrim(rtrim(number_format($r['percent'], 2), '0'), '.') . '%' }}<br><small>{{ ($r['made'] > 0 ? '+' : '') . number_format($r['made']) }} credits</small>@endif</td>
                                 </tr>

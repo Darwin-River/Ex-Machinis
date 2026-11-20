@@ -54,6 +54,27 @@ class PlayerBoardsTest extends TestCase
         $this->get('/players')->assertOk()->assertSee('Real One')->assertDontSee('IUWfixXHCItqHwlX');
     }
 
+    /** #905: a player on the public boards has a page; a class's pupil and an unplayed account don't */
+    public function testPlayerPages()
+    {
+        $pro = $this->player('Page Owner', 1000);
+        Startups::start($pro, 'Paged Co', 'function launched() wait(60) end');
+        $this->get('/players/Page%20Owner')->assertOk()->assertSee('Paged Co')->assertSee('id="player-companies"', false);
+        $this->getJson('/api/v1/players/Page%20Owner')->assertOk()->assertJsonPath('name', 'Page Owner')
+            ->assertJsonPath('companies.0.name', 'Paged Co');
+        $this->get('/players')->assertSee(url('players/Page%20Owner'), false);
+        // Nobody who hasn't played, and no pupil
+        $this->player('Idle Account', 0);
+        $this->get('/players/Idle%20Account')->assertNotFound();
+        $pupil = $this->player('Some Pupil', 0);
+        Startups::start($pupil, 'Pupil Co', 'function launched() wait(60) end');
+        $group = DB::table('class_groups')->insertGetId(['name' => 'A class', 'teacher_id' => $pro->user_id] + (\Illuminate\Support\Facades\Schema::hasColumn('class_groups', 'created_at') ? ['created_at' => now()] : []));
+        DB::table('users')->where('user_id', $pupil->user_id)->update(['class_group_id' => $group]);
+        $this->get('/players/Some%20Pupil')->assertNotFound();
+        $this->getJson('/api/v1/players/Some%20Pupil')->assertNotFound();
+        $this->get('/players/Nobody%20At%20All')->assertNotFound();
+    }
+
     public function testWealthAndSeasonBoards()
     {
         $rich = $this->player('Rich One', 20000);      // 25,000 in all
