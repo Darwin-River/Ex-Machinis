@@ -300,7 +300,9 @@
             const sel = $('mh-place'), keep = sel.value;
             const places = [...new Map(rows.map((r) => [r.place, r.place_name])).entries()].sort((a, b) => a[0] - b[0]);
             sel.replaceChildren(new Option('All places', ''), ...places.map(([id, name]) => new Option(name, id)));
-            sel.value = places.some(([id]) => String(id) === keep) ? keep : '';
+            const want = wantPlace ?? keep;
+            wantPlace = null;
+            sel.value = places.some(([id]) => String(id) === want) ? want : '';
             places.forEach(([id]) => { if (!(id in placeColour)) placeColour[id] = COLOURS[Object.keys(placeColour).length % COLOURS.length]; });
             draw();
         }
@@ -308,9 +310,22 @@
         // Every place known to the game gets its colour up front, so it never changes
         // A list even when empty (#830: an empty array came out as {}, and {}.forEach broke every good's chart)
         @json(collect($places)->values()).forEach((id, i) => { placeColour[id] = COLOURS[i % COLOURS.length]; });
-        if ($('mh-resource')) $('mh-resource').addEventListener('change', load);
-        $('mh-days').addEventListener('change', load);
-        $('mh-place').addEventListener('change', draw);
+        // The choice is in the address (#840: a chart couldn't be shared or reloaded as shown)
+        const Q = new URLSearchParams(location.search);
+        const pick = (id, key) => { const el = $(id), v = Q.get(key); if (el && v !== null && [...el.options].some((o) => o.value === v)) el.value = v; };
+        pick('mh-resource', 'resource'); pick('mh-days', 'days');
+        let wantPlace = Q.get('place');
+        function remember() {
+            if (FIXED !== null) return;
+            const q = new URLSearchParams(location.search);
+            [['mh-resource', 'resource'], ['mh-days', 'days'], ['mh-place', 'place']].forEach(([id, key]) => {
+                const el = $(id); if (el && el.value !== '') q.set(key, el.value); else q.delete(key);
+            });
+            history.replaceState(null, '', location.pathname + '?' + q.toString());
+        }
+        if ($('mh-resource')) $('mh-resource').addEventListener('change', () => { remember(); load(); });
+        $('mh-days').addEventListener('change', () => { remember(); load(); });
+        $('mh-place').addEventListener('change', () => { remember(); draw(); });
         let width = 0;
         new ResizeObserver(() => { const w = $('mh-price').clientWidth; if (w !== width) { width = w; if (rows.length) draw(); } }).observe($('mh-price'));
         load();
