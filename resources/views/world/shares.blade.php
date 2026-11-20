@@ -21,7 +21,20 @@
             .share-cards .share-spark svg { max-width: 50%; }
             .share-cards td[data-label="Health"] { display: block; text-align: left !important; }
             .share-cards td[data-label="Health"]::before { margin-right: .5em; }
+            /* The board's cards in three short columns, and (here and in the trades) the first FIRST_ON_PHONE rows until asked (#884: 47 cards of
+               seven rows made the page 21,000 pixels tall on a phone) */
+            #player-share-market tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px 12px; }
+            #player-share-market tr:first-child { display: none; }
+            #player-share-market td { display: block; text-align: left !important; }
+            #player-share-market td::before { content: attr(data-short); display: block; font-size: .78em; line-height: 1.3; }
+            #player-share-market td:first-child, #player-share-market td[colspan] { grid-column: 1 / -1; }
+            #player-share-market td.share-spark, #player-share-market td[data-label="Health"] { grid-column: span 2; }
+            #player-share-market td.share-spark svg { max-width: 100%; }
+            #player-share-market td[data-label="Health"]::before { margin-right: 0; }
+            .share-cards table:not(.show-all) tr.share-more { display: none !important; }
+            .share-show-all { display: block; width: 100%; margin-bottom: 1em; }
         }
+        @media (min-width: 761px) { .share-show-all { display: none !important; } }
     </style>
 @endpush
 @section('content')
@@ -62,27 +75,31 @@
                         <tr><th>Company</th><th class="text-right">Cash-out a share</th><th>Cash-out change, 30 game days</th><th class="text-right">Dividends a share, 30 days</th>
                             <th class="text-right">Yield, 30 days</th><th class="text-right" title="Cash-out change plus dividends a share, over 30 game days">Return, 30 days</th><th class="text-right">Bank sells at</th><th>Health</th></tr>
                         @forelse($playerMarket as $i => $m)
-                            <tr><td><a href="{{ url('companies/' . $m['company']) }}#player-shares">{{ $m['name'] }}</a>
+                            <tr @if($loop->index >= \App\Http\Controllers\WorldController::FIRST_ON_PHONE) class="share-more" @endif><td><a href="{{ url('companies/' . $m['company']) }}#player-shares">{{ $m['name'] }}</a>
                                     @if(!empty($m['holders'][0]['name']))<br><small class="text-muted">mostly {{ $m['holders'][0]['bank'] ? 'the bank' : $m['holders'][0]['name'] }}</small>@endif
                                     {{-- Its share count once it has sold new ones, and an open offering (#780) --}}
                                     @if($m['count'] !== \App\Services\PlayerShares::COUNT)<br><small class="text-muted">{{ $m['count'] }} shares</small>@endif
                                     @if($m['offered'] > 0)<br><small class="health-ok">{{ $m['offered'] }} new {{ \Illuminate\Support\Str::plural('share', $m['offered']) }} on offer at cash-out or the market price</small>@endif
                                     {{-- The last trade between players, when recent (#744: its own column was mostly empty) --}}
                                     @if($m['last_price'] !== null && $m['last_days_ago'] <= 30)<br><small class="text-muted">players traded at {{ number_format($m['last_price']) }} {{ $m['last_days_ago'] === 0 ? 'today' : $m['last_days_ago'] . ' game ' . \Illuminate\Support\Str::plural('day', $m['last_days_ago']) . ' ago' }}@if($m['premium_percent'] !== null) ({{ $m['premium_percent'] > 0 ? '+' . $m['premium_percent'] . '% premium' : ($m['premium_percent'] < 0 ? '−' . abs($m['premium_percent']) . '% discount' : 'at cash-out') }})@endif</small>@endif</td>
-                                <td class="text-right" data-label="Cash-out a share">{{ number_format($m['buys_at']) }}</td>
-                                <td class="share-spark" data-label="Cash-out, 30 game days" data-spark="{{ $i }}">{{ count($m['spark']) ? '' : '–' }}</td>
-                                <td class="text-right" data-label="Dividends a share, 30 days">{{ number_format($m['dividends30']) }}</td>
-                                <td class="text-right" data-label="Yield, 30 days">{{ $m['yield_percent'] === null ? '–' : $m['yield_percent'] . '%' }}</td>
-                                <td class="text-right" data-label="Return, 30 days">{{ ($m['return_percent'] ?? null) === null ? '–' : (($m['return_percent'] > 0 ? '+' : '') . $m['return_percent'] . '%') }}</td>
-                                <td class="text-right" data-label="Bank sells at">{{ number_format($m['sells_at']) }}</td>
+                                <td class="text-right" data-label="Cash-out a share" data-short="Cash-out">{{ number_format($m['buys_at']) }}</td>
+                                <td class="share-spark" data-label="Cash-out, 30 game days" data-short="Cash-out, 30 days" data-spark="{{ $i }}">{{ count($m['spark']) ? '' : '–' }}</td>
+                                <td class="text-right" data-label="Dividends a share, 30 days" data-short="Dividends, 30 days">{{ number_format($m['dividends30']) }}</td>
+                                <td class="text-right" data-label="Yield, 30 days" data-short="Yield, 30 days">{{ $m['yield_percent'] === null ? '–' : $m['yield_percent'] . '%' }}</td>
+                                <td class="text-right" data-label="Return, 30 days" data-short="Return, 30 days">{{ ($m['return_percent'] ?? null) === null ? '–' : (($m['return_percent'] > 0 ? '+' : '') . $m['return_percent'] . '%') }}</td>
+                                <td class="text-right" data-label="Bank sells at" data-short="Bank sells at">{{ number_format($m['sells_at']) }}</td>
                                 {{-- The worst first, in words anyone can read, not only on hover (#758) --}}
-                                <td style="white-space: normal" data-label="Health">@if(($m['dissolves_in'] ?? null) !== null)<strong class="health-bad">dissolves in {{ $m['dissolves_in'] }} game days</strong>@elseif(($m['winds_up_in'] ?? null) !== null)<strong class="health-bad">winds up in {{ $m['winds_up_in'] }} game days</strong>@elseif($m['failing'])<strong class="health-bad">failing</strong>@elseif($m['at_risk'])<strong class="health-warn">at risk</strong>@elseif($m['stalled'])<strong class="health-warn">stalled</strong>@else <span class="health-ok">steady</span> @endif
+                                <td style="white-space: normal" data-label="Health" data-short="Health">@if(($m['dissolves_in'] ?? null) !== null)<strong class="health-bad">dissolves in {{ $m['dissolves_in'] }} game days</strong>@elseif(($m['winds_up_in'] ?? null) !== null)<strong class="health-bad">winds up in {{ $m['winds_up_in'] }} game days</strong>@elseif($m['failing'])<strong class="health-bad">failing</strong>@elseif($m['at_risk'])<strong class="health-warn">at risk</strong>@elseif($m['stalled'])<strong class="health-warn">stalled</strong>@else <span class="health-ok">steady</span> @endif
                                     @if($m['health_note'])<br><small class="text-muted">{{ $m['health_note'] }}</small>@endif</td></tr>
                         @empty
                             <tr><td colspan="8">No company has matured yet.</td></tr>
                         @endforelse
                     </table>
                 </div>
+                @if(count($playerMarket) > \App\Http\Controllers\WorldController::FIRST_ON_PHONE)
+                    <button type="button" class="button button-secondary share-show-all"
+                        onclick="document.getElementById('player-share-market').classList.add('show-all'); this.remove()">Show all {{ count($playerMarket) }} companies</button>
+                @endif
                 <p class="ex-src">Cash-out is what the bank pays for a share; its selling price adds the share's dividends over the last {{ \App\Services\PlayerShares::premiumDays() }} game days.
                     Yield is those dividends over the last 30 game days against cash-out. The last price is the last trade between two players
                     (the bank's trades are at its own prices); its premium or discount against today's cash-out is shown only for a trade in the last
@@ -123,7 +140,7 @@
                     <table class="table-ticket" id="player-share-trades">
                         <tr><th>When</th><th>Company</th><th>Shares</th><th>Price</th><th>Seller</th><th>Buyer</th></tr>
                         @forelse($playerTrades as $t)
-                            <tr><td>{{ $t['when'] }}<br><small class="text-muted">{{ \App\Services\DronePage::ago($t['game_time']) }}</small></td><td data-label="Company"><a href="{{ url('companies/' . $t['company']) }}#player-shares">{{ $t['name'] }}</a></td>
+                            <tr @if($loop->index >= \App\Http\Controllers\WorldController::FIRST_ON_PHONE) class="share-more" @endif><td>{{ $t['when'] }}<br><small class="text-muted">{{ \App\Services\DronePage::ago($t['game_time']) }}</small></td><td data-label="Company"><a href="{{ url('companies/' . $t['company']) }}#player-shares">{{ $t['name'] }}</a></td>
                                 <td data-label="Shares">{{ number_format($t['units']) }}</td><td data-label="Price">{{ number_format($t['price']) }}</td>
                                 <td data-label="Seller">@if($t['seller_is_bank'])<i>the bank</i>@else{{ $t['seller_name'] }}@endif</td><td data-label="Buyer">@if($t['buyer_is_bank'])<i>the bank</i>@else{{ $t['buyer_name'] }}@endif</td></tr>
                         @empty
@@ -131,6 +148,10 @@
                         @endforelse
                     </table>
                 </div>
+                @if(count($playerTrades) > \App\Http\Controllers\WorldController::FIRST_ON_PHONE)
+                    <button type="button" class="button button-secondary share-show-all"
+                        onclick="document.getElementById('player-share-trades').classList.add('show-all'); this.remove()">Show all {{ count($playerTrades) }} trades</button>
+                @endif
                 {{-- The old world's exchange, folded away (#717: 2,500 px of it on a phone) --}}
                 <details class="mt-4" id="before-new-rules">
                 <summary><h3 class="d-inline">Before the new rules</h3></summary>

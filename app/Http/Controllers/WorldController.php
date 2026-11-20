@@ -16,6 +16,9 @@ class WorldController extends Controller
     /** Game days a players' trade stays recent enough to set a premium or discount against cash-out (#716) */
     public const PREMIUM_DAYS = \App\Services\PlayerShares::PREMIUM_DAYS;
 
+    /** Companies the stock exchange board shows on a phone before "Show all" (#884) */
+    public const FIRST_ON_PHONE = 15;
+
     /**
      * The Market page (#721): the goods board, one row per good, and where
      * fuel is on sale. Round 70: it was 28,300 pixels of order tables. A
