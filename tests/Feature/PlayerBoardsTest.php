@@ -78,6 +78,15 @@ class PlayerBoardsTest extends TestCase
         $this->assertSame('Grower One', $b['season'][0]['name']);
         $this->assertGreaterThan(0, $b['season'][0]['made']);
         $this->assertSame(0, collect($b['season'])->firstWhere('name', 'Rich One')['made']);
+        // #840: it ranks by percent, so a small player's good day beats a rich one's bigger but slower one
+        $small = $this->player('Small One', 0);
+        Startups::start($small, 'Small Co', 'function launched() wait(60) end');
+        DB::table('player_wealth_days')->insert(['user_id' => $small->user_id, 'day' => PlayerBoards::day(), 'start_wealth' => 4000]);
+        DB::table('users')->where('user_id', $rich->user_id)->update(['credits' => DB::raw('credits + 5000')]);   // +5,000: 20%
+        $b = PlayerBoards::boards();
+        $order = array_column($b['season'], 'name');
+        $this->assertLessThan(array_search('Rich One', $order), array_search('Small One', $order), '+1,000 of 4,000 (25%) beats +5,000 of 25,000 (20%)');
+        $this->assertSame(25.0, (float) collect($b['season'])->firstWhere('name', 'Small One')['percent']);
 
         $this->get('/players')->assertOk()->assertSee('Grower One')->assertSee('Today&#039;s season', false);
         $this->getJson('/api/v1/players')->assertOk()->assertJsonPath('wealth.0.name', 'Grower One')->assertJsonPath('class_group', null);
