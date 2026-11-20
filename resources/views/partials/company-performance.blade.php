@@ -24,7 +24,8 @@
                 @foreach([10, 30, 60, 365] as $d)
                     <option value="{{ $d }}" @selected($d === 60)>Last {{ $d }} game days</option>
                 @endforeach
-                <option value="0">All its life</option>
+                {{-- Earnings go back at most MAX_DAYS game days (#840: "All its life" showed 365 of them, unsaid) --}}
+                <option value="0">All its life (earnings: its last {{ \App\Services\CompanyEarnings::MAX_DAYS }} game days)</option>
             </select>
         </label>
     </div>
@@ -92,7 +93,8 @@ document.addEventListener('DOMContentLoaded', function () {
     X.legend($('perf-wealth-legend'), [{name: 'Net wealth', colour: C[0], kind: 'line'}, {name: 'Credits', colour: C[2], kind: 'line'}]);
     if ($('perf-cash-legend')) X.legend($('perf-cash-legend'), [{name: 'Cash-out a share, 7-day average', colour: C[0], kind: 'line'},
         {name: 'Its least and most those 7 days', colour: C[0], kind: 'band'},
-        {name: "Bank's selling price, 7-day average", colour: C[3], kind: 'line'}, {name: 'Trades between players', colour: C[4], kind: 'dot'}]);
+        {name: "Bank's selling price, 7-day average", colour: C[3], kind: 'line'}, {name: 'Trades between players', colour: C[4], kind: 'dot'},
+        {name: 'New shares it sold', colour: C[5] || C[1], kind: 'dot'}]);
 
     // A 7-day rolling average and range (#720), over the days with a figure:
     // each day's from it and the 6 before, so a period's first days have theirs
@@ -131,7 +133,8 @@ document.addEventListener('DOMContentLoaded', function () {
             Object.assign({H: 220, unit: 'cr', zoom: 'auto', empty: 'No daily snapshot in this period yet.'}, o));
 
         if ($('perf-cash')) {
-            const trades = P.trades.filter(inRange);
+            // New shares it sold are its own dots (#840: they were labelled trades between players)
+            const trades = P.trades.filter(inRange).filter((t) => !t.issued), issued = P.trades.filter(inRange).filter((t) => t.issued);
             X.lines($('perf-cash'), [
                 {name: 'Cash-out a share', colour: C[0], band: hist.map((r) => ({day: r.day, lo: cashRoll[r.day]?.lo ?? null, hi: cashRoll[r.day]?.hi ?? null})),
                     points: hist.map((r) => {
@@ -144,7 +147,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     return {day: r.day, v: a ? Math.round(a.avg) : null, label: a ? `${X.num(a.avg)} on average; ${X.num(r.bank_sells_at)} that day` : null};
                 })},
                 {name: 'Trade between players', colour: C[4], dotsOnly: true, r: 4, points: trades.map((t) => ({day: t.day, v: t.price,
-                    label: `${t.units} at ${t.price} (${t.seller} to ${t.buyer})`}))}],
+                    label: `${t.units} at ${t.price} (${t.seller} to ${t.buyer})`}))},
+                {name: 'New shares it sold', colour: C[5] || C[1], dotsOnly: true, r: 4, points: issued.map((t) => ({day: t.day, v: t.price,
+                    label: `${t.units} new shares at ${t.price}, to ${t.buyer}`}))}],
                 // Whole credits a step (#744: a young company's axis read 1, 1, 2, 2)
                 Object.assign({H: 200, unit: 'cr', fromZero: false, minStep: 1, empty: 'No cash-out recorded in this period.'}, o));
         }

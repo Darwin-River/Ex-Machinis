@@ -172,7 +172,7 @@ class UserController extends Controller
             'matured' => $matured,
             // Trades between players only (#716: the bank's, at its own prices, were dots too)
             'trades' => $matured ? array_values(array_map(fn ($t) => ['day' => intdiv(max(0, $t['game_time'] - $epoch), 86400), 'price' => $t['price'],
-                'units' => $t['units'], 'seller' => $t['seller_name'], 'buyer' => $t['buyer_name']],
+                'units' => $t['units'], 'seller' => $t['seller_name'], 'buyer' => $t['buyer_name'], 'issued' => $t['issued']],
                 array_filter(\App\Services\PlayerShares::trades((int) $id, 500), fn ($t) => !$t['seller_is_bank'] && !$t['buyer_is_bank']))) : [],
             // The first game day the world recorded cash-out (#716: "from the day a
             // company matures" wasn't so: it began on one day for every company)
