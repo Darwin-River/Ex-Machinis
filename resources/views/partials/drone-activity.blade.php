@@ -104,7 +104,12 @@ document.addEventListener('DOMContentLoaded', function () {
         let start = EARNED_BEFORE;
         EARNED.forEach((p) => { if (p.game_t < t0) start = p.net; });
         const pts = [{game_t: t0, net: start}].concat(EARNED.filter((p) => p.game_t >= t0 && p.game_t <= t1));
-        const EH = 120, vals = pts.map((p) => p.net), lo = Math.min(0, ...vals), top = X.ticks(lo, Math.max(1, ...vals), 3, 1);
+        // Fitted to its figures when they move within a small part of their size, so a drone that earned 280,000 to
+        // 300,000 here isn't a flat line at the top of a 0 to 300,000 axis (#840); from 0 otherwise
+        const EH = 120, vals = pts.map((p) => p.net), vlo = Math.min(...vals), vhi = Math.max(...vals);
+        const fit = vlo > 0 && vhi - vlo < 0.25 * vhi;
+        const pad = Math.max(1, (vhi - vlo) * 0.15);
+        const lo = fit ? Math.max(0, vlo - pad) : Math.min(0, vlo), top = X.ticks(lo, Math.max(fit ? vhi + pad : 1, vhi), 3, 1);
         const a = top[0], b = top[top.length - 1];
         const es = X.el('svg', {viewBox: `0 0 ${W} ${EH}`, role: 'img', 'aria-label': box.getAttribute('aria-label')}, box);
         const y = (v) => 20 + (b - v) / (b - a || 1) * (EH - 44);

@@ -3,14 +3,13 @@
 @include('partials.market-styles')
 @section('content')
     {{-- The House's demand (#550) and supply (#630), moved off the Market page (#721) --}}
-    <x-page-header :title="'House demand and supply'" :subtitle="'What the House exchanges still buy today, what they have on sale, and when each refills.'">
+    <x-page-header tabs="market" :title="'House demand and supply'" :subtitle="'What the House exchanges still buy today, what they have on sale, and when each refills.'">
         <li><a href="{{ url('market') }}">Market</a></li>
         <li class="active">House</li>
     </x-page-header>
     @php($n = fn ($v) => number_format($v))
     <section class="section section-xs section-first">
         <div class="container" id="container">
-            @include('partials.market-tabs')
             <h2 class="h4" id="house-demand">What does the House still buy today?</h2>
             @php($refill = collect($demand)->pluck('hours')->filter(fn ($h) => $h !== null)->min())
             @php($bar = fn ($have, $of) => '<span class="hs-bar" aria-hidden="true"><i style="width: ' . ($of > 0 ? min(100, round(100 * $have / $of)) : 0) . '%"></i></span>')

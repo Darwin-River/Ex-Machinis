@@ -46,13 +46,12 @@
     </style>
 @endpush
 @section('content')
-    <x-page-header :title="'Trading desk'">
+    <x-page-header tabs="market" :title="'Trading desk'">
         <li><a href="{{ url('market') }}">Market</a></li>
         <li class="active">Trading desk</li>
     </x-page-header>
     <section class="section section-xs section-first text-md-left">
         <div class="container" id="trading-desk">
-            @include('partials.market-tabs')
             @if($desk['board'] === null)
                 <p>Players trade matured companies' shares under the new rules, which aren't on in this world.</p>
             @elseif(!$desk['watch'])
