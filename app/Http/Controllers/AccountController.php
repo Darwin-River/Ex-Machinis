@@ -59,6 +59,58 @@ class AccountController extends Controller
         return redirect()->intended('/account');
     }
 
+    /** The forgotten-password form (#910) */
+    public function showForgot()
+    {
+        return Auth::check() ? redirect('/account') : view('account.forgot');
+    }
+
+    /**
+     * Sends a reset link to the account's verified address. The reply is the
+     * same whether or not there is such an account, so the form can't tell
+     * anyone who plays.
+     */
+    public function forgot(Request $request)
+    {
+        $request->validate(['account' => 'required|string|max:255']);
+        $user = Players::forReset((string) $request->input('account'));
+        if ($user) {
+            Players::sendReset($user);
+        }
+        return redirect('/password/forgot')->withSuccess('If that is an account with a verified e-mail address, we have sent it a link to '
+            . 'choose a new password. It works for an hour. Nothing there? Check your spam folder.');
+    }
+
+    /** The page the reset link opens: a new password, twice */
+    public function showReset(Request $request, int $id, string $hash)
+    {
+        $user = Players::resetting($id, $hash);
+        if (!$user) {
+            return redirect('/password/forgot')->with('error', 'That link has been used or no longer works. Ask for a new one.');
+        }
+        return view('account.reset', ['name' => $user->login, 'action' => $request->getRequestUri()]);
+    }
+
+    /** Sets the new password, ends the account's other sessions and logs it in here */
+    public function reset(Request $request, int $id, string $hash)
+    {
+        $user = Players::resetting($id, $hash);
+        if (!$user) {
+            return redirect('/password/forgot')->with('error', 'That link has been used or no longer works. Ask for a new one.');
+        }
+        $request->validate(['password' => 'required|string|max:200|confirmed']);
+        try {
+            Players::resetPassword($user, (string) $request->input('password'));
+        } catch (\InvalidArgumentException $e) {
+            return back()->withErrors(['password' => $e->getMessage()]);
+        }
+        $user = $user->fresh();
+        Auth::login($user);
+        $request->session()->regenerate();
+        return redirect('/account')->withSuccess('Your new password is set, and the account is logged out everywhere else. '
+            . 'Its API token is cancelled: make a new one below if a script uses it.');
+    }
+
     public function logout(Request $request)
     {
         Auth::logout();

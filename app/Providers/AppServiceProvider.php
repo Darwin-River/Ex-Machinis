@@ -13,7 +13,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        //
+        // A session whose account's password has changed since (#910) ends, and goes to Log in
+        \Illuminate\Session\Middleware\AuthenticateSession::redirectUsing(fn () => url('login'));
     }
 
     /**

@@ -20,6 +20,7 @@
                            autocomplete="current-password" required>
                 </div>
                 <button class="button button-primary" type="submit">Log in</button>
+                <a class="ml-3" href="{{ url('password/forgot') }}">Forgot your password?</a>
             </form>
             <p class="mt-3">New here? <a href="{{ url('signup') }}">Make an account</a>. In a class? Your teacher has
                 your name and password.</p>

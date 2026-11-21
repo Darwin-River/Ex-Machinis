@@ -181,6 +181,86 @@ class Players
         });
     }
 
+    /** How long a password reset link works (#910) */
+    public const RESET_MINUTES = 60;
+
+    /**
+     * The account a forgotten-password form names, by its name or its
+     * address, or null. Only a player's account with a verified address
+     * (#910): a pupil's has none, and an unverified one may not be theirs.
+     */
+    public static function forReset(string $nameOrEmail): ?User
+    {
+        $given = trim($nameOrEmail);
+        if ($given === '') {
+            return null;
+        }
+        $query = User::whereNotNull('email_verified_at')->whereNull('class_group_id');
+        $user = str_contains($given, '@')
+            ? $query->where('email', self::normalEmail($given))->first()
+            : $query->where('login', $given)->first();
+        return $user && $user->email !== null ? $user : null;
+    }
+
+    /**
+     * The hash a reset link carries: over the account's password hash, so the
+     * link stops working once the password changes, whether by this link or
+     * any other way
+     */
+    private static function resetHash(User $user): string
+    {
+        return hash_hmac('sha256', 'reset|' . $user->user_id . '|' . (string) $user->password, (string) config('app.key'));
+    }
+
+    /** The link that lets an account choose a new password: good for an hour, once */
+    public static function resetUrl(User $user): string
+    {
+        return url(URL::temporarySignedRoute('password.reset', now()->addMinutes(self::RESET_MINUTES),
+            ['id' => $user->user_id, 'hash' => self::resetHash($user)], false));
+    }
+
+    /**
+     * Sends an account its reset link, at most 3 times an hour. False when it
+     * wasn't sent (too many, or the mail failed: logged).
+     */
+    public static function sendReset(User $user): bool
+    {
+        $key = 'reset-mail|' . $user->user_id;
+        if (RateLimiter::tooManyAttempts($key, 3)) {
+            return false;
+        }
+        RateLimiter::hit($key, 3600);
+        try {
+            Mail::to((string) $user->email)->send(new \App\Mail\ResetPassword((string) $user->login, self::resetUrl($user)));
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning('Password reset mail failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /** The account a reset link is for, while its hash still matches, or null */
+    public static function resetting(int $id, string $hash): ?User
+    {
+        $user = User::where('user_id', $id)->whereNotNull('login')->first();
+        return $user && hash_equals(self::resetHash($user), $hash) ? $user : null;
+    }
+
+    /**
+     * Sets an account's new password from a reset link. Its API token and
+     * "remember me" are cleared, and its other sessions end (the website's
+     * AuthenticateSession sees the password change). Throws
+     * InvalidArgumentException when the password won't do.
+     */
+    public static function resetPassword(User $user, string $password): void
+    {
+        if ($problem = self::passwordProblem($password)) {
+            throw new \InvalidArgumentException($problem);
+        }
+        DB::table('users')->where('user_id', $user->user_id)
+            ->update(['password' => Hash::make($password), 'api_token' => null, 'remember_token' => null, 'updated_at' => now()]);
+    }
+
     /**
      * A new API token for an account: shown once, kept as a hash. A new one
      * replaces the old.
