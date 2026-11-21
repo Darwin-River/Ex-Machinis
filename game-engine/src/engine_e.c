@@ -25,6 +25,7 @@
 #include "game_time.h"
 #include "db.h"
 #include "db_e.h"
+#include "event_heap.h"
 
 /******************************* DEFINES *************************************/
 
@@ -370,10 +371,13 @@ ErrorCode_t ee_pass(int* found)
     if((result == ENGINE_OK) || (result == ENGINE_DB_NOT_FOUND_ERROR))
     {
         result = ee_db_commit_transaction(&ee_engine.db_connection);
+        // EVENT_HEAP: the batch's events still pending go back in the heap
+        db_event_heap_batch_done(result == ENGINE_OK);
     }
     else
     {
         result = ee_db_rollback_transaction(&ee_engine.db_connection);
+        db_event_heap_batch_done(0);   // EVENT_HEAP: all of the batch goes back
         // Give the database a moment before the retry (#711)
         if(event_batch_retry()) sleep(1);
     }
@@ -428,6 +432,12 @@ ErrorCode_t ee_pass(int* found)
 ErrorCode_t ee_run()
 {
     ee_init();
+
+    // The heap of due events needs settlement and the turns in one program
+    // (#694 stage 4 step 3): this events engine reads them from MySQL
+    if(event_heap_flag_on())
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
+            "NOTICE: EVENT_HEAP=1 needs EVENTS_IN_ENGINE=1: this events engine reads due events from MySQL");
 
     while(ee_engine.status == ENGINE_RUNNING_STATUS)
     {

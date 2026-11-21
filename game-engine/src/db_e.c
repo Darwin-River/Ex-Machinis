@@ -21,6 +21,7 @@
 #include "game_time.h"
 #include "trace.h"
 #include "engine_e.h"
+#include "event_heap.h"
 
 /******************************* DEFINES *************************************/
 
@@ -280,10 +281,14 @@ ErrorCode_t ee_db_commit_transaction(DbConnection_t* connection)
     {
         ee_engine_trace(TRACE_LEVEL_ALWAYS,"ERROR: Could not commit DB transaction");
         result = ENGINE_DB_QUERY_ERROR;
+        event_heap_stage_discard(connection);   // EVENT_HEAP: never seen
     }
     else
     {
         ee_engine_trace(TRACE_LEVEL_ALWAYS, "DB transaction commit");
+        // EVENT_HEAP (#694 stage 4 step 3): the events this transaction
+        // inserted are pending for everyone now
+        event_heap_stage_commit(connection);
     }
 
     return result;
@@ -313,6 +318,8 @@ ErrorCode_t ee_db_rollback_transaction(DbConnection_t* connection)
     {
         ee_engine_trace(TRACE_LEVEL_ALWAYS, "DB transaction rollback");
     }
+
+    event_heap_stage_discard(connection);   // EVENT_HEAP: these never were
 
     return result;
 }
@@ -350,6 +357,380 @@ static void db_row_to_event(MYSQL_ROW row, Event_t* event)
         row[EVENT_TIMESTAMP_IDX], event->timestamp, row[EVENT_NEW_LOCATION_IDX]);
 }
 
+/******************************* DUE EVENTS FROM MEMORY **********************/
+
+/*
+ * EVENT_HEAP=1 (#694 stage 4 step 3, #432). The batch query below asked
+ * MySQL each pass for the first due, pending events: the costliest
+ * statement on the live database. With the heap, event_heap.c keeps every
+ * pending event's id and key (game_t, action, id: that query's ORDER BY) in
+ * memory, and a pass takes the due ones from it and reads only their rows,
+ * by id, with the same conditions and order. An event whose row has gone,
+ * has been settled since (outcome != 0: the game engine aborted its action)
+ * or whose action is aborted is dropped, as the query would skip it.
+ *
+ * How the heap stays complete:
+ *  - at start, one read of every pending event (the batch query without
+ *    its due-time condition and LIMIT);
+ *  - the events this program inserts (the game engine's turns, settlement's
+ *    follow-ups) go in when their transaction commits (event_heap_stage);
+ *  - each pass first reads the events with ids past the highest it has
+ *    seen (a short primary-key range), and adds the pending ones not in
+ *    yet: other shards' turns and anything another program inserts. So a
+ *    pass sees what the batch query would have seen;
+ *  - but an auto-increment id is taken before its transaction commits, so
+ *    an event can commit after a higher id has been seen: the ids that
+ *    read skipped are looked for again each pass for 10 real seconds, and
+ *    each real second a sweep reads again the ids of the last 10-20 s;
+ *  - every five real minutes, the start's full read again, in case.
+ * The log says once a real minute how many each found that weren't in.
+ */
+
+#define HEAP_SWEEP_MS        1000
+#define HEAP_LAG_STEP_MS     10000
+#define HEAP_RECONCILE_MS    (5 * 60 * 1000)
+#define HEAP_REPORT_MS       60000
+
+static int heap_loaded = 0;
+static int heap_max_id = 0;           /* the highest events id seen */
+static int heap_wm_prev = 0;          /* heap_max_id a lag step ago */
+static int heap_wm_lag = 0;           /* ... and two: the sweep starts here */
+static long long heap_wm_at = 0, heap_swept_at = 0, heap_reconciled_at = 0, heap_reported_at = 0;
+static long long heap_swept_new = 0, heap_late_new = 0, heap_reconciled_new = 0, heap_dropped = 0, heap_taken_total = 0;
+
+/* Ids the reads skipped (not committed yet, or never), looked for each
+   pass until HEAP_LAG_STEP_MS old */
+#define HEAP_GAPS_MAX     1024
+#define HEAP_GAP_SPAN_MAX 256
+static int heap_gap_ids[HEAP_GAPS_MAX];
+static long long heap_gap_at[HEAP_GAPS_MAX];
+static int heap_gap_n = 0;
+
+static void db_heap_gap_add(int id, long long now)
+{
+    if(heap_gap_n == HEAP_GAPS_MAX) {
+        // Full: the oldest goes (the sweep still looks)
+        memmove(heap_gap_ids, heap_gap_ids + 1, sizeof(int) * (HEAP_GAPS_MAX - 1));
+        memmove(heap_gap_at, heap_gap_at + 1, sizeof(long long) * (HEAP_GAPS_MAX - 1));
+        heap_gap_n--;
+    }
+    heap_gap_ids[heap_gap_n] = id;
+    heap_gap_at[heap_gap_n] = now;
+    heap_gap_n++;
+}
+
+static void db_heap_gap_remove(int id)
+{
+    for(int i = 0; i < heap_gap_n; i++)
+        if(heap_gap_ids[i] == id) {
+            heap_gap_n--;
+            memmove(heap_gap_ids + i, heap_gap_ids + i + 1, sizeof(int) * (size_t)(heap_gap_n - i));
+            memmove(heap_gap_at + i, heap_gap_at + i + 1, sizeof(long long) * (size_t)(heap_gap_n - i));
+            return;
+        }
+}
+
+/* The events taken from the heap for this batch, and which had pending rows */
+static EventHeapEntry_t* heap_batch = NULL;
+static char* heap_batch_loaded = NULL;
+static int heap_batch_n = 0, heap_batch_size = 0, heap_batch_scan = 0, heap_batch_queried = 0;
+
+static long long db_heap_ms(void)
+{
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (long long)t.tv_sec * 1000 + t.tv_nsec / 1000000;
+}
+
+/* Adds the rows of an "id, game_t, action" query to the heap: *added, how
+   many weren't in. With two more columns, "outcome, aborted", it adds only
+   the pending ones, as the batch query's conditions say, and notes the
+   highest id of all. gaps: 1, the rows come in id order past heap_max_id,
+   and the ids they skip are noted; 2, the rows are noted ids found */
+static ErrorCode_t db_heap_read(DbConnection_t* connection, const char* query, int* added, int* rows, int gaps)
+{
+    *added = 0;
+    if(rows) *rows = 0;
+    if(mysql_query(connection->hndl, query)) {
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    if(!res) {
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s]: no result: %s", query, mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    EventHeap_t* heap = event_heap_global();
+    ErrorCode_t result = ENGINE_OK;
+    MYSQL_ROW row;
+    int filter = mysql_num_fields(res) >= 5;
+    while((row = mysql_fetch_row(res))) {
+        int id = row[0] ? atoi(row[0]) : 0;
+        long long game_t = row[1] ? atoll(row[1]) : 0;
+        long long action = row[2] ? atoll(row[2]) : EVENT_HEAP_NULL_ACTION;
+        if(id <= 0) continue;
+        if(gaps == 1 && id > heap_max_id + 1 && id - heap_max_id <= HEAP_GAP_SPAN_MAX) {
+            long long now = db_heap_ms();
+            for(int g = heap_max_id + 1; g < id; g++)
+                db_heap_gap_add(g, now);
+        }
+        if(gaps == 2)
+            db_heap_gap_remove(id);
+        if(id > heap_max_id) heap_max_id = id;
+        // outcome = 0 and (aborted) != 1: a NULL aborted (no action) is not != 1
+        if(filter && (!row[3] || atoi(row[3]) != 0 || !row[4] || atoi(row[4]) == 1))
+            continue;
+        int pushed = event_heap_push(heap, id, game_t, action);
+        if(pushed < 0) { result = ENGINE_MEMORY_ALLOC_ERROR; break; }
+        *added += pushed;
+        if(rows) (*rows)++;
+    }
+    mysql_free_result(res);
+    return result;
+}
+
+static ErrorCode_t db_heap_max_id(DbConnection_t* connection, int* max_id)
+{
+    if(mysql_query(connection->hndl, "SELECT MAX(id) FROM events")) {
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [SELECT MAX(id) FROM events] failed: %s", mysql_error(connection->hndl));
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    if(!res) return ENGINE_DB_QUERY_ERROR;
+    MYSQL_ROW row = mysql_fetch_row(res);
+    *max_id = (row && row[0]) ? atoi(row[0]) : 0;
+    mysql_free_result(res);
+    return ENGINE_OK;
+}
+
+/* Every pending event: at start, and every few minutes */
+static ErrorCode_t db_heap_load_all(DbConnection_t* connection, const char* why)
+{
+    int top = 0, added = 0, rows = 0;
+    long long started = db_heap_ms();
+    // The top id first: what is inserted while this reads, the sweep finds
+    ErrorCode_t result = db_heap_max_id(connection, &top);
+    if(result == ENGINE_OK)
+        result = db_heap_read(connection,
+            "SELECT id, game_t, action FROM events AS e WHERE outcome = 0 "
+            "AND (SELECT aborted FROM actions WHERE id = e.action) != 1",
+            &added, &rows, 0);
+    if(result != ENGINE_OK)
+        return result;
+    if(!heap_loaded) {
+        heap_loaded = 1;
+        if(top > heap_max_id) heap_max_id = top;
+        heap_wm_prev = heap_wm_lag = top;
+        heap_wm_at = heap_swept_at = heap_reconciled_at = heap_reported_at = db_heap_ms();
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
+            "NOTICE: EVENT_HEAP=1: due events come from memory: [%d] pending events loaded in [%lld] ms (top id [%d])",
+            rows, db_heap_ms() - started, top);
+    } else {
+        heap_reconciled_new += added;
+        ee_engine_trace(added ? TRACE_LEVEL_ALWAYS : TRACE_LEVEL_DEBUG,
+            "%sEVENT_HEAP: %s: [%d] pending events, [%d] of them not in the heap, in [%lld] ms",
+            added ? "WARNING: " : "", why, rows, added, db_heap_ms() - started);
+    }
+    return ENGINE_OK;
+}
+
+/* Each pass: the events past the highest id seen */
+static ErrorCode_t db_heap_read_new(DbConnection_t* connection)
+{
+    char query[512];
+    int added = 0;
+    snprintf(query, sizeof(query),
+        "SELECT id, game_t, action, outcome, (SELECT aborted FROM actions WHERE id = e.action) "
+        "FROM events AS e FORCE INDEX (PRIMARY) WHERE e.id > %d ORDER BY e.id", heap_max_id);
+    ErrorCode_t result = db_heap_read(connection, query, &added, NULL, 1);
+    heap_swept_new += added;
+    return result;
+}
+
+/* Each pass: the ids the reads skipped, in case they have committed since */
+static ErrorCode_t db_heap_read_gaps(DbConnection_t* connection, long long now)
+{
+    // Forget those old enough for the sweep
+    int kept = 0;
+    for(int i = 0; i < heap_gap_n; i++)
+        if(now - heap_gap_at[i] < HEAP_LAG_STEP_MS) {
+            heap_gap_ids[kept] = heap_gap_ids[i];
+            heap_gap_at[kept] = heap_gap_at[i];
+            kept++;
+        }
+    heap_gap_n = kept;
+    if(!heap_gap_n)
+        return ENGINE_OK;
+    size_t len = 256 + (size_t)heap_gap_n * 12;
+    char* query = malloc(len);
+    if(!query)
+        return ENGINE_MEMORY_ALLOC_ERROR;
+    char* end = query;
+    end += sprintf(end, "SELECT id, game_t, action, outcome, (SELECT aborted FROM actions WHERE id = e.action) "
+        "FROM events AS e WHERE e.id IN (");
+    for(int i = 0; i < heap_gap_n; i++)
+        end += sprintf(end, i ? ",%d" : "%d", heap_gap_ids[i]);
+    sprintf(end, ")");
+    int added = 0;
+    ErrorCode_t result = db_heap_read(connection, query, &added, NULL, 2);
+    free(query);
+    heap_late_new += added;
+    return result;
+}
+
+/* Each real second: the pending events past those seen 10-20 real seconds
+   ago, for any that committed after a higher id was seen */
+static ErrorCode_t db_heap_sweep(DbConnection_t* connection, long long now)
+{
+    int top = heap_max_id, added = 0;
+    ErrorCode_t result = ENGINE_OK;
+    if(top > heap_wm_lag) {
+        char query[512];
+        snprintf(query, sizeof(query),
+            "SELECT id, game_t, action FROM events AS e FORCE INDEX (PRIMARY) WHERE e.id > %d AND e.id <= %d "
+            "AND e.outcome = 0 AND (SELECT aborted FROM actions WHERE id = e.action) != 1",
+            heap_wm_lag, top);
+        result = db_heap_read(connection, query, &added, NULL, 0);
+        if(result != ENGINE_OK) return result;
+        heap_late_new += added;
+        if(added)
+            ee_engine_trace(TRACE_LEVEL_ALWAYS,
+                "EVENT_HEAP: the sweep (ids %d-%d) found [%d] pending events that committed late",
+                heap_wm_lag + 1, top, added);
+    }
+    heap_swept_at = now;
+    // Ids are taken before their transaction commits: look back two steps
+    if(now - heap_wm_at >= HEAP_LAG_STEP_MS) {
+        heap_wm_lag = heap_wm_prev;
+        heap_wm_prev = heap_max_id;
+        heap_wm_at = now;
+    }
+    return ENGINE_OK;
+}
+
+/* Before a batch: loads or sweeps the heap when due, takes its due events
+   (at most batch_size) and makes the query for their rows; *query = NULL
+   when none are due (the caller frees it) */
+static ErrorCode_t db_event_heap_take_due(DbConnection_t* connection, int batch_size, char** query)
+{
+    *query = NULL;
+    heap_batch_n = 0;
+    heap_batch_scan = 0;
+    heap_batch_queried = 0;
+
+    long long now = db_heap_ms();
+    ErrorCode_t result = ENGINE_OK;
+    if(!heap_loaded)
+        result = db_heap_load_all(connection, "start");
+    else if(now - heap_reconciled_at >= HEAP_RECONCILE_MS) {
+        result = db_heap_load_all(connection, "the five-minute check");
+        heap_reconciled_at = now;
+    }
+    if(result == ENGINE_OK)
+        result = db_heap_read_gaps(connection, now);
+    if(result == ENGINE_OK)
+        result = db_heap_read_new(connection);
+    if(result == ENGINE_OK && now - heap_swept_at >= HEAP_SWEEP_MS)
+        result = db_heap_sweep(connection, now);
+    if(result != ENGINE_OK)
+        return result;
+
+    EventHeap_t* heap = event_heap_global();
+    if(now - heap_reported_at >= HEAP_REPORT_MS) {
+        ee_engine_trace(TRACE_LEVEL_ALWAYS,
+            "NOTICE: EVENT_HEAP: [%d] pending in memory; last minute: [%lld] taken, [%lld] dropped (settled or aborted "
+            "elsewhere), found not pushed by this engine: [%lld] new, [%lld] committed late, [%lld] by the five-minute check",
+            event_heap_count(heap), heap_taken_total, heap_dropped, heap_swept_new, heap_late_new, heap_reconciled_new);
+        heap_taken_total = heap_dropped = heap_swept_new = heap_late_new = heap_reconciled_new = 0;
+        heap_reported_at = now;
+    }
+
+    if(batch_size <= 0)
+        return ENGINE_OK;
+    if(heap_batch_size < batch_size) {
+        EventHeapEntry_t* b = realloc(heap_batch, sizeof(EventHeapEntry_t) * (size_t)batch_size);
+        if(b) heap_batch = b;
+        char* l = realloc(heap_batch_loaded, (size_t)batch_size);
+        if(l) heap_batch_loaded = l;
+        if(!b || !l) return ENGINE_MEMORY_ALLOC_ERROR;
+        heap_batch_size = batch_size;
+    }
+
+    // Due: the query's "game_t <= now"
+    long long due = game_time_now_seconds();
+    const EventHeapEntry_t* first;
+    while(heap_batch_n < batch_size && (first = event_heap_peek(heap)) && first->game_t <= due) {
+        event_heap_pop(heap, &heap_batch[heap_batch_n]);
+        heap_batch_loaded[heap_batch_n] = 0;
+        heap_batch_n++;
+    }
+    heap_taken_total += heap_batch_n;
+    if(!heap_batch_n)
+        return ENGINE_OK;
+
+    size_t len = 256 + (size_t)heap_batch_n * 12;
+    char* q = malloc(len);
+    if(!q) {
+        // Back they go
+        for(int i = 0; i < heap_batch_n; i++)
+            event_heap_push(heap, heap_batch[i].id, heap_batch[i].game_t, heap_batch[i].action);
+        heap_batch_n = 0;
+        return ENGINE_MEMORY_ALLOC_ERROR;
+    }
+    char* end = q;
+    end += sprintf(end, "SELECT * FROM events as e where id IN (");
+    for(int i = 0; i < heap_batch_n; i++)
+        end += sprintf(end, i ? ",%d" : "%d", heap_batch[i].id);
+    // The batch query's conditions but the due time, and its order
+    sprintf(end, ") and outcome = 0 and (select aborted from actions where id = e.action) != 1 "
+        "ORDER BY game_t ASC, action ASC, id ASC;");
+    *query = q;
+    return ENGINE_OK;
+}
+
+/* A row of this batch was read: its event was still pending */
+static void db_event_heap_loaded(int id)
+{
+    if(!event_heap_on() || !heap_batch_n) return;
+    // The rows come in the heap's order: look on from the last one found
+    for(int k = 0; k < heap_batch_n; k++) {
+        int i = (heap_batch_scan + k) % heap_batch_n;
+        if(heap_batch[i].id == id) {
+            heap_batch_loaded[i] = 1;
+            heap_batch_scan = (i + 1) % heap_batch_n;
+            return;
+        }
+    }
+}
+
+static int db_event_heap_taken(void)
+{
+    return heap_batch_n;
+}
+
+void db_event_heap_batch_done(int committed)
+{
+    if(!event_heap_on() || !heap_batch_n)
+        return;
+    EventHeap_t* heap = event_heap_global();
+    for(int i = 0; i < heap_batch_n; i++) {
+        EventHeapEntry_t* e = &heap_batch[i];
+        if(!heap_batch_loaded[i]) {
+            // Its row wasn't pending: dropped, as the query would have
+            // skipped it. Unless the read itself failed: then all go back
+            if(heap_batch_queried) { heap_dropped++; continue; }
+        } else if(committed) {
+            // Settled: done. Still pending (a passing failure): back in, as
+            // the query would read it again
+            Bool_t settled = ENGINE_FALSE;
+            if(db_event_settled_in_batch(e->id, &settled) == ENGINE_OK && settled)
+                continue;
+        }
+        event_heap_push(heap, e->id, e->game_t, e->action);
+    }
+    heap_batch_n = 0;
+}
+
 /** ****************************************************************************
 
     @brief          Gets next batch of outcome events
@@ -366,6 +747,9 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found
     DbConnection_t* connection = ee_engine_get_db_connection();
     MYSQL_RES* db_result = NULL;
     int rowsNum = 0;
+    char* heap_query = NULL;
+    const char* query = query_text;
+    query_text[0] = '\0';
 
     // always check connection is alive
     ErrorCode_t result = db_reconnect(connection);
@@ -380,31 +764,45 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found
             "Getting next batch of [%d] not processed events ...",
             events_batch_size);
 
-        snprintf(query_text,
-            DB_MAX_SQL_QUERY_LEN,
-            "SELECT * FROM events as e where game_t <= %lld and outcome = 0 and (select aborted from actions where id = e.action) != 1 ORDER BY game_t ASC, action ASC, id ASC LIMIT %d;",
-            game_time_now_seconds(),   // due in game time (#327)
-            events_batch_size);
-
-        // run it
-        if (mysql_query(connection->hndl, query_text))
+        if(event_heap_on())
         {
-            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+            // EVENT_HEAP=1 (#694 stage 4 step 3): the due events come from
+            // the heap, in this same order, and their rows by id
+            result = db_event_heap_take_due(connection, events_batch_size, &heap_query);
+            query = heap_query;
+        }
+        else
+        {
+            snprintf(query_text,
+                DB_MAX_SQL_QUERY_LEN,
+                "SELECT * FROM events as e where game_t <= %lld and outcome = 0 and (select aborted from actions where id = e.action) != 1 ORDER BY game_t ASC, action ASC, id ASC LIMIT %d;",
+                game_time_now_seconds(),   // due in game time (#327)
+                events_batch_size);
+        }
+
+        // run it (with the heap and nothing due, there is nothing to run)
+        if (result == ENGINE_OK && query && mysql_query(connection->hndl, query))
+        {
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query);
             result = ENGINE_DB_QUERY_ERROR;
         }
     }
 
-    if(result == ENGINE_OK)
+    if(result == ENGINE_OK && !query)
+    {
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "None pending event found");
+    }
+    else if(result == ENGINE_OK)
     {
         // retrieve the results and process one by one
         db_result = mysql_store_result(connection->hndl);
-        rowsNum = mysql_num_rows(db_result);
+        rowsNum = db_result ? mysql_num_rows(db_result) : 0;
 
         if(db_result == NULL)
         {
             ee_engine_trace(TRACE_LEVEL_ALWAYS,
                 "ERROR: Unable to get outcome events (invalid result for query [%s])",
-                query_text);
+                query);
 
             result = ENGINE_DB_QUERY_ERROR;
         }
@@ -426,6 +824,7 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found
             {
                 Event_t event;
                 db_row_to_event(row, &event);
+                db_event_heap_loaded(event.event_id);
 
                 // Invoke callback when != NULL
                 if(outcomeEventCb) outcomeEventCb(&event);
@@ -435,7 +834,7 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found
                 // unexpected error - abort
                 ee_engine_trace(TRACE_LEVEL_ALWAYS,
                     "ERROR: Unable to get row for query [%s] with [%d] rows",
-                    query_text,
+                    query,
                     rowsNum);
 
                 result = ENGINE_DB_QUERY_ERROR;
@@ -447,9 +846,16 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found
 
     if(db_result)
         mysql_free_result(db_result);
+    // Every row of the batch read: the events taken but not read weren't
+    // pending, and are dropped (db_event_heap_batch_done)
+    if(heap_query && result == ENGINE_OK)
+        heap_batch_queried = 1;
+    free(heap_query);
 
+    // With the heap, the events taken from it: a full batch means more may
+    // be due, as a full LIMIT did
     if(found)
-        *found = (result == ENGINE_OK) ? rowsNum : 0;
+        *found = (result == ENGINE_OK) ? (event_heap_on() ? db_event_heap_taken() : rowsNum) : 0;
 
     return result;
 }
@@ -2370,6 +2776,9 @@ ErrorCode_t db_insert_event_e(Event_t* event)
             return ENGINE_INTERNAL_ERROR;
     }
 
+    // When it happens, in game time: the heap needs the same value (EVENT_HEAP)
+    long long game_t = game_time_now_seconds() + event->delay;
+
     char* query_end = query_text;
 
     query_end += snprintf(query_end,
@@ -2383,7 +2792,7 @@ ErrorCode_t db_insert_event_e(Event_t* event)
         event->new_transmission!=NULL_VALUE?", new_transmission":"",
         event->new_cargo!=NULL_VALUE?", new_cargo":"",
         game_time_to_real(event->delay), // delay is game seconds; real time for the website
-        game_time_now_seconds() + event->delay, // when it happens, in game time
+        game_t, // when it happens, in game time
         event->event_type,
         event->action_id,
         event->logged,
@@ -2423,6 +2832,11 @@ ErrorCode_t db_insert_event_e(Event_t* event)
 
         // Get auto-increment ID
         event->event_id = mysql_insert_id(connection->hndl);
+
+        // EVENT_HEAP (#694 stage 4 step 3): a pending event goes into the
+        // heap when this connection commits
+        if(event->outcome == 0)
+            event_heap_stage(connection, event->event_id, game_t, event->action_id);
 
         ee_engine_trace(TRACE_LEVEL_ALWAYS,
             "Event [%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d] inserted into DB",

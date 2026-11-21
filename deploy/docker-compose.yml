@@ -44,6 +44,12 @@ x-engine-env: &engine-env
   # of its own, and the events-engine service rest. 0 (the default): the
   # events engine settles, as before. To roll back: 0, then up -d
   EVENTS_IN_ENGINE: ${EVENTS_IN_ENGINE:-0}
+  # Due events from memory (#694 stage 4 step 3): with EVENTS_IN_ENGINE=1,
+  # 1 makes settlement take due events from a heap in the game engine's
+  # memory instead of asking MySQL each pass (the batch query). Needs
+  # EVENTS_IN_ENGINE=1 (else it logs a NOTICE and stays off). 0 (the
+  # default): as before. To roll back: 0, then up -d
+  EVENT_HEAP: ${EVENT_HEAP:-0}
   # No email (#367 step 5): drones' replies go to drone_messages, which the
   # website shows
   EMAIL_ENABLED: "0"

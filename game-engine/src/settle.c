@@ -49,6 +49,7 @@
 #include "ee_embed.h"
 #include "settle.h"
 #include "settle_clock.h"
+#include "event_heap.h"
 
 /* How often to try for the events engine's lock while another holds it */
 #define SETTLE_CLAIM_EVERY_SECONDS 5
@@ -67,8 +68,14 @@ static long long settle_now_ms(void)
 
 void settle_init(const char* plat_home, TraceHndl_t trace)
 {
-    if(!settle_flag_on())
+    if(!settle_flag_on()) {
+        // The heap of due events (#694 stage 4 step 3) only works where
+        // settlement and the turns share a program
+        if(event_heap_flag_on() && engine_shard() == 0)
+            engine_trace(TRACE_LEVEL_ALWAYS,
+                "NOTICE: EVENT_HEAP=1 needs EVENTS_IN_ENGINE=1: the heap stays off, and due events come from MySQL");
         return;
+    }
     // One settler: shard 0's game engine (#433: it does the shared work)
     if(engine_shard() != 0) {
         engine_trace(TRACE_LEVEL_ALWAYS, "NOTICE: EVENTS_IN_ENGINE=1: shard 0 settles events, not this shard");
@@ -81,6 +88,14 @@ void settle_init(const char* plat_home, TraceHndl_t trace)
         return;
     }
     g_on = 1;
+    // Due events from memory (#694 stage 4 step 3, #432): loaded at the
+    // first pass, fed by this engine's inserts as they commit and by a
+    // sweep for everyone else's (db_e.c)
+    if(event_heap_flag_on()) {
+        event_heap_enable();
+        engine_trace(TRACE_LEVEL_ALWAYS,
+            "NOTICE: EVENT_HEAP=1: settlement takes due events from a heap in memory, not the batch query");
+    }
     g_clock.interval_ms = SETTLE_INTERVAL_MS;
     g_clock.batch = engine_get_outcome_events_batch_size();
     engine_trace(TRACE_LEVEL_ALWAYS,

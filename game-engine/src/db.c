@@ -15,6 +15,7 @@
 #include <math.h>
 
 #include "db.h"
+#include "event_heap.h"
 #include "db_e.h"
 #include "ee_embed.h"
 #include "static_cache.h"
@@ -1578,10 +1579,14 @@ ErrorCode_t db_commit_transaction(DbConnection_t* connection)
     {
         engine_trace(TRACE_LEVEL_ALWAYS,"ERROR: Could not commit DB transaction");
         result = ENGINE_DB_QUERY_ERROR;
+        event_heap_stage_discard(connection);   // EVENT_HEAP: never seen
     }
     else
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "DB transaction commit");
+        // EVENT_HEAP (#694 stage 4 step 3): the turn's events are pending
+        // for everyone now, so they go into the heap
+        event_heap_stage_commit(connection);
     }
 
     return result;
@@ -1611,6 +1616,8 @@ ErrorCode_t db_rollback_transaction(DbConnection_t* connection)
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "DB transaction rollback");
     }
+
+    event_heap_stage_discard(connection);   // EVENT_HEAP: these never were
 
     return result;
 }
@@ -2745,6 +2752,9 @@ ErrorCode_t db_insert_event(Event_t* event)
             return ENGINE_INTERNAL_ERROR;
     }
 
+    // When it happens, in game time: the heap needs the same value (EVENT_HEAP)
+    long long game_t = game_time_now_seconds() + event->delay;
+
     char* query_end = query_text;
 
     query_end += snprintf(query_end,
@@ -2758,7 +2768,7 @@ ErrorCode_t db_insert_event(Event_t* event)
         event->new_transmission!=NULL_VALUE?", new_transmission":"",
         event->new_cargo!=NULL_VALUE?", new_cargo":"",
         game_time_to_real(event->delay), // delay is game seconds; real time for the website
-        game_time_now_seconds() + event->delay, // when it happens, in game time
+        game_t, // when it happens, in game time
         event->event_type,
         event->action_id,
         event->logged,
@@ -2798,6 +2808,11 @@ ErrorCode_t db_insert_event(Event_t* event)
 
         // Get auto-increment ID
         event->event_id = mysql_insert_id(connection->hndl);
+
+        // EVENT_HEAP (#694 stage 4 step 3): a pending event goes into the
+        // heap when this connection commits
+        if(event->outcome == 0)
+            event_heap_stage(connection, event->event_id, game_t, event->action_id);
 
         engine_trace(TRACE_LEVEL_ALWAYS,
             "Event [%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d] inserted into DB",
