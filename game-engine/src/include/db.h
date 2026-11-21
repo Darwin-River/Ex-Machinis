@@ -564,6 +564,14 @@ ErrorCode_t db_delete_event(Event_t* event);
    game time of the oldest event that is due and not done */
 ErrorCode_t db_load_backlog(DbConnection_t* connection, long* runnable, double* oldest_event_game_t, int* has_event);
 
+/* The conditions of the commands that may run at game time now, for
+   "FROM commands c LEFT JOIN agents a" (all_shards 0: this shard's only) */
+void db_runnable_where_at(char *where, size_t length, int all_shards, long long now);
+
+/* WAKE_HEAP=1 (#694 stage 4 step 4, db_wake.c): fills ids with at most max
+   commands that may run now, in the batch queries' order, from memory */
+ErrorCode_t db_wake_fill(DbConnection_t* connection, long long now, int* ids, int max, int* count);
+
 /* Records the last load check in game_clock, for the website */
 ErrorCode_t db_record_load(DbConnection_t* connection, double target, double floor, double lag,
                            long slices_per_minute, int full, long long checked_at);

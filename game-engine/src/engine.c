@@ -27,6 +27,7 @@
 #include "vm_meter.h"
 #include "lua_drone.h"
 #include "crash.h"
+#include "wake_heap.h"
 #include "db_launch.h"
 #include "protocol.h"
 #include "config.h"
@@ -1029,6 +1030,16 @@ ErrorCode_t engine_init(int argc, char** argv)
     	settle_init(engine.plat_home, engine.trace_hndl);
     }
 
+    // Drone wakes from memory, with WAKE_HEAP=1 (#694 stage 4 step 4, #432):
+    // this shard's commands, loaded at the first batch (db_wake.c)
+    if(engine.error == ENGINE_OK && wake_heap_flag_on())
+    {
+        wake_heap_enable(engine_shards(), engine_shard());
+        engine_trace(TRACE_LEVEL_ALWAYS,
+            "NOTICE: WAKE_HEAP=1: this game engine keeps its drones' commands in memory and takes the next "
+            "to run from there, not from the batch queries");
+    }
+
     // stop-all when error
     if(engine.error != ENGINE_OK)
     {
@@ -1378,6 +1389,9 @@ ErrorCode_t engine_run()
         // Delete command always to avoid spam when error
         if(engine.last_command.code[0]) {
             result = db_delete_command(&engine.db_connection, &engine.last_command);
+            // WAKE_HEAP (#694 stage 4 step 4): the drone's turn may have
+            // ended what its other commands waited for: look at them again
+            wake_heap_stage_turned(&engine.db_connection, engine.last_command.agent_id);
         }
 
         // What the turn changed in the drone's row, in one statement

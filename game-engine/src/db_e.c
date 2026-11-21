@@ -22,6 +22,7 @@
 #include "trace.h"
 #include "engine_e.h"
 #include "event_heap.h"
+#include "wake_heap.h"
 
 /******************************* DEFINES *************************************/
 
@@ -282,6 +283,7 @@ ErrorCode_t ee_db_commit_transaction(DbConnection_t* connection)
         ee_engine_trace(TRACE_LEVEL_ALWAYS,"ERROR: Could not commit DB transaction");
         result = ENGINE_DB_QUERY_ERROR;
         event_heap_stage_discard(connection);   // EVENT_HEAP: never seen
+        wake_heap_stage_discard(connection);    // WAKE_HEAP: the same
     }
     else
     {
@@ -289,6 +291,8 @@ ErrorCode_t ee_db_commit_transaction(DbConnection_t* connection)
         // EVENT_HEAP (#694 stage 4 step 3): the events this transaction
         // inserted are pending for everyone now
         event_heap_stage_commit(connection);
+        // WAKE_HEAP (step 4): a launched drone's first command too
+        wake_heap_stage_commit(connection);
     }
 
     return result;
@@ -320,6 +324,7 @@ ErrorCode_t ee_db_rollback_transaction(DbConnection_t* connection)
     }
 
     event_heap_stage_discard(connection);   // EVENT_HEAP: these never were
+    wake_heap_stage_discard(connection);    // WAKE_HEAP: the same
 
     return result;
 }
@@ -3061,11 +3066,16 @@ ErrorCode_t db_launch_drone(int launcher_id, int source_id, int hull_id, int* ne
     // Already on board: no light delay before it runs
     if(result == ENGINE_OK)
     {
+        long long now = game_time_now_seconds();
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
             "INSERT INTO commands (code, agent_id, created_at, updated_at, subject, email_content, deliver_at) "
             "VALUES ('%s', %d, NOW(), NOW(), 'Launched', '', %lld)",
-            META_COMMAND_LAUNCHED, *new_id, game_time_now_seconds());
+            META_COMMAND_LAUNCHED, *new_id, now);
         result = db_launch_exec(connection, query_text);
+        // WAKE_HEAP (#694 stage 4 step 4): into memory when settlement
+        // commits, if the new drone is this shard's (off in bin/events-engine)
+        if(result == ENGINE_OK)
+            wake_heap_stage_put(connection, (int)mysql_insert_id(connection->hndl), *new_id, now, WAKE_UNKNOWN_DRONE);
     }
 
     if(result == ENGINE_OK)

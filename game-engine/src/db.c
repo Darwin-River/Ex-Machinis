@@ -16,6 +16,7 @@
 
 #include "db.h"
 #include "event_heap.h"
+#include "wake_heap.h"
 #include "db_e.h"
 #include "ee_embed.h"
 #include "static_cache.h"
@@ -301,8 +302,9 @@ void db_stop(DbConnection_t* connection)
     @return         Execution result
 
 *******************************************************************************/
-/* The commands that may run now (FROM commands c LEFT JOIN agents a) */
-static void db_runnable_where_for(char *where, size_t length, int all_shards)
+/* The commands that may run now (FROM commands c LEFT JOIN agents a), at
+   game time now */
+void db_runnable_where_at(char *where, size_t length, int all_shards, long long now)
 {
     // Several game engines (#433): each takes its share of the drones
     char shard[64] = "";
@@ -325,11 +327,16 @@ static void db_runnable_where_for(char *where, size_t length, int all_shards)
         "  AND EXISTS (SELECT 1 FROM commands r "
         "  WHERE r.agent_id = c.agent_id AND r.id <> c.id AND r.code LIKE '%s%%'))",
         shard,
-        game_time_now_seconds(),
+        now,
         engine_get_vm_resume_command(),
         META_COMMAND_LAUNCHED,
         engine_get_vm_resume_command(),
         engine_get_vm_resume_command());
+}
+
+static void db_runnable_where_for(char *where, size_t length, int all_shards)
+{
+    db_runnable_where_at(where, length, all_shards, game_time_now_seconds());
 }
 
 /* The commands this engine may run now (its shard's) */
@@ -457,15 +464,12 @@ static ErrorCode_t db_add_to_command_batch(DbConnection_t* connection, const cha
    is still loading, then the rest by id. Two
    queries that each stop at the batch size (#454): one sorting every due
    command, about one per drone, took 25 ms on a 3,000-ship world */
-static ErrorCode_t db_fill_command_batch(DbConnection_t* connection)
+static ErrorCode_t db_fill_command_batch_sql(DbConnection_t* connection, long long now)
 {
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
     char where[1024];
 
-    g_command_batch_count = 0;
-    g_command_batch_next = 0;
-    g_command_batch_at = time(NULL);
-    db_runnable_where(where, sizeof(where));
+    db_runnable_where_at(where, sizeof(where), 0, now);
 
     // The House's station drones first (#633): they keep the exchanges
     // stocked, and behind 695 player drones on a slowed clock each of their
@@ -496,6 +500,20 @@ static ErrorCode_t db_fill_command_batch(DbConnection_t* connection)
         result = db_add_to_command_batch(connection, query_text);
     }
     return result;
+}
+
+static ErrorCode_t db_fill_command_batch(DbConnection_t* connection)
+{
+    g_command_batch_count = 0;
+    g_command_batch_next = 0;
+    g_command_batch_at = time(NULL);
+    long long now = game_time_now_seconds();
+
+    // WAKE_HEAP=1 (#694 stage 4 step 4, #432): the same batch, in the same
+    // order, from the commands kept in memory (db_wake.c)
+    if(wake_heap_on())
+        return db_wake_fill(connection, now, g_command_batch, COMMAND_BATCH_SIZE, &g_command_batch_count);
+    return db_fill_command_batch_sql(connection, now);
 }
 
 ErrorCode_t db_get_next_command(DbConnection_t* connection, Command_t* command)
@@ -627,6 +645,7 @@ ErrorCode_t db_insert_command(DbConnection_t* connection, Command_t* command)
     // stamped instead of waiting for the stamping pass (#431 step 1)
     const char* resume = engine_get_vm_resume_command();
     int stamped = resume && strncmp(command->code, resume, strlen(resume)) == 0;
+    long long deliver_at = game_time_now_seconds();
 
     query_end += snprintf(query_end,
         QUERY_LEFT,
@@ -645,7 +664,7 @@ ErrorCode_t db_insert_command(DbConnection_t* connection, Command_t* command)
 
     query_end += mysql_real_escape_string(connection->hndl, query_end, command->email_content, content_len);
     if(stamped)
-        query_end += snprintf(query_end, QUERY_LEFT, "', %lld)", game_time_now_seconds());
+        query_end += snprintf(query_end, QUERY_LEFT, "', %lld)", deliver_at);
     else
         query_end += snprintf(query_end, QUERY_LEFT, "', NULL)");
 #undef QUERY_LEFT
@@ -660,6 +679,13 @@ ErrorCode_t db_insert_command(DbConnection_t* connection, Command_t* command)
     {
         engine_trace(TRACE_LEVEL_ALWAYS,
             "Command [%s] inserted into DB", command->code);
+        // WAKE_HEAP (#694 stage 4 step 4): in memory once this commits. A
+        // resume is its drone's: its tier is that of the command running
+        if(wake_heap_on()) {
+            unsigned int flags = wake_heap_drone_flags(wake_heap_global(), command->command_id, command->agent_id);
+            wake_heap_stage_put(connection, (int)mysql_insert_id(connection->hndl), command->agent_id,
+                stamped ? deliver_at : WAKE_UNSTAMPED, flags | (stamped ? WAKE_RESUME : 0));
+        }
     }
 
     engine_free(query_text, query_size);
@@ -705,6 +731,7 @@ ErrorCode_t db_delete_command(DbConnection_t* connection, Command_t* command)
     {
         engine_trace(TRACE_LEVEL_ALWAYS,
             "Command [%d] deleted from DB", command->command_id);
+        wake_heap_stage_remove(connection, command->command_id);   // WAKE_HEAP: at commit
     }
 
 
@@ -731,6 +758,7 @@ ErrorCode_t db_delay_resume_commands(DbConnection_t* connection, int agent_id, l
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
     }
+    wake_heap_stage_delay_resumes(connection, agent_id, seconds);   // WAKE_HEAP: at commit
     return ENGINE_OK;
 }
 
@@ -758,6 +786,7 @@ ErrorCode_t db_delete_resume_commands(DbConnection_t* connection, int agent_id)
         {
             engine_trace(TRACE_LEVEL_ALWAYS,
                 "Resume commands for agent [%d] deleted from DB", agent_id);
+            wake_heap_stage_remove_resumes(connection, agent_id);   // WAKE_HEAP: at commit
         }
     }
 
@@ -1580,6 +1609,7 @@ ErrorCode_t db_commit_transaction(DbConnection_t* connection)
         engine_trace(TRACE_LEVEL_ALWAYS,"ERROR: Could not commit DB transaction");
         result = ENGINE_DB_QUERY_ERROR;
         event_heap_stage_discard(connection);   // EVENT_HEAP: never seen
+        wake_heap_stage_discard(connection);    // WAKE_HEAP: the same
     }
     else
     {
@@ -1587,6 +1617,8 @@ ErrorCode_t db_commit_transaction(DbConnection_t* connection)
         // EVENT_HEAP (#694 stage 4 step 3): the turn's events are pending
         // for everyone now, so they go into the heap
         event_heap_stage_commit(connection);
+        // WAKE_HEAP (step 4): and what it did to commands into memory
+        wake_heap_stage_commit(connection);
     }
 
     return result;
@@ -1618,6 +1650,7 @@ ErrorCode_t db_rollback_transaction(DbConnection_t* connection)
     }
 
     event_heap_stage_discard(connection);   // EVENT_HEAP: these never were
+    wake_heap_stage_discard(connection);    // WAKE_HEAP: the same
 
     return result;
 }
@@ -3986,13 +4019,25 @@ ErrorCode_t db_set_command_delivery(DbConnection_t* connection, int command_id, 
     if(result != ENGINE_OK)
         return result;
 
+    long long deliver_at = game_time_now_seconds() + delay;
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "UPDATE commands SET deliver_at = %lld WHERE id = %d", game_time_now_seconds() + delay, command_id);
+        "UPDATE commands SET deliver_at = %lld WHERE id = %d", deliver_at, command_id);
 
     if(mysql_query(connection->hndl, query_text))
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         result = ENGINE_DB_QUERY_ERROR;
+    }
+    else if(wake_heap_on())
+    {
+        // WAKE_HEAP (#694 stage 4 step 4): stamping runs between turns,
+        // outside a transaction, so this is everyone's now. Another shard's
+        // command isn't in this memory: that shard looks it up itself
+        WakeEntry_t* e = wake_heap_find(wake_heap_global(), command_id);
+        if(e) {
+            e->deliver_at = deliver_at;
+            wake_heap_to_waiting(wake_heap_global(), e, deliver_at, 0);
+        }
     }
 
     return result;
